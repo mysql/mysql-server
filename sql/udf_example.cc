@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2002 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,13 @@
 #ifdef STANDARD
 #include <stdio.h>
 #include <string.h>
+#ifdef __WIN__
+typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
+typedef __int64 longlong;
+#else
+typedef unsigned long long ulonglong;
+typedef long long longlong;
+#endif /*__WIN__*/
 #else
 #include <my_global.h>
 #include <my_sys.h>
@@ -135,7 +142,7 @@ longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		    char *error);
 my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
  void sequence_deinit(UDF_INIT *initid);
-long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		   char *error);
 my_bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
 void avgcost_deinit( UDF_INIT* initid );
@@ -558,10 +565,10 @@ double myfunc_double(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 
 /* This function returns the sum of all arguments */
 
-long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		     char *error)
 {
-  long long val = 0;
+  longlong val = 0;
   for (uint i = 0; i < args->arg_count; i++)
   {
     if (args->args[i] == NULL)
@@ -571,10 +578,10 @@ long long myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
       val += args->lengths[i];
       break;
     case INT_RESULT:			// Add numbers
-      val += *((long long*) args->args[i]);
+      val += *((longlong*) args->args[i]);
       break;
-    case REAL_RESULT:			// Add numers as long long
-      val += (long long) *((double*) args->args[i]);
+    case REAL_RESULT:			// Add numers as longlong
+      val += (longlong) *((double*) args->args[i]);
       break;
     }
   }
@@ -617,12 +624,12 @@ void sequence_deinit(UDF_INIT *initid)
     free(initid->ptr);
 }
 
-long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
+longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		   char *error)
 {
   ulonglong val=0;
   if (args->arg_count)
-    val= *((long long*) args->args[0]);
+    val= *((longlong*) args->args[0]);
   return ++ *((longlong*) initid->ptr) + val;
 }
 
@@ -743,10 +750,10 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
       return 0;
     }
     sprintf(result,"%d.%d.%d.%d",
-	    (int) *((long long*) args->args[0]),
-	    (int) *((long long*) args->args[1]),
-	    (int) *((long long*) args->args[2]),
-	    (int) *((long long*) args->args[3]));
+	    (int) *((longlong*) args->args[0]),
+	    (int) *((longlong*) args->args[1]),
+	    (int) *((longlong*) args->args[2]),
+	    (int) *((longlong*) args->args[3]));
   }
   else
   {						// string argument
@@ -795,9 +802,9 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
 struct avgcost_data
 {
-  unsigned long long count;
-  long long	totalquantity;
-  double		totalprice;
+  ulonglong	count;
+  longlong	totalquantity;
+  double	totalprice;
 };
 
 
@@ -871,8 +878,8 @@ avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* message )
   if (args->args[0] && args->args[1])
   {
     struct avgcost_data* data	= (struct avgcost_data*)initid->ptr;
-    long long quantity		= *((long long*)args->args[0]);
-    long long newquantity	= data->totalquantity + quantity;
+    longlong quantity		= *((longlong*)args->args[0]);
+    longlong newquantity	= data->totalquantity + quantity;
     double price		= *((double*)args->args[1]);
 
     data->count++;
