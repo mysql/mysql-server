@@ -171,12 +171,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
-  /* Prepared statements */
-  last_prepared_stmt= 0;
-  init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
-	    (qsort_cmp2) compare_prep_stmt, 1,
-	    (tree_element_free) free_prep_stmt, 0);
-
   /* Protocol */
   protocol= &protocol_simple;			// Default protocol
   protocol_simple.init(this);
@@ -269,7 +263,6 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
   ha_rollback(this);
-  delete_tree(&prepared_statements);
   if (locked_tables)
   {
     lock=locked_tables; locked_tables=0;
@@ -339,9 +332,9 @@ THD::~THD()
     safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&warn_root, MYF(0));
-  free_root(&transaction.mem_root, MYF(0));
-  mysys_var= 0;					// Safety (shouldn't be needed)
+  free_root(&warn_root,MYF(0));
+  free_root(&transaction.mem_root,MYF(0));
+  mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -1200,6 +1193,100 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   return 0;
 }
 
+
+/*
+  Statement functions 
+*/
+
+Statement::Statement(THD *thd)
+  :id(++thd->statement_id_counter),
+  query_id(thd->query_id),
+  set_query_id(1),
+  allow_sum_func(0),
+  command(thd->command),
+  lex(&main_lex),
+  query(0),
+  query_length(0),
+  free_list(0)
+{
+  init_sql_alloc(&mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
+}
+
+/*
+  This constructor is called when statement is a subobject of THD:
+  Some variables are initialized in THD::init due to locking problems
+  This statement object will be used to 
+*/
+
+Statement::Statement()
+  :id(0),
+  query_id(0),                                  /* initialized later */
+  set_query_id(1),
+  allow_sum_func(0),                            /* initialized later */
+  command(COM_SLEEP),                           /* initialized later */ 
+  lex(&main_lex),
+  query(0),                                     /* these two are set */ 
+  query_length(0),                              /* in alloc_query() */
+  free_list(0)
+{
+  bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Statement::Type Statement::type() const
+{
+  return STATEMENT;
+}
+
+
+void Statement::set_statement(Statement *stmt)
+{
+  id=             stmt->id;
+  query_id=       stmt->query_id;
+  set_query_id=   stmt->set_query_id;
+  allow_sum_func= stmt->allow_sum_func;
+  command=        stmt->command;
+  lex=            stmt->lex;
+  query=          stmt->query;
+  query_length=   stmt->query_length;
+  free_list=      stmt->free_list;
+  mem_root=       stmt->mem_root;
+}
+
+
+Statement::~Statement()
+{
+  free_root(&mem_root, MYF(0));
+}
+
+C_MODE_START
+
+static byte *
+get_statement_id_as_hash_key(const byte *record, uint *key_length,
+                             my_bool not_used __attribute__((unused)))
+{
+  const Statement *statement= (const Statement *) record; 
+  *key_length= sizeof(statement->id);
+  return (byte *) &((const Statement *) statement)->id;
+}
+
+static void delete_statement_as_hash_key(void *key)
+{
+  delete (Statement *) key;
+}
+
+C_MODE_END
+
+Statement_map::Statement_map() :
+  last_found_statement(0)
+{
+  enum { START_HASH_SIZE = 16 };
+  hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
+            get_statement_id_as_hash_key,
+            delete_statement_as_hash_key, MYF(0));
+}
 
 bool select_dumpvar::send_data(List<Item> &items)
 {

@@ -196,7 +196,8 @@ dfield_check_typed_no_assert(
 
 		fprintf(stderr,
 "InnoDB: Error: data field type %lu, len %lu\n",
-			dfield_get_type(field)->mtype, dfield_get_len(field));
+			(ulong) dfield_get_type(field)->mtype,
+			(ulong) dfield_get_len(field));
 		return(FALSE);
 	}
 
@@ -219,7 +220,7 @@ dtuple_check_typed_no_assert(
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
 		fprintf(stderr,
 "InnoDB: Error: index entry has %lu fields\n",
-			dtuple_get_n_fields(tuple));
+			(ulong) dtuple_get_n_fields(tuple));
 
 		dtuple_sprintf(err_buf, 900, tuple);
 		fprintf(stderr,
@@ -259,7 +260,8 @@ dfield_check_typed(
 
 		fprintf(stderr,
 "InnoDB: Error: data field type %lu, len %lu\n",
-			dfield_get_type(field)->mtype, dfield_get_len(field));
+			(ulong) dfield_get_type(field)->mtype,
+			(ulong) dfield_get_len(field));
 
 		ut_a(0);
 	}
@@ -433,7 +435,7 @@ dfield_print_also_hex(
 		data = dfield_get_data(dfield);
 		
 		for (i = 0; i < len; i++) {
-			printf("%02lx", (ulint)*data);
+			printf("%02lx", (ulong)*data);
 
 			data++;
 		}
@@ -459,10 +461,10 @@ dtuple_print(
 
 	n_fields = dtuple_get_n_fields(tuple);
 
-	printf("DATA TUPLE: %lu fields;\n", n_fields);
+	printf("DATA TUPLE: %lu fields;\n", (ulong) n_fields);
 
 	for (i = 0; i < n_fields; i++) {
-		printf(" %lu:", i);	
+		printf(" %lu:", (ulong) i);
 
 		field = dtuple_get_nth_field(tuple, i);
 		
@@ -506,7 +508,7 @@ dtuple_sprintf(
 			return(len);
 		}
 
-		len += sprintf(buf + len, " %lu:", i);	
+		len += sprintf(buf + len, " %lu:", (ulong) i);
 
 		field = dtuple_get_nth_field(tuple, i);
 		
@@ -567,7 +569,7 @@ dtuple_convert_big_rec(
 
 	if (size > 1000000000) {
 		fprintf(stderr,
-"InnoDB: Warning: tuple size very big: %lu\n", size);
+"InnoDB: Warning: tuple size very big: %lu\n", (ulong) size);
 		
 		dtuple_sprintf(err_buf, 900, entry);
 		fprintf(stderr,

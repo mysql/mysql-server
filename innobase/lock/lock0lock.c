@@ -548,10 +548,10 @@ lock_check_trx_id_sanity(
 "InnoDB: is %lu %lu which is higher than the global trx id counter %lu %lu!\n"
 "InnoDB: The table is corrupt. You have to do dump + drop + reimport.\n",
 			       err_buf, index->table_name, index->name,
-			       ut_dulint_get_high(trx_id),
-			       ut_dulint_get_low(trx_id),
-			       ut_dulint_get_high(trx_sys->max_trx_id),
-			       ut_dulint_get_low(trx_sys->max_trx_id));
+			       (ulong) ut_dulint_get_high(trx_id),
+			       (ulong) ut_dulint_get_low(trx_id),
+			       (ulong) ut_dulint_get_high(trx_sys->max_trx_id),
+			       (ulong) ut_dulint_get_low(trx_sys->max_trx_id));
 
 		is_ok = FALSE;
 	}
@@ -1802,7 +1802,8 @@ index->table_name);
 
 	if (lock_print_waits) {
 		printf("Lock wait for trx %lu in index %s\n",
-				ut_dulint_get_low(trx->id), index->name);
+		       (ulong) ut_dulint_get_low(trx->id),
+		       index->name);
 	}
 	
 	return(DB_LOCK_WAIT);	
@@ -2129,7 +2130,7 @@ lock_grant(
 
 	if (lock_print_waits) {
 		printf("Lock wait for trx %lu ends\n",
-					ut_dulint_get_low(lock->trx->id));
+		       (ulong) ut_dulint_get_low(lock->trx->id));
 	}
 
 	/* If we are resolving a deadlock by choosing another transaction
@@ -3814,7 +3815,7 @@ lock_table_print(
 
 	buf += sprintf(buf, "TABLE LOCK table %s trx id %lu %lu",
 		lock->un_member.tab_lock.table->name,
-		(lock->trx)->id.high, (lock->trx)->id.low);
+		(ulong) (lock->trx)->id.high, (ulong) (lock->trx)->id.low);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		buf += sprintf(buf, " lock mode S");
@@ -3828,7 +3829,7 @@ lock_table_print(
 		buf += sprintf(buf, " lock_mode AUTO-INC");
 	} else {
 		buf += sprintf(buf,
-			" unknown lock_mode %lu", lock_get_mode(lock));
+			" unknown lock_mode %lu", (ulong) lock_get_mode(lock));
 	}
 
 	if (lock_get_wait(lock)) {
@@ -3863,11 +3864,13 @@ lock_rec_print(
  	page_no = lock->un_member.rec_lock.page_no;
 
 	buf += sprintf(buf, "RECORD LOCKS space id %lu page no %lu n bits %lu",
-		    space, page_no, lock_rec_get_n_bits(lock));
+		       (ulong) space, (ulong) page_no,
+		       (ulong) lock_rec_get_n_bits(lock));
 
 	buf += sprintf(buf, " table %s index %s trx id %lu %lu",
-		lock->index->table->name, lock->index->name,
-		(lock->trx)->id.high, (lock->trx)->id.low);
+		       lock->index->table->name, lock->index->name,
+		       (ulong) (lock->trx)->id.high,
+		       (ulong) (lock->trx)->id.low);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		buf += sprintf(buf, " lock mode S");
@@ -3935,7 +3938,8 @@ lock_rec_print(
 	
 		if (lock_rec_get_nth_bit(lock, i)) {
 
-			buf += sprintf(buf, "Record lock, heap no %lu ", i);
+			buf += sprintf(buf, "Record lock, heap no %lu ",
+				       (ulong) i);
 
 			if (page) {
 				buf += rec_sprintf(buf, 120,
@@ -4038,19 +4042,19 @@ lock_print_info(
 "------------\n");
 
 	buf += sprintf(buf, "Trx id counter %lu %lu\n", 
-		ut_dulint_get_high(trx_sys->max_trx_id),
-		ut_dulint_get_low(trx_sys->max_trx_id));
+		       (ulong) ut_dulint_get_high(trx_sys->max_trx_id),
+		       (ulong) ut_dulint_get_low(trx_sys->max_trx_id));
 
 	buf += sprintf(buf,
 	"Purge done for trx's n:o < %lu %lu undo n:o < %lu %lu\n",
-		ut_dulint_get_high(purge_sys->purge_trx_no),
-		ut_dulint_get_low(purge_sys->purge_trx_no),
-		ut_dulint_get_high(purge_sys->purge_undo_no),
-		ut_dulint_get_low(purge_sys->purge_undo_no));
+		(ulong) ut_dulint_get_high(purge_sys->purge_trx_no),
+		(ulong) ut_dulint_get_low(purge_sys->purge_trx_no),
+		(ulong) ut_dulint_get_high(purge_sys->purge_undo_no),
+		(ulong) ut_dulint_get_low(purge_sys->purge_undo_no));
 
 	buf += sprintf(buf,
 		"Total number of lock structs in row lock hash table %lu\n",
-						lock_get_n_rec_locks());
+					 (ulong) lock_get_n_rec_locks());
 
 	buf += sprintf(buf, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
@@ -4122,16 +4126,16 @@ loop:
 	        if (trx->read_view) {
 	  	        buf += sprintf(buf,
        "Trx read view will not see trx with id >= %lu %lu, sees < %lu %lu\n",
-		       	ut_dulint_get_high(trx->read_view->low_limit_id),
-       			ut_dulint_get_low(trx->read_view->low_limit_id),
-       			ut_dulint_get_high(trx->read_view->up_limit_id),
-       			ut_dulint_get_low(trx->read_view->up_limit_id));
+		      (ulong) ut_dulint_get_high(trx->read_view->low_limit_id),
+       		      (ulong) ut_dulint_get_low(trx->read_view->low_limit_id),
+       		      (ulong) ut_dulint_get_high(trx->read_view->up_limit_id),
+       		      (ulong) ut_dulint_get_low(trx->read_view->up_limit_id));
 	        }
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			buf += sprintf(buf,
  "------- TRX HAS BEEN WAITING %lu SEC FOR THIS LOCK TO BE GRANTED:\n",
-		   (ulint)difftime(time(NULL), trx->wait_started));
+		   (ulong)difftime(time(NULL), trx->wait_started));
 
 			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
 				lock_rec_print(buf, trx->wait_lock);
@@ -4422,7 +4426,8 @@ loop:
 			index = lock->index;
 			rec = page_find_rec_with_heap_no(page, i);
 
-			printf("Validating %lu %lu\n", space, page_no);
+			printf("Validating %lu %lu\n", (ulong) space,
+			       (ulong) page_no);
 
 			lock_mutex_exit_kernel();
 

@@ -2641,7 +2641,7 @@ mysql_execute_command(THD *thd)
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     res = mysql_delete(thd,tables, select_lex->where,
-                       (ORDER*) select_lex->order_list.first,
+                       &select_lex->order_list,
                        select_lex->select_limit, select_lex->options);
     if (thd->net.report_error)
       res= -1;

@@ -107,7 +107,7 @@ rec_get_nth_field(
 
 	if (n > 1024) {
 		fprintf(stderr, "Error: trying to access field %lu in rec\n",
-									n);
+								(ulong) n);
 		ut_a(0);
 	}
 
@@ -474,7 +474,7 @@ rec_validate(
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
 		fprintf(stderr, "InnoDB: Error: record has %lu fields\n",
-								n_fields);
+							(ulong) n_fields);
 		return(FALSE);
 	}
 	
@@ -483,8 +483,8 @@ rec_validate(
 		
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
-			"InnoDB: Error: record field %lu len %lu\n", i,
-								len);
+			"InnoDB: Error: record field %lu len %lu\n", (ulong) i,
+							(ulong) len);
 			return(FALSE);
 		}	
 
@@ -502,7 +502,8 @@ rec_validate(
 	if (len_sum != (ulint)(rec_get_end(rec) - rec)) {
 		fprintf(stderr,
 		"InnoDB: Error: record len should be %lu, len %lu\n",
-				len_sum, (ulint)(rec_get_end(rec) - rec));
+				(ulong) len_sum,
+			        (ulong) (rec_get_end(rec) - rec));
 		return(FALSE);
 	}	
 
@@ -537,13 +538,13 @@ rec_print(
 
 	printf(
 	    "PHYSICAL RECORD: n_fields %lu; 1-byte offs %s; info bits %lu\n",
-		n, offs, rec_get_info_bits(rec));
+		(ulong) n, offs, (ulong) rec_get_info_bits(rec));
 	
 	for (i = 0; i < n; i++) {
 
 		data = rec_get_nth_field(rec, i, &len);
 
-		printf(" %lu:", i);	
+		printf(" %lu:", (ulong) i);
 	
 		if (len != UNIV_SQL_NULL) {
 			if (len <= 30) {
@@ -556,7 +557,7 @@ rec_print(
 			}
 		} else {
 			printf(" SQL NULL, size %lu ",
-					rec_get_nth_field_size(rec, i));
+				      (ulong) rec_get_nth_field_size(rec, i));
 						
 		}
 		printf(";");
@@ -594,7 +595,8 @@ rec_sprintf(
 		return(k);
 	}
 	
-	k += sprintf(buf + k, "RECORD: info bits %lu", rec_get_info_bits(rec));
+	k += sprintf(buf + k, "RECORD: info bits %lu",
+		     (ulong) rec_get_info_bits(rec));
 	
 	for (i = 0; i < n; i++) {
 
@@ -605,7 +607,7 @@ rec_sprintf(
 		
 		data = rec_get_nth_field(rec, i, &len);
 
-		k += sprintf(buf + k, " %lu:", i);
+		k += sprintf(buf + k, " %lu:", (ulong) i);
 	
 		if (len != UNIV_SQL_NULL) {
 			if (k + 30 + 5 * len > buf_len) {

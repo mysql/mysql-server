@@ -577,7 +577,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
 void kill_delayed_threads(void);
-int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
+int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
@@ -652,8 +652,6 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key);
-void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
@@ -895,7 +893,7 @@ extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
-extern String my_null_string;
+extern const String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
