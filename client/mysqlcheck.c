@@ -16,10 +16,9 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.2"
+#define CHECK_VERSION "2.3"
 
 #include "client_priv.h"
-#include <my_getopt.h>
 #include <m_ctype.h>
 #include "mysql_version.h"
 #include "mysqld_error.h"

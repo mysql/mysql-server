@@ -19,12 +19,11 @@
 
 #include "client_priv.h"
 #include <signal.h>
-#include <my_getopt.h>
 #ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.32"
+#define ADMIN_VERSION "8.34"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3

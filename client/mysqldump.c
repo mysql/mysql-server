@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.04"
+#define DUMP_VERSION "9.05"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -46,7 +46,6 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include <my_getopt.h>
 
 /* Exit codes */
 
