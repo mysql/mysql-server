@@ -1016,15 +1016,15 @@ set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
 Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
-select a,b from t1;
+select a,b from t1 order by a;
 a	b
-1	one
 0	two
+1	one
 3	three
 4	four
 set @arg00=0;
 execute stmt1 using @arg01, @arg00;
-select a,b from t1;
+select a,b from t1 order by a;
 a	b
 1	one
 2	two
@@ -1048,7 +1048,7 @@ prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-select a,b from t1 ;
+select a,b from t1 order by a;
 a	b
 1	one
 2	two
@@ -1142,19 +1142,19 @@ set @arg01=1 ;
 prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
                     on duplicate key update a=a + ?, b=concat(b,''modified'') ';
 execute stmt1 using @arg00, @arg01;
-select * from t1;
+select * from t1 order by a;
 a	b
+0	NULL
 1	one
 2	two
 3	three
 4	four
 5	five
 7	sixmodified
-0	NULL
 8	eight
+9	nine
 81	8-1
 82	8-2
-9	nine
 set @arg00=81 ;
 set @arg01=1 ;
 execute stmt1 using @arg00, @arg01;
@@ -1170,7 +1170,7 @@ set @updated="updated" ;
 insert into t1 values(1000,'x1000_1') ;
 insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
 on duplicate key update a = a + @100, b = concat(b,@updated) ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
@@ -1179,14 +1179,14 @@ insert into t1 values(1000,'x1000_1') ;
 prepare stmt1 from ' insert into t1 values(?,?),(?,?)
                on duplicate key update a = a + ?, b = concat(b,?) ';
 execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1000	x1000_3
 1100	x1000_1updated
 delete from t1 where a >= 1000 ;
 insert into t1 values(1000,'x1000_1') ;
 execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
 1200	x1000_1updatedupdated
 delete from t1 where a >= 1000 ;
@@ -1195,37 +1195,37 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 set @duplicate='duplicate ' ;
 set @1000=1000 ;
 set @5=5 ;
-select a,b from t1 where a < 5 ;
+select a,b from t1 where a < 5 order by a ;
 a	b
+0	NULL
 1	one
 2	two
 3	three
 4	four
-0	NULL
 insert into t1 select a + @1000, concat(@duplicate,b) from t1
 where a < @5 ;
 affected rows: 5
 info: Records: 5  Duplicates: 0  Warnings: 0
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
+1000	NULL
 1001	duplicate one
 1002	duplicate two
 1003	duplicate three
 1004	duplicate four
-1000	NULL
 delete from t1 where a >= 1000 ;
 prepare stmt1 from ' insert into t1 select a + ?, concat(?,b) from t1
 where a < ? ' ;
 execute stmt1 using @1000, @duplicate, @5;
 affected rows: 5
 info: Records: 5  Duplicates: 0  Warnings: 0
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 a	b
-1004	duplicate four
-1003	duplicate three
-1002	duplicate two
-1001	duplicate one
 1000	NULL
+1001	duplicate one
+1002	duplicate two
+1003	duplicate three
+1004	duplicate four
 delete from t1 where a >= 1000 ;
 set @float=1.00;
 set @five='five' ;
@@ -1243,15 +1243,15 @@ where (a,b) in ( select sqrt(a+@1)+CAST(@float AS signed),b
 from t1);
 affected rows: 8
 info: Records: 8  Duplicates: 0  Warnings: 0
-select a,b from t2;
+select a,b from t2 order by a ;
 a	b
+3	duplicate
+4	duplicate
+7	duplicate
+8	duplicate
+9	duplicate
 81	duplicate
 82	duplicate
-8	duplicate
-4	duplicate
-9	duplicate
-7	duplicate
-3	duplicate
 103	three
 delete from t2 ;
 prepare stmt1 from ' insert into t2 (b,a) 
@@ -1267,15 +1267,15 @@ select b, a + ? from t1
 execute stmt1 using @duplicate, @5, @five, @2, @100, @1, @float ;
 affected rows: 8
 info: Records: 8  Duplicates: 0  Warnings: 0
-select a,b from t2;
+select a,b from t2 order by a ;
 a	b
+3	duplicate
+4	duplicate
+7	duplicate
+8	duplicate
+9	duplicate
 81	duplicate
 82	duplicate
-8	duplicate
-4	duplicate
-9	duplicate
-7	duplicate
-3	duplicate
 103	three
 drop table t2;
 drop table t1, t_many_col_types;
