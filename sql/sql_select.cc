@@ -603,7 +603,6 @@ JOIN::optimize()
   {
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
-    select_options= 0; //TODO why option in return_zero_rows was droped
     error= 0;
     DBUG_RETURN(0);
   }
