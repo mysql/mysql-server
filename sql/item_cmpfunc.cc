@@ -46,7 +46,7 @@ longlong Item_func_not::val_int()
 
 static bool convert_constant_item(Field *field, Item **item)
 {
-  if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
+  if ((*item)->const_item())
   {
     if (!(*item)->save_in_field(field, 1) &&
 	!((*item)->null_value))
