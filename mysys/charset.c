@@ -94,7 +94,7 @@ static my_bool get_word(struct simpleconfig_buf_st *fb, char *buf)
 }
 
 
-static char *get_charsets_dir(char *buf)
+char *get_charsets_dir(char *buf)
 {
   const char *sharedir = SHAREDIR;
   DBUG_ENTER("get_charsets_dir");
