@@ -14,6 +14,7 @@ Created 12/7/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "dict0boot.h"
+#include "log0recv.h"
 
 /************************************************************
 Catenates n bytes to the mtr log. */
@@ -121,7 +122,7 @@ byte*
 mlog_parse_nbytes(
 /*==============*/
 			/* out: parsed record end, NULL if not a complete
-			record */
+			record or a corrupt record */
 	ulint	type,	/* in: log record type: MLOG_1BYTE, ... */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
@@ -141,6 +142,12 @@ mlog_parse_nbytes(
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
 		
+	if (offset >= UNIV_PAGE_SIZE) {
+		recv_sys->found_corrupt_log = TRUE;
+
+		return(NULL);
+	}
+
 	if (type == MLOG_8BYTES) {
 		ptr = mach_dulint_parse_compressed(ptr, end_ptr, &dval);
 
@@ -163,13 +170,33 @@ mlog_parse_nbytes(
 		return(NULL);
 	}
 
+	if (type == MLOG_1BYTE) {
+		if (val > 0xFF) {
+			recv_sys->found_corrupt_log = TRUE;
+
+			return(NULL);
+		}
+	} else if (type == MLOG_2BYTES) {
+		if (val > 0xFFFF) {
+			recv_sys->found_corrupt_log = TRUE;
+
+			return(NULL);
+		}
+	} else {
+		if (type != MLOG_4BYTES) {
+			recv_sys->found_corrupt_log = TRUE;
+
+			return(NULL);
+		}
+	}
+
 	if (page) {
 		if (type == MLOG_1BYTE) {
 			mach_write_to_1(page + offset, val);
 		} else if (type == MLOG_2BYTES) {
 			mach_write_to_2(page + offset, val);
 		} else {
-			ut_ad(type == MLOG_4BYTES);
+			ut_a(type == MLOG_4BYTES);
 			mach_write_to_4(page + offset, val);
 		}
 	}
@@ -338,7 +365,11 @@ mlog_parse_string(
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
 
-	ut_a(offset < UNIV_PAGE_SIZE);
+	if (offset >= UNIV_PAGE_SIZE) {
+		recv_sys->found_corrupt_log = TRUE;
+
+		return(NULL);
+	}
 
 	len = mach_read_from_2(ptr);
 	ptr += 2;

@@ -22,7 +22,7 @@ Created 10/21/1995 Heikki Tuuri
 
 #endif
 
-/* This specifies the file permissions InnoDB uses when it craetes files in
+/* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
 my_umask */
 

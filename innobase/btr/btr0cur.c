@@ -808,7 +808,7 @@ btr_cur_optimistic_insert(
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fprintf(stderr,
-"InnoDB: Error in a tuple to insert into table %s index %s\n",
+"InnoDB: Error in a tuple to insert into table %lu index %s\n",
 					index->table_name, index->name);
 	}
 	
@@ -1212,6 +1212,8 @@ btr_cur_parse_update_in_place(
 
 	rec_offset = mach_read_from_2(ptr);
 	ptr += 2;
+
+	ut_a(rec_offset <= UNIV_PAGE_SIZE);
 
 	heap = mem_heap_create(256);
 	
@@ -1977,6 +1979,8 @@ btr_cur_parse_del_mark_set_clust_rec(
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
 
+	ut_a(offset <= UNIV_PAGE_SIZE);
+
 	if (page) {
 		rec = page + offset;
 	
@@ -2126,6 +2130,8 @@ btr_cur_parse_del_mark_set_sec_rec(
 
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
+
+	ut_a(offset <= UNIV_PAGE_SIZE);
 
 	if (page) {
 		rec = page + offset;

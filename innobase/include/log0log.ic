@@ -207,7 +207,7 @@ log_block_calc_checksum(
 	
 	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
 		sum = sum & 0x7FFFFFFF;
-		sum += ((ulint)(*(block + i))) << sh;
+		sum += (((ulint)(*(block + i))) << sh) + (ulint)(*(block + i));
 		sh++;
 		if (sh > 24) {
 			sh = 0;
