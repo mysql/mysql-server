@@ -51,4 +51,72 @@ select * from t1 where key1 < 5 or key2 > 197;
 explain select * from t1 where key1 < 3 or key2 > 195;
 select * from t1 where key1 < 3 or key2 > 195;
 
+# Test for BUG#5401
 drop table t1;
+create table t1 (
+  pk    integer not null auto_increment primary key,
+  key1  integer,
+  key2  integer not null,
+  filler char  (200),
+  index (key1),
+  index (key2)
+) engine=innodb;
+show warnings;
+--disable_query_log
+let $1=30;
+while ($1)
+{
+  eval insert into t1 (key1, key2, filler) values ($1/4, $1/8, 'filler-data');
+  dec $1;
+}
+--enable_query_log
+explain select pk from t1 where key1 = 1 and key2 = 1;
+select pk from t1 where key2 = 1 and key1 = 1;
+select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
+
+# More tests for BUG#5401. 
+drop table t1;
+create table t1 (
+  pk int primary key auto_increment,
+  key1a  int,
+  key2a  int,
+  key1b  int,
+  key2b  int,
+  dummy1 int,
+  dummy2 int,
+  dummy3 int,
+  dummy4 int,
+  key3a  int,
+  key3b  int,
+  filler1 char (200),
+  index i1(key1a, key1b),
+  index i2(key2a, key2b),
+  index i3(key3a, key3b)
+) engine=innodb;
+
+create table t2 (a int);
+insert into t2 values (0),(1),(2),(3),(4),(NULL);
+
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+  select A.a, B.a, C.a, D.a, C.a, D.a from t2 A,t2 B,t2 C, t2 D;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+  select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b) 
+  select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+analyze table t1;
+select count(*) from t1;
+
+explain select count(*) from t1 where 
+  key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+
+select count(*) from t1 where 
+  key1a = 2 and key1b is null and key2a = 2 and key2b is null;
+
+explain select count(*) from t1 where 
+  key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+
+select count(*) from t1 where 
+  key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+
+drop table t1,t2;
+
