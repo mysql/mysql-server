@@ -825,10 +825,10 @@ public:
 };
 
 /* Single value subselect interface class */
-class select_singleval_subselect :public select_subselect
+class select_singlerow_subselect :public select_subselect
 {
 public:
-  select_singleval_subselect(Item_subselect *item):select_subselect(item){}
+  select_singlerow_subselect(Item_subselect *item):select_subselect(item){}
   bool send_data(List<Item> &items);
 };
 
