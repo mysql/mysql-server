@@ -628,7 +628,7 @@ open_or_create_log_file(
 
 	fil_node_create(name, srv_log_file_size,
 				2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
-#ifdef notdefined
+#ifdef UNIV_LOG_ARCHIVE
 	/* If this is the first log group, create the file space object
 	for archived logs.
 	Under MySQL, no archiving ever done. */
@@ -636,12 +636,11 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-	    	fil_space_create((char*) "arch_log_space", arch_space_id,
-								FIL_LOG);
+	    	fil_space_create("arch_log_space", arch_space_id, FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}
-#endif
+#endif /* UNIV_LOG_ARCHIVE */
 	if (i == 0) {
 		log_group_init(k, srv_n_log_files,
 				srv_log_file_size * UNIV_PAGE_SIZE,
@@ -662,12 +661,14 @@ open_or_create_data_files(
 				/* out: DB_SUCCESS or error code */
 	ibool*	create_new_db,	/* out: TRUE if new database should be
 								created */
-	dulint*	min_flushed_lsn,/* out: min of flushed lsn values in data
-				files */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint*	min_arch_log_no,/* out: min of archived log numbers in data
 				files */
-	dulint*	max_flushed_lsn,/* out: */
 	ulint*	max_arch_log_no,/* out: */
+#endif /* UNIV_LOG_ARCHIVE */
+	dulint*	min_flushed_lsn,/* out: min of flushed lsn values in data
+				files */
+	dulint*	max_flushed_lsn,/* out: */
 	ulint*	sum_of_new_sizes)/* out: sum of sizes of the new files added */
 {
 	ibool	ret;
@@ -820,8 +821,10 @@ open_or_create_data_files(
 skip_size_check:
 			fil_read_flushed_lsn_and_arch_log_no(files[i],
 					one_opened,
-					min_flushed_lsn, min_arch_log_no,
-					max_flushed_lsn, max_arch_log_no);
+#ifdef UNIV_LOG_ARCHIVE
+					min_arch_log_no, max_arch_log_no,
+#endif /* UNIV_LOG_ARCHIVE */
+					min_flushed_lsn, max_flushed_lsn);
 			one_opened = TRUE;
 		} else {
 		        /* We created the data file and now write it full of
@@ -908,8 +911,10 @@ innobase_start_or_create_for_mysql(void)
 	ibool	log_opened	= FALSE;
 	dulint	min_flushed_lsn;
 	dulint	max_flushed_lsn;
+#ifdef UNIV_LOG_ARCHIVE
 	ulint	min_arch_log_no;
 	ulint	max_arch_log_no;
+#endif /* UNIV_LOG_ARCHIVE */
 	ulint   sum_of_new_sizes;
 	ulint	sum_of_data_file_sizes;
 	ulint	tablespace_size_in_header;
@@ -1017,28 +1022,22 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef __WIN__        
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"fdatasync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fdatasync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"O_DSYNC")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DSYNC")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"O_DIRECT")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"littlesync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "littlesync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"nosync")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
-	} else if (0 == ut_strcmp(srv_file_flush_method_str,
-							(char*)"normal")) {
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 	  	srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 	  	os_aio_use_native_aio = FALSE;
 
@@ -1181,6 +1180,7 @@ NetWare. */
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
     	}
 
+#ifdef UNIV_LOG_ARCHIVE
 	if (0 != ut_strcmp(srv_log_group_home_dirs[0], srv_arch_dir)) {
 		fprintf(stderr,
 	"InnoDB: Error: you must set the log group home dir in my.cnf the\n"
@@ -1188,6 +1188,7 @@ NetWare. */
 
 		return(DB_ERROR);
 	}
+#endif /* UNIV_LOG_ARCHIVE */
 
 	if (srv_n_log_files * srv_log_file_size >= 262144) {
 		fprintf(stderr,
@@ -1219,8 +1220,10 @@ NetWare. */
 	}
 
 	err = open_or_create_data_files(&create_new_db,
-					&min_flushed_lsn, &min_arch_log_no,
-					&max_flushed_lsn, &max_arch_log_no,
+#ifdef UNIV_LOG_ARCHIVE
+					&min_arch_log_no, &max_arch_log_no,
+#endif /* UNIV_LOG_ARCHIVE */
+					&min_flushed_lsn, &max_flushed_lsn,
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
 	        fprintf(stderr,
@@ -1235,8 +1238,10 @@ NetWare. */
 		return((int) err);
 	}
 
+#ifdef UNIV_LOG_ARCHIVE
 	srv_normalize_path_for_win(srv_arch_dir);
 	srv_arch_dir = srv_add_path_separator_if_needed(srv_arch_dir);
+#endif /* UNIV_LOG_ARCHIVE */
 		
 	for (i = 0; i < srv_n_log_files; i++) {
 		err = open_or_create_log_file(create_new_db, &log_file_created,
@@ -1270,9 +1275,16 @@ NetWare. */
 
 	fil_open_log_and_system_tablespace_files();
 
-	if (log_created && !create_new_db && !srv_archive_recovery) {
+	if (log_created && !create_new_db
+#ifdef UNIV_LOG_ARCHIVE
+		&& !srv_archive_recovery
+#endif /* UNIV_LOG_ARCHIVE */
+	) {
 		if (ut_dulint_cmp(max_flushed_lsn, min_flushed_lsn) != 0
-				|| max_arch_log_no != min_arch_log_no) {
+#ifdef UNIV_LOG_ARCHIVE
+				|| max_arch_log_no != min_arch_log_no
+#endif /* UNIV_LOG_ARCHIVE */
+		) {
 			fprintf(stderr, 
 		"InnoDB: Cannot initialize created log files because\n"
 		"InnoDB: data files were not in sync with each other\n"
@@ -1295,10 +1307,14 @@ NetWare. */
 
 		mutex_enter(&(log_sys->mutex));
 
+#ifdef UNIV_LOG_ARCHIVE
 		/* Do not + 1 arch_log_no because we do not use log
 		archiving */
 		recv_reset_logs(max_flushed_lsn, max_arch_log_no, TRUE);
-		
+#else
+		recv_reset_logs(max_flushed_lsn, TRUE);
+#endif /* UNIV_LOG_ARCHIVE */
+
 		mutex_exit(&(log_sys->mutex));
 	}
 
@@ -1313,6 +1329,7 @@ NetWare. */
 		dict_create();
                 srv_startup_is_before_trx_rollback_phase = FALSE;
 
+#ifdef UNIV_LOG_ARCHIVE
 	} else if (srv_archive_recovery) {
 		fprintf(stderr,
 	"InnoDB: Starting archive recovery from a backup...\n");
@@ -1336,6 +1353,7 @@ NetWare. */
 		fsp_header_get_free_limit(0);
 
 		recv_recovery_from_archive_finish();
+#endif /* UNIV_LOG_ARCHIVE */
 	} else {
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
@@ -1384,7 +1402,7 @@ NetWare. */
 
 	log_make_checkpoint_at(ut_dulint_max, TRUE);
 
-#ifdef notdefined
+#ifdef UNIV_LOG_ARCHIVE
 	/* Archiving is always off under MySQL */
 	if (!srv_log_archive_on) {
 		ut_a(DB_SUCCESS == log_archive_noarchivelog());
@@ -1403,7 +1421,7 @@ NetWare. */
 			ut_a(DB_SUCCESS == log_archive_archivelog());
 		}
 	}
-#endif
+#endif /* UNIV_LOG_ARCHIVE */
 	if (!create_new_db && srv_force_recovery == 0) {
 		/* After a crash recovery we only check that the info in data
 		dictionary is consistent with what we already know about space

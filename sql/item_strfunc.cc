@@ -2285,8 +2285,8 @@ String *Item_func_hex::val_str(String *str)
        from++, to+=2)
   {
     uint tmp=(uint) (uchar) *from;
-    to[0]=_dig_vec[tmp >> 4];
-    to[1]=_dig_vec[tmp & 15];
+    to[0]=_dig_vec_upper[tmp >> 4];
+    to[1]=_dig_vec_upper[tmp & 15];
   }
   return &tmp_value;
 }
@@ -2746,9 +2746,6 @@ static uint nanoseq;
 static ulonglong uuid_time=0;
 static char clock_seq_and_node_str[]="-0000-000000000000";
 
-/* we cannot use _dig_vec[] as letters should be lowercase */
-static const char hex[] = "0123456789abcdef";
-
 /* number of 100-nanosecond intervals between
    1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00 */
 #define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * 1000 * 10 )
@@ -2761,7 +2758,7 @@ static void tohex(char *to, uint from, uint len)
   to+= len;
   while (len--)
   {
-    *--to= hex[from & 15];
+    *--to= _dig_vec_lower[from & 15];
     from >>= 4;
   }
 }
@@ -2798,8 +2795,8 @@ String *Item_func_uuid::val_str(String *str)
     s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;
     for (i=sizeof(mac)-1 ; i>=0 ; i--)
     {
-      *--s=hex[mac[i] & 15];
-      *--s=hex[mac[i] >> 4];
+      *--s=_dig_vec_lower[mac[i] & 15];
+      *--s=_dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong)start_time, tmp + bytes_sent);
     set_clock_seq_str();

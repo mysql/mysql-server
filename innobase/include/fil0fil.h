@@ -248,10 +248,12 @@ fil_read_flushed_lsn_and_arch_log_no(
 	os_file_t data_file,		/* in: open data file */
 	ibool	one_read_already,	/* in: TRUE if min and max parameters
 					below already contain sensible data */
-	dulint*	min_flushed_lsn,	/* in/out: */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint*	min_arch_log_no,	/* in/out: */
-	dulint*	max_flushed_lsn,	/* in/out: */
-	ulint*	max_arch_log_no);	/* in/out: */
+	ulint*	max_arch_log_no,	/* in/out: */
+#endif /* UNIV_LOG_ARCHIVE */
+	dulint*	min_flushed_lsn,	/* in/out: */
+	dulint*	max_flushed_lsn);	/* in/out: */
 /***********************************************************************
 Increments the count of pending insert buffer page merges, if space is not
 being deleted. */

@@ -118,7 +118,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
         if (*fmt== 'u')
           store_end= int10_to_str(larg, store_start, 10);
         else
-          store_end= int2str(larg, store_start, 16);
+          store_end= int2str(larg, store_start, 16, 0);
       if ((res_length= (uint) (store_end - store_start)) > to_length)
 	break;					/* num doesn't fit in output */
       /* If %#d syntax was used, we have to pre-zero/pre-space the string */
