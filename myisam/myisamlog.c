@@ -21,7 +21,7 @@
 #endif
 
 #include "myisamdef.h"
-#include "my_tree.h"
+#include <my_tree.h>
 #include <stdarg.h>
 #ifdef HAVE_GETRUSAGE
 #include <sys/resource.h>
@@ -251,12 +251,12 @@ static void get_options(register int *argc, register char ***argv)
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("By Monty, for your professional use\n");
 	if (version)
 	  break;
-	puts("Write info about whats in a myisam log file.");
+	puts("Write info about whats in a MyISAM log file.");
 	printf("If no file name is given %s is used\n",log_filename);
 	puts("");
 	printf(usage,my_progname);
@@ -266,7 +266,7 @@ static void get_options(register int *argc, register char ***argv)
 	puts("         -o \"offset\"         -p # \"remove # components from path\"");
 	puts("         -r \"recover\"        -R \"file recordposition\"");
 	puts("         -u \"update\"         -v \"verbose\"   -w \"write file\"");
-	puts("         -D \"myisam compileled with DBUG\"   -P \"processes\"");
+	puts("         -D \"myisam compiled with DBUG\"   -P \"processes\"");
 	puts("\nOne can give a second and a third '-v' for more verbose.");
 	puts("Normaly one does a update (-u).");
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
@@ -376,10 +376,8 @@ static int examine_log(my_string file_name, char **table_names)
       }
 
       if (curr_file_info)
-      {
 	printf("\nWarning: %s is opened with same process and filenumber\nMaybe you should use the -P option ?\n",
 	       curr_file_info->show_name);
-      }
       if (my_b_read(&cache,(byte*) head,2))
 	goto err;
       file_info.name=0;

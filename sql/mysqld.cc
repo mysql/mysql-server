@@ -57,7 +57,9 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <grp.h>
 #endif
 
-#ifndef __WIN__
+#if defined(OS2)
+#  include <sys/un.h>
+#elif !defined( __WIN__)
 #include <sys/resource.h>
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
@@ -358,6 +360,10 @@ HANDLE hEventShutdown;
 static	 NTService  Service;	      // Service object for WinNT
 #endif
 
+#ifdef OS2
+pthread_cond_t eventShutdown;
+#endif
+
 static void start_signal_handler(void);
 static void *signal_hand(void *arg);
 static void set_options(void);
@@ -405,7 +411,7 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
-#if !defined(__WIN__) && !defined(__EMX__)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
   DBUG_PRINT("quit",("waiting for select thread: %lx",select_thread));
   (void) pthread_mutex_lock(&LOCK_thread_count);
 
@@ -576,6 +582,8 @@ void kill_mysql(void)
     // SetEvent(hEventShutdown);
     // CloseHandle(hEvent);
   }
+#elif defined(OS2)
+  pthread_cond_signal( &eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
   if (pthread_kill(signal_thread,MYSQL_KILL_SIGNAL))// End everything nicely
   {
@@ -592,7 +600,10 @@ void kill_mysql(void)
 
 	/* Force server down. kill all connections and threads and exit */
 
-#ifndef __WIN__
+#if defined(OS2)
+extern "C" void kill_server(int sig_ptr)
+#define RETURN_FROM_KILL_SERVER return
+#elif !defined(__WIN__)
 static void *kill_server(void *sig_ptr)
 #define RETURN_FROM_KILL_SERVER return 0
 #else
@@ -615,7 +626,7 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__)
+#if defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2)
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
@@ -623,7 +634,9 @@ static void __cdecl kill_server(int sig_ptr)
     unireg_abort(1);				/* purecov: inspected */
   else
     unireg_end(0);
+#ifndef OS2
   pthread_exit(0);				/* purecov: deadcode */
+#endif
   RETURN_FROM_KILL_SERVER;
 }
 
@@ -645,7 +658,7 @@ static sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 #endif
@@ -655,7 +668,9 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
+#ifndef OS2
   pthread_exit(0);				// Exit is in main thread
+#endif
 }
 
 
@@ -746,7 +761,7 @@ static void set_ports()
 
 static void set_user(const char *user)
 {
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
     struct passwd *ent;
 
   // don't bother if we aren't superuser
@@ -794,7 +809,7 @@ static void set_user(const char *user)
 
 static void set_root(const char *path)
 {
-#if !defined(__WIN__) && !defined(__EMX__)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
   if (chroot(path) == -1)
   {
     sql_perror("chroot");
@@ -853,7 +868,7 @@ static void server_init(void)
     }
     if (listen(ip_sock,(int) back_log) < 0)
       sql_print_error("Warning:  listen() on TCP/IP failed with error %d",
-		      errno);
+		      socket_errno);
   }
 
   if (mysqld_chroot)
@@ -940,7 +955,7 @@ static void server_init(void)
 #endif
     if (listen(unix_sock,(int) back_log) < 0)
       sql_print_error("Warning:  listen() on Unix socket failed with error %d",
-		      errno);
+		      socket_errno);
   }
 #endif
   DBUG_PRINT("info",("server started"));
@@ -1088,13 +1103,17 @@ static sig_handler abort_thread(int sig __attribute__((unused)))
 ** the signal thread is ready before continuing
 ******************************************************************************/
 
-#ifdef __WIN__
+#if defined(__WIN__) || defined(OS2)
 static void init_signals(void)
 {
   int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT } ;
   for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
     signal( signals[i], kill_server) ;
+#if defined(__WIN__)
   signal(SIGBREAK,SIG_IGN);	//ignore SIGBREAK for NT
+#else
+  signal(SIGBREAK, kill_server);
+#endif
 }
 
 static void start_signal_handler(void)
@@ -1473,6 +1492,29 @@ int __stdcall handle_kill(ulong ctrl_type)
 }
 #endif
 
+#ifdef OS2
+pthread_handler_decl(handle_shutdown,arg)
+{
+  my_thread_init();
+
+  // wait semaphore
+  pthread_cond_wait( &eventShutdown, NULL);
+
+  // close semaphore and kill server
+  pthread_cond_destroy( &eventShutdown);
+
+  // exit main loop on main thread, so kill will be done from
+  // main thread (this is thread 2)
+  abort_loop = 1;
+
+  // unblock select()
+  so_cancel( ip_sock);
+  so_cancel( unix_sock);
+
+  return 0;
+}
+#endif
+
 const char *load_default_groups[]= { "mysqld","server",0 };
 
 #ifdef HAVE_LIBWRAP
@@ -1558,7 +1600,7 @@ int main(int argc, char **argv)
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv=argv;
   mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
   if (!mysql_tmpdir)
     mysql_tmpdir=getenv("TEMP");
   if (!mysql_tmpdir)
@@ -1646,7 +1688,7 @@ int main(int argc, char **argv)
     my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
-#ifdef SET_RLIMIT_NOFILE
+#if defined( SET_RLIMIT_NOFILE) || defined( OS2)
   /* connections and databases neads lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
@@ -1852,6 +1894,14 @@ The server will not act as a slave.");
 
     // On "Stop Service" we have to do regular shutdown
     Service.SetShutdownEvent(hEventShutdown);
+  }
+#endif
+#ifdef OS2
+  {
+    pthread_cond_init( &eventShutdown, NULL);
+    pthread_t hThread;
+    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+      sql_print_error("Warning: Can't create thread to handle shutdown requests");
   }
 #endif
 
@@ -2192,7 +2242,9 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
   }
 #ifdef HAVE_SYS_UN_H
   FD_SET(unix_sock,&clientFDs);
+#ifdef HAVE_FCNTL
   socket_flags=fcntl(unix_sock, F_GETFL, 0);
+#endif
 #endif
 
   DBUG_PRINT("general",("Waiting for connections."));
@@ -2205,10 +2257,10 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 #else
     if (select((int) max_used_connection,&readFDs,0,0,0) < 0)
     {
-      if (errno != EINTR)
+      if (socket_errno != EINTR)
       {
 	if (!select_errors++ && !abort_loop)	/* purecov: inspected */
-	  sql_print_error("mysqld: Got error %d from select",errno); /* purecov: inspected */
+	  sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
       continue;
     }
@@ -2343,6 +2395,11 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       thd->host=(char*) localhost;
     create_new_thread(thd);
   }
+
+#ifdef OS2
+  // kill server must be invoked from thread 1!
+  kill_server(MYSQL_KILL_SIGNAL);
+#endif
 
 #ifdef __NT__
   pthread_mutex_lock(&LOCK_thread_count);
@@ -4385,6 +4442,29 @@ static uint set_maximum_open_files(uint max_file_limit)
 }
 #endif
 
+#ifdef OS2
+static uint set_maximum_open_files(uint max_file_limit)
+{
+   LONG     cbReqCount;
+   ULONG    cbCurMaxFH, cbCurMaxFH0;
+   APIRET   ulrc;
+
+   // get current limit
+   cbReqCount = 0;
+   DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
+
+   // set new limit
+   cbReqCount = max_file_limit - cbCurMaxFH0;
+   ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
+   if (ulrc) {
+      sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
+         cbCurMaxFH0);
+      cbCurMaxFH = cbCurMaxFH0;
+   }
+
+   return cbCurMaxFH;
+}
+#endif
 
 	/*
 	  Return a bitfield from a string of substrings separated by ','

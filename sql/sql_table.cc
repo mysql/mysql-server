@@ -1073,19 +1073,31 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
+#ifdef OS2
+  thr_lock_type lock_type = TL_WRITE;
+#else
+  thr_lock_type lock_type = TL_READ_NO_INSERT;
+#endif
+
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"analyze",TL_READ_NO_INSERT, 1,0,0,
+				"analyze", lock_type, 1,0,0,
 				&handler::analyze));
 }
 
 
 int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
+#ifdef OS2
+  thr_lock_type lock_type = TL_WRITE;
+#else
+  thr_lock_type lock_type = TL_READ_NO_INSERT;
+#endif
+
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"check",
-				TL_READ_NO_INSERT, 0, 0, HA_OPEN_FOR_REPAIR,
+				"check", lock_type,
+				0, 0, HA_OPEN_FOR_REPAIR,
 				&handler::check));
 }
 
@@ -1543,7 +1555,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if defined( __WIN__) || defined( __EMX__)
+#if defined( __WIN__) || defined( __EMX__) || defined( OS2)
   // Win32 can't rename an open table, so we must close the org table!
   table_name=thd->strdup(table_name);		// must be saved
   if (close_cached_table(thd,table))

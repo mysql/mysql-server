@@ -32,6 +32,8 @@ static char record[MAX_REC_LENGTH],read_record[MAX_REC_LENGTH];
 
 void get_options(int argc,char *argv[]);
 static int run_test(const char *filename);
+static void get_options(int argc, char *argv[]);
+static void create_record(char *, int);
 
 int main(int argc,char *argv[])
 {
@@ -45,8 +47,6 @@ int main(int argc,char *argv[])
 static MI_COLUMNDEF recinfo[3];
 static MI_KEYDEF keyinfo[2];
 static MI_KEYSEG keyseg[10];
-
-void create_record(char *, int);
 
 static int run_test(const char *filename)
 {

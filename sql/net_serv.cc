@@ -50,7 +50,7 @@ ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
 #if !defined(__WIN__) && !defined(MSDOS)
 #include <sys/socket.h>
 #else
-#undef MYSQL_SERVER			// Win32 can't handle interrupts
+#undef MYSQL_SERVER			/* Win32 can't handle interrupts */
 #endif
 #if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
 #include <netinet/in_systm.h>
@@ -68,9 +68,15 @@ void sql_print_error(const char *format,...);
 #define RETRY_COUNT mysqld_net_retry_count
 extern ulong mysqld_net_retry_count;
 #else
+
+#ifdef OS2				/* avoid name conflict */
+#define thr_alarm_t  thr_alarm_t_net
+#define ALARM        ALARM_net
+#endif
+
 typedef my_bool thr_alarm_t;
 typedef my_bool ALARM;
-#define thr_alarm_init(A) (*A)=0
+#define thr_alarm_init(A) (*(A))=0
 #define thr_alarm_in_use(A) (*(A))
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
@@ -124,7 +130,7 @@ int my_net_init(NET *net, Vio* vio)
   if (vio != 0)					/* If real connection */
   {
     net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
-#if defined(MYSQL_SERVER) && !defined(___WIN__) && !defined(__EMX__)
+#if defined(MYSQL_SERVER) && !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
     if (!(test_flags & TEST_BLOCKING))
       vio_blocking(vio, FALSE);
 #endif
@@ -271,7 +277,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if !defined(__WIN__)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
@@ -329,7 +335,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     if ((int) (length=vio_write(net->vio,pos,(int) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-#if (!defined(__WIN__) && !defined(__EMX__))
+#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
       if ((interrupted || length==0) && !thr_alarm_in_use(&alarmed))
       {
         if (!thr_alarm(&alarmed,(uint) net_write_timeout,&alarm_buff))
@@ -418,7 +424,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
   {
     if (!thr_alarm(alarmed,net->timeout,&alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
-      return;					// Can't setup, abort
+      return;					/* Can't setup, abort */
   }
   while (remain > 0)
   {
@@ -448,7 +454,7 @@ my_real_read(NET *net, ulong *complen)
   uint i,retry_count=0;
   ulong len=packet_error;
   thr_alarm_t alarmed;
-#if (!defined(__WIN__) && !defined(__EMX__)) || defined(MYSQL_SERVER)
+#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2)) || defined(MYSQL_SERVER)
   ALARM alarm_buff;
 #endif
   my_bool net_blocking=vio_is_blocking(net->vio);
@@ -475,7 +481,7 @@ my_real_read(NET *net, ulong *complen)
 
 	  DBUG_PRINT("info",("vio_read returned %d,  errno: %d",
 			     length, vio_errno(net->vio)));
-#if (!defined(__WIN__) && !defined(__EMX__)) || defined(MYSQL_SERVER)
+#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2)) || defined(MYSQL_SERVER)
 	  /*
 	    We got an error that there was no data on the socket. We now set up
 	    an alarm to not 'read forever', change the socket to non blocking

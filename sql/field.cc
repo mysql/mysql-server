@@ -2295,7 +2295,7 @@ void Field_timestamp::store(longlong nr)
   }
   else
 #endif
-    longstore(ptr,timestamp);
+    longstore(ptr,(ulong)timestamp);
 }
 
 

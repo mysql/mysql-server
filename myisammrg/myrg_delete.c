@@ -18,9 +18,9 @@
 
 #include "mymrgdef.h"
 
-int myrg_delete(info,record)
-MYRG_INFO *info;
-const byte *record;
+int myrg_delete(
+MYRG_INFO *info,
+const byte *record)
 {
   if (!info->current_table)
   {

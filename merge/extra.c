@@ -22,9 +22,9 @@
 
 #include "mrgdef.h"
 
-int mrg_extra(info,function)
-MRG_INFO *info;
-enum ha_extra_function function;
+int mrg_extra(
+MRG_INFO *info,
+enum ha_extra_function function)
 {
   MRG_TABLE *file;
 

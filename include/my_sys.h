@@ -126,6 +126,7 @@ extern uint sf_malloc_prehunc,sf_malloc_endhunc,sf_malloc_quick;
 extern ulonglong safemalloc_mem_limit;
 #else
 #define my_checkmalloc() (0)
+#undef TERMINATE
 #define TERMINATE(A) {}
 #define QUICK_SAFEMALLOC
 #define NORMAL_SAFEMALLOC

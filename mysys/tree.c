@@ -133,7 +133,7 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
     if (tree->free)
       (*tree->free)(ELEMENT_KEY(tree,element));
     if (tree->with_delete)
-      my_free((void*) element,MYF(0));
+      my_free((char*) element,MYF(0));
   }
 }
 
