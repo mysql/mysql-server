@@ -17,6 +17,9 @@ AC_MSG_CHECKING(if building in the top-level directory)
 Berkeley DB cannot be built in the top-level distribution directory.])
 AC_MSG_RESULT(no)
 
+# Minimum autoconf version required.
+AC_PREREQ(2.53)
+
 # Substitution variables.
 AC_SUBST(ADDITIONAL_INCS)
 AC_SUBST(ADDITIONAL_LANG)
