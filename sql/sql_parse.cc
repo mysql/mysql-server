@@ -2839,10 +2839,10 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
   }
   if (options & REFRESH_LOG)
   {
-    mysql_log.new_file();
-    mysql_update_log.new_file();
-    mysql_bin_log.new_file();
-    mysql_slow_log.new_file();
+    mysql_log.new_file(0);
+    mysql_update_log.new_file(0);
+    mysql_bin_log.new_file(0);
+    mysql_slow_log.new_file(0);
     if (ha_flush_logs())
       result=1;
   }
