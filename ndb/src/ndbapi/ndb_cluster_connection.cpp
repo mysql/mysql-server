@@ -174,7 +174,7 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   return node.id;
 }
 
-Uint32
+int
 Ndb_cluster_connection::no_db_nodes()
 {
   return m_impl.m_all_nodes.size();
@@ -219,16 +219,8 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
     else if (foundAliveNode > 0)
     {
       noChecksSinceFirstAliveFound++;
-      if (timeout_after_first_alive >= 0)
-      {
-	if (noChecksSinceFirstAliveFound > timeout_after_first_alive)
-	  DBUG_RETURN(0);
-      }
-      else // timeout_after_first_alive < 0
-      {
-	if (noChecksSinceFirstAliveFound > -timeout_after_first_alive)
-	  DBUG_RETURN(-1);
-      }
+      if (noChecksSinceFirstAliveFound > timeout_after_first_alive)
+	DBUG_RETURN(1);
     }
     else if (secondsCounter >= timeout)
     { // no alive nodes and timed out
