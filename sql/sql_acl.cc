@@ -1348,8 +1348,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 				strlen(thd->lex.x509_subject));
       break;
     case SSL_TYPE_NOT_SPECIFIED:
-    case SSL_TYPE_NONE:				// Impossible
-      break;					// Nothing to do
+      break;
+    case SSL_TYPE_NONE:
+      table->field[24]->store("",0);
+      table->field[25]->store("",0);
+      table->field[26]->store("",0);
+      table->field[27]->store("",0);
+      break;
     }
 
     USER_RESOURCES mqh = thd->lex.mqh;
