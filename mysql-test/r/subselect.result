@@ -2003,3 +2003,11 @@ a	b	(select max(b) from t2 where t1.b=t2.a)
 2	4	NULL
 2	5	NULL
 drop table t1, t2;
+create table t1 (id int);
+create table t2 (id int, body text, fulltext (body));
+insert into t1 values(1),(2),(3);
+insert into t2 values (1,'test'), (2,'mysql'), (3,'test'), (4,'test');
+select count(distinct id) from t1 where id in (select id from t2 where match(body) against ('mysql' in boolean mode));
+count(distinct id)
+1
+drop table t2,t1;

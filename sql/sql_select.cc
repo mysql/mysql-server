@@ -3834,7 +3834,7 @@ JOIN::join_free(bool full)
   DBUG_ENTER("JOIN::join_free");
 
   full= full || (!select_lex->uncacheable &&
-                 !thd->lex->describe);
+                 !thd->lex->describe); // do not cleanup too early on EXPLAIN
 
   if (table)
   {
