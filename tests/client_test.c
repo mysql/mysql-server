@@ -10091,6 +10091,78 @@ static void test_bug5126()
 }
 
 
+static void test_bug4231()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  MYSQL_TIME tm[2];
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug4231");
+
+  stmt_text= "DROP TABLE IF EXISTS t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "CREATE TABLE t1 (a int)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text= "INSERT INTO t1 VALUES (1)";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT a FROM t1 WHERE ? = ?";
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  /* Bind input buffers */
+  bzero(bind, sizeof(bind));
+  bzero(tm, sizeof(tm));
+
+  bind[0].buffer_type= MYSQL_TYPE_TIME;
+  bind[0].buffer= (void*) tm;
+  bind[1].buffer_type= MYSQL_TYPE_TIME;
+  bind[1].buffer= (void*) tm+1;
+
+  mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  /*
+    First set server-side params to some non-zero non-equal values:
+    then we will check that they are not used when client sends
+    new (zero) times.
+  */
+  tm[0].time_type = MYSQL_TIMESTAMP_DATE;
+  tm[0].year = 2000;
+  tm[0].month = 1;
+  tm[0].day = 1;
+  tm[1]= tm[0];
+  --tm[1].year;                                 /* tm[0] != tm[1] */
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_fetch(stmt);
+
+  /* binds are unequal, no rows should be returned */
+  DBUG_ASSERT(rc == MYSQL_NO_DATA);
+
+  /* Set one of the dates to zero */
+  tm[0].year= tm[0].month= tm[0].day= 0;
+  tm[1]= tm[1];
+  mysql_stmt_execute(stmt);
+  rc= mysql_stmt_fetch(stmt);
+  DBUG_ASSERT(rc == 0);
+
+  mysql_stmt_close(stmt);
+  stmt_text= "DROP TABLE t1";
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10389,6 +10461,8 @@ int main(int argc, char **argv)
     test_bug4030();         /* test conversion string -> time types in
                                libmysql */
     test_bug5126();         /* support for mediumint type in libmysql */
+    test_bug4231();         /* proper handling of all-zero times and
+                               dates in the server */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
