@@ -5461,7 +5461,7 @@ shell> ln -s mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
 shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/var
+shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
 shell> chown -R root /usr/local/mysql/bin/
 shell> bin/safe_mysqld --user=mysql &
@@ -37469,12 +37469,15 @@ default port number and socket file pathname, and the @code{--prefix} value
 should specify an installation directory different than the one under which
 the existing @strong{MySQL} installation is located.
 
-You can check the socket and port used by any currently executing
-@strong{MySQL} server with this command:
+You can check the socket used by any currently executing @strong{MySQL} server
+with this command:
 
 @example
 shell> mysqladmin -h hostname --port=port_number variables
 @end example
+
+Note that if you specify ``@code{localhost}'' as a hostname, @code{mysqladmin}
+will default to using Unix sockets instead of TCP/IP.
 
 If you have a @strong{MySQL} server running on the port you used, you will
 get a list of some of the most important configurable variables in
@@ -37526,16 +37529,17 @@ can use one of the following methods:
 
 @itemize @bullet
 @item
-Start the client with @code{--host 'hostname' --port=port_numer} or
-@code{[--host localhost] --socket=file_name}.
+Start the client with @code{--host 'hostname' --port=port_number} to connect
+with TCP/IP, or @code{[--host localhost] --socket=file_name} to connect via
+a Unix socket.
 
 @item
-In your C or Perl programs, you can give the port and socket arguments
+In your C or Perl programs, you can give the port or socket arguments
 when connecting to the @strong{MySQL} server.
 
 @item
-If your are using the @strong{MySQL} perl DBD module you can read the options
-from the @strong{MySQL} option files. @xref{Option files}.
+If your are using the Perl @code{DBD::mysql} module you can read the options
+from the @strong{MySQL} option files.  @xref{Option files}.
 
 @example
 $dsn = "DBI:mysql:test;mysql_read_default_group=client;mysql_read_default_file=/usr/local/mysql/data/my.cnf"
@@ -37545,8 +37549,8 @@ $dbh = DBI->connect($dsn, $user, $password);
 @item
 @tindex MYSQL_UNIX_PORT environment variable
 @tindex MYSQL_TCP_PORT environment variable
-@tindex Environment variable, MYSQL_UNIX_PORT
-@tindex Environment variable, MYSQL_TCP_PORT
+@tindex environment variable, MYSQL_UNIX_PORT
+@tindex environment variable, MYSQL_TCP_PORT
 Set the @code{MYSQL_UNIX_PORT} and @code{MYSQL_TCP_PORT} environment variables
 to point to the Unix socket and TCP/IP port before you start your clients.
 If you normally use a specific socket or port, you should place commands
