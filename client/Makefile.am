@@ -20,9 +20,8 @@
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 				$(openssl_includes) -I$(top_srcdir)/extra
 LIBS =				@CLIENT_LIBS@
-DEPLIB=				../libmysql/libmysqlclient.la
-REGEXLIB=			../regex/libregex.a
-LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
+LDADD=				@CLIENT_EXTRA_LDFLAGS@ \
+                                $(top_builddir)/libmysql/libmysqlclient.la
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
  mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
@@ -31,19 +30,10 @@ mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
-mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqladmin_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqlcheck_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqlshow_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqltest_SOURCES=		mysqltest.c ../mysys/my_getsystime.c
-mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(REGEXLIB) $(DEPLIB)
-mysqltest_LDADD =		$(REGEXLIB) $(LDADD)
+mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c
+mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc ../mysys/mf_tempdir.c
-mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
-mysqlmanagerc_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 sql_src=log_event.h mysql_priv.h log_event.cc
 
 # Fix for mit-threads
