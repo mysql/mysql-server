@@ -28230,7 +28230,7 @@ change this option, you need to first convert your old table names to
 lower case before starting @code{mysqld}.
 
 If you move @code{MyISAM} files from a Windows to a *nix disk, you may
-in some cases need to use the @file{mysql_fix_extentions} tool to fix-up
+in some cases need to use the @file{mysql_fix_extensions} tool to fix-up
 the case of the file extensions in each specified database directory
 (lowercase @file{.frm}, uppercase @file{.MYI} and @file{.MYD}).
 @file{mysql_fix_extensions} can be found in the @file{script} subdirectory.
