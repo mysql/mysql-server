@@ -174,7 +174,6 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 */
 
 static HASH hash_user_connections;
-static DYNAMIC_ARRAY  user_conn_array;
 extern  pthread_mutex_t LOCK_user_conn;
 
 struct  user_conn {

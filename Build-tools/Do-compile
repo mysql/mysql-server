@@ -111,6 +111,8 @@ safe_cd($ver);
 if ($opt_stage <= 1)
 {
   $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
+  # Fix files if this is in another timezone than work.mysql.com
+  log_system("touch *");
   unlink("config.cache");
   log_system("$make clean") if ($opt_use_old_distribution);
   if ($opt_static_server)
