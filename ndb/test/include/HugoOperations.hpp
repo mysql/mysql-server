@@ -30,6 +30,8 @@ public:
   int closeTransaction(Ndb*);
   NdbConnection* getTransaction();
   void refresh();
+
+  void setTransactionId(Uint64);
   
   int pkInsertRecord(Ndb*,
 		     int recordNo,
