@@ -106,6 +106,7 @@ bool Instance::is_running()
                            NullS, port,
                            socket, 0))
     {
+      mysql.reconnect= 1;
       is_connected= TRUE;
       pthread_mutex_unlock(&LOCK_instance);
       return TRUE;
