@@ -3488,9 +3488,9 @@ dict_tree_create(
 	tree->id = index->id;
 	
 	UT_LIST_INIT(tree->tree_indexes);
-#ifdef UNIV_DEBUG
+
 	tree->magic_n = DICT_TREE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+
 	rw_lock_create(&(tree->lock));
 
 	rw_lock_set_level(&(tree->lock), SYNC_INDEX_TREE);
@@ -3929,7 +3929,6 @@ dict_foreign_print_low(
 	fputs(" )\n", stderr);
 }
 
-#ifdef UNIV_DEBUG
 /**************************************************************************
 Prints a table data. */
 
@@ -3962,7 +3961,6 @@ dict_table_print_by_name(
 	dict_table_print_low(table);
 	mutex_exit(&(dict_sys->mutex));
 }
-#endif /* UNIV_DEBUG */
 
 /**************************************************************************
 Prints a table data. */

@@ -532,7 +532,7 @@ date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
 2003-01-03 01:01:01
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
-2006-07-08 00:00:01
+NULL
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
