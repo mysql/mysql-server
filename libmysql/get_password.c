@@ -78,7 +78,7 @@ char *get_tty_password(char *opt_message)
   char *pos=to,*end=to+sizeof(to)-1;
   int i=0;
   DBUG_ENTER("get_tty_password");
-  fprintf(stdout,opt_message ? opt_message : "Enter password: ");
+  _cputs(opt_message ? opt_message : "Enter password: ");
   for (;;)
   {
     char tmp;
