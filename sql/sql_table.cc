@@ -911,6 +911,11 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 				    "Failed generating table from .frm file"));
     }
   }
+
+  // now we should be able to open the partially restored table
+  // to finish the restore in the handler later on
+  if (!(table->table = reopen_name_locked_table(thd, table)))
+     unlock_table_name(thd, table);
   DBUG_RETURN(0);
 }
 
@@ -919,8 +924,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
 			     const char *operator_name,
 			     thr_lock_type lock_type,
-			     bool open_for_modify, bool restore,
+			     bool open_for_modify,
 			     uint extra_open_options,
+                             int (*prepare_func)(THD *, TABLE_LIST *),
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -952,18 +958,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     table->table = open_ltable(thd, table, lock_type);
     thd->open_options&= ~extra_open_options;
     packet->length(0);
-    if (restore)
+    if (prepare_func)
     {
-      switch (prepare_for_restore(thd, table)) {
-      case 1: continue; // error, message written to net
-      case -1: goto err; // error, message could be written to net
-      default: ;// should be 0 otherwise
+      switch ((*prepare_func)(thd, table)) {
+        case  1: continue; // error, message written to net
+        case -1: goto err; // error, message could be written to net
+        default:         ; // should be 0 otherwise
       }
-
-      // now we should be able to open the partially restored table
-      // to finish the restore in the handler later on
-      if (!(table->table = reopen_name_locked_table(thd, table)))
-        unlock_table_name(thd, table);
     }
 
     if (!table->table)
@@ -1096,7 +1097,8 @@ int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				"restore", TL_WRITE, 1, 1,0,
+				"restore", TL_WRITE, 1, 0,
+                                &prepare_for_restore,
 				&handler::restore));
 }
 
@@ -1104,7 +1106,7 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"repair", TL_WRITE, 1, 0, HA_OPEN_FOR_REPAIR,
+				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR, 0,
 				&handler::repair));
 }
 
@@ -1143,7 +1145,7 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, 0, HA_OPEN_FOR_REPAIR,
+				0, HA_OPEN_FOR_REPAIR, 0,
 				&handler::check));
 }
 
@@ -1157,7 +1159,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
                       ORDER *order,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
-       		      enum enum_enable_or_disable keys_onoff,
+	              enum enum_enable_or_disable keys_onoff,
                       bool simple_alter)
 {
   TABLE *table,*new_table;
