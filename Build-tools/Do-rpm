@@ -13,9 +13,9 @@ rpmdir="/usr/src/redhat"
 
 # Perl version numbers. Should be autodetected from the files in the
 # Perl-mysql-modules/ directory.
-DBI_VERSION="1.11"
+DBI_VERSION="1.14"
 DATA_SHOWTABLE_VERSION="3.3"
-DBD_MYSQL_VERSION="1.2209"
+DBD_MYSQL_VERSION="1.2215"
 MAKERPM="$rpmdir/SOURCES/makerpm.pl"
 
 #######################
