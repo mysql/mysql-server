@@ -505,6 +505,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SUBJECT_SYM
 %token  CIPHER_SYM
 
+%token  HELP
+
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
 %left	AND
@@ -637,7 +639,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
 	precision union_option opt_on_delete_item subselect_start opt_and
-	subselect_end select_var_list select_var_list_init
+	subselect_end select_var_list select_var_list_init help
 END_OF_INPUT
 
 %type <NONE>
@@ -699,7 +701,18 @@ verb_clause:
 	| handler
 	| unlock
 	| update
-	| use;
+	| use
+	| help;
+	
+/* help */
+
+help: 
+       HELP TEXT_STRING
+       {
+       LEX *lex= Lex;
+       lex->sql_command= SQLCOM_HELP;
+       lex->help_arg= $2.str;
+       }
 
 /* change master */
 

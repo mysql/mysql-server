@@ -52,11 +52,13 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysql_explain_log.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
-			mysqld_safe.sh
+			mysqld_safe.sh \
+			fill_func_tables.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
-			mysqlbug
+			mysqlbug \
+                        fill_func_tables.sql
 
 pkgdata_DATA =		make_binary_distribution
 
@@ -76,7 +78,8 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysqld_multi
+			mysqld_multi \
+                        fill_func_tables.sql
 
 SUPERCLEANFILES =	mysqlbug
 
@@ -127,3 +130,8 @@ SUFFIXES = .sh
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
+all: fill_func_tables.sql
+
+fill_func_tables.sql: fill_func_tables ../Docs/manual.texi
+	./fill_func_tables < ../Docs/manual.texi > fill_func_tables.sql
