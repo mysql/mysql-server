@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.4-beta)
+AM_INIT_AUTOMAKE(mysql, 4.0.5-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -481,7 +481,7 @@ AC_ARG_WITH(other-libc,
      # we need special flags, but we will have to add those later
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
      STATIC_NSS_FLAGS="$STATIC_NSS_FLAGS $STATIC_NSS_FLAGS"
-     OTHER_LIBC_LIB="-L$other_libc_lib"
+     OTHER_LIBC_LIB="-static -L$other_libc_lib"
      static_nss=1
    else
      # this is a dirty hack. We if we detect static nss glibc in the special
@@ -2241,10 +2241,7 @@ then
   AC_DEFINE(THREAD_SAFE_CLIENT)
 fi
 
-if test "$static_nss" = "1"
-then
-  CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
-fi  
+CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(sql_client_dirs)
@@ -2391,11 +2388,8 @@ fi
 # I know to add the static NSS magic if we have static NSS libraries with
 # glibc - Sasha
 
-if test "$static_nss" = "1"
-then
- LDFLAGS="$LDFLAGS -static $OTHER_LIBC_LIB" 
- LIBS="$LIBS $STATIC_NSS_FLAGS"
-fi  
+LDFLAGS="$LDFLAGS $OTHER_LIBC_LIB"
+LIBS="$LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(sql_server_dirs)
 AC_SUBST(thread_dirs)
