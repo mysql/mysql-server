@@ -1917,7 +1917,7 @@ trx_t*
 trx_get_trx_by_xid(
 /*===============*/
 			/* out: trx or NULL */
-	XID*	xid)	/* in: X/Open XA Transaction Idenfication */
+	XID*	xid)	/* in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 
