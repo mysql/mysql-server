@@ -390,7 +390,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       const TreeEnt ent = scan.m_scanPos.m_ent;
       // read tuple key
       keyPar.m_ent = ent;
-      keyPar.m_data = c_keyBuffer;
+      keyPar.m_data = c_dataBuffer;
       tupReadKeys(signal, frag, keyPar);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
@@ -483,7 +483,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       if (keyPar.m_data == 0) {
         jam();
         keyPar.m_ent = ent;
-        keyPar.m_data = c_keyBuffer;
+        keyPar.m_data = c_dataBuffer;
         tupReadKeys(signal, frag, keyPar);
       }
     }
@@ -704,12 +704,12 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
     jam();
-    c_keyBuffer[j] = *iter.data;
+    c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
   // comparison parameters
   BoundPar boundPar;
-  boundPar.m_data1 = c_keyBuffer;
+  boundPar.m_data1 = c_dataBuffer;
   boundPar.m_count1 = scan.m_boundCnt[0];
   boundPar.m_dir = 0;
 loop: {
@@ -847,12 +847,12 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   bound.first(iter);
   for (unsigned j = 0; j < bound.getSize(); j++) {
     jam();
-    c_keyBuffer[j] = *iter.data;
+    c_dataBuffer[j] = *iter.data;
     bound.next(iter);
   }
   // comparison parameters
   BoundPar boundPar;
-  boundPar.m_data1 = c_keyBuffer;
+  boundPar.m_data1 = c_dataBuffer;
   boundPar.m_count1 = scan.m_boundCnt[1];
   boundPar.m_dir = 1;
   // use copy of position
