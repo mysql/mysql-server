@@ -1,7 +1,7 @@
 Introduction
 ============
 
-This is the Gnu Readline library, version 4.0.
+This is the Gnu Readline library, version 4.3.
 
 The Readline library provides a set of functions for use by applications
 that allow users to edit command lines as they are typed in.  Both
@@ -16,8 +16,8 @@ may be used without Readline in applications which desire its
 capabilities.
 
 The Readline library is free software, distributed under the terms of
-the GNU Public License, version 2.  For more information, see the file
-COPYING.
+the [GNU] General Public License, version 2.  For more information, see
+the file COPYING.
 
 To build the library, try typing `./configure', then `make'.  The
 configuration process is automated, so no further intervention should
@@ -37,6 +37,9 @@ to customize and control the build process.
 The file rlconf.h contains C preprocessor defines that enable and disable
 certain Readline features.
 
+The special make target `everything' will build the static and shared
+libraries (if the target platform supports them) and the examples.
+
 Examples
 ========
 
@@ -54,6 +57,9 @@ a Makefile in the `shlib' subdirectory, and typing `make shared'
 will cause shared versions of the Readline and History libraries
 to be built on supported platforms.
 
+If `configure' is given the `--enable-shared' option, it will attempt
+to build the shared libraries by default on supported platforms.
+
 Configure calls the script support/shobj-conf to test whether or
 not shared library creation is supported and to generate the values
 of variables that are substituted into shlib/Makefile.  If you
@@ -64,8 +70,8 @@ your platform.
 If you need to update support/shobj-conf, you will need to create
 a `stanza' for your operating system and compiler.  The script uses
 the value of host_os and ${CC} as determined by configure.  For
-instance, FreeBSD 2.2.5 with any version of gcc is identified as
-`freebsd2.2.5-gcc*'.
+instance, FreeBSD 4.2 with any version of gcc is identified as
+`freebsd4.2-gcc*'.
 
 In the stanza for your operating system-compiler pair, you will need to
 define several variables.  They are:
@@ -122,18 +128,21 @@ Once you have updated support/shobj-conf, re-run configure and type
 `make shared'.  The shared libraries will be created in the shlib
 subdirectory.
 
-Since shared libraries are not created on all platforms, `make install'
-will not automatically install the shared libraries.  To install them,
-change the current directory to shlib and type `make install'.  Running
-`make install-shared' from the top-level build directory will also work.
+If shared libraries are created, `make install' will install them. 
+You may install only the shared libraries by running `make
+install-shared' from the top-level build directory.  Running `make
+install' in the shlib subdirectory will also work.  If you don't want
+to install any created shared libraries, run `make install-static'. 
 
 Documentation
 =============
 
-The documentation for the Readline and History libraries appears in the
-`doc' subdirectory.  There are two texinfo files and a Unix-style manual
-page describing the programming facilities available in the Readline
-library.  The texinfo files include both user and programmer's manuals.
+The documentation for the Readline and History libraries appears in
+the `doc' subdirectory.  There are three texinfo files and a
+Unix-style manual page describing the facilities available in the
+Readline library.  The texinfo files include both user and
+programmer's manuals.  HTML versions of the manuals appear in the
+`doc' subdirectory as well. 
 
 Reporting Bugs
 ==============
@@ -144,7 +153,7 @@ Bug reports for Readline should be sent to:
 
 When reporting a bug, please include the following information:
 
-        * the version number and release status of Readline (e.g., 4.0-release)
+        * the version number and release status of Readline (e.g., 4.2-release)
         * the machine and OS that it is running on
         * a list of the compilation flags or the contents of `config.h', if
           appropriate

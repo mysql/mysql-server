@@ -8,7 +8,7 @@
 
    The Library is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    The Library is distributed in the hope that it will be useful, but
@@ -19,10 +19,10 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #if !defined (_RLTTY_H_)
-#define _RLTTY_H
+#define _RLTTY_H_
 
 /* Posix systems use termios and the Posix signal functions. */
 #if defined (TERMIOS_TTY_DRIVER)
@@ -59,5 +59,24 @@
 #    endif /* !_POSIX_VERSION */
 #  endif /* !_SVR4_DISABLE */
 #endif /* !NEW_TTY_DRIVER && !_POSIX_VDISABLE */
+
+typedef struct _rl_tty_chars {
+  char t_eof;
+  char t_eol;
+  char t_eol2;
+  char t_erase;
+  char t_werase;
+  char t_kill;
+  char t_reprint;
+  char t_intr;
+  char t_quit;
+  char t_susp;
+  char t_dsusp;
+  char t_start;
+  char t_stop;
+  char t_lnext;
+  char t_flush;
+  char t_status;
+} _RL_TTY_CHARS;
 
 #endif /* _RLTTY_H_ */
