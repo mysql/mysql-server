@@ -848,7 +848,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 
 /* Optimized store functions for Intel x86 */
-#ifdef __i386__
+#if defined(__i386__) && !defined(_WIN64)
 #define sint2korr(A)	(*((int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
