@@ -616,7 +616,7 @@ int st_master_info::wait_for_pos(THD* thd, String* log_name, ulong log_pos)
   bool pos_reached;
   int event_count = 0;
   pthread_mutex_lock(&lock);
-  do
+  while(!thd->killed)
   {
     int cmp_result;
     if (*log_file_name)
@@ -638,15 +638,13 @@ int st_master_info::wait_for_pos(THD* thd, String* log_name, ulong log_pos)
     pos_reached = ((!cmp_result && pos >= log_pos) || cmp_result > 0);
     if (pos_reached || thd->killed)
       break;
-    {
-      const char* msg = thd->enter_cond(&cond, &lock,
-					"Waiting for master update");
-      pthread_cond_wait(&cond, &lock);
-      thd->exit_cond(msg);
-      event_count++;
-      pos_reached = (pos >= log_pos);
-    }
-  } while (!pos_reached && !thd->killed);
+    
+    const char* msg = thd->enter_cond(&cond, &lock,
+				      "Waiting for master update");
+    pthread_cond_wait(&cond, &lock);
+    thd->exit_cond(msg);
+    event_count++;
+  }
   pthread_mutex_unlock(&lock);
   return thd->killed ? -1 : event_count;
 }
