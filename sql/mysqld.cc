@@ -257,9 +257,10 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
+my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
+my_bool opt_secure_auth= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -2764,12 +2765,6 @@ static void create_new_thread(THD *thd)
   if (thread_count-delayed_insert_threads > max_used_connections)
     max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
-  for (uint i=0; i < 8 ; i++)			// Generate password teststring
-    thd->scramble[i]= (char) (my_rnd(&sql_rand)*94+33);
-  thd->scramble[8]=0;
-  // Back it up as old clients may need it
-  memcpy(thd->old_scramble,thd->scramble,9);
-
 
   thd->real_id=pthread_self();			// Keep purify happy
 
@@ -3479,7 +3474,8 @@ enum options
   OPT_EXPIRE_LOGS_DAYS,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_GROUP_CONCAT_MAX_LEN,
-  OPT_DEFAULT_COLLATION
+  OPT_DEFAULT_COLLATION,
+  OPT_SECURE_AUTH
 };
 
 
@@ -3784,9 +3780,10 @@ Does nothing yet.",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
-  {"old-protocol", 'o', "Use the old (3.20) protocol client/server protocol.",
-   (gptr*) &protocol_version, (gptr*) &protocol_version, 0, GET_UINT, NO_ARG,
-   PROTOCOL_VERSION, 0, 0, 0, 0, 0},
+  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients).",
+   (gptr*) &global_system_variables.old_passwords,
+   (gptr*) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"old-rpl-compat", OPT_OLD_RPL_COMPAT,
    "Use old LOAD DATA format in the binary log (don't save data in file).",
    (gptr*) &opt_old_rpl_compat, (gptr*) &opt_old_rpl_compat, 0, GET_BOOL,
@@ -3855,8 +3852,6 @@ relay logs.",
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients).",
-   (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
@@ -3866,6 +3861,9 @@ relay logs.",
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
    (gptr*) &opt_safe_user_create, (gptr*) &opt_safe_user_create, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Disallow authentication for accounts that have old (pre-4.1) passwords.",
+   (gptr*) &opt_secure_auth, (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG,
+   my_bool(0), 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
    (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
@@ -4638,7 +4636,8 @@ static void mysql_init_variables(void)
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname=0;
-  opt_bootstrap= opt_myisam_log= use_old_passwords= 0;
+  opt_secure_auth= 0;
+  opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   segfaulted= kill_in_progress= 0;
   cleanup_done= 0;
@@ -4741,6 +4740,7 @@ static void mysql_init_variables(void)
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
+  global_system_variables.old_passwords= 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -4861,9 +4861,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
-    break;
-  case 'o':
-    protocol_version=PROTOCOL_VERSION-1;
     break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:

@@ -23,6 +23,7 @@
 .vimrc
 50
 =6
+BUILD/compile-pentium-maintainer
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -30,6 +31,8 @@ BitKeeper/etc/csets-out
 BitKeeper/etc/gone
 BitKeeper/etc/level
 BitKeeper/etc/pushed
+BitKeeper/post-commit
+BitKeeper/post-commit-manual
 BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
@@ -223,6 +226,7 @@ bkpull.log.5
 bkpull.log.6
 bkpush.log
 build.log
+build_tags.sh
 client/insert_test
 client/log_event.cc
 client/log_event.h
@@ -311,6 +315,8 @@ libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
 libmysqld/backup_dir
+libmysqld/client.c
+libmysqld/client_settings.h
 libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/errmsg.c
@@ -355,6 +361,7 @@ libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
 libmysqld/key.cc
+libmysqld/libmysql.c
 libmysqld/lock.cc
 libmysqld/log.cc
 libmysqld/log_event.cc
@@ -366,6 +373,7 @@ libmysqld/net_serv.cc
 libmysqld/opt_ft.cc
 libmysqld/opt_range.cc
 libmysqld/opt_sum.cc
+libmysqld/pack.c
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/protocol.cc
@@ -482,6 +490,7 @@ mysys/#mf_iocache.c#
 mysys/charset2html
 mysys/getopt.c
 mysys/getopt1.c
+mysys/main.cc
 mysys/ste5KbMa
 mysys/test_charset
 mysys/test_dir
@@ -585,6 +594,7 @@ stamp-h1
 stamp-h2
 stamp-h3
 stamp-h4
+start_mysqld.sh
 strings/conf_to_src
 strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
@@ -611,6 +621,7 @@ support-files/mysql.spec
 tags
 test_xml
 tests/client_test
+tests/connect_test
 thread_test
 tmp/*
 tools/my_vsnprintf.c
@@ -622,7 +633,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-libmysqld/client.c
-libmysqld/client_settings.h
-libmysqld/libmysql.c
-libmysqld/pack.c
