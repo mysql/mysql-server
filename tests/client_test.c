@@ -50,6 +50,9 @@ static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
 
+static time_t start_time, end_time;
+static double total_time;
+
 #define myheader(str) \
 { \
   fprintf(stdout,"\n\n#####################################\n"); \
@@ -438,7 +441,7 @@ uint my_stmt_result(const char *query, unsigned long length)
   uint       row_count;
   int        rc;
 
-  fprintf(stdout,"\n\n %s \n", query);
+  fprintf(stdout,"\n\n %s", query);
   stmt= mysql_prepare(mysql,query,length);
   mystmt_init(stmt);
 
@@ -1072,7 +1075,7 @@ static void test_prepare()
   myquery(rc);
 
   /* test the results now, only one row should exists */
-  myassert(tiny_data == (int) my_stmt_result("SELECT * FROM my_prepare",50));
+  myassert(tiny_data == (char) my_stmt_result("SELECT * FROM my_prepare",50));
       
   stmt = mysql_prepare(mysql,"SELECT * FROM my_prepare",50);
   mystmt_init(stmt);
@@ -1238,8 +1241,7 @@ static void test_null()
 {
   MYSQL_STMT *stmt;
   int        rc;
-  int        nData=1;
-  MYSQL_RES  *result;
+  uint       nData;
   MYSQL_BIND bind[2];
   my_bool    is_null[2];
 
@@ -1268,33 +1270,69 @@ static void test_null()
   bind[0].buffer_type=MYSQL_TYPE_LONG;
   bind[0].is_null= &is_null[0];
   is_null[0]= 1;
-  bind[1]=bind[0];		/* string data */
+  bind[1]=bind[0];		
 
   rc = mysql_bind_param(stmt,bind);
   mystmt(stmt, rc);
 
   /* now, execute the prepared statement to insert 10 records.. */
-  for (nData=0; nData<9; nData++)
+  for (nData=0; nData<10; nData++)
   {
     rc = mysql_execute(stmt);
     mystmt(stmt, rc);
   }
+
+  /* Re-bind with MYSQL_TYPE_NULL */
+  bind[0].buffer_type= MYSQL_TYPE_NULL;
+  is_null[0]= 0; /* reset */
+  bind[1]= bind[0];
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt,rc);
+  
+  for (nData=0; nData<10; nData++)
+  {
+    rc = mysql_execute(stmt);
+    mystmt(stmt, rc);
+  }
+  
   mysql_stmt_close(stmt);
 
   /* now fetch the results ..*/
   rc = mysql_commit(mysql);
   myquery(rc);
 
-  /* test the results now, only one row should exists */
-  rc = mysql_query(mysql,"SELECT * FROM test_null");
-  myquery(rc);
+  nData*= 2;
+  myassert(nData == my_stmt_result("SELECT * FROM test_null", 30));
 
-  /* get the result */
-  result = mysql_store_result(mysql);
-  mytest(result);
+  /* Fetch results */
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&nData; /* this buffer won't be altered */
+  bind[0].length= 0;
+  bind[1]= bind[0];
+  bind[0].is_null= &is_null[0];
+  bind[1].is_null= &is_null[1];
 
-  myassert(nData == my_process_result_set(result));
-  mysql_free_result(result);
+  stmt = mysql_prepare(mysql,"SELECT * FROM test_null",30);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_bind_result(stmt,bind);
+  mystmt(stmt,rc);
+
+  rc= 0;
+  is_null[0]= is_null[1]= 0;
+  while (mysql_fetch(stmt) != MYSQL_NO_DATA)
+  {
+    myassert(is_null[0]);
+    myassert(is_null[1]);
+    rc++;
+    is_null[0]= is_null[1]= 0;
+  }
+  myassert(rc == (int)nData);
+  mysql_stmt_close(stmt);
 }
 
 
@@ -1636,8 +1674,13 @@ static void test_select_show()
 
   mysql_autocommit(mysql,TRUE);
 
-  strmov(query,"SELECT * FROM mysql.host");
-  stmt = mysql_prepare(mysql, query, strlen(query));
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS test_show");
+  myquery(rc);
+  
+  rc = mysql_query(mysql, "CREATE TABLE test_show(id int(4) NOT NULL, name char(2))");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql, "show columns from test_show", 30);
   mystmt_init(stmt);
 
   verify_param_count(stmt,0);
@@ -1646,7 +1689,28 @@ static void test_select_show()
   mystmt(stmt, rc);
 
   my_process_stmt_result(stmt);
+  mysql_stmt_close(stmt);
+  
+  stmt = mysql_prepare(mysql, "show tables from mysql like ?", 50);
+  mystmt_init_r(stmt);
+  
+  strxmov(query,"show tables from ", current_db, " like \'test_show\'", NullS);
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
 
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  my_process_stmt_result(stmt);
+  mysql_stmt_close(stmt);
+  
+  stmt = mysql_prepare(mysql, "describe test_show", 30);
+  mystmt_init(stmt);
+  
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  my_process_stmt_result(stmt);
   mysql_stmt_close(stmt);
 }
 
@@ -4378,6 +4442,9 @@ static void test_multi_query()
   rc = mysql_query(mysql, query); /* syntax error */
   myquery_r(rc);
 
+  myassert(0 == mysql_next_result(mysql));
+  myassert(0 == mysql_more_results(mysql));
+
   if (!(l_mysql = mysql_init(NULL)))
   { 
     fprintf(stdout,"\n mysql_init() failed");
@@ -5300,19 +5367,33 @@ static void get_options(int argc, char **argv)
   return;
 }
 
+/*
+  Print the test output on successful execution before exiting
+*/
+
+static void print_test_output()
+{
+  fprintf(stdout,"\n\n");
+  fprintf(stdout,"All '%d' tests were successful (in '%d' iterations)", 
+                 test_count-1, opt_count);
+  fprintf(stdout,"\n  Total execution time: %g SECS", total_time);
+  if (opt_count > 1)
+    fprintf(stdout," (Avg: %g SECS)", total_time/opt_count);
+  
+  fprintf(stdout,"\n\n!!! SUCCESS !!!\n");
+}
+
 /********************************************************
 * main routine                                          *
 *********************************************************/
 int main(int argc, char **argv)
 {  
-  time_t start_time, end_time;
-  double total_time= 0;
-  
   MY_INIT(argv[0]);
   get_options(argc,argv);
     
   client_connect();       /* connect to server */
   
+  total_time= 0;
   for (iter_count=1; iter_count <= opt_count; iter_count++) 
   {
     /* Start of tests */
@@ -5399,13 +5480,8 @@ int main(int argc, char **argv)
   }
   
   client_disconnect();    /* disconnect from server */
-  fprintf(stdout,"\n\nAll '%d' tests were successful (in '%d' iterations)", 
-                 test_count-1, opt_count);
-  fprintf(stdout,"\n  Total execution time: %g SECS", total_time);
-  if (opt_count > 1)
-    fprintf(stdout," (Avg: %g SECS)", total_time/opt_count);
+  print_test_output();
   
-  fprintf(stdout,"\n\nSUCCESS !!!\n");
   return(0);
 }
 
