@@ -7,10 +7,10 @@ connect (con2,localhost,root,,);
 connection con1;
 set SQL_LOG_BIN=0;
 create table t4(n int);
---replace_result "errno: 2" "errno: X" "errno: 22" "errno: X" "errno: 23" "errno: X"
+--replace_result "errno: 1" "errno: X" "errno: 2" "errno: X" "errno: 22" "errno: X" "errno: 23" "errno: X"
 backup table t4 to '../bogus';
 backup table t4 to '../tmp';
---replace_result "errno: 17" "errno: X"
+--replace_result "errno: 7" "errno: X" "errno: 17" "errno: X"
 backup table t4 to '../tmp';
 drop table t4;
 restore table t4 from '../tmp';

@@ -47,33 +47,29 @@ if [ -d $BASE ] ; then
  rm -r -f $BASE
 fi
 
-BS=""
-EXTRA_BIN_FILES=""
 BASE_SYSTEM="any"
 MYSQL_SHARE=$BASE/share/mysql
+BIN_FILES=""
 
 case $system in
   *netware*)
     BASE_SYSTEM="netware"
-    BS=".nlm"
     MYSQL_SHARE=$BASE/share
-    EXTRA_BIN_FILES="netware/mysqld_safe.nlm netware/mysql_install_db.nlm \
-      netware/init_db.sql netware/test_db.sql netware/mysql_explain_log.nlm \
-      netware/mysqlhotcopy.nlm netware/libmysql.nlm netware/init_secure_db.sql"
     ;;
 esac
 
 
-mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
+mkdir $BASE $BASE/bin \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data
 
 if [ $BASE_SYSTEM != "netware" ] ; then
-  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man $BASE/man/man1
-fi
+ mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
+  $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
 
-chmod o-rwx $BASE/data $BASE/data/*
+ chmod o-rwx $BASE/data $BASE/data/*
+fi
 
 for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
          MySQLEULA.txt Docs/manual.html Docs/manual.txt Docs/manual_toc.html \
@@ -85,23 +81,47 @@ do
   fi
 done
 
-for i in extra/comp_err$BS extra/replace$BS extra/perror$BS \
-         extra/resolveip$BS extra/my_print_defaults$BS \
-         extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
-        isam/isamchk$BS isam/pack_isam$BS \
-        myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
-        sql/mysqld$BS \
-        client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
-	client/mysqldump$BS client/mysqlimport$BS \
-        client/mysqltest$BS client/mysqlcheck$BS \
-        client/mysqlbinlog$BS client/mysqlmanagerc$BS \
-        client/mysqlmanager-pwgen$BS tools/mysqlmanager$BS \
-        client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
-        client/.libs/mysqldump client/.libs/mysqlimport \
-        client/.libs/mysqltest client/.libs/mysqlcheck \
-        client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
-        client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
-        $EXTRA_BIN_FILES
+if [ $BASE_SYSTEM = "netware" ] ; then
+  
+  BIN_FILES="\
+    extra/comp_err.nlm extra/replace.nlm extra/perror.nlm \
+    extra/resolveip.nlm extra/my_print_defaults.nlm \
+    isam/isamchk.nlm isam/pack_isam.nlm \
+    myisam/myisamchk.nlm myisam/myisampack.nlm myisam/myisamlog.nlm \
+    sql/mysqld.nlm \
+    client/mysql.nlm client/mysqlshow.nlm client/mysqladmin.nlm \
+    client/mysqldump.nlm client/mysqlimport.nlm \
+    client/mysqltest.nlm client/mysqlcheck.nlm \
+    client/mysqlbinlog.nlm
+    netware/mysqld_safe.nlm netware/mysql_install_db.nlm \
+    netware/init_db.sql netware/test_db.sql netware/mysql_explain_log.nlm \
+    netware/mysqlhotcopy.nlm netware/libmysql.nlm netware/init_secure_db.sql \
+  ";
+  
+else
+  
+  BIN_FILES="\
+    extra/comp_err extra/replace extra/perror \
+    extra/resolveip extra/my_print_defaults \
+    extra/resolve_stack_dump extra/mysql_waitpid \
+    isam/isamchk isam/pack_isam \
+    myisam/myisamchk myisam/myisampack myisam/myisamlog \
+    sql/mysqld \
+    client/mysql client/mysqlshow client/mysqladmin \
+    client/mysqldump client/mysqlimport \
+    client/mysqltest client/mysqlcheck \
+    client/mysqlbinlog client/mysqlmanagerc \
+    client/mysqlmanager-pwgen tools/mysqlmanager \
+    client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
+    client/.libs/mysqldump client/.libs/mysqlimport \
+    client/.libs/mysqltest client/.libs/mysqlcheck \
+    client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
+    client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
+  ";
+  
+fi
+
+for i in $BIN_FILES
 do
   if [ -f $i ]
   then
@@ -126,7 +146,13 @@ if [ $BASE_SYSTEM = "netware" ] ; then
     $CP -r netware/*.pl $BASE/scripts
 fi
 
-for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* libmysqld/libmysqld.a netware/libmysql.imp
+for i in \
+  libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* \
+  libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a \
+  libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* \
+  mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
+  libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* \
+  libmysqld/libmysqld.a netware/libmysql.imp
 do
   if [ -f $i ]
   then

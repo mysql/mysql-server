@@ -426,19 +426,6 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 #endif
 
 
-#ifdef __NETWARE__
-/*  NetWare does not re-acquire the lock if the condition fails */
-int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-			      struct timespec *abstime)
-{
-  int err= pthread_cond_timedwait(cond, mutex, abstime);
-  if (err)
-    pthread_mutex_lock(mutex);
-  return err;
-}
-#endif /* __NETWARE__ */
-
-
 /*****************************************************************************
   Patches for HPUX
   We need these because the pthread_mutex.. code returns -1 on error,

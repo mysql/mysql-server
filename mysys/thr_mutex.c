@@ -241,11 +241,6 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
     fflush(stderr);
     abort();
   }
-#ifdef __NETWARE__
-  /* NetWare doesn't re-acquire the mutex on an error */
-  if (error && pthread_mutex_lock(&mp->mutex))
-    mp->count--;
-#endif /* __NETWARE__ */
   mp->thread=pthread_self();
   mp->file= (char*) file;
   mp->line=line;
