@@ -1560,6 +1560,19 @@ create function bug3132(s char(20)) returns char(50)
 select bug3132('Bob') union all select bug3132('Judy')|
 drop function bug3132|
 
+#
+# BUG#3843
+#
+create procedure bug3843()
+  analyze table t1|
+
+# Testing for packets out of order
+call bug3843()|
+call bug3843()|
+select 1+2|
+
+drop procedure bug3843|
+
 
 #
 # Some "real" examples

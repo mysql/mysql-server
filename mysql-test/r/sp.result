@@ -1360,6 +1360,18 @@ bug3132('Bob')
 Hello, Bob!
 Hello, Judy!
 drop function bug3132|
+create procedure bug3843()
+analyze table t1|
+call bug3843()|
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+call bug3843()|
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+select 1+2|
+1+2
+3
+drop procedure bug3843|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
