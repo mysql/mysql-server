@@ -64,7 +64,7 @@
 #define X  L_MIDDLE
 
 
-int t_ctype[][TOT_LEVELS] = {
+static int t_ctype[][TOT_LEVELS] = {
     /*0x00*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x01*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x02*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
@@ -324,7 +324,7 @@ int t_ctype[][TOT_LEVELS] = {
     /*0xFF*/ { 255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X },
 };
 
-uchar NEAR ctype_tis620[257] =
+static uchar NEAR ctype_tis620[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -345,7 +345,7 @@ uchar NEAR ctype_tis620[257] =
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-uchar NEAR to_lower_tis620[]=
+static uchar NEAR to_lower_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -381,7 +381,7 @@ uchar NEAR to_lower_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR to_upper_tis620[]=
+static uchar NEAR to_upper_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -417,7 +417,7 @@ uchar NEAR to_upper_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR sort_order_tis620[]=
+static uchar NEAR sort_order_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -526,6 +526,7 @@ static uint thai2sortable(uchar *tstr, uint len)
   Ret: strcmp result
 */
 
+static
 int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
                         const uchar * s1, uint len1, 
                         const uchar * s2, uint len2)
@@ -551,18 +552,70 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-/*
-  TODO: Has to be fixed like strnncollsp in ctype-simple.c
-*/
-
 static
-int my_strnncollsp_tis620(CHARSET_INFO * cs, 
-			  const uchar *s, uint slen, 
-			  const uchar *t, uint tlen)
+int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
+			  const uchar *a0, uint a_length, 
+			  const uchar *b0, uint b_length)
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_tis620(cs,s,slen,t,tlen);
+  uchar	buf[80] ;
+  uchar *end, *a, *b;
+  uint length;
+  int res= 0;
+  int alloced= 0;
+  
+  a= buf;
+  if ((a_length + b_length +2) > (int) sizeof(buf))
+  {
+    a= (uchar*) malloc(a_length+b_length);
+    alloced= 1;
+  }
+  
+  b= a + a_length+1;
+  memcpy((char*) a, (char*) a0, a_length);
+  a[a_length]= 0;	/* if length(a0)> len1, need to put 'end of string' */
+  memcpy((char *)b, (char *)b0, b_length);
+  b[b_length]= 0;	/* put end of string */
+  a_length= thai2sortable(a, a_length);
+  b_length= thai2sortable(b, b_length);
+  
+  end= a + (length= min(a_length, b_length));
+  while (a < end)
+  {
+    if (*a++ != *b++)
+    {
+      res= ((int) a[-1] - (int) b[-1]);
+      goto ret;
+    }
+  }
+  if (a_length != b_length)
+  {
+    int swap= 0;
+    /*
+      Check the next not space character of the longer key. If it's < ' ',
+      then it's smaller than the other key.
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in s */
+      a_length= b_length;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+      {
+	res= ((int) *a - (int) ' ') ^ swap;
+	goto ret;
+      }
+    }
+  }
+  
+ret:
+  
+  if (alloced)
+    free(a);
+  return res;
 }
 
 
@@ -573,6 +626,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs,
   Ret: Conveted string size
 */
 
+static
 int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
@@ -582,18 +636,6 @@ int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
   return (int) thai2sortable(dest, len);
 }
 
-
-/*
-  strcoll replacment, compare 2 strings
-  Arg: 2 strings
-  Ret: strcmp result
-*/
-
-int my_strcoll_tis620(const uchar * s1, const uchar * s2)
-{
-  return my_strnncoll_tis620((CHARSET_INFO *) 0, s1, strlen((char*) s1),
-			     s2, strlen((char*) s1));
-}
 
 
 /*
@@ -614,6 +656,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 
 #define max_sort_chr ((char) 255)
 
+static
 my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
 			     const char *ptr, uint ptr_length,
 			     pbool escape, pbool w_one, pbool w_many,
