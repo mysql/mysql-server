@@ -30,14 +30,19 @@ class Instance_map;
 class Instance
 {
 public:
+  Instance();
+
   ~Instance();
   int init(const char *name);
   int complete_initialization(Instance_map *instance_map_arg);
 
-  /* check if the instance is running and set up mysql connection if yes */
   bool is_running();
   int start();
   int stop();
+  /* send a signal to the instance */
+  void kill_instance(int signo);
+  int is_crashed();
+  void fork_and_monitor();
 
 public:
   enum { DEFAULT_SHUTDOWN_DELAY= 35 };
@@ -49,7 +54,9 @@ private:
     double start of the instance. This happens when the instance is starting
     and we issue the start command once more.
   */
+  int crashed;
   pthread_mutex_t LOCK_instance;
+  pthread_cond_t COND_instance_restarted;
   Instance_map *instance_map;
 };
 

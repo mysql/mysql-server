@@ -85,6 +85,8 @@ void Listener_thread::run()
 
   thread_registry.register_thread(&thread_info);
 
+  my_thread_init();
+
   /* I. prepare 'listen' sockets */
 
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
@@ -263,11 +265,13 @@ void Listener_thread::run()
   unlink(unix_socket_address.sun_path);
 
   thread_registry.unregister_thread(&thread_info);
+  my_thread_end();
   return;
 
 err:
   thread_registry.unregister_thread(&thread_info);
   thread_registry.request_shutdown();
+  my_thread_end();
   return;
 }
 

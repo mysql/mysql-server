@@ -69,7 +69,7 @@ int User::init(const char *line)
 
   return 0;
 err:
-  log_error("error parsing user and password at line %d", line);
+  log_error("error parsing user and password at line %s", line);
   return 1;
 }
 
