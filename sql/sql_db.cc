@@ -327,6 +327,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+            create->default_table_charset= default_charset_info;
 	  }
 	}
 	else if (!strncmp(buf,"default-collation", (pos-buf)))
@@ -336,6 +337,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+            create->default_table_charset= default_charset_info;
 	  }
 	}
       }
