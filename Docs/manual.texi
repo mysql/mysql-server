@@ -14374,12 +14374,16 @@ like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
 @example
+mysql> SELECT x'FF'
+       -> 255
 mysql> SELECT 0xa+0;
        -> 10
 mysql> select 0x5061756c;
        -> Paul
 @end example
 
+The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
+syntax is based on ODBC.
 Hexadecimal strings are often used by ODBC to give values for BLOB columns.
 
 @tindex NULL value
@@ -46436,11 +46440,13 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Allow ANSI SQL syntax @code{X'hexadecimal-number'}
+@item
 Tree-like cache to speed up bulk inserts and
 @code{myisam_bulk_insert_tree_size} variable.
 @item
 Added @code{ALTER TABLE table_name DISABLE KEYS} and
-      @code{ALTER TABLE table_name ENABLE KEYS} commands.
+@code{ALTER TABLE table_name ENABLE KEYS} commands.
 @item
 @code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
 @item

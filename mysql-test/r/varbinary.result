@@ -2,5 +2,9 @@
 A	65	9223372036854775807	-1
 0x31+1	concat(0x31)+1	-0xf
 50	2	-15
+x'31'	X'ffff'+0
+1	65535
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	const	UNIQ	UNIQ	8	const	1	
+x	xx
+1	2
