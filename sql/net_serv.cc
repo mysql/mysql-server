@@ -51,9 +51,7 @@
 
 #ifdef EMBEDDED_LIBRARY
 
-#ifdef net_flush
 #undef net_flush
-#endif
 
 extern "C" {
 my_bool	net_flush(NET *net);
