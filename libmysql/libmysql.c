@@ -927,11 +927,8 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
-  "ssl-cipher","protocol",
-red_memory_base_name",
-
-
- NullS
+  "ssl-cipher","protocol", "shared_memory_base_name",
+  NullS
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
