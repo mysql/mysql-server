@@ -16,6 +16,11 @@ Created 10/25/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "os0file.h"
 
+/* When mysqld is run, the default directory "." is the mysqld datadir, but in
+ibbackup we must set it explicitly; the path must NOT contain the trailing
+'/' or '\' */
+extern const char*	fil_path_to_mysql_datadir;
+
 /* 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
 
