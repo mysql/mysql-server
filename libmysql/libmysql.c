@@ -2018,6 +2018,7 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
+  stmt->affected_rows= mysql->affected_rows;
   DBUG_RETURN(0);
 }
 
@@ -2127,7 +2128,7 @@ ulong STDCALL mysql_param_count(MYSQL_STMT * stmt)
 
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 {
-  return stmt->mysql->last_used_con->affected_rows;
+  return stmt->affected_rows;
 }
 
 
@@ -3223,6 +3224,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     DBUG_RETURN(0);
   }
   mysql->affected_rows= result->row_count= result->data->rows;
+  stmt->affected_rows= result->row_count;
   result->data_cursor=	result->data->data;
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
