@@ -415,7 +415,8 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
   Note that currently we only remap pthread_ functions used by MySQL.
   If we are depending on the value for some other pthread_xxx functions,
-  this has to be added here
+  this has to be added here.
+****************************************************************************/
 
 #if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
 

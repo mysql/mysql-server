@@ -4967,6 +4967,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	}
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
+	if (end_of_records)
+	{
+	  join->send_records++;
+	  DBUG_RETURN(0);
+	}
 	if (!error && ++join->send_records >= join->thd->select_limit &&
 	    join->do_send_rows)
 	{
@@ -4975,8 +4980,6 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  join->do_send_rows=0;
 	  join->thd->select_limit = HA_POS_ERROR;
         }
-	if (end_of_records)
-	  DBUG_RETURN(0);
       }
     }
     else
