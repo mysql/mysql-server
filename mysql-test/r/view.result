@@ -138,7 +138,6 @@ v3	VIEW
 v4	VIEW
 v5	VIEW
 v6	VIEW
-vt1	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	9	Fixed	5	9	45	38654705663	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
@@ -148,7 +147,6 @@ v3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	vie
 v4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 v5	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 v6	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
-vt1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
 drop view v1,v2,v3,v4,v5,v6;
 create view v1 (c,d,e,f) as select a,b,
 a in (select a+2 from t1), a = all (select a from t1) from t1;
