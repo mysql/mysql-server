@@ -16,6 +16,10 @@ SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a));
 SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
+-- error 1239
+SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT 1,1);
+SELECT 1 IN (SELECT 1);
+SELECT 1 FROM (SELECT 1 as a) WHERE 1 IN (SELECT (SELECT a));
 
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
