@@ -3099,12 +3099,14 @@ void Xid_log_event::pack_info(Protocol *protocol)
   we don't care about actual values of xids as long as
   identical numbers compare identically
 */
-Xid_log_event::Xid_log_event(const char* buf,
-                             const Format_description_log_event* description_event)
+
+Xid_log_event::
+Xid_log_event(const char* buf,
+              const Format_description_log_event *description_event)
   :Log_event(buf, description_event)
 {
   buf+= description_event->common_header_len;
-  xid=*((my_xid *)buf);
+  memcpy((char*) &xid, buf, sizeof(xid));
 }
 
 
