@@ -405,7 +405,6 @@ static int get_options(int *argc, char ***argv)
 
   md_result_file= stdout;
   load_defaults("my",load_default_groups,argc,argv);
-  set_all_changeable_vars(md_changeable_vars);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
   {

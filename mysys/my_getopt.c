@@ -300,7 +300,14 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      /* Option recognized. Find next what to do with it */
 	      opt_found= 1;
-	      if (optp->arg_type == REQUIRED_ARG || optp->arg_type == OPT_ARG)
+	      if (optp->var_type == GET_BOOL && optp->arg_type == NO_ARG)
+	      {
+		*((my_bool*) optp->value)= (my_bool) 1;
+		(*argc)--;
+		continue;
+	      }
+	      else if (optp->arg_type == REQUIRED_ARG ||
+		       optp->arg_type == OPT_ARG)
 	      {
 		if (*(optend + 1))
 		{
@@ -520,7 +527,7 @@ void my_print_help(const struct my_option *options)
     {
       printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= 6;
+      col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
     }
     else if (optp->var_type == GET_NO_ARG || optp->var_type == GET_BOOL)
     {
@@ -531,7 +538,7 @@ void my_print_help(const struct my_option *options)
     {
       printf("%s=#%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	     optp->arg_type == OPT_ARG ? "]" : "");
-      col+= 3;
+      col+= (optp->arg_type == OPT_ARG) ? 5 : 3;
     }
     if (col > name_space)
     {
