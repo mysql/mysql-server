@@ -178,7 +178,7 @@ static int _mi_find_writepos(MI_INFO *info,
   {
     /* No deleted blocks;  Allocate a new block */
     *filepos=info->state->data_file_length;
-    if ((*length=reclength+3 + test(reclength > 65520)) <
+    if ((*length=reclength+3 + test(reclength >= (65520-3))) <
 	info->s->base.min_block_length)
       *length=info->s->base.min_block_length;
     else

@@ -2480,7 +2480,7 @@ int sort_write_record(SORT_INFO *sort_info)
       info->checksum=mi_checksum(info,sort_info->record);
       reclength=_mi_rec_pack(info,from,sort_info->record);
       info->s->state.checksum+=info->checksum;
-      block_length=reclength+ 3 +test(reclength > 65532L);
+      block_length=reclength+ 3 + test(reclength >= (65520-3));
       if (block_length < share->base.min_block_length)
 	block_length=share->base.min_block_length;
       flag=0;
