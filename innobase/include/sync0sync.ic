@@ -86,6 +86,20 @@ mutex_test_and_set(
 	/* mutex_fence(); */
 
 	return(res);
+#elif defined(__GNUC__) && defined(UNIV_INTEL_X86)
+	ulint*	lw;
+	ulint	res;
+
+	lw = &(mutex->lock_word);
+
+	/* In assembly we use the so-called AT & T syntax where
+	the order of operands is inverted compared to the ordinary Intel
+	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
+
+	asm volatile("movl $1, %%eax; xchgl (%%ecx), %%eax" :
+	              "=eax" (res):
+	              "ecx" (lw));
+	return(res);
 #else
 	ibool	ret;
 
