@@ -6,9 +6,9 @@
 # the default is "F:/mydev"
 export MYDEV="WINE_BUILD_DIR"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/mysql-VERSION/netware/BUILD"
-export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;knetware.imp"
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/mysql-VERSION/netware/BUILD"
+export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
 

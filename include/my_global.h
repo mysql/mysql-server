@@ -73,6 +73,12 @@
 #endif
 #endif /* _WIN32... */
 
+/* Some defines to avoid ifdefs in the code */
+#ifndef NETWARE_YIELD
+#define NETWARE_YIELD
+#define NETWARE_SET_SCREEN_MODE(A)
+#endif
+
 /*
   The macros below are borrowed from include/linux/compiler.h in the
   Linux kernel. Use them to indicate the likelyhood of the truthfulness
