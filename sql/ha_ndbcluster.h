@@ -103,18 +103,19 @@ class Ndb_item {
   Ndb_item(Item_func::Functype func_type);
   ~Ndb_item();
   void print(String *str);
-  bool isBig() 
+  bool is_big() 
   {
     enum_field_types type= value.field_value->field->type(); 
     return (type == MYSQL_TYPE_LONGLONG || type == MYSQL_TYPE_INT24); 
-  }
+  };
+  uint32 pack_length() { return value.field_value->field->pack_length(); };
   // Getters and Setters
-  longlong getIntValue() { return value.int_value; };
-  double getRealValue() { return value.real_value; };
-  String * getStringValue() { return &value.string_value->s; };
-  CHARSET_INFO * getStringCharset() { return value.string_value->c; };
-  Field * getField() { return value.field_value->field; };
-  int getFieldNo() { return value.field_value->column_no; };
+  longlong get_int_value() { return value.int_value; };
+  double get_real_value() { return value.real_value; };
+  String * get_string_value() { return &value.string_value->s; };
+  CHARSET_INFO * get_string_charset() { return value.string_value->c; };
+  Field * get_field() { return value.field_value->field; };
+  int get_field_no() { return value.field_value->column_no; };
 
  public:
   NDB_ITEM_TYPE type;
