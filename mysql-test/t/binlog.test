@@ -19,7 +19,8 @@ insert t2 values (5);
 commit;
 # first COMMIT must be Query_log_event, second - Xid_log_event
 --replace_result "xid=18" "xid=11"
-show binlog events from 96;
+--replace_column 2 # 5 #
+show binlog events from 98;
 drop table t1,t2;
 
 #
@@ -40,6 +41,8 @@ while ($1)
 commit;
 drop table t1;
 --replace_result "xid=29" "xid=18"
-show binlog events in 'master-bin.000001' from 96;
-show binlog events in 'master-bin.000002' from 96;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000001' from 98;
+--replace_column 2 # 5 #
+show binlog events in 'master-bin.000002' from 98;
 
