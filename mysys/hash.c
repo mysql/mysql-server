@@ -122,7 +122,8 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 
 
 
-#if !defined(__SUNPRO_C) && !defined(__USLC__)	/* broken compilers */
+/* for compilers which can not handle inline */
+#if !defined(__SUNPRO_C) && !defined(__USLC__) && !defined(__sgi)
 inline
 #endif
 unsigned int rec_hashnr(HASH *hash,const byte *record)

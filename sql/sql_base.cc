@@ -300,6 +300,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
+    mysql_ha_close_list(thd, tables);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -362,6 +363,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 
 void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
+  bool found_old_table=0;
   DBUG_ENTER("close_thread_tables");
 
   if (thd->derived_tables && !skip_derived)
@@ -384,8 +386,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
   }
 
-  bool found_old_table=0;
-
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -396,7 +396,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
+  DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
@@ -426,6 +426,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ASSERT(table->key_read == 0);
+  DBUG_ASSERT(table->file->inited == handler::NONE);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||
@@ -850,6 +851,9 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     DBUG_RETURN(0);
   }
 
+  /* close handler tables which are marked for flush */
+  mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
@@ -1220,6 +1224,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
+    mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -1760,6 +1765,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
+  tmp_table->in_use= thd;
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
@@ -2184,8 +2190,19 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
-      if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name, &it))
+      Item_subselect *subsel= thd->lex->current_select->master_unit()->item;
+      if (subsel &&
+          subsel->substype() == Item_subselect::EXISTS_SUBS)
+      {
+        /*
+          It is EXISTS(SELECT * ...) and we can replace * by any constant.
+
+          Item_int do not need fix_fields() because it is basic constant.
+        */
+        it.replace(new Item_int("Not_used", (longlong) 1, 21));
+      }
+      else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
+                             ((Item_field*) item)->table_name, &it))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -2373,10 +2390,33 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       TABLE *natural_join_table= 0;
 
       thd->used_tables|=table->map;
-      if (!table->outer_join &&
-          tables->natural_join &&
-          !tables->natural_join->table->outer_join)
-        natural_join_table= tables->natural_join->table;
+      TABLE_LIST *embedded= tables;
+      TABLE_LIST *last= embedded;
+      TABLE_LIST *embedding;
+      
+      while ((embedding= embedded->embedding) &&
+              embedding->join_list->elements != 1)
+      {
+        TABLE_LIST *next;
+        List_iterator_fast<TABLE_LIST> it(embedding->nested_join->join_list);
+        last= it++;
+        while ((next= it++))
+          last= next;
+        if (last != tables)
+          break;
+        embedded= embedding;
+      } 
+ 
+      if (tables == last && 
+          !embedded->outer_join &&
+          embedded->natural_join &&
+          !embedded->natural_join->outer_join)
+      {
+        embedding= embedded->natural_join;
+        while (embedding->nested_join)
+          embedding= embedding->nested_join->join_list.head();
+        natural_join_table= embedding->table;
+      }       
 
       while ((field = *ptr++))
       {
@@ -2441,107 +2481,131 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     if (!(*conds)->fixed && (*conds)->fix_fields(thd, tables, conds) ||
 	(*conds)->check_cols(1))
       DBUG_RETURN(1);
-    not_null_tables= (*conds)->not_null_tables();
   }
 
 
   /* Check if we are using outer joins */
   for (TABLE_LIST *table=tables ; table ; table=table->next)
   {
-    if (table->on_expr)
-    {
-      /* Make a join an a expression */
-      thd->where="on clause";
-      
-      if (!table->on_expr->fixed &&
-	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
-	  table->on_expr->check_cols(1))
-	DBUG_RETURN(1);
-      select_lex->cond_count++;
-
-      /*
-	If it's a normal join or a LEFT JOIN which can be optimized away
-	add the ON/USING expression to the WHERE
-      */
-      if (!table->outer_join ||
-	  ((table->table->map & not_null_tables) &&
-	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
+    TABLE_LIST *embedded;
+    TABLE_LIST *embedding= table;
+    do
+    { 
+      embedded= embedding;
+      if (embedded->on_expr)
       {
-	table->outer_join= 0;
-	if (arena)
-	  thd->set_n_backup_item_arena(arena, &backup);
-	*conds= and_conds(*conds, table->on_expr);
-	table->on_expr=0;
-	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
-	if ((*conds) && !(*conds)->fixed &&
-	    (*conds)->fix_fields(thd, tables, conds))
+        /* Make a join an a expression */
+        thd->where="on clause";
+        if (embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr) ||
+	    embedded->on_expr->check_cols(1))
 	  DBUG_RETURN(1);
+        select_lex->cond_count++;
       }
-    }
-    if (table->natural_join)
-    {
-      if (arena)
-	thd->set_n_backup_item_arena(arena, &backup);
-      /* Make a join of all fields with have the same name */
-      TABLE *t1= table->table;
-      TABLE *t2= table->natural_join->table;
-      Item_cond_and *cond_and= new Item_cond_and();
-      if (!cond_and)				// If not out of memory
-	goto err;
-      cond_and->top_level_item();
-
-      Field **t1_field, *t2_field;
-      for (t1_field= t1->field; (*t1_field); t1_field++)
+      if (embedded->natural_join)
       {
-        const char *t1_field_name= (*t1_field)->field_name;
-        uint not_used_field_index= NO_CACHED_FIELD_INDEX;
-
-        if ((t2_field= find_field_in_table(thd, t2, t1_field_name,
-                                           strlen(t1_field_name), 0, 0,
-                                           &not_used_field_index)))
+        /* Make a join of all fields wich have the same name */
+        TABLE_LIST *tab1= embedded;
+        TABLE_LIST *tab2= embedded->natural_join;
+        if (!(embedded->outer_join & JOIN_TYPE_RIGHT))
         {
-          Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
-                                             new Item_field(t2_field));
-          if (!tmp)
-            goto err;
-          /* Mark field used for table cache */
-          (*t1_field)->query_id= t2_field->query_id= thd->query_id;
-          cond_and->list.push_back(tmp);
-          t1->used_keys.intersect((*t1_field)->part_of_key);
-          t2->used_keys.intersect(t2_field->part_of_key);
+          while (tab1->nested_join)
+          {
+            TABLE_LIST *next;
+            List_iterator_fast<TABLE_LIST> it(tab1->nested_join->join_list);
+            tab1= it++;
+            while ((next= it++))
+              tab1= next;
+          }
+        }
+        else
+        {
+          while (tab1->nested_join)
+            tab1= tab1->nested_join->join_list.head();
+        }
+        if (embedded->outer_join & JOIN_TYPE_RIGHT)
+        {
+          while (tab2->nested_join)
+          {
+            TABLE_LIST *next;
+            List_iterator_fast<TABLE_LIST> it(tab2->nested_join->join_list);
+            tab2= it++;
+            while ((next= it++))
+              tab2= next;
+          }
+        }
+        else
+        {
+          while (tab2->nested_join)
+            tab2= tab2->nested_join->join_list.head();
+        }
+
+        if (arena)
+	  thd->set_n_backup_item_arena(arena, &backup);
+        TABLE *t1=tab1->table;
+        TABLE *t2=tab2->table;
+        Item_cond_and *cond_and=new Item_cond_and();
+        if (!cond_and)				// If not out of memory
+	  DBUG_RETURN(1);
+        cond_and->top_level_item();
+
+        Field **t1_field, *t2_field;
+        for (t1_field= t1->field; (*t1_field); t1_field++)
+        {
+          const char *t1_field_name= (*t1_field)->field_name;
+          uint not_used_field_index= NO_CACHED_FIELD_INDEX;
+
+          if ((t2_field= find_field_in_table(thd, t2, t1_field_name,
+                                             strlen(t1_field_name), 0, 0,
+                                             &not_used_field_index)))
+          {
+            Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
+                                               new Item_field(t2_field));
+            if (!tmp)
+              goto err;
+            /* Mark field used for table cache */
+            (*t1_field)->query_id= t2_field->query_id= thd->query_id;
+            cond_and->list.push_back(tmp);
+            t1->used_keys.intersect((*t1_field)->part_of_key);
+            t2->used_keys.intersect(t2_field->part_of_key);
+          }
+        }
+        cond_and->used_tables_cache= t1->map | t2->map;
+        select_lex->cond_count+= cond_and->list.elements;
+
+        // to prevent natural join processing during PS re-execution
+        embedding->natural_join= 0;
+
+        COND *on_expr= cond_and;
+        on_expr->fix_fields(thd, 0, &on_expr);
+        if (!embedded->outer_join)			// Not left join
+        {
+	  *conds= and_conds(*conds, cond_and);
+	  // fix_fields() should be made with temporary memory pool
+	  if (arena)
+	    thd->restore_backup_item_arena(arena, &backup);
+	  if (*conds && !(*conds)->fixed)
+	  {
+	    if ((*conds)->fix_fields(thd, tables, conds))
+	      DBUG_RETURN(1);
+	  }
+        }
+        else
+        {
+	  embedded->on_expr= and_conds(embedded->on_expr, cond_and);
+	  // fix_fields() should be made with temporary memory pool
+	  if (arena)
+	    thd->restore_backup_item_arena(arena, &backup);
+	  if (embedded->on_expr && !embedded->on_expr->fixed)
+	  {
+	    if (embedded->on_expr->fix_fields(thd, tables, &table->on_expr))
+	     DBUG_RETURN(1);
+	  }
         }
       }
-      select_lex->cond_count+= cond_and->list.elements;
-
-      // to prevent natural join processing during PS re-execution
-      table->natural_join= 0;
-
-      if (!table->outer_join)			// Not left join
-      {
-	*conds= and_conds(*conds, cond_and);
-	// fix_fields() should be made with temporary memory pool
-	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
-	if (*conds && !(*conds)->fixed)
-	{
-	  if ((*conds)->fix_fields(thd, tables, conds))
-	    DBUG_RETURN(1);
-	}
-      }
-      else
-      {
-	table->on_expr= and_conds(table->on_expr, cond_and);
-	// fix_fields() should be made with temporary memory pool
-	if (arena)
-	  thd->restore_backup_item_arena(arena, &backup);
-	if (table->on_expr && !table->on_expr->fixed)
-	{
-	  if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
-	   DBUG_RETURN(1);
-	}
-      }
+      embedding= embedded->embedding;
     }
+    while (embedding &&
+           embedding->nested_join->join_list.head() == embedded);
   }
 
   if (arena)

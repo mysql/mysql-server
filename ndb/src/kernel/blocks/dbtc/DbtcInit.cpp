@@ -182,19 +182,24 @@ Dbtc::Dbtc(const class Configuration & conf):
 
   BLOCK_CONSTRUCTOR(Dbtc);
   
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
   Uint32 transactionBufferMemory = 0;
   Uint32 maxNoOfIndexes = 0, maxNoOfConcurrentIndexOperations = 0;
   Uint32 maxNoOfTriggers = 0, maxNoOfFiredTriggers = 0;
 
-  p->get("TransactionBufferMemory", &transactionBufferMemory);
-  p->get("MaxNoOfIndexes", &maxNoOfIndexes);
-  p->get("MaxNoOfConcurrentIndexOperations", &maxNoOfConcurrentIndexOperations);
-  p->get("MaxNoOfTriggers", &maxNoOfTriggers);
-  p->get("MaxNoOfFiredTriggers", &maxNoOfFiredTriggers);
-
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
+			    &transactionBufferMemory);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEXES, 
+			    &maxNoOfIndexes);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS, 
+			    &maxNoOfConcurrentIndexOperations);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+			    &maxNoOfTriggers);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGER_OPS, 
+			    &maxNoOfFiredTriggers);
+  
   c_transactionBufferSpace = 
     transactionBufferMemory / AttributeBuffer::getSegmentSize();
   c_maxNumberOfIndexes = maxNoOfIndexes;
@@ -247,7 +252,7 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_SCAN_TABREQ, &Dbtc::execSCAN_TABREQ);
   addRecSignal(GSN_SCAN_FRAGCONF, &Dbtc::execSCAN_FRAGCONF);
   addRecSignal(GSN_SCAN_FRAGREF, &Dbtc::execSCAN_FRAGREF);
-  addRecSignal(GSN_SIZEALT_REP, &Dbtc::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtc::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_LQH_TRANSCONF, &Dbtc::execLQH_TRANSCONF);
   addRecSignal(GSN_COMPLETECONF, &Dbtc::execCOMPLETECONF);
   addRecSignal(GSN_COMMITCONF, &Dbtc::execCOMMITCONF);

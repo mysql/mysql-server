@@ -58,9 +58,9 @@ Linux.
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define malloc(A)	mem_alloc(A)
-#define free(A)		mem_free(A)
-#define realloc(P, A)	mem_realloc(P, A, __FILE__, __LINE__)
+#define malloc(A)	ut_malloc(A)
+#define free(A)		ut_free(A)
+#define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
 #define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
@@ -77,16 +77,16 @@ string_append(
 	const char*	str,	/* in: string to be appended */
 	ulint		len)	/* in: length of the string */
 {
+	if (stringbuf == NULL) {
+		stringbuf = malloc(1);
+		stringbuf_len_alloc = 1;
+	}
+
 	if (stringbuf_len + len > stringbuf_len_alloc) {
-		if (stringbuf_len_alloc == 0) {
-			stringbuf_len_alloc++;
-		}
 		while (stringbuf_len + len > stringbuf_len_alloc) {
 			stringbuf_len_alloc <<= 1;
 		}
-		stringbuf = stringbuf
-			? realloc(stringbuf, stringbuf_len_alloc)
-			: malloc(stringbuf_len_alloc);
+		stringbuf = realloc(stringbuf, stringbuf_len_alloc);
 	}
 
 	memcpy(stringbuf + stringbuf_len, str, len);
@@ -114,11 +114,34 @@ ID	[a-z_A-Z][a-z_A-Z0-9]*
 }
 
 "'"		{
+/* Quoted character string literals are handled in an explicit
+start state 'quoted'.  This state is entered and the buffer for
+the scanned string is emptied upon encountering a starting quote.
+
+In the state 'quoted', only two actions are possible (defined below). */
 			BEGIN(quoted);
 			stringbuf_len = 0;
 }
-<quoted>[^\']+		string_append(yytext, yyleng);
-<quoted>"'"+	{	string_append(yytext, yyleng / 2);
+<quoted>[^\']+	{
+			/* Got a sequence of characters other than "'":
+			append to string buffer */
+			string_append(yytext, yyleng);
+}
+<quoted>"'"+	{
+			/* Got a sequence of "'" characters:
+			append half of them to string buffer,
+			as "''" represents a single "'".
+			We apply truncating division,
+			so that "'''" will result in "'". */
+
+			string_append(yytext, yyleng / 2);
+
+			/* If we got an odd number of quotes, then the
+			last quote we got is the terminating quote.
+			At the end of the string, we return to the
+			initial start state and report the scanned
+			string literal. */
+
 			if (yyleng % 2) {
 				BEGIN(INITIAL);
 				yylval = sym_tab_add_str_lit(

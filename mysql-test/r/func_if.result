@@ -77,3 +77,9 @@ select min(if(y -x > 5,y,NULL)), max(if(y - x > 5,y,NULL)) from t1;
 min(if(y -x > 5,y,NULL))	max(if(y - x > 5,y,NULL))
 6	56
 drop table t1;
+create table t1 (a int);
+insert t1 values (1),(2);
+select if(1>2,a,avg(a)) from t1;
+if(1>2,a,avg(a))
+1.5000
+drop table t1;

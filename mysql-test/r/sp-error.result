@@ -1,10 +1,10 @@
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 drop table if exists t3|
 create table t3 ( x int )|
 insert into t3 values (2), (3)|
@@ -44,7 +44,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Warning	1298	PROCEDURE foo does not exist
+Warning	1303	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -80,7 +80,7 @@ declare y int;
 set x = y;
 end|
 Warnings:
-Warning	1304	Referring to uninitialized variable y
+Warning	1309	Referring to uninitialized variable y
 drop procedure foo|
 create procedure foo()
 return 42|

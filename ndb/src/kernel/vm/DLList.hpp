@@ -169,11 +169,11 @@ public:
   LocalDLList(ArrayPool<T> & thePool, typename DLList<T>::Head & _src)
     : DLList<T>(thePool), src(_src)
   {
-    head = src;
+    this->head = src;
   }
   
   ~LocalDLList(){
-    src = head;
+    src = this->head;
   }
 private:
   typename DLList<T>::Head & src;

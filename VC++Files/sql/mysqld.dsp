@@ -110,7 +110,7 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\dbug.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /debug /machine:I386
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib /nologo /subsystem:console /debug /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\vio.lib ..\lib_release\isam.lib ..\lib_release\merge.lib ..\lib_release\myisam.lib ..\lib_release\myisammrg.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /subsystem:console /map /machine:I386 /out:"../client_release/mysqld-nt.exe"
 # SUBTRACT LINK32 /pdb:none /debug
 
@@ -1053,6 +1053,10 @@ SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -1837,6 +1841,10 @@ SOURCE=.\time.cpp
 
 !ENDIF
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\tztime.cpp
 # End Source File
 # Begin Source File
 

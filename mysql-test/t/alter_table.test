@@ -110,20 +110,20 @@ drop database mysqltest;
 #
 # Rights for renaming test (Bug #3270)
 #
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 --disable_warnings
 create database mysqltest;
 --enable_warnings
 create table mysqltest.t1 (a int,b int,c int);
 grant all on mysqltest.t1 to mysqltest_1@localhost;
-connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 -- error 1142
 alter table t1 rename t2;
 connection root;
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
+delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
 
 #
@@ -304,3 +304,11 @@ SHOW CREATE TABLE t1;
 --error 1091
 ALTER TABLE t1 DROP PRIMARY KEY;
 DROP TABLE t1;
+
+# BUG#3899
+create table t1 (a int, b int, key(a));
+insert into t1 values (1,1), (2,2);
+--error 1091
+alter table t1 drop key no_such_key;
+alter table t1 drop key a;
+drop table t1;

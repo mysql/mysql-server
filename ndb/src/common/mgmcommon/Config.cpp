@@ -26,23 +26,17 @@
 //*****************************************************************************
 
 Config::Config() {
-  m_info = new ConfigInfo();
-}
-
-Config::Config(const Config & org) : 
-  Properties(org) {
-
-  m_info = new ConfigInfo();
-}
-
-Config::Config(const Properties & org) : 
-  Properties(org) {
-
-  m_info = new ConfigInfo();
+  m_oldConfig = 0;
+  m_configValues = 0;
 }
 
 Config::~Config() {
-  delete m_info;
+  if(m_configValues != 0){
+    free(m_configValues);
+  }
+
+  if(m_oldConfig != 0)
+    delete m_oldConfig;
 }
 
 /*****************************************************************************/
@@ -52,24 +46,32 @@ Config::printAllNameValuePairs(NdbOut &out,
 			       const Properties *prop,
 			       const char* s) const {
   Properties::Iterator it(prop);
-  const Properties * section = m_info->getInfo(s);
+  const Properties * section = m_info.getInfo(s);
   for (const char* n = it.first(); n != NULL; n = it.next()) {
     Uint32 int_value;
     const char* str_value;
+    Uint64 int_64;
 
-    if (m_info->getStatus(section, n) == ConfigInfo::INTERNAL) 
+    if(!section->contains(n))
       continue;
-    if (m_info->getStatus(section, n) == ConfigInfo::DEPRICATED)
+    if (m_info.getStatus(section, n) == ConfigInfo::INTERNAL) 
       continue;
-    if (m_info->getStatus(section, n) == ConfigInfo::NOTIMPLEMENTED)
+    if (m_info.getStatus(section, n) == ConfigInfo::DEPRICATED)
+      continue;
+    if (m_info.getStatus(section, n) == ConfigInfo::NOTIMPLEMENTED)
       continue;
 
     out << n << ": ";
 
-    switch (m_info->getType(section, n)) {
+    switch (m_info.getType(section, n)) {
     case ConfigInfo::INT:
       MGM_REQUIRE(prop->get(n, &int_value)); 
       out << int_value;
+      break;
+
+    case ConfigInfo::INT64:
+      MGM_REQUIRE(prop->get(n, &int_64)); 
+      out << int_64;
       break;
       
     case ConfigInfo::BOOL:
@@ -92,6 +94,7 @@ Config::printAllNameValuePairs(NdbOut &out,
 /*****************************************************************************/
    
 void Config::printConfigFile(NdbOut &out) const {
+#if 0
   Uint32 noOfNodes, noOfConnections, noOfComputers;
   MGM_REQUIRE(get("NoOfNodes", &noOfNodes));
   MGM_REQUIRE(get("NoOfConnections", &noOfConnections));
@@ -172,15 +175,12 @@ void Config::printConfigFile(NdbOut &out) const {
 	endl;
     }
   }
-}
-
-const
-ConfigInfo* Config::getConfigInfo() const {
-  return m_info;
+#endif
 }
 
 Uint32
 Config::getGenerationNumber() const {
+#if 0
   Uint32 ret;
   const Properties *prop = NULL;
 
@@ -191,10 +191,14 @@ Config::getGenerationNumber() const {
       return ret;
   
   return 0;
+#else
+  return 0;
+#endif
 }
 
 int
 Config::setGenerationNumber(Uint32 gen) {
+#if 0
   Properties *prop = NULL;
 
   getCopy("SYSTEM", &prop);
@@ -205,12 +209,16 @@ Config::setGenerationNumber(Uint32 gen) {
     return 0;
   }
   return -1;
+#else
+  return -1;
+#endif
 }
 
 bool
 Config::change(const BaseString &section,
 	       const BaseString &param,
 	       const BaseString &value) {
+#if 0
   const char *name;
   Properties::Iterator it(this);
 
@@ -252,4 +260,7 @@ Config::change(const BaseString &section,
     }
   }
   return true;
+#else
+  return false;
+#endif
 }

@@ -36,15 +36,18 @@ extern struct GlobalData          globalData;
 extern class SignalLoggerManager globalSignalLoggers;
 #endif
 
-#ifdef USE_EMULATED_JAM
-#define EMULATED_JAM_SIZE 1024
-#define JAM_MASK ((EMULATED_JAM_SIZE * 4) - 1)
+#ifndef NO_EMULATED_JAM
+  #define EMULATED_JAM_SIZE 1024
+  #define JAM_MASK ((EMULATED_JAM_SIZE * 4) - 1)
 
-extern Uint8 theEmulatedJam[];
-extern Uint32 theEmulatedJamIndex;
-// last block entry, used in dumpJam() if jam contains no block entries
-extern Uint32 theEmulatedJamBlockNumber;
-#endif // USE_EMULATED_JAM
+  extern Uint8 theEmulatedJam[];
+  extern Uint32 theEmulatedJamIndex;
+  // last block entry, used in dumpJam() if jam contains no block entries
+  extern Uint32 theEmulatedJamBlockNumber;
+#else
+  const Uint8 theEmulatedJam[]=0;
+  const Uint32 theEmulatedJamIndex=0;
+#endif
 
 struct EmulatorData {
   class Configuration * theConfiguration;

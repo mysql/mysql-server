@@ -50,10 +50,6 @@
 #define ONE_THREAD
 #endif
 
-#define SHUTDOWN_THD
-#define MAIN_THD
-#define SIGNAL_THD
-
 #ifdef HAVE_purify
 #define IF_PURIFY(A,B) (A)
 #else
@@ -223,7 +219,7 @@ const char *sql_mode_names[] =
   "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  "NO_AUTO_VALUE_ON_ZERO", NullS
+  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
@@ -276,11 +272,13 @@ my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
+my_bool opt_innodb_safe_binlog= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
+uint opt_crash_binlog_innodb;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
 ulong back_log, connect_timeout, concurrency;
@@ -309,7 +307,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
-ulong slow_launch_threads = 0;
+ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 ulong my_bind_addr;			/* the address we bind to */
@@ -317,23 +315,15 @@ volatile ulong cached_thread_count= 0;
 double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
-ulonglong log_10_int[20]=
-{
-  1, 10, 100, 1000, 10000UL, 100000UL, 1000000UL, 10000000UL,
-  ULL(100000000), ULL(1000000000), ULL(10000000000), ULL(100000000000),
-  ULL(1000000000000), ULL(10000000000000), ULL(100000000000000),
-  ULL(1000000000000000), ULL(10000000000000000), ULL(100000000000000000),
-  ULL(1000000000000000000), ULL(10000000000000000000)
-};
-
 time_t start_time;
 
-char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
+char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
+char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
-     max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
+     *mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
@@ -379,9 +369,10 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
- have_ndbcluster, have_example_db;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
+  have_example_db, have_archive_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
+SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
 /* Thread specific variables */
@@ -665,7 +656,7 @@ static void close_connections(void)
       break;
     }
 #ifndef __bsdi__				// Bug in BSDI kernel
-    if (tmp->net.vio)
+    if (tmp->vio_ok())
     {
       sql_print_error(ER(ER_FORCING_CLOSE),my_progname,
 		      tmp->thread_id,tmp->user ? tmp->user : "");
@@ -831,7 +822,6 @@ static void __cdecl kill_server(int sig_ptr)
 #if defined(USE_ONE_SIGNAL_HAND) || (defined(__NETWARE__) && defined(SIGNALS_DONT_BREAK_READ))
 extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
-  SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
   kill_server(0);
   my_thread_end();				// Normally never reached
@@ -900,6 +890,7 @@ extern "C" void unireg_abort(int exit_code)
 }
 #endif
 
+
 void clean_up(bool print_message)
 {
   DBUG_PRINT("exit",("clean_up"));
@@ -914,6 +905,8 @@ void clean_up(bool print_message)
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
 #endif
+  my_tz_free();
+  my_dbopt_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
@@ -1259,6 +1252,12 @@ static void server_init(void)
   {
     DBUG_PRINT("general",("UNIX Socket is %s",mysqld_unix_port));
 
+    if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
+    {
+      sql_print_error("The socket file path is too long (> %d): %s",
+                    sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+      unireg_abort(1);
+    }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
@@ -1306,6 +1305,19 @@ void yyerror(const char *s)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Close a connection
+
+  SYNOPSIS
+    close_connection()
+    thd		Thread handle
+    errcode	Error code to print to console
+    lock	1 if we have have to lock LOCK_thread_count
+
+  NOTES
+    For the connection that is doing shutdown, this is called twice
+*/
+
 void close_connection(THD *thd, uint errcode, bool lock)
 {
   st_vio *vio;
@@ -1507,7 +1519,7 @@ void mysql_cb_init()
 }
 
 
-/ *To get the name of the NetWare volume having MySQL data folder */
+/* To get the name of the NetWare volume having MySQL data folder */
 
 static void getvolumename()
 {
@@ -1578,6 +1590,7 @@ static void registerwithneb()
 /*
   Callback for NSS Volume Deactivation event
 */
+
 ulong neb_event_callback(struct EventBlock *eblock)
 {
   EventChangeVolStateEnter_s *voldata;
@@ -1606,7 +1619,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
 
 #define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
 
-staticvoid getvolumeID(BYTE *volumeName)
+static void getvolumeID(BYTE *volumeName)
 {
   char path[zMAX_FULL_NAME];
   Key_t rootKey= 0, fileKey= 0;
@@ -1614,7 +1627,7 @@ staticvoid getvolumeID(BYTE *volumeName)
   zInfo_s info;
   STATUS status;
 
-  /* Get the  root key */
+  /* Get the root key */
   if ((status= zRootKey(0, &rootKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get root key, status: %d\n.", (int) status);
@@ -1718,7 +1731,6 @@ static void init_signals(void)
   signal(SIGALRM, SIG_IGN);
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
-  SIGNAL_THD;
 }
 
 static void start_signal_handler(void)
@@ -2122,7 +2134,6 @@ int uname(struct utsname *a)
 extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
-  SHUTDOWN_THD;
   my_thread_init();
 
   /* this call should create the message queue for this thread */
@@ -2151,7 +2162,6 @@ int STDCALL handle_kill(ulong ctrl_type)
 #ifdef OS2
 extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
-  SHUTDOWN_THD;
   my_thread_init();
 
   // wait semaphore
@@ -2276,10 +2286,17 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
     struct tm tm_tmp;
     localtime_r(&start_time,&tm_tmp);
-    strmov(time_zone,tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
+    strmov(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0]);
   }
 #endif
-
+  /*
+    We set SYSTEM time zone as reasonable default and 
+    also for failure of my_tz_init() and bootstrap mode.
+    If user explicitly set time zone with --default-time-zone
+    option we will change this value in my_tz_init().
+  */
+  global_system_variables.time_zone= my_tz_SYSTEM;
+  
   /*
     Init mutexes for the global MYSQL_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -2385,6 +2402,9 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
+  if (my_dbopt_init())
+    return 1;
+
   return 0;
 }
 
@@ -2584,6 +2604,41 @@ server.");
     }
   }
 
+  if (opt_innodb_safe_binlog)
+  {
+    if (have_innodb != SHOW_OPTION_YES)
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+                      "the InnoDB storage engine is enabled in the server.");
+#ifdef HAVE_INNOBASE_DB
+    if (innobase_flush_log_at_trx_commit != 1)
+    {
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+                      "innodb_flush_log_at_trx_commit is 1; now setting it "
+                      "to 1.");
+      innobase_flush_log_at_trx_commit= 1;
+    }
+    if (innobase_unix_file_flush_method)
+    {
+      /*
+        This option has so many values that it's hard to know which value is
+        good (especially "littlesync", and on Windows... see
+        srv/srv0start.c).
+      */
+      sql_print_error("Warning: --innodb-safe-binlog requires that "
+                      "the innodb_flush_method actually synchronizes the "
+                      "InnoDB log to disk; it is your responsibility "
+                      "to verify that the method you chose does it.");
+    }
+    if (sync_binlog_period != 1)
+    {
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+                      "the global sync_binlog variable is 1; now setting it "
+                      "to 1.");
+      sync_binlog_period= 1;
+    }
+#endif
+  }
+
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -2591,6 +2646,18 @@ server.");
   }
   if (opt_myisam_log)
     (void) mi_log(1);
+
+  /*
+    Now that InnoDB is initialized, we can know the last good binlog position
+    and cut the binlog if needed. This function does nothing if there was no
+    crash recovery by InnoDB.
+  */
+  if (opt_innodb_safe_binlog)
+  {
+    /* not fatal if fails (but print errors) */
+    mysql_bin_log.cut_spurious_tail();
+  }
+  mysql_bin_log.report_pos_in_innodb();
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
@@ -2862,7 +2929,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   */
   error_handler_hook = my_message_sql;
   start_signal_handler();				// Creates pidfile
-  if (acl_init((THD *)0, opt_noacl))
+  if (acl_init((THD *)0, opt_noacl) || 
+      my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     abort_loop=1;
     select_thread_in_use=0;
@@ -3069,7 +3137,7 @@ int main(int argc, char **argv)
      need to have an  unique  named  hEventShudown  through the
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
   */ 
-  int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+  int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
           "MySQLShutdown"), 10);
   
   /* Must be initialized early for comparison of service name */
@@ -3713,7 +3781,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     HANDLE event_server_read= 0;
     THD *thd= 0;
 
-    p= int2str(connect_number, connect_number_char, 10);
+    p= int10_to_str(connect_number, connect_number_char, 10);
     /*
       The name of event and file-mapping events create agree next rule:
         shared_memory_base_name+unique_part+number_of_connection
@@ -3890,8 +3958,8 @@ enum options_mysqld
   OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
   OPT_INNODB_FLUSH_METHOD,
   OPT_INNODB_FAST_SHUTDOWN,
-  OPT_INNODB_FILE_PER_TABLE,
-  OPT_SAFE_SHOW_DB,
+  OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
+  OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -3961,7 +4029,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
-  OPT_SYNC_FRM, OPT_BDB_NOSYNC,
+  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_BDB_NOSYNC,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
@@ -3975,6 +4043,7 @@ enum options_mysqld
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
+  OPT_DEFAULT_TIME_ZONE,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL
 };
@@ -4038,6 +4107,12 @@ Disable with --skip-bdb (will save memory).",
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character_set_server", 'C', "Set the default character set.",
+   (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"collation_server", OPT_DEFAULT_COLLATION, "Set the default collation.",
+   (gptr*) &default_collation_name, (gptr*) &default_collation_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"console", OPT_CONSOLE, "Write error output on screen; Don't remove the console window on windows.",
    (gptr*) &opt_console, (gptr*) &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -4071,10 +4146,10 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &des_key_file, (gptr*) &des_key_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */
-  {"default-character-set", 'C', "Set the default character set.",
+  {"default-character-set", 'C', "Set the default character set (Deprecated option, use character_set_server instead).",
    (gptr*) &default_character_set_name, (gptr*) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
+  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation (Deprecated option, use character_set_server instead).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
@@ -4083,6 +4158,9 @@ Disable with --skip-bdb (will save memory).",
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use default-storage-engine.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-time-zone", OPT_DEFAULT_TIME_ZONE, "Set the default time zone.",
+   (gptr*) &default_tz_name, (gptr*) &default_tz_name,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
@@ -4529,11 +4607,11 @@ log and this option does nothing anymore.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4565,6 +4643,12 @@ log and this option does nothing anymore.",
    "The number of seconds the mysqld server is waiting for a connect packet before responding with 'Bad handshake'.",
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
+#ifdef HAVE_REPLICATION
+  {"crash_binlog_innodb", OPT_CRASH_BINLOG_INNODB,
+   "Used only for testing, to crash when writing Nth event to binlog.",
+   (gptr*) &opt_crash_binlog_innodb, (gptr*) &opt_crash_binlog_innodb,
+   0, GET_UINT, REQUIRED_ARG, 0, 0, ~(uint)0, 0, 1, 0},
+#endif
   {"delayed_insert_timeout", OPT_DELAYED_INSERT_TIMEOUT,
    "How long a INSERT DELAYED thread should wait for INSERT statements before terminating.",
    (gptr*) &delayed_insert_timeout, (gptr*) &delayed_insert_timeout, 0,
@@ -4644,6 +4728,26 @@ log and this option does nothing anymore.",
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
    (gptr*) &innobase_lock_wait_timeout, (gptr*) &innobase_lock_wait_timeout,
    0, GET_LONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
+#ifdef HAVE_REPLICATION
+  /*
+    Disabled for the 4.1.3 release. Disabling just this paragraph of code is
+    enough, as then user can't set it to 1 so it will always be ignored in the
+    rest of code.
+  */
+#if MYSQL_VERSION_ID >= 40103
+  /*
+    innodb_safe_binlog is not a variable, just an option. Does not make
+    sense to make it a variable, as it is only used at startup (and so the
+    value would be lost at next startup, so setting it on the fly would have no
+    effect).
+  */
+  {"innodb_safe_binlog", OPT_INNODB_SAFE_BINLOG,
+   "After a crash recovery by InnoDB, truncate the binary log after the last "
+   "not-rolled-back statement/transaction.",
+   (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif
+#endif
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &innobase_thread_concurrency, (gptr*) &innobase_thread_concurrency,
@@ -4668,26 +4772,26 @@ log and this option does nothing anymore.",
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
    (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
+   0, (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
    (gptr*) &dflt_key_cache_var.param_block_size,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_division_limit,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
+   0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
-   0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
@@ -4950,6 +5054,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
    MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
    1, 0},
+  {"sync-binlog", OPT_SYNC_BINLOG,
+   "Sync the binlog to disk after every #th event. \
+#=0 (the default) does no sync. Syncing slows MySQL down",
+   (gptr*) &sync_binlog_period,
+   (gptr*) &sync_binlog_period, 0, GET_ULONG, REQUIRED_ARG, 0, 0, ~0L, 0, 1,
+   0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
    (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
@@ -4999,18 +5109,18 @@ The minimum value for this variable is 4096.",
     0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "datetime-format", OPT_DATETIME_FORMAT,
     "The DATETIME/TIMESTAMP format (for future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATETIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATETIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "time-format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
-    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
-    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
+    (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_TIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -5107,6 +5217,12 @@ struct show_var_st status_vars[]= {
   {"Com_unlock_tables",	       (char*) (com_stat+(uint) SQLCOM_UNLOCK_TABLES),SHOW_LONG},
   {"Com_update",	       (char*) (com_stat+(uint) SQLCOM_UPDATE),SHOW_LONG},
   {"Com_update_multi",	       (char*) (com_stat+(uint) SQLCOM_UPDATE_MULTI),SHOW_LONG},
+  {"Com_prepare_sql",          (char*) (com_stat+(uint) SQLCOM_PREPARE),
+   SHOW_LONG}, 
+  {"Com_execute_sql",          (char*) (com_stat+(uint) SQLCOM_EXECUTE), 
+   SHOW_LONG},
+  {"Com_dealloc_sql",          (char*) (com_stat+(uint) 
+                                        SQLCOM_DEALLOCATE_PREPARE), SHOW_LONG},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
@@ -5322,7 +5438,6 @@ static void mysql_init_variables(void)
   specialflag= opened_tables= created_tmp_tables= created_tmp_disk_tables= 0;
   binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
-  max_sort_char= 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   errmesg= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
@@ -5429,6 +5544,11 @@ static void mysql_init_variables(void)
 #else
   have_example_db= SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_ARCHIVE_DB
+  have_archive_db= SHOW_OPTION_YES;
+#else
+  have_archive_db= SHOW_OPTION_NO;
+#endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;
 #else
@@ -5453,6 +5573,16 @@ static void mysql_init_variables(void)
   have_query_cache=SHOW_OPTION_YES;
 #else
   have_query_cache=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_SPATIAL
+  have_geometry=SHOW_OPTION_YES;
+#else
+  have_geometry=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_RTREE_KEYS
+  have_rtree_keys=SHOW_OPTION_YES;
+#else
+  have_rtree_keys=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
@@ -5525,7 +5655,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     mysql_data_home= mysql_real_data_home;
     break;
   case 'u':
-    if (!mysqld_user)
+    if (!mysqld_user || !strcmp(mysqld_user, argument))
       mysqld_user= argument;
     else
       fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
@@ -5555,6 +5685,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'W':
+    if (!argument)
+      global_system_variables.log_warnings++;
+    else if (argument == disabled_my_option)
+      global_system_variables.log_warnings= 0L;
+    else
+      global_system_variables.log_warnings= atoi(argument);
+    break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     test_flags&= ~TEST_NO_THREADS;
@@ -6089,11 +6227,11 @@ static void get_options(int argc,char **argv)
   if (opt_log_queries_not_using_indexes)
     opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
 
-  if (init_global_datetime_format(TIMESTAMP_DATE,
+  if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
 				  &global_system_variables.date_format) ||
-      init_global_datetime_format(TIMESTAMP_TIME,
+      init_global_datetime_format(MYSQL_TIMESTAMP_TIME,
 				  &global_system_variables.time_format) ||
-      init_global_datetime_format(TIMESTAMP_DATETIME,
+      init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
 }
@@ -6316,7 +6454,7 @@ static void create_pid_file()
 			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
     char buff[21], *end;
-    end= int2str((long) getpid(), buff, 10);
+    end= int10_to_str((long) getpid(), buff, 10);
     *end++= '\n';
     (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
     (void) my_close(file, MYF(0));

@@ -218,6 +218,8 @@ check_scramble_323(const char *scrambled, const char *message,
   to=buff;
   for (pos=scrambled ; *pos ; pos++)
     *to++=(char) (floor(my_rnd(&rand_st)*31)+64);
+  if (pos-scrambled != SCRAMBLE_LENGTH_323)
+    return 1;
   extra=(char) (floor(my_rnd(&rand_st)*31));
   to=buff;
   while (*scrambled)
@@ -321,8 +323,8 @@ octet2hex(char *to, const uint8 *str, uint len)
   const uint8 *str_end= str + len; 
   for (; str != str_end; ++str)
   {
-    *to++= _dig_vec[(*str & 0xF0) >> 4];
-    *to++= _dig_vec[*str & 0x0F];
+    *to++= _dig_vec_upper[(*str & 0xF0) >> 4];
+    *to++= _dig_vec_upper[*str & 0x0F];
   }
   *to= '\0';
 }

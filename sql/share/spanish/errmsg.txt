@@ -301,6 +301,11 @@ character-set=latin1
 "Incorrecta definición de tabla; Solamente debe haber una columna TIMESTAMP con CURRENT_TIMESTAMP en DEFAULT o ON UPDATE cláusula"
 "Inválido ON UPDATE cláusula para campo '%-.64s'",
 "This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

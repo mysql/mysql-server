@@ -307,7 +307,9 @@ public:
     ExtBinary = NdbSqlUtil::Type::Binary,
     ExtVarbinary = NdbSqlUtil::Type::Varbinary,
     ExtDatetime = NdbSqlUtil::Type::Datetime,
-    ExtTimespec = NdbSqlUtil::Type::Timespec
+    ExtTimespec = NdbSqlUtil::Type::Timespec,
+    ExtBlob = NdbSqlUtil::Type::Blob,
+    ExtClob = NdbSqlUtil::Type::Clob
   };
 
   // Attribute data interpretation
@@ -429,6 +431,13 @@ public:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 12 * AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtBlob:
+      case DictTabInfo::ExtClob:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        // head + inline part [ attr precision ]
+        AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + AttributeExtPrecision;
         return true;
       };
       return false;

@@ -20,7 +20,7 @@
 
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
-typedef enum {
+enum file_opt_type {
   FILE_OPTIONS_STRING,		/* String (LEX_STRING) */
   FILE_OPTIONS_ESTRING,		/* Escaped string (LEX_STRING) */
   FILE_OPTIONS_ULONGLONG,	/* ulonglong parapeter (ulonglong) */
@@ -28,13 +28,13 @@ typedef enum {
   FILE_OPTIONS_TIMESTAMP,	/* timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
   FILE_OPTIONS_STRLIST		/* list of strings (List<char*>) */
-} file_opt_type;
-  
+};
+
 struct File_option
 {
-  const LEX_STRING name;		/* Name of the option */
-  int offset;				/* offset to base address of value */
-  enum file_opt_type type;		/* Option type */
+  LEX_STRING name;		/* Name of the option */
+  int offset;			/* offset to base address of value */
+  file_opt_type type;		/* Option type */
 };
 
 class File_parser;
