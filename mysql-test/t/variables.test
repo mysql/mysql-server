@@ -388,3 +388,12 @@ SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 SET GLOBAL table_cache=-1;
 SHOW VARIABLES LIKE 'table_cache';
 SET GLOBAL table_cache=DEFAULT;
+
+#
+# Bug#6282 Packet error with SELECT INTO
+# 
+create table t1 (a int);
+select a into @x from t1;
+show warnings;
+drop table t1;
+
