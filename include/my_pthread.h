@@ -60,6 +60,7 @@ typedef int pthread_mutexattr_t;
 #define pthread_handler_decl(A,B) unsigned __cdecl A(void *B)
 typedef unsigned (__cdecl *pthread_handler)(void *);
 
+void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);
 int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
