@@ -1884,7 +1884,7 @@ extern "C" int my_message_sql(uint error, const char *str,
   if ((thd= current_thd))
   {
     /*
-      thd->lex.current_select equel to zero if lex structure is not inited
+      thd->lex.current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
     if (thd->lex.current_select &&

@@ -15,6 +15,7 @@ VERBOSE=""
 USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
+LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
 
 # For query_cache test
 ulimit -n 1024
@@ -226,7 +227,7 @@ while test $# -gt 0; do
     --slave-binary=*)
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
-    --extern)   USE_RUNNING_SERVER="1" ;;
+    --extern)  USE_RUNNING_SERVER="1" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -256,6 +257,7 @@ while test $# -gt 0; do
     --start-and-exit)
      START_AND_EXIT=1
      ;;
+    --socket=*) LOCAL_SOCKET=`$ECHO "$1" | $SED -e "s;--socket=;;"` ;;
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
@@ -501,7 +503,7 @@ then
 fi
 if [ -n "$USE_RUNNING_SERVER" ]
 then
-   MASTER_MYSOCK="/tmp/mysql.sock"
+   MASTER_MYSOCK=$LOCAL_SOCKET;
    DBUSER=${DBUSER:-test}
 else
    DBUSER=${DBUSER:-root}		# We want to do FLUSH xxx commands

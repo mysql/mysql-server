@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
+#include <assert.h>
 #include <mysql_version.h>
 #include <mysql_embed.h>
 #include <my_sys.h>
@@ -24,7 +25,6 @@
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
 #include <sql_bitmap.h>
-#include <assert.h>
 
 #ifdef __EMX__
 #undef write  /* remove pthread.h macro definition for EMX */
