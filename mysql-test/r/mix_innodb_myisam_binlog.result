@@ -180,4 +180,25 @@ master-bin.000001	79	Query	1	79	use `test`; BEGIN
 master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(16)
 master-bin.000001	179	Query	1	79	use `test`; insert into t1 values(18)
 master-bin.000001	239	Query	1	239	use `test`; COMMIT
+delete from t1;
+delete from t2;
+alter table t2 type=MyISAM;
+insert into t1 values (1);
+begin;
+select * from t1 for update;
+a
+1
+select (@before:=unix_timestamp())*0;
+(@before:=unix_timestamp())*0
+0
+begin;
+ select * from t1 for update;
+insert into t2 values (20);
+Lock wait timeout exceeded; Try restarting transaction
+select (@after:=unix_timestamp())*0;
+(@after:=unix_timestamp())*0
+0
+select (@after-@before) >= 2;
+(@after-@before) >= 2
+1
 drop table t1,t2;

@@ -315,7 +315,7 @@ do
     break
   fi
 
-  if test @IS_LINUX@ -a $KILL_MYSQLD -eq 1
+  if @IS_LINUX@ && test $KILL_MYSQLD -eq 1
   then
     # Test if one process was hanging.
     # This is only a fix for Linux (running as base 3 mysqld processes)
