@@ -718,6 +718,7 @@ public:
   };
 
   LockMode getLockMode() const { return theLockMode; }
+  void setAbortOption(Int8 ao) { m_abortOption = ao; }
 
   /**
    * Set/get distribution/partition key
@@ -746,10 +747,13 @@ protected:
   void initInterpreter();
 
   void	next(NdbOperation*);		// Set next pointer		      
-
   NdbOperation*	    next();	        // Get next pointer		       
+public:
+  const NdbOperation* next() const;
+protected:
 
-  enum OperationStatus{ 
+  enum OperationStatus
+  { 
     Init,                       
     OperationDefined,
     TupleKeyDefined,
@@ -995,6 +999,12 @@ NdbOperation::next()
   return theNext;
 }
 
+inline
+const NdbOperation*
+NdbOperation::next() const 
+{
+  return theNext;
+}
 /******************************************************************************
 OperationStatus  Status();
 
