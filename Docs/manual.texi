@@ -3997,12 +3997,13 @@ Russia [Scientific Center/Chernogolovka] @
 @c @uref{http://download.dnttm.ro/mysql, WWW}
 @c @uref{ftp://ftp.dnttm.ro/pub/mysql, FTP}
 
-@item
+@c @item
+@c Not ok 20001123; Non-existant (Matt)
 @c EMAIL: tim@lbi.ro (Bogdan Surdu)
 @c @image{Flags/romania}
-Romania [Bucharest] @
-@uref{http://www.lbi.ro/MySQL/, WWW}
-@uref{ftp://ftp.lbi.ro/mirrors/ftp.tcx.se, FTP}
+@c Romania [Bucharest] @
+@c @uref{http://www.lbi.ro/MySQL/, WWW}
+@c @uref{ftp://ftp.lbi.ro/mirrors/ftp.tcx.se, FTP}
 
 @c @item
 @c Removed 20000521 because there is no mirror here.
@@ -4412,11 +4413,10 @@ Australia [ITworks Consulting/Victoria] @
 @itemize @bullet
 
 @c @item
-@c Ok 981010
-@c Not ok 20000919; Old site (Matt)
-@c EMAIL: nick@mweb.com (Nick Rosenberg)
-@c @image{Flags/south-africa1} South-Africa [Mweb/] @
-@c @uref{http://www.mysql.mweb.co.za, WWW}
+@c EMAIL: ftp-admin@mweb.com (Warren Baker)
+@c @image{Flags/south-africa1}
+South-Africa [Mweb] @
+@uref{http://www.mysql.mweb.co.za/, WWW}
 
 @item
 @c Ok 981010
@@ -37870,11 +37870,11 @@ Fernandez Herrero.
 @itemize @bullet
 @item Graphical clients
 @itemize @bullet
-@item @uref{http://www.ideit.com/products/dbvis: DbVisualizer}
+@item @uref{http://www.ideit.com/products/dbvis/, DbVisualizer}
 Freeware JDBC client to graphically visualize the data and structure
 of several databases simultaneously. By Innovative-IT Development AB.
 
-@item @uref{http://www.mysql.com/download_clients.html, mysqlgui homepage}
+@item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
 The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.src.rpm, kmysqladmin-0.4.1-1.src.rpm}
