@@ -102,6 +102,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CREATE
 %token	CROSS
 %token	DELETE_SYM
+%token	DO_SYM
 %token	DROP
 %token	INSERT
 %token	FLUSH_SYM
@@ -509,7 +510,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_user> user grant_user
 
 %type <NONE>
-	query verb_clause create change select drop insert replace insert2
+	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
 	show describe load alter optimize flush
 	reset purge begin commit rollback slave master_def master_defs
@@ -560,6 +561,7 @@ verb_clause:
 	| create
 	| delete
 	| describe
+	| do
 	| drop
 	| grant
 	| insert
@@ -1227,7 +1229,7 @@ table_to_table:
  	}
 
 /*
-** Select : retrieve data from table
+  Select : retrieve data from table
 */
 
 
@@ -1861,7 +1863,7 @@ opt_escape:
 
 
 /*
-** group by statement in select
+   group by statement in select
 */
 
 group_clause:
@@ -1875,7 +1877,7 @@ group_list:
 	  { if (add_group_to_list($1,(bool) $2)) YYABORT; }
 
 /*
-** Order by statement in select
+   Order by statement in select
 */
 
 opt_order_clause:
@@ -1971,9 +1973,20 @@ opt_into:
 	    YYABORT;
 	}
 
-
 /*
-** Drop : delete tables or index
+  DO statement
+*/
+
+do:	DO_SYM 
+	{
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_DO;
+	  if (!(lex->insert_list = new List_item))
+	    YYABORT;
+	}
+	values
+/*
+  Drop : delete tables or index
 */
 
 drop:
@@ -2534,6 +2547,7 @@ keyword:
 	| DATE_SYM		{}
 	| DAY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
+	| DO_SYM		{}
 	| DUMPFILE		{}
 	| DYNAMIC_SYM		{}
 	| END			{}

@@ -1406,7 +1406,7 @@ void item_user_lock_release(ULL *ull)
     char buf[256];
     String tmp(buf,sizeof(buf));
     tmp.length(0);
-    tmp.append("SELECT release_lock(\"");
+    tmp.append("DO RELEASE_LOCK(\"");
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
     save_errno=thd->net.last_errno;
