@@ -841,12 +841,14 @@ class Item_func_like :public Item_bool_func2
   bool turboBM_matches(const char* text, int text_len) const;
   enum { alphabet_size = 256 };
 
+  Item *escape_item;
+
 public:
   char escape;
 
-  Item_func_like(Item *a,Item *b, char* escape_arg)
+  Item_func_like(Item *a,Item *b, Item *escape_arg)
     :Item_bool_func2(a,b), canDoTurboBM(false), pattern(0), pattern_len(0), 
-     bmGs(0), bmBc(0), escape(*escape_arg) {}
+     bmGs(0), bmBc(0), escape_item(escape_arg) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
