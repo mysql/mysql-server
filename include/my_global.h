@@ -131,7 +131,7 @@
   that dictates _XOPEN_SOURCE=600, but Solaris checks for 500.
   So, let's define 500 for solaris only.
 */
-#ifdef __sun__
+#ifdef __sun
 #define _XOPEN_SOURCE 500
 #endif
 
