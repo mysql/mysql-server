@@ -785,7 +785,7 @@ void clean_up(bool print_message)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
-  if (print_message)
+  if (print_message && errmesg)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   my_thread_end();
@@ -1433,8 +1433,12 @@ static void *signal_hand(void *arg __attribute__((unused)))
   my_thread_init();				// Init new thread
   DBUG_ENTER("signal_hand");
 
-  /* Setup alarm handler */
-  init_thr_alarm(max_connections+max_insert_delayed_threads);
+  /*
+    Setup alarm handler
+    This should actually be '+ max_number_of_slaves' instead of +10,
+    but the +10 should be quite safe.
+  */
+  init_thr_alarm(max_connections+max_insert_delayed_threads+10);
 #if SIGINT != THR_KILL_SIGNAL
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
   (void) sigaddset(&set,SIGINT);		// For debugging

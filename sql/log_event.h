@@ -327,13 +327,13 @@ extern char server_version[SERVER_VERSION_LENGTH];
 class Start_log_event: public Log_event
 {
 public:
-  uint32 created;
+  time_t created;
   uint16 binlog_version;
   char server_version[50];
   
   Start_log_event() :Log_event(time(NULL)),binlog_version(BINLOG_VERSION)
   {
-    created = (uint32) when;
+    created = (time_t) when;
     memcpy(server_version, ::server_version, sizeof(server_version));
   }
   Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id_arg) :
@@ -345,7 +345,7 @@ public:
     binlog_version = uint2korr(buf+4);
     memcpy(server_version, buf + 6, sizeof(server_version));
     server_version[sizeof(server_version)-1]=0;
-    created = uint4korr(buf + 6 + sizeof(server_version));
+    created = (time_t) uint4korr(buf + 6 + sizeof(server_version));
   }
   Start_log_event(const char* buf);
   
@@ -354,7 +354,7 @@ public:
   int write_data(IO_CACHE* file);
   int get_data_size()
   {
-    // sizeof(binlog_version) + sizeof(server_version) sizeof(created)
+    // size(binlog_version) + sizeof(server_version) + size(created)
     return 2 + sizeof(server_version) + 4;
   }
   void print(FILE* file, bool short_form = 0, char* last_db = 0);

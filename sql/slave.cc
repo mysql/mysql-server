@@ -784,10 +784,7 @@ static int safe_sleep(THD* thd, int sec)
     */
     thr_alarm(&alarmed, 2 * nap_time,&alarm_buff);
     sleep(nap_time);
-    // if we wake up before the alarm goes off, hit the button
-    // so it will not wake up the wife and kids :-)
-    if (thr_alarm_in_use(&alarmed))
-      thr_end_alarm(&alarmed);
+    thr_end_alarm(&alarmed);
     
     if (slave_killed(thd))
       return 1;
@@ -1100,9 +1097,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	else
 	{
 	  enum enum_duplicates handle_dup = DUP_IGNORE;
-	  if(lev->sql_ex.opt_flags && REPLACE_FLAG)
+	  if(lev->sql_ex.opt_flags & REPLACE_FLAG)
 	    handle_dup = DUP_REPLACE;
-	  sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
+	  sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &
 			  DUMPFILE_FLAG );
 	  String field_term(&lev->sql_ex.field_term, 1),
 	    enclosed(&lev->sql_ex.enclosed, 1),
@@ -1139,7 +1136,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
 	  List<Item> fields;
 	  lev->set_fields(fields);
-	  thd->slave_proxy_id = thd->thread_id;
+	  thd->slave_proxy_id = thread_id;
 	  thd->net.vio = net->vio;
 	  // mysql_load will use thd->net to read the file
 	  thd->net.pkt_nr = net->pkt_nr;
