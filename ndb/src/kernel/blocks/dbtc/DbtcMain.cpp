@@ -5344,7 +5344,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
     const Uint32 transId1      = regApiPtr->transid[0];
     const Uint32 transId2      = regApiPtr->transid[1];
     Uint32 errorCode           = 0;
-    
+
+    regApiPtr->m_exec_flag = 1;
     switch (regApiPtr->apiConnectstate) {
     case CS_STARTED:
       tcConnectptr.i = regApiPtr->firstTcConnect;
