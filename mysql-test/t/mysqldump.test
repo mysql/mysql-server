@@ -147,9 +147,9 @@ drop database mysqldump_test_db;
 
 CREATE TABLE t1 (a  CHAR(10));
 INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
---exec $MYSQL_DUMP --skip-comments test t1
---exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
---exec $MYSQL_DUMP --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
---exec $MYSQL_DUMP --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
---exec $MYSQL_DUMP --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
 DROP TABLE t1;
