@@ -5136,9 +5136,10 @@ static void create_pid_file()
   if ((file = my_create(pidfile_name,0664,
 			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
-    char buff[21];
-    sprintf(buff,"%lu\n",(ulong) getpid());
-    (void) my_write(file, buff,strlen(buff),MYF(MY_WME));
+    char buff[21], *end;
+    end= int2str((long) getpid(), buff, 10);
+    *end++= '\n';
+    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
     (void) my_close(file, MYF(0));
   }
 }
