@@ -1502,7 +1502,7 @@ Statement_map::Statement_map() :
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
+  hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
   hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
