@@ -609,8 +609,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
                            noOfUniqueHashIndexes;
-  if (noOfMetaTables > MAX_TABLES)
-    noOfMetaTables= MAX_TABLES;
+  Uint32 noOfMetaTablesDict= noOfMetaTables;
+  if (noOfMetaTablesDict > MAX_TABLES)
+    noOfMetaTablesDict= MAX_TABLES;
 
   {
     /**
@@ -619,8 +620,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_DICT_ATTRIBUTE, 
 	    noOfAttributes);
 
-    cfg.put(CFG_DICT_TABLE, 
-	    noOfMetaTables);
+    cfg.put(CFG_DICT_TABLE,
+	    noOfMetaTablesDict);
   }
 
 
