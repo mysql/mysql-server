@@ -59,7 +59,7 @@ else
 basedir=.
 rm -rf share
 mkdir  share
-ln -sf ../../sql/share share/mysql 
+ln -f -s ../../sql/share share/mysql 
 fi
 
 # Initialize variables

@@ -27,8 +27,15 @@ class Sql_alloc
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr, size_t size) {} /*lint -e715 */
-  inline Sql_alloc() {};
-  inline ~Sql_alloc() {};
+#ifdef HAVE_purify
+  bool dummy;
+  inline Sql_alloc() :dummy(0) {}
+  inline ~Sql_alloc() {}
+#else
+  inline Sql_alloc() {}
+  inline ~Sql_alloc() {}
+#endif
+
 };
 
 /*

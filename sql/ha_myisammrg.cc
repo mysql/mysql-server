@@ -229,6 +229,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
     MYRG_TABLE *table;
     THD *thd=current_thd;
     create_info->merge_list.next= &create_info->merge_list.first;
+    create_info->merge_list.elements=0;
 
     for (table=file->open_tables ; table != file->end_table ; table++)
     {
@@ -240,6 +241,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
       fn_format(buff,name,"","",3);
       if (!(ptr->real_name=thd->strdup(buff)))
 	goto err;
+      create_info->merge_list.elements++;
       (*create_info->merge_list.next) = (byte*) ptr;
       create_info->merge_list.next= (byte**) &ptr->next;
     }
