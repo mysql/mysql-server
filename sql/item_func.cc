@@ -2343,25 +2343,23 @@ longlong Item_func_get_user_var::val_int()
 void Item_func_get_user_var::fix_length_and_dec()
 {
   THD *thd=current_thd;
-
-  if (!(opt_bin_log && is_update_query(thd->lex.sql_command)))
-       return;
-
   BINLOG_USER_VAR_EVENT *user_var_event;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  /*
-    If the variable does not exist, it's NULL, but we want to create it so
-    that it gets into the binlog (if it didn't, the slave could be
-    influenced by a variable of the same name previously set by another
-    thread).
-  */
-  
-  if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
+  var_entry= get_variable(&thd->user_vars, name, 0);
+
+  if (!(opt_bin_log && is_update_query(thd->lex.sql_command)))
+    return;
+
+  if (!var_entry)
   {
     /*
+      If the variable does not exist, it's NULL, but we want to create it so
+      that it gets into the binlog (if it didn't, the slave could be
+      influenced by a variable of the same name previously set by another
+      thread).
       We create it like if it had been explicitely set with SET before.
       The 'new' mimicks what sql_yacc.yy does when 'SET @a=10;'.
       sql_set_variables() is what is called from 'case SQLCOM_SET_OPTION'
