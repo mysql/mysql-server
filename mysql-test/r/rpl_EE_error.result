@@ -6,7 +6,9 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1 (a int) engine=myisam;
 flush tables;
-drop table t1;
+drop table if exists t1;
+Warnings:
+Error	2	Can't find file: 't1' (errno: 2)
 create table t1 (a int, unique(a)) engine=myisam;
 set sql_log_bin=0;
 insert into t1 values(2);

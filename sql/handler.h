@@ -757,7 +757,8 @@ bool ha_flush_logs(void);
 void ha_drop_database(char* path);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
-int ha_delete_table(enum db_type db_type, const char *path);
+int ha_delete_table(THD *thd, enum db_type db_type, const char *path,
+                    const char *alias, bool generate_warning);
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
