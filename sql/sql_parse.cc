@@ -3433,7 +3433,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 ****************************************************************************/
 
 void
-mysql_init_query(THD *thd)
+mysql_init_query(THD *thd, bool lexonly)
 {
   DBUG_ENTER("mysql_init_query");
   LEX *lex=thd->lex;
@@ -3457,17 +3457,20 @@ mysql_init_query(THD *thd)
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
-  thd->select_number= lex->select_lex.select_number= 1;
-  thd->free_list= 0;
-  thd->total_warn_count=0;			// Warnings for this query
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
-  thd->sent_row_count= thd->examined_row_count= 0;
-  thd->is_fatal_error= thd->rand_used= 0;
-  thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
-  thd->tmp_table_used= 0;
-  if (opt_bin_log)
-    reset_dynamic(&thd->user_var_events);
-  thd->clear_error();
+  if (! lexonly)
+  {
+    thd->select_number= lex->select_lex.select_number= 1;
+    thd->free_list= 0;
+    thd->total_warn_count=0;			// Warnings for this query
+    thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+    thd->sent_row_count= thd->examined_row_count= 0;
+    thd->is_fatal_error= thd->rand_used= 0;
+    thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+    thd->tmp_table_used= 0;
+    if (opt_bin_log)
+      reset_dynamic(&thd->user_var_events);
+    thd->clear_error();
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -3582,7 +3585,11 @@ mysql_parse(THD *thd, char *inBuf, uint length)
       else
       {
 	if (thd->net.report_error)
+	{
 	  send_error(thd, 0, NullS);
+	  if (thd->lex->sphead)
+	    thd->lex->sphead->destroy();
+	}
 	else
 	{
 	  mysql_execute_command(thd);
@@ -3598,8 +3605,12 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 			 thd->is_fatal_error));
 #ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
       query_cache_abort(&thd->net);
+      if (thd->lex->sphead)
+	thd->lex->sphead->destroy();
 #endif
     }
+    if (thd->lex->sphead && lex != thd->lex)
+      thd->lex->sphead->restore_lex(thd);
     thd->proc_info="freeing items";
     free_items(thd->free_list);  /* Free strings used by items */
     lex_end(lex);

@@ -88,7 +88,6 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   extern int yyparse(void *thd);
-  LEX *tmplex;
   TABLE *table;
   const char *defstr;
   int ret;
@@ -146,15 +145,29 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     table= NULL;
   }
 
-  tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
-  if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
-    ret= SP_PARSE_ERROR;
-  else
   {
-    *sphp= tmplex->sphead;
-    (*sphp)->sp_set_info((char *) creator, (uint) strlen(creator),
-			 created, modified, suid, 
-			 ptr, length);
+    LEX *oldlex= thd->lex;
+    enum enum_sql_command oldcmd= thd->lex->sql_command;
+
+    lex_start(thd, (uchar*)defstr, strlen(defstr));
+    if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
+    {
+      if (thd->lex->sphead)
+      {
+	if (oldlex != thd->lex)
+	  thd->lex->sphead->restore_lex(thd);
+	thd->lex->sphead->destroy();
+      }
+      ret= SP_PARSE_ERROR;
+    }
+    else
+    {
+      *sphp= thd->lex->sphead;
+      (*sphp)->sp_set_info((char *) creator, (uint) strlen(creator),
+			   created, modified, suid, 
+			   ptr, length);
+    }
+    thd->lex->sql_command= oldcmd;
   }
 
  done:

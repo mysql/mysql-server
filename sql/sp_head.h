@@ -136,7 +136,7 @@ private:
   bool m_suid;
 
   sp_pcontext *m_pcont;		// Parse context
-  LEX m_lex;			// Temp. store for the other lex
+  LEX *m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
   typedef struct
   {
@@ -222,18 +222,18 @@ public:
   inline void
   set_lex(LEX *lex)
   {
-    memcpy(&m_lex, lex, sizeof(LEX));
+    m_lex= lex;
   }
 
   inline LEX *
   get_lex()
   {
-    return &m_lex;
+    return m_lex;
   }
 
 private:
 
-  LEX m_lex;			// My own lex
+  LEX *m_lex;			// My own lex
 
 }; // class sp_instr_stmt : public sp_instr
 

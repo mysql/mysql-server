@@ -71,6 +71,7 @@ Long data handling:
 #include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
+#include "sp_head.h"
 
 #define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
 
@@ -761,6 +762,8 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   thd->lex->param_count= 0;
   if (!yyparse((void *)thd) && !thd->is_fatal_error) 
     error= send_prepare_results(stmt);
+  if (thd->lex->sphead && lex != thd->lex)
+    thd->lex->sphead->restore_lex(thd);
   lex_end(lex);
   DBUG_RETURN(error);
 }
