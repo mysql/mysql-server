@@ -218,7 +218,6 @@ struct dict_index_struct{
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
 	ulint		space;	/* space where the index tree is placed */
-	ulint		page_no;/* page number of the index tree root */
 	ulint		trx_id_offset;/* position of the the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,

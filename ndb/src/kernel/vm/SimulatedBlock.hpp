@@ -36,7 +36,6 @@
 #include <ErrorReporter.hpp>
 #include <ErrorHandlingMacros.hpp>
 
-#include <new>
 #include "DLList.hpp"
 #include "ArrayPool.hpp"
 #include "DLHashTable.hpp"

@@ -3201,7 +3201,7 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
         */
         fprintf(file, ":=???;\n");
       else
-        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, hex_str, cs->name);
+        fprintf(file, ":=_%s %s COLLATE `%s`;\n", cs->csname, hex_str, cs->name);
       my_afree(hex_str);
     }
       break;

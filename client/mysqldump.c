@@ -305,6 +305,9 @@ static struct my_option my_long_options[] =
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"order-by-primary", OPT_ORDER_BY_PRIMARY,
+   "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful when dumping a MyISAM table to be loaded into an InnoDB table, but will make the dump itself take considerably longer.",
+   (gptr*) &opt_order_by_primary, (gptr*) &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -356,9 +359,6 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"order-by-primary", OPT_ORDER_BY_PRIMARY,
-   "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful when dumping a MyISAM table to be loaded into an InnoDB table, but will make the dump itself take considerably longer.",
-   (gptr*) &opt_order_by_primary, (gptr*) &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
@@ -2308,8 +2308,15 @@ static int start_transaction(MYSQL *mysql_con, my_bool consistent_read_now)
     We use BEGIN for old servers. --single-transaction --master-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
     do a consistent read, so better tell people frankly, with the error).
+
+    We want the first consistent read to be used for all tables to dump so we
+    need the REPEATABLE READ level (not anything lower, for example READ
+    COMMITTED would give one new consistent read per dumped table).
   */
   return (mysql_query_with_error_report(mysql_con, 0,
+                                        "SET SESSION TRANSACTION ISOLATION "
+                                        "LEVEL REPEATABLE READ") ||
+          mysql_query_with_error_report(mysql_con, 0,
                                         consistent_read_now ?
                                         "START TRANSACTION "
                                         "WITH CONSISTENT SNAPSHOT" :

@@ -2425,6 +2425,8 @@ build_template(
 
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
+		templ->charset = dtype_get_charset_coll_noninline(
+				index->table->cols[i].type.prtype);
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
 		if (templ->type == DATA_BLOB) {
@@ -4089,6 +4091,48 @@ ha_innobase::discard_or_import_tablespace(
 	err = convert_error_code_to_mysql(err, NULL);
 
 	DBUG_RETURN(err);
+}
+
+/*********************************************************************
+Deletes all rows of an InnoDB table. */
+
+int
+ha_innobase::delete_all_rows(void)
+/*==============================*/
+				/* out: error number */
+{
+	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
+	int		error;
+	trx_t*		trx;
+	THD*		thd		= current_thd;
+
+	DBUG_ENTER("ha_innobase::delete_all_rows");
+
+	if (thd->lex->sql_command != SQLCOM_TRUNCATE) {
+	fallback:
+		/* We only handle TRUNCATE TABLE t as a special case.
+		DELETE FROM t will have to use ha_innobase::delete_row(). */
+		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
+	}
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+
+	trx = check_trx_exists(thd);
+
+	/* Truncate the table in InnoDB */
+
+	error = row_truncate_table_for_mysql(prebuilt->table, trx);
+	if (error == DB_ERROR) {
+		/* Cannot truncate; resort to ha_innobase::delete_row() */
+		goto fallback;
+	}
+
+	innobase_commit_low(trx);
+
+	error = convert_error_code_to_mysql(error, NULL);
+
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************
