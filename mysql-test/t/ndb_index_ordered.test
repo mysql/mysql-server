@@ -175,6 +175,8 @@ select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b, c;
 select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b desc, c desc;
 #
 select min(b), max(b) from t1;
+#
+drop table t1;
 
 #
 # Bug #6435
