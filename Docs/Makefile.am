@@ -66,6 +66,16 @@ manual.pdf: manual.texi
 	rm -f manual-tmp.* ; \
 	touch $@
 
+# Target to produce NuSphere Manual
+print-manual.pdf: manual.texi
+	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi; \
+	pdftex --interaction=nonstopmode '\input manual-tmp.texi'; \
+	pdftex --interaction=nonstopmode '\pdfcompresslevel=9' \
+					 '\input manual-tmp.texi'; \
+	mv manual-tmp.pdf $@; \
+	rm -f manual-tmp.* ; \
+	touch $@
+
 # The texi2dvi gives a lot of harmless errors. Just ignore them unless
 # you want to help with the typesetting part.
 # This is the European papersize version
