@@ -1609,7 +1609,18 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
+  {
+    /*
+      We have to reset read position of relay-log-bin as we may have
+      already been reading from 'hotlog' when the slave was stopped
+      last time. If this case pos_in_file would be set and we would
+      get a crash when trying to read the signature for the binary
+      relay log.
+    */
+    my_b_seek(mi->rli.cur_log, (my_off_t) 0);
     DBUG_RETURN(0);
+  }
+
   mi->mysql=0;
   mi->file_id=1;
   mi->ignore_stop_event=0;
