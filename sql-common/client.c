@@ -1317,10 +1317,6 @@ mysql_init(MYSQL *mysql)
 #ifndef TO_BE_DELETED
   mysql->rpl_pivot = 1;
 #endif
-#if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__) && !defined(MYSQL_SERVER)
-  if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
-    (void) signal(SIGPIPE,pipe_sig_handler);
-#endif
 
   /*
     Only enable LOAD DATA INFILE by default if configured with

@@ -1096,7 +1096,6 @@ int subselect_indexsubquery_engine::exec()
 	  /* Check if there exists a row with a null value in the index */
 	  if ((error= (safe_index_read(tab) == 1)))
 	    break;
-	  }
 	}
       }
     }

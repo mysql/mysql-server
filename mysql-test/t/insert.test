@@ -80,10 +80,10 @@ drop table t1,t2;
 #
 
 --disable_warnings
-drop database if exists test_$1;
+drop database if exists mysqltest;
 --enable_warnings
-create database test_$1;
-use test_$1;
+create database mysqltest;
+use mysqltest;
 create table t1 (c int);
-insert into test_$1.t1 set test_$1.t1.c = '1';
-drop database test_$1;
+insert into mysqltest.t1 set mysqltest.t1.c = '1';
+drop database mysqltest;

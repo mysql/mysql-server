@@ -125,6 +125,7 @@ static int block_stack[BLOCK_STACK_DEPTH];
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
 static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
+static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
@@ -716,7 +717,7 @@ int do_wait_for_slave_to_stop(struct st_query* q __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES* res;
+    MYSQL_RES *res;
     MYSQL_ROW row;
     int done;
     LINT_INIT(res);
@@ -770,9 +771,7 @@ int do_server_op(struct st_query* q,const char* op)
   if (!*p)
     die("Missing server name in server_%s\n",op);
   while (*p && !my_isspace(charset_info,*p))
-  {
-   *com_p++=*p++;
-  }
+   *com_p++= *p++;
   *com_p++=' ';
   com_p=int10_to_str(manager_wait_timeout,com_p,10);
   *com_p++ = '\n';
@@ -864,7 +863,7 @@ int do_exec(struct st_query* q)
   FILE *res_file;
   char *cmd= q->first_argument;
 
-  while (*cmd && isspace(*cmd))
+  while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
     die("Missing argument in exec\n");
