@@ -137,5 +137,7 @@ CREATE TABLE `searchconthardwarefr7` (
 INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
 
 SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
+-- error 1054
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
 
 drop table forumconthardwarefr7, searchconthardwarefr7;

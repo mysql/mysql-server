@@ -94,13 +94,17 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	unit->select_limit_cnt= HA_POS_ERROR;
       if (unit->select_limit_cnt == HA_POS_ERROR)
 	sl->options&= ~OPTION_FOUND_ROWS;
-    
+
+      SELECT_LEX_NODE *save_current_select= lex->current_select;
+      lex->current_select= sl;
       res= mysql_select(thd, tables,  sl->item_list,
 			sl->where, (ORDER *) sl->order_list.first,
 			(ORDER*) sl->group_list.first,
 			sl->having, (ORDER*) NULL,
 			sl->options | thd->options | SELECT_NO_UNLOCK,
 			derived_result, unit, sl, 0);
+      lex->current_select= save_current_select;
+
       if (!res)
       {
 // Here we entirely fix both TABLE_LIST and list of SELECT's as there were no derived tables

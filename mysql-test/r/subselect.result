@@ -240,4 +240,6 @@ SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FRO
 numeropost	maxnumrep
 43506	2
 40143	1
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+Unknown column 'a' in 'having clause'
 drop table forumconthardwarefr7, searchconthardwarefr7;

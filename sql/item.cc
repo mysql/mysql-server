@@ -444,13 +444,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
       SELECT_LEX *last= 0;
-      for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
-	   sl;
-	   sl= sl->outer_select())
-	if ((tmp= find_field_in_tables(thd, this,
-				       (last= sl)->get_table_list(),
-				       0)) != not_found_field)
-	  break;
+      
+      // Prevent using outer fields in subselects, that is not supported now
+      if (thd->lex.current_select->linkage != DERIVED_TABLE_TYPE)
+	for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
+	     sl;
+	     sl= sl->outer_select())
+	  if ((tmp= find_field_in_tables(thd, this,
+					 (last= sl)->get_table_list(),
+					 0)) != not_found_field)
+	    break;
       if (!tmp)
 	return -1;
       else if (tmp == not_found_field)
@@ -812,10 +815,18 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    /*
+      Finding only in current select will be performed for selects that have 
+      not outer one and for derived tables (which not support using outer 
+      fields for now)
+    */
     if ((ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
-				(sl ? REPORT_EXCEPT_NOT_FOUND :
-				 REPORT_ALL_ERRORS))) ==
+				((sl && 
+				  thd->lex.current_select->linkage !=
+				  DERIVED_TABLE_TYPE) ? 
+				  REPORT_EXCEPT_NOT_FOUND :
+				  REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
       /*
