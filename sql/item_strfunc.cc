@@ -2709,41 +2709,40 @@ longlong Item_func_crc32::val_int()
 
 String *Item_func_compress::val_str(String *str)
 {
+  int err= Z_OK, code;
+  ulong new_size;
+  String *res;
+  Byte *body;
+  char *tmp, *last_char;
   DBUG_ASSERT(fixed == 1);
-  String *res= args[0]->val_str(str);
-  if (!res)
+
+  if (!(res= args[0]->val_str(str)))
   {
     null_value= 1;
     return 0;
   }
   if (res->is_empty()) return res;
 
-  int err= Z_OK;
-  int code;
-
   /*
-   citation from zlib.h (comment for compress function):
+    Citation from zlib.h (comment for compress function):
 
     Compresses the source buffer into the destination buffer.  sourceLen is
-   the byte length of the source buffer. Upon entry, destLen is the total
-   size of the destination buffer, which must be at least 0.1% larger than
-   sourceLen plus 12 bytes.
-
-   Proportion 120/100 founded by Sinisa with help of procedure
-   compress(compress(compress(...)))
-   I.e. zlib give number 'at least'..
+    the byte length of the source buffer. Upon entry, destLen is the total
+    size of the destination buffer, which must be at least 0.1% larger than
+    sourceLen plus 12 bytes.
+    We assume here that the buffer can't grow more than .25 %.
   */
-  ulong new_size= res->length() + res->length() / 5 + 12;
+  new_size= res->length() + res->length() / 5 + 12;
 
-  // Will check new_size overflow: new_size <= res->length()
-  if (((uint32) new_size <= res->length()) || 
+  // Check new_size overflow: new_size <= res->length()
+  if (((uint32) (new_size+5) <= res->length()) || 
       buffer.realloc((uint32) new_size + 4 + 1))
   {
     null_value= 1;
     return 0;
   }
 
-  Byte *body= ((Byte*)buffer.ptr()) + 4;
+  body= ((Byte*)buffer.ptr()) + 4;
 
   // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,
@@ -2755,11 +2754,11 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  char *tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
+  tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
   int4store(tmp, res->length() & 0x3FFFFFFF);
 
-  /* This is for the stupid char fields which trim ' ': */
-  char *last_char= ((char*)body)+new_size-1;
+  /* This is to ensure that things works for CHAR fields, which trim ' ': */
+  last_char= ((char*)body)+new_size-1;
   if (*last_char == ' ')
   {
     *++last_char= '.';

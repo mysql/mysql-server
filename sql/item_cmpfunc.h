@@ -845,7 +845,7 @@ public:
   char escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg)
-    :Item_bool_func2(a,b), canDoTurboBM(false), pattern(0), pattern_len(0), 
+    :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
