@@ -96,6 +96,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex->select_lex);
+    thd->row_count_func= 0;
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -245,6 +246,7 @@ cleanup:
     send_error(thd,thd->killed_errno());
   else
   {
+    thd->row_count_func= deleted;
     send_ok(thd,deleted);
     DBUG_PRINT("info",("%d records deleted",deleted));
   }
@@ -550,7 +552,10 @@ bool multi_delete::send_eof()
   if (local_error)
     ::send_error(thd);
   else
+  {
+    thd->row_count_func= deleted;
     ::send_ok(thd, deleted);
+  }
   return 0;
 }
 

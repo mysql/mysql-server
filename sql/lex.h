@@ -681,6 +681,7 @@ static SYMBOL sql_functions[] = {
   { "RELEASE_LOCK",	F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_release_lock)},
   { "REVERSE",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_reverse)},
   { "ROUND",		SYM(ROUND)},
+  { "ROW_COUNT",	SYM(ROW_COUNT_SYM)},
   { "RPAD",		F_SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_rpad)},
   { "RTRIM",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_rtrim)},
   { "SEC_TO_TIME",	F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_sec_to_time)},

@@ -1076,6 +1076,16 @@ enum Cast_target
 };
 
 
+class Item_func_row_count :public Item_int_func
+{
+public:
+  Item_func_row_count() :Item_int_func() {}
+  longlong val_int();
+  const char *func_name() const { return "row_count"; }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+};
+
+
 /*
  *
  * Stored FUNCTIONs

@@ -3206,6 +3206,15 @@ longlong Item_func_is_used_lock::val_int()
 }
 
 
+longlong Item_func_row_count::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+
+  return thd->row_count_func;
+}
+
+
 Item_func_sp::Item_func_sp(sp_name *name)
   :Item_func(), m_name(name), m_sp(NULL)
 {

@@ -436,6 +436,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	X509_SYM
 %token	XOR
 %token	COMPRESSED_SYM
+%token  ROW_COUNT_SYM
 
 %token  ERRORS
 %token  WARNINGS
@@ -3936,6 +3937,11 @@ simple_expr:
 	| ROUND '(' expr ')'
 	  { $$= new Item_func_round($3, new Item_int((char*)"0",0,1),0); }
 	| ROUND '(' expr ',' expr ')' { $$= new Item_func_round($3,$5,0); }
+	| ROW_COUNT_SYM '(' ')'
+	  {
+	    $$= new Item_func_row_count();
+	    Lex->safe_to_cache_query= 0;
+	  }
 	| SUBDATE_SYM '(' expr ',' expr ')'
 	  { $$= new Item_date_add_interval($3, $5, INTERVAL_DAY, 1);}
 	| SUBDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
