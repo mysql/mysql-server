@@ -17,8 +17,9 @@ my %opt = (
 );
 
 GetOptions(\%opt,
-    'v+',	# verbose
-    'd+',	# debug
+    'verbose|v+',# verbose
+    'help+',	# write usage info
+    'debug|d+',	# debug
     's=s',	# what to sort by (t, at, l, al, r, ar etc)
     'r!',	# reverse the sort order (largest last instead of first)
     't=i',	# just show the top n queries
@@ -28,8 +29,9 @@ GetOptions(\%opt,
     'h=s',	# hostname of db server for *-slow.log filename (can be wildcard)
     'i=s',	# name of server instance (if using mysql.server startup script)
     'l!',	# don't subtract lock time from total time
-) or die "Bad option";
+) or usage("bad option");
 
+$opt{'help'} and usage();
 
 unless (@ARGV) {
     my $defaults   = `my_print_defaults mysqld`;
@@ -140,4 +142,39 @@ foreach (@sorted) {
     my $host  = (@hosts==1) ? $hosts[0] : sprintf "%dhosts",scalar @hosts;
     printf "Count: %d  Time=%.2fs (%ds)  Lock=%.2fs (%ds)  Rows=%.1f (%d), $user\@$host\n%s\n\n",
 	    $c, $at,$t, $al,$l, $ar,$r, $_;
+}
+
+sub usage {
+    my $str= shift;
+    my $text= <<HERE;
+Usage: mysqldumpslow [ OPTS... ] [ LOGS... ]
+
+Parse and summarize the MySQL slow query log. Options are
+
+  --verbose    verbose
+  --debug      debug
+  --help       write this text to standard output
+
+  -v           verbose
+  -d           debug
+  -s ORDER     what to sort by (t, at, l, al, r, ar etc), 'at' is default
+  -r           reverse the sort order (largest last instead of first)
+  -t NUM       just show the top n queries
+  -a           don't abstract all numbers to N and strings to 'S'
+  -n NUM       abstract numbers with at least n digits within names
+  -g PATTERN   grep: only consider stmts that include this string
+  -h HOSTNAME  hostname of db server for *-slow.log filename (can be wildcard),
+               default is '*', i.e. match all
+  -i NAME      name of server instance (if using mysql.server startup script)
+  -l           don't subtract lock time from total time
+
+HERE
+    if ($str) {
+      print STDERR "ERROR: $str\n\n";
+      print STDERR $text;
+      exit 1;
+    } else {
+      print $text;
+      exit 0;
+    }
 }
