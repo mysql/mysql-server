@@ -10,7 +10,6 @@ Created 12/9/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "mtr0mtr.h"
 
-#ifdef UNIV_LOG_DEBUG
 /**********************************************************
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
@@ -22,7 +21,6 @@ log_check_log_recs(
 				in the log_sys->buf log buffer */
 	ulint	len,		/* in: segment length in bytes */
 	dulint	buf_start_lsn);	/* in: buffer start lsn */
-#endif /* UNIV_LOG_DEBUG */
 
 /****************************************************************
 Gets a log block flush bit. */
