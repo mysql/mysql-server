@@ -191,9 +191,20 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     pos = rli->relay_log_pos; // already inited
   else
     rli->relay_log_pos = pos;
-  if (rli->relay_log.find_first_log(&rli->linfo,log))
+
+  // test to see if the previous run was with the skip of purging
+  // if yes, we do not purge when we restart
+  if (rli->relay_log.find_first_log(&rli->linfo,""))
   {
     *errmsg="Could not find first log during relay log initialization";
+    goto err;
+  }
+  if (strcmp(log,rli->linfo.log_file_name))
+    rli->skip_log_purge=1;
+  
+  if (rli->relay_log.find_first_log(&rli->linfo,log))
+  {
+    *errmsg="Could not find target log during relay log initialization";
     goto err;
   }
   strnmov(rli->relay_log_name,rli->linfo.log_file_name,
@@ -2497,6 +2508,15 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       return ev;
     }
     DBUG_ASSERT(thd==rli->sql_thd);
+    if (opt_reckless_slave)
+      cur_log->error = 0;
+    if ( cur_log->error < 0)
+    {
+      errmsg = "slave SQL thread aborted because of I/O error";
+      goto err;
+    }
+    
+
     if (!cur_log->error) /* EOF */
     {
       /*
@@ -2605,12 +2625,12 @@ event(errno=%d,cur_log->error=%d)",
 		      my_errno,cur_log->error);
       // set read position to the beginning of the event
       my_b_seek(cur_log,rli->relay_log_pos+rli->pending);
-      // no need to hog the mutex while we sleep
-      pthread_mutex_unlock(&rli->data_lock);
-      safe_sleep(rli->sql_thd,1,(CHECK_KILLED_FUNC)sql_slave_killed,
-		 (void*)rli);
-      pthread_mutex_lock(&rli->data_lock);
+      /* otherwise, we have had a partial read */
+      /* TODO; see if there is a way to do this without this goto */
+      errmsg = "Aborting slave SQL thread because of partial event read";
+      goto err;
     }
+
   }
   if (!errmsg && was_killed)
     errmsg = "slave SQL thread was killed";

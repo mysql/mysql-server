@@ -30,7 +30,7 @@ extern bool use_slave_mask;
 extern char* slave_load_tmpdir;
 extern my_string master_info_file,relay_log_info_file;
 extern my_string opt_relay_logname, opt_relaylog_index_name;
-extern bool opt_skip_slave_start;
+extern bool opt_skip_slave_start, opt_reckless_slave;
 extern ulong relay_log_space_limit;
 struct st_master_info;
 
