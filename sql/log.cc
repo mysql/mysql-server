@@ -442,8 +442,8 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 #ifdef HAVE_FTRUNCATE
   if (ftruncate(index_file,0))
   {
-    sql_print_error("Could not truncate the binlog index file \
-during log purge for write");
+    sql_print_error(
+"Could not truncate the binlog index file during log purge for write");
     error = LOG_INFO_FATAL;
     goto err;
   }
@@ -455,8 +455,8 @@ during log purge for write");
 			    O_CREAT | O_BINARY | O_RDWR | O_APPEND,
 			    MYF(MY_WME))))
   {
-    sql_print_error("Could not re-open the binlog index file \
-during log purge for write");
+    sql_print_error(
+"Could not re-open the binlog index file during log purge for write");
     error = LOG_INFO_FATAL;
     goto err;
   }
@@ -661,6 +661,38 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
 
     error=1;
 
+    if (file == &thd->transaction.trans_log
+        && !my_b_tell(&thd->transaction.trans_log)) {
+
+      /* Add the "BEGIN" and "COMMIT" in the binlog around transactions
+      which may contain more than 1 SQL statement. If we run with
+      AUTOCOMMIT=1, then MySQL immediately writes each SQL statement to
+      the binlog when the statement has been completed. No need to add
+      "BEGIN" ... "COMMIT" around such statements. Otherwise, MySQL uses
+      thd->transaction.trans_log to cache the SQL statements until the
+      explicit commit, and at the commit writes the contents in .trans_log
+      to the binlog.
+
+      We write the "BEGIN" mark first in the buffer (.trans_log) where we
+      store the SQL statements for a transaction. At the transaction commit
+      we will add the "COMMIT mark and write the buffer to the binlog.
+      The function my_b_tell above returns != 0 if there already is data
+      in the buffer. */
+
+      int save_query_length = thd->query_length;
+
+      thd->query_length = 5; /* length of string BEGIN */
+
+      Query_log_event qinfo(thd, "BEGIN", TRUE);
+      
+      error = ((&qinfo)->write(file));
+
+      thd->query_length = save_query_length;
+      
+      if (error)
+        goto err;
+    }
+    
     if (thd->last_insert_id_used)
     {
       Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
