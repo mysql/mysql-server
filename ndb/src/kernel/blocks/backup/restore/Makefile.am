@@ -3,7 +3,7 @@ ndbtools_PROGRAMS = restore
 
 restore_SOURCES = main.cpp Restore.cpp
 
-LDADD_LOC = $(top_srcdir)/ndb/src/ndbapi/libNDB_API.la
+LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la
 
 include $(top_srcdir)/ndb/config/common.mk.am
 

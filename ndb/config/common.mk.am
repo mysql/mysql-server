@@ -1,7 +1,7 @@
 
 INCLUDES = $(INCLUDES_LOC)
 LDADD = $(top_srcdir)/ndb/src/common/portlib/gcc.cpp $(LDADD_LOC)
-DEFS = @DEFS@ @NDB_DEFS@ $(DEFS_LOC)
+DEFS = @DEFS@ @NDB_DEFS@ $(DEFS_LOC) $(NDB_EXTRA_FLAGS)
 # ndb cannot be compiled with -fno-implicit-templaces
 NDB_CXXFLAGS=-fimplicit-templates
 ##use AM_CXXFLAGS for other flags

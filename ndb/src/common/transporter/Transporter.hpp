@@ -17,6 +17,8 @@
 #ifndef Transporter_H
 #define Transporter_H
 
+#include <ndb_global.h>
+
 #include <TransporterCallback.hpp>
 #include "TransporterDefinitions.hpp"
 #include "Packer.hpp"
