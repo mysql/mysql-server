@@ -25,7 +25,7 @@
  * TODO optimize for initial equal attrs in node min/max
  */
 void
-Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -46,7 +46,7 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
   NodeHandle bottomNode(frag);
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc);
+    selectNode(currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
@@ -159,12 +159,12 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
  *
  * Compares search key to each node min.  A move to right subtree can
  * overshoot target node.  The last such node is saved.  The final node
- * is a half-leaf or leaf.  If search key is less than final node min
+ * is a semi-leaf or leaf.  If search key is less than final node min
  * then the saved node is the g.l.b of the final node and we move back
  * to it.
  */
 void
-Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -182,7 +182,7 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc);
+    selectNode(currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
@@ -256,7 +256,7 @@ Dbtux::searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt s
  * Similar to searchToAdd.
  */
 void
-Dbtux::searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos)
+Dbtux::searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
@@ -271,7 +271,7 @@ Dbtux::searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned bo
   NodeHandle bottomNode(frag);
   while (true) {
     jam();
-    selectNode(signal, currNode, currNode.m_loc);
+    selectNode(currNode, currNode.m_loc);
     int ret;
     // compare prefix
     ret = cmpScanBound(frag, 0, boundInfo, boundCount, currNode.getPref(), tree.m_prefSize);
