@@ -413,20 +413,13 @@ runSendRequest_C(void * me)
 
 void TransporterFacade::threadMainSend(void)
 {
-  SocketServer socket_server;
-
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_service(socket_server)){
-    ndbout_c("Unable to start theTransporterRegistry->start_service");
-    exit(0);
-  }
-
   if (!theTransporterRegistry->start_clients()){
     ndbout_c("Unable to start theTransporterRegistry->start_clients");
     exit(0);
   }
 
-  socket_server.startServer();
+  m_socket_server.startServer();
 
   while(!theStopReceive) {
     NdbSleep_MilliSleep(10);
@@ -439,8 +432,8 @@ void TransporterFacade::threadMainSend(void)
   }
   theTransporterRegistry->stopSending();
 
-  socket_server.stopServer();
-  socket_server.stopSessions();
+  m_socket_server.stopServer();
+  m_socket_server.stopSessions();
 
   theTransporterRegistry->stop_clients();
 }
@@ -558,6 +551,11 @@ TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
   }
 #endif
   
+  if (!theTransporterRegistry->start_service(m_socket_server)){
+    ndbout_c("Unable to start theTransporterRegistry->start_service");
+    return false;
+  }
+
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
                                       32768,

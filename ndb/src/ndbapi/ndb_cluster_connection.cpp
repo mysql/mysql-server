@@ -145,6 +145,7 @@ int Ndb_cluster_connection::connect(int reconnect)
 
 Ndb_cluster_connection::~Ndb_cluster_connection()
 {
+  TransporterFacade::stop_instance();
   if (m_connect_thread)
   {
     void *status;
