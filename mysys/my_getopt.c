@@ -330,8 +330,6 @@ int handle_options(int *argc, char ***argv,
 	    else /* If argument differs from 0, enable option, else disable */
 	      *((my_bool*) value)= (my_bool) atoi(optend) != 0;
 	  }
-	  (*argc)--;	    
-	  continue;
 	}
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
