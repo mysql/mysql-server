@@ -272,8 +272,11 @@ insert into t2 values(10),(20);
 create table t3 like t1;
 show create table t3;
 select * from t3;
+# Disable PS becasue of @@warning_count
+--disable_ps_protocol
 create table if not exists t3 like t1;
 select @@warning_count;
+--enable_ps_protocol
 create temporary table t3 like t2;
 show create table t3;
 select * from t3;

@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
   {
     ndbout << "-- " << " Test " << i + 1 
          << " [" << testCases[i].name << "] --" << endl;
-    snprintf(str, 256, "%s %s %s %d", "Logging ", 
+    BaseString::snprintf(str, 256, "%s %s %s %d", "Logging ", 
 	     testCases[i].name, " message ", i);  
     if (testCases[i].test(str))
     {
@@ -128,7 +128,7 @@ LogHandlerListUnitTest::testTraverseNext(const char* msg)
   {
     char* str = new char[3];
     pHandlers[i] = new ConsoleLogHandler();
-    ::snprintf(str, 3, "%d", i);
+    BaseString::snprintf(str, 3, "%d", i);
     pHandlers[i]->setDateTimeFormat(str);   
     list.add(pHandlers[i]);
   }

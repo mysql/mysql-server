@@ -176,6 +176,7 @@ THD::THD()
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
+  hash_clear(&handler_tables_hash);
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
@@ -225,8 +226,7 @@ THD::THD()
 
   init();
   /* Initialize sub structures */
-  clear_alloc_root(&transaction.mem_root);
-  init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
+  init_sql_alloc(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -265,6 +265,7 @@ THD::THD()
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
+  init_sql_alloc(&transaction.mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   {
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
@@ -310,12 +311,13 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
-  init_sql_alloc(&mem_root,
-                 variables.query_alloc_block_size,
-                 variables.query_prealloc_size);
-  init_sql_alloc(&transaction.mem_root,         
-		 variables.trans_alloc_block_size, 
-		 variables.trans_prealloc_size);
+  ha_enable_transaction(this,TRUE);
+
+  reset_root_defaults(&mem_root, variables.query_alloc_block_size,
+                      variables.query_prealloc_size);
+  reset_root_defaults(&transaction.mem_root,
+                      variables.trans_alloc_block_size,
+                      variables.trans_prealloc_size);
 }
 
 
@@ -335,6 +337,7 @@ void THD::change_user(void)
   cleanup();
   cleanup_done= 0;
   init();
+  stmt_map.reset();
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
@@ -354,11 +357,9 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  if (handler_tables)
-  {
-    open_tables=handler_tables; handler_tables=0;
-    close_thread_tables(this);
-  }
+  mysql_ha_flush(this, (TABLE_LIST*) 0,
+                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
+  hash_free(&handler_tables_hash);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
@@ -709,27 +710,29 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   return new_table;
 }
 
+
 int THD::send_explain_fields(select_result *result)
 {
   List<Item> field_list;
   Item *item;
+  CHARSET_INFO *cs= system_charset_info;
   field_list.push_back(new Item_return_int("id",3, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("select_type",19));
-  field_list.push_back(new Item_empty_string("table",NAME_LEN));
-  field_list.push_back(new Item_empty_string("type",10));
+  field_list.push_back(new Item_empty_string("select_type", 19, cs));
+  field_list.push_back(new Item_empty_string("table", NAME_LEN, cs));
+  field_list.push_back(new Item_empty_string("type", 10, cs));
   field_list.push_back(item=new Item_empty_string("possible_keys",
-						  NAME_LEN*MAX_KEY));
+						  NAME_LEN*MAX_KEY, cs));
   item->maybe_null=1;
-  field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+  field_list.push_back(item=new Item_empty_string("key", NAME_LEN, cs));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("key_len",
 						  NAME_LEN*MAX_KEY));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("ref",
-						  NAME_LEN*MAX_REF_PARTS));
+						  NAME_LEN*MAX_REF_PARTS, cs));
   item->maybe_null=1;
-  field_list.push_back(new Item_return_int("rows",10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Extra",255));
+  field_list.push_back(new Item_return_int("rows", 10, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Extra", 255, cs));
   return (result->send_fields(field_list,
                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
@@ -749,6 +752,54 @@ void THD::close_active_vio()
   DBUG_VOID_RETURN;
 }
 #endif
+
+
+struct Item_change_record: public ilink
+{
+  Item **place;
+  Item *old_value;
+  /* Placement new was hidden by `new' in ilink (TODO: check): */
+  static void *operator new(size_t size, void *mem) { return mem; }
+};
+
+
+/*
+  Register an item tree tree transformation, performed by the query
+  optimizer. We need a pointer to runtime_memroot because it may be !=
+  thd->mem_root (due to possible set_n_backup_item_arena called for thd).
+*/
+
+void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
+                                            MEM_ROOT *runtime_memroot)
+{
+  Item_change_record *change;
+  /*
+    Now we use one node per change, which adds some memory overhead,
+    but still is rather fast as we use alloc_root for allocations.
+    A list of item tree changes of an average query should be short.
+  */
+  void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
+  if (change_mem == 0)
+  {
+    fatal_error();
+    return;
+  }
+  change= new (change_mem) Item_change_record;
+  change->place= place;
+  change->old_value= old_value;
+  change_list.append(change);
+}
+
+
+void THD::rollback_item_tree_changes()
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+    *change->place= change->old_value;
+  /* We can forget about changes memory: it's allocated in runtime memroot */
+  change_list.empty();
+}
 
 
 /*****************************************************************************
@@ -847,7 +898,8 @@ bool select_send::send_eof()
   /* Unlock tables before sending packet to gain some speed */
   if (thd->lock)
   {
-    mysql_unlock_tables(thd, thd->lock); thd->lock=0;
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
   }
   if (!thd->net.report_error)
   {
@@ -948,9 +1000,14 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   option|= MY_REPLACE_DIR;			// Force use of db directory
 #endif
 
-  strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "",
-           NullS);
-  (void) fn_format(path, exchange->file_name, path, "", option);
+  if (!dirname_length(exchange->file_name))
+  {
+    strxnmov(path, FN_REFLEN, mysql_real_data_home, thd->db ? thd->db : "", NullS);
+    (void) fn_format(path, exchange->file_name, path, "", option);
+  }
+  else
+    (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
+    
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
@@ -1388,6 +1445,17 @@ void select_dumpvar::cleanup()
 }
 
 
+/*
+  Create arena for already constructed THD.
+
+  SYNOPSYS
+    Item_arena()
+      thd - thread for which arena is created
+
+  DESCRIPTION
+    Create arena for already existing THD using its variables as parameters
+    for memory root initialization.
+*/
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
   state(INITIALIZED)
@@ -1398,33 +1466,36 @@ Item_arena::Item_arena(THD* thd)
 }
 
 
-/* This constructor is called when Item_arena is a subobject of THD */
+/*
+  Create arena and optionally initialize memory root.
 
-Item_arena::Item_arena()
+  SYNOPSYS
+    Item_arena()
+      init_mem_root - whenever we need to initialize memory root
+
+  DESCRIPTION
+    Create arena and optionally initialize memory root with minimal
+    possible parameters.
+
+  NOTE
+    We use this constructor when arena is part of THD, but reinitialize
+    its memory root in THD::init_for_queries() before execution of real
+    statements.
+*/
+Item_arena::Item_arena(bool init_mem_root)
   :free_list(0),
   state(CONVENTIONAL_EXECUTION)
 {
-  clear_alloc_root(&mem_root);
-}
-
-
-Item_arena::Item_arena(bool init_mem_root)
-  :free_list(0),
-  state(INITIALIZED)
-{
   if (init_mem_root)
-    clear_alloc_root(&mem_root);
+    init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
+
 
 Item_arena::Type Item_arena::type() const
 {
   DBUG_ASSERT(0); /* Should never be called */
   return STATEMENT;
 }
-
-
-Item_arena::~Item_arena()
-{}
 
 
 /*
@@ -1451,7 +1522,7 @@ Statement::Statement(THD *thd)
 */
 
 Statement::Statement()
-  :Item_arena(),
+  :Item_arena((bool)TRUE),
   id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
@@ -1496,7 +1567,7 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
-void Statement::end_statement()
+void THD::end_statement()
 {
   /* Cleanup SQL processing state to resuse this statement in next query. */
   lex_end(lex);
@@ -1524,8 +1595,16 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   set->set_item_arena(this);
   set_item_arena(backup);
-  // reset backup mem_root to avoid its freeing
+#ifdef NOT_NEEDED_NOW
+  /*
+    Reset backup mem_root to avoid its freeing.
+    Since Item_arena's mem_root is freed only when it is part of Statement
+    we need this only if we use some Statement's arena as backup storage.
+    But we do this only with THD::stmt_backup and this Statement is specially
+    handled in this respect. So this code is not really needed now.
+  */
   clear_alloc_root(&backup->mem_root);
+#endif
 }
 
 void Item_arena::set_item_arena(Item_arena *set)
@@ -1573,7 +1652,7 @@ Statement_map::Statement_map() :
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
+  hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
   hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,

@@ -102,6 +102,20 @@ mem_alloc_func_noninline(
 	return(mem_alloc_func(n, file_name, line));	
 }
 
+/**************************************************************************
+Duplicates a NUL-terminated string, allocated from a memory heap. */
+
+char*
+mem_heap_strdup(
+/*============*/
+				/* out, own: a copy of the string */
+	mem_heap_t* heap,	/* in: memory heap where string is allocated */
+	const char* str)	/* in: string to be copied */
+{
+	ulint	len = strlen(str) + 1;
+	return(memcpy(mem_heap_alloc(heap, len), str, len));
+}
+
 /*******************************************************************
 Creates a memory heap block where data can be allocated. */
 

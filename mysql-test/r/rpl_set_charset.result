@@ -1,0 +1,48 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists mysqltest1;
+create database mysqltest1 /*!40100 character set latin2 */;
+use mysqltest1;
+drop table if exists t1;
+create table t1 (a varchar(255) character set latin2, b varchar(4));
+SET CHARACTER SET cp1250_latin2;
+INSERT INTO t1 VALUES ('ŠŒ','80');
+INSERT INTO t1 VALUES ('šœŸ','90');
+INSERT INTO t1 VALUES ('£¥ª¯','A0');
+INSERT INTO t1 VALUES ('³¹º¼¾¿','B0');
+INSERT INTO t1 VALUES ('ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ','C0');
+INSERT INTO t1 VALUES ('ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß','D0');
+INSERT INTO t1 VALUES ('àáâãäåæçèéêëìíîï','E0');
+INSERT INTO t1 VALUES ('ğñòóôõö÷øùúûüışÿ','F0');
+select "--- on master ---";
+--- on master ---
+--- on master ---
+select hex(a),b from t1 order by b;
+hex(a)	b
+A9A6ABAEAC	80
+B9B6BBBEBC	90
+A3A1AAAF	A0
+B3B1BAA5B5BF	B0
+C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF	C0
+D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF	D0
+E0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF	E0
+F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF	F0
+use mysqltest1;
+select "--- on slave ---";
+--- on slave ---
+--- on slave ---
+select hex(a),b from t1 order by b;
+hex(a)	b
+A9A6ABAEAC	80
+B9B6BBBEBC	90
+A3A1AAAF	A0
+B3B1BAA5B5BF	B0
+C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF	C0
+D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF	D0
+E0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF	E0
+F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF	F0
+drop database mysqltest1;

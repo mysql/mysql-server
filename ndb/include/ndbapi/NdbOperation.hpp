@@ -21,6 +21,7 @@
 #include "ndbapi_limits.h"
 #include "NdbError.hpp"
 #include "NdbReceiver.hpp"
+#include "NdbDictionary.hpp"
 
 class Ndb;
 class NdbApiSignal;
@@ -49,6 +50,19 @@ public:
    * @name Define Standard Operation Type
    * @{
    */
+
+  /**
+   * Lock when performing read
+   */
+  
+  enum LockMode {
+    LM_Read = 0,
+    LM_Exclusive = 1,
+    LM_CommittedRead = 2,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    LM_Dirty = 2
+#endif
+  };
 
   /**
    * Define the NdbOperation to be a standard operation of type insertTuple.
@@ -87,6 +101,15 @@ public:
    */
   virtual int 			deleteTuple();
 		
+  /**
+   * Define the NdbOperation to be a standard operation of type readTuple.
+   * When calling NdbConnection::execute, this operation 
+   * reads a tuple.
+   *
+   * @return 0 if successful otherwise -1.
+   */
+  virtual int 			readTuple(LockMode);
+
   /**
    * Define the NdbOperation to be a standard operation of type readTuple.
    * When calling NdbConnection::execute, this operation 
@@ -289,8 +312,9 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr* 		getValue(const char* anAttrName, char* aValue = 0);
-  NdbRecAttr* 		getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0);
   
   /**
    * Define an attribute to set or update in query.
@@ -609,6 +633,20 @@ public:
   int   interpret_exit_nok(Uint32 ErrorCode);
   int   interpret_exit_nok();
 
+  
+  /**
+   * Interpreted program instruction:
+   *
+   * For scanning transactions, 
+   * return this row, but no more from this fragment
+   *
+   * For non-scanning transactions,
+   * abort the whole transaction.
+   *
+   * @return            -1 if unsuccessful.
+   */
+  int interpret_exit_last_row();
+  
   /**
    * Interpreted program instruction:
    * Define a subroutine in an interpreted operation.
@@ -679,6 +717,8 @@ public:
     NotDefined                    ///< Internal for debugging
   };
 
+  LockMode getLockMode() const { return theLockMode; }
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -693,7 +733,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(class NdbTableImpl*, NdbConnection* aCon);
+  int init(const class NdbTableImpl*, NdbConnection* aCon);
   void initInterpreter();
 
   void	next(NdbOperation*);		// Set next pointer		      
@@ -711,7 +751,6 @@ protected:
     FinalGetValue,
     SubroutineExec,
     SubroutineEnd,
-    SetBound,
     WaitResponse,
     WaitCommitResponse,
     Finished,
@@ -748,11 +787,6 @@ protected:
    
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
-
-  int    receiveTRANSID_AI(const Uint32* aDataPtr, Uint32 aDataLength); 
-  int    receiveREAD_CONF(const Uint32* aDataPtr, Uint32 aDataLength); 
-
-
   int	 checkMagicNumber(bool b = true); // Verify correct object
 
   int    checkState_TransId(NdbApiSignal* aSignal);
@@ -776,8 +810,6 @@ protected:
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
-  int         receiveREAD_AI(Uint32* aDataPtr, Uint32 aLength); 
-				
   int 	      insertATTRINFO(Uint32 aData);
   int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
 
@@ -842,8 +874,8 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  class NdbTableImpl* m_currentTable;      // The current table
-  class NdbTableImpl* m_accessTable;
+  const class NdbTableImpl* m_currentTable;      // The current table
+  const class NdbTableImpl* m_accessTable;
 
   // Set to TRUE when a tuple key attribute has been defined. 
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
@@ -856,7 +888,7 @@ protected:
 		       			   // currently defined   
   OperationType	  theOperationType;        // Read Request, Update Req......   
 
-  Uint8        theLockMode;	   // Can be set to WRITE if read operation 
+  LockMode        theLockMode;	   // Can be set to WRITE if read operation 
   OperationStatus theStatus;	   // The status of the operation.	
   Uint32         theMagicNumber;  // Magic number to verify that object 
                                    // is correct
@@ -883,9 +915,6 @@ protected:
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
 
-  // saveBoundATTRINFO() moves ATTRINFO here when setBound() is ready
-  NdbApiSignal*     theBoundATTRINFO;
-  Uint32            theTotalBoundAI_Len;
   // Blobs in this operation
   NdbBlob* theBlobList;
 

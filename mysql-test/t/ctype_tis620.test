@@ -69,7 +69,7 @@ CREATE TABLE t1 (
   recid int(11) NOT NULL auto_increment,
   dyninfo text,
   PRIMARY KEY  (recid)
-) ENGINE=MyISAM;
+) ENGINE=MyISAM CHARACTER SET tis620;
 
 show create table t1;
 
@@ -112,7 +112,7 @@ SELECT 'a\0' < 'a ';
 SELECT 'a\t' < 'a';
 SELECT 'a\t' < 'a ';
 
-CREATE TABLE t1 (a char(10) not null);
+CREATE TABLE t1 (a char(10) not null) CHARACTER SET tis620;
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 DROP TABLE t1;

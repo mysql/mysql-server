@@ -12,13 +12,13 @@ use test;
 
 --disable_warnings
 drop table if exists t1, t1_1, t1_2,
-     t_many_col_types, t_many_col_types_1, t_many_col_types_2;
+     t9, t9_1, t9_2;
 --enable_warnings
 let $type= 'MYISAM' ;
 -- source include/ps_create.inc
-rename table t1 to t1_1, t_many_col_types to t_many_col_types_1 ;
+rename table t1 to t1_1, t9 to t9_1 ;
 -- source include/ps_create.inc
-rename table t1 to t1_2, t_many_col_types to t_many_col_types_2 ;
+rename table t1 to t1_2, t9 to t9_2 ;
 
 create table t1
 (
@@ -26,7 +26,7 @@ create table t1
   primary key(a)
 ) ENGINE = MERGE UNION=(t1_1,t1_2)
 INSERT_METHOD=FIRST;
-create table t_many_col_types
+create table t9
 (
   c1  tinyint, c2  smallint, c3  mediumint, c4  int,
   c5  integer, c6  bigint, c7  float, c8  double,
@@ -38,7 +38,7 @@ create table t_many_col_types
   c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
   c32 set('monday', 'tuesday', 'wednesday'),
   primary key(c1)
-)  ENGINE = MERGE UNION=(t_many_col_types_1,t_many_col_types_2)
+)  ENGINE = MERGE UNION=(t9_1,t9_2)
 INSERT_METHOD=FIRST;
 -- source include/ps_renew.inc
 
@@ -47,16 +47,17 @@ INSERT_METHOD=FIRST;
 # no test of ps_modify1, because insert .. select 
 # is not allowed on MERGE tables
 # -- source include/ps_modify1.inc
+-- source include/ps_conv.inc
 
 # Lets's try the same tests with INSERT_METHOD=LAST
-drop table t1, t_many_col_types ;
+drop table t1, t9 ;
 create table t1
 (
   a int, b varchar(30),
   primary key(a)
 ) ENGINE = MERGE UNION=(t1_1,t1_2)
 INSERT_METHOD=LAST;
-create table t_many_col_types
+create table t9
 (
   c1  tinyint, c2  smallint, c3  mediumint, c4  int,
   c5  integer, c6  bigint, c7  float, c8  double,
@@ -68,7 +69,7 @@ create table t_many_col_types
   c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
   c32 set('monday', 'tuesday', 'wednesday'),
   primary key(c1)
-)  ENGINE = MERGE UNION=(t_many_col_types_1,t_many_col_types_2)
+)  ENGINE = MERGE UNION=(t9_1,t9_2)
 INSERT_METHOD=LAST;
 -- source include/ps_renew.inc
 
@@ -77,6 +78,7 @@ INSERT_METHOD=LAST;
 # no test of ps_modify1, because insert .. select
 # is not allowed on MERGE tables
 # -- source include/ps_modify1.inc
+-- source include/ps_conv.inc
 
 drop table t1, t1_1, t1_2, 
-           t_many_col_types_1, t_many_col_types_2, t_many_col_types;
+           t9_1, t9_2, t9;

@@ -19,6 +19,7 @@
 
 int main(void)
 {
+        ndb_init();
 	printf("cdrstruct=%d\n",sizeof(struct cdr_record));
 	printf("long int=%d\n",sizeof(long int));
 	printf("int=%d\n",sizeof(int));

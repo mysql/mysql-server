@@ -56,3 +56,7 @@ insert t1 values (1),(2);
 select if(1>2,a,avg(a)) from t1;
 drop table t1;
 
+#
+# Bug #5595  NULLIF() IS NULL returns false if NULLIF() returns NULL
+#
+SELECT NULLIF(5,5) IS NULL, NULLIF(5,5) IS NOT NULL;

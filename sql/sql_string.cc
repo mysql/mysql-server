@@ -331,19 +331,26 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 	/* Copy with charset convertion */
 
 bool String::copy(const char *str, uint32 arg_length,
-		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
+  {
+    if (errors)
+      *errors= 0;
     return copy(str, arg_length, to_cs);
+  }
   if ((from_cs == &my_charset_bin) && offset)
+  {
+    if (errors)
+      *errors= 0;
     return copy_aligned(str, arg_length, offset, to_cs);
-  
+  }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
     return TRUE;
   str_length=copy_and_convert((char*) Ptr, new_length, to_cs,
-			      str, arg_length, from_cs);
+                              str, arg_length, from_cs, errors);
   str_charset=to_cs;
   return FALSE;
 }
@@ -537,7 +544,8 @@ uint32 String::numchars()
 
 int String::charpos(int i,uint32 offset)
 {
-  if (i<0) return i;
+  if (i <= 0)
+    return i;
   return str_charset->cset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 
@@ -781,7 +789,8 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 
 uint32
 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-		 const char *from, uint32 from_length, CHARSET_INFO *from_cs)
+                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
+                 uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -792,6 +801,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 	       const uchar *) = from_cs->cset->mb_wc;
   int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
     to_cs->cset->wc_mb;
+  uint error_count= 0;
 
   while (1)
   {
@@ -800,6 +810,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
     {
+      error_count++;
       from++;
       wc= '?';
     }
@@ -811,12 +822,15 @@ outp:
       to+= cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?')
     {
+      error_count++;
       wc= '?';
       goto outp;
     }
     else
       break;
   }
+  if (errors)
+    *errors= error_count;
   return (uint32) (to - to_start);
 }
 

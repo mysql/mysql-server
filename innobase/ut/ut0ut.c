@@ -16,18 +16,22 @@ Created 5/11/1994 Heikki Tuuri
 #include <string.h>
 
 #include "ut0sort.h"
+#include "trx0trx.h"
 
 ibool	ut_always_false	= FALSE;
 
 /*********************************************************************
 Get the quote character to be used in SQL identifiers.
 This definition must match the one in sql/ha_innodb.cc! */
-
-char
-mysql_get_identifier_quote_char(void);
-/*=================================*/
+extern
+int
+mysql_get_identifier_quote_char(
+/*============================*/
 				/* out: quote character to be
-				used in SQL identifiers */
+				used in SQL identifiers; EOF if none */
+	trx_t*		trx,	/* in: transaction */
+	const char*	name,	/* in: name to print */
+	ulint		namelen);/* in: length of name */
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
@@ -333,6 +337,31 @@ ut_2_power_up(
 	return(res);
 }
 
+/**************************************************************************
+Outputs a NUL-terminated file name, quoted with apostrophes. */
+
+void
+ut_print_filename(
+/*==============*/
+	FILE*		f,	/* in: output stream */
+	const char*	name)	/* in: name to print */
+{
+	putc('\'', f);
+	for (;;) {
+		int	c = *name++;
+		switch (c) {
+		case 0:
+			goto done;
+		case '\'':
+			putc(c, f);
+			/* fall through */
+		default:
+			putc(c, f);
+		}
+	}
+done:
+	putc('\'', f);
+}
 
 /**************************************************************************
 Outputs a NUL-terminated string, quoted as an SQL identifier. */
@@ -341,9 +370,10 @@ void
 ut_print_name(
 /*==========*/
 	FILE*		f,	/* in: output stream */
+	trx_t*		trx,	/* in: transaction */
 	const char*	name)	/* in: name to print */
 {
-	ut_print_namel(f, name, strlen(name));
+	ut_print_namel(f, trx, name, strlen(name));
 }
 
 /**************************************************************************
@@ -353,12 +383,17 @@ void
 ut_print_namel(
 /*==========*/
 	FILE*		f,	/* in: output stream */
+	trx_t*		trx,	/* in: transaction (NULL=no quotes) */
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
 	const char*	s = name;
 	const char*	e = s + namelen;
-	char		q = mysql_get_identifier_quote_char();
+	int		q = mysql_get_identifier_quote_char(trx, name, namelen);
+	if (q == EOF) {
+		fwrite(name, 1, namelen, f);
+		return;
+	}
 	putc(q, f);
 	while (s < e) {
 		int	c = *s++;

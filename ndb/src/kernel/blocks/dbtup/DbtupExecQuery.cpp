@@ -319,24 +319,20 @@ void Dbtup::linkOpIntoFragList(OperationrecPtr regOperPtr,
                                Fragrecord* const regFragPtr) 
 {
   OperationrecPtr sopTmpOperPtr;
-/* ----------------------------------------------------------------- */
-/*       LINK THE OPERATION INTO A DOUBLY LINKED LIST ON THE FRAGMENT*/
-/*       PUT IT FIRST IN THIS LIST SINCE IT DOESN'T MATTER WHERE IT  */
-/*       IS PUT.                                                     */
-/* ----------------------------------------------------------------- */
+  Uint32 tail = regFragPtr->lastusedOprec;
   ndbrequire(regOperPtr.p->inFragList == ZFALSE);
   regOperPtr.p->inFragList = ZTRUE;
-  regOperPtr.p->prevOprecInList = RNIL;
-  sopTmpOperPtr.i = regFragPtr->firstusedOprec;
-  regFragPtr->firstusedOprec = regOperPtr.i;
-  regOperPtr.p->nextOprecInList = sopTmpOperPtr.i;
-  if (sopTmpOperPtr.i == RNIL) {
-    return;
+  regOperPtr.p->prevOprecInList = tail;
+  regOperPtr.p->nextOprecInList = RNIL;
+  sopTmpOperPtr.i = tail;
+  if (tail == RNIL) {
+    regFragPtr->firstusedOprec = regOperPtr.i;
   } else {
     jam();
     ptrCheckGuard(sopTmpOperPtr, cnoOfOprec, operationrec);
-    sopTmpOperPtr.p->prevOprecInList = regOperPtr.i;
+    sopTmpOperPtr.p->nextOprecInList = regOperPtr.i;
   }//if
+  regFragPtr->lastusedOprec = regOperPtr.i;
 }//Dbtup::linkOpIntoFragList()
 
 /*
@@ -708,7 +704,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
   regOperPtr->tupleState = TUPLE_BLOCKED;
   regOperPtr->changeMask.clear();
-
+  
   if (Rstoredid != ZNIL) {
     ndbrequire(initStoredOperationrec(regOperPtr, Rstoredid) == ZOK);
   }//if
@@ -844,20 +840,18 @@ void Dbtup::sendTUPKEYCONF(Signal* signal,
   TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtrSend();  
 
   Uint32 RuserPointer = regOperPtr->userpointer;
-  Uint32 RfragPageId = regOperPtr->fragPageId;
-  Uint32 RpageIndex = regOperPtr->pageIndex;
   Uint32 RattroutbufLen = regOperPtr->attroutbufLen;
   Uint32 RnoFiredTriggers = regOperPtr->noFiredTriggers;
   BlockReference Ruserblockref = regOperPtr->userblockref;
+  Uint32 lastRow = regOperPtr->lastRow;
 
   regOperPtr->transstate = STARTED;
   regOperPtr->tupleState = NO_OTHER_OP;
   tupKeyConf->userPtr = RuserPointer;
-  tupKeyConf->pageId = RfragPageId;
-  tupKeyConf->pageIndex = RpageIndex;
   tupKeyConf->readLength = RattroutbufLen;
   tupKeyConf->writeLength = TlogSize;
   tupKeyConf->noFiredTriggers = RnoFiredTriggers;
+  tupKeyConf->lastRow = lastRow;
 
   EXECUTE_DIRECT(refToBlock(Ruserblockref), GSN_TUPKEYCONF, signal,
 		 TupKeyConf::SignalLength);
@@ -899,18 +893,19 @@ int Dbtup::handleReadReq(Signal* signal,
   
   if (regOperPtr->interpretedExec != 1) {
     jam();
-    
-    Uint32 TnoOfDataRead = readAttributes(pagePtr,
-                                          Ttupheadoffset,
-                                          &cinBuffer[0],
-                                          regOperPtr->attrinbufLen,
-                                          dst,
-					  dstLen);
-    if (TnoOfDataRead != (Uint32)-1) {
+    int ret = readAttributes(pagePtr,
+			     Ttupheadoffset,
+			     &cinBuffer[0],
+			     regOperPtr->attrinbufLen,
+			     dst,
+			     dstLen,
+			     false);
+    if (ret != -1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
       jam();
+      Uint32 TnoOfDataRead= (Uint32) ret;
       regOperPtr->attroutbufLen = TnoOfDataRead;
       sendReadAttrinfo(signal, TnoOfDataRead, regOperPtr);
       return 0;
@@ -920,6 +915,7 @@ int Dbtup::handleReadReq(Signal* signal,
     return -1;
   } else {
     jam();
+    regOperPtr->lastRow = 0;
     if (interpreterStartLab(signal, pagePtr, Ttupheadoffset) != -1) {
       return 0;
     }//if
@@ -1104,7 +1100,7 @@ Dbtup::updateStartLab(Signal* signal,
                       Tablerec* const regTabPtr,
                       Page* const pagePtr)
 {
-  Uint32 retValue;
+  int retValue;
   if (regOperPtr->optype == ZINSERT) {
     jam();
     setNullBits(pagePtr, regTabPtr, regOperPtr->pageOffset);
@@ -1115,7 +1111,7 @@ Dbtup::updateStartLab(Signal* signal,
                                 regOperPtr->pageOffset,
                                 &cinBuffer[0],
                                 regOperPtr->attrinbufLen);
-    if (retValue == (Uint32)-1) {
+    if (retValue == -1) {
       tupkeyErrorLab(signal);
     }//if
   } else {
@@ -1219,7 +1215,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 {
   Operationrec *  const regOperPtr = operPtr.p;
   Uint32 RtotalLen;
-  Uint32 TnoDataRW;
+  int TnoDataRW;
 
   Uint32 RinitReadLen = cinBuffer[0];
   Uint32 RexecRegionLen = cinBuffer[1];
@@ -1275,8 +1271,9 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[5],
 				 RinitReadLen,
 				 &dst[0],
-				 dstLen);
-      if (TnoDataRW != (Uint32)-1) {
+				 dstLen,
+                                 false);
+      if (TnoDataRW != -1) {
 	RattroutCounter = TnoDataRW;
 	RinstructionCounter += RinitReadLen;
       } else {
@@ -1303,7 +1300,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     RsubLen,
 				     &coutBuffer[0],
 				     sizeof(coutBuffer) / 4);
-      if (TnoDataRW != (Uint32)-1) {
+      if (TnoDataRW != -1) {
 	RinstructionCounter += RexecRegionLen;
 	RlogSize = TnoDataRW;
       } else {
@@ -1322,7 +1319,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     TupHeadOffset,
 				     &cinBuffer[RinstructionCounter],
 				     RfinalUpdateLen);
-	if (TnoDataRW != (Uint32)-1) {
+	if (TnoDataRW != -1) {
 	  MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
 			   &cinBuffer[RinstructionCounter],
 			   RfinalUpdateLen);
@@ -1348,8 +1345,9 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				 &cinBuffer[RinstructionCounter],
 				 RfinalRLen,
 				 &dst[RattroutCounter],
-				 (dstLen - RattroutCounter));
-      if (TnoDataRW != (Uint32)-1) {
+				 (dstLen - RattroutCounter),
+                                 false);
+      if (TnoDataRW != -1) {
 	RattroutCounter += TnoDataRW;
       } else {
 	jam();
@@ -1482,13 +1480,13 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	/* ---------------------------------------------------------------- */
 	{
 	  Uint32 theAttrinfo = theInstruction;
-	  Uint32 TnoDataRW;
-	  TnoDataRW = readAttributes(pagePtr,
-				     TupHeadOffset,
-				     &theAttrinfo,
-				     (Uint32)1,
-				     &TregMemBuffer[theRegister],
-				     (Uint32)3);
+	  int TnoDataRW= readAttributes(pagePtr,
+					TupHeadOffset,
+					&theAttrinfo,
+					(Uint32)1,
+					&TregMemBuffer[theRegister],
+					(Uint32)3,
+					false);
 	  if (TnoDataRW == 2) {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
@@ -1512,7 +1510,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister] = 0;
 	    TregMemBuffer[theRegister + 2] = 0;
 	    TregMemBuffer[theRegister + 3] = 0;
-	  } else if (TnoDataRW == (Uint32)-1) {
+	  } else if (TnoDataRW == -1) {
 	    jam();
 	    tupkeyErrorLab(signal);
 	    return -1;
@@ -1565,12 +1563,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		ah.setNULL();
 		Tlen = 1;
 	      }//if
-	      Uint32 TnoDataRW;
-	      TnoDataRW = updateAttributes(pagePtr,
-					   TupHeadOffset,
-					   &TdataForUpdate[0],
-					   Tlen);
-	      if (TnoDataRW != (Uint32)-1) {
+	      int TnoDataRW= updateAttributes(pagePtr,
+					      TupHeadOffset,
+					      &TdataForUpdate[0],
+					      Tlen);
+	      if (TnoDataRW != -1) {
 		/* --------------------------------------------------------- */
 		// Write the written data also into the log buffer so that it 
 		// will be logged.
@@ -1834,7 +1831,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1930,7 +1928,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1958,7 +1957,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int32 TnoDataR = readAttributes(pagePtr,
 					  TupHeadOffset,
 					  &attrId, 1,
-					  tmpArea, tmpAreaSz);
+					  tmpArea, tmpAreaSz,
+                                          false);
 	  
 	  if (TnoDataR == -1) {
 	    jam();
@@ -1978,11 +1978,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
       }
 	
       case Interpreter::EXIT_OK:
-      case Interpreter::EXIT_OK_LAST:
 	jam();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_ok");
 #endif
+	return TdataWritten;
+
+      case Interpreter::EXIT_OK_LAST:
+	jam();
+#ifdef TRACE_INTERPRETER
+	ndbout_c(" - exit_ok_last");
+#endif
+	operPtr.p->lastRow = 1;
 	return TdataWritten;
 	
       case Interpreter::EXIT_REFUSE:

@@ -779,7 +779,9 @@ main(void){
 
 template class Vector<NdbScanFilterImpl::State>;
 #if __SUNPRO_CC != 0x560
+#ifndef _FORTEC_
 template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint32);
 template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint64);
+#endif
 #endif
 

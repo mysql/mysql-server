@@ -52,7 +52,7 @@ private:
  */
 class Properties {
 public:
-  static const char delimiter = ':';
+  static const char delimiter;
   static const char version[];
 
   Properties(bool case_insensitive= false);

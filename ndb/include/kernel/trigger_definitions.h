@@ -47,11 +47,11 @@ struct TriggerType {
 
 struct TriggerActionTime {
   enum Value {
-    TA_BEFORE   = 0, // Immediate, before operation
-    TA_AFTER    = 1, // Immediate, after operation
-    TA_DEFERRED = 2, // Before commit
-    TA_DETACHED = 3, // After commit in a separate transaction, NYI
-    TA_CUSTOM   = 4  // Hardcoded per TriggerType
+    TA_BEFORE   = 0, /* Immediate, before operation */
+    TA_AFTER    = 1, /* Immediate, after operation */
+    TA_DEFERRED = 2, /* Before commit */
+    TA_DETACHED = 3, /* After commit in a separate transaction, NYI */
+    TA_CUSTOM   = 4  /* Hardcoded per TriggerType */
   };
 };
 
@@ -60,7 +60,7 @@ struct TriggerEvent {
     TE_INSERT = 0,
     TE_DELETE = 1,
     TE_UPDATE = 2,
-    TE_CUSTOM = 3    // Hardcoded per TriggerType
+    TE_CUSTOM = 3    /* Hardcoded per TriggerType */
   };
 };
 

@@ -16,6 +16,7 @@ ndbapi/NdbError.hpp \
 ndbapi/NdbEventOperation.hpp \
 ndbapi/NdbIndexOperation.hpp \
 ndbapi/NdbOperation.hpp \
+ndbapi/ndb_cluster_connection.hpp \
 ndbapi/NdbBlob.hpp \
 ndbapi/NdbPool.hpp \
 ndbapi/NdbRecAttr.hpp \

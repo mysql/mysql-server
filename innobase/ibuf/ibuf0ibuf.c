@@ -3268,8 +3268,9 @@ leave_loop:
 
 	mutex_exit(&ibuf_mutex);
 
-	printf("Discarded %lu ibuf entries for space %lu\n", (ulong) n_inserts,
-	       (ulong) space);
+	fprintf(stderr,
+		"InnoDB: Discarded %lu ibuf entries for space %lu\n",
+		(ulong) n_inserts, (ulong) space);
 
 	ibuf_exit();
 

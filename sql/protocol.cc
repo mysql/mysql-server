@@ -225,6 +225,10 @@ net_printf(THD *thd, uint errcode, ...)
                       format,args);
   va_end(args);
 
+  /* Replication slave relies on net->last_* to see if there was error */
+  net->last_errno= errcode;
+  strmake(net->last_error, text_pos, sizeof(net->last_error)-1);
+
 #ifndef EMBEDDED_LIBRARY
   if (net->vio == 0)
   {
@@ -894,10 +898,9 @@ bool Protocol_simple::store_date(TIME *tm)
 	      field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
 #endif
-  char buff[40];
-  String tmp((char*) buff,sizeof(buff),&my_charset_bin);
-  make_date((DATE_TIME_FORMAT *) 0, tm, &tmp);
-  return net_store_data((char*) tmp.ptr(), tmp.length());
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  int length= my_date_to_str(tm, buff);
+  return net_store_data(buff, (uint) length);
 }
 
 
@@ -1108,6 +1111,13 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
+  if (tm->hour >= 24)
+  {
+    /* Fix if we come from Item::send */
+    uint days= tm->hour/24;
+    tm->hour-= days*24;
+    tm->day+= days;
+  }
   int4store(pos+1, tm->day);
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;
