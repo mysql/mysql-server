@@ -1041,7 +1041,7 @@ EOF
 
 mysql_start ()
 {
-# We should not start the daemon here as we don't know the argumens
+# We should not start the daemon here as we don't know the arguments
 # for the test.  Better to let the test start the daemon
 
 #  $ECHO "Starting MySQL daemon"
