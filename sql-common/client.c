@@ -2233,6 +2233,7 @@ void STDCALL mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
+
 static my_bool cli_read_query_result(MYSQL *mysql)
 {
   uchar *pos;

@@ -246,7 +246,7 @@ static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-int emb_next_result(MYSQL *mysql)
+my_bool emb_next_result(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   DBUG_ENTER("emb_next_result");
