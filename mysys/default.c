@@ -124,7 +124,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (forced_default_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
-                                             forced_default_file)) < 0)
+                                             forced_default_file, 0)) < 0)
       goto err;
     if (error > 0)
     {
@@ -439,7 +439,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         int recursion_level)
 {
   char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
-  char *value, option[4096];
+  char *value, option[4096], tmp[FN_REFLEN];
   static const char includedir_keyword[]= "includedir";
   static const char include_keyword[]= "include";
   const int max_recursion_level= 10;
@@ -548,14 +548,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
           if (*tmp_ext)
           {
-            if (!(tmp= alloc_root(alloc, 2 + strlen(search_file->name)
-                                          + strlen(ptr))))
-              goto err;
-
             fn_format(tmp, search_file->name, ptr, "",
                       MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
-            search_default_file_with_ext(args, alloc, "", "", tmp, group,
+            search_default_file_with_ext(opt_handler, handler_ctx, "", "", tmp,
                                          recursion_level + 1);
           }
         }
@@ -585,7 +581,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
           goto err;
         }
 
-        search_default_file_with_ext(args, alloc, "", "", ptr, group,
+        search_default_file_with_ext(opt_handler, handler_ctx, "", "", ptr,
                                      recursion_level + 1);
       }
 
