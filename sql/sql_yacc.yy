@@ -1562,10 +1562,10 @@ simple_expr:
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
-                   $$=new Item_func_match_nl(*$2,$5)); }
+                   ($$=new Item_func_match_nl(*$2,$5))); }
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
-                   $$=new Item_func_match_bool(*$2,$5)); }
+                   ($$=new Item_func_match_bool(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ) }

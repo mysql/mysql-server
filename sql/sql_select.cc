@@ -5092,8 +5092,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
     {
       if (right_item->type() == Item::FIELD_ITEM)
 	return (field->eq_def(((Item_field *) right_item)->field));
-      if (right_item->const_item() &&
-	  (right_item->val_int() || !right_item->null_value))
+      if (right_item->const_item() && !(right_item->is_null()))
       {
 	// We can remove binary fields and numerical fields except float,
 	// as float comparison isn't 100 % secure
