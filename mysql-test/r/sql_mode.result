@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`a`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=HEAP ROW_FORMAT=DYNAMIC
+) TYPE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 @@sql_mode

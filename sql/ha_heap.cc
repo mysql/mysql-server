@@ -40,6 +40,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     if (!create(name, table, &create_info))
       file= heap_open(name, mode);
   }
+  ref_length= sizeof(HEAP_PTR);
   return (file ? 0 : 1);
 }
 
@@ -335,7 +336,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   my_free((gptr) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-  ref_length= sizeof(HEAP_PTR);
   return (error);
 }
 

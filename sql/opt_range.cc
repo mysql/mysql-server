@@ -1005,7 +1005,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   }
 
   /*
-    We can't use an index when comparing stings of 
+    We can't use an index when comparing strings of 
     different collations 
   */
   if (field->result_type() == STRING_RESULT &&

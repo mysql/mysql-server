@@ -744,7 +744,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   if (!access(path, F_OK))
   {
     my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
-    return 1;
+    return -1;
   }
   /* Create the file world readable */
   if ((file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
