@@ -25,7 +25,7 @@
 
 int mi_rnext(MI_INFO *info, byte *buf, int inx)
 {
-  int error;
+  int error,changed;
   uint flag;
   DBUG_ENTER("mi_rnext");
 
@@ -39,10 +39,13 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
     DBUG_RETURN(my_errno);
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
+  changed=_mi_test_if_changed(info);
   if (!flag)
+  {
     error=_mi_search_first(info,info->s->keyinfo+inx,
 			   info->s->state.key_root[inx]);
-  else if (_mi_test_if_changed(info) == 0)
+  }
+  else if (!changed)
     error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
 			  info->lastkey_length,flag,
 			  info->s->state.key_root[inx]);
