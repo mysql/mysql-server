@@ -293,6 +293,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(item=new Item_empty_string("Create_options",255));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
+  item->maybe_null=1;
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
