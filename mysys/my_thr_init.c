@@ -123,7 +123,7 @@ my_bool my_thread_init(void)
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
   {
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG_THREADS
     fprintf(stderr,"my_thread_init() called more than once in thread %ld\n",
 	        pthread_self());
 #endif    

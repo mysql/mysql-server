@@ -426,9 +426,12 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 {
   int error=pthread_cond_timedwait(cond, mutex, abstime);
   if (error == -1)			/* Safety if the lib is fixed */
-    error=errno;
+  {
+    if (!(error=errno))
+      error= ETIMEDOUT;			/* Can happen on HPUX */
+  }
   if (error == EAGAIN)			/* Correct errno to Posix */
-    error=ETIMEDOUT;
+    error= ETIMEDOUT;
   return error;
 }
 #endif
