@@ -172,7 +172,7 @@ err:
 
 int Instance_options::add_to_argv(const char* option)
 {
-  DBUG_ASSERT(filled_default_options < (MAX_NUMBER_OF_DEFAULT_OPTIONS + 1));
+  DBUG_ASSERT(filled_default_options < MAX_NUMBER_OF_DEFAULT_OPTIONS);
 
   if (option != NULL)
     argv[filled_default_options++]= (char *) option;

@@ -22,7 +22,7 @@
 
 #include <my_global.h>
 
-/* Class responsible for allocation and deallocation of im classes. */
+/* Class responsible for allocation of im commands. */
 
 class Command_factory;
 
@@ -43,7 +43,5 @@ public:
 protected:
   Command_factory *factory;
 };
-
-#define CONST_STR(a) String(a,sizeof(a),&my_charset_latin1)
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_COMMAND_H */

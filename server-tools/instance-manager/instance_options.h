@@ -36,9 +36,10 @@
 class Instance_options
 {
 public:
-  Instance_options() : mysqld_socket(0), mysqld_datadir(0),
-  mysqld_bind_address(0), mysqld_pid_file(0), mysqld_port(0), mysqld_path(0),
-  mysqld_user(0), mysqld_password(0), is_guarded(0), filled_default_options(0)
+  Instance_options() :
+    mysqld_socket(0), mysqld_datadir(0), mysqld_bind_address(0),
+    mysqld_pid_file(0), mysqld_port(0), mysqld_path(0), mysqld_user(0),
+    mysqld_password(0), is_guarded(0), filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
@@ -50,7 +51,7 @@ public:
   int init(const char *instance_name_arg);
 
 public:
-  enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 3 };
+  enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 1 };
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
   char **argv;
   /* We need the some options, so we store them as a separate pointers */

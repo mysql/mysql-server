@@ -54,11 +54,12 @@ Show_instance_status::Show_instance_status(Command_factory *factory,
   Instance *instance;
 
   /* we make a search here, since we don't want t store the name */
-  if (instance= (factory->instance_map).find(name, len))
+  if (instance= factory->instance_map.find(name, len))
   {
     instance_name= instance->options.instance_name;
   }
-  else instance_name= NULL;
+  else
+    instance_name= NULL;
 }
 
 
@@ -90,7 +91,8 @@ Show_instance_options::Show_instance_options(Command_factory *factory,
   {
     instance_name= instance->options.instance_name;
   }
-  else instance_name= NULL;
+  else
+    instance_name= NULL;
 }
 
 
@@ -116,7 +118,7 @@ Start_instance::Start_instance(Command_factory *factory,
   :Command(factory)
 {
   /* we make a search here, since we don't want t store the name */
-  if (instance= (factory->instance_map).find(name, len))
+  if (instance= factory->instance_map.find(name, len))
     instance_name= instance->options.instance_name;
 }
 
@@ -150,7 +152,7 @@ Stop_instance::Stop_instance(Command_factory *factory,
   :Command(factory)
 {
   /* we make a search here, since we don't want t store the name */
-  if (instance= (factory->instance_map).find(name, len))
+  if (instance= factory->instance_map.find(name, len))
     instance_name= instance->options.instance_name;
 }
 

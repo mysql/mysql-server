@@ -120,9 +120,6 @@ public:
 class Syntax_error : public Command
 {
 public:
-  Syntax_error()
-  {}
-
   int execute(struct st_net *net, ulong connection_id);
 };
 

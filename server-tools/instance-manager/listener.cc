@@ -78,9 +78,9 @@ Listener_thread::~Listener_thread()
 
 void Listener_thread::run()
 {
-  enum { LISTEN_BACK_LOG_SIZE = 5 };          // standard backlog size
+  enum { LISTEN_BACK_LOG_SIZE = 5 };            // standard backlog size
   int flags;
-  int arg= 1;                                   /* value to be set by setsockopt */
+  int arg= 1;                             /* value to be set by setsockopt */
   /* I. prepare 'listen' sockets */
 
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
@@ -93,7 +93,7 @@ void Listener_thread::run()
   }
 
   struct sockaddr_in ip_socket_address;
-  memset(&ip_socket_address, 0, sizeof(ip_socket_address));
+  bzero(&ip_socket_address, sizeof(ip_socket_address));
 
   ulong im_bind_addr;
   if (options.bind_address != 0)
@@ -101,7 +101,8 @@ void Listener_thread::run()
     if ((im_bind_addr= (ulong) inet_addr(options.bind_address)) == INADDR_NONE)
       im_bind_addr= htonl(INADDR_ANY);
   }
-  else im_bind_addr= htonl(INADDR_ANY);
+  else
+    im_bind_addr= htonl(INADDR_ANY);
   uint im_port= options.port_number;
 
   ip_socket_address.sin_family= AF_INET;
@@ -144,7 +145,7 @@ void Listener_thread::run()
   }
 
   struct sockaddr_un unix_socket_address;
-  memset(&unix_socket_address, 0, sizeof(unix_socket_address));
+  bzero(&unix_socket_address, sizeof(unix_socket_address));
 
   unix_socket_address.sun_family= AF_UNIX;
   strmake(unix_socket_address.sun_path, options.socket_file_name,

@@ -50,8 +50,8 @@ public:
 
 public:
   char *buffer;
-  int put_to_buffer(char *start_pos, const char *string, uint len_arg);
-  int check_and_add(uint position, uint len_arg);
+  int append(char *start_pos, const char *string, uint len_arg);
+  int reserve(uint position, uint len_arg);
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_BUFFER_H */

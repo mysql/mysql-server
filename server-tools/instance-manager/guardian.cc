@@ -70,16 +70,13 @@ Guardian_thread::~Guardian_thread()
 
     Check for all guarded instances and restart them if needed. If everything
     is fine go and sleep for some time.
-
-  RETURN
-    The function return no value
 */
 
 void Guardian_thread::run()
 {
   Instance *instance;
   LIST *loop;
-  int i=0;
+  int i= 0;
 
   my_thread_init();
 
@@ -90,11 +87,8 @@ void Guardian_thread::run()
     while (loop != NULL)
     {
       instance= (Instance *) loop->data;
-      if (instance != NULL)
-      {
-        if (!instance->is_running())
-          instance->start();
-      }
+      /* instance-> start already checks whether instance is running */
+      instance->start();
       loop= loop->next;
     }
     pthread_mutex_unlock(&LOCK_guardian);
@@ -124,17 +118,18 @@ void Guardian_thread::run()
 
 int Guardian_thread::guard(const char *instance_name, uint name_len)
 {
-  LIST *lst;
+  LIST *node;
   Instance *instance;
 
-  lst= (LIST *) alloc_root(&alloc, sizeof(LIST));
-  if (lst == NULL) return 1;
+  node= (LIST *) alloc_root(&alloc, sizeof(LIST));
+  if (node == NULL)
+    return 1;
   instance= instance_map->find(instance_name, name_len);
   /* we store the pointers to instances from the instance_map's MEM_ROOT */
-  lst->data= (void *) instance;
+  node->data= (void *) instance;
 
   pthread_mutex_lock(&LOCK_guardian);
-  guarded_instances= list_add(guarded_instances, lst);
+  guarded_instances= list_add(guarded_instances, node);
   pthread_mutex_unlock(&LOCK_guardian);
 
   return 0;
@@ -150,28 +145,28 @@ int Guardian_thread::guard(const char *instance_name, uint name_len)
 
 int Guardian_thread::stop_guard(const char *instance_name, uint name_len)
 {
-  LIST *lst;
+  LIST *node;
   Instance *instance;
 
   instance= instance_map->find(instance_name, name_len);
 
-  lst= guarded_instances;
-  if (lst == NULL) return 1;
-
   pthread_mutex_lock(&LOCK_guardian);
-  while (lst != NULL)
+  node= guarded_instances;
+
+  while (node != NULL)
   {
     /*
       We compare only pointers, as we always use pointers from the
       instance_map's MEM_ROOT.
     */
-    if ((Instance *) lst->data == instance)
+    if ((Instance *) node->data == instance)
     {
-      guarded_instances= list_delete(guarded_instances, lst);
+      guarded_instances= list_delete(guarded_instances, node);
       pthread_mutex_unlock(&LOCK_guardian);
       return 0;
     }
-    else lst= lst->next;
+    else
+      node= node->next;
   }
   pthread_mutex_unlock(&LOCK_guardian);
   /* if there is nothing to delete it is also fine */
