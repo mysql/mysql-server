@@ -2655,10 +2655,10 @@ directory.
 
 This has a few implications:
 
-@cindex database names, case sensitivity
-@cindex table names, case sensitivity
-@cindex case sensitivity, of database names
-@cindex case sensitivity, of table names
+@cindex database names, case-sensitivity
+@cindex table names, case-sensitivity
+@cindex case-sensitivity, of database names
+@cindex case-sensitivity, of table names
 
 @itemize @minus
 
@@ -8203,7 +8203,7 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @strong{even} if they are of @code{MyISAM} type.
 @item
 @code{LOCATE()} and @code{INSTR()} are case-sensitive if one of the
-arguments is a binary string. Otherwise they are case insensitive.
+arguments is a binary string. Otherwise they are case-insensitive.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
 which means that the default comparison behavior now is case-insensitive.
@@ -15345,7 +15345,7 @@ table entry with @code{Host}, @code{User}, and @code{Db} fields of
 tables contain scope fields indicating tables or table/column combinations
 to which each entry applies.
 
-@cindex case sensitivity, in access checking
+@cindex case-sensitivity, in access checking
 For access-checking purposes, comparisons of @code{Host} values are
 case-insensitive.  @code{User}, @code{Password}, @code{Db}, and
 @code{Table_name} values are case-sensitive.
@@ -17179,7 +17179,7 @@ unless the limits are granted to them. These limits can be granted
 @strong{only} via global @code{GRANT (*.*)}, using this syntax:
 
 @example
-GRANT ... WITH MAX_QUERIES_PER_HOUR  N1
+GRANT ... WITH MAX_QUERIES_PER_HOUR N1
                MAX_UPDATES_PER_HOUR N2
                MAX_CONNECTIONS_PER_HOUR N3;
 @end example
@@ -27979,7 +27979,7 @@ may find it useful to refer to the various indexes.
 @menu
 * Literals::                    Literals: How to Write Strings and Numbers
 * Legal names::                 Database, Table, Index, Column, and Alias Names
-* Name case sensitivity::       Case Sensitivity in Names
+* Name case sensitivity::       Case-Sensitivity in Names
 * Variables::                   User Variables
 * Comments::                    Comment Syntax
 * Reserved words::              Is MySQL Picky About Reserved Words?
@@ -28347,14 +28347,14 @@ programs prefix table names with a @samp{.} character.
 
 @cindex names, case-sensitivity
 @cindex case-sensitivity, in names
-@cindex database names, case sensitivity
-@cindex table names, case sensitivity
-@cindex column names, case sensitivity
-@cindex alias names, case sensitivity
+@cindex database names, case-sensitivity
+@cindex table names, case-sensitivity
+@cindex column names, case-sensitivity
+@cindex alias names, case-sensitivity
 
 In MySQL, databases and tables correspond to directories and files
-within those directories.  Consequently, the case sensitivity of the
-underlying operating system determines the case sensitivity of database and
+within those directories.  Consequently, the case-sensitivity of the
+underlying operating system determines the case-sensitivity of database and
 table names.  This means database and table names are case-insensitive in
 Windows, and case-sensitive in most varieties of Unix (Mac OS X being an
 exception).
@@ -31036,7 +31036,7 @@ mysql> SELECT LOCATE('xbar', 'foobar');
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-sensitive, while in 4.0 it's only case sensitive if either argument is
+sensitive, while in 4.0 it's only case-sensitive if either argument is
 a binary string.
 
 @findex LOCATE()
@@ -31051,7 +31051,7 @@ mysql> SELECT LOCATE('bar', 'foobarbar',5);
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-sensitive, while in 4.0 it's only case sensitive if either argument is
+sensitive, while in 4.0 it's only case-sensitive if either argument is
 a binary string.
 
 @findex INSTR()
@@ -31068,7 +31068,7 @@ mysql> SELECT INSTR('xbar', 'foobar');
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-sensitive, while in 4.0 it's only case sensitive if either argument is
+sensitive, while in 4.0 it's only case-sensitive if either argument is
 a binary string.
 
 @findex LPAD()
@@ -31425,7 +31425,7 @@ a binary string.  This only affects comparisons.
 
 @menu
 * String comparison functions::  String Comparison Functions
-* Case Sensitivity Operators::  Case Sensitivity
+* Case Sensitivity Operators::  Case-Sensitivity
 @end menu
 
 @node String comparison functions, Case Sensitivity Operators, String functions, String functions
@@ -31434,8 +31434,8 @@ a binary string.  This only affects comparisons.
 @findex string comparison functions
 @findex functions, string comparison
 
-@cindex case sensitivity, in string comparisons
-@cindex string comparisons, case sensitivity
+@cindex case-sensitivity, in string comparisons
+@cindex string comparisons, case-sensitivity
 
 Normally, if any expression in a string comparison is case-sensitive, the
 comparison is performed in case-sensitive fashion.
@@ -31591,7 +31591,7 @@ positive floating-point number. Zero relevance means no similarity.
 @end table
 
 @node Case Sensitivity Operators,  , String comparison functions, String functions
-@subsubsection Case Sensitivity
+@subsubsection Case-Sensitivity
 
 @findex casts
 
@@ -47530,7 +47530,7 @@ the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 
 
 @menu
-* Case sensitivity::            Case Sensitivity in Searches
+* Case sensitivity::            Case-Sensitivity in Searches
 * Using DATE::                  Problems Using @code{DATE} Columns
 * Problems with NULL::          Problems with @code{NULL} Values
 * Problems with alias::         Problems with @code{alias}
@@ -47540,9 +47540,9 @@ the server runs, for example, in @code{safe_mysqld} or @code{mysql.server}.
 @end menu
 
 @node Case sensitivity, Using DATE, Query Issues, Query Issues
-@appendixsubsec Case Sensitivity in Searches
+@appendixsubsec Case-Sensitivity in Searches
 
-@cindex case sensitivity, in searches
+@cindex case-sensitivity, in searches
 @cindex searching, and case-sensitivity
 @cindex Chinese
 @cindex Big5 Chinese character encoding
@@ -49666,8 +49666,8 @@ Added @code{--no-beep} and @code{--prompt} options to @code{mysql} command-line 
 @item
 New feature: management of user resources.
 @example
-GRANT ... WITH MAX_QUERIES_PER_HOUR  N1
-               MAX_UPDATES_PER_HOUR  N2
+GRANT ... WITH MAX_QUERIES_PER_HOUR N1
+               MAX_UPDATES_PER_HOUR N2
                MAX_CONNECTIONS_PER_HOUR N3;
 @end example
 @xref{User resources}.
@@ -50007,7 +50007,7 @@ Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
 (This also affected @code{DECIMAL}, @code{DOUBLE} and @code{REAL} types)
 @item
 Fixed the result from @code{IF()} is case in-sensitive if the 2 and
-third arguments are case sensitive.
+third arguments are case-sensitive.
 @item
 Fixed core dump problem on OSF in @code{gethostbyname_r}.
 @item
