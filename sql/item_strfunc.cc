@@ -975,14 +975,10 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 
-  /*
-    As far "res" contains at least "length" bytes
-    (according to the above condition and return),
-    the below statement is safe. res->numchars() can 
-    never return a value less than "length".
-  */
-  uint start=res->numchars()-(uint) length;
-  start=res->charpos(start);
+  uint start=res->numchars();
+  if (start <= (uint) length)
+    return res;
+  start=res->charpos(start - (uint) length);
   tmp_value.set(*res,start,res->length()-start);
   return &tmp_value;
 }
