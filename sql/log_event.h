@@ -308,7 +308,7 @@ public:
   
   Start_log_event() :Log_event(time(NULL)),binlog_version(BINLOG_VERSION)
   {
-    created = when;
+    created = (uint32) when;
     memcpy(server_version, ::server_version, sizeof(server_version));
   }
   Start_log_event(FILE* file, time_t when_arg, uint32 server_id) :

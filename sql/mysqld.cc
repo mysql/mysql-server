@@ -21,6 +21,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_INNOBASE_DB
+#include "ha_innobase.h"
+#endif
 #include "ha_myisam.h"
 #include <nisam.h>
 #include <thr_alarm.h>
@@ -147,8 +150,7 @@ static ulong opt_specialflag=SPECIAL_ENGLISH;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
 static my_string opt_logname=0,opt_update_logname=0,
-  opt_binlog_index_name = 0,opt_slow_logname=0;
-my_string opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
+       opt_binlog_index_name = 0,opt_slow_logname=0;
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static pthread_t flush_thread;			// Used when debugging
@@ -231,9 +233,11 @@ char mysql_real_data_home[FN_REFLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
+char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
 char server_version[50]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
+const char *myisam_recover_options_str="OFF";
 byte last_ref[MAX_REFLENGTH];		/* Index ref of keys */
 my_string mysql_unix_port=NULL,mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
@@ -2219,7 +2223,8 @@ enum options {
                OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
 	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
-	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START
+	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
+	       OPT_SKIP_INNOBASE
 };
 
 static struct option long_options[] = {
@@ -2292,6 +2297,9 @@ static struct option long_options[] = {
   {"set-variable",          required_argument, 0, 'O'},
 #ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
+#endif
+#ifdef HAVE_INNOBASE_DB
+  {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
 #endif
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
@@ -2443,6 +2451,7 @@ struct show_var_st init_vars[]= {
   {"max_sort_length",         (char*) &max_item_sort_length,        SHOW_LONG},
   {"max_tmp_tables",          (char*) &max_tmp_tables,              SHOW_LONG},
   {"max_write_lock_count",    (char*) &max_write_lock_count,        SHOW_LONG},
+  {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
@@ -2646,6 +2655,11 @@ static void usage(void)
   --bdb-recover		  Start Berkeley DB in recover mode\n\
   --bdb-tmpdir=directory  Berkeley DB tempfile name\n\
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
+");
+#endif
+#ifdef HAVE_INNOBASE_DB
+  puts("\
+  --skip-innobase	  Don't use innobase (will save memory)\n\
 ");
 #endif
   print_defaults("my",load_default_groups);
@@ -2917,11 +2931,13 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
+      ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;
       myisam_delay_key_write=0;
       myisam_recover_options= HA_RECOVER_NONE;	// To be changed
+      ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
     case (int) OPT_SKIP_CONCURRENT_INSERT:
       myisam_concurrent_insert=0;
@@ -3086,16 +3102,29 @@ static void get_options(int argc,char **argv)
       berkeley_skip=1;
       break;
 #endif
+#ifdef HAVE_INNOBASE_DB
+    case OPT_INNOBASE_SKIP:
+      innobase_skip=1;
+      break;
+#endif
     case OPT_MYISAM_RECOVER:
     {
       if (!optarg || !optarg[0])
-	myisam_recover_options=HA_RECOVER_DEFAULT;
-      else if ((myisam_recover_options=
-		find_bit_type(optarg, &myisam_recover_typelib)) == ~(ulong) 0)
       {
-	fprintf(stderr, "Unknown option to myisam-recover: %s\n",optarg);
-	exit(1);
+	myisam_recover_options=    HA_RECOVER_DEFAULT;
+	myisam_recover_options_str= myisam_recover_typelib.type_names[0];
       }
+      else
+      {
+	myisam_recover_options_str=optarg;
+	if ((myisam_recover_options=
+		find_bit_type(optarg, &myisam_recover_typelib)) == ~(ulong) 0)
+	{
+	  fprintf(stderr, "Unknown option to myisam-recover: %s\n",optarg);
+	  exit(1);
+	}
+      }
+      ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
       break;
     }
     case OPT_MASTER_HOST:

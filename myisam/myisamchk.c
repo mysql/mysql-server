@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.34 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.35 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -481,6 +481,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   File datafile;
   char fixed_name[FN_REFLEN];
   char llbuff[22],llbuff2[22];
+  my_bool state_updated=0;
   MYISAM_SHARE *share;
   DBUG_ENTER("myisamchk");
 
@@ -665,43 +666,32 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	    (share->state.key_map ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
 	    mi_test_if_sort_rep(info, info->state->records, 1))
+	{
 	  error=mi_repair_by_sort(&check_param,info,fixed_name,rep_quick);
+	  state_updated=1;
+	}
 	else if (param->testflag & (T_REP | T_REP_BY_SORT))
 	  error=mi_repair(&check_param, info,fixed_name,rep_quick);
       }
       if (!error && param->testflag & T_SORT_RECORDS)
       {
+	/*
+	  The data file is nowadays reopened in the repair code so we should
+	  soon remove the following reopen-code
+	*/
+#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
 	  error|=change_to_newfile(fixed_name,MI_NAME_DEXT,DATA_TMP_EXT,
 				   raid_chunks,
 				   MYF(0));
-#ifdef USE_RAID
-	  if (share->base.raid_type)
-	  {
-	    mi_check_print_info(&check_param,"Opening as RAID-ed table\n");
-	    info->dfile=my_raid_open(fn_format(param->temp_filename,
-					       fixed_name,"",
-					       MI_NAME_DEXT, 2+4),
-				     O_RDWR | O_SHARE,
-				     share->base.raid_type,
-				     raid_chunks,
-				     share->base.raid_chunksize,
-				     MYF(MY_WME | MY_RAID));
-	  }
-	  else
-#endif
-	    info->dfile=my_open(fn_format(param->temp_filename,
-					  fixed_name,"",
-					  MI_NAME_DEXT,2+4),
-				O_RDWR | O_SHARE,
-				MYF(MY_WME));
-	  if (info->dfile < 0)
+	  if (mi_open_datafile(info,info->s))
 	    error=1;
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
+#endif
 	if (! error)
 	{
 	  uint key;
@@ -757,7 +747,11 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       {
 	error|=chk_key(param, info);
 	if (!error && (param->testflag & (T_STATISTICS | T_AUTO_INC)))
-	  error=update_state_info(param, info, UPDATE_STAT);
+	  error=update_state_info(param, info,
+				  ((param->testflag & T_STATISTICS) ?
+				   UPDATE_STAT : 0) |
+				  ((param->testflag & T_AUTO_INC) ?
+				   UPDATE_AUTO_INC : 0));
       }
       if ((!rep_quick && !error) ||
 	  !(param->testflag & (T_FAST | T_FORCE_CREATE)))
@@ -808,7 +802,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       error|=update_state_info(param, info,
 			       UPDATE_OPEN_COUNT |
 			       (((param->testflag & (T_REP | T_REP_BY_SORT)) ?
-				 UPDATE_TIME | UPDATE_STAT : 0) |
+				 UPDATE_TIME : 0) |
+				(state_updated ? UPDATE_STAT : 0) |
 				((param->testflag & T_SORT_RECORDS) ?
 				 UPDATE_SORT : 0)));
     VOID(lock_file(param, share->kfile,0L,F_UNLCK,"indexfile",filename));
@@ -1142,7 +1137,8 @@ static int mi_sort_records(MI_CHECK *param,
   SORT_INFO *sort_info= &param->sort_info;
   DBUG_ENTER("sort_records");
 
-  bzero((char*) sort_info,sizeof(sort_info));
+  bzero((char*) sort_info,sizeof(*sort_info));
+  sort_info->param=param;
   keyinfo= &share->keyinfo[sort_key];
   got_error=1;
   temp_buff=0;
@@ -1263,7 +1259,7 @@ err:
   {
     VOID(end_io_cache(&info->rec_cache));
     (void) my_close(new_file,MYF(MY_WME));
-    (void) my_raid_delete(param->temp_filename, share->base.raid_chunksize,
+    (void) my_raid_delete(param->temp_filename, share->base.raid_chunks,
 			  MYF(MY_WME));
   }
   if (temp_buff)

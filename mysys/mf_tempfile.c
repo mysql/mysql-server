@@ -100,7 +100,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       return 1;
     }
     strmov(to,dir);
-    strmov(convert_dirname(to),prefix);
+    strmov(convert_dirname(to),prefix_buff);
     file=mkstemp(to);
   }
 #elif defined(HAVE_TEMPNAM)

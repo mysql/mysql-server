@@ -32,6 +32,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_INNOBASE_DB
+#include "ha_innobase.h"
+#endif
 #include <myisampack.h>
 #include <errno.h>
 
@@ -46,7 +49,7 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 
 const char *ha_table_type[] = {
   "", "DIAB_ISAM","HASH","MISAM","PISAM","RMS_ISAM","HEAP", "ISAM",
-  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BERKELEY_DB?", "?", "?",NullS
+  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNOBASE", "?", "?",NullS
 };
 
 const char *ha_row_type[] = {
@@ -65,6 +68,10 @@ enum db_type ha_checktype(enum db_type database_type)
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
     return(berkeley_skip ? DB_TYPE_MYISAM : database_type);
+#endif
+#ifdef HAVE_INNOBASE_DB
+  case DB_TYPE_INNOBASE:
+    return(innobase_skip ? DB_TYPE_MYISAM : database_type);
 #endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
@@ -104,6 +111,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_BERKELEY_DB:
     return new ha_berkeley(table);
 #endif
+#ifdef HAVE_INNOBASE_DB
+  case DB_TYPE_INNOBASE_DB:
+    return new ha_innobase(table);
+#endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
   case DB_TYPE_MYISAM:
@@ -121,6 +132,14 @@ int ha_init()
   {
     int error;
     if ((error=berkeley_init()))
+      return error;
+  }
+#endif
+#ifdef HAVE_INNOBASE_DB
+  if (!innobase_skip)
+  {
+    int error;
+    if ((error=innobase_init()))
       return error;
   }
 #endif
@@ -147,6 +166,10 @@ int ha_panic(enum ha_panic_function flag)
   if (!berkeley_skip)
     error|=berkeley_end();
 #endif
+#ifdef HAVE_INNOBASE_DB
+  if (!innobase_skip)
+    error|=innobase_end();
+#endif
   return error;
 } /* ha_panic */
 
@@ -154,7 +177,7 @@ int ha_panic(enum ha_panic_function flag)
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
-#ifdef HAVE_BERKELEY_DB
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
   if ((thd->options & OPTION_AUTO_COMMIT) && !thd->locked_tables)
   {
     if (!error)
@@ -184,6 +207,17 @@ int ha_commit(THD *thd)
     }
   }
 #endif
+#ifdef HAVE_INNOBASE_DB
+  if (thd->transaction.innobase_tid)
+  {
+    int error=innobase_commit(thd);
+    if (error)
+    {
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+      error=1;
+    }
+  }
+#endif
   DBUG_RETURN(error);
 }
 
@@ -202,6 +236,17 @@ int ha_rollback(THD *thd)
     }
   }
 #endif
+#ifdef HAVE_INNOBASE_DB
+  if (thd->transaction.innobase_tid)
+  {
+    int error=innobase_rollback(thd);
+    if (error)
+    {
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+      error=1;
+    }
+  }
+#endif
   DBUG_RETURN(error);
 }
 
@@ -211,6 +256,10 @@ bool ha_flush_logs()
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
   if (!berkeley_skip && berkeley_flush_logs())
+    result=1;
+#endif
+#ifdef HAVE_INNOBASE_DB
+  if (!innobase_skip && innobase_flush_logs())
     result=1;
 #endif
   return result;
