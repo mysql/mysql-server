@@ -489,27 +489,38 @@ String *Item_null::val_str(String *str)
 
 /* Item_param related */
 void Item_param::set_null()
-{ 
-  maybe_null=null_value=1;    
+{
+  DBUG_ENTER("Item_param::set_null");
+  maybe_null= null_value= 1;
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_int(longlong i)
-{  
-  int_value=(longlong)i; 
-  item_type = INT_ITEM;
+{
+  DBUG_ENTER("Item_param::set_int");
+  int_value= (longlong)i;
+  item_type= INT_ITEM;
+  DBUG_PRINT("info", ("integer: %lld", int_value));
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_double(double value)
-{  
+{
+  DBUG_ENTER("Item_param::set_double");
   real_value=value;
-  item_type = REAL_ITEM;
+  item_type= REAL_ITEM;
+  DBUG_PRINT("info", ("double: %lg", real_value));
+  DBUG_VOID_RETURN;
 }
 
 
 void Item_param::set_value(const char *str, uint length)
-{  
-  str_value.set(str,length,default_charset());
-  item_type = STRING_ITEM;
+{
+  DBUG_ENTER("Item_param::set_value");
+  str_value.copy(str,length,default_charset());
+  item_type= STRING_ITEM;
+  DBUG_PRINT("info", ("string: %s", str_value.ptr()));
+  DBUG_VOID_RETURN;
 }
 
 
