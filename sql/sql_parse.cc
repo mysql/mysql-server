@@ -804,7 +804,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table_list = (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(1); // out of memory
   table_list->db = db;
-  table_list->real_name = table_list->name = tbl_name;
+  table_list->real_name = table_list->alias = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
   table_list->next = 0;
   remove_escape(table_list->real_name);
@@ -1022,7 +1022,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     thd->free_list=0;
-    table_list.name=table_list.real_name=thd->strdup(packet);
+    table_list.alias= table_list.real_name= thd->strdup(packet);
     packet=strend(packet)+1;
     // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
@@ -1485,9 +1485,9 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->name) > NAME_LEN)
+    if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
+      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
       break;
     }
     LOCK_ACTIVE_MI;
@@ -1521,9 +1521,9 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->name) > NAME_LEN)
+    if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
+      net_printf(&thd->net, ER_WRONG_TABLE_NAME, tables->alias);
       res=0;
       break;
     }
@@ -1532,9 +1532,9 @@ mysql_execute_command(void)
 #else
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &lex->create_info.data_file_name,
-			   tables->name) ||
+			   tables->real_name) ||
 	append_file_to_dir(thd,&lex->create_info.index_file_name,
-			   tables->name))
+			   tables->real_name))
     {
       res=-1;
       break;
@@ -2135,7 +2135,7 @@ mysql_execute_command(void)
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);			// Fix escaped '_'
-      remove_escape(tables->name);
+      remove_escape(tables->real_name);
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       tables->grant.privilege=thd->col_access;
@@ -2160,7 +2160,7 @@ mysql_execute_command(void)
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);			// Fix escaped '_'
-      remove_escape(tables->name);
+      remove_escape(tables->real_name);
       if (!tables->db)
 	tables->db=thd->db;
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
@@ -3218,7 +3218,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     ptr->db_length= 0;
   }
     
-  ptr->name=alias_str;
+  ptr->alias= alias_str;
   if (lower_case_table_names)
   {
     casedn_str(ptr->db);
@@ -3242,7 +3242,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 	 tables ;
 	 tables=tables->next)
     {
-      if (!strcmp(alias_str,tables->name) && !strcmp(ptr->db, tables->db))
+      if (!strcmp(alias_str,tables->alias) && !strcmp(ptr->db, tables->db))
       {
 	net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
 	DBUG_RETURN(0);				/* purecov: tested */
@@ -3291,7 +3291,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	for (cursor= *result; cursor; cursor=cursor->next)
 	  if (!strcmp(cursor->db,aux->db) &&
 	      !strcmp(cursor->real_name,aux->real_name) &&
-	      !strcmp(cursor->name, aux->name))
+	      !strcmp(cursor->alias, aux->alias))
 	    break;
 	if (!cursor)
 	{

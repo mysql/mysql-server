@@ -130,7 +130,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   bzero((char*) &result_table_list,sizeof(result_table_list));
   result_table_list.db= (char*) "";
-  result_table_list.real_name=result_table_list.name=(char*) "union";
+  result_table_list.real_name=result_table_list.alias= (char*) "union";
   result_table_list.table=table;
 
   if (!(union_result=new select_union(table)))

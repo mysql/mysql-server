@@ -963,12 +963,12 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     Query_cache_table *table = block_table->parent;
     table_list.db = table->db();
-    table_list.name = table_list.real_name = table->table();
+    table_list.alias= table_list.real_name= table->table();
     if (check_table_access(thd,SELECT_ACL,&table_list,1))
     {
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
-		  table_list.db, table_list.name));
+		  table_list.db, table_list.alias));
       refused++;				// This is actually a hit
       STRUCT_UNLOCK(&structure_guard_mutex);
       thd->safe_to_cache_query=0;		// Don't try to cache this
@@ -978,7 +978,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     if (table_list.grant.want_privilege)
     {
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
-			    table_list.db, table_list.name));
+			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
       thd->safe_to_cache_query=0;		// Don't try to cache this
       goto err_unlock;				// Parse query

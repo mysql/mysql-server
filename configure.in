@@ -453,6 +453,7 @@ fi
 
 NOINST_LDFLAGS=
 
+static_nss=""
 AC_ARG_WITH(other-libc,
  [  --with-other-libc=DIR   Link against libc and other standard libraries 
                           installed in the specified non-standard location 
@@ -472,7 +473,6 @@ AC_ARG_WITH(other-libc,
    # by telling it to be permissive. Note that this option only works with
    # new versions of gcc (2.95.x and above)
    CXXFLAGS="$CXXFLAGS -fpermissive -I$other_libc_include"
-   static_nss=
    if test -f "$other_libc_lib/libnss_files.a"
    then
      # libc has been compiled with --enable-static-nss
@@ -506,6 +506,23 @@ AC_ARG_WITH(other-libc,
  ]
 )
 AC_SUBST(NOINST_LDFLAGS)
+
+#
+# Check if we are using Linux and a glibc compiled with static nss
+# (this is true on the MySQL build machines to avoid NSS problems)
+#
+
+if test "$IS_LINUX" = "true" -a "$static_nss" = ""
+then
+  tmp=`nm /usr/lib/libc.a  | grep _nss_files_getaliasent_r`
+  if test -n "$tmp"
+  then
+     STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
+  -Wl,--end-group"
+     static_nss=1
+  fi
+fi
+
 
 AC_ARG_WITH(server-suffix,
     [  --with-server-suffix    Append value to the version string.],
@@ -1392,7 +1409,7 @@ else
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
 fi
 
-# Force static compilation to avoid linking probles/get more speed
+# Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
     [MYSQLD_EXTRA_LDFLAGS=$withval],

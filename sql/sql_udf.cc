@@ -141,7 +141,7 @@ void udf_init()
   new_thd->db_length=5;
 
   bzero((gptr) &tables,sizeof(tables));
-  tables.name = tables.real_name = (char*) "func";
+  tables.alias= tables.real_name = (char*) "func";
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
@@ -415,7 +415,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   bzero((char*) &tables,sizeof(tables));
   tables.db= (char*) "mysql";
-  tables.real_name=tables.name= (char*) "func";
+  tables.real_name= tables.alias= (char*) "func";
   /* Allow creation of functions even if we can't open func table */
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
@@ -474,7 +474,7 @@ int mysql_drop_function(THD *thd,const char *udf_name)
 
   bzero((char*) &tables,sizeof(tables));
   tables.db=(char*) "mysql";
-  tables.real_name=tables.name=(char*) "func";
+  tables.real_name= tables.alias= (char*) "func";
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
   if (!table->file->index_read_idx(table->record[0],0,(byte*) udf_name,
