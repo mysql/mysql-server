@@ -20,7 +20,7 @@
 #include "ftdefs.h"
 #include <my_getopt.h>
 
-static void get_options(int argc,char *argv[]);
+static void get_options(int *argc,char **argv[]);
 static void usage();
 static void complain(int val);
 
@@ -66,7 +66,7 @@ int main(int argc,char *argv[])
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
   MY_INIT(argv[0]);
-  get_options(argc,argv);
+  get_options(&argc, &argv);
   if (count || dump)
     verbose=0;
   if (!count && !dump && !lstats && !query)
@@ -75,17 +75,18 @@ int main(int argc,char *argv[])
   if (verbose)
     setbuf(stdout,NULL);
 
-  if (argc-optind < 2)
+  if (argc < 2)
     usage();
 
-  if (!(info=mi_open(argv[optind],2,HA_OPEN_ABORT_IF_LOCKED)))
+  if (!(info=mi_open(argv[0],2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
 
-  inx=atoi(argv[optind+1]);
+  inx=atoi(argv[1]);
   *buf2=0;
   aio->info=info;
 
-  if ((inx >= info->s->base.keys) || !(info->s->keyinfo[inx].flag & HA_FULLTEXT))
+  if ((inx >= info->s->base.keys) ||
+      !(info->s->keyinfo[inx].flag & HA_FULLTEXT))
   {
     printf("Key %d in table %s is not a FULLTEXT key\n", inx, info->filename);
     goto err;
@@ -240,11 +241,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-static void get_options(int argc, char *argv[])
+
+static void get_options(int *argc, char **argv[])
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 } /* get options */
 
