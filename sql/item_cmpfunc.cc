@@ -360,6 +360,7 @@ void Item_func_between::fix_length_and_dec()
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
+    cmp_type=field->cmp_type();
     if (field->store_for_compare())
     {
       if (convert_constant_item(field,&args[1]))
