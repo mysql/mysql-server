@@ -213,8 +213,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     }
   }
 
-  unpack_dirname(path, path);
-  strcat(path,MY_DB_OPT_FILE);
+  path[path_len-1]= FN_LIBCHAR;
+  strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
   if (write_db_opt(thd, path, create_info))
   {
     /*
