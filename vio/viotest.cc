@@ -11,8 +11,6 @@
 
 #include	<string.h>
 
-VIO_RCSID(vio, Vio, "$Id$")
-
 VIO_NS_USING;
 
 int

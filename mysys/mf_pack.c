@@ -53,13 +53,13 @@ void pack_dirname(my_string to, const char *from)
   LINT_INIT(buff_length);
   if (!(cwd_err= my_getwd(buff,FN_REFLEN,MYF(0))))
   {
-    buff_length=strlen(buff);
+    buff_length= (uint) strlen(buff);
     d_length=(uint) (start-to);
     if ((start == to ||
 	 (buff_length == d_length && !bcmp(buff,start,d_length))) &&
 	*start != FN_LIBCHAR && *start)
     {						/* Put current dir before */
-      bchange(to,d_length,buff,buff_length,strlen(to)+1);
+      bchange(to,d_length,buff,buff_length,(uint) strlen(to)+1);
     }
   }
 
@@ -68,7 +68,7 @@ void pack_dirname(my_string to, const char *from)
     length=0;
     if (home_dir)
     {
-      length=strlen(home_dir);
+      length= (uint) strlen(home_dir);
       if (home_dir[length-1] == FN_LIBCHAR)
 	length--;				/* Don't test last '/' */
     }
@@ -92,7 +92,7 @@ void pack_dirname(my_string to, const char *from)
       }
       if (is_prefix(to,buff))
       {
-	length=strlen(buff);
+	length= (uint) strlen(buff);
 	if (to[length])
 	  (void) strmov_overlapp(to,to+length);	/* Remove everything before */
 	else
@@ -265,7 +265,7 @@ uint unpack_dirname(my_string to, const char *from)
   DBUG_ENTER("unpack_dirname");
 
   (void) intern_filename(buff,from);		/* Change to intern name */
-  length=strlen(buff);				/* Fix that '/' is last */
+  length= (uint) strlen(buff);			/* Fix that '/' is last */
   if (length &&
 #ifdef FN_DEVCHAR
       buff[length-1] != FN_DEVCHAR &&
@@ -283,7 +283,7 @@ uint unpack_dirname(my_string to, const char *from)
     if (tilde_expansion)
     {
       length-=(uint) (suffix-buff)-1;
-      if (length+(h_length=strlen(tilde_expansion)) <= FN_REFLEN)
+      if (length+(h_length= (uint) strlen(tilde_expansion)) <= FN_REFLEN)
       {
 	if (tilde_expansion[h_length-1] == FN_LIBCHAR)
 	  h_length--;

@@ -572,7 +572,9 @@ typedef long		longlong;
 #endif
 #undef  SIZEOF_OFF_T
 #define SIZEOF_OFF_T	    8
-#endif
+#else
+#define SYSTEM_SIZEOF_OFF_T SIZEOF_OFF_T
+#endif /* USE_RAID */
 
 #if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;

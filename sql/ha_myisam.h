@@ -30,6 +30,7 @@ class ha_myisam: public handler
 {
   MI_INFO *file;
   uint    int_option_flag;
+  int repair(THD *thd, MI_CHECK &param);
 
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
@@ -76,6 +77,8 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
+  void deactivate_non_unique_index(ha_rows rows);
+  bool activate_all_index(THD *thd);
   ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,
 			   enum ha_rkey_function start_search_flag,

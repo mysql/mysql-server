@@ -162,6 +162,8 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	    --with-comment=\"Official MySQL RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
+	    # Add this for MyISAM RAID support:
+	    # --with-raid
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution

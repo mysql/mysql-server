@@ -12,7 +12,7 @@
 */
 
 
-/* $Id$
+/*
    This file is basicly tis620 character sets with some extra functions
    for tis-620 handling
 */
@@ -443,7 +443,7 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
   uint	bufSize;
 
   len = (uint) strnlen((char*) tstr,len);
-  bufSize = buffsize((char*) tstr);
+  bufSize = (uint) buffsize((char*) tstr);
   if(!(pRight1 = (uchar *)malloc(sizeof(uchar) * bufSize))) {
     return( (uchar*) tstr);
   }
@@ -530,7 +530,7 @@ int my_strnxfrm_tis620(uchar * dest, uchar * src, int len, int srclen)
 {
   uint bufSize;
   uchar *tmp;
-  bufSize = buffsize((char*)src);
+  bufSize = (uint) buffsize((char*)src);
   tmp = thai2sortable(src,srclen);
   set_if_smaller(bufSize,(uint) len);
   memcpy((uchar *)dest, tmp, bufSize);
@@ -563,7 +563,7 @@ int my_strxfrm_tis620(uchar * dest, uchar * src, int len)
   uint bufSize;
   uchar *tmp;
 
-  bufSize = buffsize((char*) src);
+  bufSize = (uint) buffsize((char*) src);
   tmp = thai2sortable(src, len);
   memcpy((uchar *) dest, tmp, bufSize);
   free(tmp);
@@ -586,7 +586,7 @@ my_bool my_like_range_tis620(const char *ptr, uint ptr_length, pchar escape,
   uint tbuff_length;
 
   tbuff = (char*) (tc=thai2sortable((uchar*) ptr, ptr_length));
-  tbuff_length = buffsize(ptr);
+  tbuff_length = (uint) buffsize(ptr);
   end = tbuff + tbuff_length;
   for(;tbuff != end && min_str != min_end; tbuff++)
   {

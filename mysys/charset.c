@@ -112,7 +112,7 @@ static my_bool read_charset_index(TYPELIB *charsets, myf myflags)
   while (!get_word(&fb, buf))
   {
     uint length;
-    if (!(s= (char*) my_once_alloc(length=strlen(buf)+1, myflags)))
+    if (!(s= (char*) my_once_alloc(length= (uint) strlen(buf)+1, myflags)))
     {
       my_fclose(fb.f,myflags);
       return TRUE;
@@ -292,7 +292,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name)
   cs           = (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),
 					       MYF(MY_WME));
   *cs=tmp_cs;
-  cs->name     = (char *) my_once_alloc(strlen(cs_name) + 1,   MYF(MY_WME));
+  cs->name     = (char *) my_once_alloc((uint) strlen(cs_name)+1, MYF(MY_WME));
   cs->ctype    = (uchar*) my_once_alloc(CTYPE_TABLE_SIZE,      MYF(MY_WME));
   cs->to_lower = (uchar*) my_once_alloc(TO_LOWER_TABLE_SIZE,   MYF(MY_WME));
   cs->to_upper = (uchar*) my_once_alloc(TO_UPPER_TABLE_SIZE,   MYF(MY_WME));
@@ -410,7 +410,7 @@ my_bool set_default_charset_by_name(const char *cs_name, myf flags)
 
 static my_bool charset_in_string(const char *name, DYNAMIC_STRING *s)
 {
-  uint length=strlen(name);
+  uint length= (uint) strlen(name);
   const char *pos;
   for (pos=s->str ; (pos=strstr(pos,name)) ; pos++)
   {

@@ -43,6 +43,8 @@ extern "C" {
 #define MI_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
+/* Max extra space to use when sorting keys */
+#define MI_MAX_TEMP_LENGTH	1024L*1024L*1024L
 
 #define mi_portable_sizeof_char_ptr 8
 
@@ -263,9 +265,13 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_MEDIUM	T_READONLY*2
 #define T_AUTO_INC	T_MEDIUM*2
 #define T_CHECK		T_AUTO_INC*2
-#define T_UPDATE_STATE	T_CHECK*2
-#define T_CHECK_ONLY_CHANGED T_UPDATE_STATE*2
-#define T_DONT_CHECK_CHECKSUM T_CHECK_ONLY_CHANGED*2 
+#define T_UPDATE_STATE		T_CHECK*2
+#define T_CHECK_ONLY_CHANGED	T_UPDATE_STATE*2
+#define T_DONT_CHECK_CHECKSUM	T_CHECK_ONLY_CHANGED*2
+#define T_TRUST_HEADER		T_DONT_CHECK_CHECKSUM*2
+#define T_CREATE_MISSING_KEYS	T_TRUST_HEADER*2
+#define T_SAFE_REPAIR		T_CREATE_MISSING_KEYS*2
+#define T_AUTO_REPAIR   	T_SAFE_REPAIR*2
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
@@ -357,8 +363,8 @@ int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
 int flush_blocks(MI_CHECK *param, File file);
- void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
-				my_bool repair);
+void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
+			       my_bool repair);
 int update_state_info(MI_CHECK *param, MI_INFO *info,uint update);
 int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 	     my_off_t length, const char *type);
@@ -370,6 +376,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulong);
 int test_if_almost_full(MI_INFO *info);
 int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename);
+void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows);
+my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows);
 
 #ifdef	__cplusplus
 }

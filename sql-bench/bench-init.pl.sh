@@ -395,6 +395,11 @@ All benchmarks takes the following options:
   extra information that 'uname -a' doesn\'t give and if the database was
   stared with some specific, non default, options.
 
+--cmp=server[,server...]
+  Run the test with limits from the given servers.  If you run all servers
+  with the same --cmp, you will get a test that is comparable between
+  the different sql servers.
+
 --database (Default $opt_database)
   In which database the test tables are created.
 

@@ -85,9 +85,6 @@
 
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
-#ifndef _WIN64
-typedef unsigned int size_t;
-#endif
 typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
 typedef __int64	longlong;
 typedef int sigset_t;
@@ -96,6 +93,12 @@ typedef int sigset_t;
    Use my_off_t or os_off_t instead */
 typedef	long off_t;
 typedef __int64 os_off_t;
+#ifdef _WIN64
+typedef UINT_PTR rf_SetTimer;
+#else
+typedef unsigned int size_t;
+typedef uint rf_SetTimer;
+#endif
 
 #define Socket_defined
 #define my_socket SOCKET
@@ -288,4 +291,3 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_add(V,C,L)     (V)+=(C)
 #endif
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
-

@@ -231,7 +231,7 @@ static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, ui
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
-  size_socket s_err_size = sizeof(uint);
+  socklen_t s_err_size = sizeof(uint);
   fd_set sfds;
   struct timeval tv;
 
@@ -500,7 +500,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, unix_socket);
     if (mc_sock_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
-		 mysql->options.connect_timeout) <0)
+			mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",ERRNO));
       net->last_errno=CR_CONNECTION_ERROR;

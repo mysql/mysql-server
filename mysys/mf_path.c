@@ -46,7 +46,7 @@ my_string my_path(my_string to, const char *progname,
     if (!test_if_hard_path(to))
     {
       if (!my_getwd(curr_dir,FN_REFLEN,MYF(0)))
-	bchange(to,0,curr_dir,strlen(curr_dir),strlen(to)+1);
+	bchange(to,0,curr_dir, (uint) strlen(curr_dir), (uint) strlen(to)+1);
     }
   }
   else
