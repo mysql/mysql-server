@@ -20721,7 +20721,7 @@ When defining the character set, every word must be a number in hexadecimal
 format
 @item
 The @code{ctype} array takes up the first 257 words. The
-@code{to_lower}, @code{to_upper} and @code{sort_order} arrays take up
+@code{to_lower[]}, @code{to_upper[]} and @code{sort_order[]} arrays take up
 256 words each after that.
 @end itemize
 
@@ -20882,9 +20882,10 @@ multi-byte characters, you need to use the multi-byte character
 functions.
 
 Right now the best documentation on this is the character sets that are
-already implemented.  Look at the euc_kr, gb2312, gbk, sjis and ujis
-character sets for examples. These are implemented in the
-@code{ctype-'charset'.c} files in the @file{strings} directory.
+already implemented.  Look at the @code{euc_kr}, @code{gb2312},
+@code{gbk}, @code{sjis}, and @code{ujis} character sets for
+examples. These are implemented in the @file{ctype-'charset'.c} files
+in the @file{strings} directory.
 
 You must specify the @code{mbmaxlen_MYSET=N} value in the special
 comment at the top of the source file.  @code{N} should be set to the
@@ -20922,7 +20923,7 @@ In this case you should either get a new @code{Index} file or add
 by hand the name of any missing character sets.
 @end itemize
 
-For MyISAM tables, you can check the character set name and number for a
+For @code{MyISAM} tables, you can check the character set name and number for a
 table with @code{myisamchk -dvv table_name}.
 
 
@@ -41662,10 +41663,10 @@ through  the @code{InConnectionString} argument in the
 @item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
 @item user @tab ODBC (on Windows) @tab The username used to connect to MySQL.
 @item server @tab localhost @tab The hostname of the MySQL server.
-@item database @tab @tab The default database
+@item database @tab @tab The default database.
 @item option @tab 0 @tab A integer by which you can specify how @code{MyODBC} should work. See below.
 @item port @tab 3306 @tab The TCP/IP port to use if @code{server} is not @code{localhost}.
-@item stmt @tab @tab A statement that will be executed when connection to @code{MySQL}.
+@item stmt @tab @tab A statement that will be executed when connecting to @code{MySQL}.
 @item password @tab @tab The password for the @code{server} @code{user} combination.
 @item socket @tab @tab The socket or Windows pipe to connect to.
 @end multitable
@@ -44393,14 +44394,14 @@ if (!mysql_real_connect(&mysql,"host","user","passwd","database",0,NULL,0))
 @end example
 
 By using @code{mysql_options()} the MySQL library will read the
-@code{[client]} and @code{your_prog_name} sections in the @file{my.cnf}
+@code{[client]} and @code{[your_prog_name]} sections in the @file{my.cnf}
 file which will ensure that your program will work, even if someone has
 set up MySQL in some non-standard way.
 
 Note that upon connection, @code{mysql_real_connect()} sets the @code{reconnect}
-flag (part of the MYSQL structure) to a value of @code{1}. This flag indicates,
-in the event that a query cannot be performed because of a lost connection, to
-try reconnecting to the server before giving up.
+flag (part of the @code{MYSQL} structure) to a value of @code{1}. This
+flag indicates, in the event that a query cannot be performed because
+of a lost connection, to try reconnecting to the server before giving up.
 
 
 @node mysql_real_escape_string, mysql_real_query, mysql_real_connect, C API functions
