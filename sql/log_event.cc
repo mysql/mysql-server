@@ -1136,9 +1136,9 @@ void Load_log_event::pack_info(Protocol *protocol)
   pos+= fname_len;
   pos= strmov(pos, "' ");
 
-  if (sql_ex.opt_flags && REPLACE_FLAG )
+  if (sql_ex.opt_flags & REPLACE_FLAG)
     pos= strmov(pos, " REPLACE ");
-  else if (sql_ex.opt_flags && IGNORE_FLAG )
+  else if (sql_ex.opt_flags & IGNORE_FLAG)
     pos= strmov(pos, " IGNORE ");
 
   pos= strmov(pos ,"INTO TABLE ");
@@ -1153,7 +1153,7 @@ void Load_log_event::pack_info(Protocol *protocol)
 
   if (sql_ex.enclosed_len)
   {
-    if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
       pos= strmov(pos, " OPTIONALLY ");
     pos= strmov(pos, " ENCLOSED BY ");
     pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
@@ -1279,18 +1279,18 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   sql_ex.cached_new_format = -1;
     
   if (ex->dumpfile)
-    sql_ex.opt_flags |= DUMPFILE_FLAG;
+    sql_ex.opt_flags|= DUMPFILE_FLAG;
   if (ex->opt_enclosed)
-    sql_ex.opt_flags |= OPT_ENCLOSED_FLAG;
+    sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
-  sql_ex.empty_flags = 0;
+  sql_ex.empty_flags= 0;
 
   switch (handle_dup) {
   case DUP_IGNORE:
-    sql_ex.opt_flags |= IGNORE_FLAG;
+    sql_ex.opt_flags|= IGNORE_FLAG;
     break;
   case DUP_REPLACE:
-    sql_ex.opt_flags |= REPLACE_FLAG;
+    sql_ex.opt_flags|= REPLACE_FLAG;
     break;
   case DUP_UPDATE:				// Impossible here
   case DUP_ERROR:
@@ -1426,9 +1426,9 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file, "LOCAL ");
   fprintf(file, "DATA INFILE '%-*s' ", fname_len, fname);
 
-  if (sql_ex.opt_flags && REPLACE_FLAG )
+  if (sql_ex.opt_flags & REPLACE_FLAG)
     fprintf(file," REPLACE ");
-  else if (sql_ex.opt_flags && IGNORE_FLAG )
+  else if (sql_ex.opt_flags & IGNORE_FLAG)
     fprintf(file," IGNORE ");
   
   fprintf(file, "INTO TABLE %s ", table_name);
@@ -1440,7 +1440,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
   if (sql_ex.enclosed)
   {
-    if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
       fprintf(file," OPTIONALLY ");
     fprintf(file, " ENCLOSED BY ");
     pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
@@ -1565,15 +1565,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup = DUP_IGNORE;
-      if (sql_ex.opt_flags && REPLACE_FLAG)
-	handle_dup = DUP_REPLACE;
-      sql_exchange ex((char*)fname, sql_ex.opt_flags &&
-		      DUMPFILE_FLAG );
+      if (sql_ex.opt_flags & REPLACE_FLAG)
+	handle_dup= DUP_REPLACE;
+      sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len,log_cs);
       String enclosed(sql_ex.enclosed,sql_ex.enclosed_len,log_cs);
       String line_term(sql_ex.line_term,sql_ex.line_term_len,log_cs);
       String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
       String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
+      ex.field_term= &field_term;
+      ex.enclosed= &enclosed;
+      ex.line_term= &line_term;
+      ex.line_start= &line_start;
+      ex.escaped= &escaped;
 
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
@@ -1582,7 +1586,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       set_fields(field_list);
-      thd->variables.pseudo_thread_id= thd->thread_id;
+      thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -1597,9 +1601,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	thd->query_error = 1;
       if (thd->cuted_fields)
       {
-	/* 
-	   log_pos is the position of the LOAD
-	   event in the master log
+	/*
+	  log_pos is the position of the LOAD event in the master log
 	*/
 	sql_print_error("Slave: load data infile at position %s in log \
 '%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 

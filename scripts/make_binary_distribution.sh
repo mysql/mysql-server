@@ -141,7 +141,13 @@ if [ $BASE_SYSTEM = "netware" ] ; then
     $CP -r netware/*.pl $BASE/scripts
 fi
 
-for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* libmysqld/libmysqld.a netware/libmysql.imp
+for i in \
+  libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* \
+  libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a \
+  libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* \
+  mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
+  libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* \
+  libmysqld/libmysqld.a netware/libmysql.imp
 do
   if [ -f $i ]
   then
