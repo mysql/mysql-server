@@ -2047,7 +2047,7 @@ Before posting a bug report or question, please do the following:
 @item
 Start by searching the MySQL online manual at:
 @*
-@uref{http://www.mysql.com/documentation/manual.php}
+@uref{http://www.mysql.com/doc/}
 @*
 We try to keep the manual up to date by updating it frequently with 
 solutions to newly found problems!
@@ -2055,7 +2055,7 @@ solutions to newly found problems!
 @item
 Search the MySQL mailing list archives:
 @*
-@uref{http://www.mysql.com/documentation/}
+@uref{http://lists.mysql.com/}
 @*
 @item
 You can also use @uref{http://www.mysql.com/search.html} to search all the
@@ -2326,7 +2326,7 @@ If you get a @code{parse error}, please check your syntax closely!  If
 you can't find something wrong with it, it's extremely likely that your
 current version of MySQL doesn't support the query you are
 using.  If you are using the current version and the manual at
-@uref{http://www.mysql.com/documentation/manual.php} doesn't cover the
+@uref{http://www.mysql.com/doc/} doesn't cover the
 syntax you are using, MySQL doesn't support your query.  In this
 case, your only options are to implement the syntax yourself or e-mail
 @email{mysql-licensing@@mysql.com} and ask for an offer to implement it!
@@ -8262,7 +8262,7 @@ If you are running RedHat Version 5.0 with a version of @code{glibc} older than
 2.0.7-5, you should make sure you have installed all @code{glibc} patches!
 There is a lot of information about this in the MySQL mail
 archives.  Links to the mail archives are available online at
-@uref{http://www.mysql.com/documentation/}.
+@uref{http://lists.mysql.com/}.
 Also, see @ref{Linux}.
 
 You can also start @code{mysqld} manually using the @code{--skip-grant-tables}
@@ -53889,8 +53889,7 @@ work.  If you find such a query, try first upgrading to the newest
 MySQL version.  If this doesn't help and you can't find anything
 in the @code{mysql} mail archive, you should report the bug to
 @email{mysql@@lists.mysql.com}.  Links to mail archives are available
-online at the @uref{http://www.mysql.com/documentation/, MySQL
-documentation page}.
+online at @uref{http://lists.mysql.com/}.
 
 If you have started @code{mysqld} with @code{myisam-recover},
 MySQL will automatically check and try to repair @code{MyISAM}
