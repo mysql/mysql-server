@@ -4626,8 +4626,8 @@ table_ident:
         ;
 
 table_ident_ref:
-	ident			{ LEX_STRING db={"",0}; $$=new Table_ident(db,$1,0); }
-	| ident '.' ident	{ $$=new Table_ident($1,$3,0);}
+	ident			{ LEX_STRING db={(char*) any_db,3}; $$=new Table_ident(YYTHD, db,$1,0); }
+	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
         ;
 
 IDENT_sys:

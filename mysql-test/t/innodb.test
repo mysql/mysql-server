@@ -936,8 +936,8 @@ drop table t1;
 # Test dictionary handling with spaceand quoting
 #
 
-CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) TYPE=INNODB;
-CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) TYPE=INNODB;
+CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
 #show create table t2;
 drop table t2,t1;
 

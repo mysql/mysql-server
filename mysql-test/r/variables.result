@@ -236,7 +236,7 @@ ERROR HY000: Unknown collation: 'UNKNOWN_COLLATION'
 set global autocommit=1;
 ERROR HY000: Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.timestamp;
-ERROR HY000: Variable 'timestamp' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'timestamp' is a LOCAL variable
 set @@version='';
 ERROR HY000: Unknown system variable 'version'
 set @@concurrent_insert=1;
@@ -244,7 +244,7 @@ ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set
 set @@global.sql_auto_is_null=1;
 ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
 select @@global.sql_auto_is_null;
-ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable
 set myisam_max_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set myisam_max_extra_sort_file_size=100;
@@ -381,7 +381,7 @@ select 1;
 1
 1
 select @@session.key_buffer_size;
-Variable 'key_buffer_size' is a GLOBAL variable
+ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size
 100	200

@@ -124,7 +124,7 @@ set big_tables="OFFF";
 set unknown_variable=1;
 --error 1232
 set max_join_size="hello";
---error 1285
+--error 1286
 set storage_engine=UNKNOWN_TABLE_TYPE;
 --error 1231
 set storage_engine=INNODB, big_tables=2;
@@ -135,7 +135,7 @@ set SESSION query_cache_size=10000;
 set GLOBAL storage_engine=DEFAULT;
 --error 1115
 set character_set_client=UNKNOWN_CHARACTER_SET;
---error 1272
+--error 1273
 set collation_connection=UNKNOWN_COLLATION;
 --error 1228
 set global autocommit=1;
@@ -285,4 +285,3 @@ select @@global.max_user_connections,@@local.max_join_size;
 set @a=1, @b=2;
 set @a=@b, @b=@a;
 select @a, @b;
-

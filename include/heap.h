@@ -51,7 +51,6 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   uint reclength;			/* Length of one record */
   int errkey;
   ulonglong auto_increment;
-  my_bool implicit_emptied;
 } HEAPINFO;
 
 

@@ -45,11 +45,11 @@ drop table t1;
 create table t1 (ix timestamp);
 insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101);
 Warnings:
-Warning	1264	Data truncated for column 'ix' at row 10
-Warning	1264	Data truncated for column 'ix' at row 11
-Warning	1264	Data truncated for column 'ix' at row 12
-Warning	1264	Data truncated for column 'ix' at row 13
-Warning	1264	Data truncated for column 'ix' at row 14
+Warning	1265	Data truncated for column 'ix' at row 10
+Warning	1265	Data truncated for column 'ix' at row 11
+Warning	1265	Data truncated for column 'ix' at row 12
+Warning	1265	Data truncated for column 'ix' at row 13
+Warning	1265	Data truncated for column 'ix' at row 14
 select ix+0 from t1;
 ix+0
 19991101000000
@@ -138,31 +138,31 @@ t1	t2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t1` timestamp(14) NOT NULL,
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
-) TYPE=MyISAM
+  `t1` timestamp NOT NULL,
+  `t2` timestamp NOT NULL default '2003-01-01 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp(14)	YES		NULL	
-t2	timestamp(14)	YES		2003-01-01 00:00:00	
+t1	timestamp	YES		NULL	
+t2	timestamp	YES		2003-01-01 00:00:00	
 show columns from t1 like 't2';
 Field	Type	Null	Key	Default	Extra
-t2	timestamp(14)	YES		2003-01-01 00:00:00	
+t2	timestamp	YES		2003-01-01 00:00:00	
 create table t2 (select * from t1);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1` timestamp(14) NOT NULL,
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
-) TYPE=MyISAM
+  `t1` timestamp NOT NULL,
+  `t2` timestamp NOT NULL default '2003-01-01 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add column t0 timestamp first;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `t0` timestamp(14) NOT NULL,
-  `t1` timestamp(14) NOT NULL default '2003-01-01 00:00:00',
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
-) TYPE=MyISAM
+  `t0` timestamp NOT NULL,
+  `t1` timestamp NOT NULL default '2003-01-01 00:00:00',
+  `t2` timestamp NOT NULL default '2003-01-01 00:00:00'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (ts1 timestamp, ts2 timestamp);
 set TIMESTAMP=1000000000;

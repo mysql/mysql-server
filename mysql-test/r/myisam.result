@@ -428,6 +428,22 @@ select * from t1 where a='807780' and b='477' and c='165';
 a	b	c
 807780	477	165
 drop table t1;
+create table t1 (a blob);
+insert into t1 values('a '),('a');
+select concat(a,'.') from t1 where a='a';
+concat(a,'.')
+a.
+select concat(a,'.') from t1 where a='a ';
+concat(a,'.')
+a .
+alter table t1 add key(a(2));
+select concat(a,'.') from t1 where a='a';
+concat(a,'.')
+a.
+select concat(a,'.') from t1 where a='a ';
+concat(a,'.')
+a .
+drop table t1;
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
 insert into t1 (b) values ('a'),('a '),('a  ');
 select concat(b,'.') from t1;
@@ -437,7 +453,7 @@ a .
 a  .
 update t1 set b='b ' where a=2;
 update t1 set b='b  ' where a > 1;
-Duplicate entry 'b  ' for key 2
+ERROR 23000: Duplicate entry 'b  ' for key 2
 delete from t1 where b='b';
 select a,concat(b,'.') from t1;
 a	concat(b,'.')

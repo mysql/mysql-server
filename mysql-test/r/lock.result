@@ -42,7 +42,7 @@ check table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	check	error	Table 't2' was not locked with LOCK TABLES
 insert into t1 select nr from t1;
-Table 't1' was not locked with LOCK TABLES
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
 unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;

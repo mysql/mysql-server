@@ -63,7 +63,6 @@ HP_INFO *heap_open(const char *name, int mode)
 #ifndef DBUG_OFF
   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
 #endif
-  info->implicit_emptied= 0;
   DBUG_PRINT("exit",("heap: %lx  reclength: %d  records_in_block: %d",
 		     info,share->reclength,share->block.records_in_block));
   DBUG_RETURN(info);

@@ -38,7 +38,10 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     HA_CREATE_INFO create_info;
     bzero(&create_info, sizeof(create_info));
     if (!create(name, table, &create_info))
+    {
       file= heap_open(name, mode);
+      implicit_emptied= 1;
+    }
   }
   ref_length= sizeof(HEAP_PTR);
   return (file ? 0 : 1);
@@ -174,7 +177,6 @@ void ha_heap::info(uint flag)
   index_file_length=info.index_length;
   max_data_file_length= info.max_records* info.reclength;
   delete_length= info.deleted * info.reclength;
-  implicit_emptied= info.implicit_emptied;
   if (flag & HA_STATUS_AUTO)
     auto_increment_value= info.auto_increment;
 }

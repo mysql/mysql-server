@@ -466,7 +466,7 @@ uchar NEAR sort_order_tis620[]=
 static uint thai2sortable(uchar *tstr, uint len)
 {
   uchar	*p;
-  int	len, tlen;
+  int	tlen;
   uchar	l2bias;
 
   tlen= len;
@@ -572,7 +572,8 @@ int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
 {
-  len= (uint) (strmake(dest, src, min(len,srclen))- dest);
+  len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
+	       (char*) dest);
   return (int) thai2sortable(dest, len);
 }
 
@@ -610,7 +611,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 
 my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
 			     const char *ptr, uint ptr_length,
-			     int escape, int w_one, int w_many,
+			     pbool escape, pbool w_one, pbool w_many,
 			     uint res_length, char *min_str, char *max_str,
 			     uint *min_length, uint *max_length)
 {
@@ -862,7 +863,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_like_range_tis620,
     my_wildcmp_8bit,	/* wildcmp   */
     my_strcasecmp_8bit,
-    NULL,
+    my_instr_simple,				/* QQ: To be fixed */
     my_hash_sort_simple,
 };
 
