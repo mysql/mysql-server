@@ -88,7 +88,13 @@ ut_malloc_low(
 		"InnoDB: a big enough maximum process size.\n"
 		"InnoDB: We now intentionally generate a seg fault so that\n"
 		"InnoDB: on Linux we get a stack trace.\n",
-		                  n, ut_total_allocated_memory, errno);
+		                  n, ut_total_allocated_memory,
+#ifdef __WIN__
+			(ulint)GetLastError()
+#else
+			(ulint)errno
+#endif
+			);
 
 		/* Flush stderr to make more probable that the error
 		message gets in the error file before we generate a seg
