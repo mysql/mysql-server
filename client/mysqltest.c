@@ -2153,7 +2153,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
-  char* query, buff[MAX_DELIMITER + 1]= {0};
+  char* query;
   int query_len;
   DBUG_ENTER("run_query");
   
@@ -2188,8 +2188,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     if ((flags & QUERY_SEND) && !disable_query_log && !counter)
     {
       replace_dynstr_append_mem(ds,query, query_len);
-      sprintf(buff, "%s\n", delimiter);
-      dynstr_append_mem(ds, buff, delimiter_length + 1);
+      dynstr_append_mem(ds, delimiter, delimiter_length);
+      dynstr_append_mem(ds, "\n", 1);
     }
     if (!(flags & QUERY_REAP))
       DBUG_RETURN(0);

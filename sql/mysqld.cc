@@ -3547,7 +3547,7 @@ enum options_mysqld
   OPT_SKIP_HOST_CACHE,         OPT_SHORT_LOG_FORMAT,
   OPT_FLUSH,                   OPT_SAFE,
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
-  OPT_TABLE_TYPE,              OPT_INIT_FILE,
+  OPT_STORAGE_ENGINE,          OPT_INIT_FILE,
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
@@ -3756,8 +3756,11 @@ Disable with --skip-bdb (will save memory).",
   {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-table-type", OPT_TABLE_TYPE,
-   "Set the default table type for tables.", 0, 0,
+  {"default-storage-engine", OPT_STORAGE_ENGINE,
+   "Set the default storage engine (table tyoe) for tables.", 0, 0,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-table-type", OPT_STORAGE_ENGINE,
+   "(deprecated) Use default-storage-engine.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -4734,8 +4737,8 @@ struct show_var_st status_vars[]= {
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
   {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
+  {"Com_show_storage_engines", (char*) (com_stat+(uint) SQLCOM_SHOW_STORAGE_ENGINES),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
-  {"Com_show_table_types",     (char*) (com_stat+(uint) SQLCOM_SHOW_TABLE_TYPES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
   {"Com_show_warnings",        (char*) (com_stat+(uint) SQLCOM_SHOW_WARNS),SHOW_LONG},
   {"Com_slave_start",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_START),SHOW_LONG},
@@ -5422,7 +5425,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
     break;
-  case OPT_TABLE_TYPE:
+  case OPT_STORAGE_ENGINE:
   {
     if ((enum db_type)((global_system_variables.table_type= 
     	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
