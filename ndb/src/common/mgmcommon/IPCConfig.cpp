@@ -371,6 +371,9 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
                nodeId, remoteNodeId, server_port, sendSignalId, checksum));
+    if((int)server_port<0)
+      server_port= -server_port;		// A dynamic port
+
     switch(type){
     case CONNECTION_TYPE_SHM:{
       SHM_TransporterConfiguration conf;
