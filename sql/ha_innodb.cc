@@ -883,7 +883,7 @@ innobase_init(void)
 	and consequently we do not need to know the ordering internally in
 	InnoDB. */
 
-	ut_a(0 == ut_strcmp((char*)my_charset_latin1.name,
+	ut_a(0 == strcmp((char*)my_charset_latin1.name,
 						(char*)"latin1_swedish_ci"));
 	memcpy(srv_latin1_ordering, my_charset_latin1.sort_order, 256);
 
