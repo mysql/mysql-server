@@ -51,7 +51,7 @@ $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",
 					"use-old-results","skip-test",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options","hires") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
@@ -399,6 +399,11 @@ All benchmarks takes the following options:
   Run the test with limits from the given servers.  If you run all servers
   with the same --cmp, you will get a test that is comparable between
   the different sql servers.
+
+--create-options=#
+  Extra argument to all create statements.  If you for example want to
+  create all MySQL tables as BDB tables use:
+  --create-options=TYPE=BDB
 
 --database (Default $opt_database)
   In which database the test tables are created.

@@ -57,8 +57,8 @@ struct timespec {		/* For pthread_cond_timedwait() */
 
 typedef int pthread_mutexattr_t;
 #define win_pthread_self my_thread_var->pthread_self
-#define pthread_handler_decl(A,B) unsigned __cdecl A(void *B)
-typedef unsigned (__cdecl *pthread_handler)(void *);
+#define pthread_handler_decl(A,B) void * __cdecl A(void *B)
+typedef void * (__cdecl *pthread_handler)(void *);
 
 void win_pthread_init(void);
 int win_pthread_setspecific(void *A,void *B,uint length);

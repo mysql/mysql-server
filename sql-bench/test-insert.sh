@@ -572,7 +572,7 @@ if ($limits->{'group_functions'})
 
   $loop_time=new Benchmark;
   $count=$estimated=0;
-  for ($tests=0 ; $tests < $small_loop_count ; $tests++)
+  for ($tests=1 ; $tests <= $small_loop_count ; $tests++)
   {
     $count+=2;
     fetch_all_rows($dbh,"select count(distinct dummy1) from bench1");
@@ -834,7 +834,7 @@ if ($limits->{'func_odbc_floor'} && $limits->{'left_outer_join'})
 
   $count=$estimated=0;
   $loop_time=new Benchmark;
-  for ($i=0 ; $i < $small_loop_count ; $i++)
+  for ($i=1 ; $i <= $small_loop_count ; $i++)
   {
     $count+=fetch_all_rows($dbh,"select count(a.dummy1),count(b.dummy1) from bench1 as a left outer join bench1 as b on (a.id2=b.id3) where b.id3 is null");
     $end_time=new Benchmark;
