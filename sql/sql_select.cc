@@ -1725,7 +1725,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
-  DBUG_RETURN(join->thd->killed_errno() || get_best_combination(join));
+  DBUG_RETURN(join->thd->killed || get_best_combination(join));
 }
 
 
