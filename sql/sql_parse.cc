@@ -932,6 +932,8 @@ end_thread:
   return(0);					/* purecov: deadcode */
 }
 
+#endif /* EMBEDDED_LIBRARY */
+
 /*
   Execute commands from bootstrap_file.
   Used when creating the initial grant tables
@@ -946,12 +948,15 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   /* The following must be called before DBUG_ENTER */
   if (my_thread_init() || thd->store_globals())
   {
+#ifndef EMBEDDED_LIBRARY
     close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
     thd->fatal_error();
     goto end;
   }
   DBUG_ENTER("handle_bootstrap");
 
+#ifndef EMBEDDED_LIBRARY
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd;
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
@@ -959,6 +964,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+#endif /* EMBEDDED_LIBRARY */
 
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
@@ -980,6 +986,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
     thd->query_id=query_id++;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (mqh_used && thd->user_connect && check_mqh(thd, SQLCOM_END))
     {
       thd->net.error = 0;
@@ -987,6 +994,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
       break;
     }
+#endif
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)
@@ -997,16 +1005,16 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
   /* thd->fatal_error should be set in case something went wrong */
 end:
+#ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   (void) pthread_cond_broadcast(&COND_thread_count);
   my_thread_end();
   pthread_exit(0);
+#endif
   DBUG_RETURN(0);				// Never reached
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
     /* This works because items are allocated with sql_alloc() */
 

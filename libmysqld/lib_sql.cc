@@ -389,6 +389,15 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
+  if (opt_init_file)
+  {
+    if (read_init_file(opt_init_file))
+    {
+      mysql_server_end();
+      return 1;
+    }
+  }
+
   /*
     Update mysqld variables from client variables if set
     The client variables are set also by get_one_option() in mysqld.cc
@@ -516,6 +525,9 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   
   DBUG_ENTER("send_fields");
 
+  if (!mysql)            // bootstrap file handling
+    DBUG_RETURN(0);
+
   field_count= list->elements;
   field_alloc= &mysql->field_alloc;
   if (!(client_field= thd->mysql->fields= 
@@ -577,6 +589,9 @@ bool Protocol::send_records_num(List<Item> *list, ulonglong records)
 
 bool Protocol::write()
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   *next_field= 0;
   return false;
 }
@@ -622,12 +637,12 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 {
   DBUG_ENTER("send_ok");
   MYSQL *mysql= current_thd->mysql;
+  if (!mysql)            // bootstrap file handling
+    DBUG_VOID_RETURN;
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
-  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -684,6 +699,9 @@ bool Protocol_simple::store_null()
 bool Protocol::net_store_data(const char *from, uint length)
 {
   char *field_buf;
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   if (!(field_buf=alloc_root(alloc, length + sizeof(uint) + 1)))
     return true;
   *(uint *)field_buf= length;
