@@ -42,3 +42,35 @@ select @a:=10,   @b:=2,   @a > @b, @a < @b;
 select @a:="10", @b:="2", @a > @b, @a < @b;
 @a:="10"	@b:="2"	@a > @b	@a < @b
 10	2	0	1
+select @a:=1;
+@a:=1
+1
+select @a, @a:=1;
+@a	@a:=1
+1	1
+create table t1 (id int);
+insert into t1 values (1);
+select @c:=0;
+@c:=0
+0
+update t1 SET id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+update t1 set id=(@c:=@c+1);
+select @c;
+@c
+1
+select @c:=0;
+@c:=0
+0
+select @c:=@c+1;
+@c:=@c+1
+1
+drop table t1;
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b	@a:=10	@b:=2	@a>@b	@a:="10"	@b:="2"	@a>@b
+10	2	1	10	2	0	10	2	1	10	2	0

@@ -1899,52 +1899,61 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
   return;
 }
 
-
 bool
 Item_func_set_user_var::update()
 {
+  DBUG_ENTER("Item_func_set_user_var::update");
   switch (cached_result_type) {
-  case REAL_RESULT:
-    (void) val();
-    break;
-  case INT_RESULT:
-    (void) val_int();
-    break;
-  case STRING_RESULT:
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    (void) val_str(&tmp);
-    break;
+  case REAL_RESULT:   (void)native_val();     break;
+  case INT_RESULT:    (void)native_val_int(); break;
+  case STRING_RESULT: (void)native_val_str(); break;
   }
-  return current_thd->fatal_error;
+  DBUG_RETURN(current_thd->fatal_error);
 }
 
 
 double
 Item_func_set_user_var::val()
 {
-  double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT);
-  return value;
+  DBUG_ENTER("Item_func_set_user_var::val");
+  switch (cached_result_type) {
+  case REAL_RESULT: return native_val(); break;
+  case INT_RESULT:  return native_val_int(); break;
+  case STRING_RESULT:
+  {
+    String *res= native_val_str(); 
+    return !res ? 0 : atof(res->c_ptr());
+  }
+  }
+  DBUG_RETURN(args[0]->val());
 }
 
 longlong
 Item_func_set_user_var::val_int()
 {
-  longlong value=args[0]->val_int();
-  update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-  return value;
+  DBUG_ENTER("Item_func_set_user_var::val_int");
+  switch (cached_result_type) {
+  case REAL_RESULT: return (longlong)native_val(); break;
+  case INT_RESULT:  return native_val_int(); break;
+  case STRING_RESULT:
+  {
+    String *res= native_val_str(); 
+    return !res ? 0 : strtoull(res->c_ptr(),NULL,10);
+  }
+  }
+  DBUG_RETURN(args[0]->val_int());
 }
 
 String *
 Item_func_set_user_var::val_str(String *str)
 {
-  String *res=args[0]->val_str(str);
-  if (!res)					// Null value
-    update_hash((void*) 0,0,STRING_RESULT);
-  else
-    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-  return res;
+  DBUG_ENTER("Item_func_set_user_var::val_str");
+  switch (cached_result_type) {
+  case REAL_RESULT:   str->set(native_val(),decimals); break;
+  case INT_RESULT:    str->set(native_val_int(),decimals); break;
+  case STRING_RESULT: str= native_val_str(str); break;
+  }
+  DBUG_RETURN(str);
 }
 
 
@@ -1973,6 +1982,7 @@ user_var_entry *Item_func_get_user_var::get_entry()
 String *
 Item_func_get_user_var::val_str(String *str)
 {
+  DBUG_ENTER("Item_func_get_user_var::val_str");
   user_var_entry *entry=get_entry();
   if (!entry)
     return NULL;
@@ -1991,7 +2001,7 @@ Item_func_get_user_var::val_str(String *str)
     }
     break;
   }
-  return str;
+  DBUG_RETURN(str);
 }
 
 
