@@ -153,14 +153,17 @@ longlong Item_func_month::val_int()
 
 String* Item_func_monthname::val_str(String* str)
 {
-  uint month=(uint) Item_func_month::val_int();
+  uint   month=(uint) Item_func_month::val_int();
   if (!month)					// This is also true for NULL
   {
     null_value=1;
     return (String*) 0;
   }
   null_value=0;
-  return &month_names[month-1];
+  
+  String *m=&month_names[month-1];
+  str->copy(m->ptr(), m->length(), m->charset(), thd_charset());
+  return str;
 }
 
 // Returns the quarter of the year
@@ -234,7 +237,10 @@ String* Item_func_dayname::val_str(String* str)
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
   if (null_value)
     return (String*) 0;
-  return &day_names[weekday];
+  
+  String *d=&day_names[weekday];
+  str->copy(d->ptr(), d->length(), d->charset(), thd_charset());
+  return str;
 }
 
 

@@ -85,7 +85,12 @@ public:
   const char *func_name() const { return "monthname"; }
   String *val_str(String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=10*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
@@ -192,7 +197,12 @@ class Item_func_dayname :public Item_func_weekday
   const char *func_name() const { return "dayname"; }
   String *val_str(String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=9; maybe_null=1; }
+  void fix_length_and_dec() 
+  { 
+    decimals=0; 
+    max_length=9*thd_charset()->mbmaxlen;
+    maybe_null=1; 
+  }
 };
 
 
