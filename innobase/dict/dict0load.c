@@ -8,7 +8,9 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "dict0load.h"
+#ifndef UNIV_HOTBACKUP
 #include "mysql_version.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
@@ -792,6 +794,7 @@ dict_load_table(
 			name, (ulong)mix_len);
 	}
 
+#ifndef UNIV_HOTBACKUP
 #if MYSQL_VERSION_ID < 50003
 	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
 	"compact format" flag. */
@@ -807,6 +810,7 @@ dict_load_table(
 		return(NULL);
 	}
 #endif /* MYSQL_VERSION_ID < 50300 */
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(0 == ut_strcmp("SPACE",
 		dict_field_get_col(

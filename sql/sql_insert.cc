@@ -1811,13 +1811,13 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       is the same table (Bug #6034). Do the preparation after the select phase
       in select_insert::prepare2().
     */
-    if (info.ignore || info.handle_duplicates != DUP_ERROR)
-      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->file->start_bulk_insert((ha_rows) 0);
   }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->cuted_fields=0;
+  if (info.ignore || info.handle_duplicates != DUP_ERROR)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -1847,14 +1847,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT)
-  {
-    if (info.ignore || info.handle_duplicates != DUP_ERROR)
-      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->file->start_bulk_insert((ha_rows) 0);
-  }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

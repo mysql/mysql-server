@@ -294,6 +294,12 @@ srv_boot(void);
 /*==========*/
 			/* out: DB_SUCCESS or error code */
 /*************************************************************************
+Initializes the server. */
+
+void
+srv_init(void);
+/*==========*/
+/*************************************************************************
 Frees the OS fast mutex created in srv_boot(). */
 
 void

@@ -355,6 +355,10 @@ args: -n ScanRestart T1
 
 max-time: 500
 cmd: testScan
+args: -l 100 -n Scan-bug8262 T7
+
+max-time: 500
+cmd: testScan
 args: -n ScanParallelism
 
 #

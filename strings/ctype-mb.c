@@ -399,7 +399,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
   res= 0;
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     /*
@@ -417,7 +417,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;

@@ -210,6 +210,11 @@ public:
   {
     if (&s != this)
     {
+      /*
+        It is forbidden to do assignments like 
+        some_string = substring_of_that_string
+       */
+      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
       Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
       alloced=0;
@@ -343,4 +348,9 @@ public:
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s);
+
+  inline bool uses_buffer_owned_by(const String *s) const
+  {
+    return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
+  }
 };

@@ -306,6 +306,11 @@ select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4
 
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
+
+# The next query will not use index i7 in intersection if the OS doesn't 
+# support file sizes > 2GB. (ha_myisam::ref_length depends on this and index
+# scan cost estimates depend on ha_myisam::ref_length)
+--replace_result "4,4,4,4,4,4,4" X "4,4,4,4,4,4" X "i6,i7" "i6,i7?" "i6" "i6,i7?" 7 7or16 16 7or16
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5) 
  from t0 as A, t0 as B 
  where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
