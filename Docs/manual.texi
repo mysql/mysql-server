@@ -5282,6 +5282,10 @@ Change into the top-level directory of the unpacked distribution:
 shell> cd mysql-VERSION
 @end example
 
+Note that currently you must configure and build @strong{MySQL} from
+this top-level directory.  You can not build it in a different
+directory.
+
 @item
 Configure the release and compile everything:
 
