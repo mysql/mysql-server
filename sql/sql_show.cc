@@ -1941,13 +1941,33 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
 }
 
 
-int schema_db_add(THD *thd, List<char> *files, const char *wild)
+/*
+  Add 'information_schema' name to db_names list
+
+  SYNOPSIS
+    schema_db_add()
+    thd                   thread handler
+    files                 list of db names
+    wild                  wild string
+    with_i_schema         returns 1 if we added 'IS' name to list
+                          otherwise returns 0
+
+  RETURN
+    1	                  error
+    0	                  success
+*/
+
+int schema_db_add(THD *thd, List<char> *files,
+                  const char *wild, bool *with_i_schema)
 {
-  if (wild && wild_compare(information_schema_name.str, wild, 0))
-    return 0;
-  if (files->push_back(thd->strdup(information_schema_name.str)))
-    return -1;
-  return 1;
+  *with_i_schema= 0;
+  if (!wild || !wild_compare(information_schema_name.str, wild, 0))
+  {
+    *with_i_schema= 1;
+    if (files->push_back(thd->strdup(information_schema_name.str)))
+      return 1;
+  }
+  return 0;
 }
 
 
@@ -2006,7 +2026,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   INDEX_FIELD_VALUES idx_field_vals;
   char path[FN_REFLEN], *end= 0, *base_name, *file_name;
   uint len= 0;
-  int with_i_schema;
+  bool with_i_schema;
   List<char> bases;
   lex->all_selects_list= &sel;
   enum enum_schema_tables schema_table_idx=
@@ -2017,8 +2037,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   get_index_field_values(lex, &idx_field_vals);
 
   /* information schema name always is first in list */
-  with_i_schema= schema_db_add(thd, &bases, idx_field_vals.db_value);
-  if (with_i_schema < 0)
+  if (schema_db_add(thd, &bases, idx_field_vals.db_value, &with_i_schema))
     return 1;
 
   if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
@@ -2142,13 +2161,13 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> files;
   char *file_name;
   uint length;
-  int with_i_schema;
+  bool with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
 
   get_index_field_values(thd->lex, &idx_field_vals);
-  with_i_schema= schema_db_add(thd, &files, idx_field_vals.db_value);
-  if (with_i_schema < 0)
+  /* information schema name always is first in list */
+  if (schema_db_add(thd, &files, idx_field_vals.db_value, &with_i_schema))
     return 1;
   if (mysql_find_files(thd, &files, NullS, mysql_data_home,
                        idx_field_vals.db_value, 1))
