@@ -24,7 +24,7 @@
 #include <my_dir.h>
 #endif /* MYSQL_CLIENT */
 
-#define log_cs	my_charset_latin1
+#define log_cs	&my_charset_latin1
 
 /*****************************************************************************
 

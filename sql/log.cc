@@ -30,7 +30,7 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-#define files_charset_info my_charset_latin1
+#define files_charset_info &my_charset_latin1
 
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;

@@ -2734,7 +2734,7 @@ mysql_execute_command(THD *thd)
 	if (user->password.str &&
 	    (strcmp(thd->user,user->user.str) ||
 	     user->host.str &&
-	     my_strcasecmp(my_charset_latin1,
+	     my_strcasecmp(&my_charset_latin1,
                            user->host.str, thd->host_or_ip)))
 	{
 	  if (check_access(thd, UPDATE_ACL, "mysql",0,1))
@@ -3415,7 +3415,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     /* Convert long CHAR() and VARCHAR columns to TEXT or BLOB */
     new_field->sql_type= FIELD_TYPE_BLOB;
     sprintf(warn_buff, ER(ER_AUTO_CONVERT), field_name, "CHAR",
-	    (cs == my_charset_bin) ? "BLOB" : "TEXT");
+	    (cs == &my_charset_bin) ? "BLOB" : "TEXT");
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_AUTO_CONVERT,
 		 warn_buff);
     /* fall through */
