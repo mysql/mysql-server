@@ -122,6 +122,7 @@ main(int argc, char ** argv){
 
 static int init_ndb(int argc, char** argv)
 {
+  ndb_init();
   return 0;
 }
 
