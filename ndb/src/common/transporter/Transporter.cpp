@@ -116,17 +116,17 @@ Transporter::connect_client() {
   if(m_connected)
     return true;
 
-  DBUG_ENTER("Transporter::connect_client");
-
-  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_r_port,isMgmConnection));
-
   if(isMgmConnection)
     sockfd= m_socket_client->connect_without_auth();
   else
     sockfd= m_socket_client->connect();
 
-  if(sockfd<0)
+  if (sockfd == NDB_INVALID_SOCKET)
     return false;
+
+  DBUG_ENTER("Transporter::connect_client");
+
+  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_r_port,isMgmConnection));
 
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
@@ -140,9 +140,6 @@ Transporter::connect_client() {
     s_output.println("transporter connect");
     s_output.println("");
   }
-
-  if (sockfd == NDB_INVALID_SOCKET)
-    return false;
 
   // send info about own id
   // send info about own transporter type
