@@ -430,6 +430,8 @@ public:
   unsigned long	 client_stmt_id;
   unsigned long  client_param_count;
   struct st_mysql_bind *client_params;
+  char *extra_data;
+  ulong extra_length;
 #endif
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
