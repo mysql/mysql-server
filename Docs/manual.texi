@@ -1756,7 +1756,7 @@ new features. Additional features will be incorporated into
 MySQL 4.0.1, 4.0.2 onwards; very probably within a couple of months,
 MySQL 4.0 will be labelled beta. Further new features will then
 be added in MySQL 4.1, which is targeted for alpha release
-in early 2002.
+in third quarter 2002.
 
 
 @node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
@@ -4780,7 +4780,7 @@ MySQL Server offers the following advantages over PostgreSQL:
 @itemize @bullet
 @item
 @code{MySQL} Server is generally much faster than PostgreSQL.  MySQL
-4.0.1 has also a query cache that can boost up the query speed for
+4.0.1 also has a query cache that can boost up the query speed for
 mostly-read-only sites many times.
 
 @item
@@ -4963,38 +4963,12 @@ same time. @xref{DELETE}.
 
 PostgreSQL currently offers the following advantages over MySQL Server:
 
-Note that because we know the MySQL road map, we have included in the
-following table the version when MySQL Server should support this feature.
-Unfortunately we couldn't do this for previous comparison, because we
-don't know the PostgreSQL roadmap.
-
-@multitable @columnfractions .35 .30
-@item @strong{Feature}                     @tab @strong{MySQL version}
-@item Subselects                           @tab 4.1
-@item Foreign keys                         @tab 4.0 and 4.1
-@item Views                                @tab 4.2
-@item Stored procedures                    @tab 4.1
-@item Extensible type system               @tab Not planned
-@item Unions                               @tab 4.0
-@item Full join                            @tab 4.0 or 4.1
-@item Triggers                             @tab 4.1
-@item Constraints                          @tab 4.1
-@item Cursors                              @tab 4.1 or 4.2
-@item Extensible index types like R-trees  @tab R-trees are planned for 4.2
-@item Inherited tables                     @tab Not planned
-@end multitable
-
-Other reasons someone may consider for using PostgreSQL:
-
 @itemize @bullet
 @item
 Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 
 @item
 One can speed up PostgreSQL by coding things as stored procedures.
-
-@item
-For geographical data, R-TREES makes PostgreSQL better than MySQL Server.
 
 @item
 The PostgreSQL optimiser can do some optimisation that the current MySQL
@@ -14517,7 +14491,7 @@ large systems.  You can copy @file{my-xxxx.cnf} to your home directory
 All MySQL clients that support option files support the
 following options:
 
-@multitable @columnfractions .45 .65
+@multitable @columnfractions .45 .55
 @item @strong{Option} @tab @strong{Description}
 @item --no-defaults @tab Don't read any option files.
 @item --print-defaults @tab Print the program name and all options that it will get.
@@ -36403,7 +36377,7 @@ Transactional @code{InnoDB} tables that have been changed will be invalidated
 when a @code{COMMIT} is performed.
 
 A query cannot be cached if it contains one of the functions:
-@multitable @columnfractions .25 .30 .25 .35
+@multitable @columnfractions .25 .25 .25 .25
 @item @strong{Function} @tab @strong{Function}
  @tab @strong{Function} @tab @strong{Function}
 @item @code{User Defined Functions} @tab @code{CONNECTION_ID}
@@ -36416,7 +36390,8 @@ A query cannot be cached if it contains one of the functions:
  @tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
 @item @code{LAST_INSERT_ID} @tab @code{RAND}
  @tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
-@item @code{BENCHMARK}
+@item @code{BENCHMARK} @tab
+ @tab @tab
 @end multitable
 
 Nor can a query be cached if it contains user variables,
@@ -40496,7 +40471,7 @@ the @code{[Servername]} section of an @code{ODBC.INI} file or
 through  the @code{InConnectionString} argument in the
 @code{SQLDriverConnect()} call.
 
-@multitable @columnfractions .15 .25 .65
+@multitable @columnfractions .15 .20 .65
 @item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
 @item user @tab ODBC (on Windows) @tab The username used to connect to MySQL.
 @item server @tab localhost @tab The hostname of the MySQL server.
