@@ -35,6 +35,7 @@ select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 select soundex(''),soundex('he'),soundex('hello all folks');
+--replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
 select password('test'),length(encrypt('test')),encrypt('test','aa');
 select md5('hello');
 select repeat('monty',5),concat('*',space(5),'*');

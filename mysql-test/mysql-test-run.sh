@@ -46,7 +46,7 @@ which ()
 sleep_until_file_deleted ()
 {
   file=$1
-  loop=$SLEEP_TIME
+  loop=$SLEEP_TIME_FOR_DELETE
   while (test $loop -gt 0)
   do
     sleep 1
@@ -61,7 +61,8 @@ sleep_until_file_deleted ()
 sleep_until_file_exists ()
 {
   file=$1
-  loop=60	# Should be long enough enough for all cases
+  loop=$2
+  org_time=$2
   while (test $loop -gt 0)
   do
     sleep 1
@@ -71,7 +72,7 @@ sleep_until_file_exists ()
     fi
     loop=`expr $loop - 1`
   done
-  echo "ERROR: $file was not created in 60 seconds;  Aborting"
+  echo "ERROR: $file was not created in $org_time seconds;  Aborting"
   exit 1;
 }
 
@@ -172,7 +173,11 @@ DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
-SLEEP_TIME=10
+SLEEP_TIME_FOR_DELETE=10
+SLEEP_TIME_FOR_FIRST_MASTER=200		# Enough time to create innodb tables
+SLEEP_TIME_FOR_SECOND_MASTER=30
+SLEEP_TIME_FOR_FIRST_SLAVE=30
+SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
 DBUSER=""
 START_WAIT_TIMEOUT=3
@@ -235,7 +240,6 @@ while test $# -gt 0; do
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
-      SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -260,8 +264,9 @@ while test $# -gt 0; do
       fi
       DO_GDB=1
       # We must use manager, as things doesn't work on Linux without it
-      USE_MANAGER=1
-      USE_RUNNING_SERVER=""
+      # This needs to be checked properly
+      # USE_MANAGER=1
+      # USE_RUNNING_SERVER=""
       ;;
     --client-gdb )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -755,7 +760,8 @@ EOF
   else
     manager_launch master $MYSQLD $master_args
   fi
-  sleep_until_file_exists $MASTER_MYPID
+  sleep_until_file_exists $MASTER_MYPID $wait_for_master
+  wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
   MASTER_RUNNING=1
 }
 
@@ -847,7 +853,8 @@ start_slave()
     manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
   fi
   eval "SLAVE$1_RUNNING=1"
-  sleep_until_file_exists $slave_pid
+  sleep_until_file_exists $slave_pid $wait_for_slave
+  wait_for_slave=$SLEEP_TIME_FOR_SECOND_SLAVE
 }
 
 mysql_start ()
@@ -1143,6 +1150,8 @@ then
   # Remove files that can cause problems
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
+  wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
+  wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
   start_manager

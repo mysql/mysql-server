@@ -11282,7 +11282,7 @@ mysql> SELECT name, birth, death,
 +--------+------------+------------+------+
 @end example
 
-The query uses @code{death IS NOT NULL} rather than @code{death != NULL}
+The query uses @code{death IS NOT NULL} rather than @code{death <> NULL}
 because @code{NULL} is a special value.  This is explained later.
 @xref{Working with NULL,  , Working with @code{NULL}}.
 
@@ -11367,12 +11367,12 @@ The @code{NULL} value can be surprising until you get used to it.
 Conceptually, @code{NULL} means missing value or unknown value and it
 is treated somewhat differently than other values.  To test for @code{NULL},
 you cannot use the arithmetic comparison operators such as @code{=}, @code{<},
-or @code{!=}.  To demonstrate this for yourself, try the following query:
+or @code{<>}.  To demonstrate this for yourself, try the following query:
 
 @example
-mysql> SELECT 1 = NULL, 1 != NULL, 1 < NULL, 1 > NULL;
+mysql> SELECT 1 = NULL, 1 <> NULL, 1 < NULL, 1 > NULL;
 +----------+-----------+----------+----------+
-| 1 = NULL | 1 != NULL | 1 < NULL | 1 > NULL |
+| 1 = NULL | 1 <> NULL | 1 < NULL | 1 > NULL |
 +----------+-----------+----------+----------+
 |     NULL |      NULL |     NULL |     NULL |
 +----------+-----------+----------+----------+
@@ -11395,7 +11395,7 @@ The default truth value from a boolean operation is 1.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
-@code{death IS NOT NULL} instead of @code{death != NULL}.
+@code{death IS NOT NULL} instead of @code{death <> NULL}.
 
 
 @node Pattern matching, Counting rows, Working with NULL, Retrieving data
@@ -11413,7 +11413,7 @@ SQL pattern matching allows you to use @samp{_} to match any single
 character and @samp{%} to match an arbitrary number of characters (including
 zero characters).  In MySQL, SQL patterns are case insensitive by
 default.  Some examples are shown below.  Note that you do not use @code{=}
-or @code{!=} when you use SQL patterns; use the @code{LIKE} or @code{NOT
+or @code{<>} when you use SQL patterns; use the @code{LIKE} or @code{NOT
 LIKE} comparison operators instead.
 
 To find names beginning with @samp{b}:
@@ -46284,6 +46284,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
 @item
 Changed @code{SELECT ... IN SHARE MODE} to
 @code{SELECT .. LOCK IN SHARE MODE} (as in MySQL 3.23).

@@ -75,7 +75,11 @@ String *Item_func_md5::val_str(String *str)
     my_MD5Init (&context);
     my_MD5Update (&context,(unsigned char *) sptr->ptr(), sptr->length());
     my_MD5Final (digest, &context);
-    str->alloc(32);				// Ensure that memory is free
+    if (str->alloc(32))				// Ensure that memory is free
+    {
+      null_value=1;
+      return 0;
+    }
     sprintf((char *) str->ptr(),
 	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
 	    digest[0], digest[1], digest[2], digest[3],
@@ -201,162 +205,150 @@ void Item_func_concat::fix_length_and_dec()
   }
 }
 
-#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
-#define ascii_to_bin(c) ((c)<=57 ? (c)-46 : (c)<=90 ? (c)-53 : (c)-59)
-
 /* 
-  Function des_encrypt() by tonu@spam.ee
-  Works only if compiled with OpenSSL library support. 
-  Output always starts with magic char "1" and all
-  encrypted output is encoded into ASCII-protected
-  container. 
-  Original input is returned as output if input string 
-  begins with magic "1". Credit card number always begin 
-  with 4,5 or 6.
+  Function des_encrypt() by tonu@spam.ee & monty
+  Works only if compiled with OpenSSL library support.
+  This returns a binary string where first character is
+  CHAR(128 | tail-length << 4 | key-number).
+  If one uses a string key key_number is 0.
   Encryption result is longer than original by formula:
-  new_length=(8-(original_length % 8))*2+1
+  new_length= (8-(original_length % 8))+1
 */
 
 String *Item_func_des_encrypt::val_str(String *str)
 {
-  String *res  =args[0]->val_str(str);
 #ifdef HAVE_OPENSSL
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
+  uint key_number=15;
+  String *res= args[0]->val_str(str);
 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  if(res->c_ptr()[0]!='1') // Skip encryption if already encrypted
-  {
-    if (args[1]->val_int())
-    {
-      keyschedule_ptr=des_key(args[1]->val_int());
-    } 
-    else
-    {
-      String *keystr=args[1]->val_str(&tmp_value);
-      /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-      EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
-	(uchar *)keystr->c_ptr(),
-	(int)keystr->length(),1,(uchar *)&keyblock,ivec);
-      des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
-      des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
-      des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3);
-    }
-    /* 
-      The problem: DES algorithm requires original data to be in 8-bytes
-      chunks. Missing bytes get filled with zeros and result of encryption 
-      can be up to 7 bytes longer than original string. When decrypted, 
-      we do not know the size of original string :(
-      We add one byte with value 0x0..0x7 to original plaintext marking
-      change of string length 
-    */
-    uchar tail=  7-( res->length() %8); // 0..7 marking real offsets 1..8
-    for(int i=0 ; i < tail ; ++i) res->append('*');  
-    res->append(tail);  		// Write tail length 0..7 to last pos
-    str->length(res->length());
-    for (uint j=0; j < res->length() ; ++j)
-    {
-	    DBUG_PRINT("info",("## res->c_ptr()[%d]='%c'",j,res->c_ptr()[j]));
-    }
-    des_ede3_cbc_encrypt(		// Real encryption
- 	(const uchar*)(res->c_ptr()), 
-	(uchar*)(str->c_ptr()), 
-	res->length(), 
-	keyschedule_ptr->ks1, keyschedule_ptr->ks2, keyschedule_ptr->ks3, 
-	&ivec, TRUE);
-    for (uint j=0; j < res->length() ; ++j)
-    {
-	    DBUG_PRINT("info",("## str->c_ptr()[%d]='%c'",j,str->c_ptr()[j]));
-    }
 
-    res->set((const char*)"1",(uint)1); 
-    for(uint i=0 ; i < str->length() ; ++i) 
-    {
-      res->append(bin_to_ascii((uchar)str->c_ptr()[i] & 0x3f)); 
-      res->append(bin_to_ascii(((uchar)str->c_ptr()[i] >> 5 ) & 0x3f));
-    } 
+  if (arg_count == 1)
+    keyschedule_ptr=des_keyschedule[key_number=default_des_key];
+  else if (args[1]->result_type == INT_RESULT)
+  {
+    key_number= (uint) args[1]->val_int();
+    if (key_number > 9)
+      goto error;
+    keyschedule_ptr= des_keyschedule[key_number];
   }
-  return res;
-#else
+  else
+  {
+    const char *append_str="********";
+    uint tail,res_length;
+    String *keystr=args[1]->val_str(&tmp_value);
+    if (!keystr)
+      goto error;
+
+    /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
+    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
+		   (uchar*) keystr->ptr(), (int) keystr->length(),
+		   1, (uchar*) &keyblock,ivec);
+    des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
+    des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
+    des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3);
+  }
+
+  /* 
+     The problem: DES algorithm requires original data to be in 8-bytes
+     chunks. Missing bytes get filled with zeros and result of encryption 
+     can be up to 7 bytes longer than original string. When decrypted, 
+     we do not know the size of original string :(
+     We add one byte with value 0x1..0x8 as the second byte to original
+     plaintext marking change of string length.
+  */
+
+  tail=  (7-(res->length()+7) % 8); 	// 0..7 marking extra length
+  res_length=res->length()+tail+1;
+  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length))
+    goto err;
+
+  tmp_value.length(res_length);
+  tmp_value.[0]=(char) (128 | tail << 4 | key_number);
+  // Real encryption
+  des_ede3_cbc_encrypt((const uchar*) (res->ptr()),
+		       (uchar*) (tmp_value->ptr()+1),
+		       res->length(),
+		       keyschedule_ptr->ks1,
+		       keyschedule_ptr->ks2,
+		       keyschedule_ptr->ks3, 
+		       &ivec, TRUE);
+  return &tmp_value;
+
+error:
+#endif	/* HAVE_OPENSSL */
   null_value=1;
   return 0;
-#endif	/* HAVE_OPENSSL */
 }
+
 
 String *Item_func_des_decrypt::val_str(String *str)
 {
-  String *res  =args[0]->val_str(str);
 #ifdef HAVE_OPENSSL
   des_key_schedule ks1, ks2, ks3;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
   struct st_des_keyschedule *keyschedule_ptr=&keyschedule;
+  String *res= args[0]->val_str(str);
 
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length() == 0)
-    return &empty_string;
+  if (res->length(0) < 9 || (res->length()) % 8 != 1 || !(res->[0] & 128))
+    return res;				// Skip decryption if not encrypted
 
-  if(res->c_ptr()[0]=='1') // Skip decryption if not encrypted
+  if (arg_count == 1)			// If automatic uncompression
   {
-    str->set((const char*)0,(uint)0); 
-    for(uint i=1 ; i < res->length() ; i+=2) 
-    {
-      str->append((ascii_to_bin(res->c_ptr()[i])) 
-		      | (ascii_to_bin(res->c_ptr()[i+1]) << 5 ));
-    }
-
-    if (args[1]->val_int())
-    {
-      keyschedule_ptr=des_key(args[1]->val_int());
-    } 
-    else
-    {
-      /* 
-       We make good 24-byte (168 bit) key 
-       from given plaintext key with MD5 
-      */
-      String *keystr=args[1]->val_str(&tmp_value);
-      EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
-	(uchar *)keystr->c_ptr(),
-	(int)keystr->length(),1,(uchar *)&keyblock,ivec);
-      /*
-       Here we set all 64-bit keys (56 effective) one by one
-      */
-      des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
-      des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
-      des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3); 
-    }
-    res->length(str->length()); 
-
-    des_ede3_cbc_encrypt(			// Real decryption
-	(const uchar*)(str->c_ptr()), 
-	(uchar*)(res->c_ptr()), 
-	str->length(),                 
-	keyschedule_ptr->ks1, keyschedule_ptr->ks2, keyschedule_ptr->ks3, 
-	&ivec, FALSE);
-    uchar tail=(res->c_ptr()[res->length()-1]) & 0x7;
-    if ((res->length() > ((uint)1+tail)))   	// We should avoid negative length 
-      res->length(res->length()-1-tail); 	// (can happen with wrong key)
+    uint key_number=res->[0] & 15;
+    // Check if automatic key and that we have privilege to uncompress using it
+    if (!(current_thd->master_access & PROCESS_ACL) || key_number > 9)
+      goto error;
+    keyschedule_ptr=des_keyschedule[key_number-1];
   }
-  return res;
-#else
+  else
+  {
+    // We make good 24-byte (168 bit) key from given plaintext key with MD5
+    String *keystr=args[1]->val_str(&tmp_value);
+    if (!key_str)
+      goto error;
+    EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
+		   (uchar*) keystr->ptr(),(int) keystr->length(),
+		   1,(uchar*) &keyblock,ivec);
+    // Here we set all 64-bit keys (56 effective) one by one
+    des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
+    des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
+    des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3); 
+  }
+  if (tmp_value.alloc(res->length()-1))
+    goto err;
+  /* Restore old length of key */
+  tmp_value.length(res->length()-1-(((uchar) res->[0] >> 4) & 7));
+  des_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
+		       (uchar*) (tmp_value->ptr()),
+		       res->length()-1,
+		       keyschedule_ptr->ks1,
+		       keyschedule_ptr->ks2,
+		       keyschedule_ptr->ks3,
+		       &ivec, FALSE);
+  return &tmp_value;
+
+error:
+#endif	/* HAVE_OPENSSL */
   null_value=1;
   return 0;
-#endif	/* HAVE_OPENSSL */
 }
 
 
-
 /* 
-** concat with separator. First arg is the separator
-** concat_ws takes at least two arguments.
+  concat with separator. First arg is the separator
+  concat_ws takes at least two arguments.
 */
 
 String *Item_func_concat_ws::val_str(String *str)
@@ -1146,6 +1138,7 @@ String *Item_func_password::val_str(String *str)
   return str;
 }
 
+#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
 
 String *Item_func_encrypt::val_str(String *str)
 {

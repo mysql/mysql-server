@@ -15,72 +15,80 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <mysql_priv.h>
+#include <m_ctype.h>
 
 #ifdef HAVE_OPENSSL
+
 /*
- Function which loads DES keys from plaintext file
- into memory on MySQL server startup and on command
- FLUSH DES_KEYS. Blame tonu@spam.ee on bugs ;)
+ Function which loads DES keys from plaintext file into memory on MySQL
+ server startup and on command FLUSH DES_KEYS. Blame tonu@spam.ee on bugs ;)
 */
-void 
+
+struct st_des_keyschedule des_keyschedule[10];
+uint  default_des_key;
+
+void
 load_des_key_file(const char *file_name)
 {
-  FILE *file;
-  int ret=0;
-  char offset;
-  char buf[1024];
+  File file;
   des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-  st_des_keyblock keyblock;
+  char offset;
+  IO_CACHE io;
   DBUG_ENTER("load_des_key_file");
-  VOID(pthread_mutex_lock(&LOCK_open));
   DBUG_PRINT("enter",("name: %s",file_name));
-  if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
+
+  VOID(pthread_mutex_lock(&LOCK_open));
+  if ((file=my_open(file_name,O_RDONLY | O_BINARY ,MYF(MY_WME))) < 0 ||
+      init_io_cache(&io, file, IO_SIZE*2, READ_CACHE, 0, 0, MYF(MY_WME)))
+    goto error;
+
+  bzero((char*) des_keyschedule,sizeof(struct st_des_keyschedule) * 10);
+  default_des_key=15;				// Impossible key
+  for (;;)
   {
-    goto error_noclose;
-  }
-  while(!feof(file))
-  {
-    if ((my_fread(file, &offset, 1, MY_WME)) != 1)
-      goto error_close;
-    fgets(buf,sizeof(buf),file);
-    int len=strlen(buf);
-    if (len-->=1) 
-      buf[len]='\0';
-    /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    offset-='0';
-    if (offset >= 0 && offset <=9)
+    char *start, *end;
+    char buf[1024];
+    st_des_keyblock keyblock;
+    uint length;
+
+    if (!(length=my_b_gets(&io,buf,sizeof(buf)-1)))
+      break;					// End of file
+    offset=buf[0];
+    if (offset >= '0' && offset <= '9')		// If ok key
     {
-      EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
-        (uchar *)buf,
-        strlen(buf),1,(uchar *)&keyblock,ivec);
-      des_set_key_unchecked(&keyblock.key1,des_keyschedule[(int)offset].ks1);
-      des_set_key_unchecked(&keyblock.key2,des_keyschedule[(int)offset].ks2);
-      des_set_key_unchecked(&keyblock.key3,des_keyschedule[(int)offset].ks3);
-    } 
+      offset=(char) (offset - '0');
+      // Remove newline and possible other control characters
+      for (start=buf+1 ; isspace(*start) ; start++) ;
+      end=buf+length;
+      for  (end=strend(buf) ; end > start && iscntrl(end[-1]) ; end--) ;
+
+      if (start != end)
+      {
+	// We make good 24-byte (168 bit) key from given plaintext key with MD5
+	EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
+		       (uchar *) start, (int) (end-start),1,
+		       (uchar *) &keyblock,
+		       ivec);
+	des_set_key_unchecked(&keyblock.key1,des_keyschedule[(int)offset].ks1);
+	des_set_key_unchecked(&keyblock.key2,des_keyschedule[(int)offset].ks2);
+	des_set_key_unchecked(&keyblock.key3,des_keyschedule[(int)offset].ks3);
+	if (default_des_key == 15)
+	  default_des_key= (uint) offset;		// use first as def.
+      }
+    }
     else
     {
-      DBUG_PRINT("des",("wrong offset: %d",offset));
+      DBUG_PRINT("des",("wrong offset: %c",offset));
     }
   }
-error_close:
-  (void) my_fclose(file,MYF(MY_WME));
-error_noclose:
+
+error:
+  if (file >= 0)
+  {
+    my_close(file,MYF(0));
+    end_io_cache(&io);
+  }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  /* if (ret)
-    do something; */
   DBUG_VOID_RETURN;
 }
-
-/* 
- This function is used to load right key with DES_ENCRYPT(text,integer)
-*/
-st_des_keyschedule *
-des_key(int key)
-{
-  DBUG_ENTER("des_key");
-  DBUG_PRINT("exit",("return: %x",&des_keyschedule[key]));
-  DBUG_RETURN(&des_keyschedule[key]);
-}
-
 #endif /* HAVE_OPENSSL */
-

@@ -405,9 +405,9 @@ struct st_des_keyschedule
 {
   des_key_schedule ks1, ks2, ks3;
 };
-extern struct st_des_keyschedule des_keyschedule[10];
+extern struct st_des_keyschedule des_keyschedule[9];
+extern uint des_default_key;
 void load_des_key_file(const char *file_name);
-struct st_des_keyschedule * des_key(int);
 #endif /* HAVE_OPENSSL */
 
 /* sql_list.c */

@@ -1,0 +1,14 @@
+-- source include/have_innodb.inc
+
+#
+# Without auto_commit.
+#
+drop table if exists t1;
+set autocommit=0;
+create table t1 (a int not null) type=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+commit;
+set autocommit=1;

@@ -379,6 +379,10 @@ protected:
   void cache_dump();
   void queries_dump();
   void tables_dump();
+  my_bool check_integrity();
+  my_bool in_list(Query_cache_block * root, Query_cache_block * point,
+		  const char *name);
+  my_bool in_blocks(Query_cache_block * point);
 #endif
   friend void query_cache_insert(NET *net, const char *packet, ulong length);
   friend void query_cache_end_of_result(NET *net);

@@ -1,0 +1,15 @@
+drop table if exists t1;
+set autocommit=0;
+create table t1 (a int not null) type=innodb;
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+commit;
+set autocommit=1;

@@ -243,7 +243,6 @@ static char glob_hostname[FN_REFLEN];
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
 static char * des_key_file = 0;
-struct st_des_keyschedule des_keyschedule[10];
 struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
@@ -1751,8 +1750,6 @@ int main(int argc, char **argv)
       opt_use_ssl = 0;
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
   }
-  bzero(des_keyschedule,sizeof(struct st_des_keyschedule) * 10);
-  DBUG_PRINT("des",("initializing %d bytes of %x",sizeof(struct st_des_keyschedule) * 10, des_keyschedule));
   if (des_key_file)
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
