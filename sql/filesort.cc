@@ -719,7 +719,7 @@ static void make_sortkey(register SORTPARAM *param,
             }
             *to++=1;
           }
-          my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, (byte*)to,
+          my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, (char*)to,
                             item->max_length - (item->decimals ? 1:0),
                             item->decimals);
          break;
