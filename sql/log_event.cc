@@ -1289,7 +1289,10 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   if (db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
 
-  fprintf(file, "LOAD DATA INFILE '%-*s' ", fname_len, fname);
+  fprintf(file, "LOAD DATA ");
+  if (check_fname_outside_temp_buf())
+    fprintf(file, "LOCAL ");
+  fprintf(file, "INFILE '%-*s' ", fname_len, fname);
 
   if (sql_ex.opt_flags & REPLACE_FLAG )
     fprintf(file," REPLACE ");
@@ -1550,13 +1553,31 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
 
 
 #ifdef MYSQL_CLIENT
+void Create_file_log_event::print(FILE* file, bool short_form, 
+				  char* last_db, bool enable_local)
+{
+  if (short_form)
+  {
+    if (enable_local && check_fname_outside_temp_buf())
+      Load_log_event::print(file, 1, last_db);
+    return;
+  }
+
+  if (enable_local)
+  {
+    if (!check_fname_outside_temp_buf())
+      fprintf(file, "#");
+    Load_log_event::print(file, 1, last_db);
+    fprintf(file, "#");
+  }
+
+  fprintf(file, " file_id: %d  block_len: %d\n", file_id, block_len);
+}
+
 void Create_file_log_event::print(FILE* file, bool short_form,
 				  char* last_db)
 {
-  if (short_form)
-    return;
-  Load_log_event::print(file, 1, last_db);
-  fprintf(file, " file_id: %d  block_len: %d\n", file_id, block_len);
+  print(file,short_form,last_db,0);
 }
 #endif
 

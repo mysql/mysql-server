@@ -404,6 +404,13 @@ public:
   uint32 skip_lines;
   sql_ex_info sql_ex;
 
+  /* fname doesn't point to memory inside Log_event::temp_buf  */
+  void set_fname_outside_temp_buf(const char *afname, uint alen)
+    {fname=afname;fname_len=alen;}
+  /* fname doesn't point to memory inside Log_event::temp_buf  */
+  int  check_fname_outside_temp_buf()
+    {return fname<temp_buf || fname>temp_buf+cached_event_len;}
+
 #ifndef MYSQL_CLIENT
   String field_lens_buf;
   String fields_buf;
@@ -636,6 +643,7 @@ public:
   int exec_event(struct st_relay_log_info* rli);
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+  void print(FILE* file, bool short_form, char* last_db, bool enable_local);
 #endif  
   
   Create_file_log_event(const char* buf, int event_len, bool old_format);
