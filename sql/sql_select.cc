@@ -275,6 +275,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   join.having=0;
   join.do_send_rows = 1;
   join.group= group != 0;
+  join.row_limit= ((select_distinct || order || group) ? HA_POS_ERROR :
+		   thd->select_limit);
 
 #ifdef RESTRICTED_GROUP
   if (join.sum_func_count && !group && (join.func_count || join.field_count))
@@ -812,7 +814,7 @@ err:
 *****************************************************************************/
 
 static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
-				      key_map keys)
+				      key_map keys,ha_rows limit)
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
@@ -820,7 +822,7 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(keys,(table_map) 0,HA_POS_ERROR))
+    if ((error=select->test_quick_select(keys,(table_map) 0,limit))
 	== 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
@@ -1032,7 +1034,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     s->read_time=(ha_rows) s->table->file->scan_time();
 
     /* Set a max range of how many seeks we can expect when using keys */
-    s->worst_seeks= (double) (s->read_time*2);
+    /* This was (s->read_time*5), but this was too low with small rows */
+    s->worst_seeks= (double) s->found_records / 5;
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
@@ -1045,7 +1048,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	select=make_select(s->table,const_table_map,
 			   0,
 			   and_conds(conds,s->on_expr),&error);
-      records=get_quick_record_count(select,s->table, s->const_keys);
+      records=get_quick_record_count(select,s->table, s->const_keys,
+				     join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
@@ -1732,7 +1736,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	      {
 		/* we can use only index tree */
 		uint keys_per_block= table->file->block_size/2/
-		  keyinfo->key_length+1;
+		  (keyinfo->key_length+table->file->ref_length)+1;
 		tmp=(record_count*(records+keys_per_block-1)/
 		     keys_per_block);
 	      }
@@ -1802,7 +1806,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	      {
 		/* we can use only index tree */
 		uint keys_per_block= table->file->block_size/2/
-		  keyinfo->key_length+1;
+		  (keyinfo->key_length+table->file->ref_length)+1;
 		tmp=record_count*(tmp+keys_per_block-1)/keys_per_block;
 	      }
 	      else
@@ -2215,6 +2219,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->do_send_rows = 1;
+  join->row_limit=HA_POS_ERROR;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;

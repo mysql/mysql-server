@@ -45,7 +45,8 @@ const char *client_errors[]=
   "Kann Named Pipe nicht oeffnen. Host: %-.64s  pipe: %-.32s (%lu)",
   "Kann den Status der Named Pipe nicht setzen.  Host: %-.64s  pipe: %-.32s (%lu)",
   "Can't initialize character set %-.64s (path: %-.64s)",
-  "Got packet bigger than 'max_allowed_packet'"
+  "Got packet bigger than 'max_allowed_packet'",
+  "Embedded server",
 };
 
 #else /* ENGLISH */
@@ -71,7 +72,8 @@ const char *client_errors[]=
   "Can't open named pipe to host: %-.64s  pipe: %-.32s (%lu)",
   "Can't set state of named pipe to host: %-.64s  pipe: %-.32s (%lu)",
   "Can't initialize character set %-.64s (path: %-.64s)",
-  "Got packet bigger than 'max_allowed_packet'"
+  "Got packet bigger than 'max_allowed_packet'",
+  "Embedded server",
 };
 #endif
 

@@ -827,9 +827,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos--;
       packet_length--;
     }
-    *pos=0;
-    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length)))
+    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length+1)))
       break;
+    thd->query[packet_length]=0;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
