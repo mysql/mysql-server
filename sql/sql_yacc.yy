@@ -1086,6 +1086,8 @@ type:
 					  $$=FIELD_TYPE_TINY; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
+	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
+					  $$=FIELD_TYPE_TINY; }
 	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
