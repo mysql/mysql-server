@@ -140,8 +140,6 @@ class Item_maxmin_subselect: public Item_singlerow_subselect
 {
 public:
   Item_maxmin_subselect(THD *thd, st_select_lex *select_lex, bool max);
-  Item_maxmin_subselect(Item_maxmin_subselect *item)
-    :Item_singlerow_subselect(item) {}
 };
 
 /* exists subselect */
