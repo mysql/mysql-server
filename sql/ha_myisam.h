@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,8 +105,9 @@ class ha_myisam: public handler
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int disable_indexes(bool all, bool save);
-  int enable_indexes();
+  int disable_indexes(uint mode);
+  int enable_indexes(uint mode);
+  int indexes_are_disabled(void);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
   ha_rows records_in_range(int inx,

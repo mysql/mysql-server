@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000,2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ typedef struct st_heap_share
   uint reclength;			/* Length of one record */
   uint changed;
   uint keys,max_key_length;
+  uint currently_disabled_keys;    /* saved value from "keys" when disabled */
   uint open_count;
   byte *del_link;			/* Link to next block with del. rec */
   my_string name;			/* Name of "memory-file" */
@@ -176,6 +177,10 @@ extern int heap_rprev(HP_INFO *info,byte *record);
 extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
 extern int heap_rlast(HP_INFO *info,byte *record,int inx);
 extern void heap_clear(HP_INFO *info);
+extern void heap_clear_keys(HP_INFO *info);
+extern int heap_disable_indexes(HP_INFO *info);
+extern int heap_enable_indexes(HP_INFO *info);
+extern int heap_indexes_are_disabled(HP_INFO *info);
 extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       uint start_key_len,
