@@ -1,14 +1,22 @@
 
-ndbtools_PROGRAMS = ndb_waiter drop_tab delete_all desc drop_index list_tables select_all select_count
+ndbtools_PROGRAMS = \
+  ndb_waiter \
+  ndb_drop_table \
+  ndb_delete_all \
+  ndb_desc \
+  ndb_drop_index \
+  ndb_show_tables \
+  ndb_select_all \
+  ndb_select_count
 
 ndb_waiter_SOURCES = waiter.cpp
-delete_all_SOURCES = delete_all.cpp
-desc_SOURCES = desc.cpp
-drop_index_SOURCES = drop_index.cpp
-drop_tab_SOURCES = drop_tab.cpp
-list_tables_SOURCES = listTables.cpp
-select_all_SOURCES = select_all.cpp
-select_count_SOURCES = select_count.cpp
+ndb_delete_all_SOURCES = delete_all.cpp
+ndb_desc_SOURCES = desc.cpp
+ndb_drop_index_SOURCES = drop_index.cpp
+ndb_drop_table_SOURCES = drop_tab.cpp
+ndb_show_tables_SOURCES = listTables.cpp
+ndb_select_all_SOURCES = select_all.cpp
+ndb_select_count_SOURCES = select_count.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapitools.mk.am

@@ -2,9 +2,9 @@ SUBDIRS = error blocks vm
 
 include $(top_srcdir)/ndb/config/common.mk.am
 
-ndbbin_PROGRAMS = ndb
+ndbbin_PROGRAMS = ndbd
 
-ndb_SOURCES = Main.cpp SimBlockList.cpp
+ndbd_SOURCES = Main.cpp SimBlockList.cpp
 
 include $(top_srcdir)/ndb/config/type_kernel.mk.am
 

@@ -19,28 +19,34 @@ cd $CWD
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
    ndbtop=$BASEDIR/ndb
-   exec_ndb=$ndbtop/src/kernel/ndb-main/ndb
-   exec_mgmtsrvr=$ndbtop/src/mgmsrv/mgmtsrvr
+   exec_ndb=$ndbtop/src/kernel/ndb-main/ndbd
+   exec_mgmtsrvr=$ndbtop/src/mgmsrv/ndb_mgmd
    exec_waiter=$ndbtop/tools/ndb_waiter
-   exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
+   exec_mgmtclient=$ndbtop/src/mgmclient/ndb_mgmclient
 else
    BINARY_DIST=1
-   if test -x "$BASEDIR/libexec/ndb"
+   if test -x "$BASEDIR/libexec/ndbd"
    then
-     exec_ndb=$BASEDIR/libexec/ndb
-     exec_mgmtsrvr=$BASEDIR/libexec/mgmtsrvr
+     exec_ndb=$BASEDIR/libexec/ndbd
+     exec_mgmtsrvr=$BASEDIR/libexec/ndb_mgmd
    else
-     exec_ndb=$BASEDIR/bin/ndb
-     exec_mgmtsrvr=$BASEDIR/bin/mgmtsrvr
+     exec_ndb=$BASEDIR/bin/ndbd
+     exec_mgmtsrvr=$BASEDIR/bin/ndb_mgmd
    fi
    exec_waiter=$BASEDIR/bin/ndb_waiter
-   exec_mgmtclient=$BASEDIR/bin/mgmtclient
+   exec_mgmtclient=$BASEDIR/bin/ndb_mgmclient
 fi
 
 pidfile=ndbcluster.pid
+cfgfile=Ndb.cfg
+stop_ndb=
+initial_ndb=
 
 while test $# -gt 0; do
   case "$1" in
+    --stop)
+     stop_ndb=1
+     ;;
     --initial)
      flags_ndb=$flags_ndb" -i"
      initial_ndb=1
@@ -123,7 +129,7 @@ sed \
     > "$fs_mgm_1/config.ini"
 fi
 
-if ( cd $fs_mgm_1 ; echo $NDB_CONNECTSTRING > Ndb.cfg ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
+if ( cd $fs_mgm_1 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
@@ -134,7 +140,7 @@ cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
 NDB_ID="2"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-( cd $fs_ndb_2 ; echo $NDB_CONNECTSTRING > Ndb.cfg ; $exec_ndb -d $flags_ndb & )
+( cd $fs_ndb_2 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
@@ -142,7 +148,7 @@ cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
 NDB_ID="3"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-( cd $fs_ndb_3 ; echo $NDB_CONNECTSTRING > Ndb.cfg ; $exec_ndb -d $flags_ndb & )
+( cd $fs_ndb_3 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
@@ -160,11 +166,45 @@ if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   exit 1
 fi
 
-echo $NDB_CONNECTSTRING > Ndb.cfg
+echo $NDB_CONNECTSTRING > $cfgfile
 
 cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 }
 
-start_default_ndbcluster
+stop_default_ndbcluster() {
+
+#if [ ! -f $pidfile ] ; then
+#  exit 0
+#fi
+
+if [ ! -f $cfgfile ] ; then
+  echo "$cfgfile missing"
+  exit 1
+fi
+
+ndb_host=`cat $cfgfile | sed -e "s,.*host=\(.*\)\:.*,\1,1"`
+ndb_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
+
+# Start management client
+
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_port"
+
+echo "$exec_mgmtclient"
+echo "all stop" | $exec_mgmtclient
+
+sleep 5
+
+if [ -f $pidfile ] ; then
+  kill `cat $pidfile`
+  rm $pidfile
+fi
+
+}
+
+if [ $stop_ndb ] ; then
+  stop_default_ndbcluster
+else
+  start_default_ndbcluster
+fi
 
 exit 0
