@@ -40,7 +40,6 @@ extern int h_errno;
 #define in_addr_t u_long
 #endif
 
-
 static my_bool silent;
 
 static struct my_option my_long_options[] =
