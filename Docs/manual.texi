@@ -43380,6 +43380,11 @@ these tables directly without ODBC-driver.
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
 @email{david@@zhadum.org}.
 
+
+@item @uref{http://members.xoom.com/_opex_/mysqlmanager/index.html, MySQL Manager}
+a graphical MySQL server manager for MySQL server written in Java, for Windows
+
+
 @item @uref{http://www.mysql.com/Downloads/Win32/netadmin.zip, netadmin.zip}
 An administrator tool for @strong{MySQL} on Windows 95/98 and Windows NT
 4.0. Only tested with @strong{MySQL} Versions 3.23.5 - 3.23.7. Written
