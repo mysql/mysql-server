@@ -12,6 +12,6 @@ use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 show binlog events from 95;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	95	Query	1	190	drop database if exists mysqltest
-master-bin.000001	190	Query	1	277	create database mysqltest
+master-bin.000001	95	Query	1	197	drop database if exists mysqltest
+master-bin.000001	197	Query	1	291	create database mysqltest
 drop database mysqltest;

@@ -10,6 +10,7 @@ sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
 sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
+sub mtr_report_test_disabled($);
 
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
@@ -72,7 +73,14 @@ sub mtr_report_test_skipped ($) {
   my $tinfo= shift;
 
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
-  print "[ skipped ]\n";
+  if ( $tinfo->{'disable'} )
+  {
+    print "[ disabled ]  $tinfo->{'comment'}\n";
+  }
+  else
+  {
+    print "[ skipped ]\n";
+  }
 }
 
 sub mtr_report_test_passed ($) {
@@ -95,9 +103,18 @@ sub mtr_report_test_failed ($) {
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   print "[ fail ]\n";
 
-  print "Errors are (from $::path_timefile) :\n";
-  print mtr_fromfile($::path_timefile); # FIXME print_file() instead
-  print "\n(the last lines may be the most important ones)\n";
+  # FIXME Instead of this test, and meaningless error message in 'else'
+  # we should write out into $::path_timefile when the error occurs.
+  if ( -f $::path_timefile )
+  {
+    print "Errors are (from $::path_timefile) :\n";
+    print mtr_fromfile($::path_timefile); # FIXME print_file() instead
+    print "\n(the last lines may be the most important ones)\n";
+  }
+  else
+  {
+    print "Unexpected termination, probably when starting mysqld\n";
+  }
 }
 
 sub mtr_report_stats ($) {

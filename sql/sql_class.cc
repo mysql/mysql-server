@@ -1303,6 +1303,14 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
 }
 
 
+void select_max_min_finder_subselect::cleanup()
+{
+  DBUG_ENTER("select_max_min_finder_subselect::cleanup");
+  cache= 0;
+  DBUG_VOID_RETURN;
+}
+
+
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_max_min_finder_subselect::send_data");

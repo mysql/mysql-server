@@ -701,8 +701,7 @@ flexScanThread(void* ThreadData)
     free(pkValue);
   } // if
   
-  NdbThread_Exit(0);
-  return NULL;
+  return NULL; // thread exits
 
 } // flexScanThread
 

@@ -76,7 +76,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status);
  *   
  * *  status: exit code
  */
-void NdbThread_Exit(int status);
+void NdbThread_Exit(void *status);
 
 /**
  * Set thread concurrency level

@@ -8,6 +8,7 @@ use strict;
 
 sub mtr_get_pid_from_file ($);
 sub mtr_get_opts_from_file ($);
+sub mtr_fromfile ($);
 sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
 
@@ -107,6 +108,8 @@ sub mtr_fromfile ($) {
   open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
   my $text= join('', <FILE>);
   close FILE;
+  $text =~ s/^\s+//;                    # Remove starting space, incl newlines
+  $text =~ s/\s+$//;                    # Remove ending space, incl newlines
   return $text;
 }
 

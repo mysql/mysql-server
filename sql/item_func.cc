@@ -308,10 +308,23 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	We can't yet set item to *arg as fix_fields may change *arg
 	We shouldn't call fix_fields() twice, so check 'fixed' field first
       */
-      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
-	  (*arg)->check_cols(allowed_arg_cols))
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)))
 	return TRUE;				/* purecov: inspected */
       item= *arg;
+
+      if (allowed_arg_cols)
+      {
+        if (item->check_cols(allowed_arg_cols))
+          return 1;
+      }
+      else
+      {
+        /*  we have to fetch allowed_arg_cols from first argument */
+        DBUG_ASSERT(arg == args); // it is first argument
+        allowed_arg_cols= item->cols();
+        DBUG_ASSERT(allowed_arg_cols); // Can't be 0 any more
+      }
+
       if (item->maybe_null)
 	maybe_null=1;
 
@@ -2370,14 +2383,10 @@ longlong Item_func_last_insert_id::val_int()
     longlong value=args[0]->val_int();
     current_thd->insert_id(value);
     null_value=args[0]->null_value;
-    return value;
   }
   else
-  {
-    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
-			     "last_insert_id()");
-    return it->val_int();
-  }
+    current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return current_thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */
