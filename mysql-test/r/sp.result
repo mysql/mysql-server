@@ -1021,6 +1021,29 @@ select bug2772()|
 bug2772()
 a
 drop function bug2772|
+create procedure bug2776_1(out x int)
+begin
+declare v int;
+set v = default;
+set x = v;
+end|
+create procedure bug2776_2(out x int)
+begin
+declare v int default 42;
+set v = default;
+set x = v;
+end|
+set @x = 1|
+call bug2776_1(@x)|
+select @x|
+@x
+NULL
+call bug2776_2(@x)|
+select @x|
+@x
+42
+drop procedure bug2776_1|
+drop procedure bug2776_2|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
