@@ -242,6 +242,8 @@ int  acl_init(bool dont_read_acl_tables)
     ACL_DB db;
     update_hostname(&db.host,get_field(&mem, table,0));
     db.db=get_field(&mem, table,1);
+    if (!db.db || !db.db[0])
+      continue;
     db.user=get_field(&mem, table,2);
     db.access=get_access(table,3);
     db.access=fix_rights_for_db(db.access);
