@@ -133,7 +133,7 @@ c	varchar(64)	utf8_general_ci	NO				select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-NULL	testtets	t1	a	1	NULL	YES	int	11	11	11	0	NULL	NULL	int(11)			select,insert,update,references	
+NULL	testtets	t1	a	1	NULL	YES	int	NULL	NULL	11	0	NULL	NULL	int(11)			select,insert,update,references	
 show columns from testtets.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -476,15 +476,15 @@ select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
 CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 COLUMN_NAME	COLUMN_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE
-a	decimal(5,3)	7	7	5	3
-b	decimal(5,1)	7	7	5	1
-c	float(5,2)	5	5	5	2
-d	decimal(6,4)	8	8	6	4
-e	float	12	12	12	NULL
-f	decimal(6,3)	8	8	6	3
-g	int(11)	11	11	11	0
-h	double(10,3)	10	10	10	3
-i	double	22	22	22	NULL
+a	decimal(5,3)	NULL	NULL	5	3
+b	decimal(5,1)	NULL	NULL	5	1
+c	float(5,2)	NULL	NULL	5	2
+d	decimal(6,4)	NULL	NULL	6	4
+e	float	NULL	NULL	12	NULL
+f	decimal(6,3)	NULL	NULL	6	3
+g	int(11)	NULL	NULL	11	0
+h	double(10,3)	NULL	NULL	10	3
+i	double	NULL	NULL	22	NULL
 drop table t1;
 create table t115 as select table_name, column_name, column_type
 from information_schema.columns where table_name = 'proc';
@@ -678,3 +678,25 @@ WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
 AND A.TABLE_NAME = B.TABLE_NAME);
 COUNT(*)
 0
+create table t1
+( x_bigint BIGINT,
+x_integer INTEGER,
+x_smallint SMALLINT,
+x_decimal DECIMAL(5,3),
+x_numeric NUMERIC(5,3),
+x_real REAL,
+x_float FLOAT,
+x_double_precision DOUBLE PRECISION );
+SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME= 't1';
+COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH
+x_bigint	NULL	NULL
+x_integer	NULL	NULL
+x_smallint	NULL	NULL
+x_decimal	NULL	NULL
+x_numeric	NULL	NULL
+x_real	NULL	NULL
+x_float	NULL	NULL
+x_double_precision	NULL	NULL
+drop table t1;
