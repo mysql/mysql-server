@@ -652,3 +652,15 @@ fooID	barID	fooID
 20	2	NULL
 30	3	30
 drop table t1,t2;
+drop table if exists t3;
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values(2),(4);
+select * from t1 natural left join t2 natural left join t3;
+i	i	i
+1	NULL	NULL
+2	2	2
+drop table t1,t2,t3;

@@ -495,8 +495,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 /* These don't actually affect the way the query is really evaluated, but
    they silence a few warnings for shift/reduce conflicts. */
 %left	','
-%left	STRAIGHT_JOIN JOIN_SYM
-%nonassoc	CROSS INNER_SYM NATURAL LEFT RIGHT
+%left	STRAIGHT_JOIN JOIN_SYM NATURAL
+%nonassoc	CROSS INNER_SYM  LEFT RIGHT
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
