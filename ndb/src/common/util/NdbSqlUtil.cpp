@@ -878,6 +878,8 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
   const Type& type = getType(typeId);
   switch (type.m_typeId) {
   case Type::Char:
+  case Type::Varchar:
+  case Type::Longvarchar:
     {
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       return
@@ -891,6 +893,7 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
   case Type::Undefined:
   case Type::Blob:
   case Type::Text:
+  case Type::Bit:
     break;
   default:
     return true;
@@ -912,6 +915,8 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
     return false;
   switch (type.m_typeId) {
   case Type::Char:
+  case Type::Varchar:
+  case Type::Longvarchar:
     {
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       return
@@ -926,6 +931,7 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
   case Type::Undefined:
   case Type::Blob:
   case Type::Text:
+  case Type::Bit:       // can be fixed
     break;
   default:
     return true;

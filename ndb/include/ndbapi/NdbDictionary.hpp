@@ -197,8 +197,8 @@ public:
       Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
       Text = NDB_TYPE_TEXT,         ///< Text blob
       Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
-      Longvarchar = NDB_TYPE_LONG_VARCHAR,  ///< Length bytes: 2, little-endian
-      Longvarbinary = NDB_TYPE_LONG_VARBINARY, ///< Length bytes: 2, little-endian
+      Longvarchar = NDB_TYPE_LONGVARCHAR,  ///< Length bytes: 2, little-endian
+      Longvarbinary = NDB_TYPE_LONGVARBINARY, ///< Length bytes: 2, little-endian
       Time = NDB_TYPE_TIME,        ///< Time without date
       Year = NDB_TYPE_YEAR,   ///< Year 1901-2155 (1 byte)
       Timestamp = NDB_TYPE_TIMESTAMP  ///< Unix time

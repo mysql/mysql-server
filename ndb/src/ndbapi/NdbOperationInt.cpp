@@ -1047,6 +1047,12 @@ NdbOperation::branch_col(Uint32 type,
     }
   }
 
+  Uint32 tempData[2000];
+  if (((UintPtr)val & 3) != 0) {
+    memcpy(tempData, val, len);
+    val = tempData;
+  }
+
   if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0, false)) == -1)
     DBUG_RETURN(-1);
   
