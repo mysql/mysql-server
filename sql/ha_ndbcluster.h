@@ -237,6 +237,7 @@ class ha_ndbcluster: public handler
   // memory for blobs in one tuple
   char *blobs_buffer;
   uint32 blobs_buffer_size;
+  uint dupkey;
 };
 
 bool ndbcluster_init(void);
