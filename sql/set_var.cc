@@ -1744,10 +1744,10 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   }
   else // INT_RESULT
   {
-    if (!(tmp=get_charset(var->value->val_int(),MYF(0))))
+    if (!(tmp=get_charset((int) var->value->val_int(),MYF(0))))
     {
       char buf[20];
-      int10_to_str(var->value->val_int(), buf, -10);
+      int10_to_str((int) var->value->val_int(), buf, -10);
       my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
       return 1;
     }
@@ -1783,10 +1783,10 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   }
   else // INT_RESULT
   {
-    if (!(tmp=get_charset(var->value->val_int(),MYF(0))))
+    if (!(tmp=get_charset((int) var->value->val_int(),MYF(0))))
     {
       char buf[20];
-      int10_to_str(var->value->val_int(), buf, -10);
+      int10_to_str((int) var->value->val_int(), buf, -10);
       my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), buf);
       return 1;
     }

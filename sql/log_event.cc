@@ -2378,17 +2378,18 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
         > the string constant is still unescaped according to SJIS, not
         > according to UCS2.
       */
-      char *p, *q;
-      if (!(p= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits per byte
+      char *hex_str;
+      CHARSET_INFO *cs;
+
+      if (!(hex_str= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits / byte
         break; // no error, as we are 'void'
-      str_to_hex(p, val, val_len);
+      str_to_hex(hex_str, val, val_len);
       /*
         For proper behaviour when mysqlbinlog|mysql, we need to explicitely
         specify the variable's collation. It will however cause problems when
         people want to mysqlbinlog|mysql into another server not supporting the
         character set. But there's not much to do about this and it's unlikely.
       */
-      CHARSET_INFO *cs;
       if (!(cs= get_charset(charset_number, MYF(0))))
         /*
           Generate an unusable command (=> syntax error) is probably the best
@@ -2396,8 +2397,8 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
         */
         fprintf(file, ":=???;\n");
       else
-        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, p, cs->name);
-      my_afree(p);
+        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, hex_str, cs->name);
+      my_afree(hex_str);
     }
       break;
     case ROW_RESULT:
