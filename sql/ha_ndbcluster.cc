@@ -542,25 +542,30 @@ int ha_ndbcluster::get_metadata(const char *path)
   // All checks OK, lets use the table
   m_table= (void*)tab;
 
-  DBUG_RETURN(build_index_list());  
+  DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
 }
 
-int ha_ndbcluster::build_index_list0()
+
+int ha_ndbcluster::build_index_list(TABLE *tab, enum IBLP phase)
 {
+  int error= 0;
   char *name;
   const char *index_name;
   static const char* unique_suffix= "$unique";
   uint i, name_len;
-  DBUG_ENTER("build_index_list0");
+  KEY* key_info= tab->key_info;
+  const char **key_name= tab->keynames.type_names;
+  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
+  DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
-  for (i= 0; i < table->keys; i++)
+  for (i= 0; i < tab->keys; i++, key_info++, key_name++)
   {
+    index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_index[i].type= idx_type;
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      index_name= get_index_name(i);
       name_len= strlen(index_name)+strlen(unique_suffix)+1;
       // Create name for unique index by appending "$unique";     
       if (!(name= my_malloc(name_len, MYF(MY_WME))))
@@ -570,23 +575,46 @@ int ha_ndbcluster::build_index_list0()
       DBUG_PRINT("info", ("Created unique index name: %s for index %d",
 			  name, i));
     }
-  }
-  DBUG_RETURN(0);
-}
-
-int ha_ndbcluster::build_index_list1()
-{
-  uint i;
-  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
-  DBUG_ENTER("build_index_object_list1");
-  // Add direct references to index objects
-  for (i= 0; i < table->keys; i++)
-  {
-    DBUG_PRINT("info", ("Trying to add handle to index %s", get_index_name(i)));
+    // Create secondary indexes if in create phase
+    if (phase == ILBP_CREATE)
+    {
+      DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));
+      
+      switch (m_index[i].type){
+	
+      case PRIMARY_KEY_INDEX:
+	// Do nothing, already created
+	break;
+      case PRIMARY_KEY_ORDERED_INDEX:
+	error= create_ordered_index(index_name, key_info);
+	break;
+      case UNIQUE_ORDERED_INDEX:
+	if (!(error= create_ordered_index(index_name, key_info)))
+	  error= create_unique_index(get_unique_index_name(i), key_info);
+	break;
+      case UNIQUE_INDEX:
+	error= create_unique_index(get_unique_index_name(i), key_info);
+	break;
+      case ORDERED_INDEX:
+	error= create_ordered_index(index_name, key_info);
+	break;
+      default:
+	DBUG_ASSERT(false);
+	break;
+      }
+      if (error)
+      {
+	DBUG_PRINT("error", ("Failed to create index %u", i));
+	drop_table();
+	break;
+      }
+    }
+    // Add handles to index objects
+    DBUG_PRINT("info", ("Trying to add handle to index %s", index_name));
     if ((m_index[i].type != PRIMARY_KEY_INDEX) &&
 	(m_index[i].type != UNIQUE_INDEX))
     {
-      const NDBINDEX *index= dict->getIndex(get_index_name(i), m_tabname);
+      const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
       if (!index) DBUG_RETURN(1);
       m_index[i].index= (void *) index;
     }
@@ -596,22 +624,12 @@ int ha_ndbcluster::build_index_list1()
       if (!index) DBUG_RETURN(1);
       m_index[i].unique_index= (void *) index;
     }      
-    DBUG_PRINT("info", ("Added handle to index %s", get_index_name(i)));
+    DBUG_PRINT("info", ("Added handle to index %s", index_name));
   }
-  DBUG_RETURN(0);
+  
+  DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::build_index_list()
-{
-  int res;
-  DBUG_ENTER("build_index_list");
-  if ((res= build_index_list0()))
-    DBUG_RETURN(res);
-  if ((res= build_index_list1()))
-    DBUG_RETURN(res);
-
-  DBUG_RETURN(0);
-}
 
 /*
   Decode the type of an index from information 
@@ -2882,54 +2900,10 @@ int ha_ndbcluster::create(const char *name,
   }
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
-  
-  if ((my_errno= build_index_list0()))
-    DBUG_RETURN(my_errno);
-  
+
   // Create secondary indexes
-  KEY* key_info= form->key_info;
-  const char** key_name= key_names;
-  for (i= 0; i < form->keys; i++, key_info++, key_name++) 
-  {
-    int error= 0;
-    DBUG_PRINT("info", ("Index %u: %s", i, *key_name));
+  my_errno= build_index_list(form, ILBP_CREATE);
 
-    switch (get_index_type_from_table(i)){
-
-    case PRIMARY_KEY_INDEX:
-      // Do nothing, already created
-      break;
-    case PRIMARY_KEY_ORDERED_INDEX:
-      error= create_ordered_index(*key_name, key_info);
-      break;
-    case UNIQUE_ORDERED_INDEX:
-      if (!(error= create_ordered_index(*key_name, key_info)))
-	error= create_unique_index(get_unique_index_name(i), key_info);
-      break;
-    case UNIQUE_INDEX:
-	error= create_unique_index(get_unique_index_name(i), key_info);
-      break;
-    case ORDERED_INDEX:
-      error= create_ordered_index(*key_name, key_info);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-
-    if (error)
-    {
-      DBUG_PRINT("error", ("Failed to create index %u", i));
-      drop_table();
-      my_errno= error;
-      break;
-    }
-  }
-
-  if (!(my_errno) && (my_errno= build_index_list1()))
-    DBUG_RETURN(my_errno);
-
-  
   DBUG_RETURN(my_errno);
 }
 
