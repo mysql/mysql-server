@@ -26,7 +26,8 @@ INCLUDES =		@MT_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-noinst_PROGRAMS =	gen_lex_hash
+bin_PROGRAMS =          mysql_tzinfo_to_sql
+noinst_PROGRAMS =	gen_lex_hash test_time
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -57,8 +58,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h \
-			examples/ha_example.h examples/ha_archive.h
+			spatial.h gstream.h client_settings.h tzfile.h \
+                        tztime.h examples/ha_example.h examples/ha_archive.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -88,9 +89,17 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
-			examples/ha_example.cc examples/ha_archive.cc
+			tztime.cc examples/ha_example.cc examples/ha_archive.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
+
+mysql_tzinfo_to_sql_SOURCES =   tztime.cc tzfile.h
+mysql_tzinfo_to_sql_CPPFLAGS =  -DTZINFO2SQL $(AM_CPPFLAGS)
+mysql_tzinfo_to_sql_LDADD =	$(LDADD) $(CXXLDFLAGS)
+
+test_time_SOURCES =     tztime.cc time.cc tzfile.h
+test_time_CPPFLAGS =    -DTESTTIME $(AM_CPPFLAGS)
+test_time_LDADD   =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \

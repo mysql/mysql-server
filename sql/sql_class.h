@@ -405,6 +405,8 @@ struct system_variables
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 
+  Time_zone *time_zone;
+
   /* DATE, DATETIME and TIME formats */
   DATE_TIME_FORMAT *date_format;
   DATE_TIME_FORMAT *datetime_format;
@@ -826,6 +828,7 @@ public:
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
+  bool	     time_zone_used;
   bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;

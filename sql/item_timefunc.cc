@@ -894,6 +894,9 @@ longlong Item_func_year::val_int()
 
 longlong Item_func_unix_timestamp::val_int()
 {
+  TIME ltime;
+  bool not_used;
+  
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
     return (longlong) current_thd->query_start();
@@ -903,12 +906,19 @@ longlong Item_func_unix_timestamp::val_int()
     if (field->type() == FIELD_TYPE_TIMESTAMP)
       return ((Field_timestamp*) field)->get_timestamp();
   }
-  String *str=args[0]->val_str(&value);
-  if ((null_value=args[0]->null_value))
+  
+  if (get_arg0_date(&ltime, 0))
   {
-    return 0; /* purecov: inspected */
+    /*
+      We have to set null_value again because get_arg0_date will also set it
+      to true if we have wrong datetime parameter (and we should return 0 in 
+      this case).
+    */
+    null_value= args[0]->null_value;
+    return 0;
   }
-  return (longlong) str_to_timestamp(str->ptr(),str->length());
+  
+  return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
 }
 
 
@@ -1126,23 +1136,14 @@ bool Item_func_from_days::get_date(TIME *ltime, uint fuzzy_date)
 
 void Item_func_curdate::fix_length_and_dec()
 {
-  struct tm start;
-  
   collation.set(&my_charset_bin);
   decimals=0; 
   max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
 
-  store_now_in_tm(current_thd->query_start(),&start);
+  store_now_in_TIME(&ltime);
   
-  /* For getdate */
-  ltime.year=	start.tm_year+1900;
-  ltime.month=	start.tm_mon+1;
-  ltime.day=	start.tm_mday;
-  ltime.hour=	0;
-  ltime.minute=	0;
-  ltime.second=	0;
-  ltime.second_part=0;
-  ltime.neg=0;
+  /* We don't need to set second_part and neg because they already 0 */
+  ltime.hour= ltime.minute= ltime.second= 0;
   ltime.time_type=TIMESTAMP_DATE;
   value= (longlong) TIME_to_ulonglong_date(&ltime);
 }
@@ -1159,31 +1160,39 @@ String *Item_func_curdate::val_str(String *str)
   return str;
 }
 
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole CURDATE function.
+*/
+void Item_func_curdate_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_DATE function.
+*/
+void Item_func_curdate_utc::store_now_in_TIME(TIME *now_time)
+{
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
+}
+
+
 bool Item_func_curdate::get_date(TIME *res,
 				 uint fuzzy_date __attribute__((unused)))
 {
   *res=ltime;
   return 0;
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURDATE function
-*/
-void Item_func_curdate_local::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  localtime_r(&now,now_tm);
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for UTC
-    Defines timezone (UTC) used for whole UTC_DATE function
-*/
-void Item_func_curdate_utc::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  gmtime_r(&now,now_tm);
 }
 
 
@@ -1197,17 +1206,12 @@ String *Item_func_curtime::val_str(String *str)
 
 void Item_func_curtime::fix_length_and_dec()
 {
-  struct tm start;
-  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
   TIME ltime;
+  String tmp((char*) buff,sizeof(buff), &my_charset_bin);
 
-  decimals=0; 
-  store_now_in_tm(current_thd->query_start(),&start);
-  ltime.hour=	start.tm_hour;
-  ltime.minute=	start.tm_min;
-  ltime.second=	start.tm_sec;
-  ltime.second_part= 0;
-  ltime.neg= 0;
+  decimals=0;
+  collation.set(&my_charset_bin);
+  store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
   make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
@@ -1215,22 +1219,30 @@ void Item_func_curtime::fix_length_and_dec()
 
 
 /*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURTIME function
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole CURTIME function.
 */
-void Item_func_curtime_local::store_now_in_tm(time_t now, struct tm *now_tm)
+void Item_func_curtime_local::store_now_in_TIME(TIME *now_time)
 {
-  localtime_r(&now,now_tm);
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
 }
 
 
 /*
-    Converts time in time_t to struct tm represenatation for UTC.
-    Defines timezone (UTC) used for whole UTC_TIME function
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_TIME function.
 */
-void Item_func_curtime_utc::store_now_in_tm(time_t now, struct tm *now_tm)
+void Item_func_curtime_utc::store_now_in_TIME(TIME *now_time)
 {
-  gmtime_r(&now,now_tm);
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
 }
 
 
@@ -1244,22 +1256,44 @@ String *Item_func_now::val_str(String *str)
 
 void Item_func_now::fix_length_and_dec()
 {
-  struct tm start;
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
 
   decimals=0;
   collation.set(&my_charset_bin);
 
-  store_now_in_tm(current_thd->query_start(),&start);
-  
-  /* For getdate */
-  localtime_to_TIME(&ltime, &start);
-  ltime.time_type= TIMESTAMP_DATETIME;
-  
+  store_now_in_TIME(&ltime);
   value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
   make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for local
+    time zone. Defines time zone (local) used for whole NOW function.
+*/
+void Item_func_now_local::store_now_in_TIME(TIME *now_time)
+{
+  THD *thd= current_thd;
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, 
+                                             (my_time_t)thd->query_start());
+  thd->time_zone_used= 1;
+}
+
+
+/*
+    Converts current time in my_time_t to TIME represenatation for UTC
+    time zone. Defines time zone (UTC) used for whole UTC_TIMESTAMP function.
+*/
+void Item_func_now_utc::store_now_in_TIME(TIME *now_time)
+{
+  my_tz_UTC->gmt_sec_to_TIME(now_time, 
+                             (my_time_t)(current_thd->query_start()));
+  /* 
+    We are not flagging this query as using time zone, since it uses fixed
+    UTC-SYSTEM time-zone.
+  */
 }
 
 
@@ -1276,26 +1310,6 @@ int Item_func_now::save_in_field(Field *to, bool no_conversions)
   to->set_notnull();
   to->store_time(&ltime,TIMESTAMP_DATETIME);
   return 0;
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for local timezone.
-    Defines timezone (local) used for whole CURRENT_TIMESTAMP function
-*/
-void Item_func_now_local::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  localtime_r(&now,now_tm);
-}
-
-
-/*
-    Converts time in time_t to struct tm represenatation for UTC.
-    Defines timezone (UTC) used for whole UTC_TIMESTAMP function
-*/
-void Item_func_now_utc::store_now_in_tm(time_t now, struct tm *now_tm)
-{
-  gmtime_r(&now,now_tm);
 }
 
 
@@ -1455,7 +1469,7 @@ String *Item_func_date_format::val_str(String *str)
   {
     String *res;
     if (!(res=args[0]->val_str(str)) ||
-	(str_to_time(res->ptr(),res->length(),&l_time)))
+	(str_to_time_with_warn(res->ptr(), res->length(), &l_time)))
       goto null_date;
 
     l_time.year=l_time.month=l_time.day=0;
@@ -1489,24 +1503,31 @@ null_date:
 }
 
 
+void Item_func_from_unixtime::fix_length_and_dec()
+{ 
+  thd= current_thd;
+  collation.set(&my_charset_bin);
+  decimals=0;
+  max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  thd->time_zone_used= 1;
+}
+
+
 String *Item_func_from_unixtime::val_str(String *str)
 {
-  struct tm tm_tmp;
-  time_t tmp;
-  TIME ltime;
+  TIME time_tmp;
+  my_time_t tmp;
   
   DBUG_ASSERT(fixed == 1);
   tmp= (time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     goto null_date;
-
-  localtime_r(&tmp,&tm_tmp);
-
-  localtime_to_TIME(&ltime, &tm_tmp);
-
+  
+  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
+  
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
     goto null_date;
-  make_datetime((DATE_TIME_FORMAT *) 0, &ltime, str);
+  make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
   return str;
 
 null_date:
@@ -1517,28 +1538,109 @@ null_date:
 
 longlong Item_func_from_unixtime::val_int()
 {
-  TIME ltime;
-  struct tm tm_tmp;
-  time_t tmp;
+  TIME time_tmp;
+  my_time_t tmp;
+  
   DBUG_ASSERT(fixed == 1);
 
   tmp= (time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
-  localtime_r(&tmp,&tm_tmp);
-  localtime_to_TIME(&ltime, &tm_tmp);
-  return (longlong) TIME_to_ulonglong_datetime(&ltime);
+  
+  current_thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
+  
+  return (longlong) TIME_to_ulonglong_datetime(&time_tmp);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
+  my_time_t tmp=(my_time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
-  struct tm tm_tmp;
-  localtime_r(&tmp,&tm_tmp);
-  localtime_to_TIME(ltime, &tm_tmp);
+  
+  current_thd->variables.time_zone->gmt_sec_to_TIME(ltime, tmp);
+
+  return 0;
+}
+
+
+void Item_func_convert_tz::fix_length_and_dec()
+{ 
+  String str;
+  
+  thd= current_thd;
+  collation.set(&my_charset_bin);
+  decimals= 0;
+  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+
+  if (args[1]->const_item())
+    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+  
+  if (args[2]->const_item())
+    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+}
+
+
+String *Item_func_convert_tz::val_str(String *str)
+{
+  TIME time_tmp;
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+  
+  if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
+  {
+    null_value= 1;
+    return 0;
+  }
+  
+  make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
+  return str;
+}
+
+
+longlong Item_func_convert_tz::val_int()
+{
+  TIME time_tmp;
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+  
+  return (longlong)TIME_to_ulonglong_datetime(&time_tmp);
+}
+
+
+bool Item_func_convert_tz::get_date(TIME *ltime,
+				       uint fuzzy_date __attribute__((unused)))
+{
+  my_time_t my_time_tmp;
+  bool not_used;
+  String str;
+  
+  if (!args[1]->const_item())
+    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+  
+  if (!args[2]->const_item())
+    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+  
+  if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
+  {
+    null_value= 1;
+    return 1;
+  }
+
+  /* Check if we in range where we treat datetime values as non-UTC */
+  if (ltime->year < TIMESTAMP_MAX_YEAR && ltime->year > TIMESTAMP_MIN_YEAR ||
+      ltime->year==TIMESTAMP_MAX_YEAR && ltime->month==1 && ltime->day==1 ||
+      ltime->year==TIMESTAMP_MIN_YEAR && ltime->month==12 && ltime->day==31)
+  {
+    my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
+    if (my_time_tmp >= TIMESTAMP_MIN_VALUE && my_time_tmp <= TIMESTAMP_MAX_VALUE)
+      to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);
+  }
+  
+  null_value= 0;
   return 0;
 }
 
@@ -1795,7 +1897,7 @@ longlong Item_extract::val_int()
   else
   {
     String *res= args[0]->val_str(&value);
-    if (!res || str_to_time(res->ptr(),res->length(),&ltime))
+    if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
     {
       null_value=1;
       return 0;

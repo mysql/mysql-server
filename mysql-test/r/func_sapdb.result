@@ -119,6 +119,8 @@ timestamp("2001-12-01", "01:01:01.999999")
 select timestamp("2001-13-01", "01:01:01.000001");
 timestamp("2001-13-01", "01:01:01.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2001-13-01'
 select timestamp("2001-12-01", "25:01:01");
 timestamp("2001-12-01", "25:01:01")
 2001-12-02 01:01:01
@@ -137,12 +139,16 @@ date("1997-12-31 23:59:59.000001")
 select date("1997-13-31 23:59:59.000001");
 date("1997-13-31 23:59:59.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '1997-13-31 23:59:59.000001'
 select time("1997-12-31 23:59:59.000001");
 time("1997-12-31 23:59:59.000001")
 23:59:59.000001
 select time("1997-12-31 25:59:59.000001");
 time("1997-12-31 25:59:59.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1997-12-31 25:59:59.000001'
 select microsecond("1997-12-31 23:59:59.000001");
 microsecond("1997-12-31 23:59:59.000001")
 1
