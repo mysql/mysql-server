@@ -93,10 +93,12 @@ typedef struct st_lex {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
-  ha_rows select_limit,offset_limit;
   char *length,*dec,*change,*name;
+  char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
+  char *backup_dir;				/* For RESTORE/BACKUP */
   String *wild;
   sql_exchange *exchange;
+  ha_rows select_limit,offset_limit;
 
   List<List_item>     expr_list;
   List<List_item>     when_list;
@@ -119,7 +121,6 @@ typedef struct st_lex {
   Item *where,*having,*default_value;
   CONVERT *convert_set;
   LEX_USER *grant_user;
-  char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   udf_func udf;

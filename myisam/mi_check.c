@@ -2981,14 +2981,15 @@ ha_checksum mi_byte_checksum(const byte *buf, uint length)
 static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 {
   return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
-	  ((ulonglong) rows * key->maxlength > MAX_FILE_SIZE ||
+	  ((ulonglong) rows * key->maxlength >
+	   (ulonglong) myisam_max_temp_length ||
 	   (ulonglong) rows * (key->maxlength - key->minlength) / 2 >
-	   MI_MAX_TEMP_LENGTH ||
+	   myisam_max_extra_temp_length ||
 	   (rows == 0 && (key->maxlength / key->minlength) > 2)));
 }
 
 
-void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows)
+void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 {
   MYISAM_SHARE *share=info->s;
   uint i;

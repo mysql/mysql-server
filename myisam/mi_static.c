@@ -38,6 +38,9 @@ my_bool myisam_concurrent_insert=1;
 #else
 my_bool myisam_concurrent_insert=0;
 #endif
+my_off_t myisam_max_extra_temp_length= MI_MAX_TEMP_LENGTH;
+my_off_t myisam_max_temp_length= MAX_FILE_SIZE;
+
 
 /* read_vec[] is used for converting between P_READ_KEY.. and SEARCH_ */
 /* Position is , == , >= , <= , > , < */

@@ -346,10 +346,8 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   *p = 0;
   fn_format(src_path, src_path, "", MI_NAME_DEXT, 4);
 
-  MY_STAT stat_area;
   int error = 0;
   char* errmsg = "";
-  
   
   if(my_copy(src_path, fn_format(dst_path, table->path, "",
 				 MI_NAME_DEXT, 4), MYF(MY_WME)))
@@ -453,6 +451,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd=thd;
+  param.tmpdir=mysql_tmpdir;
     
   VOID(fn_format(fixed_name,file->filename,"",MI_NAME_IEXT,
 		     4+ (param.opt_follow_links ? 16 : 0)));
@@ -548,7 +547,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
   if (!(specialflag & SPECIAL_SAFE_MODE))
-    mi_dectivate_non_unique_index(file,rows);
+    mi_disable_non_unique_index(file,rows);
 }
 
 
@@ -569,6 +568,8 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
     param.opt_rep_quick++;
+    param.tmpdir=mysql_tmpdir;
+
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
   }
