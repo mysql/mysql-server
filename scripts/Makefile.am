@@ -35,6 +35,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
+			make_win_src_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
@@ -66,6 +67,7 @@ pkgdata_DATA =		make_binary_distribution
 # failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
+			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
@@ -135,7 +137,7 @@ SUFFIXES = .sh
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
-all: fill_help_tables.sql
+all: fill_help_tables.sql make_win_src_distribution
 
 fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
 	./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
