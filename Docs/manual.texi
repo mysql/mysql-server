@@ -3554,10 +3554,13 @@ string) in it instead. (This behaviour can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option.)
 
 @item
-MySQL allows you to store some wrong date values into
-@code{DATE} and @code{DATETIME} columns (like 2000-02-31 or 2000-02-00).
-If the date is totally wrong, MySQL Server will store the special
-0000-00-00 date value in the column.
+MySQL allows you to store some wrong date values into @code{DATE} and
+@code{DATETIME} columns (like 2000-02-31 or 2000-02-00).  The idea is
+that it's not the SQL server job to vaildate date.  If MySQL can store a
+date and retrieve exactly the same date, then MySQL will store the
+date. If the date is totally wrong (outside of MySQL abilty to store
+it), MySQL Server will store the special 0000-00-00 date value in the
+column.
 
 @item
 If you set an @code{ENUM} column to an unsupported value, it will be set to
@@ -8169,6 +8172,9 @@ You have to use @code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=#} instead of
 Renamed mysqld startup options @code{--skip-locking} to
 @code{--skip-external-locking} and @code{--enable-locking} to
 @code{--external-locking}.
+@item
+mysqld now has the option @code{--temp-pool} enabled by default as this
+gives better performance with some OS.
 @item
 @code{DOUBLE} and @code{FLOAT} columns now honour the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
@@ -32555,6 +32561,31 @@ mysql> SELECT WEEK('1998-12-31',1);
 Note: in Version 4.0, @code{WEEK(#,0)} was changed to match the
 calendar in the USA.
 
+Note that if a week is the last week of the previous year, MySQL will
+return 0:
+
+@example
+mysql> SELECT YEAR('2000-01-01'), WEEK('2000-01-01',0);
+        -> 2000, 0
+@end example
+
+One could argue that MySQL should return @code{52} for the @code{WEEK()}
+function as the given date is actually the 52 second week of 1999.  We
+decided to return 0 instead as we want the function to return 'the week
+number in the given year'.  This makes the usage of the @code{WEEK()}
+function reliable when combined with other functions that extracts a
+date part from a date.
+
+If you would prefer to know the correct year-week, then you should use
+the @code{YEARWEEK()} function instead:
+
+@example
+mysql> SELECT YEARWEEK('2000-01-01');
+        -> 199952
+mysql> SELECT MID(YEARWEEK('2000-01-01'),5,2);
+        -> 52
+@end example
+
 @findex YEAR()
 @item YEAR(date)
 Returns the year for @code{date}, in the range @code{1000} to @code{9999}:
@@ -32575,6 +32606,10 @@ week of the year:
 mysql> SELECT YEARWEEK('1987-01-01');
         -> 198653
 @end example
+
+Note that the week number is different from what the @code{WEEK()} function
+would return (@code{0}) as the week function returns the week in the
+context of the given year.
 
 @findex HOUR()
 @item HOUR(time)
@@ -48180,13 +48215,33 @@ mysql> SELECT idate FROM tbl_name WHERE STRCMP(idate,'19970505')=0;
 a string and performs a string comparison.  It does not convert
 @code{'19970505'} to a date and perform a date comparison.
 
-Note that MySQL does no checking whether the date is
+Note that MySQL does very limited checking whether the date is
 correct.  If you store an incorrect date, such as @code{'1998-2-31'}, the
-wrong date will be stored. If the date cannot be converted to any reasonable
-value, a @code{0} is stored in the @code{DATE} field.  This is mainly a speed
-issue and we think it is up to the application to check the dates, and not
-the server.
+wrong date will be stored.
 
+Because MySQL packs dates for storage, it can't store any given date as
+it would not fit onto the result buffer. The rules for accepting a date
+are:
+@itemize @bullet
+@item
+If MySQL can store it and retrieve a date, the wrong date is accepted
+for @code{DATE} and @code{DATETIME} columns.
+@item
+All days values between 0-31 are accepted for any date.  This makes it
+very convenient for web applications where you ask year, month and day
+in 3 different fields.
+@item
+The day or month field may be zero.  This is convenient if you want
+to store a birthdate in a @code{DATE} column and you only know part
+of the date.
+@end itemize
+
+If the date cannot be converted to any reasonable value, a @code{0} is
+stored in the @code{DATE} field, which will be retrieved as
+@code{0000-00-00}.  This is both a speed and convinient issue as we
+belive that the databases responsiblity etrive the same date you stored
+(even if the data was not logicall correct in all cases). We think it is
+up to the application to check the dates, and not the server.
 
 @node Problems with NULL, Problems with alias, Using DATE, Query Issues
 @appendixsubsec Problems with @code{NULL} Values
@@ -50171,6 +50226,9 @@ Fixed security bug in database hash
 @item
 Fixed create table from any ITEM_FUNC and reverted a patch for month()
 @item
+mysqld now has the option @code{--temp-pool} enabled by default as this
+gives better performance with some OS.
+@item
 Big code cleanup in replication code.
 @item
 If one specifies @code{--code-file}, call @code{setrlmit()} to change allowed
@@ -50808,6 +50866,23 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Fixed  a security bug with empty db column in db table
+@item
+Changed initialisation of @code{RND()} to make it less predicatable.
+@item
+Fixed problem with @code{GROUP BY} on result with expression that created a
+@code{BLOB} field.
+@item
+Fixed problem with privilege tables when downgrading from 4.0.2 to 3.23.
+@item
+Fixed thread bug in @code{SLAVE START}, @code{SLAVE STOP} and automatic repair
+of MyISAM tables that could cause table cache to be corrupted.
+@item
+Fixed possible thread related key-cache-corruption problem with
+@code{OPTIMIZE TABLE} and @code{REPAIR TABLE}.
+@item
+Added name of 'administrator command' logs.
+@item
 Fixed bug with creating an auto-increment value on second part of a
 @code{UNIQUE()} key where first part could contain NULL values.
 @item
@@ -50815,7 +50890,9 @@ Don't write slave-timeout reconnects to the error log.
 @item
 Fixed bug with slave net read timeouting
 @item
-Fixed bug in ALTERing  TABLE of BDB type.
+Fixed a core-dump bug with @code{MERGE} tables and @code{MAX()} function.
+@item
+Fixed bug in @code{ALTER TABLE} with BDB tables.
 @item
 Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
 active database.

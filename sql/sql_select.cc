@@ -3674,7 +3674,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   field_count= (uint) (reg_field - table->field);
 
   /* If result table is small; use a heap */
-  if (blob_count || using_unique_constraint ||
+  if (blob_count || using_unique_constraint || group_null_items ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES)
   {

@@ -253,7 +253,7 @@ int acl_init(bool dont_read_acl_tables)
       continue;					/* purecov: tested */
     }
     get_salt_from_password(user.salt,user.password);
-    user.access=get_access(table,3);
+    user.access=get_access(table,3) & GLOBAL_ACLS;
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
 			   (uint) strlen(user.host.hostname) : 0);
