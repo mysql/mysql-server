@@ -38339,7 +38339,6 @@ innodb_log_group_home_dir = /dr3/iblogs
 #                                        .._log_arch_dir must be the same
 #                                        as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
-innodb_log_archive=0
 set-variable = innodb_log_files_in_group=3
 #                                        Set the log file size to about
 #                                        15 % of the buffer pool size
