@@ -13,7 +13,7 @@ BEGIN {
 	$script      = $1;
         $script      = 'MySQLAccess' unless $script;
 	$script_conf = "$script.conf";
-	$script_log  = "~/$script.log";
+	$script_log  = $ENV{'HOME'}."/$script.log";
 
 	# ****************************
 	# information on MySQL

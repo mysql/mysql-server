@@ -327,7 +327,7 @@ typedef unsigned char tsl_t;
  */
 #define	MUTEX_SET(tsl) ({						\
 	register tsl_t *__l = (tsl);					\
-	int __r;							\
+	unsigned char __r;						\
 	    asm volatile("tas  %1; \n					\
 			  seq  %0"					\
 		: "=dm" (__r), "=m" (*__l)				\

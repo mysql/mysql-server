@@ -4166,6 +4166,16 @@ ha_innobase::store_lock(
       			lock_type = TL_WRITE_ALLOW_WRITE;
       		}
 
+		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
+		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
+		would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
+		to t2. Convert the lock to a normal read lock to allow
+		concurrent inserts to t2. */
+      		
+		if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) {
+			lock_type = TL_READ;
+		}
+		
  		lock.type=lock_type;
   	}
 
