@@ -1500,6 +1500,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 {
   Item **transl;
   SELECT_LEX *select= &view->select_lex;
+  SELECT_LEX *current_select_save= thd->lex->current_select;
   Item *item;
   List_iterator_fast<Item> it(select->item_list);
   uint i= 0;
@@ -1512,6 +1513,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
 
   if (field_translation)
   {
+    /* prevent look up in SELECTs tree */
+    thd->lex->current_select= &thd->lex->select_lex;
     thd->set_query_id= 1;
     /* this view was prepared already on previous PS/SP execution */
     Item **end= field_translation + select->item_list.elements;
@@ -1536,6 +1539,9 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   {
     DBUG_RETURN(1);
   }
+
+  /* prevent look up in SELECTs tree */
+  thd->lex->current_select= &thd->lex->select_lex;
   /*
     Resolve all view items against ancestor table.
 
@@ -1590,10 +1596,18 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   }
 
 ok:
+  thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
   DBUG_RETURN(0);
 
 err:
+  /* Hide "Unknown column" error */
+  if (thd->net.last_errno == ER_BAD_FIELD_ERROR)
+  {
+    thd->clear_error();
+    my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
+  }
+  thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
   DBUG_RETURN(1);
 }

@@ -1505,6 +1505,13 @@ memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
   }
   DBUG_RETURN(0);
 err:
+  /* Hide "Table doesn't exist" errors if table belong to view */
+  if (thd->net.last_errno == ER_NO_SUCH_TABLE && table_desc->belong_to_view)
+  {
+    TABLE_LIST * view= table_desc->belong_to_view;
+    thd->clear_error();
+    my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str, view->view_name.str);
+  }
   DBUG_RETURN(1);
 }
 
@@ -2511,8 +2518,8 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if (table_list->ancestor)
-      table_list->setup_ancestor(thd, conds);
+    if (table_list->ancestor && table_list->setup_ancestor(thd, conds))
+      DBUG_RETURN(1);
   }
   if (tablenr > MAX_TABLES)
   {
