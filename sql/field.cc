@@ -3891,7 +3891,7 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
-    val_ptr->length(0);
+    val_ptr->set("",0);				// A bit safer than ->length(0)
   else
     val_ptr->set((const char*) blob,get_length(ptr));
   return val_ptr;
