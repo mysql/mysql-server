@@ -240,3 +240,24 @@ prepare stmt1 from "select * from t1 into outfile 'f1.txt'";
 execute stmt1;
 deallocate prepare stmt1;
 drop table t1;
+
+# 
+# BUG#5242 "Prepared statement names are case sensitive"
+#
+prepare stmt1 from 'select 1';
+prepare STMT1 from 'select 2';
+execute sTmT1;
+deallocate prepare StMt1;
+
+--error 1243
+deallocate prepare Stmt1;
+
+# also check that statement names are in right charset.
+set names utf8;
+prepare `ü` from 'select 1234';
+execute `ü` ;
+set names latin1;
+execute `�`;
+set names default;
+
+

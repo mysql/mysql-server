@@ -1323,7 +1323,7 @@ void select_dumpvar::cleanup()
 
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1335,7 +1335,7 @@ Item_arena::Item_arena(THD* thd)
 
 Item_arena::Item_arena()
   :free_list(0),
-  state((int)CONVENTIONAL_EXECUTION)
+  state(CONVENTIONAL_EXECUTION)
 {
   clear_alloc_root(&mem_root);
 }
@@ -1343,7 +1343,7 @@ Item_arena::Item_arena()
 
 Item_arena::Item_arena(bool init_mem_root)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   if (init_mem_root)
     clear_alloc_root(&mem_root);
@@ -1503,7 +1503,7 @@ Statement_map::Statement_map() :
   hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
+  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
             (hash_get_key) get_stmt_name_hash_key,
             NULL,MYF(0));
 }
