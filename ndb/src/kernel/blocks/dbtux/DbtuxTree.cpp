@@ -226,6 +226,9 @@ Dbtux::treeRemoveInner(Frag& frag, NodeHandle lubNode, unsigned pos)
   // borrow max entry from semi/leaf
   Uint32 scanList = RNIL;
   nodePopDown(glbNode, glbNode.getOccup() - 1, ent, &scanList);
+  // g.l.b may be empty now
+  // a descending scan may try to enter the empty g.l.b
+  // we prevent this in scanNext
   nodePopUp(lubNode, pos, ent, scanList);
   if (glbNode.getLink(0) != NullTupLoc) {
     jam();

@@ -103,7 +103,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
  *
  * Following example illustrates this.  We are at (a=2, b=3).
  *
- * dir  bounds                  strict          return
+ * idir bounds                  strict          return
  * 0    a >= 2 and b >= 3       no              -1
  * 0    a >= 2 and b >  3       yes             +1
  * 1    a <= 2 and b <= 3       no              +1
@@ -112,11 +112,11 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
  * The attributes are normalized and have variable size given in words.
  */
 int
-Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
+Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
 {
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   // direction 0-lower 1-upper
-  ndbrequire(dir <= 1);
+  ndbrequire(idir <= 1);
   // number of words of data left
   unsigned len2 = maxlen;
   // in case of no bounds, init last type to something non-strict
@@ -171,5 +171,5 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
   }
   // all attributes were equal
   const int strict = (type & 0x1);
-  return (dir == 0 ? (strict == 0 ? -1 : +1) : (strict == 0 ? +1 : -1));
+  return (idir == 0 ? (strict == 0 ? -1 : +1) : (strict == 0 ? +1 : -1));
 }

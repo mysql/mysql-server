@@ -232,7 +232,8 @@ protected:
   int getKeyFromKEYINFO20(Uint32* data, unsigned size);
   NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
   
-  Uint32 m_ordered;
+  bool m_ordered;
+  bool m_descending;
   Uint32 m_read_range_no;
 };
 
