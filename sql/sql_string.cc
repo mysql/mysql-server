@@ -363,46 +363,13 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 
 uint32 String::numchars()
 {
-#ifdef USE_MB
-  register uint32 n=0,mblen;
-  register const char *mbstr=Ptr;
-  register const char *end=mbstr+str_length;
-  if (use_mb(str_charset))
-  {
-    while (mbstr < end) {
-        if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-        else ++mbstr;
-        ++n;
-    }
-    return n;
-  }
-  else
-#endif
-    return str_length;
+  return str_charset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
 int String::charpos(int i,uint32 offset)
 {
-#ifdef USE_MB
-  register uint32 mblen;
-  register const char *mbstr=Ptr+offset;
-  register const char *end=Ptr+str_length;
-  if (use_mb(str_charset))
-  {
-    if (i<=0) return i;
-    while (i && mbstr < end) {
-       if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-       else ++mbstr;
-       --i;
-    }
-    if ( INT_MAX32-i <= (int) (mbstr-Ptr-offset)) 
-      return INT_MAX32;
-    else 
-      return (int) ((mbstr-Ptr-offset)+i);
-  }
-  else
-#endif
-    return i;
+  if (i<0) return i;
+  return str_charset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 
 int String::strstr(const String &s,uint32 offset)
