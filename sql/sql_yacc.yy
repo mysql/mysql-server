@@ -869,8 +869,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
-	    lex->udf.name=&$4;
-	    lex->udf.name_length=$4.length;
+	    lex->udf.name = $4;
 	    lex->udf.type= $2;
 	  }
 	  UDF_RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING
@@ -2945,7 +2944,7 @@ drop:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
-	    lex->udf.name=&$3;
+	    lex->udf.name = $3;
 	  };
 
 
