@@ -709,7 +709,7 @@ double Item_func_rand::val()
 #endif
     arg_count=0;
   }
-  else if (0)//!thd->rand_used)
+  else if (!thd->rand_used)
   {
     // no need to send a Rand log event if seed was given eg: RAND(seed),
     // as it will be replicated in the query as such.
