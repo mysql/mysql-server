@@ -241,7 +241,7 @@ bool LocalConfig::readFile(const char * filename, bool &fopenError)
     return false;
   }
 
-  int sz = 1024;
+  unsigned int sz = 1024;
   char* theString = (char*)malloc(sz);
   theString[0] = 0;
 

@@ -1108,7 +1108,7 @@ void Ndb::setCatalogName(const char * a_catalog_name)
     int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                               sizeof(prefixName) - 1);
   }
 }
@@ -1127,7 +1127,7 @@ void Ndb::setSchemaName(const char * a_schema_name)
     int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                        theDataBase, table_name_separator,
                        theDataBaseSchema, table_name_separator);
-    prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+    prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                               sizeof(prefixName) - 1);
   }
 }

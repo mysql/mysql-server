@@ -385,7 +385,7 @@ void
 NdbTableImpl::buildColumnHash(){
   const Uint32 size = m_columns.size();
 
-  size_t i;
+  int i;
   for(i = 31; i >= 0; i--){
     if(((1 << i) & size) != 0){
       m_columnHashMask = (1 << (i + 1)) - 1;
@@ -395,7 +395,7 @@ NdbTableImpl::buildColumnHash(){
 
   Vector<Uint32> hashValues;
   Vector<Vector<Uint32> > chains; chains.fill(size, hashValues);
-  for(i = 0; i<size; i++){
+  for(i = 0; i< (int) size; i++){
     Uint32 hv = Hash(m_columns[i]->getName()) & 0xFFFE;
     Uint32 bucket = hv & m_columnHashMask;
     bucket = (bucket < size ? bucket : bucket - size);
@@ -409,7 +409,7 @@ NdbTableImpl::buildColumnHash(){
   m_columnHash.fill((unsigned)size-1, tmp);   // Default no chaining
 
   Uint32 pos = 0; // In overflow vector
-  for(i = 0; i<size; i++){
+  for(i = 0; i< (int) size; i++){
     Uint32 sz = chains[i].size();
     if(sz == 1){
       Uint32 col = chains[i][0];
@@ -1368,7 +1368,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 	   internalName);
 
   bool haveAutoIncrement = false;
-  Uint64 autoIncrementValue;
+  Uint64 autoIncrementValue = 0;
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)

@@ -130,7 +130,7 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
   int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                      theDataBase, table_name_separator,
                      theDataBaseSchema, table_name_separator);
-  prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+  prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                             sizeof(prefixName) - 1);
 
   NdbMutex_Lock(&createNdbMutex);
