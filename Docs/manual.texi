@@ -234,7 +234,7 @@ security bug in @code{MySQL Server}, you should send an e-mail to
 * What-is::                     What Is MySQL?
 * What is MySQL AB::            What Is MySQL AB?
 * Licensing and Support::       MySQL Support and Licensing
-* MySQL 4.0 In A Nutshell::     MySQL 4.0 In A Nutshell
+* MySQL 4.0 In A Nutshell::     MySQL 4.x In A Nutshell
 * MySQL Information Sources::   MySQL Information Sources
 * Compatibility::               How Standards-compatible Is MySQL?
 * TODO::                        MySQL and the future (The TODO)
@@ -260,6 +260,9 @@ The most recent version of this manual is available at
 including Texinfo, plain text, Info, HTML, PostScript, PDF,
 and Windows HLP versions.
 
+@cindex manual, available formats
+@cindex Texinfo
+
 The primary document is the Texinfo file.
 The HTML version is produced automatically using a modified version of
 @code{texi2html}.
@@ -273,12 +276,9 @@ our searchable PHP version at @uref{http://www.mysql.com/doc/}.
 If you have any suggestions concerning additions or corrections to this
 manual, please send them to the documentation team at @email{docs@@mysql.com}.
 
-@cindex manual, available formats
-@cindex Texinfo
-
-This manual is written and maintained by David Axmark, Michael (Monty)
-Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
-contributors, see @ref{Credits}.
+This manual was initially written by David Axmark and Michael (Monty)
+Widenius. It is currently maintained by Michael (Monty) Widenius,
+Arjen Lentz, and Paul DuBois. For other contributors, see @ref{Credits}.
 
 The copyright (2002) to this manual is owned by the Swedish company
 @code{MySQL AB}. @xref{Copyright}.
@@ -745,7 +745,7 @@ well-tested each of them is:
 @item Replication -- Gamma
 Large server clusters using replication are in production use, with
 good results. Work on enhanced replication features is continuing
-in @code{MySQL} 4.0.
+in @code{MySQL} 4.x.
 
 @item @code{InnoDB} tables -- Stable (in 3.23 from 3.23.49)
 The @code{InnoDB} transactional table handler has now been declared
@@ -1699,9 +1699,7 @@ domain names is not allowed without written permission from @code{MySQL AB}.
 
 
 @node MySQL 4.0 In A Nutshell, MySQL Information Sources, Licensing and Support, Introduction
-@section MySQL 4.0 In A Nutshell
-
-Dateline: 16 October 2001, Uppsala, Sweden
+@section MySQL 4.x In A Nutshell
 
 Long promised by @code{MySQL AB} and long awaited by our users,
 MySQL Server 4.0 is now available in beta version for download from
@@ -1716,8 +1714,8 @@ Other new features target the users of embedded databases.
 * Nutshell Stepwise Rollout::   Stepwise Rollout
 * Nutshell Ready for Immediate Development Use::  Ready for Immediate Development Use
 * Nutshell Embedded MySQL::     Embedded MySQL
-* Nutshell Other features::     Other Features Available From MySQL 4.0.0
-* Nutshell Future features::    Future MySQL 4.0 Features
+* Nutshell Other features::     Other Features Available From MySQL 4.0
+* Nutshell Future features::    Future MySQL 4.x Features
 * Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
 @end menu
 
@@ -1725,25 +1723,24 @@ Other new features target the users of embedded databases.
 @node Nutshell Stepwise Rollout, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
 @subsection Stepwise Rollout
 
-The rollout of MySQL Server 4.0 will come in several steps, with
-the first version labelled 4.0.0 already containing most of the
-new features. Additional features will be incorporated into
-MySQL 4.0.1, 4.0.2, and onward; very probably within a couple of months,
-MySQL 4.0 will be labelled beta. Further new features will then
-be added in MySQL 4.1, which is targeted for alpha release
-in third quarter 2002.
+The rollout of MySQL Server 4.x comes in several steps, with
+the first version labelled 4.0.0-alpha already containing most of the
+new features. Additional features have since been incorporated into
+MySQL 4.0.1, 4.0.2, and onward; Now, MySQL 4.0 will be labelled beta.
+Further new features are being added in MySQL 4.1, targeted for
+alpha release in third quarter 2002.
 
 
 @node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
 @subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
-to MySQL Server 4.0 until it is released in beta version.
+to MySQL Server 4.x until it is released in beta version.
 However, even the initial release has passed our extensive
 test suite without any errors on any of the platforms we test on.
 Due to the large number of new features, we thus recommend
-MySQL Server 4.0 even in alpha form for development use, with
-the release schedule of MySQL Server 4.0 being such that it will
+MySQL Server 4.x even in alpha form for development use, with
+the release schedule of MySQL Server 4.x being such that it will
 reach stable state before the deployment of user applications
 now under development.
 
@@ -1768,7 +1765,7 @@ client library, so it is convenient and easy to use. @xref{libmysqld}.
 
 
 @node Nutshell Other features, Nutshell Future features, Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
-@subsection Other Features Available From MySQL 4.0.0
+@subsection Other Features Available From MySQL 4.0
 
 @itemize @bullet
 @item
@@ -1778,12 +1775,12 @@ such as bulk @code{INSERT}s, searching on packed indexes, creation of
 @code{FULLTEXT} indexes, as well as @code{COUNT(DISTINCT)}.
 
 @item
-The table handler @code{InnoDB} is now offered as a feature of the
+The @code{InnoDB} table handler is now offered as a feature of the
 standard MySQL server, including full support for @code{transactions}
 and @code{row-level locking}.
 
 @item
-MySQL Server 4.0 will support secure traffic between the client and the server,
+MySQL Server 4.0 supports secure traffic between the client and the server,
 greatly increasing security against malicious intrusion and unauthorised
 access. Web applications being a cornerstone of MySQL use, web developers
 have been able to use @code{Secure Socket Layer} (@code{SSL}) to secure the
@@ -1823,7 +1820,7 @@ possible to know how many rows a query would have returned without a
 
 
 @node Nutshell Future features, Nutshell 4.1 development release, Nutshell Other features, MySQL 4.0 In A Nutshell
-@subsection Future MySQL 4.0 Features
+@subsection Future MySQL 4.x Features
 
 For the upcoming MySQL Server 4.x releases,
 expect the following features now still under development:
@@ -1832,8 +1829,8 @@ expect the following features now still under development:
 @item
 Mission-critical, heavy-load users of MySQL Server will appreciate
 the additions to our replication system and our online hot backup.
-Later versions of 4.0 will include @code{fail-safe replication};
-already existing in 4.0.0, the @code{LOAD DATA FROM MASTER} command
+Later versions of 4.x will include @code{fail-safe replication};
+already existing in 4.0, the @code{LOAD DATA FROM MASTER} command
 will soon automate slave setup. The @code{online backup} will make
 it easy to add a new replication slave without taking down
 the master, and have a very low performance penalty on
@@ -1864,7 +1861,6 @@ in the client.
 @node Nutshell 4.1 development release,  , Nutshell Future features, MySQL 4.0 In A Nutshell
 @subsection MySQL 4.1, The Following Development Release
 
-Internally, through a new .frm file format for table definitions,
 MySQL Server 4.0 lays the foundation for the new features of
 MySQL Server 4.1 and onward,
 such as @code{nested subqueries}, @code{stored procedures}, and
@@ -3683,7 +3679,8 @@ this without sacrificing the speed or compromising the code.
 @node TODO MySQL 4.0, TODO MySQL 4.1, TODO, TODO
 @subsection Things That Should be in 4.0
 
-All done.  We now only do bug fixes MySQL 4.0.
+All done. We now only do bug fixes for MySQL 4.0. @xref{News-4.0.x}.
+Development has shifted to 4.1
 
 @node TODO MySQL 4.1, TODO future, TODO MySQL 4.0, TODO
 @subsection Things That Should be in 4.1
@@ -8154,8 +8151,9 @@ The startup options @code{record_buffer}, @code{sort_buffer} and
 @code{warnings} will still work in MySQL 4.0 but are deprecated.
 @item
 The following SQL variables have changed name.
+@c arjen note: New table, not yet measured for O'Reilly/DocBook.
 @multitable @columnfractions .50 .50
-@item @strong{From} @tab @strong{to}.
+@item @strong{From} @tab @strong{To}.
 @item @code{SQL_BIG_TABLES} @tab @code{BIG_TABLES}
 @item @code{SQL_LOW_PRIORITY_UPDATES} @tab @code{LOW_PRIORITY_UPDATES}
 @item @code{SQL_MAX_JOIN_SIZE} @tab @code{MAX_JOIN_SIZE}
@@ -49453,14 +49451,18 @@ These are the developers that are or have been employed by @code{MySQL AB}
 to work on the @code{MySQL} database software, roughly in the order they
 started to work with us. Following each developer is a small list of the
 tasks that the developer is responsible for, or the accomplishments they
-have made.
+have made. All developers are involved in support.
+
+@c Updated by arjen 2002-08-06
+@c Note: this is a non-exhaustive list. It just documents some notable
+@c achievements, not each individual task. Nor is it a complete list
+@c of past/present job roles (see above). That said, updates welcome!
 
 @table @asis
 @item Michael (Monty) Widenius
-Has written the following parts of the MySQL database software:
 @itemize @bullet
 @item
-All the main code in @code{mysqld}.
+Lead developer and main author of the MySQL server (@code{mysqld}).
 @item
 New functions for the string library.
 @item
@@ -49488,7 +49490,7 @@ Most of @code{crash-me} and the foundation for the MySQL benchmarks.
 @item David Axmark
 @itemize @bullet
 @item
-Coordinator and initial main writer of the @strong{Reference Manual},
+Initial main writer of the @strong{Reference Manual},
 including enhancements to @code{texi2html}.
 @item
 Automatic web site updating from the manual.
@@ -49511,6 +49513,8 @@ only some parts of @code{mysys} are left.
 @item
 Someone for Monty to call in the middle of the night when he just got
 that new feature to work.
+@item
+Chief "Open Sourcerer" (MySQL community relations).
 @end itemize
 
 @item Jani Tolonen
@@ -49518,7 +49522,7 @@ that new feature to work.
 @item
 @code{mysqlimport}
 @item
-A lot of extensions to the @code{mysql} client.
+A lot of extensions to the command-line clients.
 @item
 @code{PROCEDURE ANALYSE()}
 @end itemize
@@ -49546,25 +49550,19 @@ Multi-row @code{INSERT}
 @item
 New client-server protocol for 4.0
 @item
-@code{UNION}.
+@code{UNION} in 4.0
 @item
 Multi-table @code{DELETE}/@code{UPDATE}
 @item
-derived tables
+Derived tables in 4.1
 @item
-user resources management
+User resources management
 @item
-OLAP functionality
-@item
-The @code{MySQLGUI} client.
-@item
-Maintainer of @code{MySQL++}.
+Initial developer of the @code{MySQL++} C++ API and the @code{MySQLGUI} client.
 @end itemize
 
-@item Tonu Samuel
+@item Tonu Samuel (past developer)
 @itemize @bullet
-@item
-Our security expert.
 @item
 VIO interface (the foundation for the encrypted client/server protocol).
 @item
@@ -49581,7 +49579,7 @@ The @code{MD5()} and @code{COALESCE()} functions.
 @item Sasha Pachev
 @itemize @bullet
 @item
-Replication.
+Initial implementation of replication.
 @item
 @code{SHOW CREATE TABLE}.
 @item
@@ -49589,7 +49587,7 @@ mod_mysql_include
 @item
 cgi++
 @item
-mysql-bench
+@code{mysql-bench}
 @end itemize
 
 @item Matt Wagner
@@ -49597,23 +49595,29 @@ mysql-bench
 @item
 MySQL test suite.
 @item
-Our webmaster.
+Webmaster (until 2002).
+@item
+Coordinator of development.
 @end itemize
 
 @item Miguel Solorzano
 @itemize @bullet
 @item
-Win32 development.
+Win32 development and release builds.
 @item
-Winmysqladmin.
+Windows NT server code.
+@item
+WinMySQLAdmin
 @end itemize
 
-@item Timothy Smith
+@item Timothy Smith (past developer)
 @itemize @bullet
 @item
-Dynamic character support.
+Dynamic character sets support.
 @item
-Responsible for MySQL configure.
+configure, RPMs and other parts of the build system.
+@item
+Initial developer of @code{libmysqld}, the embedded server.
 @end itemize
 
 @item Sergei Golubchik
@@ -49639,7 +49643,9 @@ Proofreading and editing this fine manual.
 @item Indrek Siitan
 @itemize @bullet
 @item
-Designer/programmer of our web interface.
+Designing/programming of our web interface.
+@item
+Author of the mailarchive and newsletter management system.
 @end itemize
 
 @item Jorge del Conde
@@ -49647,10 +49653,112 @@ Designer/programmer of our web interface.
 @item
 @code{MyCC} @code{MySQL Control Center}.
 @item
-Web portals.
+Win32 development
 @item
-Win32 development.
+Initial implementation of the website portals.
 @end itemize
+
+@item Venu Anuganti
+@itemize @bullet
+@item
+MyODBC 3.51
+@item
+New client/server protocol for 4.1
+@end itemize
+
+@item Arjen Lentz
+@itemize @bullet
+@item
+Lead technical writer for the MySQL documentation.
+@item
+Preparing the O'Reilly printed edition of the manual.
+@item
+Keeping the Dutch error messages upto-date.
+@item
+Improved authentication procedure for new client/server protocol (4.1).
+@item
+Extended @code{LOG()} function for arbitrary base,
+added @code{LOG2()} and @code{LN()} functions.
+@end itemize
+
+@item Alexander (Bar) Barkov, Alexey (Holyfoot) Botchkov, and Ramil Kallimullin
+@itemize @bullet
+@item
+Spatial data (GIS) and R-Trees implementation for 4.1
+@item
+Unicode and character sets for 4.1
+@end itemize
+
+@item Alexander (Sanja) Belkin
+@itemize @bullet
+@item
+Query cache in 4.0
+@item
+Implementation of subqueries (4.1).
+@end itemize
+
+@item Aleksey (Walrus) Kishkin and Alexey (Ranger) Stroganov
+@itemize @bullet
+@item
+Benchmarks design and analysis.
+@item
+Maintenance of the MySQL test suite.
+@end itemize
+
+@item Zak Greant
+@itemize @bullet
+@item
+Open Source advocate, MySQL community relations.
+@end itemize
+
+@item Carsten Pedersen
+@itemize @bullet
+@item
+The MySQL Certification program.
+@end itemize
+
+@item Lenz Grimmer
+@itemize @bullet
+@item
+Build and release engineering.
+@end itemize
+
+@item Peter Zaitsev
+@itemize @bullet
+@item
+@code{SHA1()}, @code{AES_ENCRYPT()} and @code{AES_DECRYPT()} functions.
+@item
+Improved authentication procedure for new client/server protocol (4.1).
+@item
+Debugging, cleaning up various features.
+@end itemize
+
+@item Alexander (Salle) Keremidarski
+@itemize @bullet
+@item
+Documentation of existing MySQL code/algorithms.
+@item
+Debugging.
+@end itemize
+
+@item Per-Erik Martin
+@itemize @bullet
+@item
+Lead developer for stored procedures and triggers.
+@end itemize
+
+@item Jim Winstead
+@itemize @bullet
+@item
+Lead web developer.
+@end itemize
+
+@item Mark Matthews
+@itemize @bullet
+@item
+JDBC driver.
+@end itemize
+
 @end table
 
 
@@ -49666,9 +49774,9 @@ Contributors are listed here, in somewhat random order:
 
 @table @asis
 @item Paul DuBois
-Help with making the Reference Manual correct and understandable. That
-includes rewriting Monty's and David's attempts at English into English
-as other people know it.
+Ongoing help with making this manual correct and understandable.
+That includes rewriting Monty's and David's attempts at English into
+English as other people know it.
 @item Gianmassimo Vigazzola @email{qwerg@@mbox.vol.it} or @email{qwerg@@tin.it}
 The initial port to Win32/NT.
 @item Kim Aldale
@@ -49757,7 +49865,7 @@ answering on the MySQL mailing list.
 @item Yves Carlier @email{Yves.Carlier@@rug.ac.be}
 @code{mysqlaccess}, a program to show the access rights for a user.
 @item Rhys Jones @email{rhys@@wales.com} (And GWE Technologies Limited)
-For the JDBC, a module to extract data from a MySQL Database with a Java client.
+For JDBC, a module to extract data from a MySQL Database with a Java client.
 @item Dr Xiaokun Kelvin ZHU @email{X.Zhu@@brad.ac.uk}
 Further development of the JDBC driver and other MySQL-related
 Java tools.
@@ -49778,7 +49886,7 @@ For providing RPM versions for MySQL Version 3.21.
 For maintaining the Perl @code{DBD::mysql} module.
 @item Therrien Gilbert @email{gilbert@@ican.net}, Jean-Marc Pouyot @email{jmp@@scalaire.fr}
 French error messages.
-@item Petr snajdr, @email{snajdr@@pvt.net}
+@item Petr Snajdr, @email{snajdr@@pvt.net}
 Czech error messages.
 @item Jaroslaw Lewandowski @email{jotel@@itnet.com.pl}
 Polish error messages.
@@ -49801,7 +49909,10 @@ Hungarian error messages.
 @item Roberto M. Serqueira
 Portugise error messages.
 @item Carsten H. Pedersen
-Danish error messages
+Danish error messages.
+@item Arjen G. Lentz
+Dutch error messages, completing earlier partial translation
+(also work on consistency and spelling).
 @item David Sacerdote @email{davids@@secnet.com}
 Ideas for secure checking of DNS hostnames.
 @item Wei-Jou Chen @email{jou@@nematic.ieo.nctu.edu.tw}
@@ -49931,8 +50042,6 @@ Development on the embedded @code{mysqld} version.
 @end table
 
 
-
-
 @node News, Porting, Credits, Top
 @appendix MySQL Change History
 
@@ -49943,10 +50052,15 @@ Development on the embedded @code{mysqld} version.
 This appendix lists the changes from version to version in the MySQL
 source code.
 
+We are now working actively on MySQL 4.x and will only provide critical
+bug fixes for MySQL 3.23.  We update this section as we add new
+features, so that everybody can follow the development.
+
+Our TODO section contains what further plans we have for 4.x. @xref{TODO}.
+
 Note that we tend to update the manual at the same time we make changes to
 MySQL.  If you find a version listed here that you can't
-find on the MySQL download page
-(@uref{http://www.mysql.com/downloads/}),
+find on the MySQL download page (@uref{http://www.mysql.com/downloads/}),
 this means that the version has not yet been released!
 
 @c Please don't add a new version here without also updating ../configure.in!
@@ -49964,13 +50078,60 @@ this means that the version has not yet been released!
 @node News-4.0.x, News-3.23.x, News, News
 @appendixsec Changes in release 4.0.x (Development; Alpha)
 
-We are now working actively on MySQL 4.0 and will only provide critical
-bug fixes for MySQL 3.23.  We will update this section as we add new
-features, so that others can follow our development.
-
-Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
-
 @cindex changes, version 4.0
+
+Version 4.0 of the MySQL server includes many enhancements and new features:
+
+@itemize @bullet
+@item
+The @code{InnoDB} table type is now included in the standard binaries,
+adding transactions, row-level locking and foreign keys.
+@xref{InnoDB}.
+@item
+A query qache, offering vastly increased performance for many applications.
+By caching complete result sets, later identical queries can return
+instantly.
+@xref{Query Cache}.
+@item
+Improved full-text indexing with boolean mode, truncation and phrase searching.
+@xref{Fulltext Search}.
+@item
+Enhanced @code{MERGE} tables, now supporting @code{INSERT}s and
+@code{AUTO_INCREMENT}.
+@xref{MERGE}.
+@item
+@code{UNION} syntax in @code{SELECT}.
+@xref{UNION}.
+@item
+Multi-table @code{DELETE} statements.
+@xref{DELETE}.
+@item
+@code{libmysqld}, the embedded server library.
+@xref{libmysqld}.
+@item
+Additional @code{GRANT} privilege options for even tighter control and
+security.
+@xref{GRANT}.
+@item
+Management of user resources in the @code{GRANT} system, particularly
+useful for ISPs and other hosting providers.
+@xref{User resources}.
+@item
+Dynamic server variables, allowing configuration changes without having
+to take down the server.
+@xref{SET OPTION}.
+@item
+Improved replication code and features.
+@xref{Replication}.
+@item
+Numerous new and functions and options.
+@item
+Changes to existing code for enhance performance and reliability.
+@end itemize
+
+For a full list of changes, please refer to the changelog sections for
+each individual 4.0.x release.
+
 
 @menu
 * News-4.0.3::                  Changes in release 4.0.3
@@ -49984,12 +50145,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed bug in REVOKE that caused user resources to be randomly set
+Fixed bug in @code{REVOKE} that caused user resources to be randomly set.
 @item
-Fixed bug with a new GRANT on TEMP TABLES
+Fixed bug in @code{GRANT} for the new @code{CREATE TEMPORARY TABLE} privilege.
 @item
-Fixed bug in multi-table delete when tables are re-ordered in table 
-initialization method and ref_length's are of different sizes
+Fixed bug in multi-table @code{DELETE} when tables are re-ordered in the
+table initialisation method and ref_lengths are of different sizes.
 @item 
 Fixed two bugs in @code{SELECT DISTINCT} with large tables.
 @item
@@ -50018,12 +50179,12 @@ Renamed variable @code{query_cache_startup_type} to @code{query_cache_type},
 @code{record_buffer} to @code{read_buffer_size} and
 @code{record_rnd_buffer} to @code{record_rnd_buffer_size}.
 @item
-Renamed some sql variables, but old names will still work until 5.0.
+Renamed some SQL variables, but old names will still work until 5.0.
 @xref{Upgrading-from-3.23}.
 @item
 Renamed @code{--skip-locking} to @code{--skip-external-locking}.
 @item
-Removed not used variable @code{query_buffer_size}.
+Removed unused variable @code{query_buffer_size}.
 @item
 Fixed a bug that made the pager option in the @code{mysql} client
 non-functional.
@@ -50424,7 +50585,7 @@ the database, which fixes a problem with @code{InnoDB} tables.
 @item
 Added support for @code{UNION}.
 @item
-@code{DELETE} can now operate on multiple tables.
+Added support for multi-table @code{DELETE} operations.
 @item
 A new @code{HANDLER} interface to @code{MyISAM} tables.
 @item
@@ -50510,12 +50671,12 @@ table types:
 @table @asis
 @item @code{MyISAM}
 A new ISAM library which is tuned for SQL and supports large files.
-@item @code{BerkeleyDB} or @code{BDB}
-Uses the Berkeley DB library from Sleepycat Software to implement
-transaction-safe tables.
 @item @code{InnoDB}
 A transaction-safe table handler that supports row level locking, and many
 Oracle-like features.
+@item @code{BerkeleyDB} or @code{BDB}
+Uses the Berkeley DB library from Sleepycat Software to implement
+transaction-safe tables.
 @end table
 
 Note that only @code{MyISAM} is available in the standard binary distribution.
@@ -50523,7 +50684,7 @@ Note that only @code{MyISAM} is available in the standard binary distribution.
 The 3.23 release also includes support for database replication between
 a master and many slaves, full-text indexing, and much more.
 
-All new features are being developed in the 4.0 version.  Only
+All new features are being developed in the 4.x version.  Only
 bug fixes and minor enhancements to existing features will be
 added to 3.23.
 
@@ -55389,7 +55550,7 @@ Added compatibility functions @code{CHECK} and @code{REFERENCES}.
 Added @code{ALL} option to @code{GRANT} for better compatibility. (@code{GRANT}
 is still a dummy function.)
 @item
-Added partly-translated dutch messages.
+Added partly-translated Dutch error messages.
 @item
 Fixed bug in @code{ORDER BY} and @code{GROUP BY} with @code{NULL} columns.
 @item
