@@ -8,10 +8,10 @@ typedef unsigned short uint16;
 struct uca_item_st
 {
   uchar  num;
-  uint16 weight[4][8];
+  uint16 weight[4][9];
 };
 
-#if 1
+#if 0
 #define MY_UCA_NPAGES	1024
 #define MY_UCA_NCHARS	64
 #define MY_UCA_CMASK	63
@@ -30,8 +30,10 @@ int main(int ac, char **av)
   struct uca_item_st uca[64*1024];
   size_t code, page, w;
   int pagemaxlen[MY_UCA_NPAGES];
+  int pageloaded[MY_UCA_NPAGES];
   
   bzero(uca, sizeof(uca));
+  bzero(pageloaded, sizeof(pageloaded));
   
   while (fgets(str,sizeof(str),stdin))
   {
@@ -69,7 +71,10 @@ int main(int ac, char **av)
     
     if (codenum>1)
     {
-      /* Multi-character weight */
+      /* Multi-character weight, 
+         i.e. contraction. 
+         Not supported yet.
+      */
       continue;
     }
     
@@ -97,9 +102,12 @@ int main(int ac, char **av)
         s= endptr;
         partnum++;
       }
-      
     }
+    /* Mark that a character from this page was loaded */
+    pageloaded[code >> MY_UCA_PSHIFT]++;
   }
+  
+  
   
   /* Now set implicit weights */
   for (code=0; code <= 0xFFFF; code++)
@@ -156,6 +164,12 @@ int main(int ac, char **av)
       size_t nchars= 0;
       size_t mchars;
       
+      /*
+        Skip this page if no weights were loaded
+      */
+      
+      if (!pageloaded[page])
+        continue;
       
       /* 
         Calculate maximum weight
@@ -176,9 +190,8 @@ int main(int ac, char **av)
         
         maxnum= maxnum < num ? num : maxnum;
       } 
-      if (!maxnum)
-        maxnum=1;
-
+      maxnum++;
+      
       switch (maxnum)
       {
         case 0: mchars= 8; break;
@@ -190,13 +203,15 @@ int main(int ac, char **av)
       }
       
       pagemaxlen[page]= maxnum;
-      
-      printf("uint16 page%03Xdata[]= { /* %04X (%d weights per char) */\n",
-              page, page*MY_UCA_NCHARS, maxnum);
-      
+
+
       /*
         Now print this page
       */
+      
+      
+      printf("uint16 page%03Xdata[]= { /* %04X (%d weights per char) */\n",
+              page, page*MY_UCA_NCHARS, maxnum);
       
       for (offs=0; offs < MY_UCA_NCHARS; offs++)
       {
@@ -249,7 +264,10 @@ int main(int ac, char **av)
   printf("uint16 *ucaw[%d]={\n",MY_UCA_NPAGES);
   for (page=0; page < MY_UCA_NPAGES; page++)
   {
-    printf("page%03Xdata%s%s",page,page<MY_UCA_NPAGES-1?",":"", (page+1) % 4 ? "":"\n");
+    if (!pageloaded[page])
+      printf("NULL       %s%s",page<MY_UCA_NPAGES-1?",":"", (page+1) % 4 ? "":"\n");
+    else
+      printf("page%03Xdata%s%s",page,page<MY_UCA_NPAGES-1?",":"", (page+1) % 4 ? "":"\n");
   }
   printf("};\n");
   
