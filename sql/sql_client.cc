@@ -37,9 +37,3 @@ void my_net_local_init(NET *net)
 #endif
 }
 }
-
-extern "C" {
-void mysql_once_init(void)
-{
-}
-}

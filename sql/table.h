@@ -117,7 +117,7 @@ struct st_table {
   my_bool fulltext_searched;
   my_bool crashed;
   my_bool is_view;
-  my_bool no_keyread;
+  my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
   my_bool auto_increment_field_not_null;     
   Field *next_number_field,		/* Set if next_number is activated */

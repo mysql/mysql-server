@@ -370,3 +370,11 @@ insert into t1 values (1);
 select max(a) as b from t1 having b=1;
 select a from t1 having a=1;
 drop table t1;
+#
+# Bug #1972: test for bit_and(), bit_or() and negative values
+# 
+create table t1 (col int);
+insert into t1 values (-1), (-2), (-3);
+select bit_and(col), bit_or(col) from t1;
+select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
+drop table t1;

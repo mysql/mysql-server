@@ -711,7 +711,7 @@ public:
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table;
-  uint	     server_status,open_options;
+  uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
@@ -728,7 +728,7 @@ public:
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     system_thread,in_lock_tables,global_read_lock;
+  bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
 
   enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
@@ -885,6 +885,11 @@ public:
   void update_charset();
 };
 
+/* Flags for the THD::system_thread (bitmap) variable */
+#define SYSTEM_THREAD_DELAYED_INSERT 1
+#define SYSTEM_THREAD_SLAVE_IO 2
+#define SYSTEM_THREAD_SLAVE_SQL 4
+
 /*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
@@ -896,7 +901,7 @@ public:
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
-  uint skip_lines;
+  ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
   ~sql_exchange() {}
 };
@@ -1207,8 +1212,13 @@ class user_var_entry
   DTCollation collation;
 };
 
-
-/* Class for unique (removing of duplicates) */
+/*
+   Unique -- class for unique (removing of duplicates). 
+   Puts all values to the TREE. If the tree becomes too big,
+   it's dumped to the file. User can request sorted values, or
+   just iterate through them. In the last case tree merging is performed in
+   memory simultaneously with iteration, so it should be ~2-3x faster.
+ */
 
 class Unique :public Sql_alloc
 {
@@ -1222,10 +1232,10 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
-  inline bool unique_add(gptr ptr)
+  inline bool unique_add(void *ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
@@ -1243,6 +1253,9 @@ public:
     return sizeof(uint)*(1 + nkeys/max_elems_in_tree);
   }
 
+  void reset();
+  bool walk(tree_walk_action action, void *walk_action_arg);
+
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
@@ -1253,7 +1266,7 @@ class multi_delete :public select_result
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
   THD *thd;
-  ha_rows deleted;
+  ha_rows deleted, found;
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, log_delayed, normal_tables;

@@ -54,6 +54,12 @@
 
 #ifdef EMBEDDED_LIBRARY
 
+#undef MYSQL_SERVER
+
+#ifndef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif
+
 #undef net_flush
 
 extern "C" {

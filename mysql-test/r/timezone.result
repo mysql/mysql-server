@@ -1,4 +1,13 @@
 DROP TABLE IF EXISTS t1;
+show variables like "timezone";
+Variable_name	Value
+timezone	MET
+select @a:=FROM_UNIXTIME(1);
+@a:=FROM_UNIXTIME(1)
+1970-01-01 01:00:01
+select unix_timestamp(@a);
+unix_timestamp(@a)
+1
 CREATE TABLE t1 (ts int);
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 01:00'));
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 02:00'));

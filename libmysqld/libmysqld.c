@@ -163,20 +163,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
 
-#if defined(EMBEDDED_LIBRARY) || !defined(DBUG_OFF)
-  if (!server_inited)
-  {
-    mysql->net.last_errno=CR_MYSQL_SERVER_INIT_MISSED;
-    strmov(mysql->net.last_error,ER(mysql->net.last_errno));
-    goto error;
-  }
-#endif
-
   if (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION ||
       (mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION &&
        host && strcmp(host,LOCAL_HOST)))
-    cli_mysql_real_connect(mysql, host, user, 
-			   passwd, db, port, unix_socket, client_flag);
+    DBUG_RETURN(cli_mysql_real_connect(mysql, host, user, 
+				       passwd, db, port, 
+				       unix_socket, client_flag));
 
   mysql->methods= &embedded_methods;
 

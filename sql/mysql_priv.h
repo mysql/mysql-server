@@ -303,6 +303,11 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define tmp_file_prefix "#sql"			/* Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 
+/* Flags for calc_week() function.  */
+#define WEEK_MONDAY_FIRST    1
+#define WEEK_YEAR            2
+#define WEEK_FIRST_WEEKDAY   4
+
 struct st_table;
 class THD;
 
@@ -438,6 +443,7 @@ int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
+bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *dummy);
 #else
@@ -451,17 +457,11 @@ void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
                           bool *write_to_binlog);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
-#else
-#define check_access(thd, access, db, save_priv, no_grant, no_errors) false
-#define  check_table_access(thd, want_access, tables, no_errors) false
-#define check_global_access(thd, want_access) false
-#endif
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
@@ -626,7 +626,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		pthread_mutex_t *mutex);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
-int mysqld_show_table_types(THD *thd);
+int mysqld_show_storage_engines(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
@@ -997,8 +997,7 @@ void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 int get_quick_record(SQL_SELECT *select);
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
-uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
-	       uint *year);
+uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);

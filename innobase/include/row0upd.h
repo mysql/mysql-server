@@ -123,8 +123,8 @@ row_upd_changes_field_size_or_external(
 				/* out: TRUE if the update changes the size of
 				some field in index or the field is external
 				in rec or update */
-	rec_t*		rec,	/* in: record in clustered index */
-	dict_index_t*	index,	/* in: clustered index */
+	rec_t*		rec,	/* in: record in index */
+	dict_index_t*	index,	/* in: index */
 	upd_t*		update);/* in: update vector */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
@@ -172,12 +172,30 @@ Replaces the new column values stored in the update vector to the index entry
 given. */
 
 void
+row_upd_index_replace_new_col_vals_index_pos(
+/*=========================================*/
+	dtuple_t*	entry,	/* in/out: index entry where replaced */
+	dict_index_t*	index,	/* in: index; NOTE that this may also be a
+				non-clustered index */
+	upd_t*		update,	/* in: an update vector built for the index so
+				that the field number in an upd_field is the
+				index position */
+	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
+				copy the new values, set this as NULL if you
+				do not want allocation */
+/***************************************************************
+Replaces the new column values stored in the update vector to the index entry
+given. */
+
+void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
-	dict_index_t*	index,	/* in: index; NOTE that may also be a
+	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update,	/* in: update vector */
+	upd_t*		update,	/* in: an update vector built for the
+				CLUSTERED index so that the field number in
+				an upd_field is the clustered index position */
 	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */
@@ -199,7 +217,9 @@ row_upd_changes_ord_field_binary(
 				known when this function is called, e.g., at
 				compile time */
 	dict_index_t*	index,	/* in: index of the record */
-	upd_t*		update);/* in: update vector for the row */
+	upd_t*		update);/* in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -271,7 +291,10 @@ row_upd_index_parse(
 
 /* Update vector field */
 struct upd_field_struct{
-	ulint		field_no;	/* field number in the clustered
+	ulint		field_no;	/* field number in an index, usually
+					the clustered index, but in updating
+					a secondary index record in btr0cur.c
+					this is the position in the secondary
 					index */
 	que_node_t*	exp;		/* expression for calculating a new
 					value: it refers to column values and
