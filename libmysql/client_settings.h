@@ -31,7 +31,7 @@ my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 */
 
 #if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0
+#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
 #define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE,pipe_sig_handler)
 #define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
 #else
