@@ -39,8 +39,9 @@ struct Parameter {
 #define P_LOOPS   8
 #define P_CREATE  9
 #define P_LOAD   10
+#define P_RESET  11
 
-#define P_MAX 11
+#define P_MAX 12
 
 static 
 Parameter 
@@ -55,7 +56,8 @@ g_paramters[] = {
   { "size",  1000000, 1, ~0 },
   { "iterations",  3, 1, ~0 },
   { "create_drop", 1, 0, 1 },
-  { "data",        1, 0, 1 }
+  { "data",        1, 0, 1 },
+  { "q-reset bounds", 0, 1, 0 }
 };
 
 static Ndb* g_ndb = 0;
@@ -218,21 +220,29 @@ run_scan(){
   NDB_TICKS start1, stop;
   int sum_time= 0;
 
+  int sample_rows = 0;
+  NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
+
   Uint32 tot = g_paramters[P_ROWS].value;
+
+  if(g_paramters[P_BOUND].value == 2 || g_paramters[P_FILT].value == 2)
+    iter *= g_paramters[P_ROWS].value;
+
+  NdbScanOperation * pOp = 0;
+  NdbIndexScanOperation * pIOp = 0;
+  NdbConnection * pTrans = 0;
+  NdbResultSet * rs = 0;
+  int check = 0;
 
   for(int i = 0; i<iter; i++){
     start1 = NdbTick_CurrentMillisecond();
-    NdbConnection * pTrans = g_ndb->startTransaction();
+    pTrans = pTrans ? pTrans : g_ndb->startTransaction();
     if(!pTrans){
       g_err << "Failed to start transaction" << endl;
       err(g_ndb->getNdbError());
       return -1;
     }
     
-    NdbScanOperation * pOp;
-    NdbIndexScanOperation * pIOp;
-
-    NdbResultSet * rs;
     int par = g_paramters[P_PARRA].value;
     int bat = g_paramters[P_BATCH].value;
     NdbScanOperation::LockMode lm;
@@ -255,9 +265,17 @@ run_scan(){
       assert(pOp);
       rs = pOp->readTuples(lm, bat, par);
     } else {
-      pOp = pIOp = pTrans->getNdbIndexScanOperation(g_indexname, g_tablename);
-      bool ord = g_paramters[P_ACCESS].value == 2;
-      rs = pIOp->readTuples(lm, bat, par, ord);
+      if(g_paramters[P_RESET].value == 0 || pIOp == 0)
+      {
+	pOp= pIOp= pTrans->getNdbIndexScanOperation(g_indexname, g_tablename);
+	bool ord = g_paramters[P_ACCESS].value == 2;
+	rs = pIOp->readTuples(lm, bat, par, ord);
+      }
+      else
+      {
+	pIOp->reset_bounds();
+      }
+
       switch(g_paramters[P_BOUND].value){
       case 0: // All
 	break;
@@ -267,20 +285,22 @@ run_scan(){
       case 2: { // 1 row
       default:  
 	assert(g_table->getNoOfPrimaryKeys() == 1); // only impl. so far
-	abort();
-#if 0
 	int tot = g_paramters[P_ROWS].value;
 	int row = rand() % tot;
+#if 0
 	fix_eq_bound(pIOp, row);
+#else
+	pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
 #endif
 	break;
       }
       }
+      if(g_paramters[P_RESET].value == 1)
+	goto execute;
     }
     assert(pOp);
     assert(rs);
     
-    int check = 0;
     switch(g_paramters[P_FILT].value){
     case 0: // All
       check = pOp->interpret_exit_ok();
@@ -312,7 +332,7 @@ run_scan(){
     for(int i = 0; i<g_table->getNoOfColumns(); i++){
       pOp->getValue(i);
     }
-
+execute:
     int rows = 0;
     check = pTrans->execute(NoCommit);
     assert(check == 0);
@@ -333,19 +353,29 @@ run_scan(){
       return -1;
     }
     assert(check == 1);
-    g_info << "Found " << rows << " rows" << endl;
-
-    pTrans->close();
-
+    if(g_paramters[P_RESET].value == 0)
+    {
+      pTrans->close();
+      pTrans = 0;
+    }
     stop = NdbTick_CurrentMillisecond();
+    
     int time_passed= (int)(stop - start1);
-    g_err.println("Time: %d ms = %u rows/sec", time_passed,
-                  (1000*tot)/time_passed);
+    sample_rows += rows;
     sum_time+= time_passed;
+    
+    if(sample_rows >= tot)
+    {
+      int sample_time = (int)(stop - sample_start);
+      g_info << "Found " << sample_rows << " rows" << endl;
+      g_err.println("Time: %d ms = %u rows/sec", sample_time,
+		    (1000*sample_rows)/sample_time);
+      sample_rows = 0;
+      sample_start = stop;
+    }
   }
-  sum_time= sum_time / iter;
-  
-  g_err.println("Avg time: %d ms = %u rows/sec", sum_time,
-                (1000*tot)/sum_time);
+
+  g_err.println("Avg time: %d ms = %u rows/sec", sum_time/iter,
+                (1000*tot*iter)/sum_time);
   return 0;
 }
