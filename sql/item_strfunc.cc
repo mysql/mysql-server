@@ -1325,95 +1325,49 @@ void Item_func_trim::fix_length_and_dec()
 }
 
 
-
-
-void Item_func_password::fix_length_and_dec()
-{
-  /*
-    If PASSWORD() was called with only one argument, it depends on a random
-    number so we need to save this random number into the binary log.
-    If called with two arguments, it is repeatable.
-  */
-  if (arg_count == 1)
-  {
-    THD *thd= current_thd;
-    thd->rand_used= 1;
-    thd->rand_saved_seed1= thd->rand.seed1;
-    thd->rand_saved_seed2= thd->rand.seed2;
-  } 
-  max_length= get_password_length(use_old_passwords);
-}
-
-/*
- Password() function has 2 arguments. Second argument can be used
- to make results repeatable
-*/ 
+/* Item_func_password */
 
 String *Item_func_password::val_str(String *str)
 {
-  struct rand_struct rand_st; // local structure for 2 param version
-  ulong  seed=0;              // seed to initialise random generator to
-  
-  String *res  =args[0]->val_str(str);          
-  if ((null_value=args[0]->null_value))
-    return 0;
-  
-  if (arg_count == 1)
-  {    
-    if (res->length() == 0)
-      return &empty_string;
-    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
-                            &current_thd->rand);
-    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
-    return str;
-  }
-  else
-  {
-   /* We'll need the buffer to get second parameter */
-    char key_buff[80];
-    String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
-    String *key  =args[1]->val_str(&tmp_key_value);          
-    
-    /* Check second argument for NULL value. First one is already checked */
-    if ((null_value=args[1]->null_value))
-      return 0;
-      
-    /* This shall be done after checking for null for proper results */       
-    if (res->length() == 0)
-      return &empty_string;  
-      
-    /* Generate the seed first this allows to avoid double allocation */  
-    char* seed_ptr=key->c_ptr();
-    while (*seed_ptr)
-    {
-      seed=(seed*211+*seed_ptr) & 0xffffffffL; /* Use simple hashing */
-      seed_ptr++;
-    }
-    
-    /* Use constants which allow nice random values even with small seed */
-    randominit(&rand_st,
-	       (ulong) ((ulonglong) seed*111111+33333333L) & (ulong) 0xffffffff,
-	       (ulong) ((ulonglong) seed*1111+55555555L) & (ulong) 0xffffffff);
-    
-    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
-                            &rand_st);
-    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
-    return str;
-  }       
-}
-
-String *Item_func_old_password::val_str(String *str)
-{
-  String *res  =args[0]->val_str(str);
+  String *res= args[0]->val_str(str); 
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr(),1,&current_thd->rand);
-  str->set(tmp_value,16,res->charset());
+  make_scrambled_password(tmp_value, res->c_ptr());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
 }
 
+char *Item_func_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+  if (buff)
+    make_scrambled_password(buff, password);
+  return buff;
+}
+
+/* Item_func_old_password */
+
+String *Item_func_old_password::val_str(String *str)
+{
+  String *res= args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  if (res->length() == 0)
+    return &empty_string;
+  make_scrambled_password_323(tmp_value, res->c_ptr());
+  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
+  return str;
+}
+
+char *Item_func_old_password::alloc(THD *thd, const char *password)
+{
+  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+  if (buff)
+    make_scrambled_password_323(buff, password);
+  return buff;
+}
 
 
 #define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')

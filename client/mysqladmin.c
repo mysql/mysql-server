@@ -769,9 +769,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	return 1;
       }
       if (argv[1][0])
-	make_scrambled_password(crypted_pw,argv[1],
-                                (find_type(argv[0], &command_typelib, 2) ==
-                                 ADMIN_OLD_PASSWORD), &rand_st);
+      {
+        if (find_type(argv[0], &command_typelib, 2) == ADMIN_OLD_PASSWORD)
+          make_scrambled_password_323(crypted_pw, argv[1]);
+        else
+          make_scrambled_password(crypted_pw, argv[1]);
+      }
       else
 	crypted_pw[0]=0;			/* No password */
       sprintf(buff,"set password='%s',sql_log_off=0",crypted_pw);

@@ -4,7 +4,7 @@ ALTER TABLE host type=MyISAM;
 ALTER TABLE func type=MyISAM;
 ALTER TABLE columns_priv type=MyISAM;
 ALTER TABLE tables_priv type=MyISAM;
-ALTER TABLE user change Password Password char(45) not null;
+ALTER TABLE user change Password Password char(41) not null;
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
   name char(64) DEFAULT '' NOT NULL,
