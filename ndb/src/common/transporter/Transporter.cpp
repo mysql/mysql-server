@@ -32,7 +32,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 NodeId rNodeId, 
 			 int _byteorder, 
 			 bool _compression, bool _checksum, bool _signalId)
-  : m_r_port(r_port), localNodeId(lNodeId), remoteNodeId(rNodeId),
+  : m_r_port(r_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId < rNodeId),
     m_packer(_signalId, _checksum),
     m_transporter_registry(t_reg)
