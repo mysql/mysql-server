@@ -148,8 +148,7 @@ version see the relevant distribution.
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 
-@detailmenu
- --- The Detailed Node Listing ---
+@detailmenu --- The Detailed Node Listing ---
 
 General Information About MySQL
 
@@ -9039,7 +9038,7 @@ The @code{mysql.server} script uses the following variables:
 @findex command-line options
 @cindex options, command-line
 @node Command-line options, Option files, Automatic start, Post-installation
-@subsection mysqld command-line options
+@subsection Command-line Options
 
 @code{mysqld} accepts the following command-line options:
 
@@ -20013,7 +20012,8 @@ DELAYED}.  If the queue becomes full, any client that does @code{INSERT
 DELAYED} will wait until there is room in the queue again.
 
 @item @code{flush}
-This is @code{ON} if you started @code{mysqld} with @code{--flush}.
+This is @code{ON} if you have started @strong{MySQL} with the @code{--flush}
+option.
 
 @item @code{flush_time}
 If this is set to a non-zero value, then every @code{flush_time} seconds all
@@ -40987,8 +40987,8 @@ The @code{mysql_real_connect()} call is changed to:
 
 @example
 mysql_real_connect(MYSQL *mysql, const char *host, const char *user,
-	   const char *passwd, const char *db, uint port,
-	   const char *unix_socket, uint client_flag)
+                   const char *passwd, const char *db, uint port,
+                   const char *unix_socket, uint client_flag)
 @end example
 @item
 Each connection is handled by its own thread, rather than by the
@@ -42115,7 +42115,7 @@ Fixed bug that you couldn't use @code{tbl_name.field_name} in @code{UPDATE}.
 Fixed @code{SELECT DISTINCT} when using 'hidden group'. For example:
 @example
 mysql> SELECT DISTINCT MOD(some_field,10) FROM test
-   GROUP BY some_field;
+           GROUP BY some_field;
 @end example
 Note: @code{some_field} is normally in the @code{SELECT} part. ANSI SQL should
 require it.
@@ -42188,8 +42188,8 @@ New range optimizer that can resolve ranges when some keypart prefix is
 constant. Example:
 @example
 mysql> SELECT * FROM tbl_name
-   WHERE key_part_1="customer"
-   AND key_part_2>=10 AND key_part_2<=10;
+           WHERE key_part_1="customer"
+           AND key_part_2>=10 AND key_part_2<=10;
 @end example
 @end itemize
 
@@ -42629,7 +42629,7 @@ lookups.  The column that is used should be a constant for each group because
 the value is calculated only once for the first row that is found for a group.
 @example
 mysql> SELECT id,lookup.text,sum(*) FROM test,lookup
- WHERE test.id=lookup.id GROUP BY id;
+         WHERE test.id=lookup.id GROUP BY id;
 @end example
 @item
 Fixed bug in @code{SUM(function)} (could cause a core dump).
