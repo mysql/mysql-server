@@ -736,8 +736,8 @@ void clean_up(bool print_message)
   if (!opt_noacl)
     udf_free();
 #endif
-  end_key_cache();
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
+  end_key_cache();
 #ifdef USE_RAID
   end_raid();
 #endif

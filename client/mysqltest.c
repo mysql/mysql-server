@@ -1334,9 +1334,9 @@ int do_connect(struct st_query* q)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
-  if((con_error = safe_connect(&next_con->mysql, con_host,
-			    con_user, con_pass,
-			    con_db, con_port, *con_sock ? con_sock: 0)))
+  if ((con_error = safe_connect(&next_con->mysql, con_host,
+				con_user, con_pass,
+				con_db, con_port, con_sock ? con_sock: 0)))
     die("Could not open connection '%s': %s", con_name,
 	mysql_error(&next_con->mysql));
 
@@ -2403,7 +2403,6 @@ int main(int argc, char** argv)
       printf("ok\n");
   }
 
-  mysql_server_end();
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */

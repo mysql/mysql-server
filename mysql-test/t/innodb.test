@@ -527,7 +527,8 @@ create table test_$1.t3 (a int not null) type= heap;
 insert into test_$1.t3 values(1);
 commit;
 drop database test_$1;
---error 12
+# Don't check error message
+--error 12,12
 show tables from test_$1;
 
 #

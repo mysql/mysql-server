@@ -5346,7 +5346,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       retrieving all rows through an index.
     */
     if (select_limit >= table->file->records)
-      keys&= table->used_keys;
+      keys&= (table->used_keys | table->file->keys_to_use_for_scanning());
 
     for (nr=0; keys ; keys>>=1, nr++)
     {
