@@ -1225,16 +1225,19 @@ static void init_signals(void)
   struct sigaction sa; sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
+  if (!(test_flags & TEST_NO_STACKTRACE))
+  {
 #ifdef HAVE_DARWIN_THREADS
-   sa.sa_handler=( void (*)() ) handle_segfault;
+    sa.sa_handler=( void (*)() ) handle_segfault;
 #else
-   sa.sa_handler=handle_segfault;
+    sa.sa_handler=handle_segfault;
 #endif
-  sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
 #ifdef SIGBUS
-  sigaction(SIGBUS, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
 #endif
-  sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+  }
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
