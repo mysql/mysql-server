@@ -3847,6 +3847,12 @@ ha_innobase::analyze(
 	return(0);
 }
 
+
+int ha_innobase::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return ha_innobase::analyze(thd,check_opt);
+}
+
 /***********************************************************************
 Tries to check that an InnoDB table is not corrupted. If corruption is
 noticed, prints to stderr information about it. In case of corruption
