@@ -1,0 +1,164 @@
+/* Copyright (C) 2005 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
+#ifdef __GNUC__
+#pragma implementation        // gcc: Class implementation
+#endif
+
+#include <mysql_priv.h>
+
+#ifdef HAVE_BLACKHOLE_DB
+#include "ha_blackhole.h"
+
+
+const char **ha_blackhole::bas_ext() const
+{ 
+  static const char *ext[]= { NullS }; 
+  return ext; 
+}
+
+int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
+{
+  DBUG_ENTER("ha_blackhole::open");
+  thr_lock_init(&thr_lock);
+  thr_lock_data_init(&thr_lock,&lock,NULL);
+  DBUG_RETURN(0);
+}
+
+int ha_blackhole::close(void)
+{
+  DBUG_ENTER("ha_blackhole::close");
+  thr_lock_delete(&thr_lock);
+  DBUG_RETURN(0);
+}
+
+int ha_blackhole::create(const char *name, TABLE *table_arg,
+                       HA_CREATE_INFO *create_info)
+{
+  DBUG_ENTER("ha_blackhole::create");
+  DBUG_RETURN(0);
+}
+
+const char *ha_blackhole::index_type(uint key_number)
+{
+  DBUG_ENTER("ha_blackhole::index_type");
+  DBUG_RETURN((table->key_info[key_number].flags & HA_FULLTEXT) ? 
+	  "FULLTEXT" :
+	  (table->key_info[key_number].flags & HA_SPATIAL) ?
+	  "SPATIAL" :
+	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
+	  "RTREE" :
+	  "BTREE");
+}
+
+int ha_blackhole::write_row(byte * buf)
+{
+  DBUG_ENTER("ha_blackhole::write_row");
+  DBUG_RETURN(0);
+}
+
+int ha_blackhole::rnd_init(bool scan)
+{
+  DBUG_ENTER("ha_blackhole::rnd_init");
+  DBUG_RETURN(0);
+}
+
+
+int ha_blackhole::rnd_next(byte *buf)
+{
+  DBUG_ENTER("ha_blackhole::rnd_next");
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
+}
+
+
+int ha_blackhole::rnd_pos(byte * buf, byte *pos)
+{
+  DBUG_ENTER("ha_blackhole::rnd_pos");
+  DBUG_RETURN(0);
+}
+
+
+void ha_blackhole::position(const byte *record)
+{
+  DBUG_ENTER("ha_blackhole::position");
+  DBUG_VOID_RETURN;
+}
+
+
+void ha_blackhole::info(uint flag)
+{
+  DBUG_ENTER("ha_blackhole::info");
+
+  records= 0;
+  deleted= 0;
+  errkey= 0;
+  mean_rec_length= 0;
+  data_file_length= 0;
+  index_file_length= 0;
+  max_data_file_length= 0;
+  delete_length= 0;
+  if (flag & HA_STATUS_AUTO)
+    auto_increment_value= 1;
+  DBUG_VOID_RETURN;
+}
+
+int ha_blackhole::external_lock(THD *thd, int lock_type)
+{
+  DBUG_ENTER("ha_blackhole::external_lock");
+  DBUG_RETURN(0);
+}
+
+
+THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
+                                       THR_LOCK_DATA **to,
+                                       enum thr_lock_type lock_type)
+{
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
+  {
+    /* 
+      Here is where we get into the guts of a row level lock.
+      If TL_UNLOCK is set 
+      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      TABLESPACE, then allow multiple writers 
+    */
+
+    if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
+         lock_type <= TL_WRITE) && !thd->in_lock_tables
+        && !thd->tablespace_op)
+      lock_type = TL_WRITE_ALLOW_WRITE;
+
+    /* 
+      In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
+      MySQL would use the lock TL_READ_NO_INSERT on t2, and that
+      would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
+      to t2. Convert the lock to a normal read lock to allow
+      concurrent inserts to t2. 
+    */
+
+    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables) 
+      lock_type = TL_READ;
+
+    lock.type=lock_type;
+  }
+
+  *to++= &lock;
+
+  return to;
+}
+
+
+#endif /* HAVE_BLACKHOLE_DB */
