@@ -163,6 +163,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
+  lex->current_select= &lex->select_lex;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
@@ -970,6 +971,7 @@ void st_select_lex::init_query()
   item_list.empty();
   join= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
+  having_fix_field= 0;
 }
 
 void st_select_lex::init_select()
@@ -987,7 +989,6 @@ void st_select_lex::init_select()
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
-  having_fix_field= 0;
 }
 
 /*
@@ -1293,4 +1294,7 @@ List<String>* st_select_lex::get_ignore_index()
   return ignore_index_ptr;
 }
 
-// There are st_select_lex::add_table_to_list in sql_parse.cc
+/*
+  There are st_select_lex::add_table_to_list & 
+  st_select_lex::set_lock_for_tables in sql_parse.cc
+*/

@@ -1625,6 +1625,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   while (!(table=open_table(thd,table_list->db,
 			    table_list->real_name,table_list->alias,
 			    &refresh)) && refresh) ;
+
   if (table)
   {
 #if defined( __WIN__) || defined(OS2)
