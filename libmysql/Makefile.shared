@@ -34,9 +34,6 @@ LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 target_sources = libmysql.c net.c  password.c \
 			    get_password.c errmsg.c
 
-#quick easy dirty hack to make it work after Tonu's changes
-#In my opinion, violite.c really belongs into mysys - Sasha
-sqlobjects = violite.lo
 mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
@@ -54,7 +51,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			mf_pack.lo my_messnc.lo mf_dirname.lo mf_fn_ext.lo\
 			mf_wcomp.lo typelib.lo safemalloc.lo my_alloc.lo \
 			mf_format.lo mf_path.lo mf_unixpath.lo my_fopen.lo \
-			my_fstream.lo \
+			my_symlink.lo my_fstream.lo \
 			mf_loadpath.lo my_pthread.lo my_thr_init.lo \
 			thr_mutex.lo mulalloc.lo string.lo default.lo \
 			my_compress.lo array.lo my_once.lo list.lo my_net.lo \
@@ -62,9 +59,10 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 # Not needed in the minimum library
 mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
-target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects)\
- $(sqlobjects)
+target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects) \
+ $(vio_objects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@
+vio_objects= vio.lo viosocket.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target)
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
@@ -79,7 +77,7 @@ clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
-	      `echo $(sqlobjects) | sed "s;\.lo;.c;g"` \
+	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
 	       ../linked_client_sources
 

@@ -1382,6 +1382,9 @@ ibuf_remove_free_page(
 	
 	fseg_free_page(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
 							space, page_no, &mtr);
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	buf_page_reset_file_page_was_freed(space, page_no);
+#endif
 	ibuf_enter();
 							
 	mutex_enter(&ibuf_mutex);
@@ -1413,6 +1416,9 @@ ibuf_remove_free_page(
 
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, IBUF_BITMAP_IBUF,
 								FALSE, &mtr);
+#ifdef UNIV_DEBUG_FILE_ACCESSES
+	buf_page_set_file_page_was_freed(space, page_no);
+#endif
 	mtr_commit(&mtr);
 
 	mutex_exit(&ibuf_mutex);
@@ -2431,6 +2437,8 @@ ibuf_merge_or_delete_for_page(
 
 		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
+		
+		ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	}
 
 	n_inserts = 0;

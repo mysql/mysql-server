@@ -50,12 +50,12 @@ int mi_delete_table(const char *name)
 #endif /* USE_RAID */
 
   fn_format(from,name,"",MI_NAME_IEXT,4);
-  if (my_delete(from, MYF(MY_WME)))
+  if (my_delete_with_symlink(from, MYF(MY_WME)))
     DBUG_RETURN(my_errno);
   fn_format(from,name,"",MI_NAME_DEXT,4);
 #ifdef USE_RAID
   if (raid_type)
     DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME)) ? my_errno : 0);
 #endif
-  DBUG_RETURN(my_delete(from, MYF(MY_WME)) ? my_errno : 0);
+  DBUG_RETURN(my_delete_with_symlink(from, MYF(MY_WME)) ? my_errno : 0);
 }

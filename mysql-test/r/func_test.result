@@ -34,3 +34,5 @@ this	is	a	2	2.0
 1	1
 1 and 0 or 2	2 or 1 and 0
 1	1
+sum(if(num is null,0.00,num))
+144.54

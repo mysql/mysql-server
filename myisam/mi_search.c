@@ -256,6 +256,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   DBUG_RETURN(flag);
 } /* _mi_seq_search */
 
+
 int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                       uchar *key, uint key_len, uint nextflag, uchar **ret_pos,
                       uchar *buff, my_bool *last_key)
@@ -274,6 +275,13 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uint   saved_length=0, saved_prefix_len=0;
   DBUG_ENTER("_mi_prefix_search");
 
+  LINT_INIT(length);
+  LINT_INIT(prefix_len);
+  LINT_INIT(seg_len_pack);
+  LINT_INIT(saved_from);
+  LINT_INIT(saved_to);
+  LINT_INIT(saved_vseg);
+
   t_buff[0]=0;                                  /* Avoid bugs */
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     key_len=USE_WHOLE_KEY;
@@ -286,7 +294,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     uint lenght_pack;
     get_key_pack_length(kseg_len,lenght_pack,kseg);
     key_len_skip=lenght_pack+kseg_len;
-    key_len_left=key_len-key_len_skip;
+    key_len_left=(int) key_len- (int) key_len_skip;
     cmplen=(key_len_left>=0) ? kseg_len : key_len-lenght_pack;
     DBUG_PRINT("info",("key: '%.*s'",kseg_len,kseg));
   }
@@ -407,11 +415,11 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         */
         if (len < cmplen)
         {
-          my_flag=-1;
+          my_flag= -1;
         }
         else if (len > cmplen)
         {
-          if(my_flag = !(nextflag & SEARCH_PREFIX) || key_len_left>0)
+          if ((my_flag= (!(nextflag & SEARCH_PREFIX) || key_len_left>0)))
             break;
           goto fix_flag;
         }

@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.56";
+$version="1.57";
 
 use DBI;
 use Getopt::Long;
@@ -1539,12 +1539,24 @@ report("insert INTO ... SELECT ...","insert_select",
        "insert into crash_q (a) SELECT crash_me.a from crash_me",
        "drop table crash_q $drop_attr");
 
-report_trans("transactions","transactions",
-	     [create_table("crash_q",["a integer not null"],[]),
-	      "insert into crash_q values (1)"],
-	     "select * from crash_q",
-	     "drop table crash_q $drop_attr"
-	    );
+if (!defined($limits{"transactions"}))
+{
+  my ($limit,$type);
+  $limit="transactions";
+  print "$limit: ";
+  foreach $type (('', 'type=bdb', 'type=innodb', 'type=gemini'))
+  {
+    undef($limits{$limit});
+    last if (!report_trans($limit,
+			   [create_table("crash_q",["a integer not null"],[],
+					 $type),
+			    "insert into crash_q values (1)"],
+			   "select * from crash_q",
+			   "drop table crash_q $drop_attr"
+			  ));
+  }
+  print "$limits{$limit}\n";
+}
 
 report("atomic updates","atomic_updates",
        create_table("crash_q",["a integer not null"],["primary key (a)"]),
@@ -2500,8 +2512,7 @@ sub report_result
 
 sub report_trans
 {
-  my ($prompt,$limit,$queries,$check,$clear)=@_;
-  print "$prompt: ";
+  my ($limit,$queries,$check,$clear)=@_;
   if (!defined($limits{$limit}))
   {
     eval {undef($dbh->{AutoCommit})};
@@ -2518,7 +2529,6 @@ sub report_trans
 	    safe_query($clear);
 	  } else {
 	    $dbh->{AutoCommit} = 1;
-	    safe_query($clear);
 	    save_config_data($limit,"error",$prompt);
 	  }
       } else {
@@ -2532,8 +2542,7 @@ sub report_trans
     }
     safe_query($clear);
   }
-  print "$limits{$limit}\n";
-  return $limits{$limit} ne "no";
+  return $limits{$limit} ne "yes";
 }
 
 
@@ -2961,8 +2970,10 @@ sub sql_concat
 
 sub create_table
 {
-  my($table_name,$fields,$index) = @_;
+  my($table_name,$fields,$index,$extra) = @_;
   my($query,$nr,$parts,@queries,@index);
+
+  $extra="" if (!defined($extra));
 
   $query="create table $table_name (";
   $nr=0;
@@ -3015,7 +3026,7 @@ sub create_table
     }
   }
   chop($query);
-  $query.= ')';
+  $query.= ") $extra";
   unshift(@queries,$query);
   return @queries;
 }

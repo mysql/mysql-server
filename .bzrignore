@@ -12,10 +12,12 @@
 .*.swp
 .deps
 .gdb_history
+.gdbinit
 .libs
 .o
 .out
 .snprj/*
+.vimrc
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -119,6 +121,7 @@ bdb/include/gen_server_ext.h
 bdb/include/hash_auto.h
 bdb/include/log_auto.h
 bdb/include/qam_auto.h
+bdb/include/rpc_server_ext.h
 bdb/include/txn_auto.h
 bdb/java/src/com/sleepycat/db/DbConstants.java
 bdb/log/log_auto.c
@@ -183,6 +186,7 @@ libmysql_r/acconfig.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
+libmysqld/backup_dir
 libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/errmsg.c
@@ -197,6 +201,7 @@ libmysqld/ha_isammrg.cc
 libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
 libmysqld/handler.cc
+libmysqld/hash_filo.cc
 libmysqld/hostname.cc
 libmysqld/init.cc
 libmysqld/item.cc
@@ -222,12 +227,14 @@ libmysqld/opt_sum.cc
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/records.cc
+libmysqld/simple-test
 libmysqld/slave.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc
 libmysqld/sql_base.cc
 libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
+libmysqld/sql_command
 libmysqld/sql_crypt.cc
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
@@ -247,11 +254,14 @@ libmysqld/sql_string.cc
 libmysqld/sql_table.cc
 libmysqld/sql_test.cc
 libmysqld/sql_udf.cc
+libmysqld/sql_unions.cc
 libmysqld/sql_update.cc
 libmysqld/sql_yacc.cc
+libmysqld/stacktrace.c
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
 libmysqld/time.cc
+libmysqld/uniques.cc
 libmysqld/unireg.cc
 libtool
 linked_client_sources
@@ -260,6 +270,7 @@ linked_libmysql_r_sources
 linked_libmysql_sources
 linked_libmysqld_sources
 linked_server_sources
+locked
 myisam/ft_dump
 myisam/ft_eval
 myisam/ft_test1
@@ -274,6 +285,7 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
 mysql-test/r/*.reject
+mysql-test/r/rpl_log.eval
 mysql-test/share/mysql
 mysql-test/var/*
 mysql.proj
@@ -302,6 +314,7 @@ scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
 scripts/mysqld_multi
+scripts/mysqld_safe
 scripts/mysqldumpslow
 scripts/mysqlhotcopy
 scripts/safe_mysqld
@@ -309,11 +322,15 @@ sql-bench/Results-linux/ATIS-mysql_bdb-Linux_2.2.14_my_SMP_i686
 sql-bench/bench-count-distinct
 sql-bench/bench-init.pl
 sql-bench/compare-results
+sql-bench/compare-results-all
 sql-bench/copy-db
 sql-bench/crash-me
+sql-bench/gif/*
+sql-bench/graph-compare-results
 sql-bench/output/*
 sql-bench/run-all-tests
 sql-bench/server-cfg
+sql-bench/template.html
 sql-bench/test-ATIS
 sql-bench/test-alter-table
 sql-bench/test-big-tables
@@ -332,6 +349,7 @@ sql/mysqld
 sql/share/*.sys
 sql/share/charsets/gmon.out
 sql/share/gmon.out
+sql/share/mysql
 sql/share/norwegian-ny/errmsg.sys
 sql/share/norwegian/errmsg.sys
 sql/sql_yacc.cc

@@ -168,8 +168,8 @@ drop table t1,t2,t3;
 
 #bug reported by Wouter de Jong
 
-drop table if exists members;
-CREATE TABLE members (
+drop table if exists t1;
+CREATE TABLE t1 (
   member_id int(11) NOT NULL auto_increment,
   inschrijf_datum varchar(20) NOT NULL default '',
   lastchange_datum varchar(20) NOT NULL default '',
@@ -200,8 +200,57 @@ CREATE TABLE members (
   PRIMARY KEY  (member_id)
 ) TYPE=MyISAM PACK_KEYS=1;
 
-insert into members (member_id) values (1),(2),(3);
-select member_id, nickname, voornaam FROM members
+insert into t1 (member_id) values (1),(2),(3);
+select member_id, nickname, voornaam FROM t1
 ORDER by lastchange_datum DESC LIMIT 2;
-drop table members;
+drop table t1;
+
+#
+# Test optimization of ORDER BY DESC
+#
+
+create table t1 (a int not null, b int, c varchar(10), key (a, b, c));
+insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
+
+explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
+select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
+explain select * from t1 where a >= 1 and a < 3 order by a desc;
+select * from t1 where a >= 1 and a < 3 order by a desc;
+explain select * from t1 where a = 1 order by a desc, b desc;
+select * from t1 where a = 1 order by a desc, b desc;
+explain select * from t1 where a = 1 and b is null order by a desc, b desc;
+select * from t1 where a = 1 and b is null order by a desc, b desc;
+explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
+explain select * from t1 where a = 2 and b >0 order by a desc,b desc;
+explain select * from t1 where a = 2 and b is null order by a desc,b desc;
+explain select * from t1 where a = 2 and (b is null or b > 0) order by a
+desc,b desc;
+explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
+explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
+
+#
+# Test things when we don't have NULL keys
+#
+
+alter table t1 modify b int not null, modify c varchar(10) not null;
+explain select * from t1 order by a, b, c;
+select * from t1 order by a, b, c;
+explain select * from t1 order by a desc, b desc, c desc;
+select * from t1 order by a desc, b desc, c desc;
+# test multiple ranges, NO_MAX_RANGE and EQ_RANGE
+explain select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
+select * from t1 where (a = 1 and b = 1 and c = 'b') or (a > 2) order by a desc;
+# test NEAR_MAX, NO_MIN_RANGE
+explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
+select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
+select count(*) from t1 where a < 5 and b > 0;
+select * from t1 where a < 5 and b > 0 order by a desc,b desc;
+# test HA_READ_AFTER_KEY (at the end of the file), NEAR_MIN
+explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
+select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
+# test HA_READ_AFTER_KEY (in the middle of the file)
+explain select * from t1 where a between 0 and 1 order by a desc, b desc;
+select * from t1 where a between 0 and 1 order by a desc, b desc;
+drop table t1;
+
 

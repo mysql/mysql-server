@@ -23,6 +23,7 @@
 
 class Query_log_event;
 class Load_log_event;
+class Slave_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
@@ -62,10 +63,14 @@ class MYSQL_LOG {
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   bool write_error,inited;
+  uint32 log_seq; // current event sequence number
+  // needed this for binlog
   bool no_rotate; // for binlog - if log name can never change
   // we should not try to rotate it or write any rotation events
   // the user should use FLUSH MASTER instead of FLUSH LOGS for
   // purging
+
+  friend class Log_event;
 
 public:
   MYSQL_LOG();
@@ -83,6 +88,7 @@ public:
 	     time_t query_start=0);
   bool write(Query_log_event* event_info); // binary log write
   bool write(Load_log_event* event_info);
+  bool write(Slave_log_event* event_info);
   bool write(IO_CACHE *cache);
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
@@ -241,9 +247,8 @@ public:
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;
+  uint32 log_seq;
   const char *where;
-  char* last_nx_table; // last non-existent table, we need this for replication
-  char* last_nx_db; // database of the last nx table
   time_t  start_time,time_after_lock,user_time;
   time_t  connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
@@ -405,6 +410,8 @@ public:
 ** This is used to get result from a select
 */
 
+class JOIN;
+
 class select_result :public Sql_alloc {
 protected:
   THD *thd;
@@ -414,6 +421,7 @@ public:
   virtual int prepare(List<Item> &list) { return 0; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
+  virtual void initialize_tables (JOIN *join=0) {};
   virtual void send_error(uint errcode,const char *err)=0;
   virtual bool send_eof()=0;
   virtual void abort() {}
@@ -466,8 +474,6 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
 };
-
-
 class select_insert :public select_result {
  protected:
   TABLE *table;
@@ -580,19 +586,48 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, uint size, ulong max_in_memory_size_arg);
+  Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+	 uint size, ulong max_in_memory_size_arg);
   ~Unique();
   inline bool Unique::unique_add(gptr ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
-    return tree_insert(&tree,ptr,0);
+    return !tree_insert(&tree,ptr,0);
   }
 
   bool get(TABLE *table);
 
-  friend int unique_write_to_file(gptr key, Unique *unique,
-				  element_count count);
-  friend int unique_write_to_ptrs(gptr key, Unique *unique,
-				  element_count count);
+  friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
+  friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
+
+ class multi_delete : public select_result {
+   TABLE_LIST *delete_tables, *table_being_deleted;
+#ifdef SINISAS_STRIP
+   IO_CACHE **tempfiles;
+   byte *memory_lane;
+#else
+   Unique  **tempfiles;
+#endif
+   THD *thd;
+   ha_rows deleted;
+   uint num_of_tables;
+   int error;
+   thr_lock_type lock_option;
+   bool do_delete;
+ public:
+   multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
+		uint num_of_tables);
+   ~multi_delete();
+   int prepare(List<Item> &list);
+   bool send_fields(List<Item> &list,
+ 		   uint flag) { return 0; }
+   bool send_data(List<Item> &items);
+   void initialize_tables (JOIN *join);
+   void send_error(uint errcode,const char *err);
+   int  do_deletes (bool from_send_error);
+   bool send_eof();
+ };
+
+

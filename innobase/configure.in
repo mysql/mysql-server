@@ -38,6 +38,7 @@ AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_FUNCS(sched_yield)
 AC_CHECK_FUNCS(fdatasync)
+AC_CHECK_FUNCS(localtime_r)
 #AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
@@ -93,6 +94,11 @@ case "$target_os" in
        sysv5uw7*)
 	 # Problem when linking on SCO
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+esac
+
+case "$target" in
+       i[[4567]]86-*-*)
+	 CFLAGS="$CFLAGS -DUNIV_INTEL_X86";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile

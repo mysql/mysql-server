@@ -30,7 +30,7 @@ else
 fi
 
 mdata=$data/mysql
-
+EXTRA_ARG=""
 
 if test ! -x $execdir/mysqld
 then
@@ -57,9 +57,7 @@ if [ x$BINARY_DIST = x1 ] ; then
 basedir=..
 else
 basedir=.
-rm -rf share
-mkdir  share
-ln -sf ../../sql/share share/mysql 
+EXTRA_ARG="--language=../sql/share/english/"
 fi
 
 # Initialize variables
@@ -193,7 +191,7 @@ then
 fi
 
 if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini << END_OF_DATA
+    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini $EXTRA_ARG << END_OF_DATA
 use mysql;
 $c_d
 $i_d

@@ -99,8 +99,9 @@ export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
   
-TESTDIR="$MYSQL_TEST_DIR/t/"
+TESTDIR="$MYSQL_TEST_DIR/t"
 TESTSUFFIX=test
+TOT_SKIP=0
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
@@ -124,6 +125,7 @@ USE_RUNNING_SERVER=1
 DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
+DO_CLIENT_GDB=""
 SLEEP_TIME=2
 DBUSER=""
 
@@ -142,6 +144,8 @@ while test $# -gt 0; do
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
     --skip-rpl) NO_SLAVE=1 ;;
+    --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
+    --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
@@ -149,10 +153,17 @@ while test $# -gt 0; do
       DO_BENCH=1
       NO_SLAVE=1
       ;;  
+    --big*)			# Actually --big-test
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
+    --mysqld=*)
+       TMP=`$ECHO "$1" | $SED -e "s;--mysqld-=;"`
+       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $TMP"
+       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $TMP"
+       ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Cannot do coverage test without the source - please use source dist"
@@ -165,15 +176,23 @@ while test $# -gt 0; do
       ;;  
     --gdb )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
+      USE_RUNNING_SERVER=""
+      ;;
+    --client-gdb )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
+      fi
+      DO_CLIENT_GDB=1
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --ddd option"
       fi
       DO_DDD=1
+      USE_RUNNING_SERVER=""
       ;;
     --skip-*)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
@@ -232,7 +251,7 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`expr substr '------------------------------------------------------------------------' 1 $E`
+#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
@@ -242,6 +261,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQL_TEST="$BASEDIR/client/mysqltest"
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
+ LANGUAGE="$BASEDIR/sql/share/english/"
  INSTALL_DB="./install_test_db"
 else
  MYSQLD="$BASEDIR/bin/mysqld"
@@ -249,6 +269,12 @@ else
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
+ if test -d "$BASEDIR/share/mysql/english" 
+ then
+   LANGUAGE="$BASEDIR/share/mysql/english/"
+ else
+   LANGUAGE="$BASEDIR/share/english/"
+  fi
 fi
 
 # If we should run all tests cases, we will use a local server for that
@@ -273,7 +299,10 @@ then
 fi
 
 
-MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_BIN=$MYSQL_TEST
+MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
@@ -304,15 +333,32 @@ show_failed_diff ()
 {
   reject_file=r/$1.reject
   result_file=r/$1.result
+  eval_file=r/$1.eval
+  
+  if [ -f $eval_file ]
+  then
+    result_file=$eval_file
+  fi
+    
   if [ -x "$DIFF" ] && [ -f $reject_file ]
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -c $result_file $reject_file
+    $DIFF -c -a $result_file $reject_file
     echo "-------------------------------------------------------"
-    echo "Please e-mail the above, along with the output of mysqlbug"
-    echo "and any other relevant info to bugs@lists.mysql.com"
+    echo "Please follow the instructions outlined at"
+    echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
+    echo "to find the reason to this problem and how to report this."
   fi  
+}
+
+do_gdb_test ()
+{
+  mysql_test_args="$MYSQL_TEST_ARGS $1"
+  $ECHO "set args $mysql_test_args < $2" > $GDB_CLIENT_INIT
+  echo "Set breakpoints ( if needed) and type 'run' in gdb window"
+  #this xterm should not be backgrounded
+  xterm -title "Client" -e gdb -x $GDB_CLIENT_INIT $MYSQL_TEST_BIN
 }
 
 error () {
@@ -446,9 +492,8 @@ start_master()
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
-	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english \
+	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -462,7 +507,7 @@ start_master()
             --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english \
+	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
@@ -518,8 +563,10 @@ start_slave()
             --log=$SLAVE_MYLOG --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-            --language=english \
+            --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \
+	    --report-host=127.0.0.1 --report-user=root \
+	    --report-port=$SLAVE_MYPORT \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
@@ -628,6 +675,22 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ if [ -n "$SKIP_TEST" ] ; then 
+   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
+   if [ x$SKIP_THIS_TEST = x1 ] ;
+   then
+    return;
+   fi
+  fi
+
+ if [ -n "$DO_TEST" ] ; then 
+   DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
+   if [ x$DO_THIS_TEST = x0 ] ;
+   then
+    return;
+   fi
+  fi
+
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
  then
@@ -635,9 +698,9 @@ run_testcase ()
    SYST="    ...."
    REALT="    ...."
    timestr="$USERT $SYST $REALT"
-   pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-   RES="$pname          $timestr"
-   pass_inc
+   pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+   RES="$pname  $timestr"
+   skip_inc
    $ECHO "$RES$RES_SPACE [ skipped ]"
    return
  fi
@@ -691,8 +754,13 @@ run_testcase ()
   
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $EXTRA_MYSQL_TEST_OPT \
-     < $tf 2> $TIMEFILE`
+    mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
+    if [ -z "$DO_CLIENT_GDB" ] ; then
+     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    else
+     do_gdb_test "$mysql_test_args" "$tf"
+    fi
+     
     res=$?
 
     if [ $res = 0 ]; then
@@ -711,8 +779,8 @@ run_testcase ()
     fi
 
     timestr="$USERT $SYST $REALT"
-    pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-    RES="$pname          $timestr"
+    pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+    RES="$pname  $timestr"
 
     if [ $res = 0 ]; then
       total_inc
@@ -744,7 +812,7 @@ run_testcase ()
 	$ECHO "Resuming Tests"
 	$ECHO ""
       else
-#       pass_inc
+        skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi

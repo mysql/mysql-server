@@ -42,7 +42,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 			  COM_PROCESS_INFO,COM_CONNECT,COM_PROCESS_KILL,
 			  COM_DEBUG,COM_PING,COM_TIME,COM_DELAYED_INSERT,
 			  COM_CHANGE_USER, COM_BINLOG_DUMP,
-                          COM_TABLE_DUMP, COM_CONNECT_OUT};
+                          COM_TABLE_DUMP, COM_CONNECT_OUT,
+			  COM_REGISTER_SLAVE};
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
 #define PRI_KEY_FLAG	2		/* Field is part of a primary key */
@@ -100,15 +101,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 #define NET_WRITE_TIMEOUT	60		/* Timeout on write */
 #define NET_WAIT_TIMEOUT	8*60*60		/* Wait for new query */
 
-#ifndef Vio_defined
-#define Vio_defined
-#ifdef HAVE_VIO
-class Vio;					/* Fill Vio class in C++ */
-#else
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
-#endif
-#endif
 
 typedef struct st_net {
   Vio* vio;
@@ -226,15 +220,16 @@ my_bool check_scramble(const char *, const char *message,
 		       unsigned long *salt,my_bool old_ver);
 char *get_tty_password(char *opt_message);
 void hash_password(unsigned long *result, const char *password);
-#ifdef __cplusplus
-}
-#endif
 
 /* Some other useful functions */
 
 void my_init(void);
 void load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 

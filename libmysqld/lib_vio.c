@@ -139,6 +139,8 @@ int vio_read(Vio * vio, gptr buf, int size)
       			 uint4korr(vio->packets + sizeof(char *));
     vio->packets = *(char **)vio->packets;
   }
+  if (vio->where_in_packet + size > vio->end_of_packet)
+    size = vio->end_of_packet - vio->where_in_packet;
   memcpy(buf, vio->where_in_packet, size);
   vio->where_in_packet += size;
   return (size);
@@ -231,6 +233,11 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
 
 void vio_in_addr(Vio *vio, struct in_addr *in)
 {
+}
+
+my_bool vio_poll_read(Vio *vio,uint timeout)
+{
+  return 0;
 }
 
 #endif /* HAVE_VIO */

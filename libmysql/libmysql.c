@@ -109,6 +109,12 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 #define reset_sigpipe(mysql)
 #endif
 
+static MYSQL* spawn_init(MYSQL* parent, const char* host,
+			 unsigned int port,
+			 const char* user,
+			 const char* passwd);
+
+
 /****************************************************************************
 * A modified version of connect().  connect2() allows you to specify
 * a timeout value, in seconds, that we should wait until we
@@ -678,7 +684,8 @@ static const char *default_options[]=
  "init-command", "host", "database", "debug", "return-found-rows",
  "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
  "character-set-dir", "default-character-set", "interactive-timeout",
- "connect_timeout",
+ "connect_timeout", "replication-probe", "enable-reads-from-master",
+ "repl-parse-query",
  NullS
 };
 
@@ -811,6 +818,15 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 	case 19:				/* Interactive-timeout */
 	  options->client_flag|=CLIENT_INTERACTIVE;
+	  break;
+	case 21:  /* replication probe */
+	  options->rpl_probe = 1;
+	  break;
+	case 22: /* enable-reads-from-master */
+	  options->rpl_parse = 1;
+	  break;
+	case 23: /* repl-parse-query */
+	  options->no_master_reads = 0;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -987,6 +1003,273 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   return 0;
 }
 
+/* perform query on master */
+int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  if(mysql_master_send_query(mysql, q, length))
+    return 1;
+  return mysql_read_query_result(mysql);
+}
+
+int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  MYSQL*master = mysql->master;
+  if (!length)
+    length = strlen(q);
+  if (!master->net.vio && !mysql_real_connect(master,0,0,0,0,0,0,0))
+    return 1;
+  mysql->last_used_con = master;
+  return simple_command(master, COM_QUERY, q, length, 1);
+}
+
+
+/* perform query on slave */  
+int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  if(mysql_slave_send_query(mysql, q, length))
+    return 1;
+  return mysql_read_query_result(mysql);
+}
+
+int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  MYSQL* last_used_slave, *slave_to_use = 0;
+  
+  if((last_used_slave = mysql->last_used_slave))
+    slave_to_use = last_used_slave->next_slave;
+  else
+    slave_to_use = mysql->next_slave;
+  /* next_slave is always safe to use - we have a circular list of slaves
+     if there are no slaves, mysql->next_slave == mysql
+  */
+  mysql->last_used_con = mysql->last_used_slave = slave_to_use;
+  if(!length)
+    length = strlen(q);
+  if(!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
+						   0,0,0,0))
+    return 1;
+  return simple_command(slave_to_use, COM_QUERY, q, length, 1);
+}
+
+
+/* enable/disable parsing of all queries to decide
+   if they go on master or slave */
+void STDCALL mysql_enable_rpl_parse(MYSQL* mysql)
+{
+  mysql->options.rpl_parse = 1;
+}
+
+void STDCALL mysql_disable_rpl_parse(MYSQL* mysql)
+{
+  mysql->options.rpl_parse = 0;
+}
+
+/* get the value of the parse flag */  
+int STDCALL mysql_rpl_parse_enabled(MYSQL* mysql)
+{
+  return mysql->options.rpl_parse;
+}
+
+/*  enable/disable reads from master */
+void STDCALL mysql_enable_reads_from_master(MYSQL* mysql)
+{
+  mysql->options.no_master_reads = 0;
+}
+
+void STDCALL mysql_disable_reads_from_master(MYSQL* mysql)
+{
+  mysql->options.no_master_reads = 1;
+}
+
+/* get the value of the master read flag */  
+int STDCALL mysql_reads_from_master_enabled(MYSQL* mysql)
+{
+  return !(mysql->options.no_master_reads);
+}
+
+/* We may get an error while doing replication internals.
+   In this case, we add a special explanation to the original
+   error
+*/
+static inline void expand_error(MYSQL* mysql, int error)
+{
+  char tmp[MYSQL_ERRMSG_SIZE];
+  char* p, *tmp_end;
+  tmp_end = strnmov(tmp, mysql->net.last_error, MYSQL_ERRMSG_SIZE);
+  p = strnmov(mysql->net.last_error, ER(error), MYSQL_ERRMSG_SIZE);
+  memcpy(p, tmp, tmp_end - tmp);
+  mysql->net.last_errno = error;
+}
+
+/* This function assumes we have just called SHOW SLAVE STATUS and have
+   read the given result and row
+*/
+static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
+{
+  MYSQL* master;
+  if(mysql_num_fields(res) < 3)
+    return 1; /* safety */
+  
+  /* use the same username and password as the original connection */
+  if(!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
+    return 1;
+  mysql->master = master;
+  return 0;
+}
+
+/* assuming we already know that mysql points to a master connection,
+   retrieve all the slaves
+*/
+static inline int get_slaves_from_master(MYSQL* mysql)
+{
+  MYSQL_RES* res = 0;
+  MYSQL_ROW row;
+  int error = 1;
+  int has_auth_info;
+  if (!mysql->net.vio && !mysql_real_connect(mysql,0,0,0,0,0,0,0))
+  {
+    expand_error(mysql, CR_PROBE_MASTER_CONNECT);
+    return 1;
+  }
+
+  if (mysql_query(mysql, "SHOW SLAVE HOSTS") ||
+     !(res = mysql_store_result(mysql)))
+  {
+    expand_error(mysql, CR_PROBE_SLAVE_HOSTS);
+    return 1;
+  }
+
+  switch (mysql_num_fields(res))
+  {
+  case 3: has_auth_info = 0; break;
+  case 5: has_auth_info = 1; break;
+  default:
+    goto err;
+  }
+
+  while ((row = mysql_fetch_row(res)))
+  {
+    MYSQL* slave;
+    const char* tmp_user, *tmp_pass;
+
+    if (has_auth_info)
+    {
+      tmp_user = row[3];
+      tmp_pass = row[4];
+    }
+    else
+    {
+      tmp_user = mysql->user;
+      tmp_pass = mysql->passwd;
+    }
+
+    if(!(slave = spawn_init(mysql, row[1], atoi(row[2]),
+			    tmp_user, tmp_pass)))
+      goto err;
+      
+    /* Now add slave into the circular linked list */
+    slave->next_slave = mysql->next_slave;
+    mysql->next_slave = slave;
+  }
+  error = 0;
+err:
+  if(res)
+   mysql_free_result(res);
+  return error;
+}
+
+int STDCALL mysql_rpl_probe(MYSQL* mysql)
+{
+  MYSQL_RES* res = 0;
+  MYSQL_ROW row;
+  int error = 1;
+  /* first determine the replication role of the server we connected to
+     the most reliable way to do this is to run SHOW SLAVE STATUS and see
+     if we have a non-empty master host. This is still not fool-proof -
+     it is not a sin to have a master that has a dormant slave thread with
+     a non-empty master host. However, it is more reliable to check 
+     for empty master than whether the slave thread is actually running
+  */
+  if (mysql_query(mysql, "SHOW SLAVE STATUS") ||
+     !(res = mysql_store_result(mysql)))
+  {
+    expand_error(mysql, CR_PROBE_SLAVE_STATUS);
+    return 1;
+  }
+  
+  if (!(row = mysql_fetch_row(res)))
+    goto err;
+
+  /* check master host for emptiness/NULL */
+  if (row[0] && *(row[0]))
+  {
+    /* this is a slave, ask it for the master */
+    if (get_master(mysql, res, row) || get_slaves_from_master(mysql))
+      goto err;
+  }
+  else
+  {
+    mysql->master = mysql;
+    if (get_slaves_from_master(mysql))
+      goto err;
+  }
+
+  error = 0;
+err:
+  if(res)
+    mysql_free_result(res);
+  return error;
+}
+
+
+/* make a not so fool-proof decision on where the query should go, to
+   the master or the slave. Ideally the user should always make this
+   decision himself with mysql_master_query() or mysql_slave_query().
+   However, to be able to more easily port the old code, we support the
+   option of an educated guess - this should work for most applications,
+   however, it may make the wrong decision in some particular cases. If
+   that happens, the user would have to change the code to call
+   mysql_master_query() or mysql_slave_query() explicitly in the place
+   where we have made the wrong decision
+*/
+enum mysql_rpl_type
+STDCALL mysql_rpl_query_type(const char* q, int len)
+{
+  const char* q_end;
+  q_end = (len) ? q + len : strend(q);
+  for(; q < q_end; ++q)
+  {
+    char c;
+    if(isalpha(c=*q))
+      switch(tolower(c))
+       {
+       case 'i':  /* insert */
+       case 'u':  /* update or unlock tables */
+       case 'l':  /* lock tables or load data infile */
+       case 'd':  /* drop or delete */
+       case 'a':  /* alter */
+	 return MYSQL_RPL_MASTER;
+       case 'c':  /* create or check */
+	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
+       case 's': /* select or show */
+	 return tolower(q[1] == 'h') ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
+       case 'f': /* flush */
+       case 'r': /* repair */
+       case 'g': /* grant */
+	 return MYSQL_RPL_ADMIN;
+       default:
+	 return MYSQL_RPL_SLAVE;
+       }
+  }
+
+  return 0;
+}
+
+
 /****************************************************************************
 ** Init MySQL structure or allocate one
 ****************************************************************************/
@@ -1005,6 +1288,12 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout=CONNECT_TIMEOUT;
+  mysql->last_used_con = mysql->next_slave = mysql->master = mysql;
+  mysql->last_used_slave = 0;
+  /* By default, we are a replication pivot. The caller must reset it
+     after we return if this is not the case.
+  */
+  mysql->rpl_pivot = 1; 
 #if defined(SIGPIPE) && defined(THREAD)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);
@@ -1070,13 +1359,15 @@ mysql_ssl_set(MYSQL *mysql, const char *key, const char *cert,
   mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
   mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
   mysql->options.ssl_capath = capath==0 ? 0 : my_strdup(capath,MYF(0));
-  mysql->options.use_ssl = true;
-  mysql->connector_fd = new_VioSSLConnectorFd(key, cert, ca, capath);
+  mysql->options.use_ssl = TRUE;
+  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath);
+  DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
+
   return 0;
 }
 
 /**************************************************************************
-**************************************************************************/
+**************************************************************************
 
 char * STDCALL
 mysql_ssl_cipher(MYSQL *mysql)
@@ -1085,10 +1376,10 @@ mysql_ssl_cipher(MYSQL *mysql)
 }
 
 
-/**************************************************************************
+**************************************************************************
 ** Free strings in the SSL structure and clear 'use_ssl' flag.
 ** NB! Errors are not reported until you do mysql_real_connect.
-**************************************************************************/
+**************************************************************************
 
 int STDCALL
 mysql_ssl_clear(MYSQL *mysql)
@@ -1105,7 +1396,7 @@ mysql_ssl_clear(MYSQL *mysql)
   mysql->connector_fd->delete();
   mysql->connector_fd = 0;
   return 0;
-}
+}*/
 #endif /* HAVE_OPENSSL */
 
 /**************************************************************************
@@ -1496,11 +1787,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       goto error;
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    VioSSLConnectorFd* connector_fd = (VioSSLConnectorFd*)
-      (mysql->connector_fd);
-    VioSocket*	vio_socket = (VioSocket*)(mysql->net.vio);
-    VioSSL*	vio_ssl =    connector_fd->connect(vio_socket);
-    mysql->net.vio =         (NetVio*)(vio_ssl);
+    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
+    mysql->net.vio = sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
 
@@ -1542,6 +1831,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->reconnect=reconnect;
   }
 
+  if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
+    goto error;
+  
   DBUG_PRINT("exit",("Mysql handler: %lx",mysql));
   reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
@@ -1680,9 +1972,24 @@ mysql_close(MYSQL *mysql)
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
-    ((VioConnectorFd*)(mysql->connector_fd))->delete();
-    mysql->connector_fd = 0;
+/*    ((VioConnectorFd*)(mysql->connector_fd))->delete();
+    mysql->connector_fd = 0;*/
 #endif /* HAVE_OPENSSL */
+    
+    /* free/close slave list */
+    if (mysql->rpl_pivot)
+    {
+      MYSQL* tmp;
+      for (tmp = mysql->next_slave; tmp != mysql; )
+      {
+	/* trick to avoid following freed pointer */
+	MYSQL* tmp1 = tmp->next_slave;
+	mysql_close(tmp);
+	tmp = tmp1;
+      }
+    }
+    if(mysql != mysql->master)
+      mysql_close(mysql->master);
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
   }
@@ -1701,6 +2008,67 @@ mysql_query(MYSQL *mysql, const char *query)
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
 
+static MYSQL* spawn_init(MYSQL* parent, const char* host,
+					   unsigned int port,
+					   const char* user,
+					   const char* passwd)
+{
+  MYSQL* child;
+  if (!(child = mysql_init(0)))
+    return 0;
+  
+  child->options.user = my_strdup((user) ? user :
+				  (parent->user ? parent->user :
+				       parent->options.user), MYF(0));
+  child->options.password = my_strdup((passwd) ? passwd : (parent->passwd ?
+						    parent->passwd :
+				       parent->options.password), MYF(0));
+  child->options.port = port;
+  child->options.host = my_strdup((host) ? host : (parent->host ?
+						    parent->host :
+				       parent->options.host), MYF(0));
+  if(parent->db)
+    child->options.db = my_strdup(parent->db, MYF(0));
+  else if(parent->options.db)
+    child->options.db = my_strdup(parent->options.db, MYF(0));
+
+  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
+    
+  return child;
+}
+
+
+int
+STDCALL mysql_set_master(MYSQL* mysql, const char* host,
+					   unsigned int port,
+					   const char* user,
+					   const char* passwd)
+{
+  if (mysql->master != mysql && !mysql->master->rpl_pivot)
+    mysql_close(mysql->master);
+  if(!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
+    return 1;
+  mysql->master->rpl_pivot = 0;
+  mysql->master->options.rpl_parse = 0;
+  mysql->master->options.rpl_probe = 0;
+  return 0;
+}
+
+int
+STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
+					   unsigned int port,
+					   const char* user,
+					   const char* passwd)
+{
+  MYSQL* slave;
+  if(!(slave = spawn_init(mysql, host, port, user, passwd)))
+    return 1;
+  slave->next_slave = mysql->next_slave;
+  mysql->next_slave = slave;
+  return 0;
+}
+
+
 /*
   Send the query and return so we can do something else.
   Needs to be followed by mysql_read_query_result() when we want to
@@ -1710,6 +2078,20 @@ mysql_query(MYSQL *mysql, const char *query)
 int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, uint length)
 {
+  if (mysql->options.rpl_parse && mysql->rpl_pivot)
+  {
+    switch (mysql_rpl_query_type(query, length))
+    {
+    case MYSQL_RPL_MASTER:
+      return mysql_master_send_query(mysql, query, length);
+    case MYSQL_RPL_SLAVE:
+      return mysql_slave_send_query(mysql, query, length);
+    case MYSQL_RPL_ADMIN: /*fall through */
+    }
+  }
+
+  mysql->last_used_con = mysql;
+
   return simple_command(mysql, COM_QUERY, query, length, 1);
 }
 
@@ -1721,6 +2103,11 @@ int STDCALL mysql_read_query_result(MYSQL *mysql)
   uint length;
   DBUG_ENTER("mysql_read_query_result");
 
+  /* read from the connection which we actually used, which
+     could differ from the original connection if we have slaves
+   */
+  mysql = mysql->last_used_con;
+  
   if ((length = net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(-1);
   free_old_query(mysql);			/* Free old result */
@@ -1767,7 +2154,8 @@ mysql_real_query(MYSQL *mysql, const char *query, uint length)
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
   DBUG_PRINT("query",("Query = \"%s\"",query));
-  if (simple_command(mysql,COM_QUERY,query,length,1))
+  
+  if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(-1);
   DBUG_RETURN(mysql_read_query_result(mysql));
 }
@@ -1839,6 +2227,9 @@ mysql_store_result(MYSQL *mysql)
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
 
+  /* read from the actually used connection */
+  mysql = mysql->last_used_con;
+  
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -1891,6 +2282,8 @@ mysql_use_result(MYSQL *mysql)
   MYSQL_RES *result;
   DBUG_ENTER("mysql_use_result");
 
+  mysql = mysql->last_used_con;
+  
   if (!mysql->fields)
     DBUG_RETURN(0);
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
@@ -2344,32 +2737,32 @@ uint STDCALL mysql_field_tell(MYSQL_RES *res)
 
 unsigned int STDCALL mysql_field_count(MYSQL *mysql)
 {
-  return mysql->field_count;
+  return mysql->last_used_con->field_count;
 }
 
 my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql)
 {
-  return (mysql)->affected_rows;
+  return mysql->last_used_con->affected_rows;
 }
 
 my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
 {
-  return (mysql)->insert_id;
+  return mysql->last_used_con->insert_id;
 }
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
-  return (mysql)->net.last_errno;
+  return mysql->net.last_errno;
 }
 
 char * STDCALL mysql_error(MYSQL *mysql)
 {
-  return (mysql)->net.last_error;
+  return mysql->net.last_error;
 }
 
 char *STDCALL mysql_info(MYSQL *mysql)
 {
-  return (mysql)->info;
+  return mysql->info;
 }
 
 ulong STDCALL mysql_thread_id(MYSQL *mysql)

@@ -1,0 +1,57 @@
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+master-bin.001	263	Query	1	5	use test; drop table t1
+master-bin.001	311	Query	1	6	use test; create table t1 (word char(20) not null)
+master-bin.001	386	Load	1	7	use test; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1 FIELDS TERMINATED BY '\\t' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (word)
+master-bin.001	468	Query	1	8	use test; drop table t1
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+master-bin.001	263	Query	1	5	use test; drop table t1
+master-bin.001	311	Query	1	6	use test; create table t1 (word char(20) not null)
+master-bin.001	386	Load	1	7	use test; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1 FIELDS TERMINATED BY '\\t' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (word)
+master-bin.001	468	Query	1	8	use test; drop table t1
+master-bin.001	516	Rotate	1	9	master-bin.002;pos=4
+master-bin.001	557	Stop	1	10	
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.002	4	Start	1	1	Server ver: $VERSION, Binlog ver: 2
+master-bin.002	79	Query	1	2	use test; create table t1 (n int)
+master-bin.002	137	Query	1	3	use test; insert into t1 values (1)
+master-bin.002	197	Query	1	4	use test; drop table t1
+Log_name
+master-bin.001
+master-bin.002
+Log_name
+slave-bin.001
+slave-bin.002
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+slave-bin.001	4	Start	2	1	Server ver: $VERSION, Binlog ver: 2
+slave-bin.001	79	Slave	2	2	host=127.0.0.1,port=$MASTER_MYPORT,log=master-bin.001,pos=4
+slave-bin.001	132	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+slave-bin.001	225	Intvar	1	3	INSERT_ID=1
+slave-bin.001	253	Query	1	4	use test; insert into t1 values (NULL)
+slave-bin.001	316	Query	1	5	use test; drop table t1
+slave-bin.001	364	Query	1	6	use test; create table t1 (word char(20) not null)
+slave-bin.001	439	Query	1	8	use test; drop table t1
+slave-bin.001	487	Rotate	2	3	slave-bin.002;pos=4; forced by master
+slave-bin.001	527	Stop	2	4	
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+slave-bin.002	4	Start	2	1	Server ver: $VERSION, Binlog ver: 2
+slave-bin.002	79	Slave	2	2	host=127.0.0.1,port=$MASTER_MYPORT,log=master-bin.002,pos=4
+slave-bin.002	132	Query	1	2	use test; create table t1 (n int)
+slave-bin.002	190	Query	1	3	use test; insert into t1 values (1)
+slave-bin.002	250	Query	1	4	use test; drop table t1
+Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
+127.0.0.1	root	$MASTER_MYPORT	1	master-bin.002	245	Yes			0		0	4

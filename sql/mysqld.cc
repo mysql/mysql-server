@@ -20,6 +20,7 @@
 #include <my_dir.h>
 #include "sql_acl.h"
 #include "slave.h"
+#include "sql_repl.h"
 #include "stacktrace.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -34,7 +35,6 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
-#include "vio.h"
 
 #ifndef DBUG_OFF
 #define ONE_THREAD
@@ -95,16 +95,15 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#ifdef _AIX41
+int initgroups(const char *,unsigned int);
+#endif
+
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT				// Fix type conflict
 typedef fp_except fp_except_t;
 #endif
-
-#ifdef _AIX41
-extern "C" int initgroups(const char *,int);
-#endif
-
 
   /* We can't handle floating point expections with threads, so disable
      this on freebsd
@@ -207,6 +206,7 @@ SHOW_COMP_OPTION have_ssl=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
 #endif
+SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
 
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
@@ -220,9 +220,10 @@ static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
-            opt_ansi_mode=0,opt_myisam_log=0,
+	    opt_ansi_mode=0,opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
-bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0;
+bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
+  opt_show_slave_auth_info = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -244,7 +245,7 @@ static char *opt_ssl_key = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_ca = 0;
 static char *opt_ssl_capath = 0;
-static struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
+struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
 
@@ -277,15 +278,18 @@ volatile ulong cached_thread_count=0;
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
+my_string report_user = 0, report_password = 0, report_host=0;
+ 
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
+uint report_port = MYSQL_PORT;
 
 ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
-bool opt_using_transactions, using_update_log;
+bool opt_using_transactions, using_update_log, opt_warnings=0;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -341,7 +345,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
                 LOCK_binlog_update, LOCK_slave, LOCK_server_id,
-		LOCK_user_conn;
+		LOCK_user_conn, LOCK_slave_list;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped, COND_slave_start;
@@ -695,6 +699,7 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave();
+  end_slave_list();
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1200,12 +1205,12 @@ Some pointers may be invalid and cause the dump to abort...\n");
     fprintf(stderr, "\n
 Successfully dumped variables, if you ran with --log, take a look at the\n\
 details of what thread %ld did to cause the crash.  In some cases of really\n\
-bad corruption, the above values may be invalid\n\n",
+bad corruption, the values shown above may be invalid\n\n",
 	  thd->thread_id);
   }
   fprintf(stderr, "\
-Please use the information above to create a repeatable test case for the\n\
-crash, and send it to bugs@lists.mysql.com\n");
+The manual page at http://www.mysql.com/doc/C/r/Crashing.html contains\n\
+information that should help you find out what is causing the crash\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
 
@@ -1685,7 +1690,8 @@ int main(int argc, char **argv)
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
-
+  init_slave_list();
+  
   /* Fix varibles that are base 1024*1024 */
   myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
   myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
@@ -2473,14 +2479,16 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-               OPT_INNODB_UNIX_FILE_FLUSH_METHOD, 
+               OPT_INNODB_FLUSH_METHOD, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
-	       OPT_SKIP_STACK_TRACE
-};
+	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINK, OPT_REPORT_HOST,
+	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
+               OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
+               OPT_SHOW_SLAVE_AUTH_INFO};
 
 static struct option long_options[] = {
   {"ansi",                  no_argument,       0, 'a'},
@@ -2536,8 +2544,8 @@ static struct option long_options[] = {
      OPT_INNODB_LOG_ARCHIVE},
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
-  {"innodb_unix_file_flush_method", required_argument, 0,
-    OPT_INNODB_UNIX_FILE_FLUSH_METHOD},
+  {"innodb_flush_method", required_argument, 0,
+    OPT_INNODB_FLUSH_METHOD},
 #endif
   {"help",                  no_argument,       0, '?'},
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
@@ -2565,6 +2573,10 @@ static struct option long_options[] = {
      (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
   {"abort-slave-event-count",      required_argument, 0,
      (int) OPT_ABORT_SLAVE_EVENT_COUNT},
+  {"max-binlog-dump-events",      required_argument, 0,
+     (int) OPT_MAX_BINLOG_DUMP_EVENTS},
+  {"sporadic-binlog-dump-fail", no_argument, 0,
+     (int) OPT_SPORADIC_BINLOG_DUMP_FAIL},
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
@@ -2587,11 +2599,19 @@ static struct option long_options[] = {
    (int) OPT_REPLICATE_WILD_IGNORE_TABLE},
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
+    // In replication, we may need to tell the other servers how to connect
+    // to us
+  {"report-host",           required_argument, 0, (int) OPT_REPORT_HOST},
+  {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
+  {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
+  {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
+  {"show-slave-auth-info",  no_argument,       0,
+     (int) OPT_SHOW_SLAVE_AUTH_INFO},
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
   {"skip-innodb",           no_argument,       0, (int) OPT_INNODB_SKIP},
   {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
@@ -2607,6 +2627,7 @@ static struct option long_options[] = {
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
+  {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINK},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -2622,6 +2643,7 @@ static struct option long_options[] = {
 #endif
   {"user",                  required_argument, 0, 'u'},
   {"version",               no_argument,       0, 'V'},
+  {"warnings",		    no_argument,       0, 'W'},
   {0, 0, 0, 0}
 };
 
@@ -2817,6 +2839,7 @@ struct show_var_st init_vars[]= {
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
+  {"have_symlink",            (char*) &have_symlink,         	    SHOW_HAVE},
   {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
@@ -2826,7 +2849,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
-  {"innodb_unix_file_flush_method", (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
+  {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
 #endif
   {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
@@ -3038,6 +3061,8 @@ static void usage(void)
   -O, --set-variable var=option\n\
 			Give a variable an value. --help lists variables\n\
   --safe-mode		Skip some optimize stages (for testing)\n\
+  --safe-show-database  Don't show databases for which the user has no\n\
+                        privileges\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
@@ -3054,6 +3079,7 @@ static void usage(void)
   /* We have to break the string here because of VC++ limits */
   puts("\
   --skip-stack-trace    Don't print a stack trace on failure\n\
+  --skip-symlink	Don't allow symlinking of tables\n\
   --skip-show-database  Don't allow 'SHOW DATABASE' commands\n\
   --skip-thread-priority\n\
 			Don't give threads different priorities.\n\
@@ -3063,14 +3089,19 @@ static void usage(void)
 		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\
   -u, --user=user_name	Run mysqld daemon as user\n\
-  -V, --version		output version information and exit");
+  -V, --version		output version information and exit\n\
+  -W, --warnings        Log some not critical warnings to the log file\n");
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
   --console		Don't remove the console window\n\
   --install		Install mysqld as a service (NT)\n\
   --remove		Remove mysqld from the service list (NT)\n\
-  --standalone		Dummy option to start as a standalone program (NT)\n\
+  --standalone		Dummy option to start as a standalone program (NT)\
 ");
+#ifdef USE_SYMDIR
+  puts("--use-symbolic-links	Enable symbolic link support");
+#endif
+  puts("");
 #endif
 #ifdef HAVE_BERKELEY_DB
   puts("\
@@ -3099,6 +3130,7 @@ static void usage(void)
   puts("\
   --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
   --innodb_data_file_path=dir  Path to individual files and their sizes\n\
+  --innodb_flush_method=#  With which method to flush data\n\
   --innodb_flush_log_at_trx_commit[=#]\n\
 			       Set to 0 if you don't want to flush logs\n\
   --innodb_log_arch_dir=dir    Where full logs should be archived\n\
@@ -3192,7 +3224,9 @@ static void get_options(int argc,char **argv)
   int c,option_index=0;
 
   myisam_delay_key_write=1;			// Allow use of this
-  while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvI?",
+  my_use_symdir=1;				// Use internal symbolic links
+
+  while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvWI?",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -3201,6 +3235,9 @@ static void get_options(int argc,char **argv)
       DBUG_PUSH(optarg ? optarg : default_dbug_option);
 #endif
       opt_endinfo=1;				/* unireg: memory allocation */
+      break;
+    case 'W':
+      opt_warnings=1;
       break;
     case 'a':
       opt_ansi_mode=1;
@@ -3240,6 +3277,9 @@ static void get_options(int argc,char **argv)
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
       safemalloc_mem_limit = atoi(optarg);
 #endif      
+      break;
+    case OPT_SHOW_SLAVE_AUTH_INFO:
+      opt_show_slave_auth_info = 1;
       break;
     case OPT_SOCKET:
       mysql_unix_port= optarg;
@@ -3305,6 +3345,17 @@ static void get_options(int argc,char **argv)
       abort_slave_event_count = atoi(optarg);
 #endif      
       break;
+    case (int)OPT_SPORADIC_BINLOG_DUMP_FAIL:
+#ifndef DBUG_OFF      
+      opt_sporadic_binlog_dump_fail = 1;
+#endif      
+      break;
+     case (int)OPT_MAX_BINLOG_DUMP_EVENTS:
+#ifndef DBUG_OFF      
+      max_binlog_dump_events = atoi(optarg);
+#endif      
+      break;
+
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
       break;
@@ -3432,6 +3483,9 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
+      my_disable_symlinks=1;
+      my_use_symdir=0;
+      have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
       break;
     case (int) OPT_SAFE:
@@ -3487,6 +3541,11 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_SKIP_STACK_TRACE:
       test_flags|=TEST_NO_STACKTRACE;
+      break;
+    case (int) OPT_SKIP_SYMLINK:
+      my_disable_symlinks=1;
+      my_use_symdir=0;
+      have_symlink=SHOW_OPTION_DISABLED;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))
@@ -3673,7 +3732,7 @@ static void get_options(int argc,char **argv)
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
-    case OPT_INNODB_UNIX_FILE_FLUSH_METHOD:
+    case OPT_INNODB_FLUSH_METHOD:
       innobase_unix_file_flush_method=optarg;
       break;
 #endif /* HAVE_INNOBASE_DB */
@@ -3714,6 +3773,18 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);
+      break;
+    case OPT_REPORT_HOST:
+      report_host=optarg;
+      break;
+    case OPT_REPORT_USER:
+      report_user=optarg;
+      break;
+    case OPT_REPORT_PASSWORD:
+      report_password=optarg;
+      break;
+    case OPT_REPORT_PORT:
+      report_port= atoi(optarg);
       break;
     case OPT_MASTER_CONNECT_RETRY:
       master_connect_retry= atoi(optarg);

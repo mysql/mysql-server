@@ -642,7 +642,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	  /* Copy error message and abort */
 	  thd->fatal_error=1;
 	  strmov(thd->net.last_error,tmp->thd.net.last_error);
-	  thd->net.last_errno=thd->net.last_errno;
+	  thd->net.last_errno=tmp->thd.net.last_errno;
 	}
 	tmp->unlock();
 	pthread_mutex_unlock(&LOCK_delayed_create);
@@ -1362,6 +1362,7 @@ select_create::prepare(List<Item> &values)
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
 

@@ -54,3 +54,10 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_CANT_READ_CHARSET	2019
 #define CR_NET_PACKET_TOO_LARGE 2020
 #define CR_EMBEDDED_CONNECTION	2021
+#define CR_PROBE_SLAVE_STATUS   2022
+#define CR_PROBE_SLAVE_HOSTS    2023
+#define CR_PROBE_SLAVE_CONNECT  2024
+#define CR_PROBE_MASTER_CONNECT 2025
+
+
+

@@ -212,7 +212,7 @@ make_tempname (filename)
     {
       tmpname = xmalloc (sizeof (template));
       strcpy (tmpname, template);
-      mktemp (tmpname);
+      mkstemp (tmpname);
     }
   return tmpname;
 }

@@ -50,8 +50,8 @@ void free_defaults_internal(char ** argv){if (argv) free_defaults(argv);}
 char mysql_data_home[FN_REFLEN];
 char * get_mysql_data_home(){return mysql_data_home;};
 #define mysql_data_home mysql_data_home_internal
-#include "../sql/mysqld.cc"
 #include "lib_vio.c"
+#include "../sql/mysqld.cc"
 
 #define SCRAMBLE_LENGTH 8
 extern "C" {
@@ -72,8 +72,13 @@ get_mysql_real_data_home(){ return mysql_real_data_home;};
 bool lib_dispatch_command(enum enum_server_command command, NET *net,
 			  const char *arg, ulong length)
 {
-  net_new_transaction(&((THD *)net->vio->dest_thd)->net);
-  return dispatch_command(command, (THD *)net->vio->dest_thd, (char *)arg, length + 1);
+  THD *thd=(THD *) net->vio->dest_thd;
+  thd->store_globals();				// Fix if more than one connect
+  thd->net.last_error[0]=0;			// Clear error message
+  thd->net.last_errno=0;
+  
+  net_new_transaction(&thd->net);
+  return dispatch_command(command, thd, (char *) arg, length + 1);
 }
 
 
@@ -81,17 +86,17 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
 void 
 lib_connection_phase(NET * net, int phase)
 {
-   THD * thd;
-   thd = (THD *)(net->vio->dest_thd);
-   if (thd)
-   {
-	switch (phase)
-	{
-		case 2: 
-		check_connections2(thd);
-		break;
-	}
-   }
+  THD * thd;
+  thd = (THD *)(net->vio->dest_thd);
+  if (thd)
+  {
+    switch (phase)
+    {
+    case 2: 
+      check_connections2(thd);
+      break;
+    }
+  }
 }
 }
 void start_embedded_conn1(NET * net)
@@ -116,7 +121,7 @@ void start_embedded_conn1(NET * net)
   thd->net.vio = v;
   if (thd->store_globals())
   {
-    printf("store_globals failed.\n");
+    fprintf(stderr,"store_globals failed.\n");
     return;
   }
 
@@ -600,7 +605,7 @@ void embedded_srv_init(void)
   }
 
   //printf(ER(ER_READY),my_progname,server_version,"");
-  printf("%s initialized.\n", server_version);
+  //printf("%s initialized.\n", server_version);
   fflush(stdout);
 
 

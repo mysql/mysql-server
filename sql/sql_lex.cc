@@ -142,11 +142,11 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->next_state=STATE_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
-  lex->create_refs=lex->in_comment=0;
+  lex->select->create_refs=lex->in_comment=0;
   lex->length=0;
-  lex->in_sum_expr=0;
-  lex->expr_list.empty();
-  lex->ftfunc_list.empty();
+  lex->select->in_sum_expr=0;
+  lex->select->expr_list.empty();
+  lex->select->ftfunc_list.empty();
   lex->convert_set=(lex->thd=thd)->convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->client_capabilities & CLIENT_IGNORE_SPACE);
@@ -155,7 +155,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
 
 void lex_end(LEX *lex)
 {
-  lex->expr_list.delete_elements();	// If error when parsing sql-varargs
+  lex->select->expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }
@@ -656,12 +656,9 @@ int yylex(void *arg)
       if (c == 'e' || c == 'E')
       {
 	c = yyGet();
-	if (c != '-' && c != '+' && !isdigit(c))
-	{				// No exp sig found
-	  state= STATE_CHAR;
-	  break;
-	}
-	if (!isdigit(yyGet()))
+	if (c == '-' || c == '+')
+	  c = yyGet();			// Skipp sign
+	if (!isdigit(c))
 	{				// No digit after sign
 	  state= STATE_CHAR;
 	  break;

@@ -53,7 +53,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cfg file, groups [mysqld] and [mysql_server]
+# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -100,18 +100,18 @@ case "$mode" in
   'start')
     # Start daemon
 
-    if test -x $bindir/safe_mysqld
+    if test -x $bindir/mysqld_safe
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $bindir/safe_mysqld --datadir=$datadir --pid-file=$pid_file &
+      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file &
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
         touch /var/lock/subsys/mysql
       fi
     else
-      echo "Can't execute $bindir/safe_mysqld"
+      echo "Can't execute $bindir/mysqld_safe"
     fi
     ;;
 

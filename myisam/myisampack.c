@@ -894,7 +894,8 @@ static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
-static int compare_huff_elements(void *not_used, byte *a, byte *b)
+static int compare_huff_elements(void* cmp_arg __attribute__((unused)),
+				 byte *a, byte *b)
 {
   return *((my_off_t*) a) < *((my_off_t*) b) ? -1 :
     (*((my_off_t*) a) == *((my_off_t*) b)  ? 0 : 1);

@@ -100,109 +100,6 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 
-#if 0
-/****************************************************************************
-* A modified version of connect().  connect2() allows you to specify
-* a timeout value, in seconds, that we should wait until we
-* derermine we can't connect to a particular host.  If timeout is 0,
-* connect2() will behave exactly like connect().
-*
-* Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
-*****************************************************************************/
-
-static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
-		    uint to)
-{
-#if defined(__WIN__)
-  return connect(s, (struct sockaddr*) name, namelen);
-#else
-  int flags, res, s_err;
-  size_socket s_err_size = sizeof(uint);
-  fd_set sfds;
-  struct timeval tv;
-  time_t start_time, now_time;
-
-  /* If they passed us a timeout of zero, we should behave
-   * exactly like the normal connect() call does.
-   */
-
-  if (to == 0)
-    return connect(s, (struct sockaddr*) name, namelen);
-
-  flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
-#ifdef O_NONBLOCK
-  fcntl(s, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
-#endif
-
-  res = connect(s, (struct sockaddr*) name, namelen);
-  s_err = errno;			/* Save the error... */
-  fcntl(s, F_SETFL, flags);
-  if ((res != 0) && (s_err != EINPROGRESS))
-  {
-    errno = s_err;			/* Restore it */
-    return(-1);
-  }
-  if (res == 0)				/* Connected quickly! */
-    return(0);
-
-  /* Otherwise, our connection is "in progress."  We can use
-   * the select() call to wait up to a specified period of time
-   * for the connection to suceed.  If select() returns 0
-   * (after waiting howevermany seconds), our socket never became
-   * writable (host is probably unreachable.)  Otherwise, if
-   * select() returns 1, then one of two conditions exist:
-   *
-   * 1. An error occured.  We use getsockopt() to check for this.
-   * 2. The connection was set up sucessfully: getsockopt() will
-   * return 0 as an error.
-   *
-   * Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
-   * who posted this method of timing out a connect() in
-   * comp.unix.programmer on August 15th, 1997.
-   */
-
-  FD_ZERO(&sfds);
-  FD_SET(s, &sfds);
-  /*
-   * select could be interrupted by a signal, and if it is, 
-   * the timeout should be adjusted and the select restarted
-   * to work around OSes that don't restart select and 
-   * implementations of select that don't adjust tv upon
-   * failure to reflect the time remaining
-   */
-  start_time = time(NULL);
-  for (;;)
-  {
-    tv.tv_sec = (long) to;
-    tv.tv_usec = 0;
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
-      break;
-    now_time=time(NULL);
-    to-= (uint) (now_time - start_time);
-    if (errno != EINTR || (int) to <= 0)
-      return -1;
-  }
-
-  /* select() returned something more interesting than zero, let's
-   * see if we have any errors.  If the next two statements pass,
-   * we've got an open socket!
-   */
-
-  s_err=0;
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
-    return(-1);
-
-  if (s_err)
-  {						/* getsockopt() could suceed */
-    errno = s_err;
-    return(-1);					/* but return an error... */
-  }
-  return(0);					/* It's all good! */
-#endif
-}
-#endif /* 0 */
-
-
 /*****************************************************************************
 ** read a packet from server. Give error message if socket was down
 ** or packet is an error message
@@ -343,25 +240,15 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 {
   NET *net= &mysql->net;
   int result= -1;
-  init_sigpipe_variables
 
-  /* Don't give sigpipe errors if the client doesn't want them */
-  set_sigpipe(mysql);
-  if (mysql->net.vio == 0)
-  {						/* Do reconnect if possible */
-    if (mysql_reconnect(mysql))
-    {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
-      goto end;
-    }
-  }
+  /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
     strmov(net->last_error,ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
     goto end;
   }
 
+  /* Clear result variables */
   mysql->net.last_error[0]=0;
   mysql->net.last_errno=0;
   mysql->info=0;
@@ -371,32 +258,11 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
   net_clear(net);
   vio_reset(net->vio);
 
-  if (!arg)
-    arg="";
-
-  result = lib_dispatch_command(command, net, arg,
-				length ? length : (ulong) strlen(arg));
-#if 0
-  if (net_write_command(net,(uchar) command,arg,
-			length ? length : (ulong) strlen(arg)))
-  {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",errno));
-    end_server(mysql);
-    if (mysql_reconnect(mysql) ||
-	net_write_command(net,(uchar) command,arg,
-			  length ? length : (ulong) strlen(arg)))
-    {
-      net->last_errno=CR_SERVER_GONE_ERROR;
-      strmov(net->last_error,ER(net->last_errno));
-      goto end;
-    }
-  }
-#endif
+  result = lib_dispatch_command(command, net, arg,length);
   if (!skipp_check)
     result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
 	     -1 : 0);
  end:
-  reset_sigpipe(mysql);
   return result;
 }
 
@@ -1280,7 +1146,7 @@ mysql_close(MYSQL *mysql)
     {
       free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
-      simple_command(mysql,COM_QUIT,NullS,0,1);
+      simple_command(mysql,COM_QUIT,"",0,1);
       end_server(mysql);
     }
     my_free((gptr) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
@@ -1323,22 +1189,26 @@ mysql_query(MYSQL *mysql, const char *query)
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
 
+int STDCALL
+mysql_send_query(MYSQL* mysql, const char* query, uint length)
+{
+  return simple_command(mysql, COM_QUERY, query, length, 1);
+}
+
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, uint length)
+mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
-  DBUG_ENTER("mysql_real_query");
-  DBUG_PRINT("enter",("handle: %lx",mysql));
-  DBUG_PRINT("query",("Query = \"%s\"",query));
+  uint length;
+  DBUG_ENTER("mysql_read_query_result");
 
-  if (simple_command(mysql,COM_QUERY,query,length,1) ||
-      (length=net_safe_read(mysql)) == packet_error)
+  if ((length=net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(-1);
   free_old_query(mysql);			/* Free old result */
- get_info:
+get_info:
   pos=(uchar*) mysql->net.read_pos;
   if ((field_count= net_field_length(&pos)) == 0)
   {
@@ -1373,6 +1243,17 @@ mysql_real_query(MYSQL *mysql, const char *query, uint length)
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(0);
+}
+
+int STDCALL
+mysql_real_query(MYSQL *mysql, const char *query, uint length)
+{
+  DBUG_ENTER("mysql_real_query");
+  DBUG_PRINT("enter",("handle: %lx",mysql));
+  DBUG_PRINT("query",("Query = \"%s\"",query));
+  if (mysql_send_query(mysql, query, length))
+    DBUG_RETURN(-1);
+  DBUG_RETURN(mysql_read_query_result(mysql));
 }
 
 
@@ -1741,7 +1622,7 @@ mysql_list_processes(MYSQL *mysql)
   DBUG_ENTER("mysql_list_processes");
 
   LINT_INIT(fields);
-  if (simple_command(mysql,COM_PROCESS_INFO,0,0,0))
+  if (simple_command(mysql,COM_PROCESS_INFO,"",0,0))
     DBUG_RETURN(0);
   free_old_query(mysql);
   pos=(uchar*) mysql->net.read_pos;
@@ -1780,7 +1661,7 @@ int STDCALL
 mysql_shutdown(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_shutdown");
-  DBUG_RETURN(simple_command(mysql,COM_SHUTDOWN,0,0,0));
+  DBUG_RETURN(simple_command(mysql,COM_SHUTDOWN,"",0,0));
 }
 
 
@@ -1807,14 +1688,14 @@ int STDCALL
 mysql_dump_debug_info(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_dump_debug_info");
-  DBUG_RETURN(simple_command(mysql,COM_DEBUG,0,0,0));
+  DBUG_RETURN(simple_command(mysql,COM_DEBUG,"",0,0));
 }
 
 char * STDCALL
 mysql_stat(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_stat");
-  if (simple_command(mysql,COM_STATISTICS,0,0,0))
+  if (simple_command(mysql,COM_STATISTICS,"",0,0))
     return mysql->net.last_error;
   mysql->net.read_pos[mysql->packet_length]=0;	/* End of stat string */
   if (!mysql->net.read_pos[0])
@@ -1831,7 +1712,7 @@ int STDCALL
 mysql_ping(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_ping");
-  DBUG_RETURN(simple_command(mysql,COM_PING,0,0,0));
+  DBUG_RETURN(simple_command(mysql,COM_PING,"",0,0));
 }
 
 

@@ -285,8 +285,10 @@ export CC CFLAGS LD LDFLAGS
 
 if test "$GXX" = "yes"
 then
-  # mysqld requires this when compiled with gcc
-  CXXFLAGS="$CXXFLAGS -fno-implicit-templates"
+  # mysqld requires -fno-implicit-templates.
+  # Disable exceptions as they seams to create problems with gcc and threads.
+  # mysqld doesn't use run-time-type-checking, so we disable it.
+  CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 fi
 
 # Avoid bug in fcntl on some versions of linux
@@ -401,7 +403,7 @@ AM_PROG_CC_STDC
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
-  AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
+  AC_MSG_ERROR([MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
 NOINST_LDFLAGS=
@@ -786,6 +788,11 @@ case $SYSTEM_TYPE in
     echo "Enabling snprintf workaround for hpux 10.20"
     CFLAGS="$CFLAGS -DHAVE_BROKEN_SNPRINTF -DSIGNALS_DONT_BREAK_READ"
     CXXFLAGS="$CXXFLAGS -DHAVE_BROKEN_SNPRINTF -D_INCLUDE_LONGLONG -DSIGNALS_DONT_BREAK_READ"
+    if test "$with_named_thread" = "no"
+    then 
+      echo "Using --with-named-thread=-lpthread"
+      with_named_thread="-lcma"
+    fi
     ;;
   *hpux11.*)
     echo "Enabling pread/pwrite workaround for hpux 11"
@@ -1082,7 +1089,7 @@ fi
 AC_MSG_CHECKING("named thread libs:")
 if test "$with_named_thread" != "no"
 then
-  LIBS="$LIBS $with_named_thread"
+  LIBS="$with_named_thread $LIBS $with_named_thread"
   with_posix_threads="yes"
   with_mit_threads="no"
   AC_MSG_RESULT("$with_named_thread")
@@ -1995,7 +2002,7 @@ then
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
   AC_SUBST(THREAD_LOBJECTS)
   sql_server_dirs="strings dbug mysys extra regex isam merge myisam myisammrg heap sql"
-  server_scripts="safe_mysqld mysql_install_db"
+  server_scripts="mysqld_safe mysql_install_db"
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
@@ -2072,6 +2079,17 @@ EOF
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"
+  fi
+
+  if test "X$have_gemini_db" = "Xyes"; then 
+    sql_server_dirs="gemini $sql_server_dirs"
+    echo "CONFIGURING FOR GEMINI DB"
+    (cd gemini && sh ./configure) \
+    || AC_MSG_ERROR([could not configure Gemini DB])
+
+    echo "END OF GEMINI DB CONFIGURATION"
+
+    AC_DEFINE(HAVE_GEMINI_DB)
   fi
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"

@@ -42,6 +42,17 @@ char * STDCALL mc_mysql_error(MYSQL *mysql);
 int STDCALL mc_mysql_errno(MYSQL *mysql);
 my_bool STDCALL mc_mysql_reconnect(MYSQL* mysql);
 
+int STDCALL mc_mysql_send_query(MYSQL* mysql, const char* query, uint length);
+int STDCALL mc_mysql_read_query_result(MYSQL *mysql);
+int STDCALL mc_mysql_query(MYSQL *mysql, const char *query, uint length);
+MYSQL_RES * STDCALL mc_mysql_store_result(MYSQL *mysql);
+void STDCALL mc_mysql_free_result(MYSQL_RES *result);
+void STDCALL mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row);
+my_ulonglong STDCALL mc_mysql_num_rows(MYSQL_RES *res);
+unsigned int STDCALL mc_mysql_num_fields(MYSQL_RES *res);
+MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res);
+int STDCALL mc_mysql_select_db(MYSQL *mysql, const char *db);
+
 
 #endif
 

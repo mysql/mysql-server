@@ -2,6 +2,7 @@
 # Check some special create statements.
 #
 
+drop table if exists t1,t2;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -57,3 +58,14 @@ select a$1, $b, c$ from test_$1.$test1;
 create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
+
+#
+# Test of CREATE ... SELECT with indexes
+#
+
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+insert into t1 (b) values ("hello"),("my"),("world");
+create table t2 (key (b)) select * from t1;
+explain select * from t2 where b="world";
+select * from t2 where b="world";
+drop table t1,t2;

@@ -811,7 +811,7 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
     {
       int res;
       Field* f = *field;
-      int len = f->field_length;
+      int len = f->pack_length();
       switch((*field)->type())
 	{
 	case FIELD_TYPE_STRING:
@@ -839,7 +839,8 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 {
   char* buf = item->table->record[0];
   int error;
-  memset(buf, 0xff, item->rec_offset); // make up for cheating in the tree
+  // the first item->rec_offset bytes are taken care of with
+  // restore_record(table,2) in setup()
   memcpy(buf + item->rec_offset, key, item->tree.size_of_element);
   if ((error = item->table->file->write_row(buf)))
   {
@@ -874,8 +875,19 @@ bool Item_sum_count_distinct::setup(THD *thd)
   List<Item> list;
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
-    if (list.push_back(args[i]))
-      return 1;
+  {
+    Item *item=args[i];
+    if (list.push_back(item))
+      return 1;					// End of memory
+    if (item->const_item())
+    {
+      (void) item->val_int();
+      if (item->null_value)
+	always_null=1;
+    }
+  }
+  if (always_null)
+    return 0;
   count_field_types(tmp_table_param,list,0);
   if (table)
   {
@@ -883,17 +895,22 @@ bool Item_sum_count_distinct::setup(THD *thd)
     tmp_table_param->cleanup();
   }
   if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-			       0, 0, current_lex->options | thd->options)))
+			       0, 0, current_lex->select->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
 
+  
   if(table->db_type == DB_TYPE_HEAP) // no blobs, otherwise it would be
     // MyISAM
     {
       qsort_cmp2 compare_key;
       void* cmp_arg;
       int key_len;
+
+      // to make things easier for dump_leaf if we ever have to dump to
+      // MyISAM
+      restore_record(table,2);
       
       if(table->fields == 1) // if we have only one field, which is
 	// the most common use of count(distinct), it is much faster
@@ -915,20 +932,31 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	      compare_key = (qsort_cmp2)simple_raw_key_cmp;
 	      break;
 	    }
-	  cmp_arg = (void*)(key_len = field->field_length);
+	  cmp_arg = (void*)(key_len = field->pack_length());
 	  rec_offset = 1;
 	}
       else // too bad, cannot cheat - there is more than one field
 	{
-	  cmp_arg = (void*)this;
-	  compare_key = (qsort_cmp2)composite_key_cmp;
+	  bool all_binary = 1;
 	  Field** field, **field_end;
 	  field_end = (field = table->field) + table->fields;
 	  for(key_len = 0; field < field_end; ++field)
 	    {
-	      key_len += (*field)->field_length;
+	      key_len += (*field)->pack_length();
+	      if(!(*field)->binary())
+		all_binary = 0;
 	    }
 	  rec_offset = table->reclength - key_len;
+	  if(all_binary)
+	  {
+	    compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	    cmp_arg = (void*)key_len;
+	  }
+	  else
+	  {
+	    compare_key = (qsort_cmp2)composite_key_cmp ;
+ 	    cmp_arg = (void*)this;
+	  }
 	}
 
       init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
@@ -940,7 +968,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
       // but this has to be handled - otherwise someone can crash
       // the server with a DoS attack
       max_elements_in_tree = (key_len) ? max_heap_table_size/key_len :
-	max_heap_table_size;
+	1;
     }
   
   return 0;
@@ -960,20 +988,22 @@ int Item_sum_count_distinct::tree_to_myisam()
 
 void Item_sum_count_distinct::reset()
 {
-  if(use_tree)
+  if (use_tree)
     reset_tree(&tree);
-  else
-    {
-      table->file->extra(HA_EXTRA_NO_CACHE);
-      table->file->delete_all_rows();
-      table->file->extra(HA_EXTRA_WRITE_CACHE);
-    }
+  else if (table)
+  {
+    table->file->extra(HA_EXTRA_NO_CACHE);
+    table->file->delete_all_rows();
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+  }
   (void) add();
 }
 
 bool Item_sum_count_distinct::add()
 {
   int error;
+  if (always_null)
+    return 0;
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->funcs);
 

@@ -103,6 +103,7 @@ void myisamchk_init(MI_CHECK *param)
 int chk_status(MI_CHECK *param, register MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
+  
   if (mi_is_crashed_on_repair(info))
     mi_check_print_warning(param,
 			   "Table is marked as crashed and last repair failed");
@@ -111,9 +112,14 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 			   "Table is marked as crashed");
   if (share->state.open_count != (uint) (info->s->global_changed ? 1 : 0))
   {
+    /* Don't count this as a real warning, as check can correct this ! */
+    uint save=param->warning_printed;
     mi_check_print_warning(param,
 			   "%d clients is using or hasn't closed the table properly",
 			   share->state.open_count);
+    /* If this will be fixed by the check, forget the warning */
+    if (param->testflag & T_UPDATE_STATE)
+      param->warning_printed=save;
   }
   return 0;
 }
@@ -1096,6 +1102,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     share->pack.header_length;
   got_error=1;
   new_file= -1;
+  sort_info->buff=0;
+  sort_info->buff_length=0;
+  sort_info->record=0;
+
   if (!(param->testflag & T_SILENT))
   {
     printf("- recovering (with keycache) MyISAM-table '%s'\n",name);
@@ -1108,7 +1118,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
 		    READ_CACHE,share->pack.header_length,1,MYF(MY_WME)))
+  {
+    bzero(&info->rec_cache,sizeof(info->rec_cache));
     goto err;
+  }
   if (!rep_quick)
     if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		      WRITE_CACHE, new_header_length, 1,
@@ -1116,7 +1129,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
   sort_info->start_recpos=0;
-  sort_info->buff=0; sort_info->buff_length=0;
   if (!(sort_info->record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
@@ -1126,7 +1138,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 
   if (!rep_quick)
   {
-    if ((new_file=my_raid_create(fn_format(param->temp_filename,name,"",
+    /* Get real path for data file */
+    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
+    if ((new_file=my_raid_create(fn_format(param->temp_filename,
+					   param->temp_filename,"",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,
@@ -1288,7 +1303,7 @@ err:
     {
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
@@ -1472,8 +1487,10 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
 
-  if ((new_file=my_create(fn_format(param->temp_filename,name,"",
-				    INDEX_TMP_EXT,2+4),
+  /* Get real path for index file */
+  fn_format(param->temp_filename,name,"", MI_NAME_IEXT,2+4+32);
+  if ((new_file=my_create(fn_format(param->temp_filename,param->temp_filename,
+				    "", INDEX_TMP_EXT,2+4),
 			  0,param->tmpfile_createflag,MYF(0))) <= 0)
   {
     mi_check_print_error(param,"Can't create new tempfile: '%s'",
@@ -1493,7 +1510,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
 
     if (share->state.key_root[key] != HA_OFFSET_ERROR)
     {
-      index_pos[key]=param->new_file_pos;		/* Write first block here */
+      index_pos[key]=param->new_file_pos;	/* Write first block here */
       if (sort_one_index(param,info,keyinfo,share->state.key_root[key],
 			 new_file))
 	goto err;
@@ -1514,7 +1531,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   VOID(my_close(share->kfile,MYF(MY_WME)));
   share->kfile = -1;
   VOID(my_close(new_file,MYF(MY_WME)));
-  if (change_to_newfile(share->filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
+  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
 			MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
@@ -1614,9 +1631,14 @@ err:
 } /* sort_one_index */
 
 
-	/* Change to use new file */
-	/* Copy stats from old file to new file, deletes orginal and */
-	/* changes new file name to old file name */
+	/*
+	  Let temporary file replace old file.
+	  This assumes that the new file was created in the same
+	  directory as given by realpath(filename).
+	  This will ensure that any symlinks that are used will still work.
+	  Copy stats from old file to new file, deletes orignal and
+	  changes new file name to old file name
+	*/
 
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext,
@@ -1631,8 +1653,10 @@ int change_to_newfile(const char * filename, const char * old_ext,
 			 raid_chunks,
 			 MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 #endif
-  return my_redel(fn_format(old_filename,filename,"",old_ext,2+4),
-		  fn_format(new_filename,filename,"",new_ext,2+4),
+  /* Get real path to filename */
+  (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
+  return my_redel(old_filename,
+		  fn_format(new_filename,old_filename,"",new_ext,2+4),
 		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* change_to_newfile */
 
@@ -1749,7 +1773,10 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   }
   if (!rep_quick)
   {
-    if ((new_file=my_raid_create(fn_format(param->temp_filename,name,"",
+    /* Get real path for data file */
+    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
+    if ((new_file=my_raid_create(fn_format(param->temp_filename,
+					   param->temp_filename, "",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,
@@ -1994,7 +2021,7 @@ err:
     {
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
-      if (change_to_newfile(share->filename,MI_NAME_DEXT,
+      if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
 			    DATA_TMP_EXT, share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
@@ -2846,7 +2873,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   MI_STATUS_INFO status_info;
   uint unpack,key_parts;
   ha_rows max_records;
-  char name[FN_REFLEN];
   ulonglong file_length,tmp_length;
   MI_CREATE_INFO create_info;
 
@@ -2955,8 +2981,9 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
 
-  if (mi_create(fn_format(name,filename,"",MI_NAME_IEXT,
-			  4+ (param->opt_follow_links ? 16 : 0)),
+  /* We don't have to handle symlinks here because we are using
+     HA_DONT_TOUCH_DATA */
+  if (mi_create(filename,
 		share.base.keys - share.state.header.uniques,
 		keyinfo, share.base.fields, recdef,
 		share.state.header.uniques, uniquedef,
@@ -2966,7 +2993,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     mi_check_print_error(param,"Got error %d when trying to recreate indexfile",my_errno);
     goto end;
   }
-  *org_info=mi_open(name,O_RDWR,
+  *org_info=mi_open(filename,O_RDWR,
 		    (param->testflag & T_WAIT_FOREVER) ? HA_OPEN_WAIT_IF_LOCKED :
 		    (param->testflag & T_DESCRIPT) ? HA_OPEN_IGNORE_IF_LOCKED :
 		    HA_OPEN_ABORT_IF_LOCKED);

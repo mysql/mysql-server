@@ -1,3 +1,4 @@
+-- source include/have_bdb.inc
 # test for bug reported by Mark Steele
 
 drop table if exists tblChange;

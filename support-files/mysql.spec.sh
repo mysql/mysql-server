@@ -296,7 +296,7 @@ chmod -R og-rw $mysql_datadir/mysql
 # Restart in the same way that mysqld will be started normally.
 /etc/rc.d/init.d/mysql start
 
-# Allow safe_mysqld to start mysqld and print a message before we exit
+# Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
 %post Max
@@ -342,7 +342,7 @@ fi
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
-%attr(755, root, root) /usr/bin/safe_mysqld
+%attr(755, root, root) /usr/bin/mysqld_safe
 %attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
 
@@ -360,6 +360,7 @@ fi
 %attr(755, root, root) /usr/bin/mysql
 %attr(755, root, root) /usr/bin/mysqlaccess
 %attr(755, root, root) /usr/bin/mysqladmin
+%attr(755, root, root) /usr/bin/mysqlcheck
 %attr(755, root, root) /usr/bin/mysql_find_rows
 %attr(755, root, root) /usr/bin/mysqldump
 %attr(755, root, root) /usr/bin/mysqlimport
@@ -378,7 +379,7 @@ fi
 %attr(644, root, man) %doc /usr/man/man1/mysqlshow.1*
 %attr(644, root, man) %doc /usr/man/man1/perror.1*
 %attr(644, root, man) %doc /usr/man/man1/replace.1*
-%attr(644, root, man) %doc /usr/man/man1/safe_mysqld.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqld_safe.1*
 
 %post shared
 /sbin/ldconfig

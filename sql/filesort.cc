@@ -53,11 +53,19 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
 static uint sortlength(SORT_FIELD *sortorder,uint length);
 
-	/* Makes a indexfil of recordnumbers of a sorted database */
-	/* outfile is reset before data is written to it, if it wasn't
-	 open a new file is opened */
+	/*
+	  Creates a set of pointers that can be used to read the rows
+	  in sorted order. This should be done with the functions
+	  in records.cc
 
-ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
+	  Before calling filesort, one must have done
+	  table->file->info(HA_STATUS_VARIABLE)
+
+	  The result set is stored in table->io_cache or
+	  table->record_pointers
+	*/
+
+ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special, ha_rows max_rows,
 		 ha_rows *examined_rows)
 {
@@ -69,19 +77,20 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   IO_CACHE tempfile,*selected_records_file,*outfile;
   SORTPARAM param;
   DBUG_ENTER("filesort");
-  DBUG_EXECUTE("info",TEST_filesort(table,sortorder,s_length,special););
+  DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
 #ifdef SKIPP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
 
-  outfile= table[0]->io_cache;
+  outfile= table->io_cache;
   my_b_clear(&tempfile);
   buffpek= (BUFFPEK *) NULL; sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
-  param.ref_length= table[0]->file->ref_length;
+  param.ref_length= table->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
   param.examined_rows=0;
+  param.unique_buff=0;
 
   if (select && select->quick)
   {
@@ -106,17 +115,14 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 #ifdef CAN_TRUST_RANGE
   else if (select && select->quick && select->quick->records > 0L)
   {
-    /* Get record-count */
-    table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     records=min((ha_rows) (select->quick->records*2+EXTRA_RECORDS*2),
-		table[0]->file->records)+EXTRA_RECORDS;
+		table->file->records)+EXTRA_RECORDS;
     selected_records_file=0;
   }
 #endif
   else
   {
-    table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);/* Get record-count */
-    records=table[0]->file->estimate_number_of_rows();
+    records=table->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
   if (param.sort_length == param.ref_length && records > param.max_rows)
@@ -170,7 +176,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),sortbuff_size);
     goto err;
   }
-  param.sort_form= table[0];
+  param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
   if ((records=find_all_keys(&param,select,sort_keys,buffpek,&maxbuffer,
 			     &tempfile, selected_records_file)) ==
@@ -674,23 +680,22 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   int error;
   uint sort_length,offset;
   ulong maxcount;
-  ha_rows count,max_rows;
+  ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile bool *killed= &current_thd->killed;
   qsort2_cmp    cmp;
   DBUG_ENTER("merge_buffers");
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
 
-  count=error=0;
+  error=0;
   offset=(sort_length=param->sort_length)-param->ref_length;
   maxcount=(ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos=my_b_tell(to_file);
   strpos=(uchar*) sort_buffer;
-  max_rows=param->max_rows;
+  org_max_rows=max_rows=param->max_rows;
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
 		 (int (*) (void *, byte *,byte*))
@@ -698,7 +703,6 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     DBUG_RETURN(1);				/* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
-    count+= buffpek->count;
     buffpek->base= strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) read_to_buffer(from_file,buffpek,
@@ -724,22 +728,23 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     {
       error=1; goto err;			/* purecov: inspected */
     }
+    buffpek->key+=sort_length;
+    buffpek->mem_count--;
+    max_rows--;
+    queue_replaced(&queue);			// Top element has been used
   }
   else
     cmp=0;					// Not unique
 
   while (queue.elements > 1)
   {
-    if (*killed)
-    {
-      error=1; goto err;			/* purecov: inspected */
-    }
     for (;;)
     {
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (cmp)					// Remove duplicates
       {
-	if (!cmp(&sort_length, param->unique_buff, (uchar*) buffpek->key))
+	if (!(*cmp)(&sort_length, &(param->unique_buff),
+		    (uchar**) &buffpek->key))
 	  goto skip_duplicate;
 	memcpy(param->unique_buff, (uchar*) buffpek->key,sort_length);
       }
@@ -793,7 +798,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 	  break;			/* One buffer have been removed */
 	}
 	else if (error == -1)
-	  goto err;				/* purecov: inspected */
+	  goto err;			/* purecov: inspected */
       }
       queue_replaced(&queue);		/* Top element has been replaced */
     }
@@ -801,6 +806,20 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   buffpek=(BUFFPEK*) queue_top(&queue);
   buffpek->base= sort_buffer;
   buffpek->max_keys=param->keys;
+
+  /*
+    As we know all entries in the buffer are unique, we only have to
+    check if the first one is the same as the last one we wrote
+  */
+  if (cmp)
+  {
+    if (!(*cmp)(&sort_length, &(param->unique_buff), (uchar**) &buffpek->key))
+    {
+      buffpek->key+=sort_length;	// Remove duplicate
+      --buffpek->mem_count;
+    }
+  }
+
   do
   {
     if ((ha_rows) buffpek->mem_count > max_rows)
@@ -808,6 +827,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek->mem_count=(uint) max_rows;
       buffpek->count=0;			/* Don't read more */
     }
+    max_rows-=buffpek->mem_count;
     if (flag == 0)
     {
       if (my_b_write(to_file,(byte*) buffpek->key,
@@ -832,7 +852,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 	 != -1 && error != 0);
 
 end:
-  lastbuff->count=min(count,param->max_rows);
+  lastbuff->count=min(org_max_rows-max_rows,param->max_rows);
   lastbuff->file_pos=to_start_filepos;
 err:
   delete_queue(&queue);

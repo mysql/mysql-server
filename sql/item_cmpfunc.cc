@@ -487,7 +487,7 @@ Item_func_if::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null || args[2]->maybe_null;
   max_length=max(args[1]->max_length,args[2]->max_length);
-  decimals=max(args[0]->decimals,args[1]->decimals);
+  decimals=max(args[1]->decimals,args[2]->decimals);
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
   if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)

@@ -16,7 +16,6 @@
    MA 02111-1307, USA */
 
 #include "mysys_priv.h"
-
 #include "mysys_err.h"
 
 int my_delete(const char *name, myf MyFlags)
