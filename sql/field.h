@@ -676,6 +676,7 @@ public:
 class Field_timestamp :public Field_str {
 public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
+                  uchar *null_ptr_arg, uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg,
 		  CHARSET_INFO *cs);
@@ -705,8 +706,11 @@ public:
     else
       Field::set_default();
   }
-  inline long get_timestamp()
+  /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
+  inline long get_timestamp(my_bool *null_value)
   {
+    if ((*null_value= is_null()))
+      return 0;
 #ifdef WORDS_BIGENDIAN
     if (table->db_low_byte_first)
       return sint4korr(ptr);
@@ -718,7 +722,7 @@ public:
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
-  void set_timestamp_offsets();
+  timestamp_auto_set_type get_auto_set_type() const;
 };
 
 

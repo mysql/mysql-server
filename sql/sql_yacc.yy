@@ -1415,10 +1415,21 @@ type:
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
+            {
+              /* 
+                Unlike other types TIMESTAMP fields are NOT NULL by default.
+              */
+              Lex->type|= NOT_NULL_FLAG;
 	      $$=FIELD_TYPE_TIMESTAMP;
+            }
 	   }
-	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_TIMESTAMP; }
+	| TIMESTAMP '(' NUM ')'
+          { 
+            LEX *lex= Lex;
+            lex->length= $3.str;
+            lex->type|= NOT_NULL_FLAG;
+            $$= FIELD_TYPE_TIMESTAMP;
+          }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }

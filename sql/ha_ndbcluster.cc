@@ -1533,8 +1533,8 @@ int ha_ndbcluster::write_row(byte *record)
   }
   
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->timestamp_default_now)
-    update_timestamp(record+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
   has_auto_increment= (table->next_number_field && record == table->record[0]);
 
   if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)))
@@ -1683,9 +1683,9 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   DBUG_ENTER("update_row");
   
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_data+table->timestamp_on_update_now-1);
-  
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
+
   /* Check for update of primary key for special handling */  
   if ((table->primary_key != MAX_KEY) &&
       (key_cmp(table->primary_key, old_data, new_data)))
