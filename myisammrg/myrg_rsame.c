@@ -19,12 +19,10 @@
 int myrg_rsame(MYRG_INFO *info,byte *record,int inx)
 {
   if (inx)					/* not yet used, should be 0 */
-  {
-    return(my_errno=HA_ERR_WRONG_INDEX);
-  }
+    return my_errno=HA_ERR_WRONG_INDEX;
+
   if (!info->current_table)
-  {
-    return(my_errno=HA_ERR_NO_ACTIVE_RECORD);
-  }
+    return my_errno=HA_ERR_NO_ACTIVE_RECORD;
+
   return mi_rsame(info->current_table->table,record,inx);
 }

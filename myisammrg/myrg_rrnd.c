@@ -24,7 +24,7 @@
 static MYRG_TABLE *find_table(MYRG_TABLE *start,MYRG_TABLE *end,ulonglong pos);
 
 /*
-  	If filepos == HA_OFFSET_ERROR, read next
+	If filepos == HA_OFFSET_ERROR, read next
 	Returns same as mi_rrnd:
 	   0 = Ok.
 	   HA_ERR_RECORD_DELETED = Record is deleted.
