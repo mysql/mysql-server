@@ -943,3 +943,5 @@ ac_available_languages_fragment
 libmysqld/ha_archive.cc
 libmysqld/ha_example.cc
 libmysqld/ha_tina.cc
+analyse.test
+client/mysqladmin.c

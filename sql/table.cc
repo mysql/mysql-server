@@ -495,8 +495,17 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
         char *from, *to;
         for (from= to= (char*) interval->type_names[pos]; *from; )
         {
-          *to++= (char) (hexchar_to_int(*from++) << 4) + 
-                         hexchar_to_int(*from++);
+          /*
+            Note, hexchar_to_int(*from++) doesn't work
+            one some compilers, e.g. IRIX. Looks like a compiler
+            bug in inline functions in combination with arguments
+            that have a side effect. So, let's use from[0] and from[1]
+            and increment 'from' by two later.
+          */
+
+          *to++= (char) (hexchar_to_int(from[0]) << 4) +
+                         hexchar_to_int(from[1]);
+          from+= 2;
         }
         interval->type_lengths[pos] /= 2;
       }
