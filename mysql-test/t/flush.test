@@ -1,0 +1,12 @@
+connect (con1,localhost,root,,test,0,mysql-master.sock);
+connect (con2,localhost,root,,test,0,mysql-master.sock);
+connection con1;
+drop table if exists t1;
+create temporary table t1(n int);
+connection con2;
+#send flush tables;
+connection con1;
+insert into t1 values(3);
+select * from t1;
+connection con2;
+#reap;

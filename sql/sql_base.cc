@@ -32,6 +32,7 @@
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
+static void reset_query_id_on_temp_tables(THD* thd);
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
@@ -1314,6 +1315,12 @@ err:
 }
 
 
+static void reset_query_id_on_temp_tables(THD* thd)
+{
+  for(TABLE* tmp = thd->temporary_tables; tmp; tmp = tmp->next)
+    tmp->query_id = 0;
+}
+
 /*****************************************************************************
 ** open all tables in list
 *****************************************************************************/
@@ -1339,6 +1346,9 @@ int open_tables(THD *thd,TABLE_LIST *start)
       {
 	/* close all 'old' tables used by this thread */
 	pthread_mutex_lock(&LOCK_open);
+	// if query_id is not reset, we will get an error
+	// re-opening a temp table
+	reset_query_id_on_temp_tables(thd);
 	thd->version=refresh_version;
 	TABLE **prev_table= &thd->open_tables;
 	bool found=0;
