@@ -3,8 +3,10 @@
 #define NDBGLOBAL_H
 
 #include <my_global.h>
-
 #define NDB_BASE_PORT 2200
+
+/** signal & SIG_PIPE */
+#include <my_alarm.h>
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32
