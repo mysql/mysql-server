@@ -40,6 +40,7 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
+static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
@@ -277,7 +278,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 2.3 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -373,6 +374,7 @@ static int parse_args(int *argc, char*** argv)
   int ho_error;
 
   result_file = stdout;
+  load_defaults("my",load_default_groups,argc,argv);
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
@@ -673,12 +675,16 @@ Create_file event for file_id: %u\n",exv->file_id);
 
 int main(int argc, char** argv)
 {
+  static char **defaults_argv;
   MY_INIT(argv[0]);
+
   parse_args(&argc, (char***)&argv);
+  defaults_argv=argv;
 
   if (!argc)
   {
     usage();
+    free_defaults(defaults_argv);
     return -1;
   }
 
@@ -707,6 +713,8 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   if (use_remote)
     mysql_close(mysql);
+  free_defaults(defaults_argv);
+  my_end(0);
   return 0;
 }
 
