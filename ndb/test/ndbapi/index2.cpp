@@ -81,16 +81,16 @@ static void createTable(Ndb &myNdb, bool storeInACC, bool twoKey, bool longKey)
   int res;
 
   column.setName("X");
-  column.setPrimaryKey(true);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(true);
   column.setNullable(false);
   table.addColumn(column);
 
   column.setName("Y");
-  column.setPrimaryKey(false);
   column.setType(NdbDictionary::Column::Unsigned);
   column.setLength(1);
+  column.setPrimaryKey(false);
   column.setNullable(false);
   table.addColumn(column);
 

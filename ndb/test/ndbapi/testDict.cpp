@@ -1128,9 +1128,9 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myTable.setName(tabname);
 
     myColumn.setName("ATTR1");
-    myColumn.setPrimaryKey(true);
     myColumn.setType(NdbDictionary::Column::Unsigned);
     myColumn.setLength(1);
+    myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
     if (startvalue != ~0) // check that default value starts with 1

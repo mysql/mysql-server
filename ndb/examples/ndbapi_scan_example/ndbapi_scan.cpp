@@ -47,9 +47,9 @@
  *
  *  NdbDictionary::Column
  *       setName()
- *       setPrimaryKey()
  *       setType()
  *       setLength()
+ *       setPrimaryKey()
  *       setNullable()
  *
  *  NdbDictionary::Table
@@ -165,24 +165,24 @@ int create_table(Ndb * myNdb)
   myTable.setName("GARAGE");
   
   myColumn.setName("REG_NO");
-  myColumn.setPrimaryKey(true);
   myColumn.setType(NdbDictionary::Column::Unsigned);
   myColumn.setLength(1);
+  myColumn.setPrimaryKey(true);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
   myColumn.setName("BRAND");
-  myColumn.setPrimaryKey(false);
   myColumn.setType(NdbDictionary::Column::Char);
   myColumn.setLength(20);
+  myColumn.setPrimaryKey(false);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
 
   myColumn.setName("COLOR");
-  myColumn.setPrimaryKey(false);
   myColumn.setType(NdbDictionary::Column::Char);
   myColumn.setLength(20);
+  myColumn.setPrimaryKey(false);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
@@ -814,4 +814,3 @@ int main()
 
   delete myNdb; 
 }
-

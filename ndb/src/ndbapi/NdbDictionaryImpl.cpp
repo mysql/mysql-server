@@ -87,10 +87,57 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
 }
 
 void
-NdbColumnImpl::init()
+NdbColumnImpl::init(Type t)
 {
   m_attrId = -1;
-  m_type = NdbDictionary::Column::Unsigned;
+  m_type = t;
+  switch (m_type) {
+  case Tinyint:
+  case Tinyunsigned:
+  case Smallint:
+  case Smallunsigned:
+  case Mediumint:
+  case Mediumunsigned:
+  case Int:
+  case Unsigned:
+  case Bigint:
+  case Bigunsigned:
+  case Float:
+  case Double:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    break;
+  case Decimal:
+    m_precision = 10;
+    m_scale = 0;
+    m_length = 1;
+    break;
+  case Char:
+  case Varchar:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    break;
+  case Binary:
+  case Varbinary:
+  case Datetime:
+  case Timespec:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    break;
+  case Blob:
+    m_precision = 256;
+    m_scale = 8000;
+    m_length = 4;
+    break;
+  case Text:
+    m_precision = 256;
+    m_scale = 8000;
+    m_length = 4;
+    break;
+  }
   m_pk = false;
   m_nullable = false;
   m_tupleKey = false;
@@ -98,12 +145,10 @@ NdbColumnImpl::init()
   m_distributionKey = false;
   m_distributionGroup = false;
   m_distributionGroupBits = 8;
-  m_length = 1;
-  m_scale = 5;
-  m_precision = 5;
   m_keyInfoPos = 0;
-  m_attrSize = 4,
-  m_arraySize = 1,
+  // next 2 are set at run time
+  m_attrSize = 0;
+  m_arraySize = 0;
   m_autoIncrement = false;
   m_autoIncrementInitialValue = 1;
   m_blobTable = NULL;
@@ -209,14 +254,18 @@ NdbColumnImpl::create_psuedo(const char * name){
   if(!strcmp(name, "NDB$FRAGMENT")){
     col->setType(NdbDictionary::Column::Unsigned);
     col->m_impl.m_attrId = AttributeHeader::FRAGMENT;
+    col->m_impl.m_attrSize = 4;
+    col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$ROW_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::ROW_COUNT;
     col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
   } else if(!strcmp(name, "NDB$COMMIT_COUNT")){
     col->setType(NdbDictionary::Column::Bigunsigned);
     col->m_impl.m_attrId = AttributeHeader::COMMIT_COUNT;
     col->m_impl.m_attrSize = 8;
+    col->m_impl.m_arraySize = 1;
   } else {
     abort();
   }
