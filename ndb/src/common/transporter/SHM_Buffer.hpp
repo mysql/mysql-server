@@ -42,17 +42,19 @@ public:
 	     Uint32 _sizeOfBuffer,
 	     Uint32 _slack,
 	     Uint32 * _readIndex,
+             Uint32 * _endWriteIndex,
 	     Uint32 * _writeIndex) :
     m_startOfBuffer(_startOfBuffer),
     m_totalBufferSize(_sizeOfBuffer),
     m_bufferSize(_sizeOfBuffer - _slack),
     m_sharedReadIndex(_readIndex),
+    m_sharedEndWriteIndex(_endWriteIndex),
     m_sharedWriteIndex(_writeIndex)
   {
   }
   
   void clear() {
-    m_readIndex = * m_sharedReadIndex;
+    m_readIndex = 0;
   }
   
   /**
@@ -66,12 +68,12 @@ public:
    *  returns ptr - where to start reading
    *           sz - how much can I read
    */
-  inline void getReadPtr(Uint32 * & ptr, Uint32 * & eod);
+  inline Uint32 getReadPtr(Uint32 * & ptr);
 
   /**
    * Update read ptr
    */
-  inline void updateReadPtr(Uint32 * readPtr);
+  inline void updateReadPtr(Uint32 size);
   
 private:
   char * const m_startOfBuffer;
@@ -80,6 +82,7 @@ private:
   Uint32 m_readIndex;
 
   Uint32 * m_sharedReadIndex;
+  Uint32 * m_sharedEndWriteIndex;
   Uint32 * m_sharedWriteIndex;
 };
 
@@ -97,19 +100,22 @@ SHM_Reader::empty() const{
  *           sz - how much can I read
  */
 inline 
-void
-SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod){
-  
+Uint32
+SHM_Reader::getReadPtr(Uint32 * & ptr)
+{
+  Uint32 *eod;  
   Uint32 tReadIndex  = m_readIndex;
   Uint32 tWriteIndex = * m_sharedWriteIndex;
+  Uint32 tEndWriteIndex = * m_sharedEndWriteIndex;
   
   ptr = (Uint32*)&m_startOfBuffer[tReadIndex];
   
   if(tReadIndex <= tWriteIndex){
     eod = (Uint32*)&m_startOfBuffer[tWriteIndex];
   } else {
-    eod = (Uint32*)&m_startOfBuffer[m_bufferSize];
+    eod = (Uint32*)&m_startOfBuffer[tEndWriteIndex];
   }
+  return (Uint32)((char*)eod - (char*)ptr); 
 }
 
 /**
@@ -117,14 +123,14 @@ SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod){
  */
 inline
 void 
-SHM_Reader::updateReadPtr(Uint32 * ptr){
-
-  Uint32 tReadIndex = ((char *)ptr) - m_startOfBuffer;
-
+SHM_Reader::updateReadPtr(Uint32 size)
+{
+  Uint32 tReadIndex = m_readIndex;
+  tReadIndex += size;
   assert(tReadIndex < m_totalBufferSize);
 
   if(tReadIndex >= m_bufferSize){
-    tReadIndex = 0; //-= m_bufferSize;
+    tReadIndex = 0;
   }
 
   m_readIndex = tReadIndex;
@@ -139,17 +145,19 @@ public:
 	     Uint32 _sizeOfBuffer,
 	     Uint32 _slack,
 	     Uint32 * _readIndex,
+	     Uint32 * _endWriteIndex,
 	     Uint32 * _writeIndex) :
     m_startOfBuffer(_startOfBuffer),
     m_totalBufferSize(_sizeOfBuffer),
     m_bufferSize(_sizeOfBuffer - _slack),
     m_sharedReadIndex(_readIndex),
+    m_sharedEndWriteIndex(_endWriteIndex),
     m_sharedWriteIndex(_writeIndex)
   {
   }
   
   void clear() {
-    m_writeIndex = * m_sharedWriteIndex;
+    m_writeIndex = 0;
   }
     
   inline char * getWritePtr(Uint32 sz);
@@ -168,6 +176,7 @@ private:
   Uint32 m_writeIndex;
   
   Uint32 * m_sharedReadIndex;
+  Uint32 * m_sharedEndWriteIndex;
   Uint32 * m_sharedWriteIndex;
 };
 
@@ -206,7 +215,8 @@ SHM_Writer::updateWritePtr(Uint32 sz){
   assert(tWriteIndex < m_totalBufferSize);
 
   if(tWriteIndex >= m_bufferSize){
-    tWriteIndex = 0; //-= m_bufferSize;
+    * m_sharedEndWriteIndex = tWriteIndex;
+    tWriteIndex = 0;
   }
 
   m_writeIndex = tWriteIndex;

@@ -32,13 +32,12 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 int r_port,
 				 NodeId lNodeId,
 				 NodeId rNodeId, 
-				 bool compression, 
 				 bool checksum, 
 				 bool signalId,
 				 key_t _shmKey,
 				 Uint32 _shmSize) :
   Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
-	      0, compression, checksum, signalId),
+	      0, false, checksum, signalId),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -48,7 +47,7 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   shmBuf = 0;
   reader = 0;
   writer = 0;
-    
+  
   setupBuffersDone=false;
 #ifdef DEBUG_TRANSPORTER
   printf("shm key (%d - %d) = %d\n", lNodeId, rNodeId, shmKey);
@@ -83,16 +82,16 @@ SHM_Transporter::setupBuffers(){
 
   Uint32 * sharedReadIndex1 = base1;
   Uint32 * sharedWriteIndex1 = base1 + 1;
+  Uint32 * sharedEndWriteIndex1 = base1 + 2;
   serverStatusFlag = base1 + 4;
   char * startOfBuf1 = shmBuf+sharedSize;
 
   Uint32 * base2 = (Uint32*)(shmBuf + sizeOfBuffer + sharedSize);
   Uint32 * sharedReadIndex2 = base2;
   Uint32 * sharedWriteIndex2 = base2 + 1;
+  Uint32 * sharedEndWriteIndex2 = base2 + 2;
   clientStatusFlag = base2 + 4;
   char * startOfBuf2 = ((char *)base2)+sharedSize;
-  
-  * sharedReadIndex2 = * sharedWriteIndex2 = 0;
   
   if(isServer){
     * serverStatusFlag = 0;
@@ -100,19 +99,23 @@ SHM_Transporter::setupBuffers(){
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
+			    sharedEndWriteIndex1,
 			    sharedWriteIndex1);
 
     writer = new SHM_Writer(startOfBuf2, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
+			    sharedEndWriteIndex2,
 			    sharedWriteIndex2);
 
     * sharedReadIndex1 = 0;
-    * sharedWriteIndex2 = 0;
+    * sharedWriteIndex1 = 0;
+    * sharedEndWriteIndex1 = 0;
 
     * sharedReadIndex2 = 0;
-    * sharedWriteIndex1 = 0;
+    * sharedWriteIndex2 = 0;
+    * sharedEndWriteIndex2 = 0;
     
     reader->clear();
     writer->clear();
@@ -145,16 +148,19 @@ SHM_Transporter::setupBuffers(){
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
+			    sharedEndWriteIndex2,
 			    sharedWriteIndex2);
     
     writer = new SHM_Writer(startOfBuf1, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
+			    sharedEndWriteIndex1,
 			    sharedWriteIndex1);
     
     * sharedReadIndex2 = 0;
     * sharedWriteIndex1 = 0;
+    * sharedEndWriteIndex1 = 0;
     
     reader->clear();
     writer->clear();
@@ -224,6 +230,7 @@ SHM_Transporter::prepareSend(const SignalHeader * const signalHeader,
 bool
 SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 {
+  DBUG_ENTER("SHM_Transporter::connect_server_impl");
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
   char buf[256];
@@ -233,7 +240,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     if (!ndb_shm_create()) {
       report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT);
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_RETURN(false);
     }
     _shmSegCreated = true;
   }
@@ -243,7 +250,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     if (!ndb_shm_attach()) {
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_RETURN(false);
     }
     _attached = true;
   }
@@ -254,7 +261,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
   // Wait for ok from client
   if (s_input.gets(buf, 256) == 0) {
     NDB_CLOSE_SOCKET(sockfd);
-    return false;
+    DBUG_RETURN(false);
   }
 
   int r= connect_common(sockfd);
@@ -265,17 +272,20 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     // Wait for ok from client
     if (s_input.gets(buf, 256) == 0) {
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_RETURN(false);
     }
+    DBUG_PRINT("info", ("Successfully connected server to node %d",
+                remoteNodeId)); 
   }
 
   NDB_CLOSE_SOCKET(sockfd);
-  return r;
+  DBUG_RETURN(r);
 }
 
 bool
 SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 {
+  DBUG_ENTER("SHM_Transporter::connect_client_impl");
   SocketInputStream s_input(sockfd);
   SocketOutputStream s_output(sockfd);
   char buf[256];
@@ -283,14 +293,18 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   // Wait for server to create and attach
   if (s_input.gets(buf, 256) == 0) {
     NDB_CLOSE_SOCKET(sockfd);
-    return false;
+    DBUG_PRINT("error", ("Server id %d did not attach",
+                remoteNodeId));
+    DBUG_RETURN(false);
   }
 
   // Create
   if(!_shmSegCreated){
     if (!ndb_shm_get()) {
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_PRINT("error", ("Failed create of shm seg to node %d",
+                  remoteNodeId));
+      DBUG_RETURN(false);
     }
     _shmSegCreated = true;
   }
@@ -300,7 +314,9 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     if (!ndb_shm_attach()) {
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_PRINT("error", ("Failed attach of shm seg to node %d",
+                  remoteNodeId));
+      DBUG_RETURN(false);
     }
     _attached = true;
   }
@@ -314,21 +330,28 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     // Wait for ok from server
     if (s_input.gets(buf, 256) == 0) {
       NDB_CLOSE_SOCKET(sockfd);
-      return false;
+      DBUG_PRINT("error", ("No ok from server node %d",
+                  remoteNodeId));
+      DBUG_RETURN(false);
     }
     // Send ok to server
     s_output.println("shm client 2 ok");
+    DBUG_PRINT("info", ("Successfully connected client to node %d",
+                remoteNodeId)); 
   }
 
   NDB_CLOSE_SOCKET(sockfd);
-  return r;
+  DBUG_RETURN(r);
 }
 
 bool
 SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 {
-  if (!checkConnected())
+  if (!checkConnected()) {
+    DBUG_PRINT("error", ("Already connected to node %d",
+                remoteNodeId));
     return false;
+  }
   
   if(!setupBuffersDone) {
     setupBuffers();
@@ -341,5 +364,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
       return true;
   }
 
+  DBUG_PRINT("error", ("Failed to set up buffers to node %d",
+              remoteNodeId));
   return false;
 }
