@@ -133,7 +133,8 @@ void Dbacc::initRecords()
 }//Dbacc::initRecords()
 
 Dbacc::Dbacc(const class Configuration & conf):
-  SimulatedBlock(DBACC, conf)
+  SimulatedBlock(DBACC, conf),
+  c_tup(0)
 {
   Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dbacc);
