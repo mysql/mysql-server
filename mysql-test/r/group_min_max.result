@@ -1869,6 +1869,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	Using where; Using index
+explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+a1	a2	min(b)	c
+a	a	a	a111
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index

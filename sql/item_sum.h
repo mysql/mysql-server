@@ -27,8 +27,6 @@ class Item_arena;
 
 class Item_sum :public Item_result_field
 {
-private:
-  bool collect(List<Item_sum> *item_list);
 public:
   enum Sumfunctype
   { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
@@ -100,33 +98,6 @@ public:
   bool save_args(Item_arena* stmt);
 
   bool walk (Item_processor processor, byte *argument);
-
-  /* Collect Item_sum_min objects into a list supplied by the caller. */
-  bool collect_item_sum_min_processor(byte *arg)
-  {
-    if (Item_sum::MIN_FUNC == this->sum_func())
-      return collect((List<Item_sum>*) arg);
-    else
-      return FALSE;
-  }
-
-  /* Collect Item_sum_max objects into a list supplied by the caller. */
-  bool collect_item_sum_max_processor(byte *arg)
-  {
-    if (Item_sum::MAX_FUNC == this->sum_func())
-      return collect((List<Item_sum>*) arg);
-    else
-      return FALSE;
-   }
-
-  /* Check if there are any aggregate functions other than MIN and MAX. */
-  bool has_non_min_max_sum_processor(byte * arg)
-  {
-    Sumfunctype sum_type= this->sum_func();
-    if ((sum_type != Item_sum::MIN_FUNC) && (sum_type != Item_sum::MAX_FUNC))
-      return TRUE;
-    return FALSE;
-  }
 };
 
 

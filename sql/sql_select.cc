@@ -1327,7 +1327,7 @@ JOIN::exec()
 	}
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-					1) ||
+					1, TRUE) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1415,7 +1415,7 @@ JOIN::exec()
     set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-				      1) || thd->is_fatal_error)
+				      1, TRUE) || thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -10765,6 +10765,7 @@ bool JOIN::alloc_func_list()
     field_list		All items
     send_fields		Items in select list
     before_group_by	Set to 1 if this is called before GROUP BY handling
+    recompute           Set to TRUE if sum_funcs must be recomputed
 
   NOTES
     Calls ::setup() for all item_sum objects in field_list
@@ -10775,12 +10776,15 @@ bool JOIN::alloc_func_list()
 */
 
 bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
-			      bool before_group_by)
+			      bool before_group_by, bool recompute)
 {
   List_iterator_fast<Item> it(field_list);
   Item_sum **func;
   Item *item;
   DBUG_ENTER("make_sum_func_list");
+
+  if (*sum_funcs && !recompute)
+    DBUG_RETURN(FALSE); /* We have already initialized sum_funcs. */
 
   func= sum_funcs;
   while ((item=it++))
