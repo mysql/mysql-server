@@ -590,7 +590,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
     if (field->def &&
 	(regfield->real_type() != FIELD_TYPE_YEAR ||
 	 field->def->val_int() != 0))
-      field->def->save_in_field(regfield);
+      (void) field->def->save_in_field(regfield);
     else if (regfield->real_type() == FIELD_TYPE_ENUM &&
 	     (field->flags & NOT_NULL_FLAG))
     {
