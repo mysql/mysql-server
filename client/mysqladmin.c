@@ -24,7 +24,7 @@
 #endif
 
 #define ADMIN_VERSION "8.23"
-#define MAX_MYSQL_VAR 64
+#define MAX_MYSQL_VAR 256
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
@@ -986,7 +986,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
   printf("| %-*s|", field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
-  tmp = cur[1] ? strtoull(cur[1], NULL, 0) : (ulonglong) 0;
+  tmp = cur[1] ? strtoull(cur[1], NULL, 10) : (ulonglong) 0;
   printf(" %-*s|\n", field->max_length + 1,
 	 llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
