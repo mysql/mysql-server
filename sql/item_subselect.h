@@ -106,6 +106,7 @@ public:
     decimals= item->decimals;
   }
   void reset();
+  void select_transformer(st_select_lex_unit *unit);
   void store(uint i, Item* item);
   double val();
   longlong val_int ();
