@@ -274,11 +274,13 @@ Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
-Item_field::Item_field(THD *thd, Item_field &item):
-  Item_ident(thd, item),
-  field(item.field),
-  result_field(item.result_field)
-{ collation.set(DERIVATION_IMPLICIT); }
+Item_field::Item_field(THD *thd, Item_field &item)
+  :Item_ident(thd, item),
+   field(item.field),
+   result_field(item.result_field)
+{
+  collation.set(DERIVATION_IMPLICIT);
+}
 
 void Item_field::set_field(Field *field_par)
 {
