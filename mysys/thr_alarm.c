@@ -718,7 +718,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 }
 
 
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
+my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 {
   (*alrm)= &alarm->alarmed;
   if (alarm_aborted)
