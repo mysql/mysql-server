@@ -2056,6 +2056,35 @@ flush query cache|
 delete from t1|
 drop procedure bug3583|
 
+#
+# BUG#4905: Stored procedure doesn't clear for "Rows affected"
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug4905|
+--enable_warnings
+
+create table t3 (s1 int,primary key (s1))|
+
+create procedure bug4905()
+begin
+  declare v int;
+  declare continue handler for sqlstate '23000' set v = 5;
+
+  insert into t3 values (1);
+end|
+
+call bug4905()|
+select row_count()|
+call bug4905()|
+select row_count()|
+call bug4905()|
+select row_count()|
+select * from t3|
+
+drop procedure bug4905|
+drop table t3|
+
 
 #
 # Some "real" examples
