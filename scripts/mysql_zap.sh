@@ -111,10 +111,10 @@ Usage:   $0 [-signal] [-?Ift] [--help] pattern
 Options: -I or -? "info"  -f "force" -t "test".
 
 Version 1.0
-Kill processes with matches pattern.
+Kill processes that match the pattern.
 If -f isn't given, ask user for confirmation for each process to kill.
-If signal isn't given, try first with signal 15 and after that with signal 9.
-If -t is given the processes is only shown on stdout.
+If signal isn't given, try first with signal 15, then with signal 9.
+If -t is given, the processes are only shown on stdout.
 EOF
     exit(1);
 }
