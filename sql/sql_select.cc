@@ -1939,10 +1939,17 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       /*
 	Don't test table scan if it can't be better.
 	Prefer key lookup if we would use the same key for scanning.
+
+	Don't do a table scan on InnoDB tables, if we can read the used
+	parts of the row from any of the used index.
+	This is because table scans uses index and we would not win
+	anything by using a table scan.
       */
       if ((records >= s->found_records || best > s->read_time) &&
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
-	    best_max_key_part >= s->table->quick_key_parts[best_key->key]))
+	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
+	  !((s->table->file->option_flag() & HA_TABLE_SCAN_ON_INDEX) &&
+	    s->table->used_keys && best_key))
       {						// Check full join
 	if (s->on_expr)
 	{

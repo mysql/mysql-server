@@ -92,7 +92,7 @@ class ha_berkeley: public handler
 		    HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
 		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
-		    HA_AUTO_PART_KEY),
+		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)
   {
   }

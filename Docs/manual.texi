@@ -48374,6 +48374,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Don't use table scan with BerkeleyDB and InnoDB tables when we can use
+an index that covers the whole row.
+@item
 Added sql-mode flag @code{NO_UNSIGNED_SUBTRACTION} to disable unsigned
 arithmetic rules when it comes to subtraction. (This will make MySQL 4.0
 behave more closely to 3.23 with @code{UNSIGNED} columns).
