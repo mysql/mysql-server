@@ -200,12 +200,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
     opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
-  if (init_thread_environment())
-  {
-    mysql_server_end();
-    return 1;
-  }
-
   umask(((~my_umask) & 0666));
   if (init_server_components())
   {

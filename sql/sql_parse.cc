@@ -1059,9 +1059,6 @@ bool do_command(THD *thd)
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length)
 {
-#ifndef EMBEDDED_LIBRARY
-  int res;
-#endif
   NET *net= &thd->net;
   bool error= 0;
   /*
@@ -1138,7 +1135,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char tmp_db[NAME_LEN+1];
     ACL_USER* cached_user     ;                 /* Cached user */
     uint cur_priv_version;                      /* Cached grant version */
-    ulong pkt_len=0; /* Length of reply packet */
+    int res;
+    ulong pkt_len= 0;				/* Length of reply packet */
 
     bzero((char*) prepared_scramble, sizeof(prepared_scramble));
     /* Small check for incomming packet */

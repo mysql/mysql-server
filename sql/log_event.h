@@ -583,7 +583,7 @@ public:
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
   const char* get_var_type_name();
-  int get_data_size() { return  sizeof(type) + sizeof(val);}
+  int get_data_size() { return  9; /* sizeof(type) + sizeof(val) */;}
   int write_data(IO_CACHE* file);
   bool is_valid() { return 1; }
 };
@@ -616,7 +616,7 @@ class Rand_log_event: public Log_event
   Rand_log_event(const char* buf, bool old_format);
   ~Rand_log_event() {}
   Log_event_type get_type_code() { return RAND_EVENT;}
-  int get_data_size() { return sizeof(ulonglong) * 2; }
+  int get_data_size() { return 16; /* sizeof(ulonglong) * 2*/ }
   int write_data(IO_CACHE* file);
   bool is_valid() { return 1; }
 };

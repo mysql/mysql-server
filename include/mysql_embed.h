@@ -25,6 +25,7 @@
 #undef HAVE_OPENSSL
 #undef HAVE_VIO
 #undef HAVE_ISAM
+#undef HAVE_SMEM				/* No shared memory */
 
 #define DONT_USE_RAID
 
