@@ -7352,36 +7352,39 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info)));
-      else if (tab->select)
+      else
       {
-	if (tab->use_quick == 2)
+	if (tab->select)
 	{
-	  sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
-		  tab->keys);
-	  buff_ptr=strend(buff_ptr);
+	  if (tab->use_quick == 2)
+	  {
+	    sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
+		    tab->keys);
+	    buff_ptr=strend(buff_ptr);
+	  }
+	  else
+	    buff_ptr=strmov(buff_ptr,"; Using where");
 	}
-	else
-	  buff_ptr=strmov(buff_ptr,"; Using where");
+	if (key_read)
+	  buff_ptr= strmov(buff_ptr,"; Using index");
+	if (table->reginfo.not_exists_optimize)
+	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	if (need_tmp_table)
+	{
+	  need_tmp_table=0;
+	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	}
+	if (need_order)
+	{
+	  need_order=0;
+	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	}
+	if (distinct && test_all_bits(used_tables,thd->used_tables))
+	  buff_ptr= strmov(buff_ptr,"; Distinct");
+	if (buff_ptr == buff)
+	  buff_ptr+= 2;
+	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       }
-      if (key_read)
-	buff_ptr= strmov(buff_ptr,"; Using index");
-      if (table->reginfo.not_exists_optimize)
-	buff_ptr= strmov(buff_ptr,"; Not exists");
-      if (need_tmp_table)
-      {
-	need_tmp_table=0;
-	buff_ptr= strmov(buff_ptr,"; Using temporary");
-      }
-      if (need_order)
-      {
-	need_order=0;
-	buff_ptr= strmov(buff_ptr,"; Using filesort");
-      }
-      if (distinct && test_all_bits(used_tables,thd->used_tables))
-	buff_ptr= strmov(buff_ptr,"; Distinct");
-      if (buff_ptr == buff)
-	buff_ptr+= 2;
-      item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))
