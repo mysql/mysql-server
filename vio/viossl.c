@@ -63,6 +63,26 @@
 
 
 #ifdef HAVE_OPENSSL
+
+static void
+report_errors()
+{
+  unsigned long	l;
+  const char*	file;
+  const char*	data;
+  int		line,flags;
+  DBUG_ENTER("report_errors");
+
+  while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
+  {
+    char buf[200];
+    DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
+			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 void vio_ssl_delete(Vio * vio)
 {
   /* It must be safe to delete null pointers. */
@@ -266,24 +286,6 @@ my_bool vio_ssl_poll_read(Vio *vio,uint timeout)
 }
 
 
-static void
-report_errors()
-{
-  unsigned long	l;
-  const char*	file;
-  const char*	data;
-  int		line,flags;
-  DBUG_ENTER("report_errors");
-
-  while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
-  {
-    char buf[200];
-    DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
-			 file,line,(flags&ERR_TXT_STRING)?data:"")) ;
-  }
-  DBUG_VOID_RETURN;
-}
-
 /* FIXME: There are some duplicate code in 
  * sslaccept()/sslconnect() which maybe can be eliminated 
  */
@@ -326,7 +328,7 @@ Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
   DBUG_PRINT("enter", ("sd=%s ptr=%p ctx: %p", sd->desc,ptr,ptr->ssl_context_));
   vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
 
-  ptr->bio_=0;
+  sd->bio_=0;
   sd->ssl_=0;
   sd->open_=FALSE; 
   assert(sd != 0);
@@ -339,7 +341,7 @@ Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
     report_errors();
     DBUG_RETURN(sd);
   }
-  if (!(ptr->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
+  if (!(sd->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
   {
     DBUG_PRINT("error", ("BIO_new_socket failure"));
     report_errors();
@@ -347,7 +349,7 @@ Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
     sd->ssl_=0;
     DBUG_RETURN(sd);
   }
-  SSL_set_bio(sd->ssl_, ptr->bio_, ptr->bio_);
+  SSL_set_bio(sd->ssl_, sd->bio_, sd->bio_);
   SSL_set_connect_state(sd->ssl_);
 /*  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd); 
   sd->ssl_cip_ = SSL_get_cipher(sd->ssl_);*/
