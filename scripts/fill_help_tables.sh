@@ -197,6 +197,9 @@ sub prepare_name
   $a =~ s/(\@node(.*?)\n)/  /g;
   $a =~ s/(\@tab)/\t/g;
   $a =~ s/\@item/  /g;
+  $a =~ s/\@minus\{\}/-/g;
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
+  $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
   $a =~ s/\@samp\{(.+?)\}/$1/go;
@@ -244,6 +247,9 @@ sub prepare_description
   $a =~ s/(\@item)/  /g;
   $a =~ s/(\@tindex\s(.*?)\n)//g;
   $a =~ s/(\@c\s(.*?)\n)//g;
+  $a =~ s/\@minus\{\}/-/g;
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
+  $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
   $a =~ s/\@samp\{(.+?)\}/$1/go;
@@ -273,6 +279,7 @@ sub prepare_example
 
   $a =~ s/(^\@c for_help_topic(.*?)\n)//g;
 
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
   $a =~ s/\\/\\\\/g;
   $a =~ s/(\@{)/{/g;
   $a =~ s/(\@})/}/g;
