@@ -686,12 +686,13 @@ int decimal_shift(decimal *dec, int shift)
   {
     /* need to move digits */
     int d_shift;
+    dec1 *to, *barier;
     if (new_front > 0)
     {
       /* move left */
       d_shift= new_front / DIG_PER_DEC1;
-      dec1 *to= dec->buf + (ROUND_UP(beg + 1) - 1 - d_shift);
-      dec1 *barier= dec->buf + (ROUND_UP(end) - 1 - d_shift);
+      to= dec->buf + (ROUND_UP(beg + 1) - 1 - d_shift);
+      barier= dec->buf + (ROUND_UP(end) - 1 - d_shift);
       DBUG_ASSERT(to >= dec->buf);
       DBUG_ASSERT(barier + d_shift < dec->buf + dec->len);
       for(; to <= barier; to++)
@@ -704,8 +705,8 @@ int decimal_shift(decimal *dec, int shift)
     {
       /* move right */
       d_shift= (1 - new_front) / DIG_PER_DEC1;
-      dec1 *to= dec->buf + ROUND_UP(end) - 1 + d_shift;
-      dec1 *barier= dec->buf + ROUND_UP(beg + 1) - 1 + d_shift;
+      to= dec->buf + ROUND_UP(end) - 1 + d_shift;
+      barier= dec->buf + ROUND_UP(beg + 1) - 1 + d_shift;
       DBUG_ASSERT(to < dec->buf + dec->len);
       DBUG_ASSERT(barier - d_shift >= dec->buf);
       for(; to >= barier; to--)

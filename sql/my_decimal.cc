@@ -171,7 +171,7 @@ int str2my_decimal(uint mask, const char *from, uint length,
   }
   my_decimal_set_zero(decimal_value);
   err= string2decimal((char *)from, (decimal *)decimal_value, &end);
-  if (*end && !err)
+  if ((end-from) != length && !err)
     err= E_DEC_TRUNCATED;
   check_result(mask, err);
   return err;
