@@ -1996,6 +1996,23 @@ mysql_execute_command(void)
       res = mysql_show_grants(thd,lex->grant_user);
     }
     break;
+  case SQLCOM_HA_OPEN:
+    if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
+      goto error;
+    res = mysql_ha_open(thd, tables);
+    break;
+  case SQLCOM_HA_CLOSE:
+    if (check_db_used(thd,tables))
+      goto error;
+    res = mysql_ha_close(thd, tables);
+    break;
+  case SQLCOM_HA_READ:
+    if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
+      goto error;
+    res = mysql_ha_read(thd, tables, lex->ha_read_mode,
+	            lex->backup_dir, lex->insert_list, lex->ha_rkey_mode);
+    break;
+
   case SQLCOM_BEGIN:
     if (end_active_trans(thd))
     {
@@ -2041,7 +2058,7 @@ mysql_execute_command(void)
   }
   thd->proc_info="query end";			// QQ
   if (res < 0)
-    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0, 0);
 
 error:
   DBUG_VOID_RETURN;

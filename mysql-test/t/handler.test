@@ -1,0 +1,32 @@
+#
+# test of HANDLER ...
+#
+
+drop table if exists t1;
+create table t1 (a int, b char(10), key a(a));
+insert into t1 values
+(14,"aaa"),(15,"bbb"),(16,"ccc"),
+(17,"ddd"),(18,"eee"),(19,"fff"),
+(20,"ggg"),(21,"hhh"),(22,"iii");
+handler t1 open;
+handler t1 read a first;
+handler t1 read a next;
+handler t1 read a next;
+handler t1 read a prev;
+handler t1 read a last;
+handler t1 read a prev;
+handler t1 read a prev;
+
+handler t1 read a first;
+handler t1 read a prev;
+
+handler t1 read a last;
+handler t1 read a prev;
+handler t1 read a next;
+handler t1 read a next;
+
+handler t1 read a=(15);
+
+handler t1 close;
+drop table if exists t1;
+

@@ -76,7 +76,7 @@ static void free_var(user_var_entry *entry)
 ****************************************************************************/
 
 THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
-	   insert_id_used(0),in_lock_tables(0),
+	   insert_id_used(0),in_lock_tables(0),manual_open(0),
 	   global_read_lock(0),bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
@@ -158,9 +158,10 @@ THD::~THD()
     net_end(&net); 
   }
   ha_rollback(this);
-  if (locked_tables)
+  if (locked_tables || manual_open)
   {
     lock=locked_tables; locked_tables=0;
+    manual_open=0;
     close_thread_tables(this);
   }
   close_temporary_tables(this);

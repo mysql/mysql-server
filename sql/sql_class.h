@@ -24,7 +24,7 @@
 class Query_log_event;
 class Load_log_event;
 
-
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE };
 enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 
@@ -278,7 +278,7 @@ public:
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used;
+  bool	     query_start_used,last_insert_id_used,insert_id_used,manual_open;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap;
   bool	     volatile killed;
