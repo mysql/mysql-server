@@ -312,6 +312,13 @@ my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      char *min_str, char *max_str,
 			      uint *min_length, uint *max_length);
 
+my_bool  my_like_range_mb(CHARSET_INFO *cs,
+			  const char *ptr, uint ptr_length,
+			  pbool escape, pbool w_one, pbool w_many,
+			  uint res_length,
+			  char *min_str, char *max_str,
+			  uint *min_length, uint *max_length);
+
 my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
 			    const char *ptr, uint ptr_length,
 			    pbool escape, pbool w_one, pbool w_many,
