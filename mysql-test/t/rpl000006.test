@@ -15,3 +15,21 @@ drop table foo;
 save_master_pos;
 connection slave;
 sync_with_master;
+connection master;
+set SQL_LOG_BIN=1;
+CREATE TABLE t1 (
+ a int not null
+) TYPE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
+
+INSERT INTO t1 VALUES (1);
+save_master_pos;
+connection slave;
+sync_with_master;
+drop table t1;
+load table t1 from master;
+check table t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

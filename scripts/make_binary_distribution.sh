@@ -50,7 +50,7 @@ mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/share/mysql \
  $BASE/tests $BASE/scripts $BASE/sql-bench $BASE/mysql-test \
  $BASE/mysql-test/t  $BASE/mysql-test/r \
- $BASE/mysql-test/include $BASE/mysql-test/std_data
+ $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/man
  
 chmod o-rwx $BASE/data $BASE/data/*
 
@@ -101,6 +101,7 @@ rm $BASE/include/Makefile*; rm $BASE/include/*.in
 
 $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
 $CP support-files/* $BASE/support-files
+$CP man/*.? $BASE/man
 
 $CP -r sql/share/* $BASE/share/mysql
 rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD

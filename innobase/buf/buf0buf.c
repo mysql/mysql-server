@@ -359,6 +359,7 @@ buf_pool_create(
 
 	for (i = BUF_FLUSH_LRU; i <= BUF_FLUSH_LIST; i++) {
 		buf_pool->n_flush[i] = 0;
+		buf_pool->init_flush[i] = FALSE;
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
 

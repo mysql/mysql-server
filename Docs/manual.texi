@@ -47117,6 +47117,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
 @item
+Added unique error message when one gets a DEADLOCK during a transaction with
+BDB tables.
+@item
 Fixed problem with @code{BDB} tables and @code{UNIQUE} columns defined
 as @code{NULL}.
 @item
