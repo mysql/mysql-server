@@ -3172,7 +3172,6 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 
-rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo
 echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
 echo "latest release, upcoming features, and other information to make your"
