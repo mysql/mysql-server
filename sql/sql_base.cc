@@ -2138,7 +2138,10 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           select list over other fields from the tables participating in
           this select in case of ambiguity.
 
-          QQ: Why do we use simple strcmp for table name comparison here ?
+          We use strcmp for table names and database names as these may be
+          case sensitive.
+          In cases where they are not case sensitive, they are always in lower
+          case.
         */
         if (!my_strcasecmp(system_charset_info, item_field->field_name,
                            field_name) &&
@@ -2157,10 +2160,12 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           }
           found= li.ref();
           *counter= i;
+          if (db_name)
+            break;                              // Perfect match
         }
       }
       else if (!my_strcasecmp(system_charset_info, item_field->name,
-                             field_name))
+                              field_name))
       {
         /*
           If table name was not given we should scan through aliases
@@ -2230,7 +2235,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   }
   if (found)
     return found;
-  else if (report_error != REPORT_EXCEPT_NOT_FOUND)
+  if (report_error != REPORT_EXCEPT_NOT_FOUND)
   {
     if (report_error == REPORT_ALL_ERRORS)
       my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
