@@ -148,7 +148,7 @@ print "  description   text not null,";
 print "  example       text not null,";
 print "  url           varchar(128) not null,";
 print "  primary key   (help_topic_id),";
-print "  uniuqe index(name)";
+print "  unique index(name)";
 print ") type=myisam;\n\n";
 
 print "DROP TABLE IF EXISTS help_category;\n";
