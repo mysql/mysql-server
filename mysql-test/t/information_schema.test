@@ -325,3 +325,9 @@ where table_schema='test';
 drop view t2;
 drop view t3;
 drop table t4;
+
+#
+# Bug#7213: information_schema: redundant non-standard TABLE_NAMES table
+#
+--error 1109
+select * from information_schema.table_names;
