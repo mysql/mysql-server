@@ -41,6 +41,7 @@
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(HAVE_LINUXTHREADS)
+#undef  _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
 

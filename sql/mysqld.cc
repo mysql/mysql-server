@@ -612,7 +612,8 @@ void clean_up(void)
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
 #ifndef __WIN__
-  (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
+  if (!opt_bootstrap)
+    (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
   end_slave();
   my_thread_end();
@@ -1150,13 +1151,15 @@ static void *signal_hand(void *arg __attribute__((unused)))
   (void) sigaddset(&set,SIGTSTP);
 
   /* Save pid to this process (or thread on Linux) */
+  if (!opt_bootstrap)
   {
-    FILE	*pidFile;
-    if ((pidFile = my_fopen(pidfile_name,O_WRONLY,MYF(MY_WME))))
+    File pidFile;
+    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
     {
-      fprintf(pidFile,"%lu",(ulong) getpid());
-      (void) my_fclose(pidFile,MYF(0));
-      (void) chmod(pidfile_name,0644);
+      char buff[21];
+      sprintf(buff,"%lu",(ulong) getpid());
+      (void) my_write(pidFile, buff,sizeof(buff),MYF(MY_WME));
+      (void) my_close(pidFile,MYF(0));
     }
   }
 
@@ -1506,21 +1509,21 @@ int main(int argc, char **argv)
 	     LOG_NEW);
 
   if (opt_bin_log && !server_id)
-    {
-     server_id= !master_host ? 1 : 2;
-     switch(server_id)
-       {
-       case 1:
-	 sql_print_error("Warning: one should set \
-server_id to a non-0 value if log-bin is enabled. Will log updates to \
- binary log, but will not accept connections from slaves");
-         break;
-       default:
-	 sql_print_error("Warning: one should set server_id to a non-0 value\
-if  master_host is set. The server  will not act as a slave");
-	 break;
-       }
+  {
+    server_id= !master_host ? 1 : 2;
+    switch (server_id) {
+    case 1:
+      sql_print_error("\
+Warning: one should set server_id to a non-0 value if log-bin is enabled.\n\
+Will log updates to binary log, but will not accept connections from slaves");
+      break;
+    default:
+      sql_print_error("\
+Warning: one should set server_id to a non-0 value if master_host is set.\n\
+The server will not act as a slave");
+      break;
     }
+  }
   if (opt_bin_log)
   {
     if (!opt_bin_logname)
@@ -1589,7 +1592,8 @@ if  master_host is set. The server  will not act as a slave");
     select_thread_in_use=0;
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
 #ifndef __WIN__
-    (void) my_delete(pidfile_name,MYF(MY_WME));		// Not neaded anymore
+    if (!opt_bootstrap)
+      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not neaded anymore
 #endif
     exit(1);
   }
@@ -2249,7 +2253,7 @@ static struct option long_options[] = {
   {"bdb-logdir",            required_argument, 0, (int) OPT_BDB_LOG},
   {"bdb-recover",           no_argument,       0, (int) OPT_BDB_RECOVER},
   {"bdb-no-sync",           no_argument,       0, (int) OPT_BDB_NOSYNC},
-  {"bdb-shared-data",       required_argument, 0, (int) OPT_BDB_SHARED},
+  {"bdb-shared-data",       no_argument,       0, (int) OPT_BDB_SHARED},
   {"bdb-tmpdir",            required_argument, 0, (int) OPT_BDB_TMP},
 #endif
   {"big-tables",            no_argument,       0, (int) OPT_BIG_TABLES},
@@ -2909,7 +2913,7 @@ static void get_options(int argc,char **argv)
       usage();
       exit(0);
     case 'T':
-      test_flags= optarg ? (uint) atoi(optarg) : (uint) ~0;
+      test_flags= optarg ? (uint) atoi(optarg) : 0;
       opt_endinfo=1;
       break;
     case 'S':
