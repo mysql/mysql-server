@@ -29,6 +29,8 @@
 volatile bool slave_running = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
+MY_BITMAP slave_error_mask;
+bool use_slave_mask = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
@@ -73,6 +75,50 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
   return (byte*)e->db;
 }
 
+/* called from get_options() in mysqld.cc on start-up */
+void init_slave_skip_errors(char* arg)
+{
+  char* p,*end;
+  int err_code = 0;
+  my_bool last_was_digit = 0;
+  if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
+  {
+    fprintf(stderr, "Badly out of memory, please check your system status\n");
+    exit(1);
+  }
+  use_slave_mask = 1;
+  for (;isspace(*arg);++arg)
+    /* empty */;
+  /* force first three chars to lower case */
+  for (p = arg, end = arg + 3; *p && p < end; ++p)
+    *p = tolower(*p);
+  if (!memcmp(arg,"all",3))
+  {
+    bitmap_set_all(&slave_error_mask);
+    return;
+  }
+  for (p = arg, end = strend(arg); p < end; ++p)
+  {
+    int digit = *p - '0';
+    if (digit >= 0 && digit < 10) /* found real digit */
+    {
+      err_code = err_code * 10 + digit;
+      last_was_digit = 1;
+    }
+    else /* delimiter */
+    {
+      if (last_was_digit)
+      {
+	if (err_code < MAX_SLAVE_ERROR)
+	{
+	  bitmap_set_bit(&slave_error_mask,err_code);
+	}
+	err_code = 0;
+	last_was_digit = 0;
+      }
+    }
+  }
+}
 
 void init_table_rule_hash(HASH* h, bool* h_inited)
 {
@@ -869,6 +915,11 @@ point. If you are sure that your master is ok, run this query manually on the\
     }
 }
 
+inline int ignored_error_code(int err_code)
+{
+  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+}
+
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
@@ -925,11 +976,13 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	
 	// sanity check to make sure the master did not get a really bad
 	// error on the query
-	if (!check_expected_error(thd, (expected_error = qev->error_code)))
+	if (ignored_error_code((expected_error=qev->error_code)) ||
+	    !check_expected_error(thd, expected_error))
 	{
 	  mysql_parse(thd, thd->query, q_len);
 	  if (expected_error !=
-	      (actual_error = thd->net.last_errno) && expected_error)
+	      (actual_error = thd->net.last_errno) && expected_error &&
+	      !ignored_error_code(actual_error))
 	  {
 	    const char* errmsg = "Slave: did not get the expected error\
  running query from master - expected: '%s' (%d), got '%s' (%d)"; 
@@ -939,7 +992,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 			    actual_error);
 	    thd->query_error = 1;
 	  }
-	  else if (expected_error == actual_error)
+	  else if (expected_error == actual_error ||
+		   ignored_error_code(actual_error))
 	  {
 	    thd->query_error = 0;
 	    *last_slave_error = 0;
