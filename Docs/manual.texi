@@ -1353,9 +1353,7 @@ about @strong{MySQL}. It is sometimes nice to have a bound book to read
 in bed or while you travel. Here is a list of books about @strong{MySQL} (in
 English):
 
-@itemize @bullet
-
-@item @emph{MySQL}
+@emph{MySQL}
 @multitable @columnfractions .3 .7
 @item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
 @item Publisher	@tab		New Riders
@@ -1415,7 +1413,7 @@ and PHP's @strong{MySQL}-related functions
 @end itemize
 @*
 
-@item @emph{MySQL & mSQL}
+@emph{MySQL & mSQL}
 @multitable @columnfractions .3 .7
 @item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=1565924347, Barnes and Noble}
 @item Publisher	@tab		O'Reilly
@@ -1436,7 +1434,7 @@ interfaces and basic administration.  Includes ample tutorial
 material.
 @*
 
-@item @emph{Sams' Teach Yourself MySQL in 21 Days}
+@emph{Sams' Teach Yourself MySQL in 21 Days}
 @multitable @columnfractions .3 .7
 @item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144, Barnes and Noble}
 @item Publisher @tab            Sams
@@ -1456,7 +1454,7 @@ this open source database technology into his/her Web site using practical,
 hands-on examples to follow.
 @*
 
-@item @emph{E-Commerce Solutions with MySQL}
+@emph{E-Commerce Solutions with MySQL}
 @multitable @columnfractions .3 .7
 @item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452, Barnes and Noble}
 @item Publisher @tab            Prima Communications, Inc.
@@ -1470,7 +1468,7 @@ hands-on examples to follow.
 No description available.
 @*
 
-@item @emph{Professional MySQL Programming}
+@emph{Professional MySQL Programming}
 @multitable @columnfractions .3 .7
 @item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281, Barnes and Noble}
 @item Publisher @tab            Wrox Press, Inc.
@@ -1484,7 +1482,7 @@ No description available.
 No description available.
 @*
 
-@item @emph{PHP3 and MySQL Web Development}
+@emph{PHP3 and MySQL Web Development}
 @multitable @columnfractions .3 .7
 @item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672317842, Barnes and Noble}
 @item Publisher @tab            N/A
@@ -1497,8 +1495,6 @@ No description available.
 
 No description available.
 @*
-
-@end itemize
 
 @node Features, Stability, MySQL-Books, Introduction
 @section The Main Features of MySQL
