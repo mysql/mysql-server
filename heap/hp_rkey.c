@@ -55,7 +55,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key,
       info->update = 0;
       DBUG_RETURN(my_errno = HA_ERR_KEY_NOT_FOUND);
     }
-    memcpy(&pos, pos + keyinfo->ref_offs, sizeof(byte*));
+    memcpy(&pos, pos + hp_rb_key_length(keyinfo, pos), sizeof(byte*));
     info->current_ptr = pos;
   }
   else

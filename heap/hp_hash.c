@@ -391,14 +391,13 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
       if (rec1[seg->null_pos] & seg->null_bit)
 	continue;
     }
-    switch (seg->type) {
-    case HA_KEYTYPE_END:
-      return 0;
-    case HA_KEYTYPE_TEXT:
+    if (seg->type == HA_KEYTYPE_TEXT)
+    {
       if (my_sortcmp(seg->charset,rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
-      break;
-    default:
+    }
+    else
+    {
       if (bcmp(rec1+seg->start,rec2+seg->start,seg->length))
 	return 1;
     }
@@ -454,21 +453,24 @@ void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
   }
 }
 
-void hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
+uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
 		    const byte *rec, byte *recpos)
 {
+  byte *start_key= key;
   HA_KEYSEG *seg, *endseg;
 
-  /* -1 means that HA_KEYTYPE_END segment will not copy */
-  for (seg= keydef->seg, endseg= seg + keydef->keysegs - 1; seg < endseg; 
-       seg++)
+  for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
   {
     if (seg->null_bit)
-      *key++= 1 - test(rec[seg->null_pos] & seg->null_bit);
+    {
+      if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
+        continue;
+    }
     memcpy(key, rec + seg->start, (size_t) seg->length);
     key+= seg->length;
   }
   memcpy(key, &recpos, sizeof(byte*));
+  return key - start_key;
 }
 
 uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
@@ -482,11 +484,38 @@ uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
        old+= seg->length, seg++)
   {
     if (seg->null_bit)
-      *key++= 1 - *old++;
+    {
+      if (!(*key++= (char) 1 - *old++))
+        continue;
+    }
     memcpy((byte*) key, old, seg->length);
     key+= seg->length;
   }
   return key - start_key;
+}
+
+uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key)
+{
+  const byte *start_key= key;
+  HA_KEYSEG *seg, *endseg;
+  
+  if (keydef->flag & HA_NULL_PART_KEY)
+  {
+    for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
+    {
+      if (seg->null_bit)
+      {
+	if (!*key++)
+	  continue;
+      }
+      key += seg->length;
+    }
+    return key - start_key;
+  }
+  else
+  {
+    return keydef->length;
+  }
 }
                   
 /*

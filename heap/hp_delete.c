@@ -65,12 +65,11 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   heap_rb_param custom_arg;
 
   if (flag) 
-    info->last_pos = NULL; /* For heap_rnext/heap_rprev */
+    info->last_pos= NULL; /* For heap_rnext/heap_rprev */
 
-  hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
-  custom_arg.keyseg = keyinfo->seg;
-  custom_arg.key_length = keyinfo->length;
-  custom_arg.search_flag = SEARCH_SAME;
+  custom_arg.keyseg= keyinfo->seg;
+  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
+  custom_arg.search_flag= SEARCH_SAME;
   return tree_delete(&keyinfo->rb_tree, info->recbuf, &custom_arg);
 }
 

@@ -50,14 +50,10 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   { length=mi_uint2korr((key)+1); (key)+=3; length_pack=3; } \
 }
 
-extern int _mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			    my_bool);
+extern int mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
+			   my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-		       register uchar *b, uint key_length, uint nextflag,
-		       uint *diff_pos);
-
-extern int hp_rb_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-			 register uchar *b, uint key_length, uint nextflag,
-			 uint *diff_pos);
+		      register uchar *b, uint key_length, uint nextflag,
+		      uint *diff_pos);
 
 #endif /* _my_handler_h */

@@ -42,9 +42,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     parts+=table->key_info[key].key_parts;
     if (table->key_info[key].algorithm == HA_KEY_ALG_BTREE)
-    {
       parts++; /* additional HA_KEYTYPE_END keyseg */
-    }
   }
 
   if (!(keydef=(HP_KEYDEF*) my_malloc(table->keys*sizeof(HP_KEYDEF)+
@@ -55,7 +53,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   {
     KEY *pos=table->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
-    KEY_PART_INFO *key_part_end= key_part+pos->key_parts;
+    KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
 
     mem_per_row+= (pos->key_length + (sizeof(char*) * 2));
 
@@ -94,14 +92,13 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
       }
       else
       {
-	seg->null_bit=0;
-	seg->null_pos=0;
+	seg->null_bit= 0;
+	seg->null_pos= 0;
       }
     }
     if (pos->algorithm == HA_KEY_ALG_BTREE)
     {
       /* additional HA_KEYTYPE_END keyseg */
-      keydef[key].keysegs++;
       seg->type=     HA_KEYTYPE_END;
       seg->length=   sizeof(byte*);
       seg->flag=     0;

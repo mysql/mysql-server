@@ -84,7 +84,6 @@ typedef struct st_hp_keydef		/* Key definition with open */
   uint keysegs;				/* Number of key-segment */
   uint length;				/* Length of key (automatic) */
   uint8 algorithm;			/* HASH / BTREE */
-  uint ref_offs;			/* Data reference offset */
   HA_KEYSEG *seg;
   HP_BLOCK block;			/* Where keys are saved */
   TREE rb_tree;
@@ -131,7 +130,7 @@ typedef struct st_heap_info
   byte *lastkey;			/* Last used key with rkey */
   byte *recbuf;                         /* Record buffer for rb-tree keys */
   enum ha_rkey_function last_find_flag;
-  TREE_ELEMENT *parents[MAX_TREE_HIGHT+1];
+  TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
   uint lastkey_len;
 #ifdef THREAD

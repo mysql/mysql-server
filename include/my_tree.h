@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#define MAX_TREE_HIGHT	40	/* = max 1048576 leafs in tree */
+#define MAX_TREE_HEIGHT	40	/* = max 1048576 leafs in tree */
 #define ELEMENT_KEY(tree,element)\
 (tree->offset_to_key ? (void*)((byte*) element+tree->offset_to_key) :\
 			*((void**) (element+1)))
@@ -52,7 +52,7 @@ typedef struct st_tree_element {
 
 typedef struct st_tree {
   TREE_ELEMENT *root,null_element;
-  TREE_ELEMENT **parents[MAX_TREE_HIGHT];
+  TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element,memory_limit,allocated;
   qsort_cmp2 compare;
   void* custom_arg;
