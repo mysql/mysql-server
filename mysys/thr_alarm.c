@@ -688,7 +688,7 @@ bool thr_got_alarm(thr_alarm_t *alrm_ptr)
 void thr_end_alarm(thr_alarm_t *alrm_ptr)
 {
   thr_alarm_t alrm= *alrm_ptr;
-  if (alrm->crono)
+  if (alarm && alrm->crono)
   {
     KillTimer(NULL, alrm->crono);
     alrm->crono = 0;
