@@ -112,7 +112,7 @@ while test $# -gt 0; do
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-	--embedded-libs | --embedded | libmysqld-libs) echo "$embedded_libs" ;;
+	--embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
         *)         usage ;;
         esac
 
