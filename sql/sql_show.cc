@@ -503,6 +503,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Charset",32));
   item->maybe_null=1;
+  field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
+  item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Create_options",255));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
@@ -588,6 +590,10 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       }
       str= (table->table_charset ? table->table_charset->name : "default");
       protocol->store(str, system_charset_info);
+      if (file->table_flags() & HA_HAS_CHECKSUM)
+        protocol->store((ulonglong)file->checksum());
+      else
+        protocol->store_null(); // Checksum
       {
         char option_buff[350],*ptr;
         ptr=option_buff;

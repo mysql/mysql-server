@@ -94,3 +94,16 @@ drop table t1,t2;
 # derived table reference
 #
 SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
+
+#
+# Test for select if database is not selected.
+#
+# Connect without a database
+create table a1 select 1 as a;
+connect (con1,localhost,mysqltest_1,,*NO-ONE*,$MASTER_MYPORT,master.sock);
+connection con1;
+--error 1046
+select 2 as a from (select * from a1) b;
+use test;
+select 2 as a from (select * from a1) b;
+drop table a1;

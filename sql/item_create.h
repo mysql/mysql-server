@@ -33,9 +33,7 @@ Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
 Item *create_func_cos(Item* a);
 Item *create_func_cot(Item* a);
-#ifdef HAVE_COMPRESS
 Item *create_func_crc32(Item* a);
-#endif
 Item *create_func_date_format(Item* a,Item *b);
 Item *create_func_dayname(Item* a);
 Item *create_func_dayofmonth(Item* a);
@@ -69,14 +67,12 @@ Item *create_func_monthname(Item* a);
 Item *create_func_nullif(Item* a, Item *b);
 Item *create_func_oct(Item *);
 Item *create_func_ord(Item* a);
-Item *create_func_old_password(Item* a);
 Item *create_func_period_add(Item* a, Item *b);
 Item *create_func_period_diff(Item* a, Item *b);
 Item *create_func_pi(void);
 Item *create_func_pow(Item* a, Item *b);
 Item *create_func_current_user(void);
 Item *create_func_quarter(Item* a);
-Item *create_func_password(Item* a);
 Item *create_func_radians(Item *a);
 Item *create_func_release_lock(Item* a);
 Item *create_func_repeat(Item* a, Item *b);
