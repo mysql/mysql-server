@@ -550,7 +550,7 @@ int ha_savepoint(THD *thd, char *savepoint_name);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
-int ha_recovery_logging(THD *thd, bool on);
+int ha_enable_transaction(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
 int ha_discover(const char* dbname, const char* name,

@@ -48,4 +48,21 @@ show table status;
 select * from t1 order by col1;
 drop table t1;
 
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
 
+create table t2 (a int NOT NULL PRIMARY KEY) engine=myisam;
+let $1=15001;
+disable_query_log;
+while ($1)
+{
+ eval insert into t2 values($1);
+ dec $1;
+}
+enable_query_log;
+alter table t2 engine=ndbcluster;
+select count(*) from t2;
+truncate table t2;
+select count(*) from t2;
+drop table t2;

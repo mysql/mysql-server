@@ -302,6 +302,7 @@ void THD::init(void)
 
 void THD::init_for_queries()
 {
+  ha_enable_transaction(this,TRUE);
   init_sql_alloc(&mem_root,
                  variables.query_alloc_block_size,
                  variables.query_prealloc_size);

@@ -768,6 +768,7 @@ public:
 #ifdef HAVE_NDBCLUSTER_DB
     void* ndb;
 #endif
+    bool on;
     /*
        Tables changed in transaction (that must be invalidated in query cache).
        List contain only transactional tables, that not invalidated in query

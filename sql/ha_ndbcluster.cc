@@ -20,7 +20,6 @@
   NDB Cluster
 */
 
-
 #ifdef __GNUC__
 #pragma implementation                          // gcc: Class implementation
 #endif
@@ -1033,7 +1032,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
     if (ops_pending && blobs_pending)
     {
       if (trans->execute(NoCommit) != 0)
-        DBUG_RETURN(ndb_err(trans));
+	DBUG_RETURN(ndb_err(trans));
       ops_pending= 0;
       blobs_pending= false;
     }
@@ -1058,8 +1057,17 @@ inline int ha_ndbcluster::next_result(byte *buf)
 	be sent to NDB
       */
       DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
-      if (ops_pending && (trans->execute(NoCommit) != 0))	
-	DBUG_RETURN(ndb_err(trans));
+      if (current_thd->transaction.on)
+      {
+	if (ops_pending && (trans->execute(NoCommit) != 0))
+	  DBUG_RETURN(ndb_err(trans));
+      }
+      else
+      {
+	if (ops_pending && (trans->execute(Commit) != 0))
+	  DBUG_RETURN(ndb_err(trans));
+	trans->restart();
+      }
       ops_pending= 0;
       
       contact_ndb= (check == 2);
@@ -1310,7 +1318,6 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   DBUG_RETURN(define_read_attrs(buf, op));
 }
 
-
 inline 
 int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 {
@@ -1361,7 +1368,6 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 /*
   Insert one record into NDB
 */
-
 int ha_ndbcluster::write_row(byte *record)
 {
   bool has_auto_increment;
@@ -1427,15 +1433,43 @@ int ha_ndbcluster::write_row(byte *record)
       ((rows_inserted % bulk_insert_rows) == 0) ||
       uses_blob_value(false) != 0)
   {
+    THD *thd= current_thd;
     // Send rows to NDB
     DBUG_PRINT("info", ("Sending inserts to NDB, "\
 			"rows_inserted:%d, bulk_insert_rows: %d", 
-			(int)rows_inserted, (int)bulk_insert_rows)); 
+			(int)rows_inserted, (int)bulk_insert_rows));
+
     bulk_insert_not_flushed= false;
-    if (trans->execute(NoCommit) != 0)
+    if (thd->transaction.on) {
+	if (trans->execute(NoCommit) != 0)
+	  {
+	    skip_auto_increment= true;
+	    DBUG_RETURN(ndb_err(trans));
+	  }
+    }
+    else
     {
-      skip_auto_increment= true;
-      DBUG_RETURN(ndb_err(trans));
+      if (trans->execute(Commit) != 0)
+	{
+	  skip_auto_increment= true;
+	  DBUG_RETURN(ndb_err(trans));
+	}
+#if 0 // this is what we want to use but it is not functional
+      trans->restart();
+#else
+      m_ndb->closeTransaction(m_active_trans);
+      m_active_trans= m_ndb->startTransaction();
+      if (thd->transaction.all.ndb_tid)
+	thd->transaction.all.ndb_tid= m_active_trans;
+      else
+	thd->transaction.stmt.ndb_tid= m_active_trans;
+      if (m_active_trans == NULL)
+      {
+	skip_auto_increment= true;
+	ERR_RETURN(m_ndb->getNdbError());
+      }
+      trans= m_active_trans;
+#endif
     }
   }
   if ((has_auto_increment) && (skip_auto_increment))
@@ -2494,10 +2528,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 
         trans= m_ndb->startTransaction();
         if (trans == NULL)
-	{     
-          thd->transaction.ndb_lock_count--;    // We didn't get the lock
           ERR_RETURN(m_ndb->getNdbError());
-        }
         thd->transaction.stmt.ndb_tid= trans;
       } 
       else 
@@ -2510,10 +2541,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           
           trans= m_ndb->startTransaction();
           if (trans == NULL)
-	  {   
-            thd->transaction.ndb_lock_count--;  // We didn't get the lock
             ERR_RETURN(m_ndb->getNdbError());
-          }       
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3128,6 +3156,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_ndb(NULL),
+  m_share(0),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
 		HA_NULL_IN_KEY |
@@ -3177,6 +3206,8 @@ ha_ndbcluster::~ha_ndbcluster()
 {
   DBUG_ENTER("~ha_ndbcluster");
 
+  if (m_share)
+    free_share(m_share);
   release_metadata();
   my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
   blobs_buffer= 0;
@@ -3219,8 +3250,10 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   set_dbname(name);
   set_tabname(name);
   
-  if (check_ndb_connection())
+  if (check_ndb_connection()) {
+    free_share(m_share); m_share= 0;
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
 
   DBUG_RETURN(get_metadata(name));
 }
@@ -3234,7 +3267,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
 int ha_ndbcluster::close(void)
 {
   DBUG_ENTER("close");  
-  free_share(m_share);
+  free_share(m_share); m_share= 0;
   release_metadata();
   m_ndb= NULL;
   DBUG_RETURN(0);
