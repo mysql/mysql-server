@@ -273,9 +273,6 @@ TODO list:
 
   - Invalidate queries that use innoDB tables changed in transaction & remove
       invalidation by table type
-  - Allocate bigger blocks for results (may be we should estimate the 
-        allocatedblock's size dynamicaly) and shrink last block with 
-        results in query_cache_end_of_result.
   - Delayed till after-parsing qache answer (for column rights processing)
   - Optimize cache resizing
       - if new_size < old_size then pack & shrink
@@ -657,9 +654,14 @@ void query_cache_end_of_result(NET *net)
     {
       DUMP(&query_cache);
       BLOCK_LOCK_WR(query_block);
+      Query_cache_query *header = query_block->query();
+      Query_cache_block *last_result_block = header->result()->prev;
+      ulong allign_size = ALIGN_SIZE(last_result_block->used);
+      ulong len = max(query_cache.min_allocation_unit, allign_size);
+      if (last_result_block->length >= query_cache.min_allocation_unit + len)
+	query_cache.split_block(last_result_block,len);
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
 
-      Query_cache_query *header = query_block->query();
 #ifndef DBUG_OFF
       if (header->result() == 0)
       {
@@ -1585,10 +1587,11 @@ Query_cache::append_result_data(Query_cache_block **current_block,
   */
 
   // Try join blocks if physically next block is free...
+  ulong tail = data_len - last_block_free_space;
+  ulong append_min = get_min_append_result_data_size();
   if (last_block_free_space < data_len &&
       append_next_free_block(last_block,
-			     max(data_len - last_block_free_space,
-				 QUERY_CACHE_MIN_RESULT_DATA_SIZE)))
+			     max(tail, append_min)))
     last_block_free_space = last_block->length - last_block->used;
   // If no space in last block (even after join) allocate new block
   if (last_block_free_space < data_len)
@@ -1648,7 +1651,8 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
     structure_guard_mutex and copy data.
   */
 
-  my_bool success = allocate_data_chain(result_block, data_len, query_block);
+  my_bool success = allocate_data_chain(result_block, data_len, query_block,
+					type == Query_cache_block::RES_BEG);
   if (success)
   {
     // It is success (nobody can prevent us write data)
@@ -1693,13 +1697,28 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   DBUG_RETURN(success);
 }
 
+inline ulong Query_cache::get_min_first_result_data_size()
+{
+  if (queries_in_cache < QUERY_CACHE_MIN_ESTIMATED_QUERIES_NUMBER)
+    return min_result_data_size;
+  ulong avg_result = (query_cache_size - free_memory) / queries_in_cache;
+  avg_result = min(avg_result, query_cache_limit);
+  return max(min_result_data_size, avg_result);
+}
+
+inline ulong Query_cache::get_min_append_result_data_size()
+{
+  return min_result_data_size;
+}
+
 /*
   Allocate one or more blocks to hold data
 */
 
 my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 					 ulong data_len,
-					 Query_cache_block *query_block)
+					 Query_cache_block *query_block,
+					 my_bool first_block)
 {
   ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			   ALIGN_SIZE(sizeof(Query_cache_result)));
@@ -1708,7 +1727,10 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
   DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
 		      data_len, all_headers_len));
 
-  *result_block = allocate_block(max(min_result_data_size,len),
+  ulong min_size = (first_block ?
+		    get_min_first_result_data_size():
+		    get_min_append_result_data_size());
+  *result_block = allocate_block(max(min_size,len),
 				 min_result_data_size == 0,
 				 all_headers_len + min_result_data_size,
 				 1);
@@ -1732,7 +1754,7 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
       Query_cache_block *next_block;
       if ((success = allocate_data_chain(&next_block,
 					 len - new_block->length,
-					 query_block)))
+					 query_block, first_block)))
 	double_linked_list_join(new_block, next_block);
     }
     if (success)
@@ -1964,7 +1986,7 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
 
   if (block != 0)				// If we found a suitable block
   {
-    if (block->length > ALIGN_SIZE(len) + min_allocation_unit)
+    if (block->length >= ALIGN_SIZE(len) + min_allocation_unit)
       split_block(block,ALIGN_SIZE(len));
   }
 
@@ -2069,7 +2091,7 @@ void Query_cache::free_memory_block(Query_cache_block *block)
 }
 
 
-void Query_cache::split_block(Query_cache_block *block,ulong len)
+void Query_cache::split_block(Query_cache_block *block, ulong len)
 {
   DBUG_ENTER("Query_cache::split_block");
   Query_cache_block *new_block = (Query_cache_block*)(((byte*) block)+len);
@@ -2082,7 +2104,11 @@ void Query_cache::split_block(Query_cache_block *block,ulong len)
   new_block->pprev = block;
   new_block->pnext->pprev = new_block;
 
-  insert_into_free_memory_list(new_block);
+  if (block->type == Query_cache_block::FREE)
+    // if block was free then it already joined with all free neighbours
+    insert_into_free_memory_list(new_block);
+  else
+    free_memory_block(new_block);
 
   DBUG_PRINT("qcache", ("split 0x%lx (%lu) new 0x%lx",
 		      (ulong) block, len, (ulong) new_block));
