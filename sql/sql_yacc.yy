@@ -109,6 +109,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COUNT_SYM
 %token	CREATE
 %token	CROSS
+%token  CUBE
 %token	DELETE_SYM
 %token	DO_SYM
 %token	DROP
@@ -130,6 +131,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	REPLICATION
 %token	RESET_SYM
 %token	ROLLBACK_SYM
+%token  ROLLUP
 %token	SELECT_SYM
 %token	SHOW
 %token	SLAVE
@@ -2160,13 +2162,26 @@ opt_escape:
 
 group_clause:
 	/* empty */
-	| GROUP BY group_list;
+	| GROUP BY group_list olap_opt;
 
 group_list:
 	group_list ',' order_ident order_dir
 	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
 	  { if (add_group_to_list($1,(bool) $2)) YYABORT; };
+
+olap_opt:
+	/* empty */ {}
+	| WITH CUBE
+          {
+	    Lex->olap = true;
+	    Select->olap= CUBE_TYPE;
+	  }
+	| WITH ROLLUP
+          {
+	    Lex->olap = true;
+	    Select->olap= ROLLUP_TYPE;
+	  }
 
 /*
    Order by statement in select
@@ -2180,7 +2195,7 @@ order_clause:
 	ORDER_SYM BY 
         { 
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_MULTI_UPDATE)
+	  if (lex->sql_command == SQLCOM_MULTI_UPDATE || lex->olap)
 	    YYABORT;
 	  lex->select->sort_default=1;
 	} order_list;
@@ -2201,12 +2216,16 @@ limit_clause:
 	/* empty */ {}
 	| LIMIT ULONG_NUM
 	  {
+	    if (Lex->olap)
+	      YYABORT;
 	    SELECT_LEX *sel=Select;
 	    sel->select_limit= $2;
 	    sel->offset_limit=0L;
 	  }
 	| LIMIT ULONG_NUM ',' ULONG_NUM
 	  {
+	    if (Lex->olap)
+	      YYABORT;
 	    SELECT_LEX *sel=Select;
 	    sel->select_limit= $4; sel->offset_limit=$2;
 	  };
@@ -3024,6 +3043,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CUBE  		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
@@ -3117,6 +3137,7 @@ keyword:
 	| RESOURCES		{}
 	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
+	| ROLLUP		{}
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
