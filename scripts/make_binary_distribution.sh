@@ -183,7 +183,7 @@ done
 
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.001 $BASE/mysql-test/std_data
-$CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.sh $BASE/mysql-test/t
+$CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
 $CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
