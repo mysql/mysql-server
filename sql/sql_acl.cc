@@ -1230,7 +1230,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		new_password));
   thd->clear_error();
   mysql_update_log.write(thd, buff, query_length);
-  Query_log_event qinfo(thd, buff, query_length, 0);
+  Query_log_event qinfo(thd, buff, query_length, 0, FALSE);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
 }

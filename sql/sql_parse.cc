@@ -1102,13 +1102,25 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    uint length=(uint) strlen(buff);
-    if (buff[length-1]!='\n' && !feof(file))
+    ulong length= (ulong) strlen(buff);
+    while (buff[length-1] != '\n' && !feof(file))
     {
-      send_error(thd,ER_NET_PACKET_TOO_LARGE, NullS);
-      thd->fatal_error();
-      break;
+      /*
+        We got only a part of the current string. Will try to increase
+        net buffer then read the rest of the current string.
+      */
+      if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
+      {
+        send_error(thd, thd->net.last_errno, NullS);
+        thd->is_fatal_error= 1;
+        break;
+      }
+      buff= (char*) thd->net.buff;
+      fgets(buff + length, thd->net.max_packet - length, file);
+      length+= (ulong) strlen(buff + length);
     }
+    if (thd->is_fatal_error)
+      break;
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
@@ -2614,7 +2626,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2643,7 +2655,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2666,7 +2678,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -3184,9 +3196,15 @@ purposes internal to the MySQL server", MYF(0));
   }
   case SQLCOM_ALTER_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *db= lex->name ? lex->name : thd->db;
+    if (!db)
     {
-      net_printf(thd, ER_WRONG_DB_NAME, lex->name);
+      send_error(thd, ER_NO_DB_ERROR);
+      goto error;
+    }
+    if (!strip_sp(db) || check_db_name(db))
+    {
+      net_printf(thd, ER_WRONG_DB_NAME, db);
       break;
     }
     /*
@@ -3198,21 +3216,21 @@ purposes internal to the MySQL server", MYF(0));
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(db)))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
-    if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
+    if (check_access(thd, ALTER_ACL, db, 0, 1, 0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_alter_db(thd,lex->name,&lex->create_info);
+    res= mysql_alter_db(thd, db, &lex->create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
@@ -3262,7 +3280,7 @@ purposes internal to the MySQL server", MYF(0));
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3278,7 +3296,7 @@ purposes internal to the MySQL server", MYF(0));
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3345,7 +3363,7 @@ purposes internal to the MySQL server", MYF(0));
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
       }
@@ -3366,7 +3384,7 @@ purposes internal to the MySQL server", MYF(0));
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -3409,7 +3427,7 @@ purposes internal to the MySQL server", MYF(0));
         mysql_update_log.write(thd, thd->query, thd->query_length);
         if (mysql_bin_log.is_open())
         {
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
           mysql_bin_log.write(&qinfo);
         }
       }
@@ -3940,7 +3958,6 @@ mysql_init_select(LEX *lex)
   {
     DBUG_ASSERT(lex->result == 0);
     lex->exchange= 0;
-    lex->proc_list.first= 0;
   }
 }
 
@@ -3956,6 +3973,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_select();
   if (move_down)
   {
+    lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
     SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))

@@ -132,6 +132,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("user", String, Mandatory, "Password"),
     MGM_ARG("password", String, Mandatory, "Password"),
     MGM_ARG("public key", String, Mandatory, "Public key"),
+    MGM_ARG("endian", String, Optional, "Endianness"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
   
@@ -217,6 +218,7 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("set logfilter", &MgmApiSession::setLogFilter, ""),
     MGM_ARG("level", Int, Mandatory, "Severety level"),
+    MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
   MGM_CMD("config lock", &MgmApiSession::configLock, ""),
 
@@ -386,6 +388,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * user;
   const char * password;
   const char * public_key;
+  const char * endian= NULL;
+  union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
@@ -394,7 +398,17 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("user", &user);
   args.get("password", &password);
   args.get("public key", &public_key);
-  
+  args.get("endian", &endian);
+
+  endian_check.l = 1;
+  if(endian 
+     && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
+    m_output->println(cmd);
+    m_output->println("result: Node does not have the same endianness as the management server.");
+    m_output->println("");
+    return;
+  }
+
   bool compatible;
   switch (nodetype) {
   case NODE_TYPE_MGM:
@@ -1190,10 +1204,12 @@ void
 MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 			    const class Properties &args) {
   Uint32 level;
+  Uint32 enable;
 
   args.get("level", &level);
+  args.get("enable", &enable);
 
-  int result = m_mgmsrv.setEventLogFilter(level);
+  int result = m_mgmsrv.setEventLogFilter(level, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);

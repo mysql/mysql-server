@@ -43,6 +43,7 @@ cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wcto
 
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
 pentium_cflags="-mcpu=pentiumpro"
+ppc_cflags="-mpowerpc -mcpu=powerpc"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
