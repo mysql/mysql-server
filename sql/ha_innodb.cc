@@ -5258,8 +5258,7 @@ innobase_store_binlog_offset_and_flush_log(
 /*=============================*/
     char *binlog_name,          /* in: binlog name */
     longlong offset             /* in: binlog offset */
-)
-{
+) {
 	mtr_t mtr;
 	
 	assert(binlog_name != NULL);
@@ -5298,50 +5297,58 @@ ulonglong ha_innobase::get_mysql_bin_log_pos()
 
 extern "C" {
 /**********************************************************************
-This function is used to find storage length of prefix_len characters 
-in bytes for prefix indexes using multibyte character set. 
-Function finds charset information and returns length of
-prefix_len characters in the index field in bytes. */
+This function is used to find the storage length in bytes of the first n
+characters for prefix indexes using a multibyte character set. The function
+finds charset information and returns length of prefix_len characters in the
+index field in bytes.
 
-ulint innobase_get_at_most_n_mbchars(
-/*=================================*/
+NOTE: the prototype of this function is copied to data0type.c! If you change
+this function, you MUST change also data0type.c! */
+
+ulint
+innobase_get_at_most_n_mbchars(
+/*===========================*/
+				/* out: number of bytes occupied by the first
+				n characters */
 	ulint charset_id,	/* in: character set id */
-	ulint prefix_len,	/* in: prefix length of the index    */
-	ulint data_len,         /* in: length of the sting in bytes */
-	const char *pos)	/* in: character string */
+	ulint prefix_len,	/* in: prefix length in bytes of the index
+				(this has to be divided by mbmaxlen to get the
+				number of CHARACTERS n in the prefix) */
+	ulint data_len,         /* in: length of the string in bytes */
+	const char* str)	/* in: character string */
 {
-	ulint byte_length;	/* storage length, in bytes. */
+	ulint byte_length;	/* string length in bytes. */
 	ulint char_length;	/* character length in bytes */
+	ulint n_chars;		/* number of characters in prefix */
 	CHARSET_INFO* charset;	/* charset used in the field */
 
-	ut_ad(pos);
 	byte_length = data_len;
 
-	charset = get_charset(charset_id,MYF(MY_WME));
+	charset = get_charset(charset_id, MYF(MY_WME));
 
 	ut_ad(charset);
 	ut_ad(charset->mbmaxlen);
 
-	/* Calculate the storage length of the one character in bytes and
-	how many characters the prefix index contains */
+	/* Calculate how many characters at most the prefix index contains */
 
-	char_length = byte_length / charset->mbmaxlen;
-	prefix_len = prefix_len / charset->mbmaxlen;
+	n_chars = prefix_len / charset->mbmaxlen;
 
-	/* If length of the string is greater than storage length of the
-	one character, we have to find the storage position of the 
-	prefix_len character in the string */
+	/* If the charset is multi-byte, then we must find the length of the
+	first at most n chars in the string. If the string contains less
+	characters than n, then we return the length to the end of the last
+	full character. */
 
-	if (byte_length > char_length) {
-		char_length = my_charpos(charset, pos, 
-					 pos + byte_length, prefix_len);
-		set_if_smaller(char_length, byte_length);
-	} 
-	else {
+	if (charset->mbmaxlen > 1) {
+		/* my_charpos() returns the byte length of the first n_chars
+		characters, or the end of the last full character */
+
+		char_length = my_charpos(charset, str, 
+					 str + byte_length, n_chars);
+	} else {
 		char_length = prefix_len;
 	}
 
-	return char_length;
+	return(char_length);
 }
 }
 
