@@ -426,6 +426,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LEFT
 %token	LOCATE
 %token	MAKE_SET_SYM
+%token	MASTER_POS_WAIT
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
 %token	MODE_SYM
@@ -1855,6 +1856,16 @@ simple_expr:
 		{ $$= new Item_func_log($3); }
 	| LOG_SYM '(' expr ',' expr ')'
 		{ $$= new Item_func_log($3, $5); }
+	| MASTER_POS_WAIT '(' expr ',' expr ')'
+	  { 
+	    $$= new Item_master_pos_wait($3, $5);
+	    current_thd->safe_to_cache_query=0; 
+	  }
+	| MASTER_POS_WAIT '(' expr ',' expr ',' expr ')'
+	  { 
+	    $$= new Item_master_pos_wait($3, $5, $7);
+	    current_thd->safe_to_cache_query=0; 
+	  }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
 	| MONTH_SYM '(' expr ')'

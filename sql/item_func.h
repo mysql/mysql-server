@@ -865,9 +865,10 @@ class Item_master_pos_wait :public Item_int_func
   String value;
  public:
   Item_master_pos_wait(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_master_pos_wait(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  void fix_length_and_dec() { max_length=21; maybe_null=1;}
   unsigned int size_of() { return sizeof(*this);}  
 };
 

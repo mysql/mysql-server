@@ -226,7 +226,8 @@ typedef struct st_relay_log_info
     pthread_mutex_unlock(&data_lock);
   }
 
-  int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
+  int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
+		   longlong timeout);
 } RELAY_LOG_INFO;
 
 
@@ -390,6 +391,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables);
 */
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list );
+int db_ok_with_wild_table(const char *db);
 
 int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
