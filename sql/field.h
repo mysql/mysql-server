@@ -38,7 +38,7 @@ class Field
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr_arg, size_t size) {
-#ifdef PEDANTIC_SAFEMALLOC
+#ifdef SAFEMALLOC
     bfill(ptr_arg, size, 0x8F);
 #endif
   }
