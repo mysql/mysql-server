@@ -3683,6 +3683,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	    result= -1;
 	  }
 	  else
+	  {
 	    if (!grant_table->cols)
 	    {
 	      revoked= 1;
@@ -3690,10 +3691,10 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	    }
 	    List<LEX_COLUMN> columns;
 	    if (!replace_column_table(grant_table,tables[3].table, *lex_user,
-				     columns,
-				     grant_table->db,
-				     grant_table->tname,
-				     ~0, 1))
+				      columns,
+				      grant_table->db,
+				      grant_table->tname,
+				      ~0, 1))
 	    {
 	      revoked= 1;
 	      continue;
@@ -3705,14 +3706,14 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       }
     } while (revoked);
   }
-
+  
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-
+  
   if (result)
     my_error(ER_REVOKE_GRANTS, MYF(0));
-
+  
   DBUG_RETURN(result);
 }
 
