@@ -885,7 +885,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       s->dependent=(table_map) 0;
     s->key_dependent=(table_map) 0;
     if ((table->system || table->file->records <= 1) && ! s->dependent &&
-	!(table->file->option_flag() & HA_NOT_EXACT_COUNT))
+	!(table->file->option_flag() & HA_NOT_EXACT_COUNT) &&
+        !table->fulltext_searched)
     {
       s->type=JT_SYSTEM;
       const_table_map|=table->map;
@@ -983,7 +984,8 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part == PREV_BITS(uint,table->key_info[key].key_parts) &&
-	      (table->key_info[key].flags & HA_NOSAME))
+	      (table->key_info[key].flags & HA_NOSAME) &&
+              !table->fulltext_searched)
 	  {
 	    if (const_ref == eq_part)
 	    {					// Found everything for ref.

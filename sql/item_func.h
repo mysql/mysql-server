@@ -880,6 +880,7 @@ public:
 	ft_close_search(ft_handler);
         if(join_key)
           table->file->ft_handler=0;
+        table->fulltext_searched=0;
       }
     }
   }
