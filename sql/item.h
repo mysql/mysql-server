@@ -674,7 +674,7 @@ public:
   enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
-}:
+};
 
 class Item_cache: public Item
 {
