@@ -112,19 +112,31 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
   {
     db_type table_type;
     char name[FN_REFLEN];
-    new_table=ren_table->next;
+    const char *new_alias, *old_alias;
 
+    new_table=ren_table->next;
+    if (lower_case_table_names == 2)
+    {
+      old_alias= ren_table->alias;
+      new_alias= new_table->alias;
+    }
+    else
+    {
+      old_alias= ren_table->real_name;
+      new_alias= new_table->real_name;
+    }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    new_table->db,new_table->real_name,
-	    reg_ext);
+	    new_table->db, new_alias, reg_ext);
+    unpack_filename(name, name);
     if (!access(name,F_OK))
     {
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),name);
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_alias);
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    ren_table->db,ren_table->real_name,
+	    ren_table->db, old_alias,
 	    reg_ext);
+    unpack_filename(name, name);
     if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
     {
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
@@ -132,8 +144,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	DBUG_RETURN(ren_table);
     }
     else if (mysql_rename_table(table_type,
-				ren_table->db, ren_table->real_name,
-				new_table->db, new_table->real_name))
+				ren_table->db, old_alias,
+				new_table->db, new_alias))
     {
       if (!skip_error)
 	DBUG_RETURN(ren_table);

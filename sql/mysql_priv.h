@@ -135,6 +135,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* Time handling defaults */
 #define TIMESTAMP_MAX_YEAR 2038
 #define YY_PART_YEAR	   70
+#define TIMESTAMP_MIN_YEAR (1900 + YY_PART_YEAR - 1)
+#define TIMESTAMP_MAX_VALUE 2145916799
+#define TIMESTAMP_MIN_VALUE 1
 #define PRECISION_FOR_DOUBLE 53
 #define PRECISION_FOR_FLOAT  24
 
@@ -829,7 +832,7 @@ extern ulong expire_logs_days;
 extern my_bool relay_log_purge;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
-extern uint delay_key_write_options;
+extern uint delay_key_write_options, lower_case_table_names;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, mysql_embedded;
 extern bool using_update_log, opt_large_files;
@@ -838,10 +841,10 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
-extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
+extern my_bool opt_safe_show_db, opt_local_infile;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly;
-extern my_bool opt_enable_named_pipe;
+extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
@@ -1072,6 +1075,11 @@ inline void table_case_convert(char * name, uint length)
 {
   if (lower_case_table_names)
     my_casedn(files_charset_info, name, length);
+}
+
+inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
 
 Comp_creator *comp_eq_creator(bool invert);

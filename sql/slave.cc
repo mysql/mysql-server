@@ -3303,6 +3303,14 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
+        /*
+          If we wrote Create_file_log_event, then we need to write
+          Execute_load_log_event. If we did not write Create_file_log_event,
+          then this is an empty file and we can just do as if the LOAD DATA
+          INFILE had not existed, i.e. write nothing.
+        */
+        if (unlikely(cev_not_written))
+	  break;
 	Execute_load_log_event xev(thd,0,0);
 	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))

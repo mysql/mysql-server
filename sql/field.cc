@@ -2933,10 +2933,10 @@ int Field_timestamp::store(longlong nr)
   {
     long not_used;
     
-    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
+    if (!(timestamp= my_gmt_sec(&l_time, &not_used)))
       goto err;
-    timestamp= my_gmt_sec(&l_time, &not_used);
   }
+  
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -5648,8 +5648,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     interval=0;
   def=0;
   if (!old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
-      old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr &&
-      orig_field)
+      old_field->ptr && orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset);

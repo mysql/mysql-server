@@ -701,9 +701,9 @@ void String::qs_append(const char &c)
 
 int sortcmp(const String *x,const String *y, CHARSET_INFO *cs)
 {
-  return cs->coll->strnncollsp(cs,
-                        (unsigned char *) x->ptr(),x->length(),
-			(unsigned char *) y->ptr(),y->length());
+ return cs->coll->strnncollsp(cs,
+                             (unsigned char *) x->ptr(),x->length(),
+			     (unsigned char *) y->ptr(),y->length());
 }
 
 

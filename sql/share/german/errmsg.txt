@@ -216,7 +216,7 @@ character-set=latin1
 "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Bitte zuerst STOP SLAVE ausführen",
 "Diese Operation benötigt einen aktiven Slave. Bitte Slave konfigurieren und mittels START SLAVE aktivieren",
 "Der Server ist nicht als Slave konfiguriert. Bitte in der Konfigurationsdatei oder mittels CHANGE MASTER TO beheben",
-"Konnte Master-Info-Struktur nicht initialisieren. Bitte Berechtigungen von master.info prüfen",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Konnte keinen Slave-Thread starten. Bitte System-Ressourcen überprüfen",
 "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen",
 "Bei SET dürfen nur konstante Ausdrücke verwendet werden",
@@ -253,6 +253,7 @@ character-set=latin1
 "Diese MySQL-Version unterstützt '%s' nicht",
 "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs aufgetreten",
 "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert",
+"Variable '%-.64s' is a %s variable",
 "Falsche Fremdschlüssel-Definition für '%-64s': %s",
 "Schlüssel- und Tabellenverweis passen nicht zusammen",
 "Operand solle %d Spalte(n) enthalten",
@@ -303,5 +304,5 @@ character-set=latin1
 "Unknown table engine '%s'",
 "'%s' is deprecated. Use '%s' instead.",
 "The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working",
+"MySQL is started in --skip-grant-tables mode. You can't use this command",

@@ -1,6 +1,8 @@
-.TH mysql 1 "19 December 2000" "MySQL 4.0" "MySQL database"
+.TH mysql 1 "19 December 2000" "MySQL @MYSQL_BASE_VERSION@" "MySQL database"
 .SH NAME
 mysql \- text-based client for mysqld, a SQL-based relational database daemon
+.SH USAGE
+mysql [OPTIONS] [Database]
 .SH SYNOPSIS
 .B mysql
 .RB [ \-B | \-\-batch ]
@@ -105,16 +107,19 @@ version number and exit.
 Wait and retry if the database server connection is down.
 .SH FILES
 .TP 2.2i
-.I /depot/bin/mysql
-executable
+.I @sysconfdir@/my.cnf
+MySQL configuration file
 .TP
-.I /depot/bin/mysqld
-executable
+.I @bindir@/mysql
+Client executable
 .TP
-.I /depot/bin/mysqld_safe
+.I @libexecdir@/mysqld
+Server executable
+.TP
+.I @bindir@/mysqld_safe
 executable shell script for starting mysqld safely
 .TP
-.I /site/var/mysql/data
+.I @localstatedir@
 location of database files
 .SH EXAMPLE
 You can also read a backup dump file back into MySQL with: 
@@ -124,24 +129,29 @@ You can also read a backup dump file back into MySQL with:
 .BR < 
 backup-file.sql
 .SH "SEE ALSO"
-isamchk (1),
-isamlog (1),
-mysqlaccess (1),
-mysqladmin (1),
-mysqlbug (1),
-mysqld (1),
-mysqldump (1),
-mysqlshow (1),
-msql2mysql (1),
-perror (1),
-replace (1),
-mysqld_safe (1),
-which1 (1),
-zap (1),
+isamchk(1),
+isamlog(1),
+mysqlaccess(1),
+mysqladmin(1),
+mysqld(1),
+mysqld_multi(1),
+mysqld_safe(1),
+mysqldump(1),
+mysql_fix_privilege_tables(1),
+mysqlshow(1),
+mysql_zap(1),
+perror(1),
+replace(1)
+.P
+For more information please refer to the MySQL reference
+manual, which may already be installed locally and which
+is also available online at http://www.mysql.com/doc/en/
+.SH BUGS
+Please refer to http://bugs.mysql.com/ to report bugs.
 .SH AUTHOR
-Ver 6.3, distribution 3.20.20
-Michael (Monty) Widenius (monty@tcx.se),
-TCX Datakonsult AB (http://www.tcx.se).
+Ver 6.3, distribution @MYSQL_NO_DASH_VERSION@
+Michael (Monty) Widenius (monty@mysql.com),
+MySQL AB (http://www.mysql.com/)
 This software comes with no warranty.
 Manual page by R. P. C. Rodgers,
 Lister Hill National Center for Biomedical Communication,

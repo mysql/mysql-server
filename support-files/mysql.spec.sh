@@ -469,6 +469,7 @@ fi
 %attr(755, root, root) %{_bindir}/isamlog
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
@@ -496,7 +497,7 @@ fi
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
-%attr(644, root, root) %{_sysconfdir}/logrotate.d/mysql
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
 %attr(755, root, root) %{_datadir}/mysql/
@@ -575,9 +576,17 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added myisam_ftdump to the Server package
+
 * Tue Jan 13 2004 Lenz Grimmer <lenz@mysql.com>
 
 - link the mysql client against libreadline instead of libedit (BUG 2289)
+
+* Mon Dec 22 2003 Lenz Grimmer <lenz@mysql.com>
+
+- marked /etc/logrotate.d/mysql as a config file (BUG 2156)
 
 * Fri Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
 

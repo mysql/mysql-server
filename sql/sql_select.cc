@@ -2144,8 +2144,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
     bool optimizable=0;
     for (uint i=0; i<num_values; i++)
     {
-      used_tables|=(*value)->used_tables();
-      if (!((*value)->used_tables() & (field->table->map | RAND_TABLE_BIT)))
+      used_tables|=(value[i])->used_tables();
+      if (!((value[i])->used_tables() & (field->table->map | RAND_TABLE_BIT)))
         optimizable=1;
     }
     if (!optimizable)
@@ -2645,7 +2645,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 
     read_time+=record_count/(double) TIME_FOR_COMPARE;
     if (join->sort_by_table &&
-	join->sort_by_table != join->positions[join->const_tables].table->table)
+	join->sort_by_table !=
+	join->positions[join->const_tables].table->table)
       read_time+=record_count;			// We have to make a temp table
     if (read_time < join->best_read)
     {
@@ -2817,7 +2818,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		will match
 	      */
 	      if (table->quick_keys.is_set(key) &&
-		  table->quick_key_parts[key] <= max_key_part)
+		  table->quick_key_parts[key] == max_key_part)
 		tmp=records= (double) table->quick_rows[key];
 	      else
 	      {
@@ -2859,7 +2860,15 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  }
 		  records=(ulong) tmp;
 		}
-		if (found_ref_or_null)
+		/*
+		  If quick_select was used on a part of this key, we know
+		  the maximum number of rows that the key can match.
+		*/
+		if (table->quick_keys & ((key_map) 1 << key) &&
+		    table->quick_key_parts[key] <= max_key_part &&
+		    records > (double) table->quick_rows[key])
+		  tmp= records= (double) table->quick_rows[key];
+		else if (found_ref_or_null)
 		{
 		  /* We need to do two key searches to find key */
 		  tmp*= 2.0;
@@ -3335,9 +3344,15 @@ store_val_in_field(Field *field,Item *item)
   bool error;
   THD *thd=current_thd;
   ha_rows cuted_fields=thd->cuted_fields;
+  /*
+    we should restore old value of count_cuted_fields because
+    store_val_in_field can be called from mysql_insert 
+    with select_insert, which make count_cuted_fields= 1
+   */
+  enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   error= item->save_in_field(field, 1);
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->count_cuted_fields= old_count_cuted_fields;
   return error || cuted_fields != thd->cuted_fields;
 }
 
@@ -3569,6 +3584,7 @@ make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
   SELECT_LEX *select_lex= &join->thd->lex->select_lex;
+  bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -3662,7 +3678,8 @@ make_join_readinfo(JOIN *join, uint options)
       {
 	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
-	statistic_increment(select_range_check_count, &LOCK_status);
+	if (statistics)
+	  statistic_increment(select_range_check_count, &LOCK_status);
       }
       else
       {
@@ -3671,24 +3688,28 @@ make_join_readinfo(JOIN *join, uint options)
 	{
 	  if (tab->select && tab->select->quick)
 	  {
-	    statistic_increment(select_range_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_range_count, &LOCK_status);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
-	    statistic_increment(select_scan_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
 	else
 	{
 	  if (tab->select && tab->select->quick)
 	  {
-	    statistic_increment(select_full_range_join_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_full_range_join_count, &LOCK_status);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
-	    statistic_increment(select_full_join_count, &LOCK_status);
+	    if (statistics)
+	      statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
 	if (!table->no_keyread)

@@ -649,13 +649,22 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
+  char tmp_path[FN_REFLEN];
   handler *file=get_new_handler((TABLE*) 0, table_type);
   if (!file)
     return ENOENT;
+  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that table handler get path in lower case */
+    strmov(tmp_path, path);
+    casedn_str(tmp_path);
+    path= tmp_path;
+  }
   int error=file->delete_table(path);
   delete file;
   return error;
 }
+
 
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos)
 {
@@ -1134,6 +1143,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 {
   int error;
   TABLE table;
+  char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
   if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
@@ -1144,19 +1154,19 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
     if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
       table.file->delete_table(name);		// Needed for BDB tables
   }
+  if (lower_case_table_names == 2 &&
+      !(table.file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that handler gets name in lower case */
+    strmov(name_buff, name);
+    casedn_str(name_buff);
+    name= name_buff;
+  }
+
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
   if (error)
-  {
-    if (table.db_type == DB_TYPE_INNODB)
-    {
-      /* Creation of InnoDB table cannot fail because of an OS error:
-	 put error as the number */
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
-    }
-    else
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
-  }
+    my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
   DBUG_RETURN(error != 0);
 }
 

@@ -139,7 +139,7 @@ set character_set_client=UNKNOWN_CHARACTER_SET;
 set collation_connection=UNKNOWN_COLLATION;
 --error 1228
 set global autocommit=1;
---error 1228
+--error 1238
 select @@global.timestamp;
 --error 1193
 set @@version='';
@@ -147,7 +147,7 @@ set @@version='';
 set @@concurrent_insert=1;
 --error 1228
 set @@global.sql_auto_is_null=1;
---error 1228
+--error 1238
 select @@global.sql_auto_is_null;
 --error 1229
 set myisam_max_sort_file_size=100;
@@ -266,6 +266,9 @@ drop table t1,t2;
 --error 1193
 select @@xxxxxxxxxx;
 select 1;
+
+--error 1238
+select @@session.key_buffer_size;
 
 #
 # swap

@@ -324,9 +324,11 @@ int handle_options(int *argc, char ***argv,
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	      */
-	    *((my_bool*) value)= (my_bool) (!optend || *optend == '1');
-	    (*argc)--;	    
-	    get_one_option(optp->id, optp, argument);
+	    my_bool tmp= (my_bool) (!optend || *optend == '1');
+	    *((my_bool*) value)= tmp;
+	    (*argc)--;
+	    get_one_option(optp->id, optp,
+			   tmp ? (char*) "1" : disabled_my_option);
 	    continue;
 	  }
 	  argument= optend;

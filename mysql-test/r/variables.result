@@ -380,6 +380,8 @@ ERROR HY000: Unknown system variable 'xxxxxxxxxx'
 select 1;
 1
 1
+select @@session.key_buffer_size;
+Variable 'key_buffer_size' is a GLOBAL variable
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size
 100	200

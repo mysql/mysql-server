@@ -692,11 +692,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
@@ -711,6 +706,12 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
+        /*
+          Altough TIMESTAMP fields can't contain NULL as its value they
+          will accept NULL if you will try to insert such value and will
+          convert it to current TIMESTAMP. So YES here means that NULL 
+          is allowed for assignment but can't be returned.
+        */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -720,7 +721,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         protocol->store((char*) pos, system_charset_info);
 
-        if (field->type() == FIELD_TYPE_TIMESTAMP ||
+        /*
+          We handle first TIMESTAMP column in special way because its
+          default value is ignored and current timestamp used instead.
+        */
+        if (table->timestamp_field == field ||
             field->unireg_check == Field::NEXT_NUMBER)
           null_default_value=1;
         if (!null_default_value && !field->is_null())
@@ -995,9 +1000,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         protocol->store_null();
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
         protocol->store_tiny((longlong) key_part->length);
       else
         protocol->store_null();
@@ -1146,7 +1150,7 @@ static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
   String type(tmp, sizeof(tmp),&my_charset_bin);
   Field **ptr,*field;
   uint primary_key;
@@ -1172,7 +1176,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet, table->real_name, strlen(table->real_name));
+  alias= (lower_case_table_names == 2 ? table->table_name :
+	  table->real_name);
+  append_identifier(thd, packet, alias, strlen(alias));
   packet->append(" (\n", 3);
 
   for (ptr=table->field ; (field= *ptr); ptr++)
@@ -1220,7 +1226,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" NOT NULL", 9);
 
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  field->type() != FIELD_TYPE_TIMESTAMP &&
+		  table->timestamp_field != field &&
 		  field->unireg_check != Field::NEXT_NUMBER);
 
     if (has_default)

@@ -51,6 +51,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   uint reclength;			/* Length of one record */
   int errkey;
   ulonglong auto_increment;
+  my_bool implicit_emptied;
 } HEAPINFO;
 
 
@@ -138,6 +139,7 @@ typedef struct st_heap_info
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
   uint lastkey_len;
+  my_bool implicit_emptied;
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif

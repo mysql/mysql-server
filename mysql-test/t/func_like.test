@@ -25,6 +25,16 @@ select * from t1 where a like "%abc\d%";
 
 drop table t1;
 
+#
+# Bug #2231
+#
+
+create table t1 (a varchar(10), key(a));
+insert into t1 values ('a'), ('a\\b');
+select * from t1 where a like 'a\\%' escape '#';
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
+drop table t1;
+
 
 #
 # Test like with non-default character set
