@@ -292,3 +292,4 @@ character-set=koi8u
 "Кеш запит╕в неспроможен встановити розм╕р %lu, новий розм╕р кеша запит╕в - %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
+"Unknown table engine '%s'",
