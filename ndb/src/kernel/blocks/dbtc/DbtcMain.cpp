@@ -274,6 +274,12 @@ void Dbtc::execCONTINUEB(Signal* signal)
     transPtr.p->triggerPending = false;
     executeTriggers(signal, &transPtr);
     return;
+  case TcContinueB::DelayTCKEYCONF:
+    jam();
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    sendtckeyconf(signal, Tdata1);
+    return;
   default:
     ndbrequire(false);
   }//switch
@@ -2972,7 +2978,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
           regTcPtr->tcNodedata[0] = Tnode;
         }//if
       }//for
-      if(ERROR_INSERTED(8048))
+      if(ERROR_INSERTED(8048) || ERROR_INSERTED(8049))
       {
 	for (Tindex = 0; Tindex <= tnoOfBackup; Tindex++) 
 	{
@@ -2981,6 +2987,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 	  if (Tnode != TownNode) {
 	    jam();
 	    regTcPtr->tcNodedata[0] = Tnode;
+	    ndbout_c("Choosing %d", Tnode);
 	  }//if
 	}//for
       }
@@ -3833,6 +3840,15 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 
 void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag) 
 {
+  if(ERROR_INSERTED(8049)){
+    CLEAR_ERROR_INSERT_VALUE;
+    signal->theData[0] = TcContinueB::DelayTCKEYCONF;
+    signal->theData[1] = apiConnectptr.i;
+    signal->theData[2] = TcommitFlag;
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 3000, 3);
+    return;
+  }
+  
   HostRecordPtr localHostptr;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   const UintR TopWords = (UintR)regApiPtr->tckeyrec;

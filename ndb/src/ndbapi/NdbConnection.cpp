@@ -1548,6 +1548,7 @@ from other transactions.
 	  {
 	    done = 1;
 	    tOp->setErrorCode(4119);
+	    theCompletionStatus = CompletedFailure;
 	  }	    
 	}
 	tNoComp += done;
