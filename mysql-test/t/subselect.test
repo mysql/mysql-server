@@ -135,7 +135,7 @@ explain extended select * from t6 where exists (select * from t7 where uq = clin
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 
 # different tipes & group functions
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;
 
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
