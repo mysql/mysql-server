@@ -7,7 +7,7 @@ CREATE TABLE test (
 ) comment = 'testcase by sroussey@network54.com';
 INSERT INTO test (message) VALUES ("Testing"),("table"),("testbug"),
         ("steve"),("is"),("cool"),("steve is cool");
-@r/3.23/ft0000001.a.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve');
-@r/3.23/ft0000001.b.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
-@r/3.23/ft0000001.c.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
-@r/3.23/ft0000001.d.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;
+@r/ft0000001.a.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve');
+@r/ft0000001.b.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE MATCH (message) AGAINST ('steve') ORDER BY a;
+@r/ft0000001.c.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a in (2,7,4) and MATCH (message) AGAINST ('steve') ORDER BY a DESC;
+@r/ft0000001.d.result SELECT a, MATCH (message) AGAINST ('steve') FROM test WHERE a=7 and MATCH (message) AGAINST ('steve') ORDER BY 1;

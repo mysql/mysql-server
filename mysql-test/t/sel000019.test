@@ -11,4 +11,4 @@
 # Testing DEGREES(), RADIANS().
 #
 
-@r/3.23/sel000019.result SELECT DEGREES(PI()),RADIANS(360);
+@r/sel000019.result SELECT DEGREES(PI()),RADIANS(360);

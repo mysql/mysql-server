@@ -11,4 +11,4 @@
 # Testing string comparisons; REGEXP.
 #
 
-@r/3.23/sel000027.result SELECT "Det här är svenska" REGEXP "h[[:alpha:]]+r", "aba" REGEXP "^(a|b)*$";
+@r/sel000027.result SELECT "Det här är svenska" REGEXP "h[[:alpha:]]+r", "aba" REGEXP "^(a|b)*$";

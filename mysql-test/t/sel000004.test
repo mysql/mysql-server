@@ -11,4 +11,4 @@
 # Testing MOD(), SIGN(), and arithmetic grouping.
 #
 
-@r/3.23/sel000004.result SELECT 1+1,1-1,1+1*2,8/5,8%5,MOD(8,5),MOD(8,5)|0,-(1+1)*-2,SIGN(-5);
+@r/sel000004.result SELECT 1+1,1-1,1+1*2,8/5,8%5,MOD(8,5),MOD(8,5)|0,-(1+1)*-2,SIGN(-5);

@@ -11,4 +11,4 @@
 # Testing string comparisons; =, >, <=.
 #
 
-@r/3.23/sel000022.result SELECT "a "="A", "A "="a", "a  " <= "A b";
+@r/sel000022.result SELECT "a "="A", "A "="a", "a  " <= "A b";
