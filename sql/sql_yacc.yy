@@ -4055,14 +4055,25 @@ sum_expr:
 	  { $$= new Item_sum_unique_users($3,atoi($5.str),atoi($7.str),$9); }
 	| MIN_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_min($3); }
+/*
+   According to ANSI SQL, DISTINCT is allowed and has
+   no sence inside MIN and MAX grouping functions; so MIN|MAX(DISTINCT ...)
+   is processed like an ordinary MIN | MAX()
+ */
+	| MIN_SYM '(' DISTINCT in_sum_expr ')'
+	  { $$=new Item_sum_min($4); }
 	| MAX_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_max($3); }
+	| MAX_SYM '(' DISTINCT in_sum_expr ')'
+	  { $$=new Item_sum_max($4); }
 	| STD_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_std($3); }
 	| VARIANCE_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_variance($3); }
 	| SUM_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_sum($3); }
+	| SUM_SYM '(' DISTINCT in_sum_expr ')'
+	  { $$=new Item_sum_sum_distinct($4); }
 	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause
 	  opt_gconcat_separator ')'
 	  {

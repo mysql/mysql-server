@@ -756,6 +756,39 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 } /* read_to_buffer */
 
 
+/*
+    Put all room used by freed buffer to use in adjacent buffer.  Note, that
+    we can't simply distribute memory evenly between all buffers, because
+    new areas must not overlap with old ones.
+  SYNOPSYS
+    reuse_freed_buff()
+    queue      IN  list of non-empty buffers, without freed buffer
+    reuse      IN  empty buffer
+    key_length IN  key length
+*/
+
+void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
+{
+  uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
+  for (uint i= 0; i < queue->elements; ++i)
+  {
+    BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
+    if (bp->base + bp->max_keys * key_length == reuse->base)
+    {
+      bp->max_keys+= reuse->max_keys;
+      return;
+    }
+    else if (bp->base == reuse_end)
+    {
+      bp->base= reuse->base;
+      bp->max_keys+= reuse->max_keys;
+      return;
+    }
+  }
+  DBUG_ASSERT(0);
+}
+
+
 /* 
    Merge buffers to one buffer 
 */
@@ -881,29 +914,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
         if (!(error= (int) read_to_buffer(from_file,buffpek,
                                           rec_length)))
         {
-          uchar *base= buffpek->base;
-          ulong max_keys= buffpek->max_keys;
-
           VOID(queue_remove(&queue,0));
-
-          /* Put room used by buffer to use in other buffer */
-          for (refpek= (BUFFPEK**) &queue_top(&queue);
-               refpek <= (BUFFPEK**) &queue_end(&queue);
-               refpek++)
-          {
-            buffpek= *refpek;
-            if (buffpek->base+buffpek->max_keys*rec_length == base)
-            {
-              buffpek->max_keys+= max_keys;
-              break;
-            }
-            else if (base+max_keys*rec_length == buffpek->base)
-            {
-              buffpek->base= base;
-              buffpek->max_keys+= max_keys;
-              break;
-            }
-          }
+          reuse_freed_buff(&queue, buffpek, rec_length);
           break;                        /* One buffer have been removed */
         }
         else if (error == -1)
