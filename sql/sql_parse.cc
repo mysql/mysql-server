@@ -1536,7 +1536,7 @@ mysql_execute_command(void)
     /* Check if auto_commit mode changed */
     if ((org_options ^ lex->options) & OPTION_AUTO_COMMIT)
     {
-      if (org_options & OPTION_AUTO_COMMIT)
+      if (!org_options & OPTION_AUTO_COMMIT)
       {
 	/* We changed to auto_commit mode */
 	thd->options&= ~OPTION_BEGIN;
