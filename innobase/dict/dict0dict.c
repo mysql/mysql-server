@@ -27,8 +27,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "que0que.h"
 #include "rem0cmp.h"
 
-ibool		dict_char_0xA0_is_space = FALSE; /* A special fix for 4.0 */
-
 dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 
 rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
@@ -198,28 +196,7 @@ and unique key errors */
 FILE*	dict_foreign_err_file		= NULL;
 mutex_t	dict_foreign_err_mutex; 	/* mutex protecting the foreign
 					and unique error buffers */
-/************************************************************************
-Checks if a byte is considered space in the current charset of MySQL.
-TODO: find out if this works correctly in multibyte charsets. */ 
-static
-ibool
-dict_isspace(
-/*=========*/	
-		/* out: TRUE if considered space */
-	char c)	/* in: one-byte character */
-{
-	if (isspace(c)) {
-
-		return(TRUE);
-	}
-
-	if (dict_char_0xA0_is_space && (byte)c == (byte)0xA0) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}	
+	
 	
 /************************************************************************
 Checks if the database name in two table names is the same. */
@@ -2347,7 +2324,7 @@ dict_accept(
 
 	*success = FALSE;
 	
-	while (dict_isspace(*ptr)) {
+	while (isspace(*ptr)) {
 		ptr++;
 	}
 
@@ -2392,7 +2369,7 @@ dict_scan_id(
 
 	*id = NULL;
 
-	while (dict_isspace(*ptr)) {
+	while (isspace(*ptr)) {
 		ptr++;
 	}
 
@@ -2423,7 +2400,7 @@ dict_scan_id(
 			len++;
 		}
 	} else {
-		while (!dict_isspace(*ptr) && *ptr != '(' && *ptr != ')'
+		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
 		       && (accept_also_dot || *ptr != '.')
 		       && *ptr != ',' && *ptr != '\0') {
 
@@ -2927,11 +2904,11 @@ loop:
 
 		ut_a(success);
 
-		if (!dict_isspace(*ptr) && *ptr != '"' && *ptr != '`') {
+		if (!isspace(*ptr) && *ptr != '"' && *ptr != '`') {
 	        	goto loop;
 		}
 
-		while (dict_isspace(*ptr)) {
+		while (isspace(*ptr)) {
 			ptr++;
 		}
 
@@ -2957,7 +2934,7 @@ loop:
 
 	ptr = dict_accept(ptr, "FOREIGN", &success);		
 	
-	if (!dict_isspace(*ptr)) {
+	if (!isspace(*ptr)) {
 	        goto loop;
 	}
 
@@ -3045,7 +3022,7 @@ col_loop1:
 	}
 	ptr = dict_accept(ptr, "REFERENCES", &success);
 
-	if (!success || !dict_isspace(*ptr)) {
+	if (!success || !isspace(*ptr)) {
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 									ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -3426,7 +3403,7 @@ loop:
 
 	ptr = dict_accept(ptr, "DROP", &success);
 
-	if (!dict_isspace(*ptr)) {
+	if (!isspace(*ptr)) {
 
 	        goto loop;
 	}
