@@ -178,6 +178,9 @@ public:
     convert_array(from_map, (uchar*) a,length);
   }
   bool store(String *, const char *,uint);
+#ifdef EMBEDDED_LIBRARY
+  void convert_back(char *dest, const char *source, uint length) const;
+#endif
   inline uint number() { return numb; }
 };
 
