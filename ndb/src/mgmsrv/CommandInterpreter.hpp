@@ -130,7 +130,6 @@ public:
   void executeStop(int processId, const char* parameters, bool all);
   void executeStart(int processId, const char* parameters, bool all);
   void executeRestart(int processId, const char* parameters, bool all);
-  void executeLogLevel(int processId, const char* parameters, bool all);
   void executeError(int processId, const char* parameters, bool all);
   void executeTrace(int processId, const char* parameters, bool all);
   void executeLog(int processId, const char* parameters, bool all);
@@ -140,14 +139,7 @@ public:
   void executeTestOn(int processId, const char* parameters, bool all);
   void executeTestOff(int processId, const char* parameters, bool all);
   void executeStatus(int processId, const char* parameters, bool all);
-  void executeEnterSingleUser(char* parameters);
-  void executeExitSingleUser(char* parameters);
-  void executeEventReporting(int processId, const char* parameters, bool all);
   void executeDumpState(int processId, const char* parameters, bool all);
-  void executeStartBackup(char * pars);
-  void executeAbortBackup(char * pars);
-
-  void jonas(int processId, const char* parameters, bool all);  
 
   /**
    * A execute function definition
