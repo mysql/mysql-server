@@ -383,7 +383,7 @@ multi_delete::~multi_delete()
     if (tempfiles[counter])
     {
 #ifdef SINISAS_STRIP
-//      end_io_cache(tempfiles[counter]);
+      end_io_cache(tempfiles[counter]);
 #else
       delete tempfiles[counter];
 #endif
@@ -594,12 +594,15 @@ static IO_CACHE *strip_duplicates_from_temp (byte *memory_lane, IO_CACHE *ptr, u
   int read_error, write_error, how_many_to_read, total_to_read = *written, pieces_in_memory = 0, mem_count,written_rows;
   int offset = written_rows=*written=0;
   int  mem_pool_size = MEM_STRIP_BUF_SIZE * MAX_REFLENGTH / ref_length;
-  IO_CACHE *tempptr = (IO_CACHE *) sql_alloc(sizeof(IO_CACHE));
   byte dup_record[MAX_REFLENGTH]; memset(dup_record,'\xFF',MAX_REFLENGTH);
   if (reinit_io_cache(ptr,READ_CACHE,0L,0,0))
     return ptr;
+  IO_CACHE *tempptr =  (IO_CACHE *) my_malloc(sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
   if (open_cached_file(tempptr, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE, MYF(MY_WME)))
+  {
+    my_free((gptr) tempptr, MYF (0));
     return ptr;
+  }
   DYNAMIC_ARRAY written_blocks;
   VOID(init_dynamic_array(&written_blocks,sizeof(struct written_block),20,50));
   for (;pieces_in_memory < total_to_read;)
