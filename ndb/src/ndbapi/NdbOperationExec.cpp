@@ -65,7 +65,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
   if (tReturnCode == -1) {
     return -1;
   }
-  NdbApiSignal *tSignal = theFirstKEYINFO;
+  NdbApiSignal *tSignal = theTCREQ->next();
   while (tSignal != NULL) {
     NdbApiSignal* tnextSignal = tSignal->next();
     tReturnCode = tp->sendSignal(tSignal, aNodeId);
@@ -202,13 +202,9 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   abortOption = tSimpleIndicator ? IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
-  Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
-  Uint8 tDistrGroupIndicator = theDistrGroupIndicator;
-  Uint8 tDistrGroupType = theDistrGroupType;
+  Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;
   Uint8 tScanIndicator = theScanInfo & 1;
 
-  tcKeyReq->setDistributionGroupFlag(tReqInfo, tDistrGroupIndicator);
-  tcKeyReq->setDistributionGroupTypeFlag(tReqInfo, tDistrGroupType);
   tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
   tcKeyReq->setScanIndFlag(tReqInfo, tScanIndicator);
 
@@ -219,15 +215,13 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 //-------------------------------------------------------------
   Uint32* tOptionalDataPtr = &tcKeyReq->scanInfo;
   Uint32 tDistrGHIndex = tScanIndicator;
-  Uint32 tDistrKeyIndex = tDistrGHIndex + tDistrGroupIndicator;
+  Uint32 tDistrKeyIndex = tDistrGHIndex;
 
   Uint32 tScanInfo = theScanInfo;
-  Uint32 tDistributionGroup = theDistributionGroup;
-  Uint32 tDistrKeySize = theDistrKeySize;
+  Uint32 tDistrKey = theDistributionKey;
 
   tOptionalDataPtr[0] = tScanInfo;
-  tOptionalDataPtr[tDistrGHIndex] = tDistributionGroup;
-  tOptionalDataPtr[tDistrKeyIndex] = tDistrKeySize;
+  tOptionalDataPtr[tDistrKeyIndex] = tDistrKey;
 
 //-------------------------------------------------------------
 // The next is step is to compress the key data part of the
@@ -267,7 +261,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
     /**
      *	Set transid, TC connect ptr and length in the KEYINFO signals
      */
-    NdbApiSignal* tSignal = theFirstKEYINFO;
+    NdbApiSignal* tSignal = theTCREQ->next();
     Uint32 remainingKey = tTupKeyLen - TcKeyReq::MaxKeyInfo;
     do {
       Uint32* tSigDataPtr = tSignal->getDataPtrSend();

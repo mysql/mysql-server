@@ -99,8 +99,8 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.setFragmentType(t->getFragmentType());
   { NdbDictionary::Column bc("PK");
     bc.setType(NdbDictionary::Column::Unsigned);
-    assert(t->m_sizeOfKeysInWords != 0);
-    bc.setLength(t->m_sizeOfKeysInWords);
+    assert(t->m_keyLenInWords != 0);
+    bc.setLength(t->m_keyLenInWords);
     bc.setPrimaryKey(true);
     bc.setDistributionKey(true);
     bt.addColumn(bc);
@@ -346,7 +346,7 @@ int
 NdbBlob::setTableKeyValue(NdbOperation* anOp)
 {
   const Uint32* data = (const Uint32*)theKeyBuf.data;
-  DBG("setTableKeyValue key=" << ndb_blob_debug(data, theTable->m_sizeOfKeysInWords));
+  DBG("setTableKeyValue key=" << ndb_blob_debug(data, theTable->m_keyLenInWords));
   const unsigned columns = theTable->m_columns.size();
   unsigned pos = 0;
   for (unsigned i = 0; i < columns; i++) {
@@ -369,7 +369,7 @@ int
 NdbBlob::setAccessKeyValue(NdbOperation* anOp)
 {
   const Uint32* data = (const Uint32*)theAccessKeyBuf.data;
-  DBG("setAccessKeyValue key=" << ndb_blob_debug(data, theAccessTable->m_sizeOfKeysInWords));
+  DBG("setAccessKeyValue key=" << ndb_blob_debug(data, theAccessTable->m_keyLenInWords));
   const unsigned columns = theAccessTable->m_columns.size();
   unsigned pos = 0;
   for (unsigned i = 0; i < columns; i++) {
@@ -392,7 +392,7 @@ int
 NdbBlob::setPartKeyValue(NdbOperation* anOp, Uint32 part)
 {
   Uint32* data = (Uint32*)theKeyBuf.data;
-  unsigned size = theTable->m_sizeOfKeysInWords;
+  unsigned size = theTable->m_keyLenInWords;
   DBG("setPartKeyValue dist=" << getDistKey(part) << " part=" << part << " key=" << ndb_blob_debug(data, size));
   // TODO use attr ids after compatibility with 4.1.7 not needed
   if (anOp->equal("PK", theKeyBuf.data) == -1 ||
@@ -1105,8 +1105,8 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
     theBlobTable = &NdbTableImpl::getImpl(*bt);
   }
   // buffers
-  theKeyBuf.alloc(theTable->m_sizeOfKeysInWords << 2);
-  theAccessKeyBuf.alloc(theAccessTable->m_sizeOfKeysInWords << 2);
+  theKeyBuf.alloc(theTable->m_keyLenInWords << 2);
+  theAccessKeyBuf.alloc(theAccessTable->m_keyLenInWords << 2);
   theHeadInlineBuf.alloc(sizeof(Head) + theInlineSize);
   theHeadInlineCopyBuf.alloc(sizeof(Head) + theInlineSize);
   thePartBuf.alloc(thePartSize);
@@ -1118,7 +1118,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
     if (isTableOp()) {
       // get table key
       Uint32* data = (Uint32*)theKeyBuf.data;
-      unsigned size = theTable->m_sizeOfKeysInWords;
+      unsigned size = theTable->m_keyLenInWords;
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
         setErrorCode(ErrUsage);
         return -1;
@@ -1127,7 +1127,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
     if (isIndexOp()) {
       // get index key
       Uint32* data = (Uint32*)theAccessKeyBuf.data;
-      unsigned size = theAccessTable->m_sizeOfKeysInWords;
+      unsigned size = theAccessTable->m_keyLenInWords;
       if (theNdbOp->getKeyFromTCREQ(data, size) == -1) {
         setErrorCode(ErrUsage);
         return -1;
@@ -1487,7 +1487,7 @@ NdbBlob::atNextResult()
   assert(isScanOp());
   // get primary key
   { Uint32* data = (Uint32*)theKeyBuf.data;
-    unsigned size = theTable->m_sizeOfKeysInWords;
+    unsigned size = theTable->m_keyLenInWords;
     if (((NdbScanOperation*)theNdbOp)->getKeyFromKEYINFO20(data, size) == -1) {
       setErrorCode(ErrUsage);
       return -1;
