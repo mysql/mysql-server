@@ -2797,7 +2797,6 @@ double Field_timestamp::val_real(void)
 
 longlong Field_timestamp::val_int(void)
 {
-  uint len,pos;
   int part_time;
   uint32 temp;
   time_t time_arg;
@@ -3926,7 +3925,6 @@ double Field_string::val_real(void)
 
 longlong Field_string::val_int(void)
 {
-  longlong value;
   CHARSET_INFO *cs=charset();
   return my_strntoll(cs,ptr,field_length,NULL,10);
 }
