@@ -48030,7 +48030,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @item
 Fixed bug in @code{FLUSH QUERY CACHE}.
 @item
-Added @code{CAST()} and @code{CONVERT()} functions.
+Added @code{CAST()} and @code{CONVERT()} functions. The @code{CAST} and 
+@code{CONVERT} functions are nearly identical and mainly useful when you 
+want to create a column with a specific type in a @code{CREATE ... SELECT}.
+For more information, read @ref{Cast Functions}.
 @item
 Changed order of how keys are created in tables.
 @item
