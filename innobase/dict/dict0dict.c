@@ -2895,9 +2895,9 @@ loop:
 	constraint_name = NULL;
 
 	if (ptr1 < ptr2) {
-		/* The user has specified a constraint name. Pick it so
+		/* The user may have specified a constraint name. Pick it so
 		that we can store 'databasename/constraintname' as the id of
-		the id of the constraint to system tables. */
+		of the constraint to system tables. */
 		ptr = ptr1;
 
 		ptr = dict_accept(ptr, "CONSTRAINT", &success);
@@ -2934,6 +2934,10 @@ loop:
 
 	ptr = dict_accept(ptr, "FOREIGN", &success);		
 	
+	if (!success) {
+		goto loop;
+	}
+
 	if (!isspace(*ptr)) {
 	        goto loop;
 	}
