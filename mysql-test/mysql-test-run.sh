@@ -1535,12 +1535,12 @@ run_testcase ()
    return
  fi
 
- if [ -f "$TESTDIR/$tname.disabled" ]
- then
-   comment=`$CAT $TESTDIR/$tname.disabled`;
-   disable_test $tname "$comment"
-   return
- fi
+# if [ -f "$TESTDIR/$tname.disabled" ]
+# then
+#   comment=`$CAT $TESTDIR/$tname.disabled`;
+#   disable_test $tname "$comment"
+#   return
+# fi
  if [ -f "$TESTDIR/disabled.def" ] ; then
    comment=`$GREP "^$tname *: *" $TESTDIR/disabled.def`;
    if [ -n "$comment" ]
