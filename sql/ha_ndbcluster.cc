@@ -624,11 +624,12 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
       return res;
   }
   
-  // Read non-key field(s)
+  // Read non-key field(s) unless HA_EXTRA_RETRIEVE_ALL_COLS
   for (i= 0; i < no_fields; i++) 
   {
     Field *field= table->field[i];
-    if (thd->query_id == field->query_id) 
+    if ((thd->query_id == field->query_id) || 
+	retrieve_all_fields)
     {
       if (get_ndb_value(op, i, field->ptr))
         goto err;
