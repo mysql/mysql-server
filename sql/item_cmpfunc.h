@@ -105,6 +105,7 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
+  void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
 };
@@ -207,9 +208,11 @@ public:
   }
   void cleanup()
   {
+    DBUG_ENTER("Item_bool_rowready_func2::cleanup");
     Item_bool_func2::cleanup();
     tmp_arg[0]= orig_a;
     tmp_arg[1]= orig_b;
+    DBUG_VOID_RETURN;
   }
 };
 
@@ -718,10 +721,12 @@ class Item_func_in :public Item_int_func
   void fix_length_and_dec();
   void cleanup()
   {
+    DBUG_ENTER("Item_func_in::cleanup");
     delete array;
     delete in_item;
     array= 0;
     in_item= 0;
+    DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }

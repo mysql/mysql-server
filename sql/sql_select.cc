@@ -327,8 +327,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   // Is it subselect
   {
     Item_subselect *subselect;
-    if ((subselect= select_lex->master_unit()->item) &&
-	select_lex->linkage != GLOBAL_OPTIONS_TYPE)
+    if ((subselect= select_lex->master_unit()->item))
     {
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
@@ -1524,10 +1523,10 @@ JOIN::cleanup()
 
   lock=0;                                     // It's faster to unlock later
   join_free(1);
-   if (exec_tmp_table1)
-     free_tmp_table(thd, exec_tmp_table1);
-   if (exec_tmp_table2)
-     free_tmp_table(thd, exec_tmp_table2);
+  if (exec_tmp_table1)
+    free_tmp_table(thd, exec_tmp_table1);
+  if (exec_tmp_table2)
+    free_tmp_table(thd, exec_tmp_table2);
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
