@@ -11,6 +11,7 @@ Created 9/8/1995 Heikki Tuuri
 #define os0thread_h
 
 #include "univ.i"
+#include "os0sync.h"
 
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which
@@ -40,7 +41,6 @@ typedef os_thread_t          	os_thread_id_t;	/* In Unix we use the thread
 						handle itself as the id of
 						the thread */
 #endif
-
 
 /* Define a function pointer type to use in a typecast */
 typedef void* (*os_posix_f_t) (void*);
@@ -83,12 +83,13 @@ os_thread_create(
 	os_thread_id_t*		thread_id);	/* out: id of the created
 						thread */
 /*********************************************************************
-A thread calling this function ends its execution. */
+Exits the current thread. */
 
 void
 os_thread_exit(
 /*===========*/
-	ulint	code);	/* in: exit code */
+	void*	exit_value);	/* in: exit value; in Windows this void*
+				is cast as a DWORD */
 /*********************************************************************
 Returns the thread identifier of current thread. */
 
@@ -143,7 +144,6 @@ Gets the last operating system error code for the calling thread. */
 ulint
 os_thread_get_last_error(void);
 /*==========================*/
-
 
 #ifndef UNIV_NONINL
 #include "os0thread.ic"

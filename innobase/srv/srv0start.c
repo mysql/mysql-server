@@ -1470,6 +1470,8 @@ innobase_shutdown_for_mysql(void)
 /*=============================*/
 				/* out: DB_SUCCESS or error code */
 {
+	ulint   i;
+
         if (!srv_was_started) {
 	  	if (srv_is_being_started) {
 	    		ut_print_timestamp(stderr);
@@ -1492,6 +1494,58 @@ innobase_shutdown_for_mysql(void)
 		"InnoDB: Warning: query counter shows %ld queries still\n"
 		"InnoDB: inside InnoDB at shutdown\n",
 		srv_conc_n_threads);
+	}
+
+	/* Now we will exit all threads InnoDB created */
+
+	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
+
+	/* All threads end up waiting for certain events. Put those events
+	to the signaled state. Then the threads will exit themselves in
+	os_thread_event_wait(). */
+
+	for (i = 0; i < 1000; i++) {
+	        /* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
+	        HERE OR EARLIER */
+		
+		/* 1. Let the lock timeout thread exit */
+		os_event_set(srv_lock_timeout_thread_event);		
+
+		/* 2. srv error monitor thread exits automatically, no need
+		to do anything here */
+
+		/* 3. We wake the master thread so that it exits */
+		srv_wake_master_thread();
+
+		/* 4. Exit the i/o threads */
+
+		os_aio_wake_all_threads_at_shutdown();
+
+		os_mutex_enter(os_thread_count_mutex);
+
+		if (os_thread_count == 0) {
+		        /* All the threads have exited or are just exiting;
+			NOTE that the threads may not have completed their
+			exit yet. Should we use pthread_join() to make sure
+			they have exited? Now we just sleep 0.1 seconds and
+			hope that is enough! */
+
+			os_mutex_exit(os_thread_count_mutex);
+
+			os_thread_sleep(100000);
+
+			break;
+		}
+
+		os_mutex_exit(os_thread_count_mutex);
+
+		os_thread_sleep(100000);
+	}
+
+	if (i == 1000) {
+	        fprintf(stderr,
+"InnoDB: Warning: %lu threads created by InnoDB had not exited at shutdown!\n",
+		      os_thread_count);
 	}
 
 #if defined(__NETWARE__) || defined(SAFE_MUTEX_DETECT_DESTROY)
@@ -1518,6 +1572,10 @@ innobase_shutdown_for_mysql(void)
         /* NetWare requires this free */
         ut_free_all_mem();
 #endif 
+	if (srv_print_verbose_log) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Shutdown completed\n");
+	}
 
 	return((int) DB_SUCCESS);
 }

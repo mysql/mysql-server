@@ -1,6 +1,5 @@
 /******************************************************
-The interface to the operating system
-process and thread control primitives
+The interface to the operating system thread control primitives
 
 (c) 1995 Innobase Oy
 
@@ -102,6 +101,10 @@ os_thread_create(
 	os_thread_t	thread;
 	ulint           win_thread_id;
 
+	os_mutex_enter(os_thread_count_mutex);
+	os_thread_count++;
+	os_mutex_exit(os_thread_count_mutex);
+
 	thread = CreateThread(NULL,	/* no security attributes */
 				0,	/* default size stack */
 				(LPTHREAD_START_ROUTINE)start_f,
@@ -144,6 +147,9 @@ os_thread_create(
 		 exit(1);
 	}
 #endif
+	os_mutex_enter(os_thread_count_mutex);
+	os_thread_count++;
+	os_mutex_exit(os_thread_count_mutex);
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
 	ret = pthread_create(&pthread, pthread_attr_default, start_f, arg);
@@ -167,6 +173,26 @@ os_thread_create(
 	*thread_id = pthread;
 
 	return(pthread);
+#endif
+}
+
+/*********************************************************************
+Exits the current thread. */
+
+void
+os_thread_exit(
+/*===========*/
+	void*	exit_value)	/* in: exit value; in Windows this void*
+				is cast as a DWORD */
+{
+	os_mutex_enter(os_thread_count_mutex);
+	os_thread_count--;
+	os_mutex_exit(os_thread_count_mutex);
+
+#ifdef __WIN__
+        ExitThread((DWORD)exit_value);
+#else
+	pthread_exit(exit_value);
 #endif
 }
 

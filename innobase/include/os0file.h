@@ -301,6 +301,13 @@ os_aio(
 				are ignored */
 	void*		message2);
 /****************************************************************************
+Wakes up all async i/o threads so that they know to exit themselves in
+shutdown. */
+
+void
+os_aio_wake_all_threads_at_shutdown(void);
+/*=====================================*/
+/****************************************************************************
 Waits until there are no pending writes in os_aio_write_array. There can
 be other, synchronous, pending writes. */
 
