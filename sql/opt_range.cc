@@ -2637,7 +2637,7 @@ int QUICK_SELECT_DESC::get_next()
     else
     {
       DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
-#ifdef NOT_IMPLEMENTED_YET
+#ifndef NOT_IMPLEMENTED_YET
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?

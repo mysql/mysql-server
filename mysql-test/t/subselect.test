@@ -781,6 +781,7 @@ drop table if exists t1;
 #
 # key field overflow test
 #
+--disable_warnings
 CREATE TABLE t1
 (
 FOLDERID VARCHAR(32)BINARY NOT NULL
@@ -798,6 +799,7 @@ FOLDERID VARCHAR(32)BINARY NOT NULL
 
 , PRIMARY KEY ( FOLDERID )
 ) TYPE=InnoDB;
+--enable_warnings
 CREATE INDEX FFOLDERID_IDX ON t1 (FOLDERID);
 CREATE INDEX CMFLDRPARNT_IDX ON t1 (PARENTID);
 INSERT INTO t1 VALUES("0c9aab05b15048c59bc35c8461507deb", "System", "System", "2003-06-05 16:30:00", "The system content repository folder.", "3", "2003-06-05 16:30:00", "System", "0", NULL, "9c9aab05b15048c59bc35c8461507deb", "1");

@@ -135,6 +135,9 @@ public:
   Field *tmp_table_field(TABLE *t_arg);
   void set_outer_resolving();
   Item *get_tmp_table_item(THD *thd);
+  
+  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems);
+  bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
 };
 
 
@@ -624,6 +627,8 @@ class Item_func_field :public Item_int_func
 {
   Item *item;
   String value,tmp;
+  Item_result cmp_type;
+  DTCollation cmp_collation;
 public:
   Item_func_field(Item *a,List<Item> &list) :Item_int_func(list),item(a) {}
   ~Item_func_field() { delete item; }
@@ -641,13 +646,7 @@ public:
     const_item_cache&=  item->const_item();
   }
   const char *func_name() const { return "field"; }
-  void fix_length_and_dec()
-  {
-    maybe_null=0; max_length=3;
-    used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
-    with_sum_func= with_sum_func || item->with_sum_func;
-  }
+  void fix_length_and_dec();
   void set_outer_resolving()
   {
     item->set_outer_resolving();
