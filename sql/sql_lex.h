@@ -236,7 +236,7 @@ private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
 				       TABLE_LIST ***result);
 };
-typedef struct st_select_lex_unit SELECT_LEX_UNIT;
+typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /*
   SELECT_LEX - store information of parsed SELECT_LEX statment
@@ -284,7 +284,7 @@ public:
 
   friend void mysql_init_query(THD *thd);
 };
-typedef struct st_select_lex SELECT_LEX;
+typedef class st_select_lex SELECT_LEX;
 
 class Set_option :public Sql_alloc {
 public:
