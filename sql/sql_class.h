@@ -847,8 +847,11 @@ public:
   inline void	end_time()    { time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
   inline void	lock_time()   { time(&time_after_lock); }
-  inline void	insert_id(ulonglong id)
-  { last_insert_id=id; insert_id_used=1; }
+  inline void	insert_id(ulonglong id_arg)
+  {
+    last_insert_id= id_arg;
+    insert_id_used=1;
+  }
   inline ulonglong insert_id(void)
   {
     if (!last_insert_id_used)
