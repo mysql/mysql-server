@@ -2810,7 +2810,7 @@ static CHARSET_INFO compiled_charsets[] = {
 #ifdef HAVE_CHARSET_latin1
   {
     8,			/* number     */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "latin1",		/* cs name    */
     "latin1",		/* name       */
     "",			/* comment    */
@@ -3399,8 +3399,8 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     7,			/* number */
     MY_CS_COMPILED,	/* state      */
-    "koi8_ru",		/* cs name    */
-    "koi8_ru",		/* name */
+    "koi8_r",		/* cs name    */
+    "koi8_r",		/* name */
     "",			/* comment    */
     ctype_koi8_ru,
     to_lower_koi8_ru,
@@ -3444,8 +3444,8 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     22,			/* number */
     MY_CS_COMPILED,	/* state      */
-    "koi8_ukr",		/* cs name    */
-    "koi8_ukr",		/* name */
+    "koi8_u",		/* cs name    */
+    "koi8_u",		/* name */
     "",			/* comment    */
     ctype_koi8_ukr,
     to_lower_koi8_ukr,
@@ -3628,7 +3628,7 @@ static CHARSET_INFO compiled_charsets[] = {
     11,			/* number */
     MY_CS_COMPILED,	/* state      */
     "ascii",		/* cs name    */
-    "usa7",		/* name */
+    "ascii",		/* name */
     "",			/* comment    */
     ctype_usa7,
     to_lower_usa7,
@@ -3673,7 +3673,7 @@ static CHARSET_INFO compiled_charsets[] = {
     26,			/* number */
     MY_CS_COMPILED,	/* state      */
     "cp1250",		/* cs name    */
-    "win1250",		/* name */
+    "cp1250",		/* name */
     "",			/* comment    */
     ctype_win1250,
     to_lower_win1250,

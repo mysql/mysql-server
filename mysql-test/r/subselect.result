@@ -844,6 +844,11 @@ do @a:=(SELECT a from t1);
 select @a;
 @a
 1
+set @a:=2;
+set @a:=(SELECT a from t1);
+select @a;
+@a
+1
 drop table t1;
 do (SELECT a from t1);
 Table 'test.t1' doesn't exist

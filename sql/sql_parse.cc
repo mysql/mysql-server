@@ -2510,9 +2510,16 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_SET_OPTION:
-    if (!(res=sql_set_variables(thd, &lex->var_list)))
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+		   (res= open_and_lock_tables(thd,tables))))
+      break;
+    fix_tables_pointers(lex->all_selects_list);
+    if (!(res= sql_set_variables(thd, &lex->var_list)))
       send_ok(thd);
+    if (thd->net.report_error)
+      res= -1;
     break;
+
   case SQLCOM_UNLOCK_TABLES:
     unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)

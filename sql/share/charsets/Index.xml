@@ -6,7 +6,7 @@
 This file lists all of the available character sets.
 To make maintaining easier please:
  - keep records sorted by collation number.
- - change charset-list.max-id when adding a new collation.
+ - change charsets.max-id when adding a new collation.
 </description>
 
 <charset name="big5">
@@ -61,7 +61,7 @@ To make maintaining easier please:
   <alias>cp850</alias>
   <alias>cspc850multilingual</alias>
   <alias>ibm850</alias>
-  <collation name="dos"	id="4"	flag="primary">
+  <collation name="pclatin1"	id="4"	flag="primary">
     <order>Dutch</order>
     <order>English</order>
     <order>French</order>
@@ -125,11 +125,11 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="koi8_ru">
+<charset name="koi8_r">
   <family>Cyrillic</family>
   <alias>koi8-ru</alias>
   <alias>cskoi8r</alias>
-  <collation name="koi8_ru"	id="7"	order="Russian"	flag="primary"/>
+  <collation name="koi8_r"	id="7"	order="Russian"	flag="primary"/>
 </charset>
 
 <charset name="swe7">
@@ -145,7 +145,7 @@ To make maintaining easier please:
   <alias>csascii</alias>
   <alias>iso-ir-6</alias>
   <alias>iso646-us</alias>
-  <collation name="usa7"	id="11"	order="Egnlish"	flag="primary"/>
+  <collation name="ascii"	id="11"	order="Egnlish"	flag="primary"/>
 </charset>
 
 <charset name="ujis">
@@ -229,10 +229,10 @@ To make maintaining easier please:
   <collation name="latvian1"	id="42"	order="Latvian"/>
 </charset>
 
-<charset name="koi8_ukr">
+<charset name="koi8_u">
   <family>Cyrillic</family>
   <alias>koi8-u</alias>
-  <collation name="koi8_ukr"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8_u"	id="22"	order="Ukranian"	flag="primary"/>
 </charset>
 
 <charset name="gb2312">
@@ -256,7 +256,7 @@ To make maintaining easier please:
   <family>Central European</family>
   <alias>ms-ce</alias>
   <alias>windows-1250</alias>
-  <collation name="win1250"	id="26"	flag="primary">
+  <collation name="cp1250"	id="26"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
     <order>Romanian</order>
@@ -265,7 +265,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="win1250ch"	id="34"	order="Czech"/>
+  <collation name="cp1250_czech"	id="34"	order="Czech"/>
 </charset>
 
 <charset name="gbk">
@@ -327,6 +327,7 @@ To make maintaining easier please:
   <alias>866</alias>
   <alias>csibm866</alias>
   <alias>ibm866</alias>
+  <alias>DOSCyrillicRussian</alias>
   <collation name="cp866"	id="36"	order="Russian"	flag="primary"/>
 </charset>
 
@@ -445,7 +446,12 @@ To make maintaining easier please:
   <family>Arabic</family>
   <alias>ms-arab</alias>
   <alias>windows-1256</alias>
-  <collation name="cp1256"	id="57"	order="Arabic"	flag="primary"/>
+  <collation name="cp1256"	id="57"	order="Arabic"	flag="primary">
+    <order>Arabic</order>
+    <order>Persian</order>
+    <order>Pakistani</order>
+    <order>Urdu</order>
+  </collation>
 </charset>
 
 <charset name="binary">

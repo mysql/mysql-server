@@ -469,6 +469,11 @@ create table t1 (a int);
 insert into t1 values (1);
 do @a:=(SELECT a from t1);
 select @a;
+set @a:=2;
+set @a:=(SELECT a from t1);
+select @a;
 drop table t1;
 -- error 1146
 do (SELECT a from t1);
+-- error 1146
+set @a:=(SELECT a from t1);

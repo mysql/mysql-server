@@ -259,7 +259,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 static CHARSET_INFO my_charset_bin_st =
 {
     63,				/* number        */
-    MY_CS_COMPILED|MY_CS_BINSORT,/* state        */
+    MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state        */
     "binary",			/* cs name    */
     "binary",			/* name          */
     "",				/* comment       */
