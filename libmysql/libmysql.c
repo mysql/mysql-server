@@ -5299,14 +5299,11 @@ static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
     int4store(buff, stmt->stmt_id);
     error= simple_command(stmt->mysql, COM_CLOSE_STMT, buff, 4, 1);
   }
-  if (!error)
-  {
-    mysql_free_result(stmt->result);
-    free_root(&stmt->mem_root, MYF(0));
-    if (!skip_list)
-      stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
-    my_free((gptr) stmt, MYF(MY_WME));
-  }
+  mysql_free_result(stmt->result);
+  free_root(&stmt->mem_root, MYF(0));
+  if (!skip_list)
+    stmt->mysql->stmts= list_delete(stmt->mysql->stmts, &stmt->list);
+  my_free((gptr) stmt, MYF(MY_WME));
   DBUG_RETURN(error);
 }
 

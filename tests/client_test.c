@@ -284,6 +284,7 @@ static void my_print_result_metadata(MYSQL_RES *result)
 
   mysql_field_seek(result,0);
   fputc('\n', stdout);
+  fputc('\n', stdout);
 
   field_count = mysql_num_fields(result);
   for(i=0; i< field_count; i++)
@@ -702,6 +703,7 @@ static void test_tran_bdb()
   mytest(result);
 
   my_process_result_set(result);
+  mysql_free_result(result);
 
   /* test the results now, only one row should exists */
   rc = mysql_query(mysql,"SELECT * FROM my_demo_transaction");
@@ -779,6 +781,7 @@ static void test_tran_innodb()
   mytest(result);
 
   my_process_result_set(result);
+  mysql_free_result(result);
 
   /* test the results now, only one row should exists */
   rc = mysql_query(mysql,"SELECT * FROM my_demo_transaction");
@@ -930,6 +933,7 @@ static void test_prepare_field_result()
   param_count= mysql_num_fields(result);
   fprintf(stdout,"\n\n total fields: `%d` (expected: `5`)", param_count);
   myassert(param_count == 5);
+  mysql_free_result(result);
   mysql_stmt_close(stmt);
 }
 
@@ -1478,7 +1482,7 @@ static void test_select_direct()
 *********************************************************/
 static void test_select_prepare()
 {
-  int        rc, count;
+  int        rc;
   MYSQL_STMT *stmt;
 
   myheader("test_select_prepare");
@@ -1511,7 +1515,8 @@ static void test_select_prepare()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  count= my_process_stmt_result(stmt);
+  myassert(1 == my_process_stmt_result(stmt));
+  mysql_stmt_close(stmt);
 
   rc = mysql_query(mysql,"DROP TABLE test_select");
   myquery(rc);
@@ -1540,8 +1545,7 @@ static void test_select_prepare()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  my_process_stmt_result(stmt);
-
+  myassert(1 == my_process_stmt_result(stmt));
   mysql_stmt_close(stmt);
 }
 
@@ -1615,7 +1619,7 @@ static void test_select()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-  myassert(my_process_stmt_result(stmt) != 0);
+  myassert(my_process_stmt_result(stmt) == 1);
 
   mysql_stmt_close(stmt);
 }
@@ -1817,6 +1821,7 @@ static void test_long_data()
   verify_col_data("test_long_data","col1","999");
   verify_col_data("test_long_data","col2","Michael 'Monty' Widenius");
   verify_col_data("test_long_data","col3","Venu");
+  mysql_stmt_close(stmt);
 }
 
 
@@ -3608,8 +3613,9 @@ static void test_stmt_close()
   fprintf(stdout,"\n mysql_close_stmt(1) returned: %d", rc);
   myassert(rc == 0);
   
-  mysql_close(lmysql); /* it should free all open stmts(stmt3, stmt2) */
-  
+  mysql_close(lmysql); /* it should free all open stmts(stmt3, 2 and 1) */
+ 
+#if NOT_VALID
   rc= mysql_stmt_close(stmt3);
   fprintf(stdout,"\n mysql_close_stmt(3) returned: %d", rc);
   myassert( rc == 1);
@@ -3617,6 +3623,7 @@ static void test_stmt_close()
   rc= mysql_stmt_close(stmt2);
   fprintf(stdout,"\n mysql_close_stmt(2) returned: %d", rc);
   myassert( rc == 1);
+#endif
 
   count= 100;
   bind[0].buffer=(char *)&count;
@@ -3625,6 +3632,7 @@ static void test_stmt_close()
 
   rc = mysql_bind_param(stmt_x, bind);
   mystmt(stmt_x, rc);
+  
   rc = mysql_execute(stmt_x);
   mystmt(stmt_x, rc);
 
@@ -3672,7 +3680,6 @@ static void test_set_variable()
 
   result= mysql_param_result(stmt);
   mytest_r(result);
-
 
   bind[0].buffer_type= MYSQL_TYPE_LONG;
   bind[0].buffer=(char *)&select_limit;
@@ -3745,6 +3752,8 @@ static void test_insert_meta()
   result= mysql_param_result(stmt);
   mytest_r(result);
 
+  mysql_stmt_close(stmt);
+
   strmov(query,"INSERT INTO test_prep_insert VALUES(?,'venu',?)");
   stmt = mysql_prepare(mysql, query, strlen(query));
   mystmt_init(stmt);
@@ -3806,6 +3815,8 @@ static void test_update_meta()
 
   result= mysql_param_result(stmt);
   mytest_r(result);
+
+  mysql_stmt_close(stmt);
 
   strmov(query,"UPDATE test_prep_update SET col1=?, col2='venu' WHERE col3=?");
   stmt = mysql_prepare(mysql, query, strlen(query));
@@ -3901,7 +3912,7 @@ static void test_select_meta()
 
   field= mysql_fetch_field(result);
   mytest_r(field);
-n
+
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 }
@@ -4022,7 +4033,6 @@ static void test_multi_stmt()
   bind[1].buffer = (char *)&name;
   bind[1].length = &length[1];
   bind[1].is_null= &is_null[0];
-
 
   rc = mysql_bind_param(stmt, bind);
   mystmt(stmt, rc);
@@ -4592,7 +4602,7 @@ static void test_store_result2()
 
   rc = mysql_bind_result(stmt,bind);
   mystmt(stmt, rc);
-
+  
   nData = 10; length= 0;
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
@@ -4626,7 +4636,6 @@ static void test_store_result2()
 
   rc = mysql_fetch(stmt);
   myassert(rc == MYSQL_NO_DATA);
-
   mysql_stmt_close(stmt);
 }
 
@@ -5239,14 +5248,18 @@ int main(int argc, char **argv)
 {  
   MY_INIT(argv[0]);
   get_options(argc,argv);
+  time_t start_time, end_time;
+  double total_time= 0;
     
   client_connect();       /* connect to server */
   
   for (iter_count=1; iter_count <= opt_count; iter_count++) 
   {
     /* Start of tests */
-    test_count= 0;
-
+    test_count= 1;
+   
+    start_time= time((time_t *)0);
+    
     test_fetch_null();      /* to fetch null data */
     test_fetch_date();      /* to fetch date,time and timestamp */
     test_fetch_str();       /* to fetch string to all types */
@@ -5319,14 +5332,20 @@ int main(int argc, char **argv)
     test_manual_sample();   /* sample in the manual */
     test_pure_coverage();   /* keep pure coverage happy */
     test_buffers();         /* misc buffer handling */
+
+    end_time= time((time_t *)0);
+    total_time+= difftime(end_time, start_time);
     /* End of tests */
   }
   
   client_disconnect();    /* disconnect from server */
   fprintf(stdout,"\n\nAll '%d' tests were successful (in '%d' iterations)", 
                  test_count-1, opt_count);
+  fprintf(stdout,"\n  Total execution time: %g SECS", total_time);
+  if (opt_count > 1)
+    fprintf(stdout," (Avg: %g SECS)", total_time/opt_count);
   
-  fprintf(stdout,"\nSUCCESS !!!\n");
+  fprintf(stdout,"\n\nSUCCESS !!!\n");
   return(0);
 }
 
