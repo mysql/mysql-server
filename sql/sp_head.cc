@@ -376,7 +376,7 @@ sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
   char olddb[128];
-  char *olddbptr;
+  bool dbchanged;
   sp_rcontext *ctx= thd->spcont;
   int ret= 0;
   uint ip= 0;
@@ -388,8 +388,8 @@ sp_head::execute(THD *thd)
   }
 #endif
 
-  olddbptr= thd->db;
-  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0)))
+  dbchanged= FALSE;
+  if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
   if (ctx)
@@ -445,7 +445,7 @@ sp_head::execute(THD *thd)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
-  if (olddbptr != thd->db)
+  if (dbchanged)
   {
     if (! thd->killed)
       ret= sp_change_db(thd, olddb, 0);
