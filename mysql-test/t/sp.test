@@ -5,6 +5,8 @@
 # things that will not run in a single debugged mysqld
 # process (e.g. master-slave things).
 
+-- source include/have_innodb.inc
+
 use test;
 
 --disable_warnings
