@@ -9,7 +9,7 @@
 # If you know how to fix any of this more elegantly please mail
 # docs@mysql.com
 
-TEXI2HTML_FLAGS =	-iso -number
+TEXI2HTML_FLAGS =	-iso -number -acc
 DVIPS =			dvips
 MAKEINFO =		@MAKEINFO@
 TEXINFO_TEX =		Support/texinfo.tex
