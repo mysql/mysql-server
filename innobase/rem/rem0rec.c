@@ -958,9 +958,11 @@ rec_convert_dtuple_to_rec(
 #ifdef UNIV_DEBUG
 	{
 		mem_heap_t*	heap	= NULL;
-		ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
-					= { 100, };
-		const ulint*	offsets	= rec_get_offsets(rec, index,
+		ulint		offsets_[100];
+		const ulint*	offsets;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
+		offsets = rec_get_offsets(rec, index,
 					offsets_, ULINT_UNDEFINED, &heap);
 		ut_ad(rec_validate(rec, offsets));
 		if (heap) {
@@ -989,9 +991,9 @@ rec_copy_prefix_to_dtuple(
 	ulint		len;
 	byte*		buf = NULL;
 	ulint		i;
-	ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
-				= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets	= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	offsets = rec_get_offsets(rec, index, offsets, n_fields, &heap);
 
@@ -1405,8 +1407,9 @@ rec_print(
 		return;
 	} else {
 		mem_heap_t*	heap	= NULL;
-		ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
-					= { 100, };
+		ulint		offsets_[100];
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
 		rec_print_new(file, rec, rec_get_offsets(rec, index, offsets_,
 						ULINT_UNDEFINED, &heap));
 		if (heap) {

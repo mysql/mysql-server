@@ -203,7 +203,8 @@ row_build(
 	byte*		buf; 
 	ulint		i;
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
@@ -296,8 +297,9 @@ row_rec_to_index_entry(
 	ulint		rec_len;
 	byte*		buf;
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(rec && heap && index);
 	
@@ -377,8 +379,9 @@ row_build_row_ref(
 	ulint		clust_col_prefix_len;
 	ulint		i;
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(index && rec && heap);
 
@@ -470,8 +473,9 @@ row_build_row_ref_in_tuple(
 	ulint		clust_col_prefix_len;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_a(ref && index && rec);
 	

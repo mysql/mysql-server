@@ -3673,8 +3673,9 @@ row_scan_and_check_index(
 	ibool		contains_null;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	*n_rows = 0;
 	

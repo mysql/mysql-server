@@ -152,8 +152,9 @@ row_undo_search_clust_to_pcur(
 	ibool		ret;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	mtr_start(&mtr);
 
