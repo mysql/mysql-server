@@ -59,7 +59,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_RAID         64      /* Support for RAID (not the "Johnson&Johnson"-s one ;) */
-#define MY_FULL_IO     128      /* For my_read - loop intil I/O
+#define MY_FULL_IO     512      /* For my_read - loop intil I/O
 				   is complete
 				*/
 #define MY_DONT_CHECK_FILESIZE 128	/* Option to init_io_cache() */
