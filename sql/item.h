@@ -240,6 +240,7 @@ public:
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par);
+  Item_ident::Item_ident(THD *thd, Item_ident &item);
   const char *full_name() const;
 
   bool remove_dependence_processor(byte * arg);

@@ -596,7 +596,8 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	check_dup(table_ref->db, table_ref->real_name, update_tables))
+	find_real_table_in_list(update_tables, table_ref->db,
+				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);

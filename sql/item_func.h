@@ -717,8 +717,9 @@ public:
   Item_func_bit_neg(Item *a) :Item_func_bit(a) {}
   longlong val_int();
   const char *func_name() const { return "~"; }
-  void print(String *str) { Item_func_int::print(str); }
+  void print(String *str) { Item_func::print(str); }
 };
+
 
 class Item_func_set_last_insert_id :public Item_int_func
 {

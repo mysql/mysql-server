@@ -106,6 +106,32 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	warning	Found row where the auto_increment column has the value 0
 test.t1	check	status	OK
 drop table t1;
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values (NULL);
+insert into t1 values (-1);
+select last_insert_id();
+last_insert_id()
+1
+insert into t1 values (NULL);
+select * from t1;
+a
+-1
+1
+2
+drop table t1;
+create table t1 (a int not null auto_increment primary key) /*!41002 type=heap */;
+insert into t1 values (NULL);
+insert into t1 values (-1);
+select last_insert_id();
+last_insert_id()
+1
+insert into t1 values (NULL);
+select * from t1;
+a
+-1
+1
+2
+drop table t1;
 create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
@@ -243,30 +269,4 @@ a	b
 402	11
 0	13
 500	14
-drop table t1;
-create table t1 (a int not null auto_increment primary key);
-insert into t1 values (NULL);
-insert into t1 values (-1);
-select last_insert_id();
-last_insert_id()
-1
-insert into t1 values (NULL);
-select * from t1;
-a
--1
-1
-2
-drop table t1;
-create table t1 (a int not null auto_increment primary key) /*!41002 type=heap */;
-insert into t1 values (NULL);
-insert into t1 values (-1);
-select last_insert_id();
-last_insert_id()
-1
-insert into t1 values (NULL);
-select * from t1;
-a
--1
-1
-2
 drop table t1;

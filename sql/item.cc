@@ -654,10 +654,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, default_charset());
+    str->set(int_value, &my_charset_bin);
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, default_charset());
+    str->set(real_value, 2, &my_charset_bin);
     return str;
   default:
     return (String*) &str_value;

@@ -60,8 +60,8 @@ delete from t1, t2, t3  using t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3
 select count(*) from t1 where id1;
 select count(*) from t2 where id2;
 select count(*) from t3 where id3;
-
 drop table t1,t2,t3;
+
 create table t1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
 create table t2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
 disable_query_log;
@@ -288,7 +288,6 @@ drop table t1;
 
 # Test multi-update and multi-delete with impossible where
 
-drop table if exists t1, t2;
 create table t1(id1 smallint(5), field char(5));
 create table t2(id2 smallint(5), field char(5));
 

@@ -1582,6 +1582,11 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 }
 
 
+/*
+  TODO: This needs to be fixed for multi-byte character set where numbers
+  are stored in more than one byte
+*/
+
 String *Item_func_format::val_str(String *str)
 {
   double nr	=args[0]->val();
@@ -1590,7 +1595,8 @@ String *Item_func_format::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
-  str->set(nr,decimals,default_charset());
+  /* Here default_charset() is right as this is not an automatic conversion */
+  str->set(nr,decimals, default_charset());
 #ifdef HAVE_ISNAN
   if (isnan(nr))
     return str;

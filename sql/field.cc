@@ -2910,6 +2910,7 @@ static longlong fix_datetime(longlong nr, TIME *time_res,
     return nr;
   
  err:
+  THD *thd= current_thd;
   if (thd->count_cuted_fields)
   {
     thd->cuted_fields++;
@@ -2948,9 +2949,7 @@ int Field_timestamp::store(longlong nr)
 
 err:
   longstore(ptr,(uint32) 0);
-  if (current_thd->count_cuted_fields)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED,
-		field_name, 0);
+  set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
   return 1;
 }
 
@@ -5189,7 +5188,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
 {
   uint tmp=(uint) Field_enum::val_int();
   if (!tmp || tmp > typelib->count)
-    val_ptr->set((char*)"",0);
+    val_ptr->set("", 0, field_charset);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
 		 (uint) strlen(typelib->type_names[tmp-1]),

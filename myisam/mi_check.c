@@ -512,6 +512,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   DBUG_RETURN(result);
 } /* chk_key */
 
+
 static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
                      my_off_t page, uchar *buff, ha_rows *keys,
                      ha_checksum *key_checksum, uint level)
@@ -553,7 +554,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   uint used_length,comp_flag,nod_flag,key_length,not_used;
   uchar key[MI_MAX_POSSIBLE_KEY_BUFF],*temp_buff,*keypos,*old_keypos,*endpos;
   my_off_t next_page,record;
-  char llbuff[22],llbuff2[22];
+  char llbuff[22];
   DBUG_ENTER("chk_index");
   DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
 
@@ -651,7 +652,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     if (record >= info->state->data_file_length)
     {
 #ifndef DBUG_OFF
-      char llbuff3[22];
+      char llbuff2[22], llbuff3[22];
 #endif
       mi_check_print_error(param,"Found key at page %s that points to record outside datafile",llstr(page,llbuff));
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",

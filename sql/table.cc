@@ -1234,11 +1234,12 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH] *to;
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
   field->val_str(&str,&str);
+  length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
   memcpy(to,str.ptr(),(uint) length);

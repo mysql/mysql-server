@@ -468,6 +468,7 @@ public:
   void clear();
   longlong val_int();
   void reset_field();
+  void update_field();
   void fix_length_and_dec()
   { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
 };
@@ -500,7 +501,6 @@ class Item_sum_xor :public Item_sum_bit
   Item_sum_xor(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_xor(THD *thd, Item_sum_xor &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_xor"; }
   Item *copy_or_same(THD* thd);
 };

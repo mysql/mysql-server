@@ -351,7 +351,6 @@ a	b
 3	4
 4	5
 drop table t1;
-drop table if exists t1, t2;
 create table t1(id1 smallint(5), field char(5));
 create table t2(id2 smallint(5), field char(5));
 insert into t1 values (1, 'a'), (2, 'aa');
@@ -396,3 +395,4 @@ t2 rows after big delete	1900001
 select 't1 rows after big delete', count(*) from t1;
 t1 rows after big delete	count(*)
 t1 rows after big delete	1900001
+drop table t1,t2;

@@ -874,7 +874,9 @@ public:
     :Field_str(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, table_arg, cs)
   {}
-  Field_varstring(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
+  Field_varstring(uint32 len_arg,bool maybe_null_arg,
+		  const char *field_name_arg,
+		  struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs)
   {}
@@ -925,10 +927,9 @@ public:
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
     geom_flag(true), packlength(4)
-    {
-      flags|= BLOB_FLAG;
-    }
-   }
+  {
+    flags|= BLOB_FLAG;
+  }
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT; }
