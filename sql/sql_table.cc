@@ -613,7 +613,7 @@ int prepare_create_field(create_field *sql_field,
     Prepares the table and key structures for table creation.
 
   NOTES
-    sets create_info->varchar if the table has a varchar or blob.
+    sets create_info->varchar if the table has a varchar
 
   RETURN VALUES
     0	ok
@@ -862,12 +862,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			     &timestamps, &timestamps_with_niladic,
 			     file->table_flags()))
       DBUG_RETURN(-1);
-    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_LONG_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_GEOMETRY ||
-        sql_field->sql_type == MYSQL_TYPE_VARCHAR)
+    if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
       create_info->varchar= 1;
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
