@@ -22266,11 +22266,11 @@ The buffer that is allocated when sorting the index when doing a
 @code{ALTER TABLE}.
 
 @item @code{myisam_bulk_insert_tree_size}
-@strong{MySQL} uses special tree-like cache to make bulk inserts (that is,
+@code{MyISAM} uses special tree-like cache to make bulk inserts (that is,
 @code{INSERT ... SELECT},
 @code{INSERT ... VALUES (...), (...), ...}, and
 @code{LOAD DATA INFILE}) faster. This variable limits
-the size of the cache tree in bytes @strong{per thread, per index}.
+the size of the cache tree in bytes @strong{per thread, per table}.
 Default value is 8 MB.
 
 @item @code{myisam_max_extra_sort_file_size}.
@@ -23960,7 +23960,7 @@ The following options to @code{mysqld} can be used to change the behavior of
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help @strong{MySQL} to decide when to use the slow but safe key cache index create method. @strong{NOTE} that this parameter is given in megabytes!
 @item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this. @strong{NOTE} that this paramter is given in megabytes!
-@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimization. @strong{NOTE} that this is a limit @strong{per index}!
+@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimization. @strong{NOTE} that this is the total size used for all index in one table.
 @end multitable
 
 The automatic recovery is activated if you start @code{mysqld} with

@@ -245,9 +245,9 @@ public:
   int get_data_size()
   {
     return q_len + db_len + 2 +
-      sizeof(uint32) // thread_id
-      + sizeof(uint32) // exec_time
-      + sizeof(uint16) // error_code
+      4		// thread_id
+      + 4	// exec_time
+      + 2	// error_code
       ;
   }
 

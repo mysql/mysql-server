@@ -34,17 +34,11 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  if (!(sock = mysql_connect(&mysql,NULL,0,0)))
+  if (!(sock = mysql_real_connect(&mysql,NULL,NULL,NULL,argv[1],0,NULL,0)))
   {
     fprintf(stderr,"Couldn't connect to engine!\n%s\n",mysql_error(&mysql));
     perror("");
     exit(1);
-  }
-
-  if (mysql_select_db(sock,argv[1]))
-  {
-    fprintf(stderr,"Couldn't select database %s!\n%s\n",argv[1],
-	    mysql_error(sock));
   }
 
   num = atoi(argv[2]);
