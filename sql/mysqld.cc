@@ -2036,6 +2036,7 @@ int main(int argc, char **argv)
   start_signal_handler();				// Creates pidfile
   if (acl_init(opt_noacl))
   {
+    abort_loop=1;
     select_thread_in_use=0;
     (void) pthread_kill(signal_thread,MYSQL_KILL_SIGNAL);
 #ifndef __WIN__
@@ -3893,7 +3894,7 @@ static void set_options(void)
   sys_charset.value= (char*) MYSQL_CHARSET;
   (void) strmake(language, LANGUAGE, sizeof(language)-1);
   (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
-		 sizeof(mysql_real_data_home-1));
+		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
   global_system_variables.table_type=DB_TYPE_MYISAM;
