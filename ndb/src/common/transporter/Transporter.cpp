@@ -37,6 +37,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_packer(_signalId, _checksum),
     m_transporter_registry(t_reg)
 {
+  DBUG_ENTER("Transporter::Transporter");
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
     Ndb_getInAddr(&remoteHostAddress, rHostName);
@@ -55,6 +56,11 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   if (strlen(lHostName) > 0)
     Ndb_getInAddr(&localHostAddress, lHostName);
 
+  DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s r_port=%d",
+		     remoteNodeId, localNodeId, isServer,
+		     remoteHostName, localHostName,
+		     r_port));
+
   byteOrder       = _byteorder;
   compressionUsed = _compression;
   checksumUsed    = _checksum;
@@ -68,6 +74,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   else
     m_socket_client= new SocketClient(remoteHostName, r_port,
 				      new SocketAuthSimple("ndbd", "ndbd passwd"));
+  DBUG_VOID_RETURN;
 }
 
 Transporter::~Transporter(){
@@ -77,8 +84,11 @@ Transporter::~Transporter(){
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
+  DBUG_ENTER("Transporter::connect_server");
   if(m_connected)
-    return true; // TODO assert(0);
+  {
+    DBUG_RETURN(true); // TODO assert(0);
+  }
   
   bool res = connect_server_impl(sockfd);
   if(res){
@@ -86,7 +96,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
     m_errorCount = 0;
   }
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 bool
