@@ -1613,7 +1613,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    /*  command not cachable => no gap for data base name */
+    thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.table_name, fields);
