@@ -254,7 +254,10 @@ public:
   uint in_sum_expr;
   bool	create_refs, 
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
-    depended; /* depended from outer select subselect */
+    depended, /* depended from outer select subselect */
+    /* TRUE when having fix field called in processing of this SELECT */
+    having_fix_field; 
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit() { return (st_select_lex_unit*) master; }

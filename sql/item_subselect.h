@@ -63,7 +63,7 @@ public:
   enum Type type() const;
   bool is_null() { return null_value; }
   void make_field (Send_field *);
-  bool fix_fields(THD *thd, TABLE_LIST *tables);
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   table_map used_tables() const;
 
   friend class select_subselect;

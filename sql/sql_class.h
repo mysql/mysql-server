@@ -453,7 +453,6 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  bool       having_fix_field; //TRUE when having fix field called
   bool       prepare_command;  
   ulong      param_count,current_param_number;  
   Error<mysql_st_error> err_list;  
