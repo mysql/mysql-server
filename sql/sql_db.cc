@@ -39,6 +39,32 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
   DBUG_ENTER("mysql_create_db");
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
+  VOID(pthread_mutex_lock(&LOCK_open));
+
+  // do not create database if another thread is holding read lock
+  if (global_read_lock)
+  {
+    if (thd->global_read_lock)
+    {
+      net_printf(&thd->net, ER_CREATE_DB_WITH_READ_LOCK);
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto exit;
+    }
+    while (global_read_lock && ! thd->killed)
+    {
+      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    }
+    
+    if (thd->killed)
+    {
+      net_printf(&thd->net, ER_SERVER_SHUTDOWN);
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      goto exit;
+    }
+
+  }
+  
+  VOID(pthread_mutex_unlock(&LOCK_open));
 
   /* Check directory */
   (void)sprintf(path,"%s/%s", mysql_data_home, db);
@@ -116,6 +142,26 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
   VOID(pthread_mutex_lock(&LOCK_open));
+
+  // do not drop database if another thread is holding read lock
+  if (global_read_lock)
+  {
+    if (thd->global_read_lock)
+    {
+      net_printf(&thd->net, ER_DROP_DB_WITH_READ_LOCK);
+      goto exit;
+    }
+    while (global_read_lock && ! thd->killed)
+    {
+      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    }
+
+    if (thd->killed)
+    {
+      net_printf(&thd->net, ER_SERVER_SHUTDOWN);
+      goto exit;
+    }
+  }
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   unpack_dirname(path,path);			// Convert if not unix
