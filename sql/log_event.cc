@@ -204,7 +204,17 @@ void Intvar_log_event::pack_info(String* packet)
 
 void Slave_log_event::pack_info(String* packet)
 {
-  net_store_data(packet, "", 0);
+  String tmp;
+  char buf[22];
+  tmp.append("host=");
+  tmp.append(master_host);
+  tmp.append(",port=");
+  tmp.append(llstr(master_port,buf));
+  tmp.append(",log=");
+  tmp.append(master_log);
+  tmp.append(",pos=");
+  tmp.append(llstr(master_pos,buf));
+  net_store_data(packet, tmp.ptr(), tmp.length());
 }
 
 
@@ -889,8 +899,8 @@ void Slave_log_event::init_from_mem_pool(int data_size)
   master_host = mem_pool + SL_MASTER_HOST_OFFSET;
   master_host_len = strlen(master_host);
   // safety
-  master_log = master_host + master_host_len;
-  if(master_log >= mem_pool + data_size)
+  master_log = master_host + master_host_len + 1;
+  if(master_log > mem_pool + data_size)
   {
     master_host = 0;
     return;
@@ -902,9 +912,12 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 Slave_log_event::Slave_log_event(const char* buf, int event_len):
   Log_event(buf),mem_pool(0),master_host(0)
 {
+  event_len -= LOG_EVENT_HEADER_LEN;
+  if(event_len < 0)
+    return;
   if(!(mem_pool = (char*)my_malloc(event_len + 1, MYF(MY_WME))))
     return;
-  memcpy(mem_pool, buf, event_len);
+  memcpy(mem_pool, buf + LOG_EVENT_HEADER_LEN, event_len);
   mem_pool[event_len] = 0;
   init_from_mem_pool(event_len);
 }

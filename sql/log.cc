@@ -236,20 +236,6 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     bool error;
     s.set_log_seq(0, this);
     s.write(&log_file);
-    // if we have a master, record current master info in a slave
-    // event
-    if (glob_mi.inited)
-    {
-      THD* thd = current_thd;
-      Slave_log_event s(thd, &glob_mi);
-	
-      if(s.master_host)
-      {
-        s.set_log_seq(thd, this);
-	s.write(&log_file);
-      }
-    }
-
     flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
     error=(my_write(index_file, (byte*) log_file_name, strlen(log_file_name),
@@ -548,7 +534,7 @@ void MYSQL_LOG::new_file()
 	to change base names at some point.
       */
       Rotate_log_event r(new_name+dirname_length(new_name));
-      r.set_log_seq(current_thd, this);
+      r.set_log_seq(0, this);
       r.write(&log_file);
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
@@ -650,8 +636,10 @@ bool MYSQL_LOG::write(Slave_log_event* event_info)
   if (!inited)					// Can't use mutex if not init
     return 0;
   VOID(pthread_mutex_lock(&LOCK_log));
-  event_info->set_log_seq(current_thd, this);
+  if(!event_info->log_seq)
+    event_info->set_log_seq(current_thd, this);
   error = event_info->write(&log_file);
+  flush_io_cache(&log_file);
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
 }
@@ -688,7 +676,7 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
     {
       Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
       e.set_log_seq(thd, this);
-      if(thd->server_id)
+      if (thd->server_id)
         e.server_id = thd->server_id;
       if (e.write(file))
 	goto err;
@@ -697,6 +685,8 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
     {
       Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
       e.set_log_seq(thd, this);
+      if (thd->server_id)
+        e.server_id = thd->server_id;
       if (e.write(file))
 	goto err;
     }

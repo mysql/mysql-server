@@ -659,7 +659,7 @@ run_testcase ()
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ -n $SKIP_TEST ] ; then 
-   SKIP_THIS_TEST=`$EXPR \( $tname : '$SKIP_TEST' \) != 0`
+   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
    if [ x$SKIP_THIS_TEST = x1 ] ;
    then
     return;
