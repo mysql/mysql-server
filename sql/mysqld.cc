@@ -298,7 +298,7 @@ my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024];
-unsigned opt_ndb_constrbuf_len;
+unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
 ulong opt_ndb_cache_check_time;
 const char *opt_ndb_mgmd;

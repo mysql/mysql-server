@@ -8,35 +8,16 @@
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
 
-static void print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
 static void usage()
 {
-  char desc[] = 
-    "tabname\n"\
-    "This program list all properties of table(s) in NDB Cluster.\n"\
-    "  ex: desc T1 T2 T4\n";  
-  print_version();
+  ndb_std_print_version();
 }
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch (optid) {
-  case '#':
-    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_desc.trace");
-    break;
-  case 'V':
-    print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  }
-  return 0;
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/testBitfield.trace");
 }
 
 static const NdbDictionary::Table* create_random_table(Ndb*);
