@@ -272,7 +272,8 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   DBUG_VOID_RETURN;
 }
 
-Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
+Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
+                                             Item_subselect *parent,
 					     st_select_lex *select_lex,
 					     bool max_arg)
   :Item_singlerow_subselect()
@@ -290,6 +291,12 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   */
   used_tables_cache= parent->get_used_tables_cache();
   const_item_cache= parent->get_const_item_cache();
+
+  /*
+    this subquery alwais creates during preparation, so we can assign
+    thd here
+  */
+  thd= thd_param;
 
   DBUG_VOID_RETURN;
 }
@@ -316,6 +323,8 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   SELECT_LEX *select_lex= join->select_lex;
 
   /* Juggle with current arena only if we're in prepared statement prepare */
+  DBUG_PRINT("TANSF:", ("thd %p, select_lex->join->thd: %s",
+                        thd, select_lex->join->thd));
   Item_arena *arena= thd->current_arena;
   Item_arena backup;
   if (arena->is_conventional())
@@ -723,7 +732,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
+      subs= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
     }
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -899,7 +908,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   }
   thd->where= "row IN/ALL/ANY subquery";
 
-  Item_arena *arena= join->thd->current_arena, backup;
+  Item_arena *arena= thd->current_arena, backup;
   if (arena->is_conventional())
     arena= 0;
   else
