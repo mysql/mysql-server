@@ -1182,7 +1182,6 @@ drop table t1,t2;
 #
 # outer fields resolving in INSERT/REPLACE and CRETE with SELECT
 #
-DROP TABLE IF EXISTS t1, t2, t3;
 CREATE TABLE t1 ( a int, b int );
 CREATE TABLE t2 ( c int, d int );
 INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
@@ -1191,4 +1190,13 @@ INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE
 select * from t2;
 CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
 select * from t3;
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+deallocate prepare stmt1;
+select * from t2;
+drop table t3;
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+select * from t3;
+deallocate prepare stmt1;
 DROP TABLE t1, t2, t3;
