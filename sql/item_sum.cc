@@ -810,12 +810,13 @@ int composite_key_cmp(void* arg, byte* key1, byte* key2)
   for(; field < field_end; ++field)
     {
       int res;
-      int len = (*field)->field_length;
+      Field* f = *field;
+      int len = f->field_length;
       switch((*field)->type())
 	{
 	case FIELD_TYPE_STRING:
 	case FIELD_TYPE_VAR_STRING:
-	  res = my_sortcmp(key1, key2, len);
+	  res = f->key_cmp(key1, key2);
 	  break;
 	default:
 	  res = memcmp(key1, key2, len);
@@ -879,20 +880,22 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	// to use a simpler key compare method that can take advantage
 	// of not having to worry about other fields
 	{
-	  switch(table->field[0]->type())
+	  Field* field = table->field[0];
+	  switch(field->type())
 	    {
 	      // if we have a string, we must take care of charsets
 	      // and case sensitivity
 	    case FIELD_TYPE_STRING:
 	    case FIELD_TYPE_VAR_STRING:
-	      compare_key = (qsort_cmp2)simple_str_key_cmp;
+	      compare_key = (qsort_cmp2)(field->binary() ? simple_raw_key_cmp:
+					 simple_str_key_cmp);
 	      break;
 	    default: // since at this point we cannot have blobs
 	      // anything else can be compared with memcmp
 	      compare_key = (qsort_cmp2)simple_raw_key_cmp;
 	      break;
 	    }
-	  cmp_arg = (void*)(key_len = table->field[0]->field_length);
+	  cmp_arg = (void*)(key_len = field->field_length);
 	  rec_offset = 1;
 	}
       else // too bad, cannot cheat - there is more than one field
@@ -908,7 +911,8 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	  rec_offset = table->reclength - key_len;
 	}
 
-      init_tree(&tree, 0, key_len, compare_key, 0, 0);
+      init_tree(&tree, min(max_heap_table_size, sortbuff_size/16),
+		key_len, compare_key, 0, 0);
       tree.cmp_arg = cmp_arg;
       use_tree = 1;
     }
@@ -919,11 +923,14 @@ bool Item_sum_count_distinct::setup(THD *thd)
 
 void Item_sum_count_distinct::reset()
 {
-  table->file->extra(HA_EXTRA_NO_CACHE);
-  table->file->delete_all_rows();
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
   if(use_tree)
     delete_tree(&tree);
+  else
+    {
+      table->file->extra(HA_EXTRA_NO_CACHE);
+      table->file->delete_all_rows();
+      table->file->extra(HA_EXTRA_WRITE_CACHE);
+    }
   (void) add();
 }
 
