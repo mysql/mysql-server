@@ -250,7 +250,7 @@ typedef struct st_record_cache	/* Used when cacheing records */
 } RECORD_CACHE;
 
 enum file_type { UNOPEN = 0, FILE_BY_OPEN, FILE_BY_CREATE,
-		   STREAM_BY_FOPEN, STREAM_BY_FDOPEN };
+		   STREAM_BY_FOPEN, STREAM_BY_FDOPEN, FILE_BY_MKSTEMP };
 
 extern struct my_file_info
 {
@@ -378,6 +378,9 @@ extern gptr my_once_alloc(uint Size,myf MyFlags);
 extern void my_once_free(void);
 extern my_string my_tempnam(const char *dir,const char *pfx,myf MyFlags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
+extern File my_register_filename(File fd, const char *FileName, 
+				 uint type_of_open, uint error_message_number,
+				 myf MyFlags);
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccsesFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);

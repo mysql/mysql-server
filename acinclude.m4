@@ -836,7 +836,10 @@ dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_BDB SECTION
 dnl ---------------------------------------------------------------------------
 
-#serial 12
+dnl ---------------------------------------------------------------------------
+dnl Got this from the GNU tar 1.13.11 distribution
+dnl by Paul Eggert <eggert@twinsun.com>
+dnl ---------------------------------------------------------------------------
 
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.
@@ -846,71 +849,122 @@ dnl http://www.sas.com/standards/large.file/x_open.20Mar96.html
 dnl Written by Paul Eggert <eggert@twinsun.com>.
 
 dnl Internal subroutine of AC_SYS_LARGEFILE.
-dnl AC_SYS_LARGEFILE_TEST_INCLUDES
-AC_DEFUN(AC_SYS_LARGEFILE_TEST_INCLUDES,
-  [[#include <sys/types.h>
-    int a[(off_t) 9223372036854775807 == 9223372036854775807 ? 1 : -1];
-  ]])
+dnl AC_SYS_LARGEFILE_FLAGS(FLAGSNAME)
+AC_DEFUN(AC_SYS_LARGEFILE_FLAGS,
+  [AC_CACHE_CHECK([for $1 value to request large file support],
+     ac_cv_sys_largefile_$1,
+     [if ($GETCONF LFS_$1) >conftest.1 2>conftest.2 && test ! -s conftest.2
+      then
+        ac_cv_sys_largefile_$1=`cat conftest.1`
+      else
+	ac_cv_sys_largefile_$1=no
+	ifelse($1, CFLAGS,
+	  [case "$host_os" in
+	   # HP-UX 10.20 requires -D__STDC_EXT__ with gcc 2.95.1.
+changequote(, )dnl
+	   hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
+changequote([, ])dnl
+	     if test "$GCC" = yes; then
+	       ac_cv_sys_largefile_CFLAGS=-D__STDC_EXT__
+	     fi
+	     ;;
+	   # IRIX 6.2 and later require cc -n32.
+changequote(, )dnl
+	   irix6.[2-9]* | irix6.1[0-9]* | irix[7-9].* | irix[1-9][0-9]*)
+changequote([, ])dnl
+	     if test "$GCC" != yes; then
+	       ac_cv_sys_largefile_CFLAGS=-n32
+	     fi
+	   esac
+	   if test "$ac_cv_sys_largefile_CFLAGS" != no; then
+	     ac_save_CC="$CC"
+	     CC="$CC $ac_cv_sys_largefile_CFLAGS"
+	     AC_TRY_LINK(, , , ac_cv_sys_largefile_CFLAGS=no)
+	     CC="$ac_save_CC"
+	   fi])
+      fi
+      rm -f conftest*])])
 
 dnl Internal subroutine of AC_SYS_LARGEFILE.
-dnl AC_SYS_LARGEFILE_MACRO_VALUE(C-MACRO, VALUE, CACHE-VAR, COMMENT, INCLUDES, FUNCTION-BODY)
+dnl AC_SYS_LARGEFILE_SPACE_APPEND(VAR, VAL)
+AC_DEFUN(AC_SYS_LARGEFILE_SPACE_APPEND,
+  [case $2 in
+   no) ;;
+   ?*)
+     case "[$]$1" in
+     '') $1=$2 ;;
+     *) $1=[$]$1' '$2 ;;
+     esac ;;
+   esac])
+
+dnl Internal subroutine of AC_SYS_LARGEFILE.
+dnl AC_SYS_LARGEFILE_MACRO_VALUE(C-MACRO, CACHE-VAR, COMMENT, CODE-TO-SET-DEFAULT)
 AC_DEFUN(AC_SYS_LARGEFILE_MACRO_VALUE,
-  [AC_CACHE_CHECK([for $1 value needed for large files], $3,
-     [$3=no
-      AC_TRY_COMPILE(AC_SYS_LARGEFILE_TEST_INCLUDES
-$5
-        ,
-	[$6], 
-	,
-	[AC_TRY_COMPILE([#define $1 $2]
-AC_SYS_LARGEFILE_TEST_INCLUDES
-$5
-	   ,
-	   [$6],
-	   [$3=$2])])])
-   if test "[$]$3" != no; then
-     AC_DEFINE_UNQUOTED([$1], [$]$3, [$4])
+  [AC_CACHE_CHECK([for $1], $2,
+     [$2=no
+changequote(, )dnl
+      $4
+      for ac_flag in $ac_cv_sys_largefile_CFLAGS no; do
+	case "$ac_flag" in
+	-D$1)
+	  $2=1 ;;
+	-D$1=*)
+	  $2=`expr " $ac_flag" : '[^=]*=\(.*\)'` ;;
+	esac
+      done
+changequote([, ])dnl
+      ])
+   if test "[$]$2" != no; then
+     AC_DEFINE_UNQUOTED([$1], [$]$2, [$3])
    fi])
 
 AC_DEFUN(AC_SYS_LARGEFILE,
-  [AC_ARG_ENABLE(largefile,
-     [  --disable-largefile     omit support for large files])
+  [AC_REQUIRE([AC_CANONICAL_HOST])
+   AC_ARG_ENABLE(largefile,
+     [  --disable-large-files   Omit support for large files])
    if test "$enable_largefile" != no; then
+     AC_CHECK_TOOL(GETCONF, getconf)
+     AC_SYS_LARGEFILE_FLAGS(CFLAGS)
+     AC_SYS_LARGEFILE_FLAGS(LDFLAGS)
+     AC_SYS_LARGEFILE_FLAGS(LIBS)
 
-     AC_CACHE_CHECK([for special C compiler options needed for large files],
-       ac_cv_sys_largefile_CC,
-       [ac_cv_sys_largefile_CC=no
-        if test "$GCC" != yes; then
-	  # IRIX 6.2 and later do not support large files by default,
-	  # so use the C compiler's -n32 option if that helps.
-	  AC_TRY_COMPILE(AC_SYS_LARGEFILE_TEST_INCLUDES, , ,
-	    [ac_save_CC="$CC"
-	     CC="$CC -n32"
-	     AC_TRY_COMPILE(AC_SYS_LARGEFILE_TEST_INCLUDES, ,
-	       ac_cv_sys_largefile_CC=' -n32')
-	     CC="$ac_save_CC"])
-        fi])
-     if test "$ac_cv_sys_largefile_CC" != no; then
-       CC="$CC$ac_cv_sys_largefile_CC"
-     fi
-
-     AC_SYS_LARGEFILE_MACRO_VALUE(_FILE_OFFSET_BITS, 64,
+     for ac_flag in $ac_cv_sys_largefile_CFLAGS no; do
+       case "$ac_flag" in
+       no) ;;
+       -D_FILE_OFFSET_BITS=*) ;;
+       -D_LARGEFILE_SOURCE | -D_LARGEFILE_SOURCE=*) ;;
+       -D_LARGE_FILES | -D_LARGE_FILES=*) ;;
+       -D?* | -I?*)
+	 AC_SYS_LARGEFILE_SPACE_APPEND(CPPFLAGS, "$ac_flag") ;;
+       *)
+	 AC_SYS_LARGEFILE_SPACE_APPEND(CFLAGS, "$ac_flag") ;;
+       esac
+     done
+     AC_SYS_LARGEFILE_SPACE_APPEND(LDFLAGS, "$ac_cv_sys_largefile_LDFLAGS")
+     AC_SYS_LARGEFILE_SPACE_APPEND(LIBS, "$ac_cv_sys_largefile_LIBS")
+     AC_SYS_LARGEFILE_MACRO_VALUE(_FILE_OFFSET_BITS,
        ac_cv_sys_file_offset_bits,
-       [Number of bits in a file offset, on hosts where this is settable.])
-     AC_SYS_LARGEFILE_MACRO_VALUE(_LARGEFILE_SOURCE, 1,
+       [Number of bits in a file offset, on hosts where this is settable.],
+       [case "$host_os" in
+	# HP-UX 10.20 and later
+	hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
+	  ac_cv_sys_file_offset_bits=64 ;;
+	esac])
+     AC_SYS_LARGEFILE_MACRO_VALUE(_LARGEFILE_SOURCE,
        ac_cv_sys_largefile_source,
-       [Define to make ftello visible on some hosts (e.g. HP-UX 10.20).],
-       [#include <stdio.h>], [return !ftello;])
-     AC_SYS_LARGEFILE_MACRO_VALUE(_LARGE_FILES, 1,
+       [Define to make fseeko etc. visible, on some hosts.],
+       [case "$host_os" in
+	# HP-UX 10.20 and later
+	hpux10.[2-9][0-9]* | hpux1[1-9]* | hpux[2-9][0-9]*)
+	  ac_cv_sys_largefile_source=1 ;;
+	esac])
+     AC_SYS_LARGEFILE_MACRO_VALUE(_LARGE_FILES,
        ac_cv_sys_large_files,
-       [Define for large files, on AIX-style hosts.])
-     if test "$IS_LINUX" = "true"; then
-       AC_DEFINE(_GNU_SOURCE)
-     else
-       AC_SYS_LARGEFILE_MACRO_VALUE(_XOPEN_SOURCE, 500,
-         ac_cv_sys_xopen_source,
-         [Define to make ftello visible on some hosts (e.g. glibc 2.1.3).],
-         [#include <stdio.h>], [return !ftello;])
-     fi
+       [Define for large files, on AIX-style hosts.],
+       [case "$host_os" in
+	# AIX 4.2 and later
+	aix4.[2-9]* | aix4.1[0-9]* | aix[5-9].* | aix[1-9][0-9]*)
+	  ac_cv_sys_large_files=1 ;;
+	esac])
    fi
   ])

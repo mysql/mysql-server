@@ -1158,7 +1158,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
     {
       char buff[21];
       sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,sizeof(buff),MYF(MY_WME));
+      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
       (void) my_close(pidFile,MYF(0));
     }
   }

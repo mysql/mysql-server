@@ -470,7 +470,8 @@ AC_ARG_WITH(mysqld-user,
     )
 AC_SUBST(MYSQLD_USER)
 
-# Use Paul Eggert's macros to check for large file support
+# Use Paul Eggerts macros from GNU tar to check for large file
+# support.
 AC_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
