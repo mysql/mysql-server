@@ -1,0 +1,147 @@
+#!/usr/bin/perl -w
+#
+# Do-pkg - convert a binary distribution into a Mac OS X PKG and put it
+# inside a Disk Image (.dmg)
+#
+# Use the "--help" option for more info!
+#
+# written by Lenz Grimmer <lenz@mysql.com>
+#
+
+use Getopt::Long;
+
+$opt_help= undef;
+$opt_suffix= undef;
+$opt_version= undef;
+
+GetOptions(
+	"help|h",
+	"suffix=s",
+	"version=s",
+) || &print_help;
+
+&print_help if ($opt_help || !$opt_suffix || !$opt_version);
+
+$PM= "/Developer/Applications/PackageMaker.app/Contents/MacOS/PackageMaker";
+$HOME= $ENV{HOME};
+$TMP= "/tmp/PKGBUILD";
+$PKGROOT= "$TMP/PMROOT";
+$PKGDEST= "$TMP/PKG";
+$RESOURCE_DIR= "$TMP/Resources";
+$SUFFIX= $opt_suffix;
+$VERSION= $opt_version;
+$NAME= "mysql$SUFFIX-$VERSION";
+chomp($HOST= `hostname`);
+$HOST=~ /^([^.-]*)/;
+$HOST= $1;
+$BUILDDIR= "$HOME/$HOST";
+$SUPFILEDIR= <$BUILDDIR/mysql*-$VERSION/support-files/MacOSX>;
+$TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc.tar.gz>;
+$INFO= <$SUPFILEDIR/Info.plist>;
+$DESC= <$SUPFILEDIR/Description.plist>;
+@RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
+
+print "TAR: $TAR\nINFO: $INFO\nDESC: $DESC\n";
+
+# Creating the UFS disk image requires root privileges
+chomp($ID= `whoami`);
+die "You must be root to run this script!\nUse \"sudo\" or become root first.\n" if ($ID ne "root");
+
+foreach $file ($TAR, $INFO, $DESC)
+{
+	die "Unable to find $file!\n" if (!-f $file);
+}
+
+# Remove old temporary build directories first
+system ("rm -rf $TMP");
+print "Creating temp directories\n";
+foreach $dir ($TMP, $PKGROOT, $PKGDEST, $RESOURCE_DIR)
+{
+	if (!-d $dir)
+	{
+		mkdir $dir;
+	}
+}
+
+foreach $resfile (@RESOURCES)
+{
+	system ("cp $SUPFILEDIR/$resfile $RESOURCE_DIR") == 0 or die "Error while copying $SUPFILEDIR/$resfile to $RESOURCE_DIR: ?!";
+}
+
+# Extract the binary tarball and create the "mysql" symlink
+print "Extracting $TAR to $PKGROOT\n";
+system("gnutar zxf $TAR -C $PKGROOT") if (-f $TAR);
+system("cd $PKGROOT ; ln -s mysql* ./mysql");
+system("chown -R root.wheel $PKGROOT/*");
+
+# Now build the PGK using PackageMaker
+print "Running PackageMaker\n";
+system("$PM -build -p $PKGDEST/$NAME.pkg -f $PKGROOT -r $RESOURCE_DIR -i $INFO -d $DESC") or die "Error while building package: $!\n";
+
+print "Removing $PKGROOT\n";
+system("rm -rf $PKGROOT");
+
+# Determine the size of the Disk image to be created and add a 5% safety
+# margin for filesystem overhead
+print "Determining required disk image size for $PKGDEST: ";
+chomp($_= `du -sk $PKGDEST`);
+@size= split();
+$size= int($size[0]+($size[0]*0.05));
+print "$size KB\n";
+
+die "Zero bytes? Something is wrong here!\n" if ($size == 0);
+
+# Now create and mount the disk image
+$TMPNAME= $NAME . ".tmp";
+print "Creating temporary Disk image $TMPNAME\n";
+system("hdiutil create $TMPNAME -size ${size}k -ov -fs UFS -volname $NAME");
+print "Result: $!\n";
+print "Attaching Disk image $TMPNAME.dmg\n";
+system("hdid $TMPNAME.dmg");
+print "Result: $!\n";
+
+# Install the PKG into the .dmg
+chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f3 -d" "`);
+print "Copying $PKGDEST/$NAME.pkg to Disk image /Volumes/$NAME\n";
+system("ditto $PKGDEST /Volumes/$NAME");
+system("ditto $RESOURCE_DIR/ReadMe.txt /Volumes/$NAME");
+chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f1 -d" "`);
+die "/Volumes/$NAME not attached!\n" if (!$mountpoint);
+print "Unmounting $mountpoint\n";
+system("hdiutil detach $mountpoint");
+print "Result: $!\n";
+unlink ("$NAME.dmg") if (-f "$NAME.dmg");
+print "Compressing disk image\n";
+system("hdiutil convert $TMPNAME.dmg -format UDZO -imagekey zlib-level=9 -o $NAME.dmg");
+
+# Final cleanups
+print "Removing $TMPNAME.dmg\n";
+unlink ("$TMPNAME.dmg");
+print "Removing $TMP\n";
+system("rm -rf $TMP");
+
+print "$NAME.dmg created.\n";
+exit 0;
+
+sub print_help
+{
+	print <<EOF;
+
+Usage: Do-pkg --suffix=<suffix> --version=<version>
+
+Creates a Mac OS X installation package (PKG) and stores it inside
+a Disk Image (.dmg) file. You need to create a binary distribution
+tarball with scripts/make_binary_distribution first!
+
+NOTE: You need to run this script with root privileges (required
+      to create the disk image)
+
+Options:
+
+-h, --help                    Print this help
+    --suffix=<suffix>         The package suffix (e.g. "-standard" or "-pro)
+    --version=<version>       The MySQL version number (e.g. 4.0.11-gamma)
+
+EOF
+	exit 1;
+}
