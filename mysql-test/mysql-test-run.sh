@@ -331,6 +331,7 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=120
+      USE_RUNNING_SERVER=""
       ;;
     --valgrind-options=*)
       TMP=`$ECHO "$1" | $SED -e "s;--valgrind-options=;;"`
