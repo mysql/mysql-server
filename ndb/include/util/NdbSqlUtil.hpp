@@ -95,7 +95,9 @@ public:
       Time = NDB_TYPE_TIME,
       Year = NDB_TYPE_YEAR,
       Timestamp = NDB_TYPE_TIMESTAMP,
-      Olddecimalunsigned = NDB_TYPE_OLDDECIMALUNSIGNED
+      Olddecimalunsigned = NDB_TYPE_OLDDECIMALUNSIGNED,
+      Decimal = NDB_TYPE_DECIMAL,
+      Decimalunsigned = NDB_TYPE_DECIMALUNSIGNED
     };
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
@@ -172,6 +174,8 @@ private:
   static Cmp cmpYear;
   static Cmp cmpTimestamp;
   static Cmp cmpOlddecimalunsigned;
+  static Cmp cmpDecimal;
+  static Cmp cmpDecimalunsigned;
 };
 
 #endif
