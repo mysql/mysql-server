@@ -176,7 +176,8 @@ THD::~THD()
   
   if (host != localhost)			// If not pointer to constant
     safeFree(host);
-  safeFree(user);
+  if (user != delayed_user)
+    safeFree(user);
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
