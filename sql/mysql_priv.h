@@ -1201,6 +1201,23 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 
 
 /*
+  SYNOPSYS
+    hexchar_to_int()
+    convert a hex digit into number
+*/
+
+inline int hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
+}
+
+
+/*
   Some functions that are different in the embedded library and the normal
   server
 */
