@@ -6728,9 +6728,9 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c EMAIL: mysql@widexs.nl (Wouter de Jong)
-@image{Flags/netherlands} Netherlands [Widexs BV] @
-@uref{http://mysql.widexs.nl/, WWW}
-@uref{ftp://mysql.widexs.nl/pub/mysql/, FTP}
+@image{Flags/netherlands} Netherlands [WideXS BV] @
+@uref{http://mysql.mirror.widexs.nl/, WWW}
+@uref{ftp://mirror.widexs.nl/pub/mysql/, FTP}
 
 @item
 @c EMAIL: peter@proserve.nl (ProServe - Peter Batenburg)
