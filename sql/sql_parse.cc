@@ -3252,6 +3252,27 @@ create_error:
       thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
     thd->in_lock_tables=0;
     break;
+  case SQLCOM_LOCK_TABLES_TRANSACTIONAL:
+  {
+    uint counter = 0;
+
+    if (check_db_used(thd, all_tables))
+      goto error;
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
+      goto error;
+
+    thd->in_lock_tables=1;
+    thd->options|= OPTION_TABLE_LOCK;
+
+    if (open_tables(thd, all_tables, &counter) == 0 &&
+        transactional_lock_tables(thd, all_tables, counter) == 0)
+        send_ok(thd);
+    else
+      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+
+    thd->in_lock_tables=0;
+    break;
+  }
   case SQLCOM_CREATE_DB:
   {
     char *alias;
