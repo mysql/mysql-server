@@ -707,9 +707,11 @@ void unireg_end(int signal_number __attribute__((unused)))
 
 void unireg_abort(int exit_code)
 {
+  DBUG_ENTER("unireg_abort");
   if (exit_code)
     sql_print_error("Aborting\n");
   clean_up(); /* purecov: inspected */
+  DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   my_thread_end();
   exit(exit_code); /* purecov: inspected */
 }
@@ -760,13 +762,15 @@ void clean_up(bool print_message)
   if (print_message && errmesg)
     sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
-
+  DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
+  DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  DBUG_PRINT("quit", ("done with cleanup"));
 } /* clean_up */
 
 

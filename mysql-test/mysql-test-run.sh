@@ -164,7 +164,10 @@ while test $# -gt 0; do
      --ssl-cert=$BASEDIR/SSL/server-cert.pem \
      --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
     --no-manager | --skip-manager) USE_MANAGER=0 ;;
-    --manager)                     USE_MANAGER=1 ;;
+    --manager)
+     USE_MANAGER=1
+     USE_RUNNING_SERVER=
+     ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -210,6 +213,7 @@ while test $# -gt 0; do
     --gdb )
       START_WAIT_TIMEOUT=300
       STOP_WAIT_TIMEOUT=300
+      USE_MANAGER=1
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
@@ -255,6 +259,8 @@ done
 #--
 
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
+MANAGER_PID_FILE="$MYRUN_DIR/manager.pid"
+
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
@@ -550,10 +556,20 @@ start_manager()
   return
  fi
  $ECHO "Starting MySQL Manager"
+ if [ -f "$MANAGER_PID_FILE" ] ; then
+    kill `cat $MANAGER_PID_FILE`
+    sleep 1
+    if [ -f "$MANAGER_PID_FILE" ] ; then
+     kill -9 `cat $MANAGER_PID_FILE`
+     sleep 1
+    fi
+ fi
+
+ rm -f $MANAGER_PID_FILE
  MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
  -o $MYSQL_MANAGER_PW_FILE`
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
-  --password-file=$MYSQL_MANAGER_PW_FILE
+  --password-file=$MYSQL_MANAGER_PW_FILE --pid-file=$MANAGER_PID_FILE
   abort_if_failed "Could not start MySQL manager"
   mysqltest_manager_args="--manager-host=localhost \
   --manager-user=$MYSQL_MANAGER_USER \
@@ -562,7 +578,10 @@ start_manager()
   --manager-wait-timeout=$START_WAIT_TIMEOUT"
   MYSQL_TEST="$MYSQL_TEST $mysqltest_manager_args"
   MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS $mysqltest_manager_args"
-  
+  while [ ! -f $MANAGER_PID_FILE ] ; do
+   sleep 1
+  done
+  echo "Manager started"
 }
 
 stop_manager()
@@ -574,6 +593,8 @@ stop_manager()
   -p$MYSQL_MANAGER_PW -P $MYSQL_MANAGER_PORT <<EOF
 shutdown
 EOF
+ echo "Manager terminated"
+
 }
 
 manager_launch()

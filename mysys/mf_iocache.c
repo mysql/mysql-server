@@ -46,6 +46,7 @@ static void my_aiowait(my_aio_result *result);
 #endif
 
 static void init_read_function(IO_CACHE* info, enum cache_type type);
+static void init_write_function(IO_CACHE* info, enum cache_type type);
 
 static void init_read_function(IO_CACHE* info, enum cache_type type)
 {
@@ -66,6 +67,18 @@ static void init_read_function(IO_CACHE* info, enum cache_type type)
     break;
   default:
     info->read_function = _my_b_read;
+  }
+}
+
+static void init_write_function(IO_CACHE* info, enum cache_type type)
+{
+  switch (type)
+  {
+  case SEQ_READ_APPEND:
+    info->write_function = _my_b_append;
+    break;
+  default:
+    info->write_function = _my_b_write;
   }
 }
 
@@ -91,6 +104,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
     if (! (cachesize= my_default_record_cache_size))
       DBUG_RETURN(1);				/* No cache requested */
   min_cache=use_async_io ? IO_SIZE*4 : IO_SIZE*2;
+  info->alloced_buffer = 0;
   if (type == READ_CACHE || type == SEQ_READ_APPEND)
   {						/* Assume file isn't growing */
     if (cache_myflags & MY_DONT_CHECK_FILESIZE)
@@ -117,7 +131,6 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
       }
     }
   }
-  info->alloced_buffer = 0;
   if ((int) type < (int) READ_NET)
   {
     uint buffer_block;
@@ -156,8 +169,9 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->rc_request_pos=info->rc_pos=info->buffer;
   if (type == SEQ_READ_APPEND)
   {
-    info->append_read_pos = info->append_write_pos = info->append_buffer;
-    info->append_end = info->append_buffer + info->buffer_length;
+    info->append_read_pos = info->write_pos = info->append_buffer;
+    info->write_end = info->append_end =
+      info->append_buffer + info->buffer_length;
 #ifdef THREAD    
     pthread_mutex_init(&info->append_buffer_lock,MY_MUTEX_INIT_FAST);
 #endif    
@@ -170,7 +184,9 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   }
   else /* type == WRITE_CACHE */
   {
-    info->rc_end=info->buffer+info->buffer_length- (seek_offset & (IO_SIZE-1));
+    info->write_end=
+      info->buffer+info->buffer_length- (seek_offset & (IO_SIZE-1));
+    info->write_pos = info->buffer;
   }
   /* end_of_file may be changed by user later */
   info->end_of_file= ((type == READ_NET || type == READ_FIFO ) ? 0
@@ -178,6 +194,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->type=type;
   info->error=0;
   init_read_function(info,type);
+  init_write_function(info,type);
 #ifdef HAVE_AIOWAIT
   if (use_async_io && ! my_disable_async_io)
   {
@@ -238,16 +255,22 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   {						/* use current buffer */
     if (info->type == WRITE_CACHE && type == READ_CACHE)
     {
-      info->rc_end=info->rc_pos;
+      info->rc_end=info->write_pos;
       info->end_of_file=my_b_tell(info);
     }
     else if (type == WRITE_CACHE)
     {
       if (info->type == READ_CACHE)
-	info->rc_end=info->buffer+info->buffer_length;
+      {
+	info->write_end=info->buffer+info->buffer_length;
+	info->write_pos=info->rc_pos;
+      }
       info->end_of_file = ~(my_off_t) 0;
     }
-    info->rc_pos=info->rc_request_pos+(seek_offset-info->pos_in_file);
+    if (type == WRITE_CACHE)
+      info->write_pos=info->rc_request_pos+(seek_offset-info->pos_in_file);
+    else  
+      info->rc_pos=info->rc_request_pos+(seek_offset-info->pos_in_file);
 #ifdef HAVE_AIOWAIT
     my_aiowait(&info->aio_result);		/* Wait for outstanding req */
 #endif
@@ -283,11 +306,12 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   }
   if (info->type == SEQ_READ_APPEND)
   {
-    info->append_read_pos = info->append_write_pos = info->append_buffer;
+    info->append_read_pos = info->write_pos = info->append_buffer;
   }
   info->type=type;
   info->error=0;
   init_read_function(info,type);
+  init_write_function(info,type);
 #ifdef HAVE_AIOWAIT
   if (type != READ_NET)
   {
@@ -473,8 +497,8 @@ read_append_buffer:
   if (!Count) return 0;
   {
     uint copy_len = (uint)(info->append_read_pos -
-			   info->append_write_pos);
-    dbug_assert(info->append_read_pos <= info->append_write_pos);
+			   info->write_pos);
+    dbug_assert(info->append_read_pos <= info->write_pos);
     if (copy_len > Count)
       copy_len = Count;
     memcpy(Buffer, info->append_read_pos,
@@ -679,11 +703,11 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
 {
   uint rest_length,length;
 
-  rest_length=(uint) (info->rc_end - info->rc_pos);
-  memcpy(info->rc_pos,Buffer,(size_t) rest_length);
+  rest_length=(uint) (info->write_end - info->write_pos);
+  memcpy(info->write_pos,Buffer,(size_t) rest_length);
   Buffer+=rest_length;
   Count-=rest_length;
-  info->rc_pos+=rest_length;
+  info->write_pos+=rest_length;
   if (info->pos_in_file+info->buffer_length > info->end_of_file)
   {
     my_errno=errno=EFBIG;
@@ -705,8 +729,8 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
     Buffer+=length;
     info->pos_in_file+=length;
   }
-  memcpy(info->rc_pos,Buffer,(size_t) Count);
-  info->rc_pos+=Count;
+  memcpy(info->write_pos,Buffer,(size_t) Count);
+  info->write_pos+=Count;
   return 0;
 }
 
@@ -715,11 +739,11 @@ int _my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   uint rest_length,length;
 
   rest_length=(uint) (info->append_end -
-		      info->append_write_pos);
-  memcpy(info->append_write_pos,Buffer,(size_t) rest_length);
+		      info->write_pos);
+  memcpy(info->write_pos,Buffer,(size_t) rest_length);
   Buffer+=rest_length;
   Count-=rest_length;
-  info->append_write_pos+=rest_length;
+  info->write_pos+=rest_length;
   if (flush_io_cache(info))
     return 1;
   if (Count >= IO_SIZE)
@@ -730,8 +754,8 @@ int _my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
     Count-=length;
     Buffer+=length;
   }
-  memcpy(info->append_write_pos,Buffer,(size_t) Count);
-  info->append_write_pos+=Count;
+  memcpy(info->write_pos,Buffer,(size_t) Count);
+  info->write_pos+=Count;
   return 0;
 }
 
@@ -775,8 +799,8 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
     Buffer+=length;
     Count-= length;
     /* Fix length of buffer if the new data was larger */
-    if (info->buffer+length > info->rc_pos)
-      info->rc_pos=info->buffer+length;
+    if (info->buffer+length > info->write_pos)
+      info->write_pos=info->buffer+length;
     if (!Count)
       return (error);
   }
@@ -786,62 +810,61 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
   return error;
 }
 
+/* avoid warning about empty if body */
+#ifdef THREAD
+#define IF_APPEND_CACHE if (append_cache)
+#else
+#define IF_APPEND_CACHE
+#endif
+
 	/* Flush write cache */
 
 int flush_io_cache(IO_CACHE *info)
 {
   uint length;
+  int append_cache;
   DBUG_ENTER("flush_io_cache");
-
-  if (info->type == WRITE_CACHE)
+  append_cache = (info->type == SEQ_READ_APPEND);
+  if (info->type == WRITE_CACHE || append_cache)
   {
     if (info->file == -1)
     {
       if (real_open_cached_file(info))
 	DBUG_RETURN((info->error= -1));
     }
-    if (info->rc_pos != info->buffer)
+    IF_APPEND_CACHE
+      lock_append_buffer(info);
+    if (info->write_pos != info->buffer)
     {
-      length=(uint) (info->rc_pos - info->buffer);
+      length=(uint) (info->write_pos - info->buffer);
       if (info->seek_not_done)
       {					/* File touched, do seek */
 	if (my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)) ==
 	    MY_FILEPOS_ERROR)
+	{
+	  IF_APPEND_CACHE
+	    unlock_append_buffer(info);
 	  DBUG_RETURN((info->error= -1));
+	}
 	info->seek_not_done=0;
       }
-      info->rc_pos=info->buffer;
+      info->write_pos=info->buffer;
       info->pos_in_file+=length;
-      info->rc_end=(info->buffer+info->buffer_length-
+      info->write_end=(info->buffer+info->buffer_length-
 		    (info->pos_in_file & (IO_SIZE-1)));
-      if (my_write(info->file,info->buffer,length,info->myflags | MY_NABP))
-	DBUG_RETURN((info->error= -1));
-      DBUG_RETURN(0);
-    }
-  }
-  else if (info->type == SEQ_READ_APPEND)
-  {
-    if (info->file == -1)
-    {
-      if (real_open_cached_file(info))
-	DBUG_RETURN((info->error= -1));
-    }
-    lock_append_buffer(info);
-    if (info->append_write_pos != info->append_buffer)
-    {
-      length=(uint) (info->append_write_pos - info->append_buffer);
-      info->append_read_pos=info->append_write_pos=info->append_buffer;
-      info->append_end=(info->append_buffer+info->buffer_length-
-		    (info->pos_in_file & (IO_SIZE-1)));
-      if (my_write(info->file,info->buffer,length,info->myflags | MY_NABP))
+      if (append_cache)
       {
-	unlock_append_buffer(info);
-	DBUG_RETURN((info->error= -1));
+	info->append_read_pos = info->buffer;
+	info->append_end = info->write_end;
       }
-      unlock_append_buffer(info);
-      DBUG_RETURN(0);
+      if (my_write(info->file,info->buffer,length,info->myflags | MY_NABP))
+        info->error= -1;
+      else
+	info->error= 0;
+      IF_APPEND_CACHE
+        unlock_append_buffer(info);
+      DBUG_RETURN(info->error);
     }
-    unlock_append_buffer(info);
   }
 #ifdef HAVE_AIOWAIT
   else if (info->type != READ_NET)
@@ -867,6 +890,7 @@ int end_io_cache(IO_CACHE *info)
       error=flush_io_cache(info);
     my_free((gptr) info->buffer,MYF(MY_WME));
     info->buffer=info->rc_pos=(byte*) 0;
+    info->alloced_buffer = 0;
   }
   DBUG_RETURN(error);
 } /* end_io_cache */
