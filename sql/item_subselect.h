@@ -134,7 +134,7 @@ public:
   void reset();
   trans_res select_transformer(JOIN *join);
   void store(uint i, Item* item);
-  double val();
+  double val_real();
   longlong val_int ();
   String *val_str (String *);
   enum Item_result result_type() const;
@@ -179,7 +179,7 @@ public:
 
   enum Item_result result_type() const { return INT_RESULT;}
   longlong val_int();
-  double val();
+  double val_real();
   String *val_str(String*);
   void fix_length_and_dec();
   void print(String *str);
@@ -224,7 +224,7 @@ public:
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
   longlong val_int();
-  double val();
+  double val_real();
   String *val_str(String*);
   void top_level_item() { abort_on_null=1; }
   bool test_limit(st_select_lex_unit *unit);

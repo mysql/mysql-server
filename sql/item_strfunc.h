@@ -32,7 +32,7 @@ public:
   Item_str_func(Item *a,Item *b,Item *c,Item *d, Item* e) :Item_func(a,b,c,d,e) {decimals=NOT_FIXED_DEC; }
   Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
   longlong val_int();
-  double val();
+  double val_real();
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
 };
@@ -377,7 +377,7 @@ class Item_func_elt :public Item_str_func
 {
 public:
   Item_func_elt(List<Item> &list) :Item_str_func(list) {}
-  double val();
+  double val_real();
   longlong val_int();
   String *val_str(String *str);
   void fix_length_and_dec();

@@ -263,7 +263,7 @@ class Item_func_x: public Item_real_func
   String value;
 public:
   Item_func_x(Item *a): Item_real_func(a) {}
-  double val();
+  double val_real();
   const char *func_name() const { return "x"; }
 };
 
@@ -273,7 +273,7 @@ class Item_func_y: public Item_real_func
   String value;
 public:
   Item_func_y(Item *a): Item_real_func(a) {}
-  double val();
+  double val_real();
   const char *func_name() const { return "y"; }
 };
 
@@ -316,7 +316,7 @@ class Item_func_area: public Item_real_func
   String value;
 public:
   Item_func_area(Item *a): Item_real_func(a) {}
-  double val();
+  double val_real();
   const char *func_name() const { return "area"; }
 };
 
@@ -326,7 +326,7 @@ class Item_func_glength: public Item_real_func
   String value;
 public:
   Item_func_glength(Item *a): Item_real_func(a) {}
-  double val();
+  double val_real();
   const char *func_name() const { return "glength"; }
 };
 

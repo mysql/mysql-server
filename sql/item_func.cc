@@ -516,7 +516,7 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
 String *Item_real_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return 0; /* purecov: inspected */
   str->set(nr,decimals, &my_charset_bin);
@@ -539,7 +539,7 @@ String *Item_num_func::val_str(String *str)
   }
   else
   {
-    double nr=val();
+    double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
     str->set(nr,decimals,&my_charset_bin);
@@ -616,7 +616,7 @@ String *Item_num_op::val_str(String *str)
   }
   else
   {
-    double nr=val();
+    double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
     str->set(nr,decimals,&my_charset_bin);
@@ -643,10 +643,10 @@ void Item_func_unsigned::print(String *str)
 }
 
 
-double Item_func_plus::val()
+double Item_func_plus::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val()+args[1]->val();
+  double value= args[0]->val_real() + args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
   return value;
@@ -662,7 +662,7 @@ longlong Item_func_plus::val_int()
       return 0;
     return value;
   }
-  return (longlong) Item_func_plus::val();
+  return (longlong) Item_func_plus::val_real();
 }
 
 
@@ -680,10 +680,10 @@ void Item_func_minus::fix_length_and_dec()
 }
 
 
-double Item_func_minus::val()
+double Item_func_minus::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val() - args[1]->val();
+  double value= args[0]->val_real() - args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
   return value;
@@ -699,14 +699,14 @@ longlong Item_func_minus::val_int()
       return 0;
     return value;
   }
-  return (longlong) Item_func_minus::val();
+  return (longlong) Item_func_minus::val_real();
 }
 
 
-double Item_func_mul::val()
+double Item_func_mul::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val()*args[1]->val();
+  double value= args[0]->val_real() * args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
   return value;
@@ -722,15 +722,15 @@ longlong Item_func_mul::val_int()
       return 0; /* purecov: inspected */
     return value;
   }
-  return (longlong) Item_func_mul::val();
+  return (longlong) Item_func_mul::val_real();
 }
 
 
-double Item_func_div::val()
+double Item_func_div::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
-  double val2=args[1]->val();
+  double value= args[0]->val_real();
+  double val2= args[1]->val_real();
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0;
   if (val2 == 0.0)
@@ -758,7 +758,7 @@ longlong Item_func_div::val_int()
     }
     return value/val2;
   }
-  return (longlong) Item_func_div::val();
+  return (longlong) Item_func_div::val_real();
 }
 
 
@@ -800,11 +800,11 @@ void Item_func_int_div::fix_length_and_dec()
 }
 
 
-double Item_func_mod::val()
+double Item_func_mod::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= args[0]->val();
-  double val2=  args[1]->val();
+  double value= args[0]->val_real();
+  double val2=  args[1]->val_real();
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
   if (val2 == 0.0)
@@ -836,10 +836,10 @@ void Item_func_mod::fix_length_and_dec()
 }
 
 
-double Item_func_neg::val()
+double Item_func_neg::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return -value;
 }
@@ -879,10 +879,10 @@ void Item_func_neg::fix_length_and_dec()
 }
 
 
-double Item_func_abs::val()
+double Item_func_abs::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return fabs(value);
 }
@@ -911,10 +911,10 @@ void Item_func_abs::fix_length_and_dec()
 
 
 /* Gateway to natural LOG function */
-double Item_func_ln::val()
+double Item_func_ln::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
   return log(value);
@@ -925,15 +925,15 @@ double Item_func_ln::val()
  We have to check if all values are > zero and first one is not one
  as these are the cases then result is not a number.
 */ 
-double Item_func_log::val()
+double Item_func_log::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
   if (arg_count == 2)
   {
-    double value2= args[1]->val();
+    double value2= args[1]->val_real();
     if ((null_value=(args[1]->null_value || value2 <= 0.0 || value == 1.0)))
       return 0.0;
     return log(value2) / log(value);
@@ -941,47 +941,47 @@ double Item_func_log::val()
   return log(value);
 }
 
-double Item_func_log2::val()
+double Item_func_log2::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
   return log(value) / M_LN2;
 }
 
-double Item_func_log10::val()
+double Item_func_log10::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0; /* purecov: inspected */
   return log10(value);
 }
 
-double Item_func_exp::val()
+double Item_func_exp::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0; /* purecov: inspected */
   return exp(value);
 }
 
-double Item_func_sqrt::val()
+double Item_func_sqrt::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || value < 0)))
     return 0.0; /* purecov: inspected */
   return sqrt(value);
 }
 
-double Item_func_pow::val()
+double Item_func_pow::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
-  double val2=args[1]->val();
+  double value= args[0]->val_real();
+  double val2= args[1]->val_real();
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0.0; /* purecov: inspected */
   return pow(value,val2);
@@ -989,35 +989,35 @@ double Item_func_pow::val()
 
 // Trigonometric functions
 
-double Item_func_acos::val()
+double Item_func_acos::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value=args[0]->val();
+  volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return fix_result(acos(value));
 }
 
-double Item_func_asin::val()
+double Item_func_asin::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value=args[0]->val();
+  volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return fix_result(asin(value));
 }
 
-double Item_func_atan::val()
+double Item_func_atan::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
   if (arg_count == 2)
   {
-    double val2= args[1]->val();
+    double val2= args[1]->val_real();
     if ((null_value=args[1]->null_value))
       return 0.0;
     return fix_result(atan2(value,val2));
@@ -1025,28 +1025,28 @@ double Item_func_atan::val()
   return fix_result(atan(value));
 }
 
-double Item_func_cos::val()
+double Item_func_cos::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
   return fix_result(cos(value));
 }
 
-double Item_func_sin::val()
+double Item_func_sin::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
   return fix_result(sin(value));
 }
 
-double Item_func_tan::val()
+double Item_func_tan::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
   return fix_result(tan(value));
@@ -1110,7 +1110,7 @@ void Item_func_integer::fix_length_and_dec()
 longlong Item_func_ceiling::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return (longlong) ceil(value);
 }
@@ -1119,7 +1119,7 @@ longlong Item_func_floor::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   // the volatile's for BUG #3051 to calm optimizer down (because of gcc's bug)
-  volatile double value=args[0]->val();
+  volatile double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return (longlong) floor(value);
 }
@@ -1138,10 +1138,10 @@ void Item_func_round::fix_length_and_dec()
   }
 }
 
-double Item_func_round::val()
+double Item_func_round::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   int dec=(int) args[1]->val_int();
   uint abs_dec=abs(dec);
   double tmp;
@@ -1224,7 +1224,7 @@ void Item_func_rand::update_used_tables()
 }
 
 
-double Item_func_rand::val()
+double Item_func_rand::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   return my_rnd(rand);
@@ -1233,16 +1233,16 @@ double Item_func_rand::val()
 longlong Item_func_sign::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   null_value=args[0]->null_value;
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
 }
 
 
-double Item_func_units::val()
+double Item_func_units::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=args[0]->val();
+  double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0;
   return value*mul+add;
@@ -1288,7 +1288,7 @@ String *Item_func_min_max::val_str(String *str)
   }
   case REAL_RESULT:
   {
-    double nr=val();
+    double nr= val_real();
     if (null_value)
       return 0; /* purecov: inspected */
     str->set(nr,decimals,&my_charset_bin);
@@ -1332,7 +1332,7 @@ String *Item_func_min_max::val_str(String *str)
 }
 
 
-double Item_func_min_max::val()
+double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double value=0.0;
@@ -1341,12 +1341,12 @@ double Item_func_min_max::val()
   {
     if (null_value)
     {
-      value=args[i]->val();
+      value= args[i]->val_real();
       null_value=args[i]->null_value;
     }
     else
     {
-      double tmp=args[i]->val();
+      double tmp= args[i]->val_real();
       if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
 	value=tmp;
     }
@@ -1502,10 +1502,10 @@ longlong Item_func_field::val_int()
   }
   else
   {
-    double val= args[0]->val();
+    double val= args[0]->val_real();
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val())
+      if (val == args[i]->val_real())
  	return (longlong) (i);
     }
   }
@@ -1818,7 +1818,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	}
 	break;
       case Item::REAL_ITEM:
-	*((double*) to) = arguments[i]->val();
+	*((double*) to)= arguments[i]->val_real();
 	if (!arguments[i]->null_value)
 	{
 	  f_args.args[i]=to;
@@ -1885,7 +1885,7 @@ bool udf_handler::get_arguments()
       }
       break;
     case REAL_RESULT:
-      *((double*) to) = args[i]->val();
+      *((double*) to)= args[i]->val_real();
       if (!args[i]->null_value)
       {
 	f_args.args[i]=to;
@@ -1940,7 +1940,7 @@ String *udf_handler::val_str(String *str,String *save_str)
 
 
 
-double Item_func_udf_float::val()
+double Item_func_udf_float::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_float::val");
@@ -1953,7 +1953,7 @@ double Item_func_udf_float::val()
 String *Item_func_udf_float::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return 0;					/* purecov: inspected */
   str->set(nr,decimals,&my_charset_bin);
@@ -2374,7 +2374,7 @@ longlong Item_func_benchmark::val_int()
   {
     switch (args[0]->result_type()) {
     case REAL_RESULT:
-      (void) args[0]->val();
+      (void) args[0]->val_real();
       break;
     case INT_RESULT:
       (void) args[0]->val_int();
@@ -2658,7 +2658,7 @@ Item_func_set_user_var::check()
   switch (cached_result_type) {
   case REAL_RESULT:
   {
-    save_result.vreal= args[0]->val();
+    save_result.vreal= args[0]->val_real();
     break;
   }
   case INT_RESULT:
@@ -2739,7 +2739,7 @@ Item_func_set_user_var::update()
 }
 
 
-double Item_func_set_user_var::val()
+double Item_func_set_user_var::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   check();
@@ -2795,7 +2795,7 @@ Item_func_get_user_var::val_str(String *str)
 }
 
 
-double Item_func_get_user_var::val()
+double Item_func_get_user_var::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (!var_entry)
@@ -3266,7 +3266,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 }
 
 
-double Item_func_match::val()
+double Item_func_match::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_match::val");

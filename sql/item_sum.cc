@@ -143,7 +143,7 @@ String *
 Item_sum_num::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return 0;
   str->set(nr,decimals, &my_charset_bin);
@@ -267,14 +267,14 @@ void Item_sum_sum::clear()
 
 bool Item_sum_sum::add()
 {
-  sum+=args[0]->val();
+  sum+= args[0]->val_real();
   if (!args[0]->null_value)
     null_value= 0;
   return 0;
 }
 
 
-double Item_sum_sum::val()
+double Item_sum_sum::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   return sum;
@@ -359,8 +359,8 @@ void Item_sum_sum_distinct::clear()
 
 bool Item_sum_sum_distinct::add()
 {
-  /* args[0]->val() may reset args[0]->null_value */
-  double val= args[0]->val();
+  /* args[0]->val_real() may reset args[0]->null_value */
+  double val= args[0]->val_real();
   if (!args[0]->null_value)
   {
     DBUG_ASSERT(tree);
@@ -383,7 +383,7 @@ static int sum_sum_distinct(void *element, element_count num_of_dups,
 
 C_MODE_END
 
-double Item_sum_sum_distinct::val()
+double Item_sum_sum_distinct::val_real()
 {
   /*
     We don't have a tree only if 'setup()' hasn't been called;
@@ -456,7 +456,7 @@ void Item_sum_avg::clear()
 
 bool Item_sum_avg::add()
 {
-  double nr=args[0]->val();
+  double nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     sum+=nr;
@@ -465,7 +465,7 @@ bool Item_sum_avg::add()
   return 0;
 }
 
-double Item_sum_avg::val()
+double Item_sum_avg::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (!count)
@@ -482,10 +482,10 @@ double Item_sum_avg::val()
   Standard deviation
 */
 
-double Item_sum_std::val()
+double Item_sum_std::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double tmp= Item_sum_variance::val();
+  double tmp= Item_sum_variance::val_real();
   return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
 
@@ -513,7 +513,7 @@ void Item_sum_variance::clear()
 
 bool Item_sum_variance::add()
 {
-  double nr=args[0]->val();
+  double nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     sum+=nr;
@@ -523,7 +523,7 @@ bool Item_sum_variance::add()
   return 0;
 }
 
-double Item_sum_variance::val()
+double Item_sum_variance::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (!count)
@@ -540,7 +540,7 @@ double Item_sum_variance::val()
 
 void Item_sum_variance::reset_field()
 {
-  double nr=args[0]->val();
+  double nr= args[0]->val_real();
   char *res=result_field->ptr;
 
   if (args[0]->null_value)
@@ -565,7 +565,7 @@ void Item_sum_variance::update_field()
   float8get(old_sqr, res+sizeof(double));
   field_count=sint8korr(res+sizeof(double)*2);
 
-  nr=args[0]->val();
+  nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     old_nr+=nr;
@@ -587,7 +587,7 @@ void Item_sum_hybrid::clear()
   null_value= 1;
 }
 
-double Item_sum_hybrid::val()
+double Item_sum_hybrid::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
@@ -620,7 +620,7 @@ longlong Item_sum_hybrid::val_int()
     return 0;
   if (hybrid_type == INT_RESULT)
     return sum_int;
-  return (longlong) Item_sum_hybrid::val();
+  return (longlong) Item_sum_hybrid::val_real();
 }
 
 
@@ -696,7 +696,7 @@ bool Item_sum_min::add()
   break;
   case REAL_RESULT:
   {
-    double nr=args[0]->val();
+    double nr= args[0]->val_real();
     if (!args[0]->null_value && (null_value || nr < sum))
     {
       sum=nr;
@@ -749,7 +749,7 @@ bool Item_sum_max::add()
   break;
   case REAL_RESULT:
   {
-    double nr=args[0]->val();
+    double nr= args[0]->val_real();
     if (!args[0]->null_value && (null_value || nr > sum))
     {
       sum=nr;
@@ -829,7 +829,7 @@ bool Item_sum_and::add()
 
 void Item_sum_num::reset_field()
 {
-  double nr=args[0]->val();
+  double nr= args[0]->val_real();
   char *res=result_field->ptr;
 
   if (maybe_null)
@@ -883,7 +883,7 @@ void Item_sum_hybrid::reset_field()
   }
   else						// REAL_RESULT
   {
-    double nr=args[0]->val();
+    double nr= args[0]->val_real();
 
     if (maybe_null)
     {
@@ -902,7 +902,7 @@ void Item_sum_hybrid::reset_field()
 
 void Item_sum_sum::reset_field()
 {
-  double nr=args[0]->val();			// Nulls also return 0
+  double nr= args[0]->val_real();			// Nulls also return 0
   float8store(result_field->ptr,nr);
   if (args[0]->null_value)
     result_field->set_null();
@@ -930,7 +930,7 @@ void Item_sum_count::reset_field()
 
 void Item_sum_avg::reset_field()
 {
-  double nr=args[0]->val();
+  double nr= args[0]->val_real();
   char *res=result_field->ptr;
 
   if (args[0]->null_value)
@@ -968,7 +968,7 @@ void Item_sum_sum::update_field()
   char *res=result_field->ptr;
 
   float8get(old_nr,res);
-  nr=args[0]->val();
+  nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     old_nr+=nr;
@@ -1005,7 +1005,7 @@ void Item_sum_avg::update_field()
   float8get(old_nr,res);
   field_count=sint8korr(res+sizeof(double));
 
-  nr=args[0]->val();
+  nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     old_nr+=nr;
@@ -1051,7 +1051,7 @@ Item_sum_hybrid::min_max_update_real_field()
   double nr,old_nr;
 
   old_nr=result_field->val_real();
-  nr=args[0]->val();
+  nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
     if (result_field->is_null(0) ||
@@ -1103,7 +1103,7 @@ Item_avg_field::Item_avg_field(Item_sum_avg *item)
 }
 
 
-double Item_avg_field::val()
+double Item_avg_field::val_real()
 {
   // fix_fields() never calls for this Item
   double nr;
@@ -1124,7 +1124,7 @@ double Item_avg_field::val()
 String *Item_avg_field::val_str(String *str)
 {
   // fix_fields() never calls for this Item
-  double nr=Item_avg_field::val();
+  double nr= Item_avg_field::val_real();
   if (null_value)
     return 0;
   str->set(nr,decimals, &my_charset_bin);
@@ -1136,10 +1136,10 @@ Item_std_field::Item_std_field(Item_sum_std *item)
 {
 }
 
-double Item_std_field::val()
+double Item_std_field::val_real()
 {
   // fix_fields() never calls for this Item
-  double tmp= Item_variance_field::val();
+  double tmp= Item_variance_field::val_real();
   return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
 
@@ -1152,7 +1152,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item)
   maybe_null=1;
 }
 
-double Item_variance_field::val()
+double Item_variance_field::val_real()
 {
   // fix_fields() never calls for this Item
   double sum,sum_sqr;
@@ -1175,7 +1175,7 @@ double Item_variance_field::val()
 String *Item_variance_field::val_str(String *str)
 {
   // fix_fields() never calls for this Item
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return 0;
   str->set(nr,decimals, &my_charset_bin);
@@ -1553,7 +1553,7 @@ Item *Item_sum_udf_float::copy_or_same(THD* thd)
   return new (thd->mem_root) Item_sum_udf_float(thd, this);
 }
 
-double Item_sum_udf_float::val()
+double Item_sum_udf_float::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_float::val");
@@ -1565,7 +1565,7 @@ double Item_sum_udf_float::val()
 String *Item_sum_udf_float::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return 0;					/* purecov: inspected */
   str->set(nr,decimals, &my_charset_bin);
