@@ -866,6 +866,11 @@ static int dbConnect(char *host, char *user,char *passwd)
     return 1;
   }
   /*
+    Don't dump SET NAMES with a pre-4.1 server (bug#7997).
+  */
+  if (mysql_get_server_version(&mysql_connection) < 40100)
+    opt_set_charset= 0;
+  /*
     As we're going to set SQL_MODE, it would be lost on reconnect, so we
     cannot reconnect.
   */
