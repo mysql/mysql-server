@@ -88,7 +88,8 @@ int rtree_delete_key(MI_INFO *info, uchar *page_buf, uchar *key,
 int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
 		      uint key_length, my_off_t child_page)
 {
-  if (!_mi_fetch_keypage(info, keyinfo, child_page, info->buff, 0))
+  if (!_mi_fetch_keypage(info, keyinfo, child_page,
+                         DFLT_INIT_HITS, info->buff, 0))
     return -1;
 
   return rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length);
