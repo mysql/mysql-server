@@ -603,7 +603,7 @@ error () {
 error_is () {
     $ECHO "Errors are (from $TIMEFILE) :"
     $CAT < $TIMEFILE
-    $ECHO "(the last line(s) may be the ones that caused the die() in mysqltest)"
+    $ECHO "(the last lines may be the most important ones)"
 }
 
 prefix_to_8() {
@@ -1309,6 +1309,9 @@ run_testcase ()
         skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       else
+        if [ $res -gt 2 ]; then
+          $ECHO "mysqltest returned unexpected code $res, it has probably crashed" >> $TIMEFILE
+        fi
 	total_inc
         fail_inc
 	$ECHO "$RES$RES_SPACE [ fail ]"
