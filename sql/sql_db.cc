@@ -164,9 +164,9 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 		    bool silent)
 {
   char	 path[FN_REFLEN+16];
-  MY_DIR *dirp;
   long result=1;
   int error = 0;
+  MY_STAT stat_info;
   uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_create_db");
   
@@ -180,12 +180,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
 
   /* Check directory */
-  (void)sprintf(path,"%s/%s", mysql_data_home, db);
+  strxmov(path, mysql_data_home, "/", db, NullS);
   unpack_dirname(path,path);			// Convert if not unix
-  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
+
+  if (my_stat(path,&stat_info,MYF(MY_WME)))
   {
-    my_dirend(dirp);
-    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
+   if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
       my_error(ER_DB_CREATE_EXISTS,MYF(0),db);
       error = -1;
