@@ -125,7 +125,7 @@ int mysql_update(THD *thd,
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, update_table_list, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
@@ -344,7 +344,7 @@ int mysql_update(THD *thd,
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;				// Rollback update
     }
@@ -1221,7 +1221,7 @@ bool multi_update::send_eof()
       if (local_error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
 	local_error= 1;				// Rollback update
     }

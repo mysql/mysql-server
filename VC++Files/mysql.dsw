@@ -816,6 +816,30 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mysqltest"=.\client\mysqltest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "mysql_test_run_new"=.\mysql-test\mysql_test_run_new.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
 Global:
 
 Package=<5>
