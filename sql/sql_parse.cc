@@ -1905,7 +1905,7 @@ mysql_execute_command(THD *thd)
 			select_lex->select_limit,
 			lex->duplicates);
     }
-    else 
+    else
     {
       multi_update  *result;
       uint table_count;
@@ -1932,8 +1932,8 @@ mysql_execute_command(THD *thd)
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
       unit->select_limit_cnt= HA_POS_ERROR;
-      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) && 
+      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) &&
+	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
 	  !thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,
 				   lex->duplicates, table_count)))
@@ -1946,7 +1946,7 @@ mysql_execute_command(THD *thd)
 	  total_list.push_back(item);
 	while ((item=value_list++))
 	  total_list.push_back(item);
-	
+
 	res= mysql_select(thd, tables, total_list,
 			  select_lex->where,
 			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
@@ -1960,26 +1960,20 @@ mysql_execute_command(THD *thd)
 	res= -1;					// Error is not sent
       close_thread_tables(thd);
     }
-    break; 
+    break;
+  case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
-    if (check_access(thd,INSERT_ACL,tables->db,&tables->grant.privilege))
+  {
+    ulong privilege= (lex->duplicates == DUP_REPLACE ?
+                      INSERT_ACL | DELETE_ACL : INSERT_ACL);
+    if (check_access(thd,privilege,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL,tables))
+    if (grant_option && check_grant(thd,privilege,tables))
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       lex->duplicates);
     break;
-  case SQLCOM_REPLACE:
-    if (check_access(thd,INSERT_ACL | DELETE_ACL,
-		     tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL | DELETE_ACL,
-				    tables))
-
-      goto error;
-    res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-		       DUP_REPLACE);
-    break;
+  }
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
@@ -1989,8 +1983,8 @@ mysql_execute_command(THD *thd)
       select privileges for the rest
     */
     {
-      ulong privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
-			INSERT_ACL : INSERT_ACL | DELETE_ACL);
+      ulong privilege= (lex->duplicates == DUP_REPLACE ?
+                        INSERT_ACL | DELETE_ACL : INSERT_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
       if (check_access(thd, privilege,
