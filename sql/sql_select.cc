@@ -210,7 +210,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       {
 	if (item->with_sum_func)
 	  flag|=1;
-	else if (!item->const_item())
+	else if (!(flag & 2) && !item->const_item())
 	  flag|=2;
       }
       if (flag == 3)
@@ -871,7 +871,6 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     s->join=join;
     if ((s->on_expr=tables->on_expr))
     {
-      // table->maybe_null=table->outer_join=1;	// Mark for send fields
       if (!table->file->records)
       {						// Empty table
 	s->key_dependent=s->dependent=0;
