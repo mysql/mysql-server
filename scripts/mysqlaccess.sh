@@ -2414,7 +2414,7 @@ sub Print_Header {
 sub Print_Footer {
     if ($MySQLaccess::CMD) { #command-line mode
     print "\n"
-         ."BUGs can be reported by email to Yves.Carlier\@rug.ac.be\n";
+         ."BUGs can be reported by email to bugs\@mysql.com\n";
     }
     if ($MySQLaccess::CGI) { #CGI-BIN mode
     if ($MySQLaccess::Param{'brief'}) {
@@ -2422,7 +2422,7 @@ sub Print_Footer {
     }
     print "<HR>\n"
          ."<ADDRESS>\n"
-         ."BUGs can be reported by email to <a href=mailto:Yves.Carlier\@rug.ac.be>Yves.Carlier\@rug.ac.be</a><BR>\n"
+         ."BUGs can be reported by email to <a href=mailto:bugs\@mysql.com>bugs\@mysql.com</a><BR>\n"
 #         ."Don't forget to mention the version $VERSION!<BR>\n"
          ."</ADDRESS>\n"
          ."</BODY>\n"

@@ -75,13 +75,17 @@ if (@config_env > 0)
 }
 
 chomp($host=`hostname`);
+chomp($uname=`uname`);
 $full_host_name=$host;
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
-$pwd = `pwd`; chomp($pwd);
-$log="$pwd/Logs/$host$opt_version_suffix.log";
+chomp($pwd = `pwd`);
+$VER= `basename $opt_distribution`; chop $VER;
+$VER=~ /mysql.*-([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\.tar*/; $version=$1;
+($major, $minor, $release) = split(/\./,$version);
+$log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
@@ -559,9 +563,9 @@ sub abort
   {
     $mail_header_file="$opt_tmp/do-command.$$";
     open(TMP,">$mail_header_file");
-    print TMP "From: mysql\@$full_host_name\n";
+    print TMP "From: mysqldev\@$full_host_name\n";
     print TMP "To: $email\n";
-    print TMP "Subject: $ver$opt_version_suffix compilation failed\n\n";
+    print TMP "Subject: $host($uname): $ver$opt_version_suffix compilation failed\n\n";
     close TMP;
     system("tail -n 40 $log > $log.mail");
     system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
