@@ -17,7 +17,6 @@
 #ifndef TransporterFacade_H
 #define TransporterFacade_H
 
-#include <AttrType.hpp>
 #include <kernel_types.h>
 #include <ndb_limits.h>
 #include <NdbThread.h>
@@ -28,8 +27,8 @@
 
 class ClusterMgr;
 class ArbitMgr;
-class Properties;
 class IPCConfig;
+struct ndb_mgm_configuration;
 
 class Ndb;
 class NdbApiSignal;
@@ -43,15 +42,20 @@ extern "C" {
   void atexit_stop_instance();
 }
 
+/**
+ * Max number of Ndb objects in different threads.  
+ * (Ndb objects should not be shared by different threads.)
+ */
 class TransporterFacade
 {
 public:
   TransporterFacade();
   virtual ~TransporterFacade();
-  bool init(Properties* props);
+  bool init(Uint32, const ndb_mgm_configuration *);
 
   static TransporterFacade* instance();
-  static TransporterFacade* start_instance(Properties* ipcConfig, const char *connectString);
+  static TransporterFacade* start_instance(int, const ndb_mgm_configuration*);
+  static TransporterFacade* start_instance(const char *connectString);
   static void stop_instance();
   
   /**
@@ -76,7 +80,7 @@ public:
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
-  bool   getIsNodeDefined(NodeId nodeId) const;
+  bool   getIsDbNode(NodeId nodeId) const;
   bool   getIsNodeSendable(NodeId nodeId) const;
   Uint32 getNodeGrp(NodeId nodeId) const;
   Uint32 getNodeSequence(NodeId nodeId) const;
@@ -156,6 +160,8 @@ private:
   /**
    * Block number handling
    */
+  static const unsigned MAX_NO_THREADS = 4711;
+
   struct ThreadData {
     static const Uint32 ACTIVE = (1 << 16) | 1;
     static const Uint32 INACTIVE = (1 << 16);
@@ -250,8 +256,10 @@ TransporterFacade::check_send_size(Uint32 node_id, Uint32 send_size)
 
 inline
 bool
-TransporterFacade::getIsNodeDefined(NodeId n) const {
-  return theClusterMgr->getNodeInfo(n).defined;
+TransporterFacade::getIsDbNode(NodeId n) const {
+  return 
+    theClusterMgr->getNodeInfo(n).defined && 
+    theClusterMgr->getNodeInfo(n).m_info.m_type == NodeInfo::DB;
 }
 
 inline

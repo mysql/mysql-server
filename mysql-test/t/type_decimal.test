@@ -244,6 +244,9 @@ CREATE TABLE t1 (a_dec DECIMAL(-1,0));
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
 --error 1064
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
+CREATE TABLE t1 (a_dec DECIMAL(0,11));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 
 #
 #  Zero prepend overflow bug

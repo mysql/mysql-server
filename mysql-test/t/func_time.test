@@ -255,7 +255,6 @@ select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
 select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
 select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
-
 select date_add(date,INTERVAL "1" WEEK) from t1;
 select date_add(date,INTERVAL "1" QUARTER) from t1;
 select timestampadd(MINUTE, 1, date) from t1;
@@ -280,7 +279,6 @@ select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
        timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
        timestampdiff(SQL_TSI_DAY, '2000-02-01', '2000-03-01') as a4;
 
-# The following is not as one would expect...
 select date_add(time,INTERVAL 1 SECOND) from t1;
 drop table t1;
 

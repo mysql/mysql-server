@@ -38,6 +38,7 @@ sess_try_close(
 
 /* The session handle. All fields are protected by the kernel mutex */
 struct sess_struct{
+	ulint		state;		/* state of the session */
 	trx_t*		trx;		/* transaction object permanently
 					assigned for the session: the
 					transaction instance designated by the
@@ -48,6 +49,11 @@ struct sess_struct{
 					session */
 };
 
+/* Session states */
+#define SESS_ACTIVE		1
+#define SESS_ERROR		2	/* session contains an error message
+					which has not yet been communicated
+					to the client */
 #ifndef UNIV_NONINL
 #include "usr0sess.ic"
 #endif

@@ -16,9 +16,12 @@
 
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
+#include <signaldata/TuxContinueB.hpp>
+#include <signaldata/TuxContinueB.hpp>
 
 Dbtux::Dbtux(const Configuration& conf) :
   SimulatedBlock(DBTUX, conf),
+  c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -27,22 +30,22 @@ Dbtux::Dbtux(const Configuration& conf) :
 #endif
   c_internalStartPhase(0),
   c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
-  c_keyBuffer(0)
+  c_dataBuffer(0)
 {
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
   ndbrequire(
-      (sizeof(DescHead) & 0x3) == 0 &&
-      (sizeof(DescAttr) & 0x3) == 0 &&
       (sizeof(TreeEnt) & 0x3) == 0 &&
-      (sizeof(TreeNode) & 0x3) == 0
+      (sizeof(TreeNode) & 0x3) == 0 &&
+      (sizeof(DescHead) & 0x3) == 0 &&
+      (sizeof(DescAttr) & 0x3) == 0
   );
   /*
    * DbtuxGen.cpp
    */
   addRecSignal(GSN_CONTINUEB, &Dbtux::execCONTINUEB);
   addRecSignal(GSN_STTOR, &Dbtux::execSTTOR);
-  addRecSignal(GSN_SIZEALT_REP, &Dbtux::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtux::execREAD_CONFIG_REQ, true);
   /*
    * DbtuxMeta.cpp
    */
@@ -121,6 +124,8 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    ndbrequire(c_tup != 0);
     break;
   case 3:
     jam();
@@ -143,28 +148,41 @@ Dbtux::execSTTOR(Signal* signal)
 }
 
 void
-Dbtux::execSIZEALT_REP(Signal* signal)
+Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 {
   jamEntry();
-  const Uint32* data = signal->getDataPtr();
-  BlockReference sender = data[TuxSizeAltReq::IND_BLOCK_REF];
-  const Uint32 nIndex = data[TuxSizeAltReq::IND_INDEX];
-  const Uint32 nFragment = data[TuxSizeAltReq::IND_FRAGMENT];
-  const Uint32 nAttribute = data[TuxSizeAltReq::IND_ATTRIBUTE];
+ 
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
+  Uint32 nIndex;
+  Uint32 nFragment;
+  Uint32 nAttribute;
+  Uint32 nScanOp; 
+
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_INDEX, &nIndex));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_FRAGMENT, &nFragment));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_ATTRIBUTE, &nAttribute));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
+
   const Uint32 nDescPage = (nIndex + nAttribute + DescPageSize - 1) / DescPageSize;
-  const Uint32 nScanOp = data[TuxSizeAltReq::IND_SCAN];
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
-  // allocate records
+  
   c_indexPool.setSize(nIndex);
   c_fragPool.setSize(nFragment);
   c_descPagePool.setSize(nDescPage);
   c_fragOpPool.setSize(MaxIndexFragments);
-  c_nodeHandlePool.setSize(MaxNodeHandles);
   c_scanOpPool.setSize(nScanOp);
   c_scanBoundPool.setSize(nScanBoundWords);
   /*
    * Index id is physical array index.  We seize and initialize all
-   * index records now.  This assumes ArrayPool is an array.
+   * index records now.
    */
   IndexPtr indexPtr;
   while (1) {
@@ -177,12 +195,50 @@ Dbtux::execSIZEALT_REP(Signal* signal)
     new (indexPtr.p) Index();
   }
   // allocate buffers
-  c_keyBuffer = (Uint32*)allocRecord("c_keyBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+  c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
+  c_searchKey = (TableData)allocRecord("c_searchKey", sizeof(Uint32*), MaxIndexAttributes);
+  c_entryKey = (TableData)allocRecord("c_entryKey", sizeof(Uint32*), MaxIndexAttributes);
+  c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
   // ack
-  sendSignal(sender, GSN_SIZEALT_ACK, signal, 1, JBB);
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }
 
 // utils
+
+void
+Dbtux::setKeyAttrs(const Frag& frag)
+{
+  Data keyAttrs = c_keyAttrs;   // global
+  const unsigned numAttrs = frag.m_numAttrs;
+  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
+  for (unsigned i = 0; i < numAttrs; i++) {
+    const DescAttr& descAttr = descEnt.m_descAttr[i];
+    Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
+    // set attr id and fixed size
+    keyAttrs.ah() = AttributeHeader(descAttr.m_primaryAttrId, size);
+    keyAttrs += 1;
+  }
+}
+
+void
+Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData)
+{
+  ConstData keyAttrs = c_keyAttrs; // global
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  const TupLoc tupLoc = ent.m_tupLoc;
+  const Uint32 tupVersion = ent.m_tupVersion;
+  ndbrequire(start < frag.m_numAttrs);
+  const unsigned numAttrs = frag.m_numAttrs - start;
+  // start applies to both keys and output data
+  keyAttrs += start;
+  keyData += start;
+  c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, numAttrs, keyAttrs, keyData);
+  jamEntry();
+}
 
 void
 Dbtux::copyAttrs(Data dst, ConstData src, CopyPar& copyPar)
@@ -216,6 +272,48 @@ Dbtux::copyAttrs(Data dst, ConstData src, CopyPar& copyPar)
     c.m_numitems++;
   }
   copyPar = c;
+}
+
+/*
+ * Input is pointers to table attributes.  Output is array of attribute
+ * data with headers.  Copies whatever fits.
+ */
+void
+Dbtux::copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2)
+{
+  ConstData keyAttrs = c_keyAttrs; // global
+  const unsigned numAttrs = frag.m_numAttrs;
+  unsigned len2 = maxlen2;
+  for (unsigned n = 0; n < numAttrs; n++) {
+    jam();
+    const unsigned attrId = keyAttrs.ah().getAttributeId();
+    const unsigned dataSize = keyAttrs.ah().getDataSize();
+    const Uint32* const p1 = *data1;
+    if (p1 != 0) {
+      if (len2 == 0)
+        return;
+      data2.ah() = AttributeHeader(attrId, dataSize);
+      data2 += 1;
+      len2 -= 1;
+      unsigned n = dataSize;
+      for (unsigned i = 0; i < dataSize; i++) {
+        if (len2 == 0)
+          return;
+        *data2 = p1[i];
+        data2 += 1;
+        len2 -= 1;
+      }
+    } else {
+      if (len2 == 0)
+        return;
+      data2.ah() = AttributeHeader(attrId, 0);
+      data2.ah().setNULL();
+      data2 += 1;
+      len2 -= 1;
+    }
+    keyAttrs += 1;
+    data1 += 1;
+  }
 }
 
 BLOCK_FUNCTIONS(Dbtux);

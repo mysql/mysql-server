@@ -18,7 +18,6 @@
 
 #define QMGR_C
 #include "Qmgr.hpp"
-#include <Configuration.hpp>
 
 #define DEBUG(x) { ndbout << "Qmgr::" << x << endl; }
 
@@ -29,10 +28,13 @@ void Qmgr::initData()
 
   // Records with constant sizes
   nodeRec = new NodeRec[MAX_NODES];
-  regApp = new RegApp[NO_REG_APP];
 
-  cclustersize = 0;
   cnoCommitFailedNodes = 0;
+  c_maxDynamicId = 0;
+  c_clusterNodes.clear();
+
+  Uint32 hbDBAPI = 500;
+  setHbApiDelay(hbDBAPI);
 }//Qmgr::initData()
 
 void Qmgr::initRecords() 
@@ -52,7 +54,6 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_CM_HEARTBEAT, &Qmgr::execCM_HEARTBEAT);
   addRecSignal(GSN_CM_ADD, &Qmgr::execCM_ADD);
   addRecSignal(GSN_CM_ACKADD, &Qmgr::execCM_ACKADD);
-  addRecSignal(GSN_CM_APPCHG, &Qmgr::execCM_APPCHG);
   addRecSignal(GSN_CM_REGREQ, &Qmgr::execCM_REGREQ);
   addRecSignal(GSN_CM_REGCONF, &Qmgr::execCM_REGCONF);
   addRecSignal(GSN_CM_REGREF, &Qmgr::execCM_REGREF);
@@ -67,16 +68,11 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_FAIL_REP, &Qmgr::execFAIL_REP);
   addRecSignal(GSN_PRES_TOREQ, &Qmgr::execPRES_TOREQ);
   addRecSignal(GSN_PRES_TOCONF, &Qmgr::execPRES_TOCONF);
-  addRecSignal(GSN_CM_INFOCONF, &Qmgr::execCM_INFOCONF);
 
   // Received signals
   addRecSignal(GSN_CONNECT_REP, &Qmgr::execCONNECT_REP);
   addRecSignal(GSN_NDB_FAILCONF, &Qmgr::execNDB_FAILCONF);
   addRecSignal(GSN_STTOR, &Qmgr::execSTTOR);
-  addRecSignal(GSN_APPL_REGREQ, &Qmgr::execAPPL_REGREQ);
-  addRecSignal(GSN_APPL_STARTREG, &Qmgr::execAPPL_STARTREG);
-  addRecSignal(GSN_APPL_RUN, &Qmgr::execAPPL_RUN);
-  addRecSignal(GSN_CM_INIT, &Qmgr::execCM_INIT);
   addRecSignal(GSN_CLOSE_COMCONF, &Qmgr::execCLOSE_COMCONF);
   addRecSignal(GSN_API_REGREQ, &Qmgr::execAPI_REGREQ);
   addRecSignal(GSN_API_VERSION_REQ, &Qmgr::execAPI_VERSION_REQ);
@@ -86,7 +82,6 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_SET_VAR_REQ,  &Qmgr::execSET_VAR_REQ);
 
   // Arbitration signals
-  addRecSignal(GSN_ARBIT_CFG, &Qmgr::execARBIT_CFG);
   addRecSignal(GSN_ARBIT_PREPREQ, &Qmgr::execARBIT_PREPREQ);
   addRecSignal(GSN_ARBIT_PREPCONF, &Qmgr::execARBIT_PREPCONF);
   addRecSignal(GSN_ARBIT_PREPREF, &Qmgr::execARBIT_PREPREF);
@@ -97,18 +92,11 @@ Qmgr::Qmgr(const class Configuration & conf)
   addRecSignal(GSN_ARBIT_STOPREP, &Qmgr::execARBIT_STOPREP);
 
   initData();
-
-  const ClusterConfiguration::ClusterData & clusterConf = 
-      theConfiguration.clusterConfigurationData() ;
-  setHbDelay(clusterConf.ispValues[0][2]); //cmInit->heartbeatDbDb);
-  setHbApiDelay(clusterConf.ispValues[0][3]); //;cmInit->heartbeatDbApi);
-  setArbitTimeout(clusterConf.ispValues[0][5]); //cmInit->arbitTimeout);
 }//Qmgr::Qmgr()
 
 Qmgr::~Qmgr() 
 {
   delete []nodeRec;
-  delete []regApp;
 }//Qmgr::~Qmgr()
 
 

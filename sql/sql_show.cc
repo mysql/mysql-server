@@ -37,9 +37,6 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                grant_names};
 #endif
 
-static int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                            const char *path, const char *wild, bool dir);
-
 static int
 store_create_info(THD *thd, TABLE *table, String *packet);
 
@@ -361,7 +358,7 @@ int mysqld_show_column_types(THD *thd)
 }
 
 
-static int
+int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                  const char *wild, bool dir)
 {
@@ -473,6 +470,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
   field_list.push_back(item=new Item_empty_string("Engine",10));
   item->maybe_null=1;
+  field_list.push_back(item=new Item_int("Version", (longlong) 0, 21));
+  item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;
   field_list.push_back(item=new Item_int("Rows",(longlong) 1,21));
@@ -529,11 +528,11 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     }
     else
     {
-      struct tm tm_tmp;
       const char *str;
       handler *file=table->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
       protocol->store(file->table_type(), system_charset_info);
+      protocol->store((ulonglong) table->frm_version);
       str= ((table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
 	    "Compressed" :
 	    (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
@@ -562,24 +561,21 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       else
       {
-        localtime_r(&file->create_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->create_time);
         protocol->store(&time);
       }
       if (!file->update_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->update_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->update_time);
         protocol->store(&time);
       }
       if (!file->check_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->check_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
         protocol->store(&time);
       }
       str= (table->table_charset ? table->table_charset->name : "default");
@@ -702,8 +698,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         byte *pos;
         uint flags=field->flags;
         String type(tmp,sizeof(tmp), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
         uint col_access;
-
+#endif
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
@@ -996,7 +993,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       str=(key_part->field ? key_part->field->field_name :
 	   "?unknown field?");
       protocol->store(str, system_charset_info);
-      if (table->file->index_flags(i) & HA_READ_ORDER)
+      if (table->file->index_flags(i, j, 0) & HA_READ_ORDER)
         protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			 "D" : "A"), 1, system_charset_info);
       else
@@ -1251,7 +1248,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp),&my_charset_bin);
+      type.set(tmp, sizeof(tmp), system_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(), type.length(), system_charset_info);
@@ -1540,13 +1537,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     while ((tmp=it++))
     {
       struct st_my_thread_var *mysys_var;
-#ifndef EMBEDDED_LIBRARY
-      if ((tmp->net.vio || tmp->system_thread) &&
+      if ((tmp->vio_ok() || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
-#else
-      if (tmp->system_thread &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
-#endif
       {
         thread_info *thd_info=new thread_info;
 

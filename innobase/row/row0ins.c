@@ -80,9 +80,9 @@ ins_node_create(
 	node->trx_id = ut_dulint_zero;
 	
 	node->entry_sys_heap = mem_heap_create(128);
-#ifdef UNIV_DEBUG
-	node->magic_n = INS_NODE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+
+	node->magic_n = INS_NODE_MAGIC_N;	
+	
 	return(node);
 }
 
@@ -194,7 +194,6 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/* in: insert node */
 	dtuple_t*	row)	/* in: new row (or first row) for the node */
 {
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
@@ -518,7 +517,7 @@ static
 void
 row_ins_foreign_report_err(
 /*=======================*/
-	char*		errstr,		/* in: error string from the viewpoint
+	const char*	errstr,		/* in: error string from the viewpoint
 					of the parent table */
 	que_thr_t*	thr,		/* in: query thread whose run_node
 					is an update node */
@@ -652,32 +651,33 @@ row_ins_foreign_check_on_constraint(
 	ulint		err;
 	ulint		i;
 	char*		ptr;
-	char		table_name_buf[1000];
+	char*		table_name_buf;
 	
 	ut_a(thr && foreign && pcur && mtr);
 
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table */
 
-	ut_a(ut_strlen(table->name) < 998);
-	strcpy(table_name_buf, table->name);
+	table_name_buf = mem_strdup(table->name);
 
 	ptr = strchr(table_name_buf, '/');
 	ut_a(ptr);
 	*ptr = '\0';
 	
-	/* We call a function in ha_innodb.cc */
 #ifndef UNIV_HOTBACKUP
+	/* We call a function in ha_innodb.cc */
 	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
-						ut_strlen(table->name) + 1);
+						strlen(table->name) + 1);
 #endif
+	mem_free(table_name_buf);
+
 	node = thr->run_node;
 
 	if (node->is_delete && 0 == (foreign->type &
 			(DICT_FOREIGN_ON_DELETE_CASCADE
 			 | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
-		row_ins_foreign_report_err((char*)"Trying to delete",
+		row_ins_foreign_report_err("Trying to delete",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
 
@@ -690,7 +690,7 @@ row_ins_foreign_check_on_constraint(
 
 		/* This is an UPDATE */
 			 
-		row_ins_foreign_report_err((char*)"Trying to update",
+		row_ins_foreign_report_err("Trying to update",
 					thr, foreign,
 					btr_pcur_get_rec(pcur), entry);
 
@@ -751,7 +751,7 @@ row_ins_foreign_check_on_constraint(
 	        err = DB_ROW_IS_REFERENCED;
 
 		row_ins_foreign_report_err(
-(char*)"Trying an update, possibly causing a cyclic cascaded update\n"
+"Trying an update, possibly causing a cyclic cascaded update\n"
 "in the child table,", thr, foreign, btr_pcur_get_rec(pcur), entry);
 
 		goto nonstandard_exit_func;
@@ -876,7 +876,7 @@ row_ins_foreign_check_on_constraint(
 		        err = DB_ROW_IS_REFERENCED;
 
 			row_ins_foreign_report_err(
-(char*)"Trying a cascaded update where the updated value in the child\n"
+"Trying a cascaded update where the updated value in the child\n"
 "table would not fit in the length of the column, or the value would\n"
 "be NULL and the column is declared as not NULL in the child table,",
 			thr, foreign, btr_pcur_get_rec(pcur), entry);
@@ -1194,7 +1194,7 @@ run_again:
 					}
 				} else {
 					row_ins_foreign_report_err(
-					(char*)"Trying to delete or update",
+						"Trying to delete or update",
 						thr, foreign, rec, entry);
 
 					err = DB_ROW_IS_REFERENCED;
@@ -2013,7 +2013,6 @@ row_ins(
 	ulint	err;
 	
 	ut_ad(node && thr);
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -2078,7 +2077,7 @@ row_ins_step(
 	trx_start_if_not_started(trx);
 	
 	node = thr->run_node;
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
+
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
 
 	parent = que_node_get_parent(node);

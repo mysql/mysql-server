@@ -60,8 +60,8 @@ Cluster participant -
    including info in DIH_RESTART_REF/CONF
 
 4) Wait until -
-a) Receiving CNTR_MASTER_CONF -> continue
-b) Receiving CNTR_MASTER_REF -> P = node specified in REF, goto 3
+b) Receiving CNTR_START_CONF -> continue
+b) Receiving CNTR_START_REF -> P = node specified in REF, goto 3
 c) TimeToWaitAlive has passed -> Failure to start
 
 4) Run ndb-startphase 1
@@ -70,18 +70,23 @@ c) TimeToWaitAlive has passed -> Failure to start
 Initial start/System restart NdbCntr (on qmgr president node)
 
 1) Wait until -
-a) Receiving all CNTR_MASTER_REQ (all = those in READ_NODES_CONF)
-b) TimeToWaitAlive has passed -> Failure to start
+a) Receiving CNTR_START_REQ with GCI > than own GCI
+   send CNTR_START_REF to all waiting nodes
+b) Receiving all CNTR_START_REQ (for all defined nodes)
+c) TimeToWait has passed and partition win
+d) TimeToWait has passed and partitioning 
+   and configuration "start with partition" = true
 
-2) Wait until -
-a) Enough nodes (at least 1 in each node group and 1 full node group)
-   has sent me CNTR_MASTER_REQ
-b) TimeToWaitAlive has passed -> Failure to start
+2) Send CNTR_START_CONF to all nodes "with filesystem"
 
-3) Decide what kind of start to perform (initial / system restart)
-   Decide who should be the master (the one with greatest GCI)
-   Send CNTR_MASTER_CONF(initial/system restart) to all nodes included in start
+3) Wait until -
+   Receiving CNTR_START_REP for all starting nodes
 
+4) Start waiting nodes (if any)
+
+NOTE:
+1c) Partition win = 1 node in each node group and 1 full node group
+1d) Pattitioning = at least 1 node in each node group
 -- 
 Running NdbCntr
 
@@ -90,8 +95,3 @@ When receiving CNTR_MASTER_REQ
 2) If I'm master
    Coordinate parallell node restarts
    send CNTR_MASTER_CONF (node restart)
-
-NOTE:
-2a Specified with a command line/config parameter the system could 
-   start using only one node in each node group (if possible w.r.t LCP/GCP)
-

@@ -1,0 +1,27 @@
+-- source include/have_ndb.inc
+
+#
+# Test of REPLACE with NDB
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  gesuchnr int(11) DEFAULT '0' NOT NULL,
+  benutzer_id int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (gesuchnr,benutzer_id)
+) engine=ndbcluster;
+
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+insert into t1 (gesuchnr, benutzer_id) value (3,2);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+--error 1022
+insert into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1 order by gesuchnr;
+drop table t1;

@@ -1,7 +1,0 @@
-INSTALLATION
-To compile a pentium version of MySQL Cluster from this BK clone do:
-
-shell> cd /home/bk/mysql-4.1-ndb
-shell> BUILD/compile-pentium-debug -c --prefix=/usr/local/mysql-4.1-ndb
-shell> make 
-

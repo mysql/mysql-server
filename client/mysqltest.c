@@ -59,7 +59,8 @@
 #include <sys/stat.h>
 #include <violite.h>
 
-#define MAX_QUERY	65536
+#define MAX_QUERY     131072
+#define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
 #define MAX_CONS	128
@@ -187,7 +188,7 @@ typedef struct
 */
 
 static char *subst_env_var(const char *cmd);
-static int my_popen(const char *cmd, const char *mode);
+static FILE *my_popen(const char *cmd, const char *mode);
 #define popen(A,B) my_popen((A),(B))
 #endif /* __NETWARE__ */
 
@@ -223,7 +224,6 @@ Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
-Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
@@ -296,7 +296,6 @@ const char *command_names[]=
   "server_stop",
   "require_manager",
   "wait_for_slave_to_stop",
-  "require_version",
   "enable_warnings",
   "disable_warnings",
   "enable_info",
@@ -318,6 +317,7 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);
 static void init_var_hash();
+static VAR* var_from_env(const char *, const char *);
 static byte* get_var_key(const byte* rec, uint* len,
 			 my_bool __attribute__((unused)) t);
 static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
@@ -385,6 +385,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
   register char c;
   register int escaped = 0;
   VAR* v;
+  DBUG_ENTER("do_eval");
 
   for (p= query; (c = *p); ++p)
   {
@@ -416,6 +417,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
       break;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -627,6 +629,7 @@ static int check_result(DYNAMIC_STRING* ds, const char* fname,
   return error;
 }
 
+
 VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
 	     my_bool ignore_not_existing)
 {
@@ -641,26 +644,26 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
   if (!(digit < 10 && digit >= 0))
   {
     const char* save_var_name = var_name, *end;
+    uint length;
     end = (var_name_end) ? *var_name_end : 0;
     while (my_isvar(charset_info,*var_name) && var_name != end)
-      ++var_name;
+      var_name++;
     if (var_name == save_var_name)
     {
       if (ignore_not_existing)
 	DBUG_RETURN(0);
       die("Empty variable");
     }
+    length= (uint) (var_name - save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, save_var_name,
-			       var_name - save_var_name)))
+    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)) &&
+        length < MAX_VAR_NAME)
     {
-      if (ignore_not_existing)
-	DBUG_RETURN(0);
-      if (end)
-	*(char*) end = 0;
-      die("Variable '%s' used uninitialized", save_var_name);
+      char buff[MAX_VAR_NAME+1];
+      strmake(buff, save_var_name, length); 
+      v= var_from_env(buff, "");
     }
-    --var_name;					/* Point at last character */
+    var_name--;					/* Point at last character */
   }
   else
     v = var_reg + digit;
@@ -811,42 +814,6 @@ int do_server_op(struct st_query* q,const char* op)
   return 0;
 }
 #endif
-
-int do_require_version(struct st_query* q)
-{
-  MYSQL* mysql = &cur_con->mysql;
-  MYSQL_RES* res;
-  MYSQL_ROW row;
-  char* p=q->first_argument, *ver_arg;
-  uint ver_arg_len,ver_len;
-  LINT_INIT(res);
-
-  if (!*p)
-    die("Missing version argument in require_version\n");
-  ver_arg = p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  *p = 0;
-  ver_arg_len = p - ver_arg;
-
-  if (mysql_query(mysql, "select version()") ||
-      !(res=mysql_store_result(mysql)))
-    die("Query failed while check server version: %s",
-	mysql_error(mysql));
-  if (!(row=mysql_fetch_row(res)) || !row[0])
-  {
-    mysql_free_result(res);
-    die("Strange result from query while checking version");
-  }
-  ver_len = strlen(row[0]);
-  if (ver_len < ver_arg_len || memcmp(row[0],ver_arg,ver_arg_len))
-  {
-    mysql_free_result(res);
-    abort_not_supported_test();
-  }
-  mysql_free_result(res);
-  return 0;
-}
 
 int do_source(struct st_query* q)
 {
@@ -1601,6 +1568,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -1737,6 +1705,7 @@ int read_line(char* buf, int size)
   enum {R_NORMAL, R_Q1, R_ESC_Q_Q1, R_ESC_Q_Q2,
 	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
 	R_Q2, R_COMMENT, R_LINE_START} state= R_LINE_START;
+  DBUG_ENTER("read_line");
 
   start_lineno= *lineno;
   for (; p < buf_end ;)
@@ -1750,7 +1719,7 @@ int read_line(char* buf, int size)
       cur_file--;
       lineno--;
       if (cur_file == file_stack)
-	return 1;
+	DBUG_RETURN(1);
       continue;
     }
 
@@ -1760,7 +1729,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (c == '\'')
 	state = R_Q1;
@@ -1777,7 +1746,7 @@ int read_line(char* buf, int size)
       {
 	*p= 0;
 	(*lineno)++;
-	return 0;
+	DBUG_RETURN(0);
       }
       break;
     case R_LINE_START:
@@ -1795,12 +1764,12 @@ int read_line(char* buf, int size)
       {
 	*buf++= '}';
 	*buf= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (end_of_query(c) || c == '{')
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (c == '\'')
 	state= R_Q1;
@@ -1820,7 +1789,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       if (c != '\'')
 	state= R_NORMAL;
@@ -1841,7 +1810,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       if (c != '"')
 	state= R_NORMAL;
@@ -1857,7 +1826,7 @@ int read_line(char* buf, int size)
       *p++= c;
   }
   *p= 0;					/* Always end with \0 */
-  return feof(*cur_file);
+  DBUG_RETURN(feof(*cur_file));
 }
 
 
@@ -1882,23 +1851,28 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0]= 0;
   q->require_file= 0;
   q->first_word_len= 0;
+
+  q->type = Q_UNKNOWN;
+  q->query_buf= q->query= 0;
+  if (read_line(read_query_buf, sizeof(read_query_buf)))
+  {
+    DBUG_PRINT("warning",("too long query"));
+    DBUG_RETURN(1);
+  }
+   DBUG_PRINT("info", ("query: %s", read_query_buf));
+  if (*p == '#')
+  {
+    q->type = Q_COMMENT;
+    /* This goto is to avoid losing the "expected error" info. */
+    goto end;
+  }
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
   q->expected_errors= global_expected_errors;
   q->abort_on_error= global_expected_errors == 0;
   bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
   global_expected_errors=0;
-
-  q->type = Q_UNKNOWN;
-  q->query_buf= q->query= 0;
-  if (read_line(read_query_buf, sizeof(read_query_buf)))
-    DBUG_RETURN(1);
-
-  if (*p == '#')
-  {
-    q->type = Q_COMMENT;
-  }
-  else if (p[0] == '-' && p[1] == '-')
+  if (p[0] == '-' && p[1] == '-')
   {
     q->type= Q_COMMENT_WITH_COMMAND;
     p+= 2;					/* To calculate first word */
@@ -1933,6 +1907,8 @@ int read_query(struct st_query** q_ptr)
       *p1 = 0;
     }
   }
+
+end:
   while (*p && my_isspace(charset_info, *p))
     p++;
   if (!(q->query_buf= q->query= my_strdup(p, MYF(MY_WME))))
@@ -2259,6 +2235,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   char* query;
   int query_len, got_error_on_send= 0;
   DBUG_ENTER("run_query");
+  DBUG_PRINT("enter",("flags: %d", flags));
   
   if (q->type != Q_EVAL)
   {
@@ -2580,7 +2557,7 @@ static void var_free(void *v)
 }
 
 
-static void var_from_env(const char *name, const char *def_val)
+static VAR* var_from_env(const char *name, const char *def_val)
 {
   const char *tmp;
   VAR *v;
@@ -2589,6 +2566,7 @@ static void var_from_env(const char *name, const char *def_val)
 
   v = var_init(0, name, 0, tmp, 0);
   my_hash_insert(&var_hash, (byte*)v);
+  return v;
 }
 
 
@@ -2599,10 +2577,8 @@ static void init_var_hash(MYSQL *mysql)
   if (hash_init(&var_hash, charset_info, 
                 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
-  var_from_env("MASTER_MYPORT", "9306");
-  var_from_env("SLAVE_MYPORT", "9307");
-  var_from_env("MYSQL_TEST_DIR", "/tmp");
-  var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
+  if (opt_big_test)
+    my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0, "1",0));
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
@@ -2661,6 +2637,8 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
@@ -2698,14 +2676,13 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_INFO:    	 disable_info=0; break;
-      case Q_DISABLE_INFO:   	 disable_info=1; break;
+      case Q_ENABLE_INFO:        disable_info=0; break;
+      case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;
-      case Q_DISABLE_METADATA: 	 display_metadata=0; break;
+      case Q_DISABLE_METADATA:   display_metadata=0; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
-      case Q_REQUIRE_VERSION: do_require_version(q); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY
@@ -2727,7 +2704,10 @@ int main(int argc, char **argv)
       case Q_EVAL_RESULT: eval_result = 1; break;
       case Q_EVAL:
 	if (q->query == q->query_buf)
+        {
 	  q->query= q->first_argument;
+          q->first_word_len= 0;
+        }
 	/* fall through */
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
@@ -2737,13 +2717,16 @@ int main(int argc, char **argv)
 	{
 	  /* This happens when we use 'query_..' on it's own line */
 	  q_send_flag=1;
+          DBUG_PRINT("info",
+                     ("query: '%s' first_word_len: %d  send_flag=1",
+                      q->query, q->first_word_len));
 	  break;
 	}
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
-	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;
       }
@@ -3710,6 +3693,7 @@ static void get_replace_column(struct st_query *q)
 static char *subst_env_var(const char *str)
 {
   char *result;
+  char *pos;
 
   result= pos= my_malloc(MAX_QUERY, MYF(MY_FAE));
   while (*str)
@@ -3729,7 +3713,7 @@ static char *subst_env_var(const char *str)
            *str && !isspace(*str) && *str != '\\' && *str != '/' &&
              *str != '$';
            str++)
-        *env_pos++ *str;
+        *env_pos++= *str;
       *env_pos= 0;
 
       if (!(subst= getenv(env_var)))
@@ -3772,11 +3756,11 @@ static char *subst_env_var(const char *str)
 
 #undef popen                                    /* Remove wrapper */
 
-int my_popen(const char *cmd, const char *mode __attribute__((unused)) t)
+FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
 {
   char *subst_cmd;
-  int res_file;
-  
+  FILE *res_file;
+
   subst_cmd= subst_env_var(cmd);
   res_file= popen(subst_cmd, "r0");
   my_free(subst_cmd, MYF(0));

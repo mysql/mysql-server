@@ -16,7 +16,7 @@ usage() if ($opt_help || $opt_Information);
 $query=$search=$database=$set=""; $eoq=0;
 while (<>)
 {
-  next if (length($query) == 0 && /^\#/); # Skipp comments
+  next if (length($query) == 0 && /^\#/); # Skip comments
   $query.=search($_);
   if ($eoq)
   {

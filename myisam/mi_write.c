@@ -18,7 +18,6 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
-#include <assert.h>
 
 #define MAX_POINTER_LENGTH 8
 

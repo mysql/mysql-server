@@ -78,7 +78,7 @@ select quote(concat('abc\'', '\\cba'));
 select quote(1/0), quote('\0\Z');
 select length(quote(concat(char(0),"test")));
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
-select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678");
+select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678"), unhex(NULL);
 select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
 select length(unhex(md5("abrakadabra")));
 
@@ -304,6 +304,7 @@ select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
 
 create table t1 
 select
@@ -336,7 +337,8 @@ select
   soundex(_latin2'ab'),
   substring(_latin2'ab',1),
   insert(_latin2'abcd',2,3,_latin2'ef'),
-  replace(_latin2'abcd',_latin2'b',_latin2'B')
+  replace(_latin2'abcd',_latin2'b',_latin2'B'),
+  encode('abcd','ab')
 ;
 show create table t1;
 drop table t1;

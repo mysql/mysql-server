@@ -587,7 +587,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       }
     }
 
-    table->file->index_init(0);
+    table->file->ha_index_init(0);
     if ((res= table->file->index_first(table->record[0])))
     {
       res= (res == HA_ERR_END_OF_FILE) ? 0 : SP_INTERNAL_ERROR;
@@ -606,6 +606,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 err_case1:
   send_eof(thd);
 err_case:
+  table->file->ha_index_end();
   close_thread_tables(thd);
 done:
   DBUG_RETURN(res);
@@ -647,7 +648,7 @@ sp_drop_db_routines(THD *thd, char *db)
   }
 
   ret= SP_OK;
-  table->file->index_init(0);
+  table->file->ha_index_init(0);
   if (! table->file->index_read(table->record[0],
 				key, keylen, HA_READ_KEY_EXACT))
   {
@@ -670,6 +671,7 @@ sp_drop_db_routines(THD *thd, char *db)
     if (deleted)
       sp_cache_invalidate();
   }
+  table->file->ha_index_end();
 
   close_thread_tables(thd);
 

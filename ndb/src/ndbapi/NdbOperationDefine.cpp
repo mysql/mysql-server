@@ -31,10 +31,10 @@
 #include "NdbConnection.hpp"
 #include "Ndb.hpp"
 #include "NdbRecAttr.hpp"
-#include "AttrType.hpp"
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"
+#include "NdbBlob.hpp"
 
 #include <Interpreter.hpp>
 
@@ -529,9 +529,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   tAttrId = tAttrInfo->m_attrId;
   const char *aValue = aValuePassed; 
   Uint32 ahValue;
-  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
   if (aValue == NULL) {
     if (tAttrInfo->m_nullable) {
+      AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 0);
       ah.setNULL();
       insertATTRINFO(ahValue);
       // Insert Attribute Id with the value
@@ -565,7 +565,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   }//if
   const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
-  ah.setDataSize(totalSizeInWords);
+  AttributeHeader& ah = AttributeHeader::init(&ahValue, tAttrId, 
+					      totalSizeInWords);
   insertATTRINFO( ahValue );
 
   /***********************************************************************
@@ -603,6 +604,33 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   theErrorLine++;  
   return 0;
 }//NdbOperation::setValue()
+
+NdbBlob*
+NdbOperation::getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* tAttrInfo)
+{
+  NdbBlob* tBlob = theBlobList;
+  NdbBlob* tLastBlob = NULL;
+  while (tBlob != NULL) {
+    if (tBlob->theColumn == tAttrInfo)
+      return tBlob;
+    tLastBlob = tBlob;
+    tBlob = tBlob->theNext;
+  }
+  tBlob = theNdb->getNdbBlob();
+  if (tBlob == NULL)
+    return NULL;
+  if (tBlob->atPrepare(aCon, this, tAttrInfo) == -1) {
+    theNdb->releaseNdbBlob(tBlob);
+    return NULL;
+  }
+  if (tLastBlob == NULL)
+    theBlobList = tBlob;
+  else
+    tLastBlob->theNext = tBlob;
+  tBlob->theNext = NULL;
+  theNdbCon->theBlobFlag = true;
+  return tBlob;
+}
 
 /*
  * Define bound on index column in range scan.

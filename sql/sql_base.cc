@@ -300,6 +300,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
+    mysql_ha_close_list(thd, tables);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -362,6 +363,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 
 void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
+  bool found_old_table=0;
   DBUG_ENTER("close_thread_tables");
 
   if (thd->derived_tables && !skip_derived)
@@ -384,8 +386,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
   }
 
-  bool found_old_table=0;
-
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -396,7 +396,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
+  DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
@@ -426,6 +426,7 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ASSERT(table->key_read == 0);
+  DBUG_ASSERT(table->file->inited == handler::NONE);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||
@@ -850,6 +851,9 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     DBUG_RETURN(0);
   }
 
+  /* close handler tables which are marked for flush */
+  mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
        table = (TABLE*) hash_next(&open_cache,(byte*) key,key_length))
@@ -1220,6 +1224,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
+    mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -1760,6 +1765,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
+  tmp_table->in_use= thd;
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
@@ -2184,8 +2190,19 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
-      if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name, &it))
+      Item_subselect *subsel= thd->lex->current_select->master_unit()->item;
+      if (subsel &&
+          subsel->substype() == Item_subselect::EXISTS_SUBS)
+      {
+        /*
+          It is EXISTS(SELECT * ...) and we can replace * by any constant.
+
+          Item_int do not need fix_fields() because it is basic constant.
+        */
+        it.replace(new Item_int("Not_used", (longlong) 1, 21));
+      }
+      else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
+                             ((Item_field*) item)->table_name, &it))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
