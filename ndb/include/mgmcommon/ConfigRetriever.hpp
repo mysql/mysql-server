@@ -77,7 +77,7 @@ public:
    * Get config using socket
    */
   struct ndb_mgm_configuration * getConfig(const char * mgmhost, short port,
-					   int versionId);
+					   int versionId, int nodetype);
   /**
    * Get config from file
    */
@@ -98,7 +98,9 @@ private:
 
   char *                m_connectString;
   char *                m_defaultConnectString;
-  
+
+  NdbMgmHandle m_handle;
+
   /**
    * Verify config
    */

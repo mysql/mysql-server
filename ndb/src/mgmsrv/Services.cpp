@@ -121,6 +121,15 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
 
+  MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
+    MGM_ARG("version", Int, Mandatory, "Configuration version number"),
+    MGM_ARG("nodetype", Int, Mandatory, "Node type"),
+    MGM_ARG("transporter", String, Optional, "Transporter type"),
+    MGM_ARG("nodeid", Int, Optional, "Node ID"),
+    MGM_ARG("user", String, Mandatory, "Password"),
+    MGM_ARG("password", String, Mandatory, "Password"),
+    MGM_ARG("public key", String, Mandatory, "Public key"),
+
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
 
   MGM_CMD("get status", &MgmApiSession::getStatus, ""),
@@ -224,6 +233,19 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
   m_input = new SocketInputStream(sock);
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
+  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+}
+
+MgmApiSession::~MgmApiSession()
+{
+  if (m_input)
+    delete m_input;
+  if (m_output)
+    delete m_output;
+  if (m_parser)
+    delete m_parser;
+  if (m_allocated_resources)
+    delete m_allocated_resources;
 }
 
 void
@@ -333,6 +355,91 @@ backward(const char * base, const Properties* reply){
 }
 
 void
+MgmApiSession::get_nodeid(Parser_t::Context &,
+			  const class Properties &args)
+{
+  const char *cmd= "get nodeid reply";
+  Uint32 version, nodeid= 0, nodetype= 0xff;
+  const char * transporter;
+  const char * user;
+  const char * password;
+  const char * public_key;
+
+  args.get("version", &version);
+  args.get("nodetype", &nodetype);
+  args.get("transporter", &transporter);
+  args.get("nodeid", &nodeid);
+  args.get("user", &user);
+  args.get("password", &password);
+  args.get("public key", &public_key);
+  
+  bool compatible;
+  switch (nodetype) {
+  case NODE_TYPE_MGM:
+  case NODE_TYPE_API:
+    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
+    break;
+  case NODE_TYPE_DB:
+    compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
+    break;
+  default:
+    m_output->println(cmd);
+    m_output->println("result: unknown nodetype %d", nodetype);
+    m_output->println("");
+    return;
+  }
+
+  struct sockaddr addr;
+  socklen_t addrlen;
+  int r;
+  if (r= getsockname(m_socket, &addr, &addrlen)) {
+    m_output->println(cmd);
+    m_output->println("result: getsockname(%d) failed, err= %d", m_socket, r);
+    m_output->println("");
+    return;
+  }
+
+  NodeId free_id= 0;
+  NodeId tmp= nodeid;
+  if (m_mgmsrv.getFreeNodeId(&tmp, (enum ndb_mgm_node_type)nodetype, &addr, &addrlen))
+    free_id= tmp;
+  
+  if (nodeid != 0 && free_id != nodeid){
+    m_output->println(cmd);
+    m_output->println("result: no free nodeid %d for nodetype %d",
+		      nodeid, nodetype);
+    m_output->println("");
+    return;
+  }
+  
+  if (free_id == 0){
+    m_output->println(cmd);
+    m_output->println("result: no free nodeid for nodetype %d", nodetype);
+    m_output->println("");
+    return;
+  }
+
+#if 0
+  if (!compatible){
+    m_output->println(cmd);
+    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
+		      NDB_VERSION, version);
+    m_output->println("");
+    return;
+  }
+#endif
+
+  m_output->println(cmd);
+  m_output->println("nodeid: %u", free_id);
+  m_output->println("result: Ok");
+  m_output->println("");
+
+  m_allocated_resources->reserve_node(free_id);
+
+  return;
+}
+
+void
 MgmApiSession::getConfig_common(Parser_t::Context &,
 				const class Properties &args,
 				bool compat) {
@@ -432,7 +539,6 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
   m_output->println(str.c_str());
-  m_output->println("");
 
   return;
 }

@@ -20,7 +20,7 @@
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
 
-#include "SimBlockList.hpp"
+#include "vm/SimBlockList.hpp"
 #include "ThreadConfig.hpp"
 #include <SignalLoggerManager.hpp>
 #include <NdbOut.hpp>
@@ -31,7 +31,8 @@
 
 #include <LogLevel.hpp>
 #include <EventLogger.hpp>
-#include <NodeState.hpp>
+
+#include <NdbAutoPtr.hpp>
 
 #if defined NDB_SOLARIS // ok
 #include <sys/processor.h> // For system informatio
@@ -71,15 +72,12 @@ NDB_MAIN(ndb_kernel){
     theConfig->setupConfiguration();
   }
 
-  // Get NDB_HOME path
-  char homePath[255];
-  NdbConfig_HomePath(homePath, 255);
-
   if (theConfig->getDaemonMode()) {
     // Become a daemon
-    char lockfile[255], logfile[255];
-    snprintf(lockfile, 255, "%snode%d.pid", homePath, globalData.ownId);
-    snprintf(logfile, 255, "%snode%d.out", homePath, globalData.ownId);
+    char *lockfile= NdbConfig_PidFileName(globalData.ownId);
+    char *logfile=  NdbConfig_StdoutFileName(globalData.ownId);
+    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
+
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
       return 1;
@@ -90,6 +88,8 @@ NDB_MAIN(ndb_kernel){
     /**
      * Parent
      */
+    theConfig->closeConfiguration();
+
     catchsigs(true);
 
     int status = 0;
@@ -147,9 +147,9 @@ NDB_MAIN(ndb_kernel){
   
 #ifdef VM_TRACE
   // Create a signal logger
-  char buf[255];
-  strcpy(buf, homePath);
-  FILE * signalLog = fopen(strncat(buf,"Signal.log", 255), "a");
+  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr(buf);
+  FILE * signalLog = fopen(buf, "a");
   globalSignalLoggers.setOwnNodeId(globalData.ownId);
   globalSignalLoggers.setOutputStream(signalLog);
 #endif
@@ -171,13 +171,31 @@ NDB_MAIN(ndb_kernel){
     NDB_ASSERT(0, "Illegal state globalData.theRestartFlag");
   }
 
+  SocketServer socket_server;
+
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
+  if (!globalTransporterRegistry.start_service(socket_server))
+    NDB_ASSERT(0, "globalTransporterRegistry.start_service() failed");
+
+  if (!globalTransporterRegistry.start_clients())
+    NDB_ASSERT(0, "globalTransporterRegistry.start_clients() failed");
+
   globalEmulatorData.theWatchDog->doStart();
   
+  socket_server.startServer();
+
+  //  theConfig->closeConfiguration();
+
   globalEmulatorData.theThreadConfig->ipControlLoop();
   
   NdbShutdown(NST_Normal);
+
+  socket_server.stopServer();
+  socket_server.stopSessions();
+
+  globalTransporterRegistry.stop_clients();
+
   return NRT_Default;
 }
 

@@ -43,9 +43,11 @@
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
 
-#include "SocketServer.hpp"
+#include <SocketServer.hpp>
 #include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
+
+#include <NdbAutoPtr.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
@@ -240,10 +242,9 @@ MgmtSrvr::startEventLog()
   
   const char * tmp;
   BaseString logdest;
-  char clusterLog[MAXPATHLEN];
-  NdbConfig_ClusterLogFileName(clusterLog, sizeof(clusterLog));
-  
-  
+  char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
+  NdbAutoPtr<char> tmp_aptr(clusterLog);
+
   if(ndb_mgm_get_string_parameter(iter, CFG_LOG_DESTINATION, &tmp) == 0){
     logdest.assign(tmp);
   }
@@ -391,6 +392,95 @@ MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const
 }
 
 int 
+MgmtSrvr::getPort() const {
+  const Properties *mgmProps;
+  
+  ndb_mgm_configuration_iterator * iter = 
+    ndb_mgm_create_configuration_iterator(_config->m_configValues, 
+					  CFG_SECTION_NODE);
+  if(iter == 0)
+    return 0;
+
+  if(ndb_mgm_find(iter, CFG_NODE_ID, getOwnNodeId()) != 0){
+    ndbout << "Could not retrieve configuration for Node " 
+	   << getOwnNodeId() << " in config file." << endl 
+	   << "Have you set correct NodeId for this node?" << endl;
+    ndb_mgm_destroy_iterator(iter);
+    return 0;
+  }
+
+  unsigned type;
+  if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0 ||
+     type != NODE_TYPE_MGM){
+    ndbout << "Local node id " << getOwnNodeId()
+	   << " is not defined as management server" << endl
+	   << "Have you set correct NodeId for this node?" << endl;
+    return 0;
+  }
+  
+  Uint32 port = 0;
+  if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &port) != 0){
+    ndbout << "Could not find PortNumber in the configuration file." << endl;
+    return 0;
+  }
+  
+  /*****************
+   * Set Stat Port *
+   *****************/
+#if 0
+  if (!mgmProps->get("PortNumberStats", &tmp)){
+    ndbout << "Could not find PortNumberStats in the configuration file." 
+	   << endl;
+    return false;
+  }
+  glob.port_stats = tmp;
+#endif
+
+#if 0
+  const char * host;
+  if(ndb_mgm_get_string_parameter(iter, mgmProps->get("ExecuteOnComputer", host)){
+    ndbout << "Failed to find \"ExecuteOnComputer\" for my node" << endl;
+    ndbout << "Unable to verify own hostname" << endl;
+    return false;
+  }
+
+  const char * hostname;
+  {
+    const Properties * p;
+    char buf[255];
+    snprintf(buf, sizeof(buf), "Computer_%s", host.c_str());
+    if(!glob.cluster_config->get(buf, &p)){
+      ndbout << "Failed to find computer " << host << " in config" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+    if(!p->get("HostName", &hostname)){
+      ndbout << "Failed to find \"HostName\" for computer " << host 
+	     << " in config" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+    if(NdbHost_GetHostName(buf) != 0){
+      ndbout << "Unable to get own hostname" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+  }
+  
+  const char * ip_address;
+  if(mgmProps->get("IpAddress", &ip_address)){
+    glob.use_specific_ip = true;
+    glob.interface_name = strdup(ip_address);
+    return true;
+  }
+  
+  glob.interface_name = strdup(hostname);
+#endif
+
+  return port;
+}
+
+int 
 MgmtSrvr::getStatPort() const {
 #if 0
   const Properties *mgmProps;
@@ -417,9 +507,9 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _ownReference(0),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  theConfCount(0) {
+  theConfCount(0),
+  m_allocated_resources(*this) {
 
-  _ownNodeId  = nodeId;
   _config     = NULL;
   _isStatPortActive = false;
   _isClusterLogStatActive = false;
@@ -428,6 +518,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
   _startedNodeId       = 0;
+
+  theFacade = 0;
 
   m_newConfig = NULL;
   m_configFilename = configFilename;
@@ -486,6 +578,19 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _clusterLogLevelList = new NodeLogLevelList();
 
   _props = NULL;
+
+  _ownNodeId= 0;
+  NodeId tmp= nodeId;
+  if (getFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
+    _ownNodeId= tmp;
+    if (nodeId != 0 && nodeId != tmp) {
+      ndbout << "Unable to obtain requested nodeid " << nodeId
+	     << " nodeid " << tmp << " available\n";
+      _ownNodeId= 0; // did not get nodeid requested
+    }
+    m_allocated_resources.reserve_node(_ownNodeId);
+  } else
+    NDB_ASSERT(0, "Unable to retrieve own node id");
 }
 
 
@@ -510,8 +615,7 @@ MgmtSrvr::start()
       return false;
   }
   theFacade = TransporterFacade::start_instance
-    (_ownNodeId, 
-     (ndb_mgm_configuration*)_config->m_configValues);
+    (_ownNodeId,(ndb_mgm_configuration*)_config->m_configValues);
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
@@ -573,8 +677,7 @@ MgmtSrvr::~MgmtSrvr()
 
   stopEventLog();
 
-  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);
-  NdbMutex_Destroy(m_configMutex);
+  NdbCondition_Destroy(theMgmtWaitForResponseCondPtr);  NdbMutex_Destroy(m_configMutex);
 
   if(m_newConfig != NULL)
     free(m_newConfig);
@@ -818,7 +921,7 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
     return 0;
   }
   
-  TransporterFacade::instance()->lock_mutex();
+  theFacade->lock_mutex();
   int waitTime = timeOut/m_stopRec.sentCount;
   if (receiveOptimisedResponse(waitTime) != 0) {
     m_stopRec.inUse = false;
@@ -993,8 +1096,7 @@ MgmtSrvr::version(int * stopCount, bool abort,
   }
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = 
-	TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+      node = theFacade->theClusterMgr->getNodeInfo(i);
       version = node.m_info.m_version;
       if(theFacade->theClusterMgr->getNodeInfo(i).connected)
 	m_versionRec.callback(i, version, this,0);
@@ -1148,7 +1250,7 @@ MgmtSrvr::stop(int * stopCount, bool abort, StopCallback callback,
   
   if(m_stopRec.sentCount > 0){
     if(callback == 0){
-      TransporterFacade::instance()->lock_mutex();
+      theFacade->lock_mutex();
       receiveOptimisedResponse(timeOut / m_stopRec.sentCount);
     } else {
       return 0;
@@ -1178,7 +1280,7 @@ MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId,
 
   for(Uint32 i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-      node = TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+      node = theFacade->theClusterMgr->getNodeInfo(i);
       if((node.m_state.startLevel != NodeState::SL_STARTED) && 
 	 (node.m_state.startLevel != NodeState::SL_NOTHING)) {
 	return 5063;
@@ -1337,7 +1439,7 @@ MgmtSrvr::status(int processId,
   }
 
   const ClusterMgr::Node node = 
-    TransporterFacade::instance()->theClusterMgr->getNodeInfo(processId);
+    theFacade->theClusterMgr->getNodeInfo(processId);
 
   if(!node.connected){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
@@ -1896,6 +1998,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   int returnCode;
 
   int gsn = signal->readSignalNumber();
+
   switch (gsn) {
   case GSN_API_VERSION_CONF: {
     if (theWaitState == WAIT_VERSION) {
@@ -2000,8 +2103,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
       req->senderData = 19;
       req->backupDataLen = 0;
       
-      int i = TransporterFacade::instance()->sendSignalUnCond(&aSignal, 
-							      aNodeId);
+      int i = theFacade->sendSignalUnCond(&aSignal, aNodeId);
       if(i == 0){
 	return;
       }
@@ -2083,7 +2185,7 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
     bool failure = true;
     for(Uint32 i = 0; i<MAX_NODES; i++) {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-	node = TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
+	node = theFacade->theClusterMgr->getNodeInfo(i);
 	if((node.m_state.startLevel == NodeState::SL_NOTHING))
 	  failure = true;
 	else
@@ -2185,6 +2287,66 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
     return (enum ndb_mgm_node_type)-1;
   
   return nodeTypes[nodeId];
+}
+
+bool
+MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
+			struct sockaddr *client_addr, socklen_t *client_addr_len) const 
+{
+#if 0
+  ndbout << "MgmtSrvr::getFreeNodeId type=" << type
+	 << " *nodeid=" << *nodeId << endl;
+#endif
+
+  NodeBitmask connected_nodes(m_reserved_nodes);
+  if (theFacade && theFacade->theClusterMgr) {
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	if (node.connected)
+	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
+      }
+  }
+
+  ndb_mgm_configuration_iterator iter(*(ndb_mgm_configuration *)_config->m_configValues,
+				      CFG_SECTION_NODE);
+  for(iter.first(); iter.valid(); iter.next()) {
+    unsigned tmp= 0;
+    if(iter.get(CFG_NODE_ID, &tmp)) abort();
+    if (connected_nodes.get(tmp))
+      continue;
+    if (*nodeId && *nodeId != tmp)
+      continue;
+    unsigned type_c;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) abort();
+    if(type_c != type)
+      continue;
+    const char *config_hostname = 0;
+    if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
+
+    //  getsockname(int s, struct sockaddr *name, socklen_t *namelen);
+
+   if (config_hostname && config_hostname[0] != 0 && client_addr) {
+     // check hostname compatability
+     struct in_addr config_addr;
+     if(Ndb_getInAddr(&config_addr, config_hostname) != 0
+	|| memcmp(&config_addr, &(((sockaddr_in*)client_addr)->sin_addr),
+		  sizeof(config_addr)) != 0) {
+#if 0
+       ndbout << "MgmtSrvr::getFreeNodeId compare failed for \"" << config_hostname
+	      << "\" id=" << tmp << endl;
+#endif
+       continue;
+     }
+    }
+    *nodeId= tmp;
+#if 0
+  ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
+	 << " *nodeid=" << *nodeId << endl;
+#endif
+    return true;
+  }
+  return false;
 }
 
 bool
@@ -2573,3 +2735,22 @@ MgmtSrvr::getPrimaryNode() const {
   return 0;
 #endif
 }
+
+
+MgmtSrvr::Allocated_resources::Allocated_resources(MgmtSrvr &m)
+  : m_mgmsrv(m)
+{
+}
+
+MgmtSrvr::Allocated_resources::~Allocated_resources()
+{
+  m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
+}
+
+void
+MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
+{
+  m_reserved_nodes.set(id);
+  m_mgmsrv.m_reserved_nodes.set(id);
+}
+

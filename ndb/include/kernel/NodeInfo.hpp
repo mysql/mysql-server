@@ -18,6 +18,7 @@
 #define NODE_INFO_HPP
 
 #include <NdbOut.hpp>
+#include <mgmapi_config_parameters.h>
 
 class NodeInfo {
 public:
@@ -27,10 +28,10 @@ public:
    * NodeType
    */
   enum NodeType {
-    DB  = 0,      ///< Database node
-    API = 1,      ///< NDB API node
-    MGM = 2,      ///< Management node  (incl. NDB API)
-    REP = 3,      ///< Replication node (incl. NDB API)
+    DB  = NODE_TYPE_DB,      ///< Database node
+    API = NODE_TYPE_API,      ///< NDB API node
+    MGM = NODE_TYPE_MGM,      ///< Management node  (incl. NDB API)
+    REP = NODE_TYPE_REP,      ///< Replication node (incl. NDB API)
     INVALID = 255 ///< Invalid type
   };
   NodeType getType() const;
