@@ -298,6 +298,14 @@ btr_pcur_move_to_prev(
 				function may release the page latch */
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************
+Moves the persistent cursor to the last record on the same page. */
+UNIV_INLINE
+void
+btr_pcur_move_to_last_on_page(
+/*==========================*/
+	btr_pcur_t*	cursor,	/* in: persistent cursor */
+	mtr_t*		mtr);	/* in: mtr */
+/*************************************************************
 Moves the persistent cursor to the next user record in the tree. If no user
 records are left, the cursor ends up 'after last in tree'. */
 UNIV_INLINE
