@@ -24,16 +24,16 @@ BitmaskImpl::getFieldImpl(const Uint32 src[],
   assert(shiftL < 32);
   
   unsigned shiftR = 32 - shiftL;
+  unsigned undefined = shiftL ? ~0 : 0;
   while(len >= 32)
   {
     * dst++ |= (* src) << shiftL;
-    * dst = shiftL ? (* src) >> shiftR : 0;
-    src++;
+    * dst = ((* src++) >> shiftR) & undefined;
     len -= 32;
   }
   
   * dst++ |= (* src) << shiftL;
-  * dst = shiftL ? ((* src) >> shiftR) & ((1 << len) - 1) : 0;
+  * dst = ((* src) >> shiftR) & ((1 << len) - 1) & undefined;
 }
 
 void
@@ -47,18 +47,18 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
    */
   assert(shiftL < 32);
   unsigned shiftR = 32 - shiftL;
-  
+  unsigned undefined = shiftL ? ~0 : 0;  
   while(len >= 32)
   {
     * dst = (* src++) >> shiftL;
-    * dst++ |= shiftL ? (* src) << shiftR : 0;
+    * dst++ |= ((* src) << shiftR) & undefined;
     len -= 32;
   }
   
   Uint32 mask = ((1 << len) -1);
   * dst = (* dst & ~mask);
   * dst |= ((* src++) >> shiftL) & mask;
-  * dst |= shiftL ? ((* src) << shiftR) & mask : 0;
+  * dst |= ((* src) << shiftR) & mask & undefined;
 }
 
 #else
