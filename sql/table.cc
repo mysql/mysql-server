@@ -1139,7 +1139,8 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
 
 bool check_db_name(char *name)
 {
-   char *start=name;
+  char *start=name;
+  bool space= false;
 
   if (lower_case_table_names)
     casedn_str(name);
@@ -1147,6 +1148,7 @@ bool check_db_name(char *name)
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    space= my_isspace(default_charset_info, *name);
     if (use_mb(default_charset_info))
     {
       int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
@@ -1156,19 +1158,24 @@ bool check_db_name(char *name)
         continue;
       }
     }
+#else
+    space= *name==' ';
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
-  return (uint) (name - start) > NAME_LEN;
+  if (space)
+    return 1;
+  return name[-1]==' ' || (uint) (name - start) > NAME_LEN;
 }
 
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   a '/', or a '.' character
+  or ' ' at the end
   returns 1 on error
 */
 
@@ -1178,10 +1185,17 @@ bool check_table_name(const char *name, uint length)
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  bool space= false;
+#else
+  if (name[length-1]==' ')
+    return 1;
+#endif
 
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    space= my_isspace(default_charset_info, *name);
     if (use_mb(default_charset_info))
     {
       int len=my_ismbchar(default_charset_info, name, end);
@@ -1196,16 +1210,22 @@ bool check_table_name(const char *name, uint length)
       return 1;
     name++;
   }
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  if (space)
+    return 1;
+#endif
   return 0;
 }
 
 bool check_column_name(const char *name)
 {
   const char *start= name;
+  bool space= false;
 
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    space= my_isspace(default_charset_info, *name);
     if (use_mb(default_charset_info))
     {
       int len=my_ismbchar(default_charset_info, name, name+MBMAXLEN);
@@ -1215,11 +1235,15 @@ bool check_column_name(const char *name)
         continue;
       }
     }
+#else
+    space= *name==' ';
 #endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
   }
+  if (space)
+    return 1;
   /* Error if empty or too long column name */
   return (name == start || (uint) (name - start) > NAME_LEN);
 }
