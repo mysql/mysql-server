@@ -508,7 +508,7 @@ void
 buf_block_buf_fix_inc_debug(
 /*========================*/
 	buf_block_t*	block,	/* in: block to bufferfix */
-	char*		file __attribute__ ((unused)),	/* in: file name */
+	const char*	file __attribute__ ((unused)),	/* in: file name */
 	ulint		line __attribute__ ((unused)))	/* in: line */
 {
 #ifdef UNIV_SYNC_DEBUG	
