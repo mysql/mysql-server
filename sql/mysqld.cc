@@ -308,6 +308,9 @@ my_bool opt_readonly = 0, opt_sync_bdb_logs, opt_sync_frm;
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
+#ifdef HAVE_INITGROUPS
+static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
+#endif
 
 /*
   If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
@@ -1086,7 +1089,15 @@ static void set_user(const char *user, struct passwd *user_info)
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info);
 #ifdef HAVE_INITGROUPS
+  /*
+    We can get a SIGSEGV when calling initgroups() on some systems when NSS
+    is configured to use LDAP and the server is statically linked.  We set
+    calling_initgroups as a flag to the SIGSEGV handler that is then used to
+    output a specific message to help the user resolve this problem.
+  */
+  calling_initgroups= TRUE;
   initgroups((char*) user, user_info->pw_gid);
+  calling_initgroups= FALSE;
 #endif
   if (setgid(user_info->pw_gid) == -1)
   {
@@ -1806,6 +1817,17 @@ The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
+
+#ifdef HAVE_INITGROUPS
+  if (calling_initgroups)
+    fprintf(stderr, "\n\
+This crash occured while the server was calling initgroups(). This is\n\
+often due to the use of a mysqld that is statically linked against glibc\n\
+and configured to use LDAP in /etc/nsswitch.conf. You will need to either\n\
+upgrade to a version of glibc that does not have this problem (2.3.4 or\n\
+later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
+mysqld that is not statically linked.\n");
+#endif
 
  if (test_flags & TEST_CORE_ON_SIGNAL)
  {
