@@ -1010,6 +1010,11 @@ INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 DROP TABLE t1, t2;
 
+CREATE TABLE t1 (a int(1));
+INSERT INTO t1 VALUES (1),(1),(1),(1),(1),(2),(3),(4),(5);
+SELECT DISTINCT (SELECT a) FROM t1 LIMIT 100;
+DROP TABLE t1;
+
 #
 # Bug 2198
 #
@@ -1060,3 +1065,4 @@ select sum(a) from (select * from t1) as a;
 select 2 in (select * from t1);
 SET SQL_SELECT_LIMIT=default;
 drop table t1;
+
