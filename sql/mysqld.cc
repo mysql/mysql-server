@@ -1116,6 +1116,19 @@ static void start_signal_handler(void)
 }
 
 #elif defined(__EMX__)
+static void init_signals(void)
+{
+  signal(SIGQUIT, sig_kill);
+  signal(SIGKILL, sig_kill);
+  signal(SIGTERM, sig_kill);
+  signal(SIGINT,  sig_kill);
+  signal(SIGHUP,  sig_reload);	// Flush everything
+  signal(SIGALRM, SIG_IGN);
+  signal(SIGBREAK,SIG_IGN);
+  signal_thread = pthread_self();
+}
+
+
 static void sig_reload(int signo)
 {
   reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0); // Flush everything
@@ -1132,22 +1145,10 @@ static void sig_kill(int signo)
   signal(signo, SIG_ACK);
 }
 
-static void init_signals(void)
-{
-  signal(SIGQUIT, sig_kill);
-  signal(SIGKILL, sig_kill);
-  signal(SIGTERM, sig_kill);
-  signal(SIGINT,  sig_kill);
-  signal(SIGHUP,  sig_reload);	// Flush everything
-  signal(SIGALRM, SIG_IGN);
-  signal(SIGBREAK,SIG_IGN);
-  signal_thread = pthread_self();
-}
 
 static void start_signal_handler(void)
 {
 }
-
 #else /* if ! __WIN__ && ! __EMX__ */
 
 #ifdef HAVE_LINUXTHREADS
@@ -1157,10 +1158,12 @@ static void start_signal_handler(void)
 static sig_handler handle_segfault(int sig)
 {
   THD *thd=current_thd;
-  // strictly speaking, one needs a mutex here
-  // but since we have got SIGSEGV already, things are a mess
-  // so not having the mutex is not as bad as possibly using a buggy
-  // mutex - so we keep things simple
+  /*
+    Strictly speaking, we should need a mutex here
+    but since we have got SIGSEGV already, things are a mess
+    so not having the mutex is not as bad as possibly using a buggy
+    mutex - so we keep things simple.
+  */
   if (segfaulted)
   {
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
