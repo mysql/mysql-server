@@ -950,3 +950,9 @@ v1	CREATE VIEW test.v1 AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
 drop view v1;
 drop table t1;
 set sql_mode=default;
+create table t1 (t_column int);
+create view v1 as select 'a';
+select * from v1, t1;
+a	t_column
+drop view v1;
+drop table t1;

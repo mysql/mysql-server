@@ -677,6 +677,11 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 	if ((tbl_end->next_global= old_next))
           tbl_end->next_global->prev_global= &tbl_end->next_global;
       }
+      else
+      {
+        /* VIEW do not contain tables */
+        table->next_global= old_next;
+      }
     }
 
     table->derived= &lex->unit;
