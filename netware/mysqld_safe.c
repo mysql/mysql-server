@@ -60,7 +60,7 @@ void vlog(char *, va_list);
 void log(char *, ...);
 void start_defaults(int, char*[]);
 void finish_defaults();
-void read_defaults(arg_list);
+void read_defaults(arg_list_t *);
 void parse_args(int, char*[]);
 void get_options(int, char*[]);
 void check_data_vol();
@@ -249,9 +249,9 @@ void finish_defaults()
 	Read the defaults.
 
 ******************************************************************************/
-void read_defaults(arg_list pal)
+void read_defaults(arg_list_t *pal)
 {
-  arg_list al;
+  arg_list_t al;
   char defaults_file[PATH_MAX];
   char mydefaults[PATH_MAX];
   char line[PATH_MAX];
@@ -265,17 +265,17 @@ void read_defaults(arg_list pal)
   snprintf(mydefaults, PATH_MAX, "%s/bin/my_print_defaults", basedir);
 	
   // args
-  init_args(al);
-  add_arg(al, mydefaults);
-  if (default_option[0]) add_arg(al, default_option);
-  add_arg(al, "mysqld");
-  add_arg(al, "server");
-  add_arg(al, "mysqld_safe");
-  add_arg(al, "safe_mysqld");
+  init_args(&al);
+  add_arg(&al, mydefaults);
+  if (default_option[0]) add_arg(&al, default_option);
+  add_arg(&al, "mysqld");
+  add_arg(&al, "server");
+  add_arg(&al, "mysqld_safe");
+  add_arg(&al, "safe_mysqld");
 
-	spawn(mydefaults, al, TRUE, NULL, defaults_file, NULL);
+	spawn(mydefaults, &al, TRUE, NULL, defaults_file, NULL);
 
-  free_args(al);
+  free_args(&al);
 
 	// gather defaults
 	if((fp = fopen(defaults_file, "r")) != NULL)
@@ -405,17 +405,17 @@ void parse_args(int argc, char *argv[])
 ******************************************************************************/
 void get_options(int argc, char *argv[])
 {
-  arg_list al;
+  arg_list_t al;
   
   // start defaults
   start_defaults(argc, argv);
 
   // default file arguments
-  init_args(al);
-  add_arg(al, "ignore");
-  read_defaults(al);
-  parse_args(al->argc, al->argv);
-  free_args(al);
+  init_args(&al);
+  add_arg(&al, "ignore");
+  read_defaults(&al);
+  parse_args(al.argc, al.argv);
+  free_args(&al);
   
   // command-line arguments
   parse_args(argc, argv);
@@ -504,7 +504,7 @@ void check_setup()
 ******************************************************************************/
 void check_tables()
 {
-  arg_list al;
+  arg_list_t al;
   char mycheck[PATH_MAX];
 	char table[PATH_MAX];
 	char db[PATH_MAX];
@@ -549,21 +549,21 @@ void check_tables()
           snprintf(mycheck, PATH_MAX, "%s/bin/myisamchk", basedir);
 
           // args
-          init_args(al);
-          add_arg(al, mycheck);
-          add_arg(al, "--silent");
-          add_arg(al, "--force");
-          add_arg(al, "--fast");
-          add_arg(al, "--medium-check");
-          add_arg(al, "-O");
-          add_arg(al, "key_buffer=64M");
-          add_arg(al, "-O");
-          add_arg(al, "sort_buffer=64M");
-          add_arg(al, table);
+          init_args(&al);
+          add_arg(&al, mycheck);
+          add_arg(&al, "--silent");
+          add_arg(&al, "--force");
+          add_arg(&al, "--fast");
+          add_arg(&al, "--medium-check");
+          add_arg(&al, "-O");
+          add_arg(&al, "key_buffer=64M");
+          add_arg(&al, "-O");
+          add_arg(&al, "sort_buffer=64M");
+          add_arg(&al, table);
 
-          spawn(mycheck, al, TRUE, NULL, NULL, NULL);
+          spawn(mycheck, &al, TRUE, NULL, NULL, NULL);
 
-          free_args(al);
+          free_args(&al);
         }
         else if (strindex(table, ".ism"))
         {
@@ -573,17 +573,17 @@ void check_tables()
           snprintf(mycheck, PATH_MAX, "%s/bin/isamchk", basedir);
 
           // args
-          init_args(al);
-          add_arg(al, mycheck);
-          add_arg(al, "--silent");
-          add_arg(al, "--force");
-          add_arg(al, "-O");
-          add_arg(al, "sort_buffer=64M");
-          add_arg(al, table);
+          init_args(&al);
+          add_arg(&al, mycheck);
+          add_arg(&al, "--silent");
+          add_arg(&al, "--force");
+          add_arg(&al, "-O");
+          add_arg(&al, "sort_buffer=64M");
+          add_arg(&al, table);
 
-          spawn(mycheck, al, TRUE, NULL, NULL, NULL);
+          spawn(mycheck, &al, TRUE, NULL, NULL, NULL);
 
-          free_args(al);
+          free_args(&al);
         }
       }
     }
@@ -599,7 +599,7 @@ void check_tables()
 ******************************************************************************/
 void mysql_start(int argc, char *argv[])
 {
-	arg_list al;
+	arg_list_t al;
 	int i, j, err;
 	struct stat info;
 	time_t cal;
@@ -619,8 +619,8 @@ void mysql_start(int argc, char *argv[])
   };
   
 	// args
-	init_args(al);
-	add_arg(al, "%s", mysqld);
+	init_args(&al);
+	add_arg(&al, "%s", mysqld);
 	
 	// parent args
 	for(i = 1; i < argc; i++)
@@ -637,7 +637,7 @@ void mysql_start(int argc, char *argv[])
       }
     }
 		
-    if (!skip) add_arg(al, "%s", argv[i]);
+    if (!skip) add_arg(&al, "%s", argv[i]);
 	}
 	
   // spawn
@@ -653,7 +653,7 @@ void mysql_start(int argc, char *argv[])
     log("mysql started    : %s\n", stamp);
 		
 		// spawn mysqld
-		spawn(mysqld, al, TRUE, NULL, NULL, err_log);
+		spawn(mysqld, &al, TRUE, NULL, NULL, err_log);
 	}
 	while (!stat(pid_file, &info));
 
@@ -664,7 +664,7 @@ void mysql_start(int argc, char *argv[])
   log("mysql stopped    : %s\n\n", stamp);
 	
 	// free args
-	free_args(al);
+	free_args(&al);
 }
 
 /******************************************************************************
