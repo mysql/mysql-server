@@ -104,7 +104,7 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
   treePos.m_loc = currNode.m_loc;
   // binary search
   int lo = -1;
-  int hi = currNode.getOccup();
+  unsigned hi = currNode.getOccup();
   int ret;
   while (1) {
     jam();

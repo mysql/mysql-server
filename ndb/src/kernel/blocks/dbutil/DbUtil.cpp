@@ -1059,6 +1059,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
       ndbrequire(prepPagesReader.getValueLen() <= MAX_ATTR_NAME_SIZE);
       
       prepPagesReader.getString(attrNameRequested);
+      attrIdRequested= ~0u;
     } else {
       jam();
       attrIdRequested = prepPagesReader.getUint32();
