@@ -5,7 +5,7 @@ dist-hook:
 	  test -d $(distdir)/$$dir || mkdir $(distdir)/$$dir; \
 	  $(INSTALL_DATA) $(srcdir)/$$dir/*.* $(distdir)/$$dir; \
 	done; \
-	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets \
+	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/Index $(distdir)/charsets
 
 all: @AVAILABLE_LANGUAGES_ERRORS@

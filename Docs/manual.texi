@@ -672,7 +672,7 @@ Adding New Procedures to MySQL
 
 MySQL ODBC Support
 
-* Which ODBC OS::               Operating systems supported by @strong{MyODBC}
+* Installing MyODBC::           How to install MyODBC
 * ODBC administrator::          How to fill in the various fields in the ODBC administrator program
 * ODBC Problems::               How to report problems with @strong{MySQL} ODBC
 * MyODBC clients::              Programs known to work with @strong{MyODBC}
@@ -32421,7 +32421,7 @@ You can find all information about procedures by examining the following files:
 @chapter MySQL ODBC Support
 
 @menu
-* Which ODBC OS::               Operating systems supported by @strong{MyODBC}
+* Installing MyODBC::           How to install MyODBC
 * ODBC administrator::          How to fill in the various fields in the ODBC administrator program
 * ODBC Problems::               How to report problems with @strong{MySQL} ODBC
 * MyODBC clients::              Programs known to work with @strong{MyODBC}
@@ -32432,13 +32432,16 @@ You can find all information about procedures by examining the following files:
 @strong{MySQL} provides support for ODBC by means of the @strong{MyODBC}
 program.
 
-@node Which ODBC OS, ODBC administrator, ODBC, ODBC
-@section Operating Systems Supported by MyODBC
+@node Installing MyODBC, ODBC administrator, ODBC, ODBC
+@section How To Install MyODBC
 
 @strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and level
 2 features) driver for connecting an ODBC-aware application to
 @strong{MySQL}.  @strong{MyODBC} works on Windows95, Windows98, NT, and
 on most Unix platforms.
+
+@strong{MyODBC} is in public domain, and you can find the newest version
+at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
 
 If you have problem with @strong{MyODBC} and your program also works
 with OLEDB, you should try the OLEDB driver that you can find in the
@@ -32449,14 +32452,16 @@ You only need @strong{MyODBC} for Unix if you have a program like
 ColdFusion that is running on the Unix machine and uses ODBC to connect
 to the databases.
 
-@strong{MyODBC} is in public domain, and you can find the newest version
-at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
-
 If you want to install @strong{MyODBC} on a Unix box, you will also need
 an @strong{ODBC} manager.  @strong{MyODBC} is known to work with
 most of the Unix ODBC managers.  You can find a list at these in the
 @strong{ODBC}-related links section on the @strong{MySQL} useful links page.
 @xref{Useful Links}.
+
+To install @strong{MyODBC} on windows, you should download the
+appropriate @strong{MyODBC} .zip file (for Windows or NT/Win2000),
+unpack it with @code{WINZIP}, or some similar program, and execute the
+@code{SETUP.EXE} file.
 
 On Windows/NT you may get the following error when trying to install
 @strong{MyODBC}:
@@ -32468,11 +32473,14 @@ use ODBC)
 @end example
 
 The problem in this case is that some other program is using ODBC and
-because of how Windows is designed, you cannot in this case install new
-ODBC drivers with Microsoft's ODBC setup program. The solution to this
-is to reboot your computer in ``safe mode`` (Choose this by
-pressing F8 just before your machine starts Windows during rebooting),
-install @strong{MyODBC}, and reboot to normal mode:
+because of how Windows is designed, you may not in this case be able to
+install a new ODBC drivers with Microsoft's ODBC setup program. In most
+cases you can continue by just pressing @code{Ignore} to copy the rest
+of the MyODBC files and the final installation should still work.  If
+this doesn't work, the the solution is to reboot your computer in ``safe
+mode`` (Choose this by pressing F8 just before your machine starts
+Windows during rebooting), install @strong{MyODBC}, and reboot to normal
+mode.
 
 @itemize @bullet
 @item
@@ -32481,8 +32489,8 @@ application (one that doesn't support @strong{MySQL} natively), you must
 first install @strong{MyODBC} on the Windows machine.
 @item
 The user and Windows machine must have the access privileges to the
-@strong{MySQL} server on the Unix machine.  This is set up with the @code{GRANT}
-command. @xref{GRANT,,@code{GRANT}}.
+@strong{MySQL} server on the Unix machine.  This is set up with the
+@code{GRANT} command. @xref{GRANT,,@code{GRANT}}.
 @item
 You must create an ODBC DSN entry as follows:
 
@@ -32513,7 +32521,7 @@ Notice that there are other configuration options on the screen of
 you run into problems.
 
 @cindex ODBC, administrator
-@node ODBC administrator, ODBC Problems, Which ODBC OS, ODBC
+@node ODBC administrator, ODBC Problems, Installing MyODBC, ODBC
 @section How to Fill in the Various Fields in the ODBC Administrator Program
 
 There are three possibilities for specifying the server name on
@@ -32895,15 +32903,33 @@ SELECT * FROM tbl_name WHERE auto IS NULL;
 
 If you encounter difficulties with @strong{MyODBC}, you should start by
 making a log file from the ODBC manager (the log you get when requesting
-logs from ODBCADMIN) and a @strong{MyODBC} log. To get a @strong{MyODBC}
-log, tag the `Trace MyODBC' option flag in the @strong{MyODBC}
-connect/configure screen.  The log will be written to file
-@file{C:\myodbc.log}.  Note that you must use @code{MYSQL.DLL} and not
-@code{MYSQL2.DLL} for this option to work!
+logs from ODBCADMIN) and a @strong{MyODBC} log.
 
-Check the queries that MyODBC sends to the @strong{MySQL} server. You
-should be able to find this by searching after the string
-@code{>mysql_real_query} in the @file{myodbc.log} file.
+To get a @strong{MyODBC} log, you need to do the following:
+
+@enumerate
+@item
+Ensure that you are using @code{myodbcd.dll} and not @code{myodbc.dll}.
+The easiest way to do this is to get @code{myodbcd.dll} from the MyODBC
+distribution and copy it over the @code{myodbc.dll}, which is probably
+in your @code{C:\windows\system32} or @code{C:\winnt\system32} directory.
+
+Note that you probably want to restore the old myodbc.dll file when you
+have finished testing, as this is a lot faster than @code{myodbcd.dll}.
+@item
+Tag the `Trace MyODBC' option flag in the @strong{MyODBC} connect/configure
+screen.  The log will be written to file @file{C:\myodbc.log}.
+
+If the trace option is not remembered when you are going back to the
+above screen, it means that you are not using the @code{myodbcd.dll}
+driver (see above).
+@item
+Start your application and try to get it to fail.
+@end enumerate
+
+Check the @code{MyODBC trace file}, to find out what could be wrong.
+You should be able to find out the the issued queries by searching after
+the string @code{>mysql_real_query} in the @file{myodbc.log} file.
 
 You should also try duplicating the queries in the @code{mysql} monitor
 or @code{admndemo} to find out if the error is MyODBC or @strong{MySQL}.
