@@ -7,7 +7,7 @@
 
 
 FILES= cond.h copyright.h fd.h fd_pipe.h kernel.h mutex.h posix.h \
-	   pthread.h pthread_attr.h queue.h util.h 
+	   pthread.h pthread_attr.h queue.h util.h semaphore.h
 
 # Machine dependent header file
 MFILE= ${.CURDIR}/arch/${MACHINE}/machdep.h
