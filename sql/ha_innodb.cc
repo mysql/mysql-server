@@ -151,6 +151,19 @@ innobase_release_stat_resources(
 }
 
 /************************************************************************
+Call this function when mysqld passes control to the client. That is to
+avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
+documentation, see handler.cc. */
+
+void
+innobase_release_temporary_latches(
+/*===============================*/
+        void*   innobase_tid)
+{
+        innobase_release_stat_resources((trx_t*)innobase_tid);
+}
+
+/************************************************************************
 Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
 time calls srv_active_wake_master_thread. This function should be used
 when a single database operation may introduce a small need for
