@@ -50320,9 +50320,9 @@ to take down the server.
 Improved replication code and features.
 @xref{Replication}.
 @item
-Numerous new and functions and options.
+Numerous new functions and options.
 @item
-Changes to existing code for enhance performance and reliability.
+Changes to existing code for enhanced performance and reliability.
 @end itemize
 
 For a full list of changes, please refer to the changelog sections for
