@@ -578,7 +578,7 @@ bool Item_sum_sum_distinct::add()
     {
       DBUG_ASSERT(tree);
       null_value= 0;
-      my_decimal2binary(E_DEC_FATAL_ERROR, val, dec_bin_buff,
+      my_decimal2binary(E_DEC_FATAL_ERROR, val, (char *) dec_bin_buff,
                         args[0]->max_length, args[0]->decimals);
       DBUG_RETURN(tree->unique_add(dec_bin_buff));
     }
@@ -613,7 +613,7 @@ void Item_sum_sum_distinct::add_real(double val)
 
 void Item_sum_sum_distinct::add_decimal(byte *val)
 {
-  binary2my_decimal(E_DEC_FATAL_ERROR, val, &tmp_dec,
+  binary2my_decimal(E_DEC_FATAL_ERROR, (char *) val, &tmp_dec,
                     args[0]->max_length, args[0]->decimals);
   my_decimal_add(E_DEC_FATAL_ERROR, dec_buffs + (curr_dec_buff^1),
                  &tmp_dec, dec_buffs + curr_dec_buff);
