@@ -6,3 +6,5 @@ Table	Op	Msg_type	Msg_text
 test.t2	check	error	Table 't2' was not locked with LOCK TABLES
 n
 1
+n
+1

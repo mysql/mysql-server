@@ -75,3 +75,19 @@ connection reader;
 reap;
 drop table t1;
 
+connection locker;
+create table t1(n int);
+insert into t1 values (1);
+lock tables t1 read;
+connection writer;
+send update low_priority t1 set n = 4;
+connection reader;
+send select n from t1;
+connection locker;
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+drop table t1;
+
