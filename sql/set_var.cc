@@ -392,6 +392,8 @@ sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
 							&srv_max_purge_lag);
 sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
+sys_var_thd_bool	sys_innodb_support_xa("innodb_support_xa",
+                                               &SV::innodb_support_xa);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
@@ -689,6 +691,7 @@ sys_var *sys_variables[]=
   &sys_innodb_max_dirty_pages_pct,
   &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
+  &sys_innodb_support_xa,
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
   &sys_innodb_sync_spin_loops,
@@ -810,6 +813,7 @@ struct show_var_st init_vars[]= {
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
   {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
   {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
+  {sys_innodb_support_xa.name, (char*) &sys_innodb_support_xa, SHOW_SYS},
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
 #endif
