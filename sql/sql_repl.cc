@@ -275,7 +275,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 #endif  
   DBUG_ENTER("mysql_binlog_send");
 
-#ifndef DBUF_OFF
+#ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
   {
     errmsg = "Master failed COM_BINLOG_DUMP to test if slave can recover";
