@@ -133,11 +133,15 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 
 void MYSQL_LOG::init(enum_log_type log_type_arg,
 		     enum cache_type io_cache_type_arg,
-		     bool no_auto_events_arg)
+		     bool no_auto_events_arg,
+                     ulong max_size_arg)
 {
+  DBUG_ENTER("MYSQL_LOG::init");
   log_type = log_type_arg;
   io_cache_type = io_cache_type_arg;
   no_auto_events = no_auto_events_arg;
+  max_size=max_size_arg;
+  DBUG_PRINT("info",("log_type=%d max_size=%lu", log_type, max_size));
   if (!inited)
   {
     inited= 1;
@@ -145,6 +149,7 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
     (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
     (void) pthread_cond_init(&update_cond, 0);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -165,7 +170,8 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
 bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name, const char *index_file_name_arg,
 		     enum cache_type io_cache_type_arg,
-		     bool no_auto_events_arg)
+		     bool no_auto_events_arg,
+                     ulong max_size)
 {
   char buff[512];
   File file= -1, index_file_nr= -1;
@@ -178,7 +184,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   if (!inited && log_type_arg == LOG_BIN && *fn_ext(log_name))
     no_rotate = 1;
-  init(log_type_arg,io_cache_type_arg,no_auto_events_arg);
+  init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size);
   
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
     goto err;
@@ -577,7 +583,7 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
   open(save_name, save_log_type, 0, index_file_name,
-       io_cache_type, no_auto_events);
+       io_cache_type, no_auto_events, max_size);
   my_free((gptr) save_name, MYF(0));
 
 err:  
@@ -802,8 +808,12 @@ void MYSQL_LOG::new_file(bool need_lock)
   char new_name[FN_REFLEN], *new_name_ptr, *old_name;
   enum_log_type save_log_type;
 
+  DBUG_ENTER("MYSQL_LOG::new_file");
   if (!is_open())
-    return;					// Should never happen
+  {
+    DBUG_PRINT("info",("log is closed"));
+    DBUG_VOID_RETURN;
+  }
 
   if (need_lock)
   {
@@ -865,8 +875,16 @@ void MYSQL_LOG::new_file(bool need_lock)
   save_log_type=log_type;
   name=0;				// Don't free name
   close();
+/*
+  if (save_log_type == LOG_BIN)
+  {
+    printf("after close, before open; I wait for 20 seconds\n");
+    sleep(20);
+    printf("sleep finished, opening\n");
+  }
+*/
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
-       no_auto_events);
+       no_auto_events, max_size);
   my_free(old_name,MYF(0));
 
 end:
@@ -875,6 +893,7 @@ end:
     pthread_mutex_unlock(&LOCK_index);
     pthread_mutex_unlock(&LOCK_log);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -882,7 +901,8 @@ bool MYSQL_LOG::append(Log_event* ev)
 {
   bool error = 0;
   pthread_mutex_lock(&LOCK_log);
-  
+  DBUG_ENTER("MYSQL_LOG::append");
+
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
   /*
     Log_event::write() is smart enough to use my_b_write() or
@@ -894,7 +914,8 @@ bool MYSQL_LOG::append(Log_event* ev)
     goto err;
   }
   bytes_written += ev->get_event_len();
-  if ((uint) my_b_append_tell(&log_file) > max_binlog_size)
+  DBUG_PRINT("info",("max_size=%lu",max_size));
+  if ((uint) my_b_append_tell(&log_file) > max_size)
   {
     pthread_mutex_lock(&LOCK_index);
     new_file(0);
@@ -904,13 +925,14 @@ bool MYSQL_LOG::append(Log_event* ev)
 err:  
   pthread_mutex_unlock(&LOCK_log);
   signal_update();				// Safe as we don't call close
-  return error;
+  DBUG_RETURN(error);
 }
 
 
 bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 {
   bool error= 0;
+  DBUG_ENTER("MYSQL_LOG::appendv");
   va_list(args);
   va_start(args,len);
   
@@ -926,8 +948,8 @@ bool MYSQL_LOG::appendv(const char* buf, uint len,...)
     }
     bytes_written += len;
   } while ((buf=va_arg(args,const char*)) && (len=va_arg(args,uint)));
-  
-  if ((uint) my_b_append_tell(&log_file) > max_binlog_size)
+  DBUG_PRINT("info",("max_size=%lu",max_size));
+  if ((uint) my_b_append_tell(&log_file) > max_size)
   {
     pthread_mutex_lock(&LOCK_index);
     new_file(0);
@@ -938,7 +960,7 @@ err:
   pthread_mutex_unlock(&LOCK_log);
   if (!error)
     signal_update();
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1188,8 +1210,9 @@ bool MYSQL_LOG::write(Log_event* event_info)
           called_handler_commit=1;
         }
       }
-      /* we wrote to the real log, check automatic rotation */
-      should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
+      /* We wrote to the real log, check automatic rotation; */
+      DBUG_PRINT("info",("max_size=%lu",max_size));      
+      should_rotate= (my_b_tell(file) >= (my_off_t) max_size); 
     }
     error=0;
 
@@ -1319,7 +1342,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					    log_file.pos_in_file)))
       goto err;
     signal_update();
-    if (my_b_tell(&log_file) >= (my_off_t) max_binlog_size)
+    DBUG_PRINT("info",("max_size=%lu",max_size));
+    if (my_b_tell(&log_file) >= (my_off_t) max_size)
     {
       pthread_mutex_lock(&LOCK_index);
       new_file(0); // inside mutex
@@ -1563,6 +1587,24 @@ void MYSQL_LOG::close(bool exiting)
   DBUG_VOID_RETURN;
 }
 
+void MYSQL_LOG::set_max_size(ulong max_size_arg)
+{
+  /*
+    We need to take locks, otherwise this may happen:
+    new_file() is called, calls open(old_max_size), then before open() starts,
+    set_max_size() sets max_size to max_size_arg, then open() starts and
+    uses the old_max_size argument, so max_size_arg has been overwritten and
+    it's like if the SET command was never run.
+  */
+  if (is_open())
+  {
+    pthread_mutex_lock(&LOCK_log);
+    pthread_mutex_lock(&LOCK_index);
+    max_size= max_size_arg;
+    pthread_mutex_unlock(&LOCK_index);
+    pthread_mutex_unlock(&LOCK_log);
+  }
+}
 
 /*
   Check if a string is a valid number
