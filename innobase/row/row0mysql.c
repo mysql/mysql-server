@@ -2337,21 +2337,6 @@ row_drop_table_for_mysql(
 		srv_print_innodb_table_monitor = FALSE;
 	}
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	ut_a(name != NULL);
-
-	if (srv_created_new_raw) {
-		fputs(
-		"InnoDB: A new raw disk partition was initialized or\n"
-		"InnoDB: innodb_force_recovery is on: we do not allow\n"
-		"InnoDB: database modifications by the user. Shut down\n"
-		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
-		"InnoDB: with raw, and innodb_force_... is removed.\n",
-		stderr);
-
-		return(DB_ERROR);
-	}
-
 	quoted_name = mem_strdupq(name, '\'');
 	namelen = strlen(quoted_name);
 	sql = mem_alloc((sizeof str1) + (sizeof str2) - 2 + 1 + namelen);
