@@ -353,6 +353,8 @@ sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_p
                                                         &srv_max_buf_pool_modified_pct);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
+sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
+							&srv_max_purge_lag);
 #endif
 
 /* Time/date/datetime formats */
@@ -603,6 +605,7 @@ sys_var *sys_variables[]=
   &sys_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
+  &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
 #endif    
   &sys_unique_checks,
@@ -697,6 +700,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
+  {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
