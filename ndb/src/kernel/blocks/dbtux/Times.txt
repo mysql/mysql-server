@@ -108,4 +108,11 @@ charsets        mc02/a  35 ms   60 ms    71 pct
 
 [ case b: TUX can no longer use pointers to TUP data ]
 
+optim 15        mc02/a  34 ms   60 ms    72 pct
+                mc02/b  42 ms   85 ms   100 pct
+                mc02/c   5 ms   12 ms   110 pct
+                mc02/d 178 ms  242 ms    35 pct
+
+[ corrected wasted space in index node ]
+
 vim: set et:
