@@ -43,7 +43,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.8"
+#define MTEST_VERSION "1.9"
 
 #include <global.h>
 #include <my_sys.h>
@@ -159,6 +159,8 @@ Q_SYNC_WITH_MASTER, Q_ERROR,
 Q_SEND,             Q_REAP, 
 Q_DIRTY_CLOSE,      Q_REPLACE,
 Q_PING,             Q_EVAL,
+Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
+Q_DISABLE_RPL_PARSE,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -188,6 +190,8 @@ const char *command_names[] = {
   "send",             "reap", 
   "dirty_close",      "replace_result",
   "ping",             "eval",
+  "rpl_probe",        "enable_rpl_parse",
+  "disable_rpl_parse",
   0
 };
 
@@ -642,6 +646,11 @@ int do_sync_with_master(struct st_query* q)
   char query_buf[FN_REFLEN+128];
   int offset = 0;
   char* p = q->first_argument;
+  int rpl_parse;
+
+  rpl_parse = mysql_rpl_parse_enabled(mysql);
+  mysql_disable_rpl_parse(mysql);
+  
   if(*p)
     offset = atoi(p);
   
@@ -658,7 +667,10 @@ int do_sync_with_master(struct st_query* q)
   if(!row[0])
     die("Error on slave while syncing with master");
   mysql_free_result(res);
-      
+
+  if(rpl_parse)
+    mysql_enable_rpl_parse(mysql);
+  
   return 0;
 }
 
@@ -667,6 +679,11 @@ int do_save_master_pos()
   MYSQL_RES* res;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
+  int rpl_parse;
+
+  rpl_parse = mysql_rpl_parse_enabled(mysql);
+  mysql_disable_rpl_parse(mysql);
+  
   if(mysql_query(mysql, "show master status"))
     die("At line %u: failed in show master status: %d: %s", start_lineno,
 	mysql_errno(mysql), mysql_error(mysql));
@@ -678,6 +695,9 @@ int do_save_master_pos()
   strncpy(master_pos.file, row[0], sizeof(master_pos.file));
   master_pos.pos = strtoul(row[1], (char**) 0, 10); 
   mysql_free_result(res);
+  
+  if(rpl_parse)
+    mysql_enable_rpl_parse(mysql);
       
   return 0;
 }
@@ -701,6 +721,26 @@ int do_let(struct st_query* q)
     p++;
   return var_set(var_name, var_name_end, var_val_start, p);
 }
+
+int do_rpl_probe(struct st_query* __attribute__((unused)) q)
+{
+  if(mysql_rpl_probe(&cur_con->mysql))
+    die("Failed in mysql_rpl_probe(): %s", mysql_error(&cur_con->mysql));
+  return 0;
+}
+
+int do_enable_rpl_parse(struct st_query* __attribute__((unused)) q)
+{
+  mysql_enable_rpl_parse(&cur_con->mysql);
+  return 0;
+}
+
+int do_disable_rpl_parse(struct st_query* __attribute__((unused)) q)
+{
+  mysql_disable_rpl_parse(&cur_con->mysql);
+  return 0;
+}
+
 
 int do_sleep(struct st_query* q)
 {
@@ -1825,6 +1865,9 @@ int main(int argc, char** argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:	
 	close_connection(q); break;
+      case Q_RPL_PROBE: do_rpl_probe(q); break;
+      case Q_ENABLE_RPL_PARSE: do_enable_rpl_parse(q); break;
+      case Q_DISABLE_RPL_PARSE: do_disable_rpl_parse(q); break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
       case Q_INC: do_inc(q); break;
@@ -1892,7 +1935,7 @@ int main(int argc, char** argv)
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;	
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
-      case Q_COMMENT_WITH_COMMAND:
+      case Q_COMMENT_WITH_COMMAND: 
       case Q_PING:
 	(void) mysql_ping(&cur_con->mysql);
 	break;

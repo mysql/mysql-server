@@ -124,6 +124,7 @@ USE_RUNNING_SERVER=1
 DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
+DO_CLIENT_GDB=""
 SLEEP_TIME=2
 DBUSER=""
 
@@ -165,13 +166,19 @@ while test $# -gt 0; do
       ;;  
     --gdb )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
       ;;
+    --client-gdb )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
+      fi
+      DO_CLIENT_GDB=1
+      ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --ddd option"
       fi
       DO_DDD=1
       ;;
@@ -273,7 +280,10 @@ then
 fi
 
 
-MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_BIN=$MYSQL_TEST
+MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
@@ -314,6 +324,15 @@ show_failed_diff ()
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
   fi  
+}
+
+do_gdb_test ()
+{
+  mysql_test_args="$MYSQL_TEST_ARGS $1"
+  $ECHO "set args $mysql_test_args < $2" > $GDB_CLIENT_INIT
+  echo "Set breakpoints ( if needed) and type 'run' in gdb window"
+  #this xterm should not be backgrounded
+  xterm -title "Client" -e gdb -x $GDB_CLIENT_INIT $MYSQL_TEST_BIN
 }
 
 error () {
@@ -694,8 +713,13 @@ run_testcase ()
   
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $EXTRA_MYSQL_TEST_OPT \
-     < $tf 2> $TIMEFILE`
+    mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
+    if [ -z "$DO_CLIENT_GDB" ] ; then
+     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    else
+     do_gdb_test "$mysql_test_args" "$tf"
+    fi
+     
     res=$?
 
     if [ $res = 0 ]; then
