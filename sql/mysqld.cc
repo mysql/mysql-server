@@ -2806,7 +2806,20 @@ enum options {
 	       OPT_SORT_BUFFER, OPT_TABLE_CACHE,
 	       OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
 	       OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-	       OPT_WAIT_TIMEOUT
+	       OPT_WAIT_TIMEOUT,
+	       OPT_INNODB_MIRRORED_LOG_GROUPS,
+	       OPT_INNODB_LOG_FILES_IN_GROUP,
+	       OPT_INNODB_LOG_FILE_SIZE,
+	       OPT_INNODB_LOG_BUFFER_SIZE,
+	       OPT_INNODB_BUFFER_POOL_SIZE,
+	       OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+	       OPT_INNODB_FILE_IO_THREADS,
+	       OPT_INNODB_LOCK_WAIT_TIMEOUT,
+	       OPT_INNODB_THREAD_CONCURRENCY,
+	       OPT_INNODB_FORCE_RECOVERY,
+	       OPT_BDB_CACHE_SIZE,
+	       OPT_BDB_LOG_BUFFER_SIZE,
+	       OPT_BDB_MAX_LOCK
 };
 
 
@@ -2945,7 +2958,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process", (gptr*) &innobase_fast_shutdown,
-   (gptr*) &innobase_fast_shutdown, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -3040,6 +3053,7 @@ static struct my_option my_long_options[] =
   */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
   {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
    "Undocumented: Meant for debugging and testing of replication",
    (gptr*) &disconnect_slave_event_count,
@@ -3056,6 +3070,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_sporadic_binlog_dump_fail,
    (gptr*) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
+#endif
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3243,7 +3258,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
-    "The buffer that is allocated to cache index and rows for BDB tables."
+    "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
     REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
   {"bdb_log_buffer_size", OPT_BDB_LOG_BUFFER_SIZE,

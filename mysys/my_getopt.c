@@ -94,34 +94,34 @@ int handle_options(int *argc, char ***argv,
       option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
-      if (*cur_arg == 'O')
-      {
-	must_be_var= 1;
-
-	if (!(*++cur_arg))	/* If not -Ovar=# */
-	{
-	  /* the argument must be in next argv */
-	  if (!*++pos)
-	  {
-	    fprintf(stderr, "%s: Option '-O' requires an argument\n",
-		    progname);
-	    return ERR_ARGUMENT_REQUIRED;
-	  }
-	  cur_arg= *pos;
-	  (*argc)--;
-	}
-	/* Sasha: quick dirty fix of a bug that coredumps mysqladmin while
-	   running the test suite. The bug is actually pretty serious -
-	   even in cases when we do not coredump, -O var=val will not set
-	   the variable, and the previous option would be treated upredictably.
-			*/
-	goto found_var; 
-      }
-      else if (*cur_arg == '-') /* check for long option, or --set-variable */
-      {
-	if (!compare_strings(cur_arg, "-set-variable", 13))
+      if (*cur_arg == '-' || *cur_arg == 'O') /* check for long option, */
+      {                                       /* --set-variable, or -O  */
+	if (*cur_arg == 'O')
 	{
 	  must_be_var= 1;
+
+	  if (!(*++cur_arg))	/* If not -Ovar=# */
+	  {
+	    /* the argument must be in next argv */
+	    if (!*++pos)
+	    {
+	      fprintf(stderr, "%s: Option '-O' requires an argument\n",
+		      progname);
+	      return ERR_ARGUMENT_REQUIRED;
+	    }
+	    cur_arg= *pos;
+	    (*argc)--;
+	  }
+	}
+	else if (!compare_strings(cur_arg, "-set-variable", 13) ||
+		 !compare_strings(cur_arg, "-loose-set-variable", 19))
+	{
+	  must_be_var= 1;
+	  if (cur_arg[1] == 'l')
+	  {
+	    option_is_loose= 1;
+	    cur_arg+= 6;
+	  }
 	  if (cur_arg[13] == '=')
 	  {
 	    cur_arg+= 14;
@@ -159,7 +159,6 @@ int handle_options(int *argc, char ***argv,
 	    continue;
 	  }
 	}
-    found_var:	
 	optend= strcend(cur_arg, '=');
 	length= optend - cur_arg;
 	if (*optend == '=')
@@ -280,7 +279,7 @@ int handle_options(int *argc, char ***argv,
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
-	    */
+	      */
 	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
 	    (*argc)--;	    
 	    continue;
