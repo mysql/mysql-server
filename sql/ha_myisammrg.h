@@ -38,11 +38,11 @@ class ha_myisammrg: public handler
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_CAN_INSERT_DELAYED);
   }
-  ulong index_flags(uint inx, uint part) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-                    0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-                        HA_READ_ORDER | HA_KEYREAD_ONLY);
+            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
+            HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }

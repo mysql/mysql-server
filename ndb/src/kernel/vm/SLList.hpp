@@ -137,11 +137,11 @@ public:
   LocalSLList(ArrayPool<T> & thePool, typename SLList<T>::Head & _src)
     : SLList<T>(thePool), src(_src)
   {
-    head = src;
+    this->head = src;
   }
   
   ~LocalSLList(){
-    src = head;
+    src = this->head;
   }
 private:
   typename SLList<T>::Head & src;

@@ -629,7 +629,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   if (!(field->flags & PART_KEY_FLAG))
     return 0;                                        // Not key field
   *prefix_len= 0;
-  
+
   TABLE *table= field->table;
   uint idx= 0;
 
@@ -637,16 +637,17 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   for (keyinfo= table->key_info, keyinfo_end= keyinfo+table->keys ;
        keyinfo != keyinfo_end;
        keyinfo++,idx++)
-  {      
-    if (!(table->file->index_flags(idx) & HA_READ_ORDER))
-      break;
-
+  {
     KEY_PART_INFO *part,*part_end;
     key_part_map key_part_to_use= 0;
+    uint jdx= 0;
     for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
          part != part_end ;
-         part++, key_part_to_use= (key_part_to_use << 1) | 1)
+         part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {
+      if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
+        return 0;
+
       if (field->eq(part->field))
       {
         ref->key= idx;
