@@ -138,7 +138,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
   }
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+  table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
 #endif
 
   if (check_key_in_view(thd, table_list) ||
@@ -1720,8 +1720,6 @@ bool delayed_insert::handle_inserts(void)
 bool mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST *first_select_table=
-    (TABLE_LIST*) lex->select_lex.table_list.first;
   TABLE_LIST *first_select_leaf_table;
   int res;
   DBUG_ENTER("mysql_insert_select_prepare");

@@ -3317,7 +3317,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   {
     GRANT_TABLE *grant_table;
     if (!(~table->grant.privilege & want_access) || 
-        table->derived || table->schema_table)
+        table->derived || table->schema_table || table->belong_to_view)
     {
       /*
         It is subquery in the FROM clause. VIEW set table->derived after
