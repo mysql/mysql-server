@@ -140,8 +140,11 @@ public:
   Field *tmp_table_field(TABLE *t_arg);
   Item *get_tmp_table_item(THD *thd);
   
-  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems);
-  bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
+  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
+                          bool allow_superset_conversion= FALSE);
+  bool agg_arg_collations_for_comparison(DTCollation &c,
+                                         Item **items, uint nitems,
+                                         bool allow_superset_comversion= FALSE);
 
   bool walk(Item_processor processor, byte *arg);
 };
