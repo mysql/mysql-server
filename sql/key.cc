@@ -192,8 +192,7 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
       if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
 				  FIELDFLAG_PACK)))
       {
-        /* BAR TODO: I'm not sure this should be system_charset_info */
-	if (my_strnncoll(system_charset_info,
+	if (my_strnncoll(key_part->field->charset(),
 			 (const uchar*) key, length,
 		         (const uchar*) table->record[0]+key_part->offset,length))
 	  return 1;
