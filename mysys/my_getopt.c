@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_config.h>
 #include <my_global.h>
 #include <m_string.h>
 #include <stdlib.h>
@@ -452,7 +451,7 @@ static void init_variables(const struct my_option *options)
     {
       if (options->var_type == GET_LONG)
 	*((long*) options->u_max_value)= *((long*) options->value)=
-	  options->def_value;
+	  (long) options->def_value;
       else if (options->var_type == GET_LL)
 	*((longlong*) options->u_max_value)= *((longlong*) options->value)=
 	  options->def_value;
