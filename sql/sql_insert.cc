@@ -490,13 +490,13 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
   {
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
-    if ((*trans)->type() != Item::FIELD_ITEM)
+    if (!(field= (*trans)->filed_for_view_update()))
       DBUG_RETURN(TRUE);
-    field= (Item_field *)(*trans);
     if (field->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= 1;
     /* prepare unique test */
     field->field->query_id= other_query_id;
+    *trans= field; // remove collation if we have it
   }
   /* unique test */
   for (trans= trans_start; trans != trans_end; trans++)
