@@ -73,6 +73,12 @@ init-db:		all
 bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution
 
+tags:
+	rm -f TAGS
+	find -not -path \*SCCS\* -and \
+	\( -name \*.cc -or -name \*.h -or -name \*.yy -or -name \*.c \) \
+	-print -exec etags -o TAGS --append {} \;
+
 .PHONY:		init-db bin-dist
 
 # Test installation
