@@ -1361,3 +1361,11 @@ userid	pmtotal	pmnew	calc_total	calc_new
 1	0	0	9	3
 2	0	0	4	2
 drop table t1, t2;
+create table t1 (s1 char(5));
+select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
+ERROR 21000: Cardinality error (more/less than 1 columns)
+insert into t1 values ('tttt');
+select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+s1
+tttt
+drop table t1;
