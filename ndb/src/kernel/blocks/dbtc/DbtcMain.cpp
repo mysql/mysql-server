@@ -3767,7 +3767,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
       return; // No queued TcKeyConf
     }//if
   }//if
-  
+
+  regApiPtr->m_exec_flag = 0;
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
   if ((TpacketLen > 25) || !is_api){
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
@@ -10999,7 +11000,8 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   TcIndxConf::setMarkerFlag(confInfo, Tmarker);
   const UintR TpacketLen = 6 + TopWords;
   regApiPtr->tcindxrec = 0;
-
+  regApiPtr->m_exec_flag = 0;
+ 
   if ((TpacketLen > 25) || !is_api){
     TcIndxConf * const tcIndxConf = (TcIndxConf *)signal->getDataPtrSend();
     
