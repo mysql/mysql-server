@@ -152,7 +152,7 @@ SOURCE=".\ctype-sjis.c"
 SOURCE=".\ctype-tis620.c"
 # End Source File
 # Begin Source File
- 
+
 SOURCE=".\ctype-uca.c"
 # End Source File
 # Begin Source File

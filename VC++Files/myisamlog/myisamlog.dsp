@@ -105,7 +105,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib setargv.obj /nologo /subsystem:console /pdb:"release/myisamchk.pdb" /machine:I386 /out:"../client_release/myisamlog.exe"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib setargv.obj ..\lib_release\myisam.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib /nologo /subsystem:console /pdb:"release/myisamchk.pdb" /machine:I386 /out:"../client_classic/myisamlog.exe" /libpath:"..\lib_release\\"
+# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib setargv.obj ..\lib_release\myisam.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:"release/myisamchk.pdb" /machine:I386 /out:"../client_classic/myisamlog.exe" /libpath:"..\lib_release\\"
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF

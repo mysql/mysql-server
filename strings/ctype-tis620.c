@@ -630,6 +630,7 @@ static
 int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
+{
   len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
 	       (char*) dest);
   return (int) thai2sortable(dest, len);
