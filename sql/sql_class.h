@@ -764,9 +764,8 @@ public:
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;
-    uint ndb_lock_count;
 #ifdef HAVE_NDBCLUSTER_DB
-    void* ndb;
+    void* thd_ndb;
 #endif
     bool on;
     /*

@@ -595,11 +595,12 @@ static int f_dictionary_count = 0;
 
 NdbDictionaryImpl::~NdbDictionaryImpl()
 {
-  NdbElement_t<NdbTableImpl> * curr = m_localHash.m_tableHash.getNext(0);
+  NdbElement_t<Ndb_local_table_info> * curr = m_localHash.m_tableHash.getNext(0);
   if(m_globalHash){
     while(curr != 0){
       m_globalHash->lock();
-      m_globalHash->release(curr->theData);    
+      m_globalHash->release(curr->theData->m_table_impl);
+      delete curr->theData;
       m_globalHash->unlock();
       
       curr = m_localHash.m_tableHash.getNext(curr);
@@ -620,7 +621,39 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
   }
 }
 
+Ndb_local_table_info *
+NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
+{
+  NdbTableImpl *impl;
 
+  m_globalHash->lock();
+  impl = m_globalHash->get(internalTableName);
+  m_globalHash->unlock();
+
+  if (impl == 0){
+    impl = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
+    m_globalHash->lock();
+    m_globalHash->put(internalTableName, impl);
+    m_globalHash->unlock();
+    
+    if(impl == 0){
+      return 0;
+    }
+  }
+
+  Ndb_local_table_info *info= new Ndb_local_table_info(impl, 32);
+  info->m_first_tuple_id= ~0;
+  info->m_last_tuple_id= ~0;
+
+  m_localHash.put(internalTableName, info);
+
+  m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
+  m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
+  
+  addBlobTables(*impl);
+
+  return info;
+}
 
 #if 0
 bool
@@ -1504,7 +1537,6 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     : createTable(&tSignal, ptr);
 
   if (!alter && haveAutoIncrement) {
-    //    if (!ndb.setAutoIncrementValue(impl.m_internalName.c_str(), autoIncrementValue)) {
     if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(), autoIncrementValue)) {
       if (ndb.theError.code == 0) {
 	m_error.code = 4336;
@@ -1775,11 +1807,12 @@ NdbIndexImpl*
 NdbDictionaryImpl::getIndexImpl(const char * externalName, 
 				const char * internalName)
 {
-  NdbTableImpl* tab = getTableImpl(internalName);
-  if(tab == 0){
+  Ndb_local_table_info * info = get_local_table_info(internalName);
+  if(info == 0){
     m_error.code = 4243;
     return 0;
   }
+  NdbTableImpl * tab = info->m_table_impl;
 
   if(tab->m_indexType == NdbDictionary::Index::Undefined){
     // Not an index
