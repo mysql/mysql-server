@@ -166,6 +166,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if ((ftbe->quot=param.quot)) ftb->with_scan|=2;
         if (param.yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1);
+        param.quot=0;
         break;
       case 3: /* right bracket */
         if (up->quot) up->qend=param.quot;

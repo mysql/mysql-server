@@ -70,6 +70,16 @@ Full-text search in MySQL	implements vector space model	0
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
+select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
+a	b
+MySQL has now support	for full-text search
+Full-text search in MySQL	implements vector space model
+select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
+a	b
+Full-text search in MySQL	implements vector space model
+select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
+a	b
+MySQL has now support	for full-text search
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
