@@ -318,7 +318,7 @@ static SYMBOL symbols[] = {
   { "REPAIR",		SYM(REPAIR),0,0},
   { "REPLACE",		SYM(REPLACE),0,0},
   { "REPLICATION",	SYM(REPLICATION),0,0},
-  { "SPREPEAT",		SYM(SPREPEAT_SYM),0,0}, /* QQ Temp. until conflict solved */
+  { "REPEAT",		SYM(REPEAT_SYM),0,0},
   { "REPEATABLE",	SYM(REPEATABLE_SYM),0,0},
   { "REQUIRE",	        SYM(REQUIRE_SYM),0,0},
   { "RESET",		SYM(RESET_SYM),0,0},
@@ -567,7 +567,6 @@ static SYMBOL sql_functions[] = {
   { "RADIANS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_radians)},
   { "RAND",		SYM(RAND),0,0},
   { "RELEASE_LOCK",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_release_lock)},
-  { "REPEAT",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_repeat)},
   { "REVERSE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_reverse)},
   { "ROUND",		SYM(ROUND),0,0},
   { "RPAD",		SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_rpad)},
