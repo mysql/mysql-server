@@ -21,6 +21,7 @@ class Item;				/* Needed by ORDER */
 class GRANT_TABLE;
 class st_select_lex_unit;
 class st_select_lex;
+class COND_EQUAL;
 
 /* Order clause list element */
 
@@ -209,6 +210,7 @@ typedef struct st_table_list
   char		*db, *alias, *real_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+  COND_EQUAL    *cond_equal;            /* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index, *ignore_index;

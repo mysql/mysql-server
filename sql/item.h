@@ -457,6 +457,8 @@ protected:
   void set_field(Field *field);
 public:
   Field *field,*result_field;
+  Item_equal *item_equal;
+  bool no_const_subst;
   /*
     if any_privileges set to TRUE then here real effective privileges will
     be stored
@@ -468,7 +470,7 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
-     field(0), result_field(0), item_equal(0),}
+    field(0), result_field(0), item_equal(0), no_const_subst(0),
      have_privileges(0), any_privileges(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
