@@ -125,7 +125,9 @@ void Item_bool_func2::fix_length_and_dec()
     }
   }
   set_cmp_func();
-  binary_cmp= args[0]->binary() || args[1]->binary();
+  /* QQ: COERCIBILITY */
+  cmp_charset= (args[0]->binary() || args[1]->binary()) ? 
+	      &my_charset_bin : args[0]->charset();
 }
 
 
@@ -167,7 +169,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return owner->binary_cmp ? stringcmp(res1,res2) : sortcmp(res1,res2);
+      return sortcmp(res1,res2,owner->cmp_charset);
     }
   }
   owner->null_value= 1;
@@ -181,8 +183,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return (owner->binary_cmp ? test(stringcmp(res1, res2) == 0) :
-	    test(sortcmp(res1, res2) == 0));
+  return test(sortcmp(res1, res2, owner->cmp_charset) == 0);
 }
 
 
@@ -402,7 +403,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= binary_cmp ? stringcmp(a,b) : sortcmp(a,b);
+  int value= sortcmp(a,b,cmp_charset);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -482,10 +483,11 @@ void Item_func_between::fix_length_and_dec()
   cmp_type=item_cmp_type(args[0]->result_type(),
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
+  /* QQ: COERCIBILITY */
   if (args[0]->binary() | args[1]->binary() | args[2]->binary())
-    string_compare=stringcmp;
+    cmp_charset= &my_charset_bin;
   else
-    string_compare=sortcmp;
+    cmp_charset= args[0]->charset();
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -517,17 +519,17 @@ longlong Item_func_between::val_int()
     a=args[1]->val_str(&value1);
     b=args[2]->val_str(&value2);
     if (!args[1]->null_value && !args[2]->null_value)
-      return (string_compare(value,a) >= 0 && string_compare(value,b) <= 0) ?
-	1 : 0;
+      return (sortcmp(value,a,cmp_charset) >= 0 && 
+	      sortcmp(value,b,cmp_charset) <= 0) ? 1 : 0;
     if (args[1]->null_value && args[2]->null_value)
       null_value=1;
     else if (args[1]->null_value)
     {
-      null_value= string_compare(value,b) <= 0; // not null if false range.
+      null_value= sortcmp(value,b,cmp_charset) <= 0; // not null if false range.
     }
     else
     {
-      null_value= string_compare(value,a) >= 0; // not null if false range.
+      null_value= sortcmp(value,a,cmp_charset) >= 0; // not null if false range.
     }
   }
   else if (cmp_type == INT_RESULT)
@@ -809,12 +811,13 @@ Item *Item_func_case::find_item(String *str)
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
+	/* QQ: COERCIBILITY */
 	if (first_expr_is_binary || args[i]->binary())
 	{
-	  if (stringcmp(tmp,first_expr_str)==0)
+	  if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
 	    return args[i+1];
 	}
-	else if (sortcmp(tmp,first_expr_str)==0)
+	else if (sortcmp(tmp,first_expr_str,tmp->charset())==0)
 	  return args[i+1];
       }
       break;
@@ -1211,10 +1214,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 {
   switch (item->result_type()) {
   case STRING_RESULT:
-    if (item->binary())
-      return new cmp_item_binary_string;
-    else
-      return new cmp_item_sort_string;
+    return new cmp_item_sort_string(item->charset());
     break;
   case INT_RESULT:
     return new cmp_item_int;
@@ -1234,12 +1234,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 
 cmp_item* cmp_item_sort_string::make_same()
 {
-  return new cmp_item_sort_string_in_static();
-}
-
-cmp_item* cmp_item_binary_string::make_same()
-{
-  return new cmp_item_binary_string_in_static();
+  return new cmp_item_sort_string_in_static(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
@@ -1346,6 +1341,22 @@ bool Item_func_in::nulls_in_row()
   return 0;
 }
 
+static int srtcmp_in(const String *x,const String *y)
+{
+  CHARSET_INFO *cs= x->charset();
+  return cs->strnncollsp(cs,
+                        (unsigned char *) x->ptr(),x->length(),
+			(unsigned char *) y->ptr(),y->length());
+}
+
+static int bincmp_in(const String *x,const String *y)
+{
+  CHARSET_INFO *cs= &my_charset_bin;
+  return cs->strnncollsp(cs,
+                        (unsigned char *) x->ptr(),x->length(),
+			(unsigned char *) y->ptr(),y->length());
+}
+
 void Item_func_in::fix_length_and_dec()
 {
   /*
@@ -1357,9 +1368,9 @@ void Item_func_in::fix_length_and_dec()
     switch (item->result_type()) {
     case STRING_RESULT:
       if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) stringcmp);
+	array=new in_string(arg_count,(qsort_cmp) srtcmp_in);
       else
-	array=new in_string(arg_count,(qsort_cmp) sortcmp);
+	array=new in_string(arg_count,(qsort_cmp) bincmp_in);
       break;
     case INT_RESULT:
       array= new in_longlong(arg_count);
@@ -1759,8 +1770,9 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 
   /*
     Comparision is by default done according to character set of LIKE
+    QQ: COERCIBILITY
   */
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
     set_charset(&my_charset_bin);
   else
     set_charset(args[1]->charset());
@@ -1877,7 +1889,7 @@ longlong Item_func_regex::val_int()
       null_value=1;
       return 0;
     }
-    if (!regex_compiled || stringcmp(res2,&prev_regexp))
+    if (!regex_compiled || sortcmp(res2,&prev_regexp,&my_charset_bin))
     {
       prev_regexp.copy(*res2);
       if (regex_compiled)
@@ -1936,7 +1948,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2039,7 +2051,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2070,7 +2082,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (binary_cmp)
+  if (cmp_charset == &my_charset_bin)
   {
     while (j <= tlmpl)
     {

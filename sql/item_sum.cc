@@ -183,12 +183,17 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
-    max_length=20;
-  else if (hybrid_type == REAL_RESULT)
-    max_length=float_length(decimals);
-  else
   {
-    str_cmp_function= item->binary() ? stringcmp : sortcmp;
+    cmp_charset= &my_charset_bin;
+    max_length=20;
+  }
+  else if (hybrid_type == REAL_RESULT)
+  {
+    cmp_charset= &my_charset_bin;
+    max_length=float_length(decimals);
+  }else
+  {
+    cmp_charset= item->charset();
     max_length=item->max_length;
   }
   decimals=item->decimals;
@@ -440,7 +445,7 @@ bool Item_sum_min::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || (*str_cmp_function)(&value,result) > 0))
+	(null_value || sortcmp(&value,result,cmp_charset) > 0))
     {
       value.copy(*result);
       null_value=0;
@@ -487,7 +492,7 @@ bool Item_sum_max::add()
   {
     String *result=args[0]->val_str(&tmp_value);
     if (!args[0]->null_value &&
-	(null_value || (*str_cmp_function)(&value,result) < 0))
+	(null_value || sortcmp(&value,result,cmp_charset) < 0))
     {
       value.copy(*result);
       null_value=0;
@@ -762,7 +767,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     result_field->ptr-=offset;
 
     if (result_field->is_null() ||
-	(cmp_sign * (*str_cmp_function)(res_str,&tmp_value)) < 0)
+	(cmp_sign * sortcmp(res_str,&tmp_value,cmp_charset)) < 0)
       result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else
     {						// Use old value
