@@ -220,7 +220,31 @@ typedef struct st_mysql_res {
   my_bool	eof;			/* Used my mysql_fetch_row */
 } MYSQL_RES;
 
+#define MAX_MYSQL_MANAGER_ERR 256  
+#define MAX_MYSQL_MANAGER_MSG 256
 
+#define MANAGER_OK           200
+#define MANAGER_INFO         250
+#define MANAGER_ACCESS       401
+#define MANAGER_CLIENT_ERR   450
+#define MANAGER_INTERNAL_ERR 500
+
+
+  
+typedef struct st_mysql_manager
+{
+  Vio* vio;
+  char *host,*user,*passwd;
+  unsigned int port;
+  my_bool free_me;
+  my_bool eof;
+  int cmd_status;
+  int last_errno;
+  char* net_buf,*net_buf_pos,*net_data_end;
+  int net_buf_size;
+  char last_error[MAX_MYSQL_MANAGER_ERR];
+} MYSQL_MANAGER;
+  
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
@@ -365,7 +389,18 @@ char *		STDCALL mysql_odbc_escape_string(MYSQL *mysql,
 						  unsigned long *length));
 void 		STDCALL myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int	STDCALL mysql_thread_safe(void);
-
+MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con);  
+MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
+					      const char* host,
+					      const char* user,
+					      const char* passwd,
+					      unsigned int port);
+void            STDCALL mysql_manager_close(MYSQL_MANAGER* con);
+int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
+						const char* cmd, int cmd_len);
+int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
+						  char* res_buf,
+						 int res_buf_size);
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
 #ifdef USE_OLD_FUNCTIONS
