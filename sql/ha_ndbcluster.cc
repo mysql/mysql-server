@@ -4552,6 +4552,19 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   ulong reclength = table->reclength;
   NdbOperation* op;
 
+  if(uses_blob_value(m_retrieve_all_fields))
+  {
+    /**
+     * blobs can't be batched currently
+     */
+    m_disable_multi_read= true;
+    return handler::read_multi_range_first(found_range_p, 
+					   ranges, 
+					   range_count,
+					   sorted, 
+					   buffer);
+  }
+
   switch(index_type){
   case UNIQUE_INDEX:
   case PRIMARY_KEY_INDEX:
