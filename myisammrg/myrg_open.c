@@ -34,13 +34,16 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
   int save_errno,errpos=0;
   uint files=0,i,dir_length,length,key_parts;
-  ulonglong file_offset;
+  ulonglong file_offset=0;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO *m_info=0;
   File fd;
   IO_CACHE file;
   MI_INFO *isam=0;
+  uint found_merge_insert_method= 0;
   DBUG_ENTER("myrg_open");
+
+  LINT_INIT(key_parts);
 
   bzero((char*) &file,sizeof(file));
   if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,4),
@@ -69,10 +72,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       continue;		/* Skip empty lines */
     if (buff[0] == '#')
     {
-      if( !strncmp(buff+1,"INSERT_METHOD=",14))
+      if (!strncmp(buff+1,"INSERT_METHOD=",14))
       {			/* Lookup insert method */
 	int tmp=find_type(buff+15,&merge_insert_method,2);
-	m_info->merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
+	found_merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
       }
       continue;		/* Skip comments */
     }
@@ -84,8 +87,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       VOID(cleanup_dirname(buff,name_buff));
     }
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
-	goto err;
-    if (!m_info)
+      goto err;
+    if (!m_info)                                /* First file */
     {
       key_parts=isam->s->base.key_parts;
       if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO) +
@@ -97,15 +100,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
       {
         m_info->open_tables=(MYRG_TABLE *) (m_info+1);
         m_info->rec_per_key_part=(ulong *) (m_info->open_tables+files);
+        m_info->tables= files;
+        files= 0;
       }
-      else
-      {
-        m_info->open_tables=0;
-        m_info->rec_per_key_part=0;
-      }
-      m_info->tables=files;
       m_info->reclength=isam->s->base.reclength;
-      file_offset=files=0;
       errpos=3;
     }
     m_info->open_tables[files].table= isam;
@@ -122,14 +120,16 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     m_info->del+= isam->state->del;
     m_info->data_file_length+= isam->state->data_file_length;
     for (i=0; i < key_parts; i++)
-      m_info->rec_per_key_part[i]+=isam->s->state.rec_per_key_part[i] / m_info->tables;
+      m_info->rec_per_key_part[i]+= (isam->s->state.rec_per_key_part[i] /
+                                     m_info->tables);
   }
 
   if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO),
-                                           MYF(MY_WME|MY_ZEROFILL))))
+                                                  MYF(MY_WME | MY_ZEROFILL))))
     goto err;
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
   m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
+  m_info->merge_insert_method= found_merge_insert_method;
 
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {

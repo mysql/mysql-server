@@ -1,4 +1,4 @@
-#!PATH_TO_PERL -*- perl -*-
+#!/usr/bin/perl
 # Add path to perl on the previous line and make this executable
 # if you want to use this as a normal script.
 'di ';
@@ -12,7 +12,7 @@
 #-##############################################################################
 
 # @(#)texi2html	1.52 971230 Written (mainly) by Lionel Cons, Lionel.Cons@cern.ch
-# Enhanced by David Axmark, david@detron.se
+# Enhanced by David Axmark
 
 # The man page for this program is included at the end of this file and can be
 # viewed using the command 'nroff -man texi2html'.
@@ -40,8 +40,7 @@ $NODESRE = '[^@{}:\'`"]+';		# RE for a list of node names
 $XREFRE = '[^@{}]+';			# RE for a xref (should use NODERE)
 
 $ERROR = "***";			        # prefix for errors and warnings
-$THISPROG = "texi2html 1.52 (hacked by david\@detron.se)";	# program name and version
-$HOMEPAGE = "http://www.mathematik.uni-kl.de/~obachman/Texi2html/"; # program home page
+$THISPROG = "texi2html 1.52 (with additions by MySQL AB)";	# program name and version
 $TODAY = &pretty_date;			# like "20 September 1993"
 $SPLITTAG = "<!-- SPLIT HERE -->\n";	# tag to know where to split
 $PROTECTTAG = "_ThisIsProtected_";	# tag to recognize protected sections
@@ -114,10 +113,12 @@ $html2_doctype = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0 Strict Level 2//E
 #
 %accent_map = (
 	       '"',  'uml',
+	       '\'', 'acute',
+	       ',{',  'cedil',
 	       '~',  'tilde',
 	       '^',  'circ',
 	       '`',  'grave',
-	       '\'', 'acute',
+	       'ringaccent{',  'ring',
 	       );
 
 #
@@ -125,7 +126,7 @@ $html2_doctype = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0 Strict Level 2//E
 #
 %simple_map = (
 	       # cf. makeinfo.c
-	       "*", "<BR>",	# HTML+
+	       "*", "<br />",	# HTML+
 	       " ", " ",
 	       "\n", "\n",
 	       "|", "",
@@ -134,6 +135,8 @@ $html2_doctype = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0 Strict Level 2//E
 	       "!", "!",
 	       "?", "?",
 	       ".", ".",
+               # @- means "allow word break", not &mdash;
+	       "-", "",
 	       );
 
 #
@@ -141,9 +144,10 @@ $html2_doctype = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0 Strict Level 2//E
 #
 %things_map = (
 	       'TeX', 'TeX',
-	       'br', '<P>',	# paragraph break
+	       'br', '<p>',	# paragraph break
 	       'bullet', '*',
 	       'copyright', '(C)',
+	       'registeredsymbol', '(R)',
 	       'dots', '...',
 	       'equiv', '==',
 	       'error', 'error-->',
@@ -161,27 +165,28 @@ $html2_doctype = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0 Strict Level 2//E
 %style_map = (
 	      'asis', '',
 	      'b', 'B',
-	      'cite', 'CITE',
-	      'code', 'CODE',
+	      'cite', 'cite',
+	      'code', 'code',
+	      'command', 'code',
 	      'ctrl', '&do_ctrl', # special case
-	      'dfn', 'STRONG',	# DFN tag is illegal in the standard
+	      'dfn', 'strong',	# DFN tag is illegal in the standard
 	      'dmn', '',	# useless
 	      'email', '&fix_email',	# special
-	      'emph', 'EM',
-	      'file', '"TT',	# will put quotes, cf. &apply_style
-	      'i', 'I',
-	      'kbd', 'KBD',
-	      'key', 'KBD',
+	      'emph', 'em',
+	      'file', '"tt',	# will put quotes, cf. &apply_style
+	      'i', 'i',
+	      'kbd', 'kbd',
+	      'key', 'kbd',
 	      'r', '',		# unsupported
-	      'samp', '"SAMP',	# will put quotes, cf. &apply_style
+	      'samp', '"samp',	# will put quotes, cf. &apply_style
 	      'sc', '&do_sc',	# special case
-	      'strong', 'STRONG',
-	      't', 'TT',
+	      'strong', 'strong',
+	      't', 'tt',
 	      'titlefont', '',	# useless
 	      'image', '&fix_image',	# Image
 	      'url', '&fix_url',	# URL
 	      'uref', '&fix_uref',	# URL Reference
-	      'var', 'VAR',
+	      'var', 'var',
 	      'w', '',		# unsupported
 	      );
 
@@ -317,6 +322,7 @@ $usage = <<EOT;
 This is $THISPROG
 To convert a Texinfo file to HMTL: $0 [options] file
 where options can be:
+-acc           : convert @"-like accents to &entities;
 -expandinfo    : use \@ifinfo sections, not \@iftex
 -glossary      : handle a glossary
 -invisible name: use 'name' as an invisible anchor
@@ -445,11 +451,15 @@ $html_num = 0;
 if ($use_iso) {
   $things_map{'bullet'} = "&bull;";
   $things_map{'copyright'} = "&copy;";
+  $things_map{'registeredsymbol'} = "&reg;";
   $things_map{'dots'} = "&hellip;";
   $things_map{'equiv'} = "&equiv;";
   $things_map{'expansion'} = "&rarr;";
   $things_map{'point'} = "&lowast;";
   $things_map{'result'} = "&rArr;";
+  $things_map{'ss'} = "&szlig;";
+  $things_map{'o'} = "&oslash;";
+  $things_map{'O'} = "&Oslash;";
 }
 
 #
@@ -505,23 +515,27 @@ $html_element = '';		# current HTML element
 # watch out for regexps, / and escaped characters!
 $subst_code = '';
 foreach (keys(%simple_map)) {
-  ($re = $_) =~ s/(\W)/\\$1/g;	# protect regexp chars
-  $subst_code .= "s/\\\@$re/$simple_map{$_}/g;\n";
+  $re = quotemeta $_; # protect regexp chars
+  $sub = quotemeta $simple_map{$_};
+  $subst_code .= "s/\\\@$re/$sub/g;\n";
 }
 foreach (keys(%things_map)) {
-  $subst_code .= "s/\\\@$_\\{\\}/$things_map{$_}/g;\n";
+  $re = quotemeta $_; # protect regexp chars
+  $sub = quotemeta $things_map{$_};
+  $subst_code .= "s/\\\@$re\\{\\}/$sub/g;\n";
 }
 if ($use_acc) {
   # accentuated characters
   foreach (keys(%accent_map)) {
+    my $brace = /{$/ ? '}' : '';
     if ($_ eq "`") {
       $subst_code .= "s/$;3";
     } elsif ($_ eq "'") {
       $subst_code .= "s/$;4";
     } else {
-      $subst_code .= "s/\\\@\\$_";
+      $subst_code .= "s/\\\@\\Q$_\\E";
     }
-    $subst_code .= "([aeiou])/&\${1}$accent_map{$_};/gi;\n";
+    $subst_code .= "(\\w)$brace/&\${1}$accent_map{$_};/gi;\n";
   }
 }
 eval("sub simple_substitutions { $subst_code }");
@@ -703,7 +717,7 @@ READ_LINE: while ($_ = &next_line)
 			    s/{[^{}]+}//g);
 	print "# Multitable with $multitable_cols columns\n"
 	  if $debug and $DEBUG_USER;
-	push(@lines, &debug("<TABLE BORDER WIDTH=\"100%\">\n", __LINE__));
+	push(@lines, &debug("<TABLE BORDER>\n", __LINE__));
       } else {
 	warn "$ERROR Bad table line: $_";
       }
@@ -873,7 +887,7 @@ READ_LINE: while ($_ = &next_line)
   &simple_substitutions;
   s/\@value{($VARRE)}/$value{$1}/eg;
   s/\@footnote\{/\@footnote$docu_doc\{/g; # mark footnotes, cf. pass 4
-  s|\s+\@tab\s*| </TD><TD> |g if ($in_multitable);
+  s/(^|\s+)\@tab\s*/ <\/TD><TD> /g if ($in_multitable);
 
   #
   # analyze the tag again
@@ -885,7 +899,7 @@ READ_LINE: while ($_ = &next_line)
 	$name =~ s/\s+$//;
 	$level = $sec2level{$tag};
 	$name = &update_sec_num($tag, $level) . "  $name"
-	  if $number_sections && $tag !~ /^unnumbered/;
+	  if $number_sections && $tag !~ /^unnumbered/ && $tag ne 'subsubheading';
 	if ($tag =~ /heading$/) {
 	  push(@lines, &html_debug("\n", __LINE__));
 	  if ($html_element ne 'body') {
@@ -1079,7 +1093,7 @@ EOC
 	  push(@lines, &debug("</TD></TR>\n", __LINE__))
 	    unless $html_element eq 'TABLE';
 	  &html_pop_if('TR');
-	  $what =~ s|\s+\@tab\s*| </TD><TD> |g;
+	  $what =~ s/(^|\s+)\@tab\s*/ <\/TD><TD> /g;
 	  push(@lines, &debug("<TR><TD>$what\n", __LINE__));
 	  &html_push('TR');
 	  if ($deferred_ref)
@@ -1463,11 +1477,7 @@ print "# end of pass 4\n" if $verbose;
 #                                                                              #
 #---############################################################################
 
-$header = <<EOT;
-<!-- This HTML file has been created by $THISPROG
-     from $docu on $TODAY -->
-EOT
-
+  $header = '';
   $full_title = $value{'_title'} || $value{'_settitle'} || "Untitled Document";
   $title = $value{'_settitle'} || $full_title;
   $_ = &substitute_style($full_title);
@@ -1811,12 +1821,14 @@ sub fix_image
 {
   my($text) = @_;
   my($arg1, $ext);
-  $text =~ /^([^,]*)$/;
+  $text =~ /^([^,]*)/;
   die "error in image: '$text'" unless defined($1);
   $arg1 = $1;
   $arg1 =~ s/@@/@/g;
-  $ext = "jpg" if -f "$arg1.jpg";
-  $ext = "gif" if -f "$arg1.gif";
+  foreach (@include_dirs) {
+    $ext = "jpg" if -f "$_/$arg1.jpg";
+    $ext = "gif" if -f "$_/$arg1.gif";
+  }
   if (defined($ext))
   {
     "<IMG SRC=\"$arg1.$ext\">";
@@ -2010,7 +2022,7 @@ sub print_toplevel_header
 {
   local($_);
 
-  &print_header;		# pass given arg...
+  &print_header unless $opt_empty_headers;		# pass given arg...
   print FILE $full_title;
   if ($value{'_subtitle'}) {
     $value{'_subtitle'} =~ s/\n+$//;
@@ -2042,13 +2054,7 @@ EOT
 
 sub print_toplevel_footer
 {
-  &print_ruler;
-  print FILE <<EOT;
-This document was generated on $TODAY using the
-<A HREF=\"$HOMEPAGE\">texi2html</A>
-translator version 1.52 (extended by davida\@detron.se).</P>
-EOT
-  &print_footer;
+  &print_footer unless $opt_empty_headers;
 }
 
 sub protect_texi
@@ -2065,8 +2071,10 @@ sub protect_html
 {
   local($what) = @_;
   # protect & < >
-  # Avoid loop in & replacement. This instead bugs out for &# in text..
-  $what =~ s/\&([^#]|$)/\&\#38;$1/g;
+  # hack for the two entity-like variable reference in existing examples
+  $what =~ s/\&(length|ts);/\&\#38;$1;/g;
+  # this leaves alone entities, but encodes standalone ampersands
+  $what =~ s/\&(?!([a-z0-9]+|#\d+);)/\&\#38;/ig;
   $what =~ s/\</\&\#60;/g;
   $what =~ s/\>/\&\#62;/g;
   # but recognize some HTML things

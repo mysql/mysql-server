@@ -919,21 +919,14 @@ String *Item_func_date_format::val_str(String *str)
 
 String *Item_func_from_unixtime::val_str(String *str)
 {
-  struct tm tm_tmp,*start;
-  time_t tmp=(time_t) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  TIME ltime;
+  if (get_date(&ltime, 0))
     return 0;
-  localtime_r(&tmp,&tm_tmp);
-  start=&tm_tmp;
   if (str->alloc(20))
     return str;					/* purecov: inspected */
   sprintf((char*) str->ptr(),"%04d-%02d-%02d %02d:%02d:%02d",
-	  (int) start->tm_year+1900,
-	  (int) start->tm_mon+1,
-	  (int) start->tm_mday,
-	  (int) start->tm_hour,
-	  (int) start->tm_min,
-	  (int) start->tm_sec);
+	  (int) ltime.year, (int) ltime.month, (int) ltime.day,
+	  (int) ltime.hour, (int) ltime.minute, (int) ltime.second);
   str->length(19);
   return str;
 }
@@ -941,37 +934,33 @@ String *Item_func_from_unixtime::val_str(String *str)
 
 longlong Item_func_from_unixtime::val_int()
 {
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  TIME ltime;
+  if (get_date(&ltime, 0))
     return 0;
-  struct tm tm_tmp,*start;
-  localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  return ((longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
-		      (((uint) start->tm_mon+1)*100+
-		       (uint) start->tm_mday))*LL(1000000)+
-	  (longlong) ((ulong) ((uint) start->tm_hour)*10000L+
-		      (ulong) (((uint) start->tm_min)*100L+
-			       (uint) start->tm_sec)));
+  return ((longlong)(ltime.year*10000L+ltime.month*100+ltime.day)*LL(1000000)+
+          (longlong)(ltime.hour*10000L+ltime.minute*100+ltime.second));
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       bool fuzzy_date __attribute__((unused)))
 {
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  struct tm tm_tmp;
+  time_t tmp;
+  longlong arg= args[0]->val_int();
+  if ((null_value= (args[0]->null_value ||
+                    arg < TIMESTAMP_MIN_VALUE ||
+                    arg > TIMESTAMP_MAX_VALUE)))
     return 1;
-  struct tm tm_tmp,*start;
+  tmp= arg;
   localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  ltime->year=	start->tm_year+1900;
-  ltime->month=	start->tm_mon+1;
-  ltime->day=	start->tm_mday;
-  ltime->hour=	start->tm_hour;
-  ltime->minute=start->tm_min;
-  ltime->second=start->tm_sec;
-  ltime->second_part=0;
-  ltime->neg=0;
+  ltime->year=   tm_tmp.tm_year+1900;
+  ltime->month=  tm_tmp.tm_mon+1;
+  ltime->day=    tm_tmp.tm_mday;
+  ltime->hour=   tm_tmp.tm_hour;
+  ltime->minute= tm_tmp.tm_min;
+  ltime->second= tm_tmp.tm_sec;
+  ltime->second_part= 0;
+  ltime->neg= 0;
   return 0;
 }
 

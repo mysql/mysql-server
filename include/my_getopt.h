@@ -50,15 +50,15 @@ struct my_option
   int        app_type;                  /* To be used by an application */
 };
 
-extern char *disabled_my_option;
-extern my_bool my_getopt_print_errors;
-
 typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
 typedef void (* my_error_reporter) (enum loglevel level, const char *format, ... );
 
+extern char *disabled_my_option;
+extern my_bool my_getopt_print_errors;
+extern my_error_reporter my_getopt_error_reporter;
+
 extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, my_get_one_option, 
-                           my_error_reporter );
+			   const struct my_option *longopts, my_get_one_option);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 

@@ -132,6 +132,10 @@ net_printf(NET *net, uint errcode, ...)
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
 
+  /* Replication slave relies on net->last_* to see if there was error */
+  net->last_errno= errcode;
+  strmake(net->last_error, text_pos, sizeof(net->last_error)-1);
+
   if (net->vio == 0)
   {
     if (thd && thd->bootstrap)

@@ -1221,7 +1221,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
         if (e.write(file))
           goto err;
       }
-#if MYSQL_VERSION_ID < 40100      
+#if MYSQL_VERSION_ID < 40100
       if (thd->variables.convert_set)
       {
 	Query_log_event e(thd, "SET CHARACTER SET DEFAULT", 25, 0);
@@ -1254,7 +1254,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (flush_io_cache(file))
 	goto err;
  
-      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
+      if (opt_using_transactions &&
+          !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
       {
         /*
           LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
@@ -1370,6 +1371,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
       /*
+        Imagine this is rollback due to net timeout, after all statements of
+        the transaction succeeded. Then we want a zero-error code in BEGIN.
+        In other words, if there was a really serious error code it's already
+        in the statement's events.
+        This is safer than thd->clear_error() against kills at shutdown.
+      */
+      qinfo.error_code= 0;
+      /*
         Now this Query_log_event has artificial log_pos 0. It must be adjusted
         to reflect the real position in the log. Not doing it would confuse the
 	slave: it would prevent this one from knowing where he is in the
@@ -1402,6 +1411,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
+      qinfo.error_code= 0;
       qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file))
 	goto err;
@@ -1682,22 +1692,6 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 }
 
 
-Disable_binlog::Disable_binlog(THD *thd_arg) : 
-  thd(thd_arg),
-  save_options(thd_arg->options), save_master_access(thd_arg->master_access)
-{
-  thd_arg->options&= ~OPTION_BIN_LOG;
-  thd_arg->master_access|= SUPER_ACL; // unneeded in 4.1
-};
-
-
-Disable_binlog::~Disable_binlog()
-{
-  thd->options= save_options;
-  thd->master_access= save_master_access;
-}
-
-
 /*
   Check if a string is a valid number
 
@@ -1761,15 +1755,21 @@ void print_buffer_to_file(enum loglevel level, const char *buffer)
   skr=time(NULL);
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
+#if MYSQL_VERSION_ID > 40100
   fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d  [%s] %s\n",
-    	  start->tm_year % 100,
-  	  start->tm_mon+1,
-	  start->tm_mday,
-	  start->tm_hour,
-	  start->tm_min,
-	  start->tm_sec,
+#else
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d %s\n",
+#endif
+          start->tm_year % 100,
+          start->tm_mon+1,
+          start->tm_mday,
+          start->tm_hour,
+          start->tm_min,
+          start->tm_sec,
+#if MYSQL_VERSION_ID > 40100
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "WARNING" : "INFORMATION"),
+#endif
           buffer);
 
   fflush(stderr);

@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.21)
+AM_INIT_AUTOMAKE(mysql, 4.0.23)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -40,12 +40,12 @@ do
   case $host_os in
     netware* | modesto*)
       echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err.linux \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err.linux $i/errmsg.txt $i/errmsg.sys" \
       >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
     *)
   echo "$i/errmsg.sys: $i/errmsg.txt
-	\$(top_builddir)/extra/comp_err \$^ $i/errmsg.sys" \
+	\$(top_builddir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
     >> $AVAILABLE_LANGUAGES_ERRORS_RULES
       ;;
   esac
@@ -444,7 +444,7 @@ if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
 # Solaris
-elif $PS -p $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
 # BSD style
@@ -939,8 +939,8 @@ MAX_CXX_OPTIMIZE="-O3"
 # workaround for Sun Forte/x86 see BUG#4681
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
   *solaris*-i?86-no)
-    CFLAGS="$CFLAGS -DBIG_FILES"
-    CXXFLAGS="$CXXFLAGS -DBIG_FILES"
+    CFLAGS="$CFLAGS -DBIG_TABLES"
+    CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
   *) ;;
 esac
@@ -2181,6 +2181,21 @@ else
 fi
 AC_SUBST(docs_dirs)
 
+# Shall we build the man pages?
+AC_ARG_WITH(man,
+    [  --without-man          Skip building of the man pages.],
+    [with_man=$withval],
+    [with_man=yes]
+)
+
+if test "$with_man" = "yes"
+then
+  man_dirs="man"
+else
+  man_dirs=""
+fi
+AC_SUBST(man_dirs)
+
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
     [  --without-bench         Skip building of the benchmark suite.],
@@ -2696,7 +2711,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
- tests/Makefile Docs/Makefile support-files/Makefile dnl
+ tests/Makefile Docs/Makefile Docs/Images/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl

@@ -162,6 +162,14 @@ a
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
 a
 aaa10 bbb20
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
 drop table t1;
 CREATE TABLE t1 (
 id int(11),
@@ -298,3 +306,12 @@ t1_id	name	t2_id	t1_id	name
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select count(*) from t1;
+count(*)
+1
+drop table t1;

@@ -212,7 +212,8 @@ os_file_get_last_error(void)
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.php for installation help.\n",
+  "InnoDB: See http://dev.mysql.com/doc/mysql/en/InnoDB.html\n"
+  "InnoDB: for installation help.\n",
 		err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
@@ -227,8 +228,9 @@ os_file_get_last_error(void)
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
 			 fprintf(stderr,
-  "InnoDB: See section 13.2 at http://www.innodb.com/ibman.php\n"
-  "InnoDB: about operating system error numbers.\n");
+  "InnoDB: Some operating system error numbers are described at\n"
+  "InnoDB: "
+  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 		}
 	}
 
@@ -251,7 +253,8 @@ os_file_get_last_error(void)
 
 	     	fprintf(stderr,
   "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.php for installation help.\n",
+  "InnoDB: See http://dev.mysql.com/doc/mysql/en/InnoDB.html\n"
+  "InnoDB: for installation help.\n",
 		err);
 
 		if (err == ENOENT) {
@@ -270,8 +273,9 @@ os_file_get_last_error(void)
 			 }
 
 			 fprintf(stderr,
-  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-  "InnoDB: about operating system error numbers.\n");
+  "InnoDB: Some operating system error numbers are described at\n"
+  "InnoDB: "
+  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 		}
 	}
 
@@ -1182,7 +1186,7 @@ os_file_pread(
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
 
-        n_bytes = pread(file, buf, n, offs);
+        n_bytes = pread(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
@@ -1207,7 +1211,7 @@ os_file_pread(
 		return(ret);
 	}
 	
-	ret = read(file, buf, n);
+	ret = read(file, buf, (ssize_t)n);
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -1257,7 +1261,7 @@ os_file_pwrite(
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
 
-	ret = pwrite(file, buf, n, offs);
+	ret = pwrite(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
@@ -1292,7 +1296,7 @@ os_file_pwrite(
 		return(ret);
 	}
 	
-	ret = write(file, buf, n);
+	ret = write(file, buf, (ssize_t)n);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
@@ -1465,8 +1469,9 @@ retry:
 		fprintf(stderr,
 "  InnoDB: Error: File pointer positioning to file %s failed at\n"
 "InnoDB: offset %lu %lu. Operating system error number %lu.\n"
-"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: what the error number means.\n",
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n",
 			name, offset_high, offset,
 			(ulint)GetLastError());
 
@@ -1523,8 +1528,9 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: about operating system error numbers.\n");
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -1558,8 +1564,9 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: about operating system error numbers.\n");
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2581,6 +2588,8 @@ restart:
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
+	srv_set_io_thread_op_info(global_segment,
+					"looking for i/o requests (a)");
 	ut_ad(os_aio_validate());
 	ut_ad(segment < array->n_segments);
 
@@ -2598,6 +2607,9 @@ restart:
 	}
 	
 	os_mutex_enter(array->mutex);
+
+	srv_set_io_thread_op_info(global_segment,
+					"looking for i/o requests (b)");
 
 	/* Check if there is a slot for which the i/o has already been
 	done */
@@ -2710,6 +2722,8 @@ consecutive_loop:
 			}
 		}
 	}
+
+	srv_set_io_thread_op_info(global_segment, "consecutive i/o requests");
 
 	/* We have now collected n_consecutive i/o requests in the array;
 	allocate a single buffer which can hold all data, and perform the
@@ -2854,6 +2868,8 @@ slot_io_done:
 	return(ret);
 
 wait_for_io:
+	srv_set_io_thread_op_info(global_segment, "resetting wait event");
+
 	/* We wait here until there again can be i/os in the segment
 	of this thread */
 	
@@ -2945,9 +2961,17 @@ os_aio_print(
 	ulint		i;
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		fprintf(file, "I/O thread %lu state: %s (%s)\n", i,
+		fprintf(file, "I/O thread %lu state: %s (%s)", i,
 					srv_io_thread_op_info[i],
 					srv_io_thread_function[i]);
+
+#ifndef __WIN__
+        	if (os_aio_segment_wait_events[i]->is_set) {
+			fprintf(file, " ev set");
+		}
+#endif
+			
+		fprintf(file, "\n");
 	}
 
 	fputs("Pending normal aio reads:", file);

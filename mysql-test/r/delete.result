@@ -50,3 +50,14 @@ select count(*) from t1;
 count(*)
 0
 drop table t1;
+create table t1 (a int not null auto_increment primary key, b char(32));
+insert into t1 (b) values ('apple'), ('apple');
+select * from t1;
+a	b
+1	apple
+2	apple
+delete t1 from t1, t1 as t2 where t1.b = t2.b and t1.a > t2.a;
+select * from t1;
+a	b
+1	apple
+drop table t1;

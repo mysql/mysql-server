@@ -122,3 +122,36 @@ insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
 delete from t1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
 select * from t1;
 drop table t1;
+
+#
+# Bug#5553 - Multi table UPDATE IGNORE fails on duplicate keys 
+#
+
+CREATE TABLE t1 ( 
+   `colA` int(10) unsigned NOT NULL auto_increment,
+   `colB` int(11) NOT NULL default '0',
+   PRIMARY KEY  (`colA`)
+);
+INSERT INTO t1 VALUES (4433,5424);
+CREATE TABLE t2 (
+  `colC` int(10) unsigned NOT NULL default '0',
+  `colA` int(10) unsigned NOT NULL default '0',
+  `colD` int(10) unsigned NOT NULL default '0',
+  `colE` int(10) unsigned NOT NULL default '0',
+  `colF` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`)
+);
+INSERT INTO t2 VALUES (3,4433,10005,495,500);
+INSERT INTO t2 VALUES (3,4433,10005,496,500);
+INSERT INTO t2 VALUES (3,4433,10009,494,500);
+INSERT INTO t2 VALUES (3,4433,10011,494,500);
+INSERT INTO t2 VALUES (3,4433,10005,497,500);
+INSERT INTO t2 VALUES (3,4433,10013,489,500);
+INSERT INTO t2 VALUES (3,4433,10005,494,500);
+INSERT INTO t2 VALUES (3,4433,10005,493,500);
+INSERT INTO t2 VALUES (3,4433,10005,492,500);
+UPDATE IGNORE t2,t1 set t2.colE = t2.colE + 1,colF=0 WHERE t1.colA = t2.colA AND (t1.colB & 4096) > 0 AND (colE + 1) < colF;
+SELECT * FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+

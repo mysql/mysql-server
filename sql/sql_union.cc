@@ -39,6 +39,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
+  ha_rows examined_rows= 0;
   DBUG_ENTER("mysql_union");
 
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
@@ -148,6 +149,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   {
     ha_rows records_at_start;
     lex->select=sl;
+#if MYSQL_VERSION_ID < 40100
+    if (describe && sl->linkage == NOT_A_SELECT)
+      break;      // Skip extra item in case of 'explain'
+#endif
     /* Don't use offset for the last union if there is no braces */
     if (sl != lex_sl)
     {
@@ -198,6 +203,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     union_result);
     if (res)
       goto exit;
+    examined_rows+= thd->examined_row_count;
     /* Needed for the following test and for records_at_start in next loop */
     table->file->info(HA_STATUS_VARIABLE);
     if (found_rows_for_union & sl->options)
@@ -254,12 +260,15 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit
       
-      res=mysql_select(thd,&result_table_list,
+      res= mysql_select(thd,&result_table_list,
 		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
       if (!res)
-	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
+      {
+	thd->limit_found_rows= (ulonglong)table->file->records + add_rows;
+	thd->examined_row_count+= examined_rows;
+      }
     }
   }
 

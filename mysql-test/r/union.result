@@ -88,7 +88,6 @@ explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a l
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	4	
 t2	ALL	NULL	NULL	NULL	NULL	4	Using filesort
-t1	ALL	NULL	NULL	NULL	NULL	4	
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
 a	b
 1	a
@@ -420,6 +419,7 @@ a
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
 Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
+drop table t1;
 create table t1 select a from t1 union select a from t2;
 INSERT TABLE 't1' isn't allowed in FROM table list
 select a from t1 union select a from t2 order by t2.a;
@@ -429,3 +429,10 @@ select length(version()) > 1 as `*` UNION select 2;
 *
 1
 2
+create table t1 (a int);
+insert into t1 values (0), (3), (1), (2);
+explain (select * from t1) union (select * from t1) order by a;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	ALL	NULL	NULL	NULL	NULL	4	
+t1	ALL	NULL	NULL	NULL	NULL	4	
+drop table t1;

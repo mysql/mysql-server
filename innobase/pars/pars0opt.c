@@ -1094,6 +1094,19 @@ opt_clust_access(
 	for (i = 0; i < n_fields; i++) {
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
+		ut_a(pos != ULINT_UNDEFINED);
+
+		/* We optimize here only queries to InnoDB's internal system
+		tables, and they should not contain column prefix indexes. */
+
+		if (dict_index_get_nth_field(index, pos)->prefix_len != 0
+		    || dict_index_get_nth_field(clust_index, i)
+							->prefix_len != 0) {
+			fprintf(stderr,
+"InnoDB: Error in pars0opt.c: table %s has prefix_len != 0\n",
+				index->table_name);
+		}
+
 		*(plan->clust_map + i) = pos;
 
 		ut_ad((pos != ULINT_UNDEFINED)

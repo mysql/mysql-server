@@ -224,6 +224,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
 
 create temporary table t1 select a from t1 union select a from t2;
+drop table t1;
 --error 1093
 create table t1 select a from t1 union select a from t2;
 --error 1054
@@ -236,3 +237,11 @@ drop table t1,t2;
 
 select length(version()) > 1 as `*` UNION select 2;
 
+#
+# Bug #4980: problem with explain
+#
+
+create table t1 (a int);
+insert into t1 values (0), (3), (1), (2);
+explain (select * from t1) union (select * from t1) order by a;
+drop table t1;

@@ -89,6 +89,19 @@ row_mysql_is_system_table(
 	    || 0 == strcmp(name + 6, "user")
 	    || 0 == strcmp(name + 6, "db"));
 }
+
+/***********************************************************************
+Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
+static
+void
+row_mysql_delay_if_needed(void)
+/*===========================*/
+{
+	if (srv_dml_needed_delay) {
+		os_thread_sleep(srv_dml_needed_delay);
+	}
+}
+
 /***********************************************************************
 Reads a MySQL format variable-length field (like VARCHAR) length and
 returns pointer to the field data. */
@@ -310,8 +323,9 @@ handle_new_error:
 	    "InnoDB: a case of widespread corruption, dump all InnoDB\n"
 	    "InnoDB: tables and recreate the whole InnoDB tablespace.\n"
 	    "InnoDB: If the mysqld server crashes after the startup or when\n"
-	    "InnoDB: you dump the tables, look at section 6.1 of\n"
-	    "InnoDB: http://www.innodb.com/ibman.php for help.\n", stderr);
+	    "InnoDB: you dump the tables, look at\n"
+	    "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html"
+	    " for help.\n", stderr);
 
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
@@ -855,6 +869,8 @@ row_insert_for_mysql(
 
 	trx->op_info = (char *) "inserting";
 
+	row_mysql_delay_if_needed();
+
 	trx_start_if_not_started(trx);
 
 	if (node == NULL) {
@@ -1069,6 +1085,8 @@ row_update_for_mysql(
 	}
 
 	trx->op_info = (char *) "updating or deleting";
+
+	row_mysql_delay_if_needed();
 
 	trx_start_if_not_started(trx);
 
@@ -1551,8 +1569,9 @@ row_create_table_for_mysql(
      "InnoDB: database and moving the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n", stderr);
 		}
 
 		trx->error_state = DB_SUCCESS;
@@ -1962,7 +1981,8 @@ row_drop_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = table_name;\n"	
+	"	WHERE FOR_NAME = table_name\n"
+        "             AND TO_BINARY(FOR_NAME) = TO_BINARY(table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"		found := 0;\n"
 	"	ELSE"
@@ -2049,6 +2069,7 @@ row_drop_table_for_mysql(
 	memcpy(sql, str1, (sizeof str1) - 1);
 	memcpy(sql + (sizeof str1) - 1, quoted_name, namelen);
 	memcpy(sql + (sizeof str1) - 1 + namelen, str2, sizeof str2);
+	mem_free(quoted_name);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -2089,8 +2110,9 @@ row_drop_table_for_mysql(
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
-	"InnoDB: You can look for further help from section 15.1 of\n"
-	"InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+	"InnoDB: You can look for further help from\n"
+	"InnoDB: http://dev.mysql.com/doc/mysql/en/"
+	"InnoDB_troubleshooting_datadict.html\n", stderr);
 		goto funct_exit;
 	}
 
@@ -2152,8 +2174,8 @@ row_drop_table_for_mysql(
 		fputs("	 InnoDB: You are trying to drop table ", stderr);
 		ut_print_name(stderr, table->name);
 		fputs("\n"
-		  "InnoDB: though there are foreign key check running on it.\n"
-		  "InnoDB: Adding the table to the background drop queue.\n",
+		 "InnoDB: though there is a foreign key check running on it.\n"
+		 "InnoDB: Adding the table to the background drop queue.\n",
 			stderr);
 
 		row_add_table_to_background_drop_list(table);
@@ -2360,7 +2382,8 @@ row_rename_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = old_table_name;\n"	
+	"	WHERE FOR_NAME = old_table_name\n"
+	"	      AND TO_BINARY(FOR_NAME) = TO_BINARY(old_table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"	 found := 0;\n"
 	"	ELSE\n"
@@ -2393,7 +2416,8 @@ row_rename_table_for_mysql(
 	"	END IF;\n"
 	"END LOOP;\n"
 	"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
-	"WHERE REF_NAME = old_table_name;\n";
+	"WHERE REF_NAME = old_table_name\n"
+	"      AND TO_BINARY(REF_NAME) = TO_BINARY(old_table_name);\n";
 	static const char str5[] =
 	"END;\n";
 
@@ -2581,15 +2605,20 @@ row_rename_table_for_mysql(
 		if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
 
-			fputs("  InnoDB: Error: table ", stderr);
+			fputs(
+     "  InnoDB: Error; possible reasons:\n"
+     "InnoDB: 1) Table rename would cause two FOREIGN KEY constraints\n"
+     "InnoDB: to have the same internal name in case-insensitive comparison.\n"
+     "InnoDB: 2) table ", stderr);
 			ut_print_name(stderr, new_name);
 			fputs(" exists in the InnoDB internal data\n"
      "InnoDB: dictionary though MySQL is trying rename table ", stderr);
 			ut_print_name(stderr, old_name);
 			fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.php\n"
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n"
      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, new_name);
 			fputs(

@@ -246,7 +246,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error, ho_error;
+  int error= 0, ho_error;
   MYSQL mysql;
   char **commands, **save_argv;
 
@@ -254,7 +254,7 @@ int main(int argc,char *argv[])
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
   save_argv = argv;				/* Save for free_defaults */
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
     free_defaults(save_argv);
     exit(ho_error);
@@ -285,10 +285,25 @@ int main(int argc,char *argv[])
 		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (sql_connect(&mysql, option_wait))
-    error = 1;
+  {
+    unsigned int err= mysql_errno(&mysql);
+    if (err >= CR_MIN_ERROR && err <= CR_MAX_ERROR)
+      error= 1;
+    else
+    {
+      /* Return 0 if all commands are PING */
+      for (; argc > 0; argv++, argc--)
+      {
+        if (find_type(argv[0], &command_typelib, 2) != ADMIN_PING)
+        {
+          error= 1;
+          break;
+        }
+      }
+    }
+  }
   else
   {
-    error = 0;
     while (!interrupted && (!opt_count_iterations || nr_iterations))
     {
       new_line = 0;
@@ -539,7 +554,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       {
 	char *pos,buff[40];
 	ulong sec;
-	pos=strchr(status,' ');
+	pos= (char*) strchr(status,' ');
 	*pos++=0;
 	printf("%s\t\t\t",status);			/* print label */
 	if ((status=str2int(pos,10,0,LONG_MAX,(long*) &sec)))

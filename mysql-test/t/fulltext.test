@@ -87,6 +87,8 @@ select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
 select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
 select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
 drop table t1;
 
 #
@@ -239,4 +241,14 @@ select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
 
 drop table t1,t2;
+
+#
+# icc -ip bug (ip = interprocedural optimization)
+# bug#5528
+#
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+select count(*) from t1;
+drop table t1;
 

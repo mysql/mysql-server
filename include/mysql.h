@@ -392,6 +392,8 @@ unsigned long * STDCALL mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD *	STDCALL mysql_fetch_field(MYSQL_RES *result);
 unsigned long	STDCALL mysql_escape_string(char *to,const char *from,
 					    unsigned long from_length);
+unsigned long	STDCALL mysql_hex_string(char *to,const char *from,
+                                         unsigned long from_length);
 unsigned long STDCALL mysql_real_escape_string(MYSQL *mysql,
 					       char *to,const char *from,
 					       unsigned long length);

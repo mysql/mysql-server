@@ -387,6 +387,24 @@ err:
 ***************************************************************************/
 
 /*
+  Get table map for list of Item_field
+*/
+
+static table_map get_table_map(List<Item> *items)
+{
+  List_iterator_fast<Item> item_it(*items);
+  Item_field *item;
+  table_map map= 0;
+
+  while ((item= (Item_field *) item_it++)) 
+    map|= item->used_tables();
+  DBUG_PRINT("info",("table_map: 0x%08x", map));
+  return map;
+}
+
+
+
+/*
   Setup multi-update handling and call SELECT to do the join
 */
 
@@ -401,25 +419,109 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   TABLE_LIST *tl;
+  const bool using_lock_tables= thd->locked_tables != 0;
   DBUG_ENTER("mysql_multi_update");
 
-  if ((res=open_and_lock_tables(thd,table_list)))
-    DBUG_RETURN(res);
+  thd->select_limit= HA_POS_ERROR;
 
-  thd->select_limit=HA_POS_ERROR;
-
-  /*
-    Ensure that we have update privilege for all tables and columns in the
-    SET part
-  */
-  for (tl= table_list ; tl ; tl=tl->next)
+  for (;;)
   {
-    TABLE *table= tl->table;
-    table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
-  }
+    table_map update_map;
+    int tnr;
+    
+    if ((res= open_tables(thd, table_list)))
+      DBUG_RETURN(res);
 
-  if (setup_fields(thd, table_list, *fields, 1, 0, 0))
-    DBUG_RETURN(-1);
+    /* Only need to call lock_tables if we are not using LOCK TABLES */
+    if (!using_lock_tables && ((res= lock_tables(thd, table_list))))
+      DBUG_RETURN(res);
+
+    /*
+      Ensure that we have update privilege for all tables and columns in the
+      SET part
+      While we are here, initialize the table->map field.
+    */
+    for (tl= table_list,tnr=0 ; tl ; tl=tl->next)
+    {
+      TABLE *table= tl->table;
+      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+      table->map= (table_map) 1 << (tnr++);
+    }
+
+    if (setup_fields(thd, table_list, *fields, 1, 0, 0))
+      DBUG_RETURN(-1);
+
+    update_map= get_table_map(fields);
+
+    /* Unlock the tables in preparation for relocking */
+    if (!using_lock_tables)
+    {      
+      mysql_unlock_tables(thd, thd->lock); 
+      thd->lock= 0;
+    }
+
+    /*
+      Set the table locking strategy according to the update map
+    */
+    for (tl= table_list ; tl ; tl=tl->next)
+    {
+      TABLE *table= tl->table;
+      if (update_map & table->map) 
+      {
+	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
+	tl->lock_type= thd->lex.lock_option;
+	tl->updating= 1;
+      }
+      else
+      {
+	DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
+	tl->lock_type= TL_READ;
+	tl->updating= 0;
+      }
+      if (!using_lock_tables)
+	tl->table->reginfo.lock_type= tl->lock_type;
+    }
+
+    /* Relock the tables with the correct modes */
+    res= lock_tables(thd,table_list);
+    if (using_lock_tables)
+    {
+      if (res)
+        DBUG_RETURN(res);
+      break;                                 // Don't have to do setup_field()
+    }
+
+    /*
+      We must setup fields again as the file may have been reopened
+      during lock_tables 
+    */
+
+    {
+      List_iterator_fast<Item> field_it(*fields);
+      Item_field *item;
+
+      while ((item= (Item_field *) field_it++)) 
+#if MYSQL_VERSION < 40100
+        item->field= item->result_field= 0;
+#else
+        item->cleanup();
+#endif
+    }
+    if (setup_fields(thd, table_list, *fields, 1, 0, 0))
+      DBUG_RETURN(-1);
+    /*
+      If lock succeded and the table map didn't change since the above lock
+      we can continue.
+    */
+    if (!res && update_map == get_table_map(fields))
+      break;
+
+    /*
+      There was some very unexpected changes in the table definition between
+      open tables and lock tables. Close tables and try again.
+    */
+    close_thread_tables(thd);
+  }
 
   /*
     Count tables and setup timestamp handling
@@ -472,7 +574,7 @@ int multi_update::prepare(List<Item> &not_used_values)
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;
-  table_map tables_to_update= 0;
+  table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
@@ -483,8 +585,7 @@ int multi_update::prepare(List<Item> &not_used_values)
   thd->cuted_fields=0L;
   thd->proc_info="updating main table";
 
-  while ((item= (Item_field *) field_it++))
-    tables_to_update|= item->used_tables();
+  tables_to_update= get_table_map(fields);
 
   if (!tables_to_update)
   {
@@ -548,7 +649,6 @@ int multi_update::prepare(List<Item> &not_used_values)
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
-  field_it.rewind();
   while ((item= (Item_field *) field_it++))
   {
     Item *value= value_it++;
@@ -792,9 +892,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	if ((error=table->file->update_row(table->record[1],
 					   table->record[0])))
 	{
-	  table->file->print_error(error,MYF(0));
 	  updated--;
-	  DBUG_RETURN(1);
+	  if (handle_duplicates != DUP_IGNORE ||
+	      error != HA_ERR_FOUND_DUPP_KEY)
+	  {
+	    table->file->print_error(error,MYF(0));
+	    DBUG_RETURN(1);
+	  }
 	}
       }
     }

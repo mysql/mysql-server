@@ -70,6 +70,12 @@ select length(quote(concat(char(0),"test")));
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 
 #
+# Bug #6564: QUOTE(NULL
+#
+
+select concat('a', quote(NULL));
+
+#
 # Wrong usage of functions
 #
 
@@ -172,3 +178,10 @@ create table t1(a char(4));
 insert into t1 values ('one'),(NULL),('two'),('four');
 select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
 drop table t1;
+
+#
+# Bug #5498: TRIM fails with LEADING or TRAILING if remstr = str
+#
+
+select trim(trailing 'foo' from 'foo');
+select trim(leading 'foo' from 'foo');

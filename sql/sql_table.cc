@@ -30,6 +30,16 @@
 #include <io.h>
 #endif
 
+#include "sql_acl.h" // for SUPER_ACL
+# define tmp_disable_binlog(A)                                          \
+  ulong save_options= (A)->options, save_master_access= (A)->master_access; \
+  (A)->options&= ~OPTION_BIN_LOG;                                       \
+  (A)->master_access|= SUPER_ACL; /* unneeded in 4.1 */                 
+
+#define reenable_binlog(A)                      \
+  (A)->options= save_options;                   \
+  (A)->master_access= save_master_access;       
+
 extern HASH open_cache;
 static const char *primary_key_name="PRIMARY";
 
@@ -176,7 +186,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table=tables ; table ; table=table->next)
   {
     char *db=table->db;
-    mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+    mysql_ha_flush(thd, table, MYSQL_HA_CLOSE_FINAL);
     if (!close_temporary_table(thd, db, table->real_name))
     {
       tmp_table_deleted=1;
@@ -840,9 +850,8 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       MYSQL_LOCK **lock)
 {
   TABLE tmp_table;		// Used during 'create_field()'
-  TABLE *table;
+  TABLE *table= 0;
   tmp_table.table_name=0;
-  Disable_binlog disable_binlog(thd);
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -872,23 +881,25 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     extra_fields->push_back(cr_field);
   }
   /* create and lock table */
-  /* QQ: This should be done atomic ! */
-  /* We don't log the statement, it will be logged later */
-  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0))
-    DBUG_RETURN(0);
+  /* QQ: create and open should be done atomic ! */
   /*
+    We don't log the statement, it will be logged later.
     If this is a HEAP table, the automatic DELETE FROM which is written to the
     binlog when a HEAP table is opened for the first time since startup, must
     not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
     don't want to delete from it) 2) it would be written before the CREATE
-    TABLE, which is a wrong order. So we keep binary logging disabled.
+    TABLE, which is a wrong order. So we keep binary logging disabled when we
+    open_table().
   */
-  if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+  tmp_disable_binlog(thd);
+  if (!mysql_create_table(thd,db,name,create_info,*extra_fields,*keys,0))
   {
-    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
-    DBUG_RETURN(0);
+    if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+      quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
   }
+  reenable_binlog(thd);
+  if (!table)
+    DBUG_RETURN(0);
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)=mysql_lock_tables(thd,&table,1)))
   {
@@ -900,7 +911,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
-  /* Note that leaving the function resets binlogging properties */
 }
 
 
@@ -1242,7 +1252,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
-  mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, tables, MYSQL_HA_CLOSE_FINAL);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
@@ -1257,9 +1267,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (prepare_func)
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
-        case  1: continue; // error, message written to net
-        case -1: goto err; // error, message could be written to net
-        default:         ; // should be 0 otherwise
+      case  1:           // error, message written to net
+        close_thread_tables(thd);
+        continue;
+      case -1:           // error, message could be written to net
+        goto err;
+      default:           // should be 0 otherwise
+        ;
       }
     }
 
@@ -1503,7 +1517,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   used_fields=create_info->used_fields;
   
-  mysql_ha_close(thd, table_list, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
+  mysql_ha_flush(thd, table_list, MYSQL_HA_CLOSE_FINAL);
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -1603,7 +1617,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->activate_all_index(thd);
+	error= (table->file->activate_all_index(thd) ? -1 : 0);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
@@ -1925,14 +1939,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else
     create_info->data_file_name=create_info->index_file_name=0;
   {
-    /*
-      We don't log the statement, it will be logged later. Using a block so
-      that disable_binlog is deleted when we leave it in either way.
-    */
-    Disable_binlog disable_binlog(thd);
-    if ((error=mysql_create_table(thd, new_db, tmp_name,
-                                  create_info,
-                                  create_list,key_list,1)))
+    /* We don't log the statement, it will be logged later. */
+    tmp_disable_binlog(thd);
+    error= mysql_create_table(thd, new_db, tmp_name,
+                              create_info,create_list,key_list,1);
+    reenable_binlog(thd);
+    if (error)
       DBUG_RETURN(error);
   }
   if (table->tmp_table)
@@ -2199,7 +2211,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  to->file->external_lock(thd,F_WRLCK);
+  if (to->file->external_lock(thd, F_WRLCK))
+    DBUG_RETURN(-1);
   to->file->extra(HA_EXTRA_WRITE_CACHE);
   from->file->info(HA_STATUS_VARIABLE);
   to->file->deactivate_non_unique_index(from->file->records);
@@ -2299,11 +2312,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
   if (ha_commit(thd))
     error=1;
-  if (to->file->external_lock(thd,F_UNLCK))
-    error=1;
+
  err:
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
+  if (to->file->external_lock(thd,F_UNLCK))
+    error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
