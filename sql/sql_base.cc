@@ -363,6 +363,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 
 void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
+  bool found_old_table;
   DBUG_ENTER("close_thread_tables");
 
   if (thd->derived_tables && !skip_derived)
@@ -385,8 +386,6 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
     DBUG_VOID_RETURN;				// LOCK TABLES in use
   }
 
-  bool found_old_table=0;
-
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -399,6 +398,7 @@ void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
 
+ found_old_table= 0;
   while (thd->open_tables)
     found_old_table|=close_thread_table(thd, &thd->open_tables);
   thd->some_tables_deleted=0;
@@ -2305,22 +2305,26 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
+  bool is_stmt_prepare;
+  DBUG_ENTER("setup_wild");
   if (!wild_num)
-    return 0;
+    DBUG_RETURN(0);
+
   Item_arena *arena= thd->current_arena, backup;
 
   /*
     If we are in preparing prepared statement phase then we have change
     temporary mem_root to statement mem root to save changes of SELECT list
   */
-  if (arena->is_stmt_prepare())
+  if ((is_stmt_prepare= arena->is_stmt_prepare()))
     thd->set_n_backup_item_arena(arena, &backup);
 
   reg2 Item *item;
   List_iterator<Item> it(fields);
   while ( wild_num && (item= it++))
   {    
-    if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
+    if (item->type() == Item::FIELD_ITEM &&
+        ((Item_field*) item)->field_name &&
 	((Item_field*) item)->field_name[0] == '*' &&
 	!((Item_field*) item)->field)
     {
@@ -2339,9 +2343,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it))
       {
-        if (arena->is_stmt_prepare())
+        if (is_stmt_prepare)
 	  thd->restore_backup_item_arena(arena, &backup);
-	return (-1);
+	DBUG_RETURN(-1);
       }
       if (sum_func_list)
       {
@@ -2355,9 +2359,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
-  if (arena->is_stmt_prepare())
-      thd->restore_backup_item_arena(arena, &backup);
-  return 0;
+  if (is_stmt_prepare)
+    thd->restore_backup_item_arena(arena, &backup);
+  DBUG_RETURN(0);
 }
 
 /****************************************************************************
@@ -2398,19 +2402,20 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 
   SYNOPSIS
     setup_tables()
-    tables - tables list
+    tables	table list
 
-   RETURN
-     0	ok;  In this case *map will includes the choosed index
-     1	error
 
-   NOTE
-     Remap table numbers if INSERT ... SELECT
-     Check also that the 'used keys' and 'ignored keys' exists and set up the
-     table structure accordingly
+ NOTE
+   Remap table numbers if INSERT ... SELECT
+   Check also that the 'used keys' and 'ignored keys' exists and set up the
+   table structure accordingly
 
-     This has to be called for all tables that are used by items, as otherwise
-     table->map is not set and all Item_field will be regarded as const items.
+   This has to be called for all tables that are used by items, as otherwise
+   table->map is not set and all Item_field will be regarded as const items.
+
+ RETURN
+   0	ok;  In this case *map will includes the choosed index
+   1	error
 */
 
 bool setup_tables(TABLE_LIST *tables)
@@ -2584,7 +2589,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
   Item_arena *arena= thd->current_arena, backup;
-
+  bool is_stmt_prepare= arena->is_stmt_prepare();
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
   
@@ -2622,11 +2627,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (arena->is_stmt_prepare())
+	if (is_stmt_prepare)
 	  thd->set_n_backup_item_arena(arena, &backup);
 	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
-	if (arena->is_stmt_prepare())
+	if (is_stmt_prepare)
 	  thd->restore_backup_item_arena(arena, &backup);
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
@@ -2635,7 +2640,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
     if (table->natural_join)
     {
-      if (arena->is_stmt_prepare())
+      if (is_stmt_prepare)
 	thd->set_n_backup_item_arena(arena, &backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
@@ -2677,7 +2682,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           *conds= and_conds(*conds, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (arena->is_stmt_prepare())
+          if (is_stmt_prepare)
             thd->restore_backup_item_arena(arena, &backup);
           if (*conds && !(*conds)->fixed)
           {
@@ -2689,7 +2694,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           table->on_expr= and_conds(table->on_expr, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (arena->is_stmt_prepare())
+          if (is_stmt_prepare)
             thd->restore_backup_item_arena(arena, &backup);
           if (table->on_expr && !table->on_expr->fixed)
           {
@@ -2698,10 +2703,12 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           }
         }
       }
+      else if (is_stmt_prepare)
+        thd->restore_backup_item_arena(arena, &backup);
     }
   }
 
-  if (arena->is_stmt_prepare())
+  if (is_stmt_prepare)
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -2714,7 +2721,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
-  if (arena->is_stmt_prepare())
+  if (is_stmt_prepare)
       thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }

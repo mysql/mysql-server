@@ -1093,7 +1093,14 @@ static int mysql_test_select(Prepared_statement *stmt,
     }
     else
     {
-      List<Item> &fields= lex->select_lex.item_list;
+      /* Make copy of item list, as change_columns may change it */
+      List<Item> fields(lex->select_lex.item_list);
+
+      /* Change columns if a procedure like analyse() */
+      if (unit->last_procedure &&
+          unit->last_procedure->change_columns(fields))
+        goto err_prep;
+
       /*
         We can use lex->result as it should've been
         prepared in unit->prepare call above.
@@ -1596,6 +1603,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
+  /* Reset warnings from previous command */
+  mysql_reset_errors(thd);
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 

@@ -290,6 +290,7 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
+class Procedure;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
@@ -336,6 +337,7 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
+  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);

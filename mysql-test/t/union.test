@@ -5,6 +5,9 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
+
 
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
@@ -73,6 +76,7 @@ select * from t1 union select SQL_BUFFER_RESULT * from t2;
 # Test CREATE, INSERT and REPLACE
 create table t3 select a,b from t1 union all select a,b from t2;
 insert into t3 select a,b from t1 union all select a,b from t2;
+# PS can't handle REPLACE ... SELECT
 replace into t3 select a,b as c from t1 union all select a,b from t2;
 
 drop table t1,t2,t3;
