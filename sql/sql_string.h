@@ -72,7 +72,7 @@ public:
     { sql_element_free(ptr_arg); }
   ~String() { free(); }
 
-  inline void set_charset(CHARSET_INFO *charset) { str_charset=charset; }
+  inline void set_charset(CHARSET_INFO *charset) { str_charset= charset; }
   inline CHARSET_INFO *charset() const { return str_charset; }
   inline uint32 length() const { return str_length;}
   inline uint32 alloced_length() const { return Alloced_length;}
@@ -177,7 +177,8 @@ public:
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
   bool copy(const char *s,uint32 arg_length, CHARSET_INFO *cs);	// Allocate new string
-  bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom, CHARSET_INFO *csto);
+  bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
+	    CHARSET_INFO *csto);
   bool append(const String &s);
   bool append(const char *s,uint32 arg_length=0);
   bool append(IO_CACHE* file, uint32 arg_length);
