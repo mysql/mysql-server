@@ -786,6 +786,22 @@ select @c1, @c2|
 12	3
 delete from t1|
 drop procedure modes|
+create database sp_db1|
+drop database sp_db1|
+create database sp_db2|
+use sp_db2|
+create table t3 ( s char(4), t int )|
+insert into t3 values ("abcd", 42), ("dcba", 666)|
+use test|
+drop database sp_db2|
+create database sp_db3|
+use sp_db3|
+create procedure dummy(out x int)
+set x = 42|
+use test|
+drop database sp_db3|
+select type,db,name from mysql.proc where db = 'sp_db3'|
+type	db	name
 create procedure bug822(a_id char(16), a_data int)
 begin
 declare n int;

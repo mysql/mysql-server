@@ -40,6 +40,9 @@ sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
 /* Remove an SP from cache. Returns true if something was removed */
 bool sp_cache_remove(sp_cache **cp, sp_name *name);
 
+/* Invalidate a cache */
+void sp_cache_invalidate();
+
 
 /*
  *

@@ -115,6 +115,13 @@ sp_cache_remove(sp_cache **cp, sp_name *name)
   return found;
 }
 
+void
+sp_cache_invalidate()
+{
+  pthread_mutex_lock(&Cversion_lock); // LOCK
+  Cversion++;
+  pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+}
 
 static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,

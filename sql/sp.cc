@@ -589,6 +589,70 @@ done:
 }
 
 
+/* Drop all routines in database 'db' */
+int
+sp_drop_db_routines(THD *thd, char *db)
+{
+  TABLE *table;
+  byte key[64];			// db
+  uint keylen;
+  int ret;
+  DBUG_ENTER("sp_drop_db_routines");
+  DBUG_PRINT("enter", ("db: %s", db));
+
+  // Put the key used to read the row together
+  keylen= strlen(db);
+  if (keylen > 64)
+    keylen= 64;
+  memcpy(key, db, keylen);
+  memset(key+keylen, (int)' ', 64-keylen); // Pad with space
+  keylen= sizeof(key);
+
+  for (table= thd->open_tables ; table ; table= table->next)
+    if (strcmp(table->table_cache_key, "mysql") == 0 &&
+	strcmp(table->real_name, "proc") == 0)
+      break;
+  if (! table)
+  {
+    TABLE_LIST tables;
+
+    memset(&tables, 0, sizeof(tables));
+    tables.db= (char*)"mysql";
+    tables.real_name= tables.alias= (char*)"proc";
+    if (! (table= open_ltable(thd, &tables, TL_WRITE)))
+      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  }
+
+  ret= SP_OK;
+  table->file->index_init(0);
+  if (! table->file->index_read(table->record[0],
+				key, keylen, HA_READ_KEY_EXACT))
+  {
+    int nxtres;
+    bool deleted= FALSE;
+
+    do {
+      if (! table->file->delete_row(table->record[0]))
+	deleted= TRUE;		/* We deleted something */
+      else
+      {
+	ret= SP_DELETE_ROW_FAILED;
+	break;
+      }
+    } while (! (nxtres= table->file->index_next_same(table->record[0],
+						     key, keylen)));
+    if (nxtres != HA_ERR_END_OF_FILE)
+      ret= SP_KEY_NOT_FOUND;
+    if (deleted)
+      sp_cache_invalidate();
+  }
+
+  close_thread_tables(thd);
+
+  DBUG_RETURN(ret);
+}
+
+
 /*****************************************************************************
   PROCEDURE
 ******************************************************************************/
