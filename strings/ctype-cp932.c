@@ -5413,9 +5413,10 @@ uint my_numcells_cp932(CHARSET_INFO *cs __attribute__((unused)),
 */
 static
 uint my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *b, const char *e, uint pos)
+                             const char *b, const char *e, uint pos, int *error)
 {
   const char *b0= b;
+  *error= 0;
   while (pos && b < e)
   {
     /*
@@ -5441,6 +5442,7 @@ uint my_well_formed_len_cp932(CHARSET_INFO *cs __attribute__((unused)),
     else
     {
       /* Wrong byte sequence */
+      *error= 1;
       break;
     }
   }

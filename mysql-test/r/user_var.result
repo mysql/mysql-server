@@ -180,6 +180,5 @@ select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
 coercibility(@v1)	coercibility(@v2)	coercibility(@v3)	coercibility(@v4)
 2	2	2	2
 set session @honk=99;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@honk=99' at line 1
 set one_shot @honk=99;
-ERROR HY000: The SET ONE_SHOT syntax is reserved for purposes internal to the MySQL server
+ERROR HY000: The 'SET ONE_SHOT' syntax is reserved for purposes internal to the MySQL server
