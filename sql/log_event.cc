@@ -2112,7 +2112,9 @@ int User_var_log_event::write_data(IO_CACHE* file)
       pos= val;
       break;
     case ROW_RESULT:
+#ifndef MYSQL_CLIENT
       DBUG_ASSERT(1);
+#endif
       return 0;
     }
     return (my_b_safe_write(file, (byte*) buf, sizeof(buf))   ||
@@ -2164,7 +2166,6 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
       fprintf(file, ":='%s';\n", val);
       break;
     case ROW_RESULT:
-      DBUG_ASSERT(1);
       return;
     }
   }
