@@ -16,8 +16,7 @@
 
 /* Descript, check and repair of ISAM tables */
 
-#include "myisamdef.h"
-
+#include "fulltext.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <getopt.h>

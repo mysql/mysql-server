@@ -180,7 +180,7 @@ Installing MySQL
 * Source install system issues::  System-specific issues
 * Windows::                     Windows notes
 * OS/2::                        OS/2 notes
-* MySQL binaries::
+* MySQL binaries::              
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
 
@@ -238,7 +238,7 @@ Linux notes (all Linux versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 
 BSD/OS notes
 
@@ -253,7 +253,7 @@ Windows notes
 * NT start::                    Starting @strong{MySQL} on NT / Win2000
 * Windows running::             Running @strong{MySQL} on Windows
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
-* Windows symbolic links::      Splitting data across different disks under Windows
+* Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
@@ -411,13 +411,13 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 
 @code{SHOW} syntax (Get information about tables, columns,...)
 
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 
 MySQL table types
 
@@ -567,10 +567,10 @@ Using @code{myisamchk} for table maintenance and crash recovery
 
 @code{myisamchk} invocation syntax
 
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 
 Using @code{myisamchk} for crash recovery
 
@@ -643,16 +643,17 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::                
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with update log
+* Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
+* Slow query log::              
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
 MySQL client tools and APIs
@@ -753,6 +754,7 @@ How MySQL compares to @code{mSQL}
 MySQL internals
 
 * MySQL threads::               MySQL threads
+* MySQL full-text search::      MySQL full-text search
 
 MySQL change history
 
@@ -900,7 +902,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -3359,7 +3361,7 @@ encounter per year, but we are as always very flexible towards our customers!
 * Source install system issues::  System-specific issues
 * Windows::                     Windows notes
 * OS/2::                        OS/2 notes
-* MySQL binaries::
+* MySQL binaries::              
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
 @end menu
@@ -6026,7 +6028,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::
+* Linux-Ia64::                  
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -8368,12 +8370,16 @@ Client error messages in given language. May be given as a full path.
 @item -l, --log[=file]
 Log connections and queries to file
 
+@item --log-isam[=file]
+Log all ISAM/MyISAM changes to file (only used when debugging ISAM/MyISAM).
+
+@item --log-slow-queries[=file]
+Log all queries that has taken more than @code{long_query_time} to execute
+to file. @xref{Slow query log}.
+
 @item --log-update[=file]
 Log updates to @code{file.#} where @code{#} is a unique number if not given.
 @xref{Update log}.
-
-@item --log-isam[=file]
-Log all isam changes to file.
 
 @item --log-long-format
 Log some extra information to update log.
@@ -8692,6 +8698,7 @@ The following lists tell what you have to watch out for when upgrading to 3.23:
 (-g) by default. This option can be disabled with --enable-named-commands
 (-G). This may cause incompatibility problems in some cases, for example
 in SQL scripts that use named commands without a semicolon, etc. !
+Long format commands still work from the first line.
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
@@ -16872,7 +16879,7 @@ RENAME TABLE current_database.table_name TO other_database.table_name;
 @end example
 
 When you execute @code{RENAME}, you can't have any locked tables or
-active transactions.  You must also have the @code{ALTER TABLE}
+active transactions.  You must also have the @code{ALTER} and @code{DROP}
 privilege on the original table and @code{CREATE} and @code{INSERT}
 privilege on the new table.
 
@@ -18353,13 +18360,13 @@ and @samp{_} wildcard characters.
 @findex SHOW INDEX
 @findex SHOW KEYS
 @menu
-* SHOW DATABASE INFO::
-* SHOW TABLE STATUS::
-* SHOW STATUS::
-* SHOW VARIABLES::
-* SHOW PROCESSLIST::
-* SHOW GRANTS::
-* SHOW CREATE TABLE::
+* SHOW DATABASE INFO::          
+* SHOW TABLE STATUS::           
+* SHOW STATUS::                 
+* SHOW VARIABLES::              
+* SHOW PROCESSLIST::            
+* SHOW GRANTS::                 
+* SHOW CREATE TABLE::           
 @end menu
 
 @node SHOW DATABASE INFO, SHOW TABLE STATUS, SHOW, SHOW
@@ -18543,7 +18550,7 @@ have..
 @item @code{Opened_tables} @tab Number of tables that have been opened.
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slow_launch_threads} @tab Number of threads that has taken more than @code{slow_launch_time} to connect.
-@item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}
+@item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}. @xref{Slow query log}.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
 @item @code{Threads_running} @tab Number of threads that are not sleeping.
@@ -18773,7 +18780,8 @@ Change all table names to lower case on disk.
 
 @item @code{long_query_time}
 If a query takes longer than this (in seconds), the @code{Slow_queries} counter
-will be incremented.
+will be incremented. If you are using @code{--log-slow-queries}, the query
+will be logged to the slow query logfile. @xref{Slow query log}.
 
 @item @code{max_allowed_packet}
 The maximum size of one packet. The message buffer is initialized to
@@ -18929,7 +18937,7 @@ threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
 @code{KILL}}.  If you don't use the the @code{FULL} option, then only
 the first 100 characters of each query will be shown.
 
-@node SHOW GRANTS,SHOW CREATE TABLE  , SHOW PROCESSLIST, SHOW
+@node SHOW GRANTS, SHOW CREATE TABLE, SHOW PROCESSLIST, SHOW
 @subsection SHOW GRANTS (privileges) for a user
 
 @code{SHOW GRANTS FOR user} lists the grant commands that must be issued to
@@ -18944,7 +18952,7 @@ mysql> SHOW GRANTS FOR root@@localhost;
 +---------------------------------------------------------------------+
 @end example
 
-@node SHOW CREATE TABLE,,SHOW GRANTS, SHOW
+@node SHOW CREATE TABLE,  , SHOW GRANTS, SHOW
 @subsection SHOW CREATE TABLE
 Shows a @code{CREATE TABLE} statement that will create the given table
 @example
@@ -25569,7 +25577,7 @@ Continue even if we get an SQL error.
 Named commands are disabled. Use \* form only, or use named commands
 only in the beginning of a line ending with a semicolon (;) Since
 version 10.9 the client now starts with this option ENABLED by default!
-Disable with '-G'
+Disable with '-G'. Long format commands still work from the first line.
 @item -i, --ignore-space
 Ignore space after function names.
 @item -h, --host=...
@@ -25736,7 +25744,7 @@ The @code{mysqladmin status} command result has the following columns:
 @item Uptime @tab Number of seconds the @strong{MySQL} server has been up.
 @item Threads @tab Number of active threads (clients).
 @item Questions @tab Number of questions from clients since @code{mysqld} was started.
-@item Slow queries @tab Queries that have taken more than @code{long_query_time} seconds.
+@item Slow queries @tab Queries that have taken more than @code{long_query_time} seconds. @xref{Slow query log}.
 @item Opens @tab How many tables @code{mysqld} has opened.
 @item Flush tables @tab Number of @code{flush ...}, @code{refresh} and @code{reload} commands.
 @item Open tables @tab Number of tables that are open now.
@@ -26558,10 +26566,10 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 @code{myisamchk} supports the following options:
 
 @menu
-* myisamchk general options::
-* myisamchk check options::
-* myisamchk repair options::
-* myisamchk other options::
+* myisamchk general options::   
+* myisamchk check options::     
+* myisamchk repair options::    
+* myisamchk other options::     
 @end menu
 
 @node myisamchk general options, myisamchk check options, myisamchk syntax, myisamchk syntax
@@ -27482,8 +27490,9 @@ The above command does the following:
 
 @itemize @bullet
 @item
-If standard logging (@code{--log}) is used, closes and reopens the log file.
-(@file{mysql.log} as default).
+If standard logging (@code{--log}) or slow query logging
+@code{--log-slow-queries} is used, closes and reopens the log file.
+(@file{mysql.log} and @file{mysql-slow.log} as default).
 @item
 If update logging (@code{--log-update}) is used, closes the update log and
 opens a new log file with a higher sequence number.
@@ -28901,7 +28910,7 @@ sure that no other programs is using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::                
+* Cannot create::               
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -29945,6 +29954,7 @@ Drop or rename @code{old_table}
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
+* Slow query log::              
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
 
@@ -30050,7 +30060,7 @@ to be replaced with new ones when a new record duplicates an old record on
 a unique key value.
 
 @cindex Update log
-@node Update log, Multiple servers, Backup, Common problems
+@node Update log, Slow query log, Backup, Common problems
 @section The update log
 
 When started with the @code{--log-update[=file_name]} option,
@@ -30104,6 +30114,20 @@ This can be useful if you have to revert to backup files after a crash
 and you want to redo the updates that occurred between the time of the backup
 and the crash.
 
+@cindex Slow query log
+@node Slow query log, Multiple servers, Update log, Common problems
+@section The slow query log
+
+When started with the @code{--log-slow-queries[=file_name]} option,
+@code{mysqld} writes a log file containing all SQL commands that took
+more than @code{long_query_time} to execute.  data. If no file name is
+given, it defaults to the name of the host machine suffixed with
+@code{-slow.log}. If file name is given, but it doesn't contain a path
+the file is written in the data directory.
+
+The slow query log can be used to find queries that takes a long time to
+execute and are thus candidates for optimization.
+
 @cindex Database replication
 @cindex Replication, database
 @cindex Database mirroring
@@ -30113,7 +30137,7 @@ another host and you want to replicate the changes that have been made
 to the master database. @xref{Log Replication}.
 
 @cindex Multiple servers
-@node Multiple servers,  , Update log, Common problems
+@node Multiple servers,  , Slow query log, Common problems
 @section Running multiple MySQL servers on the same machine
 
 There are circumstances when you might want to run multiple servers on the same
@@ -30163,10 +30187,11 @@ by specifying them at runtime as options to @code{safe_mysqld}:
 shell> /path/to/safe_mysqld --socket=file_name --port=port_number
 @end example
 
-If you run the new server on the same database directory as another server
-with logging enabled, you should also specify the name of the log files
-to @code{safe_mysqld} with @code{--log} and @code{--log-update}.  Otherwise,
-both servers may be trying to write to the same log file.
+If you run the new server on the same database directory as another
+server with logging enabled, you should also specify the name of the log
+files to @code{safe_mysqld} with @code{--log}, @code{--log-update} or
+@code{--log-slow-queries}.  Otherwise, both servers may be trying to
+write to the same log file.
 
 @strong{Warning}: Normally you should never have two servers that update
 data in the same database!  If your OS doesn't support fault-free system
@@ -34165,7 +34190,7 @@ started to read and apply updates from the master.
 @code{mysqladmin processlist} only shows the connection and @code{INSERT
 DELAYED} threads.
 
-@node MySQL full-text search, , MySQL threads, MySQL internals
+@node MySQL full-text search,  , MySQL threads, MySQL internals
 @section MySQL full-text search
 
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
@@ -35665,6 +35690,7 @@ though, so 3.23 is not released as a stable version yet.
 (-g) by default. This option can be disabled with --enable-named-commands
 (-G). This may cause incompatibility problems in some cases, for example
 in SQL scripts that use named commands without a semicolon, etc. !
+Long format commands still work from the first line.
 @item
 Fixed a problem when using many pending @code{DROP TABLE} statement at
 the same time.
@@ -40215,7 +40241,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::
+* Locking methods::             
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
@@ -40362,15 +40388,19 @@ mysqld are using indexes properly. @xref{EXPLAIN, , @code{EXPLAIN}}. You
 should also test complicated queries that didn't complete within the
 @code{mysql} command line tool.
 
-If you find the text @code{mysqld restarted} in the error log file (normally
-named @file{hostname.err}) you have probably found a query that causes
-@code{mysqld} to fail.  If this happens you should check all your tables with
-@code{myisamchk} (@pxref{Maintenance}), and test the queries in the
-@strong{MySQL} log files to see if one doesn't work.  If you find such a query,
-try first upgrading to the newest @strong{MySQL} version.  If this doesn't
-help and you can't find anything in the @code{mysql} mail archive, you should
-report the bug to @email{mysql@@lists.mysql.com}.  Links to mail archives are
-available online at the @uref{http://www.mysql.com/documentation/, @strong{MySQL}
+You can find the queries that takes a long time to run by starting
+@code{mysqld} with @code{--log-slow-queries}. @xref{Slow query log}. 
+
+If you find the text @code{mysqld restarted} in the error log file
+(normally named @file{hostname.err}) you have probably found a query
+that causes @code{mysqld} to fail.  If this happens you should check all
+your tables with @code{myisamchk} (@pxref{Maintenance}), and test the
+queries in the @strong{MySQL} log files to see if one doesn't work.  If
+you find such a query, try first upgrading to the newest @strong{MySQL}
+version.  If this doesn't help and you can't find anything in the
+@code{mysql} mail archive, you should report the bug to
+@email{mysql@@lists.mysql.com}.  Links to mail archives are available
+online at the @uref{http://www.mysql.com/documentation/, @strong{MySQL}
 documentation page}.
 
 If you get corrupted tables or if @code{mysqld} always fails after some
