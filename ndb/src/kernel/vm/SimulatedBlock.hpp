@@ -41,7 +41,6 @@
 #include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "Callback.hpp"
-#include "Mutex.hpp"
 #include "SafeCounter.hpp"
 #include "MetaData.hpp"
 
@@ -104,6 +103,14 @@ public:
    * 
    */
   inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
+public:
+  typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
+						    Uint32 callbackData,
+						    Uint32 returnCode);
+  struct Callback {
+    CallbackFunction m_callbackFunction;
+    Uint32 m_callbackData;
+  };
 protected:
   static Callback TheEmptyCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
@@ -405,7 +412,63 @@ private:
   DLList<FragmentSendInfo> c_linearFragmentSendList;
   DLList<FragmentSendInfo> c_segmentedFragmentSendList;
   
-public:  
+public: 
+  class MutexManager {
+    friend class Mutex;
+    friend class SimulatedBlock;
+    friend class DbUtil;
+  public:
+    MutexManager(class SimulatedBlock &);
+    
+    bool setSize(Uint32 maxNoOfActiveMutexes);
+    Uint32 getSize() const ; // Get maxNoOfActiveMutexes
+    
+  private:
+    /**
+     * core interface
+     */
+    struct ActiveMutex {
+      Uint32 m_gsn; // state
+      Uint32 m_mutexId;
+      Uint32 m_mutexKey;
+      Callback m_callback;
+      union {
+	Uint32 nextPool;
+	Uint32 nextList;
+      };
+      Uint32 prevList;
+    };
+    typedef Ptr<ActiveMutex> ActiveMutexPtr;
+    
+    bool seize(ActiveMutexPtr& ptr);
+    void release(Uint32 activeMutexPtrI);
+    
+    void getPtr(ActiveMutexPtr& ptr);
+    
+    void create(Signal*, ActiveMutexPtr&);
+    void destroy(Signal*, ActiveMutexPtr&);
+    void lock(Signal*, ActiveMutexPtr&);
+    void trylock(Signal*, ActiveMutexPtr&);
+    void unlock(Signal*, ActiveMutexPtr&);
+    
+  private:
+    void execUTIL_CREATE_LOCK_REF(Signal* signal);
+    void execUTIL_CREATE_LOCK_CONF(Signal* signal);
+    void execUTIL_DESTORY_LOCK_REF(Signal* signal);
+    void execUTIL_DESTORY_LOCK_CONF(Signal* signal);
+    void execUTIL_LOCK_REF(Signal* signal);
+    void execUTIL_LOCK_CONF(Signal* signal);
+    void execUTIL_UNLOCK_REF(Signal* signal);
+    void execUTIL_UNLOCK_CONF(Signal* signal);
+    
+    SimulatedBlock & m_block;
+    ArrayPool<ActiveMutex> m_mutexPool;
+    DLList<ActiveMutex> m_activeMutexes;
+    
+    BlockReference reference() const;
+    void progError(int line, int err_code, const char* extra = 0);
+  };
+ 
   MutexManager c_mutexMgr;
 
   void ignoreMutexUnlockCallback(Signal* signal, Uint32 ptrI, Uint32 retVal);
@@ -687,6 +750,8 @@ void \
 BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
   addRecSignalImpl(gsn, (ExecFunction)f, force);\
 }
+
+#include "Mutex.hpp"
 
 #endif
 

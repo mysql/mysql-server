@@ -39,7 +39,7 @@ public:
   enum RequestInfo {
     TryLock = 1
   };
-private:
+public:
   Uint32 senderData;  
   Uint32 senderRef;
   Uint32 lockId;
@@ -63,7 +63,7 @@ class UtilLockConf {
 public:
   STATIC_CONST( SignalLength = 4 );
   
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -95,7 +95,7 @@ public:
     LockAlreadyHeld = 4
     
   };
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -119,7 +119,7 @@ class UtilUnlockReq {
 public:
   STATIC_CONST( SignalLength = 4 );
   
-private:
+public:
   Uint32 senderData;  
   Uint32 senderRef;
   Uint32 lockId;
@@ -143,7 +143,7 @@ class UtilUnlockConf {
 public:
   STATIC_CONST( SignalLength = 3 );
   
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -171,7 +171,7 @@ public:
     NoSuchLock = 1,
     NotLockOwner = 2
   };
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -200,7 +200,7 @@ public:
 
   STATIC_CONST( SignalLength = 4 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -229,7 +229,7 @@ public:
 
   STATIC_CONST( SignalLength = 4 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -251,7 +251,7 @@ class UtilCreateLockConf {
 public:
   STATIC_CONST( SignalLength = 3 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -275,7 +275,7 @@ class UtilDestroyLockReq {
 public:
   STATIC_CONST( SignalLength = 4 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -303,7 +303,7 @@ public:
 
   STATIC_CONST( SignalLength = 4 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
@@ -325,7 +325,7 @@ class UtilDestroyLockConf {
 public:
   STATIC_CONST( SignalLength = 3 );
 
-private:
+public:
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 lockId;
