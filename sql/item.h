@@ -220,7 +220,7 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  CHARSET_INFO *default_charset() const;
+  static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
   virtual bool walk(Item_processor processor, byte *arg)
@@ -413,7 +413,7 @@ public:
   void set_null();
   void set_int(longlong i);
   void set_double(double i);
-  void set_value(const char *str, uint length);
+  void set_value(const char *str, uint length, CHARSET_INFO *ci);
   void set_long_str(const char *str, ulong length);
   void set_long_binary(const char *str, ulong length);
   void set_longdata(const char *str, ulong length);
