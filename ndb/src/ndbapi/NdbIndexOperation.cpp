@@ -87,7 +87,19 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
 
 int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
 { 
-  return NdbOperation::readTuple(lm);
+  switch(lm) {
+  case LM_Read:
+    return readTuple();
+    break;
+  case LM_Exclusive:
+    return readTupleExclusive();
+    break;
+  case LM_CommittedRead:
+    return readTuple();
+    break;
+  default:
+    return -1;
+  };
 }
 
 int NdbIndexOperation::readTuple()
@@ -108,21 +120,21 @@ int NdbIndexOperation::simpleRead()
 {
   // First check that index is unique
 
-  return NdbOperation::simpleRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::dirtyRead()
 {
   // First check that index is unique
 
-  return NdbOperation::dirtyRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::committedRead()
 {
   // First check that index is unique
 
-  return NdbOperation::committedRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::updateTuple()
@@ -536,7 +548,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 //-------------------------------------------------------------
   Uint8 tReadInd = (theOperationType == ReadRequest);
   Uint8 tSimpleState = tReadInd & tSimpleAlt;
-  theNdbCon->theSimpleState = tSimpleState;
+  //theNdbCon->theSimpleState = tSimpleState;
 
   tcIndxReq->transId1           = tTransId1;
   tcIndxReq->transId2           = tTransId2;
@@ -723,23 +735,10 @@ NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
   theStatus = Finished;
   
   theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
-  //--------------------------------------------------------------------------//
-  // If the transaction this operation belongs to consists only of simple reads
-  // we set the error code on the transaction object. 
-  // If the transaction consists of other types of operations we set 
-  // the error code only on the operation since the simple read is not really 
-  // part of this transaction and we can not decide the status of the whole 
-  // transaction based on this operation.
-  //--------------------------------------------------------------------------//
   Uint32 errorCode = tcIndxRef->errorCode;
-  if (theNdbCon->theSimpleState == 0) {
-    theError.code = errorCode;
-    theNdbCon->setOperationErrorCodeAbort(errorCode);
-    return theNdbCon->OpCompleteFailure();
-  } else {
-    theError.code = errorCode;
-    return theNdbCon->OpCompleteSuccess();
-  }
+  theError.code = errorCode;
+  theNdbCon->setOperationErrorCodeAbort(errorCode);
+  return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
 }//NdbIndexOperation::receiveTCINDXREF()
 
 

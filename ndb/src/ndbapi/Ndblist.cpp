@@ -432,11 +432,15 @@ Ndb::getSignal()
     theSignalIdleList = tSignalNext;
   } else {
     tSignal = new NdbApiSignal(theMyRef);
+#ifdef POORMANSPURIFY
     cnewSignals++;
+#endif
     if (tSignal != NULL)
       tSignal->next(NULL);
   }
+#ifdef POORMANSPURIFY
   cgetSignals++;
+#endif
   return tSignal;
 }
 
@@ -605,7 +609,9 @@ Ndb::releaseSignal(NdbApiSignal* aSignal)
   }
 #endif
 #endif
+#ifdef POORMANSPURIFY
   creleaseSignals++;
+#endif
   aSignal->next(theSignalIdleList);
   theSignalIdleList = aSignal;
 }
@@ -769,7 +775,9 @@ Ndb::freeSignal()
   NdbApiSignal* tSignal = theSignalIdleList;
   theSignalIdleList = tSignal->next();
   delete tSignal;
+#ifdef POORMANSPURIFY
   cfreeSignals++;
+#endif
 }
 
 void

@@ -83,6 +83,11 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   theListState = NotInList;
   theError.code = 0;
   theId = theNdb->theNdbObjectIdMap->map(this);
+
+#define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
+
+  CHECK_SZ(m_db_nodes, NdbNodeBitmask::Size);
+  CHECK_SZ(m_failed_db_nodes, NdbNodeBitmask::Size);
 }//NdbConnection::NdbConnection()
 
 /*****************************************************************************
@@ -490,11 +495,6 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theListState = InPreparedList;
   tNdb->theNoOfPreparedTransactions = tnoOfPreparedTransactions + 1;
 
-  if(tCommitStatus == Committed){
-    tCommitStatus = Started;
-    tTransactionIsStarted = false;
-  }
-
   if ((tCommitStatus != Started) ||
       (aTypeOfExec == Rollback)) {
 /*****************************************************************************
@@ -503,7 +503,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
  *      same action.
  ****************************************************************************/
     if (aTypeOfExec == Rollback) {
-      if (theTransactionIsStarted == false) {
+      if (theTransactionIsStarted == false || theSimpleState) {
 	theCommitStatus = Aborted;
 	theSendStatus = sendCompleted;
       } else {
@@ -529,6 +529,7 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
       }//if
     } else {
       if (aTypeOfExec == Commit) {
+      if (aTypeOfExec == Commit && !theSimpleState) {
 	/**********************************************************************
 	 *   A Transaction have been started and no more operations exist. 
 	 *   We will use the commit method.
@@ -610,6 +611,8 @@ NdbConnection::executeAsynchPrepare( ExecType           aTypeOfExec,
   theNoOfOpSent		= 0;
   theNoOfOpCompleted	= 0;
   theSendStatus = sendOperations;
+  NdbNodeBitmask::clear(m_db_nodes);
+  NdbNodeBitmask::clear(m_failed_db_nodes);
   DBUG_VOID_RETURN;
 }//NdbConnection::executeAsynchPrepare()
 
@@ -1541,6 +1544,10 @@ from other transactions.
       tPtr++;
       if (tOp && tOp->checkMagicNumber()) {
 	tNoComp += tOp->execTCOPCONF(tAttrInfoLen);
+	if(tAttrInfoLen > TcKeyConf::SimpleReadBit){
+	  NdbNodeBitmask::set(m_db_nodes, 
+			      tAttrInfoLen & (~TcKeyConf::SimpleReadBit));
+	}
       } else {
  	return -1;
       }//if
@@ -1790,7 +1797,7 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteFailure()
+NdbConnection::OpCompleteFailure(Uint8 abortOption)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
@@ -1804,10 +1811,7 @@ NdbConnection::OpCompleteFailure()
     //decide the success of the whole transaction since a simple
     //operation is not really part of that transaction.
     //------------------------------------------------------------------------
-    if (theSimpleState == 1) {
-      theCommitStatus = NdbConnection::Aborted;
-    }//if
-    if (m_abortOption == IgnoreError){
+    if (abortOption == IgnoreError){
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */
@@ -1842,9 +1846,6 @@ NdbConnection::OpCompleteSuccess()
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) { // Last operation completed
-    if (theSimpleState == 1) {
-      theCommitStatus = NdbConnection::Committed;
-    }//if
     return 0;
   } else if (tNoComp < tNoSent) {
     return -1;	// Continue waiting for more signals

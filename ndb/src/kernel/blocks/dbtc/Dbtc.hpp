@@ -1459,7 +1459,7 @@ private:
   void releaseAttrinfo();
   void releaseGcp(Signal* signal);
   void releaseKeys();
-  void releaseSimpleRead(Signal* signal);
+  void releaseSimpleRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
