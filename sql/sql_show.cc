@@ -27,8 +27,6 @@
 #include "ha_berkeley.h"			// For berkeley_show_logs
 #endif
 
-/* extern "C" pthread_mutex_t THR_LOCK_keycache; */
-
 static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
@@ -817,17 +815,40 @@ append_identifier(THD *thd, String *packet, const char *name)
   }
 }
 
+
+/* Append directory name (if exists) to CREATE INFO */
+
+static void append_directory(THD *thd, String *packet, const char *dir_type,
+			     const char *filename)
+{
+  uint length;
+  if (filename && !(thd->sql_mode & MODE_NO_DIR_IN_CREATE))
+  {
+    length= dirname_length(filename);
+    packet->append(' ');
+    packet->append(dir_type);
+    packet->append(" DIRECTORY='", 12);
+    packet->append(filename, length);
+    packet->append('\'');
+  }
+}
+
+
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
+  List<Item> field_list;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  String type(tmp, sizeof(tmp));
+  Field **ptr,*field;
+  uint primary_key;
+  KEY *key_info;
+  handler *file= table->file;
+  HA_CREATE_INFO create_info;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
   restore_record(table,2); // Get empty record
-
-  List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH];
-  String type(tmp, sizeof(tmp));
   if (table->tmp_table)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
@@ -835,13 +856,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   append_identifier(thd,packet,table->real_name);
   packet->append(" (\n", 3);
 
-  Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
+    bool has_default;
+    uint flags = field->flags;
+
     if (ptr != table->field)
       packet->append(",\n", 2);
-
-    uint flags = field->flags;
     packet->append("  ", 2);
     append_identifier(thd,packet,field->field_name);
     packet->append(' ');
@@ -852,9 +873,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
-    bool has_default = (field->type() != FIELD_TYPE_BLOB &&
-			field->type() != FIELD_TYPE_TIMESTAMP &&
-			field->unireg_check != Field::NEXT_NUMBER);
+    has_default= (field->type() != FIELD_TYPE_BLOB &&
+		  field->type() != FIELD_TYPE_TIMESTAMP &&
+		  field->unireg_check != Field::NEXT_NUMBER);
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
@@ -880,9 +901,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
           packet->append(" auto_increment", 15 );
   }
 
-  KEY *key_info=table->key_info;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
-  uint primary_key = table->primary_key;
+  key_info= table->key_info;
+  file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
+  file->update_create_info(&create_info);
+  primary_key= table->primary_key;
 
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
@@ -918,7 +940,6 @@ store_create_info(THD *thd, TABLE *table, String *packet)
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & HA_FULLTEXT)))
       {
-        char buff[64];
         buff[0] = '(';
         char* end=int10_to_str((long) key_part->length, buff + 1,10);
         *end++ = ')';
@@ -928,43 +949,38 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(')');
   }
 
-  handler *file = table->file;
+  /*
+    Get possible foreign key definitions stored in InnoDB and append them
+    to the CREATE TABLE statement
+  */
 
-  /* Get possible foreign key definitions stored in InnoDB and append them
-  to the CREATE TABLE statement */
-
-  char* for_str = file->get_foreign_key_create_info();
-
-  if (for_str) {
-  	packet->append(for_str, strlen(for_str));
-
-  	file->free_foreign_key_create_info(for_str);
+  if ((for_str= file->get_foreign_key_create_info()))
+  {
+    packet->append(for_str, strlen(for_str));
+    file->free_foreign_key_create_info(for_str);
   }
 
   packet->append("\n)", 2);
   packet->append(" TYPE=", 6);
   packet->append(file->table_type());
-  char buff[128];
-  char* p;
 
   if (table->min_rows)
   {
     packet->append(" MIN_ROWS=");
-    p = longlong10_to_str(table->min_rows, buff, 10);
-    packet->append(buff, (uint) (p - buff));
+    end= longlong10_to_str(table->min_rows, buff, 10);
+    packet->append(buff, (uint) (end- buff));
   }
-
   if (table->max_rows)
   {
     packet->append(" MAX_ROWS=");
-    p = longlong10_to_str(table->max_rows, buff, 10);
-    packet->append(buff, (uint) (p - buff));
+    end= longlong10_to_str(table->max_rows, buff, 10);
+    packet->append(buff, (uint) (end - buff));
   }
   if (table->avg_row_length)
   {
     packet->append(" AVG_ROW_LENGTH=");
-    p=longlong10_to_str(table->avg_row_length, buff,10);
-    packet->append(buff, (uint) (p - buff));
+    end= longlong10_to_str(table->avg_row_length, buff,10);
+    packet->append(buff, (uint) (end - buff));
   }
 
   if (table->db_create_options & HA_OPTION_PACK_KEYS)
@@ -989,11 +1005,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   }
   if (file->raid_type)
   {
-    char buff[100];
     sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-            my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
+            my_raid_type(file->raid_type), file->raid_chunks,
+	    file->raid_chunksize/RAID_BLOCK_SIZE);
     packet->append(buff);
   }
+  append_directory(thd, packet, "DATA",  create_info.data_file_name);
+  append_directory(thd, packet, "INDEX", create_info.index_file_name);
   DBUG_RETURN(0);
 }
 
