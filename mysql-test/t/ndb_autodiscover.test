@@ -39,7 +39,7 @@ insert into t1 values (3, "Discover 3");
 show status like 'handler_discover%';
 flush tables;
 system rm var/master-data/test/t1.frm ;
-select * from t1;
+select * from t1 order by id;
 show status like 'handler_discover%';
 
 #
@@ -150,32 +150,33 @@ drop table t3;
 # but not in NDB can be deleted from disk.
 #
 
-flush status;
-
-create table t4(
-  id int not null primary key,
-  name char(27)
-) engine=ndb;
-insert into t4 values (1, "Automatic");
-select * from t4;
-
+# Manual test
+#flush status;
+#
+#create table t4(
+#  id int not null primary key,
+#  name char(27)
+#) engine=ndb;
+#insert into t4 values (1, "Automatic");
+#select * from t4;
+#
 # Remove the table from NDB
 #system drop_tab -c "$NDB_CONNECTSTRING2" -d test t4 > /dev/null ;
-system drop_tab -c "host=localhost:2200;nodeid=5" -d test t4 > /dev/null ;
-
---error 1296
-select * from t4;
-
-flush table t4;
---error 1016
-select * from t4;
-
-show status like 'handler_discover%';
-drop table t4;
-flush tables;
-show tables;
---error 1146
-select * from t4;
+#system drop_tab -c "host=localhost:2200;nodeid=5" -d test t4 > /dev/null ;
+#
+#--error 1296
+#select * from t4;
+#
+#flush table t4;
+#--error 1016
+#select * from t4;
+#
+#show status like 'handler_discover%';
+#drop table t4;
+#flush tables;
+#show tables;
+#--error 1146
+#select * from t4;
 
 
 #########################################################
@@ -195,30 +196,10 @@ create table t5(
 insert into t5 values (1, "Magnus");
 select * from t5;
 
-# Ugly trick to change version of the table in NDB
-# Requires nodeid=5 to be defined and not used
-# Until ALTER TABLE works
-#system copy_tab -c "$NDB_CONNECTSTRING2" -d test t1 t1_copy > /dev/null ;
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t1 > /dev/null ;
-#system copy_tab -c "$NDB_CONNECTSTRING2" -d test t1_copy t1 > /dev/null ;
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t1_copy > /dev/null ;
-
 ALTER TABLE t5 ADD COLUMN adress char(255) FIRST;
 
-# The follwing select will exit with 
-# 1030 Got error 241 from storage engine
-# This means it has detected that the schema version of the meta data
-# cached locally in NdbApi is not the same as in the Dictionary of NDB.
-# The user has to resolve this problem by performing a FLUSH TABLE tabname
-#MASV--error 1030
 select * from t5;
 
-# The application/user is required to call FLUSH TABLE when error 241 is 
-# returned. This is a workaround and will in the future be done 
-# automatically by the server
-flush table t5;
-
-select * from t5;
 insert into t5 values 
  ("Adress for record 2", 2, "Carl-Gustav"), 
  ("Adress for record 3", 3, "Karl-Emil");
@@ -246,28 +227,7 @@ create table t6(
 insert into t6 values (1, "Magnus");
 select * from t6;
 
-# Ugly trick to change version of the table in NDB
-# Requires nodeid=5 to be defined and not used
-# Until ALTER TABLE works
-#system copy_tab -c "$NDB_CONNECTSTRING2" -d test t6 t6_copy > /dev/null ;
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t6 > /dev/null ;
-#system copy_tab -c "$NDB_CONNECTSTRING2" -d test t6_copy t6 > /dev/null ;
-#system drop_tab -c "$NDB_CONNECTSTRING2" -d test t6_copy > /dev/null ;
-
 ALTER TABLE t6 ADD COLUMN adress char(255) FIRST;
-
-# The follwing select will exit with 
-# 1030 Got error 241 from storage engine
-# This means it has detected that the schema version of the meta data
-# cached locally in NdbApi is not the same as in the Dictionary of NDB.
-# The user has to resolve this problem by performing a FLUSH TABLE tabname
-#MASV--error 1030
-select * from t6;
-
-# The application/user is required to call FLUSH TABLE when error 241 is 
-# returned. This is a workaround and will in the future be done 
-# automatically by the server
-flush table t6;
 
 select * from t6;
 insert into t6 values 

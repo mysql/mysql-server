@@ -22,11 +22,11 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	2
 flush tables;
-select * from t1;
+select * from t1 order by id;
 id	name
+1	Autodiscover
 2	Auto 2
 3	Discover 3
-1	Autodiscover
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	3
@@ -119,29 +119,6 @@ Variable_name	Value
 Handler_discover	2
 drop table t3;
 flush status;
-create table t4(
-id int not null primary key,
-name char(27)
-) engine=ndb;
-insert into t4 values (1, "Automatic");
-select * from t4;
-id	name
-1	Automatic
-select * from t4;
-ERROR HY000: Got error 284 'Table not defined in transaction coordinator' from ndbcluster
-flush table t4;
-select * from t4;
-ERROR HY000: Can't open file: 't4' (errno: 709)
-show status like 'handler_discover%';
-Variable_name	Value
-Handler_discover	0
-drop table t4;
-flush tables;
-show tables;
-Tables_in_test
-select * from t4;
-ERROR 42S02: Table 'test.t4' doesn't exist
-flush status;
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
@@ -154,10 +131,6 @@ select * from t5;
 id	name
 1	Magnus
 ALTER TABLE t5 ADD COLUMN adress char(255) FIRST;
-select * from t5;
-adress	id	name
-NULL	1	Magnus
-flush table t5;
 select * from t5;
 adress	id	name
 NULL	1	Magnus
@@ -187,10 +160,6 @@ select * from t6;
 id	name
 1	Magnus
 ALTER TABLE t6 ADD COLUMN adress char(255) FIRST;
-select * from t6;
-adress	id	name
-NULL	1	Magnus
-flush table t6;
 select * from t6;
 adress	id	name
 NULL	1	Magnus
