@@ -413,7 +413,7 @@ sys_engine_condition_pushdown("engine_condition_pushdown",
 
 #ifdef HAVE_NDBCLUSTER_DB
 /* ndb thread specific variable settings */
-sys_var_thd_ulong 
+sys_var_thd_ulong
 sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
 				  &SV::ndb_autoincrement_prefetch_sz);
 sys_var_thd_bool
@@ -422,7 +422,8 @@ sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
 sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
-sys_var_long_ptr sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
+sys_var_long_ptr
+sys_ndb_cache_check_time("ndb_cache_check_time", &ndb_cache_check_time);
 #endif
 
 /* Time/date/datetime formats */
@@ -702,10 +703,10 @@ sys_var *sys_variables[]=
   &sys_engine_condition_pushdown,
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
+  &sys_ndb_cache_check_time,
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
   &sys_ndb_use_transactions,
-  &sys_ndb_cache_check_time,
 #endif
   &sys_unique_checks,
   &sys_updatable_views_with_limit,
@@ -1297,7 +1298,6 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
   }
   return 0;
 }
-
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {

@@ -286,7 +286,8 @@ Thd_ndb::~Thd_ndb()
 {
   if (ndb)
     delete ndb;
-  ndb= 0;
+  ndb= NULL;
+  changed_tables.empty();
 }
 
 inline
@@ -1891,7 +1892,7 @@ int ha_ndbcluster::write_row(byte *record)
     if (peek_res != HA_ERR_KEY_NOT_FOUND)
       DBUG_RETURN(peek_res);
   }
-  
+
   statistic_increment(thd->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -1939,6 +1940,8 @@ int ha_ndbcluster::write_row(byte *record)
       ERR_RETURN(op->getNdbError());
     }
   }
+
+  m_rows_changed++;
 
   /*
     Execute write operation
@@ -2133,6 +2136,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
     }
   }
 
+  m_rows_changed++;
+
   // Set non-key attribute(s)
   for (i= 0; i < table->s->fields; i++) 
   {
@@ -2215,7 +2220,9 @@ int ha_ndbcluster::delete_row(const byte *record)
           return res;  
     }
   }
-  
+
+  m_rows_changed++;
+
   // Execute delete operation
   if (execute_no_commit(this,trans) != 0) {
     no_uncommitted_rows_execute_failure();
@@ -3112,14 +3119,14 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     Check that this handler instance has a connection
     set up to the Ndb object of thd
    */
-  if (check_ndb_connection())
+  if (check_ndb_connection(thd))
     DBUG_RETURN(1);
- 
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
-  DBUG_PRINT("enter", ("transaction.thd_ndb->lock_count: %d", 
-                       thd_ndb->lock_count));
+  DBUG_PRINT("enter", ("thd: %x, thd_ndb: %x, thd_ndb->lock_count: %d",
+                       thd, thd_ndb, thd_ndb->lock_count));
 
   if (lock_type != F_UNLCK)
   {
@@ -3127,7 +3134,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (!thd_ndb->lock_count++)
     {
       PRINT_OPTION_FLAGS(thd);
-
       if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK))) 
       {
         // Autocommit transaction
@@ -3195,9 +3201,10 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     m_active_trans= thd_ndb->all ? thd_ndb->all : thd_ndb->stmt;
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
+    m_rows_changed= 0;
     m_retrieve_all_fields= FALSE;
     m_retrieve_primary_key= FALSE;
-    m_ops_pending= 0;    
+    m_ops_pending= 0;
     {
       NDBDICT *dict= ndb->getDictionary();
       const NDBTAB *tab;
@@ -3209,10 +3216,28 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_table_info= tab_info;
     }
     no_uncommitted_rows_init(thd);
-  } 
-  else 
+  }
+  else
   {
     DBUG_PRINT("info", ("lock_type == F_UNLCK"));
+
+    if (ndb_cache_check_time && m_rows_changed)
+    {
+      DBUG_PRINT("info", ("Rows has changed and util thread is running"));
+      if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      {
+        DBUG_PRINT("info", ("Add share to list of tables to be invalidated"));
+        /* NOTE push_back allocates memory using transactions mem_root! */
+        thd_ndb->changed_tables.push_back(m_share, &thd->transaction.mem_root);
+      }
+
+      pthread_mutex_lock(&m_share->mutex);
+      DBUG_PRINT("info", ("Invalidating commit_count"));
+      m_share->commit_count= 0;
+      m_share->commit_count_lock++;
+      pthread_mutex_unlock(&m_share->mutex);
+    }
+
     if (!--thd_ndb->lock_count)
     {
       DBUG_PRINT("trans", ("Last external_lock"));
@@ -3232,6 +3257,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     }
     m_table= NULL;
     m_table_info= NULL;
+
     /*
       This is the place to make sure this handler instance
       no longer are connected to the active transaction.
@@ -3305,7 +3331,7 @@ int ha_ndbcluster::start_stmt(THD *thd)
 
 
 /*
-  Commit a transaction started in NDB 
+  Commit a transaction started in NDB
  */
 
 int ndbcluster_commit(THD *thd, bool all)
@@ -3317,7 +3343,7 @@ int ndbcluster_commit(THD *thd, bool all)
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_PRINT("transaction",("%s",
-                            trans == thd_ndb->stmt ? 
+                            trans == thd_ndb->stmt ?
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
@@ -3325,18 +3351,31 @@ int ndbcluster_commit(THD *thd, bool all)
   {
     const NdbError err= trans->getNdbError();
     const NdbOperation *error_op= trans->getNdbErrorOperation();
-    ERR_PRINT(err);     
+    ERR_PRINT(err);
     res= ndb_to_mysql_error(&err);
-    if (res != -1) 
+    if (res != -1)
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
-  
+
   if(all)
     thd_ndb->all= NULL;
   else
     thd_ndb->stmt= NULL;
-  
+
+  /* Clear commit_count for tables changed by transaction */
+  NDB_SHARE* share;
+  List_iterator_fast<NDB_SHARE> it(thd_ndb->changed_tables);
+  while ((share= it++))
+  {
+    pthread_mutex_lock(&share->mutex);
+    DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %d ", share->table_name, share->commit_count));
+    share->commit_count= 0;
+    share->commit_count_lock++;
+    pthread_mutex_unlock(&share->mutex);
+  }
+  thd_ndb->changed_tables.empty();
+
   DBUG_RETURN(res);
 }
 
@@ -3373,6 +3412,9 @@ int ndbcluster_rollback(THD *thd, bool all)
     thd_ndb->all= NULL;
   else
     thd_ndb->stmt= NULL;
+
+  /* Clear list of tables changed by transaction */
+  thd_ndb->changed_tables.empty();
 
   DBUG_RETURN(res);
 }
@@ -4066,6 +4108,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_rows_to_insert(1),
   m_rows_inserted(0),
   m_bulk_insert_rows(1024),
+  m_rows_changed(0),
   m_bulk_insert_not_flushed(FALSE),
   m_ops_pending(0),
   m_skip_auto_increment(TRUE),
@@ -4079,9 +4122,9 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_transaction_on(TRUE),
   m_cond_stack(NULL),
   m_multi_cursor(NULL)
-{ 
+{
   int i;
-  
+ 
   DBUG_ENTER("ha_ndbcluster");
 
   m_tabname[0]= '\0';
@@ -4245,9 +4288,8 @@ Ndb* check_ndb_in_thd(THD* thd)
 
 
 
-int ha_ndbcluster::check_ndb_connection()
+int ha_ndbcluster::check_ndb_connection(THD* thd)
 {
-  THD* thd= current_thd;
   Ndb *ndb;
   DBUG_ENTER("check_ndb_connection");
   
@@ -4321,33 +4363,31 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
 
 /*
   Check if a table exists in NDB
-   
+
  */
 
 int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
 {
-  uint len;
-  const void* data;
   const NDBTAB* tab;
   Ndb* ndb;
   DBUG_ENTER("ndbcluster_table_exists");
-  DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 
   if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);  
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   ndb->setDatabaseName(db);
 
   NDBDICT* dict= ndb->getDictionary();
   dict->set_local_table_data_size(sizeof(Ndb_table_local_info));
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
-  {    
+  {
     const NdbError err= dict->getNdbError();
     if (err.code == 709)
       DBUG_RETURN(0);
     ERR_RETURN(err);
   }
-  
+
   DBUG_PRINT("info", ("Found table %s", tab->getName()));
   DBUG_RETURN(1);
 }
@@ -4865,38 +4905,65 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
 {
   DBUG_ENTER("ndb_get_commitcount");
 
+  char name[FN_REFLEN];
+  NDB_SHARE *share;
+  (void)strxnmov(name, FN_REFLEN, "./",dbname,"/",tabname,NullS);
+  DBUG_PRINT("enter", ("name: %s", name));
+  pthread_mutex_lock(&ndbcluster_mutex);
+  if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
+                                       (byte*) name,
+                                       strlen(name))))
+  {
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_PRINT("info", ("Table %s not found in ndbcluster_open_tables",
+                        name));
+    DBUG_RETURN(1);
+  }
+  share->use_count++;
+  pthread_mutex_unlock(&ndbcluster_mutex);
+
+  pthread_mutex_lock(&share->mutex);
   if (ndb_cache_check_time > 0)
   {
-    /* Use cached commit_count from share */
-    char name[FN_REFLEN];
-    NDB_SHARE *share;
-    (void)strxnmov(name, FN_REFLEN,
-                   "./",dbname,"/",tabname,NullS);
-    DBUG_PRINT("info", ("name: %s", name));
-    pthread_mutex_lock(&ndbcluster_mutex);
-    if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
-                                   (byte*) name,
-                                   strlen(name))))
+    if (share->commit_count != 0)
     {
-      pthread_mutex_unlock(&ndbcluster_mutex);
-      DBUG_RETURN(1);
+      *commit_count= share->commit_count;
+      DBUG_PRINT("info", ("Getting commit_count: %llu from share",
+                          share->commit_count));
+      pthread_mutex_unlock(&share->mutex);
+      free_share(share);
+      DBUG_RETURN(0);
     }
-    *commit_count= share->commit_count;
-    DBUG_PRINT("info", ("commit_count: %d", *commit_count));
-    pthread_mutex_unlock(&ndbcluster_mutex);
-    DBUG_RETURN(0);
   }
-
-  /* Get commit_count from NDB */
+  DBUG_PRINT("info", ("Get commit_count from NDB"));
   Ndb *ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(1);
   ndb->setDatabaseName(dbname);
+  uint lock= share->commit_count_lock;
+  pthread_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
   if (ndb_get_table_statistics(ndb, tabname, &stat))
+  {
+    free_share(share);
     DBUG_RETURN(1);
-  *commit_count= stat.commit_count;
+  }
+
+  pthread_mutex_lock(&share->mutex);
+  if(share->commit_count_lock == lock)
+  {
+    DBUG_PRINT("info", ("Setting commit_count to %llu", stat.commit_count));
+    share->commit_count= stat.commit_count;
+    *commit_count= stat.commit_count;
+  }
+  else
+  {
+    DBUG_PRINT("info", ("Discarding commit_count, comit_count_lock changed"));
+    *commit_count= 0;
+  }
+  pthread_mutex_unlock(&share->mutex);
+  free_share(share);
   DBUG_RETURN(0);
 }
 
@@ -4943,27 +5010,37 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
 
-  DBUG_PRINT("enter",("dbname=%s, tabname=%s, autocommit=%d",
-                      dbname, tabname, is_autocommit));
+  DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
+                       dbname, tabname, is_autocommit));
 
   if (!is_autocommit)
+  {
+    DBUG_PRINT("exit", ("No, don't use cache in transaction"));
     DBUG_RETURN(FALSE);
+  }
 
   if (ndb_get_commitcount(thd, dbname, tabname, &commit_count))
   {
-    *engine_data+= 1; /* invalidate */
+    *engine_data= 0; /* invalidate */
+    DBUG_PRINT("exit", ("No, could not retrieve commit_count"));
     DBUG_RETURN(FALSE);
   }
-  DBUG_PRINT("info", ("*engine_data=%llu, commit_count=%llu",
+  DBUG_PRINT("info", ("*engine_data: %llu, commit_count: %llu",
                       *engine_data, commit_count));
-  if (*engine_data != commit_count)
+  if (commit_count == 0)
+  {
+    *engine_data= 0; /* invalidate */
+    DBUG_PRINT("exit", ("No, local commit has been performed"));
+    DBUG_RETURN(FALSE);
+  }
+  else if (*engine_data != commit_count)
   {
     *engine_data= commit_count; /* invalidate */
-    DBUG_PRINT("exit",("Do not use cache, commit_count has changed"));
-    DBUG_RETURN(FALSE);
-  }
+     DBUG_PRINT("exit", ("No, commit_count has changed"));
+     DBUG_RETURN(FALSE);
+   }
 
-  DBUG_PRINT("exit",("OK to use cache, *engine_data=%llu",*engine_data));
+  DBUG_PRINT("exit", ("OK to use cache, engine_data: %llu", *engine_data));
   DBUG_RETURN(TRUE);
 }
 
@@ -4999,22 +5076,27 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
 
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-  DBUG_PRINT("enter",("dbname=%s, tabname=%s, is_autocommit=%d",
-                      m_dbname,m_tabname,is_autocommit));
+
+  DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
+		      m_dbname, m_tabname, is_autocommit));
+
   if (!is_autocommit)
+  {
+    DBUG_PRINT("exit", ("Can't register table during transaction"))
     DBUG_RETURN(FALSE);
+  }
 
   Uint64 commit_count;
   if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
   {
     *engine_data= 0;
-    DBUG_PRINT("error", ("Could not get commitcount"))
+    DBUG_PRINT("exit", ("Error, could not get commitcount"))
     DBUG_RETURN(FALSE);
   }
   *engine_data= commit_count;
   *engine_callback= ndbcluster_cache_retrieval_allowed;
-  DBUG_PRINT("exit",("*engine_data=%llu", *engine_data));
-  DBUG_RETURN(TRUE);
+  DBUG_PRINT("exit", ("commit_count: %llu", commit_count));
+  DBUG_RETURN(commit_count > 0);
 }
 
 
@@ -5057,14 +5139,21 @@ static NDB_SHARE* get_share(const char *table_name)
       thr_lock_init(&share->lock);
       pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
       share->commit_count= 0;
+      share->commit_count_lock= 0;
+    }
+    else
+    {
+      DBUG_PRINT("error", ("Failed to alloc share"));
+      pthread_mutex_unlock(&ndbcluster_mutex);
+      return 0;
     }
   }
-  DBUG_PRINT("share", 
-             ("table_name: %s, length: %d, use_count: %d, commit_count: %d", 
-              share->table_name, share->table_name_length, share->use_count, 
-              share->commit_count));
-
   share->use_count++;
+
+  DBUG_PRINT("share",
+	     ("table_name: %s, length: %d, use_count: %d, commit_count: %d",
+	      share->table_name, share->table_name_length, share->use_count,
+	      share->commit_count));
   pthread_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -5075,7 +5164,7 @@ static void free_share(NDB_SHARE *share)
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!--share->use_count)
   {
-    hash_delete(&ndbcluster_open_tables, (byte*) share);
+     hash_delete(&ndbcluster_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     my_free((gptr) share, MYF(0));
@@ -5219,6 +5308,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (check == -1)
       break;
     
+    Uint32 count= 0;
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
     Uint64 sum_row_size= 0;
@@ -5230,6 +5320,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
       if (sum_row_size < size)
         sum_row_size= size;
       sum_mem+= mem;
+      count++;
     }
     
     if (check == -1)
@@ -5244,8 +5335,11 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     ndbstat->row_size= sum_row_size;
     ndbstat->fragment_memory= sum_mem;
 
-    DBUG_PRINT("exit", ("records: %u commits: %u row_size: %d mem: %d",
-                        sum_rows, sum_commits, sum_row_size, sum_mem));
+    DBUG_PRINT("exit", ("records: %llu commits: %llu "
+                        "row_size: %llu mem: %llu count: %u",
+			sum_rows, sum_commits, sum_row_size,
+                        sum_mem, count));
+
     DBUG_RETURN(0);
   } while(0);
 
@@ -5677,6 +5771,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
                                 arg __attribute__((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
+  Ndb* ndb;
   int error= 0;
   struct timespec abstime;
 
@@ -5686,12 +5781,13 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
+  ndb= new Ndb(g_ndb_cluster_connection, "");
 
   pthread_detach_this_thread();
   ndb_util_thread= pthread_self();
 
   thd->thread_stack= (char*)&thd; /* remember where our stack is */
-  if (thd->store_globals())
+  if (thd->store_globals() && (ndb->init() != -1))
   {
     thd->cleanup();
     delete thd;
@@ -5699,7 +5795,7 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
   }
 
   List<NDB_SHARE> util_open_tables;
-  set_timespec(abstime, ndb_cache_check_time);
+  set_timespec(abstime, 0);
   for (;;)
   {
 
@@ -5717,15 +5813,10 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
 
     if (ndb_cache_check_time == 0)
     {
-      set_timespec(abstime, 10);
+      /* Wake up in 1 second to check if value has changed */
+      set_timespec(abstime, 1);
       continue;
     }
-
-    /* Round tim e from millisceonds to seconds */
-    uint wait_secs= ((ndb_cache_check_time+999)/1000);
-    DBUG_PRINT("ndb_util_thread", ("wait_secs: %d", wait_secs));
-    /* Set new time to wake up */
-    set_timespec(abstime, wait_secs);
 
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
@@ -5756,26 +5847,37 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
       buf[length-1]= 0;
       db= buf+dirname_length(buf);
       DBUG_PRINT("ndb_util_thread",
-                 ("Fetching commit count for: %s, db: %s, tab: %s",
-                  share->table_name, db, tabname));
+                 ("Fetching commit count for: %s",
+                  share->table_name));
 
       /* Contact NDB to get commit count for table */
-      g_ndb->setDatabaseName(db);
-      struct Ndb_statistics stat;;
-      if(ndb_get_table_statistics(g_ndb, tabname, &stat) == 0)
+      ndb->setDatabaseName(db);
+      struct Ndb_statistics stat;
+
+      uint lock;
+      pthread_mutex_lock(&share->mutex);
+      lock= share->commit_count_lock;
+      pthread_mutex_unlock(&share->mutex);
+
+      if(ndb_get_table_statistics(ndb, tabname, &stat) == 0)
       {
         DBUG_PRINT("ndb_util_thread",
-                   ("Table: %s, rows: %llu, commit_count: %llu",
-                    share->table_name, stat.row_count, stat.commit_count));
-        share->commit_count= stat.commit_count;
+                   ("Table: %s, commit_count: %llu, rows: %llu",
+                    share->table_name, stat.commit_count, stat.row_count));
       }
       else
       {
         DBUG_PRINT("ndb_util_thread",
                    ("Error: Could not get commit count for table %s",
                     share->table_name));
-        share->commit_count++; /* Invalidate */
+        stat.commit_count= 0;
       }
+
+      pthread_mutex_lock(&share->mutex);
+      if (share->commit_count_lock == lock)
+        share->commit_count= stat.commit_count;
+      pthread_mutex_unlock(&share->mutex);
+
       /* Decrease the use count and possibly free share */
       free_share(share);
     }
@@ -5783,6 +5885,26 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,
     /* Clear the list of open tables */
     util_open_tables.empty();
 
+    /* Calculate new time to wake up */
+    int secs= 0;
+    int msecs= ndb_cache_check_time;
+
+    struct timeval tick_time;
+    gettimeofday(&tick_time, 0);
+    abstime.tv_sec=  tick_time.tv_sec;
+    abstime.tv_nsec= tick_time.tv_usec * 1000;
+
+    if(msecs >= 1000){
+      secs=  msecs / 1000;
+      msecs= msecs % 1000;
+    }
+
+    abstime.tv_sec+=  secs;
+    abstime.tv_nsec+= msecs * 1000000;
+    if (abstime.tv_nsec >= 1000000000) {
+      abstime.tv_sec+=  1;
+      abstime.tv_nsec-= 1000000000;
+    }
   }
 
   thd->cleanup();
