@@ -2096,7 +2096,7 @@ void MYSQL_LOG::close(uint exiting)
     if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
     {
       my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
-      char flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
+      byte flags=0; // clearing LOG_EVENT_BINLOG_IN_USE_F
       my_pwrite(log_file.file, &flags, 1, offset, MYF(0));
     }
 
@@ -2415,6 +2415,7 @@ void sql_print_information(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_MMAP
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -2460,10 +2461,6 @@ uint opt_tc_log_size=TC_LOG_MIN_SIZE;
 uint tc_log_max_pages_used=0, tc_log_page_size=0,
      tc_log_page_waits=0, tc_log_cur_pages_used=0;
 
-TC_LOG *tc_log;
-TC_LOG_MMAP tc_log_mmap;
-TC_LOG_DUMMY tc_log_dummy;
-
 int TC_LOG_MMAP::open(const char *opt_name)
 {
   uint i;
@@ -2473,12 +2470,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
-#ifdef HAVE_GETPAGESIZE
-  tc_log_page_size=getpagesize();
+  tc_log_page_size= my_getpagesize();
   DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
-#else
-  tc_log_page_size=TC_LOG_PAGE_SIZE;
-#endif
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   fd= my_open(logname, O_RDWR, MYF(0));
@@ -2781,6 +2774,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 
 void TC_LOG_MMAP::close()
 {
+  uint i;
   switch (inited) {
   case 6:
     pthread_mutex_destroy(&LOCK_sync);
@@ -2790,7 +2784,7 @@ void TC_LOG_MMAP::close()
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case my_delete fails
   case 4:
-    for (uint i=0; i < npages; i++)
+    for (i=0; i < npages; i++)
     {
       if (pages[i].ptr == 0)
         break;
@@ -2860,6 +2854,11 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
+#endif
+
+TC_LOG *tc_log;
+TC_LOG_DUMMY tc_log_dummy;
+TC_LOG_MMAP  tc_log_mmap;
 
 /*
   Perform heuristic recovery, if --tc-heuristic-recover was used
@@ -3015,7 +3014,8 @@ int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     if (ev->get_type_code() == XID_EVENT)
     {
       Xid_log_event *xev=(Xid_log_event *)ev;
-      byte *x=memdup_root(&mem_root, (char *)& xev->xid, sizeof(xev->xid));
+      byte *x=(byte *)memdup_root(&mem_root, (char *)& xev->xid,
+                                  sizeof(xev->xid));
       if (! x)
         goto err2;
       my_hash_insert(&xids, x);

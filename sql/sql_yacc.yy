@@ -2798,7 +2798,7 @@ type:
             Lex->uint_geom_type= (uint)$1;
             $$=FIELD_TYPE_GEOMETRY;
 #else
-            my_error(ER_FEATURE_DISABLED, MYF(0)
+            my_error(ER_FEATURE_DISABLED, MYF(0),
                      sym_group_geom.name, sym_group_geom.needed_define);
             YYABORT;
 #endif
@@ -3140,7 +3140,7 @@ opt_unique_or_fulltext:
 #ifdef HAVE_SPATIAL
 	    $$= Key::SPATIAL;
 #else
-	    my_message(ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED), MYF(0),
+            my_error(ER_FEATURE_DISABLED, MYF(0),
                      sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -4259,8 +4259,6 @@ simple_expr:
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $5->push_front($3); $$= new Item_func_concat_ws(*$5); }
-	| CONTAINS_SYM '(' expr ',' expr ')'
-	  { $$= create_func_contains($3, $5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
             if (Lex->add_time_zone_tables_to_query_tables(YYTHD))
@@ -4622,7 +4620,9 @@ simple_expr:
 	{ $$=new Item_extract( $3, $5); };
 
 geometry_function:
-	GEOMFROMTEXT '(' expr ')'
+	  CONTAINS_SYM '(' expr ',' expr ')'
+	  { $$= GEOM_NEW(Item_func_spatial_rel($3, $5, Item_func::SP_CONTAINS_FUNC)); }
+	| GEOMFROMTEXT '(' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
 	| GEOMFROMTEXT '(' expr ',' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }

@@ -400,8 +400,6 @@ typedef struct st_sql_list {
 } SQL_LIST;
 
 
-uint nr_of_decimals(const char *str);		/* Neaded by sql_string.h */
-
 extern pthread_key(THD*, THR_THD);
 inline THD *_current_thd(void)
 {
