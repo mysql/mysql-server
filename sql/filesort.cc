@@ -123,11 +123,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   if (param.sort_length == param.ref_length && records > param.max_rows)
     records=param.max_rows;			/* purecov: inspected */
 
-#ifdef USE_STRCOLL
   if (use_strnxfrm(charset) &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
-#endif
 
   memavl= thd->variables.sortbuff_size;
   while (memavl >= MIN_SORT_MEMORY)
@@ -200,10 +198,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error =0;
 
  err:
-#ifdef USE_STRCOLL
   if (param.tmp_buffer)
     x_free(param.tmp_buffer);
-#endif
   x_free((gptr) sort_keys);
   x_free((gptr) buffpek);
   close_cached_file(&tempfile);
@@ -494,7 +490,6 @@ static void make_sortkey(register SORTPARAM *param,
 	    diff=0;				/* purecov: inspected */
 	    length=sort_field->length;
 	  }
-#ifdef USE_STRCOLL
           if (use_strnxfrm(cs))
           {
             if (item->binary())
@@ -520,15 +515,12 @@ static void make_sortkey(register SORTPARAM *param,
           }
           else
           {
-#endif
             if (res->ptr() != (char*) to)
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
             if (!item->binary())
               my_tosort(cs, (char*) to,length);
-#ifdef USE_STRCOLL
           }
-#endif
 	  break;
 	}
       case INT_RESULT:
@@ -930,34 +922,27 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       else
       {
 	sortorder->length=sortorder->field->pack_length();
-#ifdef USE_STRCOLL
 	if (!sortorder->field->binary())
 	{
 	  CHARSET_INFO *cs=sortorder->field->charset();
 	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
-#endif
       }
       if (sortorder->field->maybe_null())
 	length++;				// Place for NULL marker
     }
     else
     {
-#ifdef USE_STRCOLL
-      
-#endif
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
-#ifdef USE_STRCOLL
 	if (!sortorder->item->binary())
 	{ 
 	  CHARSET_INFO *cs=sortorder->item->charset();
 	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
-#endif
 	break;
       case INT_RESULT:
 #if SIZEOF_LONG_LONG > 4
