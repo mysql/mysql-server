@@ -50190,7 +50190,7 @@ Version 4.0 of the MySQL server includes many enhancements and new features:
 @itemize @bullet
 @item
 The @code{InnoDB} table type is now included in the standard binaries,
-adding transactions, row-level locking and foreign keys.
+adding transactions, row-level locking, and foreign keys.
 @xref{InnoDB}.
 @item
 A query qache, offering vastly increased performance for many applications.
@@ -50198,7 +50198,7 @@ By caching complete result sets, later identical queries can return
 instantly.
 @xref{Query Cache}.
 @item
-Improved full-text indexing with boolean mode, truncation and phrase searching.
+Improved full-text indexing with boolean mode, truncation, and phrase searching.
 @xref{Fulltext Search}.
 @item
 Enhanced @code{MERGE} tables, now supporting @code{INSERT}s and
@@ -50258,15 +50258,15 @@ the value of the column type.
 @item
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
 @item
-Fixed security bug when having an empty databasename in the @code{user.db}
+Fixed security bug when having an empty database name in the @code{user.db}
 table.
 @item
 Fixed some problems with @code{CREATE TABLE ... SELECT function()}.
 @item
-mysqld now has the option @code{--temp-pool} enabled by default as this
-gives better performance with some OS.
+@code{mysqld} now has the option @code{--temp-pool} enabled by default as this
+gives better performance with some operating systems.
 @item
-Big code cleanup in replication code.
+Big cleanup in replication code.
 @item
 If the @code{--code-file} option is specified, the server calls
 @code{setrlimit()} to set the maximum allowed core file size to unlimited,
@@ -50274,8 +50274,8 @@ so core files can be generated.
 @item
 Fixed bug in query cache after temporary table creation.
 @item
-Added @code{--count=N} (@code{-c}) to @code{mysqladmin}, to make the
-program do only N iterations. To be used with @code{--sleep} (@code{-i}).
+Added @code{--count=N} (@code{-c}) option to @code{mysqladmin}, to make the
+program do only @code{N} iterations. To be used with @code{--sleep} (@code{-i}).
 Useful in scripts.
 @item
 Fixed bug in multi-table @code{UPDATE}: when updating a table,
@@ -50906,7 +50906,7 @@ not yet 100% confident in this code.
 @item
 Fixed problem with @code{UNSIGNED BIGINT} on AIX.
 @item
-Fixed security bug when having an empty databasename in the @code{user.db}
+Fixed security bug when having an empty database name in the @code{user.db}
 table.
 @item
 Changed initialisation of @code{RND()} to make it less predicatable.
@@ -52141,7 +52141,7 @@ Added @code{ANALYZE} of @code{BDB} tables.
 In @code{BDB} tables, we now store the number of rows; this helps to optimise
 queries when we need an approximation of the number of rows.
 @item
-If we get an error in a multi-row statement, we now only rollback the
+If we get an error in a multi-row statement, we now only roll back the
 last statement, not the entire transaction.
 @item
 If you do a @code{ROLLBACK} when you have updated a non-transactional table
