@@ -28286,6 +28286,8 @@ aren't specified.
 You should have a primary key in the table.
 @item
 You should have a timestamp in all tables you want to be able to update.
+For maximum portability @code{TIMESTAMP(14)} or simple @code{TIMESTAMP}
+is recommended instead of other @code{TIMESTAMP(X)} variations.
 @item
 Only use double float fields. Access fails when comparing with single floats.
 @item
