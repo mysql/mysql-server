@@ -20,7 +20,7 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbRecAttr.hpp>
 #include <AttributeHeader.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <TransporterFacade.hpp>
 #include <signaldata/TcKeyConf.hpp>
 

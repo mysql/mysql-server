@@ -18,7 +18,7 @@
 #include <Ndb.hpp>
 #include <NdbScanOperation.hpp>
 #include <NdbIndexScanOperation.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include "NdbApiSignal.hpp"
 #include <NdbOut.hpp>
 #include "NdbDictionaryImpl.hpp"
@@ -63,7 +63,7 @@ NdbScanOperation::~NdbScanOperation()
 
 void
 NdbScanOperation::setErrorCode(int aErrorCode){
-  NdbConnection* tmp = theNdbCon;
+  NdbTransaction* tmp = theNdbCon;
   theNdbCon = m_transConnection;
   NdbOperation::setErrorCode(aErrorCode);
   theNdbCon = tmp;
@@ -71,7 +71,7 @@ NdbScanOperation::setErrorCode(int aErrorCode){
 
 void
 NdbScanOperation::setErrorCodeAbort(int aErrorCode){
-  NdbConnection* tmp = theNdbCon;
+  NdbTransaction* tmp = theNdbCon;
   theNdbCon = m_transConnection;
   NdbOperation::setErrorCodeAbort(aErrorCode);
   theNdbCon = tmp;
@@ -86,11 +86,11 @@ NdbScanOperation::setErrorCodeAbort(int aErrorCode){
  * Remark:        Initiates operation record after allocation.
  *****************************************************************************/
 int
-NdbScanOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection)
+NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
 {
   m_transConnection = myConnection;
-  //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
-  NdbConnection* aScanConnection = theNdb->hupp(myConnection);
+  //NdbTransaction* aScanConnection = theNdb->startTransaction(myConnection);
+  NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
   if (!aScanConnection){
     setErrorCodeAbort(theNdb->getNdbError().code);
     return -1;
@@ -349,7 +349,7 @@ NdbScanOperation::getFirstATTRINFOScan()
 
 int
 NdbScanOperation::executeCursor(int nodeId){
-  NdbConnection * tCon = theNdbCon;
+  NdbTransaction * tCon = theNdbCon;
   TransporterFacade* tp = TransporterFacade::instance();
   Guard guard(tp->theMutexPtr);
 
@@ -383,7 +383,7 @@ NdbScanOperation::executeCursor(int nodeId){
       TRACE_DEBUG("The node is stopping when attempting to start a scan");
       setErrorCode(4030);
     }//if
-    tCon->theCommitStatus = NdbConnection::Aborted;
+    tCon->theCommitStatus = NdbTransaction::Aborted;
   }//if
   return -1;
 }
@@ -856,9 +856,9 @@ NdbScanOperation::doSendScan(int aProcessorId)
 }//NdbOperation::doSendScan()
 
 /*****************************************************************************
- * NdbOperation* takeOverScanOp(NdbConnection* updateTrans);
+ * NdbOperation* takeOverScanOp(NdbTransaction* updateTrans);
  *
- * Parameters:     The update transactions NdbConnection pointer.
+ * Parameters:     The update transactions NdbTransaction pointer.
  * Return Value:   A reference to the transferred operation object 
  *                   or NULL if no success.
  * Remark:         Take over the scanning transactions NdbOperation 
@@ -868,8 +868,8 @@ NdbScanOperation::doSendScan(int aProcessorId)
  *
  *     FUTURE IMPLEMENTATION:   (This note was moved from header file.)
  *     In the future, it will even be possible to transfer 
- *     to a NdbConnection on another Ndb-object.  
- *     In this case the receiving NdbConnection-object must call 
+ *     to a NdbTransaction on another Ndb-object.  
+ *     In this case the receiving NdbTransaction-object must call 
  *     a method receiveOpFromScan to actually receive the information.  
  *     This means that the updating transactions can be placed
  *     in separate threads and thus increasing the parallelism during
@@ -896,7 +896,7 @@ NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
 }
 
 NdbOperation*
-NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
+NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans){
   
   Uint32 idx = m_current_api_receiver;
   Uint32 last = m_api_receivers_count;

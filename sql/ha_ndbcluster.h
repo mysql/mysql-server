@@ -29,7 +29,7 @@
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
-class NdbConnection;   // Forward declaration
+class NdbTransaction;  // Forward declaration
 class NdbRecAttr;      // Forward declaration
 class NdbScanOperation; 
 class NdbIndexScanOperation; 
@@ -210,7 +210,7 @@ class ha_ndbcluster: public handler
   void print_results();
 
   ulonglong get_auto_increment();
-  int ndb_err(NdbConnection*);
+  int ndb_err(NdbTransaction*);
   bool uses_blob_value(bool all_fields);
 
   int write_ndb_file();
@@ -218,7 +218,7 @@ class ha_ndbcluster: public handler
  private:
   int check_ndb_connection();
 
-  NdbConnection *m_active_trans;
+  NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
   Ndb *m_ndb;
   void *m_table;
@@ -271,9 +271,9 @@ class ha_ndbcluster: public handler
   void no_uncommitted_rows_init(THD *);
   void no_uncommitted_rows_reset(THD *);
 
-  friend int execute_no_commit(ha_ndbcluster*, NdbConnection*);
-  friend int execute_commit(ha_ndbcluster*, NdbConnection*);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbConnection*);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 };
 
 bool ndbcluster_init(void);

@@ -17,7 +17,7 @@
 #include <ndb_global.h>
 #include <NdbIndexOperation.hpp>
 #include <Ndb.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include "NdbApiSignal.hpp"
 #include <AttributeHeader.hpp>
 #include <signaldata/TcIndx.hpp>
@@ -53,7 +53,7 @@ NdbIndexOperation::~NdbIndexOperation()
 int
 NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
 			    const NdbTableImpl * aTable, 
-			    NdbConnection* myConnection)
+			    NdbTransaction* myConnection)
 {
   NdbOperation::init(aTable, myConnection);
 

@@ -19,12 +19,12 @@
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include "NdbOperation.hpp"
-#include "NdbConnection.hpp"
-#include "NdbRecAttr.hpp"
-#include "IPCConfig.hpp"
+#include <NdbOperation.hpp>
+#include <NdbTransaction.hpp>
+#include <NdbRecAttr.hpp>
+#include <IPCConfig.hpp>
 #include "TransporterFacade.hpp"
-#include "ConfigRetriever.hpp"
+#include <ConfigRetriever.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
