@@ -231,28 +231,21 @@ public:
 
 class sys_var_thd_ulong :public sys_var_thd
 {
+  sys_check_func check_func;
 public:
   ulong SV::*offset;
   sys_var_thd_ulong(const char *name_arg, ulong SV::*offset_arg)
-    :sys_var_thd(name_arg), offset(offset_arg)
+    :sys_var_thd(name_arg), check_func(0), offset(offset_arg)
   {}
   sys_var_thd_ulong(const char *name_arg, ulong SV::*offset_arg,
-		   sys_after_update_func func)
-    :sys_var_thd(name_arg,func), offset(offset_arg)
+		   sys_check_func c_func, sys_after_update_func au_func)
+    :sys_var_thd(name_arg,au_func), check_func(c_func), offset(offset_arg)
   {}
+  bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
   SHOW_TYPE type() { return SHOW_LONG; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-};
-
-class sys_var_pseudo_thread_id :public sys_var_thd_ulong
-{
-public:
-  sys_var_pseudo_thread_id(const char *name_arg, ulong SV::*offset_arg)
-    :sys_var_thd_ulong(name_arg, offset_arg) 
-  {}
-  bool check(THD *thd, set_var *var);
 };
 
 
@@ -402,19 +395,18 @@ public:
 
 class sys_var_thd_bit :public sys_var_thd
 {
+  sys_check_func check_func;
   sys_update_func update_func;
 public:
   ulong bit_flag;
   bool reverse;
-  sys_var_thd_bit(const char *name_arg, sys_update_func func, ulong bit,
-		  bool reverse_arg=0)
-    :sys_var_thd(name_arg), update_func(func), bit_flag(bit),
-    reverse(reverse_arg)
+  sys_var_thd_bit(const char *name_arg, 
+                  sys_check_func c_func, sys_update_func u_func,
+                  ulong bit, bool reverse_arg=0)
+    :sys_var_thd(name_arg), check_func(c_func), update_func(u_func),
+    bit_flag(bit), reverse(reverse_arg)
   {}
-  bool check(THD *thd, set_var *var)
-  {
-    return check_enum(thd, var, &bool_typelib);
-  }
+  bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
   bool check_update_type(Item_result type) { return 0; }
   bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }

@@ -73,10 +73,10 @@ TYPELIB delay_key_write_typelib=
   array_elements(delay_key_write_type_names)-1, "", delay_key_write_type_names
 };
 
-static int sys_check_charset(THD *thd, set_var *var);
+static int  sys_check_charset(THD *thd, set_var *var);
 static bool sys_update_charset(THD *thd, set_var *var);
 static void sys_set_default_charset(THD *thd, enum_var_type type);
-static int sys_check_ftb_syntax(THD *thd,  set_var *var);
+static int  sys_check_ftb_syntax(THD *thd,  set_var *var);
 static bool sys_update_ftb_syntax(THD *thd, set_var * var);
 static void sys_default_ftb_syntax(THD *thd, enum_var_type type);
 static bool sys_update_init_connect(THD*, set_var*);
@@ -85,7 +85,9 @@ static bool sys_update_init_slave(THD*, set_var*);
 static void sys_default_init_slave(THD*, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
+static int  check_log_update(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
+static int  check_pseudo_thread_id(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
@@ -202,24 +204,21 @@ sys_var_thd_ulong       sys_max_insert_delayed_threads("max_insert_delayed_threa
 						       &SV::max_insert_delayed_threads);
 sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
 						&SV::max_insert_delayed_threads,
-						fix_max_connections);
+						0, fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
-/* 
-   sys_pseudo_thread_id has its own class (instead of sys_var_thd_ulong) because
-   we want a check() function.
-*/
-sys_var_pseudo_thread_id sys_pseudo_thread_id("pseudo_thread_id",
-					     &SV::pseudo_thread_id);
+sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
+					     &SV::pseudo_thread_id,
+                                             check_pseudo_thread_id, 0);
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
 sys_var_thd_ulong	sys_max_seeks_for_key("max_seeks_for_key",
 					      &SV::max_seeks_for_key);
 sys_var_thd_ulong   sys_max_length_for_sort_data("max_length_for_sort_data",
-                        &SV::max_length_for_sort_data);
+                                                 &SV::max_length_for_sort_data);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
@@ -244,13 +243,13 @@ sys_var_thd_ulong	sys_net_buffer_length("net_buffer_length",
 					      &SV::net_buffer_length);
 sys_var_thd_ulong	sys_net_read_timeout("net_read_timeout",
 					     &SV::net_read_timeout,
-					     fix_net_read_timeout);
+					     0, fix_net_read_timeout);
 sys_var_thd_ulong	sys_net_write_timeout("net_write_timeout",
 					      &SV::net_write_timeout,
-					      fix_net_write_timeout);
+					      0, fix_net_write_timeout);
 sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
-					    fix_net_retry_count);
+					    0, fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_bool	sys_old_passwords("old_passwords", &SV::old_passwords);
 sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
@@ -274,16 +273,16 @@ sys_var_thd_ulong	sys_range_alloc_block_size("range_alloc_block_size",
 						   &SV::range_alloc_block_size);
 sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
 						   &SV::query_alloc_block_size,
-						   fix_thd_mem_root);
+						   0, fix_thd_mem_root);
 sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
 						&SV::query_prealloc_size,
-						fix_thd_mem_root);
+						0, fix_thd_mem_root);
 sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
 						   &SV::trans_alloc_block_size,
-						   fix_trans_mem_root);
+						   0, fix_trans_mem_root);
 sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
 						&SV::trans_prealloc_size,
-						fix_trans_mem_root);
+						0, fix_trans_mem_root);
 
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
@@ -348,50 +347,52 @@ sys_var_thd_date_time_format sys_datetime_format("datetime_format",
 
 /* Variables that are bits in THD */
 
-static sys_var_thd_bit	sys_autocommit("autocommit",
+static sys_var_thd_bit	sys_autocommit("autocommit", 0,
 				       set_option_autocommit,
 				       OPTION_NOT_AUTOCOMMIT,
 				       1);
-static sys_var_thd_bit	sys_big_tables("big_tables",
+static sys_var_thd_bit	sys_big_tables("big_tables", 0,
 				       set_option_bit,
 				       OPTION_BIG_TABLES);
 #ifndef TO_BE_DELETED	/* Alias for big_tables */
-static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables",
+static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables", 0,
 					   set_option_bit,
 					   OPTION_BIG_TABLES);
 #endif
-static sys_var_thd_bit	sys_big_selects("sql_big_selects",
+static sys_var_thd_bit	sys_big_selects("sql_big_selects", 0,
 					set_option_bit,
 					OPTION_BIG_SELECTS);
-static sys_var_thd_bit	sys_log_off("sql_log_off",
+static sys_var_thd_bit	sys_log_off("sql_log_off", 0,
 				    set_option_bit,
 				    OPTION_LOG_OFF);
 static sys_var_thd_bit	sys_log_update("sql_log_update",
+                                       check_log_update,
 				       set_log_update,
 				       OPTION_UPDATE_LOG);
 static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
-					set_log_update,
-					OPTION_BIN_LOG);
-static sys_var_thd_bit	sys_sql_warnings("sql_warnings",
+                                       check_log_update,
+                                       set_log_update,
+                                       OPTION_BIN_LOG);
+static sys_var_thd_bit	sys_sql_warnings("sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
-static sys_var_thd_bit	sys_auto_is_null("sql_auto_is_null",
+static sys_var_thd_bit	sys_auto_is_null("sql_auto_is_null", 0,
 					 set_option_bit,
 					 OPTION_AUTO_IS_NULL);
-static sys_var_thd_bit	sys_safe_updates("sql_safe_updates",
+static sys_var_thd_bit	sys_safe_updates("sql_safe_updates", 0,
 					 set_option_bit,
 					 OPTION_SAFE_UPDATES);
-static sys_var_thd_bit	sys_buffer_results("sql_buffer_result",
+static sys_var_thd_bit	sys_buffer_results("sql_buffer_result", 0,
 					   set_option_bit,
 					   OPTION_BUFFER_RESULT);
-static sys_var_thd_bit	sys_quote_show_create("sql_quote_show_create",
+static sys_var_thd_bit	sys_quote_show_create("sql_quote_show_create", 0,
 					      set_option_bit,
 					      OPTION_QUOTE_SHOW_CREATE);
-static sys_var_thd_bit	sys_foreign_key_checks("foreign_key_checks",
+static sys_var_thd_bit	sys_foreign_key_checks("foreign_key_checks", 0,
 					       set_option_bit,
 					       OPTION_NO_FOREIGN_KEY_CHECKS,
 					       1);
-static sys_var_thd_bit	sys_unique_checks("unique_checks",
+static sys_var_thd_bit	sys_unique_checks("unique_checks", 0,
 					  set_option_bit,
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
@@ -1170,6 +1171,11 @@ byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
   return (byte*) enum_names->type_names[*value];
 }
 
+bool sys_var_thd_ulong::check(THD *thd, set_var *var)
+{
+  return (sys_var_thd::check(thd, var) ||
+          (check_func && (*check_func)(thd, var)));
+}
 
 bool sys_var_thd_ulong::update(THD *thd, set_var *var)
 {
@@ -1499,6 +1505,11 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
   return (byte*) enum_names->type_names[tmp];
 }
 
+bool sys_var_thd_bit::check(THD *thd, set_var *var)
+{
+  return (check_enum(thd, var, &bool_typelib) ||
+          (check_func && (*check_func)(thd, var)));
+}
 
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
@@ -2167,22 +2178,6 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
   return (byte*) &thd->current_insert_id;
 }
 
-bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
-{
-  var->save_result.ulonglong_value= var->value->val_int();
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (thd->master_access & SUPER_ACL)
-    return 0;
-  else
-  {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
-    return 1;
-  }
-#else
-  return 0;
-#endif
-}
-
 
 #ifdef HAVE_REPLICATION
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
@@ -2281,8 +2276,7 @@ static bool set_option_autocommit(THD *thd, set_var *var)
   return 0;
 }
 
-
-static bool set_log_update(THD *thd, set_var *var)
+static int check_log_update(THD *thd, set_var *var)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!(thd->master_access & SUPER_ACL))
@@ -2291,11 +2285,32 @@ static bool set_log_update(THD *thd, set_var *var)
     return 1;
   }
 #endif
+  return 0;
+}
+
+static bool set_log_update(THD *thd, set_var *var)
+{
   if (opt_sql_bin_update)
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
 					       OPTION_UPDATE_LOG);
   set_option_bit(thd, var);
   return 0;
+}
+
+static int check_pseudo_thread_id(THD *thd, set_var *var)
+{
+  var->save_result.ulonglong_value= var->value->val_int();
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (thd->master_access & SUPER_ACL)
+    return 0;
+  else
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
+#else
+  return 0;
+#endif
 }
 
 static byte *get_warning_count(THD *thd)
