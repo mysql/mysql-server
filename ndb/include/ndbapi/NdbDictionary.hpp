@@ -1066,6 +1066,8 @@ public:
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 
 				const char * tableName);
+  public:
+    const Table * getTable(const char * name, void **data);
   };
 };
 

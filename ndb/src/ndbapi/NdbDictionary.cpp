@@ -681,11 +681,16 @@ NdbDictionary::Dictionary::alterTable(const Table & t){
 }
 
 const NdbDictionary::Table * 
-NdbDictionary::Dictionary::getTable(const char * name){
-  NdbTableImpl * t = m_impl.getTable(name);
+NdbDictionary::Dictionary::getTable(const char * name, void **data){
+  NdbTableImpl * t = m_impl.getTable(name, data);
   if(t)
     return t->m_facade;
   return 0;
+}
+
+const NdbDictionary::Table * 
+NdbDictionary::Dictionary::getTable(const char * name){
+  return getTable(name, 0);
 }
 
 void
