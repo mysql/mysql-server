@@ -142,3 +142,65 @@ ALTER TABLE t1 DISABLE KEYS;
 INSERT DELAYED INTO t1 VALUES(1),(2),(3);
 ALTER TABLE t1 ENABLE KEYS;
 drop table t1;
+
+#
+# Test ALTER TABLE ENABLE/DISABLE keys when things are locked
+#
+
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User)
+) TYPE=MyISAM;
+
+ALTER TABLE t1 DISABLE KEYS;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
+UNLOCK TABLES;
+CHECK TABLES t1;
+DROP TABLE t1;
+
+#
+# Test with two keys
+#
+
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User),
+  KEY  (Host)
+) TYPE=MyISAM;
+
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+SHOW INDEX FROM t1;
+ALTER TABLE t1 ENABLE KEYS;
+SHOW INDEX FROM t1;
+UNLOCK TABLES;
+CHECK TABLES t1;
+
+# Test RENAME with LOCK TABLES
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 RENAME t2;
+UNLOCK TABLES;
+select * from t2;
+DROP TABLE t2;
+
+#
+# Test disable keys with locking
+#
+CREATE TABLE t1 (
+  Host varchar(16) binary NOT NULL default '',
+  User varchar(16) binary NOT NULL default '',
+  PRIMARY KEY  (Host,User),
+  KEY  (Host)
+) TYPE=MyISAM;
+
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
