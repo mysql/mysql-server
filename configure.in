@@ -2919,6 +2919,9 @@ AC_SUBST(mgmapiincludedir)
   AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
   AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
 
+AM_CONDITIONAL(HAVE_NDB_SHM, test X"$have_ndb_shm" = Xyes)
+AM_CONDITIONAL(HAVE_NDB_SCI, test X"$have_ndb_sci" = Xyes)
+
   #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
   #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
   #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"

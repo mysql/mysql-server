@@ -1341,39 +1341,42 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_ARG_WITH([ndb-shm],
               [
   --with-ndb-shm        Include the NDB Cluster shared memory transporter],
-              [ndb-shm="$withval"],
-              [ndb-shm=no])
+              [ndb_shm="$withval"],
+              [ndb_shm=no])
   AC_ARG_WITH([ndb-sci],
               [
   --with-ndb-sci        Include the NDB Cluster sci transporter],
-              [ndb-sci="$withval"],
-              [ndb-sci=no])
+              [ndb_sci="$withval"],
+              [ndb_sci=no])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
+  AC_MSG_RESULT([])
                                                                                 
   have_ndb_shm=no
-  case "$ndb-shm" in
+  case "$ndb_shm" in
     yes )
-      AC_MSG_RESULT([Including NDB Cluster shared memory transporter])
+      AC_MSG_RESULT([-- including shared memory transporter])
       AC_DEFINE(NDB_SHM_TRANSPORTER)
       have_ndb_shm="yes"
       ;;
     * )
-      AC_MSG_RESULT([Not including NDB Cluster shared memory transporter])
+      AC_MSG_RESULT([-- not including shared memory transporter])
       ;;
   esac
 
   have_ndb_sci=no
-  case "$ndb-sci" in
+  case "$ndb_sci" in
     yes )
-      AC_MSG_RESULT([Including NDB Cluster sci transporter])
+      AC_MSG_RESULT([-- including sci transporter])
       AC_DEFINE(NDB_SCI_TRANSPORTER)
       have_ndb_sci="yes"
       ;;
     * )
-      AC_MSG_RESULT([Not including NDB Cluster sci transporter])
+      AC_MSG_RESULT([-- not including sci transporter])
       ;;
   esac
+
+  AC_MSG_RESULT([done.])
 ])
 
 AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
@@ -1396,6 +1399,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/libndbclient.la"
       ndbcluster_system_libs=""
+      MYSQL_CHECK_NDB_OPTIONS
       ;;
     * )
       AC_MSG_RESULT([Not using NDB Cluster])
