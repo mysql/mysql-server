@@ -98,9 +98,6 @@ my_bool	net_flush(NET *net);
 #  include <sys/un.h>
 #endif
 
-#ifndef INADDR_NONE
-#define INADDR_NONE	-1
-#endif
 #if defined(MSDOS) || defined(__WIN__)
 #define perror(A)
 #else
