@@ -376,14 +376,14 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     if (!found)
       if_wait_for_refresh=0;			// Nothing to wait for
   }
+  if (!tables)
+    kill_delayed_threads();
   if (if_wait_for_refresh)
   {
     /*
       If there is any table that has a lower refresh_version, wait until
       this is closed (or this thread is killed) before returning
     */
-    if (!tables)
-      kill_delayed_threads();
     thd->mysys_var->current_mutex= &LOCK_open;
     thd->mysys_var->current_cond= &COND_refresh;
     thd->proc_info="Flushing tables";

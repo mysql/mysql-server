@@ -533,7 +533,6 @@ Item_func_if::fix_length_and_dec()
     else
       cached_result_type=arg1_type;		// Should be INT_RESULT
   }
-  args[0]->top_level_item();
 }
 
 
@@ -1122,6 +1121,8 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
 #endif
       item= *li.ref();				// new current item
     }
+    if (abort_on_null)
+      item->top_level_item();
     if (item->fix_fields(thd,tables))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
@@ -1129,8 +1130,6 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
     const_item_cache&=item->const_item();
     if (item->maybe_null)
       maybe_null=1;
-    if (abort_on_null)
-      item->top_level_item();
   }
   if (thd)
     thd->cond_count+=list.elements;
