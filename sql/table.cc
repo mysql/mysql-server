@@ -485,6 +485,23 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
         charset= outparam->table_charset;
       bzero((char*) &comment, sizeof(comment));
     }
+
+    if (interval_nr && charset->mbminlen > 1)
+    {
+      /* Unescape UCS2 intervals from HEX notation */
+      TYPELIB *interval= outparam->intervals + interval_nr - 1;
+      for (uint pos= 0; pos < interval->count; pos++)
+      {
+        char *from, *to;
+        for (from= to= (char*) interval->type_names[pos]; *from; )
+        {
+          *to++= (char) (hexchar_to_int(*from++) << 4) + 
+                         hexchar_to_int(*from++);
+        }
+        interval->type_lengths[pos] /= 2;
+      }
+    }
+    
     *field_ptr=reg_field=
       make_field(record+recpos,
 		 (uint32) field_length,
