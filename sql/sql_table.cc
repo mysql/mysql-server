@@ -1049,6 +1049,11 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
 {
   DBUG_ENTER("prepare_for_repair");
 
+  if (!table->table)
+  {
+    DBUG_RETURN(send_check_errmsg(thd, table, "repair", "table is read-only or does not exists"));
+  }
+
   if (!(check_opt->sql_flags & TT_USEFRM))
   {
     DBUG_RETURN(0);
