@@ -709,7 +709,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     break;
   }
-    break;
+  break;
   case 'A':
     rehash= 0;
     break;

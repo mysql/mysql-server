@@ -5785,62 +5785,79 @@ static void fix_paths(void)
 */
 
 #ifdef SET_RLIMIT_NOFILE
+
+#ifndef RLIM_INFINITY
+#define RLIM_INFINITY ((uint) 0xffffffff)
+#endif
+
 static uint set_maximum_open_files(uint max_file_limit)
 {
   struct rlimit rlimit;
-  ulong old_cur;
+  uint old_cur;
+  DBUG_ENTER("set_maximum_open_files");
+  DBUG_PRINT("enter",("files: %u", max_file_limit));
 
   if (!getrlimit(RLIMIT_NOFILE,&rlimit))
   {
-    old_cur=rlimit.rlim_cur;
-    if (rlimit.rlim_cur >= max_file_limit)	// Nothing to do
-      return rlimit.rlim_cur;			/* purecov: inspected */
-    rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
+    old_cur= (uint) rlimit.rlim_cur;
+    DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
+			(uint) rlimit.rlim_cur,
+			(uint) rlimit.rlim_max));
+    if (rlimit.rlim_cur >= max_file_limit ||
+	rlimit.rlim_cur == RLIM_INFINITY)
+      DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */
+    rlimit.rlim_cur= rlimit.rlim_max= max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %u (request: %u)",
 			old_cur, max_file_limit); /* purecov: inspected */
-      max_file_limit=old_cur;
+      max_file_limit= old_cur;
     }
     else
     {
+      rlimit.rlim_cur= 0;			// Safety if next call fails
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      if ((uint) rlimit.rlim_cur != max_file_limit &&
+      DBUG_PRINT("info", ("rlim_cur: %u", (uint) rlimit.rlim_cur));
+      if ((uint) rlimit.rlim_cur < max_file_limit &&
 	  global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
-			(ulong) rlimit.rlim_cur,
+	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %u (request: %u)",
+			(uint) rlimit.rlim_cur,
 			max_file_limit); /* purecov: inspected */
-      max_file_limit=rlimit.rlim_cur;
+      max_file_limit= (uint) rlimit.rlim_cur;
     }
   }
-  return max_file_limit;
+  DBUG_PRINT("exit",("max_file_limit: %u", max_file_limit));
+  DBUG_RETURN(max_file_limit);
 }
 #endif
+
 
 #ifdef OS2
 static uint set_maximum_open_files(uint max_file_limit)
 {
-   LONG     cbReqCount;
-   ULONG    cbCurMaxFH, cbCurMaxFH0;
-   APIRET   ulrc;
+  LONG     cbReqCount;
+  ULONG    cbCurMaxFH, cbCurMaxFH0;
+  APIRET   ulrc;
+  DBUG_ENTER("set_maximum_open_files");
 
-   // get current limit
-   cbReqCount = 0;
-   DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
+  // get current limit
+  cbReqCount = 0;
+  DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
 
-   // set new limit
-   cbReqCount = max_file_limit - cbCurMaxFH0;
-   ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-   if (ulrc) {
-      sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
-         cbCurMaxFH0);
-      cbCurMaxFH = cbCurMaxFH0;
-   }
+  // set new limit
+  cbReqCount = max_file_limit - cbCurMaxFH0;
+  ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
+  if (ulrc) {
+    sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
+		    cbCurMaxFH0);
+    cbCurMaxFH = cbCurMaxFH0;
+  }
 
-   return cbCurMaxFH;
+  DBUG_RETURN(cbCurMaxFH);
 }
 #endif
+
 
 /*
   Return a bitfield from a string of substrings separated by ','
