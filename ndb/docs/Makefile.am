@@ -1,7 +1,8 @@
 DOXYDIR = doxygen
 noinst_HEADERS = $(DOXYDIR)/predoxy.pl $(DOXYDIR)/postdoxy.pl $(DOXYDIR)/Doxyfile.ndbapi $(DOXYDIR)/Doxyfile.mgmapi $(DOXYDIR)/header.ndbapi.tex $(DOXYDIR)/header.mgmapi.tex
 
-all: 	do-check ndbapidoc mgmapidoc
+all: 	do-check-html ndbapidoc-html mgmapidoc-html
+all-pdf: 	do-check-pdf ndbapidoc-pdf mgmapidoc-pdf
 
 DOXYTMP =	.doxytmp
 DOXYOUT =	.doxyout
@@ -12,7 +13,7 @@ clean:
 	rm -rf ndbapi.pdf ndbapi.html mgmapi.pdf mgmapi.html
 	rm -rf $(DOXYTMP) $(DOXYOUT)
 
-do-check:
+do-check-html:
 	@set -x; \
 	if test @PERL@ = no ; then \
 	  echo "Perl needed to make docs"; \
@@ -22,6 +23,8 @@ do-check:
 	  echo "Doxygen needed to make docs"; \
 	  exit 1; \
 	fi; \
+
+do-check-pdf: do-check-html
 	if test @PDFLATEX@ = no ; then \
 	  echo "Pdflatex needed to make docs"; \
 	  exit 1; \
@@ -30,13 +33,15 @@ do-check:
 	  echo "Makeindex needed to make docs"; \
 	  exit 1; \
 	fi;
+
 ###
 #
 #  NDB API Programmer's Guide
 #
-ndbapidoc: ndbapi.pdf
+ndbapidoc-html: ndbapi.html
+ndbapidoc-pdf: ndbapi.pdf
 
-ndbapi.pdf: $(noinst_HEADERS)
+ndbapi.html: $(noinst_HEADERS)
 	@set -x; \
 	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f ndbapi.pdf ndbapi.html; \
@@ -50,6 +55,8 @@ ndbapi.pdf: $(noinst_HEADERS)
 	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/ndbapi.latex "NDB API Programmer Guide"; \
 	(cd $(DOXYOUT) && \
 		find ndbapi.html -print | cpio -pdm ..); \
+
+ndbapi.pdf: ndbapi.html
 	(cd $(DOXYOUT)/ndbapi.latex && \
 		@PDFLATEX@ refman.tex && @MAKEINDEX@ refman && @PDFLATEX@ refman.tex && \
 		cp -p refman.pdf ../../ndbapi.pdf);
@@ -58,9 +65,10 @@ ndbapi.pdf: $(noinst_HEADERS)
 #
 #  MGM API Guide
 #
-mgmapidoc: mgmapi.pdf
+mgmapidoc-html: mgmapi.html
+mgmapidoc-pdf: mgmapi.pdf
 
-mgmapi.pdf: $(noinst_HEADERS)
+mgmapi.html: $(noinst_HEADERS)
 	@set -x; \
 	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f mgmapi.pdf mgmapi.html; \
@@ -73,6 +81,8 @@ mgmapi.pdf: $(noinst_HEADERS)
 	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/mgmapi.latex "NDB Cluster MGM API Guide"; \
 	(cd $(DOXYOUT) && \
 		find mgmapi.html -print | cpio -pdm ..); \
+
+mgmapi.pdf: mgmapi.html
 	(cd $(DOXYOUT)/mgmapi.latex && \
 		@PDFLATEX@ refman.tex && @MAKEINDEX@ refman && @PDFLATEX@ refman.tex && \
 		cp -p refman.pdf ../../mgmapi.pdf);
