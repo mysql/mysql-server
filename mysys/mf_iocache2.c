@@ -27,14 +27,27 @@
 
 /*
 ** Fix that next read will be made at certain position
-** This only works with READ_CACHE
+** For write cache, make next write happen at a certain position
 */
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
-  info->seek_not_done=1;
+  if(info->type == READ_CACHE)
+    {
+     info->rc_pos=info->rc_end=info->buffer;
+    }
+  else if(info->type == WRITE_CACHE)
+    {
+      byte* try_rc_pos;
+      try_rc_pos = info->rc_pos + (pos - info->pos_in_file);
+      if(try_rc_pos >= info->buffer && try_rc_pos <= info->rc_end)
+	info->rc_pos = try_rc_pos;
+      else
+        flush_io_cache(info);
+    }
+  
   info->pos_in_file=pos;
-  info->rc_pos=info->rc_end=info->buffer;
+  info->seek_not_done=1;
 }
 
 /*
@@ -139,8 +152,6 @@ uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
 
 uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 {
-  reg1 char *to= info->rc_pos;
-  char *end=info->rc_end;
   uint out_length=0;
 
   for (; *fmt ; fmt++)
@@ -188,7 +199,8 @@ uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
       if (my_b_write(info, buff, length))
 	goto err;
     }
-    else if (*fmt == 'l' && fmt[1] == 'd' || fmt[1] == 'u')/* long parameter */
+    else if ((*fmt == 'l' && fmt[1] == 'd') || fmt[1] == 'u')
+      /* long parameter */
     {
       register long iarg;
       uint length;
