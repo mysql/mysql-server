@@ -1057,7 +1057,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
-  int result= 1;
+  int result;
   DBUG_ENTER("mysql_test_select");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1073,6 +1073,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if ((result= open_and_lock_tables(thd, tables)))
   {
+    result= 1;                                  // Error sent
     send_error(thd);
     goto err;
   }
@@ -2223,4 +2224,3 @@ Item_arena::Type Prepared_statement::type() const
 {
   return PREPARED_STATEMENT;
 }
-
