@@ -547,7 +547,7 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=(int) read_len;
       DBUG_RETURN(1);
     }
-    cnt=(len > Count) ? (int) Count : len;
+    cnt=((uint) len > Count) ? (int) Count : len;
     memcpy(Buffer,info->read_pos, (size_t)cnt);
     Count -=cnt;
     Buffer+=cnt;

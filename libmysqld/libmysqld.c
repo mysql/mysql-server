@@ -794,6 +794,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
   uint		pkt_length;
+  ulong		max_allowed_packet;
   NET		*net= &mysql->net;
   DBUG_ENTER("mysql_real_connect");
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
@@ -949,7 +950,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   int2store(buff,client_flag);
   mysql->client_flag=client_flag;
 
-
+  max_allowed_packet=net->max_packet_size;
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
     strmake(buff+5,user,32);

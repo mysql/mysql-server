@@ -60,10 +60,10 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
   int error;
   ulong reclength,extra;
 
-  extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-    MI_DYN_DELETE_BLOCK_HEADER+1;
-  reclength=info->s->base.pack_reclength+
-    _my_calc_total_blob_length(info,record)+ extra;
+  extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
+	  MI_DYN_DELETE_BLOCK_HEADER+1);
+  reclength= (info->s->base.pack_reclength+
+	      _my_calc_total_blob_length(info,record)+ extra);
 #ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
@@ -91,10 +91,10 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
   int error;
   ulong reclength,extra;
 
-  extra=ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-    MI_DYN_DELETE_BLOCK_HEADER;
-  reclength=info->s->base.pack_reclength+
-    _my_calc_total_blob_length(info,record)+ extra;
+  extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
+	  MI_DYN_DELETE_BLOCK_HEADER);
+  reclength= (info->s->base.pack_reclength+
+	      _my_calc_total_blob_length(info,record)+ extra);
 #ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
@@ -1059,7 +1059,9 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
 	  goto panic;
 	if (info->s->base.blobs)
 	{
-	  if (!(to=mi_fix_rec_buff_for_blob(info,block_info.rec_len)))
+	  if (!(to=mi_alloc_rec_buff(info, block_info.rec_len,
+				     &info->rec_buff,
+				     &info->alloced_rec_buff_length)))
 	    goto err;
 	}
 	else
@@ -1328,7 +1330,9 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       info->lastpos=filepos;
       if (share->base.blobs)
       {
-	if (!(to=mi_fix_rec_buff_for_blob(info,block_info.rec_len)))
+	if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
+				    &info->rec_buff,
+				    &info->alloced_rec_buff_length)))
 	  goto err;
       }
       else

@@ -20,12 +20,7 @@
 
  Note: all file-global symbols must begin with mc_ , even the static ones, just
  in case we decide to make them external at some point
- */
-
-#ifdef EMBEDDED_LIBRARY
-#define net_read_timeout net_read_timeout1
-#define net_write_timeout net_write_timeout1
-#endif
+*/
 
 #include <my_global.h>
 /* my_pthread must be included early to be able to fix things */
@@ -50,8 +45,6 @@
 #undef  ER
 #define ER CER
 #endif
-
-extern ulong net_read_timeout;
 
 extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/stat.h>
@@ -404,7 +397,8 @@ int  mc_mysql_errno(MYSQL *mysql)
   return (mysql)->net.last_errno;
 }
 
-my_bool  mc_mysql_reconnect(MYSQL *mysql)
+
+my_bool mc_mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
   DBUG_ENTER("mc_mysql_reconnect");
@@ -415,8 +409,8 @@ my_bool  mc_mysql_reconnect(MYSQL *mysql)
   mc_mysql_init(&tmp_mysql);
   tmp_mysql.options=mysql->options;
   if (!mc_mysql_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
-			  mysql->db, mysql->port, mysql->unix_socket,
-			  mysql->client_flag))
+			mysql->db, mysql->port, mysql->unix_socket,
+			mysql->client_flag, mysql->net.read_timeout))
     {
       tmp_mysql.reconnect=0;
       mc_mysql_close(&tmp_mysql); 
@@ -489,8 +483,9 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 
 MYSQL * 
 mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,uint client_flag)
+		 const char *passwd, const char *db,
+		 uint port, const char *unix_socket,uint client_flag,
+		 uint net_read_timeout)
 {
   char		buff[100],*end,*host_info;
   my_socket	sock;
@@ -499,7 +494,8 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   ulong		pkt_length;
   NET		*net= &mysql->net;
   thr_alarm_t   alarmed;
-  ALARM alarm_buff;
+  ALARM		alarm_buff;
+  ulong		max_allowed_packet;
 
 #ifdef __WIN__
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
@@ -514,7 +510,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
   thr_alarm_init(&alarmed);
-  thr_alarm(&alarmed,(uint) net_read_timeout,&alarm_buff);
+  thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
 
   bzero((char*) &mysql->options,sizeof(mysql->options));
   net->vio = 0;				/* If something goes wrong */
@@ -778,6 +774,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
+  max_allowed_packet=mysql->net.max_packet;
   int3store(buff+2,max_allowed_packet);
 
 

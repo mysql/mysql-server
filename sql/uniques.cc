@@ -22,7 +22,7 @@
   The basic idea is as follows:
 
   Store first all strings in a binary tree, ignoring duplicates.
-  When the three uses more memory than 'max_heap_table_size',
+  When the tree uses more memory than 'max_heap_table_size',
   write the tree (in sorted order) out to disk and start with a new tree.
   When all data has been generated, merge the trees (removing any found
   duplicates).

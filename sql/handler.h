@@ -172,18 +172,13 @@ typedef struct st_ha_create_information
 
 struct st_table;
 typedef struct st_table TABLE;
-extern ulong myisam_sort_buffer_size;
 
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
-  inline void init()
-  {
-    flags= sql_flags= 0;
-    sort_buffer_size = myisam_sort_buffer_size;
-  }
+  void init();
 } HA_CHECK_OPT;
 
 class handler :public Sql_alloc
@@ -285,6 +280,10 @@ public:
   virtual my_off_t row_position() { return HA_OFFSET_ERROR; }
   virtual void info(uint)=0;
   virtual int extra(enum ha_extra_function operation)=0;
+  virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
+  {
+    return extra(operation);
+  }
   virtual int reset()=0;
   virtual int external_lock(THD *thd, int lock_type)=0;
   virtual void unlock_row() {}
@@ -367,6 +366,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 void ha_key_cache(void);
+void ha_resize_key_cache(void);
 int ha_start_stmt(THD *thd); 
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);

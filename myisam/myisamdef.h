@@ -525,9 +525,6 @@ extern int _mi_read_cache(IO_CACHE *info,byte *buff,my_off_t pos,
 extern void update_auto_increment(MI_INFO *info,const byte *record);
 extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**, uint*);
 extern gptr mi_get_rec_buff_ptr(MI_INFO *, byte *);
-#define mi_fix_rec_buff_for_blob(INFO,LENGTH)  \
-            mi_alloc_rec_buff((INFO),(LENGTH), \
-              &((INFO)->rec_buff), &((INFO)->alloced_rec_buff_length))
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
 extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
@@ -656,7 +653,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 
-int _mi_init_bulk_insert(MI_INFO *info);
+int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size);
 
     /* Functions needed by mi_check */
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));

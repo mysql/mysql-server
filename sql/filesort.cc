@@ -318,7 +318,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       file->extra(HA_EXTRA_KEYREAD);	// QQ is removed
     next_pos=(byte*) 0;			/* Find records in sequence */
     file->rnd_init();
-    file->extra(HA_EXTRA_CACHE);	/* Quicker reads */
+    file->extra_opt(HA_EXTRA_CACHE,
+		    current_thd->variables.read_buff_size);
   }
 
   for (;;)
@@ -920,7 +921,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
     if (sortorder->field)
     {
       if (sortorder->field->type() == FIELD_TYPE_BLOB)
-	sortorder->length= thd->variables.max_item_sort_length;
+	sortorder->length= thd->variables.max_sort_length;
       else
       {
 	sortorder->length=sortorder->field->pack_length();
@@ -956,7 +957,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       if (sortorder->item->maybe_null)
 	length++;				// Place for NULL marker
     }
-    set_if_smaller(sortorder->length, thd->variables.max_item_sort_length);
+    set_if_smaller(sortorder->length, thd->variables.max_sort_length);
     length+=sortorder->length;
   }
   sortorder->field= (Field*) 0;			// end marker

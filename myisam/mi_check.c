@@ -455,7 +455,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 	info->s->state.auto_increment=save_auto_value;
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
-      mi_extra(info,HA_EXTRA_KEYREAD);
+      mi_extra(info,HA_EXTRA_KEYREAD,0);
       bzero(info->lastkey,keyinfo->seg->length);
       if (!mi_rkey(info, info->rec_buff, key, (const byte*) info->lastkey,
 		   keyinfo->seg->length, HA_READ_KEY_EXACT))
@@ -466,7 +466,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 			       "Found row where the auto_increment column has the value 0");
 	param->warning_printed=save;
       }
-      mi_extra(info,HA_EXTRA_NO_KEYREAD);
+      mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
     }
 
     length=(my_off_t) isam_key_length(info,keyinfo)*keys + param->key_blocks*2;
@@ -840,7 +840,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  }
 	  if (info->s->base.blobs)
 	  {
-	    if (!(to=mi_fix_rec_buff_for_blob(info,block_info.rec_len)))
+	    if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
+					&info->rec_buff,
+					&info->alloced_rec_buff_length)))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(start_recpos,llbuff));
@@ -1128,7 +1130,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   param->testflag|=T_REP; /* for easy checking */
 
   if (!param->using_global_keycache)
-    VOID(init_key_cache(param->use_buffers,NEED_MEM));
+    VOID(init_key_cache(param->use_buffers));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
@@ -2791,8 +2793,8 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	  if (share->base.blobs)
 	  {
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
-                    &(sort_param->rec_buff),
-                    &(sort_param->alloced_rec_buff_length))))
+				       &(sort_param->rec_buff),
+				       &(sort_param->alloced_rec_buff_length))))
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(sort_param->start_recpos,llbuff));
@@ -3601,12 +3603,12 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       !(param->testflag & T_REP))
     printf("Updating MyISAM file: %s\n", param->isam_file_name);
   /* We have to use keyread here as a normal read uses info->rec_buff */
-  mi_extra(info,HA_EXTRA_KEYREAD);
+  mi_extra(info,HA_EXTRA_KEYREAD,0);
   if (mi_rlast(info,info->rec_buff, info->s->base.auto_key-1))
   {
     if (my_errno != HA_ERR_END_OF_FILE)
     {
-      mi_extra(info,HA_EXTRA_NO_KEYREAD);
+      mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
       mi_check_print_error(param,"%d when reading last record",my_errno);
       return;
     }
@@ -3621,7 +3623,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     update_auto_increment(info,info->rec_buff);
     set_if_bigger(info->s->state.auto_increment,auto_increment);
   }
-  mi_extra(info,HA_EXTRA_NO_KEYREAD);
+  mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
   update_state_info(param, info, UPDATE_AUTO_INC);
   return;
 }

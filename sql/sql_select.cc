@@ -146,7 +146,7 @@ static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
 static void describe_info(JOIN *join, const char *info);
-extern  int handle_olaps(LEX *lex, SELECT_LEX *select);
+
 /*
   This handles SELECT with and without UNION
 */
@@ -155,23 +155,26 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
+
+#ifdef DISABLED_UNTIL_REWRITTEN_IN_4_1
   if (lex->olap)
   {
-    SELECT_LEX *sl, *last_sl;
-    int returned;
-    for (sl= &lex->select_lex;sl;sl=sl->next)
+    SELECT_LEX *sl, *sl_next;
+    int error;
+    for (sl= &select_lex; sl; sl=sl_next)
     {
-      if (sl->olap != NON_EXISTING_ONE)
+      sl_next=sl->next;				// Save if sl->next changes
+      if (sl->olap != UNSPECIFIED_OLAP_TYPE)
       {
-	last_sl=sl->next;
-	if ((returned=handle_olaps(lex,sl)))
-	  return returned;
-	lex->last_selects->next=sl=last_sl;
-	if (!sl) break;
+	if ((error=handle_olaps(lex,sl)))
+	  return error;
+	lex->last_selects->next=sl_next;
       }
     }
     lex->select = select_lex;
   }
+#endif DISABLED_UNTIL_REWRITTEN_IN_4_1
+
   if (select_lex->next)
     res=mysql_union(thd,lex,result);
   else
@@ -443,7 +446,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
-      join.best_read > (double) thd->max_join_size &&
+      join.best_read > (double) thd->variables.max_join_size &&
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
     result->send_error(ER_TOO_BIG_SELECT,ER(ER_TOO_BIG_SELECT)); /* purecov: inspected */
@@ -4911,7 +4914,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
-    if (++join->send_records >= join->thd->select_limit && join->do_send_rows)
+    if (++join->send_records >= join->thd->select_limit &&
+	join->do_send_rows)
     {
       if (join->select_options & OPTION_FOUND_ROWS)
       {
@@ -5003,7 +5007,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  join->send_records++;
 	  DBUG_RETURN(0);
 	}
-	if (!error && ++join->send_records >= join->thd->select_limit &&
+	if (!error &&
+	    ++join->send_records >= join->thd->select_limit &&
 	    join->do_send_rows)
 	{
 	  if (!(join->select_options & OPTION_FOUND_ROWS))
@@ -5793,7 +5798,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
   if (!field_count)
   {						// only const items
-    join->thd->select_limit=1;			// Only send first row
+    join->thd->select_limit=1;	// Only send first row
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->fields - field_count;

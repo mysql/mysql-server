@@ -11,11 +11,9 @@
  * provided the above notices are retained, and a notice that the code was
  * modified is included with the above copyright notice.
  *
- */
-#include "embedded_priv.h"
-#include "sys/types.h"
-#include "../regex/regex.h"
-#include "my_sys.h"
+
+  This code was modified by the MySQL team
+*/
 
 /*
   The following is needed to not cause conflicts when we include mysqld.cc
@@ -24,26 +22,6 @@
 #define main main1
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
-#define net_read_timeout net_read_timeout1
-#define net_write_timeout net_write_timeout1
-#define changeable_vars changeable_vars1
-
-extern "C"
-{
-#include "mysql_com.h"
-#include "lib_vio.c"
-}
-
-
-class THD;
-
-static int check_connections1(THD * thd);
-static int check_connections2(THD * thd);
-static bool check_user(THD *thd, enum_server_command command,
-		       const char *user, const char *passwd, const char *db,
-		       bool check_count);
-void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
-#define free_defaults free_defaults_internal
 
 #if defined (__WIN__)
 #include "../sql/mysqld.cpp"
@@ -53,10 +31,15 @@ void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
 
 #define SCRAMBLE_LENGTH 8
 C_MODE_START
+#include "lib_vio.c"
 
+static int check_connections1(THD * thd);
+static int check_connections2(THD * thd);
+static bool check_user(THD *thd, enum_server_command command,
+		       const char *user, const char *passwd, const char *db,
+		       bool check_count);
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
-
 
 bool lib_dispatch_command(enum enum_server_command command, NET *net,
 			  const char *arg, ulong length)
@@ -117,7 +100,7 @@ void start_embedded_conn1(NET * net)
   thd->dbug_thread_id=my_thread_id();
   thd->thread_stack= (char*) &thd;
 
-  if (thd->max_join_size == HA_POS_ERROR)
+  if (thd->variables.max_join_size == (ulong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;				// Remove 'login'
@@ -206,12 +189,12 @@ check_connections2(THD * thd)
 #endif
   if (connect_errors)
     reset_host_errors(&thd->remote.sin_addr);
-  if (thd->packet.alloc(net_buffer_length))
+  if (thd->packet.alloc(thd->variables.net_buffer_length))
     return(ER_OUT_OF_RESOURCES);
 
   thd->client_capabilities=uint2korr(net->read_pos);
 
-  thd->max_packet_length=uint3korr(net->read_pos+2);
+  thd->max_client_packet_length=uint3korr(net->read_pos+2);
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
@@ -219,11 +202,9 @@ check_connections2(THD * thd)
     return ER_HANDSHAKE_ERROR;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
-  if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->inactive_timeout= thd->variables.net_interactive_timeout;
   if (thd->client_capabilities & CLIENT_TRANSACTIONS)
     thd->net.return_status= &thd->server_status;
-  net->timeout=net_read_timeout;
+  net->read_timeout=thd->variables.net_read_timeout;
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
     return (-1);
   thd->password=test(passwd[0]);
@@ -249,7 +230,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				   CLIENT_LONG_PASSWORD),&ur);
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
-	      thd->client_capabilities, thd->max_packet_length,
+	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
 	      passwd[0] ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
@@ -297,6 +278,7 @@ extern "C"
 {
 
 static my_bool inited, org_my_init_done;
+ulong		max_allowed_packet, net_buffer_length;
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 {
@@ -358,20 +340,24 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
 #ifndef DBUG_OFF
-  strcat(server_version,"-debug");
+  strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
+#else
+  strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 #endif
-  strcat(server_version,"-embedded");
   load_defaults("my", (const char **) groups, argcp, argvp);
   defaults_argv=*argvp;
-  mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
+
+  /* Get default temporary directory */
+  opt_mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
 #if defined( __WIN__) || defined(OS2)
-  if (!mysql_tmpdir)
-    mysql_tmpdir=getenv("TEMP");
-  if (!mysql_tmpdir)
-    mysql_tmpdir=getenv("TMP");
+  if (!opt_mysql_tmpdir)
+    opt_mysql_tmpdir=getenv("TEMP");
+  if (!opt_mysql_tmpdir)
+    opt_mysql_tmpdir=getenv("TMP");
 #endif
-  if (!mysql_tmpdir || !mysql_tmpdir[0])
-    mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
+  if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
+    opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
+
   set_options();
   get_options(*argcp, *argvp);
 
@@ -398,15 +384,19 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
-  (void) pthread_cond_init(&COND_binlog_update, NULL);
+  (void) pthread_cond_init(&COND_rpl_status, NULL);
 
-  if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
+  if (set_default_charset_by_name(sys_charset.value, MYF(MY_WME)))
   {
     mysql_server_end();
     return 1;
@@ -420,13 +410,15 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
-#if defined( SET_RLIMIT_NOFILE) || defined( OS2)
-  /* connections and databases neads lots of files */
+#if defined( SET_RLIMIT_NOFILE) || defined( OS2) 
+  /* connections and databases needs lots of files */
   {
     uint wanted_files=10+(uint) max(max_connections*5,
 				    max_connections+table_cache_size*2);
+    set_if_bigger(wanted_files, open_files_limit);
+    // Note that some system returns 0 if we succeed here:
     uint files=set_maximum_open_files(wanted_files);
-    if (files && files < wanted_files)		// Some systems return 0
+    if (files && files < wanted_files && ! open_files_limit)
     {
       max_connections=	(ulong) min((files-10),max_connections);
       table_cache_size= (ulong) max((files-10-max_connections)/2,64);
@@ -441,6 +433,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   init_errmessage();		/* Read error messages from file */
   lex_init();
   item_init();
+  set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
   regex_init();
@@ -452,12 +445,13 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   }
 
   /*
-  ** We have enough space for fiddling with the argv, continue
+    We have enough space for fiddling with the argv, continue
   */
   umask(((~my_umask) & 0666));
   table_cache_init();
   hostname_cache_init();
-  /*sql_cache_init();*/
+  query_cache_result_size_limit(query_cache_limit);
+  query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
@@ -472,20 +466,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 	     LOG_NEW);
     using_update_log=1;
   }
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
-    using_update_log=1;
-  }
 
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
@@ -496,10 +476,9 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     exit(1);
   }
   ha_key_cache();
-#ifdef HAVE_MLOCKALL
+#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
   {
-    ha_key_cache();
     if (mlockall(MCL_CURRENT))
     {
       sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
@@ -513,7 +492,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   if (opt_myisam_log)
     (void) mi_log( 1 );
-  ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
+  ft_init_stopwords(ft_precompiled_stopwords);
 
   /*
     init signals & alarm
@@ -532,11 +511,32 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     mysql_server_end();
     return 1;
   }
+  if (!opt_noacl)
+    (void) grant_init();
+  init_max_user_conn();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
     udf_init();
 #endif
+
+  if (opt_bin_log)
+  {
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      /* TODO: The following should be using fn_format();  We just need to
+	 first change fn_format() to cut the file name if it's too long.
+      */
+      strmake(tmp,glob_hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
+    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     LOG_BIN);
+    using_update_log=1;
+  }
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
@@ -548,12 +548,12 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-    {
       sql_print_error("Warning: Can't create thread to manage maintenance");
-      mysql_server_end();
-      return 1;
-    }
   }
+
+  /* Update mysqld variables from client variables */
+  global_system_variables.max_allowed_packet=max_allowed_packet;
+  global_system_variables.net_buffer_length=net_buffer_length;
   return 0;
 }
 

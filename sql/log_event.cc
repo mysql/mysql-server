@@ -446,7 +446,8 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     goto end;
   }
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
-  if (data_len < LOG_EVENT_HEADER_LEN || data_len > max_allowed_packet)
+  if (data_len < LOG_EVENT_HEADER_LEN ||
+      data_len > current_thd->variables.max_allowed_packet)
   {
 
     result= ((data_len < LOG_EVENT_HEADER_LEN) ? LOG_READ_BOGUS :
@@ -480,6 +481,7 @@ end:
 #ifndef MYSQL_CLIENT
 #define UNLOCK_MUTEX if (log_lock) pthread_mutex_unlock(log_lock);
 #define LOCK_MUTEX if (log_lock) pthread_mutex_lock(log_lock);
+#define max_allowed_packet current_thd->variables.max_allowed_packet
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
@@ -753,7 +755,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
   thread_id(thd_arg->thread_id),
   cache_stmt(using_trans &&
-	     (thd_arg->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
+	     (thd_arg->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
 {
   time_t end_time;
   time(&end_time);
@@ -1649,7 +1651,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     {
       // master could be inconsistent, abort and tell DBA to check/fix it
       thd->db = thd->query = 0;
-      thd->convert_set = 0;
+      thd->variables.convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
       return 1;
@@ -1658,7 +1660,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->db= 0;				// prevent db from being freed
   thd->query= 0;			// just to be sure
   // assume no convert for next query unless set explictly
-  thd->convert_set = 0;
+  thd->variables.convert_set = 0;
   close_thread_tables(thd);
       
   if (thd->query_error || thd->fatal_error)

@@ -60,7 +60,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     if (grant_option &&
 	check_grant_all_columns(thd,INSERT_ACL,table))
       return -1;
-    table->time_stamp=0;			// This should be saved
+    table->time_stamp=0;			// This is saved by caller
   }
   else
   {						// Part field list
@@ -73,6 +73,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     }
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
+    table_list.db=  table->table_cache_key;
     table_list.name=table->table_name;
     table_list.table=table;
     table_list.grant=table->grant;
@@ -177,7 +178,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   }
   its.rewind ();
   /*
-  ** Fill in the given fields and dump it to the table file
+    Fill in the given fields and dump it to the table file
   */
 
   info.records=info.deleted=info.copied=0;
@@ -197,11 +198,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 		     lock_type != TL_WRITE_DELAYED &&
 		     !(specialflag & SPECIAL_SAFE_MODE))))
   {
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
-    table->file->extra(HA_EXTRA_BULK_INSERT_BEGIN);
+    table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
+			   thd->variables.read_buff_size);
+    table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+			   thd->variables.bulk_insert_buff_size);
   }
 
-  while ((values = its++))
+  while ((values= its++))
   {
     if (fields.elements || !value_count)
     {
@@ -364,7 +367,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
 
 
 /*
-** Write a record to table with optional deleting of conflicting records
+  Write a record to table with optional deleting of conflicting records
 */
 
 
@@ -458,9 +461,9 @@ err:
 
 
 /******************************************************************************
-	Check that all fields with arn't null_fields are used
-	if DONT_USE_DEFAULT_FIELDS isn't defined use default value for not
-	set fields.
+  Check that all fields with arn't null_fields are used
+  If DONT_USE_DEFAULT_FIELDS isn't defined use default value for not set
+  fields.
 ******************************************************************************/
 
 static int check_null_fields(THD *thd __attribute__((unused)),
@@ -483,10 +486,8 @@ static int check_null_fields(THD *thd __attribute__((unused)),
 }
 
 /*****************************************************************************
-** Handling of delayed inserts
-**
-** A thread is created for each table that one uses with the DELAYED
-** attribute.
+  Handling of delayed inserts
+  A thread is created for each table that one uses with the DELAYED attribute.
 *****************************************************************************/
 
 class delayed_row :public ilink {
@@ -933,9 +934,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 
   DBUG_ENTER("handle_delayed_insert");
-  if (init_thr_lock() ||
-      my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_NET,  &thd->net))
+  if (init_thr_lock() || thd->store_globals())
   {
     thd->fatal_error=1;
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
@@ -1271,7 +1270,7 @@ bool delayed_insert::handle_inserts(void)
 
 
 /***************************************************************************
-** store records in INSERT ... SELECT *
+  Store records in INSERT ... SELECT *
 ***************************************************************************/
 
 int
@@ -1388,7 +1387,7 @@ bool select_insert::send_eof()
 
 
 /***************************************************************************
-** CREATE TABLE (SELECT) ...
+  CREATE TABLE (SELECT) ...
 ***************************************************************************/
 
 int
@@ -1486,7 +1485,7 @@ void select_create::abort()
 
 
 /*****************************************************************************
-** Instansiate templates
+  Instansiate templates
 *****************************************************************************/
 
 #ifdef __GNUC__

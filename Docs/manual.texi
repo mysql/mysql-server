@@ -779,7 +779,7 @@ insert of many rows.
 @item Locking -- Gamma
 This is very system-dependent.  On some systems there are big problems
 using standard OS locking (@code{fcntl()}).  In these cases, you should
-run @code{mysqld} with the @code{--skip-locking} flag.
+run @code{mysqld} with the @code{--skip-external-locking} flag.
 Problems are known to occur on some Linux systems, and on SunOS when
 using NFS-mounted filesystems.
 
@@ -1704,7 +1704,7 @@ domain names is not allowed without written permission from @code{MySQL AB}.
 Dateline: 16 October 2001, Uppsala, Sweden
 
 Long promised by @code{MySQL AB} and long awaited by our users,
-MySQL Server 4.0 is now available in alpha version for download from
+MySQL Server 4.0 is now available in beta version for download from
 @uref{http://www.mysql.com/} and our mirrors.
 
 Main new features of MySQL Server 4.0 are geared toward our existing
@@ -2753,7 +2753,7 @@ Strings may be enclosed by either @samp{"} or @samp{'}, not just by @samp{'}.
 Use of the escape @samp{\} character.
 
 @item
-The @code{SET OPTION} statement. @xref{SET OPTION, , @code{SET OPTION}}.
+The @code{SET} statement. @xref{SET OPTION, , @code{SET}}.
 
 @item
 You don't need to name all selected columns in the @code{GROUP BY} part.
@@ -3683,26 +3683,7 @@ this without sacrificing the speed or compromising the code.
 @node TODO MySQL 4.0, TODO MySQL 4.1, TODO, TODO
 @subsection Things That Should be in 4.0
 
-We are now in the final stages of the development of the MySQL Server
-4.0.  server. The target is to quickly implement the rest of the
-following features and then shift development to MySQL Server
-4.1. @xref{MySQL 4.0 In A Nutshell}.
-
-The news section for 4.0 includes a list of the features we have already
-implemented in the 4.0 tree. @xref{News-4.0.x}.
-
-This section lists features not yet implemented in the current version
-of MySQL Server 4.0, which will, however, be implemented in later versions
-of MySQL 4.0. This being very volatile information, please consider this
-list valid only if you are reading it from the MySQL web site
-(@uref{http://www.mysql.com/}).
-
-@itemize @bullet
-@item
-Allow users to change startup options without taking down the server.
-@item
-@code{SET SQL_DEFAULT_TABLE_TYPE=[MyISAM | INNODB | BDB | HEAP]}.
-@end itemize
+All done.  We now only do bug fixes MySQL 4.0.
 
 @node TODO MySQL 4.1, TODO future, TODO MySQL 4.0, TODO
 @subsection Things That Should be in 4.1
@@ -6901,8 +6882,8 @@ shell> ./configure --with-charset=CHARSET
 @xref{Character sets}.
 
 If you want to convert characters between the server and the client,
-you should take a look at the @code{SET OPTION CHARACTER SET} command.
-@xref{SET OPTION, , @code{SET OPTION}}.
+you should take a look at the @code{SET CHARACTER SET} command.
+@xref{SET OPTION, , @code{SET}}.
 
 @cindex @code{myisamchk}
 @strong{Warning}: If you change character sets after having created any
@@ -7319,7 +7300,9 @@ programs.
 @item
 When MySQL is compiled using MIT-pthreads, system locking is
 disabled by default for performance reasons.  You can tell the server to use
-system locking with the @code{--use-locking} option.
+system locking with the @code{--external-locking} option.  This is only
+needed if you want to be able to run two MySQL server against the same
+data files (not recommended).
 
 @item
 Sometimes the pthread @code{bind()} command fails to bind to a socket without
@@ -8145,6 +8128,44 @@ If you get access denied errors for new users in version 4.0.2, you
 should check if you need some of the new grants that you didn't need
 before.  In particular, you will need @code{REPLICATION SLAVE}
 (instead of @code{FILE}) for new slaves.
+@item
+The startup parameters @code{myisam_max_extra_sort_file_size} and
+@code{myisam_max_extra_sort_file_size} are now given in bytes
+(was megabytes before 4.0.3).
+External system locking of MyISAM/ISAM files is now turned of by default.
+One can turn this on by doing @code{--external-locking}. (For most users
+this is never needed).
+@item
+The following startup variables/options have been renamed:
+@multitable @columnfractions .50 .50
+@item @strong{From} @tab @strong{to}.
+@item @code{myisam_bulk_insert_tree_size} @tab @code{bulk_insert_buffer_size}
+@item @code{query_cache_startup_type} @tab @code{query_cache_type}
+@item @code{record_buffer} @tab @code{read_buffer_size}
+@item @code{record_rnd_buffer} @tab @code{read_rnd_buffer_size}
+@item @code{sort_buffer} @tab @code{sort_buffer_size}
+@item @code{warnings} @tab @code{log-warnings}
+@end multitable
+
+The startup options @code{record_buffer}, @code{sort_buffer} and
+@code{warnings} will still work in MySQL 4.0 but are deprecated.
+@item
+The following SQL variables have changed name.
+@multitable @columnfractions .50 .50
+@item @strong{From} @tab @strong{to}.
+@item @code{SQL_BIG_TABLES} @tab @code{BIG_TABLES}
+@item @code{SQL_LOW_PRIORITY_UPDATES} @tab @code{LOW_PRIORITY_UPDATES}
+@item @code{SQL_MAX_JOIN_SIZE} @tab @code{MAX_JOIN_SIZE}
+@item @code{SQL_QUERY_CACHE_TYPE} @tab @code{QUERY_CACHE_TYPE}
+@end multitable
+The old names still work in MySQL 4.0 but are deprecated.
+@item
+You have to use @code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=#} instead of
+@code{SET SQL_SLAVE_SKIP_COUNTER=#}.
+@item
+Renamed mysqld startup options @code{--skip-locking} to
+@code{--skip-external-locking} and @code{--enable-locking} to
+@code{--external-locking}.
 @item
 @code{DOUBLE} and @code{FLOAT} columns now honour the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
@@ -9376,7 +9397,7 @@ C:\> mysqladmin --user=root --password=your_password shutdown
 
 If you are using the old shareware version of MySQL Version
 3.21 under Windows, the above command will fail with an error:
-@code{parse error near 'SET OPTION password'}.  The solution for
+@code{parse error near 'SET password'}.  The solution for
 this is to download and upgrade to the latest MySQL version,
 which is now freely available.
 
@@ -14163,7 +14184,7 @@ Don't flush key buffers between writes for any @code{MyISAM} table.
 Read the default keys used by @code{DES_ENCRYPT()} and @code{DES_DECRYPT()}
 from this file.
 
-@item --enable-locking
+@item --enable-external-locking (was --enable-locking)
 Enable system locking.  Note that if you use this option on a system on
 which @code{lockd} does not fully work (as on Linux), you will easily get
 mysqld to deadlock.
@@ -14216,7 +14237,7 @@ Table-modifying operations (@code{INSERT}/@code{DELETE}/@code{UPDATE})
 will have lower priority than selects.  It can also be done via
 @code{@{INSERT | REPLACE | UPDATE | DELETE@} LOW_PRIORITY ...} to lower
 the priority of only one query, or by
-@code{SET OPTION SQL_LOW_PRIORITY_UPDATES=1} to change the priority in one
+@code{SET LOW_PRIORITY_UPDATES=1} to change the priority in one
 thread.  @xref{Table locking}.
 
 @item --memlock
@@ -14232,7 +14253,7 @@ also set this explicitly to @code{""} if you want to disable this
 option. If this option is used, @code{mysqld} will on open check if the
 table is marked as crashed or if the table wasn't closed properly.
 (The last option only works if you are running with
-@code{--skip-locking}.)  If this is the case @code{mysqld} will run
+@code{--skip-external-locking}.)  If this is the case @code{mysqld} will run
 check on the table. If the table was corrupted, @code{mysqld} will
 attempt to repair it.
 
@@ -14277,6 +14298,18 @@ description for all variables in the @code{SHOW VARIABLES} section in this
 manual.  @xref{SHOW VARIABLES}.  The tuning server parameters section includes
 information of how to optimise these.  @xref{Server parameters}.
 
+In MySQL 4.0.2 one can set a variable directly with
+@code{--variable-name=option} and @code{set-variable} is not anymore needed
+in option files.
+
+If you want to restrict the maximum value a startup option can be set to
+with @code{SET}, you can define this by using the
+@code{--maximum-variable-name} command line option. @xref{SET OPTION}.
+
+Note that when setting a variable to a value, MySQL may automatically
+correct it to stay within a given range and also adjusts the value a
+little to fix for the used algorithm.
+
 @item --safe-mode
 Skip some optimise stages.  Implies @code{--skip-delay-key-write}.
 
@@ -14311,7 +14344,7 @@ flush-privileges} or @code{mysqladmin reload}.)
 Never use host name cache for faster name-ip resolution, but query DNS server
 on every connect instead.  @xref{DNS}.
 
-@item --skip-locking
+@item --skip-external-locking (was --skip-locking)
 Don't use system locking.  To use @code{isamchk} or @code{myisamchk} you must
 shut down the server.  @xref{Stability}.  Note that in MySQL Version
 3.23 you can use @code{REPAIR} and @code{CHECK} to repair/check @code{MyISAM}
@@ -14389,11 +14422,13 @@ This option is @strong{mandatory} when starting @code{mysqld} as root.
 @item -V, --version
 Output version information and exit.
 
-@item -W, --warnings
+@item -W, --log-warnings  (Was --warnings)
 Print out warnings like @code{Aborted connection...} to the @file{.err} file.
 @xref{Communication errors}.
 @end table
 
+One can change most values for a running server with the
+@code{SET} command. @xref{SET OPTION}.
 
 @node Option files, Installing many servers, Command-line options, Configuring MySQL
 @subsection @file{my.cnf} Option Files
@@ -16622,7 +16657,7 @@ function @code{PASSWORD()} or the C API function
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
 
 Passwords can also be set with the @code{SET PASSWORD} command.
-@xref{SET OPTION, , @code{SET OPTION}}.
+@xref{SET OPTION, , @code{SET}}.
 
 If you grant privileges for a database, an entry in the @code{mysql.db}
 table is created if needed. When all privileges for the database have been
@@ -18059,7 +18094,7 @@ Print the @code{myisamchk} version and exit.
 @item -w or, --wait
 Instead of giving an error if the table is locked, wait until the table
 is unlocked before continuing.  Note that if you are running @code{mysqld}
-on the table with @code{--skip-locking}, the table can only be locked
+on the table with @code{--skip-external-locking}, the table can only be locked
 by another @code{myisamchk} command.
 @end table
 
@@ -18100,11 +18135,11 @@ Should, however, be good enough for most cases.
 Store in the @file{.MYI} file when the table was checked and if the table crashed.  This should be used to get full benefit of the
 @code{--check-only-changed} option, but you shouldn't use this
 option if the @code{mysqld} server is using the table and you are
-running @code{mysqld} with @code{--skip-locking}.
+running @code{mysqld} with @code{--skip-external-locking}.
 @item -T or --read-only
 Don't mark table as checked. This is useful if you use @code{myisamchk}
 to check a table that is in use by some other application that doesn't
-use locking (like @code{mysqld --skip-locking}).
+use locking (like @code{mysqld --skip-external-locking}).
 @end table
 
 
@@ -18264,9 +18299,9 @@ If you have a problem with disk space during repair, you can try to use
 @cindex crash, recovery
 @cindex recovery, from crash
 
-If you run @code{mysqld} with @code{--skip-locking} (which is the default on
-some systems, like Linux), you can't reliably use @code{myisamchk} to
-check a table when @code{mysqld} is using the same table.  If you
+If you run @code{mysqld} with @code{--skip-external-locking} (which is the
+default on some systems, like Linux), you can't reliably use @code{myisamchk}
+to check a table when @code{mysqld} is using the same table.  If you
 can be sure that no one is accessing the tables through @code{mysqld}
 while you run @code{myisamchk}, you only have to do @code{mysqladmin
 flush-tables} before you start checking the tables.  If you can't
@@ -18275,14 +18310,14 @@ check the tables.  If you run @code{myisamchk} while @code{mysqld} is updating
 the tables, you may get a warning that a table is corrupt even if it
 isn't.
 
-If you are not using @code{--skip-locking}, you can use @code{myisamchk}
-to check tables at any time.  While you do this, all clients that try
-to update the table will wait until @code{myisamchk} is ready before
+If you are not using @code{--skip-external-locking}, you can use
+@code{myisamchk} to check tables at any time.  While you do this, all clients
+that try to update the table will wait until @code{myisamchk} is ready before
 continuing.
 
 If you use @code{myisamchk} to repair or optimise tables, you
 @strong{must} always ensure that the @code{mysqld} server is not using
-the table (this also applies if you are using @code{--skip-locking}).
+the table (this also applies if you are using @code{--skip-external-locking}).
 If you don't take down @code{mysqld} you should at least do a
 @code{mysqladmin flush-tables} before you run @code{myisamchk}.
 Your tables @strong{may be corrupted} if the server and @code{myisamchk}
@@ -18663,8 +18698,8 @@ here. We explain some of the information in more detail later:
 @item myisamchk -d tbl_name
 Runs @code{myisamchk} in ``describe mode'' to produce a description of
 your table. If you start the MySQL server using the
-@code{--skip-locking} option, @code{myisamchk} may report an error for a
-table that is updated while it runs.  However, because @code{myisamchk}
+@code{--skip-external-locking} option, @code{myisamchk} may report an error
+for a table that is updated while it runs.  However, because @code{myisamchk}
 doesn't change the table in describe mode, there isn't any risk of
 destroying data.
 
@@ -19590,7 +19625,7 @@ instead of disk based.
 @subsubsection @code{SHOW VARIABLES}
 
 @example
-SHOW VARIABLES [LIKE wild]
+SHOW [GLOBAL | SESSION] VARIABLES [LIKE wild]
 @end example
 
 @code{SHOW VARIABLES} shows the values of some MySQL system
@@ -19598,6 +19633,15 @@ variables.  You can also get this information using the @code{mysqladmin
 variables} command.  If the default values are unsuitable, you can set most
 of these variables using command-line options when @code{mysqld} starts up.
 @xref{Command-line options}.
+
+The options @code{GLOBAL} and @code{SESSION} are new in MySQL 4.0.3.
+With @code{GLOBAL} you will get the variables that will be used for new
+connections to MySQL. With @code{SESSION} you will get the values that
+are in effect for the current connection. If you are not using either
+option, @code{SESSION} is used.
+
+You can change most options with the  @code{SET} command.
+@xref{SET OPTION, , @code{SET}}.
 
 The output resembles that shown here, though the format and numbers may
 differ somewhat:
@@ -19617,6 +19661,7 @@ differ somewhat:
 | bdb_shared_data              | OFF                       |
 | bdb_tmpdir                   | /tmp/                     |
 | binlog_cache_size            | 32768                     |
+| bulk_insert_buffer_size      | 8388608                   |
 | concurrent_insert            | ON                        |
 | connect_timeout              | 5                         |
 | datadir                      | /my/monty/data/           |
@@ -19657,7 +19702,6 @@ differ somewhat:
 | max_sort_length              | 1024                      |
 | max_tmp_tables               | 32                        |
 | max_write_lock_count         | 4294967295                |
-| myisam_bulk_insert_tree_size | 8388608                   |
 | myisam_recover_options       | DEFAULT                   |
 | myisam_sort_buffer_size      | 8388608                   |
 | net_buffer_length            | 16384                     |
@@ -19668,11 +19712,10 @@ differ somewhat:
 | pid_file                     | /my/monty/data/donna.pid  |
 | port                         | 3306                      |
 | protocol_version             | 10                        |
-| record_buffer                | 131072                    |
-| query_buffer_size            | 0                         |
+| read_buffer_size             | 131072                    |
 | query_cache_limit            | 1048576                   |
 | query_cache_size             | 16768060                  |
-| query_cache_startup_type     | 1                         |
+| query_cache_type	       | 1                         |
 | safe_show_database           | OFF                       |
 | server_id                    | 0                         |
 | skip_locking                 | ON                        |
@@ -19763,6 +19806,15 @@ The value of the @code{--bdb-tmpdir} option.
 statements for the binary log during a transaction.  If you often use
 big, multi-statement transactions you can increase this to get more
 performance. @xref{COMMIT}.
+
+@item @code{bulk_insert_buffer_size} (was @code{myisam_bulk_insert_tree_size})
+MyISAM uses special tree-like cache to make bulk inserts (that is,
+@code{INSERT ... SELECT}, @code{INSERT ... VALUES (...), (...), ...}, and
+@code{LOAD DATA INFILE}) faster. This variable limits
+the size of the cache tree in bytes per thread. Setting it to 0
+will disable this optimization.
+@strong{Note}: this cache is only used when adding data to non-empty table.
+Default value is 8 MB.
 
 @item @code{character_set}
 The default character set.
@@ -19993,15 +20045,6 @@ Maximum number of temporary tables a client can keep open at the same time.
 @item @code{max_write_lock_count}
 After this many write locks, allow some read locks to run in between.
 
-@item @code{myisam_bulk_insert_tree_size}
-MySQL uses special tree-like cache to make bulk inserts (that is,
-@code{INSERT ... SELECT}, @code{INSERT ... VALUES (...), (...), ...}, and
-@code{LOAD DATA INFILE}) faster. This variable limits
-the size of the cache tree in bytes per thread. Setting it to 0
-will disable this optimization.
-@strong{Note}: this cache is only used when adding data to non-empty table.
-Default value is 8 MB.
-
 @item @code{myisam_recover_options}
 The value of the @code{--myisam-recover} option.
 
@@ -20062,19 +20105,17 @@ The value of the @code{--port} option.
 @item @code{protocol_version}
 The protocol version used by the MySQL server.
 
-@item @code{record_buffer}
+@item @code{read_buffer_size} (was @code{record_buffer})
 Each thread that does a sequential scan allocates a buffer of this
 size for each table it scans. If you do many sequential scans, you may
 want to increase this value.
 
-@item @code{record_rnd_buffer}
-When reading rows in sorted order after a sort, the rows are read through this
-buffer to avoid a disk seeks.  If not set, then it's set to the value of
-@code{record_buffer}.
-
-@item @code{query_buffer_size}
-The initial allocation of the query buffer. If most of your queries are
-long (like when inserting blobs), you should increase this!
+@item @code{record_rnd_buffer_size}
+When reading rows in sorted order after a sort, the rows are read
+through this buffer to avoid a disk seeks.  Can improve @code{ORDER BY}
+by a lot if set to a high value.  As this is a thread specific variable,
+one should not set this big globally, but just change this when running
+some specific big queries.
 
 @item @code{query_cache_limit}
 Don't cache results that are bigger than this. (Default 1M).
@@ -20083,7 +20124,7 @@ Don't cache results that are bigger than this. (Default 1M).
 The memory allocated to store results from old queries.
 If this is 0, the query cache is disabled (default).
 
-@item @code{query_cache_startup_type}
+@item @code{query_cache_type}
 This may be set (only numeric) to
 @multitable @columnfractions .09 .14 .72
 @item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
@@ -20302,7 +20343,7 @@ The thread is wating for the client to send a new command to it.
 The thread is waiting for getting to get a external system lock for the
 table. If you are not using multiple mysqld servers that are accessing
 the same tables, you can disable system locks with the
-@code{--skip-locking} option.
+@code{--skip-external-locking} option.
 @item @code{Upgrading lock}
 The @code{INSERT DELAYED} handler is trying to get a lock for the table
 to insert rows.
@@ -20369,7 +20410,7 @@ Create Table: CREATE TABLE t (
 
 @code{SHOW CREATE TABLE} will quote table and column names according to
 @code{SQL_QUOTE_SHOW_CREATE} option.
-@ref{SET OPTION, , @code{SET OPTION SQL_QUOTE_SHOW_CREATE}}.
+@ref{SET OPTION, , @code{SET SQL_QUOTE_SHOW_CREATE}}.
 
 
 @node Localisation, Server-Side Scripts, Database Administration, MySQL Database Administration
@@ -21321,8 +21362,8 @@ Display version information and exit.
 @item -w, --wait
 
 Wait and retry if table is in use.  If the @code{mysqld} server was
-invoked with the @code{--skip-locking} option, it is not a good idea to
-invoke @code{myisampack} if the table might be updated during the
+invoked with the @code{--skip-external-locking} option, it is not a good idea
+to invoke @code{myisampack} if the table might be updated during the
 packing process.
 @end table
 
@@ -24059,25 +24100,26 @@ contrast to @code{replicate-do-db}.
 Example: @code{replicate-do-table=some_db.some_table}
 
 @item @code{replicate-ignore-table=db_name.table_name} @tab
-Tells the slave thread to not replicate to the specified table. To
-specify more than one table to ignore, use the directive multiple times,
-once for each table. This will work for cross-datbase updates,
-in contrast to @code{replicate-ignore-db}.
+Tells the slave thread to not replicate any command that updates the
+specified table (even if any other tables may be update by the same
+command). To specify more than one table to ignore, use the directive
+multiple times, once for each table. This will work for cross-datbase
+updates, in contrast to @code{replicate-ignore-db}.
 
 Example: @code{replicate-ignore-table=db_name.some_table}
 
 @item @code{replicate-wild-do-table=db_name.table_name} @tab
-Tells the slave thread to restrict replication to the tables that match
-the specified wildcard pattern.  To specify more than one table, use the
-directive multiple times, once for each table.  This will work for
-cross-database updates.
+Tells the slave thread to restrict replication to queries where any of
+the updated tables match the specified wildcard pattern.  To specify
+more than one table, use the directive multiple times, once for each
+table.  This will work for cross-database updates.
 
-Example: @code{replicate-wild-do-table=foo%.bar%} will replicate only updates
-to tables in all databases that start with @code{foo} and whose table names
-start with @code{bar}.
+Example: @code{replicate-wild-do-table=foo%.bar%} will replicate only
+updates that uses a table in any databases that start with @code{foo}
+and whose table names start with @code{bar}.
 
 @item @code{replicate-wild-ignore-table=db_name.table_name} @tab
-Tells the slave thread to not replicate to the tables that match the
+Tells the slave thread to not replicate a query whare any table matches the
 given wildcard pattern. To specify more than one table to ignore, use
 the directive multiple times, once for each table. This will work for
 cross-database updates.
@@ -24087,21 +24129,32 @@ to tables in databases that start with @code{foo} and whose table names start
 with @code{bar}.
 
 @item @code{replicate-ignore-db=database_name} @tab
-Tells the slave thread to not replicate to the specified database. To
-specify more than one database to ignore, use the directive multiple
-times, once for each database. This option will not work if you use cross
-database updates. If you need cross database updates to work, make sure
-you have 3.23.28 or later, and use
-@code{replicate-wild-ignore-table=db_name.%}.
+
+Tells the slave thread to not replicate any command where the current
+database is @code{database_name}. To specify more than one database to
+ignore, use the directive multiple times, once for each database.
+You should not use this directive if you are using cross table updates
+and you don't want these update to be replicated.
+
+The main reason for this behavior is that it's hard from the command
+alone know if a query should be replicated or not; For example if you
+are using multi-table-delete or multi-table-update commands in MySQL 4.x
+that goes across multiple databases.  It's also very fast to just check
+the current database, as this only has to be done once at connect time
+or when the database changes.
+
+If you need cross database updates to work, make sure you have 3.23.28
+or later, and use @code{replicate-wild-ignore-table=db_name.%}.
 
 Example: @code{replicate-ignore-db=some_db}
 
 @item @code{replicate-do-db=database_name} @tab
 
-Tells the slave thread to restrict replication to the specified
-database.  To specify more than one database, use the directive multiple
-times, once for each database. Note that this will only work if you do
-not use cross-database queries such as @code{UPDATE some_db.some_table
+Tells the slave thread to restrict replication to commands where
+the current database is @code{database_name}.
+To specify more than one database, use the directive multiple
+times, once for each database. Note that this will not replicate
+cross-database queries such as @code{UPDATE some_db.some_table
 SET foo='bar'} while having selected a different or no database. If you
 need cross database updates to work, make sure you have 3.23.28 or
 later, and use @code{replicate-wild-do-table=db_name.%}.
@@ -24183,7 +24236,7 @@ summary of commands:
  @tab Re-enables update logging if the user has the @code{SUPER} privilege.
  Ignored otherwise. (Master)
 
-@item @code{SET SQL_SLAVE_SKIP_COUNTER=n}
+@item @code{GLOBAL SET SQL_SLAVE_SKIP_COUNTER=n}
  @tab Skip the next @code{n} events from the master. Only valid when
 the slave thread is not running, otherwise, gives an error. Useful for
 recovering from replication glitches.
@@ -24689,9 +24742,9 @@ be safe to make the update manually ( if needed) and then ignore the next
 query from the master.
 @item
 If you have decided you can skip the next query, do
-@code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
+@code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
 does not use @code{AUTO_INCREMENT} or @code{LAST_INSERT_ID()},  or
-@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise. The reason
+@code{SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise. The reason
 queries that use @code{AUTO_INCREMENT} or @code{LAST_INSERT_ID()}
 are different is that they take two events in the binary log of the master.
 
@@ -26058,7 +26111,7 @@ Some ways to speed up inserts:
 If you are inserting many rows from the same client at the same time, use
 multiple value lists @code{INSERT} statements. This is much faster (many times
 in some cases) than using separate @code{INSERT} statements.  If you are adding
-data to non-empty table, you may tune up @code{myisam_bulk_insert_tree_size}
+data to non-empty table, you may tune up @code{bulk_insert_buffer_size}
 variable to make it even faster. @xref{SHOW VARIABLES}.
 @item
 If you are inserting a lot of rows from different clients, you can get
@@ -26543,8 +26596,8 @@ Start @code{mysqld} with a low value for @strong{max_write_lock_count} to give
 
 @item
 You can specify that all updates from a specific thread should be done with
-low priority by using the SQL command: @code{SET SQL_LOW_PRIORITY_UPDATES=1}.
-@xref{SET OPTION, , @code{SET OPTION}}.
+low priority by using the SQL command: @code{SET LOW_PRIORITY_UPDATES=1}.
+@xref{SET OPTION, , @code{SET}}.
 
 @item
 You can specify that a specific @code{SELECT} is very important with the
@@ -27152,25 +27205,25 @@ If you have enough RAM, you could remove all swap devices. Some
 operating systems will use a swap device in some contexts even if you
 have free memory.
 @item
-Use the @code{--skip-locking} MySQL option to avoid external
+Use the @code{--skip-external-locking} MySQL option to avoid external
 locking. Note that this will not impact MySQL's functionality as
 long as you only run one server. Just remember to take down the server (or
 lock relevant parts) before you run @code{myisamchk}. On some system
 this switch is mandatory because the external locking does not work in any
 case.
 
-The @code{--skip-locking} option is on by default when compiling with
+The @code{--skip-external-locking} option is on by default when compiling with
 MIT-pthreads, because @code{flock()} isn't fully supported by
 MIT-pthreads on all platforms.  It's also on default for Linux
 as Linux file locking are not yet safe.
 
-The only case when you can't use @code{--skip-locking} is if you run
+The only case when you can't use @code{--skip-external-locking} is if you run
 multiple MySQL @emph{servers} (not clients) on the same data,
 or run @code{myisamchk} on the table without first flushing and locking
 the @code{mysqld} server tables first.
 
 You can still use @code{LOCK TABLES}/@code{UNLOCK TABLES} even if you
-are using @code{--skip-locking}
+are using @code{--skip-external-locking}
 @end itemize
 
 
@@ -27225,9 +27278,8 @@ net_buffer_length        current value: 16384
 net_retry_count          current value: 10
 net_read_timeout         current value: 30
 net_write_timeout        current value: 60
-query_buffer_size        current value: 0
-record_buffer            current value: 131072
-record_rnd_buffer        current value: 131072
+read_buffer_size         current value: 131072
+record_rnd_buffer_size   current value: 131072
 slow_launch_time         current value: 2
 sort_buffer              current value: 2097116
 table_cache              current value: 64
@@ -27264,7 +27316,7 @@ with a moderate number of clients, you should use something like this:
 
 @example
 shell> safe_mysqld -O key_buffer=64M -O table_cache=256 \
-           -O sort_buffer=4M -O record_buffer=1M &
+           -O sort_buffer=4M -O read_buffer_size=1M &
 @end example
 
 If you have only 128M and only a few tables, but you still do a lot of
@@ -27278,14 +27330,14 @@ If you have little memory and lots of connections, use something like this:
 
 @example
 shell> safe_mysqld -O key_buffer=512k -O sort_buffer=100k \
-           -O record_buffer=100k &
+           -O read_buffer_size=100k &
 @end example
 
 or even:
 
 @example
 shell> safe_mysqld -O key_buffer=512k -O sort_buffer=16k \
-           -O table_cache=32 -O record_buffer=8k -O net_buffer=1K &
+           -O table_cache=32 -O read_buffer_size=8k -O net_buffer_length=1K &
 @end example
 
 If you are doing a @code{GROUP BY} or @code{ORDER BY} on files that are
@@ -27477,8 +27529,8 @@ automatically changing the in-memory (HEAP) table to a disk-based
 (MyISAM) table as necessary. To work around this problem, you can
 increase the temporary table size by setting the @code{tmp_table_size}
 option to @code{mysqld}, or by setting the SQL option
-@code{SQL_BIG_TABLES} in the client program.  @xref{SET OPTION, ,
-@code{SET OPTION}}. In MySQL Version 3.20, the maximum size of the
+@code{BIG_TABLES} in the client program.  @xref{SET OPTION, ,
+@code{SET}}. In MySQL Version 3.20, the maximum size of the
 temporary table was @code{record_buffer*16}, so if you are using this
 version, you have to increase the value of @code{record_buffer}. You can
 also start @code{mysqld} with the @code{--big-tables} option to always
@@ -27572,12 +27624,86 @@ by starting @code{mysqld} with @code{--skip-networking}.
 @findex SET OPTION
 
 @example
-SET [OPTION] SQL_VALUE_OPTION= value, ...
+SET [GLOBAL | SESSION] sql_variable=expression, [[GLOBAL | SESSION] sql_variable=expression...]
 @end example
 
-@code{SET OPTION} sets various options that affect the operation of the
-server or your client.  Any option you set remains in effect until the
-current session ends, or until you set the option to a different value.
+@code{SET} sets various options that affect the operation of the
+server or your client.
+
+The following examples shows the different syntaxes one can use to set
+variables:
+
+In old MySQL versions we allowed the use of the @code{SET OPTION} syntax,
+but this syntax is now deprecated.
+
+In MySQL 4.0.3 we added the @code{GLOBAL} and @code{SESSION} options
+and access to most important startup variables.
+
+@code{LOCAL} can be used as a synonym for @code{SESSION}.
+
+If you set several variables on the same command line, the last used
+@code{GLOBAL | SESSION} mode is used.
+
+@example
+SET sort_buffer_size=10000;
+SET @@@@local.sort_buffer_size=10000;
+SET GLOBAL sort_buffer_size=1000000, SESSION sort_buffer_size=1000000;
+SET @@@@sort_buffer_size=1000000;
+SET @@@@global.sort_buffer_size=1000000, @@@@local.sort_buffer_size=1000000;
+@end example
+
+The @code{@@@@variable_name} syntax is supported to make MySQL syntax
+compatible with some other databases.
+
+The different system variables one can set are described in the system
+variable section of this manual. @xref{System Variables}.
+
+If you are using @code{SESSION} (the default) the option you set remains
+in effect until the current session ends, or until you set the option to
+a different value. If you use @code{GLOBAL}, which require the
+@code{SUPER} privilege, the option is remembered and used for new
+connections until the server restarts. If you want to make an option
+permanent, you should set it in one of the MySQL option
+files. @xref{Option files}.
+
+To avoid wrong usage MySQL will give an error if you use @code{SET
+GLOBAL} with a variable that can only be used with @code{SET SESSION} or if
+you are not using @code{SET GLOBAL} with a global variable.
+
+If you want to set a @code{SESSION} variable to the @code{GLOBAL} value or a
+@code{GLOBAL} value to the MySQL default value, you can set it to
+@code{DEFAULT}.
+
+@example
+SET max_join_size=DEFAULT;
+@end example
+
+This is idential to:
+
+@example
+SET @@@@session.max_join_size=@@@@global.max_join_size;
+@end example
+
+If you want to restrict the maximum value a startup option can be set to
+with the @code{SET} command, you can specify this by using the
+@code{--maximum-variable-name} command line option. @xref{Command-line
+options}.
+
+You can get a list of most variables with @code{SHOW VARIABLES}.
+@xref{SHOW VARIABLES}.  You can get the value for a specific value with
+the @code{@@@@[global.|local.]variable_name} syntax:
+@example
+SHOW VARIABLES like "max_join_size";
+SHOW GLOBAL VARIABLES like "max_join_size";
+SELECT @@@@max_join_size, @@@@global.max_join_size;
+@end example
+
+Here follows a description of the variables that uses a the variables
+that uses a non-standard @code{SET} syntax and some of the other
+variables.  The other variable definitions can be found in the system
+variable section, among the startup options or in the description of
+@code{SHOW VARIABLES}. @xref{System Variables}. @xref{Command-line
+options}.  @xref{SHOW VARIABLES}.
 
 @table @code
 @item CHARACTER SET character_set_name | DEFAULT
@@ -27629,13 +27755,14 @@ that when you change from not @code{AUTOCOMMIT} mode to
 @code{AUTOCOMMIT} mode, MySQL will do an automatic
 @code{COMMIT} on any open transactions.
 
-@item SQL_BIG_TABLES = 0 | 1
+@item BIG_TABLES = 0 | 1
 @cindex table is full
 If set to @code{1}, all temporary tables are stored on disk rather than in
 memory.  This will be a little slower, but you will not get the error
 @code{The table tbl_name is full} for big @code{SELECT} operations that
 require a large temporary table.  The default value for a new connection is
 @code{0} (that is, use in-memory temporary tables).
+This option was before named @code{SQL_BIG_TABLES}.
 
 @item SQL_BIG_SELECTS = 0 | 1
 If set to @code{0}, MySQL will abort if a @code{SELECT} is attempted
@@ -27651,12 +27778,13 @@ to be put into a temporary table. This will help MySQL free the
 table locks early and will help in cases where it takes a long time to
 send the result set to the client.
 
-@item SQL_LOW_PRIORITY_UPDATES = 0 | 1
+@item LOW_PRIORITY_UPDATES = 0 | 1
 If set to @code{1}, all @code{INSERT}, @code{UPDATE}, @code{DELETE}, and
 and @code{LOCK TABLE WRITE} statements wait until there is no pending
 @code{SELECT} or @code{LOCK TABLE READ} on the affected table.
+This option was before named @code{SQL_LOW_PRIORITY_UPDATES}.
 
-@item SQL_MAX_JOIN_SIZE = value | DEFAULT
+@item MAX_JOIN_SIZE = value | DEFAULT
 Don't allow @code{SELECT}s that will probably need to examine more than
 @code{value} row combinations.  By setting this value, you can catch
 @code{SELECT}s where keys are not used properly and that would probably
@@ -27665,14 +27793,15 @@ the @code{SQL_BIG_SELECTS} flag.  If you set the @code{SQL_BIG_SELECTS}
 flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
+This option was before named @code{SQL_MAX_JOIN_SIZE}.
 
 Note that if the result of the query is already in the query cache, the
 above check will not be made. Instead, MySQL will send the result to the
 client. Since the query result is already computed and it will not burden
 the server to send the result to the client.
 
-@item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
-@item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
+@item QUERY_CACHE_TYPE = OFF | ON | DEMAND
+@item QUERY_CACHE_TYPE = 0   | 1  | 2
 Set query cache setting for this thread.
 @multitable @columnfractions .20 .70
 @item @strong{Option} @tab @strong{Description}
@@ -27725,8 +27854,6 @@ Set the value to be used by the following @code{INSERT} or @code{ALTER TABLE}
 command when inserting an @code{AUTO_INCREMENT} value.  This is mainly used
 with the update log.
 @end table
-
-@xref{SET TRANSACTION}.
 
 @node Disk issues,  , Optimising the Server, MySQL Optimisation
 @section Disk Issues
@@ -27815,7 +27942,7 @@ too much reliability.  (This flag is on by default on Linux.)
 @item
 If you don't need to know when a file was last accessed (which is not
 really useful on a database server), you can mount your filesystems
-with the noatime flag.
+with the @code{noatime} flag.
 @end itemize
 
 @menu
@@ -28001,6 +28128,7 @@ may find it useful to refer to the various indexes.
 * Legal names::                 Database, Table, Index, Column, and Alias Names
 * Name case sensitivity::       Case-Sensitivity in Names
 * Variables::                   User Variables
+* System Variables::            System Variables
 * Comments::                    Comment Syntax
 * Reserved words::              Is MySQL Picky About Reserved Words?
 @end menu
@@ -28421,14 +28549,14 @@ the case of the file extensions in each specified database directory
 @file{mysql_fix_extensions} can be found in the @file{script} subdirectory.
 
 
-@node Variables, Comments, Name case sensitivity, Language Structure
+@node Variables, System Variables, Name case sensitivity, Language Structure
 @subsection User Variables
 
 @cindex variables, user
 @cindex user variables
 @cindex names, variables
 
-MySQL supports thread-specific variables with the
+MySQL supports connection-specific user variables with the
 @code{@@variablename} syntax.  A variable name may consist of
 alphanumeric characters from the current character set and also
 @samp{_}, @samp{$}, and @samp{.} . The default character set is
@@ -28479,7 +28607,184 @@ mysql> SELECT (@@aa:=id) AS a, (@@aa+3) AS b FROM table_name HAVING b=5;
 The reason is that @code{@@aa} will not contain the value of the current
 row, but the value of @code{id} for the previous accepted row.
 
-@node Comments, Reserved words, Variables, Language Structure
+@node System Variables, Comments, Variables, Language Structure
+@subsection System Variables
+
+@cindex variables, System
+@cindex system variables
+
+Starting from MySQL 4.0.3 we provide better access to a lot of system
+and connection variables. One can change most of them without having to take
+down the server.
+
+There are two kind of system variables: Thread (or connection) specific
+variables that are unique to the current connection and global variables
+that are either used to configure global events or used as initial
+variables for a new connection.
+
+When mysqld starts all global variables are initialised from command
+line arguments and option files.  You can change the used value with the
+@code{SET GLOBAL} command. When a new thread is created the thread
+specific variables are initialised from the global variables and they
+will not change even if one issues a new @code{SET GLOBAL} command.
+
+To set the value for a @code{GLOBAL} variable, you should use one
+of the following syntaxes:
+(Here we use @code{sort_buffer_size} as an example variable)
+
+@example
+SET GLOBAL sort_buffer_size=value;
+SET @@@@global.sort_buffer_size=value;
+@end example
+
+To set the value for @code{SESSION} variable, you can use on of the
+following syntaxes:
+
+@example
+SET SESSION sort_buffer_size=value;
+SET @@@@session.sort_buffer_size=value;
+SET sort_buffer_size=value;
+@end example
+
+If you don't specify @code{GLOBAL} or @code{SESSION} then @code{SESSION}
+is used. @xref{SET OPTION}.
+
+@code{LOCAL} is a synonym for @code{SESSION}.
+
+To retrieve the value for a @code{GLOBAL} variable you can use one of the
+following commands:
+
+@example
+SELECT @@@@global.sort_buffer_size;
+SHOW GLOBAL VARIABLES like 'sort_buffer_size';
+@end example
+
+To retrieve the value for a @code{SESSION} variable you can use one of the
+following commands:
+
+@example
+SELECT @@@@session.sort_buffer_size;
+SHOW SESSION VARIABLES like 'sort_buffer_size';
+@end example
+
+When you @strong{retrieve} a variable value with the
+@code{@@@@variable_name} syntax and you don't specify @code{GLOBAL} or
+@code{SESSION} then MySQL will return the thread specific
+(@code{SESSION}) value if it exists.  If not, MySQL will return the
+global value.
+
+The reason for requiring @code{GLOBAL} for setting @code{GLOBAL} only
+variables but not for retrieving them is to ensure that we don't later
+run into problems if we later would introduce a thread specific variable
+with the same name or remove a thread specific variable.  In this case
+you could accidently change the state for the whole server and not
+just for your own connection.
+
+The following is a full list of all variables that you change and retrieve
+and if you can use @code{GLOBAL} or @code{SESSION} with them.
+
+@multitable @columnfractions .50 .25 .25
+@item @strong{Variable name} @tab @strong{Value type} @tab @strong{Type}
+@item autocommit @tab bool @tab SESSION
+@item big_tables @tab bool @tab SESSION
+@item binlog_cache_size @tab num @tab GLOBAL
+@item bulk_insert_buffer_size @tab num @tab GLOBAL | SESSION
+@item concurrent_insert @tab bool @tab GLOBAL
+@item connect_timeout @tab num @tab GLOBAL
+@item convert_character_set @tab string @tab SESSION
+@item delay_key_write @tab bool @tab GLOBAL
+@item delayed_insert_limit @tab num @tab GLOBAL
+@item delayed_insert_timeout @tab num @tab GLOBAL
+@item delayed_queue_size @tab num @tab GLOBAL
+@item flush @tab bool @tab GLOBAL
+@item flush_time @tab num @tab GLOBAL
+@item identity @tab num @tab SESSION
+@item insert_id @tab bool @tab SESSION
+@item interactive_timeout @tab num @tab GLOBAL | SESSION
+@item join_buffer_size @tab num @tab GLOBAL | SESSION
+@item key_buffer_size @tab num @tab GLOBAL
+@item last_insert_id @tab bool @tab SESSION
+@item local_infile @tab bool @tab GLOBAL
+@item log_warnings @tab bool @tab GLOBAL
+@item long_query_time @tab num @tab GLOBAL | SESSION
+@item low_priority_updates @tab bool @tab GLOBAL | SESSION
+@item max_allowed_packet @tab num @tab GLOBAL | SESSION
+@item max_binlog_cache_size @tab num @tab GLOBAL
+@item max_binlog_size @tab num @tab GLOBAL
+@item max_connect_errors @tab num @tab GLOBAL
+@item max_connections @tab num @tab GLOBAL
+@item max_delayed_threads @tab num @tab GLOBAL
+@item max_heap_table_size @tab num @tab GLOBAL | SESSION
+@item max_join_size @tab num @tab GLOBAL | SESSION
+@item max_sort_length @tab num @tab GLOBAL | SESSION
+@item max_tmp_tables @tab num @tab GLOBAL
+@item max_user_connections @tab num @tab GLOBAL
+@item max_write_lock_count @tab num @tab GLOBAL
+@item myisam_max_extra_sort_file_size @tab num @tab GLOBAL | SESSION
+@item myisam_max_sort_file_size @tab num @tab GLOBAL | SESSION
+@item myisam_sort_buffer_size @tab num @tab GLOBAL | SESSION
+@item net_buffer_length @tab num @tab GLOBAL | SESSION
+@item net_read_timeout @tab num @tab GLOBAL | SESSION
+@item net_write_timeout @tab num @tab GLOBAL | SESSION
+@item query_cache_limit @tab num @tab GLOBAL
+@item query_cache_size @tab num @tab GLOBAL
+@item query_cache_type @tab enum @tab GLOBAL
+@item read_buffer_size @tab num @tab GLOBAL | SESSION
+@item read_rnd_buffer_size num @tab GLOBAL | SESSION
+@item rpl_recovery_rank @tab num @tab GLOBAL
+@item safe_show_database @tab bool @tab GLOBAL
+@item server_id @tab num @tab GLOBAL
+@item slave_net_timeout @tab num @tab GLOBAL
+@item slow_launch_time @tab num @tab GLOBAL
+@item sort_buffer_size @tab num @tab GLOBAL | SESSION
+@item sql_auto_is_null @tab bool @tab SESSION
+@item sql_big_selects @tab bool @tab SESSION
+@item sql_big_tables @tab bool @tab SESSION
+@item sql_buffer_result @tab bool @tab SESSION
+@item sql_log_binlog @tab bool @tab SESSION
+@item sql_log_off @tab bool @tab SESSION
+@item sql_log_update @tab bool @tab SESSION
+@item sql_low_priority_updates @tab bool @tab GLOBAL | SESSION
+@item sql_max_join_size @tab num @tab GLOBAL | SESSION
+@item sql_quote_show_create @tab bool @tab SESSION
+@item sql_safe_updates @tab bool @tab SESSION
+@item sql_select_limit @tab bool @tab SESSION
+@item sql_slave_skip_counter @tab num @tab GLOBAL
+@item sql_warnings @tab bool @tab SESSION
+@item table_cache @tab num @tab GLOBAL
+@item table_type @tab enum @tab GLOBAL | SESSION
+@item thread_cache_size @tab num @tab GLOBAL
+@item timestamp @tab bool @tab SESSION
+@item tmp_table_size @tab enum @tab GLOBAL | SESSION
+@item tx_isolation @tab enum @tab GLOBAL | SESSION
+@item version @tab string @tab GLOBAL
+@item wait_timeout @tab num @tab GLOBAL | SESSION
+@end multitable
+
+Variables that are marked with @code{num} can be given a numerical
+value. Variables that are marked with @code{bool} can be set to 0, 1,
+@code{ON} or @code{OFF}. Variables that are of type @code{enum} should
+normally be set to one of the available values for the variable, but can
+also be set to the number that correspond to the enum value. (The first
+enum value is 0).
+
+Here is a description of some of the variables:
+
+@multitable @columnfractions 0.30 0.70
+@item @strong{Variable} @tab @strong{Description}
+@item identity @tab Alias for last_insert_id (Sybase compatiblity)
+@item sql_low_priority_updates @tab Alias for low_priority_updates
+@item sql_max_join_size @tab Alias for max_join_size
+@item version @tab Alias for VERSION() (Sybase (?) compatability)
+@end multitable
+
+A description of the other variable definitions can be found in the
+startup options section, the description of @code{SHOW VARIABLES} and in
+the @code{SET} section. @xref{Command-line
+options}.  @xref{SHOW VARIABLES}. @xref{SET OPTION}.
+
+
+@node Comments, Reserved words, System Variables, Language Structure
 @subsection Comment Syntax
 
 @findex Comment syntax
@@ -28552,7 +28857,7 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@c Reserved word list updated Tue Jul 16 09:21:53 2002 by arjen.
+@c Reserved word list updated Tue Jul 23 20:41:20 2002 by monty.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @multitable @columnfractions .33 .33 .34
@@ -28630,121 +28935,106 @@ A few are reserved because MySQL needs them and is
  @tab @code{INNER}
 @item @code{INNODB}
  @tab @code{INSERT}
- @tab @code{INSERT_ID}
-@item @code{INT}
- @tab @code{INTEGER}
+ @tab @code{INT}
+@item @code{INTEGER}
  @tab @code{INTERVAL}
-@item @code{INTO}
- @tab @code{IS}
+ @tab @code{INTO}
+@item @code{IS}
  @tab @code{JOIN}
-@item @code{KEY}
- @tab @code{KEYS}
+ @tab @code{KEY}
+@item @code{KEYS}
  @tab @code{KILL}
-@item @code{LAST_INSERT_ID}
  @tab @code{LEADING}
- @tab @code{LEFT}
-@item @code{LIKE}
+@item @code{LEFT}
+ @tab @code{LIKE}
  @tab @code{LIMIT}
- @tab @code{LINES}
-@item @code{LOAD}
+@item @code{LINES}
+ @tab @code{LOAD}
  @tab @code{LOCK}
- @tab @code{LONG}
-@item @code{LONGBLOB}
+@item @code{LONG}
+ @tab @code{LONGBLOB}
  @tab @code{LONGTEXT}
- @tab @code{LOW_PRIORITY}
-@item @code{MASTER_SERVER_ID}
+@item @code{LOW_PRIORITY}
+ @tab @code{MASTER_SERVER_ID}
  @tab @code{MATCH}
- @tab @code{MEDIUMBLOB}
-@item @code{MEDIUMINT}
+@item @code{MEDIUMBLOB}
+ @tab @code{MEDIUMINT}
  @tab @code{MEDIUMTEXT}
- @tab @code{MIDDLEINT}
-@item @code{MINUTE_SECOND}
+@item @code{MIDDLEINT}
+ @tab @code{MINUTE_SECOND}
  @tab @code{MRG_MYISAM}
- @tab @code{NATURAL}
-@item @code{NOT}
+@item @code{NATURAL}
+ @tab @code{NOT}
  @tab @code{NULL}
- @tab @code{NUMERIC}
-@item @code{ON}
+@item @code{NUMERIC}
+ @tab @code{ON}
  @tab @code{OPTIMIZE}
- @tab @code{OPTION}
-@item @code{OPTIONALLY}
+@item @code{OPTION}
+ @tab @code{OPTIONALLY}
  @tab @code{OR}
- @tab @code{ORDER}
-@item @code{OUTER}
+@item @code{ORDER}
+ @tab @code{OUTER}
  @tab @code{OUTFILE}
- @tab @code{PARTIAL}
-@item @code{PRECISION}
+@item @code{PARTIAL}
+ @tab @code{PRECISION}
  @tab @code{PRIMARY}
- @tab @code{PRIVILEGES}
-@item @code{PROCEDURE}
+@item @code{PRIVILEGES}
+ @tab @code{PROCEDURE}
  @tab @code{PURGE}
- @tab @code{READ}
-@item @code{REAL}
+@item @code{READ}
+ @tab @code{REAL}
  @tab @code{REFERENCES}
- @tab @code{REGEXP}
-@item @code{RENAME}
+@item @code{REGEXP}
+ @tab @code{RENAME}
  @tab @code{REPLACE}
- @tab @code{REQUIRE}
-@item @code{RESTRICT}
+@item @code{REQUIRE}
+ @tab @code{RESTRICT}
  @tab @code{RETURNS}
- @tab @code{REVOKE}
-@item @code{RIGHT}
+@item @code{REVOKE}
+ @tab @code{RIGHT}
  @tab @code{RLIKE}
- @tab @code{SELECT}
-@item @code{SET}
+@item @code{SELECT}
+ @tab @code{SET}
  @tab @code{SHOW}
- @tab @code{SMALLINT}
-@item @code{SONAME}
- @tab @code{SQL_AUTO_IS_NULL}
+@item @code{SMALLINT}
+ @tab @code{SONAME}
  @tab @code{SQL_BIG_RESULT}
-@item @code{SQL_BIG_SELECTS}
- @tab @code{SQL_BIG_TABLES}
- @tab @code{SQL_BUFFER_RESULT}
 @item @code{SQL_CALC_FOUND_ROWS}
- @tab @code{SQL_LOG_BIN}
- @tab @code{SQL_LOG_OFF}
-@item @code{SQL_LOG_UPDATE}
- @tab @code{SQL_LOW_PRIORITY_UPDATES}
- @tab @code{SQL_MAX_JOIN_SIZE}
-@item @code{SQL_QUOTE_SHOW_CREATE}
- @tab @code{SQL_SAFE_UPDATES}
- @tab @code{SQL_SELECT_LIMIT}
-@item @code{SQL_SLAVE_SKIP_COUNTER}
  @tab @code{SQL_SMALL_RESULT}
- @tab @code{SQL_WARNINGS}
-@item @code{SSL}
- @tab @code{STARTING}
+ @tab @code{SSL}
+@item @code{STARTING}
  @tab @code{STRAIGHT_JOIN}
-@item @code{STRIPED}
- @tab @code{TABLE}
+ @tab @code{STRIPED}
+@item @code{TABLE}
  @tab @code{TABLES}
-@item @code{TERMINATED}
- @tab @code{THEN}
+ @tab @code{TERMINATED}
+@item @code{THEN}
  @tab @code{TINYBLOB}
-@item @code{TINYINT}
- @tab @code{TINYTEXT}
+ @tab @code{TINYINT}
+@item @code{TINYTEXT}
  @tab @code{TO}
-@item @code{TRAILING}
- @tab @code{UNION}
+ @tab @code{TRAILING}
+@item @code{UNION}
  @tab @code{UNIQUE}
-@item @code{UNLOCK}
- @tab @code{UNSIGNED}
+ @tab @code{UNLOCK}
+@item @code{UNSIGNED}
  @tab @code{UPDATE}
-@item @code{USAGE}
- @tab @code{USE}
+ @tab @code{USAGE}
+@item @code{USE}
  @tab @code{USER_RESOURCES}
-@item @code{USING}
- @tab @code{VALUES}
+ @tab @code{USING}
+@item @code{VALUES}
  @tab @code{VARBINARY}
-@item @code{VARCHAR}
- @tab @code{VARYING}
+ @tab @code{VARCHAR}
+@item @code{VARYING}
  @tab @code{WHEN}
-@item @code{WHERE}
- @tab @code{WITH}
+ @tab @code{WHERE}
+@item @code{WITH}
  @tab @code{WRITE}
-@item @code{XOR}
- @tab @code{YEAR_MONTH}
+ @tab @code{XOR}
+@item @code{YEAR_MONTH}
  @tab @code{ZEROFILL}
+ @tab
 @end multitable
 
 @c END_OF_RESERVED_WORDS
@@ -33552,7 +33842,6 @@ SELECT [STRAIGHT_JOIN]
     [FROM table_references
       [WHERE where_definition]
       [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...
-        [WITH @{CUBE | ROLLUP@}] ]
       [HAVING where_definition]
       [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
       [LIMIT [offset,] rows]
@@ -33736,7 +34025,7 @@ FOUND_ROWS()}. @xref{Miscellaneous functions}.
 
 @item
 @code{SQL_CACHE} tells MySQL to store the query result in the query cache
-if you are using @code{SQL_QUERY_CACHE_TYPE=2} (@code{DEMAND}).
+if you are using @code{QUERY_CACHE_TYPE=2} (@code{DEMAND}).
 @xref{Query Cache}.
 
 @item
@@ -33760,10 +34049,6 @@ select fields which are not mentioned in the @code{GROUP BY} clause.
 If you are not getting the results you expect from your query, please
 read the @code{GROUP BY} description.
 @xref{Group by functions}.
-
-@item
-Since Version 3.23.12 MySQL supports @code{CUBE} and @code{ROLLUP}
-clauses. @xref{CUBE and ROLLUP}.
 
 @item
 @cindex hints
@@ -33874,7 +34159,6 @@ the examined rows will be write locked.
 @menu
 * JOIN::                        @code{JOIN} Syntax
 * UNION::                       @code{UNION} Syntax
-* CUBE and ROLLUP               @code{CUBE} and @code{ROLLUP} Syntax
 @end menu
 
 @node JOIN, UNION, SELECT, SELECT
@@ -34039,7 +34323,7 @@ mysql> SELECT * FROM table1 IGNORE INDEX (key3)
 @xref{LEFT JOIN optimisation, , @code{LEFT JOIN} optimisation}.
 
 
-@node UNION, CUBE and ROLLUP, JOIN, SELECT
+@node UNION,  , JOIN, SELECT
 @subsubsection @code{UNION} Syntax
 
 @findex UNION
@@ -34057,9 +34341,10 @@ SELECT ...
 @code{UNION} is used to combine the result from many @code{SELECT}
 statements into one result set.
 
-The columns listed in the select_expression portion of the @code{SELECT} should
-have the same type. The column names used in the first @code{SELECT} query will be 
-used as the column names for the results returned.
+The columns listed in the select_expression portion of the @code{SELECT}
+should have the same type. The column names used in the first
+@code{SELECT} query will be used as the column names for the results
+returned.
 
 The @code{SELECT} commands are normal select commands, but with the following
 restrictions:
@@ -34084,141 +34369,6 @@ UNION
 ORDER BY a;
 @end example
 
-@node CUBE and ROLLUP, , UNION, SELECT
-@subsubsection @code{CUBE} and @code{ROLLUP} Syntax
-
-Documentation for OLAP extension
-
-Introduction 
-------------
-
-MySQL will first support CUBE and ROLLUP operators from entire OLAP
-functionality.  
-
-The  CUBE  and ROLLUP extensions  to  SQL make querying  and reporting
-easier  in data warehousing  environments. ROLLUP creates subtotals at
-increasing levels of aggregation, from the most detailed up to a grand
-total. CUBE  is an extension   similar to  ROLLUP,  enabling a  single
-statement to calculate all possible combinations of subtotals.
-
-
-Syntax: 
-------	
-
-The syntax supported by the enhanced mysql for CUBE and ROLLUP
-operators.  
-
-CUBE 
----- 
-
-SELECT field1, field2, ... AGGR(fieldn) FROM
-table GROUP BY field1, field2 field(n-1) WITH CUBE 
-
-This would generate the aggregates with group bys of all the
-combinations of dimensions.
-
-ROLLUP:
------        
-
-	SELECT field1, field2, ... AGGR(fieldn) FROM table 
-	GROUP BY field1, field2 field(n-1) WITH ROLLUP 
-
-Example:
--------
-
-mysql> select * from sales;
-+------------+---------------+------+--------+
-| product    | country       | year | profit |
-+------------+---------------+------+--------+
-| Computer   | India         | 2000 |   1200 |
-| TV         | United States | 1999 |    150 |
-| Calculator | United States | 1999 |     50 |
-| Computer   | United States | 1999 |   1500 |
-| Computer   | United States | 2000 |   1500 |
-| TV         | United States | 2000 |    150 |
-| TV         | India         | 2000 |    100 |
-| TV         | India         | 2000 |    100 |
-| Calculator | United States | 2000 |     75 |
-| Calculator | India         | 2000 |     75 |
-| TV         | India         | 1999 |    100 |
-| Computer   | India         | 1999 |   1200 |
-| Computer   | United States | 2000 |   1500 |
-| Calculator | United States | 2000 |     75 |
-+------------+---------------+------+--------+
-14 rows in set (0.00 sec)
-
-
- 
-mysql> Select sales.product, sales.country , sales.year, sum(profit) from 
-sales group by product, country, year with cube;
-
-+------------+---------------+------+-------------+
-| product    | country       | year | sum(profit) |
-+------------+---------------+------+-------------+
-| Calculator | India         | 2000 |          75 |
-| Calculator | United States | 1999 |          50 |
-| Calculator | United States | 2000 |         150 |
-| Computer   | India         | 1999 |        1200 |
-| Computer   | India         | 2000 |        1200 |
-| Computer   | United States | 1999 |        1500 |
-| Computer   | United States | 2000 |        3000 |
-| TV         | India         | 1999 |         100 |
-| TV         | India         | 2000 |         200 |
-| TV         | United States | 1999 |         150 |
-| TV         | United States | 2000 |         150 |
-| ALL        | India         | 1999 |        1300 |
-| ALL        | India         | 2000 |        1475 |
-| ALL        | United States | 1999 |        1700 |
-| ALL        | United States | 2000 |        3300 |
-| Calculator | ALL           | 1999 |          50 |
-| Calculator | ALL           | 2000 |         225 |
-| Computer   | ALL           | 1999 |        2700 |
-| Computer   | ALL           | 2000 |        4200 |
-| TV         | ALL           | 1999 |         250 |
-| TV         | ALL           | 2000 |         350 |
-| Calculator | India         | 0    |          75 |
-| Calculator | United States | 0    |         200 |
-| Computer   | India         | 0    |        2400 |
-| Computer   | United States | 0    |        4500 |
-| TV         | India         | 0    |         300 |
-| TV         | United States | 0    |         300 |
-| ALL        | ALL           | 1999 |        3000 |
-| ALL        | ALL           | 2000 |        4775 |
-| ALL        | India         | 0    |        2775 |
-| ALL        | United States | 0    |        5000 |
-| Calculator | ALL           | 0    |         275 |
-| Computer   | ALL           | 0    |        6900 |
-| TV         | ALL           | 0    |         600 |
-| ALL        | ALL           | 0    |        7775 |
-+------------+---------------+------+-------------+
-35 rows in set (0.00 sec)
-
-
-MySQL supports now CUBE and ROLLUP extensions, with all  functions
-that one wishes to use with them.
-
-Those extensions already work in all tested combinations. They work
-with UNION's, should work with sub-selects in 4.1 and derived tables. 
-
-TODO
-----
-
-For the moment, ORDER and LIMIT are disabled for CUBE and ROLLUP. This
-however remains to be added later.
-
-Another feature that has to be added later is grouping of select list
-itmes in order to alleviate user errors. For the moment, missing
-(hidden) columns are not used at all.
-
-Third feature to be done is to make  SQL SET OPTION to set values for
-all values of the column optionally to:
-
-* ALL (as it is now)
-* NULL 
-* blank
-
--------------------------------------------------------------------------
-
 @findex HANDLER
 @node HANDLER, INSERT, SELECT, Data Manipulation
 @subsection @code{HANDLER} Syntax
@@ -34235,8 +34385,7 @@ HANDLER tbl_name CLOSE
 @end example
 
 The @code{HANDLER} statement provides direct access to the @code{MyISAM} table
-handler interface, bypassing the SQL optimiser. Thus, it is faster than
-@code{SELECT}.
+handler interface.
 
 The first form of @code{HANDLER} statement opens a table, making
 it accessible via subsequent @code{HANDLER ... READ} statements.
@@ -34270,6 +34419,34 @@ means that after a @code{HANDLER ... OPEN} is issued, table data can be
 modified (by this or any other thread) and these modifications may appear
 only partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
 
+The reasons to use this interface instead of normal SQL are:
+
+@itemize @bullet
+@item
+It's faster than @code{SELECT} because:
+@itemize @bullet
+@item
+A designated table handler is allocated for the thread in @code{HANDLER open}.
+@item
+There is less parsing involved.
+@item
+No optimizer and no query checking overhead.
+@item
+The used table doesn't have to be locked between two handler requests.
+@item
+The handler interface doesn't have to provide a consistent look of the
+data (for example dirty-reads are allow), which allows the table handler
+to do optimizations that SQL doesn't normally allow.
+@end itemize
+@item
+It makes it much easier to port applications that uses an ISAM like
+interface to MySQL.
+@item
+It allows one to traverse a database in a manner that is not easy
+(in some case impossible) to do with SQL. The handler interface is
+more natural way to look at data when working with applications that
+provide an interactive user interfaces to the database.
+@end itemize
 
 @node INSERT, INSERT DELAYED, HANDLER, Data Manipulation
 @subsection @code{INSERT} Syntax
@@ -34279,13 +34456,13 @@ only partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
 @example
     INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name [(col_name,...)]
-        VALUES (expression,...),(...),...
+        VALUES ((expression | DEFAULT),...),(...),...
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name [(col_name,...)]
         SELECT ...
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name
-        SET col_name=expression, col_name=expression, ...
+        SET col_name=(expression | DEFAULT), ...
 
 @end example
 
@@ -34314,6 +34491,14 @@ Any column not explicitly given a value is set to its default value.  For
 example, if you specify a column list that doesn't name all the columns in
 the table, unnamed columns are set to their default values.  Default value
 assignment is described in @ref{CREATE TABLE, , @code{CREATE TABLE}}.
+
+You can also use the keyword @code{DEFAULT} to set a column to its
+default value. (New in MySQL 4.0.3.)  This makes it easier to write
+@code{INSERT} statements that assign values to all but a few columns,
+because it allows you to avoid writing an incomplete @code{VALUES()} list
+(a list that does not include an value for each column in the table).
+Otherwise, you would have to write out the list of column names
+corresponding to each value in the @code{VALUES()} list.
 
 MySQL always has a default value for all fields. This is something
 that is imposed on MySQL to be able to work with both transactional
@@ -37165,7 +37350,7 @@ Don't cache results that are bigger than this. (Default 1M).
 The memory allocated to store results from old queries.
 If this is 0, the query cache is disabled (default).
 
-@item @code{query_cache_startup_type}
+@item @code{query_cache_type}
 This may be set (only numeric) to
 @multitable @columnfractions .10 .75
 @item @strong{Option} @tab @strong{Description}
@@ -37175,12 +37360,11 @@ This may be set (only numeric) to
 @end multitable
 @end itemize
 
-
 Inside a thread (connection), the behaviour of the query cache can be
 changed from the default. The syntax is as follows:
 
-@code{SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND}
-@code{SQL_QUERY_CACHE_TYPE = 0   | 1  | 2}
+@code{QUERY_CACHE_TYPE = OFF | ON | DEMAND}
+@code{QUERY_CACHE_TYPE = 0   | 1  | 2}
 
 @multitable @columnfractions .20 .70
 @item @strong{Option} @tab @strong{Description}
@@ -37188,9 +37372,6 @@ changed from the default. The syntax is as follows:
 @item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
 @item 2 or DEMAND @tab Cache only @code{SELECT SQL_CACHE ...} queries.
 @end multitable
-
-By default @code{SQL_QUERY_CACHE_TYPE} depends on the value of
-@code{query_cache_startup_type} when the thread was created.
 
 
 @node Query Cache in SELECT, Query Cache Status and Maintenance, Query Cache Configuration, Query Cache
@@ -37205,9 +37386,9 @@ specified in a @code{SELECT} query:
 @multitable @columnfractions .20 .80
 @item @strong{Option} @tab @strong{Description}
 @item @code{SQL_CACHE}
- @tab If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND}, allow the query to be cached.
- If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
- If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
+ @tab If @code{QUERY_CACHE_TYPE} is @code{DEMAND}, allow the query to be cached.
+ If @code{QUERY_CACHE_TYPE} is @code{ON}, this is the default.
+ If @code{QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
 @item @code{SQL_NO_CACHE}
  @tab Make this query non-cachable, don't allow this query to be stored in the cache.
 @end multitable
@@ -37236,7 +37417,7 @@ You can monitor query cache performance in @code{SHOW STATUS}:
  @tab Number of cache hits.
 @item @code{Qcache_not_cached}
  @tab Number of non-cached queries
- (not cachable, or due to @code{SQL_QUERY_CACHE_TYPE}).
+ (not cachable, or due to @code{QUERY_CACHE_TYPE}).
 @item @code{Qcache_free_memory}
  @tab Amount of free memory for query cache.
 @item @code{Qcache_total_blocks}
@@ -37471,14 +37652,15 @@ The following options to @code{mysqld} can be used to change the behaviour of
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{Note} that this parameter is given in megabytes!
 @item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.  @strong{Note} that this paramter is given in megabytes!
-@item @code{-O myisam_bulk_insert_tree_size=#} @tab Size of tree cache used in bulk insert optimisation. @strong{Note} that this is a limit @strong{per thread}!
+@item @code{-O bulk_insert_buffer_size=#} @tab Size of tree cache used in bulk insert optimisation. @strong{Note} that this is a limit @strong{per thread}!
 @end multitable
 
 The automatic recovery is activated if you start @code{mysqld} with
 @code{--myisam-recover=#}. @xref{Command-line options}.
 On open, the table is checked if it's marked as crashed or if the open
 count variable for the table is not 0 and you are running with
-@code{--skip-locking}.  If either of the above is true the following happens.
+@code{--skip-external-locking}.  If either of the above is true the following
+happens.
 
 @itemize @bullet
 @item
@@ -38514,11 +38696,11 @@ too high}. glibc will allow the process heap to grow over thread stacks,
 which will crash your server. It is a risk if the value of
 @example
 innodb_buffer_pool_size + key_buffer +
-max_connections * (sort_buffer + record_buffer) + max_connections * 2 MB
+max_connections * (sort_buffer + read_buffer_size) + max_connections * 2 MB
 @end example
 is close to 2 GB or exceeds 2 GB. Each thread will use a stack
 (often 2 MB, but in MySQL AB binaries only 256 kB) and in the worst case also
-@code{sort_buffer + record_buffer}
+@code{sort_buffer + read_buffer_size}
 additional memory.
 
 @strong{How to tune other @file{mysqld} server parameters?}
@@ -38526,7 +38708,7 @@ Typical values which suit most users are:
 @example
 skip-locking
 set-variable = max_connections=200
-set-variable = record_buffer=1M
+set-variable = read_buffer_size=1M
 set-variable = sort_buffer=1M
 #                                  Set key_buffer to 5 - 50%
 #                                  of your RAM depending on how
@@ -47023,11 +47205,11 @@ You are using an older MySQL version (before 3.23.0) when an in-memory
 temporary table becomes larger than @code{tmp_table_size} bytes.
 To avoid this problem, you can use the @code{-O tmp_table_size=#} option
 to make @code{mysqld} increase the temporary table size or use the SQL
-option @code{SQL_BIG_TABLES} before you issue the problematic query.
-@xref{SET OPTION, ,@code{SET OPTION}}.
+option @code{BIG_TABLES} before you issue the problematic query.
+@xref{SET OPTION, ,@code{SET}}.
 
 You can also start @code{mysqld} with the @code{--big-tables} option.
-This is exactly the same as using @code{SQL_BIG_TABLES} for all queries.
+This is exactly the same as using @code{BIG_TABLES} for all queries.
 
 In MySQL Version 3.23, in-memory temporary tables will automatically be
 converted to a disk-based @code{MyISAM} table after the table size gets
@@ -47529,7 +47711,7 @@ without locking the table properly.
 If you are running many @code{mysqld} servers on the same data on a
 system that doesn't support good filesystem locks (normally handled by
 the @code{lockd} daemon ) or if you are running
-multiple servers with @code{--skip-locking}
+multiple servers with @code{--skip-external-locking}
 @item
 You have a crashed index/datafile that contains very wrong data that
 got @code{mysqld} confused.
@@ -47598,12 +47780,12 @@ what is happening.
 Have you applied the latest patches for your operating system?
 
 @item
-Use the @code{--skip-locking} option to @code{mysqld}.  On some systems, the
-@code{lockd} lock manager does not work properly; the @code{--skip-locking}
-option tells @code{mysqld} not to use external locking.  (This means that you
-cannot run 2 @code{mysqld} servers on the same data and that you must be
-careful if you use @code{myisamchk}, but it may be instructive to try the
-option as a test.)
+Use the @code{--skip-external-locking} option to @code{mysqld}.  On some
+systems, the @code{lockd} lock manager does not work properly; the
+@code{--skip-external-locking} option tells @code{mysqld} not to use external
+locking.  (This means that you cannot run 2 @code{mysqld} servers on the same
+data and that you must be careful if you use @code{myisamchk}, but it may be
+instructive to try the option as a test.)
 
 @item
 Have you tried @code{mysqladmin -u root processlist} when @code{mysqld}
@@ -49835,14 +50017,42 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @node News-4.0.3, News-4.0.2, News-4.0.x, News-4.0.x
 @appendixsubsec Changes in release 4.0.3
-
 @itemize @bullet
 @item
-Fixed a bug that made the pager option in the mysql client non-functional.
+Allow @code{DEFAULT} with @code{INSERT} statement.
+@item
+The startup parameters @code{myisam_max_extra_sort_file_size} and
+@code{myisam_max_extra_sort_file_size} are now given in bytes, not megabytes.
+@item
+External system locking of MyISAM/ISAM files is now turned off by default.
+One can turn this one by doing @code{--external-locking}. (For most users
+this is never needed).
+@item
+Fixed core dump bug with @code{INSERT ... SET db_name.table_name.colname=''}.
+@item
+Fixed client hangup bug when using some SQL commands with wrong syntax.
+@item
+Fixed a timing bug in @code{DROP DATABASE}
+@item
+New @code{SET [GLOBAL | SESSION]} syntax to change thread specific and global
+server variables at runtime.
+@item
+Renamed variable @code{query_cache_startup_type} to @code{query_cache_type},
+@code{myisam_bulk_insert_tree_size} to @code{bulk_insert_buffer_size},
+@code{record_buffer} to @code{read_buffer_size} and
+@code{record_rnd_buffer} to @code{record_rnd_buffer_size}.
+@item
+Renamed some sql variables, but old names will still work until 5.0.
+@xref{Upgrading-from-3.23}.
+@item
+Renamed @code{--skip-locking} to @code{--skip-external-locking}.
+@item
+Removed not used variable @code{query_buffer_size}.
+@item
+Fixed a bug that made the pager option in the @code{mysql} client
+non-functional.
 @item
 Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
-@item
-Added support for @code{CUBE} and @code{ROLLUP}.
 @end itemize
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
@@ -49859,10 +50069,11 @@ Don't allow database names that contain @samp{\}.
 @item
 Added @code{XOR} operator (logical and bitwise @code{XOR}) with @code{^}
 as a synonym for bitwise @code{XOR}.
+@item
 Added function @code{IS_FREE_LOCK("lock_name")}.
 Based on code contributed by Hartmut Holzgraefe @email{hartmut@@six.de}.
 @item
-Removed @code{mysql_ssl_clear()}, as it was not needed.
+Removed @code{mysql_ssl_clear()} from C API, as it was not needed.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can now read exponential numbers.
 @item
@@ -49881,7 +50092,7 @@ consistent dump of @code{InnoDB} tables.
 @item
 Fixed bug in @code{innodb_log_group_home_dir} in @code{SHOW VARIABLES}.
 @item
-Fixed a bug in optimiser with merge tables when non-uniques values are 
+Fixed a bug in optimiser with merge tables when non-unique values are 
 used in summing up (causing crashes).
 @item
 Fixed a bug in optimiser when a range specified makes index grouping
@@ -49916,7 +50127,7 @@ Fixed bug in @code{DROP DATABASE} with symlink.
 @item
 Fixed crash in @code{REPAIR ... USE_FRM}.
 @item
-Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}
+Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}.
 @item
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
@@ -53442,7 +53653,7 @@ construct returned the rightmost 'pos' characters.)
 @item
 Fixed problem with @code{LOCK TABLES} combined with @code{DELETE FROM table}
 @item
-Fixed problem that @code{INSERT ... SELECT} didn't use @code{SQL_BIG_TABLES}.
+Fixed problem that @code{INSERT ... SELECT} didn't use @code{BIG_TABLES}.
 @item
 @code{SET SQL_LOW_PRIORITY_UPDATES=#} didn't work.
 @item
@@ -54071,7 +54282,7 @@ assumes the value is given as: @code{[[[D ]HH:]MM:]SS} instead of
 and hours up to 32767.
 @item
 Added new option
-@code{SET OPTION SQL_LOG_UPDATE=@{0|1@}} to allow users with
+@code{SET SQL_LOG_UPDATE=@{0|1@}} to allow users with
 the @code{PROCESS} privilege to bypass the update log.
 (Modified patch from Sergey A Mukhin @email{violet@@rosnet.net}.)
 @item
@@ -54090,7 +54301,7 @@ Added @code{--low-priority-updates} option to @code{mysqld}, to give
 table-modifying operations (@code{INSERT}, @code{REPLACE}, @code{UPDATE},
 @code{DELETE}) lower priority than retrievals.  You can now use
 @code{@{INSERT | REPLACE | UPDATE | DELETE@} LOW_PRIORITY ...} You can
-also use @code{SET OPTION SQL_LOW_PRIORITY_UPDATES=@{0|1@}} to change
+also use @code{SET SQL_LOW_PRIORITY_UPDATES=@{0|1@}} to change
 the priority for one thread.  One side effect is that @code{LOW_PRIORITY}
 is now a reserved word. :(
 @item
@@ -54173,7 +54384,7 @@ Added optimisation to remove const reference tables from @code{ORDER BY} and
 @item
 @code{mysqld} now automatically disables system locking on Linux and Windows,
 and for systems that use MIT-pthreads.  You can force the use of locking
-with the @code{--enable-locking} option.
+with the @code{--enable-external-locking} option.
 @item
 Added @code{--console} option to @code{mysqld}, to force a console window
 (for error messages) when using Windows.
@@ -54474,7 +54685,7 @@ index file and cause error 126 or 138.
 
 @item
 Fixed fatal bug in @code{refresh()} when running with the
-@code{--skip-locking} option.  There was a ``very small'' time gap after
+@code{--skip-external-locking} option.  There was a ``very small'' time gap after
 a @code{mysqladmin refresh} when a table could be corrupted if one
 thread updated a table while another thread did @code{mysqladmin
 refresh} and another thread started a new update ont the same table
@@ -55138,7 +55349,7 @@ Fixed better @code{FOREIGN KEY} syntax skipping. New reserved words:
 @code{mysqld} now allows IP number and hostname for the @code{--bind-address}
 option.
 @item
-Added @code{SET OPTION CHARACTER SET cp1251_koi8} to enable conversions of
+Added @code{SET CHARACTER SET cp1251_koi8} to enable conversions of
 data to and from the @code{cp1251_koi8} character set.
 @item
 Lots of changes for Windows 95 port. In theory, this version should now be
@@ -55398,7 +55609,7 @@ Added @code{-O join_cache_size=#} option to @code{mysqld}.
 @item
 Added @code{-O max_join_size=#} option to @code{mysqld}, to be able to set a
 limit how big queries (in this case big = slow) one should be able to handle
-without specifying @code{SET OPTION SQL_BIG_SELECTS=1}.  A # = is about 10
+without specifying @code{SET SQL_BIG_SELECTS=1}.  A # = is about 10
 examined records. The default is ``unlimited''.
 @item
 When comparing a @code{TIME}, @code{DATE}, @code{DATETIME} or @code{TIMESTAMP}
@@ -55687,7 +55898,7 @@ Now @code{LIKE} is always case-insensitive.
 @item
 @file{mysql.cc}: Allow @code{'#'} anywhere on the line.
 @item
-New command @code{SET OPTION SQL_SELECT_LIMIT=#}. See the FAQ for more details.
+New command @code{SET SQL_SELECT_LIMIT=#}. See the FAQ for more details.
 @item
 New version of the @code{mysqlaccess} script.
 @item

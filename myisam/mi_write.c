@@ -801,7 +801,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
 }
 
 
-int _mi_init_bulk_insert(MI_INFO *info)
+int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
 {
   MYISAM_SHARE *share=info->s;
   MI_KEYDEF *key=share->keyinfo;
@@ -809,6 +809,7 @@ int _mi_init_bulk_insert(MI_INFO *info)
   uint i, num_keys;
   ulonglong key_map=0;
   DBUG_ENTER("_mi_init_bulk_insert");
+  DBUG_PRINT("enter",("cache_size: %lu", cache_size));
 
   if (info->bulk_insert)
     DBUG_RETURN(0);
@@ -824,7 +825,7 @@ int _mi_init_bulk_insert(MI_INFO *info)
   }
 
   if (num_keys==0 ||
-      num_keys * MI_MIN_SIZE_BULK_INSERT_TREE > myisam_bulk_insert_tree_size)
+      num_keys * MI_MIN_SIZE_BULK_INSERT_TREE > cache_size)
     DBUG_RETURN(0);
 
   info->bulk_insert=(TREE *)
@@ -842,8 +843,8 @@ int _mi_init_bulk_insert(MI_INFO *info)
       params->info=info;
       params->keynr=i;
       init_tree(&info->bulk_insert[i],
-                myisam_bulk_insert_tree_size / num_keys / 4 + 10,
-		myisam_bulk_insert_tree_size / num_keys, 0,
+                cache_size / num_keys / 4 + 10,
+		cache_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
 		(tree_element_free) keys_free, (void *)params++);
     }

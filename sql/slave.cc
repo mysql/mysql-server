@@ -70,9 +70,10 @@ static inline bool sql_slave_killed(THD* thd,RELAY_LOG_INFO* rli);
 static int count_relay_log_space(RELAY_LOG_INFO* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
-static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+			  bool suppress_warnings);
 static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
-			     bool reconnect);
+			     bool reconnect, bool suppress_warnings);
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
@@ -1476,8 +1477,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->system_thread = thd->bootstrap = 1;
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
-  thd->net.timeout = slave_net_timeout;
-  thd->max_packet_length=thd->net.max_packet;
+  thd->net.read_timeout = slave_net_timeout;
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
@@ -1503,7 +1503,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if (thd->max_join_size == (ulong) ~0L)
+  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   if (thd_type == SLAVE_THD_SQL)
@@ -1514,6 +1514,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->set_time();
   DBUG_RETURN(0);
 }
+
 
 static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg)
@@ -1548,7 +1549,8 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
   return 0;
 }
 
-static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
+static int request_dump(MYSQL* mysql, MASTER_INFO* mi,
+			bool *suppress_warnings)
 {
   char buf[FN_REFLEN + 10];
   int len;
@@ -1567,7 +1569,10 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
       in the future, we should do a better error analysis, but for
       now we just fill up the error log :-)
     */
-    sql_print_error("Error on COM_BINLOG_DUMP: %s, will retry in %d secs",
+    if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
+      *suppress_warnings= 1;			// Suppress reconnect warning
+    else
+      sql_print_error("Error on COM_BINLOG_DUMP: %s, will retry in %d secs",
 		    mc_mysql_error(mysql), master_connect_retry);
     return 1;
   }
@@ -1582,10 +1587,10 @@ static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
   uint table_len = (uint) strlen(table);
   uint db_len = (uint) strlen(db);
   if (table_len + db_len > sizeof(buf) - 2)
-    {
-      sql_print_error("request_table_dump: Buffer overrun");
-      return 1;
-    } 
+  {
+    sql_print_error("request_table_dump: Buffer overrun");
+    return 1;
+  } 
   
   *p++ = db_len;
   memcpy(p, db, db_len);
@@ -1603,7 +1608,24 @@ command");
   return 0;
 }
 
-static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
+/*
+  read one event from the master
+  
+  SYNOPSIS
+    read_event()
+    mysql		MySQL connection
+    mi			Master connection information
+    suppress_warnings	TRUE when a normal net read timeout has caused us to
+			try a reconnect.  We do not want to print anything to
+			the error log in this case because this a anormal
+			event in an idle server.
+    RETURN VALUES
+    'packet_error'	Error
+    number		Length of packet
+
+*/
+
+static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
 {
   ulong len = packet_error;
 
@@ -1615,14 +1637,25 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
   if (disconnect_slave_event_count && !(events_till_disconnect--))
     return packet_error;      
 #endif
+  *suppress_warnings= 0;
   
   len = mc_net_safe_read(mysql);
 
   if (len == packet_error || (long) len < 1)
   {
-    sql_print_error("Error reading packet from server: %s (\
+    if (mc_mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
+    {
+      /*
+	We are trying a normal reconnect after a read timeout;
+	we suppress prints to .err file as long as the reconnect
+	happens without problems
+      */
+      *suppress_warnings= TRUE;
+    }
+    else
+      sql_print_error("Error reading packet from server: %s (\
 server_errno=%d)",
-		    mc_mysql_error(mysql), mc_mysql_errno(mysql));
+		      mc_mysql_error(mysql), mc_mysql_errno(mysql));
     return packet_error;
   }
 
@@ -1639,26 +1672,26 @@ server_errno=%d)",
   return len - 1;   
 }
 
+
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
 {
-  switch (expected_error)
-    {
-    case ER_NET_READ_ERROR:
-    case ER_NET_ERROR_ON_WRITE:  
-    case ER_SERVER_SHUTDOWN:  
-    case ER_NEW_ABORTING_CONNECTION:
-      my_snprintf(rli->last_slave_error, sizeof(rli->last_slave_error), 
-		 "Slave: query '%s' partially completed on the master \
+  switch (expected_error) {
+  case ER_NET_READ_ERROR:
+  case ER_NET_ERROR_ON_WRITE:  
+  case ER_SERVER_SHUTDOWN:  
+  case ER_NEW_ABORTING_CONNECTION:
+    my_snprintf(rli->last_slave_error, sizeof(rli->last_slave_error), 
+		"Slave: query '%s' partially completed on the master \
 and was aborted. There is a chance that your master is inconsistent at this \
 point. If you are sure that your master is ok, run this query manually on the\
  slave and then restart the slave with SET SQL_SLAVE_SKIP_COUNTER=1;\
  SLAVE START;", thd->query);
-      rli->last_slave_errno = expected_error;
-      sql_print_error("%s",rli->last_slave_error);
-      return 1;
-    default:
-      return 0;
-    }
+    rli->last_slave_errno = expected_error;
+    sql_print_error("%s",rli->last_slave_error);
+    return 1;
+  default:
+    return 0;
+  }
 }
 
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
@@ -1752,6 +1785,7 @@ slave_begin:
   }
   mi->io_thd = thd;
   thd->thread_stack = (char*)&thd; // remember where our stack is
+  thd->store_globals();
   threads.append(thd);
   mi->slave_running = 1;
   mi->abort_slave = 0;
@@ -1805,8 +1839,9 @@ connected:
   
   while (!io_slave_killed(thd,mi))
   {
+    bool suppress_warnings= 0;    
     thd->proc_info = "Requesting binlog dump";
-    if (request_dump(mysql, mi))
+    if (request_dump(mysql, mi, &suppress_warnings))
     {
       sql_print_error("Failed on request_dump()");
       if (io_slave_killed(thd,mi))
@@ -1837,10 +1872,12 @@ dump");
       }
 
       thd->proc_info = "Reconnecting after a failed dump request";
-      sql_print_error("Slave I/O thread: failed dump request, \
+      if (!suppress_warnings)
+	sql_print_error("Slave I/O thread: failed dump request, \
 reconnecting to try again, log '%s' at postion %s", IO_RPL_LOG_NAME,
-		      llstr(mi->master_log_pos,llbuff));
-      if (safe_reconnect(thd, mysql, mi) || io_slave_killed(thd,mi))
+			llstr(mi->master_log_pos,llbuff));
+      if (safe_reconnect(thd, mysql, mi, suppress_warnings) ||
+	  io_slave_killed(thd,mi))
       {
 	sql_print_error("Slave I/O thread killed during or \
 after reconnect");
@@ -1852,8 +1889,9 @@ after reconnect");
 
     while (!io_slave_killed(thd,mi))
     {
+      bool suppress_warnings= 0;    
       thd->proc_info = "Reading master update";
-      ulong event_len = read_event(mysql, mi);
+      ulong event_len = read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
 	sql_print_error("Slave I/O thread killed while reading event");
@@ -1867,7 +1905,7 @@ after reconnect");
 	  sql_print_error("Log entry on master is longer than \
 max_allowed_packet (%ld) on slave. Slave thread will be aborted. If the entry \
 is correct, restart the server with a higher value of max_allowed_packet",
-			  max_allowed_packet);
+			  thd->variables.max_allowed_packet);
 	  goto err;
 	}
 
@@ -1886,10 +1924,12 @@ reconnect after a failed read");
 	  goto err;
 	}
 	thd->proc_info = "Reconnecting after a failed read";
-	sql_print_error("Slave I/O thread: Failed reading log event, \
+	if (!suppress_warnings)
+	  sql_print_error("Slave I/O thread: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", IO_RPL_LOG_NAME,
-			llstr(mi->master_log_pos, llbuff));
-	if (safe_reconnect(thd, mysql, mi) || io_slave_killed(thd,mi))
+			  llstr(mi->master_log_pos, llbuff));
+	if (safe_reconnect(thd, mysql, mi, suppress_warnings) ||
+	    io_slave_killed(thd,mi))
 	{
 	  sql_print_error("Slave I/O thread killed during or after a \
 reconnect done to recover from failed read");
@@ -2005,6 +2045,7 @@ slave_begin:
   THD_CHECK_SENTRY(thd);
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
+  thd->store_globals();
   threads.append(thd);
   rli->sql_thd = thd;
   rli->slave_running = 1;
@@ -2383,7 +2424,7 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
 /* try to connect until successful or slave killed */
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
-  return connect_to_master(thd, mysql, mi, 0);
+  return connect_to_master(thd, mysql, mi, 0, 0);
 }
 
 
@@ -2393,7 +2434,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 */
 
 static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
-			     bool reconnect)
+			     bool reconnect, bool suppress_warnings)
 {
   int slave_was_killed;
   int last_errno= -2;				// impossible error
@@ -2406,11 +2447,13 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
 	 (reconnect ? mc_mysql_reconnect(mysql) != 0 :
 	  !mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
-			    mi->port, 0, 0)))
+			    mi->port, 0, 0, 
+			    thd->variables.net_read_timeout)))
   {
     /* Don't repeat last error */
     if (mc_mysql_errno(mysql) != last_errno)
     {
+      suppress_warnings= 0;
       sql_print_error("Slave I/O thread: error connecting to master \
 '%s@%s:%d': \
 %s, last_errno=%d, retry in %d sec",mi->user,mi->host,mi->port,
@@ -2437,11 +2480,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
   if (!slave_was_killed)
   {
     if (reconnect)
-      sql_print_error("Slave: connected to master '%s@%s:%d',\
+    { 
+      if (!suppress_warnings)
+	sql_print_error("Slave: connected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", mi->user,
-		      mi->host, mi->port,
-		      IO_RPL_LOG_NAME,
-		      llstr(mi->master_log_pos,llbuff));
+			mi->host, mi->port,
+			IO_RPL_LOG_NAME,
+			llstr(mi->master_log_pos,llbuff));
+    }
     else
     {
       change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
@@ -2462,10 +2508,12 @@ replication resumed in log '%s' at position %s", mi->user,
   master_retry_count times
 */
 
-static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+			  bool suppress_warnings)
 {
-  return connect_to_master(thd, mysql, mi, 1);
+  return connect_to_master(thd, mysql, mi, 1, suppress_warnings);
 }
+
 
 int flush_relay_log_info(RELAY_LOG_INFO* rli)
 {

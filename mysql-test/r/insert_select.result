@@ -61,7 +61,7 @@ SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM crash2
 WHERE numeropost=9 ORDER BY numreponse ASC;
 show variables like '%bulk%';
 Variable_name	Value
-myisam_bulk_insert_tree_size	8388608
+bulk_insert_buffer_size	8388608
 INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
 SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM crash2
 WHERE numeropost=9 ORDER BY numreponse ASC;

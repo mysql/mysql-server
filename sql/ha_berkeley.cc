@@ -1701,7 +1701,7 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
       DBUG_ASSERT(thd->transaction.stmt.bdb_tid == 0);
       transaction=0;				// Safety
       /* First table lock, start transaction */
-      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
+      if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN |
 			   OPTION_TABLE_LOCK)) &&
 	  !thd->transaction.all.bdb_tid)
       {

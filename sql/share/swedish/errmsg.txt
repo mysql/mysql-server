@@ -229,3 +229,11 @@
 "Option '%s' användes två gånger",
 "Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)",
 "Du har inte privlegiet '%-.128s' som behövs för denna operation",
+"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
+"Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
+"Variable '%-.64s' doesn't have a default value",
+"Variable '%-.64s' can't be set to the value of '%-.64s'",
+"Wrong argument type to variable '%-.64s'",
+"Variable '%-.64s' can only be set, not read",
+"Wrong usage/placement of '%s'",
+"This version of MySQL doesn't yet support '%s',"

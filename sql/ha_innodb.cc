@@ -3176,7 +3176,7 @@ ha_innobase::external_lock(
 		thd->transaction.all.innodb_active_trans = 1;
 		trx->n_mysql_tables_in_use++;
 
-		if (thd->tx_isolation == ISO_SERIALIZABLE
+		if (thd->variables.tx_isolation == ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {
 
 		    	/* To get serializable execution we let InnoDB
@@ -3204,7 +3204,7 @@ ha_innobase::external_lock(
 			innobase_release_stat_resources(trx);
 
 		  	if (!(thd->options
-				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
+				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		    		innobase_commit(thd, trx);
 				thd->transaction.all.innodb_active_trans=0;

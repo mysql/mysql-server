@@ -1,6 +1,6 @@
 %define mysql_version		@VERSION@
 %define shared_lib_version	@SHARED_LIB_VERSION@
-%define release			2
+%define release			0
 %define mysqld_user		mysql
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
@@ -44,6 +44,13 @@ further info.
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
+
+This package includes the MySQL server binary (statically linked,
+compiled with InnoDB support) as well as related utilities to run
+and administrate a MySQL server.
+
+If you want to access and work with the database, you have to install
+package "MySQL-client" as well!
 
 %package client
 Release: %{release}
@@ -111,15 +118,18 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB and Innodb support
+Summary: MySQL - server with Berkeley DB, OpenSSL and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
 
 %description Max 
 Optional MySQL server binary that supports additional features like
-transactional tables. To activate this binary, just install this
-package in addition to the MySQL package.
+Berkeley DB, OpenSSL support and User Defined Functions (UDF).
+To activate this binary, just install this package in addition to
+the standard MySQL package.
+
+Please note that this is a dynamically linked binary!
 
 %package embedded
 Release: %{release}
@@ -214,16 +224,15 @@ mkdir -p $RBR
 PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
 export PATH
 
-# We need to build shared libraries separate from mysqld-max because we
-# are using --with-other-libc
+# Build the 4.0 Max binary (includes BDB and OpenSSL and therefore
+# cannot be linked statically against the patched glibc)
 
-BuildMySQL "--disable-shared \
-			$USE_OTHER_LIBC_DIR \
-			--with-berkeley-db \
-			--with-innodb \
-			--with-openssl \
-			--with-vio \
-			--with-server-suffix='-Max'"
+BuildMySQL "--enable-shared \
+		--with-berkeley-db \
+		--with-innodb \
+		--with-openssl \
+		--with-vio \
+		--with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .
@@ -232,13 +241,7 @@ BuildMySQL "--disable-shared \
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 
-# Save manual to avoid rebuilding
-mv Docs/manual.ps Docs/manual.ps.save
-make distclean
-mv Docs/manual.ps.save Docs/manual.ps
-
-# now build and save shared libraries
-BuildMySQL "--enable-shared --enable-thread-safe-client --without-server "
+# Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
@@ -250,13 +253,15 @@ mv Docs/manual.ps.save Docs/manual.ps
 # RPM:s destroys Makefile.in files, so we generate them here
 automake
 
+# Now build the statically linked 4.0 binary (which includes InnoDB)
 BuildMySQL "--disable-shared \
-	   --with-mysqld-ldflags='-all-static' \
-	   --with-client-ldflags='-all-static' \
-  	 $USE_OTHER_LIBC_DIR \
-	   --without-berkeley-db \
-		 --without-vio \
-		 --without-openssl"
+		--with-mysqld-ldflags='-all-static' \
+		--with-client-ldflags='-all-static' \
+		$USE_OTHER_LIBC_DIR \
+		--without-berkeley-db \
+		--with-innodb \
+		--without-vio \
+		--without-openssl"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
@@ -266,20 +271,18 @@ MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 # Ensure that needed directories exists
 install -d $RBR/etc/{logrotate.d,rc.d/init.d}
 install -d $RBR/var/lib/mysql/mysql
-install -d $RBR/usr/share/sql-bench
-install -d $RBR/usr/share/mysql-test
+install -d $RBR/usr/share/{sql-bench,mysql-test}
 install -d $RBR%{_mandir}
-install -d $RBR/usr/{sbin,share,include}
-install -d $RBR/usr/lib
-# Install all binaries stripped except for mysqld (required for UDFs
-# to work)
+install -d $RBR/usr/{sbin,lib,include}
+
+# Install all binaries stripped 
 make install-strip DESTDIR=$RBR benchdir_root=/usr/share/
 
 # Install shared libraries (Disable for architectures that don't support it)
 (cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
 
 # install saved mysqld-max
-install -m755 $MBD/sql/mysqld-max $RBR/usr/sbin/mysqld-max
+install -s -m755 $MBD/sql/mysqld-max $RBR/usr/sbin/mysqld-max
 
 # install symbol files ( for stack trace resolution)
 install -m644 $MBD/sql/mysqld-max.sym $RBR/usr/lib/mysql/mysqld-max.sym
@@ -355,7 +358,13 @@ fi
 # We do not remove the mysql user since it may still own a lot of
 # database files.
 
+# Clean up the BuildRoot
+%clean
+[ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
+
 %files
+%defattr(755 root, root)
+
 %doc %attr(644, root, root) COPYING COPYING.LIB README
 %doc %attr(644, root, root) Docs/manual.{html,ps,texi,txt} Docs/manual_toc.html
 %doc %attr(644, root, root) support-files/my-*.cnf
@@ -467,6 +476,16 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Thu Jul 18 2002 Lenz Grimmer <lenz@mysql.com>
+
+- Reworked the build steps a little bit: the Max binary is supposed
+  to include OpenSSL, which cannot be linked statically, thus trying
+	to statically link against a special glibc is futile anyway
+- because of this, it is not required to make yet another build run
+  just to compile the shared libs (saves a lot of time)
+- updated package description of the Max subpackage
+- clean up the BuildRoot directory afterwards
 
 * Mon Jul 15 2002 Lenz Grimmer <lenz@mysql.com>
 
