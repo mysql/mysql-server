@@ -132,8 +132,13 @@ static int rr_quick(READ_RECORD *info)
   {
     if (tmp == HA_ERR_END_OF_FILE)
       tmp= -1;
-    else if (info->print_error)
-      info->file->print_error(tmp,MYF(0));
+    else
+    {
+      if (info->print_error)
+	info->file->print_error(tmp,MYF(0));
+      if (tmp < 0)				// Fix negative BDB errno
+	tmp=1;
+    }
   }
   return tmp;
 }
@@ -153,8 +158,13 @@ static int rr_sequential(READ_RECORD *info)
     {
       if (tmp == HA_ERR_END_OF_FILE)
 	tmp= -1;
-      else if (info->print_error)
-	info->table->file->print_error(tmp,MYF(0));
+      else
+      {
+	if (info->print_error)
+	  info->table->file->print_error(tmp,MYF(0));
+	if (tmp < 0)				// Fix negative BDB errno
+	  tmp=1;
+      }
       break;
     }
   }
@@ -168,21 +178,27 @@ static int rr_from_tempfile(READ_RECORD *info)
 tryNext:
   if (my_b_read(info->io_cache,info->ref_pos,info->ref_length))
     return -1;					/* End of file */
-  tmp=info->file->rnd_pos(info->record,info->ref_pos);
-  if (tmp)
+  if ((tmp=info->file->rnd_pos(info->record,info->ref_pos)))
   {
     if (tmp == HA_ERR_END_OF_FILE)
       tmp= -1;
     else if (tmp == HA_ERR_RECORD_DELETED)
       goto tryNext;
-    else if (info->print_error)
-      info->file->print_error(tmp,MYF(0));
+    else
+    {
+      if (info->print_error)
+	info->file->print_error(tmp,MYF(0));
+      if (tmp < 0)				// Fix negative BDB errno
+	tmp=1;
+    }
   }
   return tmp;
 } /* rr_from_tempfile */
 
+
 static int rr_from_pointers(READ_RECORD *info)
 {
+  int tmp;
   byte *cache_pos;
 tryNext:
   if (info->cache_pos == info->cache_end)
@@ -190,15 +206,19 @@ tryNext:
   cache_pos=info->cache_pos;
   info->cache_pos+=info->ref_length;
 
-  int tmp=info->file->rnd_pos(info->record,cache_pos);
-  if (tmp)
+  if ((tmp=info->file->rnd_pos(info->record,cache_pos)))
   {
     if (tmp == HA_ERR_END_OF_FILE)
       tmp= -1;
     else if (tmp == HA_ERR_RECORD_DELETED)
       goto tryNext;
-    else if (info->print_error)
-      info->file->print_error(tmp,MYF(0));
+    else
+    {
+      if (info->print_error)
+	info->file->print_error(tmp,MYF(0));
+      if (tmp < 0)				// Fix negative BDB errno
+	tmp=1;
+    }
   }
   return tmp;
 }
