@@ -230,21 +230,24 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
       return -1;
     }
     s= row[fldcount];
-    switch (sp_map_result_type(pv->type))
-    {
-    case INT_RESULT:
-      it= new Item_int(s);
-      break;
-    case REAL_RESULT:
-      it= new Item_real(s, strlen(s));
-      break;
-    default:
+    if (!s)
+      it= new Item_null();
+    else
+      switch (sp_map_result_type(pv->type))
       {
-	uint len= strlen(s);
-	it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+      case INT_RESULT:
+	it= new Item_int(s);
 	break;
+      case REAL_RESULT:
+	it= new Item_real(s, strlen(s));
+	break;
+      default:
+	{
+	  uint len= strlen(s);
+	  it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+	  break;
+	}
       }
-    }
     thd->spcont->set_item(pv->offset, it);
   }
   if (fldcount < m_prot->get_field_count())
