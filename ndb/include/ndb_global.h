@@ -94,6 +94,14 @@ extern int strcasecmp(const char *s1, const char *s2);
 extern int strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
 
+#ifdef SCO
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+#endif /* SCO */
+
 #ifdef  __cplusplus
 }
 #endif
