@@ -47,7 +47,7 @@ extern "C" {
 class TransporterFacade
 {
 public:
-  TransporterFacade(NdbMgmHandle mgm_handle);
+  TransporterFacade();
   virtual ~TransporterFacade();
   bool init(Uint32, const ndb_mgm_configuration *);
 
@@ -133,7 +133,6 @@ private:
   bool isConnected(NodeId aNodeId);
   void doStop();
 
-  NdbMgmHandle m_mgm_handle;  
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
