@@ -177,6 +177,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     }
     fix_length_and_dec();
   }
+  else
+    return 1;
   uint8 uncacheable= engine->uncacheable();
   if (uncacheable)
   {
@@ -264,7 +266,6 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(select_lex, new select_singlerow_subselect(this));
-  max_columns= 1;
   maybe_null= 1;
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
