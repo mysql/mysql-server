@@ -3496,6 +3496,9 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
     return 0;
   }
 
+  /* We should skip first table if SQL command is SQLCOM_CREATE_TABLE */
+  bool skip_first= (lex->sql_command == SQLCOM_CREATE_TABLE);
+  bool first_added= 0;
   SELECT_LEX *sl;
   TABLE_LIST **new_table_list= result, *aux;
 
@@ -3512,9 +3515,11 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
       TABLE_LIST *next;
       for (; aux; aux=next)
       {
-	TABLE_LIST *cursor;
+	TABLE_LIST *cursor= *result;
+	if (first_added && skip_first)
+	  cursor= cursor->next;
 	next= aux->next;
-	for (cursor= *result; cursor; cursor=cursor->next)
+	for ( ; cursor; cursor=cursor->next)
 	  if (!strcmp(cursor->db,aux->db) &&
 	      !strcmp(cursor->real_name,aux->real_name) &&
 	      !strcmp(cursor->alias, aux->alias))
@@ -3531,6 +3536,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	  *new_table_list= cursor;
 	  new_table_list= &cursor->next;
 	  *new_table_list=0;			// end result list
+	  first_added= 1;
 	}
 	else
 	  aux->shared=1;			// Mark that it's used twice
