@@ -2432,6 +2432,13 @@ void Field_medium::sql_type(String &res) const
 ** long int
 ****************************************************************************/
 
+static bool test_if_minus(CHARSET_INFO *cs,
+                          const char *s, const char *e)
+{
+  my_wc_t wc;
+  return cs->cset->mb_wc(cs, &wc, (uchar*) s, (uchar*) e) > 0 && wc == '-';
+}
+
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
@@ -2734,7 +2741,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   from+= tmp;
   if (unsigned_flag)
   {
-    if (!len || *from == '-')
+    if (!len || test_if_minus(cs, from, from + len))
     {
       tmp=0;					// Set negative to 0
       error= 1;
