@@ -769,7 +769,7 @@ int wild_case_compare(const char *str,const char *wildstr)
 {
   reg3 int flag;
   DBUG_ENTER("wild_case_compare");
-
+  DBUG_PRINT("enter",("str='%s', wildstr='%s'",str,wildstr));
   while (*wildstr)
   {
     while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
@@ -892,16 +892,18 @@ bool acl_check_host(const char *host, const char *ip)
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
+  DBUG_ENTER("change_password");
+  DBUG_PRINT("enter",("thd=%x, host='%s', user='%s', new_password='%s'",thd,host,user,new_password));
   uint length=0;
   if (!user[0])
   {
     send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (!initialized)
   {
     send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
-    return 1; /* purecov: inspected */
+    DBUG_RETURN(1); /* purecov: inspected */
   }
   if (!host)
     host=thd->ip; /* purecov: tested */
@@ -913,15 +915,16 @@ bool change_password(THD *thd, const char *host, const char *user,
 	       my_strcasecmp(host,thd->host ? thd->host : thd->ip))))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
-      return 1;
+      DBUG_RETURN(1);
   }
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
+  DBUG_PRINT("info",("host=%s, user=%s",host,user));
   if (!(acl_user= find_acl_user(host,user)) || !acl_user->user)
   {
     send_error(&thd->net, ER_PASSWORD_NO_MATCH);
     VOID(pthread_mutex_unlock(&acl_cache->lock));
-    return 1;
+    DBUG_RETURN(1);
   }
   if (update_user_table(thd,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -929,7 +932,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
     send_error(&thd->net,0); /* purecov: deadcode */
-    return 1; /* purecov: deadcode */
+    DBUG_RETURN(1); /* purecov: deadcode */
   }
   get_salt_from_password(acl_user->salt,new_password);
   if (!new_password[0])
@@ -950,7 +953,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		new_password));
   mysql_update_log.write(thd,buff,qinfo.q_len);
   mysql_bin_log.write(&qinfo);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -961,17 +964,23 @@ bool change_password(THD *thd, const char *host, const char *user,
 static ACL_USER *
 find_acl_user(const char *host, const char *user)
 {
+  DBUG_ENTER("find_acl_user");
+  DBUG_PRINT("enter",("host='%s', user='%s'",host,user));
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
+    DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
+			    user,acl_user->user,(host),(acl_user->host)));
     if (!acl_user->user && !user[0] ||
 	acl_user->user && !strcmp(user,acl_user->user))
     {
-      if (compare_hostname(&acl_user->host,host,host))
-	return acl_user;
+      if (compare_hostname(&(acl_user->host),host,host))
+      {
+	DBUG_RETURN(acl_user);
+      }
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************************

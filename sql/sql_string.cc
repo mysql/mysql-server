@@ -699,8 +699,11 @@ int wild_case_compare(const char *str,const char *str_end,
 
 int wild_case_compare(String &match,String &wild, char escape)
 {
-  return wild_case_compare(match.ptr(),match.ptr()+match.length(),
-			   wild.ptr(), wild.ptr()+wild.length(),escape);
+  DBUG_ENTER("wild_case_compare");
+  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
+			  ,match.ptr(),wild.ptr(),escape));
+  DBUG_RETURN(wild_case_compare(match.ptr(),match.ptr()+match.length(),
+			   wild.ptr(), wild.ptr()+wild.length(),escape));
 }
 
 /*
@@ -710,6 +713,9 @@ int wild_case_compare(String &match,String &wild, char escape)
 int wild_compare(const char *str,const char *str_end,
 		 const char *wildstr,const char *wildend,char escape)
 {
+  DBUG_ENTER("wild_compare");
+  DBUG_PRINT("enter",("str='%s', str_end='%s', wildstr='%s', wildend='%s', escape='%c'"
+			  ,str,str_end,wildstr,wildend,escape));
   int result= -1;				// Not found, using wildcards
   while (wildstr != wildend)
   {
@@ -718,9 +724,13 @@ int wild_compare(const char *str,const char *str_end,
       if (*wildstr == escape && wildstr+1 != wildend)
 	wildstr++;
       if (str == str_end || *wildstr++ != *str++)
-	return(1);
+      {
+	DBUG_RETURN(1);
+      }
       if (wildstr == wildend)
-	return (str != str_end);		// Match if both are at end
+      {
+	DBUG_RETURN(str != str_end);		// Match if both are at end
+      }
       result=1;					// Found an anchor char
     }
     if (*wildstr == wild_one)
@@ -728,7 +738,7 @@ int wild_compare(const char *str,const char *str_end,
       do
       {
 	if (str == str_end)			// Skip one char if possible
-	  return (result);
+	  DBUG_RETURN(result);
 	str++;
       } while (*++wildstr == wild_one && wildstr != wildend);
       if (wildstr == wildend)
@@ -745,17 +755,22 @@ int wild_compare(const char *str,const char *str_end,
 	if (*wildstr == wild_one)
 	{
 	  if (str == str_end)
-	    return (-1);
+	  {
+	    DBUG_RETURN(-1);
+	  }
 	  str++;
 	  continue;
 	}
 	break;					// Not a wild character
       }
       if (wildstr == wildend)
-	return(0);				// Ok if wild_many is last
+      {
+	DBUG_RETURN(0);				// Ok if wild_many is last
+      }
       if (str == str_end)
-	return -1;
-
+      {
+	DBUG_RETURN(-1);
+      }
       char cmp;
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
@@ -764,22 +779,30 @@ int wild_compare(const char *str,const char *str_end,
       {
 	while (str != str_end && *str != cmp)
 	  str++;
-	if (str++ == str_end) return (-1);
+	if (str++ == str_end) 
+	{ 
+	  DBUG_RETURN(-1) 
+	};
 	{
 	  int tmp=wild_compare(str,str_end,wildstr,wildend,escape);
 	  if (tmp <= 0)
-	    return (tmp);
+	  {
+	    DBUG_RETURN(tmp);
+	  }
 	}
       } while (str != str_end && wildstr[0] != wild_many);
-      return(-1);
+      DBUG_RETURN(-1);
     }
   }
-  return (str != str_end ? 1 : 0);
+  DBUG_RETURN(str != str_end ? 1 : 0);
 }
 
 
 int wild_compare(String &match,String &wild, char escape)
 {
-  return wild_compare(match.ptr(),match.ptr()+match.length(),
-		      wild.ptr(), wild.ptr()+wild.length(),escape);
+  DBUG_ENTER("wild_compare");
+  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
+			  ,match.ptr(),wild.ptr(),escape));
+  DBUG_RETURN(wild_compare(match.ptr(),match.ptr()+match.length(),
+		      wild.ptr(), wild.ptr()+wild.length(),escape));
 }
