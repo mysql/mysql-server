@@ -3390,14 +3390,17 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_FLOAT:
   {
+    char *end_not_used;
     float data = (float) my_strntod(&my_charset_latin1, value, length,
-                                    NULL, &err);
+                                    &end_not_used, &err);
     floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(&my_charset_latin1, value, length, NULL, &err);
+    char *end_not_used;
+    double data= my_strntod(&my_charset_latin1, value, length, &end_not_used,
+                            &err);
     doublestore(buffer, data);
     break;
   }
