@@ -9,7 +9,6 @@ create_tab \
 flexAsynch \
 flexBench \
 flexHammer \
-flexScan \
 flexTT \
 testBackup \
 testBasic \
@@ -40,7 +39,6 @@ drop_all_tabs_SOURCES = drop_all_tabs.cpp
 flexAsynch_SOURCES = flexAsynch.cpp
 flexBench_SOURCES = flexBench.cpp
 flexHammer_SOURCES = flexHammer.cpp
-flexScan_SOURCES = flexScan.cpp
 flexTT_SOURCES = flexTT.cpp
 #flexTimedAsynch_SOURCES = flexTimedAsynch.cpp
 #flex_bench_mysql_SOURCES = flex_bench_mysql.cpp
