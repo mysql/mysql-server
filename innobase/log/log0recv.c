@@ -1825,7 +1825,12 @@ recv_report_corrupt_log(
 	"InnoDB: WARNING: the log file may have been corrupt and it\n"
 	"InnoDB: is possible that the log scan did not proceed\n"
 	"InnoDB: far enough in recovery! Please run CHECK TABLE\n"
-	"InnoDB: on your InnoDB tables to check that they are ok!\n");
+	"InnoDB: on your InnoDB tables to check that they are ok!\n"
+	"InnoDB: If mysqld crashes after this recovery, look at\n"
+	"InnoDB: section 6.1 of http://www.innodb.com/ibman.html\n"
+	"InnoDB: about forcing recovery.\n");
+
+	fflush(stderr);
 }
 
 /***********************************************************
@@ -2462,7 +2467,7 @@ recv_recovery_from_checkpoint_start(
 				log_hdr_buf, max_cp_group);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
-				"ibbackup", ut_strlen("ibbackup"))) {
+			(byte*)"ibbackup", ut_strlen((char*)"ibbackup"))) {
 		/* This log file was created by ibbackup --restore: print
 		a note to the user about it */
 
@@ -2473,7 +2478,7 @@ recv_recovery_from_checkpoint_start(
 		/* Wipe over the label now */
 
 		ut_memcpy(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
-								"    ", 4);
+					(char*)"    ", 4);
 		/* Write to the log file to wipe over the label */
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE,
 				max_cp_group->space_id,
