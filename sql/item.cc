@@ -2514,53 +2514,9 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 
 uint32 Item_type_holder::real_length(Item *item)
 {
-  if (item->result_type() == STRING_RESULT)
-    return item->max_length;
   if (item->type() == Item::FIELD_ITEM)
   {
-    switch (((Item_field *)item)->field_type())
-    {
-      case MYSQL_TYPE_TINY:
-        return 4;
-      case MYSQL_TYPE_SHORT:
-        return 6;
-      case MYSQL_TYPE_LONG:
-        return 11;
-      case MYSQL_TYPE_FLOAT:
-        return 24;
-      case MYSQL_TYPE_DOUBLE:
-        return 53;
-      case MYSQL_TYPE_NULL:
-        return 4;
-      case MYSQL_TYPE_LONGLONG:
-        return 20;
-      case MYSQL_TYPE_INT24:
-        return 8;
-      case MYSQL_TYPE_TINY_BLOB:
-        return 256;
-      case MYSQL_TYPE_MEDIUM_BLOB:
-        return 65535;
-      case MYSQL_TYPE_LONG_BLOB:
-        return (uint32)4294967295;
-      case MYSQL_TYPE_BLOB:
-        return 16777215;
-      case MYSQL_TYPE_SET:
-      case MYSQL_TYPE_ENUM:
-      case MYSQL_TYPE_NEWDATE:
-      case MYSQL_TYPE_YEAR:
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_TIME:
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_TIMESTAMP:
-      case MYSQL_TYPE_DECIMAL:
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_GEOMETRY:
-        return item->max_length;
-      default:
-        DBUG_ASSERT(0); // we should never go there
-        return 0;
-    }
+    return ((Item_field *)item)->max_disp_length();
   }
   switch (item->result_type())
   {

@@ -382,6 +382,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
+  inline uint32 max_disp_length() { return field->max_length(); }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
