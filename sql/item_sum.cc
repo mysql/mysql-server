@@ -361,6 +361,16 @@ longlong Item_sum_count::val_int()
   return (longlong) count;
 }
 
+
+void Item_sum_count::cleanup()
+{
+  DBUG_ENTER("Item_sum_count::cleanup");
+  Item_sum_int::cleanup();
+  used_table_cache= ~(table_map) 0;
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Avgerage
 */
@@ -572,6 +582,15 @@ Item_sum_hybrid::val_str(String *str)
     break;
   }
   return str;					// Keep compiler happy
+}
+
+
+void Item_sum_hybrid::cleanup()
+{
+  DBUG_ENTER("Item_sum_hybrid::cleanup");
+  Item_sum::cleanup();
+  used_table_cache= ~(table_map) 0;
+  DBUG_VOID_RETURN;
 }
 
 
