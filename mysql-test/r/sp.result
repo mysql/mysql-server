@@ -2697,30 +2697,6 @@ call bug7992()|
 call bug7992()|
 drop procedure bug7992|
 drop table t3|
-drop table t2;
-drop table t1;
-drop procedure if exists sp1;
-create table t1 (a int) engine=innodb|
-create procedure sp1 ()
-begin
-truncate table t1; insert t1 values (1); rollback;
-end
-|
-set autocommit=0;
-insert t1 values (2);
-call sp1();
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-commit;
-set autocommit=1;
-select * from t1;
-a
-2
-call sp1();
-select * from t1;
-a
-1
-drop table t1;
-drop procedure sp1;
 create table t3 (
 lpitnumber int(11) default null,
 lrecordtype int(11) default null
@@ -2780,3 +2756,25 @@ a
 drop procedure bug8937|
 delete from t1|
 drop table t1,t2;
+drop procedure if exists sp1;
+create table t1 (a int) engine=innodb|
+create procedure sp1 ()
+begin
+truncate table t1; insert t1 values (1); rollback;
+end
+|
+set autocommit=0;
+insert t1 values (2);
+call sp1();
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+commit;
+set autocommit=1;
+select * from t1;
+a
+2
+call sp1();
+select * from t1;
+a
+1
+drop table t1;
+drop procedure sp1;
