@@ -291,7 +291,6 @@ extern "C" void*
 copyrun_C(void* copy)
 {
     ((Copy*) copy)->run();
-    NdbThread_Exit(0);
     return 0;
 }
 
@@ -322,7 +321,6 @@ extern "C" void*
 connrun_C(void* conn)
 {
     ((Conn*) conn)->run();
-    NdbThread_Exit(0);
     return 0;
 }
 

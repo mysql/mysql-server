@@ -628,7 +628,7 @@ static void* flexBenchThread(void* pArg)
     free(attrRefValue) ;
     free(pOps) ;
     delete pNdb ;
-    NdbThread_Exit(0) ;
+    return 0; // thread exits
   }
   
   pNdb->init();
@@ -945,8 +945,7 @@ static void* flexBenchThread(void* pArg)
     free(longKeyAttrValue);
   } // if
 
-  NdbThread_Exit(0);
-  return NULL; // Just to keep compiler happy
+  return NULL; // Thread exits
 }
 
 
