@@ -4632,14 +4632,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && isdigit(argument[0]))
+    if (isdigit(argument[0]))
     {
       my_bind_addr = (ulong) inet_addr(argument);
     }
     else
     {
       struct hostent *ent;
-      if (argument || argument[0])
+      if (argument[0])
 	ent=gethostbyname(argument);
       else
       {
