@@ -54,11 +54,11 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
-#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
-#define OPT_NDB_SHM_DEFAULT 1
-#else
+//#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
+//#define OPT_NDB_SHM_DEFAULT 1
+//#else
 #define OPT_NDB_SHM_DEFAULT 0
-#endif
+//#endif
 #else
 #define OPT_NDBCLUSTER_DEFAULT 0
 #endif
