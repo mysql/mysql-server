@@ -334,9 +334,9 @@ To make maintaining easier please:
   <description>Windows Baltic</description>
   <alias>WinBaltRim</alias>
   <alias>windows-1257</alias>
-  <collation name="cp1257"		id="29"	order="Depreciated"/>
-  <collation name="cp1257_bin"		id="58"	order="Binary"	flag="binary"/>
-  <collation name="cp1257_ci_ai"	id="59"	flag="primary">
+  <collation name="cp1257_lithuanian_ci"	id="29"	order="Lithuanian"/>
+  <collation name="cp1257_bin"			id="58"	order="Binary"	flag="binary"/>
+  <collation name="cp1257_ci_ai"		id="59"	flag="primary">
     <order>Latvian</order>
     <order>Lithuanian</order>
   </collation>
