@@ -1346,14 +1346,14 @@ innobase_commit_low(
                 return;
         }
 
-#ifdef HAVE_REPLICATION
+#ifdef DISABLE_HAVE_REPLICATION
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.group_master_log_name;
                 trx->mysql_master_log_pos= ((ib_longlong)
-                   			    active_mi->rli.future_group_master_log_pos);
+                                            active_mi->rli.future_group_master_log_pos);
         }
 #endif /* HAVE_REPLICATION */
 
