@@ -41044,7 +41044,7 @@ Returns the error number for the most recently invoked MySQL function.
 Returns the error message for the most recently invoked MySQL function.
 
 @item @strong{mysql_real_escape_string()} @tab
-Escapes special characters in a string for use in a SQL statement taking
+Escapes special characters in a string for use in a SQL statement, taking
 into account the current charset of the connection.
 
 @item @strong{mysql_escape_string()} @tab
@@ -51012,6 +51012,8 @@ Fixed coredump in LOAD_FILE(NULL).
 @appendixsubsec Changes in release 3.23.14
 
 @itemize @bullet
+@item
+Added @code{mysql_real_escape_string()} function to the MySQL C API.
 @item
 Fixed a bug in @code{CONCAT()} where one of the arguments was a function
 that returned a modified argument.
