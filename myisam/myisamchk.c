@@ -41,8 +41,8 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
-static const char *set_charset_name, *opt_tmpdir;
-static CHARSET_INFO *set_charset;
+static const char *set_collation_name, *opt_tmpdir;
+static CHARSET_INFO *set_collation;
 static long opt_myisam_block_size;
 static long opt_key_cache_block_size;
 static const char *my_progname_short;
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 } /* main */
 
 enum options_mc {
-  OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS,
+  OPT_CHARSETS_DIR=256, OPT_SET_COLLATION,OPT_START_CHECK_POS,
   OPT_CORRECT_CHECKSUM, OPT_KEY_BUFFER_SIZE,
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
@@ -252,9 +252,9 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.auto_increment_value,
    (gptr*) &check_param.auto_increment_value,
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"set-character-set", OPT_SET_CHARSET,
-   "Change the character set used by the index",
-   (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-collation", OPT_SET_COLLATION,
+   "Change the collation used by the index",
+   (gptr*) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -739,8 +739,9 @@ static void get_options(register int *argc,register char ***argv)
   check_param.tmpdir=&myisamchk_tmpdir;
   check_param.key_cache_block_size= opt_key_cache_block_size;
 
-  if (set_charset_name)
-    if (!(set_charset=get_charset_by_name(set_charset_name, MYF(MY_WME))))
+  if (set_collation_name)
+    if (!(set_collation= get_charset_by_name(set_collation_name,
+                                             MYF(MY_WME))))
       exit(1);
 
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
@@ -874,11 +875,12 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	(((ulonglong) 1L << share->base.keys)-1)) ||
        test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
-       (set_charset && set_charset->number != share->state.header.language) ||
+       (set_collation &&
+        set_collation->number != share->state.header.language) ||
        myisam_block_size != MI_KEY_BLOCK_LENGTH))
   {
-    if (set_charset)
-      param->language=set_charset->number;
+    if (set_collation)
+      param->language= set_collation->number;
     if (recreate_table(param, &info,filename))
     {
       VOID(fprintf(stderr,
