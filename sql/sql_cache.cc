@@ -770,9 +770,12 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
     flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			     1 : 0);
-    flags.character_set_client_num= thd->variables.character_set_client->number;
-    flags.character_set_results_num= thd->variables.character_set_results->number;
-    flags.collation_connection_num= thd->variables.collation_connection->number;
+    flags.character_set_client_num=
+      thd->variables.character_set_client->number;
+    flags.character_set_results_num=
+      thd->variables.character_set_results->number;
+    flags.collation_connection_num=
+      thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
     STRUCT_LOCK(&structure_guard_mutex);
 
@@ -953,7 +956,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			   1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
-  flags.character_set_results_num= thd->variables.character_set_results->number;
+  flags.character_set_results_num=
+    thd->variables.character_set_results->number;
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
