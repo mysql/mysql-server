@@ -256,7 +256,7 @@ To make maintaining easier please:
   <family>Central European</family>
   <alias>ms-ce</alias>
   <alias>windows-1250</alias>
-  <collation name="win1250"	id="26"	flag="primary">
+  <collation name="cp1250"	id="26"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
     <order>Romanian</order>
@@ -265,7 +265,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="win1250ch"	id="34"	order="Czech"/>
+  <collation name="cp1250_czech"	id="34"	order="Czech"/>
 </charset>
 
 <charset name="gbk">
