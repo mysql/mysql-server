@@ -15,7 +15,7 @@ create table t1 (
   filler2 char(200),  
   index(key1),
   index(key2),  
-) type=innodb;
+) engine=innodb;
 
 
 --disable_query_log

@@ -76,11 +76,13 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 #define M_PI 3.14159265358979323846
 #endif
 
-#define M_E (exp(1))
+#ifndef M_E
+#define M_E (exp((double)1.0))
+#endif
 
 inline double log2_n_fact(double x)
 {
-  return (2 * ( ((x)+1) * log(((x)+1)/M_E) + log(2*M_PI*((x)+1))/2 ) / log(2));
+  return (2 * (((x)+1)*log(((x)+1)/M_E) + log(2*M_PI*((x)+1))/2 ) / log(2));
 }
 
 /*
@@ -127,8 +129,8 @@ static double get_merge_buffers_cost(uint* buff_sizes, uint elem_size,
     actions.
   
   RETURN
-   >=0  Cost of merge in disk seeks.
-   <0   Out of memory.
+    >=0  Cost of merge in disk seeks.
+    <0   Out of memory.
 */
 static double get_merge_many_buffs_cost(MEM_ROOT *alloc,
                                         uint maxbuffer, uint max_n_elems,
@@ -174,7 +176,8 @@ static double get_merge_many_buffs_cost(MEM_ROOT *alloc,
   key_size using max_in_memory_size memory.
   
   RETURN
-    Use cost as # of disk seeks.
+    >=0  Cost in disk seeks.
+    <0   Out of memory.
   
   NOTES
     cost(using_unqiue) = 
@@ -229,19 +232,28 @@ double Unique::get_use_cost(MEM_ROOT *alloc, uint nkeys, uint key_size,
     result+= n_full_trees * log2_n_fact(max_elements_in_tree);
   result /= TIME_FOR_COMPARE_ROWID;
 
-  /* Calculate cost of merging */
+  DBUG_PRINT("info",("unique trees sizes: %u=%u*%lu + %lu", nkeys,
+                     n_full_trees, n_full_trees?max_elements_in_tree:0,
+                     last_tree_elems));
+
   if (!n_full_trees)
     return result;
   
-  /* There is more then one tree and merging is necessary. */
-  /* Add cost of writing all trees to disk. */
+  /* 
+    There is more then one tree and merging is necessary.
+    First, add cost of writing all trees to disk. 
+  */
   result += n_full_trees * ceil(key_size*max_elements_in_tree / IO_SIZE);
   result += ceil(key_size*last_tree_elems / IO_SIZE);
 
   /* Cost of merge */
-  result += get_merge_many_buffs_cost(alloc, n_full_trees, 
-                                      max_elements_in_tree,
-                                      last_tree_elems, key_size);
+  double merge_cost= get_merge_many_buffs_cost(alloc, n_full_trees,
+                                               max_elements_in_tree,
+                                               last_tree_elems, key_size);
+  if (merge_cost < 0.0)
+    return merge_cost;
+
+  result += merge_cost;
   /* 
     Add cost of reading the resulting sequence, assuming there were no 
     duplicate elements.
