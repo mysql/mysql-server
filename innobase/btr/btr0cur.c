@@ -2531,7 +2531,7 @@ btr_cur_add_path_info(
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 
-ulint
+ib_longlong
 btr_estimate_n_rows_in_range(
 /*=========================*/
 				/* out: estimated number of rows */
@@ -2548,7 +2548,7 @@ btr_estimate_n_rows_in_range(
 	btr_path_t*	slot2;
 	ibool		diverged;
 	ulint           divergence_level;           
-	ulint		n_rows;
+	ib_longlong	n_rows;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -2608,6 +2608,22 @@ btr_estimate_n_rows_in_range(
 
 		                n_rows = n_rows * 2;
 		        }
+
+			/* Do not estimate the number of rows in the range
+		        to over 1 / 2 of the estimated rows in the whole
+			table */
+
+			if (n_rows > index->table->stat_n_rows / 2) {
+			        n_rows = index->table->stat_n_rows / 2;
+
+				/* If there are just 0 or 1 rows in the table,
+				then we estimate all rows are in the range */
+			  
+			        if (n_rows == 0) {
+			                n_rows = index->table->stat_n_rows;
+			        }
+			}
+
 			return(n_rows);
 		}
 
