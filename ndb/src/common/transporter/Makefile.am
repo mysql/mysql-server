@@ -6,8 +6,9 @@ libtransporter_la_SOURCES = \
 	SendBuffer.cpp   \
 	TCP_Transporter.cpp \
 	TransporterRegistry.cpp \
-        Packer.cpp \
-	SHM_Transporter.cpp
+        Packer.cpp
+
+#	SHM_Transporter.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_util.mk.am
