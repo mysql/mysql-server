@@ -954,6 +954,12 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Olddecimalunsigned:
     out << "Olddecimalunsigned(" << col.getPrecision() << "," << col.getScale() << ")";
     break;
+  case NdbDictionary::Column::Decimal:
+    out << "Decimal(" << col.getPrecision() << "," << col.getScale() << ")";
+    break;
+  case NdbDictionary::Column::Decimalunsigned:
+    out << "Decimalunsigned(" << col.getPrecision() << "," << col.getScale() << ")";
+    break;
   case NdbDictionary::Column::Char:
     out << "Char(" << col.getLength() << ";" << csname << ")";
     break;

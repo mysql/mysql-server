@@ -186,6 +186,8 @@ public:
       Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
       Olddecimal = NDB_TYPE_OLDDECIMAL,    ///< MySQL < 5.0 signed decimal,  Precision, Scale
       Olddecimalunsigned = NDB_TYPE_OLDDECIMALUNSIGNED,
+      Decimal = NDB_TYPE_DECIMAL,    ///< MySQL >= 5.0 signed decimal,  Precision, Scale
+      Decimalunsigned = NDB_TYPE_DECIMALUNSIGNED,
       Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
       Varchar = NDB_TYPE_VARCHAR,       ///< Length bytes: 1, Max: 255
       Binary = NDB_TYPE_BINARY,        ///< Len
