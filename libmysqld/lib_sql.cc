@@ -102,7 +102,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 static MYSQL_DATA * STDCALL 
 emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
-	      uint fields __attribute__((unused)))
+	      unsigned int fields __attribute__((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->data;
   if (!result)
@@ -154,7 +154,7 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
 { 
   MYSQL_ROW end;
 

@@ -34,7 +34,7 @@
 #include "sha1.h"
 #include "my_aes.h"
 
-String empty_string("",default_charset_info);
+String my_empty_string("",default_charset_info);
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
 {
@@ -359,7 +359,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if ((res_length=res->length()) == 0)
-    return &empty_string;
+    return &my_empty_string;
 
   if (arg_count == 1)
   {
@@ -520,7 +520,7 @@ String *Item_func_concat_ws::val_str(String *str)
     if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
-    return &empty_string;
+    return &my_empty_string;
 
   for (i++; i < arg_count ; i++)
   {
@@ -661,7 +661,7 @@ String *Item_func_reverse::val_str(String *str)
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
-    return &empty_string;
+    return &my_empty_string;
   res=copy_if_not_alloced(str,res,res->length());
   ptr = (char *) res->ptr();
   end=ptr+res->length();
@@ -914,7 +914,7 @@ String *Item_func_left::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (length <= 0)
-    return &empty_string;
+    return &my_empty_string;
   length= res->charpos(length);
   if (res->length() > (ulong) length)
   {						// Safe even if const arg
@@ -958,7 +958,7 @@ String *Item_func_right::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   if (length <= 0)
-    return &empty_string; /* purecov: inspected */
+    return &my_empty_string; /* purecov: inspected */
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 
@@ -991,7 +991,7 @@ String *Item_func_substr::val_str(String *str)
   start=res->charpos(start);
   length=res->charpos(length,start);
   if (start < 0 || (uint) start+1 > res->length() || length <= 0)
-    return &empty_string;
+    return &my_empty_string;
 
   tmp_length=(int32) res->length()-start;
   length=min(length,tmp_length);
@@ -1051,7 +1051,7 @@ String *Item_func_substr_index::val_str(String *str)
   null_value=0;
   uint delimeter_length=delimeter->length();
   if (!res->length() || !delimeter_length || !count)
-    return &empty_string;		// Wrong parameters
+    return &my_empty_string;		// Wrong parameters
 
   res->set_charset(collation.collation);
 
@@ -1335,7 +1335,7 @@ String *Item_func_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &empty_string;
+    return &my_empty_string;
   make_scrambled_password(tmp_value, res->c_ptr());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, res->charset());
   return str;
@@ -1357,7 +1357,7 @@ String *Item_func_old_password::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &empty_string;
+    return &my_empty_string;
   make_scrambled_password_323(tmp_value, res->c_ptr());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, res->charset());
   return str;
@@ -1383,7 +1383,7 @@ String *Item_func_encrypt::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0;
   if (res->length() == 0)
-    return &empty_string;
+    return &my_empty_string;
 
   if (arg_count == 1)
   {					// generate random salt
@@ -1473,7 +1473,7 @@ String *Item_func_user::val_str(String *str)
 
   // For system threads (e.g. replication SQL thread) user may be empty
   if (!thd->user)
-    return &empty_string;
+    return &my_empty_string;
   res_length= (strlen(thd->user)+strlen(host)+2) * cs->mbmaxlen;
 
   if (str->alloc(res_length))
@@ -1536,7 +1536,7 @@ String *Item_func_soundex::val_str(String *str)
   while (from != end && my_isspace(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
-    return &empty_string;		// No alpha characters.
+    return &my_empty_string;		// No alpha characters.
   *to++ = my_toupper(cs,*from);		// Copy first letter
   last_ch = get_scode(cs,from);		// code of the first letter
 					// for the first 'double-letter check.
@@ -1718,7 +1718,7 @@ String *Item_func_make_set::val_str(String *str)
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
-  String *result=&empty_string;
+  String *result=&my_empty_string;
 
   bits=item->val_int();
   if ((null_value=item->null_value))
@@ -1742,7 +1742,7 @@ String *Item_func_make_set::val_str(String *str)
 	  else
 	  {
 	    if (tmp_str.copy(*res))		// Don't use 'str'
-	      return &empty_string;
+	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
 	}
@@ -1752,11 +1752,11 @@ String *Item_func_make_set::val_str(String *str)
 	  {					// Copy data to tmp_str
 	    if (tmp_str.alloc(result->length()+res->length()+1) ||
 		tmp_str.copy(*result))
-	      return &empty_string;
+	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
 	  if (tmp_str.append(',') || tmp_str.append(*res))
-	    return &empty_string;
+	    return &my_empty_string;
 	}
       }
     }
@@ -1853,7 +1853,7 @@ String *Item_func_repeat::val_str(String *str)
     goto err;				// string and/or delim are null
   null_value=0;
   if (count <= 0)			// For nicer SQL code
-    return &empty_string;
+    return &my_empty_string;
   if (count == 1)			// To avoid reallocs
     return res;
   length=res->length();
@@ -2050,7 +2050,7 @@ String *Item_func_conv::val_str(String *str)
     dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), default_charset()))
-    return &empty_string;
+    return &my_empty_string;
   return str;
 }
 
@@ -2240,7 +2240,7 @@ String *Item_func_hex::val_str(String *str)
       return 0;
     ptr= longlong2str(dec,ans,16);
     if (str->copy(ans,(uint32) (ptr-ans),default_charset()))
-      return &empty_string;			// End of memory
+      return &my_empty_string;			// End of memory
     return str;
   }
 

@@ -1302,7 +1302,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   String str(buff,sizeof(buff), system_charset_info), *res;
 
   if (!(res=var->value->val_str(&str)))
-    res= &empty_string;
+    res= &my_empty_string;
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
