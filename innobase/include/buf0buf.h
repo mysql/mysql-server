@@ -740,6 +740,8 @@ struct buf_block_struct{
 					buffer pool which are index pages,
 					but this flag is not set because
 					we do not keep track of all pages */
+	dict_index_t*	index;		/* index for which the adaptive
+					hash index has been created */
 	/* 2. Page flushing fields */
 
 	UT_LIST_NODE_T(buf_block_t) flush_list;
