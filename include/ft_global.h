@@ -47,9 +47,9 @@ struct st_ft_info {
 
 extern const char *ft_precompiled_stopwords[];
 
-extern uint ft_min_word_len;
-extern uint ft_max_word_len;
-extern uint ft_max_word_len_for_sort;
+extern ulong ft_min_word_len;
+extern ulong ft_max_word_len;
+extern ulong ft_max_word_len_for_sort;
 
 int ft_init_stopwords(const char **);
 void ft_free_stopwords(void);
