@@ -1215,11 +1215,7 @@ bool sys_var_collation_client::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     global_system_variables.collation_client= var->save_result.charset;
   else
-  {
     thd->variables.collation_client= var->save_result.charset;
-    thd->protocol_simple.init(thd);
-    thd->protocol_prep.init(thd);
-  }
   return 0;
 }
 
@@ -1236,9 +1232,7 @@ void sys_var_collation_client::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.collation_client= default_charset_info;
  else
- {
    thd->variables.collation_client= global_system_variables.collation_client;
- }
 }
 
 
