@@ -343,179 +343,6 @@ lock_deadlock_recursive(
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
 #define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
 
-#ifdef notdefined
-/*************************************************************************
-Reserves the kernel mutex. This function is used in this module to allow
-monitoring the contention degree on the kernel mutex caused by the lock
-operations. */
-UNIV_INLINE
-void
-lock_mutex_enter_kernel(void)
-/*=========================*/
-{
-	mutex_enter(&kernel_mutex);
-}
-
-/*************************************************************************
-Releases the kernel mutex. This function is used in this module to allow
-monitoring the contention degree on the kernel mutex caused by the lock
-operations. */
-UNIV_INLINE
-void
-lock_mutex_exit_kernel(void)
-/*=========================*/
-{
-	mutex_exit(&kernel_mutex);
-}
-#endif
-
-#ifdef notdefined
-
-/*************************************************************************
-Gets the mutex protecting record locks for a page in the buffer pool. */
-UNIV_INLINE
-mutex_t*
-lock_rec_get_mutex(
-/*===============*/
-	byte*	ptr)	/* in: pointer to somewhere within a buffer frame */
-{
-	return(buf_frame_get_lock_mutex(ptr));
-}
-	
-/*************************************************************************
-Reserves the mutex protecting record locks for a page in the buffer pool. */
-UNIV_INLINE
-void
-lock_rec_mutex_enter(
-/*=================*/
-	byte*	ptr)	/* in: pointer to somewhere within a buffer frame */
-{
-	mutex_enter(lock_rec_get_mutex(ptr));
-}
-
-/*************************************************************************
-Releases the mutex protecting record locks for a page in the buffer pool. */
-UNIV_INLINE
-void
-lock_rec_mutex_exit(
-/*================*/
-	byte*	ptr)	/* in: pointer to somewhere within a buffer frame */
-{
-	mutex_exit(lock_rec_get_mutex(ptr));
-}
-
-/*************************************************************************
-Checks if the caller owns the mutex to record locks of a page. Works only in
-the debug version. */
-UNIV_INLINE
-ibool
-lock_rec_mutex_own(
-/*===============*/
-			/* out: TRUE if the current OS thread has reserved the
-			mutex */
-	byte*	ptr)	/* in: pointer to somewhere within a buffer frame */
-{
-	return(mutex_own(lock_rec_get_mutex(ptr)));
-}
-
-/*************************************************************************
-Gets the mutex protecting record locks on a given page address. */
-
-mutex_t*
-lock_rec_get_mutex_for_addr(
-/*========================*/
-	ulint	space,	/* in: space id */
-	ulint	page_no)/* in: page number */
-{
-	return(hash_get_mutex(lock_sys->rec_hash,
-					lock_rec_fold(space, page_no)));
-}
-
-/*************************************************************************
-Checks if the caller owns the mutex to record locks of a page. Works only in
-the debug version. */
-UNIV_INLINE
-ibool
-lock_rec_mutex_own_addr(
-/*====================*/
-	ulint	space,	/* in: space id */
-	ulint	page_no)/* in: page number */
-{
-	return(mutex_own(lock_rec_get_mutex_for_addr(space, page_no)));
-}
-
-/*************************************************************************
-Reserves all the mutexes protecting record locks. */
-UNIV_INLINE
-void
-lock_rec_mutex_enter_all(void)
-/*==========================*/
-{
-	hash_table_t* 	table; 
-	ulint		n_mutexes;
-	ulint		i;
-
-	table = lock_sys->rec_hash;
-
-	n_mutexes = table->n_mutexes;
-
-	for (i = 0; i < n_mutexes; i++) {
-
-		mutex_enter(hash_get_nth_mutex(table, i));
-	}
-}
-
-/*************************************************************************
-Releases all the mutexes protecting record locks. */
-UNIV_INLINE
-void
-lock_rec_mutex_exit_all(void)
-/*=========================*/
-{
-	hash_table_t* 	table; 
-	ulint		n_mutexes;
-	ulint		i;
-
-	table = lock_sys->rec_hash;
-
-	n_mutexes = table->n_mutexes;
-
-	for (i = 0; i < n_mutexes; i++) {
-
-		mutex_exit(hash_get_nth_mutex(table, i));
-	}
-}
-
-/*************************************************************************
-Checks that the current OS thread owns all the mutexes protecting record
-locks. */
-UNIV_INLINE
-ibool
-lock_rec_mutex_own_all(void)
-/*========================*/
-				/* out: TRUE if owns all */
-{
-	hash_table_t* 	table; 
-	ulint		n_mutexes;
-	ibool		owns_yes	= TRUE;
-	ulint		i;
-
-	table = lock_sys->rec_hash;
-
-	n_mutexes = table->n_mutexes;
-
-	for (i = 0; i < n_mutexes; i++) {
-		if (!mutex_own(hash_get_nth_mutex(table, i))) {
-
-			owns_yes = FALSE;
-		}
-	}
-
-	return(owns_yes);
-}
-
-#endif
-
 /*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
 
@@ -2023,7 +1850,7 @@ possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
 explicit locks. This function sets a normal next-key lock, or in the case
 of a page supremum record, a gap type lock. */
-
+static
 ulint
 lock_rec_lock(
 /*==========*/
@@ -2105,7 +1932,7 @@ lock_rec_has_to_wait_in_queue(
 /*****************************************************************
 Grants a lock to a waiting lock request and releases the waiting
 transaction. */
-
+static
 void
 lock_grant(
 /*=======*/
@@ -2172,7 +1999,7 @@ lock_rec_cancel(
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
-
+static
 void
 lock_rec_dequeue_from_page(
 /*=======================*/
@@ -2343,7 +2170,7 @@ lock_rec_inherit_to_gap(
 Makes a record to inherit the gap locks (except LOCK_INSERT_INTENTION type)
 of another record as gap type locks, but does not reset the lock bits of the
 other record. Also waiting lock requests are inherited as GRANTED gap locks. */
-
+static
 void
 lock_rec_inherit_to_gap_if_gap_lock(
 /*================================*/
@@ -3583,7 +3410,7 @@ lock_table_has_to_wait_in_queue(
 Removes a table lock request, waiting or granted, from the queue and grants
 locks to other transactions in the queue, if they now are entitled to a
 lock. */
-
+static
 void
 lock_table_dequeue(
 /*===============*/

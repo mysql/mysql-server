@@ -171,7 +171,7 @@ mtr_log_parse_full_page(
 /****************************************************************
 Writes to the database log the full contents of the pages that this mtr has
 modified. */
-
+static
 void
 mtr_log_write_backup_full_pages(
 /*============================*/

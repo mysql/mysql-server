@@ -66,33 +66,6 @@ ha_create(
 }
 
 /*****************************************************************
-Checks that a hash table node is in the chain. */
-
-ibool
-ha_node_in_chain(
-/*=============*/
-				/* out: TRUE if in chain */
-	hash_cell_t*	cell,	/* in: hash table cell */
-	ha_node_t*	node)	/* in: external chain node */
-{
-	ha_node_t*	node2;
-	
-	node2 = cell->node;
-
-	while (node2 != NULL) {
-
-		if (node2 == node) {
-
-			return(TRUE);
-		}
-
-		node2 = node2->next;
-	}
-
-	return(FALSE);
-}
-
-/*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. */

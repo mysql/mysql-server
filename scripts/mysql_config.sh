@@ -84,20 +84,25 @@ port='@MYSQL_TCP_PORT@'
 ldflags='@LDFLAGS@'
 client_libs='@CLIENT_LIBS@'
 
-# Create options, without end space
+# Create options
 
 libs="$ldflags -L$pkglibdir -lmysqlclient $client_libs"
 libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @LIBS@ @openssl_libs@"
 libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-cflags="-I$pkgincludedir @CFLAGS@"
+cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
 embedded_libs="$ldflags -L$pkglibdir -lmysqld @LIBS@ @WRAPLIBS@ @innodb_system_libs@"
 embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 # Remove some options that a client doesn't have to care about
-
-cflags=`echo "$cflags " | sed -e 's;\(-DDBUG_OFF\|-DSAFEMALLOC\|-USAFEMALLOC\|-DSAFE_MUTEX\|-DPEDANTIC_SAFEMALLOC\|-DUNIV_MUST_NOT_INLINE\|-DFORCE_INIT_OF_VARS\|-DEXTRA_DEBUG\|-DHAVE_purify\|-O[0-9]\|-W[-A-Za-z]*\) *;;g' | sed -e 's; *\$;;'` 
+for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
+              DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
+              DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*'
+do
+  cflags=`echo "$cflags"|sed -e "s/-$remove  *//g"` 
+done
+cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
 usage () {
         cat <<EOF
