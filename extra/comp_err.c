@@ -42,11 +42,12 @@ static int copy_rows(FILE *to);
 
 int main(int argc,char *argv[])
 {
+  uint csnum= 0;
   int i,error,files,length;
   uchar head[32];
   FILE *from,*to;
   MY_INIT(argv[0]);
-
+  
   get_options(&argc,&argv);
   error=1;
   row_count=files=0;
@@ -66,6 +67,13 @@ int main(int argc,char *argv[])
     if (!charset_name[0])
     {
       fprintf(stderr,"Character set is not specified in '%s'\n",*argv);
+      fclose(from);
+      goto end;
+    }
+    
+    if (!(csnum= get_charset_number(charset_name, MY_CS_PRIMARY)))
+    {
+      fprintf(stderr,"Unknown character '%s' in '%s'\n",charset_name, *argv);
       fclose(from);
       goto end;
     }
@@ -100,7 +108,8 @@ int main(int argc,char *argv[])
   {
     int2store(head+10+i+i,file_row_pos[i]);
   }
-
+  head[30]= csnum;
+  
   fseek(to,0l,0);
   if (fwrite(head,1,32,to) != 32)
     goto end;
@@ -144,7 +153,6 @@ static void get_options(register int *argc,register char **argv[])
       printf("%s  (Compile errormessage)  Ver 1.3\n",progname);
       break;
     case 'C':
-      printf("pos=%s\n", pos+1);
       charsets_dir= pos+1;
       *(pos--)= '\0';
       break;
