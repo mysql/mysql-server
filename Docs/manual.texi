@@ -6373,10 +6373,10 @@ information about the current version and for downloading instructions.
 
 Our main download mirror is located at:
 
-@uref{http://download.sourceforge.net/mirrors/mysql/}
+@uref{http://mirrors.sunsite.dk/mysql/}
 
 If you are interested in becoming a MySQL mirror site, you may
-anonymously rsync with: @code{rsync://download.sourceforge.net/mysql/}.  Please
+anonymously rsync with: @code{rsync://sunsite.dk/ftp/mirrors/mysql/}.  Please
 send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
 added to the list below.
 
@@ -6427,13 +6427,13 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c Added: 990920
-@c EMAIL: <radek@sopik.cz> (Radek Libovicky)
+@c EMAIL: radek@sopik.cz (Radek Libovicky)
 @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
 @uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
-@c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
+@c EMAIL: feela@ipex.cz (Ondrej Feela Filip)
 @image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
@@ -6641,7 +6641,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
-@c EMAIL: Equipa de suporte do Leirianet <support@leirianet.pt>
+@c EMAIL: support@leirianet.pt (Equipa de suporte do Leirianet)
 @c @image{Flags/portugal} Portugal [lerianet] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
