@@ -377,6 +377,7 @@ static void get_options(int argc,char **argv);
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
 static pthread_handler_decl(handle_connections_sockets,arg);
+static pthread_handler_decl(kill_server_thread,arg);
 static int bootstrap(FILE *file);
 static bool read_init_file(char *file_name);
 #ifdef __NT__
