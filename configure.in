@@ -1373,7 +1373,7 @@ AC_CHECK_FUNCS(alarm bmove \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
  perror pread realpath readlink rename \
  socket strnlen madvise mkstemp \
- strtol strtoul strtoull snprintf tempnam thr_setconcurrency \
+ strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror \
  tell atod memcpy memmove \
@@ -1485,7 +1485,7 @@ AC_TRY_COMPILE(
 #include <netdb.h>],
 [int skr;
 
- skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (hostent_data*) 0);],
+ skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (struct hostent_data*) 0);],
 mysql_cv_gethostname_arg=hostent_data, mysql_cv_gethostname_arg=char))
 AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
