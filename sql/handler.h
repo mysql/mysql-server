@@ -51,7 +51,7 @@
 #define HA_REC_NOT_IN_SEQ       8       /* ha_info don't return recnumber;
                                            It returns a position to ha_r_rnd */
 #define HA_HAS_GEOMETRY        (1 << 4)
-#define HA_NO_INDEX            (1 << 5) /* No index needed for next/prev */
+#define HA_FAST_KEY_READ       (1 << 5) /* no need for a record cache in filesort */
 #define HA_KEY_READ_WRONG_STR  (1 << 6) /* keyread returns converted strings */
 #define HA_NULL_KEY            (1 << 7) /* One can have keys with NULL */
 #define HA_DUPP_POS            (1 << 8) /* ha_position() gives dupp row */
@@ -270,7 +270,6 @@ public:
     { return ulonglong2double(data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
  { return rows2double(ranges+rows); }
-  virtual bool fast_key_read() { return 0;}
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
@@ -324,7 +323,7 @@ public:
   {
     return extra(operation);
   }
-  virtual int reset()=0;
+  virtual int reset() { return extra(HA_EXTRA_RESET); }
   virtual int external_lock(THD *thd, int lock_type)=0;
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}
@@ -345,8 +344,10 @@ public:
   */
   virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
-  virtual void deactivate_non_unique_index(ha_rows rows) {}
-  virtual bool activate_all_index(THD *thd) {return 0;}
+  virtual int disable_indexes(bool all, bool save) { return HA_ERR_WRONG_COMMAND; }
+  virtual int enable_indexes() { return HA_ERR_WRONG_COMMAND; }
+  virtual void start_bulk_insert(ha_rows rows) {}
+  virtual int end_bulk_insert() {return 0; }
   virtual int discard_or_import_tablespace(my_bool discard) {return -1;}
   // not implemented by default
   virtual int net_read_dump(NET* net)

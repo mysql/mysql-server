@@ -105,8 +105,8 @@ enum ha_extra_function {
   HA_EXTRA_NORMAL=0,			/* Optimize for space (def) */
   HA_EXTRA_QUICK=1,			/* Optimize for speed */
   HA_EXTRA_RESET=2,			/* Reset database to after open */
-  HA_EXTRA_CACHE=3,			/* Cash record in HA_rrnd() */
-  HA_EXTRA_NO_CACHE=4,			/* End cacheing of records (def) */
+  HA_EXTRA_CACHE=3,			/* Cache record in HA_rrnd() */
+  HA_EXTRA_NO_CACHE=4,			/* End caching of records (def) */
   HA_EXTRA_NO_READCHECK=5,		/* No readcheck on update */
   HA_EXTRA_READCHECK=6,			/* Use readcheck (def) */
   HA_EXTRA_KEYREAD=7,			/* Read only key to database */
