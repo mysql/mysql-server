@@ -25,7 +25,11 @@
 #endif /* _CUSTOMCONFIG_ */
 
 #ifndef LICENSE
-#define LICENSE "GPL"
+#ifdef MYSQL_COMMERICAL_LICENSE
+#define LICENSE				"Commerical"
+#else
+#define LICENSE				"GPL"
+#endif
 #endif /* LICENSE */
 
 #endif /* _mysql_version_h */
