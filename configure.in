@@ -2176,8 +2176,8 @@ AC_ARG_WITH(libedit,
     [ with_libedit=undefined ]
     )
 
-compile_readline= no
-compile_libedit= no
+compile_readline="no"
+compile_libedit="no"
 
 if [test "$with_libedit" = "yes"] && [test "$with_readline" = "yes"]
 then
@@ -2820,6 +2820,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
+ sql-common/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
@@ -2840,6 +2841,7 @@ echo "Remember to check the platform specific part of the reference manual for"
 echo "hints about installing MySQL on your platform. Also have a look at the"
 echo "files in the Docs directory."
 echo
-# The following text is checked in ./Do-compile to se that the configure ends.
+# The following text is checked in ./Do-compile to verify that configure
+# ended sucessfully - don't remove it.
 echo "Thank you for choosing MySQL!"
 echo
