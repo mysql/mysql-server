@@ -166,6 +166,12 @@ int load_defaults(const char *conf_file, const char **groups,
     if ((error= search_default_file(&args, &alloc, "",
 				    forced_default_file, "", &group)) < 0)
       goto err;
+    if (error > 0)
+    {
+      fprintf(stderr, "Could not open required defaults file: %s\n",
+              forced_default_file);
+      goto err;
+    }
   }
   else if (dirname_length(conf_file))
   {
@@ -216,7 +222,7 @@ int load_defaults(const char *conf_file, const char **groups,
   /* copy name + found arguments + command line arguments to new array */
   res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
   memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
-  /* Skipp --defaults-file and --defaults-extra-file */
+  /* Skip --defaults-file and --defaults-extra-file */
   (*argc)-= args_used;
   (*argv)+= args_used;
 
@@ -224,7 +230,7 @@ int load_defaults(const char *conf_file, const char **groups,
   if (*argc >= 2 && !strcmp(argv[0][1],"--print-defaults"))
   {
     found_print_defaults=1;
-    --*argc; ++*argv;				/* skipp argument */
+    --*argc; ++*argv;				/* skip argument */
   }
 
   if (*argc)
@@ -450,26 +456,30 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
 static char *remove_end_comment(char *ptr)
 {
-  char quote= 0;
+  char quote= 0;	/* we are inside quote marks */
+  char escape= 0;	/* symbol is protected by escape chagacter */
 
   for (; *ptr; ptr++)
   {
-    if (*ptr == '\'' || *ptr == '\"')
+    if ((*ptr == '\'' || *ptr == '\"') && !escape)
     {
       if (!quote)
 	quote= *ptr;
       else if (quote == *ptr)
 	quote= 0;
     }
-    if (!quote && *ptr == '#') /* We are not inside a comment */
+    /* We are not inside a string */
+    if (!quote && *ptr == '#')
     {
       *ptr= 0;
       return ptr;
     }
+    escape= (quote && *ptr == '\\' && !escape);
   }
   return ptr;
 }
 
+#include <help_start.h>
 
 void print_defaults(const char *conf_file, const char **groups)
 {
@@ -522,3 +532,5 @@ void print_defaults(const char *conf_file, const char **groups)
 --defaults-file=#	Only read default options from the given file #\n\
 --defaults-extra-file=# Read this file after the global files are read");
 }
+
+#include <help_end.h>

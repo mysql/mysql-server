@@ -36,8 +36,6 @@ a	b
 1	a
 2	b
 3	c
-3	c
-3	c
 4	d
 5	f
 6	e
@@ -47,8 +45,6 @@ select 0,'#' union select a,b from t1 union all select a,b from t2 union select 
 0	#
 1	a
 2	b
-3	c
-3	c
 3	c
 4	d
 5	f
@@ -85,13 +81,14 @@ a	b
 2	b
 1	a
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
-ERROR 42000: Table 't1' from one of SELECT's can not be used  in global ORDER clause
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using filesort
 Warnings:
-Note	1003	(select high_priority test.t1.a AS `a`,test.t1.b AS `b` from test.t1 limit 2) union all (select test.t2.a AS `a`,test.t2.b AS `b` from test.t2 order by test.t2.a limit 1) order by b desc
+Note	1003	(select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
 a	b
 1	a
@@ -110,27 +107,21 @@ explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain select xx from t1 union select 1;
 ERROR 42S22: Unknown column 'xx' in 'field list'
 explain select a,b from t1 union select 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+ERROR 21000: The used SELECT statements have a different number of columns
 explain select 1 union select a,b from t1 union select 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+ERROR 21000: The used SELECT statements have a different number of columns
 explain select a,b from t1 union select 1 limit 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 into outfile 'skr' union select a,b from t2;
-ERROR HY000: Wrong usage of UNION and INTO
+ERROR HY000: Incorrect usage of UNION and INTO
 select a,b from t1 order by a union select a,b from t2;
-ERROR HY000: Wrong usage of UNION and ORDER BY
+ERROR HY000: Incorrect usage of UNION and ORDER BY
 insert into t3 select a from t1 order by a union select a from t2;
-ERROR HY000: Wrong usage of UNION and ORDER BY
+ERROR HY000: Incorrect usage of UNION and ORDER BY
 create table t3 select a,b from t1 union select a from t2;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 union select a from t2;
@@ -140,7 +131,7 @@ ERROR 21000: The used SELECT statements have a different number of columns
 select a from t1 union select * from t2;
 ERROR 21000: The used SELECT statements have a different number of columns
 select * from t1 union select SQL_BUFFER_RESULT * from t2;
-ERROR 42000: Wrong usage/placement of 'SQL_BUFFER_RESULT'
+ERROR 42000: Incorrect usage/placement of 'SQL_BUFFER_RESULT'
 create table t3 select a,b from t1 union all select a,b from t2;
 insert into t3 select a,b from t1 union all select a,b from t2;
 replace into t3 select a,b as c from t1 union all select a,b from t2;
@@ -350,7 +341,7 @@ select found_rows();
 found_rows()
 4
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 a
 1
@@ -433,11 +424,13 @@ a
 3
 3
 (SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
-ERROR 42000: Wrong usage/placement of 'SQL_CALC_FOUND_ROWS'
+ERROR 42000: Incorrect usage/placement of 'SQL_CALC_FOUND_ROWS'
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
 create table t1 select a from t1 union select a from t2;
 ERROR HY000: You can't specify target table 't1' for update in FROM clause
+select a from t1 union select a from t2 order by t2.a;
+ERROR 42S02: Unknown table 't2' in order clause
 drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 *
@@ -477,8 +470,9 @@ explain extended (select * from t1 where a=1) union (select * from t2 where a=1)
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
 2	UNION	t2	const	PRIMARY	PRIMARY	4	const	1	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	(select high_priority test.t1.a AS `a`,test.t1.b AS `b` from test.t1 where (test.t1.a = 1)) union (select test.t2.a AS `a`,test.t2.b AS `b` from test.t2 where (test.t2.a = 1))
+Note	1003	(select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 1)) union (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` = 1))
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10
@@ -499,10 +493,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
 2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
 2	UNION	t1	ref	b	b	5	const	1	Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 drop table t1,t2;
 create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
 create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
@@ -550,7 +546,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(2) NOT NULL default ''
+  `a` char(20) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -561,7 +557,7 @@ a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` double(4,1) NOT NULL default '0.0'
+  `a` double(53,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
@@ -651,7 +647,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` char(12) binary default NULL
+  `f` binary(24) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -662,7 +658,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` char(10) binary default NULL
+  `y` binary(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
@@ -673,7 +669,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` char(19) binary default NULL
+  `y` binary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
@@ -695,7 +691,7 @@ testc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` char(19) default NULL
+  `dt` binary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
@@ -706,7 +702,7 @@ testv
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` char(19) default NULL
+  `dt` binary(19) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
@@ -728,7 +724,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` longblob
+  `dt` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
@@ -799,7 +795,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(1) NOT NULL default '0'
+  `1` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
@@ -856,7 +852,7 @@ Variable_name	Value
 Slow_queries	1
 select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
 count(*)
-0
+10
 26
 show status like 'Slow_queries';
 Variable_name	Value
@@ -869,3 +865,126 @@ show status like 'Slow_queries';
 Variable_name	Value
 Slow_queries	3
 drop table t1;
+create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
+insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
+select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
+NAME	PHONE	NAME	PHONE
+a	111	NULL	NULL
+b	222	NULL	NULL
+d	444	d	454
+NULL	NULL	f	666
+NULL	NULL	g	777
+drop  table t1;
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+n
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+n
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+drop  table t1;
+create table t1 (i int);
+insert into t1 values (1);
+select * from t1 UNION select * from t1;
+i
+1
+select * from t1 UNION ALL select * from t1;
+i
+1
+1
+select * from t1 UNION select * from t1 UNION ALL select * from t1;
+i
+1
+1
+drop table t1;
+select 1 as a union all select 1 union all select 2 union select 1 union all select 2;
+a
+1
+2
+2
+set sql_select_limit=1;
+select 1 union select 2;
+1
+1
+(select 1) union (select 2);
+1
+1
+(select 1) union (select 2) union (select 3) limit 2;
+1
+1
+2
+set sql_select_limit=default;
+create table t1 (a int);
+insert into t1 values (100), (1);
+create table t2 (a int);
+insert into t2 values (100);
+select a from t1 union select a from t2 order by a;
+a
+1
+100
+SET SQL_SELECT_LIMIT=1;
+select a from t1 union select a from t2 order by a;
+a
+1
+drop table t1, t2;
+set sql_select_limit=default;
+CREATE TABLE t1 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+explain (select * from t1) union (select * from t2) order by not_existing_column;
+ERROR 42S22: Unknown column 'not_existing_column' in 'order clause'
+drop table t1, t2;
+CREATE TABLE t1 (uid int(1));
+INSERT INTO t1 SELECT 150;
+SELECT 'a' UNION SELECT uid FROM t1;
+a
+a
+150
+drop table t1;
+CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
+CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
+ID1	ID2	DATA1	DATA2	DATA3	ID	DATA1
+drop table t1,t2;

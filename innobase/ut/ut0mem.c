@@ -107,7 +107,7 @@ ut_malloc_low(
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
-		printf("%lu\n", (ulong) *ut_mem_null_ptr);
+		if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
 	}		
 
 	if (set_to_zero) {
@@ -203,6 +203,81 @@ ut_free(
 }
 
 /**************************************************************************
+Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
+use this function because the allocation functions in mem0mem.h are the
+recommended ones in InnoDB.
+
+man realloc in Linux, 2004:
+
+       realloc()  changes the size of the memory block pointed to
+       by ptr to size bytes.  The contents will be  unchanged  to
+       the minimum of the old and new sizes; newly allocated mem­
+       ory will be uninitialized.  If ptr is NULL,  the  call  is
+       equivalent  to malloc(size); if size is equal to zero, the
+       call is equivalent to free(ptr).  Unless ptr is  NULL,  it
+       must  have  been  returned by an earlier call to malloc(),
+       calloc() or realloc().
+
+RETURN VALUE
+       realloc() returns a pointer to the newly allocated memory,
+       which is suitably aligned for any kind of variable and may
+       be different from ptr, or NULL if the  request  fails.  If
+       size  was equal to 0, either NULL or a pointer suitable to
+       be passed to free() is returned.  If realloc()  fails  the
+       original  block  is  left  untouched  - it is not freed or
+       moved. */
+
+void*
+ut_realloc(
+/*=======*/
+			/* out, own: pointer to new mem block or NULL */
+	void*	ptr,	/* in: pointer to old block or NULL */
+	ulint	size)	/* in: desired size */
+{
+        ut_mem_block_t* block;
+	ulint		old_size;
+	ulint		min_size;
+	void*		new_ptr;
+
+	if (ptr == NULL) {
+
+		return(ut_malloc(size));
+	}
+
+	if (size == 0) {
+		ut_free(ptr);
+
+		return(NULL);
+	}
+
+	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+
+	ut_a(block->magic_n == UT_MEM_MAGIC_N);
+
+	old_size = block->size - sizeof(ut_mem_block_t);
+
+	if (size < old_size) {
+		min_size = size;
+	} else {
+		min_size = old_size;
+	}
+		
+	new_ptr = ut_malloc(size);
+
+	if (new_ptr == NULL) {
+
+		return(NULL);
+	}				
+
+	/* Copy the old data from ptr */
+	ut_memcpy(new_ptr, ptr, min_size);
+
+	ut_free(ptr);
+
+	return(new_ptr);		
+}
+
+/**************************************************************************
 Frees in shutdown all allocated memory not freed yet. */
 
 void
@@ -232,29 +307,44 @@ ut_free_all_mem(void)
 }
 
 /**************************************************************************
-Catenates two strings into newly allocated memory. The memory must be freed
-using mem_free. */
+Make a quoted copy of a string. */
 
 char*
-ut_str_catenate(
-/*============*/
-			/* out, own: catenated null-terminated string */
-	char*	str1,	/* in: null-terminated string */
-	char*	str2)	/* in: null-terminated string */
+ut_strcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src)	/* in: null-terminated string */
 {
-	ulint	len1;
-	ulint	len2;
-	char*	str;
+	while (*src) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
+		}
+	}
 
-	len1 = ut_strlen(str1);
-	len2 = ut_strlen(str2);
+	return(dest);
+}
 
-	str = mem_alloc(len1 + len2 + 1);
+/**************************************************************************
+Make a quoted copy of a fixed-length string. */
 
-	ut_memcpy(str, str1, len1);
-	ut_memcpy(str + len1, str2, len2);
+char*
+ut_memcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src,	/* in: string to be quoted */
+	ulint		len)	/* in: length of src */
+{
+	const char*	srcend = src + len;
 
-	str[len1 + len2] = '\0';
+	while (src < srcend) {
+		if ((*dest++ = *src++) == q) {
+			*dest++ = q;
+		}
+	}
 
-	return(str);
+	return(dest);
 }

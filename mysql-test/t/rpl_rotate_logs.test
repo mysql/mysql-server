@@ -9,7 +9,7 @@
 #   changes
 # - Test creating a duplicate key error and recover from it
 
-connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings
@@ -31,14 +31,14 @@ system chmod 600 var/slave-data/master.info;
 # init_strvar_from_file() in init_master_info()).
 --error 1201
 start slave;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 
 # CHANGE MASTER will fail because it first parses master.info before changing
 # it (so when master.info is bad, people have to use RESET SLAVE first).
 --error 1201
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 reset slave;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
 connection master;
 reset master;
@@ -54,7 +54,7 @@ insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 sync_slave_with_master;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 select * from t1;
@@ -107,7 +107,7 @@ purge master logs before now();
 show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 select * from t2;
@@ -139,7 +139,7 @@ connection slave;
 sync_with_master;
 select * from t4;
 
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 # because of concurrent insert, the table may not be up to date

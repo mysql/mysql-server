@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (a int not null auto_increment primary key, b int, key(b));
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+update t1 set b=(a/2*rand());
+delete from t1 order by b limit 10000;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+drop table t1;

@@ -46,6 +46,8 @@ typedef struct st_table_ref
   store_key     **key_copy;               //
   Item          **items;                  // val()'s for each keypart
   table_map	depend_map;		  // Table depends on these tables.
+  byte          *null_ref_key;		  // null byte position in the key_buf.
+  					  // used for REF_OR_NULL optimization.
 } TABLE_REF;
 
 /*
@@ -73,12 +75,15 @@ typedef struct st_join_cache {
 /*
 ** The structs which holds the join connections and join states
 */
-
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
 		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE};
 
 class JOIN;
+
+typedef int (*Next_select_func)(JOIN *,struct st_join_table *,bool);
+typedef int (*Read_record_func)(struct st_join_table *tab);
+
 
 typedef struct st_join_table {
   TABLE		*table;
@@ -86,11 +91,16 @@ typedef struct st_join_table {
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
-  Item		*on_expr;
+  Item		*on_expr;       /* associated on expression                  */
+  st_join_table *first_inner;   /* first inner table for including outerjoin */
+  bool           found;         /* true after all matches or null complement */
+  bool           not_null_compl;/* true before null complement is added      */
+  st_join_table *last_inner;    /* last table table for embedding outer join */
+  st_join_table *first_upper;  /* first inner table for embedding outer join */
+  st_join_table *first_unmatched; /* used for optimization purposes only     */
   const char	*info;
-  byte		*null_ref_key;
-  int		(*read_first_record)(struct st_join_table *tab);
-  int		(*next_select)(JOIN *,struct st_join_table *,bool);
+  Read_record_func read_first_record;
+  Next_select_func next_select;
   READ_RECORD	read_record;
   double	worst_seeks;
   key_map	const_keys;			/* Keys with constant part */
@@ -107,12 +117,15 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
+
+  void cleanup();
 } JOIN_TAB;
 
 
 typedef struct st_position			/* Used in find_best */
 {
   double records_read;
+  double read_time;
   JOIN_TAB *table;
   KEYUSE *key;
 } POSITION;
@@ -130,8 +143,9 @@ typedef struct st_rollup
 class JOIN :public Sql_alloc
 {
  public:
-  JOIN_TAB *join_tab,**best_ref,**map2table;
-  JOIN_TAB *join_tab_save; //saved join_tab for subquery reexecution
+  JOIN_TAB *join_tab,**best_ref;
+  JOIN_TAB **map2table;    // mapping between table indexes and JOIN_TABs
+  JOIN_TAB *join_tab_save; // saved join_tab for subquery reexecution
   TABLE    **table,**all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
@@ -139,6 +153,16 @@ class JOIN :public Sql_alloc
   bool	   do_send_rows;
   table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
+  /*
+    Used to fetch no more than given amount of rows per one 
+    fetch operation of server side cursor.
+    The value is checked in end_send and end_send_group in fashion, similar
+    to offset_limit_cnt:
+      - fetch_limit= HA_POS_ERROR if there is no cursor.
+      - when we open a cursor, we set fetch_limit to 0,
+      - on each fetch iteration we add num_rows to fetch to fetch_limit
+  */
+  ha_rows  fetch_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;
   List<Item> *fields;
@@ -196,8 +220,10 @@ class JOIN :public Sql_alloc
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
-  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
+  TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_select
+  List<TABLE_LIST> *join_list;       // list of joined tables in reverse order
   SQL_SELECT *select;                //created in optimisation phase
+  JOIN_TAB *return_tab;              //used only for outer joins
   Item **ref_pointer_array; //used pointer reference for this select
   // Copy of above to be used with different lists
   Item **items0, **items1, **items2, **items3, **current_ref_pointer_array;
@@ -221,11 +247,13 @@ class JOIN :public Sql_alloc
     table= 0;
     tables= 0;
     const_tables= 0;
+    join_list= 0;
     sort_and_group= 0;
     first_record= 0;
     do_send_rows= 1;
     send_records= 0;
     found_records= 0;
+    fetch_limit= HA_POS_ERROR;
     examined_rows= 0;
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
@@ -251,6 +279,7 @@ class JOIN :public Sql_alloc
     fields_list= fields_arg;
     error= 0;
     select= 0;
+    return_tab= 0;
     ref_pointer_array= items0= items1= items2= items3= 0;
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
@@ -296,6 +325,50 @@ class JOIN :public Sql_alloc
   void join_free(bool full);
   void clear();
   bool save_join_tab();
+  bool send_row_on_empty_set()
+  {
+    return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
+	    !group_list);
+  }
+  int change_result(select_result *result);
+};
+
+
+/*
+  Server-side cursor (now stands only for basic read-only cursor)
+  See class implementation in sql_select.cc
+*/
+
+class Cursor: public Sql_alloc, public Item_arena
+{
+  JOIN *join;
+  SELECT_LEX_UNIT *unit;
+
+  TABLE *open_tables;
+  MYSQL_LOCK *lock;
+  TABLE *derived_tables;
+  /* List of items created during execution */
+  ulong query_id;
+public:
+  select_send result;
+
+  /* Temporary implementation as now we replace THD state by value */
+  /* Save THD state into cursor */
+  void init_from_thd(THD *thd);
+  /* Restore THD from cursor to continue cursor execution */
+  void init_thd(THD *thd);
+  /* bzero cursor state in THD */
+  void reset_thd(THD *thd);
+
+  int open(JOIN *join);
+  int fetch(ulong num_rows);
+  void reset() { join= 0; }
+  bool is_open() const { return join != 0; }
+  void close();
+
+  void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
+  Cursor() :join(0), unit(0) {}
+  ~Cursor();
 };
 
 
@@ -329,7 +402,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
-extern "C" int refposcmp2(void* arg, const void *a,const void *b);
+extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
 
 /* class to copying an field/item to a key struct */
 
@@ -431,7 +504,6 @@ public:
 
 bool cp_buffer_from_ref(TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
-void relink_tables(SELECT_LEX *select_lex);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
-COND *eliminate_not_funcs(COND *cond);
+COND *eliminate_not_funcs(THD *thd, COND *cond);

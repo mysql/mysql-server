@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,T1;
+drop table if exists t1,t2,t3,t4;
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
 create table t4 (id int primary key, Word varchar(40) not null);
 INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
@@ -24,9 +24,9 @@ RENAME TABLE T1 TO T2;
 ALTER TABLE T2 ADD new_col int not null;
 ALTER TABLE T2 RENAME T3;
 show tables like 't_';
-Tables_in_test (t_)
-t3
-t4
+Tables_in_test (t_)	table_type
+t3	BASE TABLE
+t4	BASE TABLE
 drop table t3,t4;
 create table t1 (a int);
 select count(*) from T1;
@@ -42,3 +42,19 @@ select count(bags.a) from t1 as Bags;
 count(bags.a)
 0
 drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+delete p1.*,P2.* from t1 as p1, t2 as p2 where p1.a=P2.a;
+delete P1.*,p2.* from t1 as P1, t2 as P2 where P1.a=p2.a;
+update t1 as p1, t2 as p2 SET p1.a=1,P2.a=1 where p1.a=P2.a;
+update t1 as P1, t2 as P2 SET P1.a=1,p2.a=1 where P1.a=p2.a;
+drop table t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+select * from t1 c, t2 C;
+ERROR 42000: Not unique table/alias: 'C'
+select C.a, c.a from t1 c, t2 C;
+ERROR 42000: Not unique table/alias: 'C'
+drop table t1, t2;
+show tables;
+Tables_in_test	table_type

@@ -11,9 +11,7 @@
 #define PROTOCOL_VERSION		@PROTOCOL_VERSION@
 #define MYSQL_SERVER_VERSION		"@VERSION@"
 #define MYSQL_BASE_VERSION		"mysqld-@MYSQL_BASE_VERSION@"
-#ifndef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX		"@MYSQL_SERVER_SUFFIX@"
-#endif
+#define MYSQL_SERVER_SUFFIX_DEF		"@MYSQL_SERVER_SUFFIX@"
 #define FRM_VER				@DOT_FRM_VERSION@
 #define MYSQL_VERSION_ID		@MYSQL_VERSION_ID@
 #define MYSQL_PORT			@MYSQL_TCP_PORT@
@@ -23,4 +21,9 @@
 
 /* mysqld compile time options */
 #endif /* _CUSTOMCONFIG_ */
+
+#ifndef LICENSE
+#define LICENSE				GPL
+#endif /* LICENSE */
+
 #endif /* _mysql_version_h */

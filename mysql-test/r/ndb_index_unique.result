@@ -1,0 +1,413 @@
+drop table if exists t1, t2, t3, t4, t5, t6, t7;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned,
+UNIQUE(b)	
+) engine=ndbcluster;
+insert t1 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+select * from t1 where b = 4 order by b;
+a	b	c
+3	4	6
+insert into t1 values(7,8,3);
+select * from t1 where b = 4 order by a;
+a	b	c
+3	4	6
+drop table t1;
+CREATE TABLE t2 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned not null,
+UNIQUE USING HASH (b, c)	
+) engine=ndbcluster;
+insert t2 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t2 where a = 3;
+a	b	c
+3	4	6
+select * from t2 where b = 4;
+a	b	c
+3	4	6
+select * from t2 where c = 6;
+a	b	c
+3	4	6
+insert into t2 values(7,8,3);
+select * from t2 where b = 4 order by a;
+a	b	c
+3	4	6
+drop table t2;
+CREATE TABLE t3 (
+a int unsigned NOT NULL,
+b int unsigned not null,
+c int unsigned,
+PRIMARY KEY USING HASH (a, b)	
+) engine=ndbcluster;
+insert t3 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t3 where a = 3;
+a	b	c
+3	4	6
+select * from t3 where b = 4;
+a	b	c
+3	4	6
+select * from t3 where c = 6;
+a	b	c
+3	4	6
+insert into t3 values(7,8,3);
+select * from t3 where b = 4 order by a;
+a	b	c
+3	4	6
+drop table t3;
+CREATE TABLE t1 (
+cid smallint(5) unsigned NOT NULL default '0',
+cv varchar(250) NOT NULL default '',
+PRIMARY KEY  (cid),
+UNIQUE KEY cv (cv)
+) engine=ndbcluster;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+cid bigint(20) unsigned NOT NULL auto_increment,
+cap varchar(255) NOT NULL default '',
+PRIMARY KEY  (cid)
+) engine=ndbcluster;
+CREATE TABLE t3 (
+gid bigint(20) unsigned NOT NULL auto_increment,
+gn varchar(255) NOT NULL default '',
+must tinyint(4) default NULL,
+PRIMARY KEY  (gid)
+) engine=ndbcluster;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+uid bigint(20) unsigned NOT NULL default '0',
+gid bigint(20) unsigned NOT NULL,
+rid bigint(20) unsigned NOT NULL default '-1',
+cid bigint(20) unsigned NOT NULL default '-1',
+UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t4 VALUES (1,1,2,4);
+INSERT INTO t4 VALUES (1,1,2,3);
+INSERT INTO t4 VALUES (1,1,5,7);
+INSERT INTO t4 VALUES (1,1,10,8);
+CREATE TABLE t5 (
+rid bigint(20) unsigned NOT NULL auto_increment,
+rl varchar(255) NOT NULL default '',
+PRIMARY KEY  (rid)
+) engine=ndbcluster;
+CREATE TABLE t6 (
+uid bigint(20) unsigned NOT NULL auto_increment,
+un varchar(250) NOT NULL default '',
+uc smallint(5) unsigned NOT NULL default '0',
+PRIMARY KEY  (uid),
+UNIQUE KEY nc (un,uc)
+) engine=ndbcluster;
+INSERT INTO t6 VALUES (1,'test',8);
+INSERT INTO t6 VALUES (2,'test2',9);
+INSERT INTO t6 VALUES (3,'tre',3);
+CREATE TABLE t7 (
+mid bigint(20) unsigned NOT NULL PRIMARY KEY,
+uid bigint(20) unsigned NOT NULL default '0',
+gid bigint(20) unsigned NOT NULL,
+rid bigint(20) unsigned NOT NULL default '-1',
+cid bigint(20) unsigned NOT NULL default '-1',
+UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
+INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
+INSERT INTO t7 VALUES(3, 3, 1, 1, 1);
+INSERT INTO t7 VALUES(4, 4, 1, 1, 1);
+INSERT INTO t7 VALUES(5, 5, 1, 1, 1);
+INSERT INTO t7 VALUES(6, 1, 1, 1, 6);
+INSERT INTO t7 VALUES(7, 2, 1, 1, 7);
+INSERT INTO t7 VALUES(8, 3, 1, 1, 8);
+INSERT INTO t7 VALUES(9, 4, 1, 1, 9);
+INSERT INTO t7 VALUES(10, 5, 1, 1, 10);
+select * from t1 where cv = 'dummy';
+cid	cv
+8	dummy
+select * from t1 where cv = 'test';
+cid	cv
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+uid	gid	rid	cid
+1	1	2	4
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+uid	gid	rid	cid
+select * from t4 where uid = 1 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+select * from t4 where rid = 2 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+select * from t6 where un='test' and uc=8;
+uid	un	uc
+1	test	8
+select * from t6 where un='test' and uc=7;
+uid	un	uc
+select * from t6 where un='test';
+uid	un	uc
+1	test	8
+select * from t7 where mid = 8;
+mid	uid	gid	rid	cid
+8	3	1	1	8
+select * from t7 where uid = 8;
+mid	uid	gid	rid	cid
+select * from t7 where uid = 1 order by mid;
+mid	uid	gid	rid	cid
+1	1	1	1	1
+6	1	1	1	6
+select * from t7 where uid = 4 order by mid;
+mid	uid	gid	rid	cid
+4	4	1	1	1
+9	4	1	1	9
+select * from t7 where gid = 4;
+mid	uid	gid	rid	cid
+select * from t7 where gid = 1 order by mid;
+mid	uid	gid	rid	cid
+1	1	1	1	1
+2	2	1	1	1
+3	3	1	1	1
+4	4	1	1	1
+5	5	1	1	1
+6	1	1	1	6
+7	2	1	1	7
+8	3	1	1	8
+9	4	1	1	9
+10	5	1	1	10
+select * from t7 where cid = 4;
+mid	uid	gid	rid	cid
+select * from t7 where cid = 8;
+mid	uid	gid	rid	cid
+8	3	1	1	8
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+uid	gid	rid	cid
+1	1	2	4
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+uid	gid	rid	cid
+select * from t4 where uid = 1 order by gid,cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+1	1	5	12
+1	2	5	12
+1	3	9	11
+1	3	5	12
+1	4	5	12
+1	5	5	12
+1	6	5	12
+1	7	5	12
+1	8	5	12
+1	9	5	12
+1	10	5	12
+1	11	5	12
+1	12	5	12
+1	13	5	12
+1	14	5	12
+1	15	5	12
+1	16	5	12
+1	17	5	12
+1	18	5	12
+1	19	5	12
+1	20	5	12
+1	21	5	12
+1	22	5	12
+1	23	5	12
+1	24	5	12
+1	25	5	12
+1	26	5	12
+1	27	5	12
+1	28	5	12
+1	29	5	12
+1	30	5	12
+1	31	5	12
+1	32	5	12
+1	33	5	12
+1	34	5	12
+1	35	5	12
+1	36	5	12
+1	37	5	12
+1	38	5	12
+1	39	5	12
+1	40	5	12
+1	41	5	12
+1	42	5	12
+1	43	5	12
+1	44	5	12
+1	45	5	12
+1	46	5	12
+1	47	5	12
+1	48	5	12
+1	49	5	12
+1	50	5	12
+1	51	5	12
+1	52	5	12
+1	53	5	12
+1	54	5	12
+1	55	5	12
+1	56	5	12
+1	57	5	12
+1	58	5	12
+1	59	5	12
+1	60	5	12
+1	61	5	12
+1	62	5	12
+1	63	5	12
+1	64	5	12
+1	65	5	12
+1	66	5	12
+1	67	5	12
+1	68	5	12
+1	69	5	12
+1	70	5	12
+1	71	5	12
+1	72	5	12
+1	73	5	12
+1	74	5	12
+1	75	5	12
+1	76	5	12
+1	77	5	12
+1	78	5	12
+1	79	5	12
+1	80	5	12
+1	81	5	12
+1	82	5	12
+1	83	5	12
+1	84	5	12
+1	85	5	12
+1	86	5	12
+1	87	5	12
+1	88	5	12
+1	89	5	12
+1	90	5	12
+1	91	5	12
+1	92	5	12
+1	93	5	12
+1	94	5	12
+1	95	5	12
+1	96	5	12
+1	97	5	12
+1	98	5	12
+1	99	5	12
+1	100	5	12
+select * from t4 where uid = 1 order by gid,cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+1	1	5	7
+1	1	10	8
+1	1	5	12
+1	2	5	12
+1	3	9	11
+1	3	5	12
+1	4	5	12
+1	5	5	12
+1	6	5	12
+1	7	5	12
+1	8	5	12
+1	9	5	12
+1	10	5	12
+1	11	5	12
+1	12	5	12
+1	13	5	12
+1	14	5	12
+1	15	5	12
+1	16	5	12
+1	17	5	12
+1	18	5	12
+1	19	5	12
+1	20	5	12
+1	21	5	12
+1	22	5	12
+1	23	5	12
+1	24	5	12
+1	25	5	12
+1	26	5	12
+1	27	5	12
+1	28	5	12
+1	29	5	12
+1	30	5	12
+1	31	5	12
+1	32	5	12
+1	33	5	12
+1	34	5	12
+1	35	5	12
+1	36	5	12
+1	37	5	12
+1	38	5	12
+1	39	5	12
+1	40	5	12
+1	41	5	12
+1	42	5	12
+1	43	5	12
+1	44	5	12
+1	45	5	12
+1	46	5	12
+1	47	5	12
+1	48	5	12
+1	49	5	12
+1	50	5	12
+1	51	5	12
+1	52	5	12
+1	53	5	12
+1	54	5	12
+1	55	5	12
+1	56	5	12
+1	57	5	12
+1	58	5	12
+1	59	5	12
+1	60	5	12
+1	61	5	12
+1	62	5	12
+1	63	5	12
+1	64	5	12
+1	65	5	12
+1	66	5	12
+1	67	5	12
+1	68	5	12
+1	69	5	12
+1	70	5	12
+1	71	5	12
+1	72	5	12
+1	73	5	12
+1	74	5	12
+1	75	5	12
+1	76	5	12
+1	77	5	12
+1	78	5	12
+1	79	5	12
+1	80	5	12
+1	81	5	12
+1	82	5	12
+1	83	5	12
+1	84	5	12
+1	85	5	12
+1	86	5	12
+1	87	5	12
+1	88	5	12
+1	89	5	12
+1	90	5	12
+1	91	5	12
+1	92	5	12
+1	93	5	12
+1	94	5	12
+1	95	5	12
+1	96	5	12
+1	97	5	12
+1	98	5	12
+1	99	5	12
+1	100	5	12
+select * from t4 where rid = 2 order by cid;
+uid	gid	rid	cid
+1	1	2	3
+1	1	2	4
+drop table t1,t2,t3,t4,t5,t6,t7;

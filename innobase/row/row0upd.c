@@ -77,8 +77,8 @@ index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes. */
 static
 ibool
-row_upd_changes_first_fields(
-/*=========================*/
+row_upd_changes_first_fields_binary(
+/*================================*/
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: old value of index entry */
 	dict_index_t*	index,	/* in: index of entry */
@@ -196,7 +196,7 @@ row_upd_check_references_constraints(
 
 		if (foreign->referenced_index == index
 		    && (node->is_delete
-		       || row_upd_changes_first_fields(entry, index,
+		       || row_upd_changes_first_fields_binary(entry, index,
 			    		node->update, foreign->n_fields))) {
 			    				
 			if (foreign->foreign_table == NULL) {
@@ -1048,8 +1048,8 @@ index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes. */
 static
 ibool
-row_upd_changes_first_fields(
-/*=========================*/
+row_upd_changes_first_fields_binary(
+/*================================*/
 				/* out: TRUE if changes */
 	dtuple_t*	entry,	/* in: index entry */
 	dict_index_t*	index,	/* in: index of entry */
@@ -1074,15 +1074,16 @@ row_upd_changes_first_fields(
 		col = dict_field_get_col(ind_field);
 		col_pos = dict_col_get_clust_pos(col);
 
+		ut_a(ind_field->prefix_len == 0);
+
 		for (j = 0; j < n_upd_fields; j++) {
 
 			upd_field = upd_get_nth_field(update, j);
 
 			if (col_pos == upd_field->field_no
-			    && (ind_field->prefix_len > 0
-			        || 0 != cmp_dfield_dfield(
+			    && !dfield_datas_are_binary_equal(
 					     dtuple_get_nth_field(entry, i),
-					     &(upd_field->new_val)))) {
+					     &(upd_field->new_val))) {
 				return(TRUE);
 			}
 		}
@@ -1199,7 +1200,6 @@ row_upd_sec_index_entry(
 	rec_t*		rec;
 	ulint		err	= DB_SUCCESS;
 	mtr_t		mtr;
-	char           	err_buf[1000];
 	
 	index = node->index;
 	
@@ -1220,21 +1220,21 @@ row_upd_sec_index_entry(
 	rec = btr_cur_get_rec(btr_cur);
 
 	if (!found) {
-	  	fprintf(stderr, "InnoDB: error in sec index entry update in\n"
-		  	"InnoDB: index %s table %s\n", index->name,
-		  	index->table->name);
-	  	dtuple_sprintf(err_buf, 900, entry);
-	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
+		fputs("InnoDB: error in sec index entry update in\n"
+			"InnoDB: ", stderr);
+		dict_index_name_print(stderr, index);
+		fputs("\n"
+			"InnoDB: tuple ", stderr);
+		dtuple_print(stderr, entry);
+		fputs("\n"
+			"InnoDB: record ", stderr);
+		rec_print(stderr, rec);
+		putc('\n', stderr);
 
-	  	rec_sprintf(err_buf, 900, rec);
-	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
+		trx_print(stderr, thr_get_trx(thr));
 
-		trx_print(err_buf, thr_get_trx(thr));
-
-	  	fprintf(stderr,
-		"%s\nInnoDB: Make a detailed bug report and send it\n",
-							err_buf);
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+		fputs("\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 	} else {
  	  	/* Delete mark the old index record; it can already be
           	delete marked if we return after a lock wait in

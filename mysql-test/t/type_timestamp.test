@@ -37,10 +37,10 @@ select date_format(a,"%Y %y"),year(a),year(now()) from t1;
 drop table t1;
 
 create table t1 (ix timestamp);
-insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101);
+insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
 select ix+0 from t1;
 delete from t1;
-insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101");
+insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000");
 select ix+0 from t1;
 drop table t1;
 
@@ -76,8 +76,161 @@ select * from t1;
 drop table t1;
 
 #
-# Bug #1885
+# Let us check if we properly treat wrong datetimes and produce proper warnings
+# (for both strings and numbers)
+#
+create table t1 (ix timestamp);
+insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
+select ix+0 from t1;
+delete from t1;
+insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
+select ix+0 from t1;
+delete from t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+select ix+0 from t1;
+drop table t1;
+
+#
+# Test for TIMESTAMP column with default now() and on update now() clauses
 #
 
---error 1067
-create table t1 (a timestamp default 1);
+# These statements should fail.
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp default now());
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp on update now());
+--error 1293
+create table t1 (t1 timestamp, t2 timestamp default now() on update now());
+--error 1293
+create table t1 (t1 timestamp default now(), t2 timestamp on update now());
+--error 1293
+create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
+
+# Let us test TIMESTAMP auto-update behaviour
+# Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
+# behaviour of DEFAULT literal for such fields
+create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000000;
+insert into t1 values ();
+SET TIMESTAMP=1000000001;
+update t1 set t2=now();
+SET TIMESTAMP=1000000002;
+insert into t1 (t1,t3) values (default, default);
+select * from t1;
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default now(), t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000002;
+insert into t1 values ();
+SET TIMESTAMP=1000000003;
+update t1 set t2=now();
+SET TIMESTAMP=1000000003;
+insert into t1 (t1,t3) values (default, default);
+select * from t1;
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default '2003-01-01 00:00:00' on update now(), t2 datetime);
+SET TIMESTAMP=1000000004;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000005;
+update t1 set t2=now();
+SET TIMESTAMP=1000000005;
+insert into t1 (t1) values (default);
+select * from t1;
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp default now() on update now(), t2 datetime);
+SET TIMESTAMP=1000000006;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000007;
+update t1 set t2=now();
+SET TIMESTAMP=1000000007;
+insert into t1 (t1) values (default);
+select * from t1;
+show create table t1;
+show columns from t1;
+drop table t1;
+
+create table t1 (t1 timestamp, t2 datetime, t3 timestamp);
+SET TIMESTAMP=1000000007;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000008;
+update t1 set t2=now();
+SET TIMESTAMP=1000000008;
+insert into t1 (t1,t3) values (default, default);
+select * from t1;
+show create table t1;
+show columns from t1;
+drop table t1;
+
+# Let us test if CURRENT_TIMESTAMP also works well as default value
+# (Of course NOW and CURRENT_TIMESTAMP are same for parser but still just
+# for demonstartion.)
+create table t1 (t1 timestamp default current_timestamp on update current_timestamp, t2 datetime);
+SET TIMESTAMP=1000000009;
+insert into t1 values ();
+select * from t1;
+SET TIMESTAMP=1000000010;
+update t1 set t2=now();
+SET TIMESTAMP=1000000011;
+insert into t1 (t1) values (default);
+select * from t1;
+show create table t1;
+show columns from t1;
+delete from t1;
+
+# 
+# Let us test some cases when auto-set should be disabled or influence
+# on server behavior in some other way.
+#
+
+# Update statement that explicitly sets field should not auto-set it. 
+insert into t1 values ('2004-04-01 00:00:00', '2004-04-01 00:00:00');
+SET TIMESTAMP=1000000012;
+update t1 set t1= '2004-04-02 00:00:00';
+select * from t1;
+# The same for multi updates
+update t1 as ta, t1 as tb set tb.t1= '2004-04-03 00:00:00';
+select * from t1;
+drop table t1;
+
+# Now let us test replace it should behave exactly like delete+insert
+# Case where optimization is possible DEFAULT = ON UPDATE
+create table t1 (pk int primary key, t1 timestamp default current_timestamp on update current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000013;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+# Case in which there should not be optimisation
+create table t1 (pk int primary key, t1 timestamp default '2003-01-01 00:00:00' on update current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000014;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+# Other similar case
+create table t1 (pk int primary key, t1 timestamp default current_timestamp, bulk int);
+insert into t1 values (1, '2004-04-01 00:00:00', 10);
+SET TIMESTAMP=1000000015;
+replace into t1 set pk = 1, bulk= 20; 
+select * from t1;
+drop table t1;
+
+# Let us test alter now
+create table t1 (t1 timestamp default current_timestamp on update current_timestamp);
+insert into t1 values ('2004-04-01 00:00:00');
+SET TIMESTAMP=1000000016;
+alter table t1 add i int default 10;
+select * from t1;
+drop table t1;
+

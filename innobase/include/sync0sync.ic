@@ -23,8 +23,9 @@ void
 mutex_spin_wait(
 /*============*/
         mutex_t*	mutex,  	/* in: pointer to mutex */
-	char*		file_name,/* in: file name where mutex requested */
+	const char*	file_name,/* in: file name where mutex requested */
 	ulint		line);	/* in: line where requested */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Sets the debug information for a reserved mutex. */
 
@@ -32,8 +33,9 @@ void
 mutex_set_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line);		/* in: line where requested */
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Releases the threads waiting in the primary wait array for this mutex. */
 
@@ -200,9 +202,9 @@ mutex_exit(
 /*=======*/
 	mutex_t*	mutex)	/* in: pointer to mutex */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(mutex));
 
-#ifdef UNIV_SYNC_DEBUG
 	mutex->thread_id = ULINT_UNDEFINED;
 
 	sync_thread_reset_level(mutex);
@@ -239,9 +241,9 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex,	/* in: pointer to mutex */
-	char*		file_name,/* in: file name where locked */
-	ulint		line)	/* in: line where locked */
+	mutex_t*	mutex,		/* in: pointer to mutex */
+	const char*	file_name, 	/* in: file name where locked */
+	ulint		line)		/* in: line where locked */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -249,14 +251,9 @@ mutex_enter_func(
 	the atomic test_and_set; we could peek, and possibly save time. */
 	
 	if (!mutex_test_and_set(mutex)) {
-
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
-		#endif
-
-		mutex->file_name = file_name;
-		mutex->line = line;
-
+#endif
 		return;	/* Succeeded! */
 	}
 

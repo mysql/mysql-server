@@ -35,12 +35,19 @@
 /*
   MUTEXES in replication:
 
-  LOCK_active_mi: this is meant for multimaster, when we can switch from a
-  master to another. It protects active_mi. We don't care of it for the moment,
-  as active_mi never moves (it's created at startup and deleted at shutdown,
-  and not changed: it always points to the same MASTER_INFO struct), because we
-  don't have multimaster. So for the moment, mi does not move, and mi->rli does
-  not either.
+  LOCK_active_mi: [note: this was originally meant for multimaster, to switch
+  from a master to another, to protect active_mi] It is used to SERIALIZE ALL
+  administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
+  MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
+  need it it's called early]. Any of these commands holds the mutex from the
+  start till the end. This thus protects us against a handful of deadlocks
+  (consider start_slave_thread() which, when starting the I/O thread, releases
+  mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock).
+
+  Currently active_mi never moves (it's created at startup and deleted at
+  shutdown, and not changed: it always points to the same MASTER_INFO struct),
+  because we don't have multimaster. So for the moment, mi does not move, and
+  mi->rli does not either.
 
   In MASTER_INFO: run_lock, data_lock
   run_lock protects all information about the run state: slave_running, and the
@@ -51,6 +58,9 @@
   In RELAY_LOG_INFO: run_lock, data_lock
   see MASTER_INFO
   
+  Order of acquisition: if you want to have LOCK_active_mi and a run_lock, you
+  must acquire LOCK_active_mi first.
+
   In MYSQL_LOG: LOCK_log, LOCK_index of the binlog and the relay log
   LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
   (so that you have to update the .index file).
@@ -67,20 +77,7 @@ extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
 
-/*
-  TODO: this needs to be redone, but for now it does not matter since
-  we do not have multi-master yet.
-*/
-
-#define LOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
- ++active_mi_in_use; \
- pthread_mutex_unlock(&LOCK_active_mi);}
-
-#define UNLOCK_ACTIVE_MI { pthread_mutex_lock(&LOCK_active_mi); \
- --active_mi_in_use; \
- pthread_mutex_unlock(&LOCK_active_mi); }
-
-/*****************************************************************************
+/****************************************************************************
 
   Replication SQL Thread
 
@@ -203,14 +200,16 @@ typedef struct st_relay_log_info
   bool ignore_log_space_limit;
 
   /*
-    InnoDB internally stores the master log position it has processed
-    so far; when the InnoDB code to store this position is called, we have not
-    updated rli->group_master_log_pos yet. So the position is the event's
-    log_pos (the position of the end of the event); we save it in the variable
-    below. It's the *coming* group_master_log_pos (the one which will be
-    group_master_log_pos in the coming milliseconds).
+    When it commits, InnoDB internally stores the master log position it has
+    processed so far; the position to store is the one of the end of the
+    committing event (the COMMIT query event, or the event if in autocommit
+    mode).
   */
+#if MYSQL_VERSION_ID < 40100
+  ulonglong future_master_log_pos;
+#else
   ulonglong future_group_master_log_pos;
+#endif
 
   time_t last_master_timestamp; 
 
@@ -290,56 +289,7 @@ typedef struct st_relay_log_info
   }
 
   void inc_group_relay_log_pos(ulonglong log_pos,
-                               bool skip_lock=0)  
-  {
-    if (!skip_lock)
-      pthread_mutex_lock(&data_lock);
-    inc_event_relay_log_pos();
-    group_relay_log_pos= event_relay_log_pos;
-    strmake(group_relay_log_name,event_relay_log_name,
-            sizeof(group_relay_log_name)-1);
-
-    notify_group_relay_log_name_update();
-        
-    /*
-      If the slave does not support transactions and replicates a transaction,
-      users should not trust group_master_log_pos (which they can display with
-      SHOW SLAVE STATUS or read from relay-log.info), because to compute
-      group_master_log_pos the slave relies on log_pos stored in the master's
-      binlog, but if we are in a master's transaction these positions are always
-      the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
-      not advance as it should on the non-transactional slave (it advances by
-      big leaps, whereas it should advance by small leaps).
-    */
-    /*
-      In 4.x we used the event's len to compute the positions here. This is
-      wrong if the event was 3.23/4.0 and has been converted to 5.0, because
-      then the event's len is not what is was in the master's binlog, so this
-      will make a wrong group_master_log_pos (yes it's a bug in 3.23->4.0
-      replication: Exec_master_log_pos is wrong). Only way to solve this is to
-      have the original offset of the end of the event the relay log. This is
-      what we do in 5.0: log_pos has become "end_log_pos" (because the real use
-      of log_pos in 4.0 was to compute the end_log_pos; so better to store
-      end_log_pos instead of begin_log_pos.
-      If we had not done this fix here, the problem would also have appeared
-      when the slave and master are 5.0 but with different event length (for
-      example the slave is more recent than the master and features the event
-      UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
-      SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
-      value which would lead to badly broken replication.
-      Even the relay_log_pos will be corrupted in this case, because the len is
-      the relay log is not "val".
-      With the end_log_pos solution, we avoid computations involving lengthes.
-    */
-    DBUG_PRINT("info", ("log_pos=%lld group_master_log_pos=%lld",
-                        log_pos,group_master_log_pos));
-    if (log_pos) // some events (like fake Rotate) don't have log_pos
-      // when we are here, log_pos is the end of the event
-      group_master_log_pos= log_pos;
-    pthread_cond_broadcast(&data_cond);
-    if (!skip_lock)
-      pthread_mutex_unlock(&data_lock);
-  }
+			       bool skip_lock=0);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -347,6 +297,11 @@ typedef struct st_relay_log_info
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
   bool is_until_satisfied();
+  inline ulonglong until_pos()
+  {
+    return ((until_condition == UNTIL_MASTER_POS) ? group_master_log_pos :
+	    group_relay_log_pos);
+  }
 } RELAY_LOG_INFO;
 
 
@@ -569,13 +524,12 @@ extern "C" pthread_handler_decl(handle_slave_io,arg);
 extern "C" pthread_handler_decl(handle_slave_sql,arg);
 extern bool volatile abort_loop;
 extern MASTER_INFO main_mi, *active_mi; /* active_mi for multi-master */
-extern volatile int active_mi_in_use;
 extern LIST master_list;
 extern HASH replicate_do_table, replicate_ignore_table;
 extern DYNAMIC_ARRAY  replicate_wild_do_table, replicate_wild_ignore_table;
 extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
-extern bool table_rules_on;
+extern bool table_rules_on, replicate_same_server_id;
 
 extern int disconnect_slave_event_count, abort_slave_event_count ;
 

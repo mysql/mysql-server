@@ -144,16 +144,13 @@ row_undo_search_clust_to_pcur(
 				/* out: TRUE if found; NOTE the node->pcur
 				must be closed by the caller, regardless of
 				the return value */
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr)	/* in: query thread */
+	undo_node_t*	node)	/* in: row undo node */
 {
 	dict_index_t*	clust_index;
 	ibool		found;
 	mtr_t		mtr;
 	ibool		ret;
 	rec_t*		rec;
-
-	UT_NOT_USED(thr);
 
 	mtr_start(&mtr);
 
@@ -172,8 +169,8 @@ row_undo_search_clust_to_pcur(
 		is to make sure that some thread will eventually undo the
 		modification corresponding to node->roll_ptr. */
 		
-		/* printf("--------------------undoing a previous version\n");
-		*/
+		/* fputs("--------------------undoing a previous version\n",
+			stderr); */
 		   
 		ret = FALSE;
 	} else {
@@ -269,7 +266,7 @@ row_undo(
 
 	if (node->state == UNDO_NODE_INSERT) {
 
-		err = row_undo_ins(node, thr);
+		err = row_undo_ins(node);
 
 		node->state = UNDO_NODE_FETCH_NEXT;
 	} else {
@@ -334,7 +331,7 @@ row_undo_step(
 			exit(1);			
 		}
 		
-		ut_a(0);
+		ut_error;
 
 		return(NULL);
 	}

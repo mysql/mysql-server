@@ -10,9 +10,17 @@ select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
 explain extended select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
+select cast(NULL as signed), cast(1/0 as signed); 
+select cast(NULL as unsigned), cast(1/0 as unsigned); 
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
 select cast("1:2:3" as TIME);
+select CONVERT("2004-01-22 21:45:33",DATE);
+select CONVERT(DATE "2004-01-22 21:45:33" USING latin1);
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR);
+select CONVERT(DATE "2004-01-22 21:45:33",CHAR(4));
+select CONVERT(DATE "2004-01-22 21:45:33",BINARY(4));
+select CAST(DATE "2004-01-22 21:45:33" AS BINARY(4));
 
 #
 # Character set convertion
@@ -64,6 +72,19 @@ select * from t1;
 show create table t1;
 drop table t1;
 
+#
+# Bug 2202
+# CAST from BINARY to non-BINARY and from non-BINARY to BINARY
+#
+create table t1 (a binary(10), b char(10) character set koi8r);
+insert into t1 values (_binary'тест',_binary'тест');
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+set names koi8r;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+set names cp1251;
+select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
+drop table t1;
+set names binary;
 
 #
 # The following should be fixed in 4.1

@@ -19,10 +19,10 @@ Got one of the listed errors
 rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
 Got one of the listed errors
 show tables like "t_";
-Tables_in_test (t_)
-t1
-t2
-t3
+Tables_in_test (t_)	table_type
+t1	BASE TABLE
+t2	BASE TABLE
+t3	BASE TABLE
 rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
 Got one of the listed errors
 rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
@@ -39,3 +39,17 @@ select * from t3;
 drop table if exists t1,t2,t3,t4;
 Warnings:
 Note	1051	Unknown table 't4'
+CREATE TABLE t1 (a int);
+CREATE TABLE t3 (a int);
+FLUSH TABLES WITH READ LOCK;
+ RENAME TABLE t1 TO t2, t3 to t4;
+show tables;
+Tables_in_test	table_type
+t1	BASE TABLE
+t3	BASE TABLE
+UNLOCK TABLES;
+show tables;
+Tables_in_test	table_type
+t2	BASE TABLE
+t4	BASE TABLE
+drop table t2, t4;

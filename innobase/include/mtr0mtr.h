@@ -82,7 +82,7 @@ flag value must give the length also! */
 						predefined minimum record */
 #define MLOG_IBUF_BITMAP_INIT	((byte)27)	/* initialize an ibuf bitmap
 						page */
-#define	MLOG_FULL_PAGE		((byte)28)	/* full contents of a page */
+/*#define	MLOG_FULL_PAGE	((byte)28)	full contents of a page */
 #define MLOG_INIT_FILE_PAGE	((byte)29)	/* this means that a file page
 						is taken into use and the prior
 						contents of the page should be
@@ -132,16 +132,6 @@ void
 mtr_commit(
 /*=======*/
 	mtr_t*	mtr);	/* in: mini-transaction */
-/****************************************************************
-Writes to the database log the full contents of the pages that this mtr is
-the first to modify in the buffer pool. This function is called when the
-database is in the online backup state. */
-
-void
-mtr_log_write_backup_entries(
-/*=========================*/
-	mtr_t*	mtr,		/* in: mini-transaction */
-	dulint	backup_lsn);	/* in: online backup lsn */
 /**************************************************************
 Sets and returns a savepoint in mtr. */
 UNIV_INLINE
@@ -205,15 +195,14 @@ mtr_read_dulint(
 /*===========*/
 			/* out: value read */
 	byte*	ptr,	/* in: pointer from where to read */
-	ulint	type,	/* in: MLOG_8BYTES */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
-#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), IB__FILE__, __LINE__,\
+#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), __FILE__, __LINE__,\
 						(MTR))
 /*************************************************************************
 This macro locks an rw-lock in x-mode. */
-#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), IB__FILE__, __LINE__,\
+#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), __FILE__, __LINE__,\
 						(MTR))
 /*************************************************************************
 NOTE! Use the macro above!
@@ -223,7 +212,7 @@ void
 mtr_s_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************************
@@ -234,7 +223,7 @@ void
 mtr_x_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr);	/* in: mtr */
 
@@ -247,16 +236,6 @@ mtr_memo_release(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object */
 	ulint	type);	/* in: object type: MTR_MEMO_S_LOCK, ... */
-/****************************************************************
-Parses a log record which contains the full contents of a page. */
-
-byte*
-mtr_log_parse_full_page(
-/*====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */
 /**************************************************************
 Checks if memo contains the given item. */
 UNIV_INLINE

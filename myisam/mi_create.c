@@ -42,7 +42,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   int errpos,save_errno;
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,
-       key_length,info_length,key_segs,options,min_key_length_skipp,
+       key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,varchar_count,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
   ulong reclength, real_reclength,min_pack_length;
@@ -206,9 +206,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 					  3 : 0)));
 
   if (options & (HA_OPTION_COMPRESS_RECORD | HA_OPTION_PACK_RECORD))
-    pointer=mi_get_pointer_length(ci->data_file_length,4);
+    pointer=mi_get_pointer_length(ci->data_file_length,myisam_data_pointer_size);
   else
-    pointer=mi_get_pointer_length(ci->max_rows,4);
+    pointer=mi_get_pointer_length(ci->max_rows,myisam_data_pointer_size);
   if (!(max_rows=(ulonglong) ci->max_rows))
     max_rows= ((((ulonglong) 1 << (pointer*8)) -1) / min_pack_length);
 
@@ -238,10 +238,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
 
     share.state.key_root[i]= HA_OFFSET_ERROR;
-    min_key_length_skipp=length=0;
+    min_key_length_skip=length=0;
     key_length=pointer;
     if (keydef->flag & HA_SPATIAL)
     {
+#ifdef HAVE_SPATIAL
       /* BAR TODO to support 3D and more dimensions in the future */
       uint sp_segs=SPDIMS*2;
       keydef->flag=HA_SPATIAL;
@@ -269,7 +270,11 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       keydef->keysegs+=sp_segs;
       key_length+=SPLEN*sp_segs;
       length++;                              /* At least one length byte */
-      min_key_length_skipp+=SPLEN*2*SPDIMS;
+      min_key_length_skip+=SPLEN*2*SPDIMS;
+#else
+      my_errno= HA_ERR_UNSUPPORTED;
+      goto err;
+#endif /*HAVE_SPATIAL*/
     }
     else
     if (keydef->flag & HA_FULLTEXT)
@@ -291,7 +296,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       fulltext_keys++;
       key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
       length++;                              /* At least one length byte */
-      min_key_length_skipp+=HA_FT_MAXBYTELEN;
+      min_key_length_skip+=HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -348,10 +353,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length byte */
-	  min_key_length_skipp+=keyseg->length;
+	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
 	  {					/* prefix may be 3 bytes */
-	    min_key_length_skipp+=2;
+	    min_key_length_skip+=2;
 	    length+=2;
 	  }
 	}
@@ -360,10 +365,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length byte */
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	  min_key_length_skipp+=keyseg->length;
+	  min_key_length_skip+=keyseg->length;
 	  if (keyseg->length >= 255)
 	  {					/* prefix may be 3 bytes */
-	    min_key_length_skipp+=2;
+	    min_key_length_skip+=2;
 	    length+=2;
 	  }
 	}
@@ -383,7 +388,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
     }
-    if ((keydef->flag & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+    /*
+      key_segs may be 0 in the case when we only want to be able to
+      add on row into the table. This can happen with some DISTINCT queries
+      in MySQL
+    */
+    if ((keydef->flag & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME &&
+	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
@@ -395,7 +406,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     }
     set_if_bigger(max_key_block_length,keydef->block_length);
     keydef->keylength= (uint16) key_length;
-    keydef->minlength= (uint16) (length-min_key_length_skipp);
+    keydef->minlength= (uint16) (length-min_key_length_skip);
     keydef->maxlength= (uint16) length;
 
     if (length > max_key_length)
@@ -582,6 +593,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     for (j=0 ; j < keydefs[i].keysegs-sp_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
        goto err;
+#ifdef HAVE_SPATIAL
     for (j=0 ; j < sp_segs ; j++)
     {
       HA_KEYSEG sseg;
@@ -597,6 +609,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if (mi_keyseg_write(file, &sseg))
         goto err;
     }
+#endif
   }
   /* Create extra keys for unique definitions */
   offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;

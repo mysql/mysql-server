@@ -23,6 +23,11 @@ const char*	ut_dbg_msg_assert_fail =
 "InnoDB: Assertion failure in thread %lu in file %s line %lu\n";
 const char*	ut_dbg_msg_trap =
 "InnoDB: We intentionally generate a memory trap.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com.\n";
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com.\n"
+"InnoDB: If you get repeated assertion failures or crashes, even\n"
+"InnoDB: immediately after the mysqld startup, there may be\n"
+"InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"
+"InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n";
+
 const char*	ut_dbg_msg_stop =
 "InnoDB: Thread %lu stopped in file %s line %lu\n";

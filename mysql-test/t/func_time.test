@@ -139,10 +139,27 @@ select extract(MINUTE_SECOND FROM "10:11:12");
 select extract(SECOND FROM "1999-01-02 10:11:12");
 select extract(MONTH FROM "2001-02-00");
 
+#
+# Test big intervals (Bug #3498)
+#
+SELECT "1900-01-01 00:00:00" + INTERVAL 2147483648 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL "1:2147483647" MINUTE_SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL "100000000:214748364700" MINUTE_SECOND;SELECT "1900-01-01 00:00:00" + INTERVAL 1<<37 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<31 MINUTE;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<20 HOUR;
+
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR;
+SELECT "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND;
+
+#
+# Bug #614 (multiple extracts in where)
+#
+
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
-# test bug 614 (multiple extracts in where)
 select ctime from t1 where extract(MONTH FROM ctime) = 1 AND extract(YEAR FROM ctime) = 2001;
 drop table t1;
 
@@ -238,7 +255,6 @@ select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
 select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
 select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
-
 select date_add(date,INTERVAL "1" WEEK) from t1;
 select date_add(date,INTERVAL "1" QUARTER) from t1;
 select timestampadd(MINUTE, 1, date) from t1;
@@ -263,7 +279,6 @@ select timestampdiff(SQL_TSI_DAY, '1986-02-01', '1986-03-01') as a1,
        timestampdiff(SQL_TSI_DAY, '1996-02-01', '1996-03-01') as a3,
        timestampdiff(SQL_TSI_DAY, '2000-02-01', '2000-03-01') as a4;
 
-# The following is not as one would expect...
 select date_add(time,INTERVAL 1 SECOND) from t1;
 drop table t1;
 
@@ -273,12 +288,18 @@ select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
        last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
        last_day('2001-02-12');
 
-create table t1 select last_day('2000-02-05') as a;
+create table t1 select last_day('2000-02-05') as a,
+                from_days(to_days("960101")) as b;
 describe t1;
 select * from t1;
 drop table t1;
-select last_day('2000-02-05');
+select last_day('2000-02-05') as a,
+       from_days(to_days("960101")) as b;
 
+select date_add(last_day("1997-12-1"), INTERVAL 1 DAY);
+select length(last_day("1997-12-1"));
+select last_day("1997-12-1")+0;
+select last_day("1997-12-1")+0.0;
 
 # Test SAPDB UTC_% functions. This part is TZ dependant (It is supposed that
 # TZ variable set to GMT-3
@@ -290,6 +311,14 @@ select strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0;
 select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
 
 explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
+
+SET @TMP=NOW();
+CREATE TABLE t1 (d DATETIME);
+INSERT INTO t1 VALUES (NOW());
+INSERT INTO t1 VALUES (NOW());
+INSERT INTO t1 VALUES (NOW());
+SELECT count(*) FROM t1 WHERE d>FROM_DAYS(TO_DAYS(@TMP)) AND d<=FROM_DAYS(TO_DAYS(@TMP)+1);
+DROP TABLE t1;
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 			timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;

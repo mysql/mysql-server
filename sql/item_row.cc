@@ -55,6 +55,7 @@ void Item_row::illegal_method_call(const char *method)
 
 bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   null_value= 0;
   maybe_null= 0;
   Item **arg, **arg_end;
@@ -62,20 +63,23 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
   {
     if ((*arg)->fix_fields(thd, tabl, arg))
       return 1;
-    used_tables_cache |= (*arg)->used_tables();
-    if (const_item_cache&= (*arg)->const_item() && !with_null)
+    // we can't assign 'item' before, because fix_fields() can change arg
+    Item *item= *arg;
+    used_tables_cache |= item->used_tables();
+    if (const_item_cache&= item->const_item() && !with_null)
     {
-      if ((*arg)->cols() > 1)
-	with_null|= (*arg)->null_inside();
+      if (item->cols() > 1)
+	with_null|= item->null_inside();
       else
       {
-	(*arg)->val_int();
-	with_null|= (*arg)->null_value;
+	item->val_int();
+	with_null|= item->null_value;
       }
     }
-    maybe_null|= (*arg)->maybe_null;
-    with_sum_func= with_sum_func || (*arg)->with_sum_func;
+    maybe_null|= item->maybe_null;
+    with_sum_func= with_sum_func || item->with_sum_func;
   }
+  fixed= 1;
   return 0;
 }
 
@@ -91,7 +95,7 @@ void Item_row::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(*arg);
       ref_pointer_array[el]= *arg;
-      *arg= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
+      *arg= new Item_ref(ref_pointer_array + el, arg, 0, (*arg)->name);
     }
   }
 }

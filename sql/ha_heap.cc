@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,16 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     HA_CREATE_INFO create_info;
     bzero(&create_info, sizeof(create_info));
     if (!create(name, table, &create_info))
+    {
       file= heap_open(name, mode);
+      implicit_emptied= 1;
+    }
+  }
+  ref_length= sizeof(HEAP_PTR);
+  if (file)
+  {
+    /* Initialize variables for the opened table */
+    set_keys_for_scanning();
   }
   return (file ? 0 : 1);
 }
@@ -48,11 +57,38 @@ int ha_heap::close(void)
   return heap_close(file);
 }
 
+
+/*
+  Compute which keys to use for scanning
+
+  SYNOPSIS
+    set_keys_for_scanning()
+    no parameter
+
+  DESCRIPTION
+    Set the bitmap btree_keys, which is used when the upper layers ask
+    which keys to use for scanning. For each btree index the
+    corresponding bit is set.
+
+  RETURN
+    void
+*/
+
+void ha_heap::set_keys_for_scanning(void)
+{
+  btree_keys.clear_all();
+  for (uint i= 0 ; i < table->keys ; i++)
+  {
+    if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
+      btree_keys.set_bit(i);
+  }
+}
+
 int ha_heap::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   return heap_write(file,buf);
@@ -61,8 +97,8 @@ int ha_heap::write_row(byte * buf)
 int ha_heap::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now-1);
   return heap_update(file,old_data,new_data);
 }
 
@@ -75,6 +111,7 @@ int ha_heap::delete_row(const byte * buf)
 int ha_heap::index_read(byte * buf, const byte * key, uint key_len,
 			enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count, &LOCK_status);
   int error = heap_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status = error ? STATUS_NOT_FOUND : 0;
@@ -83,6 +120,7 @@ int ha_heap::index_read(byte * buf, const byte * key, uint key_len,
 
 int ha_heap::index_read_last(byte *buf, const byte *key, uint key_len)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count, &LOCK_status);
   int error= heap_rkey(file, buf, active_index, key, key_len,
 		       HA_READ_PREFIX_LAST);
@@ -101,6 +139,7 @@ int ha_heap::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_heap::index_next(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=heap_rnext(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -109,6 +148,7 @@ int ha_heap::index_next(byte * buf)
 
 int ha_heap::index_prev(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_prev_count,&LOCK_status);
   int error=heap_rprev(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -117,6 +157,7 @@ int ha_heap::index_prev(byte * buf)
 
 int ha_heap::index_first(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_first_count,&LOCK_status);
   int error=heap_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -125,6 +166,7 @@ int ha_heap::index_first(byte * buf)
 
 int ha_heap::index_last(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_last_count,&LOCK_status);
   int error=heap_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -182,11 +224,6 @@ int ha_heap::extra(enum ha_extra_function operation)
   return heap_extra(file,operation);
 }
 
-int ha_heap::reset(void)
-{
-  return heap_extra(file,HA_EXTRA_RESET);
-}
-
 int ha_heap::delete_all_rows()
 {
   heap_clear(file);
@@ -196,6 +233,114 @@ int ha_heap::delete_all_rows()
 int ha_heap::external_lock(THD *thd, int lock_type)
 {
   return 0;					// No external locking
+}
+
+
+/*
+  Disable indexes.
+
+  SYNOPSIS
+    disable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      disable all non-unique keys
+                HA_KEY_SWITCH_ALL          disable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE dis. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     dis. all keys and make persistent
+
+  DESCRIPTION
+    Disable indexes and clear keys to use for scanning.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_NONUNIQ_SAVE  is not implemented with HEAP.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented with HEAP.
+
+  RETURN
+    0  ok
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_heap::disable_indexes(uint mode)
+{
+  int error;
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    if (!(error= heap_disable_indexes(file)))
+      set_keys_for_scanning();
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Enable indexes.
+
+  SYNOPSIS
+    enable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      enable all non-unique keys
+                HA_KEY_SWITCH_ALL          enable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE en. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     en. all keys and make persistent
+
+  DESCRIPTION
+    Enable indexes and set keys to use for scanning.
+    The indexes might have been disabled by disable_index() before.
+    The function works only if both data and indexes are empty,
+    since the heap storage engine cannot repair the indexes.
+    To be sure, call handler::delete_all_rows() before.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_NONUNIQ_SAVE  is not implemented with HEAP.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented with HEAP.
+
+  RETURN
+    0  ok
+    HA_ERR_CRASHED  data or index is non-empty. Delete all rows and retry.
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_heap::enable_indexes(uint mode)
+{
+  int error;
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    if (!(error= heap_enable_indexes(file)))
+      set_keys_for_scanning();
+  }
+  else
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Test if indexes are disabled.
+
+  SYNOPSIS
+    indexes_are_disabled()
+    no parameters
+
+  RETURN
+    0  indexes are not disabled
+    1  all indexes are disabled
+   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+*/
+
+int ha_heap::indexes_are_disabled(void)
+{
+  return heap_indexes_are_disabled(file);
 }
 
 THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
@@ -224,28 +369,20 @@ int ha_heap::rename_table(const char * from, const char * to)
   return heap_rename(from,to);
 }
 
-ha_rows ha_heap::records_in_range(int inx,
-				  const byte *start_key,uint start_key_len,
-				  enum ha_rkey_function start_search_flag,
-				  const byte *end_key,uint end_key_len,
-				  enum ha_rkey_function end_search_flag)
+
+ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
+                                  key_range *max_key)
 {
-  KEY *pos=table->key_info+inx;
-  if (pos->algorithm == HA_KEY_ALG_BTREE)
-  {
-    return hp_rb_records_in_range(file, inx, start_key, start_key_len,
-				  start_search_flag, end_key, end_key_len,
-				  end_search_flag);
-  }
-  else
-  {
-    if (start_key_len != end_key_len ||
-        start_key_len != pos->key_length ||
-        start_search_flag != HA_READ_KEY_EXACT ||
-        end_search_flag != HA_READ_AFTER_KEY)
-      return HA_POS_ERROR;			// Can't only use exact keys
-    return 10;					// Good guess
-  }
+  KEY *key=table->key_info+inx;
+  if (key->algorithm == HA_KEY_ALG_BTREE)
+    return hp_rb_records_in_range(file, inx, min_key, max_key);
+
+  if (min_key->length != max_key->length ||
+      min_key->length != key->key_length ||
+      min_key->flag != HA_READ_KEY_EXACT ||
+      max_key->flag != HA_READ_AFTER_KEY)
+    return HA_POS_ERROR;			// Can only use exact keys
+  return 10;					// Good guess
 }
 
 
@@ -335,7 +472,6 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   my_free((gptr) keydef, MYF(0));
   if (file)
     info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-  ref_length= sizeof(HEAP_PTR);
   return (error);
 }
 

@@ -12,6 +12,7 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+SHOW INDEX FROM t1;
 
 # nl search
 
@@ -64,6 +65,14 @@ select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOL
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
+select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
+
+# bug#2708, bug#3870 crash
+
+select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
+ 
 # boolean w/o index:
 
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
@@ -144,9 +153,9 @@ select * from t2 having MATCH inhalt AGAINST ('foobar');
 # check of fulltext errors
 #
 
---error 1282
+--error 1283
 CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
---error 1282
+--error 1283
 CREATE TABLE t3 (t int(11),i text,
                  j varchar(200) CHARACTER SET latin2,
                  fulltext tix (i,j));
@@ -263,9 +272,19 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SET NAMES latin1;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
+SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 #alter table t1 modify t text character set latin1 collate latin1_german2_ci not null;
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 DROP TABLE t1;
 
+#
+# bug#3964
+#
+
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
+insert into t1 (s) values ('pära para para'),('para para para');
+select * from t1 where match(s) against('para' in boolean mode);
+select * from t1 where match(s) against('par*' in boolean mode);
+DROP TABLE t1;

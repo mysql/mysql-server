@@ -19,6 +19,7 @@ CFG=mysql - Win32 Debug
 !MESSAGE
 !MESSAGE "mysql - Win32 Release" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysql - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysql - Win32 classic" (based on "Win32 (x86) Console Application")
 !MESSAGE
 
 # Begin Project
@@ -79,12 +80,42 @@ LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysql.exe" /pdbtype:sept /libpath:"..\lib_debug\\"
 
+!ELSEIF  "$(CFG)" == "mysql - Win32 classic"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysql___Win32_classic"
+# PROP BASE Intermediate_Dir "mysql___Win32_classic"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "classic"
+# PROP Intermediate_Dir "classic"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /WX /O2 /I "../include" /I "../" /D "_CONSOLE" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_release/mysql.exe" /libpath:"..\lib_release\\"
+# SUBTRACT BASE LINK32 /incremental:yes
+# ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /out:"../client_classic/mysql.exe" /libpath:"..\lib_release\\"
+# SUBTRACT LINK32 /incremental:yes
+
 !ENDIF
 
 # Begin Target
 
 # Name "mysql - Win32 Release"
 # Name "mysql - Win32 Debug"
+# Name "mysql - Win32 classic"
 # Begin Source File
 
 SOURCE=.\completion_hash.cpp
@@ -98,6 +129,11 @@ SOURCE=.\mysql.cpp
 # ADD CPP /Zi /O2
 
 !ELSEIF  "$(CFG)" == "mysql - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "mysql - Win32 classic"
+
+# ADD BASE CPP /Zi /O2
+# ADD CPP /Zi /O2
 
 !ENDIF
 

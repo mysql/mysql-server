@@ -32,6 +32,16 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 
+bool check_reserved_words(LEX_STRING *name)
+{
+  if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
+      !my_strcasecmp(system_charset_info, name->str, "LOCAL") ||
+      !my_strcasecmp(system_charset_info, name->str, "SESSION"))
+    return TRUE;
+  return FALSE;
+}
+
+
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
@@ -133,13 +143,13 @@ Item_func::Item_func(List<Item> &list)
   set_arguments(list);
 }
 
-Item_func::Item_func(THD *thd, Item_func &item)
+Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   allowed_arg_cols(item.allowed_arg_cols),
-   arg_count(item.arg_count),
-   used_tables_cache(item.used_tables_cache),
-   not_null_tables_cache(item.not_null_tables_cache),
-   const_item_cache(item.const_item_cache)
+   allowed_arg_cols(item->allowed_arg_cols),
+   arg_count(item->arg_count),
+   used_tables_cache(item->used_tables_cache),
+   not_null_tables_cache(item->not_null_tables_cache),
+   const_item_cache(item->const_item_cache)
 {
   if (arg_count)
   {
@@ -150,7 +160,7 @@ Item_func::Item_func(THD *thd, Item_func &item)
       if (!(args=(Item**) thd->alloc(sizeof(Item*)*arg_count)))
 	return;
     }
-    memcpy((char*) args, (char*) item.args, sizeof(Item*)*arg_count);
+    memcpy((char*) args, (char*) item->args, sizeof(Item*)*arg_count);
   }
 }
 
@@ -192,6 +202,7 @@ Item_func::Item_func(THD *thd, Item_func &item)
 bool
 Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -207,8 +218,11 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       Item *item;
-      /* We can't yet set item to *arg as fix_fields may change *arg */
-      if ((*arg)->fix_fields(thd, tables, arg) ||
+      /*
+	We can't yet set item to *arg as fix_fields may change *arg
+	We shouldn't call fix_fields() twice, so check 'fixed' field first
+      */
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
 	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
       item= *arg;
@@ -255,7 +269,7 @@ void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      *arg= new Item_ref(ref_pointer_array + el, 0, item->name);
+      *arg= new Item_ref(ref_pointer_array + el, arg, 0, item->name);
     }
   }
 }
@@ -373,6 +387,7 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
 
 String *Item_real_func::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double nr=val();
   if (null_value)
     return 0; /* purecov: inspected */
@@ -383,6 +398,7 @@ String *Item_real_func::val_str(String *str)
 
 String *Item_num_func::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong nr=val_int();
@@ -421,6 +437,7 @@ Item *Item_func::get_tmp_table_item(THD *thd)
 
 String *Item_int_func::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong nr=val_int();
   if (null_value)
     return 0;
@@ -448,6 +465,7 @@ void Item_num_op::find_num_type(void)
 
 String *Item_num_op::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong nr=val_int();
@@ -489,6 +507,7 @@ void Item_func_unsigned::print(String *str)
 
 double Item_func_plus::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val()+args[1]->val();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
@@ -497,6 +516,7 @@ double Item_func_plus::val()
 
 longlong Item_func_plus::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong value=args[0]->val_int()+args[1]->val_int();
@@ -524,6 +544,7 @@ void Item_func_minus::fix_length_and_dec()
 
 double Item_func_minus::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val() - args[1]->val();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
@@ -532,6 +553,7 @@ double Item_func_minus::val()
 
 longlong Item_func_minus::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong value=args[0]->val_int() - args[1]->val_int();
@@ -545,6 +567,7 @@ longlong Item_func_minus::val_int()
 
 double Item_func_mul::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val()*args[1]->val();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
@@ -553,6 +576,7 @@ double Item_func_mul::val()
 
 longlong Item_func_mul::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong value=args[0]->val_int()*args[1]->val_int();
@@ -566,6 +590,7 @@ longlong Item_func_mul::val_int()
 
 double Item_func_div::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   double val2=args[1]->val();
   if ((null_value= val2 == 0.0 || args[0]->null_value || args[1]->null_value))
@@ -575,6 +600,7 @@ double Item_func_div::val()
 
 longlong Item_func_div::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (hybrid_type == INT_RESULT)
   {
     longlong value=args[0]->val_int();
@@ -589,6 +615,7 @@ longlong Item_func_div::val_int()
 void Item_func_div::fix_length_and_dec()
 {
   decimals=max(args[0]->decimals,args[1]->decimals)+2;
+  set_if_smaller(decimals, NOT_FIXED_DEC);
   max_length=args[0]->max_length - args[0]->decimals + decimals;
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
@@ -599,6 +626,7 @@ void Item_func_div::fix_length_and_dec()
 /* Integer division */
 longlong Item_func_int_div::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   longlong val2=args[1]->val_int();
   if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
@@ -619,6 +647,7 @@ void Item_func_int_div::fix_length_and_dec()
 
 double Item_func_mod::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value= floor(args[0]->val()+0.5);
   double val2=floor(args[1]->val()+0.5);
   if ((null_value=val2 == 0.0 || args[0]->null_value || args[1]->null_value))
@@ -628,6 +657,7 @@ double Item_func_mod::val()
 
 longlong Item_func_mod::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=  args[0]->val_int();
   longlong val2= args[1]->val_int();
   if ((null_value=val2 == 0 || args[0]->null_value || args[1]->null_value))
@@ -646,6 +676,7 @@ void Item_func_mod::fix_length_and_dec()
 
 double Item_func_neg::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
   return -value;
@@ -654,6 +685,7 @@ double Item_func_neg::val()
 
 longlong Item_func_neg::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   null_value=args[0]->null_value;
   return -value;
@@ -687,6 +719,7 @@ void Item_func_neg::fix_length_and_dec()
 
 double Item_func_abs::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
   return fabs(value);
@@ -695,6 +728,7 @@ double Item_func_abs::val()
 
 longlong Item_func_abs::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   null_value=args[0]->null_value;
   return value >= 0 ? value : -value;
@@ -717,6 +751,7 @@ void Item_func_abs::fix_length_and_dec()
 /* Gateway to natural LOG function */
 double Item_func_ln::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
@@ -730,6 +765,7 @@ double Item_func_ln::val()
 */ 
 double Item_func_log::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
@@ -745,6 +781,7 @@ double Item_func_log::val()
 
 double Item_func_log2::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0;
@@ -753,6 +790,7 @@ double Item_func_log2::val()
 
 double Item_func_log10::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value <= 0.0)))
     return 0.0; /* purecov: inspected */
@@ -761,6 +799,7 @@ double Item_func_log10::val()
 
 double Item_func_exp::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0.0; /* purecov: inspected */
@@ -769,6 +808,7 @@ double Item_func_exp::val()
 
 double Item_func_sqrt::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=(args[0]->null_value || value < 0)))
     return 0.0; /* purecov: inspected */
@@ -777,6 +817,7 @@ double Item_func_sqrt::val()
 
 double Item_func_pow::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   double val2=args[1]->val();
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
@@ -788,7 +829,9 @@ double Item_func_pow::val()
 
 double Item_func_acos::val()
 {
-  double value=args[0]->val();
+  DBUG_ASSERT(fixed == 1);
+  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
+  volatile double value=args[0]->val();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return fix_result(acos(value));
@@ -796,7 +839,9 @@ double Item_func_acos::val()
 
 double Item_func_asin::val()
 {
-  double value=args[0]->val();
+  DBUG_ASSERT(fixed == 1);
+  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
+  volatile double value=args[0]->val();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return fix_result(asin(value));
@@ -804,6 +849,7 @@ double Item_func_asin::val()
 
 double Item_func_atan::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0.0;
@@ -819,6 +865,7 @@ double Item_func_atan::val()
 
 double Item_func_cos::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0.0;
@@ -827,6 +874,7 @@ double Item_func_cos::val()
 
 double Item_func_sin::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0.0;
@@ -835,6 +883,7 @@ double Item_func_sin::val()
 
 double Item_func_tan::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0.0;
@@ -847,6 +896,7 @@ double Item_func_tan::val()
 
 longlong Item_func_shift_left::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint shift;
   ulonglong res= ((ulonglong) args[0]->val_int() <<
 		  (shift=(uint) args[1]->val_int()));
@@ -861,6 +911,7 @@ longlong Item_func_shift_left::val_int()
 
 longlong Item_func_shift_right::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint shift;
   ulonglong res= (ulonglong) args[0]->val_int() >>
     (shift=(uint) args[1]->val_int());
@@ -876,6 +927,7 @@ longlong Item_func_shift_right::val_int()
 
 longlong Item_func_bit_neg::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong res= (ulonglong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
@@ -895,6 +947,7 @@ void Item_func_integer::fix_length_and_dec()
 
 longlong Item_func_ceiling::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
   return (longlong) ceil(value);
@@ -902,7 +955,9 @@ longlong Item_func_ceiling::val_int()
 
 longlong Item_func_floor::val_int()
 {
-  double value=args[0]->val();
+  DBUG_ASSERT(fixed == 1);
+  // the volatile's for BUG #3051 to calm optimizer down (because of gcc's bug)
+  volatile double value=args[0]->val();
   null_value=args[0]->null_value;
   return (longlong) floor(value);
 }
@@ -923,6 +978,7 @@ void Item_func_round::fix_length_and_dec()
 
 double Item_func_round::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   int dec=(int) args[1]->val_int();
   uint abs_dec=abs(dec);
@@ -955,6 +1011,7 @@ void Item_func_rand::fix_length_and_dec()
 {
   decimals=NOT_FIXED_DEC; 
   max_length=float_length(decimals);
+  used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
     uint32 tmp= (uint32) (args[0]->val_int());
@@ -980,14 +1037,22 @@ void Item_func_rand::fix_length_and_dec()
   }
 }
 
+void Item_func_rand::update_used_tables()
+{
+  Item_real_func::update_used_tables();
+  used_tables_cache|= RAND_TABLE_BIT;
+}
+
 
 double Item_func_rand::val()
 {
+  DBUG_ASSERT(fixed == 1);
   return my_rnd(rand);
 }
 
 longlong Item_func_sign::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
@@ -996,6 +1061,7 @@ longlong Item_func_sign::val_int()
 
 double Item_func_units::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   if ((null_value=args[0]->null_value))
     return 0;
@@ -1027,6 +1093,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 String *Item_func_min_max::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   switch (cmp_type) {
   case INT_RESULT:
   {
@@ -1071,7 +1138,8 @@ String *Item_func_min_max::val_str(String *str)
 	}
       }
     }
-    res->set_charset(collation.collation);
+    if (res)					// If !NULL
+      res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -1079,7 +1147,6 @@ String *Item_func_min_max::val_str(String *str)
     // This case should never be choosen
     DBUG_ASSERT(0);
     return 0;
-
   }
   return 0;					// Keep compiler happy
 }
@@ -1087,6 +1154,7 @@ String *Item_func_min_max::val_str(String *str)
 
 double Item_func_min_max::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double value=0.0;
   null_value=1;
   for (uint i=0; i < arg_count ; i++)
@@ -1109,6 +1177,7 @@ double Item_func_min_max::val()
 
 longlong Item_func_min_max::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong value=0;
   null_value=1;
   for (uint i=0; i < arg_count ; i++)
@@ -1130,6 +1199,7 @@ longlong Item_func_min_max::val_int()
 
 longlong Item_func_length::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -1143,6 +1213,7 @@ longlong Item_func_length::val_int()
 
 longlong Item_func_char_length::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -1156,6 +1227,7 @@ longlong Item_func_char_length::val_int()
 
 longlong Item_func_coercibility::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (args[0]->null_value)
   {
     null_value= 1;
@@ -1175,6 +1247,7 @@ void Item_func_locate::fix_length_and_dec()
 
 longlong Item_func_locate::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
   if (!a || !b)
@@ -1225,6 +1298,7 @@ void Item_func_locate::print(String *str)
 
 longlong Item_func_field::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (cmp_type == STRING_RESULT)
   {
     String *field;
@@ -1272,6 +1346,7 @@ void Item_func_field::fix_length_and_dec()
 
 longlong Item_func_ascii::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -1284,6 +1359,7 @@ longlong Item_func_ascii::val_int()
 
 longlong Item_func_ord::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -1338,6 +1414,7 @@ static const char separator=',';
 
 longlong Item_func_find_in_set::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (enum_value)
   {
     ulonglong tmp=(ulonglong) args[1]->val_int();
@@ -1391,6 +1468,7 @@ longlong Item_func_find_in_set::val_int()
 
 longlong Item_func_bit_count::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong value= (ulonglong) args[0]->val_int();
   if (args[0]->null_value)
   {
@@ -1469,9 +1547,12 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
+      if ((*arg)->fix_fields(thd, tables, arg))
+	DBUG_RETURN(1);
+      // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
-      if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
-	return 1;
+      if (item->check_cols(1))
+	DBUG_RETURN(1);
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -1561,7 +1642,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		      u_d->name,thd->net.last_error);
+		      u_d->name.str, thd->net.last_error);
       free_udf(u_d);
       DBUG_RETURN(1);
     }
@@ -1574,7 +1655,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   if (error)
   {
     my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		    u_d->name, ER(ER_UNKNOWN_ERROR));
+		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -1667,6 +1748,7 @@ String *udf_handler::val_str(String *str,String *save_str)
 
 double Item_func_udf_float::val()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
@@ -1676,6 +1758,7 @@ double Item_func_udf_float::val()
 
 String *Item_func_udf_float::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
@@ -1686,6 +1769,7 @@ String *Item_func_udf_float::val_str(String *str)
 
 longlong Item_func_udf_int::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
@@ -1696,6 +1780,7 @@ longlong Item_func_udf_int::val_int()
 
 String *Item_func_udf_int::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong nr=val_int();
   if (null_value)
     return 0;
@@ -1719,6 +1804,7 @@ void Item_func_udf_str::fix_length_and_dec()
 
 String *Item_func_udf_str::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=udf.val_str(str,&str_value);
   null_value = !res;
   return res;
@@ -1735,7 +1821,7 @@ bool udf_handler::get_arguments() { return 0; }
 pthread_mutex_t LOCK_user_locks;
 static HASH hash_user_locks;
 
-class ULL
+class User_level_lock
 {
   char *key;
   uint key_length;
@@ -1747,7 +1833,7 @@ public:
   pthread_t thread;
   ulong thread_id;
 
-  ULL(const char *key_arg,uint length, ulong id) 
+  User_level_lock(const char *key_arg,uint length, ulong id) 
     :key_length(length),count(1),locked(1), thread_id(id)
   {
     key=(char*) my_memdup((byte*) key_arg,length,MYF(0));
@@ -1761,7 +1847,7 @@ public:
       }
     }
   }
-  ~ULL()
+  ~User_level_lock()
   {
     if (key)
     {
@@ -1771,11 +1857,12 @@ public:
     pthread_cond_destroy(&cond);
   }
   inline bool initialized() { return key != 0; }
-  friend void item_user_lock_release(ULL *ull);
-  friend char *ull_get_key(const ULL *ull,uint *length,my_bool not_used);
+  friend void item_user_lock_release(User_level_lock *ull);
+  friend char *ull_get_key(const User_level_lock *ull, uint *length,
+                           my_bool not_used);
 };
 
-char *ull_get_key(const ULL *ull,uint *length,
+char *ull_get_key(const User_level_lock *ull, uint *length,
 		  my_bool not_used __attribute__((unused)))
 {
   *length=(uint) ull->key_length;
@@ -1803,7 +1890,7 @@ void item_user_lock_free(void)
   }
 }
 
-void item_user_lock_release(ULL *ull)
+void item_user_lock_release(User_level_lock *ull)
 {
   ull->locked=0;
   if (mysql_bin_log.is_open())
@@ -1831,6 +1918,7 @@ void item_user_lock_release(ULL *ull)
 
 longlong Item_master_pos_wait::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   THD* thd = current_thd;
   String *log_name = args[0]->val_str(&value);
   int event_count= 0;
@@ -1844,13 +1932,11 @@ longlong Item_master_pos_wait::val_int()
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
 #ifdef HAVE_REPLICATION
-  LOCK_ACTIVE_MI;
-   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
-   {
+  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
+  {
     null_value = 1;
     event_count=0;
   }
-  UNLOCK_ACTIVE_MI;
 #endif
   return event_count;
 }
@@ -1859,7 +1945,7 @@ longlong Item_master_pos_wait::val_int()
 void debug_sync_point(const char* lock_name, uint lock_timeout)
 {
   THD* thd=current_thd;
-  ULL* ull;
+  User_level_lock* ull;
   struct timespec abstime;
   int lock_name_len,error=0;
   lock_name_len=strlen(lock_name);
@@ -1877,7 +1963,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
     this case, we will not be waiting, but rather, just waste CPU and
     memory on the whole deal
   */
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,lock_name,
+  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks, lock_name,
 				 lock_name_len))))
   {
     pthread_mutex_unlock(&LOCK_user_locks);
@@ -1934,11 +2020,12 @@ void debug_sync_point(const char* lock_name, uint lock_timeout)
 
 longlong Item_func_get_lock::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
   longlong timeout=args[1]->val_int();
   struct timespec abstime;
   THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
   int error=0;
 
   pthread_mutex_lock(&LOCK_user_locks);
@@ -1957,10 +2044,11 @@ longlong Item_func_get_lock::val_int()
     thd->ull=0;
   }
 
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
-				 res->length()))))
+  if (!(ull= ((User_level_lock *) hash_search(&hash_user_locks,
+                                              (byte*) res->ptr(),
+                                              res->length()))))
   {
-    ull=new ULL(res->ptr(),res->length(), thd->thread_id);
+    ull=new User_level_lock(res->ptr(),res->length(), thd->thread_id);
     if (!ull || !ull->initialized())
     {
       delete ull;
@@ -2028,8 +2116,9 @@ longlong Item_func_get_lock::val_int()
 
 longlong Item_func_release_lock::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  ULL *ull;
+  User_level_lock *ull;
   longlong result;
   if (!res || !res->length())
   {
@@ -2040,8 +2129,9 @@ longlong Item_func_release_lock::val_int()
 
   result=0;
   pthread_mutex_lock(&LOCK_user_locks);
-  if (!(ull= ((ULL*) hash_search(&hash_user_locks,(const byte*) res->ptr(),
-				 res->length()))))
+  if (!(ull= ((User_level_lock*) hash_search(&hash_user_locks,
+                                             (const byte*) res->ptr(),
+                                             res->length()))))
   {
     null_value=1;
   }
@@ -2059,18 +2149,29 @@ longlong Item_func_release_lock::val_int()
 }
 
 
-longlong Item_func_set_last_insert_id::val_int()
+longlong Item_func_last_insert_id::val_int()
 {
-  longlong value=args[0]->val_int();
-  current_thd->insert_id(value);
-  null_value=args[0]->null_value;
-  return value;
+  DBUG_ASSERT(fixed == 1);
+  if (arg_count)
+  {
+    longlong value=args[0]->val_int();
+    current_thd->insert_id(value);
+    null_value=args[0]->null_value;
+    return value;
+  }
+  else
+  {
+    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
+			     "last_insert_id()");
+    return it->val_int();
+  }
 }
 
 /* This function is just used to test speed of different functions */
 
 longlong Item_func_benchmark::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff), &my_charset_bin);
   THD *thd=current_thd;
@@ -2163,6 +2264,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
@@ -2173,6 +2275,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
+  entry->collation.set(args[0]->collation);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2184,6 +2287,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  collation.set(args[0]->collation);
 }
 
 
@@ -2261,7 +2365,7 @@ double user_var_entry::val(my_bool *null_value)
   case INT_RESULT:
     return (double) *(longlong*) value;
   case STRING_RESULT:
-    return atof(value);				// This is null terminated
+    return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;
@@ -2283,7 +2387,10 @@ longlong user_var_entry::val_int(my_bool *null_value)
   case INT_RESULT:
     return *(longlong*) value;
   case STRING_RESULT:
-    return strtoull(value,NULL,10);		// String is null terminated
+  {
+    int error;
+    return my_strtoll10(value, (char**) 0, &error);// String is null terminated
+  }
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;
@@ -2348,7 +2455,6 @@ Item_func_set_user_var::check()
     save_result.vint= args[0]->val_int();
     break;
   }
-  break;
   case STRING_RESULT:
   {
     save_result.vstr= args[0]->val_str(&value);
@@ -2400,7 +2506,6 @@ Item_func_set_user_var::update()
 		     INT_RESULT, &my_charset_bin, DERIVATION_NONE);
     break;
   }
-  break;
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
@@ -2425,6 +2530,7 @@ Item_func_set_user_var::update()
 
 double Item_func_set_user_var::val()
 {
+  DBUG_ASSERT(fixed == 1);
   check();
   update();					// Store expression
   return entry->val(&null_value);
@@ -2432,6 +2538,7 @@ double Item_func_set_user_var::val()
 
 longlong Item_func_set_user_var::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   check();
   update();					// Store expression
   return entry->val_int(&null_value);
@@ -2439,6 +2546,7 @@ longlong Item_func_set_user_var::val_int()
 
 String *Item_func_set_user_var::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   check();
   update();					// Store expression
   return entry->val_str(&null_value, str, decimals);
@@ -2458,6 +2566,7 @@ void Item_func_set_user_var::print(String *str)
 String *
 Item_func_get_user_var::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry)
     DBUG_RETURN((String*) 0);			// No such variable
@@ -2467,6 +2576,7 @@ Item_func_get_user_var::val_str(String *str)
 
 double Item_func_get_user_var::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if (!var_entry)
     return 0.0;					// No such variable
   return (var_entry->val(&null_value));
@@ -2475,6 +2585,7 @@ double Item_func_get_user_var::val()
 
 longlong Item_func_get_user_var::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (!var_entry)
     return LL(0);				// No such variable
   return (var_entry->val_int(&null_value));
@@ -2482,24 +2593,39 @@ longlong Item_func_get_user_var::val_int()
 
 
 /*
+  Get variable by name and, if necessary, put the record of variable 
+  use into the binary log.
+  
+  SYNOPSIS
+    get_var_with_binlog()
+      thd        Current thread
+      name       Variable name 
+      out_entry  [out] variable structure or NULL. The pointer is set 
+                 regardless of whether function succeeded or not.
+
   When a user variable is invoked from an update query (INSERT, UPDATE etc),
   stores this variable and its value in thd->user_var_events, so that it can be
   written to the binlog (will be written just before the query is written, see
   log.cc).
+  
+  RETURN
+    0  OK 
+    1  Failed to put appropiate record into binary log
+    
 */
 
-void Item_func_get_user_var::fix_length_and_dec()
+int get_var_with_binlog(THD *thd, LEX_STRING &name, 
+                        user_var_entry **out_entry)
 {
-  THD *thd=current_thd;
   BINLOG_USER_VAR_EVENT *user_var_event;
-  maybe_null=1;
-  decimals=NOT_FIXED_DEC;
-  max_length=MAX_BLOB_WIDTH;
-
-  if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
-    null_value= 1;
+  user_var_entry *var_entry;
+  var_entry= get_variable(&thd->user_vars, name, 0);
+  
   if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
-    return;
+  {
+    *out_entry= var_entry;
+    return 0;
+  }
 
   if (!var_entry)
   {
@@ -2526,13 +2652,16 @@ void Item_func_get_user_var::fix_length_and_dec()
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;
   }
-  /* 
-     If this variable was already stored in user_var_events by this query
-     (because it's used in more than one place in the query), don't store
-     it.
-  */
   else if (var_entry->used_query_id == thd->query_id)
-    return;
+  {
+    /* 
+       If this variable was already stored in user_var_events by this query
+       (because it's used in more than one place in the query), don't store
+       it.
+    */
+    *out_entry= var_entry;
+    return 0;
+  }
 
   uint size;
   /*
@@ -2567,11 +2696,34 @@ void Item_func_get_user_var::fix_length_and_dec()
   var_entry->used_query_id= thd->query_id;
   if (insert_dynamic(&thd->user_var_events, (gptr) &user_var_event))
     goto err;
-
-  return;
+  
+  *out_entry= var_entry;
+  return 0;
 
 err:
-  thd->fatal_error();
+  *out_entry= var_entry;
+  return 1;
+}
+
+
+void Item_func_get_user_var::fix_length_and_dec()
+{
+  THD *thd=current_thd;
+  int error;
+  maybe_null=1;
+  decimals=NOT_FIXED_DEC;
+  max_length=MAX_BLOB_WIDTH;
+
+  error= get_var_with_binlog(thd, name, &var_entry);
+
+  if (var_entry)
+    collation.set(var_entry->collation);
+  else
+    null_value= 1;
+
+  if (error)
+    thd->fatal_error();
+
   return;
 }
 
@@ -2618,11 +2770,13 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 
 longlong Item_func_inet_aton::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint byte_result = 0;
   ulonglong result = 0;			// We are ready for 64 bit addresses
   const char *p,* end;
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
+  int dot_count= 0;
 
   String *s,tmp(buff,sizeof(buff),&my_charset_bin);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
@@ -2641,6 +2795,7 @@ longlong Item_func_inet_aton::val_int()
     }
     else if (c == '.')
     {
+      dot_count++;
       result= (result << 8) + (ulonglong) byte_result;
       byte_result = 0;
     }
@@ -2648,7 +2803,19 @@ longlong Item_func_inet_aton::val_int()
       goto err;					// Invalid character
   }
   if (c != '.')					// IP number can't end on '.'
+  {
+    /*
+      Handle short-forms addresses according to standard. Examples:
+      127		-> 0.0.0.127
+      127.1		-> 127.0.0.1
+      127.2.1		-> 127.2.0.1
+    */
+    switch (dot_count) {
+    case 1: result<<= 8; /* Fall through */
+    case 2: result<<= 8; /* Fall through */
+    }
     return (result << 8) + (ulonglong) byte_result;
+  }
 
 err:
   null_value=1;
@@ -2671,6 +2838,13 @@ void Item_func_match::init_search(bool no_order)
       fields.push_back(args[i]);
     concat=new Item_func_concat_ws(new Item_string(" ",1,
                                    cmp_collation.collation), fields);
+    /*
+      Above function used only to get value and do not need fix_fields for it:
+      Item_string - basic constant
+      fields - fix_fields() was already called for this arguments
+      Item_func_concat_ws - do not need fix_fields() to produce value
+    */
+    concat->quick_fix_field();
   }
 
   if (master)
@@ -2713,6 +2887,7 @@ void Item_func_match::init_search(bool no_order)
 
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   Item *item;
   LINT_INIT(item);				// Safe as arg_count is > 1
 
@@ -2857,6 +3032,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
 double Item_func_match::val()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_match::val");
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
@@ -2899,6 +3075,7 @@ void Item_func_match::print(String *str)
 
 longlong Item_func_bit_xor::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulonglong arg1= (ulonglong) args[0]->val_int();
   ulonglong arg2= (ulonglong) args[1]->val_int();
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
@@ -3027,9 +3204,9 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
 
 longlong Item_func_is_free_lock::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
 
   null_value=0;
   if (!res || !res->length())
@@ -3039,7 +3216,7 @@ longlong Item_func_is_free_lock::val_int()
   }
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
 			  res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
@@ -3049,16 +3226,16 @@ longlong Item_func_is_free_lock::val_int()
 
 longlong Item_func_is_used_lock::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  THD *thd=current_thd;
-  ULL *ull;
+  User_level_lock *ull;
 
   null_value=1;
   if (!res || !res->length())
     return 0;
   
   pthread_mutex_lock(&LOCK_user_locks);
-  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+  ull= (User_level_lock *) hash_search(&hash_user_locks, (byte*) res->ptr(),
 			  res->length());
   pthread_mutex_unlock(&LOCK_user_locks);
   if (!ull || !ull->locked)
@@ -3066,6 +3243,34 @@ longlong Item_func_is_used_lock::val_int()
 
   null_value=0;
   return ull->thread_id;
+}
+
+
+longlong Item_func_row_count::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+
+  return thd->row_count_func;
+}
+
+
+Item_func_sp::Item_func_sp(sp_name *name)
+  :Item_func(), m_name(name), m_sp(NULL)
+{
+  m_name->init_qname(current_thd);
+}
+
+Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
+  :Item_func(list), m_name(name), m_sp(NULL)
+{
+  m_name->init_qname(current_thd);
+}
+
+const char *
+Item_func_sp::func_name() const
+{
+  return m_name->m_name.str;
 }
 
 int
@@ -3079,9 +3284,13 @@ Item_func_sp::execute(Item **itp)
 #endif
 
   if (! m_sp)
-    m_sp= sp_find_function(thd, &m_name);
+    m_sp= sp_find_function(thd, m_name);
   if (! m_sp)
+  {
+    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		    "FUNCTION", m_name->m_qname);
     DBUG_RETURN(-1);
+  }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   sp_change_security_context(thd, m_sp, &save_ctx);
@@ -3102,12 +3311,14 @@ Item_func_sp::field_type() const
   DBUG_ENTER("Item_func_sp::field_type");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+    m_sp= sp_find_function(current_thd, m_name);
   if (m_sp)
   {
     DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
     DBUG_RETURN(m_sp->m_returns);
   }
+  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		  "FUNCTION", m_name->m_qname);
   DBUG_RETURN(MYSQL_TYPE_STRING);
 }
 
@@ -3118,11 +3329,13 @@ Item_func_sp::result_type() const
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+    m_sp= sp_find_function(current_thd, m_name);
   if (m_sp)
   {
     DBUG_RETURN(m_sp->result());
   }
+  my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		  "FUNCTION", m_name->m_qname);
   DBUG_RETURN(STRING_RESULT);
 }
 
@@ -3132,13 +3345,18 @@ Item_func_sp::fix_length_and_dec()
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, &m_name);
-  if (m_sp)
+    m_sp= sp_find_function(current_thd, m_name);
+  if (! m_sp)
+  {
+    my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
+		    "FUNCTION", m_name->m_qname);
+  }
+  else
   {
     switch (m_sp->result()) {
     case STRING_RESULT:
       maybe_null= 1;
-      max_length= 0;
+      max_length= MAX_BLOB_WIDTH;
       break;
     case REAL_RESULT:
       decimals= NOT_FIXED_DEC;
@@ -3156,4 +3374,13 @@ Item_func_sp::fix_length_and_dec()
     }
   }
   DBUG_VOID_RETURN;
+}
+
+
+longlong Item_func_found_rows::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD *thd= current_thd;
+
+  return thd->found_rows();
 }

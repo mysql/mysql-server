@@ -17,11 +17,11 @@
 
 /* This file defines all spatial functions */
 
+#ifdef HAVE_SPATIAL
+
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
-
-#define SRID_SIZE sizeof(uint32)
 
 class Item_func_geometry_from_text: public Item_str_func
 {
@@ -338,3 +338,12 @@ public:
   const char *func_name() const { return "srid"; }
   void fix_length_and_dec() { max_length= 10; }
 };
+
+#define GEOM_NEW(obj_constructor) new obj_constructor
+
+#else /*HAVE_SPATIAL*/
+
+#define GEOM_NEW(obj_constructor) NULL
+
+#endif
+

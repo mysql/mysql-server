@@ -19,9 +19,6 @@
 */
 
 #include "fulltext.h"
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 int mi_rename(const char *old_name, const char *new_name)
 {

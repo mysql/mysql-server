@@ -158,17 +158,17 @@ insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1264	Data truncated for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 0.00
@@ -201,32 +201,32 @@ drop  table t1;
 create table t1 (a decimal(10,2) unsigned);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 6
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 1
 insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1264	Data truncated for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 0.00
@@ -259,32 +259,32 @@ drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 6
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 6
 insert into t1 values ("-.1"),("+.1"),(".1");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 1
 insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1264	Data truncated for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 3
+Warning	1265	Data truncated for column 'a' at row 3
 select * from t1;
 a
 00000000.00
@@ -321,13 +321,13 @@ insert into t1 values (00000000000001),(+0000000000001),(-0000000000001);
 insert into t1 values (+111111111.11),(111111111.11),(-11111111.11);
 insert into t1 values (-111111111.11),(+1111111111.11),(1111111111.11);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values (1e+100),(1e-100),(-1e+100);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 3
 insert into t1 values (123.4e0),(123.4e+2),(123.4e-2),(123e1),(123e+0);
 select * from t1;
 a
@@ -361,8 +361,8 @@ drop  table t1;
 create table t1 (a decimal);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+12345678901'),(99999999999999);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 7
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 7
 select * from t1;
 a
 -9999999999
@@ -376,9 +376,9 @@ drop  table t1;
 create table t1 (a decimal unsigned);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 7
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 7
 select * from t1;
 a
 0
@@ -392,9 +392,9 @@ drop  table t1;
 create table t1 (a decimal zerofill);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 7
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 7
 select * from t1;
 a
 0000000000
@@ -408,9 +408,9 @@ drop  table t1;
 create table t1 (a decimal unsigned zerofill);
 insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
 Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 7
+Warning	1264	Data truncated; out of range for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 7
 select * from t1;
 a
 0000000000
@@ -424,61 +424,35 @@ drop  table t1;
 create table t1(a decimal(10,0));
 insert into t1 values ("1e4294967295");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 1
 select * from t1;
 a
 99999999999
 delete from t1;
 insert into t1 values("1e4294967297");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'a' at row 1
 select * from t1;
 a
 99999999999
 drop table t1;
 CREATE TABLE t1 (a_dec DECIMAL(-1,0));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,0))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,0))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-2,1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '-2,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2,1))' at line 1
 CREATE TABLE t1 (a_dec DECIMAL(-1,1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,1))' at line 1
+CREATE TABLE t1 (a_dec DECIMAL(0,11));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a_dec` decimal(12,11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 create table t1(a decimal(7,3));
 insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
-Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 27
-Warning	1263	Data truncated, out of range for column 'a' at row 30
-Warning	1263	Data truncated, out of range for column 'a' at row 31
-Warning	1263	Data truncated, out of range for column 'a' at row 32
-Warning	1263	Data truncated, out of range for column 'a' at row 33
-Warning	1263	Data truncated, out of range for column 'a' at row 34
-Warning	1263	Data truncated, out of range for column 'a' at row 35
-Warning	1263	Data truncated, out of range for column 'a' at row 36
-Warning	1263	Data truncated, out of range for column 'a' at row 37
-Warning	1263	Data truncated, out of range for column 'a' at row 38
-Warning	1263	Data truncated, out of range for column 'a' at row 39
-Warning	1263	Data truncated, out of range for column 'a' at row 40
-Warning	1263	Data truncated, out of range for column 'a' at row 41
-Warning	1263	Data truncated, out of range for column 'a' at row 42
-Warning	1263	Data truncated, out of range for column 'a' at row 43
-Warning	1263	Data truncated, out of range for column 'a' at row 44
-Warning	1263	Data truncated, out of range for column 'a' at row 45
-Warning	1263	Data truncated, out of range for column 'a' at row 46
-Warning	1263	Data truncated, out of range for column 'a' at row 47
-Warning	1263	Data truncated, out of range for column 'a' at row 48
-Warning	1263	Data truncated, out of range for column 'a' at row 49
-Warning	1263	Data truncated, out of range for column 'a' at row 50
-Warning	1263	Data truncated, out of range for column 'a' at row 51
-Warning	1263	Data truncated, out of range for column 'a' at row 52
-Warning	1263	Data truncated, out of range for column 'a' at row 53
-Warning	1263	Data truncated, out of range for column 'a' at row 54
-Warning	1263	Data truncated, out of range for column 'a' at row 55
-Warning	1263	Data truncated, out of range for column 'a' at row 56
-Warning	1263	Data truncated, out of range for column 'a' at row 57
-Warning	1263	Data truncated, out of range for column 'a' at row 58
-Warning	1263	Data truncated, out of range for column 'a' at row 59
-Warning	1263	Data truncated, out of range for column 'a' at row 60
 select * from t1;
 a
 1.000
@@ -544,51 +518,6 @@ a
 drop table t1;
 create table t1(a decimal(7,3) unsigned);
 insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
-Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 3
-Warning	1263	Data truncated, out of range for column 'a' at row 6
-Warning	1263	Data truncated, out of range for column 'a' at row 9
-Warning	1263	Data truncated, out of range for column 'a' at row 12
-Warning	1263	Data truncated, out of range for column 'a' at row 15
-Warning	1263	Data truncated, out of range for column 'a' at row 18
-Warning	1263	Data truncated, out of range for column 'a' at row 21
-Warning	1263	Data truncated, out of range for column 'a' at row 24
-Warning	1263	Data truncated, out of range for column 'a' at row 25
-Warning	1263	Data truncated, out of range for column 'a' at row 26
-Warning	1263	Data truncated, out of range for column 'a' at row 27
-Warning	1263	Data truncated, out of range for column 'a' at row 28
-Warning	1263	Data truncated, out of range for column 'a' at row 29
-Warning	1263	Data truncated, out of range for column 'a' at row 30
-Warning	1263	Data truncated, out of range for column 'a' at row 31
-Warning	1263	Data truncated, out of range for column 'a' at row 32
-Warning	1263	Data truncated, out of range for column 'a' at row 33
-Warning	1263	Data truncated, out of range for column 'a' at row 34
-Warning	1263	Data truncated, out of range for column 'a' at row 35
-Warning	1263	Data truncated, out of range for column 'a' at row 36
-Warning	1263	Data truncated, out of range for column 'a' at row 37
-Warning	1263	Data truncated, out of range for column 'a' at row 38
-Warning	1263	Data truncated, out of range for column 'a' at row 39
-Warning	1263	Data truncated, out of range for column 'a' at row 40
-Warning	1263	Data truncated, out of range for column 'a' at row 41
-Warning	1263	Data truncated, out of range for column 'a' at row 42
-Warning	1263	Data truncated, out of range for column 'a' at row 43
-Warning	1263	Data truncated, out of range for column 'a' at row 44
-Warning	1263	Data truncated, out of range for column 'a' at row 45
-Warning	1263	Data truncated, out of range for column 'a' at row 46
-Warning	1263	Data truncated, out of range for column 'a' at row 47
-Warning	1263	Data truncated, out of range for column 'a' at row 48
-Warning	1263	Data truncated, out of range for column 'a' at row 49
-Warning	1263	Data truncated, out of range for column 'a' at row 50
-Warning	1263	Data truncated, out of range for column 'a' at row 51
-Warning	1263	Data truncated, out of range for column 'a' at row 52
-Warning	1263	Data truncated, out of range for column 'a' at row 53
-Warning	1263	Data truncated, out of range for column 'a' at row 54
-Warning	1263	Data truncated, out of range for column 'a' at row 55
-Warning	1263	Data truncated, out of range for column 'a' at row 56
-Warning	1263	Data truncated, out of range for column 'a' at row 57
-Warning	1263	Data truncated, out of range for column 'a' at row 58
-Warning	1263	Data truncated, out of range for column 'a' at row 59
-Warning	1263	Data truncated, out of range for column 'a' at row 60
 select * from t1;
 a
 1.000
@@ -654,51 +583,6 @@ a
 drop table t1;
 create table t1(a decimal(7,3) zerofill);
 insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
-Warnings:
-Warning	1263	Data truncated, out of range for column 'a' at row 3
-Warning	1263	Data truncated, out of range for column 'a' at row 6
-Warning	1263	Data truncated, out of range for column 'a' at row 9
-Warning	1263	Data truncated, out of range for column 'a' at row 12
-Warning	1263	Data truncated, out of range for column 'a' at row 15
-Warning	1263	Data truncated, out of range for column 'a' at row 18
-Warning	1263	Data truncated, out of range for column 'a' at row 21
-Warning	1263	Data truncated, out of range for column 'a' at row 24
-Warning	1263	Data truncated, out of range for column 'a' at row 25
-Warning	1263	Data truncated, out of range for column 'a' at row 26
-Warning	1263	Data truncated, out of range for column 'a' at row 27
-Warning	1263	Data truncated, out of range for column 'a' at row 28
-Warning	1263	Data truncated, out of range for column 'a' at row 29
-Warning	1263	Data truncated, out of range for column 'a' at row 30
-Warning	1263	Data truncated, out of range for column 'a' at row 31
-Warning	1263	Data truncated, out of range for column 'a' at row 32
-Warning	1263	Data truncated, out of range for column 'a' at row 33
-Warning	1263	Data truncated, out of range for column 'a' at row 34
-Warning	1263	Data truncated, out of range for column 'a' at row 35
-Warning	1263	Data truncated, out of range for column 'a' at row 36
-Warning	1263	Data truncated, out of range for column 'a' at row 37
-Warning	1263	Data truncated, out of range for column 'a' at row 38
-Warning	1263	Data truncated, out of range for column 'a' at row 39
-Warning	1263	Data truncated, out of range for column 'a' at row 40
-Warning	1263	Data truncated, out of range for column 'a' at row 41
-Warning	1263	Data truncated, out of range for column 'a' at row 42
-Warning	1263	Data truncated, out of range for column 'a' at row 43
-Warning	1263	Data truncated, out of range for column 'a' at row 44
-Warning	1263	Data truncated, out of range for column 'a' at row 45
-Warning	1263	Data truncated, out of range for column 'a' at row 46
-Warning	1263	Data truncated, out of range for column 'a' at row 47
-Warning	1263	Data truncated, out of range for column 'a' at row 48
-Warning	1263	Data truncated, out of range for column 'a' at row 49
-Warning	1263	Data truncated, out of range for column 'a' at row 50
-Warning	1263	Data truncated, out of range for column 'a' at row 51
-Warning	1263	Data truncated, out of range for column 'a' at row 52
-Warning	1263	Data truncated, out of range for column 'a' at row 53
-Warning	1263	Data truncated, out of range for column 'a' at row 54
-Warning	1263	Data truncated, out of range for column 'a' at row 55
-Warning	1263	Data truncated, out of range for column 'a' at row 56
-Warning	1263	Data truncated, out of range for column 'a' at row 57
-Warning	1263	Data truncated, out of range for column 'a' at row 58
-Warning	1263	Data truncated, out of range for column 'a' at row 59
-Warning	1263	Data truncated, out of range for column 'a' at row 60
 select * from t1;
 a
 0001.000

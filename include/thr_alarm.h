@@ -64,7 +64,7 @@ typedef my_bool ALARM;
 #define init_thr_alarm(A)
 #define thr_alarm_kill(A)
 #define resize_thr_alarm(N)
-#define end_thr_alarm()
+#define end_thr_alarm(A)
 
 #else
 #if defined(__WIN__)

@@ -36,18 +36,18 @@ struct parse {
 static char nuls[10];		/* place to point scanner in event of error */
 
 struct cclass cclasses[CCLASS_LAST+1]= {
-  { "alnum",	"","", _U | _L | _NMR},
-  { "alpha",	"","", _U | _L },
-  { "blank",	"","", _B },
-  { "cntrl",	"","", _CTR },
-  { "digit",	"","", _NMR },
-  { "graph",	"","", _PNT | _U | _L | _NMR},
-  { "lower",	"","", _L },
-  { "print",	"","", _PNT | _U | _L | _NMR | _B },
-  { "punct",	"","", _PNT },
-  { "space",	"","", _SPC },
-  { "upper",	"","", _U },
-  { "xdigit",	"","", _X },
+  { "alnum",	"","", _MY_U | _MY_L | _MY_NMR},
+  { "alpha",	"","", _MY_U | _MY_L },
+  { "blank",	"","", _MY_B },
+  { "cntrl",	"","", _MY_CTR },
+  { "digit",	"","", _MY_NMR },
+  { "graph",	"","", _MY_PNT | _MY_U | _MY_L | _MY_NMR},
+  { "lower",	"","", _MY_L },
+  { "print",	"","", _MY_PNT | _MY_U | _MY_L | _MY_NMR | _MY_B },
+  { "punct",	"","", _MY_PNT },
+  { "space",	"","", _MY_SPC },
+  { "upper",	"","", _MY_U },
+  { "xdigit",	"","", _MY_X },
   { NULL,NULL,NULL, 0 }
 };
 
@@ -884,7 +884,7 @@ int ch;
 	register char *oldend = p->end;
 	char bracket[3];
 
-	assert(othercase(ch) != ch);	/* p_bracket() would recurse */
+	assert(othercase(p->charset, ch) != ch); /* p_bracket() would recurse */
 	p->next = bracket;
 	p->end = bracket+2;
 	bracket[0] = ch;

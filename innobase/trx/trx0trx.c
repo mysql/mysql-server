@@ -26,10 +26,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0proc.h"
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
-copy MUST be equal to the one in mysql/sql/ha_innobase.cc ! */
+copy MUST be equal to the one in mysql/sql/ha_innodb.cc ! */
 
 void innobase_mysql_print_thd(
-	char* buf,
+	FILE* f,
 	void* thd);
 
 /* Dummy session used currently in MySQL interface */
@@ -73,13 +73,15 @@ trx_create(
 {
 	trx_t*	trx;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = mem_alloc(sizeof(trx_t));
 
 	trx->magic_n = TRX_MAGIC_N;
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 	
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
@@ -105,7 +107,7 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
-	trx->mysql_master_log_file_name = (char*)"";
+	trx->mysql_master_log_file_name = "";
 	trx->mysql_master_log_pos = 0;
 	
 	mutex_create(&(trx->undo_mutex));
@@ -149,6 +151,7 @@ trx_create(
 	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
+	trx->n_lock_table_exp = 0;
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -171,8 +174,7 @@ trx_allocate_for_mysql(void)
 	/* Open a dummy session */
 
 	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-					   ut_strlen((char *) "Dummy sess"));
+		trx_dummy_sess = sess_open();
 	}
 	
 	trx = trx_create(trx_dummy_sess);
@@ -205,8 +207,7 @@ trx_allocate_for_background(void)
 	/* Open a dummy session */
 
 	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-						ut_strlen("Dummy sess"));
+		trx_dummy_sess = sess_open();
 	}
 	
 	trx = trx_create(trx_dummy_sess);
@@ -239,17 +240,17 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/* in, own: trx object */
 {
-        char      err_buf[1000];
-
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->declared_to_be_inside_innodb) {
 	        ut_print_timestamp(stderr);
-	        trx_print(err_buf, trx);
-
-	        fprintf(stderr,
+		fputs(
 "  InnoDB: Error: Freeing a trx which is declared to be processing\n"
-"InnoDB: inside InnoDB.\n%s\n", err_buf);
+"InnoDB: inside InnoDB.\n", stderr);
+		trx_print(stderr, trx);
+		putc('\n', stderr);
 	}
 
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -278,6 +279,7 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
+	ut_a(!trx->n_lock_table_exp);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -347,7 +349,9 @@ trx_list_insert_ordered(
 {
 	trx_t*	trx2;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -509,7 +513,9 @@ trx_assign_rseg(void)
 {
 	trx_rseg_t*	rseg	= trx_sys->latest_rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 loop:
 	/* Get next rseg in a round-robin fashion */
 
@@ -546,7 +552,9 @@ trx_start_low(
 {
 	trx_rseg_t*	rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->rseg == NULL);
 
 	if (trx->type == TRX_PURGE) {
@@ -621,7 +629,9 @@ trx_commit_off_kernel(
 	ibool		must_flush_log	= FALSE;
 	mtr_t		mtr;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;
 	
@@ -650,29 +660,6 @@ trx_commit_off_kernel(
 
 		if (undo) {
 			mutex_enter(&kernel_mutex);
-#ifdef notdefined
-			/* !!!!!!!!! There is a bug here: purge and rollback
-			need the whole stack of old record versions even if no
-			consistent read would need them!! This is because they
-			decide on the basis of the old versions when we can
-			remove delete marked secondary index records! */
-			
-			if (!undo->del_marks && (undo->size == 1)
-			    && (UT_LIST_GET_LEN(trx_sys->view_list) == 1)) {
-
-			    	/* There is no need to save the update undo
-			    	log: discard it; note that &mtr gets committed
-			    	while we must hold the kernel mutex and
-				therefore this optimization may add to the
-				contention of the kernel mutex. */
-
-			    	lsn = trx_undo_update_cleanup_by_discard(trx,
-									&mtr);
-				mutex_exit(&(rseg->mutex));
-
-			    	goto shortcut;
-			}
-#endif
 			trx->no = trx_sys_get_new_trx_no();
 			
 			mutex_exit(&kernel_mutex);
@@ -714,11 +701,13 @@ trx_commit_off_kernel(
 				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 		}
 				
-		/* If we did not take the shortcut, the following call
-		commits the mini-transaction, making the whole transaction
-		committed in the file-based world at this log sequence number;
-		otherwise, we get the commit lsn from the call of
-		trx_undo_update_cleanup_by_discard above.
+		/* The following call commits the mini-transaction, making the
+		whole transaction committed in the file-based world, at this
+		log sequence number. The transaction becomes 'durable' when
+		we write the log to disk, but in the logical sense the commit
+		in the file-based data structures (undo logs etc.) happens
+		here.
+
 		NOTE that transaction numbers, which are assigned only to
 		transactions with an update undo log, do not necessarily come
 		in exactly the same order as commit lsn's, if the transactions
@@ -738,7 +727,9 @@ trx_commit_off_kernel(
 	}
 
 	ut_ad(trx->conc_state == TRX_ACTIVE);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.
@@ -767,7 +758,8 @@ trx_commit_off_kernel(
 		trx->read_view = NULL;
 	}
 
-/*	printf("Trx %lu commit finished\n", ut_dulint_get_low(trx->id)); */
+/*	fprintf(stderr, "Trx %lu commit finished\n",
+		ut_dulint_get_low(trx->id)); */
 
 	if (must_flush_log) {
 
@@ -827,7 +819,7 @@ trx_commit_off_kernel(
 
                         log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
                 } else {
-                        ut_a(0);
+                        ut_error;
                 }
 
 		trx->commit_lsn = lsn;
@@ -918,7 +910,9 @@ trx_handle_commit_sig_off_kernel(
 	trx_sig_t*	sig;
 	trx_sig_t*	next_sig;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx->que_state = TRX_QUE_COMMITTING;
 
@@ -936,7 +930,7 @@ trx_handle_commit_sig_off_kernel(
 
 		if (sig->type == TRX_SIG_COMMIT) {
 
-			trx_sig_reply(trx, sig, next_thr);
+			trx_sig_reply(sig, next_thr);
 			trx_sig_remove(trx, sig);
 		}
 
@@ -958,7 +952,9 @@ trx_end_lock_wait(
 {
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
 	
 	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
@@ -985,7 +981,9 @@ trx_lock_wait_to_suspended(
 {
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
 	
 	thr = UT_LIST_GET_FIRST(trx->wait_thrs);
@@ -1013,7 +1011,9 @@ trx_sig_reply_wait_to_suspended(
 	trx_sig_t*	sig;
 	que_thr_t*	thr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	sig = UT_LIST_GET_FIRST(trx->reply_signals);
 
@@ -1025,7 +1025,6 @@ trx_sig_reply_wait_to_suspended(
 		thr->state = QUE_THR_SUSPENDED;
 
 		sig->receiver = NULL;
-		sig->reply = FALSE;
 	
 		UT_LIST_REMOVE(reply_signals, trx->reply_signals, sig);
 			
@@ -1047,7 +1046,9 @@ trx_sig_is_compatible(
 {
 	trx_sig_t*	sig;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (UT_LIST_GET_LEN(trx->signals) == 0) {
 
@@ -1119,13 +1120,9 @@ trx_sig_send(
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply,		/* in: TRUE if the sender of the signal
-					wants reply after the operation induced
-					by the signal is completed; if type
-					is TRX_SIG_END_WAIT, this must be
-					FALSE */
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
-					reply, or NULL */
+					reply, or NULL; if type is
+					TRX_SIG_END_WAIT, this must be NULL */
 	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
 					NULL */
 	que_thr_t**	next_thr)	/* in/out: next query thread to run;
@@ -1139,16 +1136,16 @@ trx_sig_send(
 	trx_t*		receiver_trx;
 
 	ut_ad(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!trx_sig_is_compatible(trx, type, sender)) {
 		/* The signal is not compatible with the other signals in
 		the queue: do nothing */
 
-		ut_a(0);
+		ut_error;
 		
-		/* sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-						"Incompatible signal"); */
 		return(FALSE);
 	}
 
@@ -1171,7 +1168,6 @@ trx_sig_send(
 	sig->type = type;
 	sig->state = TRX_SIG_WAITING;
 	sig->sender = sender;
-	sig->reply = reply;
 	sig->receiver = receiver_thr;
 
 	if (savept) {
@@ -1196,10 +1192,7 @@ trx_sig_send(
 		signal to the end of the queue, if the session is not yet
 		in the error state: */
 
-		ut_a(0);
-
-		sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-				     (char *) "Signal from another session, or a break execution signal");
+		ut_error;
 	}
 
 	/* If there were no other signals ahead in the queue, try to start
@@ -1224,7 +1217,9 @@ trx_end_signal_handling(
 /*====================*/
 	trx_t*	trx)	/* in: trx */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->handling_signals == TRUE);
 
 	trx->handling_signals = FALSE;
@@ -1258,7 +1253,9 @@ loop:
 	we can process immediately */
 
 	ut_ad(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (trx->handling_signals && (UT_LIST_GET_LEN(trx->signals) == 0)) {
 
@@ -1333,7 +1330,7 @@ loop:
 
 	} else if (type == TRX_SIG_BREAK_EXECUTION) {
 
-		trx_sig_reply(trx, sig, next_thr);
+		trx_sig_reply(sig, next_thr);
 		trx_sig_remove(trx, sig);
 	} else {
 		ut_error;
@@ -1349,7 +1346,6 @@ handled. */
 void
 trx_sig_reply(
 /*==========*/
-	trx_t*		trx,		/* in: trx handle */
 	trx_sig_t*	sig,		/* in: signal */
 	que_thr_t**	next_thr)	/* in/out: next query thread to run;
 					if the value which is passed in is
@@ -1359,11 +1355,12 @@ trx_sig_reply(
 {
 	trx_t*	receiver_trx;
 
-	ut_ad(trx && sig);
+	ut_ad(sig);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
-	if (sig->reply && (sig->receiver != NULL)) {
-
+	if (sig->receiver != NULL) {
 		ut_ad((sig->receiver)->state == QUE_THR_SIG_REPLY_WAIT);
 
 		receiver_trx = thr_get_trx(sig->receiver);
@@ -1374,18 +1371,8 @@ trx_sig_reply(
 									
 		que_thr_end_wait(sig->receiver, next_thr);
 
-		sig->reply = FALSE;
 		sig->receiver = NULL;
 
-	} else if (sig->reply) {
-		/* In this case the reply should be sent to the client of
-		the session of the transaction */
-
-		sig->reply = FALSE;
-		sig->receiver = NULL;
-
-		sess_srv_msg_send_simple(trx->sess, SESS_SRV_SUCCESS,
-						SESS_NOT_RELEASE_KERNEL);
 	}
 }
 
@@ -1399,9 +1386,10 @@ trx_sig_remove(
 	trx_sig_t*	sig)	/* in, own: signal */
 {
 	ut_ad(trx && sig);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(sig->reply == FALSE);
 	ut_ad(sig->receiver == NULL);
 
 	UT_LIST_REMOVE(signals, trx->signals, sig);
@@ -1463,8 +1451,7 @@ trx_commit_step(
 		/* Send the commit signal to the transaction */
 		
 		success = trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT,
-					TRX_SIG_SELF, TRUE, thr, NULL,
-					&next_thr);
+					TRX_SIG_SELF, thr, NULL, &next_thr);
 		
 		mutex_exit(&kernel_mutex);
 
@@ -1500,7 +1487,7 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
-	trx->op_info = (char *) "committing";
+	trx->op_info = "committing";
 	
 	trx_start_if_not_started(trx);
 
@@ -1510,7 +1497,7 @@ trx_commit_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 	
 	return(0);
 }
@@ -1529,7 +1516,7 @@ trx_commit_complete_for_mysql(
 
         ut_a(trx);
 	
-	trx->op_info = (char*)"flushing log";
+	trx->op_info = "flushing log";
 
         if (srv_flush_log_at_trx_commit == 0) {
                 /* Do nothing */
@@ -1550,10 +1537,10 @@ trx_commit_complete_for_mysql(
 
                 log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
         } else {
-                ut_a(0);
+                ut_error;
         }
 
-	trx->op_info = (char*)"";
+	trx->op_info = "";
 
         return(0);
 }
@@ -1577,98 +1564,106 @@ trx_mark_sql_stat_end(
 
 /**************************************************************************
 Prints info about a transaction to the standard output. The caller must
-own the kernel mutex. */
+own the kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
+InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			800 bytes */
+	FILE*	f,	/* in: output stream */
 	trx_t*	trx)	/* in: transaction */
 {
-        char*   start_of_line;
+	ibool	newline;
 
-        buf += sprintf(buf, "TRANSACTION %lu %lu",
+	fprintf(f, "TRANSACTION %lu %lu",
 		(ulong) ut_dulint_get_high(trx->id),
 		 (ulong) ut_dulint_get_low(trx->id));
 
   	switch (trx->conc_state) {
-  		case TRX_NOT_STARTED:         buf += sprintf(buf,
-						", not started"); break;
-  		case TRX_ACTIVE:              buf += sprintf(buf,
-						", ACTIVE %lu sec",
-			 (ulong) difftime(time(NULL), trx->start_time)); break;
-  		case TRX_COMMITTED_IN_MEMORY: buf += sprintf(buf,
-						", COMMITTED IN MEMORY");
+		case TRX_NOT_STARTED:
+			fputs(", not started", f);
+			break;
+		case TRX_ACTIVE:
+			fprintf(f, ", ACTIVE %lu sec",
+				(ulong)difftime(time(NULL), trx->start_time));
 									break;
-  		default: buf += sprintf(buf, " state %lu", (ulong) trx->conc_state);
+		case TRX_COMMITTED_IN_MEMORY:
+			fputs(", COMMITTED IN MEMORY", f);
+			break;
+		default:
+			fprintf(f, " state %lu", (ulong) trx->conc_state);
   	}
 
 #ifdef UNIV_LINUX
-        buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
+	fprintf(f, ", process no %lu", trx->mysql_process_no);
 #endif
-        buf += sprintf(buf, ", OS thread id %lu",
+	fprintf(f, ", OS thread id %lu",
 		       (ulong) os_thread_pf(trx->mysql_thread_id));
 
-	if (ut_strlen(trx->op_info) > 0) {
-		buf += sprintf(buf, " %s", trx->op_info);
+	if (*trx->op_info) {
+		putc(' ', f);
+		fputs(trx->op_info, f);
 	}
 	
   	if (trx->type != TRX_USER) {
-    		buf += sprintf(buf, " purge trx");
+		fputs(" purge trx", f);
   	}
 
 	if (trx->declared_to_be_inside_innodb) {
-	        buf += sprintf(buf, ", thread declared inside InnoDB %lu",
+		fprintf(f, ", thread declared inside InnoDB %lu",
 			       (ulong) trx->n_tickets_to_enter_innodb);
 	}
 
-	buf += sprintf(buf, "\n");
+	putc('\n', f);
   	
         if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
 
-                buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
-                                    (ulong) trx->n_mysql_tables_in_use,
-                                    (ulong) trx->mysql_n_tables_locked);
+                fprintf(f, "mysql tables in use %lu, locked %lu\n",
+                           (ulong) trx->n_mysql_tables_in_use,
+                           (ulong) trx->mysql_n_tables_locked);
         }
 
-	start_of_line = buf;
+	newline = TRUE;
 
   	switch (trx->que_state) {
-  		case TRX_QUE_RUNNING:         break;
-  		case TRX_QUE_LOCK_WAIT:       buf += sprintf(buf,
-						"LOCK WAIT "); break;
-  		case TRX_QUE_ROLLING_BACK:    buf += sprintf(buf,
-						"ROLLING BACK "); break;
-  		case TRX_QUE_COMMITTING:      buf += sprintf(buf,
-						"COMMITTING "); break;
-  		default: buf += sprintf(buf, "que state %lu", (ulong) trx->que_state);
+		case TRX_QUE_RUNNING:
+			newline = FALSE; break;
+		case TRX_QUE_LOCK_WAIT:
+			fputs("LOCK WAIT ", f); break;
+		case TRX_QUE_ROLLING_BACK:
+			fputs("ROLLING BACK ", f); break;
+		case TRX_QUE_COMMITTING:
+			fputs("COMMITTING ", f); break;
+		default:
+			fprintf(f, "que state %lu ", (ulong) trx->que_state);
   	}
 
   	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
 	    mem_heap_get_size(trx->lock_heap) > 400) {
+		newline = TRUE;
 
-  		buf += sprintf(buf,
-"%lu lock struct(s), heap size %lu",
+		fprintf(f, "%lu lock struct(s), heap size %lu",
 			       (ulong) UT_LIST_GET_LEN(trx->trx_locks),
 			       (ulong) mem_heap_get_size(trx->lock_heap));
 	}
 
   	if (trx->has_search_latch) {
-  		buf += sprintf(buf, ", holds adaptive hash latch");
+		newline = TRUE;
+		fputs(", holds adaptive hash latch", f);
   	}
 
 	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
-		buf += sprintf(buf, ", undo log entries %lu",
+		newline = TRUE;
+		fprintf(f, ", undo log entries %lu",
 			(ulong) ut_dulint_get_low(trx->undo_no));
 	}
 	
-	if (buf != start_of_line) {
-
-	        buf += sprintf(buf, "\n");
+	if (newline) {
+		putc('\n', f);
 	}
 
   	if (trx->mysql_thd != NULL) {
-    		innobase_mysql_print_thd(buf, trx->mysql_thd);
+		innobase_mysql_print_thd(f, trx->mysql_thd);
   	}  
 }

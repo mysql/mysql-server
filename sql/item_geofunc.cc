@@ -22,27 +22,33 @@
 #endif
 
 #include "mysql_priv.h"
+
+#ifdef HAVE_SPATIAL
 #include "sql_acl.h"
 #include <m_ctype.h>
 
+
 String *Item_func_geometry_from_text::val_str(String *str)
 {
-  Geometry geom;
+  DBUG_ASSERT(fixed == 1);
+  Geometry_buffer buffer;
   String arg_val;
   String *wkt= args[0]->val_str(&arg_val);
-  GTextReadStream trs(wkt->ptr(), wkt->length());
-  uint32 srid;
+
+  if ((null_value= args[0]->null_value))
+    return 0;
+
+  Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
+  uint32 srid= 0;
 
   if ((arg_count == 2) && !args[1]->null_value)
     srid= (uint32)args[1]->val_int();
-  else
-    srid= 0;
 
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
   str->q_append(srid);
-  if ((null_value=(args[0]->null_value || geom.create_from_wkt(&trs, str, 0))))
+  if ((null_value= !Geometry::create_from_wkt(&buffer, &trs, str, 0)))
     return 0;
   return str;
 }
@@ -56,25 +62,24 @@ void Item_func_geometry_from_text::fix_length_and_dec()
 
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *wkb= args[0]->val_str(&arg_val);
-  Geometry geom;
-  uint32 srid;
+  Geometry_buffer buffer;
+  uint32 srid= 0;
 
   if ((arg_count == 2) && !args[1]->null_value)
     srid= (uint32)args[1]->val_int();
-  else
-    srid= 0;
 
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
   str->q_append(srid);
-  if ((null_value= (args[0]->null_value ||
-		    geom.create_from_wkb(wkb->ptr(), wkb->length()))))
+  if ((null_value= 
+       (args[0]->null_value ||
+	!Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length()) ||
+	str->append(*wkb))))
     return 0;
-
-  str->append(*wkb);
   return str;
 }
 
@@ -87,37 +92,44 @@ void Item_func_geometry_from_wkb::fix_length_and_dec()
 
 String *Item_func_as_wkt::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  const char *dummy;
 
-  if ((null_value= (args[0]->null_value ||
-		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					 swkb->length() - SRID_SIZE))))
+  if ((null_value=
+       (args[0]->null_value ||
+	!(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE)))))
     return 0;
 
   str->length(0);
-
-  if ((null_value= geom.as_wkt(str)))
+  if ((null_value= geom->as_wkt(str, &dummy)))
     return 0;
 
   return str;
 }
+
 
 void Item_func_as_wkt::fix_length_and_dec()
 {
   max_length=MAX_BLOB_WIDTH;
 }
 
+
 String *Item_func_as_wkb::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
-  Geometry geom;
+  Geometry_buffer buffer;
 
-  if ((null_value= (args[0]->null_value ||
-		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					 swkb->length() - SRID_SIZE))))
+  if ((null_value=
+       (args[0]->null_value ||
+	!(Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE)))))
     return 0;
 
   str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
@@ -125,66 +137,78 @@ String *Item_func_as_wkb::val_str(String *str)
   return str;
 }
 
+
 void Item_func_as_wkb::fix_length_and_dec()
 {
   max_length= MAX_BLOB_WIDTH;
 }
 
+
 String *Item_func_geometry_type::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(str);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
 
-  if ((null_value= (args[0]->null_value ||
-		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					 swkb->length() - SRID_SIZE))))
+  if ((null_value=
+       (args[0]->null_value ||
+	!(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE)))))
     return 0;
-  str->copy(geom.get_class_info()->m_name,
-	    strlen(geom.get_class_info()->m_name),
-	    default_charset());
+  /* String will not move */
+  str->set(geom->get_class_info()->m_name.str,
+	   geom->get_class_info()->m_name.length,
+	   default_charset());
   return str;
 }
 
 
 String *Item_func_envelope::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  uint32 srid;
   
-  if ((null_value= args[0]->null_value ||
-		   geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					swkb->length() - SRID_SIZE)))
+  if ((null_value=
+       args[0]->null_value ||
+       !(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
   
-  uint32 srid= uint4korr(swkb->ptr());
+  srid= uint4korr(swkb->ptr());
   str->length(0);
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->q_append(srid);
-  return (null_value= geom.envelope(str)) ? 0 : str;
+  return (null_value= geom->envelope(str)) ? 0 : str;
 }
 
 
 String *Item_func_centroid::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  uint32 srid;
 
   if ((null_value= args[0]->null_value ||
-		   geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					swkb->length() - SRID_SIZE) ||
-		   !GEOM_METHOD_PRESENT(geom, centroid)))
+       !(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					 swkb->length() - SRID_SIZE))))
     return 0;
 
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
-  uint32 srid= uint4korr(swkb->ptr());
+  srid= uint4korr(swkb->ptr());
   str->q_append(srid);
 
-  return (null_value= geom.centroid(str)) ? 0 : str;
+  return (null_value= test(geom->centroid(str))) ? 0 : str;
 }
 
 
@@ -194,117 +218,124 @@ String *Item_func_centroid::val_str(String *str)
 
 String *Item_func_spatial_decomp::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  uint32 srid;
 
-  if ((null_value= (args[0]->null_value ||
-		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					 swkb->length() - SRID_SIZE))))
+  if ((null_value=
+       (args[0]->null_value ||
+	!(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE)))))
     return 0;
 
-  null_value= 1;
+  srid= uint4korr(swkb->ptr());
   if (str->reserve(SRID_SIZE, 512))
-    return 0;
+    goto err;
   str->length(0);
-  uint32 srid= uint4korr(swkb->ptr());
   str->q_append(srid);
-  switch(decomp_func)
-  {
+  switch (decomp_func) {
     case SP_STARTPOINT:
-      if (!GEOM_METHOD_PRESENT(geom,start_point) || geom.start_point(str))
-        goto ret;
+      if (geom->start_point(str))
+        goto err;
       break;
 
     case SP_ENDPOINT:
-      if (!GEOM_METHOD_PRESENT(geom,end_point) || geom.end_point(str))
-        goto ret;
+      if (geom->end_point(str))
+        goto err;
       break;
 
     case SP_EXTERIORRING:
-      if (!GEOM_METHOD_PRESENT(geom,exterior_ring) || geom.exterior_ring(str))
-        goto ret;
+      if (geom->exterior_ring(str))
+        goto err;
       break;
 
     default:
-      goto ret;
+      goto err;
   }
-  null_value= 0;
+  return str;
 
-ret:
-  return null_value ? 0 : str;
+err:
+  null_value= 1;
+  return 0;
 }
 
 
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   long n= (long) args[1]->val_int();
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  uint32 srid;
 
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-		    geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-					 swkb->length() - SRID_SIZE))))
+  if ((null_value=
+       (args[0]->null_value || args[1]->null_value ||
+	!(geom= Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE)))))
     return 0;
 
-  null_value= 1;
   if (str->reserve(SRID_SIZE, 512))
-    return 0;
+    goto err;
+  srid= uint4korr(swkb->ptr());
   str->length(0);
-  uint32 srid= uint4korr(swkb->ptr());
   str->q_append(srid);
-  switch(decomp_func_n)
+  switch (decomp_func_n)
   {
     case SP_POINTN:
-      if (!GEOM_METHOD_PRESENT(geom,point_n) || geom.point_n(n,str))
-        goto ret;
+      if (geom->point_n(n,str))
+        goto err;
       break;
 
     case SP_GEOMETRYN:
-      if (!GEOM_METHOD_PRESENT(geom,geometry_n) || geom.geometry_n(n,str))
-        goto ret;
+      if (geom->geometry_n(n,str))
+        goto err;
       break;
 
     case SP_INTERIORRINGN:
-      if (!GEOM_METHOD_PRESENT(geom,interior_ring_n) ||
-          geom.interior_ring_n(n,str))
-        goto ret;
+      if (geom->interior_ring_n(n,str))
+        goto err;
       break;
 
     default:
-      goto ret;
+      goto err;
   }
-  null_value= 0;
+  return str;
 
-ret:
-  return null_value ? 0 : str;
+err:
+  null_value=1;
+  return 0;
 }
 
 
 /*
-  Functions to concatinate various spatial objects
+  Functions to concatenate various spatial objects
 */
 
 
 /*
-*  Concatinate doubles into Point
+*  Concatenate doubles into Point
 */
 
 
 String *Item_func_point::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double x= args[0]->val();
   double y= args[1]->val();
 
-  if ( (null_value= (args[0]->null_value ||
-		     args[1]->null_value ||
-		     str->realloc(1 + 4 + 8 + 8))))
+  if ((null_value= (args[0]->null_value ||
+		    args[1]->null_value ||
+		    str->realloc(1 + 4 + SIZEOF_STORED_DOUBLE*2))))
     return 0;
 
   str->length(0);
-  str->q_append((char)Geometry::wkbNDR);
-  str->q_append((uint32)Geometry::wkbPoint);
+  str->q_append((char)Geometry::wkb_ndr);
+  str->q_append((uint32)Geometry::wkb_point);
   str->q_append(x);
   str->q_append(y);
   return str;
@@ -312,7 +343,7 @@ String *Item_func_point::val_str(String *str)
 
 
 /*
-  Concatinates various items into various collections
+  Concatenates various items into various collections
   with checkings for valid wkb type of items.
   For example, MultiPoint can be a collection of Points only.
   coll_type contains wkb type of target collection.
@@ -323,16 +354,15 @@ String *Item_func_point::val_str(String *str)
 
 String *Item_func_spatial_collection::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String arg_value;
   uint i;
 
-  null_value= 1;
-
   str->length(0);
   if (str->reserve(1 + 4 + 4, 512))
-    return 0;
+    goto err;
 
-  str->q_append((char) Geometry::wkbNDR);
+  str->q_append((char) Geometry::wkb_ndr);
   str->q_append((uint32) coll_type);
   str->q_append((uint32) arg_count);
 
@@ -340,19 +370,16 @@ String *Item_func_spatial_collection::val_str(String *str)
   {
     String *res= args[i]->val_str(&arg_value);
     if (args[i]->null_value)
-      goto ret;
+      goto err;
 
-    if ( coll_type == Geometry::wkbGeometryCollection )
+    if (coll_type == Geometry::wkb_geometrycollection)
     {
       /*
-         In the case of GeometryCollection we don't need
-         any checkings for item types, so just copy them
-         into target collection
+	In the case of GeometryCollection we don't need any checkings
+	for item types, so just copy them into target collection
       */
-      if ((null_value= str->reserve(res->length(), 512)))
-        goto ret;
-
-      str->q_append(res->ptr(), res->length());
+      if (str->append(res->ptr(), res->length(), (uint32) 512))
+        goto err;
     }
     else
     {
@@ -361,85 +388,80 @@ String *Item_func_spatial_collection::val_str(String *str)
       const char *data= res->ptr() + 1;
 
       /*
-         In the case of named collection we must to
-         check that items are of specific type, let's
-         do this checking now
+	In the case of named collection we must check that items
+	are of specific type, let's do this checking now
       */
 
       if (len < 5)
-        goto ret;
+        goto err;
       wkb_type= (Geometry::wkbType) uint4korr(data);
       data+= 4;
       len-= 5;
       if (wkb_type != item_type)
-        goto ret;
+        goto err;
 
       switch (coll_type) {
-      case Geometry::wkbMultiPoint:
-      case Geometry::wkbMultiLineString:
-      case Geometry::wkbMultiPolygon:
-	if (len < WKB_HEADER_SIZE)
-	  goto ret;
-
-	data-= WKB_HEADER_SIZE;
-	len+= WKB_HEADER_SIZE;
-	if (str->reserve(len, 512))
-	  goto ret;
-	str->q_append(data, len);
+      case Geometry::wkb_multipoint:
+      case Geometry::wkb_multilinestring:
+      case Geometry::wkb_multipolygon:
+	if (len < WKB_HEADER_SIZE ||
+	    str->append(data-WKB_HEADER_SIZE, len+WKB_HEADER_SIZE, 512))
+	  goto err;
 	break;
 
-      case Geometry::wkbLineString:
-	if (str->reserve(POINT_DATA_SIZE, 512))
-	  goto ret;
-	str->q_append(data, POINT_DATA_SIZE);
+      case Geometry::wkb_linestring:
+	if (str->append(data, POINT_DATA_SIZE, 512))
+	  goto err;
 	break;
-
-      case Geometry::wkbPolygon:
+      case Geometry::wkb_polygon:
       {
 	uint32 n_points;
 	double x1, y1, x2, y2;
+	const char *org_data= data;
 
 	if (len < 4 + 2 * POINT_DATA_SIZE)
-	  goto ret;
-
-	uint32 llen= len;
-	const char *ldata= data;
+	  goto err;
 
 	n_points= uint4korr(data);
 	data+= 4;
 	float8get(x1, data);
-	data+= 8;
+	data+= SIZEOF_STORED_DOUBLE;
 	float8get(y1, data);
-	data+= 8;
+	data+= SIZEOF_STORED_DOUBLE;
 
 	data+= (n_points - 2) * POINT_DATA_SIZE;
 
 	float8get(x2, data);
-	float8get(y2, data + 8);
+	float8get(y2, data + SIZEOF_STORED_DOUBLE);
 
-	if ((x1 != x2) || (y1 != y2))
-	  goto ret;
-
-	if (str->reserve(llen, 512))
-	  goto ret;
-	str->q_append(ldata, llen);
+	if ((x1 != x2) || (y1 != y2) ||
+	    str->append(org_data, len, 512))
+	  goto err;
       }
       break;
 
       default:
-	goto ret;
+	goto err;
       }
     }
   }
-
   if (str->length() > current_thd->variables.max_allowed_packet)
-    goto ret;
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
+    goto err;
+  }
 
   null_value = 0;
+  return str;
 
-ret:
-  return null_value ? 0 : str;
+err:
+  null_value= 1;
+  return 0;
 }
+
 
 /*
   Functions for spatial relations
@@ -447,23 +469,26 @@ ret:
 
 longlong Item_func_spatial_rel::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
-  Geometry g1, g2;
+  Geometry_buffer buffer1, buffer2;
+  Geometry *g1, *g2;
   MBR mbr1, mbr2;
+  const char *dummy;
 
-  if ((null_value= (args[0]->null_value ||
-		    args[1]->null_value ||
-		    g1.create_from_wkb(res1->ptr() + SRID_SIZE,
-				       res1->length() - SRID_SIZE) || 
-		    g2.create_from_wkb(res2->ptr() + SRID_SIZE,
-				       res2->length() - SRID_SIZE) ||
-		    g1.get_mbr(&mbr1) || 
-		    g2.get_mbr(&mbr2))))
+  if ((null_value=
+       (args[0]->null_value ||
+	args[1]->null_value ||
+	!(g1= Geometry::create_from_wkb(&buffer1, res1->ptr() + SRID_SIZE,
+					res1->length() - SRID_SIZE)) || 
+	!(g2= Geometry::create_from_wkb(&buffer2, res2->ptr() + SRID_SIZE,
+					res2->length() - SRID_SIZE)) ||
+	g1->get_mbr(&mbr1, &dummy) ||
+	g2->get_mbr(&mbr2, &dummy))))
    return 0;
 
-  switch (spatial_rel)
-  {
+  switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       return mbr1.contains(&mbr2);
     case SP_WITHIN_FUNC:
@@ -488,37 +513,44 @@ longlong Item_func_spatial_rel::val_int()
   return 0;
 }
 
+
 longlong Item_func_isempty::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String tmp; 
   null_value=0;
   return args[0]->null_value ? 1 : 0;
 }
 
+
 longlong Item_func_issimple::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String tmp;
   String *wkb=args[0]->val_str(&tmp);
 
-  if ((null_value= (!wkb || args[0]->null_value )))
+  if ((null_value= (!wkb || args[0]->null_value)))
     return 0;
   /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
   return 0;
 }
 
+
 longlong Item_func_isclosed::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
-  Geometry geom;
-  int isclosed;
+  Geometry_buffer buffer;
+  Geometry *geom;
+  int isclosed= 0;				// In case of error
 
   null_value= (!swkb || 
 	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) ||
-	       !GEOM_METHOD_PRESENT(geom,is_closed) ||
-	       geom.is_closed(&isclosed));
+	       !(geom=
+		 Geometry::create_from_wkb(&buffer, swkb->ptr() + SRID_SIZE,
+					   swkb->length() - SRID_SIZE)) ||
+	       geom->is_closed(&isclosed));
 
   return (longlong) isclosed;
 }
@@ -527,127 +559,159 @@ longlong Item_func_isclosed::val_int()
   Numerical functions
 */
 
+
 longlong Item_func_dimension::val_int()
 {
-  uint32 dim;
+  DBUG_ASSERT(fixed == 1);
+  uint32 dim= 0;				// In case of error
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
+  const char *dummy;
 
   null_value= (!swkb || 
 	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       geom.dimension(&dim));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->dimension(&dim, &dummy));
   return (longlong) dim;
 }
 
+
 longlong Item_func_numinteriorring::val_int()
 {
-  uint32 num;
+  DBUG_ASSERT(fixed == 1);
+  uint32 num= 0;				// In case of error
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, num_interior_ring) || 
-	       geom.num_interior_ring(&num));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->num_interior_ring(&num));
   return (longlong) num;
 }
+
 
 longlong Item_func_numgeometries::val_int()
 {
-  uint32 num= 0;
+  DBUG_ASSERT(fixed == 1);
+  uint32 num= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, num_geometries) || 
-	       geom.num_geometries(&num));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->num_geometries(&num));
   return (longlong) num;
 }
+
 
 longlong Item_func_numpoints::val_int()
 {
-  uint32 num;
+  DBUG_ASSERT(fixed == 1);
+  uint32 num= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb ||
 	       args[0]->null_value ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) ||
-	       !GEOM_METHOD_PRESENT(geom, num_points) ||
-	       geom.num_points(&num));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->num_points(&num));
   return (longlong) num;
 }
 
+
 double Item_func_x::val()
 {
-  double res;
+  DBUG_ASSERT(fixed == 1);
+  double res= 0.0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, get_x) || 
-	       geom.get_x(&res));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->get_x(&res));
   return res;
 }
+
 
 double Item_func_y::val()
 {
-  double res;
+  DBUG_ASSERT(fixed == 1);
+  double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, get_y) || 
-	       geom.get_y(&res));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->get_y(&res));
   return res;
 }
 
+
 double Item_func_area::val()
 {
-  double res;
+  DBUG_ASSERT(fixed == 1);
+  double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
+  const char *dummy;
 
   null_value= (!swkb ||
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, area) || 
-	       geom.area(&res));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->area(&res, &dummy));
   return res;
 }
 
 double Item_func_glength::val()
 {
-  double res;
+  DBUG_ASSERT(fixed == 1);
+  double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
+  Geometry_buffer buffer;
+  Geometry *geom;
 
   null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE) || 
-	       !GEOM_METHOD_PRESENT(geom, length) || 
-	       geom.length(&res));
+	       !(geom= Geometry::create_from_wkb(&buffer,
+						 swkb->ptr() + SRID_SIZE,
+						 swkb->length() - SRID_SIZE)) ||
+	       geom->length(&res));
   return res;
 }
 
 longlong Item_func_srid::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&value);
-  Geometry geom;
-
+  Geometry_buffer buffer;
+  
   null_value= (!swkb || 
-	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
-				    swkb->length() - SRID_SIZE));
-  uint32 res= uint4korr(swkb->ptr());
-  return (longlong) res;
+	       !Geometry::create_from_wkb(&buffer,
+					  swkb->ptr() + SRID_SIZE,
+					  swkb->length() - SRID_SIZE));
+  if (null_value)
+    return 0;
+
+  return (longlong) (uint4korr(swkb->ptr()));
 }
+
+#endif /*HAVE_SPATIAL*/

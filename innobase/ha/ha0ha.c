@@ -66,33 +66,6 @@ ha_create(
 }
 
 /*****************************************************************
-Checks that a hash table node is in the chain. */
-
-ibool
-ha_node_in_chain(
-/*=============*/
-				/* out: TRUE if in chain */
-	hash_cell_t*	cell,	/* in: hash table cell */
-	ha_node_t*	node)	/* in: external chain node */
-{
-	ha_node_t*	node2;
-	
-	node2 = cell->node;
-
-	while (node2 != NULL) {
-
-		if (node2 == node) {
-
-			return(TRUE);
-		}
-
-		node2 = node2->next;
-	}
-
-	return(FALSE);
-}
-
-/*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted. */
@@ -116,8 +89,9 @@ ha_insert_for_fold(
 	ulint		hash;
 
 	ut_ad(table && data);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-	
+#endif /* UNIV_SYNC_DEBUG */
 	hash = hash_calc_hash(fold, table);
 
 	cell = hash_get_nth_cell(table, hash);
@@ -213,8 +187,9 @@ ha_delete(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_search_with_data(table, fold, data);
 
 	ut_a(node);
@@ -236,7 +211,9 @@ ha_search_and_update_if_found(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_search_with_data(table, fold, data);
 
@@ -264,8 +241,9 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {
@@ -341,22 +319,13 @@ Prints info of a hash table. */
 void
 ha_print_info(
 /*==========*/
-	char*		buf,	/* in/out: buffer where to print */
-	char*		buf_end,/* in: buffer end */
+	FILE*		file,	/* in: file where to print */
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
-/*	ha_node_t*	node;
-	ulint		nodes	= 0;
-	ulint		len	= 0;
-	ulint		max_len	= 0; */
 	ulint		cells	= 0;
 	ulint		n_bufs;
 	ulint		i;
-	
-	if (buf_end - buf < 200) {
-		return;
-	}
 
 	for (i = 0; i < hash_get_n_cells(table); i++) {
 
@@ -365,33 +334,12 @@ ha_print_info(
 		if (cell->node) {
 
 			cells++;
-/*
-			len = 0;
-
-			node = cell->node;
-
-			for (;;) {
-				len++;
-				nodes++;
-
-				if (ha_chain_get_next(table, node) == NULL) {
-
-					break;
-				}
-
-				node = node->next;
-			}
-
-			if (len > max_len) {
-				max_len = len;
-			}
-*/
 		}
 	}
 
-	buf += sprintf(buf,
-"Hash table size %lu, used cells %lu", (ulong) hash_get_n_cells(table),
-		       (ulong) cells);
+	fprintf(file,
+		"Hash table size %lu, used cells %lu",
+		(ulong) hash_get_n_cells(table), (ulong) cells);
 
 	if (table->heaps == NULL && table->heap != NULL) {
 
@@ -404,6 +352,6 @@ ha_print_info(
 			n_bufs++;
 		}
 				
-	        buf += sprintf(buf, ", node heap has %lu buffer(s)\n", (ulong) n_bufs);
+		fprintf(file, ", node heap has %lu buffer(s)\n", (ulong) n_bufs);
 	}
 }	

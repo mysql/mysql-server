@@ -273,7 +273,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
   uchar *saved_from, *saved_to, *saved_vseg;
-  uint   saved_length=0, saved_prefix_len=0;
+  uint  saved_length=0, saved_prefix_len=0;
+  uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
 
   LINT_INIT(length);
@@ -289,26 +290,24 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   page+=2+nod_flag;
   *ret_pos=page;
   kseg=key;
-  {
-    uint lenght_pack;
-    get_key_pack_length(kseg_len,lenght_pack,kseg);
-    key_len_skip=lenght_pack+kseg_len;
-    key_len_left=(int) key_len- (int) key_len_skip;
-    cmplen=(key_len_left>=0) ? kseg_len : key_len-lenght_pack;
-    DBUG_PRINT("info",("key: '%.*s'",kseg_len,kseg));
-  }
 
-/*
-  Keys are compressed the following way:
+  get_key_pack_length(kseg_len,length_pack,kseg);
+  key_len_skip=length_pack+kseg_len;
+  key_len_left=(int) key_len- (int) key_len_skip;
+  cmplen=(key_len_left>=0) ? kseg_len : key_len-length_pack;
+  DBUG_PRINT("info",("key: '%.*s'",kseg_len,kseg));
 
-  If the max length of first key segment <= 127 characters the prefix is
-  1 byte else it's 2 byte
+  /*
+    Keys are compressed the following way:
 
-  prefix         The high bit is set if this is a prefix for the prev key
-  length         Packed length if the previous was a prefix byte
-  [length]       Length character of data
-  next-key-seg   Next key segments
-*/
+    If the max length of first key segment <= 127 characters the prefix is
+    1 byte else it's 2 byte
+
+    prefix         The high bit is set if this is a prefix for the prev key
+    length         Packed length if the previous was a prefix byte
+    [length]       Length character of data
+    next-key-seg   Next key segments
+  */
 
   matched=0;  /* how many char's from prefix were alredy matched */
   len=0;      /* length of previous key unpacked */
@@ -350,7 +349,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     saved_vseg=vseg;
     saved_prefix_len=prefix_len;
 
-    DBUG_PRINT("loop",("page: '%.*s%.*s'",prefix_len,t_buff+seg_len_pack,suffix_len,vseg));
+    DBUG_PRINT("loop",("page: '%.*s%.*s'",prefix_len,t_buff+seg_len_pack,
+		       suffix_len,vseg));
     {
       uchar *from=vseg+suffix_len;
       HA_KEYSEG *keyseg;
@@ -396,14 +396,15 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 
       matched=prefix_len+left;
 
-      for(my_flag=0;left;left--)
+      for (my_flag=0;left;left--)
         if ((my_flag= (int) sort_order[*vseg++] - (int) sort_order[*k++]))
           break;
 
       if (my_flag>0)      /* mismatch */
         break;
-      else if (my_flag==0) /* match */
-      { /*
+      if (my_flag==0) /* match */
+      {
+	/*
         **  len cmplen seg_left_len more_segs
         **     <                               matched=len; continue search
         **     >      =                        prefix ? found : (matched=len; continue search)
@@ -414,30 +415,68 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         */
         if (len < cmplen)
         {
-          my_flag= -1;
+	  if ((keyinfo->seg->type != HA_KEYTYPE_TEXT &&
+	       keyinfo->seg->type != HA_KEYTYPE_VARTEXT))
+	    my_flag= -1;
+	  else
+	  {
+	    /* We have to compare k and vseg as if they where space extended */
+	    uchar *end= k+ (cmplen - len);
+	    for ( ; k < end && *k == ' '; k++) ;
+	    if (k == end)
+	      goto cmp_rest;		/* should never happen */
+	    if (*k < (uchar) ' ')
+	    {
+	      my_flag= 1;		/* Compared string is smaller */
+	      break;
+	    }
+	    my_flag= -1;		/* Continue searching */
+	  }
         }
         else if (len > cmplen)
         {
-          if ((my_flag= (!(nextflag & SEARCH_PREFIX) || key_len_left>0)))
-            break;
-          goto fix_flag;
-        }
-        else if (key_len_left>0)
-        {
-          uint not_used;
-          if ((flag = ha_key_cmp(keyinfo->seg+1,vseg,
-                                  k,key_len_left,nextflag,&not_used)) >= 0)
-            break;
+	  uchar *end;
+	  if ((nextflag & SEARCH_PREFIX) && key_len_left == 0)
+	    goto fix_flag;
+
+	  /* We have to compare k and vseg as if they where space extended */
+	  for (end=vseg + (len-cmplen) ;
+	       vseg < end && *vseg == (uchar) ' ';
+	       vseg++) ;
+	  if (vseg == end)
+	    goto cmp_rest;		/* should never happen */
+
+	  if (*vseg > (uchar) ' ')
+	  {
+	    my_flag= 1;			/* Compared string is smaller */
+	    break;
+	  }
+	  my_flag= -1;			/* Continue searching */
         }
         else
-        {
-          /* at this line flag==-1 if the following lines were already
-             visited and 0 otherwise,  i.e. flag <=0 here always !!! */
-  fix_flag:
-          if (nextflag & (SEARCH_NO_FIND | SEARCH_LAST))
-            flag=(nextflag & (SEARCH_BIGGER | SEARCH_LAST)) ? -1 : 1;
-          if (flag>=0) break;
-        }
+	{
+      cmp_rest:
+	  if (key_len_left>0)
+	  {
+	    uint not_used;
+	    if ((flag = ha_key_cmp(keyinfo->seg+1,vseg,
+				   k,key_len_left,nextflag,&not_used)) >= 0)
+	      break;
+	  }
+	  else
+	  {
+	    /*
+	      at this line flag==-1 if the following lines were already
+	      visited and 0 otherwise,  i.e. flag <=0 here always !!!
+	    */
+	fix_flag:
+	    DBUG_ASSERT(flag <= 0);
+	    if (nextflag & (SEARCH_NO_FIND | SEARCH_LAST))
+	      flag=(nextflag & (SEARCH_BIGGER | SEARCH_LAST)) ? -1 : 1;
+	    if (flag>=0)
+	      break;
+	  }
+	}
       }
       matched-=left;
     }
@@ -721,7 +760,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	}
 	if (keyseg->flag & HA_NULL_PART)
 	{
-	  key++;				/* Skipp null marker*/
+	  key++;				/* Skip null marker*/
 	  start++;
 	}
 
@@ -1355,7 +1394,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     if (prev_key && !*prev_key++)
       org_key=prev_key=0;                       /* Can't pack against prev */
     else if (org_key)
-      org_key++;                                /* Skipp NULL */
+      org_key++;                                /* Skip NULL */
   }
   else
     s_temp->store_not_null=0;
@@ -1567,7 +1606,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
         n_length-=tmp_length;
         length-=tmp_length+next_length_pack;    /* We gained these chars */
       }
-      if (n_length == 0)
+      if (n_length == 0 && ref_length == new_key_length)
       {
         s_temp->n_ref_length=pack_marker;       /* Same as prev key */
       }

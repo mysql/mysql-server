@@ -51,3 +51,18 @@ select b from t1 where binary b like '';
 select b from t1 group by binary b like '';
 select b from t1 having binary b like '';
 drop table t1;
+
+#
+# Test of binary and upper/lower
+#
+create table t1 (a char(15) binary, b binary(15));
+insert into t1 values ('aaa','bbb'),('AAA','BBB');
+select upper(a),upper(b) from t1;
+select lower(a),lower(b) from t1;
+select * from t1 where upper(a)='AAA';
+select * from t1 where lower(a)='aaa';
+select * from t1 where upper(b)='BBB';
+select * from t1 where lower(b)='bbb';
+select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
+select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+drop table t1;

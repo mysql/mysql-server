@@ -1,4 +1,4 @@
-connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
 connection master;
 reset master;
@@ -12,7 +12,7 @@ show slave status;
 
 change master to master_host='127.0.0.1';
 # The following needs to be cleaned up when change master is fixed
---replace_result $MASTER_MYPORT MASTER_PORT 3306 MASTER_PORT 3334 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT $MYSQL_TCP_PORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 --replace_result $MASTER_MYPORT MASTER_PORT

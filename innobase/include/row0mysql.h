@@ -161,6 +161,23 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
 					table handle */
 /*************************************************************************
+Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
+lock type LOCK_TABLE_EXP). */
+
+void		  	
+row_unlock_tables_for_mysql(
+/*========================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Sets a table lock on the table mentioned in prebuilt. */
+
+int
+row_lock_table_for_mysql(
+/*=====================*/
+					/* out: error code or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
+					table handle */
+/*************************************************************************
 Does an insert for MySQL. */
 
 int
@@ -300,15 +317,16 @@ fields than mentioned in the constraint. */
 int
 row_table_add_foreign_constraints(
 /*==============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create statement where
-				foreign keys are declared like:
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2 */
-	char*	name);		/* in: table full name in the normalized form
-				database_name/table_name */
+					table2 can be written also with the
+					database name before it: test.table2 */
+	const char*	name);		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 /*************************************************************************
 The master thread in srv0srv.c calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
@@ -335,9 +353,11 @@ output by the master thread. */
 int
 row_drop_table_for_mysql(
 /*=====================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx,	/* in: transaction handle */
+	ibool		drop_db);/* in: TRUE=dropping whole database */
+
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
@@ -364,9 +384,9 @@ discard ongoing operations. */
 int
 row_discard_tablespace_for_mysql(
 /*=============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx);	/* in: transaction handle */
 /*********************************************************************
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary. */
@@ -374,28 +394,28 @@ of the table in the data dictionary. */
 int
 row_import_tablespace_for_mysql(
 /*============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
 Drops a database for MySQL. */
 
 int
 row_drop_database_for_mysql(
 /*========================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: database name which ends to '/' */
-	trx_t*	trx);	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: database name which ends to '/' */
+	trx_t*		trx);	/* in: transaction handle */
 /*************************************************************************
 Renames a table for MySQL. */
 
 int
 row_rename_table_for_mysql(
 /*=======================*/
-				/* out: error code or DB_SUCCESS */
-	char*	old_name,	/* in: old table name */
-	char*	new_name,	/* in: new table name */
-	trx_t*	trx);		/* in: transaction handle */
+					/* out: error code or DB_SUCCESS */
+	const char*	old_name,	/* in: old table name */
+	const char*	new_name,	/* in: new table name */
+	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
 Checks a table for corruption. */
 
@@ -510,13 +530,15 @@ struct row_prebuilt_struct {
 	byte*		ins_upd_rec_buff;/* buffer for storing data converted
 					to the Innobase format from the MySQL
 					format */
-	ibool		hint_no_need_to_fetch_extra_cols;
-					/* normally this is TRUE, but
-					MySQL will set this to FALSE
-					if we might be required to fetch also
-					other columns than mentioned in the
-					query: the clustered index column(s),
-					or an auto-increment column*/
+	ulint		hint_need_to_fetch_extra_cols;
+					/* normally this is set to 0; if this
+					is set to ROW_RETRIEVE_PRIMARY_KEY,
+					then we should at least retrieve all
+					columns in the primary key; if this
+					is set to ROW_RETRIEVE_ALL_COLS, then
+					we must retrieve all columns in the
+					key (if read_just_key == 1), or all
+					columns in the table */
 	upd_node_t*	upd_node;	/* Innobase SQL update node used
 					to perform updates and deletes */
 	que_fork_t*	ins_graph;	/* Innobase SQL query graph used
@@ -537,6 +559,9 @@ struct row_prebuilt_struct {
 	dtuple_t*	clust_ref;	/* prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/* LOCK_NONE, LOCK_S, or LOCK_X */
+	ulint		stored_select_lock_type;/* inside LOCK TABLES, either
+					LOCK_S or LOCK_X depending on the lock
+					type */
 	ulint		mysql_row_len;	/* length in bytes of a row in the
 					MySQL format */
 	ulint		n_rows_fetched;	/* number of rows fetched after
@@ -552,6 +577,10 @@ struct row_prebuilt_struct {
 					allocated mem buf start, because
 					there is a 4 byte magic number at the
 					start and at the end */
+	ibool		keep_other_fields_on_keyread; /* when using fetch 
+					cache with HA_EXTRA_KEYREAD, don't 
+					overwrite other fields in mysql row 
+					row buffer.*/
 	ulint		fetch_cache_first;/* position of the first not yet
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows
@@ -571,6 +600,11 @@ struct row_prebuilt_struct {
 #define ROW_MYSQL_NO_TEMPLATE	2
 #define ROW_MYSQL_DUMMY_TEMPLATE 3	/* dummy template used in
 					row_scan_and_check_index */
+
+/* Values for hint_need_to_fetch_extra_cols */
+#define ROW_RETRIEVE_PRIMARY_KEY	1
+#define ROW_RETRIEVE_ALL_COLS		2
+
 
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"

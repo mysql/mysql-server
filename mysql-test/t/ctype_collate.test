@@ -7,12 +7,12 @@ CREATE TABLE t1 (
   latin1_f CHAR(32) CHARACTER SET latin1 NOT NULL
 );
 
---error 1252
+--error 1253
 CREATE TABLE t2 (
   latin1_f CHAR(32) CHARACTER SET latin1 COLLATE koi8r_general_ci NOT NULL
 );
 
---error 1272
+--error 1273
 CREATE TABLE t2 (
   latin1_f CHAR(32) CHARACTER SET latin1 COLLATE some_non_existing_col NOT NULL
 );
@@ -66,7 +66,7 @@ SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_swedish_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
---error 1252
+--error 1253
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r_general_ci;
 
 --SELECT latin1_f COLLATE koi8r FROM t1 ;
@@ -76,7 +76,7 @@ SELECT latin1_f COLLATE latin1_swedish_ci AS latin1_f_as FROM t1 ORDER BY latin1
 SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
---error 1252
+--error 1253
 SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 
 
@@ -87,7 +87,7 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
---error 1252
+--error 1253
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 
 
@@ -98,7 +98,7 @@ SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
 SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
---error 1272
+--error 1273
 SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 
 
@@ -153,6 +153,44 @@ DROP TABLE t1;
 CREATE TABLE t1 
 (s1 CHAR(5) COLLATE latin1_german1_ci,
  s2 CHAR(5) COLLATE latin1_swedish_ci);
---error 1266
+--error 1267
 SELECT * FROM t1 WHERE s1 = s2;
+DROP TABLE t1;
+
+
+#
+# Test that optimizer doesn't use indexes with wrong collation
+#
+SET NAMES latin1;
+CREATE TABLE t1 
+(s1 char(10) COLLATE latin1_german1_ci,
+ s2 char(10) COLLATE latin1_swedish_ci,
+ KEY(s1),
+ KEY(s2));
+
+INSERT INTO t1 VALUES ('a','a');
+INSERT INTO t1 VALUES ('b','b');
+INSERT INTO t1 VALUES ('c','c');
+INSERT INTO t1 VALUES ('d','d');
+INSERT INTO t1 VALUES ('e','e');
+INSERT INTO t1 VALUES ('f','f');
+INSERT INTO t1 VALUES ('g','g');
+INSERT INTO t1 VALUES ('h','h');
+INSERT INTO t1 VALUES ('i','i');
+INSERT INTO t1 VALUES ('j','j');
+
+EXPLAIN SELECT * FROM t1 WHERE s1='a';
+EXPLAIN SELECT * FROM t1 WHERE s2='a';
+EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
+
+EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+
+EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
+
+EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
+
 DROP TABLE t1;

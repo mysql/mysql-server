@@ -60,13 +60,17 @@ err:
   DBUG_RETURN(my_errno);
 }
 
+
 /*
-Remove one key from rb-tree
+  Remove one key from rb-tree
 */
+
 int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 		   const byte *record, byte *recpos, int flag)
 {
   heap_rb_param custom_arg;
+  uint old_allocated;
+  int res;
 
   if (flag) 
     info->last_pos= NULL; /* For heap_rnext/heap_rprev */
@@ -74,14 +78,31 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   custom_arg.keyseg= keyinfo->seg;
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
   custom_arg.search_flag= SEARCH_SAME;
-  return tree_delete(&keyinfo->rb_tree, info->recbuf, &custom_arg);
+  old_allocated= keyinfo->rb_tree.allocated;
+  res= tree_delete(&keyinfo->rb_tree, info->recbuf, &custom_arg);
+  info->s->index_length+= (keyinfo->rb_tree.allocated-old_allocated);
+  return res;
 }
 
-	/* Remove one key from hash-table */
-	/* Flag is set if we want's to correct info->current_ptr */
+
+/*
+  Remove one key from hash-table
+
+  SYNPOSIS
+    hp_delete_key()
+    info		Hash handler
+    keyinfo		key definition of key that we want to delete
+    record		row data to be deleted
+    recpos		Pointer to heap record in memory
+    flag		Is set if we want's to correct info->current_ptr
+
+  RETURN
+    0	ok
+    #	error number
+*/
 
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
-		   const byte *record, byte *recpos, int flag)
+		  const byte *record, byte *recpos, int flag)
 {
   ulong blength,pos2,pos_hashnr,lastpos_hashnr;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;

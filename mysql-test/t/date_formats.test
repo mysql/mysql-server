@@ -2,9 +2,9 @@
 # Test of date format functions
 #
 
---disable-warnings
+--disable_warnings
 drop table if exists t1;
---enable-warnings
+--enable_warnings
 
 SHOW GLOBAL VARIABLES LIKE "%_format%";
 SHOW SESSION VARIABLES LIKE "%_format%";
@@ -124,7 +124,7 @@ select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
 ('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
-('03-01-02 8:11:2.123456', '%y-%m-%d %H:%i:%S'),
+('03-01-02 8:11:2.123456', '%y-%m-%d %H:%i:%S.%#'),
 ('2003-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p'),
 ('2003-01-02 01:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f%p'),
 ('2003-01-02 02:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f %p'),
@@ -209,3 +209,32 @@ create table t1 (d date);
 insert into t1 values ('2004-07-14'),('2005-07-14');
 select date_format(d,"%d") from t1 order by 1;
 drop table t1;
+
+select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
+
+
+create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+			str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
+			str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+			str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
+describe t1;
+select * from t1;
+drop table t1;
+
+create table t1 select "02 10" as a, "%d %H" as b;
+select str_to_date(a,b) from t1;
+create table t2 select str_to_date(a,b) from t1;
+describe t2;
+select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+       str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S") as f2,
+       str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+       str_to_date("02 10:11:12", "%d %H:%i:%S.%f") as f4,
+       str_to_date("02 10:11:12", "%d %H:%i:%S") as f5,
+       str_to_date("02 10", "%d %f") as f6;
+drop table t1, t2;
+select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1,
+       addtime("-01:01:01.01 GGG", "-23:59:59.1") as f2,
+       microsecond("1997-12-31 23:59:59.01XXXX") as f3;
+
+select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
+       str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;

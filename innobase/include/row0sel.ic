@@ -77,12 +77,9 @@ open_step(
 			
 	if (err != DB_SUCCESS) {
 		/* SQL error detected */
-		printf("SQL error %lu\n", (unsigned long) err);
+		fprintf(stderr, "SQL error %lu\n", (ulong) err);
 
 		ut_error;
-		que_thr_handle_error(thr, err, NULL, 0);
-
-		return(NULL);
 	}
 		
 	thr->run_node = que_node_get_parent(node);

@@ -134,6 +134,44 @@ select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1=
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 drop table t1,t2;
 
+#
+# Test of group function and NULL values
+#
+
+CREATE TABLE t1 (a int, b int);
+select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;
+select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+insert into t1 values (1,null);
+select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+insert into t1 values (1,null);
+insert into t1 values (2,null);
+select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+insert into t1 values (2,1);
+select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+insert into t1 values (3,1);
+select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
+select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+drop table t1;
+
+#
+# Bug #1972: test for bit_and(), bit_or() and negative values
+# 
+create table t1 (col int);
+insert into t1 values (-1), (-2), (-3);
+select bit_and(col), bit_or(col) from t1;
+select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
+drop table t1;
+
+#
+# Bug #3376: avg() and an empty table
+#
+
+create table t1 (a int);
+select avg(2) from t1;
+drop table t1;
 
 #
 # Tests to check MIN/MAX query optimization
@@ -182,6 +220,7 @@ insert into t2 values('DEN','Denver','CO','BDL');
 insert into t2 values('SDC','San Diego','CA','TWU');
 insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
+insert into t2 values('AAA','AAA','AA','AME');
 
 # Show the table contents
 select * from t1;
@@ -328,27 +367,6 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 drop table t1, t2;
 
-#
-# Test of group function and NULL values
-#
-
-CREATE TABLE t1 (a int, b int);
-select count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1;
-select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-insert into t1 values (1,null);
-select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-insert into t1 values (1,null);
-insert into t1 values (2,null);
-select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-insert into t1 values (2,1);
-select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-insert into t1 values (3,1);
-select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
-select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
-explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
-drop table t1;
 --disable_warnings
 create table t1 (USR_ID integer not null, MAX_REQ integer not null, constraint PK_SEA_USER primary key (USR_ID)) engine=InnoDB;
 --enable_warnings
@@ -370,11 +388,34 @@ insert into t1 values (1);
 select max(a) as b from t1 having b=1;
 select a from t1 having a=1;
 drop table t1;
+
 #
-# Bug #1972: test for bit_and(), bit_or() and negative values
-# 
-create table t1 (col int);
-insert into t1 values (-1), (-2), (-3);
-select bit_and(col), bit_or(col) from t1;
-select SQL_BIG_RESULT bit_and(col), bit_or(col) from t1 group by col;
+# Bug #3435: variance(const), stddev(const) and an empty table
+#
+
+create table t1 (a int);
+select variance(2) from t1;
+select stddev(2) from t1;
+drop table t1;
+
+
+#
+# cleunup() of optimized away count(*) and max/min
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT COUNT(*) FROM t1';
+execute stmt1;
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop table t1;
+
+create table t1 (a int, primary key(a));
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT max(a) FROM t1';
+execute stmt1;
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
 drop table t1;

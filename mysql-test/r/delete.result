@@ -93,8 +93,8 @@ a	b
 2	12
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1241	Subquery returns more than 1 row
-Error	1241	Subquery returns more than 1 row
+Error	1242	Subquery returns more than 1 row
+Error	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
@@ -113,10 +113,20 @@ a	b
 2	12
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1241	Subquery returns more than 1 row
-Error	1241	Subquery returns more than 1 row
+Error	1242	Subquery returns more than 1 row
+Error	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
 1	11
 drop table t11, t12, t2;
+create table t1 (a int, b int, unique key (a), key (b));
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select * from t1;
+a	b
+7	7
+drop table t1;

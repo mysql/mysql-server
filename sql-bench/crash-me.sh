@@ -407,15 +407,14 @@ if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
 		 ["with constraint and restrict/cascade",
 		  "alter table crash_q drop constraint u1 restrict"],
 		 ["with drop key",
-		  "alter table crash_q drop key c1"]);
+		  "alter table crash_q drop key u1"]);
   try_and_report("Alter table add primary key",'alter_add_primary_key',
 		 ["with constraint",
 		  "alter table crash_q1 add constraint p1 primary key(c1)"],
 		 ["with add primary key",
 		  "alter table crash_q1 add primary key(c1)"]);
   report("Alter table add foreign key",'alter_add_foreign_key',
-	 "alter table crash_q add constraint f1 foreign key(c1)",
-	 " references crash_q1(c1)");
+	 "alter table crash_q add constraint f1 foreign key(c1) references crash_q1(c1)");
   try_and_report("Alter table drop foreign key",'alter_drop_foreign_key',
 		 ["with drop constraint",
 		  "alter table crash_q drop constraint f1"],

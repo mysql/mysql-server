@@ -127,19 +127,13 @@ sym_tab_add_str_lit(
 /*================*/
 					/* out: symbol table node */
 	sym_tab_t*	sym_tab,	/* in: symbol table */
-	byte*		str,		/* in: string starting with a single
-					quote; the string literal will
-					extend to the next single quote, but
-					the quotes are not included in it */
+	byte*		str,		/* in: string with no quotes around
+					it */
 	ulint		len)		/* in: string length */
 {
 	sym_node_t*	node;
 	byte*		data;
-	ulint		i;
 	
-	ut_a(len > 1);
-	ut_a(str[0] == '\'');
-
 	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
 
 	node->common.type = QUE_NODE_SYMBOL;
@@ -151,23 +145,14 @@ sym_tab_add_str_lit(
 	
 	dtype_set(&(node->common.val.type), DATA_VARCHAR, DATA_ENGLISH, 0, 0);
 
-	for (i = 1;; i++) {
-		ut_a(i < len);
-		
-		if (str[i] == '\'') {
-
-			break;
-		}
-	}
-
-	if (i > 1) {
-		data = mem_heap_alloc(sym_tab->heap, i - 1);
-		ut_memcpy(data, str + 1, i - 1);
+	if (len) {
+		data = mem_heap_alloc(sym_tab->heap, len);
+		ut_memcpy(data, str, len);
 	} else {
 		data = NULL;
 	}
 
-	dfield_set_data(&(node->common.val), data, i - 1);
+	dfield_set_data(&(node->common.val), data, len);
 
 	node->common.val_buf_size = 0;
 	node->prefetch_buf = NULL;
@@ -232,13 +217,10 @@ sym_tab_add_id(
 
 	node->common.type = QUE_NODE_SYMBOL;
 	
-	node->name = mem_heap_alloc(sym_tab->heap, len + 1);
 	node->resolved = FALSE;
 	node->indirection = NULL;
 
-	ut_memcpy(node->name, name, len);
-	node->name[len] = '\0';
-
+	node->name = mem_heap_strdupl(sym_tab->heap, name, len + 1);
 	node->name_len = len;
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);

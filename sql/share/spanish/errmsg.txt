@@ -206,7 +206,7 @@ character-set=latin1
 "Esta operación no puede ser hecha con el esclavo funcionando, primero use STOP SLAVE",
 "Esta operación necesita el esclavo funcionando, configure esclavo y haga el START SLAVE",
 "El servidor no está configurado como esclavo, edite el archivo config file o con CHANGE MASTER TO",
-"No puedo inicializar la estructura info del master, verifique permisiones en el master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "No puedo crear el thread esclavo, verifique recursos del sistema",
 "Usario %-.64s ya tiene mas que 'max_user_connections' conexiones activas",
 "Tu solo debes usar expresiones constantes con SET",
@@ -233,7 +233,7 @@ character-set=latin1
 "Opción '%s' usada dos veces en el comando",
 "Usuario '%-.64s' ha excedido el recurso '%s' (actual valor: %ld)",
 "Acceso negado. Usted necesita el privilegio %-.128s para esta operación",
-"Variable '%-.64s' es una LOCAL variable y no puede ser usada con SET GLOBAL",
+"Variable '%-.64s' es una SESSION variable y no puede ser usada con SET GLOBAL",
 "Variable '%-.64s' es una GLOBAL variable y no puede ser configurada con SET GLOBAL",
 "Variable '%-.64s' no tiene un valor patrón",
 "Variable '%-.64s' no puede ser configurada para el valor de '%-.64s'",
@@ -243,55 +243,70 @@ character-set=latin1
 "Esta versión de MySQL no soporta todavia '%s'",
 "Recibió fatal error %d: '%-.128s' del master cuando leyendo datos del binary log",
 "Slave SQL thread ignorado el query debido a las reglas de replicación-*-tabla",
-"Wrong foreign key definition for '%-.64s': %s",
-"Key reference and table reference doesn't match",
-"Operand should contain %d column(s)",
-"Subquery returns more than 1 row",
-"Unknown prepared statement handler (%ld) given to %s",
-"Help database is corrupt or does not exist",
-"Cyclic reference on subqueries",
-"Converting column '%s' from %s to %s",
-"Reference '%-.64s' not supported (%s)",
-"Every derived table must have it's own alias",
-"Select %u was reduced during optimisation",
-"Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
-"Client does not support authentication protocol requested by server; consider upgrading MySQL client",
-"All parts of a SPATIAL KEY must be NOT NULL",
-"COLLATION '%s' is not valid for CHARACTER SET '%s'",
-"Slave is already running",
-"Slave has already been stopped",
-"Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)",
-"Z_MEM_ERROR: Not enough memory available for zlib",
-"Z_BUF_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
-"Z_DATA_ERROR: Input data was corrupted for zlib",
-"%d line(s) was(were) cut by group_concat()",
-"Row %ld doesn't contain data for all columns",
-"Row %ld was truncated; It contained more data than there where input columns",
-"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld",
-"Data truncated, out of range for column '%s' at row %ld",
-"Data truncated for column '%s' at row %ld",
-"Using storage engine %s for table '%s'",
-"Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-"Can't drop one or more of the requested users",
-"Can't revoke all privileges, grant for one or more of the requested users",
-"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
-"Illegal mix of collations for operation '%s'",
-"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
-"Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
-"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
-"Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
-"Wrong parameter or combination of parameters for START SLAVE UNTIL",
-"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart",
-"SQL thread is not to be started so UNTIL options are ignored",
-"Incorrect index name '%-.100s'",
-"Incorrect catalog name '%-.100s'",
-"Query cache failed to set size %lu, new query cache size is %lu",
-"Column '%-.64s' cannot be part of FULLTEXT index",
-"Unknown key cache '%-.100s'",
-"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
-"Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
+"Variable '%-.64s' es una %s variable",
+"Equivocada definición de llave extranjera para '%-.64s': %s",
+"Referencia de llave y referencia de tabla no coinciden",
+"Operando debe tener %d columna(s)",
+"Subconsulta retorna mas que 1 línea",
+"Desconocido preparado comando handler (%ld) dado para %s",
+"Base de datos Help está corrupto o no existe",
+"Cíclica referencia en subconsultas",
+"Convirtiendo columna '%s' de %s para %s",
+"Referencia '%-.64s' no soportada (%s)",
+"Cada tabla derivada debe tener su propio alias",
+"Select %u fué reducido durante optimización",
+"Tabla '%-.64s' de uno de los SELECT no puede ser usada en %-.32s",
+"Cliente no soporta protocolo de autenticación solicitado por el servidor; considere actualizar el cliente MySQL",
+"Todas las partes de una SPATIAL KEY deben ser NOT NULL",
+"COLLATION '%s' no es válido para CHARACTER SET '%s'",
+"Slave ya está funcionando",
+"Slave ya fué parado",
+"Tamaño demasiado grande para datos descomprimidos. El máximo tamaño es %d. (probablemente, extensión de datos descomprimidos fué corrompida)",
+"Z_MEM_ERROR: No suficiente memoria para zlib",
+"Z_BUF_ERROR: No suficiente espacio en el búfer de salida para zlib (probablemente, extensión de datos descomprimidos fué corrompida)",
+"Z_DATA_ERROR: Dato de entrada fué corrompido para zlib",
+"%d línea(s) fue(fueron) cortadas por group_concat()",
+"Línea %ld no contiene datos para todas las columnas",
+"Línea %ld fué truncada; La misma contine mas datos que las que existen en las columnas de entrada",
+"Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld",
+"Datos truncados, fuera de gama para columna '%s' en la línea %ld",
+"Datos truncados para columna '%s' en la línea %ld",
+"Usando motor de almacenamiento %s para tabla '%s'",
+"Ilegal mezcla de collations (%s,%s) y (%s,%s) para operación '%s'",
+"No puede remover uno o mas de los usuarios solicitados",
+"No puede revocar todos los privilegios, derecho para uno o mas de los usuarios solicitados",
+"Ilegal mezcla de collations (%s,%s), (%s,%s), (%s,%s) para operación '%s'",
+"Ilegal mezcla de collations para operación '%s'",
+"Variable '%-.64s' no es una variable componente (No puede ser usada como XXXX.variable_name)",
+"Collation desconocida: '%-.64s'",
+"Parametros SSL en CHANGE MASTER son ignorados porque este slave MySQL fue compilado sin soporte SSL; pueden ser usados despues cuando el slave MySQL con SSL sea inicializado",
+"Servidor está rodando en modo --secure-auth, pero '%s'@'%s' tiene clave en el antiguo formato; por favor cambie la clave para el nuevo formato",
+"Campo o referencia '%-.64s%s%-.64s%s%-.64s' de SELECT #%d fue resolvido en SELECT #%d",
+"Parametro equivocado o combinación de parametros para START SLAVE UNTIL",
+"Es recomendado rodar con --skip-slave-start cuando haciendo replicación step-by-step con START SLAVE UNTIL, a menos que usted no esté seguro en caso de inesperada reinicialización del mysqld slave",
+"SQL thread no es inicializado tal que opciones UNTIL son ignoradas",
+"Nombre de índice incorrecto '%-.100s'",
+"Nombre de catalog incorrecto '%-.100s'",
+"Query cache fallada para configurar tamaño %lu, nuevo tamaño de query cache es %lu",
+"Columna '%-.64s' no puede ser parte de FULLTEXT index",
+"Desconocida key cache '%-.100s'",
+"MySQL esta inicializado en modo --skip-name-resolve. Usted necesita reinicializarlo sin esta opción para este derecho funcionar",
+"Desconocido motor de tabla '%s'",
+"'%s' está desaprobado, use '%s' en su lugar",
+"La tabla destino %-.100s del %s no es actualizable",
+"El recurso '%s' fue deshabilitado; usted necesita construir MySQL con '%s' para tener eso funcionando",
+"El servidor MySQL está rodando con la opción %s tal que no puede ejecutar este comando",
+"Columna '%-.100s' tiene valor doblado '%-.64s' en %s"
+"Equivocado truncado %-.32s valor: '%-.128s'"
+"Incorrecta definición de tabla; Solamente debe haber una columna TIMESTAMP con CURRENT_TIMESTAMP en DEFAULT o ON UPDATE cláusula"
+"Inválido ON UPDATE cláusula para campo '%-.64s'",
+"This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -304,10 +319,10 @@ character-set=latin1
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
 "Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION"
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
 "Query execution was interrupted"
-"Wrong number of arguments for %s %s, expected %u, got %u"
+"Incorrect number of arguments for %s %s; expected %u, got %u"
 "Undefined CONDITION: %s"
 "No RETURN found in FUNCTION %s"
 "FUNCTION %s ended without RETURN"
@@ -317,7 +332,7 @@ character-set=latin1
 "Cursor is already open"
 "Cursor is not open"
 "Undeclared variable: %s"
-"Wrong number of FETCH variables"
+"Incorrect number of FETCH variables"
 "No data to FETCH"
 "Duplicate parameter: %s"
 "Duplicate variable: %s"
@@ -325,3 +340,25 @@ character-set=latin1
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
 "Subselect value not supported"
+"USE is not allowed in a stored procedure"
+"Variable or condition declaration after cursor or handler declaration"
+"Cursor declaration after handler declaration"
+"Case not found for CASE statement"
+"Configuration file '%-.64s' is too big"
+"Malformed file type header in file '%-.64s'"
+"Unexpected end of file while parsing comment '%-.64s'"
+"Error while parsing parameter '%-.64s' (line: '%-.64s')"
+"Unexpected end of file while skipping unknown parameter '%-.64s'"
+"EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+"File '%-.64s' has unknown type '%-.64s' in its header"
+"'%-.64s.%-.64s' is not %s"
+"Column '%-.64s' is not updatable"
+"View's SELECT contains a subquery in the FROM clause"
+"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a variable or parameter" 
+"View's SELECT contains a temporary table '%-.64s'"
+"View's SELECT and view's field list have different column counts"
+"View merge algorithm can't be used here for now (assumed undefined algorithm)"
+"View being updated does not have complete key of underlying table in it"
+"View '%-.64s.%-.64s' references invalid table(s) or column(s)"
+"Can't drop a %s from within another stored routine"

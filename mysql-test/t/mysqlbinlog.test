@@ -1,10 +1,11 @@
 # We are using .opt file since we need small binlog size
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
 
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
 
 create table t1 (word varchar(20));
 create table t2 (id int auto_increment not null primary key);
@@ -64,17 +65,12 @@ select "--- --position --" as "";
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
-# But now they are not. V. Vagin should fix this.
-# We test all the same options second time since code for remote case is
-# essentially different. If code for both cases will be unified we'll be 
-# able to throw out most of this.
 
 --disable_query_log
 select "--- Remote --" as "";
 --enable_query_log
 
 # This is broken now
-# By the way it seems that remote version fetches all events with name >= master-bin.000001
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 

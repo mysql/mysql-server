@@ -10,15 +10,26 @@
 # Access Definitions
 #--
 DB=test
-DBPASSWD=
+DBPASSWD=""
 VERBOSE=""
 USE_MANAGER=0
 MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
+MYSQL_TCP_PORT=@MYSQL_TCP_PORT@
 
 # For query_cache test
-ulimit -n 1024
+case `uname` in
+    SCO_SV | UnixWare | OpenUNIX )
+        # do nothing (Causes strange behavior)
+        ;;
+    QNX)
+        # do nothing (avoid error message)
+        ;;
+    * )
+        ulimit -n 1024
+        ;;
+esac
 
 #++
 # Program Definitions
@@ -183,13 +194,15 @@ MY_LOG_DIR="$MYSQL_TEST_DIR/var/log"
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
 LD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH
+DYLD_LIBRARY_PATH="$BASEDIR/lib:$BASEDIR/libmysql/.libs:$DYLD_LIBRARY_PATH"
+export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 
 MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
+NDBCLUSTER_PORT=9350
 MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
@@ -201,6 +214,8 @@ EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=""
+USE_NDBCLUSTER=""
+USE_RUNNING_NDBCLUSTER=""
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -230,6 +245,11 @@ while test $# -gt 0; do
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
+    --with-ndbcluster)
+      USE_NDBCLUSTER="--ndbcluster" ;;
+    --ndbconnectstring=*)
+      USE_NDBCLUSTER="--ndbcluster" ;
+      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -239,6 +259,7 @@ while test $# -gt 0; do
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
     --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
+    --ndbcluster_port=*) NDBCLUSTER_PORT=`$ECHO "$1" | $SED -e "s;--ndbcluster_port=;;"` ;;
     --with-openssl)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
@@ -263,6 +284,7 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --start-from=* ) START_FROM=`$ECHO "$1" | $SED -e "s;--start-from=;;"` ;;
     --warnings | --log-warnings)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-warnings"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-warnings"
@@ -311,6 +333,8 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       # This needs to be checked properly
       # USE_MANAGER=1
       USE_RUNNING_SERVER=""
@@ -346,7 +370,7 @@ while test $# -gt 0; do
         $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://developer.kde.org/~sewardj ."
         exit 1
       fi
-      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
+      VALGRIND="$VALGRIND --tool=memcheck --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
@@ -412,8 +436,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT
-export SLAVE_MYPORT
+export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -460,15 +483,17 @@ if [ x$SOURCE_DIST = x1 ] ; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
 
- MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ CLIENT_BINDIR="$BASEDIR/client"
+ MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
- MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
- MYSQL_MANAGER_PWGEN="$BASEDIR/client/mysqlmanager-pwgen"
- MYSQL="$BASEDIR/client/mysql"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL="$CLIENT_BINDIR/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
+ MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
 else
  if test -x "$BASEDIR/libexec/mysqld"
  then
@@ -476,16 +501,18 @@ else
  else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
- MYSQL_TEST="$BASEDIR/bin/mysqltest"
- MYSQL_DUMP="$BASEDIR/bin/mysqldump"
- MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog"
- MYSQLADMIN="$BASEDIR/bin/mysqladmin"
- WAIT_PID="$BASEDIR/bin/mysql_waitpid"
- MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
- MYSQL_MANAGER_CLIENT="$BASEDIR/bin/mysqlmanagerc"
- MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
- MYSQL="$BASEDIR/bin/mysql"
- INSTALL_DB="./install_test_db -bin"
+ CLIENT_BINDIR="$BASEDIR/bin"
+ MYSQL_TEST="$CLIENT_BINDIR/mysqltest"
+ MYSQL_DUMP="$CLIENT_BINDIR/mysqldump"
+ MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
+ MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
+ WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
+ MYSQL_MANAGER="$CLIENT_BINDIR/mysqlmanager"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL="$CLIENT_BINDIR/mysql"
+ INSTALL_DB="./install_test_db --bin"
+ MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -496,10 +523,10 @@ else
   fi
 fi
 
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK  $EXTRA_MYSQLDUMP_OPT"
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
 MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
-export MYSQL_DUMP
-export MYSQL_BINLOG
+MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
+MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 
 if [ -z "$MASTER_MYSQLD" ]
 then
@@ -527,9 +554,9 @@ fi
 
 if [ -w / ]
 then
-    # We are running as root;  We need to add the --root argument
-    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
-    EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
+  # We are running as root;  We need to add the --root argument
+  EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
+  EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
 
 
@@ -550,6 +577,8 @@ TIMEFILE="$MYSQL_TEST_DIR/var/log/mysqltest-time"
 if [ -n "$DO_CLIENT_GDB" -o -n "$DO_GDB" ] ; then
   XTERM=`which xterm`
 fi
+
+export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR MASTER_MYSOCK
 
 #++
 # Function Definitions
@@ -603,7 +632,7 @@ error () {
 error_is () {
     $ECHO "Errors are (from $TIMEFILE) :"
     $CAT < $TIMEFILE
-    $ECHO "(the last line(s) may be the ones that caused the die() in mysqltest)"
+    $ECHO "(the last lines may be the most important ones)"
 }
 
 prefix_to_8() {
@@ -652,7 +681,7 @@ report_stats () {
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
+        $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi
 
     if test -z "$USE_RUNNING_SERVER"
@@ -662,7 +691,7 @@ report_stats () {
     #
     $RM -f $MY_LOG_DIR/warnings $MY_LOG_DIR/warnings.tmp
     # Remove some non fatal warnings from the log files
-    $SED -e 's!Warning:  Table:.* on delete!!g' \
+    $SED -e 's!Warning:  Table:.* on delete!!g' -e 's!Warning: Setting lower_case_table_names=2!!g' -e 's!Warning: One can only use the --user.*root!!g' \
         $MY_LOG_DIR/*.err \
         | $SED -e 's!Warning:  Table:.* on rename!!g' \
         > $MY_LOG_DIR/warnings.tmp
@@ -855,8 +884,12 @@ start_master()
   if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
-  # Remove stale binary logs
-  $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  # Remove stale binary logs except for 2 tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ] 
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  fi
+
   # Remove old master.info and relay-log.info files
   $RM -f $MYSQL_TEST_DIR/var/master-data/master.info $MYSQL_TEST_DIR/var/master-data/relay-log.info
 
@@ -876,6 +909,7 @@ start_master()
           --local-infile \
           --exit-info=256 \
           --core \
+          $USE_NDBCLUSTER \
           --datadir=$MASTER_MYDDIR \
           --pid-file=$MASTER_MYPID \
           --socket=$MASTER_MYSOCK \
@@ -901,6 +935,7 @@ start_master()
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --core \
+          $USE_NDBCLUSTER \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
@@ -976,8 +1011,12 @@ start_slave()
    slave_sock="$SLAVE_MYSOCK"
  fi
   # Remove stale binary logs and old master.info files
-  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
-  $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  # except for too tests which need them
+  if [ "$tname" != "rpl_crash_binlog_ib_1b" ] && [ "$tname" != "rpl_crash_binlog_ib_2b" ] && [ "$tname" != "rpl_crash_binlog_ib_3b" ]
+  then
+    $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
+    $RM -f $slave_datadir/master.info $slave_datadir/relay-log.info
+  fi
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
@@ -1013,7 +1052,7 @@ start_slave()
           --core --init-rpl-role=slave \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --skip-innodb --skip-slave-start \
+          --skip-innodb --skip-ndbcluster --skip-slave-start \
           --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
           --report-host=127.0.0.1 --report-user=root \
           --report-port=$slave_port \
@@ -1176,34 +1215,35 @@ run_testcase ()
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname.slave-mi
+ result_file=$tname
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ "$USE_MANAGER" = 1 ] ; then
-  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+ fi
+ if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
+   #skip_test $tname
+   return
  fi
 
- if [ -n "$SKIP_TEST" ] ; then
-   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
-   if [ x$SKIP_THIS_TEST = x1 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$SKIP_TEST" ] ; then
+   if $EXPR \( "$tname" : "$SKIP_TEST" \) > /dev/null ; then
+     skip_test $tname
+     return
    fi
-  fi
+ fi
 
- if [ -n "$DO_TEST" ] ; then
-   DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
-   if [ x$DO_THIS_TEST = x0 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$DO_TEST" ] ; then
+   if $EXPR \( "$tname" : "$DO_TEST" \) > /dev/null ; then
+     : #empty command to keep some shells happy
+   else
+     #skip_test $tname
+     return
    fi
-  fi
+ fi
 
-
- if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
- then
-   skip_test $tname;
+ if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ; then
+   skip_test $tname
    return
  fi
 
@@ -1225,6 +1265,11 @@ run_testcase ()
 	 # Note that this must be set to space, not "" for test-reset to work
 	 EXTRA_MASTER_OPT=" "
 	 ;;
+       --result-file=*)
+         result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
+	 # Note that this must be set to space, not "" for test-reset to work
+	 EXTRA_MASTER_OPT=" "
+         ;;
      esac
      stop_master
      echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
@@ -1282,7 +1327,7 @@ run_testcase ()
 
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
+    mysql_test_args="-R r/$result_file.result $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
       `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
@@ -1309,12 +1354,15 @@ run_testcase ()
         skip_inc
 	$ECHO "$RES$RES_SPACE [ skipped ]"
       else
+        if [ $res -gt 2 ]; then
+          $ECHO "mysqltest returned unexpected code $res, it has probably crashed" >> $TIMEFILE
+        fi
 	total_inc
         fail_inc
 	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
-	show_failed_diff $tname
+	show_failed_diff $result_file
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting: $tname failed. To continue, re-run with '--force'."
@@ -1375,7 +1423,17 @@ then
     fi
   fi
 
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    # Kill any running ndbcluster stuff
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+  fi
+  fi
+
   # Remove files that can cause problems
+  $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
@@ -1385,6 +1443,20 @@ then
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
+
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    echo "Starting ndbcluster"
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --discless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    export NDB_CONNECTSTRING=`cat Ndb.cfg`
+  else
+    export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    echo "Using ndbcluster at $NDB_CONNECTSTRING"
+  fi
+  fi
+
   start_manager
 
 # Do not automagically start daemons if we are in gdb or running only one test
@@ -1409,16 +1481,23 @@ $ECHO  "Starting Tests"
 #
 if [ "$DO_BENCH" = 1 ]
 then
+  start_master
+
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb"
+  fi 
+
   BENCHDIR=$BASEDIR/sql-bench/
   savedir=`pwd`
   cd $BENCHDIR
   if [ -z "$1" ]
   then
-    ./run-all-tests --socket=$MASTER_MYSOCK --user=root
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
   else
     if [ -x "./$1" ]
     then
-       ./$1 --socket=$MASTER_MYSOCK --user=root
+       ./$1 --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
     else
       echo "benchmark $1 not found"
     fi
@@ -1463,6 +1542,15 @@ $ECHO
 if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
+fi
+
+if [ ! -z "$USE_NDBCLUSTER" ]
+then
+if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+then
+  # Kill any running ndbcluster stuff
+  ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+fi
 fi
 
 stop_manager

@@ -46,6 +46,7 @@ $opt_test= undef;
 $opt_skip_check= undef;
 $opt_skip_manual= undef;
 $opt_win_dist= undef;
+$opt_quiet= undef;
 $version= "unknown";
 $major=$minor=$release=0;
 
@@ -67,7 +68,8 @@ GetOptions(
 	"suffix=s",
 	"test|t",
 	"verbose|v",
-	"win-dist|w"
+	"win-dist|w",
+        "quiet|q",
 ) || print_help("");
 
 #
@@ -98,8 +100,6 @@ if (defined $opt_build_command)
 
 print_help("") if ($opt_help);
 defined($REPO=$ARGV[0]) || print_help("Please enter the BK repository to be used!");
-
-$subject= "Bootstrap of $REPO failed" if $opt_mail;
 
 &logger("Starting build");
 &abort("The directory \"$REPO\" could not be found!") if (!-d $REPO);
@@ -257,7 +257,7 @@ if (defined $opt_changelog)
 	$msg= "Adding $target_dir/ChangeLog";
 	$msg.= " (down to revision $opt_changelog)" if $opt_changelog ne "";
 	&logger($msg);
-	$command= "bk changes -v";
+	$command= "bk changes -mv";
 	$command.= " -r" if ($opt_changelog ne "" || $opt_revision);
 	$command.= $opt_changelog if $opt_changelog ne "";
 	$command.= ".." if ($opt_changelog ne "" && !$opt_revision);
@@ -306,7 +306,7 @@ if (!$opt_dry_run)
 #
 # Now build the source distribution
 #
-&logger("Compiling");
+&logger("Compiling...");
 $command= $build_command;
 &run_command($command, "Compilation failed!");
 
@@ -403,6 +403,7 @@ Options:
                            include a log file snippet, if logging is enabled)
                            Note that the \@-Sign needs to be quoted!
                            Example: --mail=user\\\@domain.com
+-q, --quiet                Be quiet
 -p, --pull                 Update the source BK trees before building
 -r, --revision=<rev>       Export the tree as of revision <rev>
                            (default is up to the latest revision)

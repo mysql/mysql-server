@@ -14,10 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-	/* Functions to handle space-packed-records and blobs */
+/*
+  Functions to handle space-packed-records and blobs
+ 
+  A row may be stored in one or more linked blocks.
+  The block size is between MI_MIN_BLOCK_LENGTH and MI_MAX_BLOCK_LENGTH.
+  Each block is aligned on MI_DYN_ALIGN_SIZE.
+  The reson for the max block size is to not have too many different types
+  of blocks.  For the differnet block types, look at _mi_get_block_info()
+*/
 
 #include "myisamdef.h"
-#include <assert.h>
 
 /* Enough for comparing if number is zero */
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -148,7 +155,7 @@ static int write_dynamic_record(MI_INFO *info, const byte *record,
   } while (reclength);
 
   DBUG_RETURN(0);
- err:
+err:
   DBUG_RETURN(1);
 }
 
@@ -264,6 +271,48 @@ static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
   DBUG_RETURN(0);
 }
 
+
+/*
+  Add a backward link to delete block
+
+  SYNOPSIS
+    update_backward_delete_link()
+    info		MyISAM handler
+    delete_block	Position to delete block to update.
+			If this is 'HA_OFFSET_ERROR', nothing will be done
+    filepos		Position to block that 'delete_block' should point to
+
+  RETURN
+    0  ok
+    1  error.  In this case my_error is set.
+*/
+
+static int update_backward_delete_link(MI_INFO *info, my_off_t delete_block,
+				       my_off_t filepos)
+{
+  MI_BLOCK_INFO block_info;
+  DBUG_ENTER("update_backward_delete_link");
+
+  if (delete_block != HA_OFFSET_ERROR)
+  {
+    block_info.second_read=0;
+    if (_mi_get_block_info(&block_info,info->dfile,delete_block)
+	& BLOCK_DELETED)
+    {
+      char buff[8];
+      mi_sizestore(buff,filepos);
+      if (my_pwrite(info->dfile,buff, 8, delete_block+12, MYF(MY_NABP)))
+	DBUG_RETURN(1);				/* Error on write */
+    }
+    else
+    {
+      my_errno=HA_ERR_WRONG_IN_RECORD;
+      DBUG_RETURN(1);				/* Wrong delete link */
+    }
+  }
+  DBUG_RETURN(0);
+}
+
 	/* Delete datarecord from database */
 	/* info->rec_cache.seek_not_done is updated in cmp_record */
 
@@ -272,29 +321,12 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
 {
   uint length,b_type;
   MI_BLOCK_INFO block_info,del_block;
-  int error=0;
+  int error;
   my_bool remove_next_block;
   DBUG_ENTER("delete_dynamic_record");
 
   /* First add a link from the last block to the new one */
-  if (info->s->state.dellink != HA_OFFSET_ERROR)
-  {
-    block_info.second_read=0;
-    if (_mi_get_block_info(&block_info,info->dfile,info->s->state.dellink)
-	& BLOCK_DELETED)
-    {
-      char buff[8];
-      mi_sizestore(buff,filepos);
-      if (my_pwrite(info->dfile,buff,8,info->s->state.dellink+12,
-		    MYF(MY_NABP)))
-	error=1;				/* Error on write */
-    }
-    else
-    {
-      error=1;					/* Wrong delete link */
-      my_errno=HA_ERR_WRONG_IN_RECORD;
-    }
-  }
+  error= update_backward_delete_link(info, info->s->state.dellink, filepos);
 
   block_info.second_read=second_read;
   do
@@ -518,21 +550,11 @@ int _mi_write_part_record(MI_INFO *info,
   *reclength-=(length-head_length);
   *flag=6;
 
-  if (del_length && next_delete_block != HA_OFFSET_ERROR)
+  if (del_length)
   {
     /* link the next delete block to this */
-    MI_BLOCK_INFO del_block;
-    del_block.second_read=0;
-    if (!(_mi_get_block_info(&del_block,info->dfile,next_delete_block)
-	  & BLOCK_DELETED))
-    {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
-      goto err;
-    }
-    mi_sizestore(del_block.header+12,info->s->state.dellink);
-    if (my_pwrite(info->dfile,(char*) del_block.header+12,8,
-		  next_delete_block+12,
-		  MYF(MY_NABP)))
+    if (update_backward_delete_link(info, next_delete_block,
+				    info->s->state.dellink))
       goto err;
   }
 
@@ -574,6 +596,8 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
       {
 	uint tmp=MY_ALIGN(reclength - length + 3 +
 			  test(reclength >= 65520L),MI_DYN_ALIGN_SIZE);
+	/* Don't create a block bigger than MI_MAX_BLOCK_LENGTH */
+	tmp= min(length+tmp, MI_MAX_BLOCK_LENGTH)-length;
 	/* Check if we can extend this block */
 	if (block_info.filepos + block_info.block_len ==
 	    info->state->data_file_length &&
@@ -588,9 +612,15 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
 	  info->update|= HA_STATE_WRITE_AT_END | HA_STATE_EXTEND_BLOCK;
 	  length+=tmp;
 	}
-	else
+	else if (length < MI_MAX_BLOCK_LENGTH - MI_MIN_BLOCK_LENGTH)
 	{
-	  /* Check if next block is a deleted block */
+	  /*
+	    Check if next block is a deleted block
+	    Above we have MI_MIN_BLOCK_LENGTH to avoid the problem where
+	    the next block is so small it can't be splited which could
+	    casue problems
+	  */
+
 	  MI_BLOCK_INFO del_block;
 	  del_block.second_read=0;
 	  if (_mi_get_block_info(&del_block,info->dfile,
@@ -601,7 +631,35 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
 	    DBUG_PRINT("info",("Extending current block"));
 	    if (unlink_deleted_block(info,&del_block))
 	      goto err;
-	    length+=del_block.block_len;
+	    if ((length+=del_block.block_len) > MI_MAX_BLOCK_LENGTH)
+	    {
+	      /*
+		New block was too big, link overflow part back to
+		delete list
+	      */
+	      my_off_t next_pos;
+	      ulong rest_length= length-MI_MAX_BLOCK_LENGTH;
+	      set_if_bigger(rest_length, MI_MIN_BLOCK_LENGTH);
+	      next_pos= del_block.filepos+ del_block.block_len - rest_length;
+
+	      if (update_backward_delete_link(info, info->s->state.dellink,
+					      next_pos))
+		DBUG_RETURN(1);
+
+	      /* create delete link for data that didn't fit into the page */
+	      del_block.header[0]=0;
+	      mi_int3store(del_block.header+1, rest_length);
+	      mi_sizestore(del_block.header+4,info->s->state.dellink);
+	      bfill(del_block.header+12,8,255);
+	      if (my_pwrite(info->dfile,(byte*) del_block.header,20, next_pos,
+			    MYF(MY_NABP)))
+		DBUG_RETURN(1);
+	      info->s->state.dellink= next_pos;
+	      info->s->state.split++;
+	      info->state->del++;
+	      info->state->empty+= rest_length;
+	      length-= rest_length;
+	    }
 	  }
 	}
       }
@@ -615,7 +673,10 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, byte *record,
 			      &record,&reclength,&flag))
       goto err;
     if ((filepos=block_info.next_filepos) == HA_OFFSET_ERROR)
+    {
+      /* Start writing data on deleted blocks */
       filepos=info->s->state.dellink;
+    }
   }
 
   if (block_info.next_filepos != HA_OFFSET_ERROR)
@@ -744,7 +805,8 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
   Returns 0 if record is ok.
 */
 
-my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
+my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff,
+                      ulong packed_length)
 {
   uint		length,new_length,flag,bit,i;
   char		*pos,*end,*packpos,*to;
@@ -836,8 +898,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
       to+=length;
     }
   }
-  if (info->packed_length != (uint) (to - rec_buff)
-      + test(info->s->calc_checksum) ||
+  if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
   if (info->s->calc_checksum)
@@ -850,7 +911,7 @@ my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *rec_buff)
   }
   DBUG_RETURN(0);
 
- err:
+err:
   DBUG_RETURN(1);
 }
 
@@ -966,8 +1027,8 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
   if (info->s->calc_checksum)
     from++;
   if (to == to_end && from == from_end && (bit == 1 || !(flag & ~(bit-1))))
-    DBUG_RETURN((info->packed_length=found_length));
- err:
+    DBUG_RETURN(found_length);
+err:
   my_errno=HA_ERR_RECORD_DELETED;
   DBUG_PRINT("error",("to_end: %lx -> %lx  from_end: %lx -> %lx",
 		      to,to_end,from,from_end));
@@ -1210,7 +1271,7 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
     }
   }
   my_errno=0;
- err:
+err:
   if (buffer != info->rec_buff)
     my_afree((gptr) buffer);
   DBUG_RETURN(my_errno);
@@ -1248,7 +1309,7 @@ err:
 
 int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 				register my_off_t filepos,
-				my_bool skipp_deleted_blocks)
+				my_bool skip_deleted_blocks)
 {
   int flag,info_read,save_errno;
   uint left_len,b_type;
@@ -1299,7 +1360,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     {
       if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
 			 sizeof(block_info.header),
-			 (!flag && skipp_deleted_blocks ? READING_NEXT : 0) |
+			 (!flag && skip_deleted_blocks ? READING_NEXT : 0) |
 			 READING_HEADER))
 	goto panic;
       b_type=_mi_get_block_info(&block_info,-1,filepos);
@@ -1318,7 +1379,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 		  BLOCK_FATAL_ERROR))
     {
       if ((b_type & (BLOCK_DELETED | BLOCK_SYNC_ERROR))
-	  && skipp_deleted_blocks)
+	  && skip_deleted_blocks)
       {
 	filepos=block_info.filepos+block_info.block_len;
 	block_info.second_read=0;
@@ -1374,7 +1435,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       {
 	if (_mi_read_cache(&info->rec_cache,(byte*) to,filepos,
 			   block_info.data_len,
-			   (!flag && skipp_deleted_blocks) ? READING_NEXT :0))
+			   (!flag && skip_deleted_blocks) ? READING_NEXT :0))
 	  goto panic;
       }
       else
@@ -1391,7 +1452,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     if (flag++ == 0)
     {
       info->nextpos=block_info.filepos+block_info.block_len;
-      skipp_deleted_blocks=0;
+      skip_deleted_blocks=0;
     }
     left_len-=block_info.data_len;
     to+=block_info.data_len;

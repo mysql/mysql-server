@@ -1,12 +1,6 @@
 drop table if exists t1;
 create table t1 (t datetime);
-insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
-Warnings:
-Warning	1264	Data truncated for column 't' at row 13
-Warning	1264	Data truncated for column 't' at row 14
-Warning	1264	Data truncated for column 't' at row 15
-Warning	1264	Data truncated for column 't' at row 16
-Warning	1264	Data truncated for column 't' at row 17
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
 select * from t1;
 t
 2000-01-01 00:00:00
@@ -21,11 +15,8 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
+2003-01-00 00:00:00
+2003-00-00 00:00:00
 delete from t1 where t > 0;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
@@ -34,7 +25,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 delete from t1;
-insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
 select * from t1;
 t
 2000-01-01 00:00:00
@@ -50,11 +41,8 @@ t
 1999-12-31 23:59:59
 1000-01-01 00:00:00
 9999-12-31 23:59:59
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
-0000-00-00 00:00:00
+2003-01-00 00:00:00
+2003-00-00 00:00:00
 drop table t1;
 CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
@@ -107,4 +95,44 @@ insert into t1 values (now(), now());
 insert into t1 values (now(), now());
 select * from t1 where a is null or b is null;
 a	b
+drop table t1;
+create table t1 (t datetime);
+insert into t1 values (20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+Warnings:
+Warning	1265	Data truncated for column 't' at row 1
+Warning	1265	Data truncated for column 't' at row 2
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 5
+select * from t1;
+t
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+delete from t1;
+insert into t1 values ("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
+Warnings:
+Warning	1264	Data truncated; out of range for column 't' at row 1
+Warning	1264	Data truncated; out of range for column 't' at row 2
+Warning	1264	Data truncated; out of range for column 't' at row 3
+Warning	1264	Data truncated; out of range for column 't' at row 4
+Warning	1264	Data truncated; out of range for column 't' at row 5
+select * from t1;
+t
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+delete from t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+Warnings:
+Warning	1264	Data truncated; out of range for column 't' at row 1
+Warning	1264	Data truncated; out of range for column 't' at row 2
+select * from t1;
+t
+0000-00-00 00:00:00
+2003-01-01 00:00:00
 drop table t1;

@@ -135,7 +135,7 @@
         while x > 0 do
           set x = x-1;
           insert into db.tab values (x, s);
-        end while
+        end while;
       end
 
       would generate the following structures:
@@ -1057,9 +1057,9 @@
 
     CREATE TABLE proc (
       db                char(64) binary DEFAULT '' NOT NULL,
-      name              char(64) binary DEFAULT '' NOT NULL,
+      name              char(64) DEFAULT '' NOT NULL,
       type              enum('FUNCTION','PROCEDURE') NOT NULL,
-      specific_name     char(64) binary DEFAULT '' NOT NULL,
+      specific_name     char(64) DEFAULT '' NOT NULL,
       language          enum('SQL') DEFAULT 'SQL' NOT NULL,
       sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
       is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,

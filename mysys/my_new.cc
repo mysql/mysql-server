@@ -21,7 +21,7 @@
 
 #include "mysys_priv.h"
 
-#ifdef USE_MYSYS_NEW  
+#ifdef USE_MYSYS_NEW
 
 void *operator new (size_t sz)
 {

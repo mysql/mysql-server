@@ -70,7 +70,8 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     info->io_cache=tempfile;
     reinit_io_cache(info->io_cache,READ_CACHE,0L,0,0);
     info->ref_pos=table->file->ref;
-    table->file->rnd_init(0);
+    if (!table->file->inited)
+      table->file->ha_rnd_init(0);
 
     /*
       table->sort.addon_field is checked because if we use addon fields,
@@ -80,7 +81,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     if (!table->sort.addon_field &&
         ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
-	!table->file->fast_key_read() &&
+	!(table->file->table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
 	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
 	(ulonglong) table->reclength*(table->file->records+
@@ -105,7 +106,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   else if (table->sort.record_pointers)
   {
     DBUG_PRINT("info",("using record_pointers"));
-    table->file->rnd_init(0);
+    table->file->ha_rnd_init(0);
     info->cache_pos=table->sort.record_pointers;
     info->cache_end=info->cache_pos+ 
                     table->sort.found_records*info->ref_length;
@@ -116,7 +117,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   {
     DBUG_PRINT("info",("using rr_sequential"));
     info->read_record=rr_sequential;
-    table->file->rnd_init();
+    table->file->ha_rnd_init(1);
     /* We can use record cache if we don't update dynamic length tables */
     if (!table->no_cache &&
 	(use_record_cache > 0 ||
@@ -142,7 +143,8 @@ void end_read_record(READ_RECORD *info)
   {
     filesort_free_buffers(info->table);
     (void) info->file->extra(HA_EXTRA_NO_CACHE);
-    (void) info->file->rnd_end();
+    if (info->read_record != rr_quick) // otherwise quick_range does it
+      (void) info->file->ha_index_or_rnd_end();
     info->table=0;
   }
 }

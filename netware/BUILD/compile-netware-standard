@@ -14,6 +14,8 @@ suffix="standard"
 
 extra_configs=" \
 	--with-innodb \
+	--enable-thread-safe-client \
+	--with-archive-storage-engine \
 	"
 
 . $path/compile-netware-END

@@ -1084,11 +1084,7 @@ select * from t1;
 id
 select * from t2;
 id	t1_id
-drop table t1,t2;
-DROP TABLE IF EXISTS t1,t2;
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+drop table t2,t1;
 CREATE TABLE t1(id INT NOT NULL,  PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE t2(id  INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id)  ) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
@@ -1333,13 +1329,41 @@ a
 3
 4
 drop table t1;
+CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
+drop table t2,t1;
+create table `t1` (`id` int( 11 ) not null  ,primary key ( `id` )) engine = innodb;
+insert into `t1`values ( 1 ) ;
+create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) ,constraint `t1_id_fk` foreign key ( `id` ) references `t1` (`id` )) engine = innodb;
+insert into `t2`values ( 1 ) ;
+create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
+insert into `t3`values ( 1 ) ;
+delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+update t1,t2,t3 set t3.id=5, t2.id=6, t1.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+update t3 set  t3.id=7  where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
+ERROR 42S02: Unknown table 't1' in where clause
+drop table t3,t2,t1;
+create table t1(
+id int primary key,
+pid int,
+index(pid),
+foreign key(pid) references t1(id) on delete cascade) engine=innodb;
+insert into t1 values(0,0),(1,0),(2,1),(3,2),(4,3),(5,4),(6,5),(7,6),
+(8,7),(9,8),(10,9),(11,10),(12,11),(13,12),(14,13),(15,14);
+delete from t1 where id=0;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+delete from t1 where id=15;
+delete from t1 where id=0;
+drop table t1;
 CREATE TABLE t1 (col1 int(1))ENGINE=InnoDB;
 CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))ENGINE=InnoDB;
 insert into t1 values (1),(2),(3);
 insert into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
 Warnings:
-Warning	1264	Data truncated for column 'stamp' at row 3
+Warning	1265	Data truncated for column 'stamp' at row 3
 SELECT col1 FROM t1 UNION SELECT col1 FROM t2 WHERE stamp <
 '20020204120000' GROUP BY col1;
 col1
@@ -1414,3 +1438,195 @@ test.t2	968604391
 test.t3	968604391
 test.t4	NULL
 drop table t1,t2,t3;
+create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
+insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
+select name2 from t1  union all  select name from t1 union all select id from t1;
+name2
+fff
+sss
+ttt
+first
+second
+third
+1
+2
+3
+drop table t1;
+create table t1 (a int) engine=innodb;
+create table t2 like t1;
+drop table t1,t2;
+create table t1 (id int(11) not null, id2 int(11) not null, unique (id,id2)) engine=innodb;
+create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) references t1 (id)) engine = innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  UNIQUE KEY `id` (`id`,`id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  KEY `t1_id_fk` (`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+create index id on t2 (id);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  KEY `id` (`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+create index id2 on t2 (id);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  KEY `id` (`id`),
+  KEY `id2` (`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop index id2 on t2;
+drop index id on t2;
+Got one of the listed errors
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  KEY `id` (`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id,id2) references t1 (id,id2)) engine = innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  KEY `t1_id_fk` (`id`,`id2`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+create unique index id on t2 (id,id2);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  UNIQUE KEY `id` (`id`,`id2`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  UNIQUE KEY `id` (`id`,`id2`),
+  KEY `t1_id_fk` (`id2`,`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), constraint t1_id_fk foreign key (id) references t1 (id)) engine = innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  UNIQUE KEY `id` (`id`,`id2`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `id2` int(11) NOT NULL default '0',
+  UNIQUE KEY `id` (`id`,`id2`),
+  KEY `t1_id_fk` (`id2`,`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id), primary key (id), index (id,id2)) engine = innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL auto_increment,
+  `id2` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  KEY `id` (`id`,`id2`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id)) engine= innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL auto_increment,
+  `id2` int(11) NOT NULL default '0',
+  KEY `t1_id_fk` (`id`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+alter table t2 add index id_test (id), add index id_test2 (id,id2);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL auto_increment,
+  `id2` int(11) NOT NULL default '0',
+  KEY `id_test` (`id`),
+  KEY `id_test2` (`id`,`id2`),
+  CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
+ERROR HY000: Can't create table './test/t2.frm' (errno: 150)
+create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `b_2` (`b`),
+  KEY `b` (`b`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2;
+create table t2 (a int auto_increment primary key, b int, foreign key (b) references t1(id), foreign key (b) references t1(id), unique(b)) engine=innodb;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` int(11) default NULL,
+  PRIMARY KEY  (`a`),
+  UNIQUE KEY `b` (`b`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`),
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2, t1;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	24
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+create table t1 (a int) engine=innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	25
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	26
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+drop table t1;

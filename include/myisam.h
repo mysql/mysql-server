@@ -36,9 +36,9 @@ extern "C" {
 	/* defines used by myisam-funktions */
 
 /* The following defines can be increased if necessary */
-#define MI_MAX_KEY	32		/* Max allowed keys */
+#define MI_MAX_KEY	64		/* Max allowed keys */
 #define MI_MAX_KEY_SEG	16		/* Max segments for key */
-#define MI_MAX_KEY_LENGTH 500
+#define MI_MAX_KEY_LENGTH 1000
 
 #define MI_MAX_KEY_BUFF  (MI_MAX_KEY_LENGTH+MI_MAX_KEY_SEG*6+8+8)
 #define MI_MAX_POSSIBLE_KEY_BUFF (1024+6+6)	/* For myisam_chk */
@@ -47,7 +47,7 @@ extern "C" {
 #define MI_NAME_IEXT	".MYI"
 #define MI_NAME_DEXT	".MYD"
 /* Max extra space to use when sorting keys */
-#define MI_MAX_TEMP_LENGTH	256*1024L*1024L
+#define MI_MAX_TEMP_LENGTH	2*1024L*1024L*1024L
 
 /* Possible values for myisam_block_size (must be power of 2) */
 #define MI_KEY_BLOCK_LENGTH	1024	/* default key block length */
@@ -93,7 +93,7 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
 
 typedef struct st_mi_create_info
 {
-  char *index_file_name, *data_file_name;	/* If using symlinks */
+  const char *index_file_name, *data_file_name;	/* If using symlinks */
   ha_rows max_rows;
   ha_rows reloc_rows;
   ulonglong auto_increment;
@@ -192,7 +192,7 @@ extern uint myisam_block_size;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_bool myisam_concurrent_insert;
 extern my_off_t myisam_max_temp_length,myisam_max_extra_temp_length;
-extern ulong myisam_bulk_insert_tree_size;
+extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 
 	/* Prototypes for myisam-functions */
 
@@ -231,10 +231,7 @@ extern int mi_extra(struct st_myisam_info *file,
 		    enum ha_extra_function function,
 		    void *extra_arg);
 extern ha_rows mi_records_in_range(struct st_myisam_info *info,int inx,
-				   const byte *start_key,uint start_key_len,
-				   enum ha_rkey_function start_search_flag,
-				   const byte *end_key,uint end_key_len,
-				   enum ha_rkey_function end_search_flag);
+                                   key_range *min_key, key_range *max_key);
 extern int mi_log(int activate_log);
 extern int mi_is_changed(struct st_myisam_info *info);
 extern int mi_delete_all_rows(struct st_myisam_info *info);

@@ -5,6 +5,10 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Only MyISAM tables','support collections'),
 ('Function MATCH ... AGAINST()','is used to do a search'),
 ('Full-text search in MySQL', 'implements vector space model');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT	
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
@@ -13,7 +17,7 @@ explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	fulltext	a	a	0		1	Using where
 Warnings:
-Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b` from test.t1 where (match test.t1.a,test.t1.b against (_latin1'collections'))
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against (_latin1'collections'))
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
 Full-text indexes	are called collections
@@ -74,7 +78,7 @@ explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	fulltext	a	a	0		1	Using where
 Warnings:
-Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b` from test.t1 where (match test.t1.a,test.t1.b against (_latin1'support -collections' in boolean mode))
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against (_latin1'support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -140,6 +144,15 @@ select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 a	b
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 a	b
+select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
+a	b
+select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
+a	b
+select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
+a	b
+select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
+a	b
+Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
@@ -210,7 +223,7 @@ id
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE	
-t2	1	tix	1	inhalt	A	NULL	1	NULL	YES	FULLTEXT	
+t2	1	tix	1	inhalt	NULL	NULL	NULL	NULL	YES	FULLTEXT	
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -240,11 +253,11 @@ KEY tig (ticket),
 fulltext index tix (inhalt)
 );
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
-ERROR HY000: Wrong arguments to AGAINST
+ERROR HY000: Incorrect arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
 ERROR HY000: Can't find FULLTEXT index matching the column list
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
-ERROR HY000: Wrong arguments to MATCH
+ERROR HY000: Incorrect arguments to MATCH
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 id int(11)  auto_increment,
@@ -339,6 +352,9 @@ t	collation(t)
 aus Osnabrück	utf8_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
+SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+t	collation(t)	MATCH t AGAINST ('Osnabruck')
+aus Osnabrück	utf8_general_ci	1.591139793396
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 t	collation(t)
@@ -346,4 +362,15 @@ aus Osnabrück	latin1_german2_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
 aus Osnabrück	latin1_german2_ci
+DROP TABLE t1;
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
+insert into t1 (s) values ('pära para para'),('para para para');
+select * from t1 where match(s) against('para' in boolean mode);
+s
+pära para para
+para para para
+select * from t1 where match(s) against('par*' in boolean mode);
+s
+pära para para
+para para para
 DROP TABLE t1;

@@ -498,7 +498,7 @@ BOOL NTService::IsService(LPCSTR ServiceName)
   
   if ((scm= OpenSCManager(0, 0,SC_MANAGER_ENUMERATE_SERVICE)))
   {
-    if ((service = OpenService(scm,ServiceName, SERVICE_QUERY_STATUS )))
+    if ((service = OpenService(scm,ServiceName, SERVICE_QUERY_STATUS)))
     {
       ret_value=TRUE;
       CloseServiceHandle(service);

@@ -60,6 +60,7 @@ select max(a) from t1;
 --replace_column 1 # 8 # 9 # 23 # 33 #
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 show slave status;
+connection master;
 
 # The following DROP is a very important cleaning task:
 # imagine the next test is run with --skip-innodb: it will do
@@ -71,3 +72,7 @@ show slave status;
 # InnoDB: Error: table t1 already exists in InnoDB internal
 # InnoDB: data dictionary. Have you deleted the .frm file etc
 drop table t1;
+# wait until this drop is executed on slave
+save_master_pos;
+connection slave;
+sync_with_master;

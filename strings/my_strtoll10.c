@@ -15,16 +15,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#include <my_sys.h>
+#include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
 #include <m_string.h>
 
 #undef  ULONGLONG_MAX
 #define ULONGLONG_MAX		(~(ulonglong) 0)
 #define MAX_NEGATIVE_NUMBER	((ulonglong) LL(0x8000000000000000))
 #define INIT_CNT  9
-#define LFACTOR   LL(1000000000)
-#define LFACTOR1  LL(10000000000)
-#define LFACTOR2  LL(100000000000)
+#define LFACTOR   ULL(1000000000)
+#define LFACTOR1  ULL(10000000000)
+#define LFACTOR2  ULL(100000000000)
 
 static unsigned long lfactor[9]=
 {
@@ -113,8 +113,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
     negative= 1;
     if (++s == end)
       goto no_conv;
-    cutoff=  MAX_NEGATIVE_NUMBER / LL(100000000000);
-    cutoff2= (MAX_NEGATIVE_NUMBER % LL(100000000000)) / 100;
+    cutoff=  MAX_NEGATIVE_NUMBER / LFACTOR2;
+    cutoff2= (MAX_NEGATIVE_NUMBER % LFACTOR2) / 100;
     cutoff3=  MAX_NEGATIVE_NUMBER % 100;
   }
   else
@@ -125,8 +125,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
       if (++s == end)
 	goto no_conv;
     }
-    cutoff=  ULONGLONG_MAX / LL(100000000000);
-    cutoff2= ULONGLONG_MAX % LL(100000000000) / 100;
+    cutoff=  ULONGLONG_MAX / LFACTOR2;
+    cutoff2= ULONGLONG_MAX % LFACTOR2 / 100;
     cutoff3=  ULONGLONG_MAX % 100;
   }
 
@@ -196,15 +196,15 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
     goto overflow;
 
   /* Check that we didn't get an overflow with the last digit */
-  if (i > cutoff || i == cutoff && (j > cutoff2 || j == cutoff2 &&
-				    k > cutoff3))
+  if (i > cutoff || (i == cutoff && ((j > cutoff2 || j == cutoff2) &&
+                                     k > cutoff3)))
     goto overflow;
   li=i*LFACTOR2+ (ulonglong) j*100 + k;
   return (longlong) li;
 
 overflow:					/* *endptr is set here */
   *error= MY_ERRNO_ERANGE;
-  return negative ? LONGLONG_MIN : ULONGLONG_MAX;
+  return negative ? LONGLONG_MIN : (longlong) ULONGLONG_MAX;
 
 end_i:
   *endptr= (char*) s;

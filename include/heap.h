@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000,2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ typedef struct st_heap_share
   uint reclength;			/* Length of one record */
   uint changed;
   uint keys,max_key_length;
+  uint currently_disabled_keys;    /* saved value from "keys" when disabled */
   uint open_count;
   byte *del_link;			/* Link to next block with del. rec */
   my_string name;			/* Name of "memory-file" */
@@ -138,6 +139,7 @@ typedef struct st_heap_info
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
   uint lastkey_len;
+  my_bool implicit_emptied;
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
@@ -175,12 +177,13 @@ extern int heap_rprev(HP_INFO *info,byte *record);
 extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
 extern int heap_rlast(HP_INFO *info,byte *record,int inx);
 extern void heap_clear(HP_INFO *info);
+extern void heap_clear_keys(HP_INFO *info);
+extern int heap_disable_indexes(HP_INFO *info);
+extern int heap_enable_indexes(HP_INFO *info);
+extern int heap_indexes_are_disabled(HP_INFO *info);
 extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
-ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
-			       uint start_key_len,
-			       enum ha_rkey_function start_search_flag,
-			       const byte *end_key, uint end_key_len,
-			       enum ha_rkey_function end_search_flag);
+ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, key_range *min_key,
+                               key_range *max_key);
 int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
               uint key_len, enum ha_rkey_function find_flag);
 extern gptr heap_find(HP_INFO *info,int inx,const byte *key);

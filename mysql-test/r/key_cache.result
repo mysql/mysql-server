@@ -39,9 +39,9 @@ SELECT @@medium.key_buffer_size;
 0
 SET @@global.key_buffer_size=@save_key_buffer;
 SELECT @@default.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'default.key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'default.key_buffer_size' at line 1
 SELECT @@skr.storage_engine="test";
-ERROR HY000: Variable 'storage_engine' is not a variable component (Can't be used as XXXX.variable_name)
+ERROR HY000: Variable 'storage_engine' is not a variable component (can't be used as XXXX.variable_name)
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 0
@@ -85,6 +85,12 @@ select @@key_cache_block_size;
 set global keycache1.key_buffer_size=1024*1024;
 create table t1 (p int primary key, a char(10)) delay_key_write=1;
 create table t2 (p int primary key, i int, a char(10), key k1(i), key k2(a));
+show status like 'key_blocks_used';
+Variable_name	Value
+Key_blocks_used	0
+show status like 'key_blocks_unused';
+Variable_name	Value
+Key_blocks_unused	KEY_BLOCKS_UNUSED
 insert into t1 values (1, 'qqqq'), (11, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
 (3, 1, 'yyyy'), (4, 3, 'zzzz');
@@ -100,7 +106,13 @@ p	i	a
 4	3	zzzz
 update t1 set p=2 where p=1;
 update t2 set i=2 where i=1;
-cache index t1 keys (`primary`) in keycache1;
+show status like 'key_blocks_used';
+Variable_name	Value
+Key_blocks_used	4
+show status like 'key_blocks_unused';
+Variable_name	Value
+Key_blocks_unused	KEY_BLOCKS_UNUSED
+cache index t1 key (`primary`) in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 explain select p from t1;
@@ -177,7 +189,7 @@ yyyy
 zzzz
 cache index t1 in unknown_key_cache;
 ERROR HY000: Unknown key cache 'unknown_key_cache'
-cache index t1 keys (unknown_key) in keycache1;
+cache index t1 key (unknown_key) in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	error	Key column 'unknown_key' doesn't exist in table
 test.t1	assign_to_keycache	status	Operation failed
@@ -256,6 +268,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 test.t2	assign_to_keycache	status	OK
 drop table t1,t2,t3;
+show status like 'key_blocks_used';
+Variable_name	Value
+Key_blocks_used	4
+show status like 'key_blocks_unused';
+Variable_name	Value
+Key_blocks_unused	KEY_BLOCKS_UNUSED
 set global keycache2.key_buffer_size=0;
 set global keycache3.key_buffer_size=100;
 set global keycache3.key_buffer_size=0;

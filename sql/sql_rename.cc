@@ -24,6 +24,8 @@
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
 
+static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
+
 /*
   Every second entry in the table_list is the original name and every
   second entry is the new name.
@@ -46,6 +48,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   }
 
+  if (wait_if_global_read_lock(thd,0))
+    DBUG_RETURN(1);
   VOID(pthread_mutex_lock(&LOCK_open));
   if (lock_table_names(thd, table_list))
     goto err;
@@ -54,25 +58,22 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if ((ren_table=rename_tables(thd,table_list,0)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
-    TABLE_LIST *prev=0,*table;
-    /* Reverse the table list */
+    TABLE_LIST *table;
 
-    while (table_list)
-    {
-      TABLE_LIST *next=table_list->next;
-      table_list->next=prev;
-      prev=table_list;
-      table_list=next;
-    }
-    table_list=prev;
+    /* Reverse the table list */
+    table_list= reverse_table_list(table_list);
 
     /* Find the last renamed table */
-    for (table=table_list ;
-	 table->next != ren_table ;
-	 table=table->next->next) ;
-    table=table->next->next;			// Skip error table
+    for (table= table_list;
+	 table->next_local != ren_table ;
+	 table= table->next_local->next_local) ;
+    table= table->next_local->next_local;		// Skip error table
     /* Revert to old names */
     rename_tables(thd, table, 1);
+
+    /* Revert the table list (for prepared statements) */
+    table_list= reverse_table_list(table_list);
+
     error= 1;
   }
 
@@ -88,11 +89,37 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     send_ok(thd);
   }
 
-  unlock_table_names(thd,table_list);
+  unlock_table_names(thd, table_list);
 
 err:
   pthread_mutex_unlock(&LOCK_open);
+  start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
+}
+
+
+/*
+  reverse table list
+
+  SYNOPSIS
+    reverse_table_list()
+    table_list pointer to table _list
+
+  RETURN
+    pointer to new (reversed) list
+*/
+static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
+{
+  TABLE_LIST *prev= 0;
+
+  while (table_list)
+  {
+    TABLE_LIST *next= table_list->next_local;
+    table_list->next_local= prev;
+    prev= table_list;
+    table_list= next;
+  }
+  return (prev);
 }
 
 
@@ -107,23 +134,35 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
   TABLE_LIST *ren_table,*new_table;
   DBUG_ENTER("rename_tables");
 
-  for (ren_table=table_list ; ren_table ; ren_table=new_table->next)
+  for (ren_table= table_list; ren_table; ren_table= new_table->next_local)
   {
     db_type table_type;
     char name[FN_REFLEN];
-    new_table=ren_table->next;
+    const char *new_alias, *old_alias;
 
+    new_table= ren_table->next_local;
+    if (lower_case_table_names == 2)
+    {
+      old_alias= ren_table->alias;
+      new_alias= new_table->alias;
+    }
+    else
+    {
+      old_alias= ren_table->real_name;
+      new_alias= new_table->real_name;
+    }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    new_table->db,new_table->real_name,
-	    reg_ext);
+	    new_table->db, new_alias, reg_ext);
+    unpack_filename(name, name);
     if (!access(name,F_OK))
     {
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),name);
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_alias);
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
-	    ren_table->db,ren_table->real_name,
+	    ren_table->db, old_alias,
 	    reg_ext);
+    unpack_filename(name, name);
     if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
     {
       my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
@@ -131,8 +170,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 	DBUG_RETURN(ren_table);
     }
     else if (mysql_rename_table(table_type,
-				ren_table->db, ren_table->real_name,
-				new_table->db, new_table->real_name))
+				ren_table->db, old_alias,
+				new_table->db, new_alias))
     {
       if (!skip_error)
 	DBUG_RETURN(ren_table);

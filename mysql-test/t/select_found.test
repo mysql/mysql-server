@@ -109,3 +109,50 @@ select FOUND_ROWS();
 select SQL_CALC_FOUND_ROWS * from t1 where id > 6 limit 0, 1;
 select FOUND_ROWS();
 drop table t1;
+
+#
+# Other bugs with range optimization
+#
+
+# bug #2448
+
+CREATE TABLE t1 ( a int not null, b int not null, KEY ab(a,b) );
+INSERT INTO t1 VALUES ( 47,    1  );
+INSERT INTO t1 VALUES ( 70,    1  );
+SELECT * FROM t1
+WHERE
+(
+ ( b =1 AND a BETWEEN 14 AND 21 ) OR
+ ( b =2 AND a BETWEEN 16 AND 18 ) OR
+ ( b =3 AND a BETWEEN 15 AND 19 )
+);
+DROP TABLE t1;
+
+# bug #2698
+
+CREATE TABLE t1 ( a integer, u varchar(15), r integer, key uao_idx( r, a, u));
+DELETE  FROM t1
+WHERE (  r = 1 AND a IN ( 1, 2    ) AND ( u = 'w'   OR u LIKE 'w/%'   ) )
+   OR (  r = 1 AND a IN (       3 ) AND ( u = 'w/U' OR u LIKE 'w/U/%' ) )
+   OR (  r = 1 AND a IN ( 1, 2, 3 ) AND ( u = 'w'                     ) );
+drop table t1;
+
+#
+# Bug #3738: we have a ref key
+#
+
+CREATE TABLE t1 (a VARCHAR(16), UNIQUE(a));
+INSERT INTO t1 VALUES ('1'), ('2'), ('3');
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = '2' LIMIT 0, 1;
+SELECT FOUND_ROWS();
+DROP TABLE t1;
+
+#
+# Bug #3845: group by, having and empty result
+#
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (2);
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = 0 GROUP BY a HAVING a > 10;
+SELECT FOUND_ROWS();
+DROP TABLE t1;

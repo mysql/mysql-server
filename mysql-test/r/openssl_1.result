@@ -10,22 +10,22 @@ select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user1'@'localhost' to database 'test'
+ERROR 42000: Access denied for user 'ssl_user1'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user2'@'localhost' to database 'test'
+ERROR 42000: Access denied for user 'ssl_user2'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user3'@'localhost' to database 'test'
+ERROR 42000: Access denied for user 'ssl_user3'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user4'@'localhost' to database 'test'
+ERROR 42000: Access denied for user 'ssl_user4'@'localhost' to database 'test'
 delete from mysql.user where user='ssl_user%';
 delete from mysql.db where user='ssl_user%';
 flush privileges;

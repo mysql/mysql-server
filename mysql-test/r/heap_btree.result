@@ -66,7 +66,7 @@ a
 alter table t1 engine=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uniq_id	uniq_id	4	NULL	4	Using where; Using index
+1	SIMPLE	t1	index	uniq_id	uniq_id	4	NULL	4	Using where; Using index
 drop table t1;
 create table t1 (x int not null, y int not null, key x  using BTREE (x,y), unique y  using BTREE (y))
 engine=heap;
@@ -173,9 +173,22 @@ f1	f2
 drop table t1;
 create table t1 (btn char(10) not null, key using BTREE (btn)) engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
-explain select * from t1 where btn like "q%";
+explain select * from t1 where btn like "i%";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	Using where
+1	SIMPLE	t1	range	btn	btn	10	NULL	1	Using where
+explain select * from t1 where btn like "h%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	btn	btn	10	NULL	#	Using where
+explain select * from t1 where btn like "a%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	btn	btn	10	NULL	1	Using where
+explain select * from t1 where btn like "b%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	btn	btn	10	NULL	1	Using where
+select * from t1 where btn like "ff%";
+btn
+select * from t1 where btn like " %";
+btn
 select * from t1 where btn like "q%";
 btn
 alter table t1 add column new_col char(1) not null, add key using BTREE (btn,new_col), drop key btn;

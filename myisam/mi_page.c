@@ -17,9 +17,6 @@
 /* Read and write key blocks */
 
 #include "myisamdef.h"
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 	/* Fetch a key-page in memory */
 

@@ -92,17 +92,17 @@ UNIV_INLINE
 ulint
 ut_fold_string(
 /*===========*/
-			/* out: folded value */
-	char*	str);	/* in: null-terminated string */	
+				/* out: folded value */
+	const char*	str);	/* in: null-terminated string */	
 /*****************************************************************
 Folds a binary string. */
 UNIV_INLINE
 ulint
 ut_fold_binary(
 /*===========*/
-			/* out: folded value */
-	byte*	str,	/* in: string of bytes */
-	ulint	len);	/* in: length */
+				/* out: folded value */
+	const byte*	str,	/* in: string of bytes */
+	ulint		len);	/* in: length */
 /***************************************************************
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2. */

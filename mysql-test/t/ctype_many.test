@@ -147,11 +147,6 @@ UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 
-#
-# codecovarage for Item_func_conv_charset3
-#
-select CONVERT(koi8_ru_f, 'cp1251_general_ci', 'utf8_general_ci'), comment from t1;
-explain extended select CONVERT(koi8_ru_f, 'cp1251_general_ci', 'utf8_general_ci'), comment from t1;
 
 ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL;
 UPDATE t1 SET bin_f=koi8_ru_f;

@@ -21,6 +21,10 @@
 #include "system_wrappers.h"
 #endif
 
+#ifdef HAVE_GETRUSAGE
+#include <sys/resource.h>
+#endif
+
 #ifdef THREAD
 #include <my_pthread.h>
 extern pthread_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
@@ -29,3 +33,4 @@ extern pthread_mutex_t THR_LOCK_charset;
 #else
 #include <my_no_pthread.h>
 #endif
+

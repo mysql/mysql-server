@@ -26,7 +26,7 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 
-bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
+bool Protocol_cursor::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -67,7 +67,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, uint flag)
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
-    if (flag & 2)
+    if (flags & Protocol::SEND_DEFAULTS)
     {
       char buff[80];
       String tmp(buff, sizeof(buff), default_charset_info), *res;

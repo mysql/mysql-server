@@ -80,6 +80,16 @@ select distinct i from t1 order by mod(i,2),i;
 drop table t1;
 
 #
+# bug#3681
+#
+
+create table t1 ( pk     int primary key, name   varchar(255) not null, number varchar(255) not null);
+insert into t1 values (1, 'Gamma',     '123'), (2, 'Gamma Ext', '123a'), (3, 'Alpha',     '001'), (4, 'Beta',      '200c');
+select distinct t1.name as 'Building Name',t1.number as 'Building Number' from t1 order by t1.name asc;
+drop table t1;
+
+
+#
 # Order by on first index part
 #
 
@@ -347,6 +357,23 @@ SELECT * FROM t1 ORDER BY (a + b) DESC;
 DROP TABLE t1;
 
 #
+# Test of FORCE INDEX ... ORDER BY
+#
+
+create table t1(id int not null auto_increment primary key, t char(12));
+disable_query_log;
+let $1 = 1000;
+while ($1)
+ {
+  eval insert into t1(t) values ('$1'); 
+  dec $1;
+ }
+enable_query_log;
+explain select id,t from t1 order by id;
+explain select id,t from t1 force index (primary) order by id;
+drop table t1;
+
+#
 # Test of test_if_subkey() function
 #
 CREATE TABLE t1 (
@@ -381,3 +408,40 @@ CREATE TABLE t1 (  id smallint(6) unsigned NOT NULL default '0',  menu tinyint(4
 INSERT INTO t1 VALUES (11384, 2),(11392, 2);
 SELECT id FROM t1 WHERE id <11984 AND menu =2 ORDER BY id DESC LIMIT 1 ;
 drop table t1;
+
+#
+# REF_OR_NULL optimization + filesort (bug #2419)
+#
+
+create table t1(a int, b int, index(b));
+insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+explain select * from t1 where b=1 or b is null order by a;
+select * from t1 where b=1 or b is null order by a;
+explain select * from t1 where b=2 or b is null order by a;
+select * from t1 where b=2 or b is null order by a;
+drop table t1;
+
+#
+# Bug #3155 - Strange results with index (x, y) ... WHERE ... ORDER BY pk
+#
+
+create table t1 (a int not null auto_increment, b int not null, c int not null, d int not null,
+key(a,b,d), key(c,b,a));
+create table t2 like t1;
+insert into t1 values (NULL, 1, 2, 0), (NULL, 2, 1, 1), (NULL, 3, 4, 2), (NULL, 4, 3, 3);
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+insert into t2 select null, b, c, d from t1;
+insert into t1 select null, b, c, d from t2;
+optimize table t1;
+set @row=10;
+insert into t1 select 1, b, c + (@row:=@row - 1) * 10, d - @row from t2 limit 10;
+select * from t1 where a=1 and b in (1) order by c, b, a;
+select * from t1 where a=1 and b in (1);
+drop table t1, t2;

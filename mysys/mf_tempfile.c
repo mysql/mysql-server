@@ -83,7 +83,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     (*free)(res);
     file=my_create(to, 0, mode, MyFlags);
   }
-#elif defined(HAVE_MKSTEMP)
+#elif defined(HAVE_MKSTEMP) && !defined(__NETWARE__)
   {
     char prefix_buff[30];
     uint pfx_len;
@@ -123,12 +123,13 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
 #ifdef OS2
     /* changing environ variable doesn't work with VACPP */
-    char  buffer[256];
-    sprintf( buffer, "TMP=%s", dir);
+    char  buffer[256], *end;
+    buffer[sizeof[buffer)-1]= 0;
+    end= strxnmov(buffer, sizeof(buffer)-1, (char*) "TMP=", dir, NullS);
     /* remove ending backslash */
-    if (buffer[strlen(buffer)-1] == '\\')
-       buffer[strlen(buffer)-1] = '\0';
-    putenv( buffer);
+    if (end[-1] == '\\')
+      end[-1]= 0;
+    putenv(buffer);
 #elif !defined(__NETWARE__)
     old_env= (char**) environ;
     if (dir)
@@ -138,7 +139,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
 #endif
     if ((res=tempnam((char*) dir, (char*) prefix)))
-    {    
+    {
       strmake(to,res,FN_REFLEN-1);
       (*free)(res);
       file=my_create(to,0,
@@ -180,7 +181,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 
       for (length=0 ; length < 8 && uniq ; length++)
       {
-	*end_pos++= _dig_vec[(int) (uniq & 31)];
+	*end_pos++= _dig_vec_upper[(int) (uniq & 31)];
 	uniq >>= 5;
       }
       (void) strmov(end_pos,TMP_EXT);

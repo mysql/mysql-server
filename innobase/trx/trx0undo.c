@@ -391,14 +391,13 @@ trx_undo_seg_create(
 	ibool		success;
 	
 	ut_ad(mtr && id && rseg_hdr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-/*	
-	if (type == TRX_UNDO_INSERT) {
-		printf("Creating insert undo log segment\n");
-	} else {
-		printf("Creating update undo log segment\n");
-	}
-*/
+#endif /* UNIV_SYNC_DEBUG */
+
+/*	fputs(type == TRX_UNDO_INSERT
+		? "Creating insert undo log segment\n"
+		: "Creating update undo log segment\n", stderr); */
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {
@@ -431,7 +430,9 @@ trx_undo_seg_create(
 		return(NULL);
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
@@ -737,12 +738,13 @@ trx_undo_add_page(
 	ulint		n_reserved;
 	ibool		success;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(mutex_own(&(trx->rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;
-
-	ut_ad(mutex_own(&(rseg->mutex)));
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -813,8 +815,10 @@ trx_undo_free_page(
 
 	UT_NOT_USED(hdr_offset);
 	ut_a(hdr_page_no != page_no);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	undo_page = trx_undo_page_get(space, page_no, mtr);
 
@@ -861,7 +865,9 @@ trx_undo_free_page_in_rollback(
 	ulint	last_page_no;
 
 	ut_ad(undo->hdr_page_no != page_no);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	last_page_no = trx_undo_free_page(undo->rseg, FALSE, undo->space,
 					undo->hdr_page_no, undo->hdr_offset,
@@ -915,11 +921,12 @@ trx_undo_truncate_end(
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
+	ut_ad(mutex_own(&(trx->rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	rseg = trx->rseg;		
-
-	ut_ad(mutex_own(&(rseg->mutex)));
 
  	for (;;) {
 		mtr_start(&mtr);
@@ -994,7 +1001,9 @@ trx_undo_truncate_start(
 	ulint		page_no;
 	mtr_t		mtr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (0 == ut_dulint_cmp(limit, ut_dulint_zero)) {
 
@@ -1060,8 +1069,9 @@ trx_undo_seg_free(
 	while (!finished) {
 
 		mtr_start(&mtr);
-	
+#ifdef UNIV_SYNC_DEBUG
 		ut_ad(!mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 		mutex_enter(&(rseg->mutex));
 
 		seg_header = trx_undo_page_get(undo->space, undo->hdr_page_no,
@@ -1117,7 +1127,7 @@ trx_undo_mem_create_at_db_start(
 	if (id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: undo->id is %lu\n", (ulong) id);
-		ut_a(0);
+		ut_error;
 	}
 
 	undo_page = trx_undo_page_get(rseg->space, page_no, mtr);
@@ -1134,8 +1144,7 @@ trx_undo_mem_create_at_db_start(
 	
 	undo_header = undo_page + offset;
 
-	trx_id = mtr_read_dulint(undo_header + TRX_UNDO_TRX_ID, MLOG_8BYTES,
-									mtr);
+	trx_id = mtr_read_dulint(undo_header + TRX_UNDO_TRX_ID, mtr);
 	mutex_enter(&(rseg->mutex));
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, page_no, offset);
@@ -1145,8 +1154,7 @@ trx_undo_mem_create_at_db_start(
 	undo->dict_operation = mtr_read_ulint(
 				undo_header + TRX_UNDO_DICT_OPERATION,
 							MLOG_2BYTES, mtr);
-	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID,
-							MLOG_8BYTES, mtr);
+	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID, mtr);
 	undo->state = state;
 	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr);
 
@@ -1270,12 +1278,14 @@ trx_undo_mem_create(
 {
 	trx_undo_t*	undo;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: undo->id is %lu\n", (ulong) id);
-		ut_a(0);
+		ut_error;
 	}
 
 	undo = mem_alloc(sizeof(trx_undo_t));
@@ -1314,14 +1324,16 @@ trx_undo_mem_init_for_reuse(
 				is created */
 	ulint		offset)	/* in: undo log header byte offset on page */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
  	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
 
 		mem_analyze_corruption((byte*)undo);
-		ut_a(0);
+		ut_error;
 	}
 
 	undo->state = TRX_UNDO_ACTIVE;
@@ -1345,7 +1357,7 @@ trx_undo_mem_free(
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: undo->id is %lu\n", (ulong) undo->id);
-		ut_a(0);
+		ut_error;
 	}
 
 	mem_free(undo);
@@ -1373,7 +1385,9 @@ trx_undo_create(
 	trx_undo_t*	undo;
 	page_t*		undo_page;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -1424,7 +1438,9 @@ trx_undo_reuse_cached(
 	page_t*		undo_page;
 	ulint		offset;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (type == TRX_UNDO_INSERT) {
 
@@ -1448,13 +1464,12 @@ trx_undo_reuse_cached(
 	}
 
 	ut_ad(undo->size == 1);
-	ut_ad(undo->hdr_page_no == undo->top_page_no);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
 		mem_analyze_corruption((byte*)undo);
-		ut_a(0);
+		ut_error;
 	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
@@ -1495,7 +1510,7 @@ trx_undo_mark_as_dict_operation(
 			trx->dict_operation, MLOG_2BYTES, mtr);
 	
 	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-			trx->table_id, MLOG_8BYTES, mtr);	
+			trx->table_id, mtr);	
 
 	undo->dict_operation = trx->dict_operation;
 	undo->table_id = trx->table_id;
@@ -1522,11 +1537,15 @@ trx_undo_assign_undo(
 
 	rseg = trx->rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(trx->undo_mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	mutex_enter(&(rseg->mutex));
 
 	undo = trx_undo_reuse_cached(rseg, type, trx->id, &mtr);
@@ -1587,7 +1606,7 @@ trx_undo_set_state_at_finish(
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
 			(ulong) undo->id);
 		mem_analyze_corruption((byte*)undo);
-		ut_a(0);
+		ut_error;
 	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
@@ -1632,8 +1651,9 @@ trx_undo_update_cleanup(
 	undo = trx->update_undo;
 	rseg = trx->rseg;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(rseg->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
 	trx_purge_add_update_undo_to_history(trx, undo_page, mtr);
 
 	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
@@ -1648,54 +1668,6 @@ trx_undo_update_cleanup(
 
 		trx_undo_mem_free(undo);
 	}
-}
-
-/**************************************************************************
-Discards an undo log and puts the segment to the list of cached update undo
-log segments. This optimized function is called if there is no need to keep
-the update undo log because there exist no read views and the transaction
-made no delete markings, which would make purge necessary. We restrict this
-to undo logs of size 1 to make things simpler. */
-
-dulint
-trx_undo_update_cleanup_by_discard(
-/*===============================*/
-			/* out: log sequence number at which mtr is
-			committed */	
-	trx_t*	trx,	/* in: trx owning the update undo log */
-	mtr_t*	mtr)	/* in: mtr */
-{
-	trx_rseg_t*	rseg;
-	trx_undo_t*	undo;
-	page_t*		undo_page;
-	
-	undo = trx->update_undo;
-	rseg = trx->rseg;
-
-	ut_ad(mutex_own(&(rseg->mutex)));
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(undo->size == 1);
-	ut_ad(undo->del_marks == FALSE);	
-	ut_ad(UT_LIST_GET_LEN(trx_sys->view_list) == 1);
-	
-	/* NOTE: we must hold the kernel mutex, because we must prevent
-	creation of new read views before mtr gets committed! */
-
-	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
-
-	trx_undo_discard_latest_update_undo(undo_page, mtr);
-
-	undo->state = TRX_UNDO_CACHED;
-
-	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
-
-	trx->update_undo = NULL;
-
-	UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
-
-	mtr_commit(mtr);
-	
-	return(mtr->end_lsn);
 }
 
 /**********************************************************************

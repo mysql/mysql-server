@@ -7,6 +7,8 @@ use File::Basename;
 use File::Path;
 use DBI;
 use Sys::Hostname;
+use File::Copy;
+use File::Temp;
 
 =head1 NAME
 
@@ -37,7 +39,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.20";
+my $VERSION = "1.21";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -73,6 +75,7 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   --resetslave         reset the master.info once all tables are locked
   --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
   --record_log_pos=#   record slave and master status in specified db.table
+  --chroot=#           base directory of chroot jail in which mysqld operates
 
   Try \'perldoc $0 for more complete documentation\'
 _OPTIONS
@@ -117,6 +120,7 @@ GetOptions( \%opt,
     "resetslave",
     "tmpdir|t=s",
     "dryrun|n",
+    "chroot=s",
 ) or usage("Invalid option");
 
 # @db_desc
@@ -210,6 +214,7 @@ while ( my ($var,$value) = $sth_vars->fetchrow_array ) {
 }
 my $datadir = $mysqld_vars{'datadir'}
     || die "datadir not in mysqld variables";
+    $datadir= $opt{chroot}.$datadir if ($opt{chroot});
 $datadir =~ s:/$::;
 
 
@@ -226,6 +231,10 @@ elsif (defined($tgt_name) && ($tgt_name =~ m:/: || $tgt_name eq '.')) {
 }
 elsif ( $opt{suffix} ) {
     print "Using copy suffix '$opt{suffix}'\n" unless $opt{quiet};
+}
+elsif ( ($^O =~ m/^(NetWare)$/) && defined($tgt_name) && ($tgt_name =~ m:\\: || $tgt_name eq '.'))  
+{
+	$tgt_dirname = $tgt_name;
 }
 else
 {
@@ -418,8 +427,11 @@ foreach my $rdb ( @db_desc ) {
 	else {
 	    mkdir($tgt_dirpath, 0750) or die "Can't create '$tgt_dirpath': $!\n"
 		unless -d $tgt_dirpath;
+	     if ($^O !~ m/^(NetWare)$/)  
+    	    {
 	    my @f_info= stat "$datadir/$rdb->{src}";
 	    chown $f_info[4], $f_info[5], $tgt_dirpath;
+    	    }
 	}
     }
 }
@@ -575,7 +587,15 @@ sub copy_files {
     my @cmd;
     print "Copying ".@$files." files...\n" unless $opt{quiet};
 
-    if ($method =~ /^s?cp\b/) { # cp or scp with optional flags
+    if ($^O =~ m/^(NetWare)$/)  # on NetWare call PERL copy (slower)
+    {
+      foreach my $file ( @$files )
+      {
+        copy($file, $target."/".basename($file));
+      }
+    }
+    elsif ($method =~ /^s?cp\b/)  # cp or scp with optional flags
+    {
 	my $cp = $method;
 	# add option to preserve mod time etc of copied files
 	# not critical, but nice to have
@@ -607,7 +627,6 @@ sub copy_files {
 sub copy_index
 {
   my ($method, $files, $source, $target) = @_;
-  my $tmpfile="$opt_tmpdir/mysqlhotcopy$$";
   
   print "Copying indices for ".@$files." files...\n" unless $opt{quiet};  
   foreach my $file (@$files)
@@ -616,6 +635,7 @@ sub copy_index
     my $to="$target/$file";
     my $buff;
     open(INPUT, "<$from") || die "Can't open file $from: $!\n";
+    binmode(INPUT, ":raw");
     my $length=read INPUT, $buff, 2048;
     die "Can't read index header from $from\n" if ($length < 1024);
     close INPUT;
@@ -633,23 +653,23 @@ sub copy_index
       }
       close OUTPUT	   || die "Error on close of $to: $!\n";
     }
-    elsif ($opt{method} eq 'scp')
+    elsif ($opt{method} =~ /^scp\b/)
     {
-      my $tmp=$tmpfile;
-      open(OUTPUT,">$tmp") || die "Can\'t create file $tmp: $!\n";
-      if (syswrite(OUTPUT,$buff) != length($buff))
+      my ($fh, $tmp)=tempfile('mysqlhotcopy-XXXXXX', DIR => $opt_tmpdir);
+      die "Can\'t create/open file in $opt_tmpdir\n";
+      if (syswrite($fh,$buff) != length($buff))
       {
 	die "Error when writing data to $tmp: $!\n";
       }
-      close OUTPUT	     || die "Error on close of $tmp: $!\n";
-      safe_system("scp $tmp $to");
+      close $fh || die "Error on close of $tmp: $!\n";
+      safe_system("$opt{method} $tmp $to");
+      unlink $tmp;
     }
     else
     {
       die "Can't use unsupported method '$opt{method}'\n";
     }
   }
-  unlink "$tmpfile" if  ($opt{method} eq 'scp');
 }
 
 
@@ -714,7 +734,7 @@ sub retire_directory {
 
 	if ( -d $tgt_oldpath ) {
 	    print "Deleting previous 'old' hotcopy directory ('$tgt_oldpath')\n" unless $opt{quiet};
-	    rmtree([$tgt_oldpath])
+	    rmtree([$tgt_oldpath],0,1);
 	}
 	rename($dir, $tgt_oldpath)
 	  or die "Can't rename $dir=>$tgt_oldpath: $!\n";

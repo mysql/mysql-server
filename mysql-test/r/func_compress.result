@@ -11,7 +11,7 @@ explain extended select uncompress(compress(@test_compress_string));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache uncompress(compress((@test_compress_string))) AS `uncompress(compress(@test_compress_string))`
+Note	1003	select sql_no_cache uncompress(compress((@test_compress_string))) AS `uncompress(compress(@test_compress_string))`
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)
 1
@@ -19,7 +19,7 @@ explain extended select uncompressed_length(compress(@test_compress_string))=len
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache (uncompressed_length(compress((@test_compress_string))) = length((@test_compress_string))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
+Note	1003	select sql_no_cache (uncompressed_length(compress((@test_compress_string))) = length((@test_compress_string))) AS `uncompressed_length(compress(@test_compress_string))=length(@test_compress_string)`
 select uncompressed_length(compress(@test_compress_string));
 uncompressed_length(compress(@test_compress_string))
 117
@@ -65,6 +65,6 @@ NULL
 50000
 NULL
 Warnings:
-Error	1258	ZLIB: Input data was corrupted for zlib
-Error	1255	Too big size of uncompressed data. The maximum size is 1048576. (probably, length of uncompressed data was corrupted)
+Error	1259	ZLIB: Input data corrupted
+Error	1256	Uncompressed data size too large; the maximum size is 1048576 (probably, length of uncompressed data was corrupted)
 drop table t1;

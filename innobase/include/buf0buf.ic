@@ -130,7 +130,9 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	buf_pool->ulint_clock++;
 
@@ -213,15 +215,15 @@ buf_block_align(
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"  InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
 "InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
 "InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
 "InnoDB: how to force recovery.\n",
- 			(long)ptr, (long)frame_zero,
-					(long)(buf_pool->high_end));
-		ut_a(0);
+ 			ptr, frame_zero,
+			buf_pool->high_end);
+		ut_error;
 	}
 	
 	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
@@ -249,15 +251,15 @@ buf_frame_align(
 
 		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"  InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Error: trying to access a stray pointer %p\n"
+"InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
 "InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
 "InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
 "InnoDB: how to force recovery.\n",
- 			(long)ptr, (long)(buf_pool->frame_zero),
-					(long)(buf_pool->high_end));
-		ut_a(0);
+ 			ptr, buf_pool->frame_zero,
+			buf_pool->high_end);
+		ut_error;
 	}
 
 	return(frame);
@@ -447,8 +449,10 @@ buf_frame_modify_clock_inc(
 
 	block = buf_block_align(frame);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /*UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
 
@@ -466,8 +470,10 @@ buf_block_modify_clock_inc(
 				/* out: new value */
 	buf_block_t*	block)	/* in: block */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
 
@@ -490,12 +496,15 @@ buf_frame_get_modify_clock(
 
 	block = buf_block_align(frame);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(block->modify_clock);
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /***********************************************************************
 Increments the bufferfix count. */
 UNIV_INLINE
@@ -503,7 +512,7 @@ void
 buf_block_buf_fix_inc_debug(
 /*========================*/
 	buf_block_t*	block,	/* in: block to bufferfix */
-	char*		file __attribute__ ((unused)),	/* in: file name */
+	const char*	file __attribute__ ((unused)),	/* in: file name */
 	ulint		line __attribute__ ((unused)))	/* in: line */
 {
 #ifdef UNIV_SYNC_DEBUG	
@@ -515,7 +524,7 @@ buf_block_buf_fix_inc_debug(
 #endif
 	block->buf_fix_count++;
 }
-
+#else /* UNIV_SYNC_DEBUG */
 /***********************************************************************
 Increments the bufferfix count. */
 UNIV_INLINE
@@ -526,7 +535,7 @@ buf_block_buf_fix_inc(
 {
 	block->buf_fix_count++;
 }
-
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Returns the control block of a file page, NULL if not found. */
 UNIV_INLINE
@@ -541,7 +550,9 @@ buf_page_hash_get(
 	ulint		fold;
 	
 	ut_ad(buf_pool);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 
@@ -578,7 +589,7 @@ buf_page_get_release_on_io(
 
 	frame = buf_page_get_gen(space, offset, rw_latch, guess,
 				BUF_GET_IF_IN_POOL,
-				IB__FILE__, __LINE__,
+				__FILE__, __LINE__,
 				mtr);
 	if (frame != NULL) {
 
@@ -641,6 +652,7 @@ buf_page_release(
 	}
 }
 
+#ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
@@ -655,7 +667,6 @@ buf_page_dbg_add_level(
 	ulint		level __attribute__((unused))) /* in: latching order
                                 level */
 {
-#ifdef UNIV_SYNC_DEBUG
 	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
-#endif
 }
+#endif /* UNIV_SYNC_DEBUG */

@@ -50,7 +50,7 @@ static bool read_texts(const char *file_name,const char ***point,
   char name[FN_REFLEN];
   const char *buff;
   uchar head[32],*pos;
-  CHARSET_INFO *cset;
+  CHARSET_INFO *cset;				// For future
   DBUG_ENTER("read_texts");
 
   *point=0;					// If something goes wrong
@@ -137,7 +137,7 @@ err1:
   if (file != FERR)
     VOID(my_close(file,MYF(MY_WME)));
   unireg_abort(1);
-  DBUG_RETURN(1);					// Impossible
+  DBUG_RETURN(1);					// keep compiler happy
 } /* read_texts */
 
 

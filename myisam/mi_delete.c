@@ -18,11 +18,6 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
-#include <assert.h>
-
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
                     uchar *key,uint key_length,my_off_t page,uchar *anc_buff);
@@ -270,6 +265,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       {
         keyinfo=&info->s->ft2_keyinfo;
         kpos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
+        get_key_full_length_rdonly(off, key);
         key+=off;
         ret_value=_mi_ck_real_delete(info, &info->s->ft2_keyinfo,
             key, HA_FT_WLEN, &root);
@@ -820,7 +816,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	  if (!(*start & 128))
 	    prev_length=0;			/* prev key not packed */
 	  if (keyinfo->seg[0].flag & HA_NULL_PART)
-	    lastkey++;				/* Skipp null marker */
+	    lastkey++;				/* Skip null marker */
 	  get_key_length(lastkey_length,lastkey);
 	  if (!next_length)			/* Same key after */
 	  {

@@ -1196,7 +1196,7 @@ bool __fastcall TForm1::Shutd()
   if (IsConnect)
    {
      mysql_kill(MySQL,mysql_thread_id(MySQL));
-     mysql_shutdown(MySQL);
+     mysql_shutdown(MySQL, SHUTDOWN_DEFAULT);
      StatusLine->SimpleText = "";
 
    }

@@ -14,6 +14,15 @@ INSERT t2 SELECT * FROM t1;
 SELECT HEX(a) FROM t2;
 DROP TABLE t1, t2;
 
+
+#
+# Check that long strings conversion does not fail (bug#2218)
+#
+CREATE TABLE t1 (description text character set cp1250 NOT NULL);
+INSERT INTO t1 (description) VALUES (_latin2'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasssssssssssaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddde');
+SELECT description FROM t1;
+DROP TABLE t1;
+
 # same with TEXT
 CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
 CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
@@ -47,6 +56,13 @@ SET CHARACTER SET koi8r;
 DROP TABLE ‘¡¬Ã…√¡;
 SET CHARACTER SET default;
 
+# Test for Item_func_conv_charset::fix_fields (bug #3704)
+SET NAMES UTF8;
+CREATE TABLE t1 (t text) DEFAULT CHARSET UTF8;
+INSERT INTO t1 (t) VALUES ('x');
+SELECT 1 FROM t1 WHERE CONCAT(_latin1'x') = t;
+DROP TABLE t1;
+
 SET CHARACTER SET koi8r;
 CREATE DATABASE ‘≈”‘;
 USE ‘≈”‘;
@@ -62,3 +78,32 @@ SET NAMES koi8r;
 SELECT hex('‘≈”‘');
 SET character_set_connection=cp1251;
 SELECT hex('‘≈”‘');
+
+USE test;
+
+# Bug#4417
+# Check that identifiers and strings are not converted 
+# when the client character set is binary.
+
+SET NAMES binary;
+CREATE TABLE `—Ç–µ—Å—Ç` (`—Ç–µ—Å—Ç` int);
+SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
+SET NAMES utf8;
+SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
+DROP TABLE `—Ç–µ—Å—Ç`;
+SET NAMES binary;
+SET character_set_connection=utf8;
+SELECT '—Ç–µ—Å—Ç' as s;
+SET NAMES utf8;
+SET character_set_connection=binary;
+SELECT '—Ç–µ—Å—Ç' as s;
+
+#
+# Test that we allow only well-formed UTF8 identitiers
+#
+SET NAMES binary;
+--error 1300
+CREATE TABLE `good–Ãœ»œ` (a int);
+SET NAMES utf8;
+--error 1300
+CREATE TABLE `good–Ãœ»œ` (a int);

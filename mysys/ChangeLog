@@ -91,7 +91,7 @@ Tue Mar 26 15:09:45 1991  Mikael WIDENIUS  (monty at panther)
 
 Sat Mar 23 10:49:49 1991  Michael Widenius  (monty at LYNX)
 
-	* Added init of alarm variables to skipp some warnings from gcc.
+	* Added init of alarm variables to skip some warnings from gcc.
 
 Tue Mar  5 16:50:34 1991  Michael Widenius  (monty at LYNX)
 
@@ -124,7 +124,7 @@ Mon Aug 27 22:20:38 1990  Michael Widenius  (monty at lynx)
 Sun Apr  1 23:29:47 1990  Monty  (monty at monty)
 
 	* Changed mf_keydisk.c to have separate functions for read and write.
-	  Read can now return pointer to intern key-buffer to skipp
+	  Read can now return pointer to intern key-buffer to skip
 	  unessessary memcpy-s.
 
 Fri Mar 23 23:03:39 1990  Monty  (monty at monty)

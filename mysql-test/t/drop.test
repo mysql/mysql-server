@@ -24,7 +24,9 @@ create database mysqltest;
 create table mysqltest.mysqltest (n int);
 insert into mysqltest.mysqltest values (4);
 select * from mysqltest.mysqltest;
+--enable_info
 drop database if exists mysqltest;
+--disable_info
 create database mysqltest;
 drop database mysqltest;
 

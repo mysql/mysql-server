@@ -22,8 +22,6 @@ struct st_find_field
   Field *field;
 };
 
-static void free_select(SQL_SELECT *sel);
-
 /* Used fields */
 
 static struct st_find_field init_used_fields[]=
@@ -48,9 +46,9 @@ static struct st_find_field init_used_fields[]=
 enum enum_used_fields
 {
   help_topic_help_topic_id= 0,
-  help_topic_name, 
+  help_topic_name,
   help_topic_help_category_id,
-  help_topic_description, 
+  help_topic_description,
   help_topic_example,
 
   help_category_help_category_id,
@@ -60,13 +58,13 @@ enum enum_used_fields
   help_keyword_help_keyword_id,
   help_keyword_name,
 
-  help_relation_help_topic_id, 
+  help_relation_help_topic_id,
   help_relation_help_keyword_id
 };
 
 
 /*
-  Fill st_find_field structure with pointers to fields 
+  Fill st_find_field structure with pointers to fields
 
   SYNOPSIS
     init_fields()
@@ -86,12 +84,11 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
   DBUG_ENTER("init_fields");
   for (; count-- ; find_fields++)
   {
-    TABLE_LIST *not_used;
     /* We have to use 'new' here as field will be re_linked on free */
     Item_field *field= new Item_field("mysql", find_fields->table_name,
                                       find_fields->field_name);
-    if (!(find_fields->field= find_field_in_tables(thd, field, tables, 
-						   &not_used, TRUE)))
+    if (!(find_fields->field= find_field_in_tables(thd, field, tables,
+						   0, TRUE, 1)))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -119,12 +116,12 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
 
   NOTE
     Field 'names' is set only if more than one topic is found.
-    Fields 'name', 'description', 'example' are set only if 
+    Fields 'name', 'description', 'example' are set only if
     found exactly one topic.
 */
 
 void memorize_variant_topic(THD *thd, TABLE *topics, int count,
-			    struct st_find_field *find_fields, 
+			    struct st_find_field *find_fields,
 			    List<String> *names,
 			    String *name, String *description, String *example)
 {
@@ -136,11 +133,11 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
     get_field(mem_root,find_fields[help_topic_description].field, description);
     get_field(mem_root,find_fields[help_topic_example].field,     example);
   }
-  else 
+  else
   {
     if (count == 1)
       names->push_back(name);
-    String *new_name= new String;
+    String *new_name= new (&thd->mem_root) String;
     get_field(mem_root,find_fields[help_topic_name].field,new_name);
     names->push_back(new_name);
   }
@@ -168,7 +165,7 @@ void memorize_variant_topic(THD *thd, TABLE *topics, int count,
 
   NOTE
     Field 'names' is set only if more than one topic was found.
-    Fields 'name', 'description', 'example' are set only if 
+    Fields 'name', 'description', 'example' are set only if
     exactly one topic was found.
 
 */
@@ -179,12 +176,12 @@ int search_topics(THD *thd, TABLE *topics, struct st_find_field *find_fields,
 {
   DBUG_ENTER("search_topics");
   int count= 0;
-  
+
   READ_RECORD read_record_info;
   init_read_record(&read_record_info, thd, topics, select,1,0);
   while (!read_record_info.read_record(&read_record_info))
   {
-    if (!select->cond->val_int())		// Dosn't match like
+    if (!select->cond->val_int())		// Doesn't match like
       continue;
     memorize_variant_topic(thd,topics,count,find_fields,
 			   names,name,description,example);
@@ -219,7 +216,7 @@ int search_keyword(THD *thd, TABLE *keywords, struct st_find_field *find_fields,
 {
   DBUG_ENTER("search_keyword");
   int count= 0;
-  
+
   READ_RECORD read_record_info;
   init_read_record(&read_record_info, thd, keywords, select,1,0);
   while (!read_record_info.read_record(&read_record_info) && count<2)
@@ -256,13 +253,13 @@ int search_keyword(THD *thd, TABLE *keywords, struct st_find_field *find_fields,
     description  description of found topic (out)
     example      example for found topic (out)
 
-  NOTE 
+  NOTE
     Field 'names' is set only if more than one topic was found.
-    Fields 'name', 'description', 'example' are set only if 
+    Fields 'name', 'description', 'example' are set only if
     exactly one topic was found.
 */
 
-int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations, 
+int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 			   struct st_find_field *find_fields, int16 key_id,
 			   List<String> *names,
 			   String *name, String *description, String *example)
@@ -273,10 +270,10 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   Field *rtopic_id, *rkey_id;
 
   DBUG_ENTER("get_topics_for_keyword");
-  
-  if ((iindex_topic= find_type((char*) "PRIMARY",
+
+  if ((iindex_topic= find_type((char*) primary_key_name,
 			       &topics->keynames, 1+2)-1)<0 ||
-      (iindex_relations= find_type((char*) "PRIMARY",
+      (iindex_relations= find_type((char*) primary_key_name,
 				   &relations->keynames, 1+2)-1)<0)
   {
     send_error(thd,ER_CORRUPT_HELP_DB);
@@ -284,18 +281,18 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   }
   rtopic_id= find_fields[help_relation_help_topic_id].field;
   rkey_id=   find_fields[help_relation_help_keyword_id].field;
-  
-  topics->file->index_init(iindex_topic);
-  relations->file->index_init(iindex_relations);
-  
+
+  topics->file->ha_index_init(iindex_topic);
+  relations->file->ha_index_init(iindex_relations);
+
   rkey_id->store((longlong) key_id);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), rkey_id->charset(),
 			 Field::itRAW);
   int key_res= relations->file->index_read(relations->record[0],
 					   (byte *)buff, rkey_id->pack_length(),
 					   HA_READ_KEY_EXACT);
-  
-  for ( ; 
+
+  for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
 	key_res= relations->file->index_next(relations->record[0]))
   {
@@ -305,7 +302,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     field->store((longlong) topic_id);
     field->get_key_image(topic_id_buff, field->pack_length(), field->charset(),
 			 Field::itRAW);
-    
+
     if (!topics->file->index_read(topics->record[0], (byte *)topic_id_buff,
 				  field->pack_length(), HA_READ_KEY_EXACT))
     {
@@ -314,47 +311,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
       count++;
     }
   }
+  topics->file->ha_index_end();
+  relations->file->ha_index_end();
   DBUG_RETURN(count);
-}
-
-/*
-  Look for topics with keyword by mask
-
-  SYNOPSIS
-    search_topics_by_keyword()
-    thd		 Thread handler
-    keywords     Table of keywords
-    topics	 Table of topics
-    relations	 Table of m:m relation "topic/keyword"
-    find_fields  Filled array of info for fields
-    select	 Function to test for if matching help keyword.
-		 Normally 'help_keyword.name like 'bit%'
-
-  RETURN VALUES
-    #   number of topics found
-
-    names        array of name of found topics (out)
-
-    name         name of found topic (out)
-    description  description of found topic (out)
-    example      example for found topic (out)
-
-  NOTE 
-    Field 'names' is set only if more than one topic was found.
-    Fields 'name', 'description', 'example' are set only if 
-    exactly one topic was found.
-*/
-
-int search_topics_by_keyword(THD *thd, 
-			     TABLE *keywords, TABLE *topics, TABLE *relations,
-			     struct st_find_field *find_fields, 
-			     SQL_SELECT *select, List<String> *names, 
-			     String *name, String *description, String *example)
-{
-  int key_id;
-  return search_keyword(thd,keywords,find_fields,select,&key_id)!=1 
-    ? 0 : get_topics_for_keyword(thd,topics,relations,find_fields,key_id,
-				 names,name,description,example);
 }
 
 /*
@@ -382,23 +341,23 @@ int search_categories(THD *thd, TABLE *categories,
   Field *pfname= find_fields[help_category_name].field;
   Field *pcat_id= find_fields[help_category_help_category_id].field;
   int count= 0;
-  READ_RECORD read_record_info;  
+  READ_RECORD read_record_info;
 
   DBUG_ENTER("search_categories");
-  
+
   init_read_record(&read_record_info, thd, categories, select,1,0);
   while (!read_record_info.read_record(&read_record_info))
   {
     if (select && !select->cond->val_int())
       continue;
-    String *lname= new String;
+    String *lname= new (&thd->mem_root) String;
     get_field(&thd->mem_root,pfname,lname);
     if (++count == 1 && res_id)
       *res_id= (int16) pcat_id->val_int();
     names->push_back(lname);
   }
   end_read_record(&read_record_info);
-  
+
   DBUG_RETURN(count);
 }
 
@@ -423,9 +382,9 @@ void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
   init_read_record(&read_record_info, thd, items, select,1,0);
   while (!read_record_info.read_record(&read_record_info))
   {
-    if (!select->cond->val_int()) 
+    if (!select->cond->val_int())
       continue;
-    String *name= new String();
+    String *name= new (&thd->mem_root) String();
     get_field(&thd->mem_root,pfname,name);
     res->push_back(name);
   }
@@ -436,7 +395,7 @@ void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
 
 /*
   Send to client answer for help request
-  
+
   SYNOPSIS
     send_answer_1()
     protocol - protocol for sending
@@ -466,10 +425,11 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
   field_list.push_back(new Item_empty_string("name",64));
   field_list.push_back(new Item_empty_string("description",1000));
   field_list.push_back(new Item_empty_string("example",1000));
-  
-  if (protocol->send_fields(&field_list,1))
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
-  
+
   protocol->prepare_for_resend();
   protocol->store(s1);
   protocol->store(s2);
@@ -509,7 +469,8 @@ int send_header_2(Protocol *protocol, bool for_category)
     field_list.push_back(new Item_empty_string("source_category_name",64));
   field_list.push_back(new Item_empty_string("name",64));
   field_list.push_back(new Item_empty_string("is_it_category",1));
-  DBUG_RETURN(protocol->send_fields(&field_list,1));
+  DBUG_RETURN(protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                                 Protocol::SEND_EOF));
 }
 
 /*
@@ -539,7 +500,7 @@ extern "C" int string_ptr_cmp(const void* ptr1, const void* ptr2)
   SYNOPSIS
     send_variant_2_list()
     protocol     Protocol for sending
-    names        List of names 
+    names        List of names
     cat	         Value of the column <is_it_category>
     source_name  name of category for all items..
 
@@ -548,8 +509,8 @@ extern "C" int string_ptr_cmp(const void* ptr1, const void* ptr2)
     0	Data was successefully send
 */
 
-int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol, 
-			List<String> *names, 
+int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
+			List<String> *names,
 			const char *cat, String *source_name)
 {
   DBUG_ENTER("send_variant_2_list");
@@ -589,17 +550,22 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
     table    goal table
 
     error    code of error (out)
-    
+
   RETURN VALUES
-    #  created SQL_SELECT 
+    #  created SQL_SELECT
 */
 
-SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables, 
+SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
 				  TABLE *table, int *error)
 {
   cond->fix_fields(thd, tables, &cond);	// can never fail
   SQL_SELECT *res= make_select(table,0,0,cond,error);
-  return (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR))) ? 0 : res;
+  if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)))
+  {
+    delete res;
+    res=0;
+  }
+  return res;
 }
 
 /*
@@ -615,9 +581,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
     pfname   field "name" in table
 
     error    code of error (out)
-    
+
   RETURN VALUES
-    #  created SQL_SELECT 
+    #  created SQL_SELECT
 */
 
 SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
@@ -626,7 +592,7 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
-				 (char*) "\\");
+				 new Item_string("\\",1,&my_charset_latin1));
   if (thd->is_fatal_error)
     return 0;					// OOM
   return prepare_simple_select(thd,cond,tables,table,error);
@@ -649,45 +615,43 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
 int mysqld_help(THD *thd, const char *mask)
 {
   Protocol *protocol= thd->protocol;
-  SQL_SELECT *select_topics_by_name= 0, *select_keyword_by_name= 0,
-    *select_cat_by_name= 0, *select_topics_by_cat= 0, *select_cat_by_cat= 0,
-    *select_root_cats= 0;
+  SQL_SELECT *select;
   st_find_field used_fields[array_elements(init_used_fields)];
   DBUG_ENTER("mysqld_help");
-  
+
   TABLE_LIST tables[4];
   bzero((gptr)tables,sizeof(tables));
   tables[0].alias= tables[0].real_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
-  tables[0].db= (char*) "mysql";
-  tables[0].next= &tables[1];
+  tables[0].next_global= tables[0].next_local= &tables[1];
   tables[1].alias= tables[1].real_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
-  tables[1].db= (char*) "mysql";
-  tables[1].next= &tables[2];
+  tables[1].next_global= tables[1].next_local= &tables[2];
   tables[2].alias= tables[2].real_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
-  tables[2].db= (char*) "mysql";
-  tables[2].next=  &tables[3];
+  tables[2].next_global= tables[2].next_local= &tables[3];
   tables[3].alias= tables[3].real_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
-  tables[3].db= (char*) "mysql";
-  tables[3].next= 0;
-  
+  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
+
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int res, count_topics, count_categories, error;
   uint mlen= strlen(mask);
   MEM_ROOT *mem_root= &thd->mem_root;
-  
+
   if (open_and_lock_tables(thd, tables))
   {
     res= -1;
     goto end;
   }
-  /* Init tables and fields to be usable from items */
-  setup_tables(tables);
-  memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields)); 
+  /*
+    Init tables and fields to be usable from items
+
+    tables do not contain VIEWs => we can pass 0 as conds
+  */
+  setup_tables(thd, tables, 0);
+  memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
   {
     res= -1;
@@ -696,72 +660,95 @@ int mysqld_help(THD *thd, const char *mask)
   size_t i;
   for (i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
-  
-  if (!(select_topics_by_name= 
+
+  if (!(select=
 	prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
-				used_fields[help_topic_name].field,&error)) ||
-      !(select_cat_by_name= 
-	prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
-				used_fields[help_category_name].field,&error))||
-      !(select_keyword_by_name= 
-	prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
-				used_fields[help_keyword_name].field,&error)))
+				used_fields[help_topic_name].field,&error)))
   {
     res= -1;
     goto end;
   }
 
   res= 1;
-  count_topics= search_topics(thd,tables[0].table,used_fields, 
-			      select_topics_by_name,&topics_list, 
+  count_topics= search_topics(thd,tables[0].table,used_fields,
+			      select,&topics_list,
 			      &name, &description, &example);
+  delete select;
 
   if (count_topics == 0)
-    count_topics= search_topics_by_keyword(thd,tables[3].table,tables[0].table,
-					   tables[2].table,used_fields,
-					   select_keyword_by_name,&topics_list,
-					   &name,&description,&example);
-  
+  {
+    int key_id;
+    if (!(select=
+          prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
+                                  used_fields[help_keyword_name].field,&error)))
+    {
+      res= -1;
+      goto end;
+    }
+    count_topics=search_keyword(thd,tables[3].table,used_fields,select,&key_id);
+    delete select;
+    count_topics= (count_topics != 1) ? 0 :
+                  get_topics_for_keyword(thd,tables[0].table,tables[2].table,
+                                         used_fields,key_id,&topics_list,&name,
+                                         &description,&example);
+  }
+
   if (count_topics == 0)
   {
     int16 category_id;
     Field *cat_cat_id= used_fields[help_category_parent_category_id].field;
+    if (!(select=
+          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+                                  used_fields[help_category_name].field,&error)))
+    {
+      res= -1;
+      goto end;
+    }
+
     count_categories= search_categories(thd, tables[1].table, used_fields,
-					select_cat_by_name, 
+					select,
 					&categories_list,&category_id);
+    delete select;
     if (!count_categories)
     {
-      if (send_header_2(protocol,false))
+      if (send_header_2(protocol,FALSE))
 	goto end;
     }
     else if (count_categories > 1)
     {
-      if (send_header_2(protocol,false) ||
+      if (send_header_2(protocol,FALSE) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
 	goto end;
     }
     else
     {
       Field *topic_cat_id= used_fields[help_topic_help_category_id].field;
-      Item *cond_topic_by_cat= new Item_func_equal(new Item_field(topic_cat_id),
-						   new Item_int((int32)category_id));
-      Item *cond_cat_by_cat= new Item_func_equal(new Item_field(cat_cat_id),
-						 new Item_int((int32)category_id));
-      if (!(select_topics_by_cat= prepare_simple_select(thd,cond_topic_by_cat,
-							tables,tables[0].table,
-							&error)) ||
-	  !(select_cat_by_cat= prepare_simple_select(thd,cond_cat_by_cat,tables,
-						     tables[1].table,&error)))
+      Item *cond_topic_by_cat=
+	new Item_func_equal(new Item_field(topic_cat_id),
+			    new Item_int((int32)category_id));
+      Item *cond_cat_by_cat=
+	new Item_func_equal(new Item_field(cat_cat_id),
+			    new Item_int((int32)category_id));
+      if (!(select= prepare_simple_select(thd,cond_topic_by_cat,
+                                          tables,tables[0].table,&error)))
       {
 	res= -1;
 	goto end;
       }
       get_all_items_for_category(thd,tables[0].table,
 				 used_fields[help_topic_name].field,
-				 select_topics_by_cat,&topics_list);
+				 select,&topics_list);
+      delete select;
+      if (!(select= prepare_simple_select(thd,cond_cat_by_cat,tables,
+						     tables[1].table,&error)))
+      {
+	res= -1;
+	goto end;
+      }
       get_all_items_for_category(thd,tables[1].table,
 				 used_fields[help_category_name].field,
-				 select_cat_by_cat,&subcategories_list);
+				 select,&subcategories_list);
+      delete select;
       String *cat= categories_list.head();
       if (send_header_2(protocol, true) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
@@ -777,33 +764,28 @@ int mysqld_help(THD *thd, const char *mask)
   else
   {
     /* First send header and functions */
-    if (send_header_2(protocol, false) ||
+    if (send_header_2(protocol, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto end;
-    search_categories(thd, tables[1].table, used_fields, 
-		      select_cat_by_name,&categories_list, 0);
+    if (!(select=
+          prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
+                                  used_fields[help_category_name].field,&error)))
+    {
+      res= -1;
+      goto end;
+    }
+    search_categories(thd, tables[1].table, used_fields,
+		      select,&categories_list, 0);
+    delete select;
     /* Then send categories */
     if (send_variant_2_list(mem_root,protocol, &categories_list, "Y", 0))
       goto end;
   }
   res= 0;
-  
+
   send_eof(thd);
 
 end:
-  free_select(select_topics_by_name);
-  free_select(select_keyword_by_name);
-  free_select(select_cat_by_name);
-  free_select(select_topics_by_cat);
-  free_select(select_cat_by_cat);
-  free_select(select_root_cats);
-
   DBUG_RETURN(res);
 }
 
-
-static void free_select(SQL_SELECT *sel)
-{
-  if (sel)
-    delete sel->quick;
-}

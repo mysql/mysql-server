@@ -20,6 +20,23 @@
   One cache can handle many files.
   It must contain buffers of the same blocksize.
   init_key_cache() should be used to init cache handler.
+
+  The free list (free_block_list) is a stack like structure.
+  When a block is freed by free_block(), it is pushed onto the stack.
+  When a new block is required it is first tried to pop one from the stack.
+  If the stack is empty, it is tried to get a never-used block from the pool.
+  If this is empty too, then a block is taken from the LRU ring, flushing it
+  to disk, if neccessary. This is handled in find_key_block().
+  With the new free list, the blocks can have three temperatures:
+  hot, warm and cold (which is free). This is remembered in the block header
+  by the enum BLOCK_TEMPERATURE temperature variable. Remembering the 
+  temperature is neccessary to correctly count the number of warm blocks, 
+  which is required to decide when blocks are allowed to become hot. Whenever 
+  a block is inserted to another (sub-)chain, we take the old and new 
+  temperature into account to decide if we got one more or less warm block.
+  blocks_unused is the sum of never used blocks in the pool and of currently
+  free blocks. blocks_used is the number of blocks fetched from the pool and
+  as such gives the maximum number of in-use blocks at any time.
 */
 
 #include "mysys_priv.h"
@@ -27,7 +44,6 @@
 #include "my_static.h"
 #include <m_string.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdarg.h>
 
 /*
@@ -116,6 +132,9 @@ struct st_hash_link
 #define PAGE_TO_BE_READ         1
 #define PAGE_WAIT_TO_BE_READ    2
 
+/* block temperature determines in which (sub-)chain the block currently is */
+enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/ , BLOCK_WARM , BLOCK_HOT };
+
 /* key cache block */
 struct st_block_link
 {
@@ -130,6 +149,7 @@ struct st_block_link
   uint offset;            /* beginning of modified data in the buffer        */
   uint length;            /* end of data in the buffer                       */
   uint status;            /* state of the block                              */
+  enum BLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot */
   uint hits_left;         /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
@@ -340,6 +360,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       }
       blocks= blocks / 4*3;
     }
+    keycache->blocks_unused= (ulong) blocks;
     keycache->disk_blocks= (int) blocks;
     keycache->hash_links= hash_links;
     keycache->hash_root= (HASH_LINK**) ((char*) keycache->block_root +
@@ -357,12 +378,13 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->free_hash_list= NULL;
     keycache->blocks_used= keycache->blocks_changed= 0;
 
-    keycache->global_blocks_used= keycache->global_blocks_changed= 0;
+    keycache->global_blocks_changed= 0;
     keycache->blocks_available=0;		/* For debugging */
 
     /* The LRU chain is empty after initialization */
     keycache->used_last= NULL;
     keycache->used_ins= NULL;
+    keycache->free_block_list= NULL;
     keycache->keycache_time= 0;
     keycache->warm_blocks= 0;
     keycache->min_warm_blocks= (division_limit ?
@@ -596,7 +618,7 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
   DBUG_PRINT("status",
     ("used: %d  changed: %d  w_requests: %ld  \
 writes: %ld  r_requests: %ld  reads: %ld",
-      keycache->global_blocks_used, keycache->global_blocks_changed,
+      keycache->blocks_used, keycache->global_blocks_changed,
       keycache->global_cache_w_requests, keycache->global_cache_write,
       keycache->global_cache_r_requests, keycache->global_cache_read));
 
@@ -627,7 +649,7 @@ writes: %ld  r_requests: %ld  reads: %ld",
     a pointer to the last element.
 */
 
-static inline void link_into_queue(KEYCACHE_WQUEUE *wqueue,
+static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
                                    struct st_my_thread_var *thread)
 {
   struct st_my_thread_var *last;
@@ -662,7 +684,7 @@ static inline void link_into_queue(KEYCACHE_WQUEUE *wqueue,
     See NOTES for link_into_queue
 */
 
-static inline void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
+static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
                                      struct st_my_thread_var *thread)
 {
   KEYCACHE_DBUG_PRINT("unlink_from_queue", ("thread %ld", thread->id));
@@ -1014,7 +1036,9 @@ static inline void unreg_request(KEY_CACHE *keycache,
       keycache->warm_blocks > keycache->min_warm_blocks;
     if (hot)
     {
-      keycache->warm_blocks--;
+      if (block->temperature == BLOCK_WARM)
+        keycache->warm_blocks--;
+      block->temperature= BLOCK_HOT;
       KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
                            keycache->warm_blocks));
     }
@@ -1026,7 +1050,11 @@ static inline void unreg_request(KEY_CACHE *keycache,
       block= keycache->used_ins;
       unlink_block(keycache, block);
       link_block(keycache, block, 0, 0);
-      keycache->warm_blocks++;
+      if (block->temperature != BLOCK_WARM)
+      {
+        keycache->warm_blocks++;
+        block->temperature= BLOCK_WARM;
+      }
       KEYCACHE_DBUG_PRINT("unreg_request", ("#warm_blocks=%u",
                            keycache->warm_blocks));
     }
@@ -1363,28 +1391,40 @@ restart:
     if (! block)
     {
       /* No block is assigned for the page yet */
-      if (keycache->blocks_used < (uint) keycache->disk_blocks)
+      if (keycache->blocks_unused)
       {
-	/* There are some never used blocks, take first of them */
-        hash_link->block= block= &keycache->block_root[keycache->blocks_used];
-        block->buffer= ADD_TO_PTR(keycache->block_mem,
-                                  ((ulong) keycache->blocks_used*
-                                   keycache->key_cache_block_size),
-                                  byte*);
+        if (keycache->free_block_list)
+        {
+          /* There is a block in the free list. */
+          block= keycache->free_block_list;
+          keycache->free_block_list= block->next_used;
+          block->next_used= NULL;
+        }
+        else
+        {
+          /* There are some never used blocks, take first of them */
+          block= &keycache->block_root[keycache->blocks_used];
+          block->buffer= ADD_TO_PTR(keycache->block_mem,
+                                    ((ulong) keycache->blocks_used*
+                                     keycache->key_cache_block_size),
+                                    byte*);
+          keycache->blocks_used++;
+        }
+        keycache->blocks_unused--;
         block->status= 0;
         block->length= 0;
         block->offset= keycache->key_cache_block_size;
         block->requests= 1;
-        keycache->blocks_used++;
-	keycache->global_blocks_used++;
-        keycache->warm_blocks++;
+        block->temperature= BLOCK_COLD;
         block->hits_left= init_hits_left;
         block->last_hit_time= 0;
         link_to_file_list(keycache, block, file, 0);
         block->hash_link= hash_link;
+        hash_link->block= block;
         page_status= PAGE_TO_BE_READ;
         KEYCACHE_DBUG_PRINT("find_key_block",
-                            ("got never used block %u", BLOCK_NUMBER(block)));
+                            ("got free or never used block %u",
+                             BLOCK_NUMBER(block)));
       }
       else
       {
@@ -1961,7 +2001,7 @@ int key_cache_write(KEY_CACHE *keycache,
       else if (! (block->status & BLOCK_CHANGED))
         link_to_changed_list(keycache, block);
 
-      set_if_smaller(block->offset, offset)
+      set_if_smaller(block->offset, offset);
       set_if_bigger(block->length, read_length+offset);
 
       if (! (block->status & BLOCK_ERROR))
@@ -2021,7 +2061,7 @@ end:
 /*
   Free block: remove reference to it from hash table,
   remove it from the chain file of dirty/clean blocks
-  and add it at the beginning of the LRU chain
+  and add it to the free list.
 */
 
 static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block)
@@ -2045,6 +2085,17 @@ static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block)
                       ("block is freed"));
   unreg_request(keycache, block, 0);
   block->hash_link= NULL;
+
+  /* Remove the free block from the LRU ring. */
+  unlink_block(keycache, block);
+  if (block->temperature == BLOCK_WARM)
+    keycache->warm_blocks--;
+  block->temperature= BLOCK_COLD;
+  /* Insert the free block in the free list. */
+  block->next_used= keycache->free_block_list;
+  keycache->free_block_list= block;
+  /* Keep track of the number of currently unused blocks. */
+  keycache->blocks_unused++;
 }
 
 

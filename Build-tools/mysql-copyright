@@ -12,15 +12,17 @@ use Getopt::Long;
 
 $opt_help    = 0;
 $opt_version = 0;
+$opt_verbose = 0;
 $opt_target  = "mysql-copyright-target-";
 $opt_target .= `date +%d%m%y-%H%M%S`;
 chop $opt_target;
 
-GetOptions("help","version","target=s") || error();
+GetOptions("help","version","target=s", "verbose") || error();
 
 # fix the directory prefix for target dir
 
 $WD= cwd();
+my $win_flag = 0;
 $opt_target= $WD . '/' . $opt_target;
 
 &main();
@@ -50,6 +52,7 @@ sub main
   for ($i=0; $ARGV[$i]; $i++)
   {
     my $distfile= $ARGV[$i];
+    $win_flag = ($distfile =~ /win-src/) ? 1 : 0;
     my $dir;
 
     $dir= "mysql-copyright-";    
@@ -66,20 +69,19 @@ sub main
     }
     # if the distfile is mysql-3.22.22-alpha.tar.gz, then
     # distname is 'mysql-3.22.22-alpha' and suffix '.tar.gz'
-    if ($distfile =~ m/^($REG_BASENAME)([\-\_])
-	($REG_VERSION){1}([\.\-\+])
-	(.*)?$/xo) 
+    if ($distfile =~
+      m/^($REG_BASENAME)([\-\_])($REG_VERSION){1}([\.\-\+]\w+\-\w+)?[\.\-\+](.*)?$/xo) 
     {
       $distname= $1.$2.$3;
-      $suffix= $5.$6;
+      $suffix= $5;
+      $fileext = $6;
       $newdistname= $1."com".$2.$3;
+      $newdistname .= $suffix if $win_flag;
     }
     # find out the extract path (should be same as distname!)
     chomp($destdir= `tar ztf ../$distfile | head -1`);
     # remove slash from the end
     $destdir= substr($destdir, 0, -1);
-		print "destdir: $destdir\n";
-		print "distname: $distname\n";
     
     if ("$destdir" ne "$distname")
     {
@@ -100,41 +102,108 @@ sub main
     # exist in the new mysql distributions, but let's be sure..
     unlink("$destdir/PUBLIC", "$destdir/README");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
-    
-    # remove readline subdir
-    `rm -rf $destdir/cmd-line-utils/readline`;
+
+    # remove readline, bdb subdirs and update 'configure'
+    my @extra_fat= ('bdb', 'cmd-line-utils/readline');
+
+    foreach my $fat (@extra_fat)
+    {
+        &trim_the_fat($fat);
+    }
 
     # fix file copyrights
     &fix_usage_copyright();
     &add_copyright();
     
     # rename the directory with new distribution name
+    chdir("$WD/$dir");
+    print "renaming $destdir $newdistname\n" if $opt_verbose; 
     rename($destdir, $newdistname);
     
     # tar the new distribution
-    `tar cz -f $opt_target/$newdistname.tar.gz *`;
+    `tar cz -f $WD/$newdistname.tar.gz $newdistname`;
     $pec= $? >> 8;
     abort($dir, "Making new tar archive failed!\n") if ($pec);
   
     # remove temporary directory
-    chdir "..";
-    `rm -rf $dir/`;
+    chdir($WD) or print "$! Unable to move up one dir\n";
+    `cd $WD`;
+    my $cwd = getcwd();
+    print "current dir is $cwd\n" if $opt_verbose ;
+    if (-e $dir) {
+      print "Trying to delete $dir\n" if $opt_verbose;
+      if ( system("rm -rf $dir")){ 
+        print "$! Unable to delete $dir!\n";
+      }
+    }
   }
   exit(0);
 }  
 
 ####
+#### This function will remove unwanted parts of a src tree for the mysqlcom
+#### distributions.
+####
+sub trim_the_fat
+{
+        my $the_fat= shift;
+        my $cwd= getcwd();
+
+        system("rm -rf $destdir/${the_fat}");
+        if ($win_flag)
+        {
+                chdir("$destdir") or die "Unable to change directory to $destdir!: $!\n";
+        }
+        else
+        {
+                chdir("$destdir");
+                unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
+                open(CONFIGURE,"<configure.in") or die "Unable to open configure.in for read: $!\n";
+                undef $/;
+                my $configure= <CONFIGURE>;
+                close(CONFIGURE);
+
+                #
+                # If $the_fat Makefile line closes the parenthesis, then
+                # replace that line with just the closing parenthesis.
+                #
+                if ($configure=~ m|${the_fat}/Makefile\)\n?|)
+                {
+                        $configure=~ s|${the_fat}/Makefile(\)\n?)|$1|;
+                }
+                #
+                # Else just delete the line
+                #
+                else
+                {
+                        $configure=~ s|${the_fat}/Makefile dnl\n?||;
+                }
+
+                open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
+                print CONFIGURE $configure;
+                close(CONFIGURE);
+                `autoconf`;
+                die "'./configure' was not produced!" unless (-f "configure");
+                chdir("$cwd");
+        }
+}
+
+
+####
 #### mysqld and MySQL client programs have a usage printed with --help.
 #### This usage includes a copyright, which needs to be modified
 ####
-
 sub fix_usage_copyright
 {
-  my @Cfiles = `find . -type f -name \"*.c*\"`;
-  foreach my $Cfile (@Cfiles)
+  my $findlist = `find . -type f -name \"*.c*\"`;
+  my @files = split("\n", $findlist);
+  my $cwd = getcwd();
+
+  foreach my $file (@files)
   {
-    chop $Cfile;
-    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- $Cfile`;
+    next if ! -f $file;
+    print "processing file $file in cwd $cwd\n" if $opt_verbose;
+    `replace "This is free software," "This is commercial software," "and you are welcome to modify and redistribute it under the GPL license" "please see the file MySQLEULA.txt for details" -- "$file"` ;
   }
 }
 
@@ -144,11 +213,16 @@ sub fix_usage_copyright
 
 sub add_copyright
 {
-  my @files = `find . -type f -name "*"`;
+  my $findlist = `find . -type f -name "*"`;
+  my @files = split("\n", $findlist);
+  my $cwd = getcwd();
+
   foreach my $file (@files)
   {
-    chop $file;
-    `$WD/Build-tools/mysql-copyright-2 $file`;
+    next if ! -f $file;
+    next if -B $file;
+    print "processing file $file in cwd $cwd\n" if $opt_verbose;
+    `$WD/Build-tools/mysql-copyright-2 "$file"`;
   }
 }
 

@@ -1,3 +1,4 @@
+drop table if exists t1;
 set names utf8;
 select left(_utf8 0xD0B0D0B1D0B2,1);
 left(_utf8 0xD0B0D0B1D0B2,1)
@@ -62,3 +63,183 @@ select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%')
 1
+SELECT 'a' = 'a ';
+'a' = 'a '
+1
+SELECT 'a\0' < 'a';
+'a\0' < 'a'
+1
+SELECT 'a\0' < 'a ';
+'a\0' < 'a '
+1
+SELECT 'a\t' < 'a';
+'a\t' < 'a'
+1
+SELECT 'a\t' < 'a ';
+'a\t' < 'a '
+1
+CREATE TABLE t1 (a char(10) character set utf8 not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
+61	0	0
+6100	-1	-1
+6109	-1	-1
+61	0	0
+DROP TABLE t1;
+select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
+insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
+this	is a	test
+select insert("aa",100,1,"b"),insert("aa",1,3,"b");
+insert("aa",100,1,"b")	insert("aa",1,3,"b")
+aa	b
+create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` binary(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1;
+date_format("2004-01-19 10:10:10", "%Y-%m-%d")
+2004-01-19
+drop table t1;
+set names koi8r;
+create table t1 (s1 char(1) character set utf8);
+insert into t1 values (_koi8r'��');
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
+s1	hex(s1)	char_length(s1)	octet_length(s1)
+�	D0B0	1	2
+drop table t1;
+create table t1 (s1 tinytext character set utf8);
+insert into t1 select repeat('a',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('a�',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�a',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('��',300);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161
+D18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18F
+61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F
+D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61D18F61
+D18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18FD18F
+select length(s1),char_length(s1) from t1;
+length(s1)	char_length(s1)
+255	255
+254	127
+255	170
+255	170
+254	127
+drop table t1;
+create table t1 (s1 text character set utf8);
+insert into t1 select repeat('a',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('a�',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('�a',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+insert into t1 select repeat('��',66000);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select length(s1),char_length(s1) from t1;
+length(s1)	char_length(s1)
+65535	65535
+65534	32767
+65535	43690
+65535	43690
+65534	32767
+drop table t1;
+create table t1 (s1 char(10) character set utf8);
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (s1 varchar(10) character set utf8);
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (s1 text character set utf8);
+insert into t1 values (0x41FF);
+Warnings:
+Warning	1265	Data truncated for column 's1' at row 1
+select hex(s1) from t1;
+hex(s1)
+41
+drop table t1;
+create table t1 (a text character set utf8, primary key(a(360)));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ( 'test' );
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = 'test' and b.a = 'test';
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a and a.a = 'test';
+a	a
+test	test
+DROP TABLE t1;
+create table t1 (a char(255) character set utf8);
+insert into t1 values('b'),('b');
+select * from t1 where a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a != 'b';
+a
+drop table t1;
+set names utf8;
+select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+'вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+'вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+' вася'  rlike '[[:<:]]вася[[:>:]]'
+1
+select ' вася ' rlike '[[:<:]]вася[[:>:]]';
+' вася ' rlike '[[:<:]]вася[[:>:]]'
+1
+select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+'васяz' rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+'zвася'  rlike '[[:<:]]вася[[:>:]]'
+0
+select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
+'zвасяz' rlike '[[:<:]]вася[[:>:]]'
+0
+CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
+ALTER TABLE t1 ADD COLUMN b CHAR(20);
+DROP TABLE t1;

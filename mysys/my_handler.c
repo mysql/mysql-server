@@ -9,7 +9,7 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -18,15 +18,19 @@
 #include "my_handler.h"
 
 int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
-		    uchar *b, uint b_length, my_bool part_key)
+		    uchar *b, uint b_length, my_bool part_key,
+		    my_bool skip_end_space)
 {
-  if (part_key && b_length < a_length)
-    a_length=b_length;
-  return my_strnncoll(charset_info, a, a_length, b, b_length);
+  if (skip_end_space)
+    return charset_info->coll->strnncollsp(charset_info, a, a_length,
+					   b, b_length);
+  return charset_info->coll->strnncoll(charset_info, a, a_length,
+				       b, b_length, part_key);
 }
 
+
 static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
-                       my_bool part_key)
+                       my_bool part_key, my_bool skip_end_space)
 {
   uint length= min(a_length,b_length);
   uchar *end= a+ length;
@@ -37,6 +41,31 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
       return flag;
   if (part_key && b_length < a_length)
     return 0;
+  if (skip_end_space && a_length != b_length)
+  {
+    int swap= 0;
+    /*
+      We are using space compression. We have to check if longer key
+      has next character < ' ', in which case it's less than the shorter
+      key that has an implicite space afterwards.
+
+      This code is identical to the one in
+      strings/ctype-simple.c:my_strnncollsp_simple
+    */
+    if (a_length < b_length)
+    {
+      /* put shorter key in a */
+      a_length= b_length;
+      a= b;
+      swap= -1;					/* swap sign of result */
+    }
+    for (end= a + a_length-length; a < end ; a++)
+    {
+      if (*a != ' ')
+	return ((int) *a - (int) ' ') ^ swap;
+    }
+    return 0;
+  }
   return (int) (a_length-b_length);
 }
 
@@ -128,7 +157,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         if (piks &&
             (flag=mi_compare_text(keyseg->charset,a,a_length,b,b_length,
 				  (my_bool) ((nextflag & SEARCH_PREFIX) &&
-					     next_key_length <= 0))))
+					     next_key_length <= 0),
+				  !(nextflag & SEARCH_PREFIX))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -137,17 +167,11 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       else
       {
 	uint length=(uint) (end-a), a_length=length, b_length=length;
-	if (!(nextflag & SEARCH_PREFIX))
-	{
-	  while (a_length && a[a_length-1] == ' ')
-	    a_length--;
-	  while (b_length && b[b_length-1] == ' ')
-	    b_length--;
-	}
         if (piks &&
             (flag= mi_compare_text(keyseg->charset, a, a_length, b, b_length,
 				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
-					      next_key_length <= 0))))
+					      next_key_length <= 0),
+				   !(nextflag & SEARCH_PREFIX))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a=end;
         b+=length;
@@ -164,7 +188,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         if (piks &&
 	    (flag=compare_bin(a,a_length,b,b_length,
                               (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0))))
+                                         next_key_length <= 0),1)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -176,7 +200,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         if (piks &&
 	    (flag=compare_bin(a,length,b,length,
                               (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0))))
+                                         next_key_length <= 0),0)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=length;
         b+=length;
@@ -184,26 +208,23 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       break;
     case HA_KEYTYPE_VARTEXT:
       {
-        int a_length,b_length,pack_length;
+        int a_length,full_a_length,b_length,full_b_length,pack_length;
         get_key_length(a_length,a);
         get_key_pack_length(b_length,pack_length,b);
+        full_a_length= a_length;
+        full_b_length= b_length;
         next_key_length=key_length-b_length-pack_length;
-
-	if (!(nextflag & (SEARCH_PREFIX | SEARCH_UPDATE)))
-	{
-	  while (a_length && a[a_length-1] == ' ')
-	    a_length--;
-	  while (b_length && b[b_length-1] == ' ')
-	    b_length--;
-	}
 
         if (piks &&
 	    (flag= mi_compare_text(keyseg->charset,a,a_length,b,b_length,
                                    (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                              next_key_length <= 0))))
+                                              next_key_length <= 0),
+				   (my_bool) ((nextflag & (SEARCH_FIND |
+							   SEARCH_UPDATE)) ==
+					      SEARCH_FIND))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
-        a+=a_length;
-        b+=b_length;
+        a+= full_a_length;
+        b+= full_b_length;
         break;
       }
       break;
@@ -217,7 +238,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         if (piks &&
 	    (flag=compare_bin(a,a_length,b,b_length,
                               (my_bool) ((nextflag & SEARCH_PREFIX) &&
-                                         next_key_length <= 0))))
+                                         next_key_length <= 0), 0)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -308,7 +329,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap(uchar*,a,b);       
+        swap_variables(uchar*, a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -333,8 +354,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap(uchar*,a,b);
-	  swap(int,alength,blength);
+	  swap_variables(uchar*, a, b);
+	  swap_variables(int, alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
 	  end=a+alength;
@@ -362,7 +383,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap(uchar*,a,b);
+        swap_variables(uchar*, a, b);
       break;
     }
 #ifdef HAVE_LONG_LONG

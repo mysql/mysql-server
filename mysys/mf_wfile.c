@@ -39,7 +39,7 @@ WF_PACK *wf_comp(my_string str)
   WF_PACK *ret;
   DBUG_ENTER("wf_comp");
 
-  not_pos= -1;			/* Skipp space and '!' in front */
+  not_pos= -1;			/* Skip space and '!' in front */
   while (*str == ' ')
     str++;
   if (*str == '!')

@@ -386,7 +386,8 @@ int main(int argc, char **argv)
   if (!autoclose) setscreenmode(SCR_NO_MODE);
   
   // header
-  printf("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE,
+         MACHINE_TYPE);
   
   // create paths
   create_paths();

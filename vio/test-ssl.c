@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h>
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(__NETWARE__)
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>

@@ -536,15 +536,17 @@ UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
 /*==============================*/
-				/* out: table, NULL if not found */
-	char*	table_name)	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
 	ulint		table_fold;
 	
 	ut_ad(table_name);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	/* Look for the table name in the hash table */
 	table_fold = ut_fold_string(table_name);
 
@@ -560,14 +562,16 @@ UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
 /*===============*/
-				/* out: table, NULL if not found */
-	char*	table_name)	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name)	/* in: table name */
 {
 	dict_table_t*	table;
 	
 	ut_ad(table_name);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	table = dict_table_check_if_in_cache_low(table_name);
 	
 	if (table == NULL) {
@@ -575,37 +579,6 @@ dict_table_get_low(
 	}
 
 	return(table);
-}
-
-/**************************************************************************
-Returns a stored procedure object and memoryfixes it. */
-UNIV_INLINE
-dict_proc_t*
-dict_procedure_get(
-/*===============*/
-				/* out: procedure, NULL if does not exist */
-	char*	proc_name,	/* in: table name */
-	trx_t*	trx)		/* in: transaction handle or NULL */
-{
-	dict_proc_t*	proc;
-	ulint		name_fold;
-
-	UT_NOT_USED(trx);
-
-	mutex_enter(&(dict_sys->mutex));
-	
-	/* Look for the table name in the hash table */
-	name_fold = ut_fold_string(proc_name);
-
-	HASH_SEARCH(name_hash, dict_sys->procedure_hash, name_fold, proc,
-				ut_strcmp(proc->name, proc_name) == 0);
-	if (proc != NULL) {
-		proc->mem_fix++;
-	}
-	
-	mutex_exit(&(dict_sys->mutex));
-
-	return(proc);
 }
 
 /**************************************************************************
@@ -621,7 +594,9 @@ dict_table_get_on_id_low(
 	dict_table_t*	table;
 	ulint		fold;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	UT_NOT_USED(trx);
 	
 	/* Look for the table name in the hash table */
@@ -667,7 +642,7 @@ dict_table_get_index(
 /*=================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name)	/* in: index name */
+	const char*	name)	/* in: index name */
 {
 	dict_index_t*	index	= NULL;
 	

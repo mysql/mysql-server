@@ -137,7 +137,9 @@ mlog_catenate_dulint_compressed(
 }
 
 /************************************************************
-Writes the initial part of a log record. */
+Writes the initial part of a log record (3..11 bytes).
+If the implementation of this function is changed, all
+size parameters to mlog_open() should be adjusted accordingly! */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
@@ -171,7 +173,8 @@ mlog_write_initial_log_record_fast(
 	mtr->n_log_recs++;
 
 #ifdef UNIV_LOG_DEBUG
-/*	printf("Adding to mtr log record type %lu space %lu page no %lu\n",
+/*	fprintf(stderr,
+		"Adding to mtr log record type %lu space %lu page no %lu\n",
 						type, space, offset); */
 #endif
 

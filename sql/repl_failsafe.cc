@@ -63,6 +63,11 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
+  /*
+    thd->bootstrap is to report errors barely to stderr; if this code is
+    enable again one day, one should check if bootstrap is still needed (maybe
+    this thread has no other error reporting method).
+  */
   thd->system_thread = thd->bootstrap = 1;
   thd->host_or_ip= "";
   thd->client_capabilities = 0;
@@ -456,7 +461,8 @@ int show_new_master(THD* thd)
     field_list.push_back(new Item_empty_string("Log_name", 20));
     field_list.push_back(new Item_return_int("Log_pos", 10,
 					     MYSQL_TYPE_LONGLONG));
-    if (protocol->send_fields(&field_list, 1))
+    if (protocol->send_fields(&field_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
       DBUG_RETURN(-1);
     protocol->prepare_for_resend();
     protocol->store(lex_mi->log_file_name, &my_charset_bin);
@@ -646,7 +652,8 @@ int show_slave_hosts(THD* thd)
   field_list.push_back(new Item_return_int("Master_id", 10,
 					   MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   pthread_mutex_lock(&LOCK_slave_list);
@@ -732,10 +739,11 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
     int error;
     if (table_rules_on)
     {
-      table.next= 0;
+      bzero((char*) &table, sizeof(table)); //just for safe
       table.db= (char*) db;
       table.real_name= (char*) table_name;
       table.updating= 1;
+
       if (!tables_ok(thd, &table))
 	continue;
     }
@@ -768,7 +776,7 @@ int load_master_data(THD* thd)
     We do not want anyone messing with the slave at all for the entire
     duration of the data load.
   */
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   lock_slave_threads(active_mi);
   init_thread_mask(&restart_thread_mask,active_mi,0 /*not inverse*/);
   if (restart_thread_mask &&
@@ -777,7 +785,7 @@ int load_master_data(THD* thd)
   {
     send_error(thd,error);
     unlock_slave_threads(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     return 1;
   }
   
@@ -895,7 +903,7 @@ int load_master_data(THD* thd)
 
     cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 
-    // adjust position in the master
+    // adjust replication coordinates from the master
     if (master_status_res)
     {
       MYSQL_ROW row = mysql_fetch_row(master_status_res);
@@ -908,10 +916,21 @@ int load_master_data(THD* thd)
       */
       if (row && row[0] && row[1])
       {
+        /*
+          If the slave's master info is not inited, we init it, then we write
+          the new coordinates to it. Must call init_master_info() *before*
+          setting active_mi, because init_master_info() sets active_mi with
+          defaults.
+        */
+        int error;
+
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file,
+			     0))
+          send_error(thd, ER_MASTER_INFO);
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
-	active_mi->master_log_pos = strtoull(row[1], (char**) 0, 10);
-	// don't hit the magic number
+	active_mi->master_log_pos= my_strtoll10(row[1], (char**) 0, &error);
+        /* at least in recent versions, the condition below should be false */
 	if (active_mi->master_log_pos < BIN_LOG_HEADER_SIZE)
 	  active_mi->master_log_pos = BIN_LOG_HEADER_SIZE;
         /*
@@ -938,7 +957,7 @@ int load_master_data(THD* thd)
   {
     send_error(thd, 0, "Failed purging old relay logs");
     unlock_slave_threads(active_mi);
-    UNLOCK_ACTIVE_MI;
+    pthread_mutex_unlock(&LOCK_active_mi);
     return 1;
   }
   pthread_mutex_lock(&active_mi->rli.data_lock);
@@ -969,7 +988,7 @@ int load_master_data(THD* thd)
 
 err:
   unlock_slave_threads(active_mi);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   thd->proc_info = 0;
 
   mysql_close(&mysql); // safe to call since we always do mysql_init()

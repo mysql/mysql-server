@@ -208,3 +208,38 @@ select FOUND_ROWS();
 FOUND_ROWS()
 0
 drop table t1;
+CREATE TABLE t1 ( a int not null, b int not null, KEY ab(a,b) );
+INSERT INTO t1 VALUES ( 47,    1  );
+INSERT INTO t1 VALUES ( 70,    1  );
+SELECT * FROM t1
+WHERE
+(
+( b =1 AND a BETWEEN 14 AND 21 ) OR
+( b =2 AND a BETWEEN 16 AND 18 ) OR
+( b =3 AND a BETWEEN 15 AND 19 )
+);
+a	b
+DROP TABLE t1;
+CREATE TABLE t1 ( a integer, u varchar(15), r integer, key uao_idx( r, a, u));
+DELETE  FROM t1
+WHERE (  r = 1 AND a IN ( 1, 2    ) AND ( u = 'w'   OR u LIKE 'w/%'   ) )
+OR (  r = 1 AND a IN (       3 ) AND ( u = 'w/U' OR u LIKE 'w/U/%' ) )
+OR (  r = 1 AND a IN ( 1, 2, 3 ) AND ( u = 'w'                     ) );
+drop table t1;
+CREATE TABLE t1 (a VARCHAR(16), UNIQUE(a));
+INSERT INTO t1 VALUES ('1'), ('2'), ('3');
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = '2' LIMIT 0, 1;
+a
+2
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (2);
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a = 0 GROUP BY a HAVING a > 10;
+a
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+0
+DROP TABLE t1;

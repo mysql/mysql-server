@@ -172,10 +172,13 @@ static void print_result();
 static char *fix_table_name(char *dest, char *src);
 int what_to_do = 0;
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, CHECK_VERSION,
    MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -206,6 +209,7 @@ static void usage(void)
   my_print_variables(my_long_options);
 } /* usage */
 
+#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -311,7 +315,8 @@ static int get_options(int *argc, char ***argv)
   }
 
   /* TODO: This variable is not yet used */
-  if (!(charset_info= get_charset_by_csname(default_charset, 
+  if (strcmp(default_charset, charset_info->csname) &&
+      !(charset_info= get_charset_by_csname(default_charset, 
   					    MY_CS_PRIMARY, MYF(MY_WME))))
       exit(1);
   if (*argc > 0 && opt_alldbs)
@@ -575,7 +580,8 @@ static void print_result()
     else if (!status && changed)
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
-      found_error=1;
+      if (strcmp(row[2],"note"))
+	found_error=1;
     }
     else
       printf("%-9s: %s", row[2], row[3]);

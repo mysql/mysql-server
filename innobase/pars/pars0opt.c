@@ -532,8 +532,8 @@ opt_search_plan_for_table(
 	ulint		best_goodness;
 	ulint		best_last_op = 0; /* remove warning */
 	ulint		mix_id_pos;
-	que_node_t*	index_plan[128];
-	que_node_t*	best_index_plan[128];
+	que_node_t*	index_plan[256];
+	que_node_t*	best_index_plan[256];
 
 	plan = sel_node_get_nth_plan(sel_node, i);
 
@@ -1202,26 +1202,22 @@ opt_print_query_plan(
 	ulint	n_fields;
 	ulint	i;
 
-	printf("QUERY PLAN FOR A SELECT NODE\n");
+	fputs("QUERY PLAN FOR A SELECT NODE\n", stderr);
 
-	if (sel_node->asc) {
-		printf("Asc. search; ");
-	} else {
-		printf("Desc. search; ");
-	}
+	fputs(sel_node->asc ? "Asc. search; " : "Desc. search; ", stderr);
 
 	if (sel_node->set_x_locks) {
-		printf("sets row x-locks; ");
+		fputs("sets row x-locks; ", stderr);
 		ut_a(sel_node->row_lock_mode == LOCK_X);
 		ut_a(!sel_node->consistent_read);
 	} else if (sel_node->consistent_read) {
-		printf("consistent read; ");
+		fputs("consistent read; ", stderr);
 	} else {
 		ut_a(sel_node->row_lock_mode == LOCK_S);
-		printf("sets row s-locks; ");
+		fputs("sets row s-locks; ", stderr);
 	}
 
-	printf("\n");	
+	putc('\n', stderr);
 
 	for (i = 0; i < sel_node->n_tables; i++) {
 		plan = sel_node_get_nth_plan(sel_node, i);
@@ -1232,9 +1228,9 @@ opt_print_query_plan(
 			n_fields = 0;
 		}
 
-		printf(
-		"Table %s index %s; exact m. %lu, match %lu, end conds %lu\n",
-			plan->table->name, plan->index->name,
+		fputs("Table ", stderr);
+		dict_index_name_print(stderr, plan->index);
+		fprintf(stderr,"; exact m. %lu, match %lu, end conds %lu\n",
 		        (unsigned long) plan->n_exact_match,
 		        (unsigned long) n_fields,
 			(unsigned long) UT_LIST_GET_LEN(plan->end_conds));

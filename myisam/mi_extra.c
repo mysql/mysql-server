@@ -18,9 +18,9 @@
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
 #endif
-#ifdef	__WIN__
-#include <errno.h>
-#endif
+
+static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function);
+
 
 /*
   Set options and buffers to optimize table handling
@@ -358,6 +358,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PRELOAD_BUFFER_SIZE:
     info->preload_buff_size= *((ulong *) extra_arg); 
     break;
+  case HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
+  case HA_EXTRA_CHANGE_KEY_TO_DUP:
+    mi_extra_keyflag(info, function);
+    break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
   default:
@@ -370,3 +374,27 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   }
   DBUG_RETURN(error);
 } /* mi_extra */
+
+
+/*
+    Start/Stop Inserting Duplicates Into a Table, WL#1648.
+ */
+static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function)
+{
+  uint  idx;
+
+  for (idx= 0; idx< info->s->base.keys; idx++)
+  {
+    switch (function) {
+    case HA_EXTRA_CHANGE_KEY_TO_UNIQUE:
+      info->s->keyinfo[idx].flag|= HA_NOSAME;
+      break;
+    case HA_EXTRA_CHANGE_KEY_TO_DUP:
+      info->s->keyinfo[idx].flag&= ~(HA_NOSAME);
+      break;
+    default:
+      break;
+    }
+  }
+}
+

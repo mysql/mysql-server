@@ -24,6 +24,12 @@
 
 #include <stdio.h>
 
+#ifndef BFD_TRUE_FALSE
+#define boolean bfd_boolean
+#define true TRUE
+#define false FALSE
+#endif
+
 /* Routine used to read generic debugging information.  */
 
 extern PTR read_debugging_info PARAMS ((bfd *, asymbol **, long));

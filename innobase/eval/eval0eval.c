@@ -311,12 +311,13 @@ eval_predefined_2(
 			arg = que_node_get_next(arg);
 		}
 
-		printf("\n");	
+		putc('\n', stderr);
 		
 	} else if (func == PARS_ASSERT_TOKEN) {
 
 		if (!eval_node_get_ibool_val(arg1)) {
-			printf("SQL assertion fails in a stored procedure!\n");
+			fputs("SQL assertion fails in a stored procedure!\n",
+				stderr);
 		}
  
 		ut_a(eval_node_get_ibool_val(arg1));
@@ -667,7 +668,6 @@ eval_predefined(
 {
 	que_node_t*	arg1;
 	lint		int_val;
-	byte*		str1;
 	byte*		data;
 	int		func;
 
@@ -681,21 +681,63 @@ eval_predefined(
 
 	} else if (func == PARS_TO_CHAR_TOKEN) {
 
+		/* Convert number to character string as a
+		signed decimal integer. */
+
+		ulint	uint_val;
+		int	int_len;
+
 		int_val = eval_node_get_int_val(arg1);
-				
-		data = eval_node_ensure_val_buf(func_node, 11);
 
-		sprintf((char*)data, "%10li", int_val);
+		/* Determine the length of the string. */
 
-		dfield_set_len(que_node_get_val(func_node), 10);
+		if (int_val == 0) {
+			int_len = 1; /* the number 0 occupies 1 byte */
+		} else {
+			int_len = 0;
+			if (int_val < 0) {
+				uint_val = ((ulint) -int_val - 1) + 1;
+				int_len++; /* reserve space for minus sign */
+			} else {
+				uint_val = (ulint) int_val;
+			}
+			for (; uint_val > 0; int_len++) {
+				uint_val /= 10;
+			}
+		}
+
+		/* allocate the string */
+		data = eval_node_ensure_val_buf(func_node, int_len + 1);
+
+		/* add terminating NUL character */
+		data[int_len] = 0;
+
+		/* convert the number */
+
+		if (int_val == 0) {
+			data[0] = '0';
+		} else {
+			int tmp;
+			if (int_val < 0) {
+				data[0] = '-'; /* preceding minus sign */
+				uint_val = ((ulint) -int_val - 1) + 1;
+			} else {
+				uint_val = (ulint) int_val;
+			}
+			for (tmp = int_len; uint_val > 0; uint_val /= 10) {
+				data[--tmp] = (byte) ('0' + (byte)(uint_val % 10));
+			}
+		}
+
+		dfield_set_len((dfield_t*) que_node_get_val(func_node),
+			int_len);
 
 		return;
 
 	} else if (func == PARS_TO_NUMBER_TOKEN) {
 
-		str1 = dfield_get_data(que_node_get_val(arg1));
-
-		int_val = atoi((char*)str1);
+		int_val = atoi((char*)
+			dfield_get_data(que_node_get_val(arg1)));
 
 	} else if (func == PARS_SYSDATE_TOKEN) {
 		int_val = (lint)ut_time();

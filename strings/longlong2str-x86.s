@@ -83,7 +83,7 @@ longlong2str:
 	divl %ebx
 	decl %ecx
 	movl %eax,%esi		# quotent in ebp:esi 
-	movb _dig_vec(%edx),%al   # al is faster than dl 
+	movb _dig_vec_upper(%edx),%al   # al is faster than dl 
 	movb %al,(%ecx)		# store value in buff 
 	.align 4
 .L155:
@@ -93,7 +93,7 @@ longlong2str:
 	jl .L153
 	je .L10_mov		# Ready 
 	movl %esi,%eax
-	movl $_dig_vec,%ebp
+	movl $_dig_vec_upper,%ebp
 	.align 4
 
 .L154:				# Do rest with integer precision 
@@ -142,7 +142,7 @@ longlong2str:
 	.align 4
 	
 .globl	longlong10_to_str
-	.type	 longlong10_str,@function
+	.type	 longlong10_to_str,@function
 longlong10_to_str:
 	subl $80,%esp
 	pushl %ebp

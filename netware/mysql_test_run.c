@@ -7,7 +7,7 @@
   (at your option) any later version. 
 
   This program is distributed in the hope that it will be useful, 
-  but WITHOUT ANY WARRANTY; without even the implied warranty of 
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
   GNU General Public License for more details. 
 
@@ -16,29 +16,15 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */ 
 
-
-/* MySQL library headers */
 #include <my_global.h>
-#include <my_sys.h>
-#include <my_dir.h>
 #include <m_string.h>
-
-/* These 'should' be POSIX or ANSI */
-#include <stdio.h>
-#include <stdarg.h>
-
-#ifdef __NETWARE__
+#include <dirent.h>
 #include <screen.h>
-#endif
-
-#include "my_config.h"
+#include <nks/vm.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/mode.h>
 #include "my_manage.h"
-
-#ifdef __WIN__
-#include <Shlwapi.h>
-#endif
-
-
 /******************************************************************************
 
   macros
@@ -50,16 +36,17 @@
 
 #define NW_TEST_SUFFIX    ".nw-test"
 #define NW_RESULT_SUFFIX  ".nw-result"
-#define TEST_SUFFIX        ".test"
-#define RESULT_SUFFIX      ".result"
-#define REJECT_SUFFIX      ".reject"
-#define OUT_SUFFIX        ".out"
-#define ERR_SUFFIX        ".err"
+#define TEST_SUFFIX		    ".test"
+#define RESULT_SUFFIX	    ".result"
+#define REJECT_SUFFIX	    ".reject"
+#define OUT_SUFFIX		    ".out"
+#define ERR_SUFFIX		    ".err"
 
-#define TEST_PASS    "[ pass ]"
-#define TEST_SKIP    "[ skip ]"
-#define TEST_FAIL    "[ fail ]"
-#define TEST_BAD    "[ bad  ]"
+#define TEST_PASS		"[ pass ]"
+#define TEST_SKIP		"[ skip ]"
+#define TEST_FAIL		"[ fail ]"
+#define TEST_BAD		"[ bad  ]"
+#define TEST_IGNORE		"[ignore]"
 
 /******************************************************************************
 
@@ -67,7 +54,7 @@
   
 ******************************************************************************/
 
-char base_dir[PATH_MAX]   = "/mysql";
+char base_dir[PATH_MAX]   = "sys:/mysql";
 char db[PATH_MAX]         = "test";
 char user[PATH_MAX]       = "root";
 char password[PATH_MAX]   = "";
@@ -75,8 +62,9 @@ char password[PATH_MAX]   = "";
 int master_port           = 9306;
 int slave_port            = 9307;
 
-/* comma delimited list of tests to skip or empty string */
-char skip_test[PATH_MAX]  = "";
+// comma delimited list of tests to skip or empty string
+char skip_test[PATH_MAX]  = " lowercase_table3 , system_mysql_db_fix ";
+char ignore_test[PATH_MAX]  = "";
 
 char bin_dir[PATH_MAX];
 char mysql_test_dir[PATH_MAX];
@@ -88,6 +76,7 @@ char slave_dir[PATH_MAX];
 char lang_dir[PATH_MAX];
 char char_dir[PATH_MAX];
 
+char mysqladmin_file[PATH_MAX];
 char mysqld_file[PATH_MAX];
 char mysqltest_file[PATH_MAX];
 char master_pid[PATH_MAX];
@@ -101,13 +90,22 @@ char slave_master_info[PATH_MAX]  = "";
 char master_init_script[PATH_MAX]  = "";
 char slave_init_script[PATH_MAX]  = "";
 
+// OpenSSL
+char ca_cert[PATH_MAX];
+char server_cert[PATH_MAX];
+char server_key[PATH_MAX];
+char client_cert[PATH_MAX];
+char client_key[PATH_MAX];
+
 int total_skip    = 0;
 int total_pass    = 0;
 int total_fail    = 0;
 int total_test    = 0;
 
+int total_ignore  = 0;
 double total_time = 0;
 
+int use_openssl     = FALSE;
 int master_running  = FALSE;
 int slave_running   = FALSE;
 int skip_slave      = TRUE;
@@ -116,30 +114,17 @@ int single_test     = TRUE;
 int restarts  = 0;
 
 FILE *log_fd  = NULL;
-// WAX
-#include <my_getopt.h>
-
-const char* mysqld = "mysqld",  *opt_exedir="client_debug";
-
-static struct my_option my_long_options[] =
-{
-  {"mysqld", 'M', "Type of mysqld (without extention of file)- mysqld, mysql-nt, mysql-nt-max, mysqld-max.",
-  (gptr*) &mysqld, (gptr*) &mysqld, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"exefiledir", 'e', "Directory of .exe files (client_debug or client_release).", (gptr*) &opt_exedir,
-  (gptr*) &opt_exedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-};
-
 
 /******************************************************************************
 
   functions
-
+  
 ******************************************************************************/
 
 /******************************************************************************
 
   prototypes
-
+  
 ******************************************************************************/
 
 void report_stats();
@@ -155,17 +140,18 @@ void mysql_restart();
 int read_option(char *, char *);
 void run_test(char *);
 void setup(char *);
-void vlog(const char *, va_list);
-void mtr_log(const char *, ...);
-void mtr_log_info(const char *, ...);
-void mtr_log_error(const char *, ...);
-void mtr_log_errno(const char *, ...);
-void die(const char *);
+void vlog(char *, va_list);
+void log_msg(char *, ...);
+void log_info(char *, ...);
+void log_error(char *, ...);
+void log_errno(char *, ...);
+void die(char *);
+char *str_tok(char *string, const char *delim);
 
 /******************************************************************************
 
   report_stats()
-
+  
   Report the gathered statistics.
 
 ******************************************************************************/
@@ -173,55 +159,55 @@ void report_stats()
 {
   if (total_fail == 0)
   {
-    mtr_log("\nAll %d test(s) were successful.\n", total_test);
+    log_msg("\nAll %d test(s) were successful.\n", total_test);
   }
   else
   {
     double percent = ((double)total_pass / total_test) * 100;
-
-    mtr_log("\nFailed %u/%u test(s), %.02f%% successful.\n",
+    
+    log_msg("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
-    mtr_log("\nThe .out and .err files in %s may give you some\n", result_dir);
-    mtr_log("hint of what when wrong.\n");
-    mtr_log("\nIf you want to report this error, please first read the documentation\n");
-    mtr_log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
+		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
+		log_msg("hint of what when wrong.\n");
+		log_msg("\nIf you want to report this error, please first read the documentation\n");
+		log_msg("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
   }
 
-  mtr_log("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
+  log_msg("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
 }
 
 /******************************************************************************
 
   install_db()
-
+  
   Install the a database.
 
 ******************************************************************************/
 void install_db(char *datadir)
 {
   arg_list_t al;
-  int err;
+  int err, i;
   char input[PATH_MAX];
   char output[PATH_MAX];
   char error[PATH_MAX];
-  
+
   // input file
-  my_snprintf(input, PATH_MAX, "%s/bin/init_db.sql", base_dir);
-  my_snprintf(output, PATH_MAX, "%s/install.out", datadir);
-  my_snprintf(error, PATH_MAX, "%s/install.err", datadir);
+  snprintf(input, PATH_MAX, "%s/bin/init_db.sql", base_dir);
+  snprintf(output, PATH_MAX, "%s/install.out", datadir);
+  snprintf(error, PATH_MAX, "%s/install.err", datadir);
   
   // args
   init_args(&al);
   add_arg(&al, mysqld_file);
+  add_arg(&al, "--no-defaults");
   add_arg(&al, "--bootstrap");
   add_arg(&al, "--skip-grant-tables");
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--datadir=%s", datadir);
   add_arg(&al, "--skip-innodb");
   add_arg(&al, "--skip-bdb");
-  
-  // spawn
 
+  // spawn
   if ((err = spawn(mysqld_file, &al, TRUE, input, output, error)) != 0)
   {
     die("Unable to create database.");
@@ -242,35 +228,38 @@ void mysql_install_db()
 {
   char temp[PATH_MAX];
   
-  /* var directory */
-  my_snprintf(temp, PATH_MAX, "%s/var", mysql_test_dir);
+  // var directory
+  snprintf(temp, PATH_MAX, "%s/var", mysql_test_dir);
   
-  /* clean up old directory */
+  // clean up old direcotry
   del_tree(temp);
   
-  /* create var directory */
-  my_mkdir(temp, 0700, MYF(MY_WME));
+  // create var directory
+  mkdir(temp, S_IRWXU);
   
-  /* create subdirectories */
-  my_snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/master-data", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/master-data/mysql", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/master-data/test", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/slave-data/mysql", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
-  my_snprintf(temp, PATH_MAX, "%s/var/slave-data/test", mysql_test_dir);
-  my_mkdir(temp, 0700, MYF(MY_WME));
+  // create subdirectories
+  log_msg("Creating test-suite folders...\n");
+  snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/master-data", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/master-data/mysql", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/master-data/test", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/slave-data/mysql", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, PATH_MAX, "%s/var/slave-data/test", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
 
-  /* install databases */
+  // install databases
+  log_msg("Creating test databases for master... \n");
   install_db(master_dir);
+  log_msg("Creating test databases for slave... \n");
   install_db(slave_dir);
 }
 
@@ -284,39 +273,66 @@ void mysql_install_db()
 void start_master()
 {
   arg_list_t al;
-  int err;
+  int err, i;
   char master_out[PATH_MAX];
   char master_err[PATH_MAX];
-  
-  /* remove old berkeley db log files that can confuse the server */
+  char temp[PATH_MAX], temp2[PATH_MAX];
+
+  // remove old berkeley db log files that can confuse the server
   removef("%s/log.*", master_dir);
 
-  /* remove stale binary logs */
-  removef("%s/*-bin.*", master_dir);
+  // remove stale binary logs
+  removef("%s/var/log/*-bin.*", mysql_test_dir);
 
-  /* remove stale binary logs */
-  removef("%s/*.index", master_dir);
+  // remove stale binary logs
+  removef("%s/var/log/*.index", mysql_test_dir);
 
-  /* remove master.info file */
+  // remove master.info file
   removef("%s/master.info", master_dir);
 
-  /* remove relay files */
+  // remove relay files
   removef("%s/var/log/*relay*", mysql_test_dir);
 
-  /* remove relay-log.info file */
+  // remove relay-log.info file
   removef("%s/relay-log.info", master_dir);
-  
-  /* redirection files */
-  my_snprintf(master_out, PATH_MAX, "%s/var/run/master%u.out",
+
+  // init script
+  if (master_init_script[0] != NULL)
+  {
+    // run_init_script(master_init_script);
+
+    // TODO: use the scripts
+    if (strindex(master_init_script, "repair_part2-master.sh") != NULL)
+    {
+      FILE *fp;
+
+      // create an empty index file
+      snprintf(temp, PATH_MAX, "%s/test/t1.MYI", master_dir);
+      fp = fopen(temp, "wb+");
+
+      fputs("1", fp);
+
+      fclose(fp);
+    }
+
+  }
+
+  // redirection files
+  snprintf(master_out, PATH_MAX, "%s/var/run/master%u.out",
            mysql_test_dir, restarts);
-  my_snprintf(master_err, PATH_MAX, "%s/var/run/master%u.err",
+  snprintf(master_err, PATH_MAX, "%s/var/run/master%u.err",
            mysql_test_dir, restarts);
-  
-  /* args */
+
+  snprintf(temp2,PATH_MAX,"%s/var",mysql_test_dir);
+  mkdir(temp2,0);
+  snprintf(temp2,PATH_MAX,"%s/var/log",mysql_test_dir);
+  mkdir(temp2,0);
+
+  // args
   init_args(&al);
   add_arg(&al, "%s", mysqld_file);
   add_arg(&al, "--no-defaults");
-  add_arg(&al, "--log-bin=master-bin");
+  add_arg(&al, "--log-bin=%s/var/log/master-bin",mysql_test_dir);
   add_arg(&al, "--server-id=1");
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--port=%u", master_port);
@@ -327,12 +343,22 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
-  
-  /* $MASTER_40_ARGS */
+#ifdef DEBUG	//only for debug builds
+  add_arg(&al, "--debug");
+#endif
+
+  if (use_openssl)
+  {
+    add_arg(&al, "--ssl-ca=%s", ca_cert);
+    add_arg(&al, "--ssl-cert=%s", server_cert);
+    add_arg(&al, "--ssl-key=%s", server_key);
+  }
+
+  // $MASTER_40_ARGS
   add_arg(&al, "--rpl-recovery-rank=1");
   add_arg(&al, "--init-rpl-role=master");
-  
-  /* $SMALL_SERVER */
+
+  // $SMALL_SERVER
   add_arg(&al, "-O");
   add_arg(&al, "key_buffer_size=1M");
   add_arg(&al, "-O");
@@ -340,49 +366,46 @@ void start_master()
   add_arg(&al, "-O");
   add_arg(&al, "max_heap_table_size=1M");
 
-  /* $EXTRA_MASTER_OPT */
-  if (master_opt[0] != '\0')
+  // $EXTRA_MASTER_OPT
+  if (master_opt[0] != NULL)
   {
     char *p;
 
-    p = (char *)strtok(master_opt, " \t");
-
-    while(p)
+    p = (char *)str_tok(master_opt, " \t");
+    if (!strstr(master_opt, "timezone"))
     {
-      add_arg(&al, "%s", p);
-
-      p = (char *)strtok(NULL, " \t");
+      while (p)
+      {
+        add_arg(&al, "%s", p);
+        p = (char *)str_tok(NULL, " \t");
+      }
     }
   }
-  
-  /* remove the pid file if it exists */
-#ifndef __WIN__ 
-  my_delete(master_pid, MYF(MY_WME));
-#else
-  pid_mode= MASTER_PID;
-  run_server= TRUE;
-#endif
 
-  /* spawn */
-  if ((err = spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
+  // remove the pid file if it exists
+  remove(master_pid);
+
+  // spawn
+  if ((err= spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
   {
     sleep_until_file_exists(master_pid);
-    
-    if ((err = wait_for_server_start(bin_dir, user, password, master_port)) == 0)
+
+	if ((err = wait_for_server_start(bin_dir, user, password, master_port,
+                                         mysql_tmp_dir)) == 0)
     {
       master_running = TRUE;
     }
     else
     {
-    mtr_log_error("The master server went down early.");
+	  log_error("The master server went down early.");
     }
   }
   else
   {
-    mtr_log_error("Unable to start master server.");
+    log_error("Unable to start master server.");
   }
-  
-  /* free_args */
+
+  // free_args
   free_args(&al);
 }
 
@@ -396,72 +419,72 @@ void start_master()
 void start_slave()
 {
   arg_list_t al;
-  int err;
+  int err, i;
   char slave_out[PATH_MAX];
   char slave_err[PATH_MAX];
   char temp[PATH_MAX];
   
-  /* skip? */
+  // skip?
   if (skip_slave) return;
 
-  /* remove stale binary logs */
+  // remove stale binary logs
   removef("%s/*-bin.*", slave_dir);
 
-  /* remove stale binary logs */
+  // remove stale binary logs
   removef("%s/*.index", slave_dir);
 
-  /* remove master.info file */
+  // remove master.info file
   removef("%s/master.info", slave_dir);
 
-  /* remove relay files */
+  // remove relay files
   removef("%s/var/log/*relay*", mysql_test_dir);
 
-  /* remove relay-log.info file */
+  // remove relay-log.info file
   removef("%s/relay-log.info", slave_dir);
 
-  /* init script */
-  if (slave_init_script[0] != '\0')
+  // init script
+  if (slave_init_script[0] != NULL)
   {
-    /* run_init_script(slave_init_script); */
+    // run_init_script(slave_init_script);
     
-    /* TODO: use the scripts */
-    if (strstr(slave_init_script, "rpl000016-slave.sh") != NULL)
+    // TODO: use the scripts
+    if (strindex(slave_init_script, "rpl000016-slave.sh") != NULL)
     {
-      /* create empty master.info file */
-      my_snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
-      my_close(my_open(temp, O_WRONLY | O_CREAT, MYF(0)), MYF(0));
+      // create empty master.info file
+      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
-    else if (strstr(slave_init_script, "rpl000017-slave.sh") != NullS)
+    else if (strindex(slave_init_script, "rpl000017-slave.sh") != NULL)
     {
       FILE *fp;
       
-      /* create a master.info file */
-      my_snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
-      fp = my_fopen(temp, (int)(O_WRONLY | O_BINARY | O_CREAT), MYF(MY_WME));
+      // create a master.info file
+      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      fp = fopen(temp, "wb+");
       
-      fputs("master-bin.001\n", fp);
+      fputs("master-bin.000001\n", fp);
       fputs("4\n", fp);
       fputs("127.0.0.1\n", fp);
       fputs("replicate\n", fp);
-      fputs("aaaaaaaaaaaaaaabthispartofthepasswordisnotused\n", fp);
+      fputs("aaaaaaaaaaaaaaab\n", fp);
       fputs("9306\n", fp);
       fputs("1\n", fp);
       fputs("0\n", fp);
 
-      my_fclose(fp, MYF(MY_WME));
+      fclose(fp);
     }
-    else if (strstr(slave_init_script, "rpl_rotate_logs-slave.sh") != NullS)
+    else if (strindex(slave_init_script, "rpl_rotate_logs-slave.sh") != NULL)
     {
-      /* create empty master.info file */
-      my_snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
-      my_close(my_open(temp, O_WRONLY | O_CREAT, MYF(0)), MYF(0));
+      // create empty master.info file
+      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
   }
 
-  /* redirection files */
-  my_snprintf(slave_out, PATH_MAX, "%s/var/run/slave%u.out",
+  // redirection files
+  snprintf(slave_out, PATH_MAX, "%s/var/run/slave%u.out",
            mysql_test_dir, restarts);
-  my_snprintf(slave_err, PATH_MAX, "%s/var/run/slave%u.err",
+  snprintf(slave_err, PATH_MAX, "%s/var/run/slave%u.err",
            mysql_test_dir, restarts);
   
   // args
@@ -478,7 +501,7 @@ void start_slave()
   add_arg(&al, "--core");
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
-  
+
   add_arg(&al, "--exit-info=256");
   add_arg(&al, "--log-slave-updates");
   add_arg(&al, "--init-rpl-role=slave");
@@ -487,25 +510,35 @@ void start_slave()
   add_arg(&al, "--slave-load-tmpdir=../../var/tmp");
   
   add_arg(&al, "--report-user=%s", user);
-  add_arg(&al, "--report-host=127.0.0.1");
+	add_arg(&al, "--report-host=127.0.0.1");
   add_arg(&al, "--report-port=%u", slave_port);
 
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+#ifdef DEBUG	//only for debug builds
+  add_arg(&al, "--debug");
+#endif
 
-  /* slave master info */
-  if (slave_master_info[0] != '\0')
+  if (use_openssl)
+  {
+    add_arg(&al, "--ssl-ca=%s", ca_cert);
+    add_arg(&al, "--ssl-cert=%s", server_cert);
+    add_arg(&al, "--ssl-key=%s", server_key);
+  }
+
+  // slave master info
+  if (slave_master_info[0] != NULL)
   {
     char *p;
 
-    p = (char *)strtok(slave_master_info, " \t");
+    p = (char *)str_tok(slave_master_info, " \t");
 
     while(p)
     {
       add_arg(&al, "%s", p);
       
-      p = (char *)strtok(NULL, " \t");
+      p = (char *)str_tok(NULL, " \t");
     }
   }
   else
@@ -519,7 +552,7 @@ void start_slave()
     add_arg(&al, "--rpl-recovery-rank=2");
   }
   
-  /* small server */
+  // small server
   add_arg(&al, "-O");
   add_arg(&al, "key_buffer_size=1M");
   add_arg(&al, "-O");
@@ -527,46 +560,45 @@ void start_slave()
   add_arg(&al, "-O");
   add_arg(&al, "max_heap_table_size=1M");
 
-  /* opt args */
-  if (slave_opt[0] != '\0')
+  // opt args
+  if (slave_opt[0] != NULL)
   {
     char *p;
 
-    p = (char *)strtok(slave_opt, " \t");
+    p = (char *)str_tok(slave_opt, " \t");
 
     while(p)
     {
       add_arg(&al, "%s", p);
       
-      p = (char *)strtok(NULL, " \t");
+      p = (char *)str_tok(NULL, " \t");
     }
   }
-
-  /* remove the pid file if it exists */
-#ifndef __WIN__
-  my_delete(slave_pid, MYF(MY_WME));
-#else
-  pid_mode= SLAVE_PID;
-  run_server= TRUE;
-#endif
+  
+  // remove the pid file if it exists
+  remove(slave_pid);
 
   // spawn
   if ((err = spawn(mysqld_file, &al, FALSE, NULL, slave_out, slave_err)) == 0)
   {
     sleep_until_file_exists(slave_pid);
     
-    if ((err = wait_for_server_start(bin_dir, user, password, slave_port)) == 0)
+    if ((err = wait_for_server_start(bin_dir, user, password, slave_port,
+                                     mysql_tmp_dir)) == 0)
     {
       slave_running = TRUE;
+
     }
     else
     {
-      mtr_log_error("The slave server went down early.");
+      log_error("The slave server went down early.");
+
     }
   }
   else
   {
-    mtr_log_error("Unable to start slave server.");
+    log_error("Unable to start slave server.");
+
   }
   
   // free args
@@ -582,99 +614,94 @@ void start_slave()
 ******************************************************************************/
 void mysql_start()
 {
+  log_info("Starting the MySQL server(s): %u", ++restarts);
   start_master();
 
   start_slave();
-  
-#ifdef __NETWARE__
+
   // activate the test screen
   ActivateScreen(getscreenhandle());
-#endif
 }
 
 /******************************************************************************
 
   stop_slave()
-  
+
   Stop the slave server.
 
 ******************************************************************************/
 void stop_slave()
 {
   int err;
-  
-  /* running? */
+
+  // running?
   if (!slave_running) return;
-#ifdef __WIN__
-  pid_mode= SLAVE_PID;
-#endif
-  
-  /* stop */
-  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid)) == 0)
+
+  // stop
+  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid,
+                         mysql_tmp_dir)) == 0)
   {
     slave_running = FALSE;
   }
   else
   {
-    mtr_log_error("Unable to stop slave server.");
+    log_error("Unable to stop slave server.");
   }
 }
 
 /******************************************************************************
 
   stop_master()
-  
+
   Stop the master server.
 
 ******************************************************************************/
 void stop_master()
 {
   int err;
-  
-  /* running? */
+
+  // running?
   if (!master_running) return;
-#ifdef __WIN__
-  pid_mode= MASTER_PID;
-#endif
-  if ((err = stop_server(bin_dir, user, password, master_port, master_pid)) == 0)
+
+  if ((err = stop_server(bin_dir, user, password, master_port, master_pid,
+                         mysql_tmp_dir)) == 0)
   {
     master_running = FALSE;
   }
   else
   {
-    mtr_log_error("Unable to stop master server.");
+    log_error("Unable to stop master server.");
   }
 }
 
 /******************************************************************************
 
   mysql_stop()
-  
+
   Stop the mysql servers.
 
 ******************************************************************************/
 void mysql_stop()
 {
+  log_info("Stopping the MySQL server(s)...");
   stop_master();
 
   stop_slave();
-  
-#ifdef __NETWARE__
+
   // activate the test screen
   ActivateScreen(getscreenhandle());
-#endif
 }
 
 /******************************************************************************
 
   mysql_restart()
-  
+
   Restart the mysql servers.
 
 ******************************************************************************/
 void mysql_restart()
 {
-  mtr_log_info("Restarting the MySQL server(s): %u", ++restarts);
+  log_info("Restarting the MySQL server(s): %u", ++restarts);
 
   mysql_stop();
 
@@ -684,56 +711,51 @@ void mysql_restart()
 /******************************************************************************
 
   read_option()
-  
+
   Read the option file.
 
 ******************************************************************************/
 int read_option(char *opt_file, char *opt)
 {
-  File fd;
-  int err;
+  int fd, err;
+  int result;
   char *p;
   char buf[PATH_MAX];
-  
-  /* copy current option */
-  strncpy(buf, opt, PATH_MAX);
-  
-#ifdef __WIN__
-  if (PathFileExistsA(opt_file)) 
-  {
-#endif
 
-  /* open options file */
-  fd = my_open(opt_file, O_RDONLY, MYF(MY_WME));
+  // copy current option
+  strncpy(buf, opt, PATH_MAX);
+
+  // open options file
+  fd = open(opt_file, O_RDONLY);
   
-  err = my_read(fd, opt, PATH_MAX, MYF(MY_WME));
+  err = read(fd, opt, PATH_MAX);
   
-  my_close(fd, MYF(MY_WME));
+  close(fd);
   
   if (err > 0)
   {
-    /* terminate string */
+    // terminate string
     if ((p = strchr(opt, '\n')) != NULL)
     {
-      *p = '\0';
+      *p = NULL;
       
-      /* check for a '\r' */
+      // check for a '\r'
       if ((p = strchr(opt, '\r')) != NULL)
       {
-        *p = '\0';
+        *p = NULL;
       }
     }
     else
     {
-      opt[err] = '\0';
+      opt[err] = NULL;
     }
 
-    /* check for $MYSQL_TEST_DIR */
-    if ((p = strstr(opt, "$MYSQL_TEST_DIR")) != NullS)
+    // check for $MYSQL_TEST_DIR
+    if ((p = strstr(opt, "$MYSQL_TEST_DIR")) != NULL)
     {
       char temp[PATH_MAX];
       
-      *p = '\0';
+      *p = NULL;
       
       strcpy(temp, p + strlen("$MYSQL_TEST_DIR"));
       
@@ -741,17 +763,20 @@ int read_option(char *opt_file, char *opt)
       
       strcat(opt, temp);
     }
+    // Check for double backslash and replace it with single bakslash
+    if ((p = strstr(opt, "\\\\")) != NULL)
+    {
+      /* bmove is guranteed to work byte by byte */
+      bmove(p, p+1, strlen(p+1));
+    }
   }
   else
   {
-    /* clear option */
-    *opt = '\0';
+    // clear option
+    *opt = NULL;
   }
-#ifdef __WIN__
-  }
-#endif
   
-  /* compare current option with previous */
+  // compare current option with previous
   return strcmp(opt, buf);
 }
 
@@ -766,21 +791,28 @@ void run_test(char *test)
 {
   char temp[PATH_MAX];
   char *rstr;
-  int skip = FALSE;
+  double elapsed = 0;
+  int skip = FALSE, ignore=FALSE;
   int restart = FALSE;
   int flag = FALSE;
   struct stat info;
-
-  /* single test? */
-  if (!single_test)
-  {
-    // skip tests in the skip list
-    my_snprintf(temp, PATH_MAX, " %s ", test);
-    skip = strinstr(skip_test, temp);
-  }
+  
+  // skip tests in the skip list
+  snprintf(temp, PATH_MAX, " %s ", test);
+  skip = (strindex(skip_test, temp) != NULL);
+  if (skip == FALSE)
+    ignore = (strindex(ignore_test, temp) != NULL);
     
-  /* skip test? */
-  if (!skip)
+  if (ignore)
+  {
+    // show test
+    log_msg("%-46s ", test);
+         
+    // ignore
+    rstr = TEST_IGNORE;
+    ++total_ignore;
+  }  
+  else if (!skip)     // skip test?
   {
     char test_file[PATH_MAX];
     char master_opt_file[PATH_MAX];
@@ -792,6 +824,7 @@ void run_test(char *test)
     char err_file[PATH_MAX];
     int err;
     arg_list_t al;
+    NXTime_t start, stop;
     
     // skip slave?
     flag = skip_slave;
@@ -799,36 +832,41 @@ void run_test(char *test)
     if (flag != skip_slave) restart = TRUE;
     
     // create files
-    my_snprintf(master_opt_file, PATH_MAX, "%s/%s-master.opt", test_dir, test);
-    my_snprintf(slave_opt_file, PATH_MAX, "%s/%s-slave.opt", test_dir, test);
-    my_snprintf(slave_master_info_file, PATH_MAX, "%s/%s.slave-mi", test_dir, test);
-    my_snprintf(reject_file, PATH_MAX, "%s/%s%s", result_dir, test, REJECT_SUFFIX);
-    my_snprintf(out_file, PATH_MAX, "%s/%s%s", result_dir, test, OUT_SUFFIX);
-    my_snprintf(err_file, PATH_MAX, "%s/%s%s", result_dir, test, ERR_SUFFIX);
+    snprintf(master_opt_file, PATH_MAX, "%s/%s-master.opt", test_dir, test);
+    snprintf(slave_opt_file, PATH_MAX, "%s/%s-slave.opt", test_dir, test);
+    snprintf(slave_master_info_file, PATH_MAX, "%s/%s.slave-mi", test_dir, test);
+    snprintf(reject_file, PATH_MAX, "%s/%s%s", result_dir, test, REJECT_SUFFIX);
+    snprintf(out_file, PATH_MAX, "%s/%s%s", result_dir, test, OUT_SUFFIX);
+    snprintf(err_file, PATH_MAX, "%s/%s%s", result_dir, test, ERR_SUFFIX);
     
     // netware specific files
-    my_snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, NW_TEST_SUFFIX);
+    snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, NW_TEST_SUFFIX);
     if (stat(test_file, &info))
     {
-      my_snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, TEST_SUFFIX);
+      snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, TEST_SUFFIX);
+      if (access(test_file,0))
+      {
+        printf("Invalid test name %s, %s file not found\n",test,test_file);
+        return;
+      }
     }
-    
-    my_snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, NW_RESULT_SUFFIX);
+
+    snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, NW_RESULT_SUFFIX);
     if (stat(result_file, &info))
     {
-      my_snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, RESULT_SUFFIX);
+      snprintf(result_file, PATH_MAX, "%s/%s%s", result_dir, test, RESULT_SUFFIX);
     }
-    
+
     // init scripts
-    my_snprintf(master_init_script, PATH_MAX, "%s/%s-master.sh", test_dir, test);
+    snprintf(master_init_script, PATH_MAX, "%s/%s-master.sh", test_dir, test);
     if (stat(master_init_script, &info))
-      master_init_script[0] = '\0';
+      master_init_script[0] = NULL;
     else
       restart = TRUE;
     
-    my_snprintf(slave_init_script, PATH_MAX, "%s/%s-slave.sh", test_dir, test);
+    snprintf(slave_init_script, PATH_MAX, "%s/%s-slave.sh", test_dir, test);
     if (stat(slave_init_script, &info))
-      slave_init_script[0] = '\0';
+      slave_init_script[0] = NULL;
     else
       restart = TRUE;
 
@@ -850,7 +888,7 @@ void run_test(char *test)
     sleep(1);
 
     // show test
-    mtr_log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // args
     init_args(&al);
@@ -866,17 +904,34 @@ void run_test(char *test)
     add_arg(&al, "-v");
     add_arg(&al, "-R");
     add_arg(&al, "%s", result_file);
+
+    if (use_openssl)
+    {
+      add_arg(&al, "--ssl-ca=%s", ca_cert);
+      add_arg(&al, "--ssl-cert=%s", client_cert);
+      add_arg(&al, "--ssl-key=%s", client_key);
+    }
+
+    // start timer
+    NXGetTime(NX_SINCE_BOOT, NX_USECONDS, &start);
     
     // spawn
     err = spawn(mysqltest_file, &al, TRUE, test_file, out_file, err_file);
-      
+    
+    // stop timer
+    NXGetTime(NX_SINCE_BOOT, NX_USECONDS, &stop);
+    
+    // calculate
+    elapsed = ((double)(stop - start)) / NX_USECONDS;
+    total_time += elapsed;
+    
     // free args
     free_args(&al);
     
     if (err == 0)
     {
       // pass
-      rstr = (char *)TEST_PASS;
+      rstr = TEST_PASS;
       ++total_pass;
       
       // increment total
@@ -885,13 +940,13 @@ void run_test(char *test)
     else if (err == 2)
     {
       // skip
-      rstr = (char *)TEST_SKIP;
+      rstr = TEST_SKIP;
       ++total_skip;
     }
     else if (err == 1)
     {
       // fail
-      rstr = (char *)TEST_FAIL;
+      rstr = TEST_FAIL;
       ++total_fail;
       
       // increment total
@@ -899,21 +954,21 @@ void run_test(char *test)
     }
     else
     {
-      rstr = (char *)TEST_BAD;
+      rstr = TEST_BAD;
     }
   }
   else // early skips
   {
     // show test
-    mtr_log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // skip
-    rstr = (char *)TEST_SKIP;
+    rstr = TEST_SKIP;
     ++total_skip;
   }
   
   // result
-  mtr_log("   %-14s\n", rstr);
+  log_msg("%10.06f   %-14s\n", elapsed, rstr);
 }
 
 /******************************************************************************
@@ -923,7 +978,7 @@ void run_test(char *test)
   Log the message.
 
 ******************************************************************************/
-void vlog(const char *format, va_list ap)
+void vlog(char *format, va_list ap)
 {
   vfprintf(stdout, format, ap);
   fflush(stdout);
@@ -937,15 +992,15 @@ void vlog(const char *format, va_list ap)
 
 /******************************************************************************
 
-  mtr_log()
+  log()
   
   Log the message.
 
 ******************************************************************************/
-void mtr_log(const char *format, ...)
+void log_msg(char *format, ...)
 {
   va_list ap;
-  
+
   va_start(ap, format);
 
   vlog(format, ap);
@@ -955,60 +1010,60 @@ void mtr_log(const char *format, ...)
 
 /******************************************************************************
 
-  mtr_log_info()
+  log_info()
   
   Log the given information.
 
 ******************************************************************************/
-void mtr_log_info(const char *format, ...)
+void log_info(char *format, ...)
 {
   va_list ap;
   
   va_start(ap, format);
 
-  mtr_log("-- INFO : ");
+  log_msg("-- INFO : ");
   vlog(format, ap);
-  mtr_log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
 
 /******************************************************************************
 
-  mtr_log_error()
+  log_error()
   
   Log the given error.
 
 ******************************************************************************/
-void mtr_log_error(const char *format, ...)
+void log_error(char *format, ...)
 {
   va_list ap;
   
   va_start(ap, format);
 
-  mtr_log("-- ERROR: ");
+  log_msg("-- ERROR: ");
   vlog(format, ap);
-  mtr_log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
 
 /******************************************************************************
 
-  mtr_log_errno()
+  log_errno()
   
   Log the given error and errno.
 
 ******************************************************************************/
-void mtr_log_errno(const char *format, ...)
+void log_errno(char *format, ...)
 {
   va_list ap;
   
   va_start(ap, format);
 
-  mtr_log("-- ERROR: (%003u) ", errno);
+  log_msg("-- ERROR: (%003u) ", errno);
   vlog(format, ap);
-  mtr_log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1020,13 +1075,11 @@ void mtr_log_errno(const char *format, ...)
   Exit the application.
 
 ******************************************************************************/
-void die(const char *msg)
+void die(char *msg)
 {
-  mtr_log_error(msg);
+  log_error(msg);
 
-#ifdef __NETWARE__
   pressanykey();
-#endif
 
   exit(-1);
 }
@@ -1041,86 +1094,73 @@ void die(const char *msg)
 void setup(char *file)
 {
   char temp[PATH_MAX];
+  char file_path[PATH_MAX*2];
   char *p;
-  
+
   // set the timezone for the timestamp test
-#ifdef __WIN__
-  _putenv( "TZ=GMT-3" );
-#else
   setenv("TZ", "GMT-3", TRUE);
-#endif
 
   // find base dir
-  strcpy(temp, file);
-#ifndef __WIN__
-  casedn_str(temp); 
-#endif
+  strcpy(temp, strlwr(file));
   while((p = strchr(temp, '\\')) != NULL) *p = '/';
   
-  if ((p = strstr(temp, "/mysql-test/")))
+  if ((p = strindex(temp, "/mysql-test/")) != NULL)
   {
-    *p = '\0';
-    strcpy(base_dir, (const char *)temp);
+    *p = NULL;
+    strcpy(base_dir, temp);
   }
-  
+
   // setup paths
-#ifdef __WIN__
-  my_snprintf(bin_dir, PATH_MAX, "%s/%s", base_dir,opt_exedir);
-#else
-  my_snprintf(bin_dir, PATH_MAX, "%s/bin", base_dir);
-#endif
-  my_snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
-  my_snprintf(test_dir, PATH_MAX, "%s/t", mysql_test_dir);
-  my_snprintf(mysql_tmp_dir, PATH_MAX, "%s/var/tmp", mysql_test_dir);
-  my_snprintf(result_dir, PATH_MAX, "%s/r", mysql_test_dir);
-  my_snprintf(master_dir, PATH_MAX, "%s/var/master-data", mysql_test_dir);
-  my_snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
-  my_snprintf(lang_dir, PATH_MAX, "%s/share/english", base_dir);
-  my_snprintf(char_dir, PATH_MAX, "%s/share/charsets", base_dir);
-  
+  snprintf(bin_dir, PATH_MAX, "%s/bin", base_dir);
+  snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
+  snprintf(test_dir, PATH_MAX, "%s/t", mysql_test_dir);
+  snprintf(mysql_tmp_dir, PATH_MAX, "%s/var/tmp", mysql_test_dir);
+  snprintf(result_dir, PATH_MAX, "%s/r", mysql_test_dir);
+  snprintf(master_dir, PATH_MAX, "%s/var/master-data", mysql_test_dir);
+  snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
+  snprintf(lang_dir, PATH_MAX, "%s/share/english", base_dir);
+  snprintf(char_dir, PATH_MAX, "%s/share/charsets", base_dir);
+
+#ifdef HAVE_OPENSSL
+  use_openssl = TRUE;
+#endif // HAVE_OPENSSL
+
+  // OpenSSL paths
+  snprintf(ca_cert, PATH_MAX, "%s/SSL/cacert.pem", base_dir);
+  snprintf(server_cert, PATH_MAX, "%s/SSL/server-cert.pem", base_dir);
+  snprintf(server_key, PATH_MAX, "%s/SSL/server-key.pem", base_dir);
+  snprintf(client_cert, PATH_MAX, "%s/SSL/client-cert.pem", base_dir);
+  snprintf(client_key, PATH_MAX, "%s/SSL/client-key.pem", base_dir);
+
   // setup files
-#ifdef __WIN__  
-  my_snprintf(mysqld_file, PATH_MAX, "%s/%s.exe", bin_dir, mysqld);
-  my_snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest.exe", bin_dir);
-  my_snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin.exe", bin_dir);
-  pid_mode= NOT_NEED_PID;
-#else
-  my_snprintf(mysqld_file, PATH_MAX, "%s/mysqld", bin_dir);
-  my_snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest", bin_dir);
-  my_snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
-#endif
-  my_snprintf(master_pid, PATH_MAX, "%s/var/run/master.pid", mysql_test_dir);
-  my_snprintf(slave_pid, PATH_MAX, "%s/var/run/slave.pid", mysql_test_dir);
+  snprintf(mysqld_file, PATH_MAX, "%s/mysqld", bin_dir);
+  snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest", bin_dir);
+  snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
+  snprintf(master_pid, PATH_MAX, "%s/var/run/master.pid", mysql_test_dir);
+  snprintf(slave_pid, PATH_MAX, "%s/var/run/slave.pid", mysql_test_dir);
 
   // create log file
-  my_snprintf(temp, PATH_MAX, "%s/mysql-test-run.log", mysql_test_dir);
+  snprintf(temp, PATH_MAX, "%s/mysql-test-run.log", mysql_test_dir);
   if ((log_fd = fopen(temp, "w+")) == NULL)
   {
-    mtr_log_errno("Unable to create log file.");
+    log_errno("Unable to create log file.");
   }
-  
+
   // prepare skip test list
   while((p = strchr(skip_test, ',')) != NULL) *p = ' ';
-  strcpy(temp, skip_test);
-#ifndef __WIN__
-  casedn_str(temp);
-#endif
-  my_snprintf(skip_test, PATH_MAX, " %s ", temp);
-  
-  // enviornment
-#ifdef __WIN__
-  my_snprintf(temp, PATH_MAX, "MYSQL_TEST_DIR=%s", mysql_test_dir);
-  _putenv(temp);
-#else
-  setenv("MYSQL_TEST_DIR", mysql_test_dir, 1); 
-#endif
-}
+  strcpy(temp, strlwr(skip_test));
+  snprintf(skip_test, PATH_MAX, " %s ", temp);
 
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
-{
-  return(0);
+  // environment
+  setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysqldump --no-defaults -u root --port=%u", bin_dir, master_port);
+  setenv("MYSQL_DUMP", file_path, 1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysqlbinlog --no-defaults --local-load=%s", bin_dir, mysql_tmp_dir);
+  setenv("MYSQL_BINLOG", file_path, 1);
+  setenv("MASTER_MYPORT", "9306", 1);
+  setenv("SLAVE_MYPORT", "9307", 1);
+  setenv("MYSQL_TCP_PORT", "3306", 1);
+  
 }
 
 /******************************************************************************
@@ -1130,59 +1170,57 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 ******************************************************************************/
 int main(int argc, char **argv)
 {
-  int i;
-  uint ui;
-
- 
-#ifdef __WIN__
-  int ho_error;
-  DWORD len= PATH_MAX;
-  char current_dir[PATH_MAX] = "."; 
-
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(1);
-  if (len= GetCurrentDirectory(&len,current_dir))
-  {
-    current_dir[len]= '\\';
-    current_dir[len+1]='\0';
-  };
-  MY_INIT(current_dir); 
-#endif
+  int is_ignore_list = 0;
   // setup
-#ifdef __WIN__
-  setup(current_dir);
-#else
   setup(argv[0]);
-#endif  
-  // header
-  mtr_log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   
-  mtr_log("Initializing Tests...\n");
+  /* The --ignore option is comma saperated list of test cases to skip and
+     should be very first command line option to the test suite. 
+
+     The usage is now:
+     mysql_test_run --ignore=test1,test2 test3 test4
+     where test1 and test2 are test cases to ignore
+     and test3 and test4 are test cases to run.
+  */
+  if (argc >= 2 && !strnicmp(argv[1], "--ignore=", sizeof("--ignore=")-1))
+  {
+    char *temp, *token;
+    temp= strdup(strchr(argv[1],'=') + 1);
+    for (token=str_tok(temp, ","); token != NULL; token=str_tok(NULL, ","))
+    {
+      if (strlen(ignore_test) + strlen(token) + 2 <= PATH_MAX-1)
+        sprintf(ignore_test+strlen(ignore_test), " %s ", token);
+      else
+      {
+        free(temp);
+        die("ignore list too long.");
+      }
+    }
+    free(temp);
+    is_ignore_list = 1;
+  }
+  // header
+  log_msg("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  
+  log_msg("Initializing Tests...\n");
   
   // install test databases
   mysql_install_db();
   
-  mtr_log("Starting Tests...\n");
+  log_msg("Starting Tests...\n");
   
-  mtr_log("\n");
-  mtr_log(HEADER);
-  mtr_log(DASH);
+  log_msg("\n");
+  log_msg(HEADER);
+  log_msg(DASH);
 
-#ifdef __WIN__
-  if (argc > 0)
-#else
-  if (argc > 1)
-#endif
+  if ( argc > 1 + is_ignore_list )
   {
+    int i;
 
     // single test
-    single_test = TRUE;    
+    single_test = TRUE;
 
-#ifdef __WIN__
-    for (i = 0; i < argc; i++)
-#else
-    for (i = 1; i < argc; i++)
-#endif
+    for (i = 1 + is_ignore_list; i < argc; i++)
     {
       // run given test
       run_test(argv[i]);
@@ -1191,7 +1229,8 @@ int main(int argc, char **argv)
   else
   {
     // run all tests
-    MY_DIR *dir = my_dir(test_dir, MYF(MY_WME | MY_WANT_STAT));
+    DIR *dir = opendir(test_dir);
+    DIR *entry;
     char test[NAME_MAX];
     char *p;
     
@@ -1203,16 +1242,14 @@ int main(int argc, char **argv)
       die("Unable to open tests directory.");
     }
     
-    for (ui = 0; ui < dir->number_off_files; ui++)
+    while((entry = readdir(dir)) != NULL)
     {
-      if (!MY_S_ISDIR(dir->dir_entry[ui].mystat.st_mode))
+      if (!S_ISDIR(entry->d_type))
       {
-        strcpy(test, dir->dir_entry[ui].name);
-#ifndef __WIN__
-        casedn_str(test);
-#endif        
+        strcpy(test, strlwr(entry->d_name));
+        
         // find the test suffix
-        if ((p = strstr(test, TEST_SUFFIX)))
+        if ((p = strindex(test, TEST_SUFFIX)) != NULL)
         {
           // null terminate at the suffix
           *p = '\0';
@@ -1222,29 +1259,137 @@ int main(int argc, char **argv)
         }
       }
     }
-
-    my_dirend(dir);
+    
+    closedir(dir);
   }
-  
-  mtr_log(DASH);
-  mtr_log("\n");
-  
-  mtr_log("Ending Tests...\n");
 
   // stop server
   mysql_stop();
 
+  log_msg(DASH);
+  log_msg("\n");
+
+  log_msg("Ending Tests...\n");
+
   // report stats
   report_stats();
-    
+
   // close log
   if (log_fd) fclose(log_fd);
-  
-#ifdef __NETWARE__
+
   // keep results up
   pressanykey();
-#endif
 
   return 0;
 }
 
+/*
+ Synopsis:
+  This function breaks the string into a sequence of tokens. The difference
+  between this function and strtok is that it respects the quoted string i.e.
+  it skips  any delimiter character within the quoted part of the string. 
+  It return tokens by eliminating quote character. It modifies the input string
+  passed. It will work with whitespace delimeter but may not work properly with
+  other delimeter. If the delimeter will contain any quote character, then
+  function will not tokenize and will return null string.
+  e.g. if input string is 
+     --init-slave="set global max_connections=500" --skip-external-locking
+  then the output will two string i.e.
+     --init-slave=set global max_connections=500
+     --skip-external-locking
+
+Arguments:
+  string:  input string
+  delim:   set of delimiter character
+Output:
+  return the null terminated token of NULL.
+*/
+
+
+char *str_tok(char *string, const char *delim)
+{
+  char *token;            /* current token received from strtok */
+  char *qt_token;         /* token delimeted by the matching pair of quote */
+  /*
+    if there are any quote chars found in the token then this variable
+    will hold the concatenated string to return to the caller
+  */
+  char *ptr_token=NULL;
+  /* pointer to the quote character in the token from strtok */
+  char *ptr_quote=NULL;
+  
+  /* See if the delimeter contains any quote character */
+  if (strchr(delim,'\'') || strchr(delim,'\"'))
+    return NULL;
+
+  /* repeate till we are getting some token from strtok */
+  while ((token = (char*)strtok(string, delim) ) != NULL)
+  {
+    /*
+      make the input string NULL so that next time onward strtok can
+      be called with NULL input string.
+    */
+    string = NULL;
+    
+    /* check if the current token contain double quote character*/
+    if ((ptr_quote = (char*)strchr(token,'\"')) != NULL)
+    {
+      /*
+        get the matching the matching double quote in the remaining
+        input string
+      */
+      qt_token = (char*)strtok(NULL,"\"");
+    }
+    /* check if the current token contain single quote character*/
+    else if ((ptr_quote = (char*)strchr(token,'\'')) != NULL)
+    {
+      /*
+        get the matching the matching single quote in the remaining
+        input string
+      */
+      qt_token = (char*)strtok(NULL,"\'");
+    }
+
+    /*
+      if the current token does not contains any quote character then
+      return to the caller.
+    */
+    if (ptr_quote == NULL)
+    {
+      /*
+        if there is any earlier token i.e. ptr_token then append the
+        current token in it and return it else return the current
+        token directly
+      */
+      return ptr_token ? strcat(ptr_token,token) : token;
+    }
+
+    /*
+      remove the quote character i.e. make NULL so that the token will
+      be devided in two part and later both part can be concatenated
+      and hence quote will be removed
+    */
+    *ptr_quote= 0;
+    
+    /* check if ptr_token has been initialized or not */
+    if (ptr_token == NULL)
+    {
+      /* initialize the ptr_token with current token */
+      ptr_token= token;
+      /* copy entire string between matching pair of quote*/
+      sprintf(ptr_token+strlen(ptr_token),"%s %s", ptr_quote+1, qt_token);
+    }
+    else
+    {
+      /*
+        copy the current token and entire string between matching pair
+        of quote
+      */
+      sprintf(ptr_token+strlen(ptr_token),"%s%s %s", token, ptr_quote+1,
+              qt_token );
+    }
+  }
+  
+  /* return the concatenated token */
+  return ptr_token;
+}

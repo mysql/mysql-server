@@ -292,7 +292,7 @@ DATABASE()
 select ENCRYPT("test") from t1;
 ENCRYPT("test")
 select LAST_INSERT_ID() from t1;
-last_insert_id()
+LAST_INSERT_ID()
 select RAND() from t1;
 RAND()
 select UNIX_TIMESTAMP() from t1;
@@ -305,7 +305,7 @@ explain extended select benchmark(1,1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select high_priority no_cache benchmark(1,1) AS `benchmark(1,1)` from test.t1
+Note	1003	select sql_no_cache benchmark(1,1) AS `benchmark(1,1)` from `test`.`t1`
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -593,7 +593,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=1024;
 Warnings:
-Warning	1281	Query cache failed to set size 1024, new query cache size is 0
+Warning	1282	Query cache failed to set size 1024; new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -601,7 +601,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=10240;
 Warnings:
-Warning	1281	Query cache failed to set size 10240, new query cache size is 0
+Warning	1282	Query cache failed to set size 10240; new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -609,7 +609,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=20480;
 Warnings:
-Warning	1281	Query cache failed to set size 20480, new query cache size is 0
+Warning	1282	Query cache failed to set size 20480; new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -617,7 +617,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=40960;
 Warnings:
-Warning	1281	Query cache failed to set size 40960, new query cache size is 0
+Warning	1282	Query cache failed to set size 40960; new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -696,17 +696,22 @@ word
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-load data infile '../../std_data/words.dat' into table t1;
+load data infile 'TEST_DIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+select count(*) from t1;
+count(*)
+70
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-select * from t1 into outfile "query_caceh.out.file";
+select * from t1 into outfile "query_cache.out.file";
+select * from t1 into outfile "query_cache.out.file";
+ERROR HY000: File 'query_cache.out.file' already exists
 select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -769,6 +774,23 @@ select * from t3;
 delete from t4 where a=1;
 flush query cache;
 drop table t1,t2,t3,t4;
+set query_cache_wlock_invalidate=1;
+create table t1 (a int not null);
+create table t2 (a int not null);
+select * from t1;
+a
+select * from t2;
+a
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+lock table t1 write, t2 read;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+unlock table;
+drop table t1,t2;
+set query_cache_wlock_invalidate=default;
 SET NAMES koi8r;
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
@@ -815,14 +837,27 @@ Qcache_hits	6
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
-drop table t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a int(1));
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT * FROM test.t1;
+a
+USE test;
+DROP TABLE t1;
+set character_set_results=null;
+select @@character_set_results;
+@@character_set_results
+NULL
+set character_set_results=default;
 create table t1 (a int);
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	8
+Qcache_inserts	11
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	6
@@ -835,7 +870,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	9
+Qcache_inserts	12
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7

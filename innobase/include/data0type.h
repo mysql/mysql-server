@@ -11,6 +11,9 @@ Created 1/16/1996 Heikki Tuuri
 
 #include "univ.i"
 
+extern ulint	data_mysql_default_charset_coll;
+extern ulint	data_mysql_latin1_swedish_charset_coll;
+
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
 
@@ -18,31 +21,79 @@ typedef struct dtype_struct		dtype_t;
 data type */
 extern dtype_t* 	dtype_binary;
 
-/* Data main types of SQL data */
-#define	DATA_VARCHAR	1	/* character varying */
-#define DATA_CHAR	2	/* fixed length character */
+/*-------------------------------------------*/
+/* The 'MAIN TYPE' of a column */
+#define	DATA_VARCHAR	1	/* character varying of the
+				latin1_swedish_ci charset-collation */
+#define DATA_CHAR	2	/* fixed length character of the
+				latin1_swedish_ci charset-collation */
 #define DATA_FIXBINARY	3	/* binary string of fixed length */
 #define DATA_BINARY	4	/* binary string */
-#define DATA_BLOB	5	/* binary large object, or a TEXT type; if
-				prtype & DATA_NONLATIN1 != 0 the data must
-				be compared by MySQL as a whole field; if
-				prtype & DATA_BINARY_TYPE == 0, then this is
-				actually a TEXT column */
+#define DATA_BLOB	5	/* binary large object, or a TEXT type;
+				if prtype & DATA_BINARY_TYPE == 0, then this is
+				actually a TEXT column (or a BLOB created
+				with < 4.0.14) */
 #define	DATA_INT	6	/* integer: can be any size 1 - 8 bytes */
 #define	DATA_SYS_CHILD	7	/* address of the child page in node pointer */
 #define	DATA_SYS	8	/* system column */
+
 /* Data types >= DATA_FLOAT must be compared using the whole field, not as
 binary strings */
+
 #define DATA_FLOAT	9
 #define DATA_DOUBLE	10
 #define DATA_DECIMAL	11	/* decimal number stored as an ASCII string */
-#define	DATA_VARMYSQL	12	/* non-latin1 varying length char */
-#define	DATA_MYSQL	13	/* non-latin1 fixed length char */
+#define	DATA_VARMYSQL	12	/* any charset varying length char */
+#define	DATA_MYSQL	13	/* any charset fixed length char */
+				/* NOTE that 4.1.1 used DATA_MYSQL and
+				DATA_VARMYSQL for all character sets, and the
+				charset-collation for tables created with it
+				can also be latin1_swedish_ci */
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
 /*-------------------------------------------*/
-/* In the lowest byte in the precise type we store the MySQL type code
-(not applicable for system columns). */
+/* The 'PRECISE TYPE' of a column */
+/*
+Tables created by a MySQL user have the following convention:
+
+- In the least significant byte in the precise type we store the MySQL type
+code (not applicable for system columns).
+
+- In the second least significant byte we OR flags DATA_NOT_NULL,
+DATA_UNSIGNED, DATA_BINARY_TYPE.
+
+- In the third least significant byte of the precise type of string types we
+store the MySQL charset-collation code. In DATA_BLOB columns created with
+< 4.0.14 we do not actually know if it is a BLOB or a TEXT column. Since there
+are no indexes on prefixes of BLOB or TEXT columns in < 4.0.14, this is no
+problem, though.
+
+Note that versions < 4.1.2 or < 5.0.1 did not store the charset code to the
+precise type, since the charset was always the default charset of the MySQL
+installation. If the stored charset code is 0 in the system table SYS_COLUMNS
+of InnoDB, that means that the default charset of this MySQL installation
+should be used.
+
+When loading a table definition from the system tables to the InnoDB data
+dictionary cache in main memory, InnoDB versions >= 4.1.2 and >= 5.0.1 check
+if the stored charset-collation is 0, and if that is the case and the type is
+a non-binary string, replace that 0 by the default charset-collation code of
+this MySQL installation. In short, in old tables, the charset-collation code
+in the system tables on disk can be 0, but in in-memory data structures
+(dtype_t), the charset-collation code is always != 0 for non-binary string
+types.
+
+In new tables, in binary string types, the charset-collation code is the
+MySQL code for the 'binary charset', that is, != 0.
+
+For binary string types and for DATA_CHAR, DATA_VARCHAR, and for those
+DATA_BLOB which are binary or have the charset-collation latin1_swedish_ci,
+InnoDB performs all comparisons internally, without resorting to the MySQL
+comparison functions. This is to save CPU time.
+
+InnoDB's own internal system tables have different precise types for their
+columns, and for them the precise type is usually not used at all.
+*/
 
 #define DATA_ENGLISH    4       /* English language character string: this
 				is a relic from pre-MySQL time and only used
@@ -69,7 +120,7 @@ be less than 256 */
 #define DATA_MIX_ID_LEN	9	/* maximum stored length for mix id (in a
 				compressed dulint form) */
 #define	DATA_N_SYS_COLS 4 	/* number of system columns defined above */
-/*-------------------------------------------*/
+
 /* Flags ORed to the precise data type */
 #define DATA_NOT_NULL	256	/* this is ORed to the precise type when
 				the column is declared as NOT NULL */
@@ -79,19 +130,52 @@ be less than 256 */
 				string, this is ORed to the precise type:
 				this only holds for tables created with
 				>= MySQL-4.0.14 */
-#define	DATA_NONLATIN1 2048	/* if the data type is a DATA_BLOB (actually
-				TEXT) of a non-latin1 type, this is ORed to
-				the precise type: this only holds for tables
-				created with >= MySQL-4.0.14 */
+/* #define	DATA_NONLATIN1	2048 This is a relic from < 4.1.2 and < 5.0.1.
+				In earlier versions this was set for some
+				BLOB columns.
+*/
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
 alphabetical order for a single field and decide the storage size of an
 SQL null*/
-#define DATA_ORDER_NULL_TYPE_BUF_SIZE	4
-/* In the >= 4.1.x storage format we need 2 bytes more for the charset */
+#define DATA_ORDER_NULL_TYPE_BUF_SIZE		4
+/* In the >= 4.1.x storage format we add 2 bytes more so that we can also
+store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
+/*************************************************************************
+Checks if a data main type is a string type. Also a BLOB is considered a
+string type. */
+
+ibool
+dtype_is_string_type(
+/*=================*/
+			/* out: TRUE if string type */
+	ulint	mtype);	/* in: InnoDB main data type code: DATA_CHAR, ... */
+/*************************************************************************
+Checks if a type is a binary string type. Note that for tables created with
+< 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
+those DATA_BLOB columns this function currently returns FALSE. */
+
+ibool
+dtype_is_binary_string_type(
+/*========================*/
+			/* out: TRUE if binary string type */
+	ulint	mtype,	/* in: main data type */
+	ulint	prtype);/* in: precise type */
+/*************************************************************************
+Checks if a type is a non-binary string type. That is, dtype_is_string_type is
+TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
+with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
+For those DATA_BLOB columns this function currently returns TRUE. */
+
+ibool
+dtype_is_non_binary_string_type(
+/*============================*/
+			/* out: TRUE if non-binary string type */
+	ulint	mtype,	/* in: main data type */
+	ulint	prtype);/* in: precise type */
 /*************************************************************************
 Sets a data type structure. */
 UNIV_INLINE
@@ -125,6 +209,23 @@ ulint
 dtype_get_prtype(
 /*=============*/
 	dtype_t*	type);
+/*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
+UNIV_INLINE
+ulint
+dtype_get_charset_coll(
+/*===================*/
+	ulint	prtype);/* in: precise data type */
+/*************************************************************************
+Forms a precise type from the < 4.1.2 format precise type plus the
+charset-collation code. */
+
+ulint
+dtype_form_prtype(
+/*==============*/
+	ulint	old_prtype,	/* in: the MySQL type code and the flags
+				DATA_BINARY_TYPE etc. */
+	ulint	charset_coll);	/* in: MySQL charset-collation code */
 /*************************************************************************
 Gets the type length. */
 UNIV_INLINE
@@ -204,6 +305,7 @@ dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/* in: type struct */
 	byte*		buf);	/* in: buffer for stored type order info */
+
 /*************************************************************************
 Validates a data type structure. */
 
@@ -225,9 +327,8 @@ dtype_print(
 struct dtype_struct{
 	ulint	mtype;		/* main data type */
 	ulint	prtype;		/* precise type; MySQL data type */
-	ulint	chrset;		/* MySQL character set code */
 
-	/* remaining two fields do not affect alphabetical ordering: */
+	/* the remaining two fields do not affect alphabetical ordering: */
 
 	ulint	len;		/* length */
 	ulint	prec;		/* precision */

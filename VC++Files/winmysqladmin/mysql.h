@@ -229,7 +229,9 @@ int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned int length);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
-int		STDCALL mysql_shutdown(MYSQL *mysql);
+int		STDCALL mysql_shutdown(MYSQL *mysql,
+                                       enum enum_shutdown_level
+                                       shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
 				     unsigned int refresh_options);

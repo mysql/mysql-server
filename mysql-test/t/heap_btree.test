@@ -110,7 +110,14 @@ drop table t1;
 
 create table t1 (btn char(10) not null, key using BTREE (btn)) engine=heap;
 insert into t1 values ("hello"),("hello"),("hello"),("hello"),("hello"),("a"),("b"),("c"),("d"),("e"),("f"),("g"),("h"),("i");
-explain select * from t1 where btn like "q%";
+explain select * from t1 where btn like "i%";
+--replace_column 9 #
+explain select * from t1 where btn like "h%";
+explain select * from t1 where btn like "a%";
+explain select * from t1 where btn like "b%";
+# For the following the BTREE MAY notice that there is no possible matches
+select * from t1 where btn like "ff%";
+select * from t1 where btn like " %";
 select * from t1 where btn like "q%";
 alter table t1 add column new_col char(1) not null, add key using BTREE (btn,new_col), drop key btn;
 update t1 set new_col=left(btn,1);

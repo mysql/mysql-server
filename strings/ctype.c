@@ -22,6 +22,23 @@
 #endif
 
 
+/*
+
+  This files implements routines which parse XML based
+  character set and collation description files.
+  
+  Unicode collations are encoded according to
+  
+    Unicode Technical Standard #35
+    Locale Data Markup Language (LDML)
+    http://www.unicode.org/reports/tr35/
+  
+  and converted into ICU string according to
+  
+    Collation Customization
+    http://oss.software.ibm.com/icu/userguide/Collate_Customization.html
+  
+*/
 
 static char *mstr(char *str,const char *src,uint l1,uint l2)
 {
@@ -54,6 +71,11 @@ struct my_cs_file_section_st
 #define _CS_PRIMARY_ID	15
 #define _CS_BINARY_ID	16
 #define _CS_CSDESCRIPT	17
+#define _CS_RESET	18
+#define	_CS_DIFF1	19
+#define	_CS_DIFF2	20
+#define	_CS_DIFF3	21
+
 
 static struct my_cs_file_section_st sec[] =
 {
@@ -83,6 +105,10 @@ static struct my_cs_file_section_st sec[] =
   {_CS_ORDER,		"charsets.charset.collation.order"},
   {_CS_FLAG,		"charsets.charset.collation.flag"},
   {_CS_COLLMAP,		"charsets.charset.collation.map"},
+  {_CS_RESET,		"charsets.charset.collation.rules.reset"},
+  {_CS_DIFF1,		"charsets.charset.collation.rules.p"},
+  {_CS_DIFF2,		"charsets.charset.collation.rules.s"},
+  {_CS_DIFF3,		"charsets.charset.collation.rules.t"},
   {0,	NULL}
 };
 
@@ -98,6 +124,7 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
+#define MY_CS_TAILORING_SIZE	128
 
 typedef struct my_cs_file_info
 {
@@ -109,6 +136,8 @@ typedef struct my_cs_file_info
   uchar  sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
   uint16 tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
   char   comment[MY_CS_CSDESCR_SIZE];
+  char   tailoring[MY_CS_TAILORING_SIZE];
+  size_t tailoring_length;
   CHARSET_INFO cs;
   int (*add_collation)(CHARSET_INFO *cs);
 } MY_CHARSET_LOADER;
@@ -156,9 +185,11 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
   
   if ( s && (s->state == _CS_CHARSET))
-  {
     bzero(&i->cs,sizeof(i->cs));
-  }
+  
+  if (s && (s->state == _CS_COLLATION))
+    i->tailoring_length= 0;
+
   return MY_XML_OK;
 }
 
@@ -242,6 +273,26 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
     fill_uchar(i->ctype,MY_CS_CTYPE_TABLE_SIZE,attr,len);
     i->cs.ctype=i->ctype;
     break;
+  case _CS_RESET:
+  case _CS_DIFF1:
+  case _CS_DIFF2:
+  case _CS_DIFF3:
+    {
+      /*
+        Convert collation description from
+        Locale Data Markup Language (LDML)
+        into ICU Collation Customization expression.
+      */
+      char arg[16];
+      const char *cmd[]= {"&","<","<<","<<<"};
+      i->cs.tailoring= i->tailoring;
+      mstr(arg,attr,len,sizeof(arg)-1);
+      if (i->tailoring_length + 20 < sizeof(i->tailoring))
+      {
+        char *dst= i->tailoring_length + i->tailoring;
+        i->tailoring_length+= sprintf(dst," %s %s",cmd[state-_CS_RESET],arg);
+      }
+    }
   }
   return MY_XML_OK;
 }

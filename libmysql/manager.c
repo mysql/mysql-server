@@ -133,7 +133,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     if (!hp)
     {
       con->last_errno=tmp_errno;
-      sprintf(con->last_error,"Could not resolve host '%s'",host);
+      sprintf(con->last_error,"Could not resolve host '%-.64s'",host);
       my_gethostbyname_r_free();
       goto err;
     }

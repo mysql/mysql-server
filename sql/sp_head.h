@@ -32,12 +32,48 @@
 Item_result
 sp_map_result_type(enum enum_field_types type);
 
+bool
+sp_multi_results_command(enum enum_sql_command cmd);
+
 struct sp_label;
 class sp_instr;
 struct sp_cond_type;
 struct sp_pvar;
 
-class sp_head : public Sql_alloc
+class sp_name : public Sql_alloc
+{
+public:
+
+  LEX_STRING m_db;
+  LEX_STRING m_name;
+  LEX_STRING m_qname;
+
+  sp_name(LEX_STRING name)
+    : m_name(name)
+  {
+    m_db.str= m_qname.str= 0;
+    m_db.length= m_qname.length= 0;
+  }
+
+  sp_name(LEX_STRING db, LEX_STRING name)
+    : m_db(db), m_name(name)
+  {
+    m_qname.str= 0;
+    m_qname.length= 0;
+  }
+
+  // Init. the qualified name from the db and name.
+  void init_qname(THD *thd);	// thd for memroot allocation
+
+  ~sp_name()
+  {}
+};
+
+sp_name *
+sp_name_current_db_new(THD *thd, LEX_STRING name);
+
+
+class sp_head :private Item_arena
 {
   sp_head(const sp_head &);	/* Prevent use of these */
   void operator=(sp_head &);
@@ -46,16 +82,20 @@ public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
+  CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
   my_bool m_has_return;		// For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)
   uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
   st_sp_chistics *m_chistics;
+  ulong m_sql_mode;		// For SHOW CREATE
 #if NOT_USED_NOW
   // QQ We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
 #endif
+  LEX_STRING m_qname;		// db.name
+  LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
   LEX_STRING m_retstr;		// For FUNCTIONs only
@@ -72,7 +112,7 @@ public:
   static void *
   operator new(size_t size);
 
-  static void 
+  static void
   operator delete(void *ptr, size_t size);
 
   sp_head();
@@ -83,11 +123,11 @@ public:
 
   // Initialize strings after parsing header
   void
-  init_strings(THD *thd, LEX *lex, LEX_STRING *name);
+  init_strings(THD *thd, LEX *lex, sp_name *name);
 
   int
   create(THD *thd);
-  
+
   virtual ~sp_head();
 
   // Free memory
@@ -106,11 +146,8 @@ public:
   int
   show_create_function(THD *thd);
 
-  inline void
-  add_instr(sp_instr *i)
-  {
-    insert_dynamic(&m_instr, (gptr)&i);
-  }
+  void
+  add_instr(sp_instr *instr);
 
   inline uint
   instructions()
@@ -161,43 +198,14 @@ public:
 
   void set_info(char *definer, uint definerlen,
 		longlong created, longlong modified,
-		st_sp_chistics *chistics);
+		st_sp_chistics *chistics, ulong sql_mode);
 
-  inline void reset_thd_mem_root(THD *thd)
-  {
-    m_thd_root= thd->mem_root;
-    thd->mem_root= m_mem_root;
-    m_free_list= thd->free_list; // Keep the old list
-    thd->free_list= NULL;	// Start a new one
-    m_thd= thd;
-  }
+  void reset_thd_mem_root(THD *thd);
 
-  inline void restore_thd_mem_root(THD *thd)
-  {
-    Item *flist= m_free_list;	// The old list
-    m_free_list= thd->free_list; // Get the new one
-    thd->free_list= flist;	// Restore the old one
-    m_mem_root= thd->mem_root;
-    thd->mem_root= m_thd_root;
-    m_thd= NULL;
-  }
+  void restore_thd_mem_root(THD *thd);
 
-private:
-
-  MEM_ROOT m_mem_root;		// My own mem_root
-  MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
-  Item *m_free_list;		// Where the items go
-  THD *m_thd;			// Set if we have reset mem_root
-
-  sp_pcontext *m_pcont;		// Parse context
-  List<LEX> m_lex;		// Temp. store for the other lex
-  DYNAMIC_ARRAY m_instr;	// The "instructions"
-  typedef struct
-  {
-    struct sp_label *lab;
-    sp_instr *instr;
-  } bp_t;
-  List<bp_t> m_backpatch;	// Instructions needing backpatching
+  void optimize();
+  void opt_mark(uint ip);
 
   inline sp_instr *
   get_instr(uint i)
@@ -210,6 +218,22 @@ private:
       ip= NULL;
     return ip;
   }
+
+private:
+
+  MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
+  THD *m_thd;			// Set if we have reset mem_root
+  char *m_thd_db;		// Original thd->db pointer
+
+  sp_pcontext *m_pcont;		// Parse context
+  List<LEX> m_lex;		// Temp. store for the other lex
+  DYNAMIC_ARRAY m_instr;	// The "instructions"
+  typedef struct
+  {
+    struct sp_label *lab;
+    sp_instr *instr;
+  } bp_t;
+  List<bp_t> m_backpatch;	// Instructions needing backpatching
 
   int
   execute(THD *thd);
@@ -228,28 +252,44 @@ class sp_instr : public Sql_alloc
 
 public:
 
+  uint marked;
+  Item *free_list;              // My Items
+  uint m_ip;			// My index
+
   // Should give each a name or type code for debugging purposes?
   sp_instr(uint ip)
-    : Sql_alloc(), m_ip(ip)
+    :Sql_alloc(), marked(0), free_list(0), m_ip(ip)
   {}
 
   virtual ~sp_instr()
-  {}
+  { free_items(free_list); }
 
   // Execute this instrution. '*nextp' will be set to the index of the next
   // instruction to execute. (For most instruction this will be the
   // instruction following this one.)
   // Returns 0 on success, non-zero if some error occured.
-  virtual int
-  execute(THD *thd, uint *nextp)
-  {				// Default is a no-op.
-    *nextp = m_ip+1;		// Next instruction
-    return 0;
+  virtual int execute(THD *thd, uint *nextp) = 0;
+
+  virtual void print(String *str) = 0;
+
+  virtual void set_destination(uint dest)
+  {}
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return m_ip+1;
   }
 
-protected:
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
 
-  uint m_ip;			// My index
+  virtual void opt_move(uint dst, List<sp_instr> *ibp)
+  {
+    m_ip= dst;
+  }
 
 }; // class sp_instr : public Sql_alloc
 
@@ -271,6 +311,8 @@ public:
   virtual ~sp_instr_stmt();
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
   inline void
   set_lex(LEX *lex)
@@ -311,6 +353,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_offset;		// Frame offset
@@ -327,12 +371,14 @@ class sp_instr_jump : public sp_instr
 
 public:
 
+  uint m_dest;			// Where we will go
+
   sp_instr_jump(uint ip)
-    : sp_instr(ip)
+    : sp_instr(ip), m_dest(0), m_optdest(0)
   {}
 
   sp_instr_jump(uint ip, uint dest)
-    : sp_instr(ip), m_dest(dest)
+    : sp_instr(ip), m_dest(dest), m_optdest(0)
   {}
 
   virtual ~sp_instr_jump()
@@ -340,15 +386,24 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp);
+
+  virtual void opt_move(uint dst, List<sp_instr> *ibp);
+
   virtual void
   set_destination(uint dest)
   {
-    m_dest= dest;
+    if (m_dest == 0)		// Don't reset
+      m_dest= dest;
   }
 
 protected:
 
-  int m_dest;			// Where we will go
+  sp_instr *m_optdest;		// Used during optimization
 
 }; // class sp_instr_jump : public sp_instr
 
@@ -372,6 +427,15 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
 
 private:
 
@@ -400,6 +464,15 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
+
 private:
 
   Item *m_expr;			// The condition
@@ -422,6 +495,14 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
 
 protected:
 
@@ -451,6 +532,15 @@ public:
   }
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp);
+
+  virtual uint opt_shortcut_jump(sp_head *sp)
+  {
+    return m_ip;
+  }
 
   inline void add_condition(struct sp_cond_type *cond)
   {
@@ -483,6 +573,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_count;
@@ -506,6 +598,14 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
+
 private:
 
   uint m_frame;
@@ -527,6 +627,8 @@ public:
   virtual ~sp_instr_cpush();
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
 private:
 
@@ -551,6 +653,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_count;
@@ -574,6 +678,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
 private:
 
   uint m_cursor;		// Stack index
@@ -596,6 +702,8 @@ public:
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
 
 private:
 
@@ -622,6 +730,8 @@ public:
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual void print(String *str);
+
   void add_to_varlist(struct sp_pvar *var)
   {
     m_varlist.push_back(var);
@@ -635,13 +745,42 @@ private:
 }; // class sp_instr_cfetch : public sp_instr
 
 
+class sp_instr_error : public sp_instr
+{
+  sp_instr_error(const sp_instr_error &); /* Prevent use of these */
+  void operator=(sp_instr_error &);
+
+public:
+
+  sp_instr_error(uint ip, int errcode)
+    : sp_instr(ip), m_errcode(errcode)
+  {}
+
+  virtual ~sp_instr_error()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+  virtual uint opt_mark(sp_head *sp)
+  {
+    marked= 1;
+    return UINT_MAX;
+  }
+
+private:
+
+  int m_errcode;
+
+}; // class sp_instr_error : public sp_instr
+
+
 struct st_sp_security_context
 {
   bool changed;
   uint master_access;
   uint db_access;
-  char *db;
-  uint db_length;
   char *priv_user;
   char priv_host[MAX_HOSTNAME];
   char *user;

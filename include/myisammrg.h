@@ -101,10 +101,7 @@ extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function,
 		      void *extra_arg);
 extern void myrg_extrafunc(MYRG_INFO *info,invalidator_by_filename inv);
 extern ha_rows myrg_records_in_range(MYRG_INFO *info,int inx,
-				    const byte *start_key,uint start_key_len,
-				    enum ha_rkey_function start_search_flag,
-				    const byte *end_key,uint end_key_len,
-				    enum ha_rkey_function end_search_flag);
+                                     key_range *min_key, key_range *max_key);
 
 extern ulonglong myrg_position(MYRG_INFO *info);
 #ifdef	__cplusplus

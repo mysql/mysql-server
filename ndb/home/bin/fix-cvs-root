@@ -1,0 +1,17 @@
+#! /bin/sh
+
+# change all CVS/Root to current CVSROOT
+
+[ "$CVSROOT" ] || { echo "no CVSROOT in environment" >&2; exit 1; }
+
+echo "changing all CVS/Root files under `pwd`"
+sleep 1
+
+find . -path '*/CVS/Root' -print |
+while read file; do
+	echo "$file"
+	chmod +w $file || exit 1
+	echo $CVSROOT >$file || exit 1
+done
+
+echo "done"

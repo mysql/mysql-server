@@ -14,7 +14,7 @@ create table t1 (
   filler char(200),
   filler2 char(200),  
   index(key1),
-  index(key2),  
+  index(key2)
 ) engine=bdb;
 
 

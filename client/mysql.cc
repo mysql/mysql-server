@@ -25,7 +25,7 @@
  *   Matt Wagner   <matt@mysql.com>
  *   Jeremy Cole   <jcole@mysql.com>
  *   Tonu Samuel   <tonu@mysql.com>
- *   Harrison Fisk <hcfisk@buffalo.edu>
+ *   Harrison Fisk <harrison@mysql.com>
  *
  **/
 
@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.3";
+const char *VER= "14.5";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -134,7 +134,9 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       default_charset_used= 0, opt_secure_auth= 0;
+	       default_charset_used= 0, opt_secure_auth= 0,
+               default_pager_set= 0;
+static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -173,9 +175,7 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 			   
 #include "sslopt-vars.h"
 
-#ifndef DBUG_OFF
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
-#endif
 
 void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
@@ -227,11 +227,12 @@ typedef struct {
 } COMMANDS;
 
 static COMMANDS commands[] = {
-  { "help",   'h', com_help,   1, "Display this help." },
   { "?",      '?', com_help,   1, "Synonym for `help'." },
   { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host." },
+  { "delimiter", 'd', com_delimiter,    1,
+    "Set query delimiter. " },
 #ifdef USE_POPEN
   { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
 #endif
@@ -239,6 +240,7 @@ static COMMANDS commands[] = {
     "Send command to mysql server, display result vertically."},
   { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
   { "go",     'g', com_go,     0, "Send command to mysql server." },
+  { "help",   'h', com_help,   1, "Display this help." },
 #ifdef USE_POPEN
   { "nopager",'n', com_nopager,0, "Disable pager, print to stdout." },
 #endif
@@ -261,8 +263,6 @@ static COMMANDS commands[] = {
     "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
     "Use another database. Takes database name as argument." },
-  { "delimiter", 'd', com_delimiter,    1,
-    "Set query delimiter. " },
   /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
@@ -290,10 +290,25 @@ static const char *server_default_groups[]=
 { "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
+/*
+ HIST_ENTRY is defined for libedit, but not for the real readline
+ Need to redefine it for real readline to find it
+*/
+#if !defined(USE_LIBEDIT_INTERFACE)
+typedef struct _hist_entry {
+  const char      *line;
+  const char      *data;
+} HIST_ENTRY; 
+#endif
+
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);
 extern "C" int write_history(const char *command);
+extern "C" HIST_ENTRY *history_get(int num);
+extern "C" int history_length;
+static int not_in_history(const char *line);
 static void initialize_readline (char *name);
+static void fix_history(String *final_command);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
@@ -331,8 +346,11 @@ int main(int argc,char *argv[])
   strmov(pager, "stdout");	// the default, if --pager wasn't given
   {
     char *tmp=getenv("PAGER");
-    if (tmp)
-      strmov(default_pager,tmp);
+    if (tmp && strlen(tmp))
+    {
+      default_pager_set= 1;
+      strmov(default_pager, tmp);
+    }
   }
   if (!isatty(0) || !isatty(1))
   {
@@ -351,13 +369,19 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
+      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
   {
     free_defaults(defaults_argv);
+    my_end(0);
+    exit(1);
+  }
+  if (mysql_server_init(0, NULL, (char**) server_default_groups))
+  {
+    free_defaults(defaults_argv);
+    my_end(0);
     exit(1);
   }
   glob_buffer.realloc(512);
-  mysql_server_init(0, NULL, (char**) server_default_groups);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
   bzero((char*) &mysql, sizeof(mysql));
@@ -408,8 +432,9 @@ int main(int argc,char *argv[])
   }
 #endif
   sprintf(buff, "%s",
+#ifndef NOT_YET
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
-#ifdef NOT_YET
+#else
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
 #endif
   put_info(buff,INFO_INFO);
@@ -467,6 +492,8 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -474,7 +501,7 @@ static struct my_option my_long_options[] =
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
-   "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -484,15 +511,18 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifndef DBUG_OFF
-  {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"database", 'D', "Database to use.", (gptr*) &current_db,
    (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", (gptr*) &delimiter_str,
    (gptr*) &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
+  {"execute", 'e', "Execute command and quit. (Disables --force and history file)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    (gptr*) &vertical, (gptr*) &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -574,7 +604,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"reconnect", OPT_RECONNECT, "Reconnect if the connection is lost. Disable with --disable-reconnect. This option is enabled by default.", 
    (gptr*) &opt_reconnect, (gptr*) &opt_reconnect, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
+  {"silent", 's', "Be more silent. Print results with a tab as separator, each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_SMEM
   {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
@@ -597,10 +627,10 @@ static struct my_option my_long_options[] =
    (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
    0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -608,19 +638,27 @@ static struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+   "Number of seconds before connection timeout.",
+   (gptr*) &opt_connect_timeout,
    (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
    0, 1},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
+   "Max packet length to send to, or receive from server",
+   (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
    MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
+   "Buffer for TCP/IP and socket communication",
+   (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"select_limit", OPT_SELECT_LIMIT, "", (gptr*) &select_limit,
+  {"select_limit", OPT_SELECT_LIMIT,
+   "Automatic limit for SELECT when using --safe-updates",
+   (gptr*) &select_limit,
    (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
-  {"max_join_size", OPT_MAX_JOIN_SIZE, "", (gptr*) &max_join_size,
+  {"max_join_size", OPT_MAX_JOIN_SIZE,
+   "Automatic limit for rows in a join when using --safe-updates",
+   (gptr*) &max_join_size,
    (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
    0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
@@ -632,6 +670,10 @@ static struct my_option my_long_options[] =
 
 static void usage(int version)
 {
+  /* Divert all help information on NetWare to logger screen. */
+#ifdef __NETWARE__
+#define printf	consoleprintf
+#endif
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
@@ -644,7 +686,12 @@ and you are welcome to modify and redistribute it under the GPL license\n");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
+  NETWARE_SET_SCREEN_MODE(1);
+#ifdef __NETWARE__
+#undef printf
+#endif
 }
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -689,11 +736,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       opt_nopager= 0;
-      if (argument)
+      if (argument && strlen(argument))
+      {
+	default_pager_set= 1;
 	strmov(pager, argument);
-      else
+	strmov(default_pager, pager);
+      }
+      else if (default_pager_set)
 	strmov(pager, default_pager);
-      strmov(default_pager, pager);
+      else
+	opt_nopager= 1;
     }
     break;
   case OPT_NOPAGER:
@@ -719,10 +771,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'e':
     status.batch= 1;
     status.add_to_history= 0;
-    batch_readline_end(status.line_buff);	// If multiple -e
-    if (!(status.line_buff= batch_readline_command(argument)))
+    if (!status.line_buff)
+      ignore_errors= 0;                         // do it for the first -e only
+    if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
-    ignore_errors= 0;
     break;
   case 'o':
     if (argument == disabled_my_option)
@@ -762,12 +814,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       verbose++;
     break;
   case 'B':
-    if (!status.batch)
-    {
-      status.batch= 1;
-      status.add_to_history= 0;
-      opt_silent++;				// more silent
-    }
+    status.batch= 1;
+    status.add_to_history= 0;
+    set_if_bigger(opt_silent,1);                         // more silent
     break;
   case 'W':
 #ifdef __WIN__
@@ -791,6 +840,7 @@ static int get_options(int argc, char **argv)
 {
   char *tmp, *pagpoint;
   int ho_error;
+  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
   tmp= (char *) getenv("MYSQL_HOST");
   if (tmp)
@@ -806,19 +856,28 @@ static int get_options(int argc, char **argv)
     strmov(pager, pagpoint);
   strmov(default_pager, pager);
 
+  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
+  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
+  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
 
   if (status.batch) /* disable pager and outfile in this case */
   {
     strmov(default_pager, "stdout");
     strmov(pager, "stdout");
     opt_nopager= 1;
+    default_pager_set= 0;
     opt_outfile= 0;
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
   }
-  if (!(charset_info= get_charset_by_csname(default_charset, 
+  
+  if (strcmp(default_charset, charset_info->csname) &&
+      !(charset_info= get_charset_by_csname(default_charset, 
 					    MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
   if (argc > 1)
@@ -874,6 +933,7 @@ static int read_lines(bool execute_commands)
 #ifdef __NETWARE__
       line=fgets(linebuffer, sizeof(linebuffer)-1, stdin);
       /* Remove the '\n' */
+      if (line)
       {
         char *p = strrchr(line, '\n');
         if (p != NULL)
@@ -889,7 +949,11 @@ static int read_lines(bool execute_commands)
       line= readline(prompt);
 #endif /* defined( __WIN__) || defined(OS2) || defined(__NETWARE__) */
 
-      if (opt_outfile)
+      /*
+        When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
+        which may cause coredump.
+      */
+      if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
     if (!line)					// End of file
@@ -914,7 +978,7 @@ static int read_lines(bool execute_commands)
       if (glob_buffer.is_empty())		// If buffer was emptied
 	in_string=0;
 #ifdef HAVE_READLINE
-      if (status.add_to_history)
+      if (status.add_to_history && not_in_history(line))
 	add_history(line);
 #endif
       continue;
@@ -991,7 +1055,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (!line[0] && buffer.is_empty())
     return 0;
 #ifdef HAVE_READLINE
-  if (status.add_to_history && line[0])
+  if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
 #ifdef USE_MB
@@ -1069,11 +1133,8 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       else
       {
-	int error= com_go(&buffer, 0);
-	if (error)
-	{
-	  return error < 0 ? 0 : 1;		// < 0 is not fatal
-	}
+	if (com_go(&buffer, 0) > 0)             // < 0 is not fatal
+	  return 1;
       }
       buffer.length(0);
       out= line;
@@ -1144,6 +1205,74 @@ int no_completion()
 #endif
 {
   return 0;					/* No filename completion */
+}
+
+/*	glues pieces of history back together if in pieces   */
+static void fix_history(String *final_command) 
+{
+  int total_lines = 1;
+  char *ptr = final_command->c_ptr();
+  String fixed_buffer; 	/* Converted buffer */
+  char str_char = '\0';  /* Character if we are in a string or not */
+  
+  /* find out how many lines we have and remove newlines */
+  while (*ptr != '\0') 
+  {
+    switch (*ptr) {
+      /* string character */
+    case '"':
+    case '\'':
+    case '`':
+      if (str_char == '\0')	/* open string */
+	str_char = *ptr;
+      else if (str_char == *ptr)   /* close string */
+	str_char = '\0';
+      fixed_buffer.append(ptr,1);
+      break;
+    case '\n':
+      /* 
+	 not in string, change to space
+	 if in string, leave it alone 
+      */
+      fixed_buffer.append(str_char == '\0' ? " " : "\n");
+      total_lines++;
+      break;
+    case '\\':
+      fixed_buffer.append('\\');
+      /* need to see if the backslash is escaping anything */
+      if (str_char) 
+      {
+	ptr++;
+	/* special characters that need escaping */
+	if (*ptr == '\'' || *ptr == '"' || *ptr == '\\')
+	  fixed_buffer.append(ptr,1);
+	else
+	  ptr--;
+      }
+      break;
+      
+    default:
+      fixed_buffer.append(ptr,1);
+    }
+    ptr++;
+  }
+  if (total_lines > 1)			
+    add_history(fixed_buffer.ptr());
+}
+
+/*	
+  returns 0 if line matches the previous history entry
+  returns 1 if the line doesn't match the previous history entry
+*/
+static int not_in_history(const char *line) 
+{
+  HIST_ENTRY *oldhist = history_get(history_length);
+  
+  if (oldhist == 0)
+    return 1;
+  if (strcmp(oldhist->line,line) == 0)
+    return 0;
+  return 1;
 }
 
 static void initialize_readline (char *name)
@@ -1487,7 +1616,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
   MYSQL_RES *result;
-  MYSQL_FIELD *fields;
   int error;
   
   if (help_arg[0] != '\'')
@@ -1513,7 +1641,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
   {
     unsigned int num_fields= mysql_num_fields(result);
     my_ulonglong num_rows= mysql_num_rows(result);
-    fields= mysql_fetch_fields(result);
+    mysql_fetch_fields(result);
     if (num_fields==3 && num_rows==1)
     {
       if (!(cur= mysql_fetch_row(result)))
@@ -1535,7 +1663,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
       init_pager();
       char last_char;
       
-      int num_name, num_cat;
+      int num_name= 0, num_cat= 0;
       LINT_INIT(num_name);
       LINT_INIT(num_cat);
 
@@ -1577,8 +1705,8 @@ static int
 com_help(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  reg1 int i;
-  char * help_arg= strchr(line,' ');
+  reg1 int i, j;
+  char * help_arg= strchr(line,' '), buff[32], *end;
 
   if (help_arg)
     return com_server_help(buffer,line,help_arg+1);
@@ -1591,12 +1719,15 @@ com_help(String *buffer __attribute__((unused)),
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
+    end= strmov(buff, commands[i].name);
+    for (j= strlen(commands[i].name); j < 10; j++)
+      end= strmov(end, " ");
     if (commands[i].func)
-      tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+      tee_fprintf(stdout, "%s(\\%c) %s\n", buff,
 		  commands[i].cmd_char, commands[i].doc);
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
-    put_info("\nFor server side help, type 'help all'\n", INFO_INFO);
+    put_info("\nFor server side help, type 'help contents'\n", INFO_INFO);
   return 0;
 }
 
@@ -1605,6 +1736,10 @@ com_help(String *buffer __attribute__((unused)),
 static int
 com_clear(String *buffer,char *line __attribute__((unused)))
 {
+#ifdef HAVE_READLINE
+  if (status.add_to_history)
+    fix_history(buffer);
+#endif
   buffer->length(0);
   return 0;
 }
@@ -1664,6 +1799,16 @@ com_go(String *buffer,char *line __attribute__((unused)))
   timer=start_timer();
 
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
+
+#ifdef HAVE_READLINE
+  if (status.add_to_history) 
+  {  
+    buffer->append(vertical ? "\\G" : delimiter);
+    /* Append final command onto history */
+    fix_history(buffer);
+  }
+#endif
+
   if (error)
   {
     buffer->length(0); // Remove query on error
@@ -1727,7 +1872,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       *pos++= ',';
       *pos++= ' ';
-      pos=int2str(warnings, pos, 10);
+      pos=int10_to_str(warnings, pos, 10);
       pos=strmov(pos, " warning");
       if (warnings != 1)
 	*pos++= 's';
@@ -2160,12 +2305,17 @@ com_pager(String *buffer, char *line __attribute__((unused)))
 
   if (status.batch)
     return 0;
-  /* Skip space from file name */
-  while (my_isspace(charset_info,*line))
+  /* Skip spaces in front of the pager command */
+  while (my_isspace(charset_info, *line))
     line++;
-  if (!(param= strchr(line, ' '))) // if pager was not given, use the default
+  /* Skip the pager command */
+  param= strchr(line, ' ');
+  /* Skip the spaces between the command and the argument */
+  while (param && my_isspace(charset_info, *param))
+    param++;
+  if (!param || !strlen(param)) // if pager was not given, use the default
   {
-    if (!default_pager[0])
+    if (!default_pager_set)
     {
       tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
       opt_nopager=1;
@@ -2177,9 +2327,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   }
   else
   {
-    while (my_isspace(charset_info,*param))
-      param++;
-    end=strmake(pager_name, param, sizeof(pager_name)-1);
+    end= strmake(pager_name, param, sizeof(pager_name)-1);
     while (end > pager_name && (my_isspace(charset_info,end[-1]) || 
                                 my_iscntrl(charset_info,end[-1])))
       end--;
@@ -2188,7 +2336,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
     strmov(default_pager, pager_name);
   }
   opt_nopager=0;
-  tee_fprintf(stdout, "PAGER set to %s\n", pager);
+  tee_fprintf(stdout, "PAGER set to '%s'\n", pager);
   return 0;
 }
 
@@ -2199,6 +2347,7 @@ com_nopager(String *buffer __attribute__((unused)),
 {
   strmov(pager, "stdout");
   opt_nopager=1;
+  PAGER= stdout;
   tee_fprintf(stdout, "PAGER set to stdout\n");
   return 0;
 }
@@ -2257,10 +2406,8 @@ static int
 com_quit(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-#ifdef __NETWARE__
-  // let the screen auto close on a normal shutdown
-  setscreenmode(SCR_AUTOCLOSE_ON_EXIT);
-#endif
+  /* let the screen auto close on a normal shutdown */
+  NETWARE_SET_SCREEN_MODE(SCR_AUTOCLOSE_ON_EXIT);
   status.exit_status=0;
   return 1;
 }
@@ -2281,6 +2428,10 @@ static int
 com_shell(String *buffer, char *line __attribute__((unused)))
 {
   char *shell_cmd;
+
+  /* Skip space from line begin */
+  while (my_isspace(charset_info, *line))
+    line++;
   if (!(shell_cmd = strchr(line, ' ')))
   {
     put_info("Usage: \\! shell-command", INFO_ERROR);
@@ -2386,7 +2537,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(max_allowed_packet+512,sql_file)))
+  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);
@@ -2433,8 +2584,9 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
 static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
-  char *tmp;
-  char buff[256];
+  char *tmp, buff[FN_REFLEN + 1];
+  MYSQL_RES *res;
+  MYSQL_ROW row;
 
   bzero(buff, sizeof(buff));
   strmov(buff, line);
@@ -2444,6 +2596,31 @@ com_use(String *buffer __attribute__((unused)), char *line)
     put_info("USE must be followed by a database name", INFO_ERROR);
     return 0;
   }
+
+  /* 
+     We need to recheck the current database, because it may change
+     under our feet, for example if DROP DATABASE or RENAME DATABASE
+     (latter one not yet available by the time the comment was written)
+  */
+  current_db= 0; // Let's reset current_db, assume it's gone
+  /* 
+     We don't care about in case of an error below because current_db
+     was just set to 0.
+  */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    row= mysql_fetch_row(res);
+    if (row[0] &&
+	(!current_db || cmp_database(charset_info, current_db, row[0])))
+    {
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      current_db= my_strdup(row[0], MYF(MY_WME));
+    }
+    (void) mysql_fetch_row(res);		// Read eof
+    mysql_free_result(res);
+  }
+    
   if (!current_db || cmp_database(charset_info, current_db, tmp))
   {
     if (one_database)
@@ -2649,6 +2826,9 @@ com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
   const char *status;
+  char buff[22];
+  ulonglong id;
+
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
@@ -2694,6 +2874,9 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
+  if ((id= mysql_insert_id(&mysql)))
+    tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
+
   tee_fprintf(stdout, "Client characterset:\t%s\n",
 	      charset_info->name);
   tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
@@ -2830,7 +3013,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
-  NETWARE_YIELD
+  NETWARE_YIELD;
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
 #ifdef OS2
@@ -2844,7 +3027,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
 void tee_fputs(const char *s, FILE *file)
 {
-  NETWARE_YIELD
+  NETWARE_YIELD;
   fputs(s, file);
 #ifdef OS2
   fflush( file);
@@ -2856,7 +3039,7 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
-  NETWARE_YIELD
+  NETWARE_YIELD;
   fputs(s, file);
   fputs("\n", file);
 #ifdef OS2
@@ -2907,21 +3090,21 @@ static void nice_time(double sec,char *buff,bool part_second)
   {
     tmp=(ulong) floor(sec/(3600.0*24));
     sec-=3600.0*24*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0)
   {
     tmp=(ulong) floor(sec/3600.0);
     sec-=3600.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0)
   {
     tmp=(ulong) floor(sec/60.0);
     sec-=60.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff," min ");
   }
   if (part_second)
@@ -3026,6 +3209,8 @@ static const char* construct_prompt()
 	processed_prompt.append(' ');
 	break;
       case 'R':
+	if (t->tm_hour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_hour);
 	break;
       case 'r':
@@ -3033,6 +3218,8 @@ static const char* construct_prompt()
 	getHour = t->tm_hour % 12;
 	if (getHour == 0)
 	  getHour=12;
+	if (getHour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(getHour);
 	break;
       case 'm':
@@ -3058,6 +3245,8 @@ static const char* construct_prompt()
 	processed_prompt.append(strtok(dateTime,"\n"));
 	break;
       case 's':
+	if (t->tm_sec < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_sec);
 	break;
       case 'w':

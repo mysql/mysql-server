@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ `tail -c1 $BK_FILE` ]
+then
+ echo "File $BK_FILE does not end with a new-line character!"
+ echo ""
+ echo "Checkin FAILED!"
+ echo "Fix the problem and retry."
+ exit 1
+fi
+

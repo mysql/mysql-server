@@ -43,7 +43,7 @@ explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; Using filesort
 Warnings:
-Note	1003	select high_priority if((test.t1.u = 1),test.t1.st,(test.t1.st collate _latin1'BINARY')) AS `s` from test.t1 where (test.t1.st like _latin1'%a%') order by if((test.t1.u = 1),test.t1.st,(test.t1.st collate _latin1'BINARY'))
+Note	1003	select if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,(`test`.`t1`.`st` collate _latin1'BINARY')) AS `s` from `test`.`t1` where (`test`.`t1`.`st` like _latin1'%a%') order by if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,(`test`.`t1`.`st` collate _latin1'BINARY'))
 select nullif(u=0, 'test') from t1;
 nullif(u=0, 'test')
 NULL
@@ -57,8 +57,14 @@ explain extended select nullif(u=0, 'test') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
 Warnings:
-Note	1003	select high_priority nullif((test.t1.u = 0),_latin1'test') AS `nullif(u=0, 'test')` from test.t1
+Note	1003	select nullif((`test`.`t1`.`u` = 0),_latin1'test') AS `nullif(u=0, 'test')` from `test`.`t1`
 drop table t1;
+select NULLIF(NULL,NULL), NULLIF(NULL,1), NULLIF(NULL,1.0), NULLIF(NULL,"test");
+NULLIF(NULL,NULL)	NULLIF(NULL,1)	NULLIF(NULL,1.0)	NULLIF(NULL,"test")
+NULL	NULL	NULL	NULL
+select NULLIF(1,NULL), NULLIF(1.0, NULL), NULLIF("test", NULL);
+NULLIF(1,NULL)	NULLIF(1.0, NULL)	NULLIF("test", NULL)
+1	1.0	test
 create table t1 (num  double(12,2));
 insert into t1 values (144.54);
 select sum(if(num is null,0.00,num)) from t1;
@@ -70,4 +76,10 @@ insert into t1 values (0,6),(10,16),(20,26),(30,10),(40,46),(50,56);
 select min(if(y -x > 5,y,NULL)), max(if(y - x > 5,y,NULL)) from t1;
 min(if(y -x > 5,y,NULL))	max(if(y - x > 5,y,NULL))
 6	56
+drop table t1;
+create table t1 (a int);
+insert t1 values (1),(2);
+select if(1>2,a,avg(a)) from t1;
+if(1>2,a,avg(a))
+1.5000
 drop table t1;
