@@ -43,6 +43,5 @@ public:
   bool add() { return 0; }
   void reset_field() {}
   void update_field(int offset) {}
-  bool fix_fields(THD *thd,struct st_table_list *tlist) { return 0;}
-  unsigned int size_of() { return sizeof(*this);}  
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref) { return 0;}
 };

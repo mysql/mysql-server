@@ -23239,7 +23239,7 @@ If you need better performance when you start using MySQL in a production
 environment, you can remove the @code{--log} option from @code{mysql.server}
 or change it to @code{--log-bin}. @xref{Binary log}.
 
-The entries in this log are written as @code{mysqld} receives the questions.
+The entries in this log are written as @code{mysqld} receives the queries.
 This may be different from the order in which the statements are executed.
 This is in contrast to the update log and the binary log which are written
 after the query is executed, but before any locks are released.
@@ -23252,7 +23252,7 @@ after the query is executed, but before any locks are released.
 @cindex files, update log
 
 @strong{Note}: the update log is replaced by the binary
-log. @xref{Binary log}.  With this you can do anything that you can do
+log. @xref{Binary log}.  You can do anything with the binary log that you can do
 with the update log.
 
 When started with the @code{--log-update[=file_name]} option,
@@ -23267,7 +23267,7 @@ flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
 
 @strong{Note}: for the above scheme to work, you must not create
 your own files with the same filename as the update log + some extensions
-that may be regarded as a number, in the directory used by the update log!
+that may be regarded as a number in the directory used by the update log!
 
 If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
 general log with a filename of @file{hostname.log}, and restarts and
@@ -23311,8 +23311,8 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 
-The intention is that the binary log should replace the update log, so
-we recommend you to switch to this log format as soon as possible!
+The binary log will replace the now deprecated update log, so
+we recommend you to switch to this log format as soon as possible.
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
@@ -23323,10 +23323,10 @@ find a problem query) you should use the general query log. @xref{Query log}.
 The binary log is also used when you are replicating a slave from a master.
 @xref{Replication}.
 
-When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
+When started with the @code{--log-bin[=file_name]} option @code{mysqld}
 writes a log file containing all SQL commands that update data. If no
-file name is given, it defaults to the name of the host machine followed
-by @code{-bin}. If file name is given, but it doesn't contain a path, the
+file name is given it defaults to the name of the host machine followed
+by @code{-bin}. If a file name is given, but doesn't contain a path, the
 file is written in the data directory.
 
 If you supply an extension to @code{--log-bin=filename.extension}, the
@@ -23346,14 +23346,9 @@ to the binary log:
 @multitable @columnfractions .38 .62
 @item @strong{Option} @tab @strong{Description}
 
-@item @code{binlog-do-db=database_name} @tab
-Tells the master it should log updates for the specified database, and
-exclude all others not explicitly mentioned.
-(Example: @code{binlog-do-db=some_database})
+@item @code{binlog-do-db=database_name} @tab Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned. (Example: @code{binlog-do-db=some_database})
 
-@item @code{binlog-ignore-db=database_name} @tab
-Tells the master that updates to the given database should not be logged
-to the binary log (Example: @code{binlog-ignore-db=some_database})
+@item @code{binlog-ignore-db=database_name} @tab Tells the master that updates to the given database should not be logged to the binary log (Example: @code{binlog-ignore-db=some_database})
 @end multitable
 
 To be able to know which different binary log files have been used,
@@ -23378,10 +23373,10 @@ shell> mysqlbinlog log-file | mysql -h server_name
 @end example
 
 You can also use the @code{mysqlbinlog} program to read the binary log
-directly from a remote MySQL server!
+directly from a remote MySQL server.
 
 @code{mysqlbinlog --help} will give you more information of how to use
-this program!
+this program.
 
 If you are using @code{BEGIN [WORK]} or @code{SET AUTOCOMMIT=0}, you must
 use the MySQL binary log for backups instead of the old update log.
@@ -23390,10 +23385,10 @@ The binary logging is done immediately after a query completes but before
 any locks are released or any commit is done. This ensures that the log
 will be logged in the execution order.
 
-All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that change
-a transactional table (like BDB tables) are cached until a @code{COMMIT}.
 Any updates to a non-transactional table are stored in the binary log at
-once.  Every thread will, on start, allocate a buffer of
+once.  All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that change
+a transactional table (like BDB tables) are cached until a @code{COMMIT}.
+Every thread will, on start, allocate a buffer of
 @code{binlog_cache_size} to buffer queries.  If a query is bigger than
 this, the thread will open a temporary file to handle the bigger cache.
 The temporary file will be deleted when the thread ends.
@@ -23419,10 +23414,10 @@ more than @code{long_query_time} to execute. The time to get the initial
 table locks are not counted as execution time.
 
 The slow query log is logged after the query is executed and after all
-locks has been released. This may be different from the order in which
+locks have been released. This may be different from the order in which
 the statements are executed.
 
-If no file name is given, it defaults to the name of the host machine
+If no filename is given, it defaults to the name of the host machine
 suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
@@ -23432,8 +23427,8 @@ can become a difficult task. You can pipe the slow query log through the
 @code{mysqldumpslow} command to get a summary of the queries which
 appear in the log.
 
-You are using @code{--log-long-format} then also queries that are not
-using indexes are printed. @xref{Command-line options}.
+If you use @code{--log-long-format} also, then queries that do not
+use indexes are logged as well. @xref{Command-line options}.
 
 
 @node Log file maintenance,  , Slow query log, Log Files
@@ -23443,22 +23438,19 @@ using indexes are printed. @xref{Command-line options}.
 @cindex maintaining, log files
 @cindex log files, maintaining
 
-MySQL has a lot of log files which make it easy to see what is
-going. @xref{Log Files}. One must however from time to time clean up
-after @code{MysQL} to ensure that the logs don't take up too much disk
-space.
+MySQL has many log files which makes it easy to see what is going on.
+@xref{Log Files}. One must, however, occasionally clean up
+after @code{MySQL} to ensure that the logs don't take up too much disk
+space by either removing or backing up old log files and then telling MySQL
+to start logging to new files. @xref{Backup}.
 
-When using MySQL with log files, you will, from time to time,
-want to remove/backup old log files and tell MySQL to start
-logging on new files.  @xref{Backup}.
-
-On a Linux (@code{Redhat}) installation, you can use the
+On a Linux (@code{Redhat}) installation you can use the
 @code{mysql-log-rotate} script for this. If you installed MySQL
-from an RPM distribution, the script should have been installed
-automatically.  Note that you should be careful with this if you are using
-the log for replication!
+from an RPM distribution the script should have been installed
+automatically.  @strong{Note}: you should be careful with this if you are 
+using the logs for replication.
 
-On other systems you must install a short script yourself that you
+On other systems you must install a short script yourself that you can
 start from @code{cron} to handle log files.
 
 You can force MySQL to start using new log files by using
@@ -36107,8 +36099,10 @@ mysql> CREATE TABLE test (a INT NOT NULL AUTO_INCREMENT,
 
 This will create a @code{MyISAM} table with three columns, a, b, and c.
 Notice that the columns from the @code{SELECT} statement are appended to
-the right side of the table, not overlapped onto it.  Take the following
-example:
+the right side of the table, not overlapped onto it.
+Still, the column from the @code{SELECT} will overlap the column from
+the @code{CREATE} clause if they both have the same name.  Take the following
+examples:
 
 @example
 mysql> SELECT * FROM foo;
@@ -36128,6 +36122,18 @@ mysql> SELECT * FROM bar;
 +------+---+
 | NULL | 1 |
 +------+---+
+1 row in set (0.00 sec)
+
+mysql> CREATE TABLE foobar (n FLOAT(3,2), m INT) SELECT n FROM foo;
+Query OK, 1 row affected (0.02 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+
+mysql> SELECT * FROM foobar;
++------+------+
+| n    | m    |
++------+------+
+| 1.00 | NULL |
++------+------+
 1 row in set (0.00 sec)
 @end example
 
@@ -50636,9 +50642,6 @@ Fixed bug in truncation operator for boolean full-text search.
 @item
 Allow value of @code{--user=#} option for @code{mysqld} to be specified
 as a numeric user ID.
-@item
-Fixed a bug where @code{SQL_CALC_ROWS} returned an incorrect value when used
-with one table and @code{ORDER BY} and with @code{InnoDB} tables.
 @item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
 @item

@@ -174,8 +174,9 @@ public:
   void store(uint length,char **min_key,uint min_key_flag,
 	     char **max_key, uint max_key_flag)
   {
-    if (!(min_flag & NO_MIN_RANGE) &&
-	!(min_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
+    if ((min_flag & GEOM_FLAG) ||
+        (!(min_flag & NO_MIN_RANGE) &&
+	!(min_key_flag & (NO_MIN_RANGE | NEAR_MIN))))
     {
       if (maybe_null && *min_value)
       {
@@ -661,6 +662,8 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	key_parts->null_bit= key_info->key_part[part].null_bit;
 	if (key_parts->field->type() == FIELD_TYPE_BLOB)
 	  key_parts->part_length+=HA_KEY_BLOB_LENGTH;
+        key_parts->image_type = 
+          (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
       }
       param.real_keynr[param.keys++]=idx;
     }
@@ -677,6 +680,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	       tree->type == SEL_TREE::KEY_SMALLER)
       {
 	SEL_ARG **key,**end,**best_key=0;
+
 
 	for (idx=0,key=tree->keys, end=key+param.keys ;
 	     key != end ;
@@ -928,7 +932,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   {
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
-    String tmp(buff1,sizeof(buff1)),*res;
+    String tmp(buff1,sizeof(buff1),default_charset_info),*res;
     uint length,offset,min_length,max_length;
 
     if (!field->optimize_range((uint) key_part->key))
@@ -972,9 +976,10 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 			    &min_length,&max_length);
     else
     {
+      CHARSET_INFO *charset=((Field_str*)(field))->charset();
 #ifdef USE_STRCOLL
-      if (use_strcoll(default_charset_info))
-        like_error= my_like_range(default_charset_info,
+      if (use_strcoll(charset))
+        like_error= my_like_range(charset,
                                   res->ptr(),res->length(),wild_prefix,
                                   field_length, min_str+maybe_null,
                                   max_str+maybe_null,&min_length,&max_length);
@@ -983,7 +988,8 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
         like_error=like_range(res->ptr(),res->length(),wild_prefix,
 			      field_length,
                               min_str+offset,max_str+offset,
-                              max_sort_char,&min_length,&max_length);
+                              charset->max_sort_char,
+                              &min_length,&max_length);
     }
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);
@@ -1024,7 +1030,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       field->cmp_type() != value->result_type())
     DBUG_RETURN(0);
 
-  if (value->save_in_field(field))
+  if (value->save_in_field(field) == 1)
   {
     // TODO; Check if we can we remove the following block.
     if (type == Item_func::EQUAL_FUNC)
@@ -1046,7 +1052,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     DBUG_RETURN(0);
   if (maybe_null)
     *str=0;					// Not NULL
-  field->get_key_image(str+maybe_null,key_part->part_length);
+  field->get_key_image(str+maybe_null,key_part->part_length, key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
 
@@ -1071,6 +1077,41 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   case Item_func::GE_FUNC:
     tree->max_flag=NO_MAX_RANGE;
     break;
+  case Item_func::SP_EQUALS_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_EQUAL;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+  case Item_func::SP_DISJOINT_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_DISJOINT;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+  case Item_func::SP_INTERSECTS_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+  case Item_func::SP_TOUCHES_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+
+  case Item_func::SP_CROSSES_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+  case Item_func::SP_WITHIN_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_WITHIN;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+
+  case Item_func::SP_CONTAINS_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_CONTAIN;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+  case Item_func::SP_OVERLAPS_FUNC:
+      tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
+      tree->max_flag=NO_MAX_RANGE;
+      break;
+
   default:
     break;
   }
@@ -2192,18 +2233,30 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       !memcmp(param->min_key,param->max_key,min_key_length))
     tmp=1;					// Max one record
   else
+  {
+    if(tmp_min_flag & GEOM_FLAG)
+    {
+      tmp=param->table->file->
+	records_in_range((int) keynr,(byte*)(param->min_key + 1),
+	  min_key_length, (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG), 
+          (byte *)NullS,0,HA_READ_KEY_EXACT);
+    }
+    else
+    {
       tmp=param->table->file->
 	records_in_range((int) keynr,
 			 (byte*) (!min_key_length ? NullS :
 				  param->min_key),
 			 min_key_length,
-			 (tmp_min_flag & NEAR_MIN ?
-			  HA_READ_AFTER_KEY : HA_READ_KEY_EXACT),
+                         tmp_min_flag & NEAR_MIN ?
+			  HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
 			 (byte*) (!max_key_length ? NullS :
 				  param->max_key),
 			 max_key_length,
 			 (tmp_max_flag & NEAR_MAX ?
 			  HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
+    }
+  }
  end:
   if (tmp == HA_POS_ERROR)			// Impossible range
     return tmp;
@@ -2299,19 +2352,24 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
     }
   }
   else
-    flag=key_tree->min_flag | key_tree->max_flag;
+  {
+    flag = (key_tree->min_flag & GEOM_FLAG) ?
+      key_tree->min_flag : key_tree->min_flag | key_tree->max_flag;
+  }
 
   /* Ensure that some part of min_key and max_key are used.  If not,
      regard this as no lower/upper range */
-  if (tmp_min_key != param->min_key)
-    flag&= ~NO_MIN_RANGE;
-  else
-    flag|= NO_MIN_RANGE;
-  if (tmp_max_key != param->max_key)
-    flag&= ~NO_MAX_RANGE;
-  else
-    flag|= NO_MAX_RANGE;
-
+  if((flag & GEOM_FLAG) == 0)
+  {
+    if (tmp_min_key != param->min_key)
+      flag&= ~NO_MIN_RANGE;
+    else
+      flag|= NO_MIN_RANGE;
+    if (tmp_max_key != param->max_key)
+      flag&= ~NO_MAX_RANGE;
+    else
+      flag|= NO_MAX_RANGE;
+  }
   if (flag == 0)
   {
     uint length= (uint) (tmp_min_key - param->min_key);
@@ -2444,13 +2502,19 @@ int QUICK_SELECT::get_next()
     int result;
     if (range)
     {						// Already read through key
-       result=((range->flag & EQ_RANGE) ?
+/*       result=((range->flag & EQ_RANGE) ?
 	       file->index_next_same(record, (byte*) range->min_key,
 				     range->min_length) :
 	       file->index_next(record));
+*/
+       result=((range->flag & (EQ_RANGE | GEOM_FLAG) ) ?
+	       file->index_next_same(record, (byte*) range->min_key,
+				     range->min_length) :
+	       file->index_next(record));
+
       if (!result)
       {
-	if (!cmp_next(*it.ref()))
+	if ((range->flag & GEOM_FLAG) || !cmp_next(*it.ref()))
 	  DBUG_RETURN(0);
       }
       else if (result != HA_ERR_END_OF_FILE)
@@ -2459,6 +2523,23 @@ int QUICK_SELECT::get_next()
 
     if (!(range=it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
+
+    if(range->flag & GEOM_FLAG)
+    {
+      if ((result = file->index_read(record,
+                           (byte*) (range->min_key + ((range->flag & GEOM_FLAG) > 0)),
+			   range->min_length,
+                           (ha_rkey_function)(range->flag ^ GEOM_FLAG))))
+
+      {
+        if (result != HA_ERR_KEY_NOT_FOUND)
+	  DBUG_RETURN(result);
+        range=0;					// Not found, to next range
+        continue;
+      }
+      DBUG_RETURN(0);
+    }
+
     if (range->flag & NO_MIN_RANGE)		// Read first record
     {
       int error;
@@ -2469,13 +2550,14 @@ int QUICK_SELECT::get_next()
       range=0;			// No matching records; go to next range
       continue;
     }
-    if ((result = file->index_read(record,(byte*) range->min_key,
+    if ((result = file->index_read(record,
+                         (byte*) (range->min_key + ((range->flag & GEOM_FLAG) > 0)),
 			 range->min_length,
-			 ((range->flag & NEAR_MIN) ?
+			 (range->flag & NEAR_MIN) ?
 			  HA_READ_AFTER_KEY:
 			  (range->flag & EQ_RANGE) ?
 			  HA_READ_KEY_EXACT :
-			  HA_READ_KEY_OR_NEXT))))
+			  HA_READ_KEY_OR_NEXT)))
 
     {
       if (result != HA_ERR_KEY_NOT_FOUND)
@@ -2758,7 +2840,7 @@ static void
 print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),default_charset_info);
 
   for (uint length=0;
        length < used_length ;

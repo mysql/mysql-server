@@ -79,9 +79,18 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
+  CHARSET_INFO *charset=table->table_charset;
+  uint i;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
+
+  // BAR TODO: this is not absolutely correct, but OK for now
+  for(i=0;i<table->fields;i++)
+    if (!table->field[i]->binary())
+      charset=((Field_str*)(table->field[i]))->charset();
+  charset=charset?charset:default_charset_info;
+  // /BAR TODO
 
   outfile= table->io_cache;
   my_b_clear(&tempfile);
@@ -131,7 +140,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=param.max_rows;			/* purecov: inspected */
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info) &&
+  if (use_strcoll(charset) &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 #endif
@@ -208,7 +217,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
  err:
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info))
+  if (param.tmp_buffer)
     x_free(param.tmp_buffer);
 #endif
   x_free((gptr) sort_keys);
@@ -474,7 +483,7 @@ static void make_sortkey(register SORTPARAM *param,
 	  if (item->maybe_null)
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
-	  String tmp((char*) to,sort_field->length+4);
+	  String tmp((char*) to,sort_field->length+4,default_charset_info);
 	  String *res=item->val_str(&tmp);
 	  if (!res)
 	  {
@@ -489,6 +498,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    break;
 	  }
 	  length=res->length();
+	  CHARSET_INFO *cs=res->charset();
 	  int diff=(int) (sort_field->length-length);
 	  if (diff < 0)
 	  {
@@ -496,7 +506,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    length=sort_field->length;
 	  }
 #ifdef USE_STRCOLL
-          if (use_strcoll(default_charset_info))
+          if(use_strcoll(cs))
           {
             if (item->binary)
             {
@@ -513,10 +523,8 @@ static void make_sortkey(register SORTPARAM *param,
                 memcpy(param->tmp_buffer,from,length);
                 from=param->tmp_buffer;
               }
-              uint tmp_length=my_strnxfrm(default_charset_info,
-                                          to,(unsigned char *) from,
-                                          sort_field->length,
-                                          length);
+              uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
+                                          (unsigned char *) from, length);
               if (tmp_length < sort_field->length)
                 bzero((char*) to+tmp_length,sort_field->length-tmp_length);
             }
@@ -528,7 +536,7 @@ static void make_sortkey(register SORTPARAM *param,
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
             if (!item->binary)
-              case_sort((char*) to,length);
+              case_sort(cs, (char*) to,length);
 #ifdef USE_STRCOLL
           }
 #endif
@@ -926,8 +934,12 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       {
 	sortorder->length=sortorder->field->pack_length();
 #ifdef USE_STRCOLL
-	if (use_strcoll(default_charset_info) && !sortorder->field->binary())
-	  sortorder->length= sortorder->length*MY_STRXFRM_MULTIPLY;
+	if (!sortorder->field->binary())
+	{
+	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	  if (use_strcoll(cs))
+	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	}
 #endif
       }
       if (sortorder->field->maybe_null())
@@ -935,12 +947,19 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
     }
     else
     {
+#ifdef USE_STRCOLL
+      
+#endif
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
-	if (use_strcoll(default_charset_info) && !sortorder->item->binary)
-	  sortorder->length= sortorder->length*MY_STRXFRM_MULTIPLY;
+	if (!sortorder->item->binary)
+	{ 
+	  CHARSET_INFO *cs=sortorder->item->str_value.charset();
+	  if (use_strcoll(cs))
+	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	}
 #endif
 	break;
       case INT_RESULT:

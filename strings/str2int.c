@@ -98,7 +98,7 @@ char *str2int(register const char *src, register int radix, long int lower,
       converted value (and the scale!) as *negative* numbers,
       so the sign is the opposite of what you might expect.
       */
-  while (isspace(*src)) src++;
+  while (my_isspace(system_charset_info,*src)) src++;
   sign = -1;
   if (*src == '+') src++; else
     if (*src == '-') src++, sign = 1;

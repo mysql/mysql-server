@@ -32,7 +32,7 @@
 #define FT_SEGS      2
 #endif /* EVAL_RUN */
 
-extern const MI_KEYSEG ft_keysegs[FT_SEGS];
+extern const HA_KEYSEG ft_keysegs[FT_SEGS];
 
 int  _mi_ft_cmp(MI_INFO *, uint, const byte *, const byte *);
 int  _mi_ft_add(MI_INFO *, uint, byte *, const byte *, my_off_t);

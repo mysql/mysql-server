@@ -289,9 +289,9 @@ void init_slave_skip_errors(const char* arg)
     exit(1);
   }
   use_slave_mask = 1;
-  for (;isspace(*arg);++arg)
+  for (;my_isspace(system_charset_info,*arg);++arg)
     /* empty */;
-  if (!my_casecmp(arg,"all",3))
+  if (!my_strncasecmp(system_charset_info,arg,"all",3))
   {
     bitmap_set_all(&slave_error_mask);
     return;
@@ -303,7 +303,7 @@ void init_slave_skip_errors(const char* arg)
       break;
     if (err_code < MAX_SLAVE_ERROR)
        bitmap_set_bit(&slave_error_mask,(uint)err_code);
-    while (!isdigit(*p) && *p)
+    while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
 }
@@ -554,7 +554,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 
 void init_table_rule_hash(HASH* h, bool* h_inited)
 {
-  hash_init(h, TABLE_RULE_HASH_SIZE,0,0,
+  hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
 	    (hash_get_key) get_table_key,
 	    (void (*)(void*)) free_table_ent, 0);
   *h_inited = 1;
@@ -576,7 +576,8 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     {
       TABLE_RULE_ENT* e ;
       get_dynamic(a, (gptr)&e, i);
-      if (!wild_case_compare(key, key_end, (const char*)e->db,
+      if (!wild_case_compare(system_charset_info, key, key_end, 
+                            (const char*)e->db,
 			    (const char*)(e->db + e->key_len),'\\'))
 	return e;
     }
@@ -1182,9 +1183,11 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   THD* thd = mi->io_thd;
 
   DBUG_ENTER("wait_for_relay_log_space");
+
   pthread_mutex_lock(&rli->log_space_lock);
   save_proc_info = thd->proc_info;
   thd->proc_info = "Waiting for relay log space to free";
+
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)))
   {

@@ -43,17 +43,20 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
-	item_uniq.cc key.cc lock.cc log.cc log_event.cc mf_iocache.cc\
+	item_uniq.cc item_subselect.cc \
+	key.cc lock.cc log.cc log_event.cc mf_iocache.cc\
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	repl_failsafe.cc slave.cc sql_load.cc sql_olap.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
-	sql_crypt.cc sql_db.cc sql_delete.cc sql_insert.cc sql_lex.cc \
-	sql_list.cc sql_manager.cc sql_map.cc set_var.cc sql_parse.cc \
-	sql_rename.cc sql_repl.cc sql_select.cc sql_do.cc sql_show.cc \
+	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
+	sql_lex.cc sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \
+	sql_prepare.cc sql_derived.cc sql_rename.cc sql_repl.cc \
+	sql_select.cc sql_do.cc sql_show.cc set_var.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
-	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc
+	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
+	spatial.cc gstream.cc
 
 EXTRA_DIST = lib_vio.c
 

@@ -31,12 +31,13 @@
 
 static uint hash_mask(uint hashnr,uint buffmax,uint maxlength);
 static void movelink(HASH_LINK *array,uint pos,uint next_link,uint newlink);
-static uint calc_hashnr(const byte *key,uint length);
-static uint calc_hashnr_caseup(const byte *key,uint length);
+static uint calc_hashnr(CHARSET_INFO *cs,const byte *key,uint length);
+static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length);
 static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length);
 
-
-my_bool _hash_init(HASH *hash,uint size,uint key_offset,uint key_length,
+my_bool
+_hash_init(HASH *hash,CHARSET_INFO *charset,
+		  uint size,uint key_offset,uint key_length,
 		  hash_get_key get_key,
 		  void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
 {
@@ -56,8 +57,14 @@ my_bool _hash_init(HASH *hash,uint size,uint key_offset,uint key_length,
   hash->get_key=get_key;
   hash->free=free_element;
   hash->flags=flags;
+  hash->charset=charset;
   if (flags & HASH_CASE_INSENSITIVE)
-    hash->calc_hashnr=calc_hashnr_caseup;
+  {
+    if (charset->hash_caseup)
+      hash->calc_hashnr=charset->hash_caseup;
+    else
+      hash->calc_hashnr=calc_hashnr_caseup;
+  }
   else
     hash->calc_hashnr=calc_hashnr;
   DBUG_RETURN(0);
@@ -104,14 +111,16 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 {
   uint length;
   byte *key=hash_key(hash,pos->data,&length,0);
-  return hash_mask((*hash->calc_hashnr)(key,length),buffmax,maxlength);
+  return hash_mask((*hash->calc_hashnr)(hash->charset,key,length),
+  		   buffmax,maxlength);
 }
 
 #ifndef NEW_HASH_FUNCTION
 
 	/* Calc hashvalue for a key */
 
-static uint calc_hashnr(const byte *key,uint length)
+static uint calc_hashnr(CHARSET_INFO *cs __attribute__((unused)), 
+			const byte *key,uint length)
 {
   register uint nr=1, nr2=4;
   while (length--)
@@ -124,12 +133,15 @@ static uint calc_hashnr(const byte *key,uint length)
 
 	/* Calc hashvalue for a key, case indepenently */
 
-static uint calc_hashnr_caseup(const byte *key,uint length)
+static uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key,uint length)
 {
   register uint nr=1, nr2=4;
+  register uchar *map=cs->to_upper;
+  
   while (length--)
   {
-    nr^= (((nr & 63)+nr2)*((uint) (uchar) toupper(*key++)))+ (nr << 8);
+    nr^= (((nr & 63)+nr2)*
+         ((uint) (uchar) map[(uchar)*key++])) + (nr << 8);
     nr2+=3;
   }
   return((uint) nr);
@@ -150,7 +162,7 @@ static uint calc_hashnr_caseup(const byte *key,uint length)
  * This works well on both numbers and strings.
  */
 
-uint calc_hashnr(const byte *key, uint len)
+uint calc_hashnr(CHARSET_INFO *cs, const byte *key, uint len)
 {
   const byte *end=key+len;
   uint hash;
@@ -162,14 +174,14 @@ uint calc_hashnr(const byte *key, uint len)
   return (hash);
 }
 
-uint calc_hashnr_caseup(const byte *key, uint len)
+uint calc_hashnr_caseup(CHARSET_INFO *cs, const byte *key, uint len)
 {
   const byte *end=key+len;
   uint hash;
   for (hash = 0; key < end; key++)
   {
     hash *= 16777619;
-    hash ^= (uint) (uchar) toupper(*key);
+    hash ^= (uint) (uchar) my_toupper(cs,*key);
   }
   return (hash);
 }
@@ -184,7 +196,7 @@ uint rec_hashnr(HASH *hash,const byte *record)
 {
   uint length;
   byte *key=hash_key(hash,record,&length,0);
-  return (*hash->calc_hashnr)(key,length);
+  return (*hash->calc_hashnr)(hash->charset,key,length);
 }
 
 
@@ -200,7 +212,7 @@ gptr hash_search(HASH *hash,const byte *key,uint length)
   flag=1;
   if (hash->records)
   {
-    idx=hash_mask((*hash->calc_hashnr)(key,length ? length :
+    idx=hash_mask((*hash->calc_hashnr)(hash->charset,key,length ? length :
 					 hash->key_length),
 		    hash->blength,hash->records);
     do
@@ -273,7 +285,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
   byte *rec_key=hash_key(hash,pos->data,&rec_keylength,1);
   return (length && length != rec_keylength) ||
     (hash->flags & HASH_CASE_INSENSITIVE ?
-     my_casecmp(rec_key,key,rec_keylength) :
+     my_strncasecmp(hash->charset, rec_key,key,rec_keylength) :
      memcmp(rec_key,key,rec_keylength));
 }
 
@@ -513,7 +525,7 @@ my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length)
 
   /* Search after record with key */
 
-  idx=hash_mask((*hash->calc_hashnr)(old_key,(old_key_length ?
+  idx=hash_mask((*hash->calc_hashnr)(hash->charset, old_key,(old_key_length ?
 					      old_key_length :
 					      hash->key_length)),
 		  blength,records);

@@ -68,16 +68,17 @@ extern char *mysql_unix_port;
 #define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
 
 typedef struct st_mysql_field {
-  char *name;			/* Name of column */
-  char *table;			/* Table of column if column was a field */
-  char *org_table;		/* Org table name if table was an alias */
-  char *db;			/* Database for table */
-  char *def;			/* Default value (set by mysql_list_fields) */
-  unsigned long length;		/* Width of column */
-  unsigned long max_length;	/* Max width of selected set */
-  unsigned int flags;		/* Div flags */
-  unsigned int decimals;	/* Number of decimals in field */
-  enum enum_field_types type;	/* Type of field. Se mysql_com.h for types */
+  char *name;                 /* Name of column */
+  char *org_name;             /* Original column name, if an alias */ 
+  char *table;                /* Table of column if column was a field */
+  char *org_table;            /* Org table name, if table was an alias */
+  char *db;                   /* Database for table */
+  char *def;                  /* Default value (set by mysql_list_fields) */
+  unsigned long length;       /* Width of column */
+  unsigned long max_length;   /* Max width of selected set */
+  unsigned int flags;         /* Div flags */
+  unsigned int decimals;      /* Number of decimals in field */
+  enum enum_field_types type; /* Type of field. Se mysql_com.h for types */
 } MYSQL_FIELD;
 
 typedef char **MYSQL_ROW;		/* return data as array of strings */
@@ -398,6 +399,83 @@ int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
 int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
 						  char* res_buf,
 						 int res_buf_size);
+
+
+
+/*
+  The following definitions are added for the enhanced 
+  client-server protocol
+*/
+
+/* statement state */
+enum MY_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
+
+/* bind structure */
+typedef struct st_mysql_bind {
+
+  enum enum_field_types buffer_type; /* buffer type */
+  enum enum_field_types field_type;  /* field type */
+  gptr          buffer;                   /* buffer */
+  long          *length;                  /* output length pointer */
+  unsigned long buffer_length;            /* buffer length */  
+  unsigned long bind_length;              /* internal use */
+  my_bool       is_null;                  /* NULL indicator */
+  my_bool       is_long_data;             /* long data indicator */
+  my_bool       long_ended;               /* internal use */
+
+} MYSQL_BIND;
+
+/* statement handler */
+typedef struct st_mysql_stmt {
+
+  MYSQL         *mysql;                   /* connection handle */
+  MYSQL_BIND    *params;                  /* input parameters */
+  MYSQL_RES     *result;                  /* resultset */
+  MYSQL_BIND    *bind;                    /* row binding */
+  MYSQL_FIELD	  *fields;                  /* prepare meta info */
+  MEM_ROOT      mem_root;                 /* root allocations */
+  unsigned long param_count;              /* parameters count */
+  unsigned long field_count;              /* fields count */
+  unsigned long long_length;              /* long buffer alloced length */
+  uint          err_no;                   /* error code */
+  char          error[MYSQL_ERRMSG_SIZE]; /* error message */
+  char          *query;                   /* query buffer */
+  char          *long_data;               /* long buffer */
+  enum MY_STMT_STATE state;               /* statement state */
+  my_bool       long_alloced;             /* flag to indicate long alloced */
+  my_bool       types_supplied;           /* to indicate types supply */
+
+} MYSQL_STMT;
+
+
+MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query);
+int STDCALL mysql_execute(MYSQL_STMT * stmt);
+unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
+int STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bind);
+int STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bind);
+int STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
+uint STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
+const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
+int STDCALL mysql_commit(MYSQL * mysql);
+int STDCALL mysql_rollback(MYSQL * mysql);
+int STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
+int STDCALL mysql_fetch(MYSQL_STMT *stmt);
+my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
+				     uint param_number,gptr data, 
+				     unsigned long length);
+int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,unsigned long len);
+MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
+MYSQL_RES * STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+
+
+/* new status messages */
+#define MYSQL_SUCCESS    0
+#define MYSQL_WARNING    1
+#define MYSQL_ERROR     -1
+#define MYSQL_NO_DATA   100
+#define MYSQL_NEED_DATA  99 
+#define MYSQL_LONG_DATA_END 0xFF
+
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
 #ifdef USE_OLD_FUNCTIONS

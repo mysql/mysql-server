@@ -20,12 +20,16 @@
 extern "C" {
 #endif
 
-#define MAX_TREE_HIGHT	40	/* = max 1048576 leafs in tree */
+#include "my_base.h"		/* get 'enum ha_rkey_function' */
+
+#define MAX_TREE_HEIGHT	40	/* = max 1048576 leafs in tree */
 #define ELEMENT_KEY(tree,element)\
 (tree->offset_to_key ? (void*)((byte*) element+tree->offset_to_key) :\
 			*((void**) (element+1)))
 
 #define tree_set_pointer(element,ptr) *((byte **) (element+1))=((byte*) (ptr))
+
+#define TREE_NO_DUPS 1
 
 typedef enum { left_root_right, right_root_left } TREE_WALK;
 typedef uint32 element_count;
@@ -48,15 +52,18 @@ typedef struct st_tree_element {
 } TREE_ELEMENT;
 #endif /* MSDOS */
 
+#define ELEMENT_CHILD(element, offs) (*(TREE_ELEMENT**)((char*)element + offs))
+
 typedef struct st_tree {
   TREE_ELEMENT *root,null_element;
-  TREE_ELEMENT **parents[MAX_TREE_HIGHT];
+  TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element,memory_limit,allocated;
   qsort_cmp2 compare;
-  void* custom_arg;
+  void *custom_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
   tree_element_free free;
+  uint flag;
 } TREE;
 
 	/* Functions on whole tree */
@@ -70,12 +77,22 @@ void reset_tree(TREE*);
 #define is_tree_inited(tree) ((tree)->root != 0)
 
 	/* Functions on leafs */
-TREE_ELEMENT *tree_insert(TREE *tree,void *key,uint key_size);
-void *tree_search(TREE *tree,void *key);
+TREE_ELEMENT *tree_insert(TREE *tree,void *key, uint key_size, 
+                          void *custom_arg);
+void *tree_search(TREE *tree, void *key, void *custom_arg);
 int tree_walk(TREE *tree,tree_walk_action action,
 	      void *argument, TREE_WALK visit);
-int tree_delete(TREE *tree,void *key);
+int tree_delete(TREE *tree, void *key, void *custom_arg);
 
+void *tree_search_key(TREE *tree, const void *key, 
+                      TREE_ELEMENT **parents, TREE_ELEMENT ***last_pos,
+                      enum ha_rkey_function flag, void *custom_arg);
+void *tree_search_edge(TREE *tree, TREE_ELEMENT **parents, 
+                        TREE_ELEMENT ***last_pos, int child_offs);
+void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs, 
+                       int r_offs);
+uint tree_record_pos(TREE *tree, const void *key, 
+                     enum ha_rkey_function search_flag, void *custom_arg);
 #ifdef	__cplusplus
 }
 #endif

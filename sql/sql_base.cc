@@ -49,7 +49,8 @@ static byte *cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,table_cache_size+16,0,0,cache_key,
+  VOID(hash_init(&open_cache,system_charset_info,
+		 table_cache_size+16,0,0,cache_key,
 		 (void (*)(void*)) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
@@ -195,34 +196,36 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 }
 
 
-/******************************************************************************
-** Send name and type of result to client.
-** Sum fields has table name empty and field_name.
-** flag is a bit mask with the following functions:
-**   1 send number of rows
-**   2 send default values
-**   4 Don't convert field names
-******************************************************************************/
+/*
+  Send name and type of result to client converted to a given char set
+
+  SYNOPSIS
+    send_convert_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    convert	object used to convertation to another character set
+    flag	Bit mask with the following functions:
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+
+  RETURN VALUES
+    0	ok
+    1	Error  (Note that in this case the error is not sent to the client)
+*/
 
 bool
-send_fields(THD *thd,List<Item> &list,uint flag)
+send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
 {
   List_iterator_fast<Item> it(list);
   Item *item;
   char buff[80];
-  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->variables.convert_set;
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
   DBUG_ENTER("send_fields");
 
-  String tmp((char*) buff,sizeof(buff)),*res,*packet= &thd->packet;
-
-  if (thd->fatal_error)		// We have got an error
-    goto err;
-
-  if (flag & 1)
-  {				// Packet with number of elements
-    char *pos=net_store_length(buff,(uint) list.elements);
-    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
-  }
   while ((item=it++))
   {
     char *pos;
@@ -230,19 +233,30 @@ send_fields(THD *thd,List<Item> &list,uint flag)
     item->make_field(&field);
     packet->length(0);
 
-    if (convert)
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (convert->store(packet,field.table_name,
+      if (convert->store(packet,field.db_name,
+			 (uint) strlen(field.db_name)) ||
+	  convert->store(packet,field.table_name,
 			 (uint) strlen(field.table_name)) ||
+	  convert->store(packet,field.org_table_name,
+			 (uint) strlen(field.org_table_name)) ||
 	  convert->store(packet,field.col_name,
 			 (uint) strlen(field.col_name)) ||
+	  convert->store(packet,field.org_col_name,
+			 (uint) strlen(field.org_col_name)) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
+     }
+     else
+     {
+       if (convert->store(packet,field.table_name,
+			  (uint) strlen(field.table_name)) ||
+	   convert->store(packet,field.col_name,
+			  (uint) strlen(field.col_name)) ||
+	   packet->realloc(packet->length()+10))
+	 goto err;
     }
-    else if (net_store_data(packet,field.table_name) ||
-	     net_store_data(packet,field.col_name) ||
-	     packet->realloc(packet->length()+10))
-      goto err; /* purecov: inspected */
     pos= (char*) packet->ptr()+packet->length();
 
     if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
@@ -266,15 +280,160 @@ send_fields(THD *thd,List<Item> &list,uint flag)
 	if (net_store_null(packet))
 	  goto err;
       }
-      else if (net_store_data(packet,res->ptr(),res->length()))
+      else if (convert->store(packet,res->ptr(),res->length()))
 	goto err;
     }
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net,1);
-  DBUG_RETURN(0);
- err:
+  return 0;
+
+err:
+  return 1;
+}
+
+
+/*
+  Send name and type of result to client.
+
+  SYNOPSIS
+    send_non_convert_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    flag	Bit mask with the following functions:
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+
+  RETURN VALUES
+    0	ok
+    1	Error
+*/
+
+bool 
+send_non_convert_fields(THD *thd,List<Item> &list,uint flag)
+{
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  char buff[80];
+
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
+
+  while ((item=it++))
+  {
+    char *pos;
+    Send_field field;
+    item->make_field(&field);
+    packet->length(0);
+
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      if (net_store_data(packet,field.db_name) ||
+	  net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.org_table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  net_store_data(packet,field.org_col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+    else
+    {
+      if (net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+
+    pos= (char*) packet->ptr()+packet->length();
+
+    if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
+    {
+      packet->length(packet->length()+9);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=2; pos[7]=(char) field.flags; pos[8]= (char) field.decimals;
+    }
+    else
+    {
+      packet->length(packet->length()+10);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=3; int2store(pos+7,field.flags); pos[9]= (char) field.decimals;
+    }
+    if (flag & 2)
+    {						// Send default value
+      if (!(res=item->val_str(&tmp)))
+      {
+	if (net_store_null(packet))
+	  return 1;
+      }
+      else if (net_store_data(packet,res->ptr(),res->length()))
+	return 1;
+    }
+    if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
+      break;					
+  }
+  return 0;
+}
+
+
+/*
+  Send name and type of result to client.
+
+  SYNOPSIS
+    send_fields()
+    THD		Thread data object
+    list	List of items to send to client
+    convert	object used to convertation to another character set
+    flag	Bit mask with the following functions:
+		1 send number of rows
+		2 send default values
+		4 Don't convert field names
+
+  DESCRIPTION
+    Sum fields has table name empty and field_name.
+    Uses send_fields_convert() and send_fields() depending on
+    if we have an active character set convert or not.
+
+  RETURN VALUES
+    0	ok
+    1	Error  (Note that in this case the error is not sent to the client)
+*/
+
+bool
+send_fields(THD *thd, List<Item> &list, uint flag)
+{
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  DBUG_ENTER("send_fields");
+
+  if (thd->fatal_error)		// We have got an error
+    goto err;
+
+  if (flag & 1)
+  {				// Packet with number of elements
+    char *pos=net_store_length(buff,(uint) list.elements);
+    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
+  }
+
+  /*
+    Avoid check conditions on convert() for each field
+    by having two different functions 
+  */
+  if (convert)
+  {
+    if (send_convert_fields(thd, list, convert, flag))
+      goto err;
+  }
+  else if (send_non_convert_fields(thd, list, flag))
+    goto err;
+  
+  send_eof(&thd->net);
+  return 0;
+
+err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
 }
@@ -812,7 +971,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       if (table->key_length == key_length &&
 	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(table->table_name,alias))
+	  !my_strcasecmp(system_charset_info,table->table_name,alias))
 	goto reset;
     }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
@@ -1593,11 +1752,12 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     Field **ptr=table->field;
     while ((field = *ptr++))
     {
-      if (!my_strcasecmp(field->field_name, name))
+      if (!my_strcasecmp(system_charset_info, field->field_name, name))
 	goto found;
     }
   }
-  if (allow_rowid && !my_strcasecmp(name,"_rowid") &&
+  if (allow_rowid && 
+      !my_strcasecmp(system_charset_info, name, "_rowid") &&
       (field=table->rowid_field))
     goto found;
   return (Field*) 0;
@@ -1720,7 +1880,8 @@ find_item_in_list(Item *find,List<Item> &items)
   {
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
-      if (!my_strcasecmp(((Item_field*) item)->name,field_name))
+      if (!my_strcasecmp(system_charset_info,
+                         ((Item_field*) item)->name,field_name))
       {
 	if (!table_name)
 	{
@@ -1743,8 +1904,9 @@ find_item_in_list(Item *find,List<Item> &items)
       }
     }
     else if (!table_name && (item->eq(find,0) ||
-			     find->name &&
-			     !my_strcasecmp(item->name,find->name)))
+		     find->name &&
+		     !my_strcasecmp(system_charset_info, 
+                                    item->name,find->name)))
     {
       found=li.ref();
       break;
@@ -1783,7 +1945,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     }
     else
     {
-      if (item->fix_fields(thd,tables))
+      if (item->fix_fields(thd, tables, it.ref()))
 	DBUG_RETURN(-1); /* purecov: inspected */
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	  sum_func_list)
@@ -1935,7 +2097,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   if (*conds)
   {
     thd->where="where clause";
-    if ((*conds)->fix_fields(thd,tables))
+    if ((*conds)->fix_fields(thd, tables, conds))
       DBUG_RETURN(1);
   }
 
@@ -1946,7 +2108,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     {
       /* Make a join an a expression */
       thd->where="on clause";
-      if (table->on_expr->fix_fields(thd,tables))
+      if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
 	DBUG_RETURN(1);
       thd->cond_count++;
 
@@ -1973,7 +2135,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	// TODO: This could be optimized to use hashed names if t2 had a hash
 	for (j=0 ; j < t2->fields ; j++)
 	{
-	  if (!my_strcasecmp(t1->field[i]->field_name,
+	  if (!my_strcasecmp(system_charset_info,
+			     t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
 	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),
@@ -2022,7 +2185,7 @@ fill_record(List<Item> &fields,List<Item> &values)
   while ((field=(Item_field*) f++))
   {
     value=v++;
-    if (value->save_in_field(field->field))
+    if (value->save_in_field(field->field) == 1)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2040,7 +2203,7 @@ fill_record(Field **ptr,List<Item> &values)
   while ((field = *ptr++))
   {
     value=v++;
-    if (value->save_in_field(field))
+    if (value->save_in_field(field) == 1)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2078,10 +2241,10 @@ static void mysql_rm_tmp_tables(void)
 
 
 /*
-** CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-** the proper arguments.  This isn't very fast but it should work for most
-** cases.
-** One should normally create all indexes with CREATE TABLE or ALTER TABLE.
+  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
+  the proper arguments.  This isn't very fast but it should work for most
+  cases.
+  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
 */
 
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
@@ -2093,6 +2256,8 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  /* TODO:  Fix to use database character set */
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,
@@ -2109,6 +2274,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
+  create_info.table_charset=default_charset_info;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, (ORDER*)0, FALSE,

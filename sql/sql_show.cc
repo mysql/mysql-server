@@ -57,7 +57,7 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
-  Item_string *field=new Item_string("",0);
+  Item_string *field=new Item_string("",0,default_charset_info);
   List<Item> field_list;
   char *end;
   List<char> files;
@@ -140,7 +140,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 
 int mysqld_show_tables(THD *thd,const char *db,const char *wild)
 {
-  Item_string *field=new Item_string("",0);
+  Item_string *field=new Item_string("",0,default_charset_info);
   List<Item> field_list;
   char path[FN_LEN],*end;
   List<char> files;
@@ -171,6 +171,201 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   DBUG_RETURN(0);
 }
 
+/***************************************************************************
+** List all table types supported 
+***************************************************************************/
+
+static struct show_table_type_st sys_table_types[]= {
+  {"MyISAM", (char *)"YES", "Default type from 3.23 with great performance"},
+  {"HEAP"  , (char *)"YES", "Hash based, stored in memory, useful for temporary tables"},
+  {"MERGE",  (char *)"YES", "Collection of identical MyISAM tables"},
+  {"ISAM",   (char*) &have_isam,"Obsolete table type"},
+  {"InnoDB", (char*) &have_innodb,"Supports transactions, row-level locking and foreign keys"},
+  {"BDB",    (char*) &have_berkeley_db, "Supports transactions and page-level locking"},
+};
+
+int mysqld_show_table_types(THD *thd)
+{
+  List<Item> field_list;
+  DBUG_ENTER("mysqld_show_table_types");
+
+  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Support",10));
+  field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  const char *default_type_name=ha_table_typelib.type_names[default_table_type-1];
+  show_table_type_st *types = sys_table_types;
+
+  uint i;
+  for (i = 0; i < 3; i++)
+  {
+    thd->packet.length(0);
+    net_store_data(&thd->packet,types[i].type);
+    if (!strcasecmp(default_type_name,types[i].type))
+      net_store_data(&thd->packet,"DEFAULT");
+    else 
+      net_store_data(&thd->packet,types[i].value);    
+    net_store_data(&thd->packet,types[i].comment);
+    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
+      DBUG_RETURN(-1);
+  }
+
+  for (; i < sizeof(sys_table_types)/sizeof(sys_table_types[0]); i++)
+  {
+    thd->packet.length(0);
+    net_store_data(&thd->packet,types[i].type);
+	  SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) types[i].value;
+    
+    if (tmp == SHOW_OPTION_NO) 
+      net_store_data(&thd->packet,"NO");
+		else 
+    {
+      if (tmp == SHOW_OPTION_YES)
+      {        
+        if (!strcasecmp(default_type_name,types[i].type))
+          net_store_data(&thd->packet,"DEFAULT");
+        else
+          net_store_data(&thd->packet,"YES"); 
+      }
+      else net_store_data(&thd->packet,"DISABLED");      
+    }
+    net_store_data(&thd->packet,types[i].comment);
+    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
+      DBUG_RETURN(-1);
+  }
+  send_eof(&thd->net);
+  DBUG_RETURN(0);
+}
+
+/***************************************************************************
+** List all privileges supported 
+***************************************************************************/
+
+static struct show_table_type_st sys_privileges[]= {
+  {"Select", (char *)"Tables",  "To retrieve rows from table"},
+  {"Insert", (char *)"Tables",  "To insert data into tables"},
+  {"Update", (char *)"Tables",  "To update existing rows "},
+  {"Delete", (char *)"Tables",  "To delete existing rows"},
+  {"Index",  (char *)"Tables",  "To create or drop indexes"},
+  {"Alter",  (char *)"Tables",  "To alter the table"},
+  {"Create", (char *)"Databases,Tables,Indexes",  "To create new databases and tables"},
+  {"Drop",   (char *)"Databases,Tables", "To drop databases and tables"},
+  {"Grant",  (char *)"Databases,Tables", "To give to other users those privileges you possesed"},
+  {"References", (char *)"Databases,Tables", "To have references on tables"},
+  {"Reload",  (char *)"Server Admin", "To reload or refresh tables, logs and privileges"},
+  {"Shutdown",(char *)"Server Admin", "To shutdown the server"},
+  {"Process", (char *)"Server Admin", "To view the plain text of currently executing queries"},
+  {"File",    (char *)"File access on server",   "To read and write files on the server"},
+};
+
+int mysqld_show_privileges(THD *thd)
+{
+  List<Item> field_list;
+  DBUG_ENTER("mysqld_show_privileges");
+
+  field_list.push_back(new Item_empty_string("Privilege",10));
+  field_list.push_back(new Item_empty_string("Context",15));
+  field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  for (uint i=0; i < sizeof(sys_privileges)/sizeof(sys_privileges[0]); i++)
+  {
+    thd->packet.length(0);
+    net_store_data(&thd->packet,sys_privileges[i].type);
+    net_store_data(&thd->packet,sys_privileges[i].value);
+    net_store_data(&thd->packet,sys_privileges[i].comment);
+    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
+      DBUG_RETURN(-1);
+  }
+  send_eof(&thd->net);
+  DBUG_RETURN(0);
+}
+
+
+/***************************************************************************
+** List all column types
+***************************************************************************/
+
+#if 0
+struct show_column_type_st {
+  const char *type;
+  uint size;
+  char *min_value;
+  char *max_value;
+  uint precision,
+  uint scale,
+  char *nullable;
+  char *auto_increment;
+  char *unsigned_attr;
+  char *zerofill;
+  char *searchable;
+  char *case_sensitivity;
+  char *default_value;
+  char *comment;
+};
+#endif
+static struct show_column_type_st sys_column_types[]= {
+  {"tinyint",
+    1,  "-128",  "127",  0,  0,  "YES",  "YES",
+    "NO",   "YES", "YES",  "NO",  "NULL,0",  
+    "A very small integer"}, 
+  {"tinyint unsigned",
+    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",  
+    "YES",  "YES",  "YES",  "NO",  "NULL,0", 
+    "A very small integer"},
+};
+
+int mysqld_show_column_types(THD *thd)
+{
+  List<Item> field_list;
+  DBUG_ENTER("mysqld_show_column_types");
+
+  field_list.push_back(new Item_empty_string("Type",30));
+  field_list.push_back(new Item_int("Size",(longlong) 1,21));
+  field_list.push_back(new Item_empty_string("Min_Value",20));
+  field_list.push_back(new Item_empty_string("Max_Value",20));
+  field_list.push_back(new Item_int("Prec", 0,4));
+  field_list.push_back(new Item_int("Scale", 0,4));
+  field_list.push_back(new Item_empty_string("Nullable",4));
+  field_list.push_back(new Item_empty_string("Auto_Increment",4));
+  field_list.push_back(new Item_empty_string("Unsigned",4));
+  field_list.push_back(new Item_empty_string("Zerofill",4));
+  field_list.push_back(new Item_empty_string("Searchable",4));
+  field_list.push_back(new Item_empty_string("Case_Sensitive",4));
+  field_list.push_back(new Item_empty_string("Default",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  for (uint i=0; i < sizeof(sys_column_types)/sizeof(sys_column_types[0]); i++)
+  {
+    thd->packet.length(0);
+    net_store_data(&thd->packet,sys_column_types[i].type);
+    net_store_data(&thd->packet,(longlong)sys_column_types[i].size);
+    net_store_data(&thd->packet,sys_column_types[i].min_value);
+    net_store_data(&thd->packet,sys_column_types[i].max_value);
+    net_store_data(&thd->packet,(uint32)sys_column_types[i].precision);
+    net_store_data(&thd->packet,(uint32)sys_column_types[i].scale);
+    net_store_data(&thd->packet,sys_column_types[i].nullable);
+    net_store_data(&thd->packet,sys_column_types[i].auto_increment);
+    net_store_data(&thd->packet,sys_column_types[i].unsigned_attr);
+    net_store_data(&thd->packet,sys_column_types[i].zerofill);
+    net_store_data(&thd->packet,sys_column_types[i].searchable);
+    net_store_data(&thd->packet,sys_column_types[i].case_sensitivity);
+    net_store_data(&thd->packet,sys_column_types[i].default_value);
+    net_store_data(&thd->packet,sys_column_types[i].comment);
+    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
+      DBUG_RETURN(-1);
+  }
+  send_eof(&thd->net);
+  DBUG_RETURN(0);
+}
 
 static int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
@@ -211,7 +406,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     else
     {
         // Return only .frm files which aren't temp files.
-      if (my_strcasecmp(ext=fn_ext(file->name),reg_ext) ||
+      if (my_strcasecmp(system_charset_info, ext=fn_ext(file->name),reg_ext) ||
           is_prefix(file->name,tmp_file_prefix))
         continue;
       *ext=0;
@@ -219,7 +414,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(file->name,wild))
+	  if (wild_case_compare(system_charset_info,file->name,wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild))
@@ -264,7 +459,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
-
+//,default_charset_info
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Type",10));
@@ -458,8 +653,10 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra",20));
   if (verbose)
+  {
     field_list.push_back(new Item_empty_string("Privileges",80));
-
+    field_list.push_back(new Item_empty_string("Comment",255));
+  }
         // Send first number of fields and records
   {
     char *pos;
@@ -476,7 +673,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
-    if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
+    if (!wild || !wild[0] || 
+        !wild_case_compare(system_charset_info, field->field_name,wild))
     {
 #ifdef NOT_USED
       if (thd->col_access & TABLE_ACLS ||
@@ -486,7 +684,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp));
+        String type(tmp,sizeof(tmp),default_charset_info);
         uint col_access;
         bool null_default_value=0;
 
@@ -509,7 +707,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           null_default_value=1;
         if (!null_default_value && !field->is_null())
         {                                               // Not null by default
-          type.set(tmp,sizeof(tmp));
+          type.set(tmp,sizeof(tmp),default_charset_info);
           field->val_str(&type,&type);
           net_store_data(packet,convert,type.ptr(),type.length());
         }
@@ -525,7 +723,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 
 	if (verbose)
 	{
-	  /* Add grant options */
+	  /* Add grant options & comments */
 	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  end=tmp;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
@@ -537,6 +735,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	    }
 	  }
 	  net_store_data(packet,convert, tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+	  net_store_data(packet, field->comment.str,field->comment.length);
 	}
         if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
           DBUG_RETURN(1);
@@ -584,6 +783,10 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     if (store_create_info(thd, table, packet))
       DBUG_RETURN(-1);
     ulong create_len = packet->length() - store_len_offset - 4;
+    /*
+      Just in case somebody manages to create a table
+      with *that* much stuff in the definition
+    */
     if (create_len > 0x00ffffff) // better readable in HEX ...
     {
       /*
@@ -757,7 +960,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
-    if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
+    if (!wild || !wild[0] || 
+        !wild_case_compare(system_charset_info, field->field_name,wild))
       field_list.push_back(new Item_field(field));
   }
   restore_record(table,2);              // Get empty record
@@ -821,7 +1025,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
-  String type(tmp, sizeof(tmp));
+  String type(tmp, sizeof(tmp),default_charset_info);
   if (table->tmp_table)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
@@ -841,7 +1045,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp));
+      type.set(tmp, sizeof(tmp),default_charset_info);
 
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
@@ -857,12 +1061,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" default ", 9);
       if (!field->is_null())
       {                                             // Not null by default
-        type.set(tmp,sizeof(tmp));
+        type.set(tmp,sizeof(tmp),default_charset_info);
         field->val_str(&type,&type);
-        packet->append('\'');
 	if (type.length())
-          append_unescaped(packet, type.c_ptr());
-        packet->append('\'');
+          append_unescaped(packet, type.ptr(), type.length());
+        else
+	  packet->append("''",2);
       }
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
@@ -871,7 +1075,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
 
     if (field->unireg_check == Field::NEXT_NUMBER)
-          packet->append(" auto_increment", 15 );
+      packet->append(" auto_increment", 15 );
+
+    if (field->comment.length)
+    {
+      packet->append(" COMMENT ",9);
+      append_unescaped(packet, field->comment.str, field->comment.length);
+    }
   }
 
   KEY *key_info=table->key_info;
@@ -893,10 +1103,17 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append("UNIQUE ", 7);
     else if (key_info->flags & HA_FULLTEXT)
       packet->append("FULLTEXT ", 9);
+    else if (key_info->flags & HA_SPATIAL)
+      packet->append("SPATIAL ", 8);
     packet->append("KEY ", 4);
 
     if (!found_primary)
      append_identifier(thd,packet,key_info->name);
+
+    // +BAR: send USING only in non-default case: non-spatial rtree
+    if((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+       !(key_info->flags & HA_SPATIAL))
+      packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
 
@@ -941,6 +1158,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   char buff[128];
   char* p;
 
+  if (table->table_charset)
+  {
+    packet->append(" CHARSET=");
+    packet->append(table->table_charset->name);
+  }
+
   if (table->min_rows)
   {
     packet->append(" MIN_ROWS=");
@@ -977,9 +1200,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   table->file->append_create_info(packet);
   if (table->comment && table->comment[0])
   {
-    packet->append(" COMMENT='", 10);
-    append_unescaped(packet, table->comment);
-    packet->append('\'');
+    packet->append(" COMMENT=", 9);
+    append_unescaped(packet, table->comment, strlen(table->comment));
   }
   if (file->raid_type)
   {
@@ -1141,19 +1363,61 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 
 /*****************************************************************************
-** Status functions
+  Status functions
 *****************************************************************************/
 
+int mysqld_show_charsets(THD *thd, const char *wild)
+{
+  uint i;
+  char buff[8192];
+  String packet2(buff,sizeof(buff),default_charset_info);
+  List<Item> field_list;
+  CONVERT *convert=thd->convert_set;
+  CHARSET_INFO *cs;
+  DBUG_ENTER("mysqld_show_charsets");
+
+  field_list.push_back(new Item_empty_string("Name",30));
+  field_list.push_back(new Item_int("Id",0,7));
+  field_list.push_back(new Item_int("strx_maxlen",0,7));
+  field_list.push_back(new Item_int("mb_maxlen",0,7));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
+  {
+    if (!cs->name)
+      continue;
+    if (!(wild && wild[0] &&
+	  wild_case_compare(system_charset_info,cs->name,wild)))
+    {
+      packet2.length(0);
+      net_store_data(&packet2,convert,cs->name);
+      net_store_data(&packet2,(uint32) cs->number);
+      net_store_data(&packet2,(uint32) cs->strxfrm_multiply);
+      net_store_data(&packet2,(uint32) cs->mbmaxlen);
+
+      if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
+         goto err;
+    }
+  }
+  send_eof(&thd->net); 
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
+  
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type)
 {
   char buff[8192];
-  String packet2(buff,sizeof(buff));
+  String packet2(buff,sizeof(buff), system_charset_info);
   List<Item> field_list;
   CONVERT *convert=thd->variables.convert_set;
-
   DBUG_ENTER("mysqld_show");
+
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
   if (send_fields(thd,field_list,1))
@@ -1163,7 +1427,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   pthread_mutex_lock(&LOCK_status);
   for (; variables->name; variables++)
   {
-    if (!(wild && wild[0] && wild_case_compare(variables->name,wild)))
+    if (!(wild && wild[0] && wild_case_compare(system_charset_info,
+					       variables[i].name,wild)))
     {
       packet2.length(0);
       net_store_data(&packet2,convert,variables->name);

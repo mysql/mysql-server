@@ -26,7 +26,10 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
+#include <zlib.h>
 #include "slave.h" // for wait_for_master_pos
+#include "gstream.h"
+
 
 /* return TRUE if item is a constant */
 
@@ -55,8 +58,43 @@ Item_func::Item_func(List<Item> &list)
   list.empty();					// Fields are used
 }
 
+
+/*
+  Resolve references to table column for a function and it's argument
+
+  SYNOPSIS:
+  fix_fields()
+  thd		Thread object
+  tables	List of all open tables involved in the query
+  ref		Pointer to where this object is used.  This reference
+		is used if we want to replace this object with another
+		one (for example in the summary functions).
+
+  DESCRIPTION
+    Call fix_fields() for all arguments to the function.  The main intention
+    is to allow all Item_field() objects to setup pointers to the table fields.
+
+    Sets as a side effect the following class variables:
+      maybe_null	Set if any argument may return NULL
+      binary		Set if any of the arguments is binary
+      with_sum_func	Set if any of the arguments contains a sum function
+      used_table_cache  Set to union of the arguments used table
+
+      str_value.charset If this is a string function, set this to the
+			character set for the first argument.
+
+   If for any item any of the defaults are wrong, then this can
+   be fixed in the fix_length_and_dec() function that is called
+   after this one or by writing a specialized fix_fields() for the
+   item.
+
+  RETURN VALUES
+  0	ok
+  1	Got error.  Stored with my_error().
+*/
+
 bool
-Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -70,7 +108,7 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
@@ -80,6 +118,12 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
     }
+    /*
+      Set return character set to first argument if we are returning a
+      string.
+    */
+    if (result_type() == STRING_RESULT)
+      str_value.set_charset((*args)->str_value.charset());
   }
   fix_length_and_dec();
   return 0;
@@ -847,6 +891,18 @@ longlong Item_func_min_max::val_int()
   return value;
 }
 
+longlong Item_func_crc32::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
+}
+
 
 longlong Item_func_length::val_int()
 {
@@ -892,7 +948,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(default_charset_info))
+    if (use_mb(a->charset()))
     {
       start0=start;
       if (!binary_str)
@@ -905,7 +961,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !binary_str)
+  if (use_mb(a->charset()) && !binary_str)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -924,7 +980,8 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(default_charset_info,ptr,strend))) ptr+=l;
+      if ((l=my_ismbchar(a->charset(),ptr,strend)))
+	ptr+=l;
       else ++ptr;
       ++start0;
     }
@@ -975,12 +1032,12 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(default_charset_info) && !args[0]->binary)
+  if (use_mb(res->charset()) && !args[0]->binary)
   {
     register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(default_charset_info,
-                                       str,str+res->length());
-    if (!l) return (longlong)((uchar) *str);
+    register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
+    if (!l)
+      return (longlong)((uchar) *str);
     while (l--)
       n=(n<<8)|(uint32)((uchar) *str++);
     return (longlong) n;
@@ -1040,6 +1097,7 @@ longlong Item_func_find_in_set::val_int()
   null_value=0;
 
   int diff;
+  CHARSET_INFO *charset= find->charset();
   if ((diff=buffer->length() - find->length()) >= 0)
   {
     const char *f_pos=find->ptr();
@@ -1053,7 +1111,7 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (toupper(*str) != toupper(*pos))
+	if (my_toupper(charset,*str) != my_toupper(charset,*pos))
 	  goto not_found;
 	str++;
 	pos++;
@@ -1148,7 +1206,7 @@ udf_handler::~udf_handler()
 
 
 bool
-udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
+udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -1192,7 +1250,7 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;
       if ((*arg)->binary)
 	func->binary=1;
@@ -1358,7 +1416,7 @@ String *udf_handler::val_str(String *str,String *save_str)
     str->length(res_length);
     return str;
   }
-  save_str->set(res, res_length);
+  save_str->set(res, res_length, default_charset_info);
   return save_str;
 }
 
@@ -1483,7 +1541,8 @@ char *ull_get_key(const ULL *ull,uint *length,
 void item_user_lock_init(void)
 {
   pthread_mutex_init(&LOCK_user_locks,MY_MUTEX_INIT_SLOW);
-  hash_init(&hash_user_locks,16,0,0,(hash_get_key) ull_get_key,NULL,0);
+  hash_init(&hash_user_locks,system_charset_info,
+	    16,0,0,(hash_get_key) ull_get_key,NULL,0);
 }
 
 void item_user_lock_free(void)
@@ -1497,9 +1556,9 @@ void item_user_lock_release(ULL *ull)
   if (mysql_bin_log.is_open())
   {
     char buf[256];
-    String tmp(buf,sizeof(buf));
-    tmp.length(0);
-    tmp.append("DO RELEASE_LOCK(\"");
+    const char *command="DO RELEASE_LOCK(\"";
+    String tmp(buf,sizeof(buf), system_charset_info);
+    tmp.copy(command, strlen(command));
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
     Query_log_event qev(current_thd,tmp.ptr(), tmp.length());
@@ -1757,7 +1816,7 @@ longlong Item_func_set_last_insert_id::val_int()
 longlong Item_func_benchmark::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff), default_charset_info);
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -1812,11 +1871,12 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
-bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
+					Item **ref)
 {
   if (!thd)
     thd=current_thd;				// Should never happen
-  if (Item_func::fix_fields(thd,tables) ||
+  if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
   entry->update_query_id=thd->query_id;
@@ -1895,7 +1955,7 @@ Item_func_set_user_var::update()
     break;
   case STRING_RESULT:
     char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
+    String tmp(buffer,sizeof(buffer),default_charset_info);
     (void) val_str(&tmp);
     break;
   }
@@ -2070,7 +2130,7 @@ longlong Item_func_inet_aton::val_int()
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
 
-  String *s,tmp(buff,sizeof(buff));
+  String *s,tmp(buff,sizeof(buff),default_charset_info);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
     goto err;
   null_value=0;
@@ -2108,7 +2168,9 @@ void Item_func_match::init_search(bool no_order)
     return;
 
   if (key == NO_SUCH_KEY)
-    concat= new Item_func_concat_ws(new Item_string(" ",1), fields);
+    concat=new Item_func_concat_ws(new Item_string(" ",1,
+						   default_charset_info),
+				   fields);
 
   if (master)
   {
@@ -2119,15 +2181,15 @@ void Item_func_match::init_search(bool no_order)
     return;
   }
 
-  String *ft_tmp=0;
+  String *ft_tmp= 0;
   char tmp1[FT_QUERY_MAXLEN];
-  String tmp2(tmp1,sizeof(tmp1));
+  String tmp2(tmp1,sizeof(tmp1),default_charset_info);
 
   // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp=key_item()->val_str(&tmp2)))
   {
     ft_tmp= &tmp2;
-    tmp2.set("",0);
+    tmp2.set("",0,default_charset_info);
   }
 
   ft_handler=table->file->ft_init_ext(mode, key,
@@ -2143,7 +2205,7 @@ void Item_func_match::init_search(bool no_order)
 }
 
 
-bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
+bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
   List_iterator<Item> li(fields);
   Item *item;
@@ -2157,7 +2219,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     modifications to find_best and auto_close as complement to auto_init code
     above.
    */
-  if (Item_func::fix_fields(thd,tlist) || !const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) || !const_item())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
@@ -2165,7 +2227,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 
   while ((item=li++))
   {
-    if (item->fix_fields(thd,tlist))
+    if (item->fix_fields(thd, tlist, li.ref()))
       return 1;
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);
@@ -2311,6 +2373,7 @@ double Item_func_match::val()
     return ft_handler->please->find_relevance(ft_handler, record, 0);
 }
 
+
 longlong Item_func_bit_xor::val_int()
 {
   ulonglong arg1= (ulonglong) args[0]->val_int();
@@ -2385,4 +2448,125 @@ longlong Item_func_is_free_lock::val_int()
   if (!ull || !ull->locked)
     return 1;
   return 0;
+}
+
+
+/**************************************************************************
+  Spatial functions
+***************************************************************************/
+
+longlong Item_func_dimension::val_int()
+{
+  uint32 dim;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               geom.dimension(&dim));
+
+  return (longlong) dim;
+}
+
+longlong Item_func_numinteriorring::val_int()
+{
+  uint32 num;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_interior_ring) || 
+	       geom.num_interior_ring(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numgeometries::val_int()
+{
+  uint32 num=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,num_geometries) || 
+               geom.num_geometries(&num));
+
+  return (longlong) num;
+}
+
+longlong Item_func_numpoints::val_int()
+{
+  uint32 num=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
+               !GEOM_METHOD_PRESENT(geom,num_points) ||
+               geom.num_points(&num));
+
+  return (longlong) num;
+}
+
+
+double Item_func_x::val()
+{
+  double res=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_x) || 
+               geom.get_x(&res));
+
+  return res;
+}
+
+
+double Item_func_y::val()
+{
+  double res=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,get_y) || 
+               geom.get_y(&res));
+
+  return res;
+}
+
+
+double Item_func_area::val()
+{
+  double res=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,area) || 
+               geom.area(&res));
+
+  return res;
+}
+
+
+double Item_func_glength::val()
+{
+  double res=0;
+  String *wkb=args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!wkb || 
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
+               !GEOM_METHOD_PRESENT(geom,length) || 
+               geom.length(&res));
+  return res;
 }

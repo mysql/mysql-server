@@ -24,6 +24,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
+
 /*
   Test functions
   These returns 0LL if false and 1LL if true and null if some arg is null
@@ -42,14 +43,17 @@ longlong Item_func_not::val_int()
   This is done when comparing DATE's of different formats and
   also when comparing bigint to strings (in which case the string
   is converted once to a bigint).
+
+  RESULT VALUES
+  0	Can't convert item
+  1	Item was replaced with an integer version of the item
 */
 
 static bool convert_constant_item(Field *field, Item **item)
 {
   if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
   {
-    if (!(*item)->save_in_field(field) &&
-	!((*item)->null_value))
+    if (!(*item)->save_in_field(field) && !((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
       if (tmp)
@@ -716,7 +720,7 @@ String *Item_func_case::val_str(String *str)
 longlong Item_func_case::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff));
+  String dummy_str(buff,sizeof(buff),default_charset_info);
   Item *item=find_item(&dummy_str);
   longlong res;
 
@@ -733,7 +737,7 @@ longlong Item_func_case::val_int()
 double Item_func_case::val()
 {
   char buff[MAX_FIELD_WIDTH];
-  String dummy_str(buff,sizeof(buff));
+  String dummy_str(buff,sizeof(buff),default_charset_info);
   Item *item=find_item(&dummy_str);
   double res;
 
@@ -749,12 +753,12 @@ double Item_func_case::val()
 
 
 bool
-Item_func_case::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (first_expr && first_expr->fix_fields(thd,tables) ||
-      else_expr && else_expr->fix_fields(thd,tables))
+  if (first_expr && first_expr->fix_fields(thd, tables, &first_expr) ||
+      else_expr && else_expr->fix_fields(thd, tables, &else_expr))
     return 1;
-  if (Item_func::fix_fields(thd,tables))
+  if (Item_func::fix_fields(thd, tables, ref))
     return 1;
   if (first_expr)
   {
@@ -905,7 +909,7 @@ int in_vector::find(Item *item)
 
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
-  :in_vector(elements,sizeof(String),cmp_func),tmp(buff,sizeof(buff))
+  :in_vector(elements,sizeof(String),cmp_func),tmp(buff,sizeof(buff),default_charset_info)
 {}
 
 in_string::~in_string()
@@ -920,6 +924,9 @@ void in_string::set(uint pos,Item *item)
   String *res=item->val_str(str);
   if (res && res != str)
     *str= *res;
+  // BAR TODO: I'm not sure this is absolutely correct
+  if (!str->charset())
+      str->set_charset(default_charset_info);
 }
 
 byte *in_string::get_value(Item *item)
@@ -1093,7 +1100,7 @@ longlong Item_func_bit_and::val_int()
 
 
 bool
-Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -1115,7 +1122,7 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
 #endif
       item= *li.ref();				// new current item
     }
-    if (item->fix_fields(thd,tables))
+    if (item->fix_fields(thd, tables, li.ref()))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;
@@ -1291,9 +1298,9 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   return OPTIMIZE_NONE;
 }
 
-bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
+bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
 {
-  if (Item_bool_func2::fix_fields(thd, tlist))
+  if (Item_bool_func2::fix_fields(thd, tlist, ref))
     return 1;
 
   /*
@@ -1343,9 +1350,10 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
 #ifdef USE_REGEX
 
 bool
-Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  if (args[0]->fix_fields(thd,tables) || args[1]->fix_fields(thd,tables))
+  if (args[0]->fix_fields(thd, tables, args) ||
+      args[1]->fix_fields(thd,tables, args + 1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length=1; decimals=0;
@@ -1355,7 +1363,7 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
   if (!regex_compiled && args[1]->const_item())
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff));
+    String tmp(buff,sizeof(buff),default_charset_info);
     String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
@@ -1365,7 +1373,8 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
     int error;
     if ((error=regcomp(&preg,res->c_ptr(),
 		       binary ? REG_EXTENDED | REG_NOSUB :
-		       REG_EXTENDED | REG_NOSUB | REG_ICASE)))
+		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
+		       res->charset())))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -1382,7 +1391,7 @@ Item_func_regex::fix_fields(THD *thd,TABLE_LIST *tables)
 longlong Item_func_regex::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff));
+  String *res, tmp(buff,sizeof(buff),default_charset_info);
 
   res=args[0]->val_str(&tmp);
   if (args[0]->null_value)
@@ -1393,7 +1402,7 @@ longlong Item_func_regex::val_int()
   if (!regex_is_const)
   {
     char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2));
+    String *res2, tmp2(buff2,sizeof(buff2),default_charset_info);
 
     res2= args[1]->val_str(&tmp2);
     if (args[1]->null_value)
@@ -1411,7 +1420,8 @@ longlong Item_func_regex::val_int()
       }
       if (regcomp(&preg,res2->c_ptr(),
 		  binary ? REG_EXTENDED | REG_NOSUB :
-		  REG_EXTENDED | REG_NOSUB | REG_ICASE))
+		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
+		  res->charset()))
 
       {
 	null_value=1;
@@ -1438,9 +1448,9 @@ Item_func_regex::~Item_func_regex()
 
 
 #ifdef LIKE_CMP_TOUPPER
-#define likeconv(A) (uchar) toupper(A)
+#define likeconv(cs,A) (uchar) (cs)->toupper(A)
 #else
-#define likeconv(A) (uchar) my_sort_order[(uchar) (A)]
+#define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
 #endif
 
 
@@ -1454,7 +1464,8 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
   const int   plm1 = pattern_len - 1;
   int            f = 0;
   int            g = plm1;
-  int* const splm1 = suff + plm1;
+  int *const splm1 = suff + plm1;
+  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
 
   *splm1 = pattern_len;
 
@@ -1490,7 +1501,8 @@ void Item_func_like::turboBM_compute_suffixes(int* suff)
 	if (i < g)
 	  g = i; // g = min(i, g)
 	f = i;
-	while (g >= 0 && likeconv(pattern[g]) == likeconv(pattern[g + plm1 - f]))
+	while (g >= 0 && likeconv(cs, pattern[g]) ==
+	       likeconv(cs, pattern[g + plm1 - f]))
 	  g--;
 	suff[i] = f - g;
       }
@@ -1551,19 +1563,25 @@ void Item_func_like::turboBM_compute_good_suffix_shifts(int* suff)
 
 void Item_func_like::turboBM_compute_bad_character_shifts()
 {
-  int*   i;
-  int* end = bmBc + alphabet_size;
+  int *i;
+  int *end = bmBc + alphabet_size;
+  int j;
+  const int plm1 = pattern_len - 1;
+  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  int j;
-  const int plm1 = pattern_len - 1;
   if (binary)
+  {
     for (j = 0; j < plm1; j++)
       bmBc[pattern[j]] = plm1 - j;
+  }
   else
+  {
     for (j = 0; j < plm1; j++)
-      bmBc[likeconv(pattern[j])] = plm1 - j;
+      bmBc[likeconv(cs,pattern[j])] = plm1 - j;
+  }
 }
 
 
@@ -1579,6 +1597,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
+  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
 
   const int plm1  = pattern_len - 1;
   const int tlmpl =    text_len - pattern_len;
@@ -1620,7 +1639,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
     while (j <= tlmpl)
     {
       register int i = plm1;
-      while (i >= 0 && likeconv(pattern[i]) == likeconv(text[i + j]))
+      while (i >= 0 && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]))
       {
 	i--;
 	if (i == plm1 - shift)
@@ -1631,7 +1650,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
 
       register const int v = plm1 - i;
       turboShift = u - v;
-      bcShift    = bmBc[likeconv(text[i + j])] - plm1 + i;
+      bcShift    = bmBc[likeconv(cs, text[i + j])] - plm1 + i;
       shift      = max(turboShift, bcShift);
       shift      = max(shift, bmGs[i]);
       if (shift == bmGs[i])
@@ -1685,4 +1704,83 @@ longlong Item_cond_xor::val_int()
     }
   }
   return (longlong) result;
+}
+
+/****************************************************************
+ Classes and functions for spatial relations
+*****************************************************************/
+
+longlong Item_func_spatial_rel::val_int()
+{
+  String *res1=args[0]->val_str(&tmp_value1);
+  String *res2=args[1]->val_str(&tmp_value2);
+  Geometry g1, g2;
+  MBR mbr1,mbr2;
+
+  if ((null_value=(args[0]->null_value ||
+                   args[1]->null_value ||
+                   g1.create_from_wkb(res1->ptr(),res1->length()) || 
+                   g2.create_from_wkb(res2->ptr(),res2->length()) ||
+                   g1.get_mbr(&mbr1) || 
+                   g2.get_mbr(&mbr2))))
+   return 0;
+
+  switch (spatial_rel)
+  {
+    case SP_CONTAINS_FUNC:
+      return mbr1.contains(&mbr2);
+    case SP_WITHIN_FUNC:
+      return mbr1.within(&mbr2);
+    case SP_EQUALS_FUNC:
+      return mbr1.equals(&mbr2);
+    case SP_DISJOINT_FUNC:
+      return mbr1.disjoint(&mbr2);
+    case SP_INTERSECTS_FUNC:
+      return mbr1.intersects(&mbr2);
+    case SP_TOUCHES_FUNC:
+      return mbr1.touches(&mbr2);
+    case SP_OVERLAPS_FUNC:
+      return mbr1.overlaps(&mbr2);
+    case SP_CROSSES_FUNC:
+      return 0;
+    default:
+      break;
+  }
+
+  null_value=1;
+  return 0;
+}
+
+longlong Item_func_isempty::val_int()
+{
+  String tmp; 
+  null_value=0;
+  return args[0]->null_value ? 1 : 0;
+}
+
+longlong Item_func_issimple::val_int()
+{
+  String tmp;
+  String *wkb=args[0]->val_str(&tmp);
+
+  if ((null_value= (!wkb || args[0]->null_value )))
+    return 0;
+  /* TODO: Ramil or Holyfoot, add real IsSimple calculation */
+  return 0;
+}
+
+longlong Item_func_isclosed::val_int()
+{
+  String tmp;
+  String *wkb=args[0]->val_str(&tmp);
+  Geometry geom;
+  int isclosed;
+
+  null_value= (!wkb || 
+               args[0]->null_value ||
+               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
+               !GEOM_METHOD_PRESENT(geom,is_closed) ||
+               geom.is_closed(&isclosed));
+
+  return (longlong) isclosed;
 }

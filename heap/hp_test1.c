@@ -36,7 +36,7 @@ int main(int argc, char **argv)
   char record[128],key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
-  HP_KEYSEG keyseg[4];
+  HA_KEYSEG keyseg[4];
   MY_INIT(argv[0]);
 
   filename= "test1";
@@ -44,17 +44,19 @@ int main(int argc, char **argv)
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
+  keyinfo[0].algorithm= HA_KEY_ALG_HASH;
   keyinfo[0].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[0].seg[0].start=1;
   keyinfo[0].seg[0].length=6;
+  keyinfo[0].seg[0].charset=default_charset_info;
   keyinfo[0].flag = HA_NOSAME;
-
+  
   deleted=0;
   bzero((gptr) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  heap_create(filename);
-  if (!(file=heap_open(filename,2,1,keyinfo,30,(ulong) flag*100000l,10l)))
+  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000l,10l) ||
+      !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");
   strmov(record,"          ..... key           ");
@@ -77,7 +79,7 @@ int main(int argc, char **argv)
   if (heap_close(file))
     goto err;
   printf("- Reopening file\n");
-  if (!(file=heap_open(filename,2,1,keyinfo,30,(ulong) flag*100000l,10l)))
+  if (!(file=heap_open(filename, 2)))
     goto err;
 
   printf("- Removing records\n");
@@ -85,7 +87,7 @@ int main(int argc, char **argv)
   {
     if (i == remove_ant) { VOID(heap_close(file)) ; return (0) ; }
     sprintf(key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
-    if ((error = heap_rkey(file,record,0,key)))
+    if ((error = heap_rkey(file,record,0,key,0,6)))
     {
       if (verbose || (flags[j] == 1 ||
 		      (error && my_errno != HA_ERR_KEY_NOT_FOUND)))
@@ -113,7 +115,7 @@ int main(int argc, char **argv)
     sprintf(key,"%6d",i);
     bmove(record+1,key,6);
     my_errno=0;
-    error=heap_rkey(file,record,0,key);
+    error=heap_rkey(file,record,0,key,0,6);
     if (verbose ||
 	(error == 0 && flags[i] != 1) ||
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))

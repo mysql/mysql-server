@@ -60,8 +60,9 @@ void Item_sum::make_field(Send_field *tmp_field)
 		     result_type() == REAL_RESULT ? FIELD_TYPE_DOUBLE :
 		     FIELD_TYPE_VAR_STRING);
   }
-  tmp_field->table_name=(char*)"";
-  tmp_field->col_name=name;
+  tmp_field->db_name=(char*)"";
+  tmp_field->org_table_name=tmp_field->table_name=(char*)"";
+  tmp_field->org_col_name=tmp_field->col_name=name;
 }
 
 void Item_sum::print(String *str)
@@ -111,7 +112,7 @@ Item_sum_int::val_str(String *str)
 
 
 bool
-Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!thd->allow_sum_func)
   {
@@ -123,7 +124,7 @@ Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
   maybe_null=0;
   for (uint i=0 ; i < arg_count ; i++)
   {
-    if (args[i]->fix_fields(thd,tables))
+    if (args[i]->fix_fields(thd, tables, args + i))
       return 1;
     if (decimals < args[i]->decimals)
       decimals=args[i]->decimals;
@@ -139,7 +140,7 @@ Item_sum_num::fix_fields(THD *thd,TABLE_LIST *tables)
 
 
 bool
-Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item *item=args[0];
   if (!thd->allow_sum_func)
@@ -148,7 +149,7 @@ Item_sum_hybrid::fix_fields(THD *thd,TABLE_LIST *tables)
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
-  if (item->fix_fields(thd,tables))
+  if (item->fix_fields(thd, tables, args))
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)
@@ -513,7 +514,7 @@ void Item_sum_hybrid::reset_field()
   if (hybrid_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff)),*res;
+    String tmp(buff,sizeof(buff),default_charset_info),*res;
 
     res=args[0]->val_str(&tmp);
     if (args[0]->null_value)
@@ -524,7 +525,7 @@ void Item_sum_hybrid::reset_field()
     else
     {
       result_field->set_notnull();
-      result_field->store(res->ptr(),res->length());
+      result_field->store(res->ptr(),res->length(),tmp.charset());
     }
   }
   else if (hybrid_type == INT_RESULT)
@@ -694,7 +695,7 @@ Item_sum_hybrid::min_max_update_str_field(int offset)
     if (result_field->is_null() ||
 	(cmp_sign * (binary ? stringcmp(res_str,&tmp_value) :
 		 sortcmp(res_str,&tmp_value)) < 0))
-      result_field->store(res_str->ptr(),res_str->length());
+      result_field->store(res_str->ptr(),res_str->length(),res_str->charset());
     else
     {						// Use old value
       char *res=result_field->ptr;
@@ -864,7 +865,8 @@ static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 
 static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return my_sortcmp((char*) key1, (char*) key2, *(uint*) arg);
+  /* BAR TODO: remove default_charset_info */
+  return my_sortcmp(default_charset_info,(char*) key1, (char*) key2, *(uint*) arg);
 }
 
 /*
@@ -928,9 +930,10 @@ Item_sum_count_distinct::~Item_sum_count_distinct()
 }
 
 
-bool Item_sum_count_distinct::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
+					 Item **ref)
 {
-  if (Item_sum_num::fix_fields(thd,tables) ||
+  if (Item_sum_num::fix_fields(thd, tables, ref) ||
       !(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
   return 0;
@@ -939,6 +942,7 @@ bool Item_sum_count_distinct::fix_fields(THD *thd,TABLE_LIST *tables)
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
+  SELECT_LEX *select_lex= current_lex->select;
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
   {
@@ -960,9 +964,10 @@ bool Item_sum_count_distinct::setup(THD *thd)
     free_tmp_table(thd, table);
     tmp_table_param->cleanup();
   }
-  if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-			       0, 0,
-			       current_lex->select->options | thd->options)))
+  if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
+				0, 0,
+				select_lex->options | thd->options,
+				select_lex->master_unit())))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
@@ -1106,7 +1111,7 @@ bool Item_sum_count_distinct::add()
       if (tree_to_myisam())
 	return 1;
     }
-    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0))
+    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0, tree.custom_arg))
       return 1;
   }
   else if ((error=table->file->write_row(table->record[0])))

@@ -106,7 +106,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   }
   tables->table=table;
 
-  if (cond && cond->fix_fields(thd,tables))
+  if (cond && cond->fix_fields(thd, tables, &cond))
     return -1;
 
   if (keyname)
@@ -180,7 +180,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	item->save_in_field(key_part->field);
+	(void) item->save_in_field(key_part->field);
 	key_len+=key_part->store_length;
       }
       if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
@@ -271,7 +271,7 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
-        !my_strcasecmp(table->table_name,table_name))
+        !my_strcasecmp(system_charset_info,table->table_name,table_name))
       break;
     ptr=&(table->next);
   }

@@ -939,7 +939,7 @@ static void set_user(const char *user)
   {
     // allow a numeric uid to be used
     const char *pos;
-    for (pos=user; isdigit(*pos); pos++) ;
+    for (pos=user; my_isdigit(system_charset_info,*pos); pos++) ;
     if (*pos)					// Not numeric id
     {
       fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
@@ -1881,7 +1881,7 @@ int main(int argc, char **argv)
 
   if (set_default_charset_by_name(sys_charset.value, MYF(MY_WME)))
     exit(1);
-  charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
+  charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
 #ifdef HAVE_OPENSSL
   if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
@@ -4036,7 +4036,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     val= p--;
-    while (isspace(*p) && p > argument)
+    while (my_isspace(system_charset_info, *p) && p > argument)
       *p-- = 0;
     if (p == argument)
     {
@@ -4046,7 +4046,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     *val= 0;
     val+= 2;
-    while (*val && isspace(*val))
+    while (*val && my_isspace(system_charset_info, *val))
       *val++;
     if (!*val)
     {
@@ -4189,7 +4189,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     have_symlink=SHOW_OPTION_DISABLED;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && isdigit(argument[0]))
+    if (argument && my_isdigit(system_charset_info, argument[0]))
     {
       my_bind_addr = (ulong) inet_addr(argument);
     }
@@ -4597,7 +4597,8 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       j=pos;
       while (j != end)
       {
-	if (toupper(*i++) != toupper(*j++))
+	if (my_toupper(system_charset_info,*i++) != 
+            my_toupper(system_charset_info,*j++))
 	  goto skipp;
       }
       found_int=bit;

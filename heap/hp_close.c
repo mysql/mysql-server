@@ -26,16 +26,16 @@ int heap_close(HP_INFO *info)
   int tmp;
   DBUG_ENTER("heap_close");
   pthread_mutex_lock(&THR_LOCK_heap);
-  tmp= _hp_close(info);
+  tmp= hp_close(info);
   pthread_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(tmp);
 }
 
 
-int _hp_close(register HP_INFO *info)
+int hp_close(register HP_INFO *info)
 {
   int error=0;
-  DBUG_ENTER("_hp_close");
+  DBUG_ENTER("hp_close");
 #ifndef DBUG_OFF
   if (info->s->changed && heap_check_heap(info,0))
   {
@@ -45,7 +45,7 @@ int _hp_close(register HP_INFO *info)
   info->s->changed=0;
   heap_open_list=list_delete(heap_open_list,&info->open_list);
   if (!--info->s->open_count && info->s->delete_on_close)
-    _hp_free(info->s);				/* Table was deleted */
+    hp_free(info->s);				/* Table was deleted */
   my_free((gptr) info,MYF(0));
   DBUG_RETURN(error);
 }

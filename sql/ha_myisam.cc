@@ -28,6 +28,7 @@
 #include "../srclib/myisam/myisamdef.h"
 #else
 #include "../myisam/myisamdef.h"
+#include "../myisam/rt_index.h"
 #endif
 
 ulong myisam_recover_options= HA_RECOVER_NONE;
@@ -122,8 +123,12 @@ const char **ha_myisam::bas_ext() const
 
 const char *ha_myisam::index_type(uint key_number)
 {
-  return ((table->key_info[key_number].flags & HA_FULLTEXT) ?
+  return ((table->key_info[key_number].flags & HA_FULLTEXT) ? 
 	  "FULLTEXT" :
+	  (table->key_info[key_number].flags & HA_SPATIAL) ?
+	  "SPATIAL" :
+	  (table->key_info[key_number].algorithm == HA_KEY_ALG_RTREE) ?
+	  "RTREE" :
 	  "BTREE");
 }
 
@@ -761,7 +766,7 @@ int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
+  int error=mi_rkey(file,buf,active_index, key, key_len, (enum ha_rkey_function)find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -770,7 +775,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 			      uint key_len, enum ha_rkey_function find_flag)
 {
   statistic_increment(ha_read_key_count,&LOCK_status);
-  int error=mi_rkey(file,buf,index, key, key_len, find_flag);
+  int error=mi_rkey(file,buf,index, key, key_len, (enum ha_rkey_function)find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -1000,7 +1005,7 @@ int ha_myisam::create(const char *name, register TABLE *table,
   KEY *pos;
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo,*recinfo_pos;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uint options=table->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
 
@@ -1009,14 +1014,16 @@ int ha_myisam::create(const char *name, register TABLE *table,
 			&recinfo,(table->fields*2+2)*sizeof(MI_COLUMNDEF),
 			&keydef, table->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((table->key_parts + table->keys) * sizeof(MI_KEYSEG)),
+			((table->key_parts + table->keys) * sizeof(HA_KEYSEG)),
 			0)))
     DBUG_RETURN(1);
 
   pos=table->key_info;
   for (i=0; i < table->keys ; i++, pos++)
   {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT));
+    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].key_alg=pos->algorithm == HA_KEY_ALG_UNDEF ?
+					HA_KEY_ALG_BTREE : pos->algorithm;
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)
@@ -1051,7 +1058,8 @@ int ha_myisam::create(const char *name, register TABLE *table,
       keydef[i].seg[j].start=  pos->key_part[j].offset;
       keydef[i].seg[j].length= pos->key_part[j].length;
       keydef[i].seg[j].bit_start=keydef[i].seg[j].bit_end=0;
-      keydef[i].seg[j].language=MY_CHARSET_CURRENT;
+      keydef[i].seg[j].language = field->binary() ? MY_CHARSET_CURRENT : 
+                                  ((Field_str*)field)->charset()->number;
 
       if (field->null_ptr)
       {

@@ -91,12 +91,6 @@ my_string fn_format(my_string to, const char *name, const char *dir,
       name=buff;
     }
     pos=strmake(strmov(to,dev),name,length);
-#ifdef FN_UPPER_CASE
-    caseup_str(to);
-#endif
-#ifdef FN_LOWER_CASE
-    casedn_str(to);
-#endif
     (void) strmov(pos,ext);			/* Don't convert extension */
   }
   /*

@@ -17,6 +17,8 @@
 /* open a isam-database */
 
 #include "fulltext.h"
+#include "sp_defs.h"
+#include "rt_index.h"
 #include <m_ctype.h>
 
 #if defined(MSDOS) || defined(__WIN__)
@@ -65,7 +67,7 @@ static MI_INFO *test_if_reopen(char *filename)
 
 MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 {
-  int lock_error,kfile,open_mode,save_errno;
+  int lock_error,kfile,open_mode,save_errno,have_rtree=0;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
     key_parts,unique_key_parts,tmp_length,uniques;
   char name_buff[FN_REFLEN], org_name [FN_REFLEN], index_name[FN_REFLEN],
@@ -254,7 +256,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			 &share->uniqueinfo,uniques*sizeof(MI_UNIQUEDEF),
 			 &share->keyparts,
 			 (key_parts+unique_key_parts+keys+uniques) *
-			 sizeof(MI_KEYSEG),
+			 sizeof(HA_KEYSEG),
 			 &share->rec,
 			 (share->base.fields+1)*sizeof(MI_COLUMNDEF),
 			 &share->blobs,sizeof(MI_BLOB)*share->base.blobs,
@@ -284,7 +286,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     share->blocksize=min(IO_SIZE,myisam_block_size);
     {
-      MI_KEYSEG *pos=share->keyparts;
+      HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
@@ -293,6 +295,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
+	  
 	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
 	  {
 	    if (!pos->language)
@@ -304,7 +307,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	    }
 	  }
 	}
-	if (share->keyinfo[i].flag & HA_FULLTEXT)
+	if (share->keyinfo[i].flag & HA_SPATIAL)
+	{
+	  uint sp_segs=SPDIMS*2;
+	  share->keyinfo[i].seg=pos-sp_segs;
+	  share->keyinfo[i].keysegs--;
+	} else if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
 	  share->keyinfo[i].seg=pos-FT_SEGS;
 	  share->fulltext_index=1;
@@ -342,7 +350,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       }
     }
     for (i=0 ; i < keys ; i++)
+    {
+      if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
+        have_rtree=1;
       setup_key_functions(share->keyinfo+i);
+    }
 
     for (i=j=offset=0 ; i < share->base.fields ; i++)
     {
@@ -421,7 +433,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
 			   HA_OPTION_COMPRESS_RECORD |
 			   HA_OPTION_TEMP_COMPRESS_RECORD)) ||
-	 (open_flags & HA_OPEN_TMP_TABLE)) ? 0 : 1;
+	 (open_flags & HA_OPEN_TMP_TABLE) ||
+	 have_rtree) ? 0 : 1;
       if (share->concurrent_insert)
       {
 	share->lock.get_status=mi_get_status;
@@ -451,6 +464,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       &info.blobs,sizeof(MI_BLOB)*share->base.blobs,
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
+		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
 		       &info.lastkey,share->base.max_key_length*3+1,
 		       &info.filename,strlen(org_name)+1,
 		       NullS))
@@ -649,6 +663,16 @@ void mi_setup_functions(register MYISAM_SHARE *share)
 
 static void setup_key_functions(register MI_KEYDEF *keyinfo)
 {
+  if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
+  {
+    keyinfo->ck_insert = rtree_insert;
+    keyinfo->ck_delete = rtree_delete;
+  }
+  else
+  {
+    keyinfo->ck_insert = _mi_ck_write;
+    keyinfo->ck_delete = _mi_ck_delete;
+  }
   if (keyinfo->flag & HA_BINARY_PACK_KEY)
   {						/* Simple prefix compression */
     keyinfo->bin_search=_mi_seq_search;
@@ -914,7 +938,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
   uchar *ptr=buff;
 
   *ptr++ = (uchar) keydef->keysegs;
-  *ptr++ = 0;					/* not used */
+  *ptr++ = keydef->key_alg;			/* Rtree or Btree */
   mi_int2store(ptr,keydef->flag);		ptr +=2;
   mi_int2store(ptr,keydef->block_length);	ptr +=2;
   mi_int2store(ptr,keydef->keylength);		ptr +=2;
@@ -926,7 +950,8 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
 char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
 {
    keydef->keysegs	= (uint) *ptr++;
-   ptr++;
+   keydef->key_alg	= *ptr++;		/* Rtree or Btree */
+
    keydef->flag		= mi_uint2korr(ptr);	ptr +=2;
    keydef->block_length = mi_uint2korr(ptr);	ptr +=2;
    keydef->keylength	= mi_uint2korr(ptr);	ptr +=2;
@@ -942,9 +967,9 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
 **  mi_keyseg
 ***************************************************************************/
 
-int mi_keyseg_write(File file, const MI_KEYSEG *keyseg)
+int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
 {
-  uchar buff[MI_KEYSEG_SIZE];
+  uchar buff[HA_KEYSEG_SIZE];
   uchar *ptr=buff;
 
   *ptr++ =keyseg->type;
@@ -962,7 +987,7 @@ int mi_keyseg_write(File file, const MI_KEYSEG *keyseg)
 }
 
 
-char *mi_keyseg_read(char *ptr, MI_KEYSEG *keyseg)
+char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
 {
    keyseg->type		= *ptr++;
    keyseg->language	= *ptr++;

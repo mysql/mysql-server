@@ -110,8 +110,9 @@ class field_str :public field_info
   EV_NUM_INFO ev_num_info;
 
 public:
-  field_str(Item* a, analyse* b) :field_info(a,b), min_arg(""),
-    max_arg(""), sum(0),
+  field_str(Item* a, analyse* b) :field_info(a,b), 
+    min_arg("",default_charset_info),
+    max_arg("",default_charset_info), sum(0),
     must_be_blob(0), was_zero_fill(0),
     was_maybe_zerofill(0), can_be_still_num(1)
     { init_tree(&tree, 0, 0, sizeof(String), a->binary ?

@@ -18,11 +18,43 @@
 
 /* Read first record with the current key */
 
-int heap_rfirst(HP_INFO *info, byte *record)
+int heap_rfirst(HP_INFO *info, byte *record, int inx)
 {
+  HP_SHARE *share = info->s;
+  HP_KEYDEF *keyinfo = share->keydef + inx;
+  
   DBUG_ENTER("heap_rfirst");
-  info->current_record=0;
-  info->current_hash_ptr=0;
-  info->update=HA_STATE_PREV_FOUND;
-  DBUG_RETURN(heap_rnext(info,record));
+  info->lastinx= inx;
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
+  {
+    byte *pos;
+
+    if ((pos = tree_search_edge(&keyinfo->rb_tree, info->parents,
+                                &info->last_pos, offsetof(TREE_ELEMENT, left))))
+    {
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
+	     sizeof(byte*));
+      info->current_ptr = pos;
+      memcpy(record, pos, (size_t)share->reclength);
+      info->update = HA_STATE_AKTIV;
+    }
+    else
+    {
+      my_errno = HA_ERR_END_OF_FILE;
+      DBUG_RETURN(my_errno);
+    }
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    if (!(info->s->records))
+    {
+      my_errno=HA_ERR_END_OF_FILE;
+      DBUG_RETURN(my_errno);
+    }
+    info->current_record=0;
+    info->current_hash_ptr=0;
+    info->update=HA_STATE_PREV_FOUND;
+    DBUG_RETURN(heap_rnext(info,record));
+  }
 }

@@ -231,7 +231,7 @@ public:
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec() { decimals=0; max_length=10; }
-  bool save_in_field(Field *to);
+  int  save_in_field(Field *to);
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
@@ -275,7 +275,7 @@ public:
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *str)
-  { str_value.set(buff,buff_length); return &str_value; }
+  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
   const char *func_name() const { return "curtime"; }
   void fix_length_and_dec();
   void make_field(Send_field *tmp_field)
@@ -316,9 +316,9 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()	     { return (double) value; }
   longlong val_int() { return value; }
-  bool save_in_field(Field *to);
+  int  save_in_field(Field *to);
   String *val_str(String *str)
-  { str_value.set(buff,buff_length); return &str_value; }
+  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
   const char *func_name() const { return "now"; }
   void fix_length_and_dec();
   bool get_date(TIME *res,bool fuzzy_date);

@@ -42,6 +42,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <my_tree.h>
+#include "my_base.h"
 
 #define BLACK		1
 #define RED		0
@@ -85,6 +86,7 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   tree->custom_arg = custom_arg;
   tree->null_element.colour=BLACK;
   tree->null_element.left=tree->null_element.right=0;
+  tree->flag= 0;
   if (!free_element && size >= 0 &&
       ((uint) size <= sizeof(void*) || ((uint) size & (sizeof(void*)-1))))
   {
@@ -167,7 +169,8 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
 	     parent[0] = & parent[-1][0]->right */
 
 
-TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
+TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size, 
+                          void* custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element,***parent;
@@ -177,8 +180,8 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   for (;;)
   {
     if (element == &tree->null_element ||
-	(cmp=(*tree->compare)(tree->custom_arg,
-			      ELEMENT_KEY(tree,element),key)) == 0)
+	(cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree,element),
+                                key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -198,7 +201,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
                            && tree->allocated > tree->memory_limit)
     {
       reset_tree(tree);
-      return tree_insert(tree, key, key_size);
+      return tree_insert(tree, key, key_size, custom_arg);
     }
 
     key_size+=tree->size_of_element;
@@ -229,13 +232,16 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
     rb_insert(tree,parent,element);		/* rebalance tree */
   }
   else
+  {
+    if (tree->flag & TREE_NO_DUPS)
+      return(NULL);
     element->count++;
+  }
   DBUG_EXECUTE("check_tree", test_rb_tree(tree->root););
   return element;
 }
 
-
-int tree_delete(TREE *tree, void *key)
+int tree_delete(TREE *tree, void *key, void *custom_arg)
 {
   int cmp,remove_colour;
   TREE_ELEMENT *element,***parent, ***org_parent, *nod;
@@ -248,8 +254,8 @@ int tree_delete(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return 1;				/* Was not in tree */
-    if ((cmp=(*tree->compare)(tree->custom_arg,
-			      ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree,element),
+                                key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -296,7 +302,7 @@ int tree_delete(TREE *tree, void *key)
 }
 
 
-void *tree_search(TREE *tree, void *key)
+void *tree_search(TREE *tree, void *key, void *custom_arg)
 {
   int cmp;
   TREE_ELEMENT *element=tree->root;
@@ -305,8 +311,8 @@ void *tree_search(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return (void*) 0;
-    if ((cmp=(*tree->compare)(tree->custom_arg,
-			      ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree,element),
+                                key)) == 0)
       return ELEMENT_KEY(tree,element);
     if (cmp < 0)
       element=element->right;
@@ -315,6 +321,168 @@ void *tree_search(TREE *tree, void *key)
   }
 }
 
+void *tree_search_key(TREE *tree, const void *key, 
+                      TREE_ELEMENT **parents, TREE_ELEMENT ***last_pos,
+                      enum ha_rkey_function flag, void *custom_arg)
+{
+  int cmp;
+  TREE_ELEMENT *element = tree->root;
+  TREE_ELEMENT **last_left_step_parent = NULL;
+  TREE_ELEMENT **last_equal_element = NULL;
+
+/* 
+  TODO: handle HA_READ_KEY_OR_PREV, HA_READ_BEFORE_KEY, HA_READ_PREFIX, 
+  HA_READ_PREFIX_LAST flags if needed.
+*/
+
+  *parents = &tree->null_element;
+  while (element != &tree->null_element)
+  {
+    *++parents = element;
+    if ((cmp = (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
+                                key)) == 0)
+    {
+      switch (flag) {
+      case HA_READ_KEY_EXACT:
+      case HA_READ_KEY_OR_NEXT:
+        last_equal_element = parents;
+        cmp = 1;
+        break;
+      case HA_READ_AFTER_KEY:
+        cmp = -1;
+        break;
+      default:
+        return NULL;
+      }
+    }
+    if (cmp < 0) /* element < key */
+    {
+      element = element->right;
+    }
+    else
+    {
+      last_left_step_parent = parents;
+      element = element->left;
+    }
+  }
+  switch (flag) {
+  case HA_READ_KEY_EXACT:
+    *last_pos = last_equal_element;
+    break;
+  case HA_READ_KEY_OR_NEXT:
+    *last_pos = last_equal_element ? last_equal_element : last_left_step_parent;
+    break;
+  case HA_READ_AFTER_KEY:
+    *last_pos = last_left_step_parent;
+    break;
+  default:
+    return NULL;
+  }
+  return *last_pos ? ELEMENT_KEY(tree, **last_pos) : NULL;
+}
+
+/* 
+  Search first (the most left) or last (the most right) tree element 
+*/
+void *tree_search_edge(TREE *tree, TREE_ELEMENT **parents, 
+		       TREE_ELEMENT ***last_pos, int child_offs)
+{
+  TREE_ELEMENT *element= tree->root;
+  
+  *parents= &tree->null_element;
+  while (element != &tree->null_element)
+  {
+    *++parents= element;
+    element= ELEMENT_CHILD(element, child_offs);
+  }
+  *last_pos= parents;
+  return **last_pos != &tree->null_element ? 
+    ELEMENT_KEY(tree, **last_pos) : NULL;
+}
+
+void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs, 
+                       int r_offs)
+{
+  TREE_ELEMENT *x= **last_pos;
+  
+  if (ELEMENT_CHILD(x, r_offs) != &tree->null_element)
+  {
+    x= ELEMENT_CHILD(x, r_offs);
+    *++*last_pos= x;
+    while (ELEMENT_CHILD(x, l_offs) != &tree->null_element)
+    {
+      x= ELEMENT_CHILD(x, l_offs);
+      *++*last_pos= x;
+    }
+    return ELEMENT_KEY(tree, x);
+  }
+  else
+  {
+    TREE_ELEMENT *y= *--*last_pos;
+    while (y != &tree->null_element && x == ELEMENT_CHILD(y, r_offs))
+    {
+      x= y;
+      y= *--*last_pos;
+    }
+    return y == &tree->null_element ? NULL : ELEMENT_KEY(tree, y);
+  }
+}
+
+/*
+  Expected that tree is fully balanced
+  (each path from root to leaf has the same length)
+*/
+uint tree_record_pos(TREE *tree, const void *key, 
+                     enum ha_rkey_function flag, void *custom_arg)
+{
+  int cmp;
+  TREE_ELEMENT *element= tree->root;
+  double left= 1;
+  double right= tree->elements_in_tree;
+  uint last_equal_pos= HA_POS_ERROR;
+
+  while (element != &tree->null_element)
+  {
+    if ((cmp= (*tree->compare)(custom_arg, ELEMENT_KEY(tree, element), 
+			       key)) == 0)
+    {
+      switch (flag) {
+      case HA_READ_KEY_EXACT:
+        last_equal_pos= (left + right) / 2;
+        cmp= 1;
+        break;
+      case HA_READ_BEFORE_KEY:
+        cmp= 1;
+        break;
+      case HA_READ_AFTER_KEY:
+        cmp= -1;
+        break;
+      default:
+        return HA_POS_ERROR;
+      }
+    }
+    if (cmp < 0) /* element < key */
+    {
+      element= element->right;
+      left= (left + right) / 2;
+    }
+    else
+    {
+      element= element->left;
+      right= (left + right) / 2;
+    }
+  }
+  switch (flag) {
+  case HA_READ_KEY_EXACT:
+    return last_equal_pos;
+  case HA_READ_BEFORE_KEY:
+    return (uint) right;
+  case HA_READ_AFTER_KEY:
+    return (uint) left;
+  default:
+    return HA_POS_ERROR;
+  }
+}
 
 int tree_walk(TREE *tree, tree_walk_action action, void *argument, TREE_WALK visit)
 {

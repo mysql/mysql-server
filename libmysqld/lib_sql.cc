@@ -400,7 +400,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
     mysql_server_end();
     return 1;
   }
-  charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
+  charsets_list = list_charsets(MYF(MY_CS_COMPILED|MY_CS_CONFIG));
 
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);

@@ -96,7 +96,7 @@ typedef struct st_mi_state_info
 #define MI_STATE_EXTRA_SIZE ((MI_MAX_KEY+MI_MAX_KEY_BLOCK_SIZE)*MI_STATE_KEY_SIZE + MI_MAX_KEY*MI_MAX_KEY_SEG*MI_STATE_KEYSEG_SIZE)
 #define MI_KEYDEF_SIZE		(2+ 5*2)
 #define MI_UNIQUEDEF_SIZE	(2+1+1)
-#define MI_KEYSEG_SIZE		(6+ 2*2 + 4*2)
+#define HA_KEYSEG_SIZE		(6+ 2*2 + 4*2)
 #define MI_COLUMNDEF_SIZE	(2*3+1)
 #define MI_BASE_INFO_SIZE	(5*8 + 8*4 + 4 + 4*2 + 16)
 #define MI_INDEX_BLOCK_MARGIN	16	/* Safety margin for .MYI tables */
@@ -156,7 +156,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   MI_BASE_INFO base;
   MI_KEYDEF  *keyinfo;			/* Key definitions */
   MI_UNIQUEDEF *uniqueinfo;		/* unique definitions */
-  MI_KEYSEG *keyparts;			/* key part info */
+  HA_KEYSEG *keyparts;			/* key part info */
   MI_COLUMNDEF *rec;			/* Pointer to field information */
   MI_PACK    pack;			/* Data about packed records */
   MI_BLOB    *blobs;			/* Pointer to blobs */
@@ -251,6 +251,7 @@ struct st_myisam_info {
   int	lastinx;			/* Last used index */
   uint	lastkey_length;			/* Length of key in lastkey */
   uint	last_rkey_length;		/* Last length in mi_rkey() */
+  enum ha_rkey_function last_key_func;  /* CONTAIN, OVERLAP, etc */
   uint  save_lastkey_length;
   int	errkey;				/* Got last error on this key */
   int   lock_type;			/* How database was locked */
@@ -270,6 +271,8 @@ struct st_myisam_info {
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
+  uchar * rtree_recursion_state;	/* For RTREE */
+  int     rtree_recursion_depth;
 };
 
 
@@ -324,25 +327,11 @@ struct st_myisam_info {
   { *(key)=255; mi_int2store((key)+1,(length)); } \
 }
 
-#define get_key_length(length,key) \
-{ if ((uchar) *(key) != 255) \
-    length= (uint) (uchar) *((key)++); \
-  else \
-  { length=mi_uint2korr((key)+1); (key)+=3; } \
-}
-
 #define get_key_full_length(length,key) \
 { if ((uchar) *(key) != 255) \
     length= ((uint) (uchar) *((key)++))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; (key)+=3; } \
-}
-
-#define get_key_pack_length(length,length_pack,key) \
-{ if ((uchar) *(key) != 255) \
-  { length= (uint) (uchar) *((key)++); length_pack=1; }\
-  else \
-  { length=mi_uint2korr((key)+1); (key)+=3; length_pack=3; } \
 }
 
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
@@ -365,7 +354,7 @@ struct st_myisam_info {
 #define PACK_TYPE_SELECTED	1	/* Bits in field->pack_type */
 #define PACK_TYPE_SPACE_FIELDS	2
 #define PACK_TYPE_ZERO_FILL	4
-#define MI_FOUND_WRONG_KEY 32738	/* Impossible value from _mi_key_cmp */
+#define MI_FOUND_WRONG_KEY 32738	/* Impossible value from ha_key_cmp */
 
 #define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
 #define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/myisam_block_size+1)*myisam_block_size)
@@ -482,14 +471,12 @@ extern int _mi_seq_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 extern int _mi_prefix_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 			  uchar *key,uint key_len,uint comp_flag,
 			  uchar **ret_pos,uchar *buff, my_bool *was_last_key);
-extern int _mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			    my_bool);
 extern my_off_t _mi_kpos(uint nod_flag,uchar *after_key);
 extern void _mi_kpointer(MI_INFO *info,uchar *buff,my_off_t pos);
 extern my_off_t _mi_dpos(MI_INFO *info, uint nod_flag,uchar *after_key);
 extern my_off_t _mi_rec_pos(MYISAM_SHARE *info, uchar *ptr);
 extern void _mi_dpointer(MI_INFO *info, uchar *buff,my_off_t pos);
-extern int _mi_key_cmp(MI_KEYSEG *keyseg, uchar *a,uchar *b,
+extern int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,uchar *b,
 		       uint key_length,uint nextflag,uint *diff_length);
 extern uint _mi_get_static_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar * *page,
 			       uchar *key);
@@ -536,7 +523,7 @@ extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
 extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 my_off_t next_filepos,byte **record,
 				 ulong *reclength,int *flag);
-extern void _mi_print_key(FILE *stream,MI_KEYSEG *keyseg,const uchar *key,
+extern void _mi_print_key(FILE *stream,HA_KEYSEG *keyseg,const uchar *key,
 			  uint length);
 extern my_bool _mi_read_pack_info(MI_INFO *info,pbool fix_keys);
 extern int _mi_read_pack_record(MI_INFO *info,my_off_t filepos,byte *buf);
@@ -627,8 +614,8 @@ char *mi_state_info_read(char *ptr, MI_STATE_INFO *state);
 uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead);
 uint mi_base_info_write(File file, MI_BASE_INFO *base);
 char *my_n_base_info_read(char *ptr, MI_BASE_INFO *base);
-int mi_keyseg_write(File file, const MI_KEYSEG *keyseg);
-char *mi_keyseg_read(char *ptr, MI_KEYSEG *keyseg);
+int mi_keyseg_write(File file, const HA_KEYSEG *keyseg);
+char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg);
 uint mi_keydef_write(File file, MI_KEYDEF *keydef);
 char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef);
 uint mi_uniquedef_write(File file, MI_UNIQUEDEF *keydef);

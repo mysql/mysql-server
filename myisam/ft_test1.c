@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
 static MI_COLUMNDEF recinfo[3];
 static MI_KEYDEF keyinfo[2];
-static MI_KEYSEG keyseg[10];
+static HA_KEYSEG keyseg[10];
 
 static int run_test(const char *filename)
 {

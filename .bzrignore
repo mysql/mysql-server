@@ -51,6 +51,8 @@ Docs/manual.ky
 Docs/manual.log
 Docs/manual.pdf
 Docs/manual.pg
+Docs/manual.texi.orig
+Docs/manual.texi.rej
 Docs/manual.toc
 Docs/manual.tp
 Docs/manual.txt
@@ -247,6 +249,7 @@ libmysqld/field.cc
 libmysqld/field_conv.cc
 libmysqld/filesort.cc
 libmysqld/get_password.c
+libmysqld/gstream.cc
 libmysqld/ha_berkeley.cc
 libmysqld/ha_heap.cc
 libmysqld/ha_innobase.cc
@@ -287,6 +290,7 @@ libmysqld/repl_failsafe.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
 libmysqld/slave.cc
+libmysqld/spatial.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc
 libmysqld/sql_base.cc
@@ -356,6 +360,8 @@ myisam/myisam.log
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
+myisam/rt_test
+myisam/sp_test
 myisam/test1.MYD
 myisam/test1.MYI
 myisam/test2.MYD
@@ -382,6 +388,7 @@ mysql.proj
 mysqld.S
 mysqld.sym
 mysys/#mf_iocache.c#
+mysys/charset2html
 mysys/getopt.c
 mysys/getopt1.c
 mysys/ste5KbMa
@@ -466,6 +473,7 @@ sql/share/norwegian/errmsg.sys
 sql/sql_select.cc.orig
 sql/sql_yacc.cc
 sql/sql_yacc.h
+sql/sql_yacc.yy.orig
 stamp-h
 stamp-h.in
 strings/conf_to_src
@@ -485,6 +493,7 @@ support-files/mysql-log-rotate
 support-files/mysql.server
 support-files/mysql.spec
 tags
+tests/client_test
 tmp/*
 tools/my_vsnprintf.c
 tools/mysqlmanager

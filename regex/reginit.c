@@ -12,6 +12,7 @@ void regex_init()
   char buff[CCLASS_LAST][256];
   int  count[CCLASS_LAST];
   uint i;
+  CHARSET_INFO *cs=default_charset_info;
 
   if (!regex_inited)
   {
@@ -20,27 +21,27 @@ void regex_init()
 
     for (i=1 ; i<= 255; i++)
     {
-      if (isalnum(i))
+      if (my_isalnum(cs,i))
 	buff[CCLASS_ALNUM][count[CCLASS_ALNUM]++]=(char) i;
-      if (isalpha(i))
+      if (my_isalpha(cs,i))
 	buff[CCLASS_ALPHA][count[CCLASS_ALPHA]++]=(char) i;
-      if (iscntrl(i))
+      if (my_iscntrl(cs,i))
 	buff[CCLASS_CNTRL][count[CCLASS_CNTRL]++]=(char) i;
-      if (isdigit(i))
+      if (my_isdigit(cs,i))
 	buff[CCLASS_DIGIT][count[CCLASS_DIGIT]++]=(char) i;
-      if (isgraph(i))
+      if (my_isgraph(cs,i))
 	buff[CCLASS_GRAPH][count[CCLASS_GRAPH]++]=(char) i;
-      if (islower(i))
+      if (my_islower(cs,i))
 	buff[CCLASS_LOWER][count[CCLASS_LOWER]++]=(char) i;
-      if (isprint(i))
+      if (my_isprint(cs,i))
 	buff[CCLASS_PRINT][count[CCLASS_PRINT]++]=(char) i;
-      if (ispunct(i))
+      if (my_ispunct(cs,i))
 	buff[CCLASS_PUNCT][count[CCLASS_PUNCT]++]=(char) i;
-      if (isspace(i))
+      if (my_isspace(cs,i))
 	buff[CCLASS_SPACE][count[CCLASS_SPACE]++]=(char) i;
-      if (isupper(i))
+      if (my_isupper(cs,i))
 	buff[CCLASS_UPPER][count[CCLASS_UPPER]++]=(char) i;
-      if (isxdigit(i))
+      if (my_isxdigit(cs,i))
 	buff[CCLASS_XDIGIT][count[CCLASS_XDIGIT]++]=(char) i;
     }
     buff[CCLASS_BLANK][0]=' ';
