@@ -11141,7 +11141,7 @@ cp_buffer_from_ref(TABLE_REF *ref)
     ref_pointer_array.
 
   RETURN
-    0 if ok
+    0 if OK
     1 if error occurred
 */
 

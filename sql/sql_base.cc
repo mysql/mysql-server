@@ -2187,7 +2187,7 @@ Field *find_field_in_real_table(THD *thd, TABLE *table,
 
   RETURN VALUES
     0			No field was found, or the found field is not unique, or
-                        there are no sufficient access priviligaes for the
+                        there are no sufficient access priviliges for the
                         found field, or the field is qualified with non-existing
                         table.
     not_found_field	The function was called with report_error ==
@@ -2217,8 +2217,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       TABLE_LIST *tables is not changed during query execution (which 
       is true for all queries except RENAME but luckily RENAME doesn't 
       use fields...) so we can rely on reusing pointer to its member.
-      With this optimisation we also miss case when addition of one more
-      field makes some prepared query ambiguous and so erronous, but we 
+      With this optimization we also miss case when addition of one more
+      field makes some prepared query ambiguous and so erroneous, but we 
       accept this trade off.
     */
     found= find_field_in_real_table(thd, item->cached_table->table,
@@ -2239,7 +2239,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   if (db && lower_case_table_names)
   {
     /*
-      convert database to lower case for comparision.
+      convert database to lower case for comparison.
       We can't do this in Item_field as this would change the
       'name' of the item which may be used in the select list
     */
@@ -2779,7 +2779,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
-    allocate_view_names if true view names will be copied to current Item_arena                         memory (made for SP/PS)
+    allocate_view_names if true view names will be copied to current Item_arena
+                        memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
