@@ -982,8 +982,9 @@ static my_bool init_uca_charsets()
 {
   my_tailoring *t;
   CHARSET_INFO cs= my_charset_ucs2_general_uca;
-  cs.state= MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT;
   char name[64];
+  
+  cs.state= MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONTEXT;
   for (t= tailoring; t->tailoring; t++)
   {
     cs.number= 128 + t->number;
