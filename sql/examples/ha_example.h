@@ -19,12 +19,12 @@ typedef struct st_example_share {
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
-} EXAMLPE_SHARE;
+} EXAMPLE_SHARE;
 
 class ha_example: public handler
 {
-  THR_LOCK_DATA lock;    /* MySQL lock */
-  EXAMLPE_SHARE *share;    /* Shared lock info */
+  THR_LOCK_DATA lock;      /* MySQL lock */
+  EXAMPLE_SHARE *share;    /* Shared lock info */
 
 public:
   ha_example(TABLE *table): handler(table)
