@@ -342,6 +342,7 @@ EXAMPLE	YES/NO	Example storage engine
 ARCHIVE	YES/NO	Archive storage engine
 CSV	YES/NO	CSV storage engine
 FEDERATED	YES/NO	Federated MySQL storage engine
+BLACKHOLE	YES/NO	Storage engine designed to act as null storage
 drop table if exists t5;
 prepare stmt1 from ' drop table if exists t5 ' ;
 execute stmt1 ;
@@ -483,7 +484,7 @@ prepare stmt1 from ' KILL 0 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt1 from ' explain select a from t1 order by b ';
 execute stmt1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8
@@ -499,7 +500,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SET @arg00=1 ;
 prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
 execute stmt1 using @arg00;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8

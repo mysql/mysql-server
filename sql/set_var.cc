@@ -767,6 +767,7 @@ struct show_var_st init_vars[]= {
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
   {"have_archive",	      (char*) &have_archive_db,	            SHOW_HAVE},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_blackhole_engine",   (char*) &have_blackhole_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},

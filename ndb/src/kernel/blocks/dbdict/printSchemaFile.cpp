@@ -1,3 +1,11 @@
+#if 0
+make -f Makefile -f - printSchemaFile <<'_eof_'
+printSchemaFile: printSchemaFile.cpp
+	$(CXXCOMPILE) -o $@ $@.cpp -L../../../common/util/.libs -lgeneral
+_eof_
+exit $?
+#endif
+
 /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -92,6 +100,13 @@ NDB_COMMAND(printSchemafile,
   }
   
   print(filename, (SchemaFile *)&buf[0]);
+
+  Uint32 chk = 0, i;
+  for (i = 0; i < bytes/4; i++)
+    chk ^= buf[i];
+  if (chk != 0)
+    ndbout << "Invalid checksum!" << endl;
+
   delete [] buf;
   return 0;
 }

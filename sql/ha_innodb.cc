@@ -45,7 +45,8 @@ have disables the InnoDB inlining in this file. */
 
 #include "ha_innodb.h"
 
-pthread_mutex_t innobase_mutex;
+pthread_mutex_t innobase_share_mutex, // to protect innobase_open_files
+                prepare_commit_mutex; // to force correct commit order in binlog
 bool innodb_inited= 0;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
@@ -1268,7 +1269,8 @@ innobase_init(void)
 
 	(void) hash_init(&innobase_open_tables,system_charset_info, 32, 0, 0,
 			 		(hash_get_key) innobase_get_key, 0, 0);
-	pthread_mutex_init(&innobase_mutex, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
+        pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	innodb_inited= 1;
 
 	/* If this is a replication slave and we needed to do a crash recovery,
@@ -1326,7 +1328,8 @@ innobase_end(void)
 	  	hash_free(&innobase_open_tables);
 	  	my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-	  	pthread_mutex_destroy(&innobase_mutex);
+                pthread_mutex_destroy(&innobase_share_mutex);
+                pthread_mutex_destroy(&prepare_commit_mutex);
 	}
 
   	DBUG_RETURN(err);
@@ -1484,9 +1487,20 @@ innobase_commit(
  		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
+                /* We need current binlog position for ibbackup to work.
+                Note, the position is current because of prepare_commit_mutex */
+                trx->mysql_log_file_name = mysql_bin_log.get_log_fname();
+                trx->mysql_log_offset =
+                        (ib_longlong)mysql_bin_log.get_log_file()->pos_in_file;
+
 		innobase_commit_low(trx);
 
+                if (trx->active_trans == 2) {
+
+                        pthread_mutex_unlock(&prepare_commit_mutex);
+                }
                 trx->active_trans = 0;
+
 	} else {
 	        /* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -2439,7 +2453,14 @@ ha_innobase::store_key_val_for_row(
 				(byte*) (record
 				+ (ulint)get_field_offset(table, field)),
 				lenlen);
+
+			/* In a column prefix index, we may need to truncate
+			the stored value: */
 		
+			if (len > key_part->length) {
+			        len = key_part->length;
+			}
+
 			/* The length in a key value is always stored in 2
 			bytes */
 
@@ -2476,6 +2497,11 @@ ha_innobase::store_key_val_for_row(
 
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
+
+			/* All indexes on BLOB and TEXT are column prefix
+			indexes, and we may need to truncate the data to be
+			stored in the kay value: */
+
 			if (blob_len > key_part->length) {
 			        blob_len = key_part->length;
 			}
@@ -2494,11 +2520,17 @@ ha_innobase::store_key_val_for_row(
 
 			buff += key_part->length;
 		} else {
+			/* Here we handle all other data types except the
+			true VARCHAR, BLOB and TEXT. Note that the column
+			value we store may be also in a column prefix
+			index. */
+
 		        if (is_null) {
 				 buff += key_part->length;
 				 
 				 continue;
 			}
+
 			memcpy(buff, record + key_part->offset,
 							key_part->length);
 			buff += key_part->length;
@@ -5957,7 +5989,7 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 static INNOBASE_SHARE *get_share(const char *table_name)
 {
   INNOBASE_SHARE *share;
-  pthread_mutex_lock(&innobase_mutex);
+  pthread_mutex_lock(&innobase_share_mutex);
   uint length=(uint) strlen(table_name);
   if (!(share=(INNOBASE_SHARE*) hash_search(&innobase_open_tables,
 					(mysql_byte*) table_name,
@@ -5971,7 +6003,7 @@ static INNOBASE_SHARE *get_share(const char *table_name)
       strmov(share->table_name,table_name);
       if (my_hash_insert(&innobase_open_tables, (mysql_byte*) share))
       {
-	pthread_mutex_unlock(&innobase_mutex);
+        pthread_mutex_unlock(&innobase_share_mutex);
 	my_free((gptr) share,0);
 	return 0;
       }
@@ -5980,13 +6012,13 @@ static INNOBASE_SHARE *get_share(const char *table_name)
     }
   }
   share->use_count++;
-  pthread_mutex_unlock(&innobase_mutex);
+  pthread_mutex_unlock(&innobase_share_mutex);
   return share;
 }
 
 static void free_share(INNOBASE_SHARE *share)
 {
-  pthread_mutex_lock(&innobase_mutex);
+  pthread_mutex_lock(&innobase_share_mutex);
   if (!--share->use_count)
   {
     hash_delete(&innobase_open_tables, (mysql_byte*) share);
@@ -5994,7 +6026,7 @@ static void free_share(INNOBASE_SHARE *share)
     pthread_mutex_destroy(&share->mutex);
     my_free((gptr) share, MYF(0));
   }
-  pthread_mutex_unlock(&innobase_mutex);
+  pthread_mutex_unlock(&innobase_share_mutex);
 }
 
 /*********************************************************************
@@ -6458,14 +6490,37 @@ innobase_xa_prepare(
 			FALSE - the current SQL statement ended */
 {
 	int error = 0;
-        trx_t* trx;
+        trx_t* trx = check_trx_exists(thd);
+
+        if (thd->lex->sql_command != SQLCOM_XA_PREPARE) {
+
+                /* For ibbackup to work the order of transactions in binlog
+                and InnoDB must be the same. Consider the situation
+
+                  thread1> prepare; write to binlog; ...
+                          <context switch>
+                  thread2> prepare; write to binlog; commit
+                  thread1>                           ... commit
+
+                To ensure this will not happen we're taking the mutex on
+                prepare, and releasing it on commit.
+
+                Note: only do it for normal commits, done via ha_commit_trans.
+                If 2pc protocol is executed by external transaction
+                coordinator, it will be just a regular MySQL client
+                executing XA PREPARE and XA COMMIT commands.
+                In this case we cannot know how many minutes or hours
+                will be between XA PREPARE and XA COMMIT, and we don't want
+                to block for undefined period of time.
+                */
+                pthread_mutex_lock(&prepare_commit_mutex);
+                trx->active_trans = 2;
+        }
 
 	if (!thd->variables.innodb_support_xa) {
 
 		return(0);
 	}
-
-        trx = check_trx_exists(thd);
 
         trx->xid=thd->transaction.xid;
 
