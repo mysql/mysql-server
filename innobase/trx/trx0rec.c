@@ -1016,8 +1016,9 @@ trx_undo_report_row_operation(
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_a(index->type & DICT_CLUSTERED);
 
