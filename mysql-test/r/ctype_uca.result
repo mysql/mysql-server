@@ -2329,7 +2329,7 @@ USE d1;
 CREATE TABLE t1 (c CHAR(10), KEY(c));
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c	char(10)	utf8_swedish_ci	YES	MUL	NULL		select,insert,update,references	
+c	char(10)	utf8_swedish_ci	YES	MUL	NULL			
 INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
 SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
 want3results
@@ -2340,7 +2340,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c1	varchar(15)	utf8_swedish_ci	YES	MUL	NULL		select,insert,update,references	
+c1	varchar(15)	utf8_swedish_ci	YES	MUL	NULL			
 INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
 SELECT c1 as want3results from t1 where c1 like 'l%';
 want3results
