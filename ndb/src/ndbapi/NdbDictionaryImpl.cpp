@@ -1773,7 +1773,7 @@ NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
  */
 NdbIndexImpl*
 NdbDictionaryImpl::getIndexImpl(const char * externalName, 
-				const char * internalName)
+			       const char * internalName)
 {
   NdbTableImpl* tab = getTableImpl(internalName);
   if(tab == 0){
@@ -1796,14 +1796,30 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
   /**
    * Create index impl
    */
-  NdbIndexImpl* idx = new NdbIndexImpl();
+  NdbIndexImpl* idx;
+  if(NdbDictInterface::create_index_obj_from_table(&idx, tab, prim) == 0){
+    idx->m_table = tab;
+    idx->m_internalName.assign(internalName);
+    // TODO Assign idx to tab->m_index
+    // Don't do it right now since assign can't asign a table with index
+    // tab->m_index = idx;
+    return idx;
+  }
+  return 0;
+}
+
+int
+NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
+					      const NdbTableImpl* tab,
+					      const NdbTableImpl* prim){
+  NdbIndexImpl *idx = new NdbIndexImpl();
   idx->m_version = tab->m_version;
   idx->m_status = tab->m_status;
   idx->m_indexId = tab->m_tableId;
-  idx->m_internalName.assign(internalName);
-  idx->m_externalName.assign(externalName);
+  idx->m_externalName.assign(tab->getName());
   idx->m_tableName.assign(prim->m_externalName);
   idx->m_type = tab->m_indexType;
+  idx->m_logging = tab->m_logging;
   // skip last attribute (NDB$PK or NDB$TNODE)
   for(unsigned i = 0; i+1<tab->m_columns.size(); i++){
     NdbColumnImpl* col = new NdbColumnImpl;
@@ -1819,12 +1835,9 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
   }
-  
-  idx->m_table = tab;
-  // TODO Assign idx to tab->m_index
-  // Don't do it right now since assign can't asign a table with index
-  // tab->m_index = idx;
-  return idx;
+
+  * dst = idx;
+  return 0;
 }
 
 /*****************************************************************

@@ -885,7 +885,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   }//if
 
   ndbrequire(ptr.p->pages.empty());
-  ndbrequire(ptr.p->tables.empty());
+  ndbrequire(ptr.p->tables.isEmpty());
   
   ptr.p->masterData.state.forceState(INITIAL);
   ptr.p->masterData.state.setState(DEFINING);
@@ -2484,8 +2484,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     jam();
     Uint32 tableId = ListTablesConf::getTableId(conf->tableData[i]);
     Uint32 tableType = ListTablesConf::getTableType(conf->tableData[i]);
-    if (tableType != DictTabInfo::SystemTable &&
-        tableType != DictTabInfo::UserTable) {
+    if (!DictTabInfo::isTable(tableType) && !DictTabInfo::isIndex(tableType)){
       jam();
       continue;
     }//if
@@ -2864,7 +2863,12 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     return;
   }//if
 
+  TablePtr tmp = tabPtr;
   ptr.p->tables.next(tabPtr);
+  if(DictTabInfo::isIndex(tmp.p->tableType)){
+    ptr.p->tables.release(tmp);
+  }
+  
   if(tabPtr.i == RNIL) {
     jam();
     
@@ -2906,7 +2910,11 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
   
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, tmpTab.TableId));
-
+  if(DictTabInfo::isIndex(tabPtr.p->tableType)){
+    jam();
+    return tabPtr;
+  }
+  
   /**
    * Initialize table object
    */
