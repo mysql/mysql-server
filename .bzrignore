@@ -355,3 +355,4 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+bdb/include/rpc_server_ext.h
