@@ -1224,8 +1224,6 @@ mysql_execute_command(void)
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
-  if (lex->sql_command==SQLCOM_UPDATE &&  select_lex->table_list.elements > 1)
-    lex->sql_command=SQLCOM_MULTI_UPDATE; 
 
   thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   switch (lex->sql_command) {
@@ -1697,19 +1695,68 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
-    res = mysql_update(thd,tables,
-		       select_lex->item_list,
-		       lex->value_list,
-		       select_lex->where,
-                       (ORDER *) select_lex->order_list.first,
-		       select_lex->select_limit,
-		       lex->duplicates,
-		       lex->lock_option);
+    if (select_lex->table_list.elements == 1)
+    {
+      res = mysql_update(thd,tables,
+			 select_lex->item_list,
+			 lex->value_list,
+			 select_lex->where,
+			 (ORDER *) select_lex->order_list.first,
+			 select_lex->select_limit,
+			 lex->duplicates,
+			 lex->lock_option);
 
 #ifdef DELETE_ITEMS
-    delete select_lex->where;
+      delete select_lex->where;
 #endif
-    break;
+    }
+    else 
+    {
+      multi_update  *result;
+      uint table_count;
+      TABLE_LIST *auxi;
+      lex->sql_command=SQLCOM_MULTI_UPDATE;
+      for (auxi=(TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
+      {
+	table_count++;
+	auxi->lock_type=TL_WRITE;
+      }
+      if (select_lex->order_list.elements || (select_lex->select_limit && select_lex->select_limit < INT_MAX))
+      {
+	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /// will have to come up with something better eventually
+	  DBUG_VOID_RETURN;
+      }
+      tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
+      if ((res=open_and_lock_tables(thd,tables)))
+	break;
+      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
+	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
+	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
+				   lex->lock_option, table_count)))
+      {
+	List <Item> total_list;
+	List_iterator <Item> field_list(select_lex->item_list);
+	List_iterator <Item> value_list(lex->value_list);
+	Item *item;
+	while ((item=field_list++))
+	  total_list.push_back(item);
+	while ((item=value_list++))
+	  total_list.push_back(item);
+	
+	res=mysql_select(thd,tables,total_list,
+			 select_lex->where,
+			 (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+			 (ORDER *)NULL,
+			 select_lex->options | thd->options |
+			 SELECT_NO_JOIN_CACHE,
+			 result);
+	delete result;
+      }
+      else
+	res= -1;					// Error is not sent
+      close_thread_tables(thd);
+    }
+    break; 
   case SQLCOM_INSERT:
     if (check_access(thd,INSERT_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
@@ -1879,59 +1926,6 @@ mysql_execute_command(void)
     close_thread_tables(thd);
     break;
   }
-  case SQLCOM_MULTI_UPDATE:
-    multi_update  *result;
-    uint table_count;
-    TABLE_LIST *auxi;
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
-      goto error;
-    if (grant_option && check_grant(thd,UPDATE_ACL,tables))
-      goto error;
-    if (select_lex->item_list.elements != lex->value_list.elements)
-    {
-      send_error(&thd->net,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
-    }
-    for (auxi=(TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
-    {
-      table_count++;
-      auxi->lock_type=TL_WRITE;
-    }
-    if (select_lex->order_list.elements || (select_lex->select_limit && select_lex->select_limit < INT_MAX))
-    {
-      send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /// will have to come up with something better eventually
-      DBUG_VOID_RETURN;
-    }
-    tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    if ((res=open_and_lock_tables(thd,tables)))
-      break;
-    if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
-	!setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
-	(result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
-				 lex->lock_option, table_count)))
-    {
-      List <Item> total_list;
-      List_iterator <Item> field_list(select_lex->item_list);
-      List_iterator <Item> value_list(lex->value_list);
-      Item *item;
-      while ((item=field_list++))
-	total_list.push_back(item);
-      while ((item=value_list++))
-	total_list.push_back(item);
-
-      res=mysql_select(thd,tables,total_list,
-		       select_lex->where,
-		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-		       (ORDER *)NULL,
-		       select_lex->options | thd->options |
-		       SELECT_NO_JOIN_CACHE,
-		       result);
-      delete result;
-    }
-    else
-      res= -1;					// Error is not sent
-    close_thread_tables(thd);
-    break;
   case SQLCOM_DROP_TABLE:
   {
     if (check_table_access(thd,DROP_ACL,tables))
