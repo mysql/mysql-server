@@ -3499,7 +3499,7 @@ You can't use temporary tables more than once in the same query.
 For example, the following doesn't work.
 
 @example
-select * from temporary_table, temporary_table as t2;
+mysql> SELECT * FROM temporary_table, temporary_table AS t2;
 @end example
 
 @item
@@ -3899,7 +3899,7 @@ Allow update of variables in @code{UPDATE} statements. For example:
 @item
 Change when user variables are updated so that one can use them with
 @code{GROUP BY}, as in the following example:
-@code{SELECT id, @@a:=count(*), sum(sum_col)/@@a FROM table_name GROUP BY id}.
+@code{SELECT id, @@a:=COUNT(*), SUM(sum_col)/@@a FROM table_name GROUP BY id}.
 @item
 Don't add automatic @code{DEFAULT} values to columns.  Give an error when using
 an @code{INSERT} that doesn't contain a column that doesn't have a
@@ -3930,7 +3930,7 @@ Make @code{LOAD DATA INFILE} understand syntax like:
 @example
 LOAD DATA INFILE 'file_name.txt' INTO TABLE tbl_name
      TEXT_FIELDS (text_field1, text_field2, text_field3)
-     SET table_field1=concatenate(text_field1, text_field2),
+     SET table_field1=CONCAT(text_field1, text_field2),
          table_field3=23
      IGNORE text_field3
 @end example
@@ -3977,7 +3977,7 @@ should be implemented.
 @item
 @code{NATURAL JOIN}.
 @item
-Allow @code{select a from crash_me left join crash_me2 using (a)}; In this
+Allow @code{SELECT a FROM crash_me LEFT JOIN crash_me2 USING (a)}; In this
 case @code{a} is assumed to come from the @code{crash_me} table.
 @item
 Fix that @code{ON} and @code{USING} works with the @code{JOIN}
@@ -4031,10 +4031,10 @@ value <> 0 -> TRUE.
 @item
 Fix that the type for @code{MAX(column)} is the same as the column type.
 @example
-create table t1 (a DATE);
-insert into t1 values (now());
-create table t2 select MAX(a) from t1;
-show columns from t2;
+mysql> CREATE TABLE t1 (a DATE);
+mysql> INSERT INTO t1 VALUES (NOW());
+mysql> CREATE TABLE t2 SELECT MAX(a) FROM t1;
+mysql> SHOW COLUMNS FROM t2;
 @end example
 @item
 Come up with a nice syntax for a statement that will @code{UPDATE} the row
@@ -7664,7 +7664,7 @@ Database: mysql
 | user         |
 +--------------+
 
-shell> BINDIR/mysql -e "select host,db,user from db" mysql
+shell> BINDIR/mysql -e "SELECT host,db,user FROM db" mysql
 +------+--------+------+
 | host | db     | user |
 +------+--------+------+
@@ -11578,7 +11578,7 @@ prompt and press Enter:
 @example
 mysql> SELECT VERSION(), CURRENT_DATE;
 +--------------+--------------+
-| version()    | CURRENT_DATE |
+| VERSION()    | CURRENT_DATE |
 +--------------+--------------+
 | 3.22.20a-log | 1999-03-19   |
 +--------------+--------------+
@@ -11644,7 +11644,7 @@ Just end each one with a semicolon:
 @example
 mysql> SELECT VERSION(); SELECT NOW();
 +--------------+
-| version()    |
+| VERSION()    |
 +--------------+
 | 3.22.20a-log |
 +--------------+
@@ -13439,9 +13439,8 @@ For example, to find the articles with the highest and lowest price you
 can do:
 
 @example
-select @@min_price:=min(price),@@max_price:=max(price) from shop;
-select * from shop where price=@@min_price or price=@@max_price;
-
+mysql> SELECT @@min_price:=MIN(price),@@max_price:=MAX(price) FROM shop;
+mysql> SELECT * FROM shop WHERE price=@@min_price OR price=@@max_price;
 +---------+--------+-------+
 | article | dealer | price |
 +---------+--------+-------+
@@ -13663,8 +13662,8 @@ Which returns:
 +--------+----+---------+
 @end example
 
-Note that in this case, the auto_increment value will be reused if you
-delete the row with the biggest auto_increment value in any group.
+Note that in this case, the @code{AUTO_INCREMENT} value will be reused if you
+delete the row with the biggest @code{AUTO_INCREMENT} value in any group.
 
 You can get the used @code{AUTO_INCREMENT} key with the
 @code{LAST_INSERT_ID()} SQL function or the @code{mysql_insert_id()} API
@@ -13832,96 +13831,96 @@ The following query is used to determine who goes into the second part of the
 project:
 
 @example
-select
-        concat(p1.id, p1.tvab) + 0 as tvid,
-        concat(p1.christian_name, " ", p1.surname) as Name,
-        p1.postal_code as Code,
-        p1.city as City,
-        pg.abrev as Area,
-        if(td.participation = "Aborted", "A", " ") as A,
-        p1.dead as dead1,
-        l.event as event1,
-        td.suspect as tsuspect1,
-        id.suspect as isuspect1,
-        td.severe as tsevere1,
-        id.severe as isevere1,
-        p2.dead as dead2,
-        l2.event as event2,
-        h2.nurse as nurse2,
-        h2.doctor as doctor2,
-        td2.suspect as tsuspect2,
-        id2.suspect as isuspect2,
-        td2.severe as tsevere2,
-        id2.severe as isevere2,
+SELECT
+        CONCAT(p1.id, p1.tvab) + 0 AS tvid,
+        CONCAT(p1.christian_name, " ", p1.surname) AS Name,
+        p1.postal_code AS Code,
+        p1.city AS City,
+        pg.abrev AS Area,
+        IF(td.participation = "Aborted", "A", " ") AS A,
+        p1.dead AS dead1,
+        l.event AS event1,
+        td.suspect AS tsuspect1,
+        id.suspect AS isuspect1,
+        td.severe AS tsevere1,
+        id.severe AS isevere1,
+        p2.dead AS dead2,
+        l2.event AS event2,
+        h2.nurse AS nurse2,
+        h2.doctor AS doctor2,
+        td2.suspect AS tsuspect2,
+        id2.suspect AS isuspect2,
+        td2.severe AS tsevere2,
+        id2.severe AS isevere2,
         l.finish_date
-from
-        twin_project as tp
+FROM
+        twin_project AS tp
         /* For Twin 1 */
-        left join twin_data as td on tp.id = td.id
-                  and tp.tvab = td.tvab
-        left join informant_data as id on tp.id = id.id
-                  and tp.tvab = id.tvab
-        left join harmony as h on tp.id = h.id
-                  and tp.tvab = h.tvab
-        left join lentus as l on tp.id = l.id
-                  and tp.tvab = l.tvab
+        LEFT JOIN twin_data AS td ON tp.id = td.id
+                  AND tp.tvab = td.tvab
+        LEFT JOIN informant_data AS id ON tp.id = id.id
+                  AND tp.tvab = id.tvab
+        LEFT JOIN harmony AS h ON tp.id = h.id
+                  AND tp.tvab = h.tvab
+        LEFT JOIN lentus AS l ON tp.id = l.id
+                  AND tp.tvab = l.tvab
         /* For Twin 2 */
-        left join twin_data as td2 on p2.id = td2.id
-                  and p2.tvab = td2.tvab
-        left join informant_data as id2 on p2.id = id2.id
-                  and p2.tvab = id2.tvab
-        left join harmony as h2 on p2.id = h2.id
-                  and p2.tvab = h2.tvab
-        left join lentus as l2 on p2.id = l2.id
-                  and p2.tvab = l2.tvab,
-        person_data as p1,
-        person_data as p2,
-        postal_groups as pg
-where
+        LEFT JOIN twin_data AS td2 ON p2.id = td2.id
+                  AND p2.tvab = td2.tvab
+        LEFT JOIN informant_data AS id2 ON p2.id = id2.id
+                  AND p2.tvab = id2.tvab
+        LEFT JOIN harmony AS h2 ON p2.id = h2.id
+                  AND p2.tvab = h2.tvab
+        LEFT JOIN lentus AS l2 ON p2.id = l2.id
+                  AND p2.tvab = l2.tvab,
+        person_data AS p1,
+        person_data AS p2,
+        postal_groups AS pg
+WHERE
         /* p1 gets main twin and p2 gets his/her twin. */
         /* ptvab is a field inverted from tvab */
-        p1.id = tp.id and p1.tvab = tp.tvab and
-        p2.id = p1.id and p2.ptvab = p1.tvab and
+        p1.id = tp.id AND p1.tvab = tp.tvab AND
+        p2.id = p1.id AND p2.ptvab = p1.tvab AND
         /* Just the sceening survey */
-        tp.survey_no = 5 and
+        tp.survey_no = 5 AND
         /* Skip if partner died before 65 but allow emigration (dead=9) */
-        (p2.dead = 0 or p2.dead = 9 or
-         (p2.dead = 1 and
-          (p2.death_date = 0 or
-           (((to_days(p2.death_date) - to_days(p2.birthday)) / 365)
+        (p2.dead = 0 OR p2.dead = 9 OR
+         (p2.dead = 1 AND
+          (p2.death_date = 0 OR
+           (((TO_DAYS(p2.death_date) - TO_DAYS(p2.birthday)) / 365)
             >= 65))))
-        and
+        AND
         (
         /* Twin is suspect */
-        (td.future_contact = 'Yes' and td.suspect = 2) or
+        (td.future_contact = 'Yes' AND td.suspect = 2) OR
         /* Twin is suspect - Informant is Blessed */
-        (td.future_contact = 'Yes' and td.suspect = 1
-                                   and id.suspect = 1) or
+        (td.future_contact = 'Yes' AND td.suspect = 1
+                                   AND id.suspect = 1) OR
         /* No twin - Informant is Blessed */
-        (ISNULL(td.suspect) and id.suspect = 1
-                            and id.future_contact = 'Yes') or
+        (ISNULL(td.suspect) AND id.suspect = 1
+                            AND id.future_contact = 'Yes') OR
         /* Twin broken off - Informant is Blessed */
         (td.participation = 'Aborted'
-         and id.suspect = 1 and id.future_contact = 'Yes') or
+         AND id.suspect = 1 AND id.future_contact = 'Yes') OR
         /* Twin broken off - No inform - Have partner */
-        (td.participation = 'Aborted' and ISNULL(id.suspect)
-                                      and p2.dead = 0))
-        and
+        (td.participation = 'Aborted' AND ISNULL(id.suspect)
+                                      AND p2.dead = 0))
+        AND
         l.event = 'Finished'
         /* Get at area code */
-        and substring(p1.postal_code, 1, 2) = pg.code
+        AND SUBSTRING(p1.postal_code, 1, 2) = pg.code
         /* Not already distributed */
-        and (h.nurse is NULL or h.nurse=00 or h.doctor=00)
+        AND (h.nurse IS NULL OR h.nurse=00 OR h.doctor=00)
         /* Has not refused or been aborted */
-        and not (h.status = 'Refused' or h.status = 'Aborted'
-        or h.status = 'Died' or h.status = 'Other')
-order by
+        AND NOT (h.status = 'Refused' OR h.status = 'Aborted'
+        OR h.status = 'Died' OR h.status = 'Other')
+ORDER BY
         tvid;
 @end example
 
 Some explanations:
 @table @asis
-@item @code{concat(p1.id, p1.tvab) + 0 as tvid}
+@item @code{CONCAT(p1.id, p1.tvab) + 0 AS tvid}
 We want to sort on the concatenated @code{id} and @code{tvab} in
 numerical order. Adding @code{0} to the result causes MySQL to
 treat the result as a number.
@@ -13969,24 +13968,24 @@ event. This indicates in how many pairs both twins are finished, in how many
 pairs one twin is finished and the other refused, and so on.
 
 @example
-select
+SELECT
         t1.event,
         t2.event,
-        count(*)
-from
-        lentus as t1,
-        lentus as t2,
-        twin_project as tp
-where
+        COUNT(*)
+FROM
+        lentus AS t1,
+        lentus AS t2,
+        twin_project AS tp
+WHERE
         /* We are looking at one pair at a time */
         t1.id = tp.id
-        and t1.tvab=tp.tvab
-        and t1.id = t2.id
+        AND t1.tvab=tp.tvab
+        AND t1.id = t2.id
         /* Just the sceening survey */
-        and tp.survey_no = 5
+        AND tp.survey_no = 5
         /* This makes each pair only appear once */
-        and t1.tvab='1' and t2.tvab='2'
-group by
+        AND t1.tvab='1' AND t2.tvab='2'
+GROUP BY
         t1.event, t2.event;
 
 @end example
@@ -17642,14 +17641,14 @@ Some things reported by check table, can't be corrected automatically:
 @code{Found row where the auto_increment column has the value 0}.
 
 This means that you have in the table a row where the
-@code{auto_increment} index column contains the value 0.
-(It's possible to create a row where the auto_increment column is 0 by
+@code{AUTO_INCREMENT} index column contains the value 0.
+(It's possible to create a row where the @code{AUTO_INCREMENT} column is 0 by
 explicitly setting the column to 0 with an @code{UPDATE} statement)
 
 This isn't an error in itself, but could cause trouble if you decide to
 dump the table and restore it or do an @code{ALTER TABLE} on the
-table. In this case the auto_increment column will change value,
-according to the rules of auto_increment columns, which could cause
+table. In this case the @code{AUTO_INCREMENT} column will change value,
+according to the rules of @code{AUTO_INCREMENT} columns, which could cause
 problems like a duplicate key error.
 
 To get rid of the warning, just execute an @code{UPDATE} statement
@@ -18032,8 +18031,8 @@ MySQL.
 @item -d or --description
 Prints some information about table.
 @item -A or --set-auto-increment[=value]
-Force auto_increment to start at this or higher value. If no value is
-given, then sets the next auto_increment value to the highest used value
+Force @code{AUTO_INCREMENT} to start at this or higher value. If no value is
+given, then sets the next @code{AUTO_INCREMENT} value to the highest used value
 for the auto key + 1.
 @item -S or --sort-index
 Sort the index tree blocks in high-low order.
@@ -24386,10 +24385,10 @@ query from the master.
 @item
 If you have decided you can skip the next query, do
 @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
-does not use auto_increment, or last_insert_id  or
+does not use @code{AUTO_INCREMENT} or @code{LAST_INSERT_ID()},  or
 @code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise. The reason
-auto_increment/last_insert_id queries are different is that they take
-two events in the binary log of the master.
+queries that use @code{AUTO_INCREMENT} or @code{LAST_INSERT_ID()}
+are different is that they take two events in the binary log of the master.
 
 @item
 If you are sure the slave started out perfectly in sync with the master,
@@ -25928,7 +25927,7 @@ In some cases it may make sense to introduce a column that is 'hashed'
 based on information from other columns. If this column is short and
 reasonably unique it may be much faster than a big index on many
 columns. In MySQL it's very easy to use this extra column:
-@code{SELECT * FROM table_name WHERE hash=MD5(concat(col1,col2))
+@code{SELECT * FROM table_name WHERE hash=MD5(CONCAT(col1,col2))
 AND col_1='constant' AND col_2='constant'}
 @item
 For tables that change a lot you should try to avoid all @code{VARCHAR}
@@ -27302,7 +27301,7 @@ mysql> UPDATE mysql.user SET password=PASSWORD("newpass")
 
 @item SQL_AUTO_IS_NULL = 0 | 1
 If set to @code{1} (default) then one can find the last inserted row
-for a table with an auto_increment row with the following construct:
+for a table with an @code{AUTO_INCREMENT} column with the following construct:
 @code{WHERE auto_increment_column IS NULL}.  This is used by some
 ODBC programs like Access.
 
@@ -29490,7 +29489,7 @@ object. The standard way to do this is with the @code{SUBSTRING}
 function.  For example:
 
 @example
-mysql> SELECT comment FROM tbl_name,substring(comment,20) AS substr
+mysql> SELECT comment FROM tbl_name,SUBSTRING(comment,20) AS substr
     ->                 ORDER BY substr;
 @end example
 
@@ -32612,7 +32611,7 @@ the same @code{INSERT} statement against some other server.
 If @code{expr} is given as an argument to @code{LAST_INSERT_ID()}, then
 the value of the argument is returned by the function, is set as the
 next value to be returned by @code{LAST_INSERT_ID()} and used as the next
-auto_increment value.  This can be used to simulate sequences:
+@code{AUTO_INCREMENT} value.  This can be used to simulate sequences:
 
 First create the table:
 
@@ -32729,7 +32728,7 @@ use is in the @code{mysql} client, which reports query execution times:
 @example
 mysql> SELECT BENCHMARK(1000000,ENCODE("hello","goodbye"));
 +----------------------------------------------+
-| BENCHMARK(1000000,encode("hello","goodbye")) |
+| BENCHMARK(1000000,ENCODE("hello","goodbye")) |
 +----------------------------------------------+
 |                                            0 |
 +----------------------------------------------+
@@ -32909,7 +32908,7 @@ grouping on unnecessary items.  For example, you don't need to group on
 @code{customer.name} in the following query:
 
 @example
-mysql> SELECT order.custid,customer.name,max(payments)
+mysql> SELECT order.custid,customer.name,MAX(payments)
     ->        FROM order,customer
     ->        WHERE order.custid = customer.custid
     ->        GROUP BY order.custid;
@@ -32929,7 +32928,7 @@ column value even if it isn't unique. The following gives the value of
 column:
 
 @example
-substr(MIN(concat(rpad(sort,6,' '),column)),7)
+SUBSTR(MIN(CONCAT(RPAD(sort,6,' '),column)),7)
 @end example
 
 @xref{example-Maximum-column-group-row}.
@@ -33119,7 +33118,7 @@ In MySQL Version 3.22.5 or later, you can also write queries like this:
 
 @example
 mysql> SELECT user,MAX(salary) FROM users
-    ->        group by user HAVING max(salary)>10;
+    ->        GROUP BY user HAVING MAX(salary)>10;
 @end example
 
 In older MySQL versions, you can write this instead:
@@ -34355,10 +34354,10 @@ For example, to read a file of jokes, that are separated with a line
 of @code{%%}, into a SQL table you can do:
 
 @example
-create table jokes (a int not null auto_increment primary key, joke text
-not null);
-load data infile "/tmp/jokes.txt" into table jokes fields terminated by ""
-lines terminated by "\n%%\n" (joke);
+CREATE TABLE jokes (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, joke TEXT
+NOT NULL);
+LOAD DATA INFILE "/tmp/jokes.txt" INTO TABLE jokes FIELDS TERMINATED BY ""
+LINES TERMINATED BY "\n%%\n" (joke);
 @end example
 
 @code{FIELDS [OPTIONALLY] ENCLOSED BY} controls quoting of fields.  For
@@ -34852,11 +34851,11 @@ with @code{DELETE FROM table_name} (without a @code{WHERE}) in
 
 @strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
 table, and it must be indexed. MySQL Version 3.23 will also only
-work properly if the auto_increment column only has positive
+work properly if the @code{AUTO_INCREMENT} column only has positive
 values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
 numbers 'wrap' over from positive to negative and also to ensure that one
-doesn't accidentally get an auto_increment column that contains 0.
+doesn't accidentally get an @code{AUTO_INCREMENT} column that contains 0.
 
 In MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} secondary
 column in a multi-column key.  @xref{example-AUTO_INCREMENT}.
@@ -34980,7 +34979,7 @@ Only the @code{MyISAM} table type supports indexing on @code{BLOB} and
 @code{TEXT} columns.  When putting an index on a @code{BLOB} or @code{TEXT}
 column you MUST always specify the length of the index:
 @example
-CREATE TABLE test (blob_col BLOB, index(blob_col(10)));
+CREATE TABLE test (blob_col BLOB, INDEX(blob_col(10)));
 @end example
 
 @item
@@ -35046,7 +35045,7 @@ The options work for all table types, if not otherwise indicated:
 
 @multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
-@item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM).
+@item @code{AUTO_INCREMENT} @tab The next @code{AUTO_INCREMENT} value you want to set for your table (MyISAM).
 @item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for large tables with variable size records.
 @item @code{CHECKSUM} @tab Set this to 1 if you want MySQL to maintain a checksum for all rows (makes the table a little slower to update but makes it easier to find corrupted tables) (MyISAM).
 @item @code{COMMENT} @tab A 60-character comment for your table.
@@ -35689,9 +35688,9 @@ is issued:
 
 @example
 mysql> USE db1;
-mysql> SELECT count(*) FROM mytable;      # selects from db1.mytable
+mysql> SELECT COUNT(*) FROM mytable;      # selects from db1.mytable
 mysql> USE db2;
-mysql> SELECT count(*) FROM mytable;      # selects from db2.mytable
+mysql> SELECT COUNT(*) FROM mytable;      # selects from db2.mytable
 @end example
 
 Making a particular database current by means of the @code{USE} statement
@@ -37233,7 +37232,6 @@ INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
 CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a))
              TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
-@c CAPPING DONE TO HERE
 
 Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
@@ -37251,7 +37249,7 @@ shell> mysqladmin flush-tables
 Now you can do things like:
 
 @example
-mysql> select * from total;
+mysql> SELECT * FROM total;
 +---+---------+
 | a | message |
 +---+---------+
@@ -37384,7 +37382,7 @@ without overflow areas. There is no extra space needed for free lists.
 normally is common with hashed tables:
 
 @example
-mysql> CREATE TABLE test TYPE=HEAP SELECT ip,SUM(downloads) as down
+mysql> CREATE TABLE test TYPE=HEAP SELECT ip,SUM(downloads) AS down
     ->                   FROM log_table GROUP BY ip;
 mysql> SELECT COUNT(ip),AVG(down) FROM test;
 mysql> DROP TABLE test;
@@ -46305,8 +46303,8 @@ You have specified a password in the @code{user} table without using the
 function:
 
 @example
-mysql> update user set password=PASSWORD('your password')
-    ->             where user='XXX';
+mysql> UPDATE user SET password=PASSWORD('your password')
+    ->             WHERE user='XXX';
 @end example
 @end itemize
 
@@ -47116,7 +47114,7 @@ mysql> INSERT INTO tbl_name (idate) VALUES ('0000-00-00');
 
 mysql> SELECT idate FROM tbl_name WHERE idate >= '1997-05-05';
 mysql> SELECT idate FROM tbl_name WHERE idate >= 19970505;
-mysql> SELECT mod(idate,100) FROM tbl_name WHERE idate >= 19970505;
+mysql> SELECT MOD(idate,100) FROM tbl_name WHERE idate >= 19970505;
 mysql> SELECT idate FROM tbl_name WHERE idate >= '19970505';
 @end example
 
@@ -47565,7 +47563,7 @@ You can't use temporary tables more than once in the same query.
 For example, the following doesn't work.
 
 @example
-select * from temporary_table, temporary_table as t2;
+mysql> SELECT * FROM temporary_table, temporary_table AS t2;
 @end example
 
 We plan to fix the above in 4.0.
@@ -51822,7 +51820,7 @@ Fixed problem when using an @code{AUTO_INCREMENT} column in two keys
 @item
 With @code{MyISAM}, you now can have an @code{AUTO_INCREMENT} column as a key
 sub part:
-@code{CREATE TABLE foo (a int not null auto_increment, b char(5), primary key (b,a))}
+@code{CREATE TABLE foo (a INT NOT NULL AUTO_INCREMENT, b CHAR(5), PRIMARY KEY (b,a))}
 @item
 Fixed bug in @code{MyISAM} with packed char keys that could be @code{NULL}.
 @item
@@ -56157,57 +56155,57 @@ characters/constructs:
 @item ^
 Match the beginning of a string.
 @example
-mysql> select "fo\nfo" REGEXP "^fo$";           -> 0
-mysql> select "fofo" REGEXP "^fo";              -> 1
+mysql> SELECT "fo\nfo" REGEXP "^fo$";           -> 0
+mysql> SELECT "fofo" REGEXP "^fo";              -> 1
 @end example
 @item $
 Match the end of a string.
 @example
-mysql> select "fo\no" REGEXP "^fo\no$";         -> 1
-mysql> select "fo\no" REGEXP "^fo$";            -> 0
+mysql> SELECT "fo\no" REGEXP "^fo\no$";         -> 1
+mysql> SELECT "fo\no" REGEXP "^fo$";            -> 0
 @end example
 @item .
 Match any character (including newline).
 @example
-mysql> select "fofo" REGEXP "^f.*";             -> 1
-mysql> select "fo\nfo" REGEXP "^f.*";           -> 1
+mysql> SELECT "fofo" REGEXP "^f.*";             -> 1
+mysql> SELECT "fo\nfo" REGEXP "^f.*";           -> 1
 @end example
 @item a*
 Match any sequence of zero or more @code{a} characters.
 @example
-mysql> select "Ban" REGEXP "^Ba*n";             -> 1
-mysql> select "Baaan" REGEXP "^Ba*n";           -> 1
-mysql> select "Bn" REGEXP "^Ba*n";              -> 1
+mysql> SELECT "Ban" REGEXP "^Ba*n";             -> 1
+mysql> SELECT "Baaan" REGEXP "^Ba*n";           -> 1
+mysql> SELECT "Bn" REGEXP "^Ba*n";              -> 1
 @end example
 @item a+
 Match any sequence of one or more @code{a} characters.
 @example
-mysql> select "Ban" REGEXP "^Ba+n";             -> 1
-mysql> select "Bn" REGEXP "^Ba+n";              -> 0
+mysql> SELECT "Ban" REGEXP "^Ba+n";             -> 1
+mysql> SELECT "Bn" REGEXP "^Ba+n";              -> 0
 @end example
 @item a?
 Match either zero or one @code{a} character.
 @example
-mysql> select "Bn" REGEXP "^Ba?n";              -> 1
-mysql> select "Ban" REGEXP "^Ba?n";             -> 1
-mysql> select "Baan" REGEXP "^Ba?n";            -> 0
+mysql> SELECT "Bn" REGEXP "^Ba?n";              -> 1
+mysql> SELECT "Ban" REGEXP "^Ba?n";             -> 1
+mysql> SELECT "Baan" REGEXP "^Ba?n";            -> 0
 @end example
 @item de|abc
 Match either of the sequences @code{de} or @code{abc}.
 @example
-mysql> select "pi" REGEXP "pi|apa";             -> 1
-mysql> select "axe" REGEXP "pi|apa";            -> 0
-mysql> select "apa" REGEXP "pi|apa";            -> 1
-mysql> select "apa" REGEXP "^(pi|apa)$";        -> 1
-mysql> select "pi" REGEXP "^(pi|apa)$";         -> 1
-mysql> select "pix" REGEXP "^(pi|apa)$";        -> 0
+mysql> SELECT "pi" REGEXP "pi|apa";             -> 1
+mysql> SELECT "axe" REGEXP "pi|apa";            -> 0
+mysql> SELECT "apa" REGEXP "pi|apa";            -> 1
+mysql> SELECT "apa" REGEXP "^(pi|apa)$";        -> 1
+mysql> SELECT "pi" REGEXP "^(pi|apa)$";         -> 1
+mysql> SELECT "pix" REGEXP "^(pi|apa)$";        -> 0
 @end example
 @item (abc)*
 Match zero or more instances of the sequence @code{abc}.
 @example
-mysql> select "pi" REGEXP "^(pi)*$";            -> 1
-mysql> select "pip" REGEXP "^(pi)*$";           -> 0
-mysql> select "pipi" REGEXP "^(pi)*$";          -> 1
+mysql> SELECT "pi" REGEXP "^(pi)*$";            -> 1
+mysql> SELECT "pip" REGEXP "^(pi)*$";           -> 0
+mysql> SELECT "pipi" REGEXP "^(pi)*$";          -> 1
 @end example
 @item @{1@}
 @itemx @{2,3@}
@@ -56243,12 +56241,12 @@ literal @code{-} character, it must be written first or last. So
 a defined meaning inside a @code{[]} pair has no special meaning and
 matches only itself.
 @example
-mysql> select "aXbc" REGEXP "[a-dXYZ]";         -> 1
-mysql> select "aXbc" REGEXP "^[a-dXYZ]$";       -> 0
-mysql> select "aXbc" REGEXP "^[a-dXYZ]+$";      -> 1
-mysql> select "aXbc" REGEXP "^[^a-dXYZ]+$";     -> 0
-mysql> select "gheis" REGEXP "^[^a-dXYZ]+$";    -> 1
-mysql> select "gheisa" REGEXP "^[^a-dXYZ]+$";   -> 0
+mysql> SELECT "aXbc" REGEXP "[a-dXYZ]";         -> 1
+mysql> SELECT "aXbc" REGEXP "^[a-dXYZ]$";       -> 0
+mysql> SELECT "aXbc" REGEXP "^[a-dXYZ]+$";      -> 1
+mysql> SELECT "aXbc" REGEXP "^[^a-dXYZ]+$";     -> 0
+mysql> SELECT "gheis" REGEXP "^[^a-dXYZ]+$";    -> 1
+mysql> SELECT "gheisa" REGEXP "^[^a-dXYZ]+$";   -> 0
 @end example
 @item [[.characters.]]
 The sequence of characters of that collating element. The sequence is a
@@ -56284,8 +56282,8 @@ These stand for the character classes defined in the @code{ctype(3)} manual
 page. A locale may provide others. A character class may not be used as an
 endpoint of a range.
 @example
-mysql> select "justalnums" REGEXP "[[:alnum:]]+";       -> 1
-mysql> select "!!" REGEXP "[[:alnum:]]+";               -> 0
+mysql> SELECT "justalnums" REGEXP "[[:alnum:]]+";       -> 1
+mysql> SELECT "!!" REGEXP "[[:alnum:]]+";               -> 0
 @end example
 
 @item [[:<:]]
@@ -56296,13 +56294,13 @@ is neither preceded nor followed by word characters. A word character is
 an alnum character (as defined by @code{ctype(3)}) or an underscore
 (@code{_}).
 @example
-mysql> select "a word a" REGEXP "[[:<:]]word[[:>:]]";      -> 1
-mysql> select "a xword a" REGEXP "[[:<:]]word[[:>:]]";     -> 0
+mysql> SELECT "a word a" REGEXP "[[:<:]]word[[:>:]]";      -> 1
+mysql> SELECT "a xword a" REGEXP "[[:<:]]word[[:>:]]";     -> 0
 @end example
 @end table
 
 @example
-mysql> select "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
+mysql> SELECT "weeknights" REGEXP "^(wee|week)(knights|nights)$"; -> 1
 @end example
 
 
