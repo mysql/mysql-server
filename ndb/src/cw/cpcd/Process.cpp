@@ -353,6 +353,7 @@ CPCD::Process::start() {
       setsid();
       writePid(getpgrp());
       if(runas(m_runas.c_str()) == 0){
+        signal(SIGCHLD, SIG_DFL);
 	do_exec();
       }
       _exit(1);
@@ -383,6 +384,7 @@ CPCD::Process::start() {
 	if(runas(m_runas.c_str()) != 0){
 	  _exit(1);
 	}
+        signal(SIGCHLD, SIG_DFL);
 	do_exec();
 	_exit(1);
 	/* NOTREACHED */
