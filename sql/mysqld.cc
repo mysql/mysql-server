@@ -2531,7 +2531,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
   while (!abort_loop)
   {
     readFDs=clientFDs;
-#ifdef HPUX
+#ifdef HPUX10
     if (select(max_used_connection,(int*) &readFDs,0,0,0) < 0)
       continue;
 #else
@@ -2545,7 +2545,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       MAYBE_BROKEN_SYSCALL
       continue;
     }
-#endif	/* HPUX */
+#endif	/* HPUX10 */
     if (abort_loop)
     {
       MAYBE_BROKEN_SYSCALL;

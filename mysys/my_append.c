@@ -22,7 +22,7 @@
 #include <sys/utime.h>
 #elif defined(HAVE_UTIME_H)
 #include <utime.h>
-#elif !defined(HPUX)
+#elif !defined(HPUX10)
 struct utimbuf {
   time_t actime;
   time_t modtime;

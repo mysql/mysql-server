@@ -221,7 +221,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
-#if defined(HPUX) && defined(THREAD)
+#if defined(HPUX10) && defined(THREAD)
     if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
       break;
 #else
