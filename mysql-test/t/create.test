@@ -18,7 +18,7 @@ insert into t1 values (""),(null);
 select * from t1;
 drop table t1;
 
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
 drop table t1;
 
 #
@@ -26,18 +26,18 @@ drop table t1;
 #
 
 --error 1146
-create table t2 type=heap select * from t1;
+create table t2 engine=heap select * from t1;
 --error 1146
 create table t2 select auto+1 from t1;
 drop table if exists t1,t2;
 --error 1167
 create table t1 (b char(0) not null, index(b));
 --error 1163
-create table t1 (a int not null,b text) type=heap;
+create table t1 (a int not null,b text) engine=heap;
 drop table if exists t1;
 
 --error 1075
-create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 
 -- error 1044,1
 create table not_existing_database.test (a int);

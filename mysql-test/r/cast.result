@@ -45,7 +45,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t` char(4) character set cp1251 NOT NULL default ''
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select
 cast(_latin1'ab'  AS char)    as c1,
@@ -72,7 +72,7 @@ t1	CREATE TABLE `t1` (
   `c3` char(2) binary NOT NULL default '',
   `c4` char(2) binary NOT NULL default '',
   `c5` char(2) binary NOT NULL default ''
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select
 cast(_koi8r'ÆÇ'  AS nchar)    as c1,
@@ -99,7 +99,7 @@ t1	CREATE TABLE `t1` (
   `c3` char(2) character set utf8 NOT NULL default '',
   `c4` char(2) character set utf8 NOT NULL default '',
   `c5` char(2) character set utf8 NOT NULL default ''
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select cast("2001-1-1" as date) = "2001-01-01";
 cast("2001-1-1" as date) = "2001-01-01"

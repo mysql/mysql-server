@@ -23,7 +23,7 @@ FOLDERID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 
 , PRIMARY KEY ( FOLDERID )
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 CREATE INDEX FFOLDERID_IDX ON t1 (FOLDERID);
 CREATE INDEX CMFLDRPARNT_IDX ON t1 (PARENTID);
 INSERT INTO t1 VALUES("0c9aab05b15048c59bc35c8461507deb", "System", "System", "2003-06-05 16:30:00", "The system content repository folder.", "3", "2003-06-05 16:30:00", "System", "0", NULL, "9c9aab05b15048c59bc35c8461507deb", "1");
@@ -35,9 +35,9 @@ drop table t1;
 #
 # UNION unlocking test
 #
-create table t1 (a int) type=innodb;
-create table t2 (a int) type=innodb;
-create table t3 (a int) type=innodb;
+create table t1 (a int) engine=innodb;
+create table t2 (a int) engine=innodb;
+create table t3 (a int) engine=innodb;
 insert into t1 values (1),(2),(3),(4);
 insert into t2 values (10),(20),(30),(40);
 insert into t3 values (1),(2),(10),(50);
@@ -48,12 +48,12 @@ drop table t1,t2,t3;
 CREATE TABLE t1 (
    processor_id INTEGER NOT NULL,
    PRIMARY KEY (processor_id)
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 CREATE TABLE t3 (
    yod_id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
    login_processor INTEGER UNSIGNED ,
    PRIMARY KEY (yod_id)
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 CREATE TABLE t2 (
    processor_id INTEGER NOT NULL,
    yod_id BIGINT UNSIGNED NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE t2 (
    INDEX (yod_id),
    FOREIGN KEY (processor_id) REFERENCES t1(processor_id),
    FOREIGN KEY (yod_id) REFERENCES t3(yod_id) 
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t3 VALUES (1,1),(2,2),(3,3);
 INSERT INTO t2 VALUES (1,1),(2,2),(3,3);

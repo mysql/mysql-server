@@ -239,7 +239,7 @@ created datetime default NULL,
 modified timestamp(14) NOT NULL,
 bugstatus int(10) unsigned default NULL,
 submitter int(10) unsigned default NULL
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
 SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"') FROM t1;
 CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"')
@@ -254,7 +254,7 @@ SELECT bugdesc, REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb')
 bugdesc	REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb')
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 drop table t1;
-CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) TYPE=MyISAM;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
@@ -539,7 +539,7 @@ t1	CREATE TABLE `t1` (
   `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
   `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default '',
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select SUBSTR('abcdefg',3,2);
 SUBSTR('abcdefg',3,2)
@@ -580,7 +580,7 @@ elt(status_wnio,data_podp)
 NULL
 NULL
 DROP TABLE t1;
-CREATE TABLE t1 (title text) TYPE=MyISAM;
+CREATE TABLE t1 (title text) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
 INSERT INTO t1 VALUES ('House passes the CAREERS bill');
 SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;

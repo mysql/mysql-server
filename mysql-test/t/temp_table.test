@@ -16,8 +16,8 @@ select * from t2;
 CREATE TABLE t2 (x int not null, y int not null);
 alter table t2 rename t1;
 select * from t1;
-create TEMPORARY TABLE t2 type=heap select * from t1;
-create TEMPORARY TABLE IF NOT EXISTS t2 (a int) type=heap;
+create TEMPORARY TABLE t2 engine=heap select * from t1;
+create TEMPORARY TABLE IF NOT EXISTS t2 (a int) engine=heap;
 
 # This should give errors
 !$1050 CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
@@ -78,7 +78,7 @@ drop table t1;
 
 CREATE TABLE t1 (
   d datetime default NULL
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 
 INSERT INTO t1 VALUES ('2002-10-24 14:50:32'),('2002-10-24 14:50:33'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40');
