@@ -189,7 +189,7 @@ which_1 ()
 # Create the result tar file
 #
 
-tar=`which_1 gtar`
+tar=`which_1 gnutar gtar`
 if test "$?" = "1" -o "$tar" = ""
 then
   tar=tar
