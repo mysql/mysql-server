@@ -13384,3 +13384,17 @@ void Dbacc::execSET_VAR_REQ(Signal* signal)
 #endif
 
 }//execSET_VAR_REQ()
+
+void
+Dbacc::execREAD_ROWCOUNTREQ(Signal* signal){
+  jamEntry();
+  fragrecptr.i = signal->theData[0];
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  rootfragrecptr.i = fragrecptr.p->myroot;
+  ptrCheckGuard(rootfragrecptr, crootfragmentsize, rootfragmentrec);
+  Uint64 tmp = rootfragrecptr.p->noOfElements;
+  Uint32 * src = (Uint32*)&tmp;
+  signal->theData[0] = src[0];
+  signal->theData[1] = src[1];
+}
+

@@ -708,7 +708,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
   regOperPtr->tupleState = TUPLE_BLOCKED;
   regOperPtr->changeMask.clear();
-
+  
   if (Rstoredid != ZNIL) {
     ndbrequire(initStoredOperationrec(regOperPtr, Rstoredid) == ZOK);
   }//if
@@ -844,20 +844,18 @@ void Dbtup::sendTUPKEYCONF(Signal* signal,
   TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtrSend();  
 
   Uint32 RuserPointer = regOperPtr->userpointer;
-  Uint32 RfragPageId = regOperPtr->fragPageId;
-  Uint32 RpageIndex = regOperPtr->pageIndex;
   Uint32 RattroutbufLen = regOperPtr->attroutbufLen;
   Uint32 RnoFiredTriggers = regOperPtr->noFiredTriggers;
   BlockReference Ruserblockref = regOperPtr->userblockref;
+  Uint32 lastRow = regOperPtr->lastRow;
 
   regOperPtr->transstate = STARTED;
   regOperPtr->tupleState = NO_OTHER_OP;
   tupKeyConf->userPtr = RuserPointer;
-  tupKeyConf->pageId = RfragPageId;
-  tupKeyConf->pageIndex = RpageIndex;
   tupKeyConf->readLength = RattroutbufLen;
   tupKeyConf->writeLength = TlogSize;
   tupKeyConf->noFiredTriggers = RnoFiredTriggers;
+  tupKeyConf->lastRow = lastRow;
 
   EXECUTE_DIRECT(refToBlock(Ruserblockref), GSN_TUPKEYCONF, signal,
 		 TupKeyConf::SignalLength);
@@ -920,6 +918,7 @@ int Dbtup::handleReadReq(Signal* signal,
     return -1;
   } else {
     jam();
+    regOperPtr->lastRow = 0;
     if (interpreterStartLab(signal, pagePtr, Ttupheadoffset) != -1) {
       return 0;
     }//if
@@ -1978,11 +1977,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
       }
 	
       case Interpreter::EXIT_OK:
-      case Interpreter::EXIT_OK_LAST:
 	jam();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_ok");
 #endif
+	return TdataWritten;
+
+      case Interpreter::EXIT_OK_LAST:
+	jam();
+#if 1
+	ndbout_c(" - exit_ok_last");
+#endif
+	operPtr.p->lastRow = 1;
 	return TdataWritten;
 	
       case Interpreter::EXIT_REFUSE:
