@@ -580,7 +580,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=1024;
 Warnings:
-Warning	1279	Query cache failed to set size 1024, new query cache size is 0
+Warning	1280	Query cache failed to set size 1024, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -588,7 +588,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=10240;
 Warnings:
-Warning	1279	Query cache failed to set size 10240, new query cache size is 0
+Warning	1280	Query cache failed to set size 10240, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -596,7 +596,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=20480;
 Warnings:
-Warning	1279	Query cache failed to set size 20480, new query cache size is 0
+Warning	1280	Query cache failed to set size 20480, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
@@ -604,7 +604,7 @@ select * from t1;
 a
 set GLOBAL query_cache_size=40960;
 Warnings:
-Warning	1279	Query cache failed to set size 40960, new query cache size is 0
+Warning	1280	Query cache failed to set size 40960, new query cache size is 0
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
