@@ -205,7 +205,7 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
       fi
     done
     kill_pids=$new_kill_pid
-    if [ "$kill_pids" == "" ] ; then
+    if [ -z "$kill_pids" ] ; then
       break
     fi
     sleep 1

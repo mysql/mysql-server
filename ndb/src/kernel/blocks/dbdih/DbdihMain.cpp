@@ -1638,7 +1638,7 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   }//if
   if (getNodeStatus(nodeId) != NodeRecord::DEAD){
     ndbout << "nodeStatus in START_PERMREQ = " 
-	   << getNodeStatus(nodeId) << endl;
+	   << (Uint32) getNodeStatus(nodeId) << endl;
     ndbrequire(false);
   }//if
 
@@ -4268,7 +4268,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
       failedNodePtr.p->activeStatus = Sysfile::NS_NotActive_NotTakenOver;
       break;
     default:
-      ndbout << "activeStatus = " << failedNodePtr.p->activeStatus;
+      ndbout << "activeStatus = " << (Uint32) failedNodePtr.p->activeStatus;
       ndbout << " at failure after NODE_FAILREP of node = ";
       ndbout << failedNodePtr.i << endl;
       ndbrequire(false);
@@ -6198,7 +6198,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     if (primaryTableId == RNIL) {
       if(fragmentNode == 0){
         jam();
-        NGPtr.i = c_nextNodeGroup;
+	// needs to be fixed for single fragment tables
+        NGPtr.i = 0; //c_nextNodeGroup;
         c_nextNodeGroup = (NGPtr.i + 1 == cnoOfNodeGroups ? 0 : NGPtr.i + 1);
       } else if(! (fragmentNode < MAX_NDB_NODES)) {
         jam();
@@ -6255,20 +6256,22 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     //@todo use section writer
     Uint32 count = 2;
     Uint32 fragments[2 + 8*MAX_REPLICAS*MAX_NDB_NODES];
+    Uint32 next_replica_node[MAX_NDB_NODES];
+    memset(next_replica_node,0,sizeof(next_replica_node));
     if (primaryTableId == RNIL) {
       jam();
       for(Uint32 fragNo = 0; fragNo<noOfFragments; fragNo++){
         jam();
         ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);      
 
-        Uint32 ind = NGPtr.p->nextReplicaNode;
+        Uint32 ind = next_replica_node[NGPtr.i];
         const Uint32 max = NGPtr.p->nodeCount;
 
         //-------------------------------------------------------------------
         // We make an extra step to ensure that the primary replicas are
         // spread among the nodes.
         //-------------------------------------------------------------------
-        NGPtr.p->nextReplicaNode = (ind + 1 >= max ? 0 : ind + 1);
+        next_replica_node[NGPtr.i] = (ind + 1 >= max ? 0 : ind + 1);
         
         for(Uint32 replicaNo = 0; replicaNo<noOfReplicas; replicaNo++){
           jam();
@@ -7127,7 +7130,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
           jam();
 #ifdef VM_TRACE
           ndbout << "System crash due to GCP Stop in state = ";
-          ndbout << cgcpStatus << endl;
+          ndbout << (Uint32) cgcpStatus << endl;
 #endif
           crashSystemAtGcpStop(signal);
           return;
@@ -7141,7 +7144,7 @@ void Dbdih::checkGcpStopLab(Signal* signal)
             jam();
 #ifdef VM_TRACE
             ndbout << "System crash due to GCP Stop in state = ";
-            ndbout << cgcpStatus << endl;
+            ndbout << (Uint32) cgcpStatus << endl;
 #endif
 	    crashSystemAtGcpStop(signal);
             return;
@@ -9074,7 +9077,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
 {
   CRASH_INSERTION(7009);
   if (c_lcpState.lcpStatus != LCP_STATUS_IDLE) {
-    ndbout << "lcpStatus = " << c_lcpState.lcpStatus;
+    ndbout << "lcpStatus = " << (Uint32) c_lcpState.lcpStatus;
     ndbout << "lcpStatusUpdatedPlace = " << 
       c_lcpState.lcpStatusUpdatedPlace << endl;
     ndbrequire(false);
