@@ -28,6 +28,9 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "hash_filo.h"
+#ifdef HAVE_REPLICATION
+#include "sql_repl.h" //for tables_ok()
+#endif
 #include <m_ctype.h>
 #include <stdarg.h>
 
@@ -2128,6 +2131,15 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=tables[2].db=(char*) "mysql";
 
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
+    DBUG_RETURN(0);
+#endif
+
   if (open_and_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -2289,6 +2301,16 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
   tables[0].db=tables[1].db=(char*) "mysql";
   tables[0].table=tables[1].table=0;
+
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
+    DBUG_RETURN(0);
+#endif
+
   if (open_and_lock_tables(thd,tables))
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */

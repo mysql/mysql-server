@@ -845,8 +845,8 @@ static int read_lines(bool execute_commands)
       /* Remove the '\n' */
       {
         char *p = strrchr(line, '\n');
-	if (p != NULL)
-	  *p = '\0';
+        if (p != NULL)
+          *p = '\0';
       }
 #else
       linebuffer[0]= (char) sizeof(linebuffer);

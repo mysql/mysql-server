@@ -2210,6 +2210,40 @@ if ($limits{'foreign_key'} eq 'yes')
   }
 }
 
+if ($limits{'func_sql_character_length'} eq 'yes')
+{
+  my $result = 'error';
+  my ($resultset);
+  my $key = 'length_of_varchar_field';
+  my $prompt='CHARACTER_LENGTH(varchar_field)';
+  print $prompt," = ";
+  if (!defined($limits{$key})) {
+    save_incomplete($key,$prompt);
+    safe_query_l($key,[
+		       "CREATE TABLE crash_me1 (S1 VARCHAR(100))",
+		       "INSERT INTO crash_me1 VALUES ('X')"
+		       ]);
+    my $recset = get_recordset($key,
+			       "SELECT CHARACTER_LENGTH(S1) FROM crash_me1");
+    print_recordset($key,$recset);
+    if (defined($recset)){
+      if ( $recset->[0][0] eq 1 ) {
+		$result = 'actual length';
+	      } elsif( $recset->[0][0] eq 100 ) {
+		$result = 'defined length';
+	      };
+    } else {
+      add_log($key,$DBI::errstr);
+    }
+    safe_query_l($key, "drop table crash_me1 $drop_attr");
+    save_config_data($key,$result,$prompt);
+  } else {
+    $result = $limits{$key};
+  };
+  print "$result\n";
+}
+
+
 check_constraint("Column constraints","constraint_check",
            "create table crash_q (a int check (a>0))",
            "insert into crash_q values(0)",
@@ -2870,6 +2904,81 @@ sub make_date {
   return sprintf "DATE '%04d%02d%02d'", $year,$month,$day 
       if ($limits{'date_format_YYYYMMDD_with_date'} eq 'yes');
   return "UNKNOWN FORMAT";
+}
+
+
+sub print_recordset{
+  my ($key,$recset) = @_;
+  my $rec;
+  foreach $rec (@$recset)
+  {
+    add_log($key, " > ".join(',', map(repr($_), @$rec)));
+  }
+}
+
+#
+# read result recordset from sql server. 
+# returns arrayref to (arrayref to) values
+# or undef (in case of sql errors)
+#
+sub get_recordset{
+  my ($key,$query) = @_;
+  add_log($key, "< $query");
+  return $dbh->selectall_arrayref($query);
+}
+
+# function for comparing recordset (that was returned by get_recordset)
+# and arrayref of (arrayref of) values.
+#
+# returns : zero if recordset equal that array, 1 if it doesn't equal
+#
+# parameters:
+# $key - current operation (for logging)
+# $recset - recordset
+# $mustbe - array of values that we expect
+#
+# example: $a=get_recordset('some_parameter','select a,b from c');
+# if (compare_recordset('some_parameter',$a,[[1,1],[1,2],[1,3]]) neq 0) 
+# {
+#   print "unexpected result\n";
+# } ;
+#
+sub compare_recordset {
+  my ($key,$recset,$mustbe) = @_;
+  my $rec,$recno,$fld,$fldno,$fcount;
+  add_log($key,"\n Check recordset:");
+  $recno=0;
+  foreach $rec (@$recset)
+  {
+    add_log($key," " . join(',', map(repr($_),@$rec)) . " expected: " .
+	    join(',', map(repr($_), @{$mustbe->[$recno]} ) ));
+    $fcount = @$rec;
+    $fcount--;
+    foreach $fldno (0 .. $fcount )
+    {
+      if ($mustbe->[$recno][$fldno] ne $rec->[$fldno])
+      {
+	add_log($key," Recordset doesn't correspond with template");
+	return 1;
+      };
+    }
+    $recno++;
+  }
+  add_log($key," Recordset corresponds with template");
+  return 0;
+}
+
+#
+# converts inner perl value to printable representation
+# for example: undef maps to 'NULL',
+# string -> 'string'
+# int -> int
+# 
+sub repr {
+  my $s = shift;
+  return "'$s'"if ($s =~ /\D/);
+  return 'NULL'if ( not defined($s));
+  return $s;
 }
 
 

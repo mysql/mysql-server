@@ -1051,7 +1051,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 			&keyseg,
 			((table_arg->key_parts + table_arg->keys) *
 			 sizeof(HA_KEYSEG)),
-			0)))
+			NullS)))
     DBUG_RETURN(1);
 
   pos=table_arg->key_info;
