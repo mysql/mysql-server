@@ -352,7 +352,7 @@ int		STDCALL mysql_ping(MYSQL *mysql);
 const char *	STDCALL mysql_stat(MYSQL *mysql);
 const char *	STDCALL mysql_get_server_info(MYSQL *mysql);
 const char *	STDCALL mysql_get_client_info(void);
-ulong		STDCALL mysql_get_client_version(void);
+unsigned long	STDCALL mysql_get_client_version(void);
 const char *	STDCALL mysql_get_host_info(MYSQL *mysql);
 unsigned int	STDCALL mysql_get_proto_info(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_list_dbs(MYSQL *mysql,const char *wild);
