@@ -78,7 +78,8 @@ enum enum_sql_command {
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
+  SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
+  SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
   SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
   SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
   SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
@@ -650,7 +651,6 @@ typedef struct st_lex
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
-  time_t purge_time;                            /* For PURGE MASTER LOGS BEFORE */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   char* found_colon;                            /* For multi queries - next query */
   String *wild;
@@ -694,7 +694,7 @@ typedef struct st_lex
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   USER_RESOURCES mqh;
-  ulong thread_id,type;
+  ulong type;
   enum_sql_command sql_command, orig_sql_command;
   thr_lock_type lock_option, multi_lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */

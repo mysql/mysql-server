@@ -60,3 +60,165 @@ use test;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
+set sql_mode='maxdb';
+drop table if exists t1, t2;
+create table t1(c1 int);
+create table t2(c1 int, c2 int);
+create user 'mysqltest_1';
+create user 'mysqltest_1';
+ERROR HY000: Operation CREATE USER failed for 1 of the requested users
+create user 'mysqltest_2' identified by 'Mysqltest-2';
+create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+grant select on *.* to 'mysqltest_2';
+grant insert on test.* to 'mysqltest_2';
+grant update on test.t1 to 'mysqltest_2';
+grant update (c2) on test.t2 to 'mysqltest_2';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+host	user	password
+%	mysqltest_1	
+%	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+host	db	user
+%	test	mysqltest_2
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+host	db	user	table_name
+%	test	mysqltest_2	t1
+%	test	mysqltest_2	t2
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+host	db	user	table_name	column_name
+%	test	mysqltest_2	t2	c2
+show grants for 'mysqltest_1';
+Grants for mysqltest_1@%
+GRANT USAGE ON *.* TO 'mysqltest_1'@'%'
+show grants for 'mysqltest_2';
+Grants for mysqltest_2@%
+GRANT SELECT ON *.* TO 'mysqltest_2'@'%' IDENTIFIED BY PASSWORD '*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1'
+GRANT INSERT ON "test".* TO 'mysqltest_2'@'%'
+GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_2'@'%'
+GRANT UPDATE ON "test"."t1" TO 'mysqltest_2'@'%'
+drop user 'mysqltest_1';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+host	user	password
+%	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+host	db	user
+%	test	mysqltest_2
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+host	db	user	table_name
+%	test	mysqltest_2	t1
+%	test	mysqltest_2	t2
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+host	db	user	table_name	column_name
+%	test	mysqltest_2	t2	c2
+show grants for 'mysqltest_1';
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
+rename user 'mysqltest_2' to 'mysqltest_1';
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+host	user	password
+%	mysqltest_1	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+%	mysqltest_3	fffffffffffffffffffffffffffffffffffffffff
+select host,db,user from mysql.db where user like 'mysqltest_%' order by host,db,user;
+host	db	user
+%	test	mysqltest_1
+select host,db,user,table_name from mysql.tables_priv where user like 'mysqltest_%' order by host,db,user,table_name;
+host	db	user	table_name
+%	test	mysqltest_1	t1
+%	test	mysqltest_1	t2
+select host,db,user,table_name,column_name from mysql.columns_priv where user like 'mysqltest_%' order by host,db,user,table_name,column_name;
+host	db	user	table_name	column_name
+%	test	mysqltest_1	t2	c2
+show grants for 'mysqltest_1';
+Grants for mysqltest_1@%
+GRANT SELECT ON *.* TO 'mysqltest_1'@'%' IDENTIFIED BY PASSWORD '*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1'
+GRANT INSERT ON "test".* TO 'mysqltest_1'@'%'
+GRANT UPDATE (c2) ON "test"."t2" TO 'mysqltest_1'@'%'
+GRANT UPDATE ON "test"."t1" TO 'mysqltest_1'@'%'
+drop user 'mysqltest_1', 'mysqltest_3';
+grant all on test.t1 to 'mysqltest_1';
+ERROR 42000: 'root'@'localhost' is not allowed to create new users
+drop user 'mysqltest_1';
+ERROR HY000: Operation DROP USER failed for 1 of the requested users
+drop table t1, t2;
+insert into mysql.db set user='mysqltest_1', db='%', host='%';
+flush privileges;
+show grants for 'mysqltest_1';
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
+revoke all privileges, grant option from 'mysqltest_1';
+ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
+drop user 'mysqltest_1';
+select host,db,user from mysql.db where user = 'mysqltest_1' order by host,db,user;
+host	db	user
+insert into mysql.tables_priv set host='%', db='test', user='mysqltest_1', table_name='t1';
+flush privileges;
+show grants for 'mysqltest_1';
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
+drop user 'mysqltest_1';
+select host,db,user,table_name from mysql.tables_priv where user = 'mysqltest_1' order by host,db,user,table_name;
+host	db	user	table_name
+insert into mysql.columns_priv set host='%', db='test', user='mysqltest_1', table_name='t1', column_name='c1';
+flush privileges;
+show grants for 'mysqltest_1';
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host '%'
+drop user 'mysqltest_1';
+select host,db,user,table_name,column_name from mysql.columns_priv where user = 'mysqltest_1' order by host,db,user,table_name,column_name;
+host	db	user	table_name	column_name
+create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
+rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+ERROR HY000: Operation DROP USER failed for 3 of the requested users
+drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
+create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
+ERROR HY000: Operation CREATE USER failed for 1 of the requested users
+rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
+ERROR HY000: Operation RENAME USER failed for 1 of the requested users
+drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
+drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
+ERROR HY000: Operation DROP USER failed for 1 of the requested users
+create user 'mysqltest_2' identified by 'Mysqltest-2';
+drop user 'mysqltest_2' identified by 'Mysqltest-2';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'identified by 'Mysqltest-2'' at line 1
+create user '%@b'@'b';
+show grants for '%@b'@'b';
+Grants for %@b@b
+GRANT USAGE ON *.* TO '%@b'@'b'
+grant select on mysql.* to '%@b'@'b';
+show grants for '%@b'@'b';
+Grants for %@b@b
+GRANT USAGE ON *.* TO '%@b'@'b'
+GRANT SELECT ON "mysql".* TO '%@b'@'b'
+rename user '%@b'@'b' to '%@a'@'a';
+show grants for '%@b'@'b';
+ERROR 42000: There is no such grant defined for user '%@b' on host 'b'
+show grants for '%@a'@'a';
+Grants for %@a@a
+GRANT USAGE ON *.* TO '%@a'@'a'
+GRANT SELECT ON "mysql".* TO '%@a'@'a'
+drop user '%@a'@'a';
+create user mysqltest_2@localhost;
+grant usage on *.* to mysqltest_2@localhost with grant option;
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'mysql'
+create user mysqltest_A@'%';
+rename user mysqltest_A@'%' to mysqltest_B@'%';
+drop user mysqltest_B@'%';
+drop user mysqltest_2@localhost;
+create user mysqltest_3@localhost;
+grant all privileges on mysql.* to mysqltest_3@localhost;
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
+host	user	password
+%	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
+localhost	mysqltest_3	
+insert into mysql.user set host='%', user='mysqltest_B';
+create user mysqltest_A@'%';
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
+rename user mysqltest_B@'%' to mysqltest_C@'%';
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
+drop user mysqltest_B@'%';
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
+drop user mysqltest_B@'%';
+drop user mysqltest_3@localhost;

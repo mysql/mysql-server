@@ -919,7 +919,7 @@ static void acl_update_user(const char *user, const char *host,
     {
       if (!acl_user->host.hostname && !host[0] ||
 	  acl_user->host.hostname &&
-	  !my_strcasecmp(&my_charset_latin1, host, acl_user->host.hostname))
+	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
       {
 	acl_user->access=privileges;
 	if (mqh->bits & 1)
@@ -998,7 +998,7 @@ static void acl_update_db(const char *user, const char *host, const char *db,
     {
       if (!acl_db->host.hostname && !host[0] ||
 	  acl_db->host.hostname &&
-	  !my_strcasecmp(&my_charset_latin1, host, acl_db->host.hostname))
+	  !my_strcasecmp(system_charset_info, host, acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -1141,7 +1141,7 @@ static void init_check_host(void)
   DBUG_ENTER("init_check_host");
   VOID(my_init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
-  VOID(hash_init(&acl_check_hosts,&my_charset_latin1,acl_users.elements,0,0,
+  VOID(hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
 		 (hash_get_key) check_get_key,0,0));
   if (!allow_all_hosts)
   {
@@ -1157,7 +1157,7 @@ static void init_check_host(void)
 	{					// Check if host already exists
 	  acl_host_and_ip *acl=dynamic_element(&acl_wild_hosts,j,
 					       acl_host_and_ip *);
-	  if (!my_strcasecmp(&my_charset_latin1,
+	  if (!my_strcasecmp(system_charset_info,
                              acl_user->host.hostname, acl->hostname))
 	    break;				// already stored
 	}
@@ -1233,7 +1233,7 @@ bool check_change_password(THD *thd, const char *host, const char *user,
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(&my_charset_latin1, host, thd->host_or_ip)))
+       my_strcasecmp(system_charset_info, host, thd->host_or_ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
       return(1);
@@ -1402,7 +1402,7 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
     return (tmp & host->ip_mask) == host->ip;
   }
   return (!host->hostname ||
-	  (hostname && !wild_case_compare(&my_charset_latin1,
+	  (hostname && !wild_case_compare(system_charset_info,
                                           hostname,host->hostname)) ||
 	  (ip && !wild_compare(ip,host->hostname,0)));
 }
@@ -1415,7 +1415,7 @@ bool hostname_requires_resolving(const char *hostname)
   int namelen= strlen(hostname);
   int lhlen= strlen(my_localhost);
   if ((namelen == lhlen) &&
-      !my_strnncoll(&my_charset_latin1, (const uchar *)hostname,  namelen,
+      !my_strnncoll(system_charset_info, (const uchar *)hostname,  namelen,
 		    (const uchar *)my_localhost, strlen(my_localhost)))
     return FALSE;
   for (; (cur=*hostname); hostname++)
@@ -1464,8 +1464,8 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
 
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
-  table->field[0]->store(host,(uint) strlen(host), &my_charset_latin1);
-  table->field[1]->store(user,(uint) strlen(user), &my_charset_latin1);
+  table->field[0]->store(host,(uint) strlen(host), system_charset_info);
+  table->field[1]->store(user,(uint) strlen(user), system_charset_info);
 
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
@@ -1478,7 +1478,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,record[1]);
-  table->field[2]->store(new_password, new_password_len, &my_charset_latin1);
+  table->field[2]->store(new_password, new_password_len, system_charset_info);
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -1546,8 +1546,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     password=combo.password.str;
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
 				  (byte*) table->field[0]->ptr,
@@ -1581,11 +1581,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     old_row_exists = 0;
     restore_record(table,default_values);       // cp empty row from default_values
     table->field[0]->store(combo.host.str,combo.host.length,
-                           &my_charset_latin1);
+                           system_charset_info);
     table->field[1]->store(combo.user.str,combo.user.length,
-                           &my_charset_latin1);
+                           system_charset_info);
     table->field[2]->store(password, password_len,
-                           &my_charset_latin1);
+                           system_charset_info);
   }
   else
   {
@@ -1596,14 +1596,14 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     DBUG_ASSERT(combo.host.str);
     if (thd->user && combo.password.str &&
         (strcmp(thd->user,combo.user.str) ||
-         my_strcasecmp(&my_charset_latin1,
+         my_strcasecmp(system_charset_info,
                        combo.host.str, thd->host_or_ip)) &&
         check_access(thd, UPDATE_ACL, "mysql",0,1,0))
       goto end;
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
-      table->field[2]->store(password, password_len, &my_charset_latin1);
+      table->field[2]->store(password, password_len, system_charset_info);
     else if (!rights && !revoke_grant &&
              lex->ssl_type == SSL_TYPE_NOT_SPECIFIED && !lex->mqh.bits)
     {
@@ -1648,13 +1648,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       table->field[27]->store("", 0, &my_charset_latin1);
       if (lex->ssl_cipher)
 	table->field[25]->store(lex->ssl_cipher,
-				strlen(lex->ssl_cipher), &my_charset_latin1);
+				strlen(lex->ssl_cipher), system_charset_info);
       if (lex->x509_issuer)
 	table->field[26]->store(lex->x509_issuer,
-				strlen(lex->x509_issuer), &my_charset_latin1);
+				strlen(lex->x509_issuer), system_charset_info);
       if (lex->x509_subject)
 	table->field[27]->store(lex->x509_subject,
-				strlen(lex->x509_subject), &my_charset_latin1);
+				strlen(lex->x509_subject), system_charset_info);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
@@ -1756,9 +1756,9 @@ static int replace_db_table(TABLE *table, const char *db,
     DBUG_RETURN(-1);
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-  table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
 				  (byte*) table->field[0]->ptr,
@@ -1772,9 +1772,9 @@ static int replace_db_table(TABLE *table, const char *db,
     }
     old_row_exists = 0;
     restore_record(table,default_values);			// cp empty row from default_values
-    table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-    table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-    table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
+    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+    table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+    table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
   }
   else
   {
@@ -1862,6 +1862,7 @@ public:
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);
   GRANT_TABLE (TABLE *form, TABLE *col_privs);
+  ~GRANT_TABLE();
   bool ok() { return privs != 0 || cols != 0; }
 };
 
@@ -1887,7 +1888,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
   hash_key = (char*) alloc_root(&memex,key_length);
   strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-  (void) hash_init(&hash_columns,&my_charset_latin1,
+  (void) hash_init(&hash_columns,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
 }
 
@@ -1911,7 +1912,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
-    privs = cols = 0;				/* purecov: inspected */
+    hash_clear(&hash_columns);                  /* allow for destruction */
+    privs= cols= 0;				/* purecov: inspected */
     return;					/* purecov: inspected */
   }
   if (lower_case_table_names)
@@ -1928,16 +1930,16 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   privs = fix_rights_for_table(privs);
   cols =  fix_rights_for_column(cols);
 
-  (void) hash_init(&hash_columns,&my_charset_latin1,
+  (void) hash_init(&hash_columns,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
   if (cols)
   {
     int key_len;
     col_privs->field[0]->store(orig_host,(uint) strlen(orig_host),
-                               &my_charset_latin1);
-    col_privs->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-    col_privs->field[2]->store(user,(uint) strlen(user), &my_charset_latin1);
-    col_privs->field[3]->store(tname,(uint) strlen(tname), &my_charset_latin1);
+                               system_charset_info);
+    col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
+    col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
+    col_privs->field[3]->store(tname,(uint) strlen(tname), system_charset_info);
     key_len=(col_privs->field[0]->pack_length()+
              col_privs->field[1]->pack_length()+
              col_privs->field[2]->pack_length()+
@@ -1972,6 +1974,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
              !key_cmp_if_same(col_privs,key,0,key_len));
     col_privs->file->ha_index_end();
   }
+}
+
+
+GRANT_TABLE::~GRANT_TABLE()
+{
+  hash_free(&hash_columns);
 }
 
 
@@ -2011,15 +2019,15 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     if (exact)
     {
       if ((host &&
-	   !my_strcasecmp(&my_charset_latin1, host, grant_table->host)) ||
+	   !my_strcasecmp(system_charset_info, host, grant_table->host)) ||
 	  (ip && !strcmp(ip,grant_table->host)))
 	return grant_table;
     }
     else
     {
-      if (((host && !wild_case_compare(&my_charset_latin1,
+      if (((host && !wild_case_compare(system_charset_info,
 				       host,grant_table->host)) ||
-	   (ip && !wild_case_compare(&my_charset_latin1,
+	   (ip && !wild_case_compare(system_charset_info,
 				     ip,grant_table->host))) &&
           (!found || found->sort < grant_table->sort))
 	found=grant_table;					// Host ok
@@ -2048,10 +2056,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
   byte key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_column_table");
 
-  table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-  table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
   key_copy(key,table->record[0],table->key_info,key_length);
@@ -2069,7 +2077,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     bool old_row_exists=0;
     key_restore(table->record[0],key,table->key_info,key_length);
     table->field[4]->store(xx->column.ptr(),xx->column.length(),
-                           &my_charset_latin1);
+                           system_charset_info);
 
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
@@ -2088,7 +2096,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       restore_record(table,default_values);		// Get empty record
       key_restore(table->record[0],key,table->key_info,key_length);
       table->field[4]->store(xx->column.ptr(),xx->column.length(),
-                             &my_charset_latin1);
+                             system_charset_info);
     }
     else
     {
@@ -2160,7 +2168,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       {
 	GRANT_COLUMN *grant_column = NULL;
 	char  colum_name_buf[HOSTNAME_LENGTH+1];
-	String column_name(colum_name_buf,sizeof(colum_name_buf),&my_charset_latin1);
+	String column_name(colum_name_buf,sizeof(colum_name_buf),system_charset_info);
 
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
@@ -2231,10 +2239,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   restore_record(table,default_values);			// Get empty record
-  table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
-  table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(table_name,(uint) strlen(table_name), &my_charset_latin1);
+  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
+  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
   store_record(table,record[1]);			// store at pos 1
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0],0,
@@ -2279,7 +2287,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
+  table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
   table->field[6]->store((longlong) store_table_rights);
   table->field[7]->store((longlong) store_col_rights);
   rights=fix_rights_for_table(store_table_rights);
@@ -2694,7 +2702,7 @@ my_bool grant_init(THD *org_thd)
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
-  (void) hash_init(&column_priv_hash,&my_charset_latin1,
+  (void) hash_init(&column_priv_hash,system_charset_info,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -2759,8 +2767,11 @@ my_bool grant_init(THD *org_thd)
       }
     }
 
-    if (mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (! mem_check->ok())
+      delete mem_check;
+    else if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
+      delete mem_check;
       grant_option= FALSE;
       goto end_unlock;
     }
@@ -3077,9 +3088,9 @@ bool check_grant_db(THD *thd,const char *db)
 							  idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-	(thd->host && !wild_case_compare(&my_charset_latin1,
+	(thd->host && !wild_case_compare(system_charset_info,
                                          thd->host,grant_table->host) ||
-	 (thd->ip && !wild_case_compare(&my_charset_latin1,
+	 (thd->ip && !wild_case_compare(system_charset_info,
                                         thd->ip,grant_table->host))))
     {
       error=0;					// Found match
@@ -3230,7 +3241,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_user->host.hostname))
       host= "";
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
       break;
   }
   if (counter == acl_users.elements)
@@ -3284,7 +3295,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
     global.append ("'@'",3);
-    global.append(lex_user->host.str,lex_user->host.length);
+    global.append(lex_user->host.str,lex_user->host.length,
+		  system_charset_info);
     global.append ('\'');
     if (acl_user->salt_len)
     {
@@ -3318,7 +3330,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (ssl_options++)
 	  global.append(' ');
 	global.append("SUBJECT \'",9);
-	global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
+	global.append(acl_user->x509_subject,strlen(acl_user->x509_subject),
+                      system_charset_info);
 	global.append('\'');
       }
       if (acl_user->ssl_cipher)
@@ -3326,7 +3339,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	if (ssl_options++)
 	  global.append(' ');
 	global.append("CIPHER '",8);
-	global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));
+	global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher),
+                      system_charset_info);
 	global.append('\'');
       }
     }
@@ -3365,7 +3379,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(&my_charset_latin1, lex_user->host.str, host))
+	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
     {
       want_access=acl_db->access;
       if (want_access)
@@ -3399,7 +3413,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	db.append(lex_user->user.str, lex_user->user.length,
 		  system_charset_info);
 	db.append ("'@'",3);
-	db.append(lex_user->host.str, lex_user->host.length);
+	db.append(lex_user->host.str, lex_user->host.length,
+                  system_charset_info);
 	db.append ('\'');
 	if (want_access & GRANT_ACL)
 	  db.append(" WITH GRANT OPTION",18);
@@ -3425,7 +3440,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       user= "";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(&my_charset_latin1, lex_user->host.str,
+	!my_strcasecmp(system_charset_info, lex_user->host.str,
                        grant_table->orig_host))
     {
       ulong table_access= grant_table->privs;
@@ -3505,7 +3520,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	global.append(lex_user->user.str, lex_user->user.length,
 		      system_charset_info);
 	global.append("'@'",3);
-	global.append(lex_user->host.str,lex_user->host.length);
+	global.append(lex_user->host.str,lex_user->host.length,
+		      system_charset_info);
 	global.append('\'');
 	if (table_access & GRANT_ACL)
 	  global.append(" WITH GRANT OPTION",18);
@@ -3564,6 +3580,27 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   else
     bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
 }
+
+/*
+  Open the grant tables.
+
+  SYNOPSIS
+    open_grant_tables()
+    thd                         The current thread.
+    tables (out)                The 4 elements array for the opened tables.
+
+  DESCRIPTION
+    Tables are numbered as follows:
+    0 user
+    1 db
+    2 tables_priv
+    3 columns_priv
+
+  RETURN
+    1           Skip GRANT handling during replication.
+    0           OK.
+    < 0         Error.
+*/
 
 int open_grant_tables(THD *thd, TABLE_LIST *tables)
 {
@@ -3640,111 +3677,563 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
 }
 
 
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
+/*
+  Modify a privilege table.
+
+  SYNOPSIS
+    modify_grant_table()
+    table                       The table to modify.
+    host_field                  The host name field.
+    user_field                  The user name field.
+    user_to                     The new name for the user if to be renamed,
+                                NULL otherwise.
+
+  DESCRIPTION
+  Update user/host in the current record if user_to is not NULL.
+  Delete the current record if user_to is NULL.
+
+  RETURN
+    0           OK.
+    != 0        Error.
+*/
+
+static int modify_grant_table(TABLE *table, Field *host_field,
+                              Field *user_field, LEX_USER *user_to)
 {
-  uint counter, acl_userd;
-  int result;
+  int error;
+  DBUG_ENTER("modify_grant_table");
+
+  if (user_to)
+  {
+    /* rename */
+    store_record(table, record[1]);
+    host_field->store(user_to->host.str, user_to->host.length,
+                      system_charset_info);
+    user_field->store(user_to->user.str, user_to->user.length,
+                      system_charset_info);
+    if ((error= table->file->update_row(table->record[1], table->record[0])))
+      table->file->print_error(error, MYF(0));
+  }
+  else
+  {
+    /* delete */
+    if ((error=table->file->delete_row(table->record[0])))
+      table->file->print_error(error, MYF(0));
+  }
+
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Handle a privilege table.
+
+  SYNOPSIS
+    handle_grant_table()
+    tables                      The array with the four open tables.
+    table_no                    The number of the table to handle (0..3).
+    drop                        If user_from is to be dropped.
+    user_from                   The the user to be searched/dropped/renamed.
+    user_to                     The new name for the user if to be renamed,
+                                NULL otherwise.
+
+  DESCRIPTION
+    Scan through all records in a grant table and apply the requested
+    operation. For the "user" table, a single index access is sufficient,
+    since there is an unique index on (host, user).
+    Delete from grant table if drop is true.
+    Update in grant table if drop is false and user_to is not NULL.
+    Search in grant table if drop is false and user_to is NULL.
+    Tables are numbered as follows:
+    0 user
+    1 db
+    2 tables_priv
+    3 columns_priv
+
+  RETURN
+    > 0         At least one record matched.
+    0           OK, but no record matched.
+    < 0         Error.
+*/
+
+static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+                              LEX_USER *user_from, LEX_USER *user_to)
+{
+  int result= 0;
+  int error;
+  TABLE *table= tables[table_no].table;
+  Field *host_field= table->field[0];
+  Field *user_field= table->field[table_no ? 2 : 1];
+  char *host_str= user_from->host.str;
+  char *user_str= user_from->user.str;
+  const char *host;
+  const char *user;
+  DBUG_ENTER("handle_grant_table");
+
+  if (! table_no)
+  {
+    /*
+      The 'user' table has an unique index on (host, user).
+      Thus, we can handle everything with a single index access.
+      The host- and user fields are consecutive in the user table records.
+      So we set host- and user fields of table->record[0] and use the
+      pointer to the host field as key.
+      index_read_idx() will replace table->record[0] (its first argument)
+      by the searched record, if it exists.
+    */
+    DBUG_PRINT("info",("read table: '%s'  search: '%s'@'%s'",
+                       table->real_name, user_str, host_str));
+    host_field->store(host_str, user_from->host.length, system_charset_info);
+    user_field->store(user_str, user_from->user.length, system_charset_info);
+    if ((error= table->file->index_read_idx(table->record[0], 0,
+                                            (byte*) host_field->ptr, 0,
+                                            HA_READ_KEY_EXACT)))
+    {
+      if (error != HA_ERR_KEY_NOT_FOUND)
+      {
+        table->file->print_error(error, MYF(0));
+        result= -1;
+      }
+    }
+    else
+    {
+      /* If requested, delete or update the record. */
+      result= ((drop || user_to) &&
+               modify_grant_table(table, host_field, user_field, user_to)) ?
+        -1 : 1; /* Error or found. */
+    }
+    DBUG_PRINT("info",("read result: %d", result));
+  }
+  else
+  {
+    /*
+      The non-'user' table do not have indexes on (host, user).
+      And their host- and user fields are not consecutive.
+      Thus, we need to do a table scan to find all matching records.
+    */
+    if ((error= table->file->ha_rnd_init(1)))
+    {
+      table->file->print_error(error, MYF(0));
+      result= -1;
+    }
+    else
+    {
+#ifdef EXTRA_DEBUG
+      DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
+                         table->real_name, user_str, host_str));
+#endif
+      while ((error= table->file->rnd_next(table->record[0])) != 
+             HA_ERR_END_OF_FILE)
+      {
+        if (error)
+        {
+          /* Most probable 'deleted record'. */
+          DBUG_PRINT("info",("scan error: %d", error));
+          continue;
+        }
+        if (! (host= get_field(&mem, host_field)))
+          host= "";
+        if (! (user= get_field(&mem, user_field)))
+          user= "";
+
+#ifdef EXTRA_DEBUG
+        DBUG_PRINT("loop",("scan fields: '%s'@'%s' '%s' '%s' '%s'",
+                           user, host,
+                           get_field(&mem, table->field[1]) /*db*/,
+                           get_field(&mem, table->field[3]) /*table*/,
+                           get_field(&mem, table->field[4]) /*column*/));
+#endif
+        if (strcmp(user_str, user) ||
+            my_strcasecmp(system_charset_info, host_str, host))
+          continue;
+
+        /* If requested, delete or update the record. */
+        result= ((drop || user_to) &&
+                 modify_grant_table(table, host_field, user_field, user_to)) ?
+          -1 : result ? result : 1; /* Error or keep result or found. */
+        /* If search is requested, we do not need to search further. */
+        if (! drop && ! user_to)
+          break ;
+      }
+      (void) table->file->ha_rnd_end();
+      DBUG_PRINT("info",("scan result: %d", result));
+    }
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Handle an in-memory privilege structure.
+
+  SYNOPSIS
+    handle_grant_struct()
+    struct_no                   The number of the structure to handle (0..2).
+    drop                        If user_from is to be dropped.
+    user_from                   The the user to be searched/dropped/renamed.
+    user_to                     The new name for the user if to be renamed,
+                                NULL otherwise.
+
+  DESCRIPTION
+    Scan through all elements in an in-memory grant structure and apply
+    the requested operation.
+    Delete from grant structure if drop is true.
+    Update in grant structure if drop is false and user_to is not NULL.
+    Search in grant structure if drop is false and user_to is NULL.
+    Structures are numbered as follows:
+    0 acl_users
+    1 acl_dbs
+    2 column_priv_hash
+
+  RETURN
+    > 0         At least one element matched.
+    0           OK, but no element matched.
+*/
+
+static int handle_grant_struct(uint struct_no, bool drop,
+                               LEX_USER *user_from, LEX_USER *user_to)
+{
+  int result= 0;
+  uint idx;
+  uint elements;
+  const char *user;
+  const char *host;
   ACL_USER *acl_user;
   ACL_DB *acl_db;
+  GRANT_TABLE *grant_table;
+  DBUG_ENTER("handle_grant_struct");
+  LINT_INIT(acl_user);
+  LINT_INIT(acl_db);
+  LINT_INIT(grant_table);
+  DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
+                     struct_no, user_from->user.str, user_from->host.str));
+
+  /* Get the number of elements in the in-memory structure. */
+  switch (struct_no)
+  {
+  case 0:
+    elements= acl_users.elements;
+    break;
+  case 1:
+    elements= acl_dbs.elements;
+    break;
+  default:
+    elements= column_priv_hash.records;
+  }
+
+#ifdef EXTRA_DEBUG
+    DBUG_PRINT("loop",("scan struct: %u  search    user: '%s'  host: '%s'",
+                       struct_no, user_from->user.str, user_from->host.str));
+#endif
+  /* Loop over all elements. */
+  for (idx= 0; idx < elements; idx++)
+  {
+    /*
+      Get a pointer to the element.
+      Unfortunaltely, the host default differs for the structures.
+    */
+    switch (struct_no)
+    {
+    case 0:
+      acl_user= dynamic_element(&acl_users, idx, ACL_USER*);
+      user= acl_user->user;
+      if (!(host= acl_user->host.hostname))
+        host= "%";
+      break;
+
+    case 1:
+      acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
+      user= acl_db->user;
+      host= acl_db->host.hostname;
+      break;
+
+    default:
+      grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash, idx);
+      user= grant_table->user;
+      host= grant_table->host;
+    }
+    if (! user)
+        user= "";
+    if (! host)
+        host= "";
+#ifdef EXTRA_DEBUG
+    DBUG_PRINT("loop",("scan struct: %u  index: %u  user: '%s'  host: '%s'",
+                       struct_no, idx, user, host));
+#endif
+    if (strcmp(user_from->user.str, user) ||
+        my_strcasecmp(system_charset_info, user_from->host.str, host))
+      continue;
+
+    result= 1; /* At least one element found. */
+    if ( drop )
+    {
+      switch ( struct_no )
+      {
+      case 0:
+        delete_dynamic_element(&acl_users, idx);
+        break;
+
+      case 1:
+        delete_dynamic_element(&acl_dbs, idx);
+        break;
+
+      default:
+        hash_delete(&column_priv_hash, (byte*) grant_table);
+      }
+      elements--;
+      idx--;
+    }
+    else if ( user_to )
+    {
+      switch ( struct_no )
+      {
+      case 0:
+        acl_user->user= strdup_root(&mem, user_to->user.str);
+        acl_user->host.hostname= strdup_root(&mem, user_to->host.str);
+        break;
+
+      case 1:
+        acl_db->user= strdup_root(&mem, user_to->user.str);
+        acl_db->host.hostname= strdup_root(&mem, user_to->host.str);
+        break;
+
+      default:
+        grant_table->user= strdup_root(&mem, user_to->user.str);
+        grant_table->host= strdup_root(&mem, user_to->host.str);
+      }
+    }
+    else
+    {
+      /* If search is requested, we do not need to search further. */
+      break;
+    }
+  }
+#ifdef EXTRA_DEBUG
+  DBUG_PRINT("loop",("scan struct: %u  result %d", struct_no, result));
+#endif
+
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Handle all privilege tables and in-memory privilege structures.
+
+  SYNOPSIS
+    handle_grant_data()
+    tables                      The array with the four open tables.
+    drop                        If user_from is to be dropped.
+    user_from                   The the user to be searched/dropped/renamed.
+    user_to                     The new name for the user if to be renamed,
+                                NULL otherwise.
+
+  DESCRIPTION
+    Go through all grant tables and in-memory grant structures and apply
+    the requested operation.
+    Delete from grant data if drop is true.
+    Update in grant data if drop is false and user_to is not NULL.
+    Search in grant data if drop is false and user_to is NULL.
+
+  RETURN
+    > 0         At least one element matched.
+    0           OK, but no element matched.
+    < 0         Error.
+*/
+
+static int handle_grant_data(TABLE_LIST *tables, bool drop,
+                             LEX_USER *user_from, LEX_USER *user_to)
+{
+  int result= 0;
+  int found;
+  DBUG_ENTER("handle_grant_data");
+
+  /* Handle user table. */
+  if ((found= handle_grant_table(tables, 0, drop, user_from, user_to)) < 0)
+  {
+    /* Handle of table failed, don't touch the in-memory array. */
+    result= -1;
+  }
+  else
+  {
+    /* Handle user array. */
+    if ((handle_grant_struct(0, drop, user_from, user_to) && ! result) || found)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+  }
+
+  /* Handle db table. */
+  if ((found= handle_grant_table(tables, 1, drop, user_from, user_to)) < 0)
+  {
+    /* Handle of table failed, don't touch the in-memory array. */
+    result= -1;
+  }
+  else
+  {
+    /* Handle db array. */
+    if (((handle_grant_struct(1, drop, user_from, user_to) && ! result) ||
+         found) && ! result)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+  }
+
+  /* Handle tables table. */
+  if ((found= handle_grant_table(tables, 2, drop, user_from, user_to)) < 0)
+  {
+    /* Handle of table failed, don't touch columns and in-memory array. */
+    result= -1;
+  }
+  else
+  {
+    if (found && ! result)
+    {
+      result= 1; /* At least one record found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+
+    /* Handle columns table. */
+    if ((found= handle_grant_table(tables, 3, drop, user_from, user_to)) < 0)
+    {
+      /* Handle of table failed, don't touch the in-memory array. */
+      result= -1;
+    }
+    else
+    {
+      /* Handle columns hash. */
+      if (((handle_grant_struct(2, drop, user_from, user_to) && ! result) ||
+           found) && ! result)
+        result= 1; /* At least one record/element found. */
+    }
+  }
+ end:
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Create a list of users.
+
+  SYNOPSIS
+    mysql_create_user()
+    thd                         The current thread.
+    list                        The users to create.
+
+  RETURN
+    FALSE       OK.
+    TRUE        Error.
+*/
+
+bool mysql_create_user(THD *thd, List <LEX_USER> &list)
+{
+  int result;
+  int found;
+  uint failures;
+  ulong sql_mode;
+  LEX_USER *user_name;
+  List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[4];
+  DBUG_ENTER("mysql_create_user");
 
-  DBUG_ENTER("mysql_drop_user");
-
+  /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
+  failures= 0;
+  while ((user_name= user_list++))
+  {
+    /*
+      Search all in-memory structures and grant tables
+      for a mention of the new user name.
+    */
+    if ((found= handle_grant_data(tables, 0, user_name, NULL)))
+    {
+      if (found > 0)
+        sql_print_error("CREATE USER: Cannot create user: '%s'@'%s': "
+                        "User exists",
+                        user_name->user.str,
+                        user_name->host.str);
+      failures++;
+      result= TRUE;
+    }
+
+    sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode&= ~MODE_NO_AUTO_CREATE_USER;
+    if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1))
+    {
+      failures++;
+      result= TRUE;
+    }
+    thd->variables.sql_mode= sql_mode;
+  }
+
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+  close_thread_tables(thd);
+  if (result)
+    my_error(ER_HANDLE_USER, MYF(0), "CREATE USER" , failures );
+  DBUG_RETURN(result);
+}
+
+
+/*
+  Drop a list of users and all their privileges.
+
+  SYNOPSIS
+    mysql_drop_user()
+    thd                         The current thread.
+    list                        The users to drop.
+
+  RETURN
+    FALSE       OK.
+    TRUE        Error.
+*/
+
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
+{
+  int result;
+  int found;
+  uint failures;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
-  while ((user_name=user_list++))
+  TABLE_LIST tables[4];
+  DBUG_ENTER("mysql_drop_user");
+
+  /* CREATE USER may be skipped on replication client. */
+  if ((result= open_grant_tables(thd, tables)))
+    DBUG_RETURN(result != 1);
+
+  rw_wrlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  failures= 0;
+  while ((user_name= user_list++))
   {
-    if (!(acl_user= check_acl_user(user_name, &counter)))
+    if ((found= handle_grant_data(tables, 1, user_name, NULL)) < 0)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; No such user",
-		      user_name->user.str,
-		      user_name->host.str);
-      result= -1;
-      continue;
+      failures++;
+      result= TRUE;
     }
-    if ((acl_user->access & ~0))
+    else if (! found)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Global privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
-      result= -1;
-      continue;
-    }
-    acl_userd= counter;
-
-    for (counter= 0 ; counter < acl_dbs.elements ; counter++)
-    {
-      const char *user,*host;
-      acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
-      if (!(user= acl_db->user))
-	user= "";
-      if (!(host= acl_db->host.hostname))
-	host= "";
-
-      if (!strcmp(user_name->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
-	break;
-    }
-    if (counter != acl_dbs.elements)
-    {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Database privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
-      result= -1;
-      continue;
-    }
-
-    for (counter= 0 ; counter < column_priv_hash.records ; counter++)
-    {
-      const char *user,*host;
-      GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
-							    counter);
-      if (!(user=grant_table->user))
-	user= "";
-      if (!(host=grant_table->host))
-	host= "";
-
-      if (!strcmp(user_name->user.str,user) &&
-	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
-	break;
-    }
-    if (counter != column_priv_hash.records)
-    {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s';  Table privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
-      result= -1;
-      continue;
-    }
-
-    tables[0].table->field[0]->store(user_name->host.str,(uint)
-				     user_name->host.length,
-				     system_charset_info);
-    tables[0].table->field[1]->store(user_name->user.str,(uint)
-				     user_name->user.length,
-				     system_charset_info);
-    tables[0].table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-    if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
-					       (byte*) tables[0].table->
-					       field[0]->ptr,
-					       tables[0].table->
-					       key_info[0].key_length,
-					       HA_READ_KEY_EXACT))
-    {
-      int error;
-      if ((error = tables[0].table->file->delete_row(tables[0].table->
-						     record[0])))
-      {
-	tables[0].table->file->print_error(error, MYF(0));
-	DBUG_RETURN(TRUE);
-      }
-      delete_dynamic_element(&acl_users, acl_userd);
+      sql_print_error("DROP USER: Cannot drop user '%s'@'%s': "
+                      "No such user",
+                      user_name->user.str,
+                      user_name->host.str);
+      failures++;
+      result= TRUE;
     }
   }
 
@@ -3752,9 +4241,101 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
-    my_message(ER_DROP_USER, ER(ER_DROP_USER), MYF(0));
+    my_error(ER_HANDLE_USER, MYF(0), "DROP USER" , failures );
   DBUG_RETURN(result);
 }
+
+
+/*
+  Rename a user.
+
+  SYNOPSIS
+    mysql_rename_user()
+    thd                         The current thread.
+    list                        The user name pairs: (from, to).
+
+  RETURN
+    FALSE       OK.
+    TRUE        Error.
+*/
+
+bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
+{
+  int result= 0;
+  int found;
+  uint failures;
+  LEX_USER *user_from;
+  LEX_USER *user_to;
+  List_iterator <LEX_USER> user_list(list);
+  TABLE_LIST tables[4];
+  DBUG_ENTER("mysql_rename_user");
+
+  /* CREATE USER may be skipped on replication client. */
+  if ((result= open_grant_tables(thd, tables)))
+    DBUG_RETURN(result != 1);
+
+  rw_wrlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  failures= 0;
+  while ((user_from= user_list++))
+  {
+    user_to= user_list++;
+    DBUG_ASSERT((user_to)); /* Syntax enforces pairs of users. */
+
+    /*
+      Search all in-memory structures and grant tables
+      for a mention of the new user name.
+    */
+    if ((found= handle_grant_data(tables, 0, user_to, NULL)))
+    {
+      if (found > 0)
+        sql_print_error("RENAME USER: Cannot rename to: '%s'@'%s': User exists",
+                        user_to->user.str,
+                        user_to->host.str);
+      failures++;
+      result= TRUE;
+    }
+    else
+    {
+      if ((found= handle_grant_data(tables, 0, user_from, user_to)) < 0)
+      {
+        failures++;
+        result= TRUE;
+      }
+      else if (! found)
+      {
+        sql_print_error("RENAME USER: Cannot rename user: '%s'@'%s': "
+                        "No such user",
+                        user_from->user.str,
+                        user_from->host.str);
+        failures++;
+        result= TRUE;
+      }
+    }
+  }
+
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+  close_thread_tables(thd);
+  if (result)
+    my_error(ER_HANDLE_USER, MYF(0), "RENAME USER", failures);
+  DBUG_RETURN(result);
+}
+
+/*
+  Revoke all privileges from a list of users.
+
+  SYNOPSIS
+    mysql_revoke_all()
+    thd                         The current thread.
+    list                        The users to revoke all privileges from.
+
+  RETURN
+    > 0         Error. Error message already sent.
+    0           OK.
+    < 0         Error. Error message not yet sent.
+*/
 
 bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {

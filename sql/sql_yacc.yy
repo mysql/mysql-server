@@ -788,9 +788,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_delete_options opt_delete_option varchar nchar nvarchar
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
-	opt_column_list grant_privileges opt_table user_list grant_option
-	grant_privilege grant_privilege_list
-	flush_options flush_option
+	opt_column_list grant_privileges opt_table grant_list grant_option
+	grant_privilege grant_privilege_list user_list rename_list
+	clear_privileges flush_options flush_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
@@ -1287,7 +1287,25 @@ create:
                                                    TL_WRITE))
               YYABORT;
           }
+	| CREATE USER clear_privileges grant_list
+	  {
+	    Lex->sql_command = SQLCOM_CREATE_USER;
+          }
 	;
+
+clear_privileges:
+        /* Nothing */
+        {
+          LEX *lex=Lex;
+          lex->users_list.empty();
+          lex->columns.empty();
+          lex->grant= lex->grant_tot_col= 0;
+          lex->select_lex.db= 0;
+          lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+          lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
+          bzero((char *)&(lex->mqh),sizeof(lex->mqh));
+        }
+        ;
 
 sp_name:
 	  IDENT_sys '.' IDENT_sys
@@ -3671,7 +3689,24 @@ rename:
 	}
 	table_to_table_list
 	{}
+	| RENAME USER clear_privileges rename_list
+          {
+	    Lex->sql_command = SQLCOM_RENAME_USER;
+          }
 	;
+
+rename_list:
+        user TO_SYM user
+        {
+          if (Lex->users_list.push_back($1) || Lex->users_list.push_back($3))
+            YYABORT;
+        }
+        | rename_list ',' user TO_SYM user
+          {
+            if (Lex->users_list.push_back($3) || Lex->users_list.push_back($5))
+              YYABORT;
+          }
+        ;
 
 table_to_table_list:
 	table_to_table
@@ -5479,14 +5514,10 @@ drop:
 	    lex->drop_if_exists= $3;
 	    lex->spname= $4;
 	  }
-	| DROP USER
+	| DROP USER clear_privileges user_list
 	  {
-	    LEX *lex=Lex;
-	    lex->sql_command = SQLCOM_DROP_USER;
-	    lex->users_list.empty();
-	  }
-	  user_list
-	  {}
+	    Lex->sql_command = SQLCOM_DROP_USER;
+          }
 	| DROP VIEW_SYM if_exists table_list opt_restrict
 	  {
 	    THD *thd= YYTHD;
@@ -6280,19 +6311,10 @@ purge_option:
         }
 	| BEFORE_SYM expr
 	{
-	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
-	  {
-	    my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
-	    YYABORT;
-	  }
-	  Item *tmp= new Item_func_unix_timestamp($2);
-	  /*
-	    it is OK only emulate fix_fieds, because we need only
-            value of constant
-	  */
-	  tmp->quick_fix_field();
-	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
-	  Lex->purge_time= (ulong) tmp->val_int();
+	  LEX *lex= Lex;
+	  lex->value_list.empty();
+	  lex->value_list.push_front($2);
+	  lex->sql_command= SQLCOM_PURGE_BEFORE;
 	}
 	;
 
@@ -6302,14 +6324,9 @@ kill:
 	KILL_SYM kill_option expr
 	{
 	  LEX *lex=Lex;
-	  if ($3->fix_fields(lex->thd, 0, &$3) || $3->check_cols(1))
-	  {
-	    my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
-                       MYF(0));
-	    YYABORT;
-	  }
-          lex->sql_command=SQLCOM_KILL;
-	  lex->thread_id= (ulong) $3->val_int();
+	  lex->value_list.empty();
+	  lex->value_list.push_front($3);
+          lex->sql_command= SQLCOM_KILL;
 	};
 
 kill_option:
@@ -7478,48 +7495,28 @@ handler_rkey_mode:
 /* GRANT / REVOKE */
 
 revoke:
-	REVOKE
-	{
-	  LEX *lex=Lex;
-	  lex->sql_command = SQLCOM_REVOKE;
-	  lex->users_list.empty();
-	  lex->columns.empty();
-	  lex->grant= lex->grant_tot_col=0;
-	  lex->select_lex.db=0;
-	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
-	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
-	}
-	revoke_command
+	REVOKE clear_privileges revoke_command
 	{}
         ;
 
 revoke_command:
-	grant_privileges ON opt_table FROM user_list
-	{}
+	grant_privileges ON opt_table FROM grant_list
+	{
+	  Lex->sql_command = SQLCOM_REVOKE;
+        }
 	|
-	ALL opt_privileges ',' GRANT OPTION FROM user_list
+	ALL opt_privileges ',' GRANT OPTION FROM grant_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
 	;
 
 grant:
-	GRANT
-	{
-	  LEX *lex=Lex;
-	  lex->users_list.empty();
-	  lex->columns.empty();
-	  lex->sql_command = SQLCOM_GRANT;
-	  lex->grant= lex->grant_tot_col= 0;
-	  lex->select_lex.db= 0;
-	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
-	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
-	  bzero((char *)&(lex->mqh),sizeof(lex->mqh));
-	}
-	grant_privileges ON opt_table TO_SYM user_list
+	GRANT clear_privileges grant_privileges ON opt_table TO_SYM grant_list
 	require_clause grant_options
-	{}
+	{
+	  Lex->sql_command = SQLCOM_GRANT;
+        }
 	;
 
 grant_privileges:
@@ -7659,8 +7656,18 @@ opt_table:
 
 
 user_list:
+	user  { if (Lex->users_list.push_back($1)) YYABORT;}
+	| user_list ',' user
+	  {
+	    if (Lex->users_list.push_back($3))
+	      YYABORT;
+	  }
+	;
+
+
+grant_list:
 	grant_user  { if (Lex->users_list.push_back($1)) YYABORT;}
-	| user_list ',' grant_user
+	| grant_list ',' grant_user
 	  {
 	    if (Lex->users_list.push_back($3))
 	      YYABORT;
