@@ -120,7 +120,7 @@ typedef unsigned long long my_ulonglong;
 typedef struct st_mysql_rows {
   struct st_mysql_rows *next;		/* list of rows */
   MYSQL_ROW data;
-  ulong	    length;
+  unsigned long length;
 } MYSQL_ROWS;
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
