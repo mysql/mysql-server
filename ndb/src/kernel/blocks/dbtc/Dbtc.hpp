@@ -934,7 +934,7 @@ public:
     // Third 16 byte cache line in second 64
     // byte cache line. Diverse use.
     //---------------------------------------------------
-    Uint32 scanNode;
+    Uint32 unused4;
     Uint32 scanTakeOverInd;
     UintR  firstKeybuf;   /* POINTER THE LINKED LIST OF KEY BUFFERS       */
     UintR  lastKeybuf;    /* VARIABLE POINTING TO THE LAST KEY BUFFER     */
