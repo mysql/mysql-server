@@ -141,7 +141,7 @@ COALESCE('a' COLLATE latin1_bin,'b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select coalesce(1) AS `COALESCE(1)`,coalesce(1.0) AS `COALESCE(1.0)`,coalesce(_latin1'a') AS `COALESCE('a')`,coalesce(1,1.0) AS `COALESCE(1,1.0)`,coalesce(1,_latin1'1') AS `COALESCE(1,'1')`,coalesce(1.1,_latin1'1') AS `COALESCE(1.1,'1')`,coalesce((_latin1'a' collate _latin1'latin1_bin'),_latin1'b') AS `COALESCE('a' COLLATE latin1_bin,'b')`
+Note	1003	select coalesce(1) AS `COALESCE(1)`,coalesce(1.0) AS `COALESCE(1.0)`,coalesce(_latin1'a') AS `COALESCE('a')`,coalesce(1,1.0) AS `COALESCE(1,1.0)`,coalesce(1,_latin1'1') AS `COALESCE(1,'1')`,coalesce(1.1,_latin1'1') AS `COALESCE(1.1,'1')`,coalesce((_latin1'a' collate latin1_bin),_latin1'b') AS `COALESCE('a' COLLATE latin1_bin,'b')`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

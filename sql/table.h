@@ -29,9 +29,12 @@ typedef struct st_order {
   Item	 **item;			/* Point at item in select fields */
   Item	 *item_ptr;			/* Storage for initial item */
   Item   **item_copy;			/* For SPs; the original item ptr */
+  int    counter;                       /* position in SELECT list, correct
+                                           only if counter_used is true*/
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
+  bool   counter_used;                  /* parapeter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
   table_map used,depend_map;
@@ -179,7 +182,7 @@ struct st_table {
 #define JOIN_TYPE_RIGHT	2
 
 #define VIEW_ALGORITHM_UNDEFINED	0
-#define VIEW_ALGORITHM_TMEPTABLE	1
+#define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
 struct st_lex;
@@ -222,7 +225,7 @@ typedef struct st_table_list
   LEX_STRING	view_name;		/* save view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   ulonglong	file_version;		/* version of file's field set */
-  ulonglong     updatable_view;        /* VIEW can be updated */
+  ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
   uint          effective_algorithm;    /* which algorithm was really used */
@@ -267,7 +270,7 @@ public:
   virtual ~Field_iterator() {}
   virtual void set(TABLE_LIST *)= 0;
   virtual void next()= 0;
-  virtual bool end()= 0;
+  virtual bool end_of_fields()= 0;              /* Return 1 at end of list */
   virtual const char *name()= 0;
   virtual Item *item(THD *)= 0;
   virtual Field *field()= 0;
@@ -282,7 +285,7 @@ public:
   void set(TABLE_LIST *table) { ptr= table->table->field; }
   void set_table(TABLE *table) { ptr= table->field; }
   void next() { ptr++; }
-  bool end() { return test(*ptr); }
+  bool end_of_fields() { return *ptr == 0; }
   const char *name();
   Item *item(THD *thd);
   Field *field() { return *ptr; }
@@ -296,7 +299,7 @@ public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
-  bool end() { return ptr < array_end; }
+  bool end_of_fields() { return ptr == array_end; }
   const char *name();
   Item *item(THD *thd) { return *ptr; }
   Field *field() { return 0; }

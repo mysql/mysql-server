@@ -28,7 +28,7 @@
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev)
   : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
-    m_parent(prev), m_handlers(0)
+    m_handlers(0), m_parent(prev)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
@@ -94,7 +94,7 @@ sp_pcontext::diff_handlers(sp_pcontext *ctx)
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->max_handlers();
+    n+= pctx->m_handlers;
     pctx= pctx->parent_context();
   }
   if (pctx)
@@ -109,12 +109,9 @@ sp_pcontext::diff_cursors(sp_pcontext *ctx)
   sp_pcontext *pctx= this;
 
   while (pctx && pctx != ctx)
-  {
-    n+= pctx->max_cursors();
     pctx= pctx->parent_context();
-  }
   if (pctx)
-    return n;
+    return ctx->current_cursors() - pctx->current_cursors();
   return 0;			// Didn't find ctx
 }
 

@@ -113,8 +113,8 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(-1);
+  if ((error= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(error);
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -496,7 +496,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (find_real_table_in_list(table_list->next_global, 
+  if (find_table_in_global_list(table_list->next_global, 
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
@@ -788,7 +788,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_real_table_in_list(update_tables, table_ref->db,
+	find_table_in_global_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache
   }
