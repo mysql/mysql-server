@@ -21,6 +21,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_sjis
+
+
 /*
  * This comment is parsed by configure to create ctype.c,
  * so don't change it unless you know what you are doing.
@@ -308,3 +311,5 @@ my_bool my_like_range_sjis(CHARSET_INFO *cs,
     *min_str++ = *max_str++ = ' ';	/* Because if key compression */
   return 0;
 }
+
+#endif

@@ -17,6 +17,9 @@
 #include <my_global.h>
 #include "m_ctype.h"
 
+#ifdef USE_MB
+
+
 void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
@@ -123,3 +126,4 @@ int my_strncasecmp_mb(CHARSET_INFO * cs,
   return 0;
 }
 
+#endif

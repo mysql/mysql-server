@@ -31,6 +31,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_CHARSET_gbk
+
+
 /* Support for Chinese(GBK) characters, by hewei@mail.ied.ac.cn */
 
 #define isgbkhead(c) (0x81<=(uchar)(c) && (uchar)(c)<=0xfe)
@@ -2715,3 +2718,5 @@ int mbcharlen_gbk(uint c)
 {
   return (isgbkhead(c)? 2:0);
 }
+
+#endif

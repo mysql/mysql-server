@@ -1869,6 +1869,7 @@ CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
                           latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
                           usa7 utf8 win1250 win1251ukr"
 CHARSETS_DEPRECATED="win1251"
+CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis"
 DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
@@ -1889,15 +1890,11 @@ AC_MSG_CHECKING("character sets")
 if test "$extra_charsets" = none; then
   CHARSETS=""
 elif test "$extra_charsets" = complex; then
-  CHARSETS=`/bin/ls -1 $srcdir/strings/ctype-*.c | \
-                  sed -e 's;^.*/ctype-;;' -e 's;.c$;;'`
-  CHARSETS=`echo $CHARSETS`     # get rid of line breaks
+  CHARSETS="$CHARSETS_COMPLEX"
+elif test "$extra_charsets" = all; then
+  CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
 else
-  if test "$extra_charsets" = all; then
-    CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
-  else
-    CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
-  fi
+  CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
 fi
 
 use_mb="no"
@@ -2018,19 +2015,6 @@ do
   esac
 done
 
-CHARSET_SRCS=""
-CHARSETS_NEED_SOURCE=""
-
-for c in $CHARSETS
-do
-  cs_file="$srcdir/strings/ctype-$c.c"
-  if test -f $cs_file
-  then
-    CHARSET_SRCS="${CHARSET_SRCS}ctype-$c.c "
-    CHARSETS_NEED_SOURCE="$CHARSETS_NEED_SOURCE $c"
-  fi
-done
-
 if test "$use_mb" = "yes"
 then
   AC_DEFINE(USE_MB)
@@ -2042,11 +2026,6 @@ AC_DEFINE(USE_STRCOLL)
 
 AC_SUBST(default_charset)
 AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")
-AC_SUBST(CHARSET_SRCS)
-CHARSET_OBJS="`echo "$CHARSET_SRCS" | sed -e 's/\.c /.o /g'`"
-AC_SUBST(CHARSET_OBJS)
-AC_SUBST(CHARSETS_NEED_SOURCE)
-
 
 AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 

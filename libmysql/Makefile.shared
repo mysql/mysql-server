@@ -27,9 +27,6 @@ pkglib_LTLIBRARIES =		$(target)
 
 noinst_PROGRAMS = conf_to_src
 
-# We need .lo, not .o files for everything.
-CHARSET_OBJS=@CHARSET_OBJS@
-LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 
 target_sources = libmysql.c net.c  password.c manager.c \
 			    get_password.c errmsg.c
@@ -41,7 +38,11 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strcend.lo bcmp.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
-			ctype.lo ctype-simple.lo ctype-mb.lo $(LTCHARSET_OBJS)
+			ctype.lo ctype-simple.lo ctype-mb.lo \
+			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo \
+			ctype-gb2312.lo ctype-gbk.lo ctype-latin1_de.lo \
+			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo
+
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
@@ -74,7 +75,7 @@ DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" $(target_defs)
 
 # The automatic dependencies miss this
-bmove_upp.lo:		$(LTCHARSET_OBJS)
+#bmove_upp.lo:		$(LTCHARSET_OBJS)
 
 clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
