@@ -73,7 +73,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
     if (!(flag & READING_HEADER) || info->error == -1 ||
 	(uint) info->error+in_buff_length < 3)
     {
-      if (!my_errno)
+      if (!my_errno || my_errno == -1)
 	my_errno=HA_ERR_WRONG_IN_RECORD;
       DBUG_RETURN(1);
     }
@@ -87,7 +87,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
   if (!(flag & READING_HEADER) || (int) read_length == -1 ||
       read_length+in_buff_length < 3)
   {
-    if (!my_errno)
+    if (!my_errno || my_errno == -1)
       my_errno=HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }

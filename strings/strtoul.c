@@ -19,6 +19,6 @@
 
 #include <global.h>
 #if !defined(MSDOS) && !defined(HAVE_STRTOUL)
-#define UNSIGNED
+#define USE_UNSIGNED
 #include "strto.c"
 #endif
