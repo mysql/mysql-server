@@ -2672,6 +2672,7 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
   :Field_str(ptr_arg, 19, (uchar*) 0,0,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
+  flags|=ZEROFILL_FLAG; /* 4.0 MYD compatibility */
   if (table && !table->timestamp_field)
   {
     table->timestamp_field= this;		// Automatic timestamp
