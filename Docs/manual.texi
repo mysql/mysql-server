@@ -44001,6 +44001,9 @@ Allow @code{SELECT expression LIMIT ...}.
 Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like Sybase).
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
+@item
+Optimized queries of type:
+@code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
