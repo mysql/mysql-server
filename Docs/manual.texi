@@ -49303,7 +49303,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @menu
 * News-4.0.2::                  Changes in release 4.0.2
-* News-4.0.1::                  Changes in release 4.0.1
+* News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
 * News-4.0.0::                  Changes in release 4.0.0
 @end menu
 
@@ -49509,7 +49509,7 @@ GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
 @end itemize
 
 @node News-4.0.1, News-4.0.0, News-4.0.2, News-4.0.x
-@appendixsubsec Changes in release 4.0.1
+@appendixsubsec Changes in release 4.0.1 (23 Dec 2001)
 
 @itemize @bullet
 @item
@@ -49741,36 +49741,36 @@ not yet 100% confident in this code.
 
 @menu
 * News-3.23.51::                Changes in release 3.23.51
-* News-3.23.50::                Changes in release 3.23.50
+* News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
 * News-3.23.49::                Changes in release 3.23.49
-* News-3.23.48::                Changes in release 3.23.48
-* News-3.23.47::                Changes in release 3.23.47
-* News-3.23.46::                Changes in release 3.23.46
-* News-3.23.45::                Changes in release 3.23.45
-* News-3.23.44::                Changes in release 3.23.44
+* News-3.23.48::                Changes in release 3.23.48 (07 Feb 2002)
+* News-3.23.47::                Changes in release 3.23.47 (27 Dec 2001)
+* News-3.23.46::                Changes in release 3.23.46 (29 Nov 2001)
+* News-3.23.45::                Changes in release 3.23.45 (22 Nov 2001)
+* News-3.23.44::                Changes in release 3.23.44 (31 Oct 2001)
 * News-3.23.43::                Changes in release 3.23.43
-* News-3.23.42::                Changes in release 3.23.42
-* News-3.23.41::                Changes in release 3.23.41
+* News-3.23.42::                Changes in release 3.23.42 (08 Sep 2001)
+* News-3.23.41::                Changes in release 3.23.41 (11 Aug 2001)
 * News-3.23.40::                Changes in release 3.23.40
-* News-3.23.39::                Changes in release 3.23.39
-* News-3.23.38::                Changes in release 3.23.38
-* News-3.23.37::                Changes in release 3.23.37
-* News-3.23.36::                Changes in release 3.23.36
-* News-3.23.35::                Changes in release 3.23.35
+* News-3.23.39::                Changes in release 3.23.39 (12 Jun 2001)
+* News-3.23.38::                Changes in release 3.23.38 (09 May 2001)
+* News-3.23.37::                Changes in release 3.23.37 (17 Apr 2001)
+* News-3.23.36::                Changes in release 3.23.36 (27 Mar 2001)
+* News-3.23.35::                Changes in release 3.23.35 (15 Mar 2001)
 * News-3.23.34a::               Changes in release 3.23.34a
-* News-3.23.34::                Changes in release 3.23.34
-* News-3.23.33::                Changes in release 3.23.33
-* News-3.23.32::                Changes in release 3.23.32
-* News-3.23.31::                Changes in release 3.23.31
-* News-3.23.30::                Changes in release 3.23.30
-* News-3.23.29::                Changes in release 3.23.29
-* News-3.23.28::                Changes in release 3.23.28
-* News-3.23.27::                Changes in release 3.23.27
+* News-3.23.34::                Changes in release 3.23.34 (10 Mar 2001)
+* News-3.23.33::                Changes in release 3.23.33 (09 Feb 2001)
+* News-3.23.32::                Changes in release 3.23.32 (22 Jan 2001)
+* News-3.23.31::                Changes in release 3.23.31 (17 Jan 2001)
+* News-3.23.30::                Changes in release 3.23.30 (04 Jan 2001)
+* News-3.23.29::                Changes in release 3.23.29 (16 Dec 2000)
+* News-3.23.28::                Changes in release 3.23.28 (22 Nov 2000)
+* News-3.23.27::                Changes in release 3.23.27 (24 Oct 2000)
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
-* News-3.23.24::                Changes in release 3.23.24
+* News-3.23.24::                Changes in release 3.23.24 (08 Sep 2000)
 * News-3.23.23::                Changes in release 3.23.23
-* News-3.23.22::                Changes in release 3.23.22
+* News-3.23.22::                Changes in release 3.23.22 (31 Jul 2000)
 * News-3.23.21::                Changes in release 3.23.21
 * News-3.23.20::                Changes in release 3.23.20
 * News-3.23.19::                Changes in release 3.23.19
@@ -49797,6 +49797,7 @@ not yet 100% confident in this code.
 
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
+
 @itemize @bullet
 @item
 Fixed bug in @code{CONCAT_WS()} that cut the result.
@@ -49840,7 +49841,8 @@ Linux-x86 binaries.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
-@appendixsubsec Changes in release 3.23.50
+@appendixsubsec Changes in release 3.23.50 (21 Apr 2002)
+
 @itemize @bullet
 @item
 Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
@@ -49929,7 +49931,7 @@ Fixed shutdown problem on NT.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x
-@appendixsubsec Changes in release 3.23.48
+@appendixsubsec Changes in release 3.23.48 (07 Feb 2002)
 
 @itemize @bullet
 @item
@@ -49988,7 +49990,7 @@ this situation.
 @end itemize
 
 @node News-3.23.47, News-3.23.46, News-3.23.48, News-3.23.x
-@appendixsubsec Changes in release 3.23.47
+@appendixsubsec Changes in release 3.23.47 (27 Dec 2001)
 
 @itemize @bullet
 @item
@@ -50020,7 +50022,7 @@ Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @end itemize
 
 @node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x
-@appendixsubsec Changes in release 3.23.46
+@appendixsubsec Changes in release 3.23.46 (29 Nov 2001)
 
 @itemize @bullet
 @item
@@ -50049,7 +50051,7 @@ Fixed bug in replication on Mac OS X.
 @end itemize
 
 @node News-3.23.45, News-3.23.44, News-3.23.46, News-3.23.x
-@appendixsubsec Changes in release 3.23.45
+@appendixsubsec Changes in release 3.23.45 (22 Nov 2001)
 
 @itemize @bullet
 @item
@@ -50086,7 +50088,7 @@ Fixed bug in @code{TIME_TO_SEC()} when using negative values.
 @end itemize
 
 @node News-3.23.44, News-3.23.43, News-3.23.45, News-3.23.x
-@appendixsubsec Changes in release 3.23.44
+@appendixsubsec Changes in release 3.23.44 (31 Oct 2001)
 
 @itemize @bullet
 @item
@@ -50209,7 +50211,7 @@ Fixed bug in @code{--safe-user-create}.
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
-@appendixsubsec Changes in release 3.23.42
+@appendixsubsec Changes in release 3.23.42 (08 Sep 2001)
 
 @itemize @bullet
 @item
@@ -50267,7 +50269,7 @@ other threads.
 @end itemize
 
 @node News-3.23.41, News-3.23.40, News-3.23.42, News-3.23.x
-@appendixsubsec Changes in release 3.23.41
+@appendixsubsec Changes in release 3.23.41 (11 Aug 2001)
 
 @itemize @bullet
 @item
@@ -50367,7 +50369,7 @@ type. @code{GEMINI} is not released under an @code{Open Source} license.
 
 
 @node News-3.23.39, News-3.23.38, News-3.23.40, News-3.23.x
-@appendixsubsec Changes in release 3.23.39
+@appendixsubsec Changes in release 3.23.39 (12 Jun 2001)
 
 @itemize @bullet
 @item
@@ -50410,7 +50412,7 @@ Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
 
 
 @node News-3.23.38, News-3.23.37, News-3.23.39, News-3.23.x
-@appendixsubsec Changes in release 3.23.38
+@appendixsubsec Changes in release 3.23.38 (09 May 2001)
 
 @itemize @bullet
 @item
@@ -50462,7 +50464,7 @@ Fixed bug with @code{LOCK TABLE} and @code{BDB} tables.
 
 
 @node News-3.23.37, News-3.23.36, News-3.23.38, News-3.23.x
-@appendixsubsec Changes in release 3.23.37
+@appendixsubsec Changes in release 3.23.37 (17 Apr 2001)
 
 @itemize @bullet
 @item
@@ -50528,7 +50530,7 @@ Added @code{--skip-safemalloc} option to @code{mysqld}.
 
 
 @node News-3.23.36, News-3.23.35, News-3.23.37, News-3.23.x
-@appendixsubsec Changes in release 3.23.36
+@appendixsubsec Changes in release 3.23.36 (27 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50569,7 +50571,7 @@ Changed some macros to be able to use fast mutex with @code{glibc} 2.2.
 
 
 @node News-3.23.35, News-3.23.34a, News-3.23.36, News-3.23.x
-@appendixsubsec Changes in release 3.23.35
+@appendixsubsec Changes in release 3.23.35 (15 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50598,7 +50600,7 @@ to be compiled.
 
 
 @node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
-@appendixsubsec Changes in release 3.23.34
+@appendixsubsec Changes in release 3.23.34 (10 Mar 2001)
 
 @itemize @bullet
 @item
@@ -50674,7 +50676,7 @@ where @code{bar} is a column reference, an error was not properly generated.
 
 
 @node News-3.23.33, News-3.23.32, News-3.23.34, News-3.23.x
-@appendixsubsec Changes in release 3.23.33
+@appendixsubsec Changes in release 3.23.33 (09 Feb 2001)
 
 @itemize @bullet
 @item
@@ -50766,7 +50768,7 @@ the disk cache.
 
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
-@appendixsubsec Changes in release 3.23.32
+@appendixsubsec Changes in release 3.23.32 (22 Jan 2001)
 
 @itemize @bullet
 @item
@@ -50808,7 +50810,7 @@ Added @code{MASTER_POS_WAIT()}.
 
 
 @node News-3.23.31, News-3.23.30, News-3.23.32, News-3.23.x
-@appendixsubsec Changes in release 3.23.31
+@appendixsubsec Changes in release 3.23.31 (17 Jan 2001)
 
 @itemize @bullet
 @item
@@ -50864,7 +50866,7 @@ Added @code{Threads_created} status variable to @code{mysqld}.
 
 
 @node News-3.23.30, News-3.23.29, News-3.23.31, News-3.23.x
-@appendixsubsec Changes in release 3.23.30
+@appendixsubsec Changes in release 3.23.30 (04 Jan 2001)
 
 @itemize @bullet
 @item
@@ -50927,7 +50929,7 @@ Fixed bug when running two simultaneous @code{SHOW LOGS} queries.
 
 
 @node News-3.23.29, News-3.23.28, News-3.23.30, News-3.23.x
-@appendixsubsec Changes in release 3.23.29
+@appendixsubsec Changes in release 3.23.29 (16 Dec 2000)
 
 @itemize @bullet
 @item
@@ -51056,7 +51058,7 @@ read by @code{mysql_options()}.
 
 
 @node News-3.23.28, News-3.23.27, News-3.23.29, News-3.23.x
-@appendixsubsec Changes in release 3.23.28
+@appendixsubsec Changes in release 3.23.28 (22 Nov 2000)
 
 @itemize @bullet
 @item
@@ -51179,7 +51181,7 @@ new table with the rows in a specific order.
 
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
-@appendixsubsec Changes in release 3.23.27
+@appendixsubsec Changes in release 3.23.27 (24 Oct 2000)
 
 @itemize @bullet
 @item
@@ -51369,7 +51371,7 @@ Added file mutexes to make @code{pwrite()} safe on Windows.
 
 
 @node News-3.23.24, News-3.23.23, News-3.23.25, News-3.23.x
-@appendixsubsec Changes in release 3.23.24
+@appendixsubsec Changes in release 3.23.24 (08 Sep 2000)
 
 @itemize @bullet
 @item
@@ -51505,7 +51507,7 @@ Full-text search via the @code{MATCH()} function and @code{FULLTEXT} index type
 
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
-@appendixsubsec Changes in release 3.23.22
+@appendixsubsec Changes in release 3.23.22 (31 Jul 2000)
 
 @itemize @bullet
 @item
