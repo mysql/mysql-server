@@ -135,7 +135,7 @@ static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
 static bool make_sum_func_list(JOIN *join,List<Item> &fields);
-static bool change_to_use_tmp_fields(List<Item> &func, bool change=false);
+static bool change_to_use_tmp_fields(List<Item> &func);
 static bool change_refs_to_tmp_fields(THD *thd, List<Item> &func);
 static void init_tmptable_sum_functions(Item_sum **func);
 static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
@@ -788,7 +788,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       tmp_table=tmp_table2;
       join.join_tab[0].table=0;			// Table is freed
 
-      if (change_to_use_tmp_fields(all_fields,true)) // No sum funcs anymore
+      if (change_to_use_tmp_fields(all_fields)) // No sum funcs anymore
 	goto err;
       join.tmp_table_param.field_count+=join.tmp_table_param.sum_func_count;
       join.tmp_table_param.sum_func_count=0;
@@ -3676,7 +3676,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (blob_count == 0)
   {
     /* We need to ensure that first byte is not 0 for the delete link */
-    if (hidden_null_count)
+    if (param->hidden_field_count)
       hidden_null_count++;
     else
       null_count++;
@@ -6764,7 +6764,7 @@ make_sum_func_list(JOIN *join,List<Item> &fields)
 */
 
 static bool
-change_to_use_tmp_fields(List<Item> &items, bool change)
+change_to_use_tmp_fields(List<Item> &items)
 {
   List_iterator<Item> it(items);
   Item *item_field,*item;
@@ -6776,11 +6776,6 @@ change_to_use_tmp_fields(List<Item> &items, bool change)
       continue;
     if (item->type() == Item::FIELD_ITEM)
     {
-      if (change)
-      {
-	((Item_field*) item)->result_field->null_ptr=0;
-	item->maybe_null=0;
-      }
       ((Item_field*) item)->field=
 	((Item_field*) item)->result_field;
     }
