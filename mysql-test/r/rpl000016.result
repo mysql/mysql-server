@@ -1,5 +1,5 @@
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.001	216	Yes			0		0
+127.0.0.1	root	9999	60	master-bin.001	234	Yes			0		0
 s
 Could not break slave
 Tried hard
@@ -10,7 +10,7 @@ master-bin.003
 Log_name
 master-bin.003
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.003	184	Yes			0		0
+127.0.0.1	root	9999	60	master-bin.003	202	Yes			0		0
 m
 34
 65
@@ -23,8 +23,8 @@ master-bin.004
 master-bin.005
 master-bin.006
 File	Position	Binlog_do_db	Binlog_ignore_db
-master-bin.006	131		
+master-bin.006	720		
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter
-127.0.0.1	root	9999	60	master-bin.006	131	Yes			0		0
+127.0.0.1	root	9999	60	master-bin.006	720	Yes			0		0
 count(*)
 100
