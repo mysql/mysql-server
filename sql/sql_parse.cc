@@ -1513,7 +1513,7 @@ mysql_execute_command(THD *thd)
       given and the table list says the query should not be replicated
     */
     if (table_rules_on && tables && !tables_ok(thd,tables))
-      return 0;
+      DBUG_RETURN(0);
 #ifndef TO_BE_DELETED
     /*
        This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
@@ -1549,7 +1549,7 @@ mysql_execute_command(THD *thd)
 	{
 	  if (res < 0 || thd->net.report_error)
 	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	  return res;
+	  DBUG_RETURN(res);
 	}
       }
     }
@@ -1558,7 +1558,7 @@ mysql_execute_command(THD *thd)
        lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
-    return 0;
+    DBUG_RETURN(0);
 
   statistic_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
@@ -1838,7 +1838,7 @@ mysql_execute_command(THD *thd)
 	  find_real_table_in_list(tables->next, tables->db, tables->real_name))
       {
 	net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
-	return -1;
+	DBUG_RETURN(-1);
       }
       if (tables->next)
       {
@@ -2912,11 +2912,11 @@ mysql_execute_command(THD *thd)
   // or res != 0 and no send_error() has yet been done.
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-  return res;
+  DBUG_RETURN(res);
 
 error:
   // We end up here if send_error() has already been done.
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 

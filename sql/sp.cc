@@ -26,6 +26,7 @@
 sp_head *
 sp_find_procedure(THD *thd, Item_string *iname)
 {
+  DBUG_ENTER("sp_find_procedure");
   extern int yyparse(void *thd);
   LEX *tmplex;
   TABLE *table;
@@ -35,11 +36,12 @@ sp_find_procedure(THD *thd, Item_string *iname)
   sp_head *sp = NULL;
 
   name = iname->const_string();
+  DBUG_PRINT("enter", ("name: %*s", name->length(), name->c_ptr()));
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
   tables.real_name= tables.alias= (char*)"proc";
   if (! (table= open_ltable(thd, &tables, TL_READ)))
-    return NULL;
+    DBUG_RETURN(NULL);
 
   if (table->file->index_read_idx(table->record[0], 0,
 				  (byte*)name->c_ptr(), name->length(),
@@ -59,12 +61,14 @@ sp_find_procedure(THD *thd, Item_string *iname)
  done:
   if (table)
     close_thread_tables(thd);
-  return sp;
+  DBUG_RETURN(sp);
 }
 
 int
 sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
 {
+  DBUG_ENTER("sp_create_procedure");
+  DBUG_PRINT("enter", ("name: %*s def: %*s", namelen, name, deflen, def));
   int ret= 0;
   TABLE *table;
   TABLE_LIST tables;
@@ -88,12 +92,14 @@ sp_create_procedure(THD *thd, char *name, uint namelen, char *def, uint deflen)
 
  done:
   close_thread_tables(thd);
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int
 sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
+  DBUG_ENTER("sp_drop_procedure");
+  DBUG_PRINT("enter", ("name: %*s", namelen, name));
   TABLE *table;
   TABLE_LIST tables;
 
@@ -111,9 +117,9 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
       table->file->print_error(error, MYF(0));
   }
   close_thread_tables(thd);
-  return 0;
+  DBUG_RETURN(0);
 
  err:
   close_thread_tables(thd);
-  return -1;
+  DBUG_RETURN(-1);
 }

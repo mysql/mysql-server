@@ -1049,10 +1049,18 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+	      /* Don't add an instruction for empty SET statements.
+	      ** (This happens if the SET only contained local variables,
+	      **  which get their set instructions generated separately.)
+	      */
+	      if (lex->sql_command != SQLCOM_SET_OPTION ||
+	          !lex->var_list.is_empty())
+	      {
+	        sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
 
-	      i->set_lex(lex);
-	      lex->sphead->add_instr(i);
+	        i->set_lex(lex);
+	        lex->sphead->add_instr(i);
+              }
 	      lex->sphead->restore_lex(YYTHD);
 	    }
           }
