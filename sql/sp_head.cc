@@ -504,6 +504,7 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
+    thd->rollback_item_tree_changes();
     if (i->free_list)
       cleanup_items(i->free_list);
     // Check if an exception has occurred and a handler has been found
@@ -1195,7 +1196,6 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   res= mysql_execute_command(thd);
 
   lex->unit.cleanup();
-  thd->rollback_item_tree_changes();
   if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";

@@ -476,6 +476,9 @@ void ha_close_connection(THD* thd)
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
+  DBUG_ENTER("trans_register_ha");
+  DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
+
   if (all)
   {
     trans= &thd->transaction.all;
@@ -496,6 +499,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid.is_null())
     thd->transaction.xid.set(thd->query_id);
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -514,7 +518,7 @@ int ha_prepare(THD *thd)
   if (trans->nht)
   {
     if (trans->no_2pc)
-      return -1;
+      DBUG_RETURN(-1);
     for (; *ht; ht++)
     {
       int err;
@@ -860,7 +864,8 @@ err:
 int ha_release_temporary_latches(THD *thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  innobase_release_temporary_latches(thd);
+  if (opt_innodb)
+    innobase_release_temporary_latches(thd);
 #endif
   return 0;
 }
@@ -1022,15 +1027,24 @@ bool ha_flush_logs()
   The .frm file will be deleted only if we return 0 or ENOENT
 */
 
-int ha_delete_table(enum db_type table_type, const char *path)
+int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
+                    const char *alias, bool generate_warning)
 {
   handler *file;
   char tmp_path[FN_REFLEN];
+  int error;
+  TABLE dummy_table;
+  TABLE_SHARE dummy_share;
+  DBUG_ENTER("ha_delete_table");
+
+  bzero((char*) &dummy_table, sizeof(dummy_table));
+  bzero((char*) &dummy_share, sizeof(dummy_share));
+  dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == DB_TYPE_UNKNOWN ||
-      ! (file=get_new_handler((TABLE*) 0, table_type)))
-    return ENOENT;
+      ! (file=get_new_handler(&dummy_table, table_type)))
+    DBUG_RETURN(ENOENT);
 
   if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
   {
@@ -1039,9 +1053,45 @@ int ha_delete_table(enum db_type table_type, const char *path)
     my_casedn_str(files_charset_info, tmp_path);
     path= tmp_path;
   }
-  int error=file->delete_table(path);
+  if ((error= file->delete_table(path)) && generate_warning)
+  {
+    /*
+      Because file->print_error() use my_error() to generate the error message
+      we must store the error state in thd, reset it and restore it to
+      be able to get hold of the error message.
+      (We should in the future either rewrite handler::print_error() or make
+      a nice method of this.
+    */
+    bool query_error= thd->query_error;
+    sp_rcontext *spcont= thd->spcont;
+    SELECT_LEX *current_select= thd->lex->current_select;
+    char buff[sizeof(thd->net.last_error)];
+    char new_error[sizeof(thd->net.last_error)];
+    int last_errno= thd->net.last_errno;
+
+    strmake(buff, thd->net.last_error, sizeof(buff)-1);
+    thd->query_error= 0;
+    thd->spcont= 0;
+    thd->lex->current_select= 0;
+    thd->net.last_error[0]= 0;
+
+    /* Fill up strucutures that print_error may need */
+    dummy_table.s->path= path;
+    dummy_table.alias= alias;
+
+    file->print_error(error, 0);
+    strmake(new_error, thd->net.last_error, sizeof(buff)-1);
+
+    /* restore thd */
+    thd->query_error= query_error;
+    thd->spcont= spcont;
+    thd->lex->current_select= current_select;
+    thd->net.last_errno= last_errno;
+    strmake(thd->net.last_error, buff, sizeof(buff)-1);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, new_error);
+  }
   delete file;
-  return error;
+  DBUG_RETURN(error);
 }
 
 /****************************************************************************
@@ -1315,7 +1365,16 @@ ulonglong handler::get_auto_increment()
   return nr;
 }
 
-	/* Print error that we got from handler function */
+
+/*
+  Print error that we got from handler function
+
+  NOTE:
+   In case of delete table it's only safe to use the following parts of
+   the 'table' structure:
+     table->s->path
+     table->alias
+*/
 
 void handler::print_error(int error, myf errflag)
 {
@@ -1494,16 +1553,38 @@ uint handler::get_dup_key(int error)
 }
 
 
+/*
+  Delete all files with extension from bas_ext()
+
+  SYNOPSIS
+    delete_table()
+    name		Base name of table
+
+  NOTES
+    We assume that the handler may return more extensions than
+    was actually used for the file.
+
+  RETURN
+    0   If we successfully deleted at least one file from base_ext and
+	didn't get any other errors than ENOENT    
+    #   Error from delete_file()
+*/
+
 int handler::delete_table(const char *name)
 {
-  int error=0;
+  int error= 0;
+  int enoent_or_zero= ENOENT;                   // Error if no file was deleted
+
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     if (delete_file(name,*ext,2))
     {
-      if ((error=errno) != ENOENT)
+      if ((error= my_errno) != ENOENT)
 	break;
     }
+    else
+      enoent_or_zero= 0;                        // No error for ENOENT
+    error= enoent_or_zero;
   }
   return error;
 }
