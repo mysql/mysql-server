@@ -1556,7 +1556,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   save_db = thd->db;
   save_db_length= thd->db_length;
   thd->db = (char*)db;
-  DBUG_ASSERT(thd->db);
+  DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
@@ -4031,7 +4031,7 @@ static int queue_binlog_ver_1_event(MASTER_INFO *mi, const char *buf,
     */
   {
     /* We come here when and only when tmp_buf != 0 */
-    DBUG_ASSERT(tmp_buf);
+    DBUG_ASSERT(tmp_buf != 0);
     inc_pos=event_len;
     ev->log_pos+= inc_pos;
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);

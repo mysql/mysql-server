@@ -552,7 +552,7 @@ system rm ./var/master-data/test/t1.MYI ;
 drop table t1;
 create table t1 (a int) engine=myisam;
 system rm ./var/master-data/test/t1.MYD ;
---error 1105,6
+--error 1105,6,29
 drop table t1;
 --error 1051
 drop table t1;

@@ -105,7 +105,6 @@ sp_pcontext::diff_handlers(sp_pcontext *ctx)
 uint
 sp_pcontext::diff_cursors(sp_pcontext *ctx)
 {
-  uint n= 0;
   sp_pcontext *pctx= this;
 
   while (pctx && pctx != ctx)
@@ -264,7 +263,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 		     (const uchar *)name->str, name->length,
 		     (const uchar *)n.str, n.length) == 0)
     {
-      *poff= i;
+      *poff= m_coffset + i;
       return TRUE;
     }
   }
