@@ -982,7 +982,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       else
       {
 	cur->data[field] = to;
-        if (to+len > end_to)
+        if (len > (ulong) (end_to - to))
         {
           free_rows(result);
           net->last_errno=CR_MALFORMED_PACKET;
@@ -1023,7 +1023,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 {
   uint field;
   ulong pkt_len,len;
-  uchar *pos,*prev_pos;
+  uchar *pos,*prev_pos, *end_pos;
 
   if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
@@ -1031,6 +1031,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     return 1;				/* End of data */
   prev_pos= 0;				/* allowed to write at packet[-1] */
   pos=mysql->net.read_pos;
+  end_pos=pos+pkt_len;
   for (field=0 ; field < fields ; field++)
   {
     if ((len=(ulong) net_field_length(&pos)) == NULL_LENGTH)
@@ -1040,6 +1041,12 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
     }
     else
     {
+      if (len > (ulong) (end_pos - pos))
+      {
+        mysql->net.last_errno=CR_UNKNOWN_ERROR;
+        strmov(mysql->net.last_error,ER(mysql->net.last_errno));
+        return -1;
+      }
       row[field] = (char*) pos;
       pos+=len;
       *lengths++=len;

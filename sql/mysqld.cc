@@ -203,7 +203,7 @@ static char **opt_argv;
 #else
 #define MYSQL_SERVER_SUFFIX ""
 #endif /* __NT__ */
-#endif
+#endif /* __WIN__ */
 
 #ifdef HAVE_BERKELEY_DB
 SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
