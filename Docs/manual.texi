@@ -50800,6 +50800,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Fixed bug that made @code{REPAIR TABLE} and @code{myisamchk}
+to corrupt @code{FULLTEXT} indexes.
+@item
 Fixed bug with caching system database ('mysql'). Now query to system 
 database is not cached by query cache.
 @item
