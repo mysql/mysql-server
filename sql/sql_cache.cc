@@ -744,7 +744,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_VOID_RETURN;
 
   if ((local_tables= is_cacheable(thd, thd->query_length,
-			     thd->query, &thd->lex, tables_used)))
+				  thd->query, &thd->lex, tables_used)))
   {
     NET *net= &thd->net;
     byte flags= (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);

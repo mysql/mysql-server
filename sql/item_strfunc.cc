@@ -1558,7 +1558,7 @@ longlong Item_func_elt::val_int()
   if ((tmp=(uint) item->val_int()) == 0 || tmp > arg_count)
     return 0;
   
-  int result= args[tmp-1]->val_int();
+  longlong result= args[tmp-1]->val_int();
   null_value= args[tmp-1]->null_value;
   return result;
 }

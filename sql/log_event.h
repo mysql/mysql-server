@@ -406,10 +406,15 @@ public:
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
-    {fname=afname;fname_len=alen;}
+  {
+    fname= afname;
+    fname_len= alen;
+  }
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   int  check_fname_outside_temp_buf()
-    {return fname<temp_buf || fname>temp_buf+cached_event_len;}
+  {
+    return fname < temp_buf || fname > temp_buf+ cached_event_len;
+  }
 
 #ifndef MYSQL_CLIENT
   String field_lens_buf;
