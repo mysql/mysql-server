@@ -59,7 +59,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	key1	key1	4	const	100	Using where
 explain select * from t1 where pk1 < 7500 and key1 = 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	PRIMARY,key1	key1,PRIMARY	4,4	NULL	38	Using intersect(key1,PRIMARY); Using where
+1	SIMPLE	t1	index_merge	PRIMARY,key1	key1,PRIMARY	4,4	NULL	ROWS	Using intersect(key1,PRIMARY); Using where
 explain select * from t1 where pktail1ok=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	key1,pktail1ok	key1,pktail1ok	4,4	NULL	1	Using intersect(key1,pktail1ok); Using where
