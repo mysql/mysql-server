@@ -466,3 +466,12 @@ id	id3
 1	1
 2	2
 100	2
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(20) default NULL,
+  KEY `a` (`a`)
+) TYPE=InnoDB
+a
+1
+2
+3

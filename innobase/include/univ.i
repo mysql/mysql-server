@@ -9,7 +9,7 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(MYSQL_SERVER)
 #define __WIN__
 #include <windows.h>
 
@@ -28,7 +28,7 @@ be defined:
 /* The Unix version */
 
 /* Most C compilers other than gcc do not know 'extern inline' */ 
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__WIN__)
 #define UNIV_MUST_NOT_INLINE
 #endif
 
@@ -38,8 +38,10 @@ subdirectory of 'mysql'. */
 #include <global.h>
 #include <my_pthread.h>
 
+#ifndef __WIN__
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 #include <sys/stat.h>
+#endif
 
 #undef PACKAGE
 #undef VERSION

@@ -3358,7 +3358,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->blob_ptr_size=mi_portable_sizeof_char_ptr;
   table->map=1;
-  table->tmp_table=1;
+  table->tmp_table= TMP_TABLE;
   table->db_low_byte_first=1;			// True for HEAP and MyISAM
   table->temp_pool_slot = temp_pool_slot;
 

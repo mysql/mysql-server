@@ -1222,7 +1222,8 @@ stack trace and/or the core file to produce a readable backtrace that may\n\
 help in finding out why mysqld died.\n",sig);
 #if defined(HAVE_LINUXTHREADS)
 #ifdef __i386__
-  trace_stack();
+  if (!(test_flags & TEST_NO_STACKTRACE))
+    trace_stack();
   fflush(stderr);
 #endif /* __i386__ */
  if (test_flags & TEST_CORE_ON_SIGNAL)
@@ -1253,7 +1254,7 @@ static void init_signals(void)
   struct sigaction sa; sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-  if (!(test_flags & TEST_NO_STACKTRACE))
+  if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
     sa.sa_handler=handle_segfault;
     sigaction(SIGSEGV, &sa, NULL);
@@ -2495,7 +2496,8 @@ enum options {
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
-               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC
+               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
+	       OPT_SKIP_STACK_TRACE
 };
 
 static struct option long_options[] = {
@@ -2617,11 +2619,12 @@ static struct option long_options[] = {
   {"skip-locking",          no_argument,       0, (int) OPT_SKIP_LOCK},
   {"skip-host-cache",       no_argument,       0, (int) OPT_SKIP_HOST_CACHE},
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
+  {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
   {"skip-safemalloc",	    no_argument,       0, (int) OPT_SKIP_SAFEMALLOC},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
-  {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
+  {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -3047,15 +3050,16 @@ static void usage(void)
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
 			Ignore the delay_key_write option for all tables\n\
+  --skip-host-cache	Don't cache host names\n\
   --skip-locking	Don't use system locking. To use isamchk one has\n\
 			to shut down the server.\n\
   --skip-name-resolve	Don't resolve hostnames.\n\
 			All hostnames are IP's or 'localhost'\n\
   --skip-networking	Don't allow connection with TCP/IP.\n\
-  --skip-new		Don't use new, possible wrong routines.\n\
-  --skip-host-cache	Don't cache host names\n");
+  --skip-new		Don't use new, possible wrong routines.\n");
   /* We have to break the string here because of VC++ limits */
   puts("\
+  --skip-stack-trace    Don't print a stack trace on failure\n\
   --skip-show-database  Don't allow 'SHOW DATABASE' commands\n\
   --skip-thread-priority\n\
 			Don't give threads different priorities.\n\
@@ -3500,6 +3504,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_WANT_CORE:
       test_flags |= TEST_CORE_ON_SIGNAL;
+      break;
+    case (int) OPT_SKIP_STACK_TRACE:
+      test_flags|=TEST_NO_STACKTRACE;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))

@@ -167,7 +167,6 @@ os_file_handle_error(
 	err = os_file_get_last_error();
 	
 	if (err == OS_FILE_DISK_FULL) {
-ask_again:
 		fprintf(stderr, "\n");
 		if (name) {
 		  fprintf(stderr,
