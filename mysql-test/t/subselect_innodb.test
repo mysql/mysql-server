@@ -90,3 +90,14 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 select (select max(id) from t2 where b=1 group by b) as x,b from t1 where b=1;
 drop table t1,t2;
+
+#
+# reiniting innodb tables
+#
+create table t1 (id int not null, value char(255), primary key(id)) engine=innodb;
+create table t2 (id int not null, value char(255)) engine=innodb;
+insert into t1 values (1,'a'),(2,'b');
+insert into t2 values (1,'z'),(2,'x');
+select t2.id,t2.value,(select t1.value from t1 where t1.id=t2.id) from t2;
+select t2.id,t2.value,(select t1.value from t1 where t1.id=t2.id) from t2;
+drop table t1,t2;
