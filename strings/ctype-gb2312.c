@@ -5736,7 +5736,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     NULL,		/* tab_from_uni */
     "",
     "",
-    0,			/* strxfrm_multiply */
+    1,			/* strxfrm_multiply */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
@@ -5758,7 +5758,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     NULL,		/* tab_from_uni */
     "",
     "",
-    0,			/* strxfrm_multiply */
+    1,			/* strxfrm_multiply */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,

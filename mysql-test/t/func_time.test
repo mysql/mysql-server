@@ -222,3 +222,12 @@ select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
 # The following is not as one would expect...
 select date_add(time,INTERVAL 1 SECOND) from t1;
 drop table t1;
+
+# Test SAPDB UTC_% functions. This part is TZ dependant (It is supposed that
+# TZ variable set to GMT-3
+select strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0;
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%T"), utc_time())=0;
+select strcmp(date_format(date_sub(localtimestamp(), interval 3 hour),"%Y-%m-%d"), utc_date())=0;
+select strcmp(date_format(utc_timestamp(),"%T"), utc_time())=0;
+select strcmp(date_format(utc_timestamp(),"%Y-%m-%d"), utc_date())=0;
+select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;

@@ -4014,7 +4014,7 @@ void Field_string::sql_type(String &res) const
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
 			     "varchar" : "char"),
-			    (int) field_length);
+			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
 }
 
@@ -4180,7 +4180,7 @@ void Field_varstring::sql_type(String &res) const
   CHARSET_INFO *cs=res.charset();
   ulong length= cs->cset->snprintf(cs,(char*) res.ptr(),
 			     res.alloced_length(),"varchar(%u)",
-			     field_length);
+			     field_length / charset()->mbmaxlen);
   res.length(length);
 }
 
@@ -5273,6 +5273,26 @@ bool Field_num::eq_def(Field *field)
 /*****************************************************************************
 ** Handling of field and create_field
 *****************************************************************************/
+
+void create_field::create_length_to_internal_length(void)
+{
+  switch (sql_type)
+  {
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+      length*= charset->mbmaxlen;
+      pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
+				    FIELD_TYPE_STRING : sql_type, length);
+      break;
+    default:
+      /* do nothing */
+      break;
+  }
+}
 
 /*
   Make a field from the .frm file info

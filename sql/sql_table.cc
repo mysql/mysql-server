@@ -457,12 +457,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         else
         {
 	  /* Field redefined */
+	  sql_field->sql_type=		dup_field->sql_type;
+	  sql_field->charset=		dup_field->charset ? dup_field->charset : create_info->table_charset;
 	  sql_field->length=		dup_field->length;
+	  sql_field->pack_length=	dup_field->pack_length;
+	  sql_field->create_length_to_internal_length();
 	  sql_field->decimals=		dup_field->decimals;
 	  sql_field->flags=		dup_field->flags;
-	  sql_field->pack_length=	dup_field->pack_length;
 	  sql_field->unireg_check=	dup_field->unireg_check;
-	  sql_field->sql_type=		dup_field->sql_type;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -480,10 +482,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   while ((sql_field=it++))
   {
     if (!sql_field->charset)
-      sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset :
-			   thd->variables.character_set_database;
-    
+      sql_field->charset = create_info->table_charset;
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
     case FIELD_TYPE_MEDIUM_BLOB:
@@ -1895,18 +1894,42 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /* Full alter table */
+
+  /* let new create options override the old ones */
+  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
+    create_info->min_rows=table->min_rows;
+  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
+    create_info->max_rows=table->max_rows;
+  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
+    create_info->avg_row_length=table->avg_row_length;
+  if (!(used_fields & HA_CREATE_USED_CHARSET))
+    create_info->table_charset=table->table_charset;
+
   restore_record(table,default_values);			// Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(drop_list);
   List_iterator<create_field> def_it(fields);
   List_iterator<Alter_column> alter_it(alter_list);
   List<create_field> create_list;		// Add new fields here
   List<Key> key_list;				// Add new keys here
+  create_field *def;
+
+  /* 
+    For each column set charset to the table 
+    default if the column charset hasn't been specified
+    explicitely. Change CREATE length into internal length
+  */
+  def_it.rewind();
+  while ((def= def_it++))
+  {
+    if (!def->charset)
+      def->charset= create_info->table_charset;
+    def->create_length_to_internal_length();
+  }
 
   /*
     First collect all fields from table which isn't in drop_list
   */
 
-  create_field *def;
   Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
@@ -2124,16 +2147,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   create_info->db_type=new_db_type;
   if (!create_info->comment)
     create_info->comment=table->comment;
-
-  /* let new create options override the old ones */
-  if (!(used_fields & HA_CREATE_USED_MIN_ROWS))
-    create_info->min_rows=table->min_rows;
-  if (!(used_fields & HA_CREATE_USED_MAX_ROWS))
-    create_info->max_rows=table->max_rows;
-  if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
-    create_info->avg_row_length=table->avg_row_length;
-  if (!(used_fields & HA_CREATE_USED_CHARSET))
-    create_info->table_charset=table->table_charset;
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
