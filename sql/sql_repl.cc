@@ -503,6 +503,11 @@ Increase max_allowed_packet on master";
 
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
+	  if (thd->server_id==0)
+	  {
+	    pthread_mutex_unlock(log_lock);
+	    goto end;
+	  }
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
@@ -590,6 +595,7 @@ Increase max_allowed_packet on master";
     }
   }
 
+end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
@@ -600,7 +606,7 @@ Increase max_allowed_packet on master";
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
- err:
+err:
   thd->proc_info = "waiting to finalize termination";
   end_io_cache(&log);
   /*

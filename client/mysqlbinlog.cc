@@ -360,7 +360,7 @@ static void dump_remote_log_entries(const char* logname)
     len = net_safe_read(mysql);
     if (len == packet_error)
       die("Error reading packet from server: %s", mysql_error(mysql));
-    if (len == 1 && net->read_pos[0] == 254)
+    if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
