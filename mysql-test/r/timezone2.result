@@ -305,3 +305,11 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 flush privileges;
 drop table t1, t2;
+select convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone) from (select 'UTC' as custTimeZone) as tmp;
+convert_tz('2005-01-14 17:00:00', 'UTC', custTimeZone)
+2005-01-14 17:00:00
+create table t1 select convert_tz(NULL, NULL, NULL);
+select * from t1;
+convert_tz(NULL, NULL, NULL)
+NULL
+drop table t1;
