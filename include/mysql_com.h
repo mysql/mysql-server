@@ -164,6 +164,8 @@ int	net_write_command(NET *net,unsigned char command,const char *packet,
 			  unsigned long len);
 int	net_real_write(NET *net,const char *packet,unsigned long len);
 unsigned long my_net_read(NET *net);
+int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
+	       uint timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
