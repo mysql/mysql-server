@@ -29,6 +29,8 @@
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
+char server_version[50];
+uint32 server_id = 0;
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
