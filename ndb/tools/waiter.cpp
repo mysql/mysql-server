@@ -121,7 +121,8 @@ getStatus(){
       retries++;
       continue;
     }
-    for (int i = 0; i < status->no_of_nodes; i++){
+    int count = status->no_of_nodes;
+    for (int i = 0; i < count; i++){
       node = &status->node_states[i];      
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
@@ -142,7 +143,7 @@ getStatus(){
 	  apiNodes.clear();
 	  free(status); 
 	  status = NULL;
-	  i = status->no_of_nodes;
+          count = 0;
 
 	  ndbout << "kalle"<< endl;
 	  break;

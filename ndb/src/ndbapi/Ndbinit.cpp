@@ -111,12 +111,13 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) :
   
   theCurrentConnectCounter = 1;
   theCurrentConnectIndex = 0;
-  for (int i = 0; i < MAX_NDB_NODES ; i++) {
+  int i;
+  for (i = 0; i < MAX_NDB_NODES ; i++) {
     theConnectionArray[i] = NULL;
     the_release_ind[i] = 0;
     theDBnodes[i] = 0;
   }//forg
-  for (int i = 0; i < 2048 ; i++) {
+  for (i = 0; i < 2048 ; i++) {
     theFirstTupleId[i] = 0;
     theLastTupleId[i] = 0;
   }//for

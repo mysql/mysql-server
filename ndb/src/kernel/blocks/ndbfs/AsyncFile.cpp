@@ -229,7 +229,7 @@ AsyncFile::run()
       endReq();
       return;
     default:
-      THREAD_REQUIRE(false, "Using default switch in AsyncFile::run");
+      abort();
       break;
     }//switch
     theReportTo->writeChannel(request);
