@@ -50811,7 +50811,7 @@ each individual 4.0.x release.
 
 @menu
 * News-4.0.5::                  Changes in release 4.0.5
-* News-4.0.4::                  Changes in release 4.0.4
+* News-4.0.4::                  Changes in release 4.0.4 (29 Sep 2002)
 * News-4.0.3::                  Changes in release 4.0.3 (26 Aug 2002: Beta)
 * News-4.0.2::                  Changes in release 4.0.2 (01 Jul 2002)
 * News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
@@ -50824,10 +50824,16 @@ each individual 4.0.x release.
 @item
 Give error if one has more than 2 ^ 32 rows in a MyISAM MERGE file and one
 has not compiled MySQL with @code{-DBIG_TABLES}.
+@item
+Fixed some @code{ORDER BY ... DESC} problems with InnoDB.
+@item
+Fixed an inadvertently changed option (@code{--ignore-space}) back to the
+original @code{--ignore-spaces} in @code{mysqlclient}. (Both syntaxes will
+work).
 @end itemize
 
 @node News-4.0.4, News-4.0.3, News-4.0.5, News-4.0.x
-@appendixsubsec Changes in release 4.0.4
+@appendixsubsec Changes in release 4.0.4 (29 Sep 2002)
 
 @itemize @bullet
 @item
