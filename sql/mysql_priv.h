@@ -48,6 +48,7 @@ char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
 void kill_one_thread(THD *thd, ulong id);
+int net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
