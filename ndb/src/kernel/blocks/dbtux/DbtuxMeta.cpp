@@ -202,6 +202,7 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       jam();
       // initialize tree header
       TreeHead& tree = fragPtr.p->m_tree;
+      new (&tree) TreeHead();
       // make these configurable later
       tree.m_nodeSize = MAX_TTREE_NODE_SIZE;
       tree.m_prefSize = MAX_TTREE_PREF_SIZE;
@@ -227,8 +228,8 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
         break;
       }
       tree.m_minOccup = tree.m_maxOccup - maxSlack;
-      // root node does not exist
-      tree.m_root = NullTupAddr;
+      // root node does not exist (also set by ctor)
+      tree.m_root = NullTupLoc;
       // fragment is defined
       c_fragOpPool.release(fragOpPtr);
     }
