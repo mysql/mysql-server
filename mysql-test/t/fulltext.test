@@ -18,7 +18,6 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 
-
 # add_ft_keys() tests
 
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
@@ -53,6 +52,9 @@ select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOL
 select * from t1 where MATCH a,b AGAINST ('"text search" -"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text search" +"now support"' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
+
+select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
 
 # boolean w/o index:
 
