@@ -957,6 +957,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
+  thd->net.no_send_error= 0;
   dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
@@ -1016,6 +1017,7 @@ pthread_handler_decl(handle_one_connection,arg)
     int error;
     NET *net= &thd->net;
     thd->thread_stack= (char*) &thd;
+    net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1054,6 +1056,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
+      net->no_send_error= 0;
       if (do_command(thd))
 	break;
     }
@@ -2084,6 +2087,7 @@ mysql_execute_command(THD *thd)
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
+  thd->net.no_send_error= 0;
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -4055,7 +4059,12 @@ unsent_create_error:
     }
   case SQLCOM_CREATE_VIEW:
     {
-      res= mysql_create_view(thd, thd->lex->create_view_mode);
+      if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_DROP_VIEW:
@@ -4063,7 +4072,12 @@ unsent_create_error:
       if (check_table_access(thd, DROP_ACL, all_tables, 0) ||
           end_active_trans(thd))
         goto error;
-      res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
+      if (!(res= mysql_drop_view(thd, first_table, thd->lex->drop_mode)) &&
+          mysql_bin_log.is_open())
+      {
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
