@@ -200,6 +200,9 @@ public:
 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
   
+  virtual Item *this_item() { return this; } /* For SPs mostly. */
+  virtual Item *this_const_item() const { return const_cast<Item*>(this); } /* For SPs mostly. */
+
   // Row emulation
   virtual uint cols() { return 1; }
   virtual Item* el(uint i) { return this; }
@@ -211,6 +214,57 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
+};
+
+
+// A local SP variable (incl. parameters), used in runtime
+class Item_splocal : public Item
+{
+private:
+  
+  uint m_offset;
+
+public:
+
+  Item_splocal(uint offset)
+    : m_offset(offset)
+  {}
+
+  Item *this_item();
+  Item *this_const_item() const;
+
+  inline uint get_offset()
+  {
+    return m_offset;
+  }
+
+  // Abstract methods inherited from Item. Just defer the call to
+  // the item in the frame
+  inline enum Type type() const
+  {
+    return this_const_item()->type();
+  }
+
+  inline double val()
+  {
+    return this_item()->val();
+  }
+
+  inline longlong val_int()
+  {
+    return this_item()->val_int();
+  }
+
+  inline String *val_str(String *sp)
+  {
+    return this_item()->val_str(sp);
+  }
+
+  inline void make_field(Send_field *field)
+  {
+    this_item()->make_field(field);
+  }
+
 };
 
 

@@ -1625,7 +1625,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       maybe_null=1;
   }
   if (thd)
-    thd->lex.current_select->cond_count+=list.elements;
+    thd->lex->current_select->cond_count+=list.elements;
   fix_length_and_dec();
   fixed= 1;
   return 0;

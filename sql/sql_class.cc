@@ -36,6 +36,9 @@
 #endif
 #include <mysys_err.h>
 
+#include <sp_rcontext.h>
+#include <sp_cache.h>
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -86,12 +89,14 @@ extern "C" void free_user_var(user_var_entry *entry)
 THD::THD():user_time(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0)
+	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
+  lex= &main_lex;
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
-  locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
+  locked=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=prepare_command=0;
+  killed= NOT_KILLED;
   db_length=query_length=col_access=0;
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
@@ -147,9 +152,12 @@ THD::THD():user_time(0), is_fatal_error(0),
   bzero((char*) &warn_root,sizeof(warn_root));
   init_alloc_root(&warn_root, 1024, 0);
   user_connect=(USER_CONN *)0;
-  hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
+  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
-	    (hash_free_key) free_user_var,0);
+	    (hash_free_key) free_user_var, 0);
+
+  sp_proc_cache= new sp_cache();
+  sp_func_cache= new sp_cache();
 
   /* For user vars replication*/
   if (opt_bin_log)
@@ -178,7 +186,7 @@ THD::THD():user_time(0), is_fatal_error(0),
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
 			 MYF(MY_WME)))
-      killed=1;
+      killed= KILL_CONNECTION;
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
@@ -249,9 +257,11 @@ void THD::change_user(void)
   cleanup();
   cleanup_done= 0;
   init();
-  hash_init(&user_vars, &my_charset_bin, USER_VARS_HASH_SIZE, 0, 0,
+  hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
+  sp_proc_cache->init();
+  sp_func_cache->init();
 }
 
 
@@ -275,6 +285,8 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
+  sp_proc_cache->cleanup();
+  sp_func_cache->cleanup();
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -284,6 +296,7 @@ void THD::cleanup(void)
     pthread_mutex_unlock(&LOCK_user_locks);
     ull= 0;
   }
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -315,6 +328,9 @@ THD::~THD()
   }
 #endif
 
+  delete sp_proc_cache;
+  delete sp_func_cache;
+
   DBUG_PRINT("info", ("freeing host"));
   if (host != localhost)			// If not pointer to constant
     safeFree(host);
@@ -335,14 +351,14 @@ THD::~THD()
 }
 
 
-void THD::awake(bool prepare_to_die)
+void THD::awake(THD::killed_state state_to_set)
 {
   THD_CHECK_SENTRY(this);
   safe_mutex_assert_owner(&LOCK_delete); 
 
-  if (prepare_to_die)
-    killed = 1;
-  thr_alarm_kill(real_id);
+  killed= state_to_set;
+  if (state_to_set != THD::KILL_QUERY)
+    thr_alarm_kill(real_id);
 #ifdef SIGNAL_WITH_VIO_CLOSE
   close_active_vio();
 #endif    
@@ -512,7 +528,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   {
     my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
 	     ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
-    killed= 1;
+    killed= KILL_CONNECTION;
     return 0;
   }
 
@@ -1058,9 +1074,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);
-  List_iterator_fast<LEX_STRING> gl(var_list);
+  List_iterator_fast<my_var> gl(var_list);
   Item *item;
+  my_var *mv;
   LEX_STRING *ls;
+
+  row_count= 0;
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
@@ -1069,19 +1088,39 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   unit=u;
   while ((item=li++))
   {
-    ls= gl++;
-    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
-    xx->fix_length_and_dec();
-    vars.push_back(xx);
+    mv=gl++;
+    ls= &mv->s;
+    if (mv->local)
+    {
+      (void)local_vars.push_back(new Item_splocal(mv->offset));
+    }
+    else
+    {
+      Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+      xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,&item);
+      xx->fix_length_and_dec();
+      vars.push_back(xx);
+    }
   }
   return 0;
 }
+
 bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<Item_func_set_user_var> li(vars);
+  List_iterator_fast<Item_splocal> var_li(local_vars);
+  List_iterator_fast<my_var> my_li(var_list);
+  List_iterator_fast<Item> it(items);
   Item_func_set_user_var *xx;
+  Item_splocal *yy;
+  Item *item;
+  my_var *zz;
   DBUG_ENTER("send_data");
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
 
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
@@ -1093,8 +1132,21 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(1);
   }
-  while ((xx=li++))
-    xx->update();
+  while ((zz=my_li++) && (item=it++))
+  {
+    if (zz->local)
+    {
+      if ((yy=var_li++)) 
+      {
+	thd->spcont->set_item(yy->get_offset(), item);
+      }
+    }
+    else
+    {
+      if ((xx=li++))
+	xx->update();
+    }
+  }
   DBUG_RETURN(0);
 }
 
