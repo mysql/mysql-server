@@ -82,6 +82,7 @@ public:
     first=tmp.first;
     last=tmp.last;
   }
+  inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
     if (((*last)=new list_node(info, &end_of_list)))
@@ -130,6 +131,7 @@ public:
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
   friend class error_list;
+  friend class error_list_iterator;
 
 protected:
   void after(void *info,list_node *node)
@@ -405,7 +407,7 @@ class error_list: public Error_alloc, public base_list
 {
 public:
   inline error_list() : base_list() { };  
-  inline error_list(const error_list &tmp) : Error_alloc()
+  inline error_list(const error_list &tmp) : base_list(tmp)
   {
     elements=tmp.elements;
     first=tmp.first;
