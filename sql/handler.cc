@@ -860,7 +860,8 @@ err:
 int ha_release_temporary_latches(THD *thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  innobase_release_temporary_latches(thd);
+  if (opt_innodb)
+    innobase_release_temporary_latches(thd);
 #endif
   return 0;
 }
