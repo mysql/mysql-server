@@ -12,8 +12,6 @@ ndb_mgmd_SOURCES = \
 	main.cpp \
 	Services.cpp \
 	convertStrToInt.cpp \
-        NodeLogLevel.cpp \
-	NodeLogLevelList.cpp \
 	SignalQueue.cpp \
 	MgmtSrvrConfig.cpp \
 	ConfigInfo.cpp \
@@ -29,7 +27,7 @@ LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
 	    $(top_builddir)/ndb/src/common/editline/libeditline.a \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a
+            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
 	    @TERMCAP_LIB@
 
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \

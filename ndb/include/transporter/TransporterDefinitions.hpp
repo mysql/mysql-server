@@ -59,8 +59,6 @@ struct TCP_TransporterConfiguration {
   NodeId localNodeId;
   Uint32 sendBufferSize;     // Size of SendBuffer of priority B 
   Uint32 maxReceiveSize;     // Maximum no of bytes to receive
-  Uint32 byteOrder;
-  bool compression;
   bool checksum;
   bool signalId;
 };
@@ -72,10 +70,8 @@ struct SHM_TransporterConfiguration {
   Uint32 port; 
   NodeId remoteNodeId;
   NodeId localNodeId;
-  bool compression;
   bool checksum;
   bool signalId;
-  int byteOrder;
   
   Uint32 shmKey;
   Uint32 shmSize;
@@ -89,10 +85,8 @@ struct OSE_TransporterConfiguration {
   const char *localHostName;
   NodeId remoteNodeId;
   NodeId localNodeId;
-  bool compression;
   bool checksum;
   bool signalId;
-  int byteOrder;
   
   Uint32 prioASignalSize;
   Uint32 prioBSignalSize;
@@ -103,20 +97,20 @@ struct OSE_TransporterConfiguration {
  * SCI Transporter Configuration
  */
 struct SCI_TransporterConfiguration {
+  const char *remoteHostName;
+  const char *localHostName;
+  Uint32 port; 
   Uint32 sendLimit;        // Packet size
   Uint32 bufferSize;       // Buffer size
 
   Uint32 nLocalAdapters;   // 1 or 2, the number of adapters on local host
   
-  Uint32 nRemoteAdapters;
   Uint32 remoteSciNodeId0; // SCInodeId for adapter 1
   Uint32 remoteSciNodeId1; // SCInodeId for adapter 2
   
   NodeId localNodeId;      // Local node Id
   NodeId remoteNodeId;     // Remote node Id
 
-  Uint32 byteOrder;
-  bool compression;
   bool checksum;
   bool signalId;
 

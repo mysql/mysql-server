@@ -1,5 +1,18 @@
 #!/bin/sh
 
 set -e -x
+p=`pwd`
 cd $MYSQL_BASE_DIR/mysql-test 
-./mysql-test-run --with-ndbcluster --ndbconnectstring=$NDB_CONNECTSTRING $*
+./mysql-test-run --with-ndbcluster --ndbconnectstring=$NDB_CONNECTSTRING $* | tee $p/output.txt
+
+f=`grep -c fail $p/output.txt`
+o=`grep -c pass $p/output.txt`
+
+if [ $o -gt 0 -a $f -eq 0 ]
+then
+    echo "NDBT_ProgramExit: OK"
+    exit 0
+fi
+
+echo "NDBT_ProgramExit: Failed"
+exit 1

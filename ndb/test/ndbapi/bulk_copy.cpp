@@ -221,6 +221,7 @@ int insertFile(Ndb* pNdb,
 
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _tabname = NULL;
   int _help = 0;

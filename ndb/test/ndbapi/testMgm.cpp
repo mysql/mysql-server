@@ -178,6 +178,7 @@ TESTCASE("SingleUserMode",
 NDBT_TESTSUITE_END(testMgm);
 
 int main(int argc, const char** argv){
+  ndb_init();
   myRandom48Init(NdbTick_CurrentMillisecond());
   return testMgm.execute(argc, argv);
 }
