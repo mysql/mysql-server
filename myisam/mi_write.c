@@ -20,10 +20,6 @@
 #include "rt_index.h"
 #include <assert.h>
 
-#ifdef	__WIN__
-#include <errno.h>
-#endif
-
 #define MAX_POINTER_LENGTH 8
 
 	/* Functions declared in this file */
