@@ -69,4 +69,4 @@ rpm2cpio %{SOURCE1} | cpio -iv --make-directories
 
 %files
 %defattr(-, root, root)
-/usr/lib/libmysqlclient*
+%{_libdir}/libmysqlclient*
