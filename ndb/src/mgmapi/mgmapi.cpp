@@ -23,6 +23,7 @@
 #include <NdbSleep.h>
 #include <NdbTCP.h>
 #include <mgmapi.h>
+#include <mgmapi_internal.h>
 #include <mgmapi_debug.h>
 #include "mgmapi_configuration.hpp"
 #include <socket_io.h>
