@@ -78,10 +78,6 @@
 #define IF_PURIFY(A,B) (B)
 #endif
 
-#ifndef INADDR_NONE
-#define INADDR_NONE -1				// Error value from inet_addr
-#endif
-
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -111,6 +107,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#include <my_net.h>
 
 #if defined(OS2)
 #  include <sys/un.h>
