@@ -868,8 +868,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   /* TODO: add environment variables show when it become possible */
   if (thd->lex->only_view && !table_list->view)
   {
-    my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
-                    table_list->db, table_list->real_name, "VIEW");
+    my_error(ER_WRONG_OBJECT, MYF(0),
+             table_list->db, table_list->real_name, "VIEW");
     DBUG_RETURN(TRUE);
   }
 
@@ -938,7 +938,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   if (check_db_name(dbname))
   {
-    my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0), dbname);
+    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
     DBUG_RETURN(TRUE);
   }
 
@@ -950,9 +950,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
-    my_printf_error(ER_DBACCESS_DENIED_ERROR,
-                    ER(ER_DBACCESS_DENIED_ERROR), MYF(0),
-                    thd->priv_user, thd->host_or_ip, dbname);
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->priv_user, thd->host_or_ip, dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user, thd->host_or_ip, dbname);
     DBUG_RETURN(TRUE);
@@ -969,7 +968,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   if (access(path,F_OK))
   {
-    my_printf_error(ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR), MYF(0), dbname);
+    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
     DBUG_RETURN(TRUE);
   }
   if (found_libchar)

@@ -1883,7 +1883,7 @@ Cursor::fetch(ulong num_rows)
       thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
     }
     else
-      send_error(thd, ER_OUT_OF_RESOURCES);
+      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
@@ -11220,8 +11220,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     uint count= (uint) order_item->val_int();
     if (!count || count > fields.elements)
     {
-      my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0), order_item->full_name(), thd->where);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0),
+               order_item->full_name(), thd->where);
       return 1;
     }
     order->item= ref_pointer_array + count - 1;
@@ -11371,8 +11371,7 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     (*order->item)->marker=1;		/* Mark found */
     if ((*order->item)->with_sum_func)
     {
-      my_printf_error(ER_WRONG_GROUP_FIELD, ER(ER_WRONG_GROUP_FIELD),MYF(0),
-		      (*order->item)->full_name());
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*order->item)->full_name());
       return 1;
     }
   }
@@ -11387,9 +11386,7 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
 	  !item->const_item())
       {
-	my_printf_error(ER_WRONG_FIELD_WITH_GROUP,
-			ER(ER_WRONG_FIELD_WITH_GROUP),
-			MYF(0),item->full_name());
+	my_error(ER_WRONG_FIELD_WITH_GROUP, MYF(0), item->full_name());
 	return 1;
       }
     }

@@ -891,8 +891,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       {
 	if (table->query_id == thd->query_id)
 	{
-	  my_printf_error(ER_CANT_REOPEN_TABLE,
-			  ER(ER_CANT_REOPEN_TABLE), MYF(0), table->table_name);
+	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
 	  DBUG_RETURN(0);
 	}
 	table->query_id= thd->query_id;
@@ -949,7 +948,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         VOID(pthread_mutex_unlock(&LOCK_open));
       }
     }
-    my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
+    my_error(ER_TABLE_NOT_LOCKED, MYF(0), alias);
     DBUG_RETURN(0);
   }
 
@@ -1262,8 +1261,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     next=table->next;
     if (!tables || (!db_stat && reopen_table(table,1)))
     {
-      my_printf_error(ER_CANT_REOPEN_TABLE, ER(ER_CANT_REOPEN_TABLE),
-                      MYF(0),table->table_name);
+      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->table_name);
       VOID(hash_delete(&open_cache,(byte*) table));
       error=1;
     }
@@ -1548,8 +1546,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     {
       /* Give right error message */
       thd->clear_error();
-      my_printf_error(ER_NOT_KEYFILE, ER(ER_NOT_KEYFILE), MYF(0),
-                      name, my_errno);
+      my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
       sql_print_error("Couldn't repair table: %s.%s",db,name);
       if (entry->file)
 	closefrm(entry);
@@ -1614,8 +1611,7 @@ err:
   {
     TABLE_LIST * view= table_desc->belong_to_view;
     thd->clear_error();
-    my_printf_error(ER_VIEW_INVALID, ER(ER_VIEW_INVALID), MYF(0),
-                    view->view_db.str, view->view_name.str);
+    my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str, view->view_name.str);
   }
   DBUG_RETURN(1);
 }
@@ -1743,9 +1739,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
       (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
   {
-    my_printf_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,
-		    ER(ER_TABLE_NOT_LOCKED_FOR_WRITE),
-		    MYF(0),table->table_name);
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->table_name);
     DBUG_RETURN(1);
   }
   if ((error=table->file->start_stmt(thd)))
@@ -2330,8 +2324,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  {
             if (report_error == REPORT_ALL_ERRORS ||
                 report_error == IGNORE_EXCEPT_NON_UNIQUE)
-              my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-                              item->full_name(),thd->where);
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       item->full_name(),thd->where);
 	    return (Field*) 0;
 	  }
 	  found=find;
@@ -2351,16 +2345,14 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       }
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			table_name, thd->where);
+	my_error(ER_UNKNOWN_TABLE, MYF(0), table_name, thd->where);
       else
 	return (Field*) not_found_field;
     }
     else
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			item->full_name(),thd->where);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(),thd->where);
       else
 	return (Field*) not_found_field;
     return (Field*) 0;
@@ -2373,8 +2365,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (report_error == REPORT_ALL_ERRORS ||
           report_error == REPORT_EXCEPT_NON_UNIQUE)
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			item->full_name(),thd->where);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(),thd->where);
       return (Field*) not_found_field;
     }
 
@@ -2399,8 +2390,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  break;
         if (report_error == REPORT_ALL_ERRORS ||
             report_error == IGNORE_EXCEPT_NON_UNIQUE)
-          my_printf_error(ER_NON_UNIQ_ERROR,ER(ER_NON_UNIQ_ERROR),MYF(0),
-                          name,thd->where);
+          my_error(ER_NON_UNIQ_ERROR, MYF(0), name, thd->where);
 	return (Field*) 0;
       }
       found=field;
@@ -2410,8 +2400,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     return found;
   if (report_error == REPORT_ALL_ERRORS ||
       report_error == REPORT_EXCEPT_NON_UNIQUE)
-    my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR),
-		    MYF(0), item->full_name(), thd->where);
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
   else
     return (Field*) not_found_field;
   return (Field*) 0;
@@ -2523,8 +2512,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
               unaliased names only and will have duplicate error anyway.
             */
             if (report_error != IGNORE_ERRORS)
-              my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                              MYF(0), find->full_name(), current_thd->where);
+              my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                       find->full_name(), current_thd->where);
             return (Item**) 0;
           }
           found_unaliased= li.ref();
@@ -2548,8 +2537,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
           if ((*found)->eq(item, 0))
             continue;                           // Same field twice
           if (report_error != IGNORE_ERRORS)
-            my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
-                            MYF(0), find->full_name(), current_thd->where);
+            my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                     find->full_name(), current_thd->where);
           return (Item**) 0;
         }
         found= li.ref();
@@ -2592,8 +2581,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     if (found_unaliased_non_uniq)
     {
       if (report_error != IGNORE_ERRORS)
-        my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR), MYF(0),
-                        find->full_name(), current_thd->where);
+        my_error(ER_NON_UNIQ_ERROR, MYF(0),
+                 find->full_name(), current_thd->where);
       return (Item **) 0;
     }
     if (found_unaliased)
@@ -2608,8 +2597,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   if (report_error != REPORT_EXCEPT_NOT_FOUND)
   {
     if (report_error == REPORT_ALL_ERRORS)
-      my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-		      find->full_name(), current_thd->where);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0),
+               find->full_name(), current_thd->where);
     return (Item **) 0;
   }
   else
@@ -2822,9 +2811,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
         (pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
         0)
     {
-      my_printf_error(ER_KEY_COLUMN_DOES_NOT_EXITS,
-                      ER(ER_KEY_COLUMN_DOES_NOT_EXITS), MYF(0),
-                      name->c_ptr(), table->real_name);
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0),
+               name->c_ptr(), table->real_name);
       map->set_all();
       return 1;
     }
@@ -2994,14 +2982,12 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                                           fld->field_name) &
                                          VIEW_ANY_ACL)))
             {
-              my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                              ER(ER_COLUMNACCESS_DENIED_ERROR),
-                              MYF(0),
-                              "ANY",
-                              thd->priv_user,
-                              thd->host_or_ip,
-                              fld->field_name,
-                              tab);
+              my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+                       "ANY",
+                       thd->priv_user,
+                       thd->host_or_ip,
+                       fld->field_name,
+                       tab);
               goto err;
             }
           }
@@ -3042,8 +3028,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                    table_name);
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
 
 err:
   DBUG_RETURN(1);
@@ -3573,8 +3558,7 @@ open_new_frm(const char *path, const char *alias,
     {
       if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
-        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
-                        db, table_name, "BASE TABLE");
+        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
         goto err;
       }
       if (mysql_make_view(parser, table_desc))
@@ -3583,8 +3567,7 @@ open_new_frm(const char *path, const char *alias,
     else
     {
       /* only VIEWs are supported now */
-      my_printf_error(ER_FRM_UNKNOWN_TYPE, ER(ER_FRM_UNKNOWN_TYPE), MYF(0),
-                      path,  parser->type()->str);
+      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), path,  parser->type()->str);
       goto err;
     }
     DBUG_RETURN(0);

@@ -1502,7 +1502,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     err_msg= (char*) net->read_pos + ((mysql->server_capabilities &
 				       CLIENT_PROTOCOL_41) ?
 				      3+SQLSTATE_LENGTH+1 : 3);
-    my_printf_error(ER_MASTER, ER(ER_MASTER), MYF(0), err_msg);
+    my_error(ER_MASTER, MYF(0), err_msg);
     DBUG_RETURN(1);
   }
   thd->command = COM_TABLE_DUMP;
@@ -1580,8 +1580,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    my_printf_error(ER_INDEX_REBUILD, ER(ER_INDEX_REBUILD), MYF(0),
-                    tables.table->real_name);
+    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->real_name);
 
 err:
   close_thread_tables(thd);
@@ -1608,8 +1607,7 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     }
     if (connect_to_master(thd, mysql, mi))
     {
-      my_printf_error(ER_CONNECT_TO_MASTER, ER(ER_CONNECT_TO_MASTER), MYF(0),
-                      mysql_error(mysql));
+      my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
       mysql_close(mysql);
       DBUG_RETURN(1);
     }

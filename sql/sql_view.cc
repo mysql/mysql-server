@@ -113,13 +113,8 @@ bool mysql_create_view(THD *thd,
       */
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
-        my_printf_error(ER_TABLEACCESS_DENIED_ERROR,
-                        ER(ER_TABLEACCESS_DENIED_ERROR),
-                        MYF(0),
-                        "ANY",
-                        thd->priv_user,
-                        thd->host_or_ip,
-                        tbl->real_name);
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "ANY", thd->priv_user, thd->host_or_ip, tbl->real_name);
         DBUG_RETURN(TRUE);
       }
       /*
@@ -190,8 +185,7 @@ bool mysql_create_view(THD *thd,
     /* is this table temporary and is not view? */
     if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view)
     {
-      my_printf_error(ER_VIEW_SELECT_TMPTABLE,
-                      ER(ER_VIEW_SELECT_TMPTABLE), MYF(0), tbl->alias);
+      my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
       res= TRUE;
       goto err;
     }
@@ -201,8 +195,7 @@ bool mysql_create_view(THD *thd,
         strcmp(tbl->view_db.str, view->db) == 0 &&
         strcmp(tbl->view_name.str, view->real_name) == 0)
     {
-      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
-                      tbl->view_db.str, tbl->view_name.str);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
       res= TRUE;
       goto err;
     }
@@ -257,8 +250,7 @@ bool mysql_create_view(THD *thd,
       {
         if (strcmp(item->name, check->name) == 0)
         {
-          my_printf_error(ER_DUP_FIELDNAME, ER(ER_DUP_FIELDNAME),
-                          MYF(0), item->name);
+          my_error(ER_DUP_FIELDNAME, MYF(0), item->name);
           DBUG_RETURN(TRUE);
         }
       }
@@ -290,14 +282,9 @@ bool mysql_create_view(THD *thd,
         if ((~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
-          my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                          ER(ER_COLUMNACCESS_DENIED_ERROR),
-                          MYF(0),
-                          "create view",
-                          thd->priv_user,
-                          thd->host_or_ip,
-                          item->name,
-                          view->real_name);
+          my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
+                   "create view", thd->priv_user, thd->host_or_ip, item->name,
+                   view->real_name);
           DBUG_RETURN(TRUE);
         }
       }
@@ -432,8 +419,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     {
       if (mode == VIEW_CREATE_NEW)
       {
-	my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
-                        MYF(0), view->alias);
+	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
 	DBUG_RETURN(-1);
       }
 
@@ -443,9 +429,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       if (!parser->ok() ||
           strncmp("VIEW", parser->type()->str, parser->type()->length))
       {
-        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
-                        (view->db ? view->db : thd->db),
-                        view->real_name, "VIEW");
+        my_error(ER_WRONG_OBJECT, MYF(0),
+                 (view->db ? view->db : thd->db), view->real_name, "VIEW");
         DBUG_RETURN(-1);
       }
 
@@ -465,8 +450,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     {
       if (mode == VIEW_ALTER)
       {
-	my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
-                        view->db, view->alias);
+	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
 	DBUG_RETURN(-1);
       }
     }
@@ -529,8 +513,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if (view->with_check != VIEW_CHECK_NONE &&
       !view->updatable_view)
   {
-    my_printf_error(ER_VIEW_NONUPD_CHECK, ER(ER_VIEW_NONUPD_CHECK), MYF(0),
-                    view->db, view->real_name);
+    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->real_name);
     DBUG_RETURN(-1);
   }
 
@@ -880,11 +863,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	continue;
       }
       if (type)
-        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
-                        view->db, view->real_name, "VIEW");
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->real_name, "VIEW");
       else
-        my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                        name);
+        my_error(ER_BAD_TABLE_ERROR, MYF(0), name);
       goto err;
     }
     if (my_delete(path, MYF(MY_WME)))

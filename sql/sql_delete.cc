@@ -290,14 +290,12 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     DBUG_RETURN(TRUE);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE), MYF(0),
-                    table_list->alias, "DELETE");
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(TRUE);
   }
   if (unique_table(table_list, table_list->next_global))
   {
-    my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED), MYF(0),
-                    table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
@@ -354,8 +352,8 @@ bool mysql_multi_delete_prepare(THD *thd)
     if (!target_tbl->correspondent_table->updatable ||
         check_key_in_view(thd, target_tbl->correspondent_table))
     {
-      my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
-                      MYF(0), target_tbl->real_name, "DELETE");
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
+               target_tbl->real_name, "DELETE");
       DBUG_RETURN(TRUE);
     }
     /*
@@ -372,8 +370,8 @@ bool mysql_multi_delete_prepare(THD *thd)
           un->check_updateable(target_tbl->correspondent_table->db,
                                target_tbl->correspondent_table->real_name))
       {
-        my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED),
-                        MYF(0), target_tbl->correspondent_table->real_name);
+        my_error(ER_UPDATE_TABLE_USED, MYF(0),
+                 target_tbl->correspondent_table->real_name);
         DBUG_RETURN(TRUE);
       }
     }
@@ -736,8 +734,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     db_type table_type;
     if ((table_type=get_table_type(path)) == DB_TYPE_UNKNOWN)
     {
-      my_printf_error(ER_NO_SUCH_TABLE, ER(ER_NO_SUCH_TABLE), MYF(0),
-                      table_list->db, table_list->real_name);
+      my_error(ER_NO_SUCH_TABLE, MYF(0),
+               table_list->db, table_list->real_name);
       DBUG_RETURN(TRUE);
     }
     if (!ha_supports_generate(table_type))

@@ -350,8 +350,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 
   if (stat_info.st_size > INT_MAX-1)
   {
-    my_printf_error(ER_FPARSER_TOO_BIG_FILE,
-                    ER(ER_FPARSER_TOO_BIG_FILE), MYF(0), file_name->str);
+    my_error(ER_FPARSER_TOO_BIG_FILE, MYF(0), file_name->str);
     DBUG_RETURN(0);
   }
 
@@ -413,8 +412,7 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 frm_error:
   if (bad_format_errors)
   {
-    my_printf_error(ER_FPARSER_BAD_HEADER, ER(ER_FPARSER_BAD_HEADER), MYF(0),
-                    file_name->str);
+    my_error(ER_FPARSER_BAD_HEADER, MYF(0), file_name->str);
     DBUG_RETURN(0);
   }
   else
@@ -627,8 +625,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
       // it is comment
       if (!(ptr= strchr(ptr, '\n')))
       {
-	my_printf_error(ER_FPARSER_EOF_IN_COMMENT,
-                        ER(ER_FPARSER_EOF_IN_COMMENT), MYF(0), line);
+	my_error(ER_FPARSER_EOF_IN_COMMENT, MYF(0), line);
 	DBUG_RETURN(TRUE);
       }
       ptr++;
@@ -670,9 +667,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 				  (LEX_STRING *)(base +
 						 parameter->offset))))
 	  {
-	    my_printf_error(ER_FPARSER_ERROR_IN_PARAMETER,
-                            ER(ER_FPARSER_ERROR_IN_PARAMETER), MYF(0),
-                            parameter->name.str, line);
+	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  break;
@@ -683,9 +679,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 					  (LEX_STRING *)
 					  (base + parameter->offset))))
 	  {
-	    my_printf_error(ER_FPARSER_ERROR_IN_PARAMETER,
-                            ER(ER_FPARSER_ERROR_IN_PARAMETER), MYF(0),
-                            parameter->name.str, line);
+	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  break;
@@ -694,9 +689,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	case FILE_OPTIONS_REV:
 	  if (!(eol= strchr(ptr, '\n')))
 	  {
-	    my_printf_error(ER_FPARSER_ERROR_IN_PARAMETER,
-                            ER(ER_FPARSER_ERROR_IN_PARAMETER), MYF(0),
-                            parameter->name.str, line);
+	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
           {
@@ -713,9 +707,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  /* yyyy-mm-dd HH:MM:SS = 19(PARSE_FILE_TIMESTAMPLENGTH) characters */
 	  if (ptr[PARSE_FILE_TIMESTAMPLENGTH] != '\n')
 	  {
-	    my_printf_error(ER_FPARSER_ERROR_IN_PARAMETER,
-                            ER(ER_FPARSER_ERROR_IN_PARAMETER), MYF(0),
-                            parameter->name.str, line);
+	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
 	  memcpy(val->str, ptr, PARSE_FILE_TIMESTAMPLENGTH);
@@ -754,9 +747,8 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  break;
 
       list_err_w_message:
-	  my_printf_error(ER_FPARSER_ERROR_IN_PARAMETER,
-                          ER(ER_FPARSER_ERROR_IN_PARAMETER), MYF(0),
-                          parameter->name.str, line);
+	  my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
+                   parameter->name.str, line);
       list_err:
 	  DBUG_RETURN(TRUE);
 	}
@@ -769,9 +761,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	// skip unknown parameter
 	if (!(ptr= strchr(ptr, '\n')))
 	{
-	  my_printf_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER,
-                          ER(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER), MYF(0),
-                          line);
+	  my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
 	  DBUG_RETURN(TRUE);
 	}
 	ptr++;

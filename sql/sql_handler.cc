@@ -173,8 +173,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     {
       DBUG_PRINT("info",("duplicate '%s'", tables->alias));
       if (! reopen)
-        my_printf_error(ER_NONUNIQ_TABLE, ER(ER_NONUNIQ_TABLE),
-                        MYF(0), tables->alias);
+        my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
       goto err;
     }
   }
@@ -198,7 +197,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   if (! (tables->table->file->table_flags() & HA_CAN_SQL_HANDLER))
   {
     if (! reopen)
-      my_printf_error(ER_ILLEGAL_HA,ER(ER_ILLEGAL_HA),MYF(0), tables->alias);
+      my_error(ER_ILLEGAL_HA, MYF(0), tables->alias);
     mysql_ha_close(thd, tables);
     goto err;
   }
@@ -257,11 +256,11 @@ err:
     will be closed. Broadcasts a COND_refresh condition.
 
   RETURN
-    0    ok
-    != 0 error
+    FALSE ok
+    TRUE  error
 */
 
-int mysql_ha_close(THD *thd, TABLE_LIST *tables)
+bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
 {
   TABLE_LIST    *hash_tables;
   TABLE         **table_ptr;
@@ -299,15 +298,14 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-                    tables->alias, "HANDLER");
+    my_error(ER_UNKNOWN_TABLE, MYF(0), tables->alias, "HANDLER");
     DBUG_PRINT("exit",("ERROR"));
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   send_ok(thd);
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -403,11 +401,9 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       strxnmov(buff, sizeof(buff), tables->db, ".", tables->real_name, NullS);
     else
       strncpy(buff, tables->alias, sizeof(buff));
-    my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-                    buff, "HANDLER");
+    my_error(ER_UNKNOWN_TABLE, MYF(0), buff, "HANDLER");
 #else
-    my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-                    tables->alias, "HANDLER");
+    my_error(ER_UNKNOWN_TABLE, MYF(0), tables->alias, "HANDLER");
 #endif
     goto err0;
   }
@@ -422,8 +418,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   {
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
     {
-      my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
-                      keyname,tables->alias);
+      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), keyname, tables->alias);
       goto err0;
     }
     table->file->ha_index_or_rnd_end();
@@ -491,8 +486,7 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
       KEY_PART_INFO *key_part=keyinfo->key_part;
       if (key_expr->elements > keyinfo->key_parts)
       {
-	my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
-			MYF(0),keyinfo->key_parts);
+	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->key_parts);
 	goto err;
       }
       List_iterator<Item> it_ke(*key_expr);

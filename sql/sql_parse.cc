@@ -1204,8 +1204,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   if (!db || check_db_name(db))
   {
-    my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                    db ? db : "NULL");
+    my_error(ER_WRONG_DB_NAME ,MYF(0), db ? db : "NULL");
     goto err;
   }
   if (lower_case_table_names)
@@ -1502,7 +1501,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->killed && !thd->is_fatal_error && thd->lex->found_colon)
+    while (!thd->killed && thd->lex->found_colon && !thd->net.report_error)
     {
       char *packet= thd->lex->found_colon;
       /*
@@ -1620,8 +1619,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       // null test to handle EOM
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
-	my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                        db ? db : "NULL");
+	my_error(ER_WRONG_DB_NAME, MYF(0), db ? db : "NULL");
 	break;
       }
       if (check_access(thd,CREATE_ACL,db,0,1,0))
@@ -1630,7 +1628,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       bzero(&create_info, sizeof(create_info));
       if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
                           &create_info, 0) < 0)
-        send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
+        error= TRUE;
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1641,8 +1639,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /*  null test to handle EOM */
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
-	my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME),
-                        MYF(0), db ? db : "NULL");
+	my_error(ER_WRONG_DB_NAME, MYF(0), db ? db : "NULL");
 	break;
       }
       if (check_access(thd,DROP_ACL,db,0,1,0))
@@ -1656,7 +1653,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_log.write(thd,command,db);
       if (mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
                       0, 0) < 0)
-        send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
+        error= TRUE;
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -2189,11 +2186,10 @@ mysql_execute_command(THD *thd)
     }
     else
     {
-      my_printf_error(ER_UNKNOWN_STMT_HANDLER, ER(ER_UNKNOWN_STMT_HANDLER),
-                      MYF(0),
-                      lex->prepared_stmt_name.length,
-                      lex->prepared_stmt_name.str,
-                      "DEALLOCATE PREPARE");
+      my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
+               lex->prepared_stmt_name.length,
+               lex->prepared_stmt_name.str,
+               "DEALLOCATE PREPARE");
       goto error;
     }
     break;
@@ -2386,8 +2382,7 @@ mysql_execute_command(THD *thd)
     }
     if (strlen(first_table->real_name) > NAME_LEN)
     {
-      my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME), MYF(0),
-                      first_table->real_name);
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), first_table->real_name);
       break;
     }
     pthread_mutex_lock(&LOCK_active_mi);
@@ -2455,8 +2450,7 @@ mysql_execute_command(THD *thd)
         if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
             unique_table(create_table, select_tables))
         {
-          my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED),
-                          MYF(0), create_table->real_name);
+          my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->real_name);
           goto create_error;
         }
         /* If we create merge table, we have to test tables in merge, too */
@@ -2469,8 +2463,7 @@ mysql_execute_command(THD *thd)
           {
             if (unique_table(tab, select_tables))
             {
-              my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED),
-                              MYF(0), tab->real_name);
+              my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->real_name);
               goto create_error;
             }
           }
@@ -2579,8 +2572,7 @@ create_error:
       ulong priv=0;
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
-	my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME), MYF(0),
-                        lex->name);
+	my_error(ER_WRONG_TABLE_NAME, MYF(0), lex->name);
         goto error;
       }
       if (!select_lex->db)
@@ -3054,18 +3046,17 @@ create_error:
       remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
-        my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0), db);
+        my_error(ER_WRONG_DB_NAME, MYF(0), db);
         goto error;
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access,0,0))
 	goto error;				/* purecov: inspected */
       if (!thd->col_access && check_grant_db(thd,db))
       {
-        my_printf_error(ER_DBACCESS_DENIED_ERROR,
-                        ER(ER_DBACCESS_DENIED_ERROR), MYF(0),
-                        thd->priv_user,
-                        thd->priv_host,
-                        db);
+        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+                 thd->priv_user,
+                 thd->priv_host,
+                 db);
 	goto error;
       }
       /* grant is checked in mysqld_show_tables */
@@ -3231,8 +3222,7 @@ create_error:
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
-      my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                      lex->name);
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
     /*
@@ -3262,8 +3252,7 @@ create_error:
     char *alias;
     if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
-      my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                      lex->name);
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
     /*
@@ -3298,8 +3287,7 @@ create_error:
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                      lex->name);
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
     /*
@@ -3333,8 +3321,7 @@ create_error:
   {
     if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
-      my_printf_error(ER_WRONG_DB_NAME, ER(ER_WRONG_DB_NAME), MYF(0),
-                      lex->name);
+      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name);
       break;
     }
     if (check_access(thd,SELECT_ACL,lex->name,0,1,0))
@@ -3356,8 +3343,7 @@ create_error:
 #ifdef HAVE_DLOPEN
     if ((sph= sp_find_function(thd, lex->spname)))
     {
-      my_printf_error(ER_UDF_EXISTS, ER(ER_UDF_EXISTS), MYF(0),
-                      lex->spname->m_name.str);
+      my_error(ER_UDF_EXISTS, MYF(0), lex->spname->m_name.str);
       goto error;
     }
     if (!(res = mysql_create_function(thd,&lex->udf)))
@@ -3642,7 +3628,7 @@ create_error:
 
       if (udf)
       {
-	my_printf_error(ER_UDF_EXISTS, ER(ER_UDF_EXISTS), MYF(0), name);
+	my_error(ER_UDF_EXISTS, MYF(0), name);
 	delete lex->sphead;
 	lex->sphead= 0;
 	goto error;
@@ -3652,7 +3638,7 @@ create_error:
     if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
 	!lex->sphead->m_has_return)
     {
-      my_printf_error(ER_SP_NORETURN, ER(ER_SP_NORETURN), MYF(0), name);
+      my_error(ER_SP_NORETURN, MYF(0), name);
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
@@ -3667,22 +3653,19 @@ create_error:
       lex->sphead= 0;
       break;
     case SP_WRITE_ROW_FAILED:
-      my_printf_error(ER_SP_ALREADY_EXISTS, ER(ER_SP_ALREADY_EXISTS), MYF(0),
-                      SP_TYPE_STRING(lex), name);
+      my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
     case SP_NO_DB_ERROR:
-      my_printf_error(ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR), MYF(0),
-                      lex->sphead->m_db.str);
+      my_error(ER_BAD_DB_ERROR, MYF(0), lex->sphead->m_db.str);
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
     default:
-      my_printf_error(ER_SP_STORE_FAILED, ER(ER_SP_STORE_FAILED), MYF(0),
-                      SP_TYPE_STRING(lex), name);
+      my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(lex), name);
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
@@ -3696,8 +3679,7 @@ create_error:
 
       if (!(sp= sp_find_procedure(thd, lex->spname)))
       {
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
-                        MYF(0), "PROCEDURE",
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
                  lex->spname->m_qname.str);
 	goto error;
       }
@@ -3795,12 +3777,12 @@ create_error:
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_qname.str);
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_qname.str);
 	goto error;
       default:
-	my_printf_error(ER_SP_CANT_ALTER, ER(ER_SP_CANT_ALTER), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_qname.str);
+	my_error(ER_SP_CANT_ALTER, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_qname.str);
 	goto error;
       }
       break;
@@ -3862,12 +3844,12 @@ create_error:
 	  send_ok(thd);
 	  break;
 	}
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_qname.str);
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_qname.str);
 	goto error;
       default:
-	my_printf_error(ER_SP_DROP_FAILED, ER(ER_SP_DROP_FAILED), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_qname.str);
+	my_error(ER_SP_DROP_FAILED, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_qname.str);
 	goto error;
       }
       break;
@@ -3876,14 +3858,13 @@ create_error:
     {
       if (lex->spname->m_name.length > NAME_LEN)
       {
-	my_printf_error(ER_TOO_LONG_IDENT, ER(ER_TOO_LONG_IDENT), MYF(0),
-                        lex->spname->m_name.str);
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
 	goto error;
       }
       if (sp_show_create_procedure(thd, lex->spname) != SP_OK)
       {			/* We don't distinguish between errors for now */
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_name.str);
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
       }
       break;
@@ -3892,14 +3873,13 @@ create_error:
     {
       if (lex->spname->m_name.length > NAME_LEN)
       {
-	my_printf_error(ER_TOO_LONG_IDENT, ER(ER_TOO_LONG_IDENT), MYF(0),
-                        lex->spname->m_name.str);
+	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
 	goto error;
       }
       if (sp_show_create_function(thd, lex->spname) != SP_OK)
       {			/* We don't distinguish between errors for now */
-	my_printf_error(ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST), MYF(0),
-                        SP_COM_STRING(lex), lex->spname->m_name.str);
+	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+                 SP_COM_STRING(lex), lex->spname->m_name.str);
 	goto error;
       }
       break;
@@ -4103,13 +4083,12 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   {						// We can never grant this
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
-      my_printf_error(ER_ACCESS_DENIED_ERROR,
-                      ER(ER_ACCESS_DENIED_ERROR), MYF(0),
-                      thd->priv_user,
-                      thd->priv_host,
-                      (thd->password ?
-                       ER(ER_YES) :
-                       ER(ER_NO)));/* purecov: tested */
+      my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+               thd->priv_user,
+               thd->priv_host,
+               (thd->password ?
+                ER(ER_YES) :
+                ER(ER_NO)));                    /* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -4136,13 +4115,12 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   DBUG_PRINT("error",("Access denied"));
   if (!no_errors)
-    my_printf_error(ER_DBACCESS_DENIED_ERROR,
-                    ER(ER_DBACCESS_DENIED_ERROR), MYF(0),
-                    thd->priv_user,
-                    thd->priv_host,
-                    (db ? db : (thd->db ?
-                                thd->db :
-                                "unknown"))); /* purecov: tested */
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->priv_user,
+             thd->priv_host,
+             (db ? db : (thd->db ?
+                         thd->db :
+                         "unknown")));          /* purecov: tested */
   DBUG_RETURN(TRUE);				/* purecov: tested */
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
@@ -4176,8 +4154,7 @@ bool check_global_access(THD *thd, ulong want_access)
   if ((thd->master_access & want_access))
     return 0;
   get_privilege_desc(command, sizeof(command), want_access);
-  my_printf_error(ER_SPECIFIC_ACCESS_DENIED_ERROR,
-                  ER(ER_SPECIFIC_ACCESS_DENIED_ERROR), MYF(0), command);
+  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   return 1;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
@@ -4331,8 +4308,7 @@ check_sp_definer_access(THD *thd, sp_head *sp)
       strncmp(thd->priv_host, hst->str, hst->length) == 0)
     return FALSE;		/* Both user and host must match */
 
-  my_printf_error(ER_SP_ACCESS_DENIED_ERROR, ER(ER_SP_ACCESS_DENIED_ERROR),
-                  MYF(0), sp->m_qname.str);
+  my_error(ER_SP_ACCESS_DENIED_ERROR, MYF(0), sp->m_qname.str);
   return TRUE;			/* Not definer or root */
 }
 
@@ -4710,8 +4686,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   if (strlen(field_name) > NAME_LEN)
   {
-    my_printf_error(ER_TOO_LONG_IDENT, ER(ER_TOO_LONG_IDENT), MYF(0),
-                    field_name); /* purecov: inspected */
+    my_error(ER_TOO_LONG_IDENT, MYF(0), field_name); /* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (type_modifier & PRI_KEY_FLAG)
@@ -4742,8 +4717,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
         !(((Item_func*)default_value)->functype() == Item_func::NOW_FUNC &&
          type == FIELD_TYPE_TIMESTAMP))
     {
-      my_printf_error(ER_INVALID_DEFAULT, ER(ER_INVALID_DEFAULT), MYF(0),
-                      field_name);
+      my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
       DBUG_RETURN(1);
     }
     else if (default_value->type() == Item::NULL_ITEM)
@@ -4752,23 +4726,20 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
 	  NOT_NULL_FLAG)
       {
-	my_printf_error(ER_INVALID_DEFAULT, ER(ER_INVALID_DEFAULT), MYF(0),
-                        field_name);
+	my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
 	DBUG_RETURN(1);
       }
     }
     else if (type_modifier & AUTO_INCREMENT_FLAG)
     {
-      my_printf_error(ER_INVALID_DEFAULT, ER(ER_INVALID_DEFAULT), MYF(0),
-                      field_name);
+      my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
       DBUG_RETURN(1);
     }
   }
 
   if (on_update_value && type != FIELD_TYPE_TIMESTAMP)
   {
-    my_printf_error(ER_INVALID_ON_UPDATE, ER(ER_INVALID_ON_UPDATE), MYF(0),
-                    field_name);
+    my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name);
     DBUG_RETURN(1);
   }
     
@@ -4894,9 +4865,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       res=default_value->val_str(&str);
       if (res->length())
       {
-	my_printf_error(ER_BLOB_CANT_HAVE_DEFAULT,
-                        ER(ER_BLOB_CANT_HAVE_DEFAULT), MYF(0),
-                        field_name); /* purecov: inspected */
+	my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
+                 field_name); /* purecov: inspected */
 	DBUG_RETURN(1); /* purecov: inspected */
       }
       new_field->def=0;
@@ -4916,8 +4886,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       uint tmp_length=new_field->length;
       if (tmp_length > PRECISION_FOR_DOUBLE)
       {
-	my_printf_error(ER_WRONG_FIELD_SPEC, ER(ER_WRONG_FIELD_SPEC), MYF(0),
-                        field_name);
+	my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
 	DBUG_RETURN(1);
       }
       else if (tmp_length > PRECISION_FOR_FLOAT)
@@ -5014,8 +4983,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     {
       if (interval->count > sizeof(longlong)*8)
       {
-	my_printf_error(ER_TOO_BIG_SET, ER(ER_TOO_BIG_SET), MYF(0),
-                        field_name); /* purecov: inspected */
+	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
 	DBUG_RETURN(1);				/* purecov: inspected */
       }
       new_field->pack_length=(interval->count+7)/8;
@@ -5041,8 +5009,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
                         &not_used, &not_used2, &not_used3);
 	if (thd->cuted_fields)
 	{
-	  my_printf_error(ER_INVALID_DEFAULT, ER(ER_INVALID_DEFAULT), MYF(0),
-                          field_name);
+	  my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
 	  DBUG_RETURN(1);
 	}
       }
@@ -5064,8 +5031,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 	res->strip_sp();
 	if (!find_type(interval, res->ptr(), res->length(), 0))
 	{
-	  my_printf_error(ER_INVALID_DEFAULT, ER(ER_INVALID_DEFAULT), MYF(0),
-                          field_name);
+	  my_error(ER_INVALID_DEFAULT, MYF(0), field_name);
 	  DBUG_RETURN(1);
 	}
       }
@@ -5079,15 +5045,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
        type != FIELD_TYPE_STRING &&
        type != FIELD_TYPE_VAR_STRING && type != FIELD_TYPE_GEOMETRY))
   {
-    my_printf_error(ER_TOO_BIG_FIELDLENGTH, ER(ER_TOO_BIG_FIELDLENGTH), MYF(0),
+    my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0),
                     field_name, MAX_FIELD_CHARLENGTH);/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   type_modifier&= AUTO_INCREMENT_FLAG;
   if ((~allowed_type_modifier) & type_modifier)
   {
-    my_printf_error(ER_WRONG_FIELD_SPEC, ER(ER_WRONG_FIELD_SPEC), MYF(0),
-                    field_name);
+    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
     DBUG_RETURN(1);
   }
   if (!new_field->pack_length)
@@ -5217,8 +5182,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
-    my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME), MYF(0),
-                    table->table.str);
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
   }
 
@@ -5283,8 +5247,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
       if (!my_strcasecmp(table_alias_charset, alias_str, tables->alias) &&
 	  !strcmp(ptr->db, tables->db))
       {
-	my_printf_error(ER_NONUNIQ_TABLE, ER(ER_NONUNIQ_TABLE), MYF(0),
-                        alias_str); /* purecov: tested */
+	my_error(ER_NONUNIQ_TABLE, MYF(0), alias_str); /* purecov: tested */
 	DBUG_RETURN(0);				/* purecov: tested */
       }
     }
@@ -5828,8 +5791,7 @@ static bool append_file_to_dir(THD *thd, const char **filename_ptr,
   if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
       !test_if_hard_path(*filename_ptr))
   {
-    my_printf_error(ER_WRONG_TABLE_NAME, ER(ER_WRONG_TABLE_NAME), MYF(0),
-                    *filename_ptr);
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
     return 1;
   }
   /* Fix is using unix filename format on dos */
@@ -5863,8 +5825,7 @@ bool check_simple_select()
     char command[80];
     strmake(command, lex->yylval->symbol.str,
 	    min(lex->yylval->symbol.length, sizeof(command)-1));
-    my_printf_error(ER_CANT_USE_OPTION_HERE, ER(ER_CANT_USE_OPTION_HERE),
-                    MYF(0), command);
+    my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
     return 1;
   }
   return 0;
@@ -6010,7 +5971,7 @@ bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
   if (select_lex->item_list.elements != lex->value_list.elements)
   {
-    my_printf_error(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
+    my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);
   }
   /*
@@ -6113,8 +6074,8 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
     }
     if (!walk)
     {
-      my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-                      target_tbl->real_name, "MULTI DELETE");
+      my_error(ER_UNKNOWN_TABLE, MYF(0),
+               target_tbl->real_name, "MULTI DELETE");
       DBUG_RETURN(TRUE);
     }
     walk->lock_type= target_tbl->lock_type;
@@ -6288,8 +6249,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
           find_table_in_global_list(tables, create_table->db,
                                     create_table->real_name))
       {
-        net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
-
+	error= FALSE;
         goto err;
       }
     }

@@ -449,9 +449,8 @@ bool show_new_master(THD* thd)
   if (translate_master(thd, lex_mi, errmsg))
   {
     if (errmsg[0])
-      my_printf_error(ER_ERROR_WHEN_EXECUTING_COMMAND,
-                      ER(ER_ERROR_WHEN_EXECUTING_COMMAND), MYF(0),
-                      "SHOW NEW MASTER", errmsg);
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+               "SHOW NEW MASTER", errmsg);
     DBUG_RETURN(TRUE);
   }
   else
@@ -790,8 +789,7 @@ bool load_master_data(THD* thd)
   
   if (connect_to_master(thd, &mysql, active_mi))
   {
-    my_printf_error(error= ER_CONNECT_TO_MASTER,
-                    ER(ER_CONNECT_TO_MASTER), MYF(0), mysql_error(&mysql));
+    my_error(error= ER_CONNECT_TO_MASTER, MYF(0), mysql_error(&mysql));
     goto err;
   }
 
@@ -803,8 +801,7 @@ bool load_master_data(THD* thd)
     if (mysql_real_query(&mysql, "SHOW DATABASES", 14) ||
 	!(db_res = mysql_store_result(&mysql)))
     {
-      my_printf_error(error = ER_QUERY_ON_MASTER,
-                      ER(ER_QUERY_ON_MASTER), MYF(0), mysql_error(&mysql));
+      my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
       goto err;
     }
 
@@ -831,8 +828,7 @@ bool load_master_data(THD* thd)
 	mysql_real_query(&mysql, "SHOW MASTER STATUS",18) ||
 	!(master_status_res = mysql_store_result(&mysql)))
     {
-      my_printf_error(error = ER_QUERY_ON_MASTER,
-                      ER(ER_QUERY_ON_MASTER), MYF(0), mysql_error(&mysql));
+      my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
       goto err;
     }
 
@@ -885,8 +881,7 @@ bool load_master_data(THD* thd)
 	  mysql_real_query(&mysql, "SHOW TABLES", 11) ||
 	  !(*cur_table_res = mysql_store_result(&mysql)))
       {
-	my_printf_error(error = ER_QUERY_ON_MASTER,
-                        ER(ER_QUERY_ON_MASTER), MYF(0), mysql_error(&mysql));
+	my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
       }
@@ -943,8 +938,7 @@ bool load_master_data(THD* thd)
 
     if (mysql_real_query(&mysql, "UNLOCK TABLES", 13))
     {
-      my_printf_error(error = ER_QUERY_ON_MASTER,
-                      ER(ER_QUERY_ON_MASTER), MYF(0), mysql_error(&mysql));
+      my_error(error= ER_QUERY_ON_MASTER, MYF(0), mysql_error(&mysql));
       goto err;
     }
   }
@@ -953,7 +947,7 @@ bool load_master_data(THD* thd)
 		       0 /* not only reset, but also reinit */,
 		       &errmsg))
   {
-    my_printf_error(ER_RELAY_LOG_FAIL, ER(ER_RELAY_LOG_FAIL), MYF(0), errmsg);
+    my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
     unlock_slave_threads(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
     return TRUE;
