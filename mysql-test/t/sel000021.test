@@ -1,0 +1,14 @@
+# sel000021
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Strings.
+# Testing string comparisons; =, >, >=, <=, <>.
+#
+
+@r/3.23/sel000021.result SELECT "a"<"b","a"<="b","b">="a","b">"a","a"="A","a"<>"b";

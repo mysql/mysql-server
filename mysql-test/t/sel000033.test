@@ -1,0 +1,17 @@
+# sel000033
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# test for a bug with in() and unique key
+
+drop table if exists t;
+create  table t (id int(10) primary key);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+@r/3.23/sel000033.result select id from t where id in (2,5,9) ;
+@r/3.23/sel000033.result select id from t where id=2 or id=5 or id=9 ;
