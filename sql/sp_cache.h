@@ -37,8 +37,8 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp);
 /* Lookup an SP in cache */
 sp_head *sp_cache_lookup(sp_cache **cp, char *name, uint namelen);
 
-/* Remove an SP from cache */
-sp_head *sp_cache_remove(sp_cache **cp, char *name, uint namelen);
+/* Remove an SP from cache. Returns true if something was removed */
+bool sp_cache_remove(sp_cache **cp, char *name, uint namelen);
 
 
 /*
@@ -75,14 +75,17 @@ public:
     return (sp_head *)hash_search(&m_hashtable, (const byte *)name, namelen);
   }
 
-  inline sp_head *
+  inline bool
   remove(char *name, uint namelen)
   {
     sp_head *sp= lookup(name, namelen);
 
     if (sp)
+    {
       hash_delete(&m_hashtable, (byte *)sp);
-    return sp;
+      return TRUE;
+    }
+    return FALSE;
   }
 
   inline void

@@ -583,12 +583,9 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
 {
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
-  sp_head *sp;
   int ret;
 
-  sp= sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  if (sp)
-    delete sp;
+  sp_cache_remove(&thd->sp_proc_cache, name, namelen);
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
 
   DBUG_RETURN(ret);
@@ -601,12 +598,9 @@ sp_update_procedure(THD *thd, char *name, uint namelen,
 {
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
-  sp_head *sp;
   int ret;
 
-  sp= sp_cache_remove(&thd->sp_proc_cache, name, namelen);
-  if (sp)
-    delete sp;
+  sp_cache_remove(&thd->sp_proc_cache, name, namelen);
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen,
 			 newname, newnamelen,
 			 chistics);
@@ -676,12 +670,9 @@ sp_drop_function(THD *thd, char *name, uint namelen)
 {
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
-  sp_head *sp;
   int ret;
 
-  sp= sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  if (sp)
-    delete sp;
+  sp_cache_remove(&thd->sp_func_cache, name, namelen);
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
 
   DBUG_RETURN(ret);
@@ -694,12 +685,9 @@ sp_update_function(THD *thd, char *name, uint namelen,
 {
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", namelen, name));
-  sp_head *sp;
   int ret;
 
-  sp= sp_cache_remove(&thd->sp_func_cache, name, namelen);
-  if (sp)
-    delete sp;
+  sp_cache_remove(&thd->sp_func_cache, name, namelen);
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, namelen,
 			 newname, newnamelen,
 			 chistics);

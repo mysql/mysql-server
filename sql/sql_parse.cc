@@ -3473,12 +3473,18 @@ mysql_execute_command(THD *thd)
       {
       case SP_OK:
 	send_ok(thd);
+	delete lex->sphead;
+	lex->sphead= 0;
 	break;
       case SP_WRITE_ROW_FAILED:
 	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
+	delete lex->sphead;
+	lex->sphead= 0;
 	goto error;
       default:
 	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
+	delete lex->sphead;
+	lex->sphead= 0;
 	goto error;
       }
       break;

@@ -146,6 +146,7 @@ sp_head::operator delete(void *ptr, size_t size)
   MEM_ROOT own_root;
   sp_head *sp= (sp_head *)ptr;
 
+  DBUG_PRINT("info", ("root: %lx", &sp->m_mem_root));
   memcpy(&own_root, (const void *)&sp->m_mem_root, sizeof(MEM_ROOT));
   free_root(&own_root, MYF(0));
 
@@ -178,15 +179,17 @@ sp_head::init(LEX *lex)
 }
 
 void
-sp_head::init_strings(LEX_STRING *name, LEX *lex)
+sp_head::init_strings(THD *thd, LEX *lex, LEX_STRING *name)
 {
   DBUG_ENTER("sp_head::init_strings");
+  /* During parsing, we must use thd->mem_root */
+  MEM_ROOT *root= &thd->mem_root;
 
   DBUG_PRINT("info", ("name: %*s", name->length, name->str));
   m_name.length= name->length;
-  m_name.str= strmake_root(&m_mem_root, name->str, name->length);
+  m_name.str= strmake_root(root, name->str, name->length);
   m_params.length= m_param_end- m_param_begin;
-  m_params.str= strmake_root(&m_mem_root,
+  m_params.str= strmake_root(root,
 			     (char *)m_param_begin, m_params.length);
   if (m_returns_begin && m_returns_end)
   {
@@ -204,13 +207,13 @@ sp_head::init_strings(LEX_STRING *name, LEX *lex)
       p-= 1;
     m_returns_end= (uchar *)p+1;
     m_retstr.length=  m_returns_end - m_returns_begin;
-    m_retstr.str= strmake_root(&m_mem_root,
+    m_retstr.str= strmake_root(root,
 			       (char *)m_returns_begin, m_retstr.length);
   }
   m_body.length= lex->end_of_query - m_body_begin;
-  m_body.str= strmake_root(&m_mem_root, (char *)m_body_begin, m_body.length);
+  m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
   m_defstr.length= lex->end_of_query - lex->buf;
-  m_defstr.str= strmake_root(&m_mem_root, (char *)lex->buf, m_defstr.length);
+  m_defstr.str= strmake_root(root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
