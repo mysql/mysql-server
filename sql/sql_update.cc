@@ -465,21 +465,34 @@ int mysql_multi_update(THD *thd,
     */
     for (tl= table_list ; tl ; tl=tl->next)
     {
+      TABLE_LIST *save= tl->next;
       TABLE *table= tl->table;
+      uint wants;
+      tl->next= 0;
       if (update_map & table->map) 
       {
 	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
 	tl->lock_type= thd->lex.lock_option;
 	tl->updating= 1;
+	wants= UPDATE_ACL;
       }
       else
       {
 	DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
 	tl->lock_type= TL_READ;
 	tl->updating= 0;
+	wants= SELECT_ACL;
       }
       if (!using_lock_tables)
 	tl->table->reginfo.lock_type= tl->lock_type;
+
+      if (check_access(thd, wants, tl->db, &tl->grant.privilege, 0, 0) ||
+          (grant_option && check_grant(thd, wants, tl, 0, 0)))
+      {
+	tl->next= save;
+	DBUG_RETURN(0);
+      }
+      tl->next= save;
     }
 
     /* Relock the tables with the correct modes */

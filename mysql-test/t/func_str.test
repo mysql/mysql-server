@@ -185,3 +185,11 @@ drop table t1;
 
 select trim(trailing 'foo' from 'foo');
 select trim(leading 'foo' from 'foo');
+
+#
+# crashing bug with QUOTE() and LTRIM() or TRIM() fixed
+# Bug #7495
+#
+
+select quote(ltrim(concat('    ', 'a')));
+select quote(trim(concat('    ', 'a')));
