@@ -81,7 +81,7 @@ static void free_var(user_var_entry *entry)
 
 THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	   insert_id_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0), having_fix_field(0)
+	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip="unknown ip";
@@ -103,6 +103,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   file_id = 0;
   cond_count=0;
   convert_set=0;
+  db_charset=default_charset_info;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -140,6 +141,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   command=COM_CONNECT;
   set_query_id=1;
   default_select_limit= HA_POS_ERROR;
+  max_error_count=max_warning_count=MYSQL_DEFAULT_ERROR_COUNT;
   max_join_size=  ((::max_join_size != ~ (ulong) 0L) ? ::max_join_size :
 		   HA_POS_ERROR);
   db_access=NO_ACCESS;
@@ -147,6 +149,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
+  bzero((char*) &con_root,sizeof(con_root));
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
@@ -223,6 +226,7 @@ THD::~THD()
   safeFree(db);
   safeFree(ip);
   free_root(&mem_root,MYF(0));
+  free_root(&con_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -763,7 +767,6 @@ void select_dump::send_error(uint errcode,const char *err)
   file= -1;
 }
 
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -782,10 +785,11 @@ select_subselect::select_subselect(Item_subselect *item)
   this->item=item;
 }
 
-bool select_subselect::send_data(List<Item> &items)
+bool select_singleval_subselect::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_subselect::send_data");
-  if (item->assigned){
+  DBUG_ENTER("select_singleval_subselect::send_data");
+  Item_singleval_subselect *it= (Item_singleval_subselect *)item;
+  if (it->assigned){
     my_printf_error(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
@@ -800,18 +804,33 @@ bool select_subselect::send_data(List<Item> &items)
     Following val() call have to be first, because function AVG() & STD()
     calculate value on it & determinate "is it NULL?".
   */
-  item->real_value= val_item->val();
-  if ((item->null_value= val_item->is_null()))
+  it->real_value= val_item->val();
+  if ((it->null_value= val_item->is_null()))
   {
-    item->assign_null();
+    it->assign_null();
   } else {
-    item->max_length= val_item->max_length;
-    item->decimals= val_item->decimals;
-    item->binary= val_item->binary;
-    val_item->val_str(&item->str_value);
-    item->int_value= val_item->val_int();
-    item->res_type= val_item->result_type();
+    it->max_length= val_item->max_length;
+    it->decimals= val_item->decimals;
+    it->binary= val_item->binary;
+    val_item->val_str(&it->str_value);
+    it->int_value= val_item->val_int();
+    it->res_type= val_item->result_type();
   }
-  item->assigned= 1;
+  it->assigned= 1;
   DBUG_RETURN(0);
 }
+
+bool select_exists_subselect::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_exists_subselect::send_data");
+  Item_exists_subselect *it= (Item_exists_subselect *)item;
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+  it->value= 1;
+  it->assigned= 1;
+  DBUG_RETURN(0);
+}
+

@@ -48,11 +48,11 @@ int main(int argc, char **argv) {
 
   cs_list = list_charsets(MYF(MY_COMPILED_SETS | MY_CONFIG_SETS));
   printf("LIST OF CHARSETS (compiled + *.conf):\n%s\n", cs_list);
-  free(cs_list);
+  my_free(cs_list,MYF(0));
 
   cs_list = list_charsets(MYF(MY_INDEX_SETS | MY_LOADED_SETS));
   printf("LIST OF CHARSETS (index + loaded):\n%s\n", cs_list);
-  free(cs_list);
+  my_free(cs_list,MYF(0));
 
   return 0;
 }

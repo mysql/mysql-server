@@ -287,7 +287,10 @@ inline THD *_current_thd(void)
 #define query_cache_invalidate_by_MyISAM_filename_ref NULL
 #endif /*HAVE_QUERY_CACHE*/
 
-int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
+#define prepare_execute(A) ((A)->command == COM_EXECUTE)
+
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
+int mysql_alter_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
@@ -363,6 +366,8 @@ bool net_store_data(String *packet, CONVERT *convert, const char *from);
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
 int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
                 List <Item> &all_fields, ORDER *order);
+int setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
+	    List<Item> &all_fields, ORDER *order, bool *hidden_group_fields);
 
 int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
@@ -455,7 +460,7 @@ bool load_des_key_file(const char *file_name);
 /* sql_do.cc */
 int mysql_do(THD *thd, List<Item> &values);
 
-/* sql_list.c */
+/* sql_show.cc */
 int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
@@ -467,11 +472,32 @@ int mysqld_show_logs(THD *thd);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
+int mysqld_show_create_db(THD *thd, const char *dbname);
 
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
+int mysqld_show_charsets(THD *thd,const char *wild);
+int mysqld_show_table_types(THD *thd);
+int mysqld_show_privileges(THD *thd);
+int mysqld_show_column_types(THD *thd);
+
+/* sql_prepare.cc */
+void mysql_com_prepare(THD *thd,char*packet,uint packet_length);
+void mysql_init_query(THD *thd);/* sql_parse. cc */
+void mysql_com_execute(THD *thd);
+void mysql_com_longdata(THD *thd);
+int  check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
+		    List<Item> &values, ulong counter);
+
+/* sql_error.cc */
+void push_error(uint code, const char *msg);
+void push_warning(uint code, const char *msg);
+int mysqld_show_warnings(THD *thd);
+int mysqld_show_errors(THD *thd);
+int mysqld_show_warnings_count(THD *thd);
+int mysqld_show_errors_count(THD *);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
@@ -653,6 +679,10 @@ extern const char *default_tx_isolation_name;
 extern String empty_string;
 extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
+extern struct show_table_type_st table_type_vars[];
+extern SHOW_COMP_OPTION have_isam;
+extern SHOW_COMP_OPTION have_innodb;
+extern SHOW_COMP_OPTION have_berkeley_db;
 extern enum db_type default_table_type;
 extern enum enum_tx_isolation default_tx_isolation;
 extern char glob_hostname[FN_REFLEN];

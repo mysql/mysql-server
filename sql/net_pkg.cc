@@ -48,6 +48,7 @@ void send_error(NET *net, uint sql_errno, const char *err)
       }
     }
   }
+  push_error(sql_errno, err);
   if (net->vio == 0)
   {
     if (thd && thd->bootstrap)
@@ -82,7 +83,14 @@ void send_error(NET *net, uint sql_errno, const char *err)
 
 void send_warning(NET *net, uint sql_errno, const char *err)
 {
-  DBUG_ENTER("send_warning");
+  DBUG_ENTER("send_warning");  
+  push_warning(sql_errno, err ? err : ER(sql_errno)); 
+
+  /*
+    TODO : 
+    Try to return ok with warning status to client, instead 
+    of returning error .. 
+  */
   send_error(net,sql_errno,err);
   DBUG_VOID_RETURN;
 }
@@ -123,6 +131,7 @@ net_printf(NET *net, uint errcode, ...)
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
 
+  push_error(errcode, text_pos);
   if (net->vio == 0)
   {
     if (thd && thd->bootstrap)

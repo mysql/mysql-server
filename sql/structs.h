@@ -152,6 +152,29 @@ struct show_var_st {
   SHOW_TYPE type;
 };
 
+struct show_table_type_st {
+  const char *type;
+  char *value;
+  const char *comment;
+};
+
+struct show_column_type_st {
+  const char *type;
+  uint size;
+  const char *min_value;
+  const char *max_value;
+  uint precision;
+  uint scale;
+  const char *nullable;
+  const char *auto_increment;
+  const char *unsigned_attr;
+  const char *zerofill;
+  const char *searchable;
+  const char *case_sensitivity;
+  const char *default_value;
+  const char *comment;
+};
+
 typedef struct lex_string {
   char *str;
   uint length;

@@ -162,6 +162,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CACHE_SYM
 %token	CASCADE
 %token	CAST_SYM
+%token	CHARSET
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	CIPHER
@@ -324,6 +325,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TRAILING
 %token	TRANSACTION_SYM
 %token	TYPE_SYM
+%token  TYPES_SYM
 %token	FUNC_ARG0
 %token	FUNC_ARG1
 %token	FUNC_ARG2
@@ -332,6 +334,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_SONAME_SYM
 %token	UDF_SYM
 %token  UNCOMMITTED_SYM
+%token	UNDERSCORE_CHARSET
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -345,6 +348,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WRITE_SYM
 %token  X509_SYM
 %token  COMPRESSED_SYM
+
+%token  ERRORS
+%token  SQL_ERROR_COUNT
+%token  WARNINGS
+%token  SQL_WARNING_COUNT
 
 %token	BIGINT
 %token	BLOB_SYM
@@ -518,7 +526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text UNDERSCORE_CHARSET
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -548,7 +556,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list subselect subselect_init
+	using_list param_marker singleval_subselect singleval_subselect_init
+	exists_subselect exists_subselect_init
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -761,7 +770,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= default_table_type;
-	  lex->create_info.table_charset=default_charset_info;
+	  lex->create_info.table_charset=NULL;
 	}
 	create2
 
@@ -789,6 +798,7 @@ create:
 	    lex->sql_command=SQLCOM_CREATE_DB;
 	    lex->name=$4.str;
             lex->create_info.options=$3;
+	    lex->create_info.table_charset=lex->charset;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {
@@ -875,6 +885,11 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
+	| CHARSET EQ charset_or_nocharset
+	  { 
+	    Lex->create_info.table_charset=Lex->charset;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
@@ -959,7 +974,7 @@ field_spec:
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
 	   lex->default_value=lex->comment=0;
-	   lex->charset=default_charset_info;
+	   lex->charset=NULL;
 	 }
 	type opt_attribute
 	{
@@ -1109,32 +1124,28 @@ attribute:
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
-opt_binary:
-	/* empty */		{ Lex->charset=default_charset_info; }
-	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=default_charset_info; }
-	| CHAR_SYM SET ident
+charset:
+	ident	
+	{ 
+	  if (!(Lex->charset=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
-	      YYABORT;
-	    }
-	    Lex->charset=cs;
-	  };
+	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1);
+	    YYABORT;
+	  }
+	};
+
+charset_or_nocharset:
+	charset
+	| DEFAULT {Lex->charset=NULL; }
+
+opt_binary:
+	/* empty */		{ Lex->charset=NULL; }
+	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
+	| CHAR_SYM SET charset  {/* charset is already in Lex->charset */} ;
 
 default_charset:
-	/* empty */			{ Lex->charset-default_charset_info; }
-	| DEFAULT CHAR_SYM SET ident
-	  {
-	    CHARSET_INFO *cs=get_charset_by_name($4.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$4);
-	      YYABORT;
-	    }
-	    Lex->charset=cs;
-	  };
+	/* empty */			{ Lex->charset=NULL; }
+	| DEFAULT CHAR_SYM SET charset_or_nocharset ;
 
 references:
 	REFERENCES table_ident
@@ -1253,12 +1264,21 @@ alter:
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->create_info.table_charset=default_charset_info;
+	  lex->create_info.table_charset=NULL;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
 	alter_list;
- 
+
+	| ALTER DATABASE ident default_charset
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command=SQLCOM_ALTER_DB;
+	    lex->name=$3.str;
+	    lex->create_info.table_charset=lex->charset;
+	  }
+
+
 alter_list:
         | alter_list_item
 	| alter_list ',' alter_list_item;
@@ -1720,6 +1740,7 @@ no_and_expr:
 simple_expr:
 	simple_ident
 	| literal
+	| param_marker
 	| '@' ident_or_text SET_VAR expr
 	  { $$= new Item_func_set_user_var($2,$4);
 	    current_thd->safe_to_cache_query=0;
@@ -1738,7 +1759,8 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
-	| subselect             { $$= $1; }
+	| EXISTS exists_subselect { $$= $2; }
+	| singleval_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->ftfunc_list.push_back((Item_func_match *)
@@ -1751,16 +1773,8 @@ simple_expr:
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
-	| CONVERT_SYM '(' expr USING IDENT ')'
-	  { 
-	    CHARSET_INFO *cs=get_charset_by_name($5.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$5);
-	      YYABORT;
-	    }
-	    $$= new Item_func_conv_charset($3,cs); 
-	  }
+	| CONVERT_SYM '(' expr USING charset ')'
+	  { $$= new Item_func_conv_charset($3,Lex->charset); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
 	  { 
 	    $$= new Item_func_conv_charset3($3,$7,$5); 
@@ -1779,6 +1793,8 @@ simple_expr:
 	  { $$= new Item_func_atan($3,$5); }
 	| CHAR_SYM '(' expr_list ')'
 	  { $$= new Item_func_char(*$3); }
+	| CHARSET '(' expr ')'
+	  { $$= new Item_func_charset($3); }
 	| COALESCE '(' expr_list ')'
 	  { $$= new Item_func_coalesce(* $3); }
 	| CONCAT '(' expr_list ')'
@@ -2795,12 +2811,37 @@ show_param:
 	    if (!add_table_to_list($3,NULL,0))
 	      YYABORT;
 	  }
+	| COLUMN_SYM TYPES_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_COLUMN_TYPES;
+	  }
+	| TABLE_SYM TYPES_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_TABLE_TYPES;
+	  }
+	| PRIVILEGES
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
+	  }
+        | COUNT_SYM '(' '*' ')' WARNINGS 
+          { Lex->sql_command = SQLCOM_SHOW_WARNS_COUNT;}
+        | COUNT_SYM '(' '*' ')' ERRORS 
+          { Lex->sql_command = SQLCOM_SHOW_ERRORS_COUNT;}
+        | WARNINGS {Select->offset_limit=0L;} limit_clause
+          { Lex->sql_command = SQLCOM_SHOW_WARNS;}
+        | ERRORS {Select->offset_limit=0L;} limit_clause
+          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}  
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| VARIABLES wild
 	  { Lex->sql_command= SQLCOM_SHOW_VARIABLES; }
+	| CHAR_SYM SET wild
+	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
@@ -2809,6 +2850,11 @@ show_param:
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    lex->grant_user=$3;
 	    lex->grant_user->password.str=NullS;
+	  }
+	| CREATE DATABASE ident
+	  {
+	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
+	    Lex->name=$3.str;
 	  }
         | CREATE TABLE_SYM table_ident
           {
@@ -2940,7 +2986,7 @@ kill:
 	KILL_SYM expr
 	{
 	  LEX *lex=Lex;
-	  if ($2->fix_fields(lex->thd,0))
+	  if ($2->fix_fields(lex->thd, 0, &$2))
 	  { 
 	    send_error(&lex->thd->net, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
@@ -3043,6 +3089,7 @@ opt_ignore_lines:
 
 text_literal:
 	TEXT_STRING { $$ = new Item_string($1.str,$1.length,default_charset_info); }
+	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
@@ -3053,7 +3100,20 @@ text_string:
 	    Item *tmp = new Item_varbinary($1.str,$1.length,default_charset_info);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  };
-
+param_marker:
+        '?' 
+        {
+          if(current_thd->prepare_command)
+          {     
+            Lex->param_list.push_back($$=new Item_param());      
+            current_thd->param_count++;
+          }
+          else 
+          {
+            yyerror("You have an error in your SQL syntax");
+            YYABORT;
+          }
+        }
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
@@ -3409,10 +3469,21 @@ option_value:
 	     YYABORT;
 	 }
 	| SQL_QUERY_CACHE_TYPE_SYM equal query_cache_type
+        | SQL_ERROR_COUNT equal ULONG_NUM
+          {
+            LEX *lex = Lex;
+            lex->thd->max_error_count = $3;
+          }
+        | SQL_WARNING_COUNT equal ULONG_NUM
+          {
+            LEX *lex = Lex;
+            lex->thd->max_warning_count = $3;
+          }
 	| '@' ident_or_text equal expr
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);
-	     if (item->fix_fields(current_thd,0) || item->update())
+	     if (item->fix_fields(current_thd, 0, (Item**) &item) ||
+                 item->update())
 	     { 
 		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
 	        YYABORT;
@@ -3444,7 +3515,7 @@ option_value:
 	  {
 	     THD *thd=current_thd;
 	     Item *item= $3;
-	     if (item->fix_fields(current_thd,0))
+	     if (item->fix_fields(current_thd, 0, &item))
 	     {
 		send_error(&thd->net, ER_SET_CONSTANTS_ONLY);
 	        YYABORT;
@@ -3918,17 +3989,30 @@ union_option:
   /* empty */ {}
   | ALL {Lex->union_option=1;};
 
-subselect:
-  subselect_start subselect_init
+singleval_subselect:
+  subselect_start singleval_subselect_init
   subselect_end
   {
     $$= $2;
   };
 
-subselect_init:
+singleval_subselect_init:
   select_init
   {
-    $$= new Item_subselect(current_thd, Lex->select);
+    $$= new Item_singleval_subselect(current_thd, Lex->select);
+  };
+
+exists_subselect:
+  subselect_start exists_subselect_init
+  subselect_end
+  {
+    $$= $2;
+  };
+
+exists_subselect_init:
+  select_init
+  {
+    $$= new Item_exists_subselect(current_thd, Lex->select);
   };
 
 subselect_start:
