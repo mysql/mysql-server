@@ -134,7 +134,7 @@ public:
   /**
    * getText - Return as hex-digits (only for debug routines).
    */
-  static void getText(unsigned size, const Uint32 data[], char* buf);
+  static char* getText(unsigned size, const Uint32 data[], char* buf);
 };
 
 inline bool
@@ -302,9 +302,10 @@ BitmaskImpl::setField(unsigned size, Uint32 data[],
     set(size, data, pos + i, val & (1 << i));
 }
 
-inline void
+inline char *
 BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
 {
+  char * org = buf;
   const char* const hex = "0123456789abcdef";
   for (int i = (size-1); i >= 0; i--) {
     Uint32 x = data[i];
@@ -315,6 +316,7 @@ BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
     buf += 8;
   }
   *buf = 0;
+  return org;
 }
 
 /**
@@ -331,11 +333,12 @@ public:
    */
   struct Data {
     Uint32 data[size];
-
+#if 0
     Data & operator=(const Bitmask<size> & src) {
-      src.assign(size, data);
+      src.copyto(size, data);
       return *this;
     }
+#endif
   };
 private:
   
@@ -345,21 +348,24 @@ public:
   STATIC_CONST( NotFound = BitmaskImpl::NotFound );
   STATIC_CONST( TextLength = size * 8 );
 
+  Bitmask() { clear();}
+
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
-  void assign(const Bitmask<size>::Data & src);
+  void assign(const typename Bitmask<size>::Data & src);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
+  static void assign(Uint32 dst[], const Bitmask<size> & src);
   void assign(const Bitmask<size> & src);
 
   /**
-   * assign <em>dst</em> of size <em>sz</em> to <em>this</em>
+   * copy this to <em>dst</em>
    */
-  void assign(unsigned sz, Uint32 dst[]) const;
+  void copyto(unsigned sz, Uint32 dst[]) const;
   
   /**
    * assign <em>this</em> according to <em>src/em>
@@ -467,7 +473,7 @@ public:
   /**
    * getText - Return as hex-digits (only for debug routines).
    */
-  static void getText(const Uint32 data[], char* buf);
+  static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 };
 
@@ -480,7 +486,14 @@ Bitmask<size>::assign(Uint32 dst[], const Uint32 src[])
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(const Bitmask<size>::Data & src)
+Bitmask<size>::assign(Uint32 dst[], const Bitmask<size> & src)
+{
+  BitmaskImpl::assign(size, dst, src.rep.data);
+}
+
+template <unsigned size>
+inline void
+Bitmask<size>::assign(const typename Bitmask<size>::Data & src)
 {
   assign(rep.data, src.data);
 }
@@ -489,12 +502,12 @@ template <unsigned size>
 inline void
 Bitmask<size>::assign(const Bitmask<size> & src)
 {
-  assign(rep.data, src);
+  assign(rep.data, src.rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(unsigned sz, Uint32 dst[]) const
+Bitmask<size>::copyto(unsigned sz, Uint32 dst[]) const
 {
   BitmaskImpl::assign(sz, dst, rep.data);
 }
@@ -707,18 +720,17 @@ Bitmask<size>::bitXOR(const Bitmask<size>& mask2)
 }
 
 template <unsigned size>
-void
+char *
 Bitmask<size>::getText(const Uint32 data[], char* buf)
 {
-  BitmaskImpl::getText(size, data, buf);
+  return BitmaskImpl::getText(size, data, buf);
 }
 
 template <unsigned size>
 inline char *
 Bitmask<size>::getText(char* buf) const
 {
-  getText(rep.data, buf);
-  return buf;
+  return getText(rep.data, buf);
 }
 
 template <unsigned size>

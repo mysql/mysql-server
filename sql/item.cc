@@ -230,8 +230,8 @@ bool Item::get_date(TIME *ltime,uint fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <= 
-      TIMESTAMP_DATETIME_ERROR)
+      str_to_datetime_with_warn(res->ptr(), res->length(),
+                                ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -249,7 +249,7 @@ bool Item::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time(res->ptr(),res->length(),ltime))
+      str_to_time_with_warn(res->ptr(), res->length(), ltime))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -257,7 +257,7 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::default_charset() const
+CHARSET_INFO *Item::default_charset()
 {
   return current_thd->variables.collation_connection;
 }
@@ -658,7 +658,9 @@ default_set_param_func(Item_param *param,
 Item_param::Item_param(unsigned pos_in_query_arg) :
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
-  item_type(STRING_ITEM),
+  /* Don't pretend to be a literal unless value for this item is set. */
+  item_type(PARAM_ITEM),
+  param_type(MYSQL_TYPE_STRING),
   pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
 {
@@ -766,6 +768,73 @@ bool Item_param::set_longdata(const char *str, ulong length)
 
 
 /*
+  Set parameter value from user variable value.
+
+  SYNOPSIS
+   set_from_user_var
+     thd   Current thread
+     entry User variable structure (NULL means use NULL value)
+
+  RETURN
+    0 OK
+    1 Out of memort
+*/
+
+bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
+{
+  DBUG_ENTER("Item_param::set_from_user_var");
+  if (entry && entry->value)
+  {
+    item_result_type= entry->type;
+    switch (entry->type) {
+    case REAL_RESULT:
+      set_double(*(double*)entry->value);
+      item_type= Item::REAL_ITEM;
+      item_result_type= REAL_RESULT;
+      break;
+    case INT_RESULT:
+      set_int(*(longlong*)entry->value, 21);
+      item_type= Item::INT_ITEM;
+      item_result_type= INT_RESULT;
+      break;
+    case STRING_RESULT:
+    {
+      CHARSET_INFO *fromcs= entry->collation.collation;
+      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      uint32 dummy_offset;
+
+      value.cs_info.character_set_client= fromcs;
+      /*
+        Setup source and destination character sets so that they
+        are different only if conversion is necessary: this will
+        make later checks easier.
+      */
+      value.cs_info.final_character_set_of_str_value=
+        String::needs_conversion(0, fromcs, tocs, &dummy_offset) ?
+        tocs : fromcs;
+      /*
+        Exact value of max_length is not known unless data is converted to
+        charset of connection, so we have to set it later.
+      */
+      item_type= Item::STRING_ITEM;
+      item_result_type= STRING_RESULT;
+
+      if (set_str((const char *)entry->value, entry->length))
+        DBUG_RETURN(1);
+      break;
+    }
+    default:
+      DBUG_ASSERT(0);
+      set_null();
+    }
+  }
+  else
+    set_null();
+
+  DBUG_RETURN(0);
+}
+
+/*
     Resets parameter after execution.
   
   SYNOPSIS
@@ -783,21 +852,29 @@ void Item_param::reset()
     str_value.free();
   else
     str_value.length(0);
+  str_value_ptr.length(0);
   /*
-    We must prevent all charset conversions unless data of str_value
-    has been written to the binary log.
+    We must prevent all charset conversions untill data has been written
+    to the binary log.
   */
   str_value.set_charset(&my_charset_bin);
   state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
+  /*
+    Don't reset item_type to PARAM_ITEM: it's only needed to guard
+    us from item optimizations at prepare stage, when item doesn't yet
+    contain a literal of some kind.
+    In all other cases when this object is accessed its value is
+    set (this assumption is guarded by 'state' and
+    DBUG_ASSERTS(state != NO_VALUE) in all Item_param::get_*
+    methods).
+  */
 }
 
 
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
-  DBUG_ASSERT(current_thd->command == COM_EXECUTE);
-
   field->set_notnull();
 
   switch (state) {
@@ -834,6 +911,17 @@ bool Item_param::get_time(TIME *res)
     which is called from Item::get_time().
   */
   return Item::get_time(res);
+}
+
+
+bool Item_param::get_date(TIME *res, uint fuzzydate)
+{
+  if (state == TIME_VALUE)
+  {
+    *res= value.time;
+    return 0;
+  }
+  return Item::get_date(res, fuzzydate);
 }
 
 
@@ -896,7 +984,7 @@ String *Item_param::val_str(String* str)
   switch (state) {
   case STRING_VALUE:
   case LONG_DATA_VALUE:
-    return &str_value;
+    return &str_value_ptr;
   case REAL_VALUE:
     str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
     return str;
@@ -1010,6 +1098,12 @@ bool Item_param::convert_str_value(THD *thd)
     }
     max_length= str_value.length();
     decimals= 0;
+    /*
+      str_value_ptr is returned from val_str(). It must be not alloced
+      to prevent it's modification by val_str() invoker.
+    */
+    str_value_ptr.set(str_value.ptr(), str_value.length(),
+                      str_value.charset());
   }
   return rc;
 }
@@ -2368,6 +2462,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
     field_example= ((Item_field*) item)->field;
   else
     field_example= 0;
+  max_length= real_length(item);
   collation.set(item->collation);
 }
 
@@ -2387,6 +2482,7 @@ static Item_result type_convertor[4][4]=
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint32 new_length= real_length(item);
   bool change_field= 0, skip_store_field= 0;
   Item_result new_type= type_convertor[item_type][item->result_type()];
 
@@ -2412,7 +2508,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   // size/type should be changed
   if (change_field ||
       (new_type != item_type) ||
-      (max_length < item->max_length) ||
+      (max_length < new_length) ||
       ((new_type == INT_RESULT) &&
        (decimals < item->decimals)) ||
       (!maybe_null && item->maybe_null) ||
@@ -2421,7 +2517,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   {
     // new field has some parameters worse then current
     skip_store_field|= (change_field &&
-			(max_length > item->max_length) ||
+			(max_length > new_length) ||
 			((new_type == INT_RESULT) &&
 			 (decimals > item->decimals)) ||
 			(maybe_null && !item->maybe_null) ||
@@ -2450,7 +2546,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       return 1;
     }
 
-    max_length= max(max_length, item->max_length);
+    max_length= max(max_length, new_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
     item_type= new_type;
@@ -2459,6 +2555,26 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   return 0;
 }
 
+uint32 Item_type_holder::real_length(Item *item)
+{
+  if (item->type() == Item::FIELD_ITEM)
+  {
+    return ((Item_field *)item)->max_disp_length();
+  }
+  switch (item->result_type())
+  {
+  case STRING_RESULT:
+    return item->max_length;
+  case REAL_RESULT:
+    return 53;
+  case INT_RESULT:
+    return 20;
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0); // we should never go there
+    return 0;
+  }
+}
 
 double Item_type_holder::val()
 {

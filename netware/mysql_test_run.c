@@ -16,22 +16,15 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */ 
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
+#include <my_global.h>
+#include <m_string.h>
 #include <dirent.h>
-#include <string.h>
 #include <screen.h>
 #include <nks/vm.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/mode.h>
-
-#include "my_config.h"
 #include "my_manage.h"
-
 /******************************************************************************
 
   macros
@@ -148,11 +141,12 @@ int read_option(char *, char *);
 void run_test(char *);
 void setup(char *);
 void vlog(char *, va_list);
-void log(char *, ...);
+void log_msg(char *, ...);
 void log_info(char *, ...);
 void log_error(char *, ...);
 void log_errno(char *, ...);
 void die(char *);
+char *str_tok(char *string, const char *delim);
 
 /******************************************************************************
 
@@ -165,21 +159,21 @@ void report_stats()
 {
   if (total_fail == 0)
   {
-    log("\nAll %d test(s) were successful.\n", total_test);
+    log_msg("\nAll %d test(s) were successful.\n", total_test);
   }
   else
   {
     double percent = ((double)total_pass / total_test) * 100;
     
-    log("\nFailed %u/%u test(s), %.02f%% successful.\n",
+    log_msg("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
-		log("\nThe .out and .err files in %s may give you some\n", result_dir);
-		log("hint of what when wrong.\n");
-		log("\nIf you want to report this error, please first read the documentation\n");
-		log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
+		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
+		log_msg("hint of what when wrong.\n");
+		log_msg("\nIf you want to report this error, please first read the documentation\n");
+		log_msg("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
   }
 
-  log("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
+  log_msg("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
 }
 
 /******************************************************************************
@@ -244,6 +238,7 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
   
   // create subdirectories
+  log_msg("Creating test-suite folders...\n");
   snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
   mkdir(temp, S_IRWXU);
   snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
@@ -262,7 +257,9 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
 
   // install databases
+  log_msg("Creating test databases for master... \n");
   install_db(master_dir);
+  log_msg("Creating test databases for slave... \n");
   install_db(slave_dir);
 }
 
@@ -346,6 +343,9 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
+#ifdef DEBUG	//only for debug builds
+  add_arg(&al, "--debug");
+#endif
 
   if (use_openssl)
   {
@@ -370,21 +370,15 @@ void start_master()
   if (master_opt[0] != NULL)
   {
     char *p;
-    char *temp;
 
-    p = (char *)strtok(master_opt, " \t");
-
-    if ((temp = strstr(p, "timezone")) == NULL)
+    p = (char *)str_tok(master_opt, " \t");
+    if (!strstr(master_opt, "timezone"))
     {
-      while(p)
+      while (p)
       {
         add_arg(&al, "%s", p);
-        p = (char *)strtok(NULL, " \t");
+        p = (char *)str_tok(NULL, " \t");
       }
-    }
-    else
-    {
-      //do nothing
     }
   }
 
@@ -392,11 +386,12 @@ void start_master()
   remove(master_pid);
 
   // spawn
-  if ((err = spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
+  if ((err= spawn(mysqld_file, &al, FALSE, NULL, master_out, master_err)) == 0)
   {
     sleep_until_file_exists(master_pid);
 
-	if ((err = wait_for_server_start(bin_dir, user, password, master_port,mysql_tmp_dir)) == 0)
+	if ((err = wait_for_server_start(bin_dir, user, password, master_port,
+                                         mysql_tmp_dir)) == 0)
     {
       master_running = TRUE;
     }
@@ -467,11 +462,11 @@ void start_slave()
       snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
       fp = fopen(temp, "wb+");
       
-      fputs("master-bin.001\n", fp);
+      fputs("master-bin.000001\n", fp);
       fputs("4\n", fp);
       fputs("127.0.0.1\n", fp);
       fputs("replicate\n", fp);
-      fputs("aaaaaaaaaaaaaaabthispartofthepasswordisnotused\n", fp);
+      fputs("aaaaaaaaaaaaaaab\n", fp);
       fputs("9306\n", fp);
       fputs("1\n", fp);
       fputs("0\n", fp);
@@ -521,6 +516,9 @@ void start_slave()
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+#ifdef DEBUG	//only for debug builds
+  add_arg(&al, "--debug");
+#endif
 
   if (use_openssl)
   {
@@ -534,13 +532,13 @@ void start_slave()
   {
     char *p;
 
-    p = (char *)strtok(slave_master_info, " \t");
+    p = (char *)str_tok(slave_master_info, " \t");
 
     while(p)
     {
       add_arg(&al, "%s", p);
       
-      p = (char *)strtok(NULL, " \t");
+      p = (char *)str_tok(NULL, " \t");
     }
   }
   else
@@ -567,13 +565,13 @@ void start_slave()
   {
     char *p;
 
-    p = (char *)strtok(slave_opt, " \t");
+    p = (char *)str_tok(slave_opt, " \t");
 
     while(p)
     {
       add_arg(&al, "%s", p);
       
-      p = (char *)strtok(NULL, " \t");
+      p = (char *)str_tok(NULL, " \t");
     }
   }
   
@@ -585,18 +583,22 @@ void start_slave()
   {
     sleep_until_file_exists(slave_pid);
     
-    if ((err = wait_for_server_start(bin_dir, user, password, slave_port,mysql_tmp_dir)) == 0)
+    if ((err = wait_for_server_start(bin_dir, user, password, slave_port,
+                                     mysql_tmp_dir)) == 0)
     {
       slave_running = TRUE;
+
     }
     else
     {
       log_error("The slave server went down early.");
+
     }
   }
   else
   {
     log_error("Unable to start slave server.");
+
   }
   
   // free args
@@ -636,7 +638,8 @@ void stop_slave()
   if (!slave_running) return;
 
   // stop
-  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid,mysql_tmp_dir)) == 0)
+  if ((err = stop_server(bin_dir, user, password, slave_port, slave_pid,
+                         mysql_tmp_dir)) == 0)
   {
     slave_running = FALSE;
   }
@@ -660,7 +663,8 @@ void stop_master()
   // running?
   if (!master_running) return;
 
-  if ((err = stop_server(bin_dir, user, password, master_port, master_pid,mysql_tmp_dir)) == 0)
+  if ((err = stop_server(bin_dir, user, password, master_port, master_pid,
+                         mysql_tmp_dir)) == 0)
   {
     master_running = FALSE;
   }
@@ -697,6 +701,7 @@ void mysql_stop()
 ******************************************************************************/
 void mysql_restart()
 {
+  log_info("Restarting the MySQL server(s): %u", ++restarts);
 
   mysql_stop();
 
@@ -758,6 +763,12 @@ int read_option(char *opt_file, char *opt)
       
       strcat(opt, temp);
     }
+    // Check for double backslash and replace it with single bakslash
+    if ((p = strstr(opt, "\\\\")) != NULL)
+    {
+      /* bmove is guranteed to work byte by byte */
+      bmove(p, p+1, strlen(p+1));
+    }
   }
   else
   {
@@ -786,20 +797,16 @@ void run_test(char *test)
   int flag = FALSE;
   struct stat info;
   
-  // single test?
-//  if (!single_test)
-  {
-    // skip tests in the skip list
-    snprintf(temp, PATH_MAX, " %s ", test);
-    skip = (strindex(skip_test, temp) != NULL);
-    if( skip == FALSE )
-      ignore = (strindex(ignore_test, temp) != NULL);
-  }
+  // skip tests in the skip list
+  snprintf(temp, PATH_MAX, " %s ", test);
+  skip = (strindex(skip_test, temp) != NULL);
+  if (skip == FALSE)
+    ignore = (strindex(ignore_test, temp) != NULL);
     
-  if(ignore)
+  if (ignore)
   {
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
          
     // ignore
     rstr = TEST_IGNORE;
@@ -837,7 +844,7 @@ void run_test(char *test)
     if (stat(test_file, &info))
     {
       snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, TEST_SUFFIX);
-      if(access(test_file,0))
+      if (access(test_file,0))
       {
         printf("Invalid test name %s, %s file not found\n",test,test_file);
         return;
@@ -881,7 +888,7 @@ void run_test(char *test)
     sleep(1);
 
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // args
     init_args(&al);
@@ -953,7 +960,7 @@ void run_test(char *test)
   else // early skips
   {
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // skip
     rstr = TEST_SKIP;
@@ -961,7 +968,7 @@ void run_test(char *test)
   }
   
   // result
-  log("%10.06f   %-14s\n", elapsed, rstr);
+  log_msg("%10.06f   %-14s\n", elapsed, rstr);
 }
 
 /******************************************************************************
@@ -990,7 +997,7 @@ void vlog(char *format, va_list ap)
   Log the message.
 
 ******************************************************************************/
-void log(char *format, ...)
+void log_msg(char *format, ...)
 {
   va_list ap;
 
@@ -1014,9 +1021,9 @@ void log_info(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- INFO : ");
+  log_msg("-- INFO : ");
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1034,9 +1041,9 @@ void log_error(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: ");
+  log_msg("-- ERROR: ");
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1054,9 +1061,9 @@ void log_errno(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: (%003u) ", errno);
+  log_msg("-- ERROR: (%003u) ", errno);
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1087,8 +1094,7 @@ void die(char *msg)
 void setup(char *file)
 {
   char temp[PATH_MAX];
-  char mysqldump_load[PATH_MAX*2],mysqlbinlog_load[PATH_MAX*2];
-
+  char file_path[PATH_MAX*2];
   char *p;
 
   // set the timezone for the timestamp test
@@ -1145,13 +1151,16 @@ void setup(char *file)
   strcpy(temp, strlwr(skip_test));
   snprintf(skip_test, PATH_MAX, " %s ", temp);
 
-  snprintf(mysqlbinlog_load,PATH_MAX*2,"%s/mysqlbinlog --no-defaults --local-load=%s",bin_dir,mysql_tmp_dir);
-  snprintf(mysqldump_load,PATH_MAX*2,"%s/mysqldump --no-defaults -uroot --port=%d",bin_dir,master_port);
   // environment
   setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
-  setenv("MYSQL_DUMP", mysqldump_load, 1);
-  setenv("MYSQL_BINLOG", mysqlbinlog_load, 1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysqldump --no-defaults -u root --port=%u", bin_dir, master_port);
+  setenv("MYSQL_DUMP", file_path, 1);
+  snprintf(file_path, PATH_MAX*2, "%s/mysqlbinlog --no-defaults --local-load=%s", bin_dir, mysql_tmp_dir);
+  setenv("MYSQL_BINLOG", file_path, 1);
   setenv("MASTER_MYPORT", "9306", 1);
+  setenv("SLAVE_MYPORT", "9307", 1);
+  setenv("MYSQL_TCP_PORT", "3306", 1);
+  
 }
 
 /******************************************************************************
@@ -1165,20 +1174,22 @@ int main(int argc, char **argv)
   // setup
   setup(argv[0]);
   
-  /* The --ignore option is comma saperated list of test cases to skip and should 
-   * be very first command line option to the test suite. 
-   * The usage is now:
-   * mysql_test_run --ignore=test1,test2 test3 test4
-   * where test1 and test2 are test cases to ignore
-   * and test3 and test4 are test cases to run. */
-  if( argc >= 2 && !strnicmp(argv[1], "--ignore=", sizeof("--ignore=")-1) )
+  /* The --ignore option is comma saperated list of test cases to skip and
+     should be very first command line option to the test suite. 
+
+     The usage is now:
+     mysql_test_run --ignore=test1,test2 test3 test4
+     where test1 and test2 are test cases to ignore
+     and test3 and test4 are test cases to run.
+  */
+  if (argc >= 2 && !strnicmp(argv[1], "--ignore=", sizeof("--ignore=")-1))
   {
     char *temp, *token;
-    temp=strdup(strchr(argv[1],'=') + 1);
-    for(token=strtok(temp, ","); token != NULL; token=strtok(NULL, ","))
+    temp= strdup(strchr(argv[1],'=') + 1);
+    for (token=str_tok(temp, ","); token != NULL; token=str_tok(NULL, ","))
     {
-      if( strlen(ignore_test) + strlen(token) + 2 <= PATH_MAX-1 )
-        sprintf( ignore_test+strlen(ignore_test), " %s ", token);
+      if (strlen(ignore_test) + strlen(token) + 2 <= PATH_MAX-1)
+        sprintf(ignore_test+strlen(ignore_test), " %s ", token);
       else
       {
         free(temp);
@@ -1189,18 +1200,18 @@ int main(int argc, char **argv)
     is_ignore_list = 1;
   }
   // header
-  log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  log_msg("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   
-  log("Initializing Tests...\n");
+  log_msg("Initializing Tests...\n");
   
   // install test databases
   mysql_install_db();
   
-  log("Starting Tests...\n");
+  log_msg("Starting Tests...\n");
   
-  log("\n");
-  log(HEADER);
-  log(DASH);
+  log_msg("\n");
+  log_msg(HEADER);
+  log_msg(DASH);
 
   if ( argc > 1 + is_ignore_list )
   {
@@ -1255,10 +1266,10 @@ int main(int argc, char **argv)
   // stop server
   mysql_stop();
 
-  log(DASH);
-  log("\n");
+  log_msg(DASH);
+  log_msg("\n");
 
-  log("Ending Tests...\n");
+  log_msg("Ending Tests...\n");
 
   // report stats
   report_stats();
@@ -1272,3 +1283,113 @@ int main(int argc, char **argv)
   return 0;
 }
 
+/*
+ Synopsis:
+  This function breaks the string into a sequence of tokens. The difference
+  between this function and strtok is that it respects the quoted string i.e.
+  it skips  any delimiter character within the quoted part of the string. 
+  It return tokens by eliminating quote character. It modifies the input string
+  passed. It will work with whitespace delimeter but may not work properly with
+  other delimeter. If the delimeter will contain any quote character, then
+  function will not tokenize and will return null string.
+  e.g. if input string is 
+     --init-slave="set global max_connections=500" --skip-external-locking
+  then the output will two string i.e.
+     --init-slave=set global max_connections=500
+     --skip-external-locking
+
+Arguments:
+  string:  input string
+  delim:   set of delimiter character
+Output:
+  return the null terminated token of NULL.
+*/
+
+
+char *str_tok(char *string, const char *delim)
+{
+  char *token;            /* current token received from strtok */
+  char *qt_token;         /* token delimeted by the matching pair of quote */
+  /*
+    if there are any quote chars found in the token then this variable
+    will hold the concatenated string to return to the caller
+  */
+  char *ptr_token=NULL;
+  /* pointer to the quote character in the token from strtok */
+  char *ptr_quote=NULL;
+  
+  /* See if the delimeter contains any quote character */
+  if (strchr(delim,'\'') || strchr(delim,'\"'))
+    return NULL;
+
+  /* repeate till we are getting some token from strtok */
+  while ((token = (char*)strtok(string, delim) ) != NULL)
+  {
+    /*
+      make the input string NULL so that next time onward strtok can
+      be called with NULL input string.
+    */
+    string = NULL;
+    
+    /* check if the current token contain double quote character*/
+    if ((ptr_quote = (char*)strchr(token,'\"')) != NULL)
+    {
+      /*
+        get the matching the matching double quote in the remaining
+        input string
+      */
+      qt_token = (char*)strtok(NULL,"\"");
+    }
+    /* check if the current token contain single quote character*/
+    else if ((ptr_quote = (char*)strchr(token,'\'')) != NULL)
+    {
+      /*
+        get the matching the matching single quote in the remaining
+        input string
+      */
+      qt_token = (char*)strtok(NULL,"\'");
+    }
+
+    /*
+      if the current token does not contains any quote character then
+      return to the caller.
+    */
+    if (ptr_quote == NULL)
+    {
+      /*
+        if there is any earlier token i.e. ptr_token then append the
+        current token in it and return it else return the current
+        token directly
+      */
+      return ptr_token ? strcat(ptr_token,token) : token;
+    }
+
+    /*
+      remove the quote character i.e. make NULL so that the token will
+      be devided in two part and later both part can be concatenated
+      and hence quote will be removed
+    */
+    *ptr_quote= 0;
+    
+    /* check if ptr_token has been initialized or not */
+    if (ptr_token == NULL)
+    {
+      /* initialize the ptr_token with current token */
+      ptr_token= token;
+      /* copy entire string between matching pair of quote*/
+      sprintf(ptr_token+strlen(ptr_token),"%s %s", ptr_quote+1, qt_token);
+    }
+    else
+    {
+      /*
+        copy the current token and entire string between matching pair
+        of quote
+      */
+      sprintf(ptr_token+strlen(ptr_token),"%s%s %s", token, ptr_quote+1,
+              qt_token );
+    }
+  }
+  
+  /* return the concatenated token */
+  return ptr_token;
+}

@@ -66,6 +66,7 @@ extern "C" {
 #include "../innobase/include/trx0roll.h"
 #include "../innobase/include/trx0trx.h"
 #include "../innobase/include/trx0sys.h"
+#include "../innobase/include/mtr0mtr.h"
 #include "../innobase/include/row0ins.h"
 #include "../innobase/include/row0mysql.h"
 #include "../innobase/include/row0sel.h"
@@ -103,7 +104,7 @@ are determined in innobase_init below: */
 char*	innobase_data_home_dir			= NULL;
 char*	innobase_data_file_path 		= NULL;
 char*	innobase_log_group_home_dir		= NULL;
-char*	innobase_log_arch_dir			= NULL;
+char*	innobase_log_arch_dir			= NULL;/* unused */
 /* The following has a misleading name: starting from 4.0.5, this also
 affects Windows: */
 char*	innobase_unix_file_flush_method		= NULL;
@@ -112,7 +113,7 @@ char*	innobase_unix_file_flush_method		= NULL;
 values */
 
 uint	innobase_flush_log_at_trx_commit	= 1;
-my_bool innobase_log_archive			= FALSE;
+my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
@@ -406,7 +407,7 @@ innobase_mysql_print_thd(
 					May 14, 2004 probably no race any more,
 					but better be safe */
 		}
-		
+
                 /* Use strmake to reduce the timeframe
                    for a race, compared to fwrite() */
 		i= (uint) (strmake(buf, s, len) - buf);
@@ -841,7 +842,8 @@ innobase_init(void)
 	if (!innobase_log_group_home_dir) {
 	  	innobase_log_group_home_dir = default_path;
 	}
-	  	
+
+#ifdef UNIV_LOG_ARCHIVE	  	
 	/* Since innodb_log_arch_dir has no relevance under MySQL,
 	starting from 4.0.6 we always set it the same as
 	innodb_log_group_home_dir: */
@@ -849,6 +851,7 @@ innobase_init(void)
 	innobase_log_arch_dir = innobase_log_group_home_dir;
 
 	srv_arch_dir = innobase_log_arch_dir;
+#endif /* UNIG_LOG_ARCHIVE */
 
 	ret = (bool)
 		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
@@ -870,7 +873,9 @@ innobase_init(void)
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ulint) innobase_log_file_size;
 
+#ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
+#endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
@@ -1433,9 +1438,6 @@ ha_innobase::open(
 
 	last_query_id = (ulong)-1;
 
-	active_index = 0;
-	active_index_before_scan = (uint)-1; /* undefined value */
-
 	if (!(share=get_share(name))) {
 
 		DBUG_RETURN(1);
@@ -1577,15 +1579,6 @@ ha_innobase::open(
   	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
   	DBUG_RETURN(0);
-}
-
-/*********************************************************************
-Does nothing. */
-
-void
-ha_innobase::initialize(void)
-/*=========================*/
-{
 }
 
 /**********************************************************************
@@ -1745,7 +1738,12 @@ innobase_mysql_cmp(
 			}
 		}
 
-                ret = my_strnncoll(charset,
+                /* Starting from 4.1.3, we use strnncollsp() in comparisons of
+                non-latin1_swedish_ci strings. NOTE that the collation order
+                changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
+                having indexes on such data need to rebuild their tables! */
+
+                ret = charset->coll->strnncollsp(charset,
                                   a, a_length,
                                   b, b_length);
 		if (ret < 0) {
@@ -2655,7 +2653,7 @@ ha_innobase::index_end(void)
 {
 	int 	error	= 0;
   	DBUG_ENTER("index_end");
-
+        active_index=MAX_KEY;
   	DBUG_RETURN(error);
 }
 
@@ -3126,8 +3124,6 @@ ha_innobase::rnd_init(
 	/* Store the active index value so that we can restore the original
 	value after a scan */
 
-	active_index_before_scan = active_index;
-
 	if (prebuilt->clust_index_was_generated) {
 		err = change_active_index(MAX_KEY);
 	} else {
@@ -3147,19 +3143,7 @@ ha_innobase::rnd_end(void)
 /*======================*/
 				/* out: 0 or error number */
 {
-	/* Restore the old active_index back; MySQL may assume that a table
-	scan does not change active_index. We only restore the value if
-	MySQL has called rnd_init before: sometimes MySQL seems to call
-	rnd_end WITHOUT calling rnd_init. */
-
-	if (active_index_before_scan != (uint)-1) {
-
-		change_active_index(active_index_before_scan);
-
-		active_index_before_scan = (uint)-1;
-	}
-
-  	return(index_end());
+	return(index_end());
 }
 
 /*********************************************************************
@@ -4331,9 +4315,8 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is currently mapped to ::analyze. A better option would be to map this
-to "ALTER TABLE tablename TYPE=InnoDB", which seems to rebuild the table in
-MySQL. */
+This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+the table in MySQL. */
 
 int
 ha_innobase::optimize(
@@ -4341,7 +4324,7 @@ ha_innobase::optimize(
 	THD*		thd,		/* in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
 {
-	return(ha_innobase::analyze(thd, check_opt));
+        return(HA_ADMIN_TRY_ALTER);
 }
 
 /***********************************************************************
@@ -4664,7 +4647,22 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
-	}
+        } else {
+                if (thd->lex->sql_command == SQLCOM_SELECT
+                                        && thd->lex->lock_option == TL_READ) {
+ 
+                        /* For other than temporary tables, we obtain
+                        no lock for consistent read (plain SELECT) */
+ 
+                        prebuilt->select_lock_type = LOCK_NONE;
+                } else {
+                        /* Not a consistent read: use LOCK_X as the
+                        select_lock_type value (TODO: how could we know
+                        whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
+
+                        prebuilt->select_lock_type = LOCK_X;
+                }
+        }
 	
 	/* Set the MySQL flag to mark that there is an active transaction */
 	thd->transaction.all.innodb_active_trans = 1;
@@ -5044,7 +5042,7 @@ ha_innobase::store_lock(
 /***********************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
-counter if it already has been initialized. In parameter ret returns
+counter if it already has been initialized. In paramete ret returns
 the value of the auto-inc counter. */
 
 int
@@ -5170,6 +5168,39 @@ ha_innobase::get_auto_increment()
 	return(nr);
 }
 
+/***********************************************************************
+This function stores binlog offset and flushes logs */
+
+void 
+innobase_store_binlog_offset_and_flush_log(
+/*=============================*/
+    char *binlog_name,          /* in: binlog name */
+    longlong offset             /* in: binlog offset */
+)
+{
+	mtr_t mtr;
+	
+	assert(binlog_name != NULL);
+
+	/* Start a mini-transaction */
+        mtr_start_noninline(&mtr); 
+
+	/* Update the latest MySQL binlog name and offset info
+           in trx sys header */
+
+        trx_sys_update_mysql_binlog_offset(
+            binlog_name,
+            offset,
+            TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+        /* Commits the mini-transaction */
+        mtr_commit(&mtr);
+        
+	/* Syncronous flush of the log buffer to disk */
+	log_buffer_flush_to_disk();
+}
+
+
 int
 ha_innobase::cmp_ref(
 	const mysql_byte *ref1,
@@ -5216,6 +5247,20 @@ ha_innobase::cmp_ref(
 		ref2 += key_part->length;
 	}
 	return 0;
+}
+
+char *ha_innobase::get_mysql_bin_log_name()
+{
+  return trx_sys_mysql_bin_log_name;
+}
+
+ulonglong ha_innobase::get_mysql_bin_log_pos()
+{
+  /*
+    trx... is ib_longlong, which is a typedef for a 64-bit integer (__int64 or
+    longlong) so it's ok to cast it to ulonglong.
+  */
+  return trx_sys_mysql_bin_log_pos;
 }
 
 #endif /* HAVE_INNOBASE_DB */

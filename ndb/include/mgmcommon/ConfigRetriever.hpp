@@ -18,7 +18,7 @@
 #define ConfigRetriever_H
 
 #include <ndb_types.h>
-#include <Properties.hpp>
+#include <mgmapi.h>
 
 /**
  * @class ConfigRetriever
@@ -44,11 +44,11 @@ public:
    * to establish a connection.  This is repeated until a connection is 
    * established, so the function hangs until a connection is established.
    * 
-   * @return Properties object if succeeded, 
+   * @return ndb_mgm_configuration object if succeeded, 
    *         NULL if erroneous local config file or configuration error.
    */
-  class Properties * getConfig(const char * nodeType, int versionId);
-
+  struct ndb_mgm_configuration * getConfig(int versionId, int nodeType);
+  
   const char * getErrorString();
 
   /**
@@ -71,22 +71,17 @@ public:
    * @return Node id of this node (as stated in local config or connectString)
    */
   inline Uint32 getOwnNodeId() { return _ownNodeId; }
-  
-  /**
-   * Get configuration object
-   */
-  class Properties * getConfig(int versionId);
+
 
   /**
    * Get config using socket
    */
-  class Properties * getConfig(const char * mgmhost, unsigned int port,
-			       Uint32 nodeId, int versionId);
+  struct ndb_mgm_configuration * getConfig(const char * mgmhost, short port,
+					   int versionId);
   /**
    * Get config from file
    */
-  class Properties * getConfig(const char * filename, Uint32 nodeId,
-			       int versionId);
+  struct ndb_mgm_configuration * getConfig(const char * file, int versionId);
 private:
   char * errorString;
   enum ErrorType {
@@ -97,18 +92,17 @@ private:
   
   void setError(ErrorType, const char * errorMsg);
 
-  /**
-   *  Verifies that received configuration is correct
-   */
-  bool verifyProperties(const char* nodeType, Properties *p, 
-			Uint32 nodeId, int versionId);
-
   char *                _localConfigFileName;
   struct LocalConfig *  _localConfig;
   int                   _ownNodeId;
 
   char *                m_connectString;
   char *                m_defaultConnectString;
+  
+  /**
+   * Verify config
+   */
+  bool verifyConfig(const struct ndb_mgm_configuration *, int type);
 };
 
 #endif

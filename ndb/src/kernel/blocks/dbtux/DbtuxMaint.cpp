@@ -33,11 +33,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     jam();
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
+      TupLoc tupLoc(sig->pageId, sig->pageOffset);
       debugOut << "opInfo=" << hex << sig->opInfo;
       debugOut << " tableId=" << dec << sig->tableId;
       debugOut << " indexId=" << dec << sig->indexId;
       debugOut << " fragId=" << dec << sig->fragId;
-      debugOut << " tupAddr=" << hex << sig->tupAddr;
+      debugOut << " tupLoc=" << tupLoc;
       debugOut << " tupVersion=" << dec << sig->tupVersion;
       debugOut << " -- ignored at ISP=" << dec << c_internalStartPhase;
       debugOut << " TOS=" << dec << c_typeOfStart;
@@ -72,31 +73,25 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-  ndbrequire(frag.m_nodeList == RNIL);
-  // set up index entry
+  // set up index keys for this operation
+  setKeyAttrs(frag);
+  // set up search entry
   TreeEnt ent;
-  ent.m_tupAddr = req->tupAddr;
+  ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
   ent.m_tupVersion = req->tupVersion;
   ent.m_fragBit = fragBit;
   // read search key
-  ReadPar readPar;
-  readPar.m_ent = ent;
-  readPar.m_first = 0;
-  readPar.m_count = frag.m_numAttrs;
-  // output goes here
-  readPar.m_data = c_keyBuffer;
-  tupReadAttrs(signal, frag, readPar);
+  readKeyAttrs(frag, ent, 0, c_searchKey);
   // check if all keys are null
   {
+    const unsigned numAttrs = frag.m_numAttrs;
     bool allNull = true;
-    ConstData data = readPar.m_data;
-    for (unsigned i = 0; i < frag.m_numAttrs; i++) {
-      if (! data.ah().isNULL()) {
+    for (unsigned i = 0; i < numAttrs; i++) {
+      if (c_searchKey[i] != 0) {
         jam();
         allNull = false;
         break;
       }
-      data += AttributeHeaderSize + data.ah().getDataSize();
     }
     if (allNull) {
       jam();
@@ -105,11 +100,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       return;
     }
   }
-  // find position in tree
-  SearchPar searchPar;
-  searchPar.m_data = c_keyBuffer;
-  searchPar.m_ent = ent;
-  TreePos treePos;
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << "opCode=" << dec << opCode;
@@ -121,7 +111,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     debugOut << endl;
   }
 #endif
-  treeSearch(signal, frag, searchPar, treePos);
+  // find position in tree
+  TreePos treePos;
+  treeSearch(signal, frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << treePos << endl;
@@ -143,17 +135,18 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     }
     /*
      * At most one new node is inserted in the operation.  We keep one
-     * free node pre-allocated so the operation cannot fail.  This also
-     * gives a real TupAddr for links to the new node.
+     * free node pre-allocated so the operation cannot fail.
      */
-    if (frag.m_nodeFree == RNIL) {
+    if (frag.m_freeLoc == NullTupLoc) {
       jam();
-      preallocNode(signal, frag, req->errorCode);
+      NodeHandle node(frag);
+      req->errorCode = allocNode(signal, node);
       if (req->errorCode != 0) {
         jam();
         break;
       }
-      ndbrequire(frag.m_nodeFree != RNIL);
+      frag.m_freeLoc = node.m_loc;
+      ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
     treeAdd(signal, frag, treePos, ent);
     break;
@@ -175,7 +168,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   }
   // commit and release nodes
-  commitNodes(signal, frag, req->errorCode == 0);
 #ifdef VM_TRACE
   if (debugFlags & DebugTree) {
     printTree(signal, frag, debugOut);
@@ -199,11 +191,11 @@ Dbtux::tupReadAttrs(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = 0;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
-  req->tupAddr = ent.m_tupAddr;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = ent.m_tupVersion;
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // add count and list of attribute ids
   Data data = (Uint32*)req + TupReadAttrs::SignalLength;
@@ -246,11 +238,11 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   req->requestInfo = TupReadAttrs::ReadKeys;
   req->tableId = frag.m_tableId;
   req->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
-  req->fragPtrI = RNIL;
-  req->tupAddr = ent.m_tupAddr;
+  req->fragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
+  req->tupAddr = (Uint32)-1;
   req->tupVersion = RNIL; // not used
-  req->pageId = RNIL;
-  req->pageOffset = 0;
+  req->pageId = ent.m_tupLoc.m_pageId;
+  req->pageOffset = ent.m_tupLoc.m_pageOffset;
   req->bufferId = 0;
   // execute
   EXECUTE_DIRECT(DBTUP, GSN_TUP_READ_ATTRS, signal, TupReadAttrs::SignalLength);
@@ -269,101 +261,4 @@ Dbtux::tupReadKeys(Signal* signal, const Frag& frag, ReadPar& readPar)
   // return counts
   readPar.m_count = numKeys;
   readPar.m_size = copyPar.m_numwords;
-}
-
-/*
- * Operate on index node tuple in TUP.  The data is copied between node
- * cache and index storage via signal data.
- */
-void
-Dbtux::tupStoreTh(Signal* signal, const Frag& frag, NodeHandlePtr nodePtr, StorePar storePar)
-{
-  const TreeHead& tree = frag.m_tree;
-  // define the direct signal
-  TupStoreTh* req = (TupStoreTh*)signal->getDataPtrSend();
-  req->errorCode = RNIL;
-  req->tableId = frag.m_indexId;
-  req->fragId = frag.m_fragId;
-  req->fragPtrI = RNIL;
-  req->tupAddr = nodePtr.p->m_addr;
-  req->tupVersion = 0;
-  req->pageId = nodePtr.p->m_loc.m_pageId;
-  req->pageOffset = nodePtr.p->m_loc.m_pageOffset;
-  req->bufferId = 0;
-  req->opCode = storePar.m_opCode;
-  ndbrequire(storePar.m_offset + storePar.m_size <= tree.m_nodeSize);
-  req->dataOffset = storePar.m_offset;
-  req->dataSize = storePar.m_size;
-  // the node cache
-  ndbrequire(nodePtr.p->m_node != 0);
-  // the buffer in signal data
-  Uint32* const buffer = (Uint32*)req + TupStoreTh::SignalLength;
-  // copy in data
-  switch (storePar.m_opCode) {
-  case TupStoreTh::OpRead:
-    jam();
- #ifdef VM_TRACE
-    {
-      Uint32* dst = buffer + storePar.m_offset;
-      memset(dst, 0xa9, storePar.m_size << 2);
-    }
- #endif
-    break;
-  case TupStoreTh::OpInsert:
-    jam();
-    // fallthru
-  case TupStoreTh::OpUpdate:
-    jam();
-    // copy from cache to signal data
-    {
-      Uint32* dst = buffer + storePar.m_offset;
-      const Uint32* src = (const Uint32*)nodePtr.p->m_node + storePar.m_offset;
-      memcpy(dst, src, storePar.m_size << 2);
-    }
-    break;
-  case TupStoreTh::OpDelete:
-    jam();
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
-  // execute
-  EXECUTE_DIRECT(DBTUP, GSN_TUP_STORE_TH, signal, TupStoreTh::SignalLength);
-  jamEntry();
-  if (req->errorCode != 0) {
-    jam();
-    storePar.m_errorCode = req->errorCode;
-    return;
-  }
-  ndbrequire(req->errorCode == 0);
-  // copy out data
-  switch (storePar.m_opCode) {
-  case TupStoreTh::OpRead:
-    jam();
-    {
-      Uint32* dst = (Uint32*)nodePtr.p->m_node + storePar.m_offset;
-      const Uint32* src = (const Uint32*)buffer + storePar.m_offset;
-      memcpy(dst, src, storePar.m_size << 2);
-    }
-    // fallthru
-  case TupStoreTh::OpInsert:
-    jam();
-    // fallthru
-  case TupStoreTh::OpUpdate:
-    jam();
-    nodePtr.p->m_addr = req->tupAddr;
-    nodePtr.p->m_loc.m_pageId = req->pageId;
-    nodePtr.p->m_loc.m_pageOffset = req->pageOffset;
-    break;
-  case TupStoreTh::OpDelete:
-    jam();
-    nodePtr.p->m_addr = NullTupAddr;
-    nodePtr.p->m_loc.m_pageId = RNIL;
-    nodePtr.p->m_loc.m_pageOffset = 0;
-    break;
-  default:
-    ndbrequire(false);
-    break;
-  }
 }

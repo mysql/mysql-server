@@ -47,7 +47,8 @@ public:
 		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
-		  NOT_FUNC, NOT_ALL_FUNC, NOW_FUNC,
+                  NOT_FUNC, NOT_ALL_FUNC,
+                  NOW_FUNC, TRIG_COND_FUNC,
                   GUSERVAR_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
@@ -1149,4 +1150,14 @@ public:
 
   void fix_length_and_dec();
 
+};
+
+
+class Item_func_found_rows :public Item_int_func
+{
+public:
+  Item_func_found_rows() :Item_int_func() {}
+  longlong val_int();
+  const char *func_name() const { return "found_rows"; }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
 };

@@ -27,7 +27,6 @@
 #include <m_string.h>
 #include <queues.h>
 #include "thr_alarm.h"
-#include <assert.h>
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>				/* AIX needs this for fd_set */

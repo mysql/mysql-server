@@ -54,11 +54,9 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_KEEP_OLD	52
 
 extern buf_pool_t* 	buf_pool; 	/* The buffer pool of the database */
-#ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/* If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
-#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Creates the buffer pool. */
@@ -478,14 +476,12 @@ buf_pool_is_block(
 /*==============*/
 			/* out: TRUE if pointer to block */
 	void*	ptr);	/* in: pointer to memory */
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
 
 ibool
 buf_validate(void);
 /*==============*/
-#endif /* UNIV_DEBUG */
 /************************************************************************
 Prints a page to stderr. */
 
@@ -897,7 +893,7 @@ struct buf_pool_struct{
 
 	ulint		n_pend_reads;	/* number of pending read operations */
 
-	time_t		last_printout_time; /* when buf_print_io was last time
+	time_t		last_printout_time; /* when buf_print was last time
 					called */
 	ulint		n_pages_read;	/* number read operations */
 	ulint		n_pages_written;/* number write operations */
@@ -912,10 +908,10 @@ struct buf_pool_struct{
 	ulint		n_pages_awe_remapped; /* if AWE is enabled, the
 					number of remaps of blocks to
 					buffer frames */
-	ulint		n_page_gets_old;/* n_page_gets when buf_print_io was
+	ulint		n_page_gets_old;/* n_page_gets when buf_print was
 					last time called: used to calculate
 					hit rate */
-	ulint		n_pages_read_old;/* n_pages_read when buf_print_io was
+	ulint		n_pages_read_old;/* n_pages_read when buf_print was
 					last time called */
 	ulint		n_pages_written_old;/* number write operations */
 	ulint		n_pages_created_old;/* number of pages created in

@@ -102,6 +102,22 @@
 #endif
 
 /**
+ * Systable NDB$EVENTS_0
+ */
+
+#define EVENT_SYSTEM_TABLE_NAME "sys/def/NDB$EVENTS_0"
+#define EVENT_SYSTEM_TABLE_LENGTH 6
+
+struct sysTab_NDBEVENTS_0 {
+  char   NAME[MAX_TAB_NAME_SIZE];
+  Uint32 EVENT_TYPE;
+  char   TABLE_NAME[MAX_TAB_NAME_SIZE];
+  Uint32 ATTRIBUTE_MASK[MAXNROFATTRIBUTESINWORDS];
+  Uint32 SUBID;
+  Uint32 SUBKEY;
+};
+
+/**
  *  DICT - This blocks handles all metadata
  */
 class Dbdict: public SimulatedBlock {
@@ -451,7 +467,7 @@ private:
   void execFSWRITECONF(Signal* signal);
   void execFSWRITEREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execTC_SCHVERCONF(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
@@ -1226,22 +1242,6 @@ private:
     RequestTracker m_reqTracker;
   };
   typedef Ptr<OpSubEvent> OpSubEventPtr;
-
-  /**
-   * Systable NDB$EVENTS_0
-   */
-
-#define EVENT_SYSTEM_TABLE_NAME "sys/def/NDB$EVENTS_0"
-#define EVENT_SYSTEM_TABLE_LENGTH 6
-
-  struct sysTab_NDBEVENTS_0 {
-    char   NAME[MAX_TAB_NAME_SIZE];
-    Uint32 EVENT_TYPE;
-    char   TABLE_NAME[MAX_TAB_NAME_SIZE];
-    Uint32 ATTRIBUTE_MASK[MAXNROFATTRIBUTESINWORDS];
-    Uint32 SUBID;
-    Uint32 SUBKEY;
-  };
 
   static const Uint32 sysTab_NDBEVENTS_0_szs[];
 

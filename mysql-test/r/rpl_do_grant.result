@@ -4,11 +4,11 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-delete from mysql.user where user='rpl_do_grant';
-delete from mysql.db where user='rpl_do_grant';
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
-delete from mysql.user where user='rpl_ignore_grant';
-delete from mysql.db where user='rpl_ignore_grant';
+delete from mysql.user where user=_binary'rpl_ignore_grant';
+delete from mysql.db where user=_binary'rpl_ignore_grant';
 flush privileges;
 grant select on *.* to rpl_do_grant@localhost;
 grant drop on test.* to rpl_do_grant@localhost;
@@ -17,10 +17,10 @@ Grants for rpl_do_grant@localhost
 GRANT SELECT ON *.* TO 'rpl_do_grant'@'localhost'
 GRANT DROP ON `test`.* TO 'rpl_do_grant'@'localhost'
 set password for rpl_do_grant@localhost=password("does it work?");
-select password<>'' from mysql.user where user='rpl_do_grant';
-password<>''
+select password<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
+password<>_binary''
 1
-delete from mysql.user where user='rpl_do_grant';
-delete from mysql.db where user='rpl_do_grant';
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
 flush privileges;

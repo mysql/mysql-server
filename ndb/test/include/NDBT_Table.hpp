@@ -25,66 +25,6 @@
 class NDBT_Attribute : public NdbDictionary::Column {
   friend class NdbOut& operator <<(class NdbOut&, const NDBT_Attribute &);
 public:
-  NDBT_Attribute(const char* anAttrName,
-		 AttrType type,
-		 int sz = 4,
-		 KeyType key = NoKey,
-		 bool nullable = false,
-		 StorageAttributeType indexOnly = NormalStorageAttribute,
-		 StorageMode _sm = MMBased) :
-    NdbDictionary::Column(anAttrName)
-  {
-    assert(anAttrName != 0);
-    
-    setNullable(nullable);
-    setIndexOnlyStorage(indexOnly == IndexStorageAttribute);
-    setPrimaryKey(key != NoKey);
-    setTupleKey(key == TupleId);
-    setLength(1);
-    switch(type){
-    case ::Signed:
-      if(sz == 8)
-	setType(NdbDictionary::Column::Bigint);
-      else if (sz == 4)
-	setType(NdbDictionary::Column::Int);
-      else {
-	setType(NdbDictionary::Column::Int);
-	setLength(sz);
-      }
-      break;
-      
-    case ::UnSigned:
-      if(sz == 8)
-	setType(NdbDictionary::Column::Bigunsigned);
-      else if (sz == 4)
-	setType(NdbDictionary::Column::Unsigned);
-      else {
-	setType(NdbDictionary::Column::Unsigned);
-	setLength(sz);
-      }
-      break;
-      
-    case ::Float:
-      if(sz == 8)
-	setType(NdbDictionary::Column::Double);
-      else if (sz == 4)
-	setType(NdbDictionary::Column::Float);
-      else{
-	setType(NdbDictionary::Column::Float);
-	setLength(sz);
-      }
-      break;
-      
-    case ::String:
-      setType(NdbDictionary::Column::Char);
-      setLength(sz);
-      break;
-      
-    case ::NoAttrTypeDef:
-      break;
-    }
-  }
-
   NDBT_Attribute(const char* _name,
 		 Column::Type _type,
 		 int _length = 1,
@@ -131,5 +71,14 @@ const NdbDictionary::Table *
 NDBT_Table::discoverTableFromDb(Ndb* ndb, const char * name){
   return ndb->getDictionary()->getTable(name);
 }
+
+
+/**
+ * Print meta information about index
+ * (information on how it is strored, what the attributes look like etc.)
+ */
+class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index &);
+
+
 
 #endif

@@ -19,7 +19,6 @@
 #include <NdbOut.hpp>
 #include <NDBT_Output.hpp>
 #include <NdbConfig.h>
-#include <ConfigRetriever.hpp>
 #include <ndb_version.h>
 #include <NDBT.hpp>
 #include <NdbSleep.h>
@@ -32,6 +31,10 @@
            << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
   return NDBT_FAILED; } }
 
+#include <ConfigRetriever.hpp>
+#include <mgmapi.h>
+#include <mgmapi_config_parameters.h>
+#include <mgmapi_configuration.hpp>
 
 int 
 NdbBackup::start(unsigned int & _backup_id){
@@ -68,16 +71,12 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
    */
   ConfigRetriever cr;
 
-
-  Properties * p = cr.getConfig(host,
-				port,
-				_node_id, 
-				NDB_VERSION);
+  ndb_mgm_configuration * p = cr.getConfig(host, port, 0);
   if(p == 0){
     const char * s = cr.getErrorString();
     if(s == 0)
       s = "No error given!";
-
+    
     ndbout << "Could not fetch configuration" << endl;
     ndbout << s << endl;
     return NULL;
@@ -86,19 +85,20 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   /**
    * Setup cluster configuration data
    */
-  const Properties * db = 0;
-  if (!p->get("Node", _node_id, &db)) {
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, _node_id)){
     ndbout << "Invalid configuration fetched, DB missing" << endl;
     return NULL;
   }
-  const char * type;
-  if(!(db->get("Type", &type) && strcmp(type, "DB") == 0)){
+  unsigned int type = 123456;
+  if(iter.get(CFG_TYPE_OF_SECTION, &type) || type != NODE_TYPE_DB){
+    ndbout <<"type = " << type << endl;
     ndbout <<"Invalid configuration fetched, I'm wrong type of node" << endl;
     return NULL;
   }  
-
+  
   const char * path;
-  if (!db->get("FileSystemPath", &path)){
+  if (iter.get(CFG_DB_FILESYSTEM_PATH, &path)){
     ndbout << "FileSystemPath not found" << endl;
     return NULL;
   }
@@ -115,10 +115,13 @@ NdbBackup::execRestore(bool _restore_data,
   const int buf_len = 1000;
   char buf[buf_len];
 
+  ndbout << "getFileSystemPathForNode "<< _node_id <<endl;
+
   const char* path = getFileSystemPathForNode(_node_id);
   if (path == NULL)
     return -1;  
 
+  ndbout << "getHostName "<< _node_id <<endl;
   const char *host;
   if (!getHostName(_node_id, &host)){
     return -1;
@@ -139,7 +142,7 @@ NdbBackup::execRestore(bool _restore_data,
   ndbout << "res: " << res << endl;
   
 #if 0
-  snprintf(buf, 255, "restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s %s/BACKUP/BACKUP-%d", 
+  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s %s/BACKUP/BACKUP-%d", 
 	   ownNodeId,
 	   addr,
 	   _node_id, 
@@ -151,7 +154,7 @@ NdbBackup::execRestore(bool _restore_data,
 
 #endif
 
-  snprintf(buf, 255, "restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
+  snprintf(buf, 255, "ndb_restore -c \"nodeid=%d;host=%s\" -n %d -b %d %s %s .", 
 	   ownNodeId,
 	   addr,
 	   _node_id, 

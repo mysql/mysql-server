@@ -18,6 +18,7 @@
 #define _LOG_LEVEL_HPP
 
 #include <ndb_global.h>
+#include <mgmapi_config_parameters.h>
 
 /**
  * 
@@ -45,53 +46,60 @@ public:
    */
   LogLevel & operator= (const LogLevel &);
   
+  static const Uint32 MIN_LOGLEVEL_ID = CFG_LOGLEVEL_STARTUP;
+  
   enum EventCategory {
     /**
      * Events during all kind of startups
      */
-    llStartUp = 0,
+    llStartUp = CFG_LOGLEVEL_STARTUP - MIN_LOGLEVEL_ID,
     
     /**
      * Events during shutdown
      */
-    llShutdown = 1,
+    llShutdown = CFG_LOGLEVEL_SHUTDOWN - MIN_LOGLEVEL_ID,
 
     /**
      * Transaction statistics
      *   Job level
      *   TCP/IP speed
      */
-    llStatistic = 2,
+    llStatistic = CFG_LOGLEVEL_STATISTICS - MIN_LOGLEVEL_ID,
     
     /**
      * Checkpoints
      */
-    llCheckpoint = 3,
+    llCheckpoint = CFG_LOGLEVEL_CHECKPOINT - MIN_LOGLEVEL_ID,
     
     /**
      * Events during node restart
      */
-    llNodeRestart = 4,
+    llNodeRestart = CFG_LOGLEVEL_NODERESTART - MIN_LOGLEVEL_ID,
 
     /**
      * Events related to connection / communication
      */
-    llConnection = 5,
+    llConnection = CFG_LOGLEVEL_CONNECTION - MIN_LOGLEVEL_ID,
 
     /**
      * Assorted event w.r.t unexpected happenings
      */
-    llError = 6,
+    llError = CFG_LOGLEVEL_ERROR - MIN_LOGLEVEL_ID,
+
+    /**
+     * Assorted event w.r.t warning
+     */
+    llWarning = CFG_LOGLEVEL_WARNING - MIN_LOGLEVEL_ID,
 
     /**
      * Assorted event w.r.t information
      */
-    llInfo = 7,
+    llInfo = CFG_LOGLEVEL_INFO - MIN_LOGLEVEL_ID,
 
     /**
      * Events related to global replication
      */
-    llGrep = 8
+    llGrep = CFG_LOGLEVEL_GREP - MIN_LOGLEVEL_ID
   };
 
   struct LogLevelCategoryName {
@@ -107,7 +115,7 @@ public:
   /**
    * No of categories
    */
-#define _LOGLEVEL_CATEGORIES 9
+#define _LOGLEVEL_CATEGORIES 10
   static const Uint32 LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES;
 
   void clear();

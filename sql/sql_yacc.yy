@@ -44,7 +44,7 @@
 
 int yylex(void *yylval, void *yythd);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B) \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -98,7 +98,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 }
 
 %{
-bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
+bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
 %pure_parser					/* We have threads */
@@ -274,7 +274,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENT_QUOTED
 %token	IGNORE_SYM
 %token	IMPORT
-%token	INDEX
+%token	INDEX_SYM
 %token	INDEXES
 %token	INFILE
 %token	INNER_SYM
@@ -340,6 +340,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NUM
 %token	OFFSET_SYM
 %token	ON
+%token  ONE_SHOT_SYM
 %token	OPEN_SYM
 %token	OPTION
 %token	OPTIONALLY
@@ -465,6 +466,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MEDIUMTEXT
 %token	NUMERIC_SYM
 %token	PRECISION
+%token  PREPARE_SYM
+%token  DEALLOCATE_SYM
 %token	QUICK
 %token	REAL
 %token	SIGNED_SYM
@@ -643,11 +646,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident table_ident_ref references
+	table_ident table_ident_nodb references
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint constraint
+	opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -675,7 +678,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal now_or_signed_literal
+	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
 
@@ -700,6 +703,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <table_list>
 	join_table_list  join_table
+        table_factor table_ref
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -769,6 +773,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
+        prepare prepare_src execute deallocate 
 	statement sp_suid
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
 END_OF_INPUT
@@ -820,10 +825,12 @@ statement:
 	| checksum
 	| commit
 	| create
+        | deallocate
 	| delete
 	| describe
 	| do
 	| drop
+        | execute
 	| flush
 	| grant
 	| handler
@@ -835,6 +842,7 @@ statement:
 	| optimize
         | keycache
 	| preload
+        | prepare
 	| purge
 	| rename
 	| repair
@@ -853,6 +861,92 @@ statement:
 	| unlock
 	| update
 	| use
+        ;
+
+deallocate:
+        deallocate_or_drop PREPARE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
+          lex->prepared_stmt_name= $3;
+        };
+
+deallocate_or_drop:
+	DEALLOCATE_SYM |
+	DROP
+	;
+
+
+prepare:
+        PREPARE_SYM ident FROM prepare_src
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_PREPARE;
+          lex->prepared_stmt_name= $2;
+        };
+
+prepare_src:
+        TEXT_STRING_sys
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $1;
+          lex->prepared_stmt_code_is_varref= false;
+        }
+        | '@' ident_or_text
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          lex->prepared_stmt_code= $2;
+          lex->prepared_stmt_code_is_varref= true;
+        };
+
+execute:
+        EXECUTE_SYM ident
+        {
+          THD *thd=YYTHD;
+          LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
+          {
+            yyerror(ER(ER_SYNTAX_ERROR));
+            YYABORT;
+          }
+          lex->sql_command= SQLCOM_EXECUTE;
+          lex->prepared_stmt_name= $2;
+        }
+        execute_using
+        {}
+        ;
+
+execute_using:
+        /* nothing */
+        | USING execute_var_list
+        ;
+
+execute_var_list:
+        execute_var_list ',' execute_var_ident
+        | execute_var_ident
+        ;
+
+execute_var_ident: '@' ident_or_text
+        {
+          LEX *lex=Lex;
+          LEX_STRING *lexstr= (LEX_STRING*)sql_memdup(&$2, sizeof(LEX_STRING));
+          if (!lexstr || lex->prepared_stmt_params.push_back(lexstr))
+              YYABORT;
+        }
         ;
 
 /* help */
@@ -990,12 +1084,12 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->name=0;
 	}
 	create2
 	  { Lex->current_select= &Lex->select_lex; }
-	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
+	| CREATE opt_unique_or_fulltext INDEX_SYM ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
@@ -2185,7 +2279,7 @@ create_table_option:
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
 	  { Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
 storage_engines:
 	ident_or_text
@@ -2378,7 +2472,6 @@ type:
 					  $$=FIELD_TYPE_GEOMETRY;
 #else
 	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			                             ER(ER_FEATURE_DISABLED),
 			                             sym_group_geom.name,
 	                                             sym_group_geom.needed_define);
 					  YYABORT;
@@ -2696,7 +2789,6 @@ key_type:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 		       sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -2708,7 +2800,7 @@ constraint_key_type:
 
 key_or_index:
 	KEY_SYM {}
-	| INDEX {};
+	| INDEX_SYM {};
 
 opt_key_or_index:
 	/* empty */ {}
@@ -2717,7 +2809,7 @@ opt_key_or_index:
 
 keys_or_index:
 	KEYS {}
-	| INDEX {}
+	| INDEX_SYM {}
 	| INDEXES {};
 
 opt_unique_or_fulltext:
@@ -2730,7 +2822,6 @@ opt_unique_or_fulltext:
 	    $$= Key::SPATIAL;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -2791,9 +2882,9 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.default_table_charset= thd->variables.collation_database;
+	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.clear();          
+	  lex->alter_info.reset();          
 	  lex->alter_info.is_simple= 1;
 	  lex->alter_info.flags= 0;
 	}
@@ -3227,7 +3318,7 @@ table_to_table:
 	};
 
 keycache:
-        CACHE_SYM INDEX keycache_list IN_SYM key_cache_name
+        CACHE_SYM INDEX_SYM keycache_list IN_SYM key_cache_name
         {
           LEX *lex=Lex;
           lex->sql_command= SQLCOM_ASSIGN_TO_KEYCACHE;
@@ -3258,7 +3349,7 @@ key_cache_name:
 	;
 
 preload:
-	LOAD INDEX INTO CACHE_SYM
+	LOAD INDEX_SYM INTO CACHE_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command=SQLCOM_PRELOAD_KEYS;
@@ -3772,7 +3863,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3784,7 +3874,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3796,7 +3885,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3808,7 +3896,6 @@ simple_expr:
 	    if (!$1.symbol->create_func)
 	    {
 	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 ER(ER_FEATURE_DISABLED),
 			 $1.symbol->group->name,
 	                 $1.symbol->group->needed_define);
 	      YYABORT;
@@ -3907,7 +3994,6 @@ simple_expr:
 	    $$= $1;
 #else
 	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               ER(ER_FEATURE_DISABLED),
 	               sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
@@ -4430,59 +4516,80 @@ when_list2:
 	    sel->when_list.head()->push_back($5);
 	  };
 
+table_ref:
+        table_factor            { $$=$1; }
+        | join_table            { $$=$1; }
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->nest_last_join(lex->thd)))
+              YYABORT;
+          }     	        
+        ;
+
 join_table_list:
-	'(' join_table_list ')'	{ $$=$2; }
-	| join_table		{ $$=$1; }
-	| join_table_list ',' join_table_list { $$=$3; }
-	| join_table_list normal_join join_table_list { $$=$3; }
-	| join_table_list STRAIGHT_JOIN join_table_list
-	  { $$=$3 ; $1->next->straight=1; }
-	| join_table_list normal_join join_table_list ON expr
+        table_ref { $$=$1; }
+        | join_table_list ',' table_ref { $$=$3; }
+        ;
+
+join_table:
+        table_ref normal_join table_ref { $$=$3; }
+	| table_ref STRAIGHT_JOIN table_factor
+	  { $3->straight=1; $$=$3 ; }
+	| table_ref normal_join table_ref ON expr
 	  { add_join_on($3,$5); $$=$3; }
-	| join_table_list normal_join join_table_list
+	| table_ref normal_join table_ref
 	  USING
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$3->db; sel->table2=$3->alias;
+            sel->save_names_for_using_list($1, $3);
 	  }
 	  '(' using_list ')'
 	  { add_join_on($3,$7); $$=$3; }
 
-	| join_table_list LEFT opt_outer JOIN_SYM join_table_list ON expr
+	| table_ref LEFT opt_outer JOIN_SYM table_factor ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
-	| join_table_list LEFT opt_outer JOIN_SYM join_table_list
+	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$5->db; sel->table2=$5->alias;
+            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
-	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table_list
+	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
-	    add_join_natural($1,$1->next);
-	    $1->next->outer_join|=JOIN_TYPE_LEFT;
+	    add_join_natural($1,$6);
+	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
-	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list ON expr
-	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
-	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
+	| table_ref RIGHT opt_outer JOIN_SYM table_factor ON expr
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
+            add_join_on($$, $7);
+          }
+	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
-	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$5->db; sel->table2=$5->alias;
+            sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
-	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
-	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table_list
+          { 
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
+            add_join_on($$, $9);
+          }
+	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
-	    add_join_natural($1->next,$1);
-	    $1->outer_join|=JOIN_TYPE_RIGHT;
-	    $$=$6;
+	    add_join_natural($6,$1);
+	    LEX *lex= Lex;
+            if (!($$= lex->current_select->convert_right_join()))
+              YYABORT;
 	  }
-	| join_table_list NATURAL JOIN_SYM join_table_list
-	  { add_join_natural($1,$1->next); $$=$4; };
+	| table_ref NATURAL JOIN_SYM table_factor
+	  { add_join_natural($1,$4); $$=$4; };
+        
 
 normal_join:
 	JOIN_SYM		{}
@@ -4490,7 +4597,7 @@ normal_join:
 	| CROSS JOIN_SYM	{}
 	;
 
-join_table:
+table_factor:
 	{
 	  SELECT_LEX *sel= Select;
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
@@ -4506,8 +4613,21 @@ join_table:
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
+          sel->add_joined_table($$); 
 	}
-	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
+        | '('
+          { 
+            LEX *lex= Lex;
+            if (lex->current_select->init_nested_join(lex->thd))
+              YYABORT;
+          }            
+          join_table_list ')'
+          {
+            LEX *lex= Lex;
+            if (!($$= lex->current_select->end_nested_join(lex->thd)))
+              YYABORT;
+          }	
+	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
@@ -4520,6 +4640,7 @@ join_table:
 	                          (List<String> *)0)))
 
 	    YYABORT;
+          lex->current_select->add_joined_table($$);           
 	};
 
 select_derived:
@@ -4642,9 +4763,9 @@ interval_time_st:
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 date_time_type:
-	DATE_SYM		{$$=TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=TIMESTAMP_TIME;}
-	| DATETIME		{$$=TIMESTAMP_DATETIME;};
+	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
+	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */
@@ -4688,8 +4809,15 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING_literal	{ $$= $2.str; }
-	| /* empty */			{ $$= (char*) "\\"; };
+	ESCAPE_SYM simple_expr { $$= $2; }
+	| /* empty */
+          {
+
+            $$= ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
+		 new Item_string("", 0, &my_charset_latin1) :
+                 new Item_string("\\", 1, &my_charset_latin1));
+          }
+        ;
 
 
 /*
@@ -4988,7 +5116,7 @@ drop:
 	  lex->drop_temporary= $2;
 	  lex->drop_if_exists= $4;
 	}
-	| DROP INDEX ident ON table_ident {}
+	| DROP INDEX_SYM ident ON table_ident {}
 	  {
 	     LEX *lex=Lex;
 	     lex->sql_command= SQLCOM_DROP_INDEX;
@@ -5363,13 +5491,12 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
 	    lex->select_lex.db= $2;
-	    lex->select_lex.options= 0;
 	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
-	    lex->select_lex.options|= SELECT_DESCRIBE;
+	    lex->describe= DESCRIBE_EXTENDED;
 	    lex->select_lex.db= $3;
 	  }
 	| OPEN_SYM TABLES opt_db wild
@@ -5377,7 +5504,6 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
 	    lex->select_lex.db= $3;
-	    lex->select_lex.options= 0;
 	  }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
@@ -5581,7 +5707,9 @@ opt_db:
 
 wild:
 	/* empty */
-	| LIKE text_string { Lex->wild= $2; };
+	| LIKE TEXT_STRING_sys
+	  { Lex->wild=  new (&YYTHD->mem_root) String($2.str, $2.length,
+                                                      system_charset_info); };
 
 opt_full:
 	/* empty */ { Lex->verbose=0; }
@@ -6060,7 +6188,7 @@ simple_ident_q:
 
 field_ident:
 	ident			{ $$=$1;}
-	| ident '.' ident	{ $$=$3;}	/* Skipp schema name in create*/
+	| ident '.' ident	{ $$=$3;}	/* Skip schema name in create*/
 	| '.' ident		{ $$=$2;}	/* For Delphi */;
 
 table_ident:
@@ -6069,9 +6197,8 @@ table_ident:
 	| '.' ident		{ $$=new Table_ident($2);} /* For Delphi */
         ;
 
-table_ident_ref:
+table_ident_nodb:
 	ident			{ LEX_STRING db={(char*) any_db,3}; $$=new Table_ident(YYTHD, db,$1,0); }
-	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
         ;
 
 IDENT_sys:
@@ -6080,7 +6207,19 @@ IDENT_sys:
 	  {
 	    THD *thd= YYTHD;
 	    if (thd->charset_is_system_charset)
+            {
+              CHARSET_INFO *cs= system_charset_info;
+              uint wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                   $1.str+$1.length,
+                                                   $1.length);
+              if (wlen < $1.length)
+              {
+                net_printf(YYTHD, ER_INVALID_CHARACTER_STRING, cs->csname,
+                           $1.str + wlen);
+                YYABORT;
+              }
 	      $$= $1;
+            }
 	    else
 	      thd->convert_string(&$$, system_charset_info,
 				  $1.str, $1.length, thd->charset());
@@ -6203,6 +6342,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
+        | DEALLOCATE_SYM        {}
 	| DEFINER_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
@@ -6298,12 +6438,14 @@ keyword:
 	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
 	| OLD_PASSWORD		{}
+	| ONE_SHOT_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
 	| PASSWORD		{}
 	| POINT_SYM		{}
 	| POLYGON		{}
+        | PREPARE_SYM           {}
 	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
@@ -6390,6 +6532,7 @@ set:
 	  lex->sql_command= SQLCOM_SET_OPTION;
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
+          lex->one_shot_set= 0;
 	}
 	option_value_list
 	{}
@@ -6408,6 +6551,7 @@ option_type:
 	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
 	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
 	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
+	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
 	;
 
 opt_var_type:
@@ -6651,14 +6795,14 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref CLOSE_SYM
+	| HANDLER_SYM table_ident_nodb CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident_ref READ_SYM
+	| HANDLER_SYM table_ident_nodb READ_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
@@ -6768,7 +6912,7 @@ grant_privilege:
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
 	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
 	| USAGE		{}
-	| INDEX		{ Lex->grant |= INDEX_ACL;}
+	| INDEX_SYM	{ Lex->grant |= INDEX_ACL;}
 	| ALTER		{ Lex->grant |= ALTER_ACL;}
 	| CREATE	{ Lex->grant |= CREATE_ACL;}
 	| DROP		{ Lex->grant |= DROP_ACL;}

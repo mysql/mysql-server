@@ -17,7 +17,8 @@
 #ifndef Configuration_H
 #define Configuration_H
 
-#include "ClusterConfiguration.hpp"
+#include <mgmapi.h>
+#include <ndb_types.h>
 
 class Configuration {
 public:
@@ -46,17 +47,9 @@ public:
   void setRestartOnErrorInsert(int);
   
   // Cluster configuration
-  const ClusterConfiguration::ClusterData& clusterConfigurationData() const;
-  const ClusterConfiguration& clusterConfiguration() const;
-
   const char * programName() const;
   const char * fileSystemPath() const;
   char * getConnectStringCopy() const;
-
-  /**
-   * Return Properties for own node
-   */
-  const Properties * getOwnProperties() const;
 
   /**
    * 
@@ -64,17 +57,26 @@ public:
   bool getInitialStart() const;
   void setInitialStart(bool val);
   bool getDaemonMode() const;
-  
+
+  const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
+
+  class LogLevel * m_logLevel;
 private:
+  friend class Cmvmi;
+  friend class Qmgr;
+  ndb_mgm_configuration_iterator * getClusterConfigIterator() const;
+
   Uint32 _stopOnError;
   Uint32 m_restartOnErrorInsert;
   Uint32 _maxErrorLogs;
   Uint32 _lockPagesInMainMemory;
   Uint32 _timeBetweenWatchDogCheck;
 
+  ndb_mgm_configuration * m_ownConfig;
+  ndb_mgm_configuration * m_clusterConfig;
 
-  ClusterConfiguration the_clusterConfigurationData;
-  const Properties * m_ownProperties;
+  ndb_mgm_configuration_iterator * m_clusterConfigIter;
+  ndb_mgm_configuration_iterator * m_ownConfigIterator;
   
   /**
    * arguments to NDB process
@@ -84,6 +86,8 @@ private:
   bool _initialStart;
   char * _connectString;
   bool _daemonMode;
+
+  void calcSizeAlt(class ConfigValues * );
 };
 
 inline

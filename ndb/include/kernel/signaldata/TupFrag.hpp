@@ -69,7 +69,7 @@ class TuxFragReq {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 14 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -80,6 +80,9 @@ private:
   Uint32 fragOff;
   Uint32 tableType;
   Uint32 primaryTableId;
+  Uint32 tupIndexFragPtrI;
+  Uint32 tupTableFragPtrI[2];
+  Uint32 accTableFragPtrI[2];
 };
 
 class TuxFragConf {
