@@ -819,17 +819,15 @@ void ha_ndbcluster::release_metadata()
 
 int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
-  int lm;
-  if (type >= TL_WRITE_ALLOW_WRITE)
-    lm= NdbOperation::LM_Exclusive;
+  if (type == TL_WRITE_ALLOW_WRITE)
+    return NdbOperation::LM_Exclusive;
   else if (uses_blob_value(retrieve_all_fields))
     /*
       TODO use a new scan mode to read + lock + keyinfo
     */
-    lm= NdbOperation::LM_Exclusive;
+    return NdbOperation::LM_Exclusive;
   else
-    lm= NdbOperation::LM_CommittedRead;
-  return lm;
+    return NdbOperation::LM_CommittedRead;
 }
 
 static const ulong index_type_flags[]=
@@ -4135,7 +4133,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (pOp == NULL)
       break;
     
-    NdbResultSet* rs= pOp->readTuples(NdbScanOperation::LM_Dirty); 
+    NdbResultSet* rs= pOp->readTuples(NdbOperation::LM_CommittedRead); 
     if (rs == 0)
       break;
     
