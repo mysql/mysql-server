@@ -4725,7 +4725,11 @@ having_clause:
 
 opt_escape:
 	ESCAPE_SYM TEXT_STRING_literal	{ $$= $2.str; }
-	| /* empty */			{ $$= (char*) "\\"; };
+	| /* empty */			
+	{
+          $$= (char*) ((YYTHD->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
+                       ? "" : "\\"); 
+        };
 
 
 /*
