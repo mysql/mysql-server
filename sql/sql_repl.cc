@@ -278,41 +278,39 @@ bool log_in_use(const char* log_name)
   return result;
 }
 
-int purge_error_message(THD* thd, int res)
+bool purge_error_message(THD* thd, int res)
 {
-  const char *errmsg= 0;
+  uint errmsg= 0;
 
   switch (res)  {
   case 0: break;
-  case LOG_INFO_EOF:	errmsg= "Target log not found in binlog index"; break;
-  case LOG_INFO_IO:	errmsg= "I/O error reading log index file"; break;
-  case LOG_INFO_INVALID:
-    errmsg= "Server configuration does not permit binlog purge"; break;
-  case LOG_INFO_SEEK:	errmsg= "Failed on fseek()"; break;
-  case LOG_INFO_MEM:	errmsg= "Out of memory"; break;
-  case LOG_INFO_FATAL:	errmsg= "Fatal error during purge"; break;
-  case LOG_INFO_IN_USE: errmsg= "A purgeable log is in use, will not purge";
-    break;
-  default:		errmsg= "Unknown error during purge"; break;
+  case LOG_INFO_EOF:	errmsg= ER_UNKNOWN_TARGET_BINLOG; break;
+  case LOG_INFO_IO:	errmsg= ER_IO_ERR_LOG_INDEX_READ; break;
+  case LOG_INFO_INVALID:errmsg= ER_BINLOG_PURGE_PROHIBITED; break;
+  case LOG_INFO_SEEK:	errmsg= ER_FSEEK_FAIL; break;
+  case LOG_INFO_MEM:	errmsg= ER_OUT_OF_RESOURCES; break;
+  case LOG_INFO_FATAL:	errmsg= ER_BINLOG_PURGE_FATAL_ERR; break;
+  case LOG_INFO_IN_USE: errmsg= ER_LOG_IN_USE; break;
+  default:		errmsg= ER_LOG_PURGE_UNKNOWN_ERR; break;
   }
 
   if (errmsg)
   {
-    send_error(thd, 0, errmsg);
-    return 1;
+    my_error(errmsg, MYF(0));
+    return TRUE;
   }
   send_ok(thd);
-  return 0;
+  return FALSE;
 }
 
 
-int purge_master_logs(THD* thd, const char* to_log)
+bool purge_master_logs(THD* thd, const char* to_log)
 {
   char search_file_name[FN_REFLEN];
   if (!mysql_bin_log.is_open())
   {
     send_ok(current_thd);
-    return 0;
+    return FALSE;
   }
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
@@ -322,10 +320,10 @@ int purge_master_logs(THD* thd, const char* to_log)
 }
 
 
-int purge_master_logs_before_date(THD* thd, time_t purge_time)
+bool purge_master_logs_before_date(THD* thd, time_t purge_time)
 {
-  int res = mysql_bin_log.purge_logs_before_date(purge_time);
-  return purge_error_message(thd ,res);
+  return purge_error_message(thd,
+                             mysql_bin_log.purge_logs_before_date(purge_time));
 }
 
 int test_for_non_eof_log_read_errors(int error, const char **errmsg)
@@ -753,7 +751,7 @@ err:
   pthread_mutex_unlock(&LOCK_thread_count);
   if (file >= 0)
     (void) my_close(file, MYF(MY_WME));
-  send_error(thd, my_errno, errmsg);
+  my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -869,7 +867,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   if (slave_errno)
   {
     if (net_report)
-      send_error(thd, slave_errno);
+      my_error(slave_errno, MYF(0));
     DBUG_RETURN(1);
   }
   else if (net_report)
@@ -919,7 +917,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (slave_errno)
   {
     if (net_report)
-      send_error(thd, slave_errno);
+      my_error(slave_errno, MYF(0));
     return 1;
   }
   else if (net_report)
@@ -1054,7 +1052,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 }
 
 
-int change_master(THD* thd, MASTER_INFO* mi)
+bool change_master(THD* thd, MASTER_INFO* mi)
 {
   int thread_mask;
   const char* errmsg= 0;
@@ -1065,9 +1063,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
   init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
   if (thread_mask) // We refuse if any slave thread is running
   {
-    net_printf(thd,ER_SLAVE_MUST_STOP);
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
     unlock_slave_threads(mi);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 
   thd->proc_info = "Changing master";
@@ -1075,9 +1073,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
-    send_error(thd, ER_MASTER_INFO);
+    my_error(ER_MASTER_INFO, MYF(0));
     unlock_slave_threads(mi);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 
   /*
@@ -1194,9 +1192,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
     {
-      net_printf(thd, 0, "Failed purging old relay logs: %s",errmsg);
+      my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       unlock_slave_threads(mi);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
   }
   else
@@ -1210,9 +1208,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			   0 /*no data lock*/,
 			   &msg, 0))
     {
-      net_printf(thd,0,"Failed initializing relay log position: %s",msg);
+      my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
       unlock_slave_threads(mi);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
   }
   mi->rli.group_master_log_pos = mi->master_log_pos;
@@ -1254,7 +1252,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   unlock_slave_threads(mi);
   thd->proc_info = 0;
   send_ok(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 int reset_master(THD* thd)
@@ -1285,7 +1283,7 @@ int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 }
 
 
-int show_binlog_events(THD* thd)
+bool show_binlog_events(THD* thd)
 {
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlog_events");
@@ -1299,7 +1297,7 @@ int show_binlog_events(THD* thd)
   Log_event::init_show_field_list(&field_list);
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   if (mysql_bin_log.is_open())
   {
@@ -1405,18 +1403,18 @@ err:
   {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
 	     "SHOW BINLOG EVENTS", errmsg);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
 
   send_eof(thd);
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
-  DBUG_RETURN(0);
+  DBUG_RETURN(TRUE);
 }
 
 
-int show_binlog_info(THD* thd)
+bool show_binlog_info(THD* thd)
 {
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlog_info");
@@ -1429,7 +1427,7 @@ int show_binlog_info(THD* thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   protocol->prepare_for_resend();
 
   if (mysql_bin_log.is_open())
@@ -1442,10 +1440,10 @@ int show_binlog_info(THD* thd)
     protocol->store(&binlog_do_db);
     protocol->store(&binlog_ignore_db);
     if (protocol->write())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -1457,11 +1455,11 @@ int show_binlog_info(THD* thd)
     thd		Thread specific variable
 
   RETURN VALUES
-    0	ok
-    1	error  (Error message sent to client)
+    FALSE OK
+    TRUE  error
 */
 
-int show_binlogs(THD* thd)
+bool show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
@@ -1472,15 +1470,14 @@ int show_binlogs(THD* thd)
 
   if (!mysql_bin_log.is_open())
   {
-    //TODO:  Replace with ER() error message
-    send_error(thd, 0, "You are not using binary logging");
+    my_error(ER_NO_BINARY_LOGGING, MYF(0));
     return 1;
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   
@@ -1498,11 +1495,11 @@ int show_binlogs(THD* thd)
   }
   mysql_bin_log.unlock_index();
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   mysql_bin_log.unlock_index();
-  DBUG_RETURN(1);
+  DBUG_RETURN(TRUE);
 }
 
 

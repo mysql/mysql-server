@@ -813,7 +813,7 @@ query:
 	   if (!thd->bootstrap &&
 	      (!(thd->lex->select_lex.options & OPTION_FOUND_COMMENT)))
 	   {
-	     send_error(thd,ER_EMPTY_QUERY);
+	     my_error(ER_EMPTY_QUERY, MYF(0));
 	     YYABORT;
 	   }
 	   else
@@ -1149,7 +1149,7 @@ create:
 
 	    if (lex->sphead)
 	    {
-	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "PROCEDURE");
+	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
 	      YYABORT;
 	    }
 	    /* Order is important here: new - reset - init */
@@ -1222,7 +1222,7 @@ create:
            
             if (lex->sphead)
             {
-              net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "TRIGGER");
+              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "TRIGGER");
               YYABORT;
             }
             
@@ -1303,7 +1303,7 @@ create_function_tail:
 
 	    if (lex->sphead)
 	    {
-	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "FUNCTION");
+	      my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "FUNCTION");
 	      YYABORT;
 	    }
 	    /* Order is important here: new - reset - init */
@@ -1469,7 +1469,7 @@ sp_fdparam:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_PARAM, $1.str);
+	      my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
@@ -1495,7 +1495,7 @@ sp_pdparam:
 
 	    if (spc->find_pvar(&$2, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_PARAM, $2.str);
+	      my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$2, (enum enum_field_types)$3,
@@ -1529,12 +1529,12 @@ sp_decls:
 	       better error handling this way.) */
 	    if (($2.vars || $2.conds) && ($1.curs || $1.hndlrs))
 	    { /* Variable or condition following cursor or handler */
-	      send_error(YYTHD, ER_SP_VARCOND_AFTER_CURSHNDLR);
+	      my_error(ER_SP_VARCOND_AFTER_CURSHNDLR, MYF(0));
 	      YYABORT;
 	    }
 	    if ($2.curs && $1.hndlrs)
 	    { /* Cursor following handler */
-	      send_error(YYTHD, ER_SP_CURSOR_AFTER_HANDLER);
+	      my_error(ER_SP_CURSOR_AFTER_HANDLER, MYF(0));
 	      YYABORT;
 	    }
 	    $$.vars= $1.vars + $2.vars;
@@ -1582,7 +1582,7 @@ sp_decl:
 
 	    if (spc->find_cond(&$2, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_COND, $2.str);
+	      my_error(ER_SP_DUP_COND, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    YYTHD->lex->spcont->push_cond(&$2, $5);
@@ -1639,7 +1639,7 @@ sp_decl:
 
 	    if (ctx->find_cursor(&$2, &offp, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_CURS, $2.str);
+	      my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
 	      delete $5;
 	      YYABORT;
 	    }
@@ -1666,12 +1666,12 @@ sp_cursor_stmt:
 
 	    if (lex->sql_command != SQLCOM_SELECT)
 	    {
-	      send_error(YYTHD, ER_SP_BAD_CURSOR_QUERY);
+	      my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
 	      YYABORT;
 	    }
 	    if (lex->result)
 	    {
-	      send_error(YYTHD, ER_SP_BAD_CURSOR_SELECT);
+	      my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
 	      YYABORT;
 	    }
 	    lex->sp_lex_in_use= TRUE;
@@ -1741,7 +1741,7 @@ sp_hcond:
 	    $$= Lex->spcont->find_cond(&$1);
 	    if ($$ == NULL)
 	    {
-	      net_printf(YYTHD, ER_SP_COND_MISMATCH, $1.str);
+	      my_error(ER_SP_COND_MISMATCH, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	  }
@@ -1770,7 +1770,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$1, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_VAR, $1.str);
+	      my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
@@ -1783,7 +1783,7 @@ sp_decl_idents:
 
 	    if (spc->find_pvar(&$3, TRUE))
 	    {
-	      net_printf(YYTHD, ER_SP_DUP_VAR, $3.str);
+	      my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
 	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);
@@ -1816,7 +1816,7 @@ sp_proc_stmt:
 	    }
 	    if (lex->sql_command == SQLCOM_CHANGE_DB)
 	    { /* "USE db" doesn't work in a procedure */
-	      send_error(YYTHD, ER_SP_NO_USE);
+	      my_error(ER_SP_NO_USE, MYF(0));
 	      YYABORT;
 	    }
 	    /* Don't add an instruction for empty SET statements.
@@ -1835,7 +1835,7 @@ sp_proc_stmt:
               */
 	      if (sp->m_type != TYPE_ENUM_PROCEDURE)
 	      {
-		send_error(YYTHD, ER_SP_BADSTATEMENT);
+		my_error(ER_SP_BADSTATEMENT, MYF(0));
 		YYABORT;
 	      }
 	      else
@@ -1865,7 +1865,7 @@ sp_proc_stmt:
 
 	    if (lex->sphead->m_type == TYPE_ENUM_PROCEDURE)
 	    {
-	      send_error(YYTHD, ER_SP_BADRETURN);
+	      my_error(ER_SP_BADRETURN, MYF(0));
 	      YYABORT;
 	    }
 	    else
@@ -1874,7 +1874,7 @@ sp_proc_stmt:
 
 	      if ($2->type() == Item::SUBSELECT_ITEM)
 	      {  /* QQ For now, just disallow subselects as values */
-	        send_error(lex->thd, ER_SP_BADSTATEMENT);
+	        my_error(ER_SP_BADSTATEMENT, MYF(0));
 	        YYABORT;
 	      }
 	      i= new sp_instr_freturn(lex->sphead->instructions(),
@@ -1937,7 +1937,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE", $2.str);
+	      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "LEAVE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -1967,7 +1967,7 @@ sp_proc_stmt:
 
 	    if (! lab || lab->type != SP_LAB_ITER)
 	    {
-	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE", $2.str);
+	      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "ITERATE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -1995,7 +1995,7 @@ sp_proc_stmt:
 
 	    if (lab)
 	    {
-	      net_printf(YYTHD, ER_SP_LABEL_REDEFINE, $2.str);
+	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -2019,7 +2019,7 @@ sp_proc_stmt:
 
 	    if (sp->m_in_handler)
 	    {
-	      send_error(lex->thd, ER_SP_GOTO_IN_HNDLR);
+	      my_error(ER_SP_GOTO_IN_HNDLR, MYF(0));
 	      YYABORT;
 	    }
 	    lab= ctx->find_label($2.str);
@@ -2070,7 +2070,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$2, &offset))
 	    {
-	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
@@ -2085,7 +2085,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$2, &offset))
 	    {
-	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
@@ -2102,7 +2102,7 @@ sp_proc_stmt:
 
 	    if (! lex->spcont->find_cursor(&$2, &offset))
 	    {
-	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      my_error(ER_SP_CURSOR_MISMATCH, MYF(0), $2.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
@@ -2120,7 +2120,7 @@ sp_fetch_list:
 
 	    if (!spc || !(spv = spc->find_pvar(&$1)))
 	    {
-	      net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $1.str);
+	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    else
@@ -2142,7 +2142,7 @@ sp_fetch_list:
 
 	    if (!spc || !(spv = spc->find_pvar(&$3)))
 	    {
-	      net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $3.str);
+	      my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
 	      YYABORT;
 	    }
 	    else
@@ -2266,7 +2266,7 @@ sp_labeled_control:
 
 	    if (lab)
 	    {
-	      net_printf(YYTHD, ER_SP_LABEL_REDEFINE, $1.str);
+	      my_error(ER_SP_LABEL_REDEFINE, MYF(0), $1.str);
 	      YYABORT;
 	    }
 	    else
@@ -2287,7 +2287,7 @@ sp_labeled_control:
 	      if (!lab ||
 	          my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
 	      {
-	        net_printf(YYTHD, ER_SP_LABEL_MISMATCH, $5.str);
+	        my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
 	        YYABORT;
 	      }
 	    }
@@ -2545,9 +2545,9 @@ default_charset:
                cinfo->default_table_charset && $4 &&
                !my_charset_same(cinfo->default_table_charset,$4))
           {
-            net_printf(YYTHD, ER_CONFLICTING_DECLARATIONS,
-                       "CHARACTER SET ", cinfo->default_table_charset->csname,
-                       "CHARACTER SET ", $4->csname);
+            my_error(ER_CONFLICTING_DECLARATIONS, MYF(0),
+                     "CHARACTER SET ", cinfo->default_table_charset->csname,
+                     "CHARACTER SET ", $4->csname);
             YYABORT;
           }
 	  Lex->create_info.default_table_charset= $4;
@@ -2562,8 +2562,8 @@ default_collation:
                cinfo->default_table_charset && $4 &&
                !my_charset_same(cinfo->default_table_charset,$4))
             {
-              net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
-                         $4->name, cinfo->default_table_charset->csname);
+              my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $4->name, cinfo->default_table_charset->csname);
               YYABORT;
             }
             Lex->create_info.default_table_charset= $4;
@@ -2575,7 +2575,7 @@ storage_engines:
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
 	  if ($$ == DB_TYPE_UNKNOWN) {
-	    net_printf(YYTHD, ER_UNKNOWN_STORAGE_ENGINE, $1.str);
+	    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	};
@@ -2754,18 +2754,19 @@ type:
 					  $$=FIELD_TYPE_TINY_BLOB; }
 	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
-	| spatial_type			{ 
+	| spatial_type
+          {
 #ifdef HAVE_SPATIAL
-					  Lex->charset=&my_charset_bin;
-					  Lex->uint_geom_type= (uint)$1;
-					  $$=FIELD_TYPE_GEOMETRY;
+            Lex->charset=&my_charset_bin;
+            Lex->uint_geom_type= (uint)$1;
+            $$=FIELD_TYPE_GEOMETRY;
 #else
-	                                  net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			                             sym_group_geom.name,
-	                                             sym_group_geom.needed_define);
-					  YYABORT;
+            my_error(ER_FEATURE_DISABLED, MYF(0)
+                     sym_group_geom.name,
+                     sym_group_geom.needed_define);
+            YYABORT;
 #endif
-					}
+          }
 	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGBLOB			{ Lex->charset=&my_charset_bin;
@@ -2929,8 +2930,8 @@ attribute:
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
 	    {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
-			 $2->name,Lex->charset->csname);
+	      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $2->name,Lex->charset->csname);
 	      YYABORT;
 	    }
 	    else
@@ -2955,7 +2956,7 @@ charset_name:
 	{
 	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))))
 	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	}
@@ -2973,7 +2974,7 @@ old_or_new_charset_name:
 	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))) &&
 	      !($$=get_old_charset_by_name($1.str)))
 	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	}
@@ -2989,7 +2990,7 @@ collation_name:
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    net_printf(YYTHD,ER_UNKNOWN_COLLATION,$1.str);
+	    my_error(ER_UNKNOWN_COLLATION, MYF(0), $1.str);
 	    YYABORT;
 	  }
 	};
@@ -3013,9 +3014,10 @@ opt_binary:
 	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
 	| UNICODE_SYM
 	{
-	  if (!(Lex->charset=get_charset_by_csname("ucs2",MY_CS_PRIMARY,MYF(0))))
+	  if (!(Lex->charset=get_charset_by_csname("ucs2",
+                                                   MY_CS_PRIMARY,MYF(0))))
 	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"ucs2");
+	    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "ucs2");
 	    YYABORT;
 	  }
 	}
@@ -3077,8 +3079,8 @@ key_type:
 #ifdef HAVE_SPATIAL
 	    $$= Key::SPATIAL;
 #else
-	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-		       sym_group_geom.name, sym_group_geom.needed_define);
+	    my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  };
@@ -3110,8 +3112,8 @@ opt_unique_or_fulltext:
 #ifdef HAVE_SPATIAL
 	    $$= Key::SPATIAL;
 #else
-	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               sym_group_geom.name, sym_group_geom.needed_define);
+	    my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  }
@@ -3338,7 +3340,7 @@ alter_list_item:
             if (check_table_name($3->table.str,$3->table.length) ||
                 $3->db.str && check_db_name($3->db.str))
             {
-              net_printf(lex->thd,ER_WRONG_TABLE_NAME,$3->table.str);
+              my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               YYABORT;
             }
 	    lex->alter_info.flags|= ALTER_RENAME;
@@ -3353,8 +3355,8 @@ alter_list_item:
 	    $5= $5 ? $5 : $4;
 	    if (!my_charset_same($4,$5))
 	    {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
-			 $5->name,$4->csname);
+	      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                       $5->name, $4->csname);
 	      YYABORT;
 	    }
 	    LEX *lex= Lex;
@@ -3476,7 +3478,7 @@ slave_until:
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
             {
-               send_error(lex->thd, ER_BAD_SLAVE_UNTIL_COND);
+               my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
                YYABORT;
             }
 
@@ -4189,9 +4191,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 $1.symbol->group->name,
-	                 $1.symbol->group->needed_define);
+	      my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(void))($1.symbol->create_func))();
@@ -4200,9 +4202,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 $1.symbol->group->name,
-	                 $1.symbol->group->needed_define);
+	      my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*))($1.symbol->create_func))($3);
@@ -4211,9 +4213,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 $1.symbol->group->name,
-	                 $1.symbol->group->needed_define);
+	      my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*,Item*))($1.symbol->create_func))($3,$5);
@@ -4222,9 +4224,9 @@ simple_expr:
 	  {
 	    if (!$1.symbol->create_func)
 	    {
-	      net_printf(Lex->thd, ER_FEATURE_DISABLED,
-			 $1.symbol->group->name,
-	                 $1.symbol->group->needed_define);
+	      my_error(ER_FEATURE_DISABLED, MYF(0),
+                       $1.symbol->group->name,
+                       $1.symbol->group->needed_define);
 	      YYABORT;
 	    }
 	    $$= ((Item*(*)(Item*,Item*,Item*))($1.symbol->create_func))($3,$5,$7);
@@ -4327,8 +4329,8 @@ simple_expr:
 #ifdef HAVE_SPATIAL
 	    $$= $1;
 #else
-	    net_printf(Lex->thd, ER_FEATURE_DISABLED,
-	               sym_group_geom.name, sym_group_geom.needed_define);
+	    my_error(ER_FEATURE_DISABLED, MYF(0),
+                     sym_group_geom.name, sym_group_geom.needed_define);
 	    YYABORT;
 #endif
 	  }
@@ -5184,12 +5186,12 @@ olap_opt:
 	    LEX *lex=Lex;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH CUBE",
+	      my_error(ER_WRONG_USAGE, MYF(0), "WITH CUBE",
 		       "global union parameters");
 	      YYABORT;
 	    }
 	    lex->current_select->olap= CUBE_TYPE;
-	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
+	    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "CUBE");
 	    YYABORT;	/* To be deleted in 5.1 */
 	  }
 	| WITH ROLLUP_SYM
@@ -5197,7 +5199,7 @@ olap_opt:
 	    LEX *lex= Lex;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH ROLLUP",
+	      my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP",
 		       "global union parameters");
 	      YYABORT;
 	    }
@@ -5221,9 +5223,8 @@ order_clause:
 	      lex->current_select->olap !=
 	      UNSPECIFIED_OLAP_TYPE)
 	  {
-	    net_printf(lex->thd, ER_WRONG_USAGE,
-		       "CUBE/ROLLUP",
-		       "ORDER BY");
+	    my_error(ER_WRONG_USAGE, MYF(0),
+                     "CUBE/ROLLUP", "ORDER BY");
 	    YYABORT;
 	  }
 	} order_list;
@@ -5321,9 +5322,7 @@ procedure_clause:
 	    LEX *lex=Lex;
 	    if (&lex->select_lex != lex->current_select)
 	    {
-	      net_printf(lex->thd, ER_WRONG_USAGE,
-			  "PROCEDURE",
-			  "subquery");
+	      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
 	      YYABORT;
 	    }
 	    lex->proc_list.elements=0;
@@ -5387,7 +5386,7 @@ select_var_ident:
 
 	     if (!lex->spcont || !(t=lex->spcont->find_pvar(&$1)))
 	     {
-	       net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $1.str);
+	       my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
 	       YYABORT;
 	     }
 	     if (! lex->result)
@@ -5482,7 +5481,7 @@ drop:
 	    LEX *lex=Lex;
 	    if (lex->sphead)
 	    {
-	      net_printf(YYTHD, ER_SP_NO_DROP_SP, "FUNCTION");
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
 	      YYABORT;
 	    }
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
@@ -5494,7 +5493,7 @@ drop:
 	    LEX *lex=Lex;
 	    if (lex->sphead)
 	    {
-	      net_printf(YYTHD, ER_SP_NO_DROP_SP, "PROCEDURE");
+	      my_error(ER_SP_NO_DROP_SP, MYF(0), "PROCEDURE");
 	      YYABORT;
 	    }
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
@@ -5742,8 +5741,8 @@ update:
 	  else if (lex->select_lex.get_table_list()->derived)
 	  {
 	    /* it is single table update and it is update of derived table */
-	    net_printf(lex->thd, ER_NON_UPDATABLE_TABLE,
-		       lex->select_lex.get_table_list()->alias, "UPDATE");
+	    my_error(ER_NON_UPDATABLE_TABLE, MYF(0),
+                     lex->select_lex.get_table_list()->alias, "UPDATE");
 	    YYABORT;
 	  }
 	}
@@ -6065,7 +6064,7 @@ show_engine_param:
 	      Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS;
 	      break;
 	    default:
-	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "STATUS");
+	      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "STATUS");
 	      YYABORT;
 	    }
 	  }
@@ -6076,7 +6075,7 @@ show_engine_param:
 	      Lex->sql_command = SQLCOM_SHOW_LOGS;
 	      break;
 	    default:
-	      net_printf(YYTHD, ER_NOT_SUPPORTED_YET, "LOGS");
+	      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "LOGS");
 	      YYABORT;
 	    }
 	  };
@@ -6228,7 +6227,7 @@ purge_option:
 	{
 	  if ($2->check_cols(1) || $2->fix_fields(Lex->thd, 0, &$2))
 	  {
-	    net_printf(Lex->thd, ER_WRONG_ARGUMENTS, "PURGE LOGS BEFORE");
+	    my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
 	    YYABORT;
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
@@ -6250,7 +6249,7 @@ kill:
 	  LEX *lex=Lex;
 	  if ($3->fix_fields(lex->thd, 0, &$3) || $3->check_cols(1))
 	  {
-	    send_error(lex->thd, ER_SET_CONSTANTS_ONLY);
+	    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
 	    YYABORT;
 	  }
           lex->sql_command=SQLCOM_KILL;
@@ -6397,7 +6396,7 @@ param_marker:
                                                      (uchar *) thd->query));
             if (!($$= item) || lex->param_list.push_back(item))
             {
-	      send_error(thd, ER_OUT_OF_RESOURCES);
+	      my_error(ER_OUT_OF_RESOURCES, MYF(0));
 	      YYABORT;
             }
           }
@@ -6453,7 +6452,6 @@ NUM_literal:
 	   $$= new Item_real($1.str, $1.length);
 	   if (YYTHD->net.report_error)
 	   {
-	     send_error(YYTHD, 0, NullS);
 	     YYABORT;
 	   }
 	}
@@ -6462,7 +6460,6 @@ NUM_literal:
 	   $$ =	new Item_float($1.str, $1.length);
 	   if (YYTHD->net.report_error)
 	   {
-	     send_error(YYTHD, 0, NullS);
 	     YYABORT;
 	   }
 	}
@@ -6557,16 +6554,14 @@ simple_ident_q:
             if (lex->trg_chistics.event == TRG_EVENT_INSERT &&
                 !new_row)
             {
-              net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "OLD",
-                         "on INSERT");
+              my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "OLD", "on INSERT");
               YYABORT;
             }
             
             if (lex->trg_chistics.event == TRG_EVENT_DELETE &&
                 new_row)
             {
-              net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "NEW",
-                         "on DELETE");
+              my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "NEW", "on DELETE");
               YYABORT;
             }
             
@@ -6583,8 +6578,8 @@ simple_ident_q:
                 FIXME. Far from perfect solution. See comment for 
                 "SET NEW.field_name:=..." for more info.
               */
-              net_printf(YYTHD, ER_BAD_FIELD_ERROR, $3.str,
-                         new_row ? "NEW": "OLD");
+              my_error(ER_BAD_FIELD_ERROR, MYF(0), $3.str,
+                       new_row ? "NEW": "OLD");
               YYABORT;
             }
             
@@ -6671,8 +6666,8 @@ IDENT_sys:
                                                    $1.length);
               if (wlen < $1.length)
               {
-                net_printf(YYTHD, ER_INVALID_CHARACTER_STRING, cs->csname,
-                           $1.str + wlen);
+                my_error(ER_INVALID_CHARACTER_STRING, MYF(0), cs->csname,
+                         $1.str + wlen);
                 YYABORT;
               }
 	      $$= $1;
@@ -7051,7 +7046,7 @@ option_value:
               */
               if (lex->query_tables)
               {
-                send_error(YYTHD, ER_SP_SUBSELECT_NYI);
+                my_error(ER_SP_SUBSELECT_NYI, MYF(0));
                 YYABORT;
               }
               sp_instr_set_user_var *i= 
@@ -7074,7 +7069,7 @@ option_value:
               sp_instr_set_trigger_field *i;
               if (lex->query_tables)
               {
-                send_error(YYTHD, ER_SP_SUBSELECT_NYI);
+                my_error(ER_SP_SUBSELECT_NYI, MYF(0));
                 YYABORT;
               }
               if ($3)
@@ -7103,7 +7098,7 @@ option_value:
 
                   Error message also should be improved.
                 */
-                net_printf(YYTHD, ER_BAD_FIELD_ERROR, $1.base_name, "NEW");
+                my_error(ER_BAD_FIELD_ERROR, MYF(0), $1.base_name, "NEW");
                 YYABORT;
               }
               lex->sphead->add_instr(i);
@@ -7169,7 +7164,8 @@ option_value:
 	  $3= $3 ? $3 : $2;
 	  if (!my_charset_same($2,$3))
 	  {
-	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
+	    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+                     $3->name, $2->csname);
 	    YYABORT;
 	  }
 	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
@@ -7235,18 +7231,18 @@ internal_variable_name:
             {
               if ($1.str[0]=='O' || $1.str[0]=='o')
               {
-                net_printf(YYTHD, ER_TRG_CANT_CHANGE_ROW, "OLD", "");
+                my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "OLD", "");
                 YYABORT;
               }
               if (lex->trg_chistics.event == TRG_EVENT_DELETE)
               {
-                net_printf(YYTHD, ER_TRG_NO_SUCH_ROW_IN_TRG, "NEW",
-                           "on DELETE");
+                my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0),
+                         "NEW", "on DELETE");
                 YYABORT;
               }
               if (lex->trg_chistics.action_time == TRG_ACTION_AFTER)
               {
-                net_printf(YYTHD, ER_TRG_CANT_CHANGE_ROW, "NEW", "after ");
+                my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "NEW", "after ");
                 YYABORT;
               }
               /* This special combination will denote field of NEW row */
@@ -7259,7 +7255,7 @@ internal_variable_name:
               if (!tmp)
                 YYABORT;
               if (!tmp->is_struct())
-                net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+                my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), $3.str);
               $$.var= tmp;
               $$.base_name= $1;
             }
@@ -7270,7 +7266,7 @@ internal_variable_name:
 	    if (!tmp)
 	      YYABORT;
 	    if (!tmp->is_struct())
-	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+	      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), $3.str);
 	    $$.var= tmp;
 	    $$.base_name.str=    (char*) "default";
 	    $$.base_name.length= 7;
@@ -7515,7 +7511,7 @@ require_list_element:
 	  LEX *lex=Lex;
 	  if (lex->x509_subject)
 	  {
-	    net_printf(lex->thd,ER_DUP_ARGUMENT, "SUBJECT");
+	    my_error(ER_DUP_ARGUMENT, MYF(0), "SUBJECT");
 	    YYABORT;
 	  }
 	  lex->x509_subject=$2.str;
@@ -7525,7 +7521,7 @@ require_list_element:
 	  LEX *lex=Lex;
 	  if (lex->x509_issuer)
 	  {
-	    net_printf(lex->thd,ER_DUP_ARGUMENT, "ISSUER");
+	    my_error(ER_DUP_ARGUMENT, MYF(0), "ISSUER");
 	    YYABORT;
 	  }
 	  lex->x509_issuer=$2.str;
@@ -7535,7 +7531,7 @@ require_list_element:
 	  LEX *lex=Lex;
 	  if (lex->ssl_cipher)
 	  {
-	    net_printf(lex->thd,ER_DUP_ARGUMENT, "CIPHER");
+	    my_error(ER_DUP_ARGUMENT, MYF(0), "CIPHER");
 	    YYABORT;
 	  }
 	  lex->ssl_cipher=$2.str;
@@ -7551,7 +7547,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
 	      YYABORT;
 	    }
 	  }
@@ -7563,7 +7559,7 @@ opt_table:
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
 	      YYABORT;
 	    }
 	  }
@@ -7575,7 +7571,7 @@ opt_table:
 	      lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
 	    {
-	      send_error(lex->thd,ER_ILLEGAL_GRANT_FOR_TABLE);
+	      my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
 	      YYABORT;
 	    }
 	  }
@@ -7760,7 +7756,7 @@ union_list:
 	  if (lex->exchange)
 	  {
 	    /* Only the last SELECT can have  INTO...... */
-	    net_printf(lex->thd, ER_WRONG_USAGE, "UNION", "INTO");
+	    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
 	    YYABORT;
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
