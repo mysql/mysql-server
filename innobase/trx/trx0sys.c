@@ -887,8 +887,12 @@ trx_sys_init_at_db_start(void)
 		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 		for (;;) {
-			rows_to_undo +=
+
+			if ( trx->conc_state != TRX_PREPARED) {
+			    rows_to_undo +=
 				ut_conv_dulint_to_longlong(trx->undo_no);
+			}
+
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
 
 			if (!trx) {
