@@ -2,7 +2,6 @@
 %define shared_lib_version	@SHARED_LIB_VERSION@
 %define release			2
 %define mysqld_user		mysql
-%define db_version              3.1.14
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
@@ -15,7 +14,6 @@ Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
 Copyright:	GPL / LGPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
-Source1:        ftp://ftp.mysql.com/pub/mysql/Downloads/db/db-%{db_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
 Packager:	David Axmark <david@mysql.com>
@@ -87,7 +85,7 @@ Este pacote contém os clientes padrão para o MySQL.
 %package bench
 Release: %{release}
 Requires: MySQL-client MySQL-DBI-perl-bin perl
-Summary: MySQL - Benchmarks
+Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
 Group(pt_BR): Aplicações/Banco_de_Dados
@@ -135,7 +133,7 @@ languages and applications need to dynamically load and use MySQL.
 
 %build
 # The all-static flag is to make the RPM work on different
-# distributions. This version tries to put shared mysqlcliet libraries
+# distributions. This version tries to put shared mysqlclient libraries
 # in a separate package.
 
 BuildMySQL() {
@@ -143,10 +141,11 @@ BuildMySQL() {
 # support assembler speedups.
 sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 	CC=\"${MYSQL_BUILD_CC:-egcs}\" \
-	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O6 -fomit-frame-pointer}\" \
+	CFLAGS=\"${MYSQL_BUILD_CFLAGS:- -O6 -fno-omit-frame-pointer}\" \
 	CXX=\"${MYSQL_BUILD_CXX:-egcs}\" \
-	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O6 -fomit-frame-pointer \
-	          -felide-constructors -fno-exceptions -fno-rtti}\" \
+	CXXFLAGS=\"${MYSQL_BUILD_CXXFLAGS:- -O6 \
+	          -felide-constructors -fno-exceptions -fno-rtti \
+		  -fno-omit-frame-pointer}\" \
 	./configure \
  	    $* \
 	    --enable-assembler \
@@ -162,14 +161,17 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
             --infodir=/usr/info \
             --includedir=/usr/include \
             --mandir=/usr/man \
-            --with-berkeley-db=$RPM_BUILD_ROOT/usr/BDB \
-	    --with-comment=\"Official MySQL RPM\";
+            --with-berkeley-db \
+            --with-innobase-db \
+	    --with-comment=\"Official MySQL-Max RPM\";
 	    # Add this for more debugging support
 	    # --with-debug
+	    # Add this for MyISAM RAID support:
+	    # --with-raid
 	    "
 
  # benchdir does not fit in above model. Maybe a separate bench distribution
- make benchdir=$RPM_BUILD_ROOT/usr/share/sql-bench
+ make benchdir_root=$RPM_BUILD_ROOT/usr/share/
 }
 
 # Use the build root for temporary storage of the shared libraries.
@@ -198,6 +200,7 @@ tar cf $RBR/all.tar .
 
 # Save shared libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
+(cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
 # Save manual to avoid rebuilding
 mv Docs/manual.ps Docs/manual.ps.save
@@ -215,11 +218,12 @@ MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 install -d $RBR/etc/{logrotate.d,rc.d/init.d}
 install -d $RBR/var/lib/mysql/mysql
 install -d $RBR/usr/share/sql-bench
+install -d $RBR/usr/share/mysql-test
 install -d $RBR/usr/{sbin,share,man,include}
 install -d $RBR/usr/doc/MySQL-%{mysql_version}
 install -d $RBR/usr/lib
 # Make install
-make install DESTDIR=$RBR benchdir=/usr/share/sql-bench
+make install DESTDIR=$RBR benchdir_root=/usr/share/
 
 # Install shared libraries (Disable for architectures that don't support it)
 (cd $RBR/usr/lib; tar xf $RBR/shared-libs.tar)
@@ -311,14 +315,16 @@ fi
 %attr(755, root, root) /usr/bin/mysql_setpermission
 %attr(755, root, root) /usr/bin/mysql_zap
 %attr(755, root, root) /usr/bin/mysqlbug
+%attr(755, root, root) /usr/bin/mysqltest
 %attr(755, root, root) /usr/bin/mysqlhotcopy
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
 %attr(755, root, root) /usr/bin/safe_mysqld
+%attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
 
-%attr(644, root, root) /usr/info/mysql.info
+%attr(644, root, root) /usr/info/mysql.info*
 
 %attr(755, root, root) /usr/sbin/mysqld
 
@@ -338,7 +344,19 @@ fi
 %attr(755, root, root) /usr/bin/mysqlshow
 %attr(755, root, root) /usr/bin/mysqlbinlog
 
-%attr(644, root, man) %doc /usr/man/man1/mysql.1
+%attr(644, root, man) %doc /usr/man/man1/mysql.1*
+%attr(644, root, man) %doc /usr/man/man1/isamchk.1*
+%attr(644, root, man) %doc /usr/man/man1/isamlog.1*
+%attr(644, root, man) %doc /usr/man/man1/mysql_zap.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqlaccess.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqladmin.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqld.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqld_multi.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqldump.1*
+%attr(644, root, man) %doc /usr/man/man1/mysqlshow.1*
+%attr(644, root, man) %doc /usr/man/man1/perror.1*
+%attr(644, root, man) %doc /usr/man/man1/replace.1*
+%attr(644, root, man) %doc /usr/man/man1/safe_mysqld.1*
 
 %post shared
 /sbin/ldconfig
@@ -350,20 +368,26 @@ fi
 %attr(755, root, root) /usr/bin/comp_err
 %attr(755, root, root) /usr/include/mysql/
 %attr(755, root, root) /usr/lib/mysql/
+%attr(755, root, root) /usr/bin/mysql_config
 
 %files shared
 # Shared libraries (omit for architectures that don't support them)
-%attr(755, root, root) /usr/lib/*
+%attr(755, root, root) /usr/lib/*.so*
 
 %files bench
 %attr(-, root, root) /usr/share/sql-bench
+%attr(-, root, root) /usr/share/mysql-test
 
-%changelog
+%changelog 
 
-* Fri Jun 29 2000 Steven Lawrance <slawrance@technologist.com>
+* Tue Jan 2  2001  Monty
 
-- Merged changes from official MySQL RPM and upgraded Berkeley DB to
-  3.1.14 within this RPM.
+- Added mysql-test to the bench package
+
+* Fri Aug 18 2000 Tim Smith <tim@mysql.com>
+
+- Added separate libmysql_r directory; now both a threaded
+  and non-threaded library is shipped.
 
 * Wed Sep 28 1999 David Axmark <davida@mysql.com>
 

@@ -61,6 +61,7 @@ CREATE TABLE t1 (
 
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
+--error 1022
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1;
 drop table t1;
@@ -268,7 +269,9 @@ select * from t1 where ggid='test1';
 select * from t1 where passwd='xxx';
 select * from t1 where id=2;
 
+--error 1022
 replace into t1 (ggid,id) values ('this will work',1);
+--error 1022
 replace into t1 (ggid,passwd) values ('test2','this will work');
 -- error 1062
 update t1 set id=100,ggid='test2' where id=1;
