@@ -187,7 +187,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   TABLE		*tmp_table;
   int		error, tmp_error;
   bool		need_tmp,hidden_group_fields;
-  bool		simple_order,simple_group,no_order, skip_sort_order;
+  bool		simple_order,simple_group,no_order, skip_sort_order, buffer_result;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
   DYNAMIC_ARRAY keyuse;
@@ -201,6 +201,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   /* Check that all tables, fields, conds and order are ok */
 
   select_distinct=test(select_options & SELECT_DISTINCT);
+  buffer_result=test(select_options & OPTION_BUFFER_RESULT) && !test(select_options & OPTION_FOUND_ROWS);
   tmp_table=0;
   select=0;
   no_order=skip_sort_order=0;
@@ -546,8 +547,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
   need_tmp= (join.const_tables != join.tables &&
 	     ((select_distinct || !simple_order || !simple_group) ||
-	      (group && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT)));
+	      (group && order) || buffer_result));
 
   // No cache for MATCH
   make_join_readinfo(&join,

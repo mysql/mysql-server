@@ -20,6 +20,12 @@ a	b
 select found_rows();
 FOUND_ROWS()
 8
+select SQL_BUFFER_RESULT SQL_CALC_FOUND_ROWS * from t1 limit 1;
+a	b
+1	2
+select found_rows();
+FOUND_ROWS()
+8
 select SQL_CALC_FOUND_ROWS * from t1 order by b desc limit 1;
 a	b
 8	9
