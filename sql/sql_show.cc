@@ -1016,6 +1016,7 @@ public:
 template class I_List<thread_info>;
 #endif
 
+#define LIST_PROCESS_HOST_LEN 64
 
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
@@ -1029,7 +1030,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
   field_list.push_back(new Item_int("Id",0,7));
   field_list.push_back(new Item_empty_string("User",16));
-  field_list.push_back(new Item_empty_string("Host",64));
+  field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_LEN));
   field->maybe_null=1;
   field_list.push_back(new Item_empty_string("Command",16));
@@ -1058,10 +1059,17 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-        thd_info->host=thd->strdup(tmp->host ? tmp->host :
-				   (tmp->ip ? tmp->ip :
-				    (tmp->system_thread ? "none" :
-				     "connecting host")));
+	if (tmp->peer_port && (tmp->host || tmp->ip))
+	{
+	  if ((thd_info->host= thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+	    snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+		     (tmp->host ? tmp->host : tmp->ip), tmp->peer_port);
+	}
+	else
+	  thd_info->host= thd->strdup(tmp->host ? tmp->host :
+				      (tmp->ip ? tmp->ip :
+				       (tmp->system_thread ? "none" :
+					"connecting host")));
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
