@@ -58,9 +58,14 @@ declare y int;
 set x = y;
 end;
 Referring to uninitialized variable y
-create procedure foo(x int)
-select * from test.t1;
+create procedure foo()
+begin
+select name from mysql.proc;
+select type from mysql.proc;
+end;
+call foo();
 SELECT in a stored procedure must have INTO
+drop procedure foo;
 create procedure foo()
 return 42;
 RETURN is only allowed in a FUNCTION

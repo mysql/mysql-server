@@ -89,10 +89,16 @@ begin
   set x = y;
 end|
 
-# We require INTO in SELECTs (for now; this might change in the future)
+# We require INTO in SELECTs for some older clients (as mysql and mysqltest,
+# for now).
+create procedure foo()
+begin
+  select name from mysql.proc;
+  select type from mysql.proc;
+end|
 --error 1268
-create procedure foo(x int)
-  select * from test.t1|
+call foo()|
+drop procedure foo|
 
 # RETURN in FUNCTION only
 --error 1269

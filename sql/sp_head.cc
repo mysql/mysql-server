@@ -92,7 +92,7 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 }
 
 sp_head::sp_head(LEX_STRING *name, LEX *lex)
-  : Sql_alloc(), m_simple_case(FALSE)
+  : Sql_alloc(), m_simple_case(FALSE), m_multi_query(FALSE)
 {
   DBUG_ENTER("sp_head::sp_head");
   const char *dstr = (const char*)lex->buf;

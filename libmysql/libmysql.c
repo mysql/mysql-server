@@ -1370,6 +1370,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   if (pkt_len > 1)				/* MySQL 4.1 protocol */
   {
     mysql->warning_count= uint2korr(cp+1);
+    mysql->server_status= uint2korr(cp+3);
     DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   }
   DBUG_PRINT("exit",("Got %d rows",result->rows));
@@ -1395,7 +1396,10 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
   {
     if (pkt_len > 1)				/* MySQL 4.1 protocol */
+    {
       mysql->warning_count= uint2korr(mysql->net.read_pos+1);
+      mysql->server_status= uint2korr(mysql->net.read_pos+3);
+    }
     return 1;				/* End of data */
   }
   prev_pos= 0;				/* allowed to write at packet[-1] */
@@ -5370,6 +5374,7 @@ static MYSQL_DATA *read_binary_rows(MYSQL_STMT *stmt)
   if (pkt_len > 1)
   {
     mysql->warning_count= uint2korr(cp+1);
+    mysql->server_status= uint2korr(cp+3);
     DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   }
   DBUG_PRINT("exit",("Got %d rows",result->rows));

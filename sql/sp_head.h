@@ -46,6 +46,8 @@ public:
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
+  my_bool m_multi_query;	// TRUE if a procedure with SELECT(s)
+  uint m_old_cmq;		// Old CLIENT_MULTI_QUERIES value
 #if 0
   // We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.

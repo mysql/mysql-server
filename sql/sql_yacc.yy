@@ -940,6 +940,14 @@ create:
 	    lex->spcont= new sp_pcontext();
 	    lex->sphead= new sp_head(&$3, lex);
 	    lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
+	    /*
+	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
+	     * stored procedure, otherwise yylex will chop it into pieces
+	     * at each ';'.
+	     */
+	    lex->sphead->m_old_cmq=
+	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 	  }
           '(' sp_pdparam_list ')'
 	  {
@@ -947,7 +955,12 @@ create:
 	  }
 	  sp_proc_stmt
 	  {
-	    Lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+	    LEX *lex= Lex;
+
+	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
+	    /* Restore flag if it was cleared above */
+	    if (lex->sphead->m_old_cmq)
+	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  } 
 	;
 
@@ -976,6 +989,14 @@ create_function_tail:
 	    lex->spcont= new sp_pcontext();
 	    lex->sphead= new sp_head(&lex->udf.name, lex);
 	    lex->sphead->m_type= TYPE_ENUM_FUNCTION;
+	    /*
+	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
+	     * stored procedure, otherwise yylex will chop it into pieces
+	     * at each ';'.
+	     */
+	    lex->sphead->m_old_cmq=
+	      YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
+	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	  }
           sp_fdparam_list ')'
 	  {
@@ -987,7 +1008,12 @@ create_function_tail:
 	  }
 	  sp_proc_stmt
 	  {
-	    Lex->sql_command = SQLCOM_CREATE_SPFUNCTION;
+	    LEX *lex= Lex;
+
+	    lex->sql_command = SQLCOM_CREATE_SPFUNCTION;
+	    /* Restore flag if it was cleared above */
+	    if (lex->sphead->m_old_cmq)
+	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
 	  }
 	;
 
@@ -1140,40 +1166,37 @@ sp_proc_stmt:
 
 	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
 	    {
-	      send_error(YYTHD, ER_SP_BADSELECT);
-	      YYABORT;
+	      /* We maybe have one or more SELECT without INTO */
+	      lex->sphead->m_multi_query= TRUE;
 	    }
-	    else
+	    /* Don't add an instruction for empty SET statements.
+	    ** (This happens if the SET only contained local variables,
+	    **  which get their set instructions generated separately.)
+	    */
+	    if (lex->sql_command != SQLCOM_SET_OPTION ||
+		!lex->var_list.is_empty())
 	    {
-	      /* Don't add an instruction for empty SET statements.
-	      ** (This happens if the SET only contained local variables,
-	      **  which get their set instructions generated separately.)
+	      /* Currently we can't handle queries inside a FUNCTION,
+	      ** because of the way table locking works.
+	      ** This is unfortunate, and limits the usefulness of functions
+	      ** a great deal, but it's nothing we can do about this at the
+	      ** moment.
 	      */
-	      if (lex->sql_command != SQLCOM_SET_OPTION ||
-	          !lex->var_list.is_empty())
+	      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
+		  lex->sql_command != SQLCOM_SET_OPTION)
 	      {
-		/* Currently we can't handle queries inside a FUNCTION,
-		** because of the way table locking works.
-		** This is unfortunate, and limits the usefulness of functions
-		** a great deal, but it's nothing we can do about this at the
-		** moment.
-		*/
-	        if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
-		    lex->sql_command != SQLCOM_SET_OPTION)
-		{
-		  send_error(YYTHD, ER_SP_BADQUERY);
-		  YYABORT;
-		}
-		else
-		{
-	          sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+		send_error(YYTHD, ER_SP_BADQUERY);
+		YYABORT;
+	      }
+	      else
+	      {
+		sp_instr_stmt *i=new sp_instr_stmt(lex->sphead->instructions());
 
-	          i->set_lex(lex);
-	          lex->sphead->add_instr(i);
-		}
-              }
-	      lex->sphead->restore_lex(YYTHD);
-	    }
+		i->set_lex(lex);
+		lex->sphead->add_instr(i);
+	      }
+            }
+	    lex->sphead->restore_lex(YYTHD);
           }
 	| RETURN_SYM expr
 	  {
