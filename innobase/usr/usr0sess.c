@@ -37,8 +37,6 @@ sess_open(void)
 #endif /* UNIV_SYNC_DEBUG */
 	sess = mem_alloc(sizeof(sess_t));
 
-	sess->state = SESS_ACTIVE;
-
 	sess->trx = trx_create(sess);
 
 	UT_LIST_INIT(sess->graphs);

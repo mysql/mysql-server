@@ -479,6 +479,7 @@ static char *remove_end_comment(char *ptr)
   return ptr;
 }
 
+#include <help_start.h>
 
 void print_defaults(const char *conf_file, const char **groups)
 {
@@ -531,3 +532,5 @@ void print_defaults(const char *conf_file, const char **groups)
 --defaults-file=#	Only read default options from the given file #\n\
 --defaults-extra-file=# Read this file after the global files are read");
 }
+
+#include <help_end.h>

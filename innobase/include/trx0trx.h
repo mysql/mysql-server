@@ -194,9 +194,10 @@ trx_end_lock_wait(
 /********************************************************************
 Sends a signal to a trx object. */
 
-ibool
+que_thr_t*
 trx_sig_send(
 /*=========*/
+					/* out: next query thread to run */
 					/* out: TRUE if the signal was
 					successfully delivered */
 	trx_t*		trx,		/* in: trx handle */
@@ -206,27 +207,17 @@ trx_sig_send(
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
 					reply, or NULL; if type is
 					TRX_SIG_END_WAIT, this must be NULL */
-	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
+	trx_savept_t* 	savept);	/* in: possible rollback savepoint, or
 					NULL */
-	que_thr_t**	next_thr);	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread; if the parameter
-					is NULL, it is ignored */
 /********************************************************************
 Send the reply message when a signal in the queue of the trx has
 been handled. */
 
-void
+que_thr_t*
 trx_sig_reply(
 /*==========*/
-	trx_sig_t*	sig,		/* in: signal */
-	que_thr_t**	next_thr);	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
+					/* out: next query thread to run */
+	trx_sig_t*	sig);		/* in: signal */
 /********************************************************************
 Removes the signal object from a trx signal queue. */
 
@@ -238,15 +229,11 @@ trx_sig_remove(
 /********************************************************************
 Starts handling of a trx signal. */
 
-void
+que_thr_t*
 trx_sig_start_handle(
 /*=================*/
-	trx_t*		trx,		/* in: trx handle */
-	que_thr_t**	next_thr);	/* in/out: next query thread to run;
-					if the value which is passed in is
-					a pointer to a NULL pointer, then the
-					calling function can start running
-					a new query thread */
+				/* out: next query thread to run, or NULL */
+	trx_t*		trx);	/* in: trx handle */
 /********************************************************************
 Ends signal handling. If the session is in the error state, and
 trx->graph_before_signal_handling != NULL, returns control to the error
