@@ -2089,9 +2089,9 @@ ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
 }
 
 
-longlong ha_berkeley::get_auto_increment()
+ulonglong ha_berkeley::get_auto_increment()
 {
-  longlong nr=1;				// Default if error or new key
+  ulonglong nr=1;				// Default if error or new key
   int error;
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
 
@@ -2140,7 +2140,7 @@ longlong ha_berkeley::get_auto_increment()
     }
   }
   if (!error)
-    nr=(longlong)
+    nr=(ulonglong)
       table->next_number_field->val_int_offset(table->rec_buff_length)+1;
   ha_berkeley::index_end();
   (void) ha_berkeley::extra(HA_EXTRA_NO_KEYREAD);

@@ -1520,8 +1520,12 @@ int ha_myisam::rename_table(const char * from, const char * to)
 }
 
 
-longlong ha_myisam::get_auto_increment()
+ulonglong ha_myisam::get_auto_increment()
 {
+  ulonglong nr;
+  int error;
+  byte key[MI_MAX_KEY_LENGTH];
+
   if (!table->next_number_key_offset)
   {						// Autoincrement at key-start
     ha_myisam::info(HA_STATUS_AUTO);
@@ -1531,19 +1535,16 @@ longlong ha_myisam::get_auto_increment()
   /* it's safe to call the following if bulk_insert isn't on */
   mi_flush_bulk_insert(file, table->next_number_index);
 
-  longlong nr;
-  int error;
-  byte key[MI_MAX_KEY_LENGTH];
   (void) extra(HA_EXTRA_KEYREAD);
   key_copy(key,table,table->next_number_index,
 	   table->next_number_key_offset);
   error=mi_rkey(file,table->record[1],(int) table->next_number_index,
 		key,table->next_number_key_offset,HA_READ_PREFIX_LAST);
   if (error)
-    nr=1;
+    nr= 1;
   else
-    nr=(longlong)
-      table->next_number_field->val_int_offset(table->rec_buff_length)+1;
+    nr= ((ulonglong) table->next_number_field->
+         val_int_offset(table->rec_buff_length)+1);
   extra(HA_EXTRA_NO_KEYREAD);
   return nr;
 }

@@ -220,9 +220,10 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
     look_for_description_event 
                         1 if we should look for such an event. We only need
                         this when the SQL thread starts and opens an existing
-                        relay log and has to execute it (possibly from an offset
-                        >4); then we need to read the first event of the relay
-                        log to be able to parse the events we have to execute.
+                        relay log and has to execute it (possibly from an
+                        offset >4); then we need to read the first event of
+                        the relay log to be able to parse the events we have
+                        to execute.
 
   DESCRIPTION
   - Close old open relay log files.
@@ -333,8 +334,8 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     while (look_for_description_event) 
     {
       /*
-        Read the possible Format_description_log_event; if position was 4, no need, it will
-        be read naturally.
+        Read the possible Format_description_log_event; if position
+        was 4, no need, it will be read naturally.
       */
       DBUG_PRINT("info",("looking for a Format_description_log_event"));
 
@@ -373,9 +374,9 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
           Format_desc (of slave)
           Rotate (of master)
           Format_desc (of master)
-          So the Format_desc which really describes the rest of the relay log is
-          the 3rd event (it can't be further than that, because we rotate the
-          relay log when we queue a Rotate event from the master).
+          So the Format_desc which really describes the rest of the relay log
+          is the 3rd event (it can't be further than that, because we rotate
+          the relay log when we queue a Rotate event from the master).
           But what describes the Rotate is the first Format_desc.
           So what we do is:
           go on searching for Format_description events, until you exceed the
@@ -424,7 +425,7 @@ err:
 
 
 /*
-  Init functio to set up array for errors that should be skipped for slave
+  Init function to set up array for errors that should be skipped for slave
 
   SYNOPSIS
     init_slave_skip_errors()
@@ -505,26 +506,11 @@ void st_relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     the relay log is not "val".
     With the end_log_pos solution, we avoid computations involving lengthes.
   */
-  DBUG_PRINT("info", ("log_pos=%lld group_master_log_pos=%lld",
-		      log_pos,group_master_log_pos));
+  DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
+		      (long) log_pos, (long) group_master_log_pos));
   if (log_pos) // 3.23 binlogs don't have log_posx
   {
-#if MYSQL_VERSION_ID < 50000
-    /*
-      If the event was converted from a 3.23 format, get_event_len() has
-      grown by 6 bytes (at least for most events, except LOAD DATA INFILE
-      which is already a big problem for 3.23->4.0 replication); 6 bytes is
-      the difference between the header's size in 4.0 (LOG_EVENT_HEADER_LEN)
-      and the header's size in 3.23 (OLD_HEADER_LEN). Note that using
-      mi->old_format will not help if the I/O thread has not started yet.
-      Yes this is a hack but it's just to make 3.23->4.x replication work;
-      3.23->5.0 replication is working much better.
-    */
-    group_master_log_pos= log_pos -
-      (mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
-#else
     group_master_log_pos= log_pos;
-#endif /* MYSQL_VERSION_ID < 5000 */
   }
   pthread_cond_broadcast(&data_cond);
   if (!skip_lock)
@@ -612,7 +598,8 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
     goto err;
   }
   if (!just_reset)
-    error= init_relay_log_pos(rli, rli->group_relay_log_name, rli->group_relay_log_pos,
+    error= init_relay_log_pos(rli, rli->group_relay_log_name,
+                              rli->group_relay_log_pos,
   			      0 /* do not need data lock */, errmsg, 0);
   
 err:
@@ -880,8 +867,8 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     second call will make the decision (because
     all_tables_not_ok() = !tables_ok(1st_list) && !tables_ok(2nd_list)).
 
-    Thought which arose from a question of a big customer "I want to include all
-    tables like "abc.%" except the "%.EFG"". This can't be done now. If we
+    Thought which arose from a question of a big customer "I want to include
+    all tables like "abc.%" except the "%.EFG"". This can't be done now. If we
     supported Perl regexps we could do it with this pattern: /^abc\.(?!EFG)/
     (I could not find an equivalent in the regex library MySQL uses).
 
@@ -1390,7 +1377,7 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
   else
   {
     mi->clock_diff_with_master= 0; /* The "most sensible" value */
-    sql_print_error("Warning: \"SELECT UNIX_TIMESTAMP()\" failed on master, \
+    sql_print_warning("\"SELECT UNIX_TIMESTAMP()\" failed on master, \
 do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS");
   }
   if (master_res)
@@ -2151,7 +2138,7 @@ file '%s')", fname);
       goto errwithmsg;
 #ifndef HAVE_OPENSSL
     if (ssl)
-      sql_print_error("SSL information in the master info file "
+      sql_print_warning("SSL information in the master info file "
                       "('%s') are ignored because this MySQL slave was compiled "
                       "without SSL support.", fname);
 #endif /* HAVE_OPENSSL */
@@ -2569,17 +2556,16 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   ulong init_abort_pos_wait;
   int error=0;
   struct timespec abstime; // for timeout checking
-  set_timespec(abstime,timeout);
-
+  const char *msg;
   DBUG_ENTER("wait_for_pos");
-  DBUG_PRINT("enter",("group_master_log_name: '%s'  pos: %lu timeout: %ld",
-                      group_master_log_name, (ulong) group_master_log_pos, 
-                      (long) timeout));
+  DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
+                      log_name->c_ptr(), (ulong) log_pos, (ulong) timeout));
 
+  set_timespec(abstime,timeout);
   pthread_mutex_lock(&data_lock);
-  const char *msg= thd->enter_cond(&data_cond, &data_lock,
-                                   "Waiting for the slave SQL thread to "
-                                   "advance position");
+  msg= thd->enter_cond(&data_cond, &data_lock,
+                       "Waiting for the slave SQL thread to "
+                       "advance position");
   /* 
      This function will abort when it notices that some CHANGE MASTER or
      RESET MASTER has changed the master info.
@@ -2634,6 +2620,12 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
+
+    DBUG_PRINT("info",
+               ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
+                init_abort_pos_wait, abort_pos_wait));
+    DBUG_PRINT("info",("group_master_log_name: '%s'  pos: %lu",
+                       group_master_log_name, (ulong) group_master_log_pos));
 
     /*
       group_master_log_name can be "", if we are just after a fresh
@@ -2941,8 +2933,8 @@ server_errno=%d)",
   /* Check if eof packet */
   if (len < 8 && mysql->net.read_pos[0] == 254)
   {
-     sql_print_error("Slave: received end packet from server, apparent\
- master shutdown: %s",
+    sql_print_information("Slave: received end packet from server, apparent "
+                          "master shutdown: %s",
 		     mysql_error(mysql));
      return packet_error;
   }
@@ -3261,14 +3253,14 @@ slave_begin:
   thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
-    sql_print_error("Slave I/O thread: connected to master '%s@%s:%d',\
+    sql_print_information("Slave I/O thread: connected to master '%s@%s:%d',\
   replication started in log '%s' at position %s", mi->user,
 		    mi->host, mi->port,
 		    IO_RPL_LOG_NAME,
 		    llstr(mi->master_log_pos,llbuff));
   else
   {
-    sql_print_error("Slave I/O thread killed while connecting to master");
+    sql_print_information("Slave I/O thread killed while connecting to master");
     goto err;
   }
 
@@ -3301,7 +3293,7 @@ connected:
       sql_print_error("Failed on request_dump()");
       if (io_slave_killed(thd,mi))
       {
-	sql_print_error("Slave I/O thread killed while requesting master \
+	sql_print_information("Slave I/O thread killed while requesting master \
 dump");
 	goto err;
       }
@@ -3325,7 +3317,7 @@ dump");
       }
       if (io_slave_killed(thd,mi))
       {
-	sql_print_error("Slave I/O thread killed while retrying master \
+	sql_print_information("Slave I/O thread killed while retrying master \
 dump");
 	goto err;
       }
@@ -3338,7 +3330,7 @@ reconnecting to try again, log '%s' at postion %s", IO_RPL_LOG_NAME,
       if (safe_reconnect(thd, mysql, mi, suppress_warnings) ||
 	  io_slave_killed(thd,mi))
       {
-	sql_print_error("Slave I/O thread killed during or \
+	sql_print_information("Slave I/O thread killed during or \
 after reconnect");
 	goto err;
       }
@@ -3360,7 +3352,7 @@ after reconnect");
       if (io_slave_killed(thd,mi))
       {
 	if (global_system_variables.log_warnings)
-	  sql_print_error("Slave I/O thread killed while reading event");
+	  sql_print_information("Slave I/O thread killed while reading event");
 	goto err;
       }
 	  	  
@@ -3397,20 +3389,20 @@ max_allowed_packet",
 	if (io_slave_killed(thd,mi))
 	{
 	  if (global_system_variables.log_warnings)
-	    sql_print_error("Slave I/O thread killed while waiting to \
+	    sql_print_information("Slave I/O thread killed while waiting to \
 reconnect after a failed read");
 	  goto err;
 	}
 	thd->proc_info = "Reconnecting after a failed master event read";
 	if (!suppress_warnings)
-	  sql_print_error("Slave I/O thread: Failed reading log event, \
+	  sql_print_information("Slave I/O thread: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", IO_RPL_LOG_NAME,
 			  llstr(mi->master_log_pos, llbuff));
 	if (safe_reconnect(thd, mysql, mi, suppress_warnings) ||
 	    io_slave_killed(thd,mi))
 	{
 	  if (global_system_variables.log_warnings)
-	    sql_print_error("Slave I/O thread killed during or after a \
+	    sql_print_information("Slave I/O thread killed during or after a \
 reconnect done to recover from failed read");
 	  goto err;
 	}
@@ -3472,7 +3464,7 @@ log space");
   // error = 0;
 err:
   // print the current replication position
-  sql_print_error("Slave I/O thread exiting, read up to log '%s', position %s",
+  sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
@@ -3623,7 +3615,7 @@ slave_begin:
 			    rli->group_master_log_name,
 			    llstr(rli->group_master_log_pos,llbuff)));
   if (global_system_variables.log_warnings)
-    sql_print_error("Slave SQL thread initialized, starting replication in \
+    sql_print_information("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
 		    llstr(rli->group_relay_log_pos,llbuff1));
@@ -3661,7 +3653,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   }
 
   /* Thread stopped. Print the current replication position to the log */
-  sql_print_error("Slave SQL thread exiting, replication stopped in log \
+  sql_print_information("Slave SQL thread exiting, replication stopped in log \
  '%s' at position %s",
 		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
@@ -4373,7 +4365,7 @@ Error: '%s'  errno: %d  retry-time: %d  retries: %d",
     if (reconnect)
     { 
       if (!suppress_warnings && global_system_variables.log_warnings)
-	sql_print_error("Slave: connected to master '%s@%s:%d',\
+	sql_print_information("Slave: connected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", mi->user,
 			mi->host, mi->port,
 			IO_RPL_LOG_NAME,
@@ -4556,12 +4548,12 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
     /*
       Relay log is always in new format - if the master is 3.23, the
       I/O thread will convert the format for us.
-      A problem: the description event may be in a previous relay log. So if the
-      slave has been shutdown meanwhile, we would have to look in old relay
+      A problem: the description event may be in a previous relay log. So if
+      the slave has been shutdown meanwhile, we would have to look in old relay
       logs, which may even have been deleted. So we need to write this
       description event at the beginning of the relay log.
-      When the relay log is created when the I/O thread starts, easy: the master
-      will send the description event and we will queue it.
+      When the relay log is created when the I/O thread starts, easy: the
+      master will send the description event and we will queue it.
       But if the relay log is created by new_file(): then the solution is:
       MYSQL_LOG::open() will write the buffered description event.
     */
@@ -4715,8 +4707,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       {
 #ifdef EXTRA_DEBUG
 	if (global_system_variables.log_warnings)
-	  sql_print_error("next log '%s' is currently active",
-			  rli->linfo.log_file_name);
+	  sql_print_information("next log '%s' is currently active",
+                                rli->linfo.log_file_name);
 #endif	  
 	rli->cur_log= cur_log= rli->relay_log.get_log_file();
 	rli->cur_log_old_open_count= rli->relay_log.get_open_count();
@@ -4745,8 +4737,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       */
 #ifdef EXTRA_DEBUG
       if (global_system_variables.log_warnings)
-	sql_print_error("next log '%s' is not active",
-			rli->linfo.log_file_name);
+	sql_print_information("next log '%s' is not active",
+                              rli->linfo.log_file_name);
 #endif	  
       // open_binlog() will check the magic header
       if ((rli->cur_log_fd=open_binlog(cur_log,rli->linfo.log_file_name,
@@ -4772,7 +4764,11 @@ event(errno: %d  cur_log->error: %d)",
     }
   }
   if (!errmsg && global_system_variables.log_warnings)
-    errmsg = "slave SQL thread was killed";
+  {
+    sql_print_information("Error reading relay log event: %s", 
+                          "slave SQL thread was killed");
+    DBUG_RETURN(0);
+  }
 
 err:
   if (errmsg)

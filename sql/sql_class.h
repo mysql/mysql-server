@@ -373,6 +373,7 @@ struct system_variables
   ulonglong myisam_max_sort_file_size;
   ha_rows select_limit;
   ha_rows max_join_size;
+  ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
@@ -835,6 +836,8 @@ public:
     generated auto_increment value in handler.cc
   */
   ulonglong  next_insert_id;
+  /* Remember last next_insert_id to reset it if something went wrong */
+  ulonglong  prev_insert_id;
   /*
     The insert_id used for the last statement or set by SET LAST_INSERT_ID=#
     or SELECT LAST_INSERT_ID(#).  Used for binary log and returned by
@@ -889,6 +892,9 @@ public:
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
 
+  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  killed_state volatile killed;
+
   /* scramble - random string sent to client on handshake */
   char	     scramble[SCRAMBLE_LENGTH+1];
 
@@ -896,22 +902,10 @@ public:
   bool	     locked, some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     time_zone_used;
+  bool	     query_start_used, rand_used, time_zone_used;
+  bool	     last_insert_id_used,insert_id_used, clear_next_insert_id;
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
-
-  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
-  killed_state volatile killed;
-  inline int killed_errno() const
-  {
-    return killed;
-  }
-  inline void send_kill_message() const
-  {
-    my_error(killed_errno(), MYF(0));
-  }
-
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
@@ -951,6 +945,7 @@ public:
   void init_for_queries();
   void change_user(void);
   void cleanup(void);
+  void cleanup_after_query();
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
@@ -1070,6 +1065,14 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+  inline int killed_errno() const
+  {
+    return killed;
+  }
+  inline void send_kill_message() const
+  {
+    my_error(killed_errno(), MYF(0));
+  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */

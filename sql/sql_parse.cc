@@ -1571,8 +1571,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
     mysqld_list_fields(thd,&table_list,fields);
-    free_items(thd->free_list);
-    thd->free_list= 0;           /* free_list should never point to garbage */
+    thd->cleanup_after_query();
     break;
   }
 #endif
@@ -4520,6 +4519,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     thd->proc_info="freeing items";
     thd->end_statement();
+    thd->cleanup_after_query();
   }
   DBUG_VOID_RETURN;
 }
@@ -4546,9 +4546,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
   thd->end_statement();
+  thd->cleanup_after_query();
   DBUG_RETURN(error);
 }
 #endif
+
 
 /*****************************************************************************
 ** Store field definition for create

@@ -3099,19 +3099,18 @@ int ndbcluster_drop_database(const char *path)
 }
 
 
-longlong ha_ndbcluster::get_auto_increment()
+ulonglong ha_ndbcluster::get_auto_increment()
 {  
+  int cache_size;
+  Uint64 auto_value;
   DBUG_ENTER("get_auto_increment");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
-  int cache_size= 
-    (rows_to_insert > autoincrement_prefetch) ? 
-    rows_to_insert 
-    : autoincrement_prefetch;
-  Uint64 auto_value= 
-    (skip_auto_increment) ? 
-    m_ndb->readAutoIncrementValue((NDBTAB *) m_table)
-    : m_ndb->getAutoIncrementValue((NDBTAB *) m_table, cache_size);
-  DBUG_RETURN((longlong)auto_value);
+  cache_size= ((rows_to_insert > autoincrement_prefetch) ? 
+               rows_to_insert : autoincrement_prefetch);
+  auto_value= ((skip_auto_increment) ? 
+               m_ndb->readAutoIncrementValue((NDBTAB *) m_table) :
+               m_ndb->getAutoIncrementValue((NDBTAB *) m_table, cache_size));
+  DBUG_RETURN((ulonglong) auto_value);
 }
 
 

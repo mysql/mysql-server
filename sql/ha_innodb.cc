@@ -1627,8 +1627,6 @@ ha_innobase::open(
 		}
 	}
 
-	auto_inc_counter_for_this_stat = 0;
-
 	block_size = 16 * 1024;	/* Index block size in InnoDB: used by MySQL
 				in query optimization */
 
@@ -2198,7 +2196,7 @@ ha_innobase::write_row(
 	longlong	dummy;
 	ibool           incremented_auto_inc_for_stat = FALSE;
 	ibool           incremented_auto_inc_counter = FALSE;
-	ibool           skip_auto_inc_decr;
+	ibool           skip_auto_inc_decr, auto_inc_used= FALSE;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -2260,98 +2258,13 @@ ha_innobase::write_row(
 			prebuilt->sql_stat_start = TRUE;
 		}
 
-	        /* Fetch the value the user possibly has set in the
-	        autoincrement field */
-
-	        auto_inc = table->next_number_field->val_int();
-
-		/* In replication and also otherwise the auto-inc column 
-		can be set with SET INSERT_ID. Then we must look at
-		user_thd->next_insert_id. If it is nonzero and the user
-		has not supplied a value, we must use it, and use values
-		incremented by 1 in all subsequent inserts within the
-		same SQL statement! */
-
-		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
-		        auto_inc = user_thd->next_insert_id;
-		        auto_inc_counter_for_this_stat = auto_inc;
-		}
-
-		if (auto_inc == 0 && auto_inc_counter_for_this_stat) {
-			/* The user set the auto-inc counter for
-			this SQL statement with SET INSERT_ID. We must
-			assign sequential values from the counter. */
-
-			auto_inc_counter_for_this_stat++;
-			incremented_auto_inc_for_stat = TRUE;
-
-			auto_inc = auto_inc_counter_for_this_stat;
-
-			/* We give MySQL a new value to place in the
-			auto-inc column */
-			user_thd->next_insert_id = auto_inc;
-		}
-
-		if (auto_inc != 0) {
-			/* This call will calculate the max of the current
-			value and the value supplied by the user and
-			update the counter accordingly */
-
-			/* We have to use the transactional lock mechanism
-			on the auto-inc counter of the table to ensure
-			that replication and roll-forward of the binlog
-			exactly imitates also the given auto-inc values.
-			The lock is released at each SQL statement's
-			end. */
-
-			innodb_srv_conc_enter_innodb(prebuilt->trx);
-			error = row_lock_table_autoinc_for_mysql(prebuilt);
-			innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-			if (error != DB_SUCCESS) {
-
-				error = convert_error_code_to_mysql(error,
-								    user_thd);
-				goto func_exit;
-			}	
-
-			dict_table_autoinc_update(prebuilt->table, auto_inc);
-		} else {
-			innodb_srv_conc_enter_innodb(prebuilt->trx);
-
-			if (!prebuilt->trx->auto_inc_lock) {
-
-				error = row_lock_table_autoinc_for_mysql(
-								prebuilt);
-				if (error != DB_SUCCESS) {
- 					innodb_srv_conc_exit_innodb(
-							prebuilt->trx);
-
-					error = convert_error_code_to_mysql(
-							error, user_thd);
-					goto func_exit;
-				}
-			}	
-
-			/* The following call gets the value of the auto-inc
-			counter of the table and increments it by 1 */
-
-			auto_inc = dict_table_autoinc_get(prebuilt->table);
-			incremented_auto_inc_counter = TRUE;
-
-			innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-			/* We can give the new value for MySQL to place in
-			the field */
-
-			user_thd->next_insert_id = auto_inc;
-		}
-
-		/* This call of a handler.cc function places
-		user_thd->next_insert_id to the column value, if the column
-		value was not set by the user */
-
+		/*
+                  We must use the handler code to update the auto-increment
+                  value to be sure that increment it correctly.
+                */
     		update_auto_increment();
+                auto_inc_used= 1;
+
 	}
 
 	if (prebuilt->mysql_template == NULL
@@ -2366,41 +2279,36 @@ ha_innobase::write_row(
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+	if (error == DB_SUCCESS && auto_inc_used) {
+
+        /* Fetch the value that was set in the autoincrement field */
+
+          auto_inc = table->next_number_field->val_int();
+
+          if (auto_inc != 0) {
+			/* This call will calculate the max of the current
+			value and the value supplied by the user and
+			update the counter accordingly */
+
+			/* We have to use the transactional lock mechanism
+			on the auto-inc counter of the table to ensure
+			that replication and roll-forward of the binlog
+			exactly imitates also the given auto-inc values.
+			The lock is released at each SQL statement's
+			end. */
+
+            error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+            if (error != DB_SUCCESS) {
+
+              error = convert_error_code_to_mysql(error, user_thd);
+              goto func_exit;
+            }
+            dict_table_autoinc_update(prebuilt->table, auto_inc);
+          }
+        }
+
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
-
-	if (error != DB_SUCCESS) {
-	        /* If the insert did not succeed we restore the value of
-		the auto-inc counter we used; note that this behavior was
-		introduced only in version 4.0.4.
-		NOTE that a REPLACE command handles a duplicate key error
-		itself, and we must not decrement the autoinc counter
-		if we are performing a REPLACE statement.
-		NOTE 2: if there was an error, for example a deadlock,
-		which caused InnoDB to roll back the whole transaction
-		already in the call of row_insert_for_mysql(), we may no
-		longer have the AUTO-INC lock, and cannot decrement
-		the counter here. */
-
-	        skip_auto_inc_decr = FALSE;
-
-	        if (error == DB_DUPLICATE_KEY
-		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
-			|| user_thd->lex->sql_command
-			                 == SQLCOM_REPLACE_SELECT)) {
-
-		        skip_auto_inc_decr= TRUE;
-		}
-
-	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
-		    && prebuilt->trx->auto_inc_lock) {
-	                dict_table_autoinc_decrement(prebuilt->table);
-	        }
-
-		if (!skip_auto_inc_decr && incremented_auto_inc_for_stat
-		    && prebuilt->trx->auto_inc_lock) {
-		        auto_inc_counter_for_this_stat--;
-		}
-	}
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
@@ -2411,6 +2319,7 @@ func_exit:
 
   	DBUG_RETURN(error);
 }
+
 
 /******************************************************************
 Converts field data for storage in an InnoDB update vector. */
@@ -5217,7 +5126,7 @@ initialized yet. This function does not change the value of the auto-inc
 counter if it already has been initialized. Returns the value of the
 auto-inc counter. */
 
-longlong
+ulonglong
 ha_innobase::get_auto_increment()
 /*=============================*/
                          /* out: auto-increment column value, -1 if error
@@ -5230,10 +5139,10 @@ ha_innobase::get_auto_increment()
 
 	if (error) {
 
-		return(-1);
+          return(~(ulonglong) 0);
 	}
 
-	return(nr);
+	return((ulonglong) nr);
 }
 
 /***********************************************************************

@@ -164,7 +164,7 @@ class ha_innobase: public handler
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     		enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER(); 
-	longlong get_auto_increment();
+	ulonglong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
         static char *get_mysql_bin_log_name();
         static ulonglong get_mysql_bin_log_pos();

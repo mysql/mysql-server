@@ -640,7 +640,7 @@ int mysqld_help(THD *thd, const char *mask)
   uint mlen= strlen(mask);
   MEM_ROOT *mem_root= &thd->mem_root;
 
-  if (res= open_and_lock_tables(thd, tables))
+  if ((res= open_and_lock_tables(thd, tables)))
     goto end;
   /*
     Init tables and fields to be usable from items
