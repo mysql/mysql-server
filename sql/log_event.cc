@@ -126,6 +126,7 @@ const char* Log_event::get_type_str()
   case APPEND_BLOCK_EVENT: return "Append_block";
   case DELETE_FILE_EVENT: return "Delete_file";
   case EXEC_LOAD_EVENT: return "Exec_load";
+  case RAND_EVENT: return "RAND";
   default: /* impossible */ return "Unknown";
   }
 }
