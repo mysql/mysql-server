@@ -346,6 +346,12 @@ static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
 
+ulint srv_n_lock_wait_count=          0;
+ulint srv_n_lock_wait_current_count=  0;
+ib_longlong srv_n_lock_wait_time=       0;
+ulint srv_n_lock_max_wait_time=   0;
+
+
 /*
   Set the following to 0 if you want InnoDB to write messages on
   stderr on startup/shutdown
@@ -1378,7 +1384,11 @@ srv_suspend_mysql_thread(
 	trx_t*		trx;
 	ibool		had_dict_lock			= FALSE;
 	ibool		was_declared_inside_innodb	= FALSE;
-	
+  ib_longlong   start_time, finish_time;
+  ulint   diff_time;
+  ulint   sec;
+  ulint   ms;
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1420,7 +1430,15 @@ srv_suspend_mysql_thread(
 	os_event_reset(event);	
 
 	slot->suspend_time = ut_time();
+  if (thr->lock_state == QUE_THR_LOCK_ROW)
+  {
+    srv_n_lock_wait_count++;
+    srv_n_lock_wait_current_count++;
 
+    ut_usectime(&sec, &ms);
+    start_time= (ib_longlong)sec * 1000000 + ms;
+
+  }
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
 	os_event_set(srv_lock_timeout_thread_event);
@@ -1471,7 +1489,22 @@ srv_suspend_mysql_thread(
 	slot->in_use = FALSE;
 
 	wait_time = ut_difftime(ut_time(), slot->suspend_time);
-	
+
+  if (thr->lock_state == QUE_THR_LOCK_ROW)
+  {
+      ut_usectime(&sec, &ms);
+      finish_time= (ib_longlong)sec * 1000000 + ms;
+  
+      diff_time= finish_time-start_time;
+  
+      srv_n_lock_wait_current_count--;
+      srv_n_lock_wait_time= srv_n_lock_wait_time + diff_time;
+      if (diff_time > srv_n_lock_max_wait_time)
+      {
+        srv_n_lock_max_wait_time= diff_time;
+      }
+  }
+
 	if (trx->was_chosen_as_deadlock_victim) {
 
 		trx->error_state = DB_DEADLOCK;
@@ -1688,15 +1721,14 @@ srv_printf_innodb_monitor(
 			(srv_n_rows_read - srv_n_rows_read_old)
 						/ time_elapsed);
 
-	srv_n_rows_inserted_old = srv_n_rows_inserted;
+  srv_n_rows_inserted_old = srv_n_rows_inserted;
 	srv_n_rows_updated_old = srv_n_rows_updated;
 	srv_n_rows_deleted_old = srv_n_rows_deleted;
 	srv_n_rows_read_old = srv_n_rows_read;
 
-	fputs("----------------------------\n"
+  fputs("----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
 		"============================\n", file);
-
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
 }
@@ -1745,11 +1777,19 @@ srv_export_innodb_status(void)
         export_vars.innodb_pages_created= buf_pool->n_pages_created;
         export_vars.innodb_pages_read= buf_pool->n_pages_read;
         export_vars.innodb_pages_written= buf_pool->n_pages_written;
+        export_vars.innodb_row_lock_waits= srv_n_lock_wait_count;
+        export_vars.innodb_row_lock_current_waits= srv_n_lock_wait_current_count;
+        export_vars.innodb_row_lock_time= srv_n_lock_wait_time / 10000;
+        export_vars.innodb_row_lock_time_avg= 
+            (srv_n_lock_wait_count > 0) ? 
+            (srv_n_lock_wait_time / 10000 / srv_n_lock_wait_count) : 0;
+        export_vars.innodb_row_lock_time_max= srv_n_lock_max_wait_time / 10000;
         export_vars.innodb_rows_read= srv_n_rows_read;
         export_vars.innodb_rows_inserted= srv_n_rows_inserted;
         export_vars.innodb_rows_updated= srv_n_rows_updated;
         export_vars.innodb_rows_deleted= srv_n_rows_deleted;
         mutex_exit(&srv_innodb_monitor_mutex);
+
 }
 
 /*************************************************************************
