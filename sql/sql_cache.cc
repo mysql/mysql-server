@@ -200,6 +200,74 @@ stored in Query_cache_memory_bin_step structure.
 
 Free memory blocks are sorted in bins in lists with size-ascending order
 (more small blocks needed frequently then bigger one).
+
+6. Packing cache.
+
+Query cache packing is divided into two operation:
+	- pack_cache
+	- join_results
+
+pack_cache moved all blocks to "top" of cache and create one block of free
+space at the "bottom":
+
+ before pack_cache    after pack_cache
+ +-------------+      +-------------+
+ | query 1     |      | query 1     |
+ +-------------+      +-------------+
+ | table 1     |      | table 1     |
+ +-------------+      +-------------+
+ | results 1.1 |      | results 1.1 |
+ +-------------+      +-------------+
+ | free        |      | query 2     |
+ +-------------+      +-------------+
+ | query 2     |      | table 2     |
+ +-------------+ ---> +-------------+
+ | table 2     |      | results 1.2 |
+ +-------------+      +-------------+
+ | results 1.2 |      | results 2   |
+ +-------------+      +-------------+
+ | free        |      | free        |
+ +-------------+      |             |
+ | results 2   |      |             |
+ +-------------+      |             |
+ | free        |      |             |
+ +-------------+      +-------------+
+
+pack_cache scan blocks in physical address order and move every non-free
+block "higher".
+
+pack_cach remove every free block it finds. The length of the deleted block
+is accumulated to the "gap". All non free blocks should be shifted with the
+"gap" step.
+
+join_results scans all complete queries. If the results of query are not
+stored in the same block, join_results tries to move results so, that they
+are stored in one block.
+
+ before join_results  after join_results
+ +-------------+      +-------------+
+ | query 1     |      | query 1     |
+ +-------------+      +-------------+
+ | table 1     |      | table 1     |
+ +-------------+      +-------------+
+ | results 1.1 |      | free        |
+ +-------------+      +-------------+
+ | query 2     |      | query 2     |
+ +-------------+      +-------------+
+ | table 2     |      | table 2     |
+ +-------------+ ---> +-------------+
+ | results 1.2 |      | free        |
+ +-------------+      +-------------+
+ | results 2   |      | results 2   |
+ +-------------+      +-------------+
+ | free        |      | results 1   |
+ |             |      |             |
+ |             |      +-------------+
+ |             |      | free        |
+ |             |      |             |
+ +-------------+      +-------------+
+
+If join_results allocated new block(s) then we need call pack_cache again.
 */
 
 #include "mysql_priv.h"
@@ -377,6 +445,10 @@ void Query_cache_query::init_n_lock()
 void Query_cache_query::unlock_n_destroy()
 {
   DBUG_ENTER("Query_cache_query::unlock_n_destroy");
+  /*
+    The following call is not needed on system where one can destroy an
+    active semaphore
+  */
   this->unlock_writing();
   DBUG_PRINT("qcache", ("destroyed & unlocked query for block 0x%lx",
 			((byte*)this)-ALIGN_SIZE(sizeof(Query_cache_block))));
@@ -465,7 +537,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   DBUG_ENTER("query_cache_insert");
 
 #ifndef DBUG_OFF
-  // Debugging method wreck may cause this
+  // Check if we have called query_cache.wreck() (which disables the cache)
   if (query_cache.query_cache_size == 0)
     DBUG_VOID_RETURN;
 #endif
@@ -493,6 +565,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
       if (!query_cache.append_result_data(&result, length, (gptr) packet,
 					  query_block))
       {
+	query_cache.refused++;
 	DBUG_PRINT("warning", ("Can't append data"));
 	header->result(result);
 	DBUG_PRINT("qcache", ("free query 0x%lx", (ulong) query_block));
@@ -517,7 +590,7 @@ void query_cache_abort(NET *net)
   DBUG_ENTER("query_cache_abort");
 
 #ifndef DBUG_OFF
-  // Debugging method wreck may cause this
+  // Check if we have called query_cache.wreck() (which disables the cache)
   if (query_cache.query_cache_size == 0)
     DBUG_VOID_RETURN;
 #endif
@@ -545,7 +618,7 @@ void query_cache_end_of_result(NET *net)
   DBUG_ENTER("query_cache_end_of_result");
 
 #ifndef DBUG_OFF
-  // Debugging method wreck may cause this
+  // Check if we have called query_cache.wreck() (which disables the cache)
   if (query_cache.query_cache_size == 0) DBUG_VOID_RETURN;
 #endif
 
@@ -603,11 +676,11 @@ Query_cache::Query_cache(ulong query_cache_limit,
 			 uint def_table_hash_size)
   :query_cache_size(0),
    query_cache_limit(query_cache_limit),
+   queries_in_cache(0), hits(0), inserts(0), refused(0),
    min_allocation_unit(min_allocation_unit),
    min_result_data_size(min_result_data_size),
    def_query_hash_size(def_query_hash_size),
    def_table_hash_size(def_table_hash_size),
-   queries_in_cache(0), hits(0), inserts(0), refused(0),
    initialized(0)
 {
   ulong min_needed=(ALIGN_SIZE(sizeof(Query_cache_block)) +
@@ -622,11 +695,11 @@ Query_cache::Query_cache(ulong query_cache_limit,
 ulong Query_cache::resize(ulong query_cache_size)
 {
   /*
-     TODO: when will be realized pack() optimize case when
+     TODO:
+     When will be realized pack() optimize case when
      query_cache_size < this->query_cache_size
-  */
-  /*
-     TODO: try to copy old cache in new memory
+     
+     Try to copy old cache in new memory
   */
   DBUG_ENTER("Query_cache::resize");
   DBUG_PRINT("qcache", ("from %lu to %lu",this->query_cache_size,
@@ -739,7 +812,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     }
   }
   else
-    refused++;
+    statistic_increment(refused, &structure_guard_mutex);
 
 end:
   thd->query[thd->query_length]= 0;		// Restore end null
@@ -834,7 +907,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   /* Now lock and test that nothing changed while blocks was unlocked */
   BLOCK_LOCK_RD(query_block);
-  STRUCT_UNLOCK(&structure_guard_mutex);
 
   query = query_block->query();
   result_block= first_result_block= query->result();
@@ -843,6 +915,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   {
     /* The query is probably yet processed */
     DBUG_PRINT("qcache", ("query found, but no data or data incomplete"));
+    BLOCK_UNLOCK_RD(query_block);
     goto err;
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
@@ -863,12 +936,15 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
 		  table_list.db, table_list.name));
+      BLOCK_UNLOCK_RD(query_block);
+      STRUCT_UNLOCK(&structure_guard_mutex);
       goto err;
     }
   }
   move_to_query_list_end(query_block);
-
   hits++;
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
   /*
     Send cached result to client
   */
@@ -957,12 +1033,11 @@ void Query_cache::invalidate(Query_cache_table::query_cache_table_type type)
       {
 	/* Store next block address defore deleting the current block */
 	Query_cache_block *next = table_block->next;
-
 	invalidate_table(table_block);
-
+#ifdef TO_BE_DELETED
 	if (next == table_block)		// End of list
 	  break;
-
+#endif
 	table_block = next;
       } while (table_block != tables_blocks[type]);
     }
@@ -999,10 +1074,10 @@ void Query_cache::invalidate(char *db)
 	    Query_cache_block *next = table_block->next;
 
 	    invalidate_table_in_db(table_block, db);
-
+#ifdef TO_BE_DELETED
 	    if (table_block == next)
 	      break;
-
+#endif
 	    table_block = next;
 	  } while (table_block != tables_blocks[i]);
 	}
@@ -1035,20 +1110,23 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
   DBUG_VOID_RETURN;
 }
 
+  /* Remove all queries from cache */
 
 void Query_cache::flush()
 {
   DBUG_ENTER("Query_cache::flush");
+  STRUCT_LOCK(&structure_guard_mutex);
   if (query_cache_size > 0)
   {
     DUMP(this);
-    STRUCT_LOCK(&structure_guard_mutex);
     flush_cache();
     DUMP(this);
-    STRUCT_UNLOCK(&structure_guard_mutex);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
+
+  /* Join result in cache in 1 block (if result length > join_limit) */
 
 void Query_cache::pack(ulong join_limit, uint iteration_limit)
 {
@@ -1307,7 +1385,7 @@ void Query_cache::flush_cache()
 my_bool Query_cache::free_old_query()
 {
   DBUG_ENTER("Query_cache::free_old_query");
-  if (!queries_blocks)
+  if (queries_blocks)
   {
     /*
       try_lock_writing used to prevent client because here lock
@@ -1371,6 +1449,11 @@ void Query_cache::free_query(Query_cache_block *query_block)
   for (TABLE_COUNTER_TYPE i=0; i < query_block->n_tables; i++)
     unlink_table(table++);
   Query_cache_block *result_block = query->result();
+
+  /*
+    The following is true when query destruction was called and no results
+    in query . (query just registered and then abort/pack/flush called)
+  */
   if (result_block != 0)
   {
     Query_cache_block *block = result_block;
@@ -1522,7 +1605,15 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   DBUG_ENTER("Query_cache::write_result_data");
   DBUG_PRINT("qcache", ("data_len %lu",data_len));
 
-  // Reserve block(s) for filling
+  /*
+    Reserve block(s) for filling
+    During data allocation we must have structure_guard_mutex locked.
+    As data copy is not a fast operation, it's better if we don't have
+    structure_guard_mutex locked during data coping.
+    Thus we first allocate space and lock query, then unlock
+    structure_guard_mutex and copy data.
+  */
+
   my_bool success = allocate_data_chain(result_block, data_len, query_block);
   if (success)
   {
@@ -1975,7 +2066,6 @@ Query_cache::join_free_blocks(Query_cache_block *first_block,
   exclude_from_free_memory_list(block_in_list);
   second_block = first_block->pnext;
   // May be was not free block
-  second_block->type = Query_cache_block::FREE;
   second_block->used=0;
   second_block->destroy();
 
@@ -2254,27 +2344,30 @@ void Query_cache::pack_cache()
   Query_cache_block *before = 0;
   ulong gap = 0;
   my_bool ok = 1;
-  Query_cache_block *i = first_block;
+  Query_cache_block *block = first_block;
   DBUG_ENTER("Query_cache::pack_cache");
   DUMP(this);
 
-  do
+  if (first_block)
   {
-    ok = move_by_type(&border, &before, &gap, i);
-    i = i->pnext;
-  } while (ok && i != first_block);
+    do
+    {
+      ok = move_by_type(&border, &before, &gap, block);
+      block = block->pnext;
+    } while (ok && block != first_block);
 
-  if (border != 0)
-  {
-    Query_cache_block *new_block = (Query_cache_block *) border;
-    new_block->init(gap);
-    new_block->pnext = before->pnext;
-    before->pnext = new_block;
-    new_block->pprev = before;
-    new_block->pnext->pprev = new_block;
-    insert_into_free_memory_list(new_block);
+    if (border != 0)
+    {
+      Query_cache_block *new_block = (Query_cache_block *) border;
+      new_block->init(gap);
+      new_block->pnext = before->pnext;
+      before->pnext = new_block;
+      new_block->pprev = before;
+      new_block->pnext->pprev = new_block;
+      insert_into_free_memory_list(new_block);
+    }
+    DUMP(this);
   }
-  DUMP(this);
   STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
@@ -2487,7 +2580,6 @@ void Query_cache::relink(Query_cache_block *oblock,
 
 my_bool Query_cache::join_results(ulong join_limit)
 {
-  //TODO
   my_bool has_moving = 0;
   DBUG_ENTER("Query_cache::join_results");
 
@@ -2577,7 +2669,7 @@ uint Query_cache::filename_2_table_key (char *key, const char *path)
   db_length= (filename - dbname) - 1; 
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", db_length, dbname, filename));
 
-  DBUG_RETURN((uint) (strmov(strnmov(key, dbname, db_length) + 1,
+  DBUG_RETURN((uint) (strmov(strmake(key, dbname, db_length) + 1,
 			     filename) -key) + 1);
 }
 

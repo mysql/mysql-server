@@ -2191,10 +2191,17 @@ get_best_combination(JOIN *join)
 	j->type=JT_REF;				/* Must read with repeat */
       else if (ref_key == j->ref.key_copy)
       {						/* Should never be reached */
-	j->type=JT_CONST;			/* purecov: deadcode */
+	/*
+	  This happen if we are using a constant expression in the ON part
+	  of an LEFT JOIN.
+	  SELECT * FROM a LEFT JOIN b ON b.key=30
+	  Here we should not mark the table as a 'const' as a field may
+	  have a 'normal' value or a NULL value.
+	*/
+	j->type=JT_CONST;
 	if (join->const_tables == tablenr)
 	{
-	  join->const_tables++;			/* purecov: deadcode */
+	  join->const_tables++;
 	  join->const_table_map|=form->map;
 	}
       }
@@ -2777,8 +2784,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /*
-**  simple_order is set to 1 if sort_order only uses fields from head table
-**  and the head table is not a LEFT JOIN table
+  simple_order is set to 1 if sort_order only uses fields from head table
+  and the head table is not a LEFT JOIN table
 */
 
 static ORDER *
@@ -4424,8 +4431,11 @@ join_read_const(JOIN_TAB *tab)
     }
     store_record(table,1);
   }
-  else if (!table->status)			// Only happens with left join
+  else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join
+  {
+    table->status=0;
     restore_record(table,1);			// restore old record
+  }
   table->null_row=0;
   return table->status ? -1 : 0;
 }
@@ -5263,7 +5273,7 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
 
 
 /*****************************************************************************
-** If not selecting by given key, create a index how records should be read
+** If not selecting by given key, create an index how records should be read
 ** return: 0  ok
 **	  -1 some fatal error
 **	   1  no records
@@ -5367,6 +5377,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 				      join_init_read_last_with_key);
 	    table->file->index_init(nr);
 	    tab->type=JT_NEXT;	// Read with index_first(), index_next()
+	    if (table->used_keys & ((key_map) 1 << nr))
+	    {
+	      table->key_read=1;
+	      table->file->extra(HA_EXTRA_KEYREAD);
+	    }
 	  }
 	  DBUG_RETURN(1);
 	}
