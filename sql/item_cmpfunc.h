@@ -1190,6 +1190,8 @@ public:
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
+  table_map not_null_tables() const
+  { return abort_on_null ? not_null_tables_cache: and_tables_cache; }
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
@@ -1237,7 +1239,7 @@ public:
   enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
-  table_map not_null_tables() const { return and_tables_cache; }
+  void top_level_item() {}
 };
 
 

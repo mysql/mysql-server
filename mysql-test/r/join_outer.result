@@ -917,4 +917,10 @@ a	b	a	b
 1	1	1	2
 2	1	2	2
 3	1	NULL	NULL
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE not(0+(t1.a=30 and t2.b=1));
+a	b	a	b
+1	1	1	2
+2	1	2	2
+3	1	NULL	NULL
+4	2	NULL	NULL
 DROP TABLE t1,t2;
