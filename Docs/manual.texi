@@ -37994,7 +37994,19 @@ you at the startup that it is creating new log files.
 @subsection Backing up and Recovering an InnoDB Database
 
 The key to safe database management is taking regular backups.
-To take a 'binary' backup of your database you have to do the following:
+
+InnoDB Hot Backup is an online backup tool you can use to
+backup your InnoDB database while it is running. InnoDB
+Hot Backup does not require you to shut down your database
+and it does not set any locks or disturb your normal
+database processing. InnoDB Hot Backup is a non-free
+additional tool which is not included in the standard
+MySQL distribution. See the InnoDB Hot Backup homepage
+@uref{http://www.innodb.com/hotbackup.html}
+for detailed information and screenshots. 
+
+If you are able to shut down your MySQL server, then to take
+a 'binary' backup of your database you have to do the following: 
 
 @itemize @bullet
 @item
