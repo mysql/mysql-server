@@ -478,7 +478,7 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.user=thd.host=(char*) "";
+    thd.user=thd.priv_user=thd.host=(char*) "";
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
