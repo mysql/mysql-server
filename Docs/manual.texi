@@ -44538,6 +44538,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
+Fixed that date-part extract functions works with dates where day
+and/or month is 0.
+@item
 Extended argument length in option files from 256 to 512 chars.
 @item
 Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
