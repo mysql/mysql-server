@@ -46210,7 +46210,6 @@ not yet 100% confident in this code.
 
 @menu
 * News-3.23.41::                Changes in release 3.23.41
-* News-3.23.41::                Changes in release 3.23.41
 * News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
@@ -46258,8 +46257,12 @@ not yet 100% confident in this code.
 @node News-3.23.41, News-3.23.40, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.41
 @itemize @bullet
-@item Added option @code{--sql-mode=option[,option[,option]]}. Please see
-@code{mysqld --help} for legal modes.
+@item
+Added option @code{--sql-mode=option[,option[,option]]}.
+@xref{Command-line options}.
+@item
+Fixed possible problem with @code{shutdown} on Solaris where the
+@code{.pid} file wasn't deleted.
 @item
 InnoDB now supports < 4 GB rows. The former limit was 8000 bytes.
 @item

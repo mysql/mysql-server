@@ -466,4 +466,8 @@ int main(int argc, char** argv)
   the server
 */
 
+#ifdef __WIN__
+#include "log_event.cpp"
+#else
 #include "log_event.cc"
+#endif
