@@ -40039,6 +40039,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.30
 @itemize @bullet
 @item
+Fixed that @code{myisamchk -k#} works again.
+@item
 Fixed a problem with replication when the binary log file went over 2G
 on 32 bit systems.
 @item

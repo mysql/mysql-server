@@ -200,7 +200,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.38 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.39 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -651,8 +651,13 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     if (param->testflag & (T_REP+T_REP_BY_SORT+T_SORT_RECORDS+T_SORT_INDEX))
     {
       if (param->testflag & (T_REP+T_REP_BY_SORT))
+      {
+	ulonglong tmp=share->state.key_map;
 	share->state.key_map= (((ulonglong) 1 << share->base.keys)-1)
 	  & param->keys_in_use;
+	if (tmp != share->state.key_map)
+	  info->update|=HA_STATE_CHANGED;
+      }
       VOID(fn_format(fixed_name,filename,"",MI_NAME_IEXT,
 		     4+ (param->opt_follow_links ? 16 : 0)));
 
