@@ -37,6 +37,7 @@
 #include "sql_select.h"
 #include <m_ctype.h>
 #include <errno.h>
+#include <assert.h>
 #ifdef HAVE_FCONVERT
 #include <floatingpoint.h>
 #endif
@@ -57,6 +58,8 @@ template class List_iterator<create_field>;
 
 uchar Field_null::null[1]={1};
 const char field_separator=',';
+
+#define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE 320
 
 /*****************************************************************************
   Static help functions
@@ -739,7 +742,7 @@ void Field_decimal::store(double nr)
   
   reg4 uint i,length;
   char fyllchar,*to;
-  char buff[320];
+  char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
 #ifdef HAVE_SNPRINTF
@@ -2326,46 +2329,20 @@ String *Field_double::val_str(String *val_buffer,
 #endif
     doubleget(nr,ptr);
 
-  uint to_length=max(field_length,320);
+  uint to_length=max(field_length, DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE);
   val_buffer->alloc(to_length);
   char *to=(char*) val_buffer->ptr();
 
   if (dec >= NOT_FIXED_DEC)
   {
-    /*
-      Let's try to pretty print a floating point number. Here we use
-      '%-*.*g' conversion string:
-        '-' stands for left-padding with spaces, if such padding will take
-      place
-        '*' is a placeholder for the first argument, field_length, and
-      signifies minimal width of result string. If result is less than
-      field length it will be space-padded. Note, however, that we'll not
-      pass spaces to Field_string::store(const char *, ...), due to
-      strcend in the next line.
-        '.*' is a placeholder for DBL_DIG and defines maximum number of
-      significant digits in the result string. DBL_DIG is a hardware
-      specific C define for maximum number of decimal digits of a floating
-      point number, such that rounding to hardware floating point
-      representation and back to decimal will not lead to loss of
-      precision. I.e if DBL_DIG is 15, number 123456789111315 can be
-      represented as double without precision loss.  As one can judge from
-      this description, chosing DBL_DIG here is questionable, especially
-      because it introduces a system dependency.
-        'g' means that conversion will use [-]ddd.ddd (conventional) style,
-      and fall back to [-]d.ddde[+|i]ddd (scientific) style if there is no
-      enough space for all digits.
-      Maximum length of result string (not counting spaces) is (I guess)
-      DBL_DIG + 8, where 8 is 1 for sign, 1 for decimal point, 1 for
-      exponent sign, 1 for exponent, and 4 for exponent value.
-      XXX: why do we use space-padding and trim spaces in the next line?
-    */
     sprintf(to,"%-*.*g",(int) field_length,DBL_DIG,nr);
     to=strcend(to,' ');
   }
   else
   {
 #ifdef HAVE_FCONVERT
-    char buff[320],*pos=buff;
+    char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE],
+    char *pos= buff;
     int decpt,sign,tmp_dec=dec;
 
     VOID(fconvert(nr,tmp_dec,&decpt,&sign,buff));
@@ -3721,13 +3698,50 @@ void Field_string::store(const char *from,uint length)
 }
 
 
+/*
+  Store double value in Field_string or Field_varstring.
+
+  SYNOPSIS
+    store_double_in_string_field()
+    field         field to store value in
+    field_length  number of characters in the field
+    nr            number
+
+  DESCRIPTION
+    Pretty prints double number into field_length characters buffer.
+*/
+
+static void store_double_in_string_field(Field_str *field, uint32 field_length,
+                                         double nr)
+{
+  bool use_scientific_notation=TRUE;
+  char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
+  int length;
+  if (field_length < 32 && nr > 1)
+  {
+    if (field->ceiling == 0)
+    {
+      static double e[]= {1e1, 1e2, 1e4, 1e8, 1e16 };
+      double p= 1;
+      for (int i= sizeof(e)/sizeof(e[0]), j= 1<<i ; j; i--,  j>>= 1 )
+      {
+        if (field_length & j)
+          p*= e[i];
+      }
+      field->ceiling= p-1;
+    }
+    use_scientific_notation= (field->ceiling < nr);
+  }
+  length= sprintf(buff, "%-.*g",
+                  use_scientific_notation ? max(0,field_length-5) : field_length,
+                  nr);
+  DBUG_ASSERT(length <= field_length);
+  field->store(buff, (uint) length);
+}
+
 void Field_string::store(double nr)
 {
-  char buff[MAX_FIELD_WIDTH],*end;
-  int width=min(field_length,DBL_DIG+5);
-  sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
-  end=strcend(buff,' ');
-  Field_string::store(buff,(uint) (end - buff));
+  store_double_in_string_field(this, field_length, nr);
 }
 
 
@@ -3927,11 +3941,7 @@ void Field_varstring::store(const char *from,uint length)
 
 void Field_varstring::store(double nr)
 {
-  char buff[MAX_FIELD_WIDTH],*end;
-  int width=min(field_length,DBL_DIG+5);
-  sprintf(buff,"%-*.*g",width,max(width-5,0),nr);
-  end=strcend(buff,' ');
-  Field_varstring::store(buff,(uint) (end - buff));
+  store_double_in_string_field(this, field_length, nr);
 }
 
 
