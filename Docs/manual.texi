@@ -38852,6 +38852,12 @@ Reset status variable which could cause problem if one used @code{--slow-log}.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
+Added new options @code{--pager[=...]}, @code{--no-pager},
+@code{--tee=...} and @code{--no-tee} to the @code{mysql} client.  The
+new corresponding interactive commands are @code{pager}, @code{nopager},
+@code{tee} and @code{notee}. @xref{mysql}, @code{mysql --help} and the
+interactive help for more information.
+@item
 Fixed crash when automatic repair of @code{MyISAM} table failed.
 @item
 Fixed a major performance bug in the table locking code when one
