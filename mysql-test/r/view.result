@@ -1750,3 +1750,11 @@ c1
 1
 drop view v2, v1;
 drop table t1, t2;
+CREATE TABLE t1 (C1 INT, C2 INT);
+CREATE TABLE t2 (C2 INT);
+CREATE VIEW v1 AS SELECT C2 FROM t2;
+CREATE VIEW v2 AS SELECT C1 FROM t1 LEFT OUTER JOIN v1 USING (C2);
+SELECT * FROM v2;
+C1
+drop view v2, v1;
+drop table t1, t2;
