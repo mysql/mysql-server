@@ -64,21 +64,21 @@ static String day_names[] =
 ** DAY_TO_SECOND as "D MM:HH:SS", "MM:HH:SS" "HH:SS" or as seconds.
 */
 
-bool get_interval_info(const char *str,uint length,uint count,
-		       long *values)
+bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
+			uint count, long *values)
 {
   const char *end=str+length;
   uint i;
-  while (str != end && !my_isdigit(system_charset_info,*str))
+  while (str != end && !my_isdigit(cs,*str))
     str++;
 
   for (i=0 ; i < count ; i++)
   {
     long value;
-    for (value=0; str != end && my_isdigit(system_charset_info,*str) ; str++)
+    for (value=0; str != end && my_isdigit(cs,*str) ; str++)
       value=value*10L + (long) (*str - '0');
     values[i]= value;
-    while (str != end && !my_isdigit(system_charset_info,*str))
+    while (str != end && !my_isdigit(cs,*str))
       str++;
     if (str == end && i != count-1)
     {
@@ -306,6 +306,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
   const char *str;
   uint32 length;
   LINT_INIT(value);  LINT_INIT(str); LINT_INIT(length);
+  CHARSET_INFO *cs=str_value->charset();
 
   bzero((char*) t,sizeof(*t));
   if ((int) int_type <= INTERVAL_SECOND)
@@ -328,7 +329,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
     /* record negative intervalls in t->neg */
     str=res->ptr();
     const char *end=str+res->length();
-    while (str != end && my_isspace(system_charset_info,*str))
+    while (str != end && my_isspace(cs,*str))
       str++;
     if (str != end && *str == '-')
     {
@@ -358,26 +359,26 @@ static bool get_interval_value(Item *args,interval_type int_type,
     t->second=value;
     break;
   case INTERVAL_YEAR_MONTH:			// Allow YEAR-MONTH YYYYYMM
-    if (get_interval_info(str,length,2,array))
+    if (get_interval_info(str,length,cs,2,array))
       return (1);
     t->year=array[0];
     t->month=array[1];
     break;
   case INTERVAL_DAY_HOUR:
-    if (get_interval_info(str,length,2,array))
+    if (get_interval_info(str,length,cs,2,array))
       return (1);
     t->day=array[0];
     t->hour=array[1];
     break;
   case INTERVAL_DAY_MINUTE:
-    if (get_interval_info(str,length,3,array))
+    if (get_interval_info(str,length,cs,3,array))
       return (1);
     t->day=array[0];
     t->hour=array[1];
     t->minute=array[2];
     break;
   case INTERVAL_DAY_SECOND:
-    if (get_interval_info(str,length,4,array))
+    if (get_interval_info(str,length,cs,4,array))
       return (1);
     t->day=array[0];
     t->hour=array[1];
@@ -385,20 +386,20 @@ static bool get_interval_value(Item *args,interval_type int_type,
     t->second=array[3];
     break;
   case INTERVAL_HOUR_MINUTE:
-    if (get_interval_info(str,length,2,array))
+    if (get_interval_info(str,length,cs,2,array))
       return (1);
     t->hour=array[0];
     t->minute=array[1];
     break;
   case INTERVAL_HOUR_SECOND:
-    if (get_interval_info(str,length,3,array))
+    if (get_interval_info(str,length,cs,3,array))
       return (1);
     t->hour=array[0];
     t->minute=array[1];
     t->second=array[2];
     break;
   case INTERVAL_MINUTE_SECOND:
-    if (get_interval_info(str,length,2,array))
+    if (get_interval_info(str,length,cs,2,array))
       return (1);
     t->minute=array[0];
     t->second=array[1];
