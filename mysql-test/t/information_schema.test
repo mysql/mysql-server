@@ -92,6 +92,12 @@ begin
 end|
 delimiter ;|
 
+#
+# Bug#7222 information_schema: errors in "routines"
+#
+select parameter_style, sql_data_access, dtd_identifier 
+from information_schema.routines;
+
 --replace_column 5 # 6 #
 show procedure status;
 --replace_column 5 # 6 #
