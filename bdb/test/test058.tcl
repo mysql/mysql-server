@@ -1,10 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test058.tcl,v 11.14 2000/08/25 14:21:57 sue Exp $
+# $Id: test058.tcl,v 11.20 2002/02/22 15:26:27 sandstro Exp $
 #
+# TEST	test058
+# TEST	Verify that deleting and reading duplicates results in correct ordering.
 proc test058 { method args } {
 	source ./include.tcl
 
@@ -18,6 +20,8 @@ proc test058 { method args } {
 		return
 	}
 	set args [convert_args $method $args]
+	set encargs ""
+	set args [split_encargs $args encargs]
 	set omethod [convert_method $method]
 
 	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
@@ -28,12 +32,12 @@ proc test058 { method args } {
 
 	# environment
 	env_cleanup $testdir
-	set eflags "-create -txn -home $testdir"
-	set env [eval {berkdb env} $eflags]
+	set eflags "-create -txn $encargs -home $testdir"
+	set env [eval {berkdb_env} $eflags]
 	error_check_good env [is_valid_env $env] TRUE
 
 	# db open
-	set flags "-create -mode 0644 -dup -env $env $args"
+	set flags "-auto_commit -create -mode 0644 -dup -env $env $args"
 	set db [eval {berkdb_open} $flags $omethod "test058.db"]
 	error_check_good dbopen [is_valid_db $db] TRUE
 

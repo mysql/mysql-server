@@ -1,30 +1,42 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_byteorder.c,v 11.4 2000/11/30 00:58:31 ubell Exp $";
+static const char revid[] = "$Id: db_byteorder.c,v 11.8 2002/02/01 18:15:29 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
-
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#if BYTE_ORDER == BIG_ENDIAN
-#define	WORDS_BIGENDIAN	1
-#endif
-#endif
-
 #endif
 
 #include "db_int.h"
-#include "common_ext.h"
+
+/*
+ * __db_isbigendian --
+ *	Return 1 if big-endian (Motorola and Sparc), not little-endian
+ *	(Intel and Vax).  We do this work at run-time, rather than at
+ *	configuration time so cross-compilation and general embedded
+ *	system support is simpler.
+ *
+ * PUBLIC: int __db_isbigendian __P((void));
+ */
+int
+__db_isbigendian()
+{
+	union {					/* From Harbison & Steele.  */
+		long l;
+		char c[sizeof(long)];
+	} u;
+
+	u.l = 1;
+	return (u.c[sizeof(long) - 1] == 1);
+}
 
 /*
  * __db_byteorder --
@@ -38,21 +50,21 @@ __db_byteorder(dbenv, lorder)
 	DB_ENV *dbenv;
 	int lorder;
 {
+	int is_bigendian;
+
+	is_bigendian = __db_isbigendian();
+
 	switch (lorder) {
 	case 0:
 		break;
 	case 1234:
-#if defined(WORDS_BIGENDIAN)
-		return (DB_SWAPBYTES);
-#else
+		if (is_bigendian)
+			return (DB_SWAPBYTES);
 		break;
-#endif
 	case 4321:
-#if defined(WORDS_BIGENDIAN)
+		if (!is_bigendian)
+			return (DB_SWAPBYTES);
 		break;
-#else
-		return (DB_SWAPBYTES);
-#endif
 	default:
 		__db_err(dbenv,
 	    "unsupported byte order, only big and little-endian supported");

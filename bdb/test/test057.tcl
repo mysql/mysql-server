@@ -1,16 +1,17 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test057.tcl,v 11.17 2000/08/25 14:21:57 sue Exp $
+# $Id: test057.tcl,v 11.22 2002/05/22 15:42:56 sue Exp $
 #
-# Test057:
-# Check if we handle the case where we delete a key with the cursor on it
-# and then add the same key.  The cursor should not get the new item
-# returned, but the item shouldn't disappear.
-# Run test tests, one where the overwriting put is done with a put and
-# one where it's done with a cursor put.
+# TEST	test057
+# TEST	Cursor maintenance during key deletes.
+# TEST	Check if we handle the case where we delete a key with the cursor on
+# TEST	it and then add the same key.  The cursor should not get the new item
+# TEST	returned, but the item shouldn't disappear.
+# TEST	Run test tests, one where the overwriting put is done with a put and
+# TEST	one where it's done with a cursor put.
 proc test057 { method args } {
 	global errorInfo
 	source ./include.tcl
@@ -18,7 +19,7 @@ proc test057 { method args } {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	append args " -create -truncate -mode 0644 -dup "
+	append args " -create -mode 0644 -dup "
 	if { [is_record_based $method] == 1 || [is_rbtree $method] == 1 } {
 		puts "Test057: skipping for method $method"
 		return
@@ -26,6 +27,7 @@ proc test057 { method args } {
 	puts "Test057: $method delete and replace in presence of cursor."
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -37,6 +39,11 @@ proc test057 { method args } {
 		set testfile test057.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	cleanup $testdir $env
 
@@ -46,20 +53,33 @@ proc test057 { method args } {
 	set db [eval {berkdb_open} $args {$omethod $testfile}]
 	error_check_good dbopen:dup [is_valid_db $db] TRUE
 
-	set curs [eval {$db cursor} $txn]
-	error_check_good curs_open:dup [is_substr $curs $db] 1
-
 	puts "\tTest057.a: Set cursor, delete cursor, put with key."
 	# Put three keys in the database
 	for { set key 1 } { $key <= 3 } {incr key} {
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set r [eval {$db put} $txn $flags {$key datum$key}]
 		error_check_good put $r 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 
 	# Retrieve keys sequentially so we can figure out their order
 	set i 1
-	for {set d [$curs get -first] } {[llength $d] != 0 } {\
-			set d [$curs get -next] } {
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set curs [eval {$db cursor} $txn]
+	error_check_good curs_open:dup [is_valid_cursor $curs $db] TRUE
+
+	for {set d [$curs get -first] } {[llength $d] != 0 } \
+	    {set d [$curs get -next] } {
 		set key_set($i) [lindex [lindex $d 0] 0]
 		incr i
 	}
@@ -108,7 +128,7 @@ proc test057 { method args } {
 
 	puts "\tTest057.b: Set two cursor on a key, delete one, overwrite other"
 	set curs2 [eval {$db cursor} $txn]
-	error_check_good curs2_open [is_substr $curs2 $db] 1
+	error_check_good curs2_open [is_valid_cursor $curs2 $db] TRUE
 
 	# Set both cursors on the 4rd key
 	set r [$curs get -set $key_set(3)]
@@ -221,5 +241,8 @@ proc test057 { method args } {
 
 	error_check_good curs2_close [$curs2 close] 0
 	error_check_good curs_close [$curs close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 }

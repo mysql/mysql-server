@@ -1,25 +1,31 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test044.tcl,v 11.26 2000/10/27 13:23:56 sue Exp $
+# $Id: test044.tcl,v 11.32 2002/07/16 20:53:04 bostic Exp $
 #
-# DB Test 44 {access method}
-# System integration DB test: verify that locking, recovery, checkpoint,
-# and all the other utilities basically work.
+# TEST	test044
+# TEST	Small system integration tests
+# TEST		Test proper functioning of the checkpoint daemon,
+# TEST		recovery, transactions, etc.
+# TEST
+# TEST	System integration DB test: verify that locking, recovery, checkpoint,
+# TEST	and all the other utilities basically work.
+# TEST
+# TEST	The test consists of $nprocs processes operating on $nfiles files.  A
+# TEST	transaction consists of adding the same key/data pair to some random
+# TEST	number of these files.  We generate a bimodal distribution in key size
+# TEST	with 70% of the keys being small (1-10 characters) and the remaining
+# TEST	30% of the keys being large (uniform distribution about mean $key_avg).
+# TEST	If we generate a key, we first check to make sure that the key is not
+# TEST	already in the dataset.  If it is, we do a lookup.
 #
-# The test consists of $nprocs processes operating on $nfiles files.  A
-# transaction consists of adding the same key/data pair to some random
-# number of these files.  We generate a bimodal distribution in key
-# size with 70% of the keys being small (1-10 characters) and the
-# remaining 30% of the keys being large (uniform distribution about
-# mean $key_avg).  If we generate a key, we first check to make sure
-# that the key is not already in the dataset.  If it is, we do a lookup.
-#
-# XXX This test uses grow-only files currently!
+# XXX
+# This test uses grow-only files currently!
 proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 	source ./include.tcl
+	global encrypt
 	global rand_init
 
 	set args [convert_args $method $args]
@@ -33,6 +39,10 @@ proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 		incr eindex
 		set env [lindex $args $eindex]
 		puts "Test044 skipping for env $env"
+		return
+	}
+	if { $encrypt != 0 } {
+		puts "Test044 skipping for security"
 		return
 	}
 
@@ -62,7 +72,7 @@ proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 
 		# Create an environment
 		puts "\tTest044.a: creating environment and $nfiles files"
-		set dbenv [berkdb env -create -txn -home $testdir]
+		set dbenv [berkdb_env -create -txn -home $testdir]
 		error_check_good env_open [is_valid_env $dbenv] TRUE
 
 		# Create a bunch of files
@@ -97,7 +107,7 @@ proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 	set cycle 1
 	set ncycles 3
 	while { $cycle <= $ncycles } {
-		set dbenv [berkdb env -create -txn -home $testdir]
+		set dbenv [berkdb_env -create -txn -home $testdir]
 		error_check_good env_open [is_valid_env $dbenv] TRUE
 
 		# Fire off deadlock detector and checkpointer
@@ -128,16 +138,13 @@ proc test044 { method {nprocs 5} {nfiles 10} {cont 0} args } {
 		#
 		error_check_good env_close [$dbenv close] 0
 
-		exec $KILL -9 $ddpid
-		exec $KILL -9 $cppid
-		#
-		# Use catch so that if any of the children died, we don't
-		# stop the script
-		#
+		tclkill $ddpid
+		tclkill $cppid
+
 		foreach p $pidlist {
-			set e [catch {eval exec \
-			    [concat $KILL -9 $p]} res]
+			tclkill $p
 		}
+
 		# Check for test failure
 		set e [eval findfail [glob $testdir/test044.*.log]]
 		error_check_good "FAIL: error message(s) in log files" $e 0

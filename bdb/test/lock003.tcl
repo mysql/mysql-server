@@ -1,48 +1,99 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: lock003.tcl,v 11.16 2000/08/25 14:21:51 sue Exp $
+# $Id: lock003.tcl,v 11.25 2002/09/05 17:23:06 sandstro Exp $
 #
-# Exercise multi-process aspects of lock.  Generate a bunch of parallel
-# testers that try to randomly obtain locks.
-proc lock003 { dir {iter 500} {max 1000} {procs 5} {ldegree 5} {objs 75} \
-	{reads 65} {wait 1} {conflicts { 3 0 0 0 0 0 1 0 1 1}} {seeds {}} } {
+# TEST	lock003
+# TEST	Exercise multi-process aspects of lock.  Generate a bunch of parallel
+# TEST	testers that try to randomly obtain locks;  make sure that the locks
+# TEST	correctly protect corresponding objects.
+proc lock003 { {iter 500} {max 1000} {procs 5} } {
 	source ./include.tcl
+	global lock_curid
+	global lock_maxid
+
+	set ldegree 5
+	set objs 75
+	set reads 65
+	set wait 1
+	set conflicts { 0 0 0 0 0 1 0 1 1}
+	set seeds {}
 
 	puts "Lock003: Multi-process random lock test"
 
 	# Clean up after previous runs
-	env_cleanup $dir
+	env_cleanup $testdir
 
 	# Open/create the lock region
-	set e [berkdb env -create -lock -home $dir]
+	puts "\tLock003.a: Create environment"
+	set e [berkdb_env -create -lock -home $testdir]
 	error_check_good env_open [is_substr $e env] 1
+	$e lock_id_set $lock_curid $lock_maxid
 
-	set ret [$e close]
-	error_check_good env_close $ret 0
+	error_check_good env_close [$e close] 0
 
 	# Now spawn off processes
 	set pidlist {}
+
 	for { set i 0 } {$i < $procs} {incr i} {
 		if { [llength $seeds] == $procs } {
 			set s [lindex $seeds $i]
 		}
-		puts "$tclsh_path\
-		    $test_path/wrap.tcl \
-		    lockscript.tcl $dir/$i.lockout\
-		    $dir $iter $objs $wait $ldegree $reads &"
+#		puts "$tclsh_path\
+#		    $test_path/wrap.tcl \
+#		    lockscript.tcl $testdir/$i.lockout\
+#		    $testdir $iter $objs $wait $ldegree $reads &"
 		set p [exec $tclsh_path $test_path/wrap.tcl \
 		    lockscript.tcl $testdir/lock003.$i.out \
-		    $dir $iter $objs $wait $ldegree $reads &]
+		    $testdir $iter $objs $wait $ldegree $reads &]
 		lappend pidlist $p
 	}
 
-	puts "Lock003: $procs independent processes now running"
-	watch_procs 30 10800
+	puts "\tLock003.b: $procs independent processes now running"
+	watch_procs $pidlist 30 10800
+
+	# Check for test failure
+	set e [eval findfail [glob $testdir/lock003.*.out]]
+	error_check_good "FAIL: error message(s) in log files" $e 0
+
 	# Remove log files
 	for { set i 0 } {$i < $procs} {incr i} {
-		fileremove -f $dir/$i.lockout
+		fileremove -f $testdir/lock003.$i.out
 	}
 }
+
+# Create and destroy flag files to show we have an object locked, and
+# verify that the correct files exist or don't exist given that we've
+# just read or write locked a file.
+proc lock003_create { rw obj } {
+	source ./include.tcl
+
+	set pref $testdir/L3FLAG
+	set f [open $pref.$rw.[pid].$obj w]
+	close $f
+}
+
+proc lock003_destroy { obj } {
+	source ./include.tcl
+
+	set pref $testdir/L3FLAG
+	set f [glob -nocomplain $pref.*.[pid].$obj]
+	error_check_good l3_destroy [llength $f] 1
+	fileremove $f
+}
+
+proc lock003_vrfy { rw obj } {
+	source ./include.tcl
+
+	set pref $testdir/L3FLAG
+	if { [string compare $rw "write"] == 0 } {
+		set fs [glob -nocomplain $pref.*.*.$obj]
+		error_check_good "number of other locks on $obj" [llength $fs] 0
+	} else {
+		set fs [glob -nocomplain $pref.write.*.$obj]
+		error_check_good "number of write locks on $obj" [llength $fs] 0
+	}
+}
+

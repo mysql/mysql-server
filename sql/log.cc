@@ -45,16 +45,19 @@ static bool test_if_number(const char *str,
 
 static int find_uniq_filename(char *name)
 {
-  long		number;
-  uint		i,length;
-  char		buff[FN_REFLEN];
-  struct st_my_dir *dir_info;
+  long                  number;
+  uint                  i;
+  char                  buff[FN_REFLEN];
+  struct st_my_dir     *dir_info;
   reg1 struct fileinfo *file_info;
-  ulong		max_found=0;
+  ulong                 max_found=0;
+
   DBUG_ENTER("find_uniq_filename");
 
-  length=dirname_part(buff,name);
-  char *start=name+length,*end=strend(start);
+  uint  length = dirname_part(buff,name);
+  char *start  = name + length;
+  char *end    = strend(start);
+
   *end='.';
   length= (uint) (end-start+1);
 
@@ -75,7 +78,7 @@ static int find_uniq_filename(char *name)
   my_dirend(dir_info);
 
   *end++='.';
-  sprintf(end,"%03ld",max_found+1);
+  sprintf(end,"%06ld",max_found+1);
   DBUG_RETURN(0);
 }
 

@@ -1,5 +1,5 @@
 #
-# $Id: gen_rpc.awk,v 11.25 2001/01/02 20:04:55 sue Exp $
+# $Id: gen_rpc.awk,v 11.50 2002/07/02 19:26:57 sue Exp $
 # Awk script for generating client/server RPC code.
 #
 # This awk script generates most of the RPC routines for DB client/server
@@ -9,27 +9,30 @@
 #
 # This awk script requires that these variables be set when it is called:
 #
+#	major		-- Major version number
+#	minor		-- Minor version number
+#	xidsize		-- size of GIDs
 #	client_file	-- the C source file being created for client code
-#	cproto_file	-- the header file create for client prototypes
 #	ctmpl_file	-- the C template file being created for client code
 #	sed_file	-- the sed file created to alter server proc code
 #	server_file	-- the C source file being created for server code
-#	sproto_file	-- the header file create for server prototypes
 #	stmpl_file	-- the C template file being created for server code
 #	xdr_file	-- the XDR message file created
 #
 # And stdin must be the input file that defines the RPC setup.
 BEGIN {
-	if (client_file == "" || cproto_file == "" || ctmpl_file == "" ||
+	if (major == "" || minor == "" || xidsize == "" ||
+	    client_file == "" || ctmpl_file == "" ||
 	    sed_file == "" || server_file == "" ||
-	    sproto_file == "" || stmpl_file == "" || xdr_file == "") {
+	    stmpl_file == "" || xdr_file == "") {
 		print "Usage: gen_rpc.awk requires these variables be set:"
+		print "\tmajor\t-- Major version number"
+		print "\tminor\t-- Minor version number"
+		print "\txidsize\t-- GID size"
 		print "\tclient_file\t-- the client C source file being created"
-		print "\tcproto_file\t-- the client prototype header created"
 		print "\tctmpl_file\t-- the client template file being created"
 		print "\tsed_file\t-- the sed command file being created"
 		print "\tserver_file\t-- the server C source file being created"
-		print "\tsproto_file\t-- the server prototype header created"
 		print "\tstmpl_file\t-- the server template file being created"
 		print "\txdr_file\t-- the XDR message file being created"
 		error = 1; exit
@@ -40,10 +43,6 @@ BEGIN {
 	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
 	    > CFILE
 
-	CHFILE=cproto_file
-	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
-	    > CHFILE
-
 	TFILE = ctmpl_file
 	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
 	    > TFILE
@@ -51,10 +50,6 @@ BEGIN {
 	SFILE = server_file
 	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
 	    > SFILE
-
-	SHFILE=sproto_file
-	printf("/* Do not edit: automatically built by gen_rpc.awk. */\n") \
-	    > SHFILE
 
 	# Server procedure template and a sed file to massage an existing
 	# template source file to change args.
@@ -74,28 +69,24 @@ BEGIN {
 END {
 	printf("#endif /* HAVE_RPC */\n") >> CFILE
 	printf("#endif /* HAVE_RPC */\n") >> TFILE
-	printf("program DB_SERVERPROG {\n") >> XFILE
-	printf("\tversion DB_SERVERVERS {\n") >> XFILE
+	printf("program DB_RPC_SERVERPROG {\n") >> XFILE
+	printf("\tversion DB_RPC_SERVERVERS {\n") >> XFILE
 
 	for (i = 1; i < nendlist; ++i)
 		printf("\t\t%s;\n", endlist[i]) >> XFILE
 
-	printf("\t} = 1;\n") >> XFILE
+	printf("\t} = %d%03d;\n", major, minor) >> XFILE
 	printf("} = 351457;\n") >> XFILE
 }
 
 /^[	 ]*BEGIN/ {
 	name = $2;
-	msgid = $3;
 	nofunc_code = 0;
 	funcvars = 0;
-	gen_code = 1;
 	ret_code = 0;
-	if ($4 == "NOCLNTCODE")
-		gen_code = 0;
-	if ($4 == "NOFUNC")
+	if ($3 == "NOFUNC")
 		nofunc_code = 1;
-	if ($4 == "RETCODE")
+	if ($3 == "RETCODE")
 		ret_code = 1;
 
 	nvars = 0;
@@ -131,8 +122,10 @@ END {
 
 	if (c_type[nvars] == "DB *") {
 		ctp_type[nvars] = "CT_DB";
-		db_handle = 1;
-		db_idx = nvars;
+		if (db_handle != 1) {
+			db_handle = 1;
+			db_idx = nvars;
+		}
 	}
 
 	if (c_type[nvars] == "DBC *") {
@@ -182,6 +175,78 @@ END {
 /^[	 ]*END/ {
 	#
 	# =====================================================
+	# File headers, if necessary.
+	#
+	if (first == 0) {
+		printf("#include \"db_config.h\"\n") >> CFILE
+		printf("\n") >> CFILE
+		printf("#ifdef HAVE_RPC\n") >> CFILE
+		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> CFILE
+		printf("#include <sys/types.h>\n\n") >> CFILE
+		printf("#include <rpc/rpc.h>\n") >> CFILE
+		printf("#include <rpc/xdr.h>\n") >> CFILE
+		printf("\n") >> CFILE
+		printf("#include <string.h>\n") >> CFILE
+		printf("#endif\n") >> CFILE
+		printf("\n") >> CFILE
+		printf("#include \"db_int.h\"\n") >> CFILE
+		printf("#include \"dbinc/txn.h\"\n") >> CFILE
+		printf("\n") >> CFILE
+		printf("#include \"dbinc_auto/db_server.h\"\n") >> CFILE
+		printf("#include \"dbinc_auto/rpc_client_ext.h\"\n") >> CFILE
+		printf("\n") >> CFILE
+
+		printf("#include \"db_config.h\"\n") >> TFILE
+		printf("\n") >> TFILE
+		printf("#ifdef HAVE_RPC\n") >> TFILE
+		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> TFILE
+		printf("#include <sys/types.h>\n") >> TFILE
+		printf("#include <rpc/rpc.h>\n") >> TFILE
+		printf("\n") >> TFILE
+		printf("#include <string.h>\n") >> TFILE
+		printf("#endif\n") >> TFILE
+		printf("#include \"db_int.h\"\n") >> TFILE
+		printf("#include \"dbinc_auto/db_server.h\"\n") >> TFILE
+		printf("#include \"dbinc/txn.h\"\n") >> TFILE
+		printf("\n") >> TFILE
+
+		printf("#include \"db_config.h\"\n") >> SFILE
+		printf("\n") >> SFILE
+		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> SFILE
+		printf("#include <sys/types.h>\n") >> SFILE
+		printf("\n") >> SFILE
+		printf("#include <rpc/rpc.h>\n") >> SFILE
+		printf("#include <rpc/xdr.h>\n") >> SFILE
+		printf("\n") >> SFILE
+		printf("#include <string.h>\n") >> SFILE
+		printf("#endif\n") >> SFILE
+		printf("\n") >> SFILE
+		printf("#include \"db_int.h\"\n") >> SFILE
+		printf("#include \"dbinc_auto/db_server.h\"\n") >> SFILE
+		printf("#include \"dbinc/db_server_int.h\"\n") >> SFILE
+		printf("#include \"dbinc_auto/rpc_server_ext.h\"\n") >> SFILE
+		printf("\n") >> SFILE
+
+		printf("#include \"db_config.h\"\n") >> PFILE
+		printf("\n") >> PFILE
+		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> PFILE
+		printf("#include <sys/types.h>\n") >> PFILE
+		printf("\n") >> PFILE
+		printf("#include <rpc/rpc.h>\n") >> PFILE
+		printf("\n") >> PFILE
+		printf("#include <string.h>\n") >> PFILE
+		printf("#endif\n") >> PFILE
+		printf("\n") >> PFILE
+		printf("#include \"db_int.h\"\n") >> PFILE
+		printf("#include \"dbinc_auto/db_server.h\"\n") >> PFILE
+		printf("#include \"dbinc/db_server_int.h\"\n") >> PFILE
+		printf("#include \"dbinc_auto/rpc_server_ext.h\"\n") >> PFILE
+		printf("\n") >> PFILE
+
+		first = 1;
+	}
+	#
+	# =====================================================
 	# Generate Client Nofunc code first if necessary
 	# NOTE:  This code must be first, because we don't want any
 	# other code other than this function, so before we write
@@ -190,50 +255,48 @@ END {
 	#
 	if (nofunc_code == 1) {
 		#
-		# First time through, put out the general illegal function
+		# First time through, put out the general no server and
+		# illegal functions.
 		#
 		if (first_nofunc == 0) {
-			printf("int __dbcl_rpc_illegal ") >> CHFILE
-			printf("__P((DB_ENV *, char *));\n") >> CHFILE
-			printf("int\n__dbcl_rpc_illegal(dbenv, name)\n") \
-				>> CFILE
+			printf("static int __dbcl_noserver ") >> CFILE
+			printf("__P((DB_ENV *));\n\n") >> CFILE
+			printf("static int\n") >> CFILE
+			printf("__dbcl_noserver(dbenv)\n") >> CFILE
+			printf("\tDB_ENV *dbenv;\n") >> CFILE
+			printf("{\n\t__db_err(dbenv,") >> CFILE
+			printf(" \"No server environment\");\n") >> CFILE
+			printf("\treturn (DB_NOSERVER);\n") >> CFILE
+			printf("}\n\n") >> CFILE
+
+			printf("static int __dbcl_rpc_illegal ") >> CFILE
+			printf("__P((DB_ENV *, char *));\n\n") >> CFILE
+			printf("static int\n") >> CFILE
+			printf("__dbcl_rpc_illegal(dbenv, name)\n") >> CFILE
 			printf("\tDB_ENV *dbenv;\n\tchar *name;\n") >> CFILE
-			printf("{\n\t__db_err(dbenv,\n") >> CFILE
-			printf("\t    \"%%s method meaningless in RPC") >> CFILE
+			printf("{\n\t__db_err(dbenv,") >> CFILE
+			printf(" \"%%s method meaningless in an RPC") >> CFILE
 			printf(" environment\", name);\n") >> CFILE
 			printf("\treturn (__db_eopnotsup(dbenv));\n") >> CFILE
 			printf("}\n\n") >> CFILE
+
 			first_nofunc = 1
-		}
-		#
-		# If we are doing a list, spit out prototype decl.
-		#
-		for (i = 0; i < nvars; i++) {
-			if (rpc_type[i] != "LIST")
-				continue;
-			printf("static int __dbcl_%s_%slist __P((", \
-			    name, args[i]) >> CFILE
-			printf("__%s_%slist **, ", name, args[i]) >> CFILE
-			if (list_type[i] == "STRING")
-				printf("%s));\n", c_type[i]) >> CFILE
-			if (list_type[i] == "INT")
-				printf("u_int32_t));\n") >> CFILE
-			if (list_type[i] == "ID")
-				printf("%s));\n", c_type[i]) >> CFILE
-			printf("static void __dbcl_%s_%sfree __P((", \
-			    name, args[i]) >> CFILE
-			printf("__%s_%slist **));\n", name, args[i]) >> CFILE
 		}
 		#
 		# Spit out PUBLIC prototypes.
 		#
-		printf("int __dbcl_%s __P((",name) >> CHFILE
-		sep = "";
+		pi = 1;
+		p[pi++] = sprintf("int __dbcl_%s __P((", name);
+		p[pi++] = "";
 		for (i = 0; i < nvars; ++i) {
-			printf("%s%s", sep, pr_type[i]) >> CHFILE
-			sep = ", ";
+			p[pi++] = pr_type[i];
+			p[pi++] = ", ";
 		}
-		printf("));\n") >> CHFILE
+		p[pi - 1] = "";
+		p[pi++] = "));";
+		p[pi] = "";
+		proto_format(p, 0, CFILE);
+
 		#
 		# Spit out function name/args.
 		#
@@ -286,7 +349,8 @@ END {
 		# to COMPQUIET that one.
 		for (i = 1; i < nvars; ++i) {
 			if (rpc_type[i] == "CONST" || rpc_type[i] == "DBT" ||
-			    rpc_type[i] == "LIST" || rpc_type[i] == "STRING") {
+			    rpc_type[i] == "LIST" || rpc_type[i] == "STRING" ||
+			    rpc_type[i] == "GID") {
 				printf("\tCOMPQUIET(%s, NULL);\n", args[i]) \
 				    >> CFILE
 			}
@@ -313,24 +377,23 @@ END {
 	# XDR messages.
 	#
 	printf("\n") >> XFILE
-	#
-	# If there are any lists, generate the structure to contain them.
-	#
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] == "LIST") {
-			printf("struct __%s_%slist {\n", name, args[i]) >> XFILE
-			printf("\topaque ent<>;\n") >> XFILE
-			printf("\t__%s_%slist *next;\n", name, args[i]) >> XFILE
-			printf("};\n\n") >> XFILE
-		}
-	}
 	printf("struct __%s_msg {\n", name) >> XFILE
 	for (i = 0; i < nvars; ++i) {
+		if (rpc_type[i] == "LIST") {
+			if (list_type[i] == "GID") {
+				printf("\topaque %s<>;\n", args[i]) >> XFILE
+			} else {
+				printf("\tunsigned int %s<>;\n", args[i]) >> XFILE
+			}
+		}
 		if (rpc_type[i] == "ID") {
 			printf("\tunsigned int %scl_id;\n", args[i]) >> XFILE
 		}
 		if (rpc_type[i] == "STRING") {
 			printf("\tstring %s<>;\n", args[i]) >> XFILE
+		}
+		if (rpc_type[i] == "GID") {
+			printf("\topaque %s[%d];\n", args[i], xidsize) >> XFILE
 		}
 		if (rpc_type[i] == "INT") {
 			printf("\tunsigned int %s;\n", args[i]) >> XFILE
@@ -338,35 +401,19 @@ END {
 		if (rpc_type[i] == "DBT") {
 			printf("\tunsigned int %sdlen;\n", args[i]) >> XFILE
 			printf("\tunsigned int %sdoff;\n", args[i]) >> XFILE
+			printf("\tunsigned int %sulen;\n", args[i]) >> XFILE
 			printf("\tunsigned int %sflags;\n", args[i]) >> XFILE
 			printf("\topaque %sdata<>;\n", args[i]) >> XFILE
-		}
-		if (rpc_type[i] == "LIST") {
-			printf("\t__%s_%slist *%slist;\n", \
-			    name, args[i], args[i]) >> XFILE
 		}
 	}
 	printf("};\n") >> XFILE
 
 	printf("\n") >> XFILE
 	#
-	# If there are any lists, generate the structure to contain them.
-	#
-	for (i = 0; i < rvars; ++i) {
-		if (ret_type[i] == "LIST") {
-			printf("struct __%s_%sreplist {\n", \
-			    name, retargs[i]) >> XFILE
-			printf("\topaque ent<>;\n") >> XFILE
-			printf("\t__%s_%sreplist *next;\n", \
-			    name, retargs[i]) >> XFILE
-			printf("};\n\n") >> XFILE
-		}
-	}
-	#
 	# Generate the reply message
 	#
 	printf("struct __%s_reply {\n", name) >> XFILE
-	printf("\tunsigned int status;\n") >> XFILE
+	printf("\tint status;\n") >> XFILE
 	for (i = 0; i < rvars; ++i) {
 		if (ret_type[i] == "ID") {
 			printf("\tunsigned int %scl_id;\n", retargs[i]) >> XFILE
@@ -384,8 +431,11 @@ END {
 			printf("\topaque %sdata<>;\n", retargs[i]) >> XFILE
 		}
 		if (ret_type[i] == "LIST") {
-			printf("\t__%s_%sreplist *%slist;\n", \
-			    name, retargs[i], retargs[i]) >> XFILE
+			if (retlist_type[i] == "GID") {
+				printf("\topaque %s<>;\n", retargs[i]) >> XFILE
+			} else {
+				printf("\tunsigned int %s<>;\n", retargs[i]) >> XFILE
+			}
 		}
 	}
 	printf("};\n") >> XFILE
@@ -394,158 +444,30 @@ END {
 	    sprintf("__%s_reply __DB_%s(__%s_msg) = %d", \
 		name, name, name, nendlist);
 	nendlist++;
-
-	#
-	# =====================================================
-	# File headers, if necessary.
-	#
-	if (first == 0) {
-		printf("#include \"db_config.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#ifdef HAVE_RPC\n") >> CFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> CFILE
-		printf("#include <sys/types.h>\n") >> CFILE
-		printf("#include <rpc/rpc.h>\n") >> CFILE
-		printf("#include <rpc/xdr.h>\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include <errno.h>\n") >> CFILE
-		printf("#include <string.h>\n") >> CFILE
-		printf("#endif\n") >> CFILE
-		printf("#include \"db_server.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-		printf("#include \"db_int.h\"\n") >> CFILE
-		printf("#include \"db_page.h\"\n") >> CFILE
-		printf("#include \"db_ext.h\"\n") >> CFILE
-		printf("#include \"mp.h\"\n") >> CFILE
-		printf("#include \"rpc_client_ext.h\"\n") >> CFILE
-		printf("#include \"txn.h\"\n") >> CFILE
-		printf("\n") >> CFILE
-		n = split(CHFILE, hpieces, "/");
-		printf("#include \"%s\"\n", hpieces[n]) >> CFILE
-		printf("\n") >> CFILE
-
-		printf("#include \"db_config.h\"\n") >> TFILE
-		printf("\n") >> TFILE
-		printf("#ifdef HAVE_RPC\n") >> TFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> TFILE
-		printf("#include <sys/types.h>\n") >> TFILE
-		printf("#include <rpc/rpc.h>\n") >> TFILE
-		printf("\n") >> TFILE
-		printf("#include <errno.h>\n") >> TFILE
-		printf("#include <string.h>\n") >> TFILE
-		printf("#endif\n") >> TFILE
-		printf("#include \"db_server.h\"\n") >> TFILE
-		printf("\n") >> TFILE
-		printf("#include \"db_int.h\"\n") >> TFILE
-		printf("#include \"db_page.h\"\n") >> TFILE
-		printf("#include \"db_ext.h\"\n") >> TFILE
-		printf("#include \"txn.h\"\n") >> TFILE
-		printf("\n") >> TFILE
-		n = split(CHFILE, hpieces, "/");
-		printf("#include \"%s\"\n", hpieces[n]) >> TFILE
-		printf("\n") >> TFILE
-
-		printf("#include \"db_config.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> SFILE
-		printf("#include <sys/types.h>\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include <rpc/rpc.h>\n") >> SFILE
-		printf("#include <rpc/xdr.h>\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include <errno.h>\n") >> SFILE
-		printf("#include <string.h>\n") >> SFILE
-		printf("#endif\n") >> SFILE
-		printf("#include \"db_server.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-		printf("#include \"db_int.h\"\n") >> SFILE
-		printf("#include \"db_server_int.h\"\n") >> SFILE
-		printf("#include \"rpc_server_ext.h\"\n") >> SFILE
-		printf("\n") >> SFILE
-		n = split(SHFILE, hpieces, "/");
-		printf("#include \"%s\"\n", hpieces[n]) >> SFILE
-		printf("\n") >> SFILE
-
-		printf("#include \"db_config.h\"\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#ifndef NO_SYSTEM_INCLUDES\n") >> PFILE
-		printf("#include <sys/types.h>\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include <rpc/rpc.h>\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include <errno.h>\n") >> PFILE
-		printf("#include <string.h>\n") >> PFILE
-		printf("#include \"db_server.h\"\n") >> PFILE
-		printf("#endif\n") >> PFILE
-		printf("\n") >> PFILE
-		printf("#include \"db_int.h\"\n") >> PFILE
-		printf("#include \"db_server_int.h\"\n") >> PFILE
-		printf("#include \"rpc_server_ext.h\"\n") >> PFILE
-		printf("\n") >> PFILE
-		n = split(SHFILE, hpieces, "/");
-		printf("#include \"%s\"\n", hpieces[n]) >> PFILE
-		printf("\n") >> PFILE
-
-		first = 1;
-	}
-
 	#
 	# =====================================================
 	# Server functions.
 	#
-	# If we are doing a list, send out local list prototypes.
-	#
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] != "LIST")
-			continue;
-		if (list_type[i] != "STRING" && list_type[i] != "INT" &&
-		    list_type[i] != "ID")
-			continue;
-		printf("int __db_%s_%slist __P((", name, args[i]) >> SFILE
-		printf("__%s_%slist *, ", name, args[i]) >> SFILE
-		if (list_type[i] == "STRING") {
-			printf("char ***));\n") >> SFILE
-		}
-		if (list_type[i] == "INT" || list_type[i] == "ID") {
-			printf("u_int32_t **));\n") >> SFILE
-		}
-		printf("void __db_%s_%sfree __P((", name, args[i]) >> SFILE
-		if (list_type[i] == "STRING")
-			printf("char **));\n\n") >> SFILE
-		if (list_type[i] == "INT" || list_type[i] == "ID")
-			printf("u_int32_t *));\n\n") >> SFILE
-
-	}
-	#
 	# First spit out PUBLIC prototypes for server functions.
 	#
-	printf("__%s_reply * __db_%s_%d __P((__%s_msg *));\n", \
-	    name, name, msgid, name) >> SHFILE
+	p[1] = sprintf("__%s_reply *__db_%s_%d%03d __P((__%s_msg *, struct svc_req *));",
+	    name, name, major, minor, name);
+	p[2] = "";
+	proto_format(p, 0, SFILE);
 
 	printf("__%s_reply *\n", name) >> SFILE
-	printf("__db_%s_%d(req)\n", name, msgid) >> SFILE
-	printf("\t__%s_msg *req;\n", name) >> SFILE;
+	printf("__db_%s_%d%03d(msg, req)\n", name, major, minor) >> SFILE
+	printf("\t__%s_msg *msg;\n", name) >> SFILE;
+	printf("\tstruct svc_req *req;\n", name) >> SFILE;
 	printf("{\n") >> SFILE
-	doing_list = 0;
-	#
-	# If we are doing a list, decompose it for server proc we'll call.
-	#
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] != "LIST")
-			continue;
-		doing_list = 1;
-		if (list_type[i] == "STRING")
-			printf("\tchar **__db_%slist;\n", args[i]) >> SFILE
-		if (list_type[i] == "ID" || list_type[i] == "INT")
-			printf("\tu_int32_t *__db_%slist;\n", args[i]) >> SFILE
-	}
-	if (doing_list)
-		printf("\tint ret;\n") >> SFILE
 	printf("\tstatic __%s_reply reply; /* must be static */\n", \
 	    name) >> SFILE
 	if (xdr_free) {
 		printf("\tstatic int __%s_free = 0; /* must be static */\n\n", \
 		    name) >> SFILE
+	}
+	printf("\tCOMPQUIET(req, NULL);\n", name) >> SFILE
+	if (xdr_free) {
 		printf("\tif (__%s_free)\n", name) >> SFILE
 		printf("\t\txdr_free((xdrproc_t)xdr___%s_reply, (void *)&reply);\n", \
 		    name) >> SFILE
@@ -553,8 +475,8 @@ END {
 		printf("\n\t/* Reinitialize allocated fields */\n") >> SFILE
 		for (i = 0; i < rvars; ++i) {
 			if (ret_type[i] == "LIST") {
-				printf("\treply.%slist = NULL;\n", \
-				    retargs[i]) >> SFILE
+				printf("\treply.%s.%s_val = NULL;\n", \
+				    retargs[i], retargs[i]) >> SFILE
 			}
 			if (ret_type[i] == "DBT") {
 				printf("\treply.%sdata.%sdata_val = NULL;\n", \
@@ -564,44 +486,43 @@ END {
 	}
 
 	need_out = 0;
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] == "LIST") {
-			printf("\n\tif ((ret = __db_%s_%slist(", \
-			    name, args[i]) >> SFILE
-			printf("req->%slist, &__db_%slist)) != 0)\n", \
-			    args[i], args[i]) >> SFILE
-			printf("\t\tgoto out;\n") >> SFILE
-			need_out = 1;
-		}
-	}
-
 	#
 	# Compose server proc to call.  Decompose message components as args.
 	#
-	printf("\n\t__%s_%d_proc(", name, msgid) >> SFILE
+	printf("\n\t__%s_proc(", name) >> SFILE
 	sep = "";
 	for (i = 0; i < nvars; ++i) {
+		if (rpc_type[i] == "IGNORE") {
+			continue;
+		}
 		if (rpc_type[i] == "ID") {
-			printf("%sreq->%scl_id", sep, args[i]) >> SFILE
+			printf("%smsg->%scl_id", sep, args[i]) >> SFILE
 		}
 		if (rpc_type[i] == "STRING") {
-			printf("%s(*req->%s == '\\0') ? NULL : req->%s", \
+			printf("%s(*msg->%s == '\\0') ? NULL : msg->%s", \
 			    sep, args[i], args[i]) >> SFILE
+		}
+		if (rpc_type[i] == "GID") {
+			printf("%smsg->%s", sep, args[i]) >> SFILE
 		}
 		if (rpc_type[i] == "INT") {
-			printf("%sreq->%s", sep, args[i]) >> SFILE
+			printf("%smsg->%s", sep, args[i]) >> SFILE
 		}
 		if (rpc_type[i] == "LIST") {
-			printf("%s__db_%slist", sep, args[i]) >> SFILE
+			printf("%smsg->%s.%s_val", \
+			    sep, args[i], args[i]) >> SFILE
+			printf("%smsg->%s.%s_len", \
+			    sep, args[i], args[i]) >> SFILE
 		}
 		if (rpc_type[i] == "DBT") {
-			printf("%sreq->%sdlen", sep, args[i]) >> SFILE
+			printf("%smsg->%sdlen", sep, args[i]) >> SFILE
 			sep = ",\n\t    ";
-			printf("%sreq->%sdoff", sep, args[i]) >> SFILE
-			printf("%sreq->%sflags", sep, args[i]) >> SFILE
-			printf("%sreq->%sdata.%sdata_val", \
+			printf("%smsg->%sdoff", sep, args[i]) >> SFILE
+			printf("%smsg->%sulen", sep, args[i]) >> SFILE
+			printf("%smsg->%sflags", sep, args[i]) >> SFILE
+			printf("%smsg->%sdata.%sdata_val", \
 			    sep, args[i], args[i]) >> SFILE
-			printf("%sreq->%sdata.%sdata_len", \
+			printf("%smsg->%sdata.%sdata_len", \
 			    sep, args[i], args[i]) >> SFILE
 		}
 		sep = ",\n\t    ";
@@ -611,12 +532,6 @@ END {
 		printf("%s&__%s_free);\n", sep, name) >> SFILE
 	else
 		printf(");\n\n") >> SFILE
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] == "LIST") {
-			printf("\t__db_%s_%sfree(__db_%slist);\n", \
-			    name, args[i], args[i]) >> SFILE
-		}
-	}
 	if (need_out) {
 		printf("\nout:\n") >> SFILE
 	}
@@ -624,191 +539,98 @@ END {
 	printf("}\n\n") >> SFILE
 
 	#
-	# If we are doing a list, write list functions for this op.
-	#
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] != "LIST")
-			continue;
-		if (list_type[i] != "STRING" && list_type[i] != "INT" &&
-		    list_type[i] != "ID")
-			continue;
-		printf("int\n") >> SFILE
-		printf("__db_%s_%slist(locp, ppp)\n", name, args[i]) >> SFILE
-		printf("\t__%s_%slist *locp;\n", name, args[i]) >> SFILE
-		if (list_type[i] == "STRING") {
-			printf("\tchar ***ppp;\n{\n") >> SFILE
-			printf("\tchar **pp;\n") >> SFILE
-		}
-		if (list_type[i] == "INT" || list_type[i] == "ID") {
-			printf("\tu_int32_t **ppp;\n{\n") >> SFILE
-			printf("\tu_int32_t *pp;\n") >> SFILE
-		}
-		printf("\tint cnt, ret, size;\n") >> SFILE
-		printf("\t__%s_%slist *nl;\n\n", name, args[i]) >> SFILE
-		printf("\tfor (cnt = 0, nl = locp;") >> SFILE
-		printf(" nl != NULL; cnt++, nl = nl->next)\n\t\t;\n\n") >> SFILE
-		printf("\tif (cnt == 0) {\n") >> SFILE
-		printf("\t\t*ppp = NULL;\n") >> SFILE
-		printf("\t\treturn (0);\n\t}\n") >> SFILE
-		printf("\tsize = sizeof(*pp) * (cnt + 1);\n") >> SFILE
-		printf("\tif ((ret = __os_malloc(NULL, size, ") >> SFILE
-		printf("NULL, ppp)) != 0)\n") >> SFILE
-		printf("\t\treturn (ret);\n") >> SFILE
-		printf("\tmemset(*ppp, 0, size);\n") >> SFILE
-		printf("\tfor (pp = *ppp, nl = locp;") >> SFILE
-		printf(" nl != NULL; nl = nl->next, pp++) {\n") >> SFILE
-		if (list_type[i] == "STRING") {
-			printf("\t\tif ((ret = __os_malloc(NULL ,") >> SFILE
-			printf("nl->ent.ent_len + 1, NULL, pp)) != 0)\n") \
-			    >> SFILE
-			printf("\t\t\tgoto out;\n") >> SFILE
-			printf("\t\tif ((ret = __os_strdup(NULL, ") >> SFILE
-			printf("(char *)nl->ent.ent_val, pp)) != 0)\n") >> SFILE
-			printf("\t\t\tgoto out;\n") >> SFILE
-		}
-		if (list_type[i] == "INT" || list_type[i] == "ID")
-			printf("\t\t*pp = *(u_int32_t *)nl->ent.ent_val;\n") \
-			    >> SFILE
-		printf("\t}\n") >> SFILE
-		printf("\treturn (0);\n") >> SFILE
-		if (list_type[i] == "STRING") {
-			printf("out:\n") >> SFILE
-			printf("\t__db_%s_%sfree(*ppp);\n", \
-			    name, args[i]) >> SFILE
-			printf("\treturn (ret);\n") >> SFILE
-		}
-		printf("}\n\n") >> SFILE
-
-		printf("void\n") >> SFILE
-		printf("__db_%s_%sfree(pp)\n", name, args[i]) >> SFILE
-
-		if (list_type[i] == "STRING")
-			printf("\tchar **pp;\n") >> SFILE
-		if (list_type[i] == "INT" || list_type[i] == "ID")
-			printf("\tu_int32_t *pp;\n") >> SFILE
-
-		printf("{\n") >> SFILE
-		printf("\tsize_t size;\n") >> SFILE
-
-		if (list_type[i] == "STRING")
-			printf("\tchar **p;\n\n") >> SFILE
-		if (list_type[i] == "INT" || list_type[i] == "ID")
-			printf("\tu_int32_t *p;\n\n") >> SFILE
-
-		printf("\tif (pp == NULL)\n\t\treturn;\n") >> SFILE
-		printf("\tsize = sizeof(*p);\n") >> SFILE
-		printf("\tfor (p = pp; *p != 0; p++) {\n") >> SFILE
-		printf("\t\tsize += sizeof(*p);\n") >> SFILE
-
-		if (list_type[i] == "STRING")
-			printf("\t\t__os_free(*p, strlen(*p)+1);\n") >> SFILE
-		printf("\t}\n") >> SFILE
-		printf("\t__os_free(pp, size);\n") >> SFILE
-		printf("}\n\n") >> SFILE
-	}
-
-	#
 	# =====================================================
 	# Generate Procedure Template Server code
 	#
 	# Produce SED file commands if needed at the same time
 	#
-	# Start with PUBLIC prototypes
+	# Spit out comment, prototype, function name and arg list.
 	#
-	printf("void __%s_%d_proc __P((", name, msgid) >> SHFILE
+	printf("/^\\/\\* BEGIN __%s_proc/,/^\\/\\* END __%s_proc/c\\\n", \
+	    name, name) >> SEDFILE
+
+	printf("/* BEGIN __%s_proc */\n", name) >> PFILE
+	printf("/* BEGIN __%s_proc */\\\n", name) >> SEDFILE
+
+	pi = 1;
+	p[pi++] = sprintf("void __%s_proc __P((", name);
+	p[pi++] = "";
+	for (i = 0; i < nvars; ++i) {
+		if (rpc_type[i] == "IGNORE")
+			continue;
+		if (rpc_type[i] == "ID") {
+			p[pi++] = "long";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "STRING") {
+			p[pi++] = "char *";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "GID") {
+			p[pi++] = "u_int8_t *";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "INT") {
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "LIST" && list_type[i] == "GID") {
+			p[pi++] = "u_int8_t *";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "LIST" && list_type[i] == "INT") {
+			p[pi++] = "u_int32_t *";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "LIST" && list_type[i] == "ID") {
+			p[pi++] = "u_int32_t *";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+		}
+		if (rpc_type[i] == "DBT") {
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+			p[pi++] = "void *";
+			p[pi++] = ", ";
+			p[pi++] = "u_int32_t";
+			p[pi++] = ", ";
+		}
+	}
+	p[pi++] = sprintf("__%s_reply *", name);
+	if (xdr_free) {
+		p[pi++] = ", ";
+		p[pi++] = "int *));";
+	} else {
+		p[pi++] = "";
+		p[pi++] = "));";
+	}
+	p[pi++] = "";
+	proto_format(p, 1, SEDFILE);
+
+	printf("void\n") >> PFILE
+	printf("void\\\n") >> SEDFILE
+	printf("__%s_proc(", name) >> PFILE
+	printf("__%s_proc(", name) >> SEDFILE
 	sep = "";
 	argcount = 0;
 	for (i = 0; i < nvars; ++i) {
 		argcount++;
-		split_lines(1);
+		split_lines();
 		if (argcount == 0) {
 			sep = "";
 		}
 		if (rpc_type[i] == "IGNORE")
-			continue;
-		if (rpc_type[i] == "ID") {
-			printf("%slong", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "STRING") {
-			printf("%schar *", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "INT") {
-			printf("%su_int32_t", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "LIST" && list_type[i] == "STRING") {
-			printf("%schar **", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "LIST" && list_type[i] == "INT") {
-			printf("%su_int32_t *", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "LIST" && list_type[i] == "ID") {
-			printf("%su_int32_t *", sep) >> SHFILE
-		}
-		if (rpc_type[i] == "DBT") {
-			printf("%su_int32_t", sep) >> SHFILE
-			sep = ", ";
-			argcount++;
-			split_lines(1);
-			if (argcount == 0) {
-				sep = "";
-			} else {
-				sep = ", ";
-			}
-			printf("%su_int32_t", sep) >> SHFILE
-			argcount++;
-			split_lines(1);
-			if (argcount == 0) {
-				sep = "";
-			} else {
-				sep = ", ";
-			}
-			printf("%su_int32_t", sep) >> SHFILE
-			argcount++;
-			split_lines(1);
-			if (argcount == 0) {
-				sep = "";
-			} else {
-				sep = ", ";
-			}
-			printf("%svoid *", sep) >> SHFILE
-			argcount++;
-			split_lines(1);
-			if (argcount == 0) {
-				sep = "";
-			} else {
-				sep = ", ";
-			}
-			printf("%su_int32_t", sep) >> SHFILE
-		}
-		sep = ", ";
-	}
-	printf("%s__%s_reply *", sep, name) >> SHFILE
-	if (xdr_free) {
-		printf("%sint *));\n", sep) >> SHFILE
-	} else {
-		printf("));\n") >> SHFILE
-	}
-	#
-	# Spit out function name and arg list
-	#
-	printf("/^\\/\\* BEGIN __%s_%d_proc/,/^\\/\\* END __%s_%d_proc/c\\\n", \
-	    name, msgid, name, msgid) >> SEDFILE
-
-	printf("/* BEGIN __%s_%d_proc */\n", name, msgid) >> PFILE
-	printf("/* BEGIN __%s_%d_proc */\\\n", name, msgid) >> SEDFILE
-	printf("void\n") >> PFILE
-	printf("void\\\n") >> SEDFILE
-	printf("__%s_%d_proc(", name, msgid) >> PFILE
-	printf("__%s_%d_proc(", name, msgid) >> SEDFILE
-	sep = "";
-	argcount = 0;
-	for (i = 0; i < nvars; ++i) {
-		argcount++;
-		split_lines(0);
-		if (argcount == 0) {
-			sep = "";
-		}
-		if (rpc_type[i] == "IGNORE") 
 			continue;
 		if (rpc_type[i] == "ID") {
 			printf("%s%scl_id", sep, args[i]) >> PFILE
@@ -818,20 +640,33 @@ END {
 			printf("%s%s", sep, args[i]) >> PFILE
 			printf("%s%s", sep, args[i]) >> SEDFILE
 		}
+		if (rpc_type[i] == "GID") {
+			printf("%s%s", sep, args[i]) >> PFILE
+			printf("%s%s", sep, args[i]) >> SEDFILE
+		}
 		if (rpc_type[i] == "INT") {
 			printf("%s%s", sep, args[i]) >> PFILE
 			printf("%s%s", sep, args[i]) >> SEDFILE
 		}
 		if (rpc_type[i] == "LIST") {
-			printf("%s%slist", sep, args[i]) >> PFILE
-			printf("%s%slist", sep, args[i]) >> SEDFILE
+			printf("%s%s", sep, args[i]) >> PFILE
+			printf("%s%s", sep, args[i]) >> SEDFILE
+			argcount++;
+			split_lines();
+			if (argcount == 0) {
+				sep = "";
+			} else {
+				sep = ", ";
+			}
+			printf("%s%slen", sep, args[i]) >> PFILE
+			printf("%s%slen", sep, args[i]) >> SEDFILE
 		}
 		if (rpc_type[i] == "DBT") {
 			printf("%s%sdlen", sep, args[i]) >> PFILE
 			printf("%s%sdlen", sep, args[i]) >> SEDFILE
 			sep = ", ";
 			argcount++;
-			split_lines(0);
+			split_lines();
 			if (argcount == 0) {
 				sep = "";
 			} else {
@@ -840,7 +675,16 @@ END {
 			printf("%s%sdoff", sep, args[i]) >> PFILE
 			printf("%s%sdoff", sep, args[i]) >> SEDFILE
 			argcount++;
-			split_lines(0);
+			split_lines();
+			if (argcount == 0) {
+				sep = "";
+			} else {
+				sep = ", ";
+			}
+			printf("%s%sulen", sep, args[i]) >> PFILE
+			printf("%s%sulen", sep, args[i]) >> SEDFILE
+			argcount++;
+			split_lines();
 			if (argcount == 0) {
 				sep = "";
 			} else {
@@ -849,7 +693,7 @@ END {
 			printf("%s%sflags", sep, args[i]) >> PFILE
 			printf("%s%sflags", sep, args[i]) >> SEDFILE
 			argcount++;
-			split_lines(0);
+			split_lines();
 			if (argcount == 0) {
 				sep = "";
 			} else {
@@ -858,7 +702,7 @@ END {
 			printf("%s%sdata", sep, args[i]) >> PFILE
 			printf("%s%sdata", sep, args[i]) >> SEDFILE
 			argcount++;
-			split_lines(0);
+			split_lines();
 			if (argcount == 0) {
 				sep = "";
 			} else {
@@ -890,22 +734,33 @@ END {
 			printf("\tchar *%s;\n", args[i]) >> PFILE
 			printf("\\\tchar *%s;\\\n", args[i]) >> SEDFILE
 		}
+		if (rpc_type[i] == "GID") {
+			printf("\tu_int8_t *%s;\n", args[i]) >> PFILE
+			printf("\\\tu_int8_t *%s;\\\n", args[i]) >> SEDFILE
+		}
 		if (rpc_type[i] == "INT") {
 			printf("\tu_int32_t %s;\n", args[i]) >> PFILE
 			printf("\\\tu_int32_t %s;\\\n", args[i]) >> SEDFILE
 		}
-		if (rpc_type[i] == "LIST" && list_type[i] == "STRING") {
-			printf("\tchar ** %slist;\n", args[i]) >> PFILE
-			printf("\\\tchar ** %slist;\\\n", args[i]) >> SEDFILE
+		if (rpc_type[i] == "LIST" && list_type[i] == "GID") {
+			printf("\tu_int8_t * %s;\n", args[i]) >> PFILE
+			printf("\\\tu_int8_t * %s;\\\n", args[i]) >> SEDFILE
 		}
 		if (rpc_type[i] == "LIST" && list_type[i] == "INT") {
-			printf("\tu_int32_t * %slist;\n", args[i]) >> PFILE
-			printf("\\\tu_int32_t * %slist;\\\n", \
+			printf("\tu_int32_t * %s;\n", args[i]) >> PFILE
+			printf("\\\tu_int32_t * %s;\\\n", \
 			    args[i]) >> SEDFILE
+			printf("\tu_int32_t %ssize;\n", args[i]) >> PFILE
+			printf("\\\tu_int32_t %ssize;\\\n", args[i]) >> SEDFILE
 		}
 		if (rpc_type[i] == "LIST" && list_type[i] == "ID") {
-			printf("\tu_int32_t * %slist;\n", args[i]) >> PFILE
-			printf("\\\tu_int32_t * %slist;\\\n", args[i]) \
+			printf("\tu_int32_t * %s;\n", args[i]) >> PFILE
+			printf("\\\tu_int32_t * %s;\\\n", args[i]) \
+			    >> SEDFILE
+		}
+		if (rpc_type[i] == "LIST") {
+			printf("\tu_int32_t %slen;\n", args[i]) >> PFILE
+			printf("\\\tu_int32_t %slen;\\\n", args[i]) \
 			    >> SEDFILE
 		}
 		if (rpc_type[i] == "DBT") {
@@ -913,6 +768,8 @@ END {
 			printf("\\\tu_int32_t %sdlen;\\\n", args[i]) >> SEDFILE
 			printf("\tu_int32_t %sdoff;\n", args[i]) >> PFILE
 			printf("\\\tu_int32_t %sdoff;\\\n", args[i]) >> SEDFILE
+			printf("\tu_int32_t %sulen;\n", args[i]) >> PFILE
+			printf("\\\tu_int32_t %sulen;\\\n", args[i]) >> SEDFILE
 			printf("\tu_int32_t %sflags;\n", args[i]) >> PFILE
 			printf("\\\tu_int32_t %sflags;\\\n", args[i]) >> SEDFILE
 			printf("\tvoid *%sdata;\n", args[i]) >> PFILE
@@ -928,8 +785,8 @@ END {
 		printf("\\\tint * freep;\\\n") >> SEDFILE
 	}
 
-	printf("/* END __%s_%d_proc */\n", name, msgid) >> PFILE
-	printf("/* END __%s_%d_proc */\n", name, msgid) >> SEDFILE
+	printf("/* END __%s_proc */\n", name) >> PFILE
+	printf("/* END __%s_proc */\n", name) >> SEDFILE
 
 	#
 	# Function body
@@ -957,43 +814,23 @@ END {
 	printf("}\n\n") >> PFILE
 
 	#
-	# If we don't want client code generated, go on to next.
-	#
-	if (gen_code == 0)
-		next;
-
-	#
 	# =====================================================
 	# Generate Client code
 	#
-	# If we are doing a list, spit out prototype decl.
-	#
-	for (i = 0; i < nvars; i++) {
-		if (rpc_type[i] != "LIST")
-			continue;
-		printf("static int __dbcl_%s_%slist __P((", \
-		    name, args[i]) >> CFILE
-		printf("__%s_%slist **, ", name, args[i]) >> CFILE
-		if (list_type[i] == "STRING")
-			printf("%s));\n", c_type[i]) >> CFILE
-		if (list_type[i] == "INT")
-			printf("u_int32_t));\n") >> CFILE
-		if (list_type[i] == "ID")
-			printf("%s));\n", c_type[i]) >> CFILE
-		printf("static void __dbcl_%s_%sfree __P((", \
-		    name, args[i]) >> CFILE
-		printf("__%s_%slist **));\n", name, args[i]) >> CFILE
-	}
-	#
 	# Spit out PUBLIC prototypes.
 	#
-	printf("int __dbcl_%s __P((",name) >> CHFILE
-	sep = "";
+	pi = 1;
+	p[pi++] = sprintf("int __dbcl_%s __P((", name);
+	p[pi++] = "";
 	for (i = 0; i < nvars; ++i) {
-		printf("%s%s", sep, pr_type[i]) >> CHFILE
-		sep = ", ";
+		p[pi++] = pr_type[i];
+		p[pi++] = ", ";
 	}
-	printf("));\n") >> CHFILE
+	p[pi - 1] = "";
+	p[pi++] = "));";
+	p[pi] = "";
+	proto_format(p, 0, CFILE);
+
 	#
 	# Spit out function name/args.
 	#
@@ -1014,16 +851,28 @@ END {
 
 	printf("{\n") >> CFILE
 	printf("\tCLIENT *cl;\n") >> CFILE
-	printf("\t__%s_msg req;\n", name) >> CFILE
-	printf("\tstatic __%s_reply *replyp = NULL;\n", name) >> CFILE;
+	printf("\t__%s_msg msg;\n", name) >> CFILE
+	printf("\t__%s_reply *replyp = NULL;\n", name) >> CFILE;
 	printf("\tint ret;\n") >> CFILE
 	if (!env_handle)
 		printf("\tDB_ENV *dbenv;\n") >> CFILE
+	#
+	# If we are managing a list, we need a few more vars.
+	#
+	for (i = 0; i < nvars; ++i) {
+		if (rpc_type[i] == "LIST") {
+			printf("\t%s %sp;\n", c_type[i], args[i]) >> CFILE
+			printf("\tint %si;\n", args[i]) >> CFILE
+			if (list_type[i] == "GID")
+				printf("\tu_int8_t ** %sq;\n", args[i]) >> CFILE
+			else
+				printf("\tu_int32_t * %sq;\n", args[i]) >> CFILE
+		}
+	}
 
 	printf("\n") >> CFILE
 	printf("\tret = 0;\n") >> CFILE
 	if (!env_handle) {
-		printf("\tdbenv = NULL;\n") >> CFILE
 		if (db_handle)
 			printf("\tdbenv = %s->dbenv;\n", args[db_idx]) >> CFILE
 		else if (dbc_handle)
@@ -1032,27 +881,19 @@ END {
 		else if (txn_handle)
 			printf("\tdbenv = %s->mgrp->dbenv;\n", \
 			    args[txn_idx]) >> CFILE
-		printf("\tif (dbenv == NULL || dbenv->cl_handle == NULL) {\n") \
+		else
+			printf("\tdbenv = NULL;\n") >> CFILE
+		printf("\tif (dbenv == NULL || !RPC_ON(dbenv))\n") \
 		    >> CFILE
-		printf("\t\t__db_err(dbenv, \"No server environment.\");\n") \
-		    >> CFILE
+		printf("\t\treturn (__dbcl_noserver(NULL));\n") >> CFILE
 	} else {
-		printf("\tif (%s == NULL || %s->cl_handle == NULL) {\n", \
+		printf("\tif (%s == NULL || !RPC_ON(%s))\n", \
 		    args[env_idx], args[env_idx]) >> CFILE
-		printf("\t\t__db_err(%s, \"No server environment.\");\n", \
+		printf("\t\treturn (__dbcl_noserver(%s));\n", \
 		    args[env_idx]) >> CFILE
 	}
-	printf("\t\treturn (DB_NOSERVER);\n") >> CFILE
-	printf("\t}\n") >> CFILE
 	printf("\n") >> CFILE
 
-	#
-	# Free old reply if there was one.
-	#
-	printf("\tif (replyp != NULL) {\n") >> CFILE
-	printf("\t\txdr_free((xdrproc_t)xdr___%s_reply, (void *)replyp);\n", \
-	    name) >> CFILE
-	printf("\t\treplyp = NULL;\n\t}\n") >> CFILE
 	if (!env_handle)
 		printf("\tcl = (CLIENT *)dbenv->cl_handle;\n") >> CFILE
 	else
@@ -1068,8 +909,12 @@ END {
 		if (func_arg[i] != 1)
 			continue;
 		printf("\tif (%s != NULL) {\n", args[i]) >> CFILE
-		printf("\t\t__db_err(%s, ", args[env_idx]) >> CFILE
-		printf("\"User functions not supported in RPC.\");\n") >> CFILE
+		if (!env_handle) {
+			printf("\t\t__db_err(dbenv, ") >> CFILE
+		} else {
+			printf("\t\t__db_err(%s, ", args[env_idx]) >> CFILE
+		}
+		printf("\"User functions not supported in RPC\");\n") >> CFILE
 		printf("\t\treturn (EINVAL);\n\t}\n") >> CFILE
 	}
 
@@ -1079,49 +924,102 @@ END {
 	for (i = 0; i < nvars; ++i) {
 		if (rpc_type[i] == "ID") {
 			printf("\tif (%s == NULL)\n", args[i]) >> CFILE
-			printf("\t\treq.%scl_id = 0;\n\telse\n", \
+			printf("\t\tmsg.%scl_id = 0;\n\telse\n", \
 			    args[i]) >> CFILE
 			if (c_type[i] == "DB_TXN *") {
-				printf("\t\treq.%scl_id = %s->txnid;\n", \
+				printf("\t\tmsg.%scl_id = %s->txnid;\n", \
 				    args[i], args[i]) >> CFILE
 			} else {
-				printf("\t\treq.%scl_id = %s->cl_id;\n", \
+				printf("\t\tmsg.%scl_id = %s->cl_id;\n", \
 				    args[i], args[i]) >> CFILE
 			}
 		}
+		if (rpc_type[i] == "GID") {
+			printf("\tmemcpy(msg.%s, %s, %d);\n", \
+			    args[i], args[i], xidsize) >> CFILE
+		}
 		if (rpc_type[i] == "INT") {
-			printf("\treq.%s = %s;\n", args[i], args[i]) >> CFILE
+			printf("\tmsg.%s = %s;\n", args[i], args[i]) >> CFILE
 		}
 		if (rpc_type[i] == "STRING") {
 			printf("\tif (%s == NULL)\n", args[i]) >> CFILE
-			printf("\t\treq.%s = \"\";\n", args[i]) >> CFILE
+			printf("\t\tmsg.%s = \"\";\n", args[i]) >> CFILE
 			printf("\telse\n") >> CFILE
-			printf("\t\treq.%s = (char *)%s;\n", \
+			printf("\t\tmsg.%s = (char *)%s;\n", \
 			    args[i], args[i]) >> CFILE
 		}
 		if (rpc_type[i] == "DBT") {
-			printf("\treq.%sdlen = %s->dlen;\n", \
+			printf("\tmsg.%sdlen = %s->dlen;\n", \
 			    args[i], args[i]) >> CFILE
-			printf("\treq.%sdoff = %s->doff;\n", \
+			printf("\tmsg.%sdoff = %s->doff;\n", \
 			    args[i], args[i]) >> CFILE
-			printf("\treq.%sflags = %s->flags;\n", \
+			printf("\tmsg.%sulen = %s->ulen;\n", \
 			    args[i], args[i]) >> CFILE
-			printf("\treq.%sdata.%sdata_val = %s->data;\n", \
+			printf("\tmsg.%sflags = %s->flags;\n", \
+			    args[i], args[i]) >> CFILE
+			printf("\tmsg.%sdata.%sdata_val = %s->data;\n", \
 			    args[i], args[i], args[i]) >> CFILE
-			printf("\treq.%sdata.%sdata_len = %s->size;\n", \
+			printf("\tmsg.%sdata.%sdata_len = %s->size;\n", \
 			    args[i], args[i], args[i]) >> CFILE
 		}
 		if (rpc_type[i] == "LIST") {
-			printf("\tif ((ret = __dbcl_%s_%slist(", \
-			    name, args[i]) >> CFILE
-			printf("&req.%slist, %s)) != 0)\n", \
+			printf("\tfor (%si = 0, %sp = %s; *%sp != 0; ", \
+			    args[i], args[i], args[i], args[i]) >> CFILE
+			printf(" %si++, %sp++)\n\t\t;\n", args[i], args[i]) \
+			    >> CFILE
+
+			#
+			# If we are an array of ints, *_len is how many
+			# elements.  If we are a GID, *_len is total bytes.
+			#
+			printf("\tmsg.%s.%s_len = %si",args[i], args[i], \
+			    args[i]) >> CFILE
+			if (list_type[i] == "GID")
+				printf(" * %d;\n", xidsize) >> CFILE
+			else
+				printf(";\n") >> CFILE
+			printf("\tif ((ret = __os_calloc(") >> CFILE
+			if (!env_handle)
+				printf("dbenv,\n") >> CFILE
+			else
+				printf("%s,\n", args[env_idx]) >> CFILE
+			printf("\t    msg.%s.%s_len,", \
 			    args[i], args[i]) >> CFILE
-			printf("\t\tgoto out;\n") >> CFILE
+			if (list_type[i] == "GID")
+				printf(" 1,") >> CFILE
+			else
+				printf(" sizeof(u_int32_t),") >> CFILE
+			printf(" &msg.%s.%s_val)) != 0)\n",\
+			    args[i], args[i], args[i], args[i]) >> CFILE
+			printf("\t\treturn (ret);\n") >> CFILE
+			printf("\tfor (%sq = msg.%s.%s_val, %sp = %s; ", \
+			    args[i], args[i], args[i], \
+			    args[i], args[i]) >> CFILE
+			printf("%si--; %sq++, %sp++)\n", \
+			    args[i], args[i], args[i]) >> CFILE
+			printf("\t\t*%sq = ", args[i]) >> CFILE
+			if (list_type[i] == "GID")
+				printf("*%sp;\n", args[i]) >> CFILE
+			if (list_type[i] == "ID")
+				printf("(*%sp)->cl_id;\n", args[i]) >> CFILE
+			if (list_type[i] == "INT")
+				printf("*%sp;\n", args[i]) >> CFILE
 		}
 	}
 
 	printf("\n") >> CFILE
-	printf("\treplyp = __db_%s_%d(&req, cl);\n", name, msgid) >> CFILE
+	printf("\treplyp = __db_%s_%d%03d(&msg, cl);\n", name, major, minor) \
+	    >> CFILE
+	for (i = 0; i < nvars; ++i) {
+		if (rpc_type[i] == "LIST") {
+			printf("\t__os_free(") >> CFILE
+			if (!env_handle)
+				printf("dbenv, ") >> CFILE
+			else
+				printf("%s, ", args[env_idx]) >> CFILE
+			printf("msg.%s.%s_val);\n", args[i], args[i]) >> CFILE
+		}
+	}
 	printf("\tif (replyp == NULL) {\n") >> CFILE
 	if (!env_handle) {
 		printf("\t\t__db_err(dbenv, ") >> CFILE
@@ -1137,112 +1035,24 @@ END {
 	if (ret_code == 0) {
 		printf("\tret = replyp->status;\n") >> CFILE
 	} else {
-		for (i = 0; i < nvars; ++i) {
-			if (rpc_type[i] == "LIST") {
-				printf("\t__dbcl_%s_%sfree(&req.%slist);\n", \
-				    name, args[i], args[i]) >> CFILE
-			}
-		}
-		printf("\treturn (__dbcl_%s_ret(", name) >> CFILE
+		printf("\tret = __dbcl_%s_ret(", name) >> CFILE
 		sep = "";
 		for (i = 0; i < nvars; ++i) {
 			printf("%s%s", sep, args[i]) >> CFILE
 			sep = ", ";
 		}
-		printf("%sreplyp));\n", sep) >> CFILE
+		printf("%sreplyp);\n", sep) >> CFILE
 	}
 	printf("out:\n") >> CFILE
-	for (i = 0; i < nvars; ++i) {
-		if (rpc_type[i] == "LIST") {
-			printf("\t__dbcl_%s_%sfree(&req.%slist);\n", \
-			    name, args[i], args[i]) >> CFILE
-		}
-	}
+	#
+	# Free reply if there was one.
+	#
+	printf("\tif (replyp != NULL)\n") >> CFILE
+	printf("\t\txdr_free((xdrproc_t)xdr___%s_reply,",name) >> CFILE
+	printf(" (void *)replyp);\n") >> CFILE
 	printf("\treturn (ret);\n") >> CFILE
 	printf("}\n\n") >> CFILE
 
-	#
-	# If we are doing a list, write list functions for op.
-	#
-	for (i = 0; i < nvars; i++) {
-		if (rpc_type[i] != "LIST")
-			continue;
-		printf("int\n__dbcl_%s_%slist(locp, pp)\n", \
-		    name, args[i]) >> CFILE
-		printf("\t__%s_%slist **locp;\n", name, args[i]) >> CFILE
-		if (list_type[i] == "STRING")
-			printf("\t%s pp;\n{\n\t%s p;\n", \
-			    c_type[i], c_type[i]) >> CFILE
-		if (list_type[i] == "INT")
-			printf("\tu_int32_t *pp;\n{\n\tu_int32_t *p, *q;\n") \
-			    >> CFILE
-		if (list_type[i] == "ID")
-			printf("\t%s pp;\n{\n\t%s p;\n\tu_int32_t *q;\n", \
-			    c_type[i], c_type[i]) >> CFILE
-
-		printf("\tint ret;\n") >> CFILE
-		printf("\t__%s_%slist *nl, **nlp;\n\n", name, args[i]) >> CFILE
-		printf("\t*locp = NULL;\n") >> CFILE
-		printf("\tif (pp == NULL)\n\t\treturn (0);\n") >> CFILE
-		printf("\tnlp = locp;\n") >> CFILE
-		printf("\tfor (p = pp; *p != 0; p++) {\n") >> CFILE
-		printf("\t\tif ((ret = __os_malloc(NULL, ") >> CFILE
-		printf("sizeof(*nl), NULL, nlp)) != 0)\n") >> CFILE
-		printf("\t\t\tgoto out;\n") >> CFILE
-		printf("\t\tnl = *nlp;\n") >> CFILE
-		printf("\t\tnl->next = NULL;\n") >> CFILE
-		printf("\t\tnl->ent.ent_val = NULL;\n") >> CFILE
-		printf("\t\tnl->ent.ent_len = 0;\n") >> CFILE
-		if (list_type[i] == "STRING") {
-			printf("\t\tif ((ret = __os_strdup(NULL, ") >> CFILE
-			printf("*p, &nl->ent.ent_val)) != 0)\n") >> CFILE
-			printf("\t\t\tgoto out;\n") >> CFILE
-			printf("\t\tnl->ent.ent_len = strlen(*p)+1;\n") >> CFILE
-		}
-		if (list_type[i] == "INT") {
-			printf("\t\tif ((ret = __os_malloc(NULL, ") >> CFILE
-			printf("sizeof(%s), NULL, &nl->ent.ent_val)) != 0)\n", \
-			    c_type[i]) >> CFILE
-			printf("\t\t\tgoto out;\n") >> CFILE
-			printf("\t\tq = (u_int32_t *)nl->ent.ent_val;\n") \
-			    >> CFILE
-			printf("\t\t*q = *p;\n") >> CFILE
-			printf("\t\tnl->ent.ent_len = sizeof(%s);\n", \
-			    c_type[i]) >> CFILE
-		}
-		if (list_type[i] == "ID") {
-			printf("\t\tif ((ret = __os_malloc(NULL, ") >> CFILE
-			printf("sizeof(u_int32_t),") >> CFILE
-			printf(" NULL, &nl->ent.ent_val)) != 0)\n") >> CFILE
-			printf("\t\t\tgoto out;\n") >> CFILE
-			printf("\t\tq = (u_int32_t *)nl->ent.ent_val;\n") \
-			    >> CFILE
-			printf("\t\t*q = (*p)->cl_id;\n") >> CFILE
-			printf("\t\tnl->ent.ent_len = sizeof(u_int32_t);\n") \
-			    >> CFILE
-		}
-		printf("\t\tnlp = &nl->next;\n") >> CFILE
-		printf("\t}\n") >> CFILE
-		printf("\treturn (0);\n") >> CFILE
-		printf("out:\n") >> CFILE
-		printf("\t__dbcl_%s_%sfree(locp);\n", name, args[i]) >> CFILE
-		printf("\treturn (ret);\n") >> CFILE
-
-		printf("}\n\n") >> CFILE
-
-		printf("void\n__dbcl_%s_%sfree(locp)\n", name, args[i]) >> CFILE
-		printf("\t__%s_%slist **locp;\n", name, args[i]) >> CFILE
-		printf("{\n") >> CFILE
-		printf("\t__%s_%slist *nl, *nl1;\n\n", name, args[i]) >> CFILE
-		printf("\tif (locp == NULL)\n\t\treturn;\n") >> CFILE
-		printf("\tfor (nl = *locp; nl != NULL; nl = nl1) {\n") >> CFILE
-		printf("\t\tnl1 = nl->next;\n") >> CFILE
-		printf("\t\tif (nl->ent.ent_val)\n") >> CFILE
-		printf("\t\t\t__os_free(nl->ent.ent_val, nl->ent.ent_len);\n") \
-		    >> CFILE
-		printf("\t\t__os_free(nl, sizeof(*nl));\n") >> CFILE
-		printf("\t}\n}\n\n") >> CFILE
-	}
 	#
 	# Generate Client Template code
 	#
@@ -1250,38 +1060,16 @@ END {
 		#
 		# If we are doing a list, write prototypes
 		#
-		for (i = 0; i < rvars; ++i) {
-			if (ret_type[i] != "LIST")
-				continue;
-			if (retlist_type[i] != "STRING" &&
-			    retlist_type[i] != "INT" && list_type[i] != "ID")
-				continue;
-			printf("int __db_%s_%sreplist __P((", \
-			    name, retargs[i]) >> TFILE
-			printf("__%s_%sreplist, ", \
-			    name, retargs[i]) >> TFILE
-			if (retlist_type[i] == "STRING") {
-				printf("char ***));\n") >> TFILE
-			}
-			if (retlist_type[i] == "INT" ||
-			    retlist_type[i] == "ID") {
-				printf("u_int32_t **));\n") >> TFILE
-			}
-			printf("void __db_%s_%sfree __P((", \
-			    name, retargs[i]) >> TFILE
-			if (retlist_type[i] == "STRING")
-				printf("char **));\n") >> TFILE
-			if (retlist_type[i] == "INT" || retlist_type[i] == "ID")
-				printf("u_int32_t *));\n\n") >> TFILE
-		}
-
-		printf("int __dbcl_%s_ret __P((", name) >> CHFILE
-		sep = "";
+		pi = 1;
+		p[pi++] = sprintf("int __dbcl_%s_ret __P((", name);
+		p[pi++] = "";
 		for (i = 0; i < nvars; ++i) {
-			printf("%s%s", sep, pr_type[i]) >> CHFILE
-			sep = ", ";
+			p[pi++] = pr_type[i];
+			p[pi++] = ", ";
 		}
-		printf("%s__%s_reply *));\n", sep, name) >> CHFILE
+		p[pi++] = sprintf("__%s_reply *));", name);
+		p[pi++] = "";
+		proto_format(p, 0, TFILE);
 
 		printf("int\n") >> TFILE
 		printf("__dbcl_%s_ret(", name) >> TFILE
@@ -1310,12 +1098,12 @@ END {
 				printf("\t%s %s;\n", \
 				    retc_type[i], retargs[i]) >> TFILE
 			} else if (ret_type[i] == "LIST") {
-				if (retlist_type[i] == "STRING")
-					printf("\tchar **__db_%slist;\n", \
+				if (retlist_type[i] == "GID")
+					printf("\tu_int8_t *__db_%s;\n", \
 					    retargs[i]) >> TFILE
 				if (retlist_type[i] == "ID" ||
 				    retlist_type[i] == "INT")
-					printf("\tu_int32_t *__db_%slist;\n", \
+					printf("\tu_int32_t *__db_%s;\n", \
 					    retargs[i]) >> TFILE
 			} else {
 				printf("\t/* %s %s; */\n", \
@@ -1347,16 +1135,9 @@ END {
 				printf("\t%s = replyp->%s;\n", \
 				    retargs[i], varname) >> TFILE
 			} else if (ret_type[i] == "LIST") {
-				printf("\n\tif ((ret = __db_%s_%slist(", \
-				    name, retargs[i]) >> TFILE
-				printf("replyp->%slist, &__db_%slist)) != 0)", \
-				    retargs[i], retargs[i]) >> TFILE
-				printf("\n\t\treturn (ret);\n") >> TFILE
 				printf("\n\t/*\n") >> TFILE
 				printf("\t * XXX Handle list\n") >> TFILE
 				printf("\t */\n\n") >> TFILE
-				printf("\t__db_%s_%sfree(__db_%slist);\n", \
-				    name, retargs[i], retargs[i]) >> TFILE
 			} else {
 				printf("\t/* Handle replyp->%s; */\n", \
 				    varname) >> TFILE
@@ -1365,118 +1146,69 @@ END {
 		printf("\n\t/*\n\t * XXX Code goes here\n\t */\n\n") >> TFILE
 		printf("\treturn (replyp->status);\n") >> TFILE
 		printf("}\n\n") >> TFILE
-		#
-		# If we are doing a list, write list functions for this op.
-		#
-		for (i = 0; i < rvars; ++i) {
-			if (ret_type[i] != "LIST")
-				continue;
-			if (retlist_type[i] != "STRING" &&
-			    retlist_type[i] != "INT" && list_type[i] != "ID")
-				continue;
-			printf("int\n") >> TFILE
-			printf("__db_%s_%sreplist(locp, ppp)\n", \
-			    name, retargs[i]) >> TFILE
-			printf("\t__%s_%sreplist *locp;\n", \
-			    name, retargs[i]) >> TFILE
-			if (retlist_type[i] == "STRING") {
-				printf("\tchar ***ppp;\n{\n") >> TFILE
-				printf("\tchar **pp;\n") >> TFILE
-			}
-			if (retlist_type[i] == "INT" ||
-			    retlist_type[i] == "ID") {
-				printf("\tu_int32_t **ppp;\n{\n") >> TFILE
-				printf("\tu_int32_t *pp;\n") >> TFILE
-			}
-
-			printf("\tint cnt, ret, size;\n") >> TFILE
-			printf("\t__%s_%sreplist *nl;\n\n", \
-			    name, retargs[i]) >> TFILE
-			printf("\tfor (cnt = 0, nl = locp; ") >> TFILE
-			printf("nl != NULL; cnt++, nl = nl->next)\n\t\t;\n\n") \
-			    >> TFILE
-			printf("\tif (cnt == 0) {\n") >> TFILE
-			printf("\t\t*ppp = NULL;\n") >> TFILE
-			printf("\t\treturn (0);\n\t}\n") >> TFILE
-			printf("\tsize = sizeof(*pp) * cnt;\n") >> TFILE
-			printf("\tif ((ret = __os_malloc(NULL, ") >> TFILE
-			printf("size, NULL, ppp)) != 0)\n") >> TFILE
-			printf("\t\treturn (ret);\n") >> TFILE
-			printf("\tmemset(*ppp, 0, size);\n") >> TFILE
-			printf("\tfor (pp = *ppp, nl = locp; ") >> TFILE
-			printf("nl != NULL; nl = nl->next, pp++) {\n") >> TFILE
-			if (retlist_type[i] == "STRING") {
-				printf("\t\tif ((ret = __os_malloc(NULL, ") \
-				    >> TFILE
-				printf("nl->ent.ent_len + 1, NULL,") >> TFILE
-				printf(" pp)) != 0)\n") >> TFILE
-				printf("\t\t\tgoto out;\n") >> TFILE
-				printf("\t\tif ((ret = __os_strdup(") >> TFILE
-				printf("NULL, (char *)nl->ent.ent_val,") \
-				    >> TFILE
-				printf(" pp)) != 0)\n") >> TFILE
-				printf("\t\t\tgoto out;\n") >> TFILE
-			}
-			if (retlist_type[i] == "INT" ||
-			    retlist_type[i] == "ID") {
-				printf("\t\t*pp = *(u_int32_t *)") >> TFILE
-				printf("nl->ent.ent_val;\n") >> TFILE
-			}
-			printf("\t}\n") >> TFILE
-			printf("\treturn (0);\n") >> TFILE
-			printf("out:\n") >> TFILE
-			printf("\t__db_%s_%sfree(*ppp);\n", \
-			    name, retargs[i]) >> TFILE
-			printf("\treturn (ret);\n") >> TFILE
-			printf("}\n\n") >> TFILE
-
-			printf("void\n") >> TFILE
-			printf("__db_%s_%sfree(pp)\n", \
-			    name, retargs[i]) >> TFILE
-
-			if (retlist_type[i] == "STRING")
-				printf("\tchar **pp;\n") >> TFILE
-			if (retlist_type[i] == "INT" || retlist_type[i] == "ID")
-				printf("\tu_int32_t *pp;\n") >> TFILE
-
-			printf("{\n") >> TFILE
-			printf("\tsize_t size;\n") >> TFILE
-
-			if (retlist_type[i] == "STRING")
-				printf("\tchar **p;\n\n") >> TFILE
-			if (retlist_type[i] == "INT" || retlist_type[i] == "ID")
-				printf("\tu_int32_t *p;\n\n") >> TFILE
-
-			printf("\tif (pp == NULL)\n\t\treturn;\n") >> TFILE
-			printf("\tsize = sizeof(*p);\n") >> TFILE
-			printf("\tfor (p = pp; *p != 0; p++) {\n") >> TFILE
-			printf("\t\tsize += sizeof(*p);\n") >> TFILE
-
-			if (retlist_type[i] == "STRING")
-				printf("\t\t__os_free(*p, strlen(*p)+1);\n") \
-				    >> TFILE
-			printf("\t}\n") >> TFILE
-			printf("\t__os_free(pp, size);\n") >> TFILE
-			printf("}\n\n") >> TFILE
-		}
 	}
 }
 
 #
 # split_lines --
 #	Add line separators to pretty-print the output.
-function split_lines(is_public) {
+function split_lines() {
 	if (argcount > 3) {
 		# Reset the counter, remove any trailing whitespace from
 		# the separator.
 		argcount = 0;
 		sub("[ 	]$", "", sep)
 
-		if (is_public) {
-			printf("%s\n\t", sep) >> SHFILE
-		} else {
-			printf("%s\n\t\t", sep) >> PFILE
-			printf("%s\\\n\\\t\\\t", sep) >> SEDFILE
+		printf("%s\n\t\t", sep) >> PFILE
+		printf("%s\\\n\\\t\\\t", sep) >> SEDFILE
+	}
+}
+
+# proto_format --
+#	Pretty-print a function prototype.
+function proto_format(p, sedfile, OUTPUT)
+{
+	if (sedfile)
+		printf("/*\\\n") >> OUTPUT;
+	else
+		printf("/*\n") >> OUTPUT;
+
+	s = "";
+	for (i = 1; i in p; ++i)
+		s = s p[i];
+
+	if (sedfile)
+		t = "\\ * PUBLIC: "
+	else
+		t = " * PUBLIC: "
+	if (length(s) + length(t) < 80)
+		if (sedfile)
+			printf("%s%s", t, s) >> OUTPUT;
+		else
+			printf("%s%s", t, s) >> OUTPUT;
+	else {
+		split(s, p, "__P");
+		len = length(t) + length(p[1]);
+		printf("%s%s", t, p[1]) >> OUTPUT
+
+		n = split(p[2], comma, ",");
+		comma[1] = "__P" comma[1];
+		for (i = 1; i <= n; i++) {
+			if (len + length(comma[i]) > 75) {
+				if (sedfile)
+					printf(\
+					    "\\\n\\ * PUBLIC:     ") >> OUTPUT;
+				else
+					printf("\n * PUBLIC:     ") >> OUTPUT;
+				len = 0;
+			}
+			printf("%s%s", comma[i], i == n ? "" : ",") >> OUTPUT;
+			len += length(comma[i]);
 		}
 	}
+	if (sedfile)
+		printf("\\\n\\ */\\\n") >> OUTPUT;
+	else
+		printf("\n */\n") >> OUTPUT;
+	delete p;
 }

@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: log_compare.c,v 11.3 2000/02/14 02:59:59 bostic Exp $";
+static const char revid[] = "$Id: log_compare.c,v 11.6 2002/01/11 15:52:50 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -19,6 +19,8 @@ static const char revid[] = "$Id: log_compare.c,v 11.3 2000/02/14 02:59:59 bosti
 /*
  * log_compare --
  *	Compare two LSN's; return 1, 0, -1 if first is >, == or < second.
+ *
+ * EXTERN: int log_compare __P((const DB_LSN *, const DB_LSN *));
  */
 int
 log_compare(lsn0, lsn1)

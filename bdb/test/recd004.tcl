@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: recd004.tcl,v 11.21 2000/12/11 17:24:55 sue Exp $
+# $Id: recd004.tcl,v 11.29 2002/02/25 16:44:25 sandstro Exp $
 #
-# Recovery Test #4.
-# Verify that we work correctly when big keys get elevated.
+# TEST	recd004
+# TEST	Big key test where big key gets elevated to internal page.
 proc recd004 { method {select 0} args} {
 	source ./include.tcl
 	global rand_init
@@ -32,7 +32,7 @@ proc recd004 { method {select 0} args} {
 	set testfile2 recd004-2.db
 	set eflags "-create -txn -home $testdir"
 	puts "\tRecd004.a: creating environment"
-	set env_cmd "berkdb env $eflags"
+	set env_cmd "berkdb_env $eflags"
 	set dbenv [eval $env_cmd]
 	error_check_bad dbenv $dbenv NULL
 
@@ -74,8 +74,13 @@ proc recd004 { method {select 0} args} {
 		}
 		op_recover abort $testdir $env_cmd $testfile $cmd $msg
 		op_recover commit $testdir $env_cmd $testfile $cmd $msg
-		op_recover prepare $testdir $env_cmd $testfile2 $cmd $msg
+		#
+		# Note that since prepare-discard ultimately aborts
+		# the txn, it must come before prepare-commit.
+		#
 		op_recover prepare-abort $testdir $env_cmd $testfile2 \
+			$cmd $msg
+		op_recover prepare-discard $testdir $env_cmd $testfile2 \
 			$cmd $msg
 		op_recover prepare-commit $testdir $env_cmd $testfile2 \
 			$cmd $msg
