@@ -104,6 +104,7 @@ sys_var_str		sys_charset("character_set",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
+sys_var_thd_client_charset sys_client_charset("client_character_set");
 sys_var_thd_conv_charset sys_convert_charset("convert_character_set");
 sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
@@ -331,6 +332,7 @@ sys_var *sys_variables[]=
   &sys_binlog_cache_size,
   &sys_buffer_results,
   &sys_bulk_insert_buff_size,
+  &sys_client_charset,
   &sys_concurrent_insert,
   &sys_connect_timeout,
   &sys_convert_charset,
@@ -437,6 +439,7 @@ struct show_var_st init_vars[]= {
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
   {sys_charset.name, 	      (char*) &sys_charset,		     SHOW_SYS},
   {"character_sets",          (char*) &charsets_list,               SHOW_CHAR_PTR},
+  {sys_client_charset.name,   (char*) &sys_client_charset,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {sys_convert_charset.name,  (char*) &sys_convert_charset,	    SHOW_SYS},
@@ -1074,7 +1077,7 @@ byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
 {
   ulong val;
   char buff[256];
-  String tmp(buff, sizeof(buff), default_charset_info);
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
   my_bool found= 0;
 
   tmp.length(0);
@@ -1171,6 +1174,55 @@ byte *sys_var_thd_conv_charset::value_ptr(THD *thd, enum_var_type type)
 		  global_system_variables.convert_set :
 		  thd->variables.convert_set);
   return conv ? (byte*) conv->name : (byte*) "";
+}
+
+
+bool sys_var_thd_client_charset::check(THD *thd, set_var *var)
+{
+  CHARSET_INFO *tmp;
+  char buff[80];
+  String str(buff,sizeof(buff), system_charset_info), *res;
+
+  if (!var->value)					// Default value
+  {
+    var->save_result.charset= (var->type != OPT_GLOBAL ?
+			       global_system_variables.thd_charset
+			       : default_charset_info);
+    return 0;
+  }
+
+  if (!(res=var->value->val_str(&str)))
+    res= &empty_string;
+
+  if (!(tmp=get_charset_by_csname(res->c_ptr(),MYF(0))))
+  {
+    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+    return 1;
+  }
+  var->save_result.charset= tmp;	// Save for update
+  return 0;
+}
+
+bool sys_var_thd_client_charset::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.thd_charset= var->save_result.charset;
+  else
+  {
+    thd->variables.thd_charset= var->save_result.charset;
+    thd->protocol_simple.init(thd);
+    thd->protocol_prep.init(thd);
+  }
+  return 0;
+}
+
+
+byte *sys_var_thd_client_charset::value_ptr(THD *thd, enum_var_type type)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.thd_charset :
+		  thd->variables.thd_charset);
+  return cs ? (byte*) cs->csname : (byte*) "";
 }
 
 

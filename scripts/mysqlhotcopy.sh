@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.17";
+my $VERSION = "1.18";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -173,6 +173,7 @@ my $dbh = DBI->connect("dbi:mysql:$dsn;mysql_read_default_group=mysqlhotcopy",
 
 # --- check that checkpoint table exists if specified ---
 if ( $opt{checkpoint} ) {
+    $opt{checkpoint} = quote_names( $opt{checkpoint} );
     eval { $dbh->do( qq{ select time_stamp, src, dest, msg 
 			 from $opt{checkpoint} where 1 != 1} );
        };
@@ -183,6 +184,8 @@ if ( $opt{checkpoint} ) {
 
 # --- check that log_pos table exists if specified ---
 if ( $opt{record_log_pos} ) {
+    $opt{record_log_pos} = quote_names( $opt{record_log_pos} );
+
     eval { $dbh->do( qq{ select host, time_stamp, log_file, log_pos, master_host, master_log_file, master_log_pos
 			 from $opt{record_log_pos} where 1 != 1} );
        };
@@ -309,7 +312,7 @@ foreach my $rdb ( @db_desc ) {
 
     $rdb->{files}  = [ @db_files ];
     $rdb->{index}  = [ @index_files ];
-    my @hc_tables = map { "`$db`.`$_`" } @dbh_tables;
+    my @hc_tables = map { quote_names("$db.$_") } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
 
     $rdb->{raid_dirs} = [ get_raid_dirs( $rdb->{files} ) ];
@@ -569,7 +572,7 @@ sub copy_files {
 	my @non_raid = map { "'$_'" } grep { ! m:/\d{2}/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
-	safe_system( @cp, @non_raid, "'$target'" );
+	safe_system( @cp, @non_raid, "'$target'" ) if (@non_raid);
 	
 	foreach my $rd ( @$raid_dirs ) {
 	    my @raid = map { "'$_'" } grep { m:$rd/: } @$files;
@@ -756,6 +759,16 @@ sub get_list_of_tables {
     my @dbh_tables = eval { $dbh->tables() };
     $dbh->disconnect();
     return @dbh_tables;
+}
+
+sub quote_names {
+  my ( $name ) = @_;
+  # given a db.table name, add quotes
+
+  my ($db, $table, @cruft) = split( /\./, $name );
+  die "Invalid db.table name '$name'" if (@cruft || !defined $db || !defined $table );
+
+  return "`$db`.`$table`";
 }
 
 __END__

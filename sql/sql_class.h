@@ -677,6 +677,7 @@ public:
     is_fatal_error= 1;
     net.report_error= 1; 
   }
+  inline CHARSET_INFO *charset() { return variables.thd_charset; }
 };
 
 /*

@@ -444,6 +444,11 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime);
 #endif
 
+#if defined(HPUX10)
+#define pthread_attr_getstacksize(A,B) my_pthread_attr_getstacksize(A,B)
+void my_pthread_attr_getstacksize(pthread_attr_t *attrib, size_t *size);
+#endif
+
 #if defined(HAVE_POSIX1003_4a_MUTEX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #undef pthread_mutex_trylock
 #define pthread_mutex_trylock(a) my_pthread_mutex_trylock((a))

@@ -81,7 +81,7 @@ ut_malloc_low(
 		fprintf(stderr,
 		"  InnoDB: Fatal error: cannot allocate %lu bytes of\n"
 		"InnoDB: memory with malloc! Total allocated memory\n"
-		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
+		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
 		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
@@ -89,7 +89,13 @@ ut_malloc_low(
 		"InnoDB: a big enough maximum process size.\n"
 		"InnoDB: We now intentionally generate a seg fault so that\n"
 		"InnoDB: on Linux we get a stack trace.\n",
-		                  n, ut_total_allocated_memory, errno);
+		                  n, ut_total_allocated_memory,
+#ifdef __WIN__
+			(ulint)GetLastError()
+#else
+			(ulint)errno
+#endif
+			);
 
 		/* Flush stderr to make more probable that the error
 		message gets in the error file before we generate a seg

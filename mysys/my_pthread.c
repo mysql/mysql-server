@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -393,6 +393,7 @@ int pthread_signal(int sig, void (*func)())
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef pthread_cond_t
+#undef pthread_attr_getstacksize
 
 /*****************************************************************************
 ** Patches for AIX and DEC OSF/1 3.2
@@ -462,6 +463,15 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   if (error == EAGAIN)			/* Correct errno to Posix */
     error= ETIMEDOUT;
   return error;
+}
+#endif
+
+#if defined(HPUX10)
+
+void my_pthread_attr_getstacksize(pthread_attr_t *connection_attrib,
+				  size_t *stack_size)
+{
+  *stack_size= pthread_attr_getstacksize(*connection_attrib);
 }
 #endif
 

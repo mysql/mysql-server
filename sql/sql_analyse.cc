@@ -278,7 +278,7 @@ void free_string(String *s)
 void field_str::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr;
-  String s(buff, sizeof(buff),default_charset_info), *res;
+  String s(buff, sizeof(buff),&my_charset_bin), *res;
   ulong length;
 
   if (!(res = item->val_str(&s)))
@@ -581,9 +581,9 @@ bool analyse::end_of_records()
 {
   field_info **f = f_info;
   char buff[MAX_FIELD_WIDTH];
-  String *res, s_min(buff, sizeof(buff),default_charset_info), 
-	 s_max(buff, sizeof(buff),default_charset_info),
-	 ans(buff, sizeof(buff),default_charset_info);
+  String *res, s_min(buff, sizeof(buff),&my_charset_bin), 
+	 s_max(buff, sizeof(buff),&my_charset_bin),
+	 ans(buff, sizeof(buff),&my_charset_bin);
 
   for (; f != f_end; f++)
   {
@@ -629,14 +629,14 @@ bool analyse::end_of_records()
 	   ((*f)->tree.elements_in_tree * 3 - 1 + 6))))
     {
       char tmp[331]; //331, because one double prec. num. can be this long
-      String tmp_str(tmp, sizeof(tmp),default_charset_info);
+      String tmp_str(tmp, sizeof(tmp),&my_charset_bin);
       TREE_INFO tree_info;
 
       tree_info.str = &tmp_str;
       tree_info.found = 0;
       tree_info.item = (*f)->item;
 
-      tmp_str.set("ENUM(", 5,default_charset_info);
+      tmp_str.set("ENUM(", 5,&my_charset_bin);
       tree_walk(&(*f)->tree, (*f)->collect_enum(), (char*) &tree_info,
 		left_root_right);
       tmp_str.append(')');
@@ -919,14 +919,14 @@ int collect_longlong(longlong *element,
 		     TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff),default_charset_info);
+  String s(buff, sizeof(buff),&my_charset_bin);
 
   if (info->found)
     info->str->append(',');
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element,default_charset_info);
+  s.set(*element, current_thd->variables.thd_charset);
   info->str->append(s);
   info->str->append('\'');
   return 0;
@@ -938,14 +938,14 @@ int collect_ulonglong(ulonglong *element,
 		      TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff),default_charset_info);
+  String s(buff, sizeof(buff),&my_charset_bin);
 
   if (info->found)
     info->str->append(',');
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element,default_charset_info);
+  s.set(*element, current_thd->variables.thd_charset);
   info->str->append(s);
   info->str->append('\'');
   return 0;
