@@ -41175,7 +41175,7 @@ not yet 100 % confident in this code.
 
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
-@itemize bullet
+@itemize @bullet
 @item
 Added @code{--character-sets-dir} to @code{myisampack}.
 @item
