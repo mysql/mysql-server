@@ -49825,6 +49825,14 @@ however remains to be added later.
 Another feature that has to be added later is grouping of select list
 itmes in order to alleviate user errors. For the moment, missing
 (hidden) columns are not used at all.
+
+Third feature to be done is to make  SQL SET OPTION to set values for
+all values of the column optionally to:
+
+* ALL (as it is now)
+* NULL 
+* blank
+
 -------------------------------------------------------------------------
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
