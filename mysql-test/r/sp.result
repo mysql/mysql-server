@@ -135,6 +135,26 @@ cbv1	4711
 delete from t1;
 drop procedure cbv1;
 drop procedure cbv2;
+insert into t2 values ("a", 1, 1.1), ("b", 2, 1.2), ("c", 3, 1.3);
+create procedure sub1(id char(16), x int)
+insert into test.t1 values (id, x);
+create function sub3(i int) returns int
+return i+1;
+call sub1("sub1a", (select 7));
+call sub1("sub1b", (select max(i) from t2));
+call sub1("sub1c", (select i,d from t2 limit 1));
+call sub1("sub1d", (select 1 from (select 1) a));
+select * from t1;
+id	data
+sub1a	7
+sub1b	3
+sub1c	1
+sub1d	1
+select sub3((select max(i) from t2));
+sub3((select max(i) from t2))
+4
+drop procedure sub1;
+drop function sub3;
 create procedure a0(x int)
 while x do
 set x = x-1;
@@ -143,6 +163,10 @@ end while;
 call a0(3);
 select * from t1;
 id	data
+sub1a	7
+sub1b	3
+sub1c	1
+sub1d	1
 a0	2
 a0	1
 a0	0
@@ -391,6 +415,9 @@ s	i	d
 xxxyyy	12	2.71828182845905
 select * from t2;
 s	i	d
+a	1	1.1
+b	2	1.2
+c	3	1.3
 xxxyyy	12	2.71828182845905
 ab	24	1324.36598821719
 delete from t2;

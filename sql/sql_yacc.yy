@@ -1399,7 +1399,8 @@ sp_labeled_control:
 	    LEX *lex= Lex;
 	    sp_label_t *lab= lex->spcont->find_label($5.str);
 
-	    if (! lab || strcasecmp($5.str, lab->name) != 0)
+	    if (!lab ||
+	        my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
 	    {
 	      net_printf(YYTHD, ER_SP_LABEL_MISMATCH, $5.str);
 	      YYABORT;
