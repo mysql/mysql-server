@@ -34,7 +34,7 @@
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"
-#include <NdbScanOperation.hpp>
+#include <NdbIndexScanOperation.hpp>
 #include "NdbBlob.hpp"
 
 #include <Interpreter.hpp>
@@ -317,7 +317,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       (!tAttrInfo->m_indexOnly) && 
       (theStatus != Init)){
     if (theStatus == SetBound) {
-      ((NdbScanOperation*)this)->saveBoundATTRINFO();
+      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
       theStatus = GetValue;
     }
     if (theStatus != GetValue) {
