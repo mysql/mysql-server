@@ -2461,9 +2461,10 @@ ha_innobase::write_row(
 	        /* If the insert did not succeed we restore the value of
 		the auto-inc counter we used; note that this behavior was
 		introduced only in version 4.0.4.
-		NOTE that a REPLACE command handles a duplicate key error
+		NOTE that a REPLACE command and LOAD DATA INFILE REPLACE
+		handles a duplicate key error
 		itself, and we must not decrement the autoinc counter
-		if we are performing a REPLACE statement.
+		if we are performing a those statements.
 		NOTE 2: if there was an error, for example a deadlock,
 		which caused InnoDB to roll back the whole transaction
 		already in the call of row_insert_for_mysql(), we may no
@@ -2475,7 +2476,9 @@ ha_innobase::write_row(
 	        if (error == DB_DUPLICATE_KEY
 		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
 			|| user_thd->lex->sql_command
-			                 == SQLCOM_REPLACE_SELECT)) {
+			                 == SQLCOM_REPLACE_SELECT
+		    	|| (user_thd->lex->sql_command == SQLCOM_LOAD
+			    && user_thd->lex->duplicates == DUP_REPLACE))) {
 
 		        skip_auto_inc_decr= TRUE;
 		}
@@ -4334,6 +4337,8 @@ ha_innobase::info(
 	ha_rows		rec_per_key;
 	ulong		j;
 	ulong		i;
+	char		path[FN_REFLEN];
+	os_file_stat_t  stat_info;
 
  	DBUG_ENTER("info");
 
@@ -4371,6 +4376,26 @@ ha_innobase::info(
 
 		prebuilt->trx->op_info = (char*)
 		                          "returning various info to MySQL";
+
+		if (ib_table->space != 0) {
+			my_snprintf(path, sizeof(path), "%s/%s%s",
+				    mysql_data_home, ib_table->name,
+				    ".ibd");
+			unpack_filename(path,path);
+		} else {
+			my_snprintf(path, sizeof(path), "%s/%s%s", 
+				    mysql_data_home, ib_table->name,
+				    reg_ext);
+		
+			unpack_filename(path,path);
+		}
+
+		/* Note that we do not know the access time of the table, 
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(path,&stat_info)) {
+			create_time = stat_info.ctime;
+		}
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -5501,6 +5526,7 @@ innobase_query_is_replace(void)
 	thd = (THD *)innobase_current_thd();
 	
 	if ( thd->lex->sql_command == SQLCOM_REPLACE ||
+	     thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
 	     ( thd->lex->sql_command == SQLCOM_LOAD &&
 	       thd->lex->duplicates == DUP_REPLACE )) {
 		return true;
