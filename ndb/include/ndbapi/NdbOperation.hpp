@@ -168,7 +168,6 @@ public:
    * @depricated
    */
   virtual int			dirtyRead();
-#endif
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
@@ -201,7 +200,9 @@ public:
    * @return 0 if successful otherwise -1.
    */
   virtual int			dirtyWrite();
+#endif
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /** 
    * @name Define Interpreted Program Operation Type
@@ -221,6 +222,7 @@ public:
    * @return 0 if successful otherwise -1.
    */
   virtual int			interpretedDeleteTuple();
+#endif
 
   /** @} *********************************************************************/
 
@@ -377,6 +379,7 @@ public:
   virtual NdbBlob* getBlobHandle(const char* anAttrName);
   virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /** 
    * @name Specify Interpreted Program Instructions
@@ -675,6 +678,7 @@ public:
    * @return -1 if unsuccessful. 
    */
   int   ret_sub();
+#endif
 
   /** @} *********************************************************************/
 
@@ -723,6 +727,7 @@ public:
   LockMode getLockMode() const { return theLockMode; }
   void setAbortOption(Int8 ao) { m_abortOption = ao; }
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Set/get distribution/partition key
    */
@@ -730,6 +735,7 @@ public:
   void setPartitionHash(Uint32 key);
   void setPartitionHash(const Uint64 *, Uint32 len);
   Uint32 getPartitionId() const;
+#endif
 protected:
   int handle_distribution_key(const Uint64 *, Uint32 len);
 protected:
