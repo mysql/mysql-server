@@ -1375,11 +1375,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   bool refresh;
   DBUG_ENTER("open_ltable");
 
-#ifdef __WIN__
-  /* Win32 can't drop a file that is open */
-  if (lock_type == TL_WRITE_ALLOW_READ)
-    lock_type= TL_WRITE;
-#endif
   thd->proc_info="Opening table";
   while (!(table=open_table(thd,table_list->db ? table_list->db : thd->db,
 			    table_list->real_name,table_list->name,
@@ -1387,6 +1382,19 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   if (table)
   {
     int error;
+
+#ifdef __WIN__
+    /* Win32 can't drop a file that is open */
+    if (lock_type == TL_WRITE_ALLOW_READ
+#ifdef HAVE_GEMINI_DB
+        && table->db_type != DB_TYPE_GEMINI
+#endif /* HAVE_GEMINI_DB */
+       )
+    {
+      lock_type= TL_WRITE;
+    }
+#endif /* __WIN__ */
+
     table_list->table=table;
     table->grant= table_list->grant;
     if (thd->locked_tables)

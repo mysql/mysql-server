@@ -65,7 +65,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cfg file, groups [mysqld], [mysql_server],
+# Get arguments from the my.cnf file, groups [mysqld], [mysql_server],
 # and mysql_multi_server
 if test -x ./bin/my_print_defaults
 then

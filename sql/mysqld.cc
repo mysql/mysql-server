@@ -3079,8 +3079,12 @@ static void usage(void)
   --console		Don't remove the console window\n\
   --install		Install mysqld as a service (NT)\n\
   --remove		Remove mysqld from the service list (NT)\n\
-  --standalone		Dummy option to start as a standalone program (NT)\n\
+  --standalone		Dummy option to start as a standalone program (NT)\
 ");
+#ifdef USE_SYMDIR
+  puts("--use-symbolic-links	Enable symbolic link support");
+#endif
+  puts("");
 #endif
 #ifdef HAVE_BERKELEY_DB
   puts("\

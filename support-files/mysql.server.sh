@@ -53,7 +53,7 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cfg file, groups [mysqld] and [mysql_server]
+# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"

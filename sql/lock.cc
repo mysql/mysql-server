@@ -35,6 +35,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
 				 bool unlock, TABLE **write_locked);
 static int lock_external(TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
+static void print_lock_error(int error);
 
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
@@ -154,7 +155,7 @@ static int lock_external(TABLE **tables,uint count)
 	(*tables)->file->external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
-      my_error(ER_CANT_LOCK,MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),error);
+      print_lock_error(error);
       DBUG_RETURN(error);
     }
     else
@@ -325,7 +326,7 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
     }
   }
   if (error_code)
-    my_error(ER_CANT_LOCK,MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),error_code);
+    print_lock_error(error_code);
   DBUG_RETURN(error_code);
 }
 
@@ -480,3 +481,24 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
   }
   DBUG_RETURN(result);
 }
+
+static void print_lock_error(int error)
+{
+  int textno;
+  DBUG_ENTER("print_lock_error");
+
+  switch (error) {
+  case HA_ERR_LOCK_WAIT_TIMEOUT:
+    textno=ER_LOCK_WAIT_TIMEOUT;
+    break;
+  case HA_ERR_READ_ONLY_TRANSACTION:
+    textno=ER_READ_ONLY_TRANSACTION;
+    break;
+  default:
+    textno=ER_CANT_LOCK;
+    break;
+  }
+  my_error(textno,MYF(ME_BELL+ME_OLDWIN+ME_WAITTANG),error);
+  DBUG_VOID_RETURN;
+}
+
