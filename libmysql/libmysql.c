@@ -2276,8 +2276,6 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
   else if (parent->options.db)
     child->options.db = my_strdup(parent->options.db, MYF(0));
 
-  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-
   return child;
 }
 
@@ -2291,9 +2289,6 @@ STDCALL mysql_set_master(MYSQL* mysql, const char* host,
     mysql_close(mysql->master);
   if (!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
     return 1;
-  mysql->master->rpl_pivot = 0;
-  mysql->master->options.rpl_parse = 0;
-  mysql->master->options.rpl_probe = 0;
   return 0;
 }
 
