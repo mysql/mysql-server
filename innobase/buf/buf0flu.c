@@ -21,6 +21,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 #include "os0file.h"
+#include "trx0sys.h"
 
 /* When flushed, dirty blocks are searched in neigborhoods of this size, and
 flushed along with the original page. */
