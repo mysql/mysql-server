@@ -401,7 +401,19 @@ public:
   Item_ref(char *db_par,char *table_name_par,char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
   Item_ref(Item **item, char *table_name_par,char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
+    :Item_ident(NullS,table_name_par,field_name_par),ref(item)
+  {
+    /*
+      This ctor is called from Item_XXX::split_sum_func, and fix_fields will
+      not be called for *this, so we must setup everything here. **ref is 
+      already fixed at this point.
+    */
+    max_length= (*ref)->max_length;
+    decimals=	(*ref)->decimals;
+    binary=	(*ref)->binary;
+    with_sum_func= (*ref)->with_sum_func;
+    maybe_null= (*ref)->maybe_null;
+  }
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return (*ref)->eq(item, binary_cmp); }
