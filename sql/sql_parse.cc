@@ -3877,7 +3877,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 	else
 	{
 	  mysql_execute_command(thd);
-	  query_cache_end_of_result(&thd->net);
+	  query_cache_end_of_result(thd);
 	}
       }
     }
