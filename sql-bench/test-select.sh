@@ -109,9 +109,19 @@ $end_time=new Benchmark;
 print "Time to insert ($opt_loop_count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
+if ($opt_lock_tables)
+{
+  do_query($dbh,"UNLOCK TABLES");
+}
+
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(0,\$dbh);
+  $server->vacuum(0,\$dbh,"bench1");
+}
+
+if ($opt_lock_tables)
+{
+  do_query($dbh,"LOCK TABLES bench1 WRITE");
 }
 
 ####
