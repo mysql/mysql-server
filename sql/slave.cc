@@ -27,6 +27,7 @@ pthread_t slave_real_id;
 MASTER_INFO glob_mi;
 HASH replicate_do_table, replicate_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
+bool table_rules_on = 0;
 
 
 static inline void skip_load_data_infile(NET* net);
@@ -58,6 +59,52 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 	    (hash_get_key) get_table_key,
 	    (void (*)(void*)) free_table_ent, 0);
   *h_inited = 1;
+}
+
+int tables_ok(THD* thd, TABLE_LIST* tables)
+{
+  for(; tables; tables = tables->next)
+    {
+      if(!tables->updating) 
+	continue;
+      char hash_key[2*NAME_LEN+2];
+      char* p;
+      p = strmov(hash_key, tables->db ? tables->db : thd->db);
+      *p++ = '.';
+      uint len = strmov(p, tables->real_name) - hash_key ;
+      if(do_table_inited) // if there are any do's
+	{
+	  if(hash_search(&replicate_do_table, hash_key, len))
+	    return 1;
+	}
+      if(ignore_table_inited) // if there are any do's
+	{
+	  if(hash_search(&replicate_ignore_table, hash_key, len))
+	    return 0; 
+	}
+    }
+
+  return !do_table_inited; // if no explicit rule found
+  // and there was a do list, do not replicate. If there was
+  // no do list, go ahead
+}
+
+
+int add_table_rule(HASH* h, const char* table_spec)
+{
+  char* dot = strchr(table_spec, '.');
+  if(!dot) return 1;
+  uint len = (uint)strlen(table_spec);
+  if(!len) return 1;
+  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
+						 + len, MYF(MY_WME));
+  if(!e) return 1;
+  e->db = (char*)e + sizeof(TABLE_RULE_ENT);
+  e->tbl_name = e->db + (dot - table_spec) + 1;
+  e->key_len = len;
+  memcpy(e->db, table_spec, len);
+  (void)hash_insert(h, (byte*)e);
+  return 0;
 }
 
 static inline bool slave_killed(THD* thd)
@@ -438,6 +485,7 @@ static int init_slave_thread(THD* thd)
   thd->max_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->priv_user = 0;
+  thd->slave_thread = 1;
   thd->options = (((opt_log_slave_updates) ? OPTION_BIN_LOG:0)
     | OPTION_AUTO_COMMIT | OPTION_AUTO_IS_NULL) ;
   thd->system_thread = 1;
@@ -655,14 +703,16 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       // unless set explictly
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
-      delete ev;
       
       if (thd->query_error)
       {
 	sql_print_error("Slave:  error running query '%s' ",
 			qev->query);
+	delete ev;
 	return 1;
       }
+      
+      delete ev;
 	    
       if(thd->fatal_error)
       {
@@ -897,6 +947,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
            goto err;
 	  
 	  thd->proc_info = "waiting to reconnect after a failed dump request";
+	  vio_close(mysql->net.vio); 
 	  safe_sleep(thd, glob_mi.connect_retry);
 	  if(slave_killed(thd))
 	      goto err;
@@ -922,6 +973,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	  if (event_len == packet_error)
 	  {
 	    thd->proc_info = "waiting to reconnect after a failed read";
+ 	    vio_close(mysql->net.vio); 
 	    safe_sleep(thd, glob_mi.connect_retry);
 	    if(slave_killed(thd))
 	      goto err;

@@ -628,7 +628,7 @@ create:
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!add_table_to_list($5,
 				 ($2 & HA_LEX_CREATE_TMP_TABLE ?
-				   &tmp_table_alias : (LEX_STRING*) 0)))
+				   &tmp_table_alias : (LEX_STRING*) 0),1))
 	    YYABORT;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
@@ -643,7 +643,7 @@ create:
 	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
 	    Lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!add_table_to_list($6,NULL))
+	    if (!add_table_to_list($6,NULL,1))
 	      YYABORT;
 	    Lex->create_list.empty();
 	    Lex->key_list.empty();
@@ -1022,7 +1022,7 @@ alter:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
-	  if (!add_table_to_list($4, NULL))
+	  if (!add_table_to_list($4, NULL,1))
 	    YYABORT;
 	  lex->drop_primary=0;
 	  lex->create_list.empty();
@@ -1198,8 +1198,8 @@ table_to_table_list:
 
 table_to_table:
 	table_ident TO_SYM table_ident
-	{ if (!add_table_to_list($1,NULL,TL_IGNORE) ||
-	      !add_table_to_list($3,NULL,TL_IGNORE))
+	{ if (!add_table_to_list($1,NULL,1,TL_IGNORE) ||
+	      !add_table_to_list($3,NULL,1,TL_IGNORE))
 	     YYABORT;
  	}
 
@@ -1749,7 +1749,7 @@ normal_join:
 join_table:
 	{ Lex->use_index_ptr=Lex->ignore_index_ptr=0; }
         table_ident opt_table_alias opt_key_definition
-	{ if (!($$=add_table_to_list($2,$3,TL_UNLOCK, Lex->use_index_ptr,
+	{ if (!($$=add_table_to_list($2,$3,0,TL_UNLOCK, Lex->use_index_ptr,
 	                             Lex->ignore_index_ptr))) YYABORT; }
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
@@ -1953,7 +1953,7 @@ drop:
 	     Lex->drop_list.empty();
 	     Lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
-	     if (!add_table_to_list($5,NULL))
+	     if (!add_table_to_list($5,NULL, 1))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
@@ -1975,7 +1975,7 @@ table_list:
 
 table:
 	table_ident
-	{ if (!add_table_to_list($1,NULL)) YYABORT; }
+	{ if (!add_table_to_list($1,NULL,1)) YYABORT; }
 
 if_exists:
 	/* empty */ { $$=0; }
@@ -2150,7 +2150,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($4)
 	      $3->change_db($4);
-	    if (!add_table_to_list($3,NULL))
+	    if (!add_table_to_list($3,NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM LOGS_SYM
@@ -2162,7 +2162,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
 	      $3->change_db($4);
-	    if (!add_table_to_list($3,NULL))
+	    if (!add_table_to_list($3,NULL,0))
 	      YYABORT;
 	  }
 	| STATUS_SYM wild
@@ -2179,7 +2179,7 @@ show_param:
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if(!add_table_to_list($3, NULL))
+	    if(!add_table_to_list($3, NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM STATUS_SYM
@@ -2205,7 +2205,7 @@ describe:
 	{
 	  Lex->wild=0;
 	  Lex->sql_command=SQLCOM_SHOW_FIELDS;
-	  if (!add_table_to_list($2, NULL))
+	  if (!add_table_to_list($2, NULL,0))
 	    YYABORT;
 	}
 	opt_describe_column
@@ -2290,14 +2290,14 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
 	{
-	  if (!add_table_to_list($11,NULL))
+	  if (!add_table_to_list($11,NULL,1))
 	    YYABORT;
 	}
         |
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!add_table_to_list($3,NULL))
+	  if (!add_table_to_list($3,NULL,1))
 	    YYABORT;
 
         }
@@ -2686,7 +2686,7 @@ table_lock_list:
 
 table_lock:
 	table_ident opt_table_alias lock_option
-	{ if (!add_table_to_list($1,$2,(thr_lock_type) $3)) YYABORT; }
+	{ if (!add_table_to_list($1,$2,0,(thr_lock_type) $3)) YYABORT; }
 
 lock_option:
 	READ_SYM	{ $$=TL_READ_NO_INSERT; }
@@ -2791,7 +2791,7 @@ opt_table:
 	  }
 	| table_ident
 	  {
-	    if (!add_table_to_list($1,NULL))
+	    if (!add_table_to_list($1,NULL,0))
 	      YYABORT;
 	    if (Lex->grant == UINT_MAX)
 	      Lex->grant =  TABLE_ACLS & ~GRANT_ACL;

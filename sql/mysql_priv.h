@@ -362,6 +362,7 @@ bool add_field_to_list(char *field_name, enum enum_field_types type,
 void store_position_for_column(const char *name);
 bool add_to_list(SQL_LIST &list,Item *group,bool asc=0);
 TABLE_LIST *add_table_to_list(Table_ident *table,LEX_STRING *alias,
+			      bool updating,
 			      thr_lock_type flags=TL_UNLOCK,
 			      List<String> *use_index=0,
 			      List<String> *ignore_index=0);

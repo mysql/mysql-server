@@ -138,4 +138,5 @@ typedef struct st_table_list {
   thr_lock_type lock_type;
   uint		outer_join;			/* Which join type */
   bool		straight;			/* optimize with prev table */
+  bool          updating;     /* for replicate-do/ignore table */
 } TABLE_LIST;

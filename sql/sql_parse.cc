@@ -843,6 +843,11 @@ mysql_execute_command(void)
   TABLE_LIST *tables=(TABLE_LIST*) lex->table_list.first;
   DBUG_ENTER("mysql_execute_command");
 
+  if(thd->slave_thread && table_rules_on && tables && !tables_ok(thd,tables))
+    DBUG_VOID_RETURN; // skip if we are in the slave thread, some table
+  // rules have been given and the table list says the query should not be
+  // replicated
+  
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -2344,9 +2349,11 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
 
 
 TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
+			      bool updating,
 			      thr_lock_type flags,
 			      List<String> *use_index,
-			      List<String> *ignore_index)
+			      List<String> *ignore_index
+			      )
 {
   register TABLE_LIST *ptr;
   THD	*thd=current_thd;
@@ -2378,6 +2385,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   ptr->real_name=table->table.str;
   ptr->name=alias_str;
   ptr->lock_type=flags;
+  ptr->updating=updating;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));
