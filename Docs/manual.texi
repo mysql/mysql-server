@@ -1680,12 +1680,12 @@ Big changes made in @strong{MySQL} 3.22.12.
 @item @strong{MyODBC} (uses ODBC SDK 2.5) --- Gamma
 It seems to work well with some programs.
 
-@item replication -- alpha
+@item Replication -- Alpha
 We are still working on replication, so don't expect this to be rock
 solid yet.  On the other hand, some @strong{MySQL} users are already
 using this with good results...
 
-@item BDB tables -- alpha
+@item BDB Tables -- Alpha
 The Berkeley DB code is very stable, but we are still improving the interface
 between @strong{MySQL} and BDB tables, so it will take some time before this
 is as tested as the other table types.
@@ -6242,7 +6242,7 @@ and @strong{mysqld} should be ready to run.
 @subsection Alpha-DEC-Unix notes (Tru64)
 
 If you are using egcs 1.1.2 on Digital UNIX, you should upgrade to gcc
-2.95.2, as egcs has some bad bugs on DEC!
+2.95.2, as egcs on DEC has some serious bugs!
 
 When compiling threaded programs under Digital UNIX, the documentation
 recommends using the @code{-pthread} option for @code{cc} and @code{cxx} and
@@ -9718,7 +9718,7 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 
 @itemize @bullet
 @item
-DON'T EVER GIVE ANYBODY (BUT THE @strong{MySQL} ROOT USER) ACCESS TO THE
+DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
 mysql.user DATABASE!  The encrypted password is the real password in
 @strong{MySQL}; If you know this for one user you can easily login as
 him if you have access to his 'host'.
@@ -10328,9 +10328,9 @@ Privileges on the @code{mysql} database can be used to change passwords
 and other access privilege information.  (Passwords are stored
 encrypted, so a malicious user cannot simply read them to know the plain
 text password).  If they can access the @code{mysql.user} password
-column, they can however use it to login into the @strong{MySQL} server
-for the given user.  With sufficient privileges, the same use can
-however replace a password with a different one.)
+column, they can use it to login into the @strong{MySQL} server
+for the given user.  With sufficient privileges, the same user can
+replace a password with a different one.)
 @end itemize
 
 There are some things that you cannot do with the @strong{MySQL}
@@ -10628,7 +10628,7 @@ Non-blank @code{Password} values represent encrypted passwords.
 see.  Rather, the password supplied by a user who is attempting to
 connect is encrypted (using the @code{PASSWORD()} function). The
 encrypted password is then used when the client/server is checking if
-the password is connect (This is done without the encrypted password
+the password is correct (This is done without the encrypted password
 ever traveling over the connection).  Note that from @strong{MySQL}'s
 point of view the encrypted password is the REAL password, so you should
 not give anyone access to it!  In particular, don't give normal users
@@ -11448,7 +11448,7 @@ normally this isn't a big problem.
 
 @item
 If you get an error message where the hostname is not shown or where the
-host name is an IP, even if you try to connect with an hostname:
+hostname is an IP, even if you try to connect with a hostname:
 
 @example
 shell> mysqladmin -u root -pxxxx -h some-hostname ver
@@ -11464,7 +11464,7 @@ are:
 @item
 Try to find out what is wrong with your DNS server and fix this.
 @item
-Specify IP's instead of hostnames in the @code{MySQL} privilege tables.
+Specify IPs instead of hostnames in the @code{MySQL} privilege tables.
 @item
 Start mysqld with @code{--skip-name-resolve}.
 @item
@@ -11555,21 +11555,22 @@ sure you haven't specified an old password in any of your option files!
 If you make changes to the grant tables directly (using @code{INSERT} or
 @code{UPDATE} statement) and your changes seem to be ignored, remember
 that you must issue a @code{FLUSH PRIVILEGES} statement or execute a
-@code{mysqladmin flush-privileges} command to cause the server to reread
+@code{mysqladmin flush-privileges} command to cause the server to re-read
 the privilege tables.  Otherwise your changes have no effect until the
 next time the server is restarted.  Remember that after you set the
 @code{root} password with an @code{UPDATE} command, you won't need to
 specify it until after you flush the privileges, because the server
-still won't know you've changed the password yet!
+won't know you've changed the password yet!
 
 @item
 If you have access problems with a Perl, PHP, Python or ODBC program, try to
 connect to the server with @code{mysql -u user_name db_name} or @code{mysql
 -u user_name -pyour_pass db_name}.  If you are able to connect using the
 @code{mysql} client, there is a problem with your program and not with the
-access privileges.  (Notice that there is no space between @code{-p} and the
+access privileges.  (Note that there is no space between @code{-p} and the
 password; you can also use the @code{--password=your_pass} syntax to specify
-the password.)
+the password. If you use the @code{-p} option alone, MySQL will prompt you
+for the password.)
 
 @item
 For testing, start the @code{mysqld} daemon with the
@@ -15414,8 +15415,8 @@ a way that it is equivalent to @code{"1:10" MINUTE_SECOND}.  This is
 analogous to the way that @strong{MySQL} interprets @code{TIME} values
 as representing elapsed time rather than as time of day.
 
-Note that if you add/subtract a date value against something that
-contains a time part, the date value will automaticly be converted to a
+Note that if you add or subtract a date value against something that
+contains a time part, the date value will be automatically converted to a
 datetime value:
 
 @example
@@ -16670,9 +16671,9 @@ index exists, it drops the first @code{UNIQUE} index in the table.
 if no @code{PRIMARY KEY} was specified explicitly.)
 
 @item
-If you are doing an @code{ALTER TABLE} on/to a @code{MyISAM} table,
-all non unique index are created in a separate batch (like in @code{REPAIR}).
-This should make @code{ALTER TABLE} much faster when you have many index.
+If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique 
+indexes are created in a separate batch (like in @code{REPAIR}).
+This should make @code{ALTER TABLE} much faster when you have many indexes.
 
 @item
 @findex mysql_info()
@@ -17636,10 +17637,10 @@ If you load data from a local file using the @code{LOCAL} keyword, the server
 has no way to stop transmission of the file in the middle of the operation,
 so the default bahavior is the same as if @code{IGNORE} is specified.
 
-If you are @code{LOAD DATA INFILE} to an empty @code{MyISAM} table,
-all non unique index are created in a separate batch (like in @code{REPAIR}).
+If you use @code{LOAD DATA INFILE} on an empty @code{MyISAM} table,
+all non-unique indexes are created in a separate batch (like in @code{REPAIR}).
 This normally makes @code{LOAD DATA INFILE} much faster when you have many
-index.
+indexes.
 
 @code{LOAD DATA INFILE} is the complement of @code{SELECT ... INTO OUTFILE}.
 @xref{SELECT, , @code{SELECT}}.
@@ -25546,7 +25547,7 @@ memory before dumping the result.  This will probably be a problem if
 you are dumping a big database.
 
 Note that if you are using a new copy of the @code{mysqldump} program
-and is going to do a dump that will be read into a very old @code{MySQL}
+and you are going to do a dump that will be read into a very old @code{MySQL}
 server, you should not use the @code{--opt} or @code{-e} options.
 
 @code{mysqldump} supports the following options:
@@ -28026,10 +28027,10 @@ To make Access work:
 @itemize @bullet
 @item
 
-If you are using Access 2000, you should get an install Microsoft MDAC from
+If you are using Access 2000, you should get and install Microsoft MDAC from
 @uref{http://www.microsoft.com/data/download_21242023.htm}.  This will
 fix the bug in Access that when you export data to @strong{MySQL}, the
-table and column names wasn't specified.
+table and column names aren't specified.
 @item
 You should have a primary key in the table.
 @item
@@ -34903,7 +34904,7 @@ By Elizabeth.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mybackup}
 @item @uref{http://www.mswanson.com/mybackup, mybackup home page}
-Wrapper for mysqldump to backup all databases. By "Marc Swanson".
+Wrapper for mysqldump to backup all databases. By Marc Swanson.
 @end itemize
 
 @appendixsec RPMs for common tools (Most are for RedHat 6.1)
@@ -35309,8 +35310,8 @@ and will soon be declared beta, gamma and release.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
-Changed @code{ALTER TABLE} to create non unique index in a separate batch
-(which should make @code{ALTER TABLE} much faster when you have many index)
+Changed @code{ALTER TABLE} to create non-unique indexes in a separate batch
+(which should make @code{ALTER TABLE} much faster when you have many indexes).
 @item
 Added delayed index handling to @code{LOAD DATA INFILE}, when you are
 reading into an empty file.
@@ -35321,7 +35322,6 @@ Fixed crash when adding a default value to a @code{BLOB} column.
 @item
 Fixed a bug with @code{DATE_ADD/DATE_SUB} where it returned a datetime instead
 of a date.
-datetime.
 @item
 Fixed a problem with the thread cache which made some threads show up as
 @code{***DEAD***} in @code{SHOW PROCESSLIST}.
@@ -35330,10 +35330,10 @@ Fixed a lock in our thr_rwlock code, which could make selects that run
 at the same time as concurrent inserts crash. This only affects systems
 that don't have the @code{pthread_rwlock_rdlock} code.
 @item
-When deleting rows with a non-unique key in HEAP table, all rows wasn't 
+When deleting rows with a non-unique key in a HEAP table, all rows weren't 
 always deleted.
 @item
-Fixed the BDB tables works on part keys.
+Fixed that BDB tables work on part keys.
 @end itemize
 
 @node News-3.23.22, News-3.23.21, News-3.23.23, News-3.23.x
@@ -35343,7 +35343,7 @@ Fixed the BDB tables works on part keys.
 Fixed that @code{lex_hash.h} is created properly for each @code{MySQL}
 distribution.
 @item
-Fixed that @code{MASTER} and @code{COLLECTION} are not a reserved words.
+Fixed that @code{MASTER} and @code{COLLECTION} are not reserved words.
 @item
 The log generated by @code{--slow-query-log} didn't contain the whole queries.
 @item
@@ -35356,23 +35356,23 @@ gen_lex_hash.c.
 Fixed memory leak in the client library when using @code{host=..} in the
 @code{my.cnf} file.
 @item
-Optimized functions that manipulates the hours/minutes/seconds.
+Optimized functions that manipulate the hours/minutes/seconds.
 @item
-Fixed bug when comparing the result of @code{DATE_ADD}/@code{DATE_SUB}
-against a number
+Fixed bug when comparing the result of @code{DATE_ADD()}/@code{DATE_SUB()}
+against a number.
 @item
 Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added option
 @code{-C, --check-only-changed} to @code{myisamchk}.
 @item
 Added @code{ANALYZE table_name} to update key statistics for tables.
 @item
-Changed binary items @code{0x...} to be default regarded as an integer
+Changed binary items @code{0x...} to be default regarded as an integer.
 @item
 Fix for SCO and @code{SHOW PROCESSLIST}.
 @item
 Added @code{auto-rehash} on reconnect for the @code{mysql} client.
 @item
-Fixed a newly introduced bug in @code{MyISAM}, where the indexfile couldn't
+Fixed a newly introduced bug in @code{MyISAM}, where the index file couldn't
 get bigger than 64M.
 @end itemize
 
@@ -35407,7 +35407,7 @@ index files gets full during an @code{INSERT}/@code{UPDATE}.
 @code{myisamchk} didn't correctly update row checksum when used with
 @code{-ro} (This only gave an warning in subsequent runs).
 @item
-Fixed bug in @code{REPAIR TABLE} so that it works with tables without index.
+Fixed bug in @code{REPAIR TABLE} so that it works with tables without indexes.
 @item
 Fixed buffer overrun in @code{DROP DATABASE}
 @item
@@ -39430,7 +39430,7 @@ FreeBSD and MIT-pthreads;  Do sleeping threads take CPU?
 @item
 Check if locked threads take any CPU.
 @item
-Fix configure so the one can compile all libraries (like @code{MyISAM})
+Fix configure so that one can compile all libraries (like @code{MyISAM})
 without threads.
 @item
 Change to use mkstemp() instead of tempnam() for system that supports the call.
@@ -39488,13 +39488,12 @@ TEXT_FIELDS (text_field1, text_field2, text_field3)
 SET table_field1=concatenate(text_field1, text_field2), table_field3=23
 IGNORE text_field3
 
-This can be used to skip over extra columns in the text file, update columns
+This can be used to skip over extra columns in the text file, or update columns
 based on expressions of the read data...
-on the in-data and 
 @end example
 @item
 @code{LOAD DATA INFILE 'file_name' INTO TABLE 'table_name' ERRORS TO err_table_name}
-which would cause any errors/warnings to be logged into the err_table_name
+This would cause any errors and warnings to be logged into the err_table_name
 table. That table would have a structure like:
 
 @example
