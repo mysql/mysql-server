@@ -567,22 +567,23 @@ struct Con {
   NdbDictionary::Dictionary* m_dic;
   NdbConnection* m_tx;
   NdbOperation* m_op;
-  NdbConnection* m_scantx;
-  NdbIndexScanOperation* m_scanop;
-  NdbResultSet* m_resultSet;
+  NdbScanOperation* m_scanop;
+  NdbIndexScanOperation* m_indexscanop;
+  NdbResultSet* m_resultset;
   enum ScanMode { ScanNo = 0, Committed, Latest, Exclusive };
   ScanMode m_scanmode;
   enum ErrType { ErrNone = 0, ErrDeadlock, ErrOther };
   ErrType m_errtype;
   Con() :
     m_ndb(0), m_dic(0), m_tx(0), m_op(0),
-    m_scantx(0), m_scanop(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
+    m_scanop(0), m_indexscanop(0), m_resultset(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
   int connect();
   void disconnect();
   int startTransaction();
   int startBuddyTransaction(const Con& con);
   int getNdbOperation(const Tab& tab);
-  int getNdbOperation(const ITab& itab, const Tab& tab);
+  int getNdbScanOperation(const Tab& tab);
+  int getNdbScanOperation(const ITab& itab, const Tab& tab);
   int equal(int num, const char* addr);
   int getValue(int num, NdbRecAttr*& rec);
   int setValue(int num, const char* addr);
@@ -648,9 +649,18 @@ Con::getNdbOperation(const Tab& tab)
 }
 
 int
-Con::getNdbOperation(const ITab& itab, const Tab& tab)
+Con::getNdbScanOperation(const Tab& tab)
 {
-  CHKCON((m_scanop = m_tx->getNdbIndexScanOperation(itab.m_name, tab.m_name)) != 0, *this);
+  assert(m_tx != 0);
+  CHKCON((m_op = m_scanop = m_tx->getNdbScanOperation(tab.m_name)) != 0, *this);
+  return 0;
+}
+
+int
+Con::getNdbScanOperation(const ITab& itab, const Tab& tab)
+{
+  assert(m_tx != 0);
+  CHKCON((m_op = m_scanop = m_indexscanop = m_tx->getNdbIndexScanOperation(itab.m_name, tab.m_name)) != 0, *this);
   return 0;
 }
 
@@ -682,7 +692,7 @@ int
 Con::setBound(int num, int type, const void* value)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_scanop->setBound(num, type, value) == 0, *this);
+  CHKCON(m_indexscanop->setBound(num, type, value) == 0, *this);
   return 0;
 }
 
@@ -698,7 +708,7 @@ int
 Con::openScanRead(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultSet = m_scanop->readTuples(parallelism)) != 0, *this);
+  CHKCON((m_resultset = m_scanop->readTuples(parallelism)) != 0, *this);
   return 0;
 }
 
@@ -706,7 +716,7 @@ int
 Con::openScanExclusive(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultSet = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
+  CHKCON((m_resultset = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
   return 0;
 }
 
@@ -721,8 +731,8 @@ int
 Con::nextScanResult()
 {
   int ret;
-  assert(m_resultSet != 0);
-  CHKCON((ret = m_resultSet->nextResult()) != -1, *this);
+  assert(m_resultset != 0);
+  CHKCON((ret = m_resultset->nextResult()) != -1, *this);
   assert(ret == 0 || ret == 1);
   return ret;
 }
@@ -731,7 +741,7 @@ int
 Con::takeOverForUpdate(Con& scan)
 {
   assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON((m_op = scan.m_resultSet->updateTuple(m_tx)) != 0, scan);
+  CHKCON((m_op = scan.m_resultset->updateTuple(m_tx)) != 0, scan);
   return 0;
 }
 
@@ -739,7 +749,7 @@ int
 Con::takeOverForDelete(Con& scan)
 {
   assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON(scan.m_resultSet->deleteTuple(m_tx) == 0, scan);
+  CHKCON(scan.m_resultset->deleteTuple(m_tx) == 0, scan);
   return 0;
 }
 
@@ -1930,7 +1940,7 @@ scanreadtable(Par par)
   LL3((par.m_verify ? "scanverify " : "scanread ") << tab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(tab) == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
   CHK(con.openScanRead(par.m_scanrd) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -1963,7 +1973,7 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
   LL4(bset);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(itab, tab) == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
   CHK(con.openScanRead(par.m_scanrd) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
@@ -2030,7 +2040,7 @@ scanupdatetable(Par par)
   LL3("scan update " << tab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(tab) == 0);
+  CHK(con.getNdbScanOperation(tab) == 0);
   CHK(con.openScanExclusive(par.m_scanex) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -2075,7 +2085,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   LL3("scan update " << itab.m_name);
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
-  CHK(con.getNdbOperation(itab, tab) == 0);
+  CHK(con.getNdbScanOperation(itab, tab) == 0);
   CHK(con.openScanExclusive(par.m_scanex) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
