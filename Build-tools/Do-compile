@@ -11,7 +11,7 @@ $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$opt_embedded_test=$opt_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
 
 GetOptions(
 	"bdb",
@@ -25,6 +25,7 @@ GetOptions(
 	"delete",
 	"distribution=s",
 	"enable-shared",
+	"embedded-test",
 	"fast-benchmark",
 	"help|Information",
 	"innodb",
@@ -40,6 +41,7 @@ GetOptions(
 	"one-error",
 	"perl-files=s",
 	"perl-options=s",
+ 	"ps-test",
 	"raid",
 	"readline",
 	"stage=i",
@@ -274,6 +276,7 @@ if ($opt_stage <= 1)
 		$opt_config_options.= " --with-libedit";
 	}
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
+  $opt_embedded_test= 0 if ($opt_without_embedded);
   $opt_config_options.= " --with-archive-storage-engine" if ($opt_with_archive);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
 
@@ -376,13 +379,29 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   my $flags= "";
-  my $force= "";
   $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   $flags.= " --force" if (!$opt_one_error);
   log_timestamp();
+  info("Running test suite");
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+
+  if ($opt_ps_test)
+  {
+    log_timestamp();
+    info("Running test suite using prepared statements");
+    check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  }
+  
+  if ($opt_embedded_test)
+  {
+    log_timestamp();
+    info("Running embedded server test suite");
+    # Embedded server and NDB don't jive
+    $flags=~ s/ --with-ndbcluster//;
+    check_system("./mysql-test-run $flags --embedded-server --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  }
   # 'mysql-test-run' writes its own final message for log evaluation.
 }
 
@@ -528,6 +547,9 @@ Delete the distribution file.
 --distribution=<distribution_file>
 Name of the MySQL source distribution file.
 
+--embedded-test
+Run the test suite against the embedded server
+
 --enable-shared
 Compile with shared libraries
 
@@ -575,6 +597,9 @@ Compile and install the given perl modules.
 
 --perl-options=<options>
 Build Perl modules with the additional options
+
+--ps-test
+Run an additional test run, using prepared statements
 
 --raid
 Compile with RAID support
