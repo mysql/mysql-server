@@ -351,13 +351,6 @@ bool mysql_change_db(THD *thd,const char *name)
     x_free(dbname);
     DBUG_RETURN(1);
   }
-  if (dbname[0] == '`' && dbname[db_length-1] == '`')
-  {
-    int counter=1;
-    for (; counter < db_length - 1; counter++)
-      dbname[counter-1]=dbname[counter];
-    dbname[(db_length= counter)-1]='\0';
-  }
   DBUG_PRINT("info",("Use database: %s", dbname));
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
