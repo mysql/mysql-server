@@ -95,6 +95,11 @@ case "$target_os" in
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
+case "$target" in
+       i[[4567]]86-*-*)
+	 CFLAGS="$CFLAGS -DUNIV_INTEL_X86";;
+esac
+
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile
 		buf/Makefile com/Makefile data/Makefile
 		dict/Makefile dyn/Makefile
