@@ -1942,10 +1942,10 @@ AC_DIVERT_PUSH(0)
 CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
+                          latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
                           usa7 utf8 win1250 win1250ch win1251ukr"
 CHARSETS_DEPRECATED="win1251"
-CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis utf8 win1250ch"
+CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ucs2 ujis utf8 win1250ch"
 DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
@@ -2066,6 +2066,10 @@ do
       ;;
     tis620)
       AC_DEFINE(HAVE_CHARSET_tis620)
+      ;;
+    ucs2)
+      AC_DEFINE(HAVE_CHARSET_ucs2)
+      use_mb="yes"
       ;;
     ujis)
       AC_DEFINE(HAVE_CHARSET_ujis)

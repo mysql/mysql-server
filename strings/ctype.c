@@ -3635,6 +3635,39 @@ CHARSET_INFO compiled_charsets[] = {
   },
 #endif
 
+#ifdef HAVE_CHARSET_ucs2
+  {
+    35,			/* number       */
+    "ucs2",		/* name         */
+    ctype_ucs2,		/* ctype        */
+    to_lower_ucs2,	/* to_lower     */
+    to_upper_ucs2,	/* to_upper     */
+    to_upper_ucs2,	/* sort_order   */
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_ucs2,	/* strnncoll    */
+    my_strnxfrm_ucs2,	/* strnxfrm     */
+    NULL,		/* like_range   */
+    2,			/* mbmaxlen     */
+    my_ismbchar_ucs2,	/* ismbchar     */
+    my_ismbhead_ucs2,	/* ismbhead     */
+    my_mbcharlen_ucs2,	/* mbcharlen    */
+    my_ucs2_uni,	/* mb_wc        */
+    my_uni_ucs2,	/* wc_mb        */
+    my_caseup_str_ucs2,
+    my_casedn_str_ucs2,
+    my_caseup_ucs2,
+    my_casedn_ucs2,
+    my_strcasecmp_ucs2,
+    my_strncasecmp_ucs2,
+    my_hash_caseup_ucs2,/* hash_caseup */
+    my_hash_sort_ucs2,	/* hash_sort   */
+    0
+  },
+#endif
+
+
 #ifdef HAVE_CHARSET_ujis
   {
     12,			/* number       */
