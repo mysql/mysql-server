@@ -45,7 +45,6 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
   else
     m_connect_string= 0;
   m_config_retriever= 0;
-  m_local_config= 0;
   m_connect_thread= 0;
   m_connect_callback= 0;
 
@@ -125,38 +124,31 @@ int Ndb_cluster_connection::connect(int reconnect)
   do {
     if (m_config_retriever == 0)
     {
-      if (m_local_config == 0) {
-	m_local_config= new LocalConfig();
-	if (!m_local_config->init(m_connect_string,0)) {
-	  ndbout_c("Configuration error: Unable to retrieve local config");
-	  m_local_config->printError();
-	  m_local_config->printUsage();
-	  DBUG_RETURN(-1);
-	}
-      }
       m_config_retriever=
-	new ConfigRetriever(*m_local_config, NDB_VERSION, NODE_TYPE_API);
+	new ConfigRetriever(m_connect_string, NDB_VERSION, NODE_TYPE_API);
+      if (m_config_retriever->hasError())
+      {
+	printf("Could not connect initialize handle to management server",
+	       m_config_retriever->getErrorString());
+	DBUG_RETURN(-1);
+      }
     }
     else
       if (reconnect == 0)
 	DBUG_RETURN(0);
     if (reconnect)
     {
-      int r= m_config_retriever->do_connect(1);
+      int r= m_config_retriever->do_connect(0,0,0);
       if (r == 1)
 	DBUG_RETURN(1); // mgmt server not up yet
       if (r == -1)
 	break;
     }
     else
-      if(m_config_retriever->do_connect() == -1)
+      if(m_config_retriever->do_connect(12,5,1) == -1)
 	break;
 
-    Uint32 nodeId = m_config_retriever->allocNodeId();
-    for(Uint32 i = 0; nodeId == 0 && i<5; i++){
-      NdbSleep_SecSleep(3);
-      nodeId = m_config_retriever->allocNodeId();
-    }
+    Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,3/*delay*/);
     if(nodeId == 0)
       break;
     ndb_mgm_configuration * props = m_config_retriever->getConfig();
@@ -200,8 +192,6 @@ Ndb_cluster_connection::~Ndb_cluster_connection()
   my_free(m_connect_string,MYF(MY_ALLOW_ZERO_PTR));
   if (m_config_retriever)
     delete m_config_retriever;
-  if (m_local_config)
-    delete m_local_config;
   DBUG_VOID_RETURN;
 }
 

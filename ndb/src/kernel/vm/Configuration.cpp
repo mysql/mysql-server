@@ -17,7 +17,6 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <LocalConfig.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -189,7 +188,7 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::fetch_configuration(LocalConfig &local_config){
+Configuration::fetch_configuration(){
   /**
    * Fetch configuration from management server
    */
@@ -199,8 +198,17 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   m_mgmd_port= 0;
   m_mgmd_host= 0;
-  m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
-  if(m_config_retriever->do_connect() == -1){    
+  m_config_retriever= new ConfigRetriever(getConnectString(),
+					  NDB_VERSION, NODE_TYPE_DB);
+
+  if (m_config_retriever->hasError())
+  {
+    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+	      "Could not connect initialize handle to management server",
+	      m_config_retriever->getErrorString());
+  }
+
+  if(m_config_retriever->do_connect(12,5,1) == -1){
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
@@ -215,13 +223,7 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   ConfigRetriever &cr= *m_config_retriever;
   
-  if((globalData.ownId = cr.allocNodeId()) == 0){
-    for(Uint32 i = 0; i<3; i++){
-      NdbSleep_SecSleep(3);
-      if((globalData.ownId = cr.allocNodeId()) != 0)
-	break;
-    }
-  }
+  globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
   
   if(globalData.ownId == 0){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, 
@@ -599,7 +601,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfTCScanRecords = noOfScanRecords;
 
   {
-    Uint32 noOfAccTables= noOfTables + noOfUniqueHashIndexes;
+    Uint32 noOfAccTables= noOfTables + noOfUniqueHashIndexes *
+      noOfOrderedIndexes /* should be removed */;
     /**
      * Acc Size Alt values
      */
@@ -758,13 +761,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tux Size Alt values
      */
     cfg.put(CFG_TUX_INDEX, 
-	    noOfOrderedIndexes);
+	    noOfMetaTables /*noOfOrderedIndexes*/);
     
     cfg.put(CFG_TUX_FRAGMENT, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
+	    2 * NO_OF_FRAG_PER_NODE * noOfMetaTables /*noOfOrderedIndexes*/ *
+	    noOfReplicas);
     
     cfg.put(CFG_TUX_ATTRIBUTE, 
-	    noOfOrderedIndexes * 4);
+	    noOfMetaTables /*noOfOrderedIndexes*/ * 4);
 
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
   }
