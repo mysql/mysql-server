@@ -102,6 +102,12 @@ int handle_options(int *argc, char ***argv,
 	  cur_arg= *pos;
 	  (*argc)--;
 	}
+	/* Sasha: quick dirty fix of a bug that coredumps mysqladmin while
+	   running the test suite. The bug is actually pretty serious -
+	   even in cases when we do not coredump, -O var=val will not set
+	   the variable, and the previous option would be treated upredictably.
+			*/
+	goto found_var; 
       }
       else if (*cur_arg == '-') /* check for long option, or --set-variable */
       {
@@ -145,6 +151,7 @@ int handle_options(int *argc, char ***argv,
 	    continue;
 	  }
 	}
+    found_var:	
 	optend= strcend(cur_arg, '=');
 	length= optend - cur_arg;
 	if (*optend == '=')
