@@ -98,7 +98,7 @@ public:
    */
   void stopSessions(bool wait = false);
   
-  void foreachSession(void (*f)(SocketServer::Session*, void*), void *data);
+  void foreachSession(void (*f)(Session*, void*), void *data);
 
 private:
   struct SessionInstance {

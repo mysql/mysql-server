@@ -29,7 +29,7 @@
 
 #include <ConfigValues.hpp>
 #include <mgmapi_configuration.hpp>
-
+#include <Vector.hpp>
 #include "Services.hpp"
 
 extern bool g_StopServer;
@@ -282,8 +282,8 @@ MgmApiSession::runSession() {
       /* Backwards compatibility for old NDBs that still use
        * the old "GET CONFIG" command.
        */
-
-      for(size_t i=0; i<strlen(ctx.m_currentToken); i++)
+	  size_t i;
+      for(i=0; i<strlen(ctx.m_currentToken); i++)
 	ctx.m_currentToken[i] = toupper(ctx.m_currentToken[i]);
 
       if(strncmp("GET CONFIG ", 

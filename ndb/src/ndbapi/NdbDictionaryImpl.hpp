@@ -321,7 +321,7 @@ private:
   friend class Ndb;
   static void execSignal(void* dictImpl, 
 			 class NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]);
+			 struct LinearSectionPtr ptr[3]);
   
   static void execNodeStatus(void* dictImpl, Uint32, 
 			     bool alive, bool nfCompleted);  

@@ -663,7 +663,7 @@ private:
    */
   static void signalReceivedNotification(void* mgmtSrvr, 
 					 NdbApiSignal* signal, 
-					 class LinearSectionPtr ptr[3]);
+					 struct LinearSectionPtr ptr[3]);
   
   /**
    *   Called from "outside" of MgmtSrvr when a DB process has died.

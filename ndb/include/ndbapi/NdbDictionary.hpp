@@ -710,7 +710,7 @@ public:
     /**
      * Get a specific column in the index
      */
-    const NdbDictionary::Column * getColumn(unsigned no) const ;
+    const Column * getColumn(unsigned no) const ;
 
     /**
      * Get a specific column name in the index

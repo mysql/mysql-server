@@ -15,15 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
-#include <assert.h>
-#include <sys/types.h>
-
+#include <ndb_global.h>
 #include "NdbCondition.h"
 #include <NdbMutex.h>
-
 
 struct NdbCondition
 {
