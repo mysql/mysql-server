@@ -494,7 +494,6 @@ ErrorBundle ErrorCodes[] = {
   { 4242, AE, "Too many indexes" },
   { 4243, AE, "Index not found" },
   { 4244, OE, "Index or table with given name already exists" },
-  { 4245, AE, "Index attribute must be defined as stored, i.e. the StorageAttributeType must be defined as NormalStorageAttribute"},
   { 4247, AE, "Illegal index/trigger create/drop/alter request" },
   { 4248, AE, "Trigger/index name invalid" },
   { 4249, AE, "Invalid table" },
