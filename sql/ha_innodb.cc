@@ -4648,6 +4648,11 @@ innodb_show_status(
 	rewind(srv_monitor_file);
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
+#ifdef __WIN__
+	chsize(fileno(srv_monitor_file), flen);
+#else /* __WIN__ */
+	ftruncate(fileno(srv_monitor_file), flen);
+#endif /* __WIN__ */
 	if(flen > 64000 - 1) {
 		flen = 64000 - 1;
 	}
