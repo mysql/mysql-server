@@ -76,6 +76,12 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok)
     close_thread_table(thd, ptr);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
+  else
+  {
+    my_printf_error(ER_UNKNOWN_TABLE,ER(ER_UNKNOWN_TABLE),MYF(0),
+		    tables->name,"HANDLER");
+    return -1;
+  }
   if (!dont_send_ok)
     send_ok(&thd->net);
   return 0;
