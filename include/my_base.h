@@ -68,7 +68,8 @@ enum ha_rkey_function {
 
 enum ha_key_alg {			
   HA_KEY_ALG_BTREE=0,			/* B-tree, default one          */
-  HA_KEY_ALG_RTREE=1			/* R-tree, for spatial searches */
+  HA_KEY_ALG_RTREE=1,			/* R-tree, for spatial searches */
+  HA_KEY_ALG_HASH=2			/* HASH keys (HEAP tables) */
 };
 
 	/* The following is parameter to ha_extra() */

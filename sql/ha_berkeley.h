@@ -89,7 +89,7 @@ class ha_berkeley: public handler
     int_option_flag(HA_READ_NEXT | HA_READ_PREV |
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
-		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
+		    HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
 		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY),
@@ -123,6 +123,7 @@ class ha_berkeley: public handler
 		 uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte * buf, uint index, const byte * key,
 		     uint key_len, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
   int index_next(byte * buf);
   int index_next_same(byte * buf, const byte *key, uint keylen);
   int index_prev(byte * buf);

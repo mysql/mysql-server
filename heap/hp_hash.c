@@ -158,11 +158,22 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
   {
     uchar *pos=(uchar*) key;
     key+=seg->length;
+    if (seg->null_bit)
+    {
+      key++;					/* Skipp null byte */
+      if (*pos)					/* Found null */
+      {
+	nr^= (nr << 1) | 1;
+	continue;
+      }
+      pos++;
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       for (; pos < (uchar*) key ; pos++)
       {
-	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) my_sort_order[(uint) *pos]))+ (nr << 8);
+	nr^=(ulong) ((((uint) nr & 63)+nr2) * 
+		     ((uint) my_sort_order[(uint) *pos])) + (nr << 8);
 	nr2+=3;
       }
     }
@@ -170,7 +181,7 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     {
       for (; pos < (uchar*) key ; pos++)
       {
-	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
+	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) *pos)) + (nr << 8);
 	nr2+=3;
       }
     }
@@ -188,11 +199,20 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
     uchar *pos=(uchar*) rec+seg->start,*end=pos+seg->length;
+    if (seg->null_bit)
+    {
+      if (rec[seg->null_pos] & seg->null_bit)
+      {
+	nr^= (nr << 1) | 1;
+	continue;
+      }
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       for (; pos < end ; pos++)
       {
-	nr^=(ulong) ((((uint) nr & 63)+nr2)*((uint) my_sort_order[(uint) *pos]))+ (nr << 8);
+	nr^=(ulong) ((((uint) nr & 63)+nr2)*
+		     ((uint) my_sort_order[(uint) *pos]))+ (nr << 8);
 	nr2+=3;
       }
     }
@@ -234,6 +254,16 @@ ulong _hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
   {
     uchar *pos=(uchar*) key;
     key+=seg->length;
+    if (seg->null_bit)
+    {
+      key++;
+      if (*pos)
+      {
+	nr^= (nr << 1) | 1;
+	continue;
+      }
+      pos++;
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       for (; pos < (uchar*) key ; pos++)
@@ -264,6 +294,14 @@ ulong _hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
     uchar *pos=(uchar*) rec+seg->start,*end=pos+seg->length;
+    if (seg->null_bit)
+    {
+      if (rec[seg->null_pos] & seg->null_bit)
+      {
+	nr^= (nr << 1) | 1;
+	continue;
+      }
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       for ( ; pos < end ; pos++)
@@ -295,6 +333,14 @@ int _hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
+    if (seg->null_bit)
+    {
+      if ((rec1[seg->null_pos] & seg->null_bit) !=
+	  (rec2[seg->null_pos] & seg->null_bit))
+	return 1;
+      if (rec1[seg->null_pos] & seg->null_bit)
+	continue;
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       if (my_sortcmp(rec1+seg->start,rec2+seg->start,seg->length))
@@ -309,14 +355,24 @@ int _hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
   return 0;
 }
 
-	/* Compare a key in a record to a hole key */
+	/* Compare a key in a record to a whole key */
 
 int _hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 {
   HP_KEYSEG *seg,*endseg;
 
-  for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
+  for (seg=keydef->seg,endseg=seg+keydef->keysegs ;
+       seg < endseg ;
+       key+= (seg++)->length)
   {
+    if (seg->null_bit)
+    {
+      int found_null=test(rec[seg->null_pos] & seg->null_bit);
+      if (found_null != (int) *key++)
+	return 1;
+      if (found_null)
+	continue;
+    }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       if (my_sortcmp(rec+seg->start,key,seg->length))
@@ -327,7 +383,6 @@ int _hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
       if (bcmp(rec+seg->start,key,seg->length))
 	return 1;
     }
-    key+=seg->length;
   }
   return 0;
 }
@@ -341,7 +396,28 @@ void _hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
+    if (seg->null_bit)
+      *key++= test(rec[seg->null_pos] & seg->null_bit);
     memcpy(key,rec+seg->start,(size_t) seg->length);
     key+=seg->length;
   }
+}
+
+
+/*
+  Test if any of the key parts are NULL.
+  Return:
+    1 if any of the key parts was NULL
+    0 otherwise
+*/
+
+my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
+{
+  HP_KEYSEG *seg,*endseg;
+  for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
+  {
+    if (seg->null_bit && (record[seg->null_pos] & seg->null_bit))
+      return 1;
+  }
+  return 0;
 }

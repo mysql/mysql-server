@@ -127,12 +127,13 @@ class TMP_TABLE_PARAM {
   ha_rows end_write_records;
   uint	field_count,sum_func_count,func_count;
   uint  hidden_field_count;
-  uint	group_parts,group_length;
+  uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
 
   TMP_TABLE_PARAM()
-    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0), group_length(0)
+    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
+    group_length(0), group_null_parts(0)
   {}
   ~TMP_TABLE_PARAM()
   {
