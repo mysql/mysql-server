@@ -17,7 +17,6 @@
 #ifndef DBTUX_H
 #define DBTUX_H
 
-#include <new>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
 #include <AttributeDescriptor.hpp>
