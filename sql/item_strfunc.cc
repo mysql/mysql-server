@@ -47,19 +47,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
            fname);
 }
 
-uint nr_of_decimals(const char *str)
-{
-  if (strchr(str,'e') || strchr(str,'E'))
-    return NOT_FIXED_DEC;
-  if ((str=strchr(str,'.')))
-  {
-    const char *start= ++str;
-    for (; my_isdigit(system_charset_info,*str) ; str++) ;
-    return (uint) (str-start);
-  }
-  return 0;
-}
-
 
 double Item_str_func::val_real()
 {
