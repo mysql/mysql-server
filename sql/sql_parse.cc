@@ -3912,11 +3912,11 @@ create_error:
     }
   case SQLCOM_CREATE_TRIGGER:
   {
-    /* We don't care much about trigger body at that point */
+    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
+
+    /* We don't care about trigger body after this point */
     delete lex->sphead;
     lex->sphead= 0;
-
-    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
     break;
   }
   case SQLCOM_DROP_TRIGGER:
