@@ -1,7 +1,6 @@
 #!/bin/sh
 
-if [ `tail -c1 $BK_FILE` != "
-" ]
+if [ `tail -c1 $BK_FILE` ]
 then
  echo "File $BK_FILE does not end with a new-line character!"
  echo ""
