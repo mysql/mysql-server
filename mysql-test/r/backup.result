@@ -1,10 +1,13 @@
 Table	Op	Msg_type	Msg_text
-test.t1	backup	error	Failed copying .frm file: errno = X
-test.t1	backup	status	Operation failed
+test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	status	Operation failed
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
+test.t4	backup	status	OK
 Table	Op	Msg_type	Msg_text
-test.t1	restore	status	OK
+test.t4	backup	error	Failed copying .frm file (errno: X)
+test.t4	backup	status	Operation failed
+Table	Op	Msg_type	Msg_text
+test.t4	restore	status	OK
 count(*)
 0
 Table	Op	Msg_type	Msg_text
@@ -18,7 +21,6 @@ n
 45
 67
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
 test.t2	backup	status	OK
 test.t3	backup	status	OK
 Table	Op	Msg_type	Msg_text
@@ -40,4 +42,4 @@ k
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
 Table	Op	Msg_type	Msg_text
-test.t1	backup	status	OK
+test.t5	backup	status	OK

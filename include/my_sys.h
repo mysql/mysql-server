@@ -73,6 +73,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_FREE_ON_ERROR 128	/* my_realloc() ; Free old ptr on error */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
 #define MY_THREADSAFE	128	/* pread/pwrite:  Don't allow interrupts */
+#define MY_DONT_OVERWRITE_FILE 1024	/* my_copy; Don't overwrite file */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/

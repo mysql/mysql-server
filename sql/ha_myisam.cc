@@ -419,38 +419,38 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   const char* errmsg = "";
   
   if (!fn_format(dst_path, table_name, backup_dir, reg_ext, 4 + 64))
-    {
-      errmsg = "Failed in fn_format() for .frm file: errno = %d";
-      error = HA_ADMIN_INVALID;
-      goto err;
-    }
+  {
+    errmsg = "Failed in fn_format() for .frm file (errno: %d)";
+    error = HA_ADMIN_INVALID;
+    goto err;
+  }
   
   if (my_copy(fn_format(src_path, table->path,"", reg_ext, 4),
-	     dst_path,
-	     MYF(MY_WME | MY_HOLD_ORIGINAL_MODES )))
+	      dst_path,
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
     error = HA_ADMIN_FAILED;
-    errmsg = "Failed copying .frm file: errno = %d";
+    errmsg = "Failed copying .frm file (errno: %d)";
     goto err;
   }
 
   if (!fn_format(dst_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
-    {
-      errmsg = "Failed in fn_format() for .MYD file: errno = %d";
-      error = HA_ADMIN_INVALID;
-      goto err;
-    }
+  {
+    errmsg = "Failed in fn_format() for .MYD file (errno: %d)";
+    error = HA_ADMIN_INVALID;
+    goto err;
+  }
 
   if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT, 4),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES ))  )
-    {
-      errmsg = "Failed copying .MYD file: errno = %d";
-      error= HA_ADMIN_FAILED;
-      goto err;
-    }
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
+  {
+    errmsg = "Failed copying .MYD file (errno: %d)";
+    error= HA_ADMIN_FAILED;
+    goto err;
+  }
   return HA_ADMIN_OK;
- err:
+err:
   {
     MI_CHECK param;
     myisamchk_init(&param);
@@ -459,7 +459,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
-    mi_check_print_error(&param,errmsg, errno );
+    mi_check_print_error(&param, errmsg, my_errno);
     return error;
   }
 }

@@ -1270,6 +1270,17 @@ This may also be a network problem, or just a bug in the master or slave code.\
 
 pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 {
+  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
+  my_thread_init();
+  if (!server_id)
+  {
+    pthread_cond_broadcast(&COND_slave_start);
+    sql_print_error("Server id not set, will not start slave");
+    my_thread_end();
+    pthread_exit((void*)1);
+  }
+  DBUG_ENTER("handle_slave");
+
 #ifndef DBUG_OFF
  slave_begin:  
 #endif  
@@ -1278,20 +1289,14 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   char llbuff[22];
 
   pthread_mutex_lock(&LOCK_slave);
-  if (!server_id)
+  
+  if (slave_running)
   {
     pthread_cond_broadcast(&COND_slave_start);
     pthread_mutex_unlock(&LOCK_slave);
-    sql_print_error("Server id not set, will not start slave");
-    pthread_exit((void*)1);
+    my_thread_end();
+    pthread_exit((void*)1);  // safety just in case
   }
-  
-  if(slave_running)
-    {
-      pthread_cond_broadcast(&COND_slave_start);
-      pthread_mutex_unlock(&LOCK_slave);
-      pthread_exit((void*)1);  // safety just in case
-    }
   slave_running = 1;
   abort_slave = 0;
 #ifndef DBUG_OFF  
@@ -1304,11 +1309,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   bool retried_once = 0;
   ulonglong last_failed_pos = 0;
   
-  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
-  my_thread_init();
   slave_thd = thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->set_time();
-  DBUG_ENTER("handle_slave");
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd) || init_master_info(&glob_mi))
@@ -1518,18 +1520,18 @@ position %s",
   abort_slave = 0;
   save_temporary_tables = thd->temporary_tables;
   thd->temporary_tables = 0; // remove tempation from destructor to close them
-  pthread_cond_broadcast(&COND_slave_stopped); // tell the world we are done
-  pthread_mutex_unlock(&LOCK_slave);
   net_end(&thd->net); // destructor will not free it, because we are weird
   slave_thd = 0;
   (void) pthread_mutex_lock(&LOCK_thread_count);
   delete thd;
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  my_thread_end();
+  pthread_mutex_unlock(&LOCK_slave);
+  pthread_cond_broadcast(&COND_slave_stopped); // tell the world we are done
 #ifndef DBUG_OFF
   if(abort_slave_event_count && !events_till_abort)
     goto slave_begin;
 #endif  
+  my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);				// Can't return anything here
 }
