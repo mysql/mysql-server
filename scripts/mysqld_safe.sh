@@ -82,7 +82,7 @@ parse_arguments() {
 
 MY_PWD=`pwd`
 # Check if we are starting this relative (for the binary release)
-if test -d $MY_PWD/data/mysql -a -f ./share/mysql/english/errmsg.sys -a \
+if test -f ./share/mysql/english/errmsg.sys -a \
  -x ./bin/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
@@ -93,7 +93,7 @@ then
     defaults="--defaults-extra-file=$DATADIR/my.cnf"
   fi
 # Check if this is a 'moved install directory'
-elif test -f ./var/mysql/db.frm -a -f ./share/mysql/english/errmsg.sys -a \
+elif test -f ./share/mysql/english/errmsg.sys -a \
  -x ./libexec/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
