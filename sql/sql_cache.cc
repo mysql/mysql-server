@@ -757,6 +757,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   DBUG_ENTER("Query_cache::store_query");
   if (query_cache_size == 0)
     DBUG_VOID_RETURN;
+  uint8 tables_type= 0;
 
   if ((local_tables = is_cacheable(thd, thd->query_length,
 			     thd->query, &thd->lex, tables_used,
@@ -1001,7 +1002,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Need to check column privileges for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->lex.safe_to_cache_query=0;		// Don't try to cache this
+      thd->lex.safe_to_cache_query= 0;		// Don't try to cache this
       goto err_unlock;				// Parse query
     }
     if (check_tables && !handler::caching_allowed(thd, table->db(), 
@@ -1011,7 +1012,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
-      thd->safe_to_cache_query=0;               // Don't try to cache this
+      thd->lex.safe_to_cache_query= 0;          // Don't try to cache this
       goto err_unlock;				// Parse query
     }
     else
