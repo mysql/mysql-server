@@ -308,29 +308,18 @@ dict_table_autoinc_get(
 }
 
 /************************************************************************
-Reads the autoinc counter value, 0 if not yet initialized. Does not
-increment the counter. */
+Decrements the autoinc counter value by 1. */
 
-ib_longlong
-dict_table_autoinc_read(
-/*====================*/
-				/* out: value of the counter */
+void
+dict_table_autoinc_decrement(
+/*=========================*/
 	dict_table_t*	table)	/* in: table */
 {
-	ib_longlong	value;
-
 	mutex_enter(&(table->autoinc_mutex));
 
-	if (!table->autoinc_inited) {
-
-		value = 0;
-	} else {
-		value = table->autoinc;
-	}
+	table->autoinc = table->autoinc - 1;
 	
 	mutex_exit(&(table->autoinc_mutex));
-
-	return(value);
 }
 
 /************************************************************************

@@ -22,6 +22,25 @@ Created 6/2/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 
 /*
+Latching strategy of the InnoDB B-tree
+--------------------------------------
+A tree latch protects all non-leaf nodes of the tree. Each node of a tree
+also has a latch of its own.
+
+A B-tree operation normally first acquires an S-latch on the tree. It
+searches down the tree and releases the tree latch when it has the
+leaf node latch. To save CPU time we do not acquire any latch on
+non-leaf nodes of the tree during a search, those pages are only bufferfixed.
+
+If an operation needs to restructure the tree, it acquires an X-latch on
+the tree before searching to a leaf node. If it needs, for example, to
+split a leaf,
+(1) InnoDB decides the split point in the leaf,
+(2) allocates a new page,
+(3) inserts the appropriate node pointer to the first non-leaf level,
+(4) releases the tree X-latch,
+(5) and then moves records from the leaf to the new allocated page.
+
 Node pointers
 -------------
 Leaf pages of a B-tree contain the index records stored in the

@@ -405,8 +405,6 @@ ha_innobase::update_thd(
 	return(0);
 }
 
-/* The code here appears for documentational purposes only. Not used
-or tested yet. Will be used in 4.1. */
 /*********************************************************************
 Call this when you have opened a new table handle in HANDLER, before you
 call index_read_idx() etc. Actually, we can let the cursor stay open even
@@ -667,20 +665,20 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
-  if (current_thd->slave_thread)
-  {
-    /* Update the replication position info inside InnoDB */
+        if (current_thd->slave_thread) {
+                /* Update the replication position info inside InnoDB */
 #ifdef NEED_TO_BE_FIXED	  
-    trx->mysql_relay_log_file_name=	active_mi->rli.log_file_name;
-    trx->mysql_relay_log_pos=		active_mi->rli.relay_log_pos;
+                trx->mysql_relay_log_file_name = active_mi->rli.log_file_name;
+                trx->mysql_relay_log_pos = active_mi->rli.relay_log_pos;
 #endif
-    trx->mysql_master_log_file_name=	active_mi->rli.master_log_name;
-    trx->mysql_master_log_pos=		((ib_longlong)
+                trx->mysql_master_log_file_name
+                                        = active_mi->rli.master_log_name;
+                trx->mysql_master_log_pos = ((ib_longlong)
 					 (active_mi->rli.master_log_pos +
 					  active_mi->rli.event_len +
 					  active_mi->rli.pending));
-  }
-  trx_commit_for_mysql(trx);
+        }
+        trx_commit_for_mysql(trx);
 }
 
 /*********************************************************************
@@ -692,7 +690,8 @@ innobase_commit(
 			/* out: 0 or error number */
 	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
-	void*	trx_handle)/* in: InnoDB trx handle or NULL: NULL means
+	void*	trx_handle)/* in: InnoDB trx handle or
+			&innodb_dummy_stmt_trx_handle: the latter means
 			that the current SQL statement ended, and we should
 			mark the start of a new statement with a savepoint */
 {
@@ -716,6 +715,7 @@ innobase_commit(
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		innobase_commit_low(trx);
+		thd->transaction.all.innodb_active_trans=0;
 	}
 
 	/* Release possible statement level resources */
@@ -772,7 +772,9 @@ innobase_rollback(
 			/* out: 0 or error number */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose transaction should be rolled back */
-	void*	trx_handle)/* in: InnoDB trx handle or a dummy stmt handle */
+	void*	trx_handle)/* in: InnoDB trx handle or a dummy stmt handle;
+			the latter means we roll back the latest SQL
+			statement */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -796,6 +798,7 @@ innobase_rollback(
 
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		error = trx_rollback_for_mysql(trx);
+		thd->transaction.all.innodb_active_trans=0;
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
@@ -1190,11 +1193,11 @@ innobase_mysql_cmp(
   		ret = my_sortncmp((const char*) a, a_length,
 				  (const char*) b, b_length);
 		if (ret < 0) {
-		  return(-1);
+		        return(-1);
 		} else if (ret > 0) {
-		  return(1);
+		        return(1);
 		} else {
-		  return(0);
+		        return(0);
 	        }
 	default:
 		assert(0);
@@ -1497,6 +1500,8 @@ ha_innobase::write_row(
   	int 		error;
 	longlong	auto_inc;
 	longlong	dummy;
+	ibool           incremented_auto_inc_for_stat = FALSE;
+	ibool           incremented_auto_inc_counter = FALSE;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
@@ -1567,6 +1572,7 @@ ha_innobase::write_row(
 			assign sequential values from the counter. */
 
 			auto_inc_counter_for_this_stat++;
+			incremented_auto_inc_for_stat = TRUE;
 
 			auto_inc = auto_inc_counter_for_this_stat;
 
@@ -1615,7 +1621,12 @@ ha_innobase::write_row(
 				}
 			}	
 
+			/* The following call gets the value of the auto-inc
+			counter of the table and increments it by 1 */
+
 			auto_inc = dict_table_autoinc_get(prebuilt->table);
+			incremented_auto_inc_counter = TRUE;
+
 			srv_conc_exit_innodb(prebuilt->trx);
 
 			/* We can give the new value for MySQL to place in
@@ -1651,6 +1662,20 @@ ha_innobase::write_row(
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 	srv_conc_exit_innodb(prebuilt->trx);
+
+	if (error != DB_SUCCESS) {
+	        /* If the insert did not succeed we restore the value of
+		the auto-inc counter we used; note that this behavior was
+		introduced only in version 4.0.4 */
+
+	        if (incremented_auto_inc_counter) {
+	                dict_autoinc_decrement(prebuilt->table);
+	        }
+
+		if (incremented_auto_inc_for_stat) {
+		        auto_inc_counter_for_this_stat--;
+		}
+	}
 
 	prebuilt->trx->ignore_duplicates_in_insert = FALSE;
 
@@ -3311,7 +3336,7 @@ ha_innobase::update_table_comment(
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	uint 		length 	= strlen(comment);
-  	char*		str 	= my_malloc(length + 550, MYF(0));
+  	char*		str 	= my_malloc(length + 16500, MYF(0));
   	char*		pos;
 
 	/* Warning: since it is not sure that MySQL calls external_lock
@@ -3333,10 +3358,12 @@ ha_innobase::update_table_comment(
 			  (pos,"InnoDB free: %lu kB",
 			   (ulong) innobase_get_free_space()));
 
-	/* We assume 450 - length bytes of space to print info */
+	/* We assume 16000 - length bytes of space to print info; the limit
+        16000 bytes is arbitrary, and MySQL could handle at least 64000
+	bytes */
   
-	if (length < 450) {
-  		dict_print_info_on_foreign_keys(FALSE, pos, 450 - length,
+	if (length < 16000) {
+  		dict_print_info_on_foreign_keys(FALSE, pos, 16000 - length,
 							prebuilt->table);
 	}
 
@@ -3508,7 +3535,6 @@ ha_innobase::external_lock(
 				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		    		innobase_commit(thd, trx);
-				thd->transaction.all.innodb_active_trans=0;
 		  	}
 		}
 	}
