@@ -629,10 +629,10 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         if (passwd_len == acl_user_tmp->salt_len)
         {
           if (acl_user_tmp->salt_len == 0 ||
-              acl_user_tmp->salt_len == SCRAMBLE_LENGTH &&
-              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) == 0 ||
+              (acl_user_tmp->salt_len == SCRAMBLE_LENGTH ?
+              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) :
               check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) acl_user_tmp->salt) == 0)
+                                 (ulong *) acl_user_tmp->salt)) == 0)
           {
             acl_user= acl_user_tmp;
             res= 0;
