@@ -38,6 +38,8 @@ Incorrect table definition; There can only be one auto column and it must be def
 create table t1 (ordid int(8), unique (ordid)) type=isam;
 Column 'ordid' is used with UNIQUE or INDEX but is not defined as NOT NULL
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 create table t2 type=isam select * from t1;
@@ -62,15 +64,15 @@ Table	Op	Msg_type	Msg_text
 test.t2	check	error	Table 't2' was not locked with LOCK TABLES
 test.t1	check	status	OK
 show columns from t1;
-Field	Type	Null	Key	Default	Extra
-a	int(11)		PRI	0	
-b	int(11)		MUL	0	
-c	int(11)			0	
+Field	Type	Collation	Null	Key	Default	Extra
+a	int(11)	binary		PRI	0	
+b	int(11)	binary		MUL	0	
+c	int(11)	binary			0	
 show full columns from t1;
-Field	Type	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)		PRI	0		select,insert,update,references	
-b	int(11)		MUL	0		select,insert,update,references	
-c	int(11)			0		select,insert,update,references	
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	binary		PRI	0		select,insert,update,references	
+b	int(11)	binary		MUL	0		select,insert,update,references	
+c	int(11)	binary			0		select,insert,update,references	
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	4	NULL	NULL		BTREE	

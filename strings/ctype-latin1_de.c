@@ -415,6 +415,7 @@ CHARSET_INFO my_charset_latin1_de =
 {
     31,			/* number    */
     MY_CS_COMPILED,	/* state     */
+    "latin1",		/* cs name    */
     "latin1_de",	/* name      */
     "",			/* comment   */
     ctype_latin1_de,

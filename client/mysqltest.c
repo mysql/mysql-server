@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.25"
+#define MTEST_VERSION "1.26"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -166,7 +166,8 @@ typedef struct
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
-int disable_query_log=0, disable_result_log=0;
+my_bool disable_query_log=0, disable_result_log=0, disable_warnings=0;
+my_bool disable_info= 1;			/* By default off */
 
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
@@ -195,6 +196,8 @@ Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
+Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
+Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -253,6 +256,10 @@ const char *command_names[]=
   "require_manager",
   "wait_for_slave_to_stop",
   "require_version",
+  "enable_warnings",
+  "disable_warnings",
+  "enable_info",
+  "diable_info",
   0
 };
 
@@ -1803,10 +1810,8 @@ int read_query(struct st_query** q_ptr)
 
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
@@ -1899,7 +1904,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case '#':
+#ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
+#endif
     break;
   case 'r':
     record = 1;
@@ -1977,7 +1984,7 @@ int parse_args(int argc, char **argv)
   default_argv= argv;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-    exit(ho_error);
+    exit(1);
 
   if (argc > 1)
   {
@@ -2170,17 +2177,17 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
       /*
-	 if we do not abort on error, failure to run the query does
-	 not fail the whole test case
+	if we do not abort on error, failure to run the query does
+	not fail the whole test case
       */
       goto end;
     }
     /*{
       verbose_msg("failed in mysql_store_result for query '%s' (%d)", query,
-		  mysql_errno(mysql));
+      mysql_errno(mysql));
       error = 1;
       goto end;
-    }*/
+      }*/
   }
 
   if (q->expected_errno[0])
@@ -2191,34 +2198,49 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     goto end;
   }
 
-  if (!disable_result_log && res)
+  if (!disable_result_log)
   {
-    int num_fields= mysql_num_fields(res);
-    MYSQL_FIELD *fields= mysql_fetch_fields(res);
-    for (i = 0; i < num_fields; i++)
+    if (res)
     {
-      if (i)
-	dynstr_append_mem(ds, "\t", 1);
-      dynstr_append(ds, fields[i].name);
+      int num_fields= mysql_num_fields(res);
+      MYSQL_FIELD *fields= mysql_fetch_fields(res);
+      for (i = 0; i < num_fields; i++)
+      {
+	if (i)
+	  dynstr_append_mem(ds, "\t", 1);
+	dynstr_append(ds, fields[i].name);
+      }
+      dynstr_append_mem(ds, "\n", 1);
+      append_result(ds, res);
     }
-    dynstr_append_mem(ds, "\n", 1);
-    append_result(ds, res);
+
+    /* Add all warnings to the result */
+    if (!disable_warnings && mysql_warning_count(mysql))
+    {
+      MYSQL_RES *warn_res=0;
+      uint count= mysql_warning_count(mysql);
+      if (!mysql_real_query(mysql, "SHOW WARNINGS", 13))
+      {
+	warn_res=mysql_store_result(mysql);
+      }
+      if (!warn_res)
+	verbose_msg("Warning count is %u but didn't get any warnings\n",
+		    count);
+      else
+      {
+	dynstr_append_mem(ds, "Warnings:\n", 10);
+	append_result(ds, warn_res);
+	mysql_free_result(warn_res);
+      }
+    }
+    if (!disable_info && mysql_info(mysql))
+    {
+      dynstr_append(ds, "info: ");
+      dynstr_append(ds, mysql_info(mysql));
+      dynstr_append_mem(ds, "\n", 1);
+    }
   }
 
-  /* Add all warnings to the result */
-  if (!disable_result_log && mysql_warning_count(mysql))
-  {
-    MYSQL_RES *warn_res= mysql_warnings(mysql);
-    if (!warn_res)
-      verbose_msg("Warning count is %d but didn't get any warnings\n",
-		  mysql_warning_count(mysql));
-    else
-    {
-      dynstr_append_mem(ds, "Warnings:\n", 10);
-      append_result(ds, warn_res);
-      mysql_free_result(warn_res);
-    }
-  }
   if (glob_replace)
     free_replace();
 
@@ -2427,6 +2449,10 @@ int main(int argc, char** argv)
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
+      case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
+      case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
+      case Q_ENABLE_INFO:    	 disable_info=0; break;
+      case Q_DISABLE_INFO:   	 disable_info=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;

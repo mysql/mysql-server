@@ -1,4 +1,13 @@
+# Initialize
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
+
+select * from (select 2 from DUAL) b;
+-- error 1054
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
+-- error 1054
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
@@ -20,7 +29,7 @@ SELECT 1 FROM (SELECT 1) a WHERE a=2;
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
 select * from t1 as x1, (select * from t1) as x2;
 explain select * from t1 as x1, (select * from t1) as x2;
-drop table if exists  t1.t2,t3;
+drop table if exists  t2,t3;
 select * from (select 1) as a;
 select a from (select 1 as a) as b;
 select 1 from (select 1) as a;
@@ -40,6 +49,12 @@ while ($1)
 enable_query_log;
 SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
-drop table if exists  t1;
+drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 select * from (select 1 as a) b  left join (select 2 as a) c using(a);
+--error 1054
+SELECT * FROM (SELECT 1 UNION SELECT a) b;
+--error 1054
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
+--error 1054
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;

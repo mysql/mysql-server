@@ -1,3 +1,8 @@
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 #
 # Testing of the <=> operator
 #
@@ -15,7 +20,6 @@ select "A"<=>"B","A"<=>NULL,NULL<=>"A";
 # Test with tables
 #
 
-drop table if exists t1,t2;
 create table t1 (id int, value int);
 create table t2 (id int, value int);
 

@@ -2,7 +2,10 @@
 # Test of refering to old values
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -46,15 +49,19 @@ drop table t1;
 create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id));
 insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
 select * from t1;
+insert into t1 values ('rts',NULL),('rts',NULL),('test',NULL);
+select * from t1;
 drop table t1;
 
 #
 # Test of mysqld crash with fully qualified column names
 #
 
-drop database if exists foo;
-create database foo;
-use foo;
+--disable_warnings
+drop database if exists test_$1;
+--enable_warnings
+create database test_$1;
+use test_$1;
 create table t1 (c int);
-insert into foo.t1 set foo.t1.c = '1';
-drop database foo;
+insert into test_$1.t1 set test_$1.t1.c = '1';
+drop database test_$1;

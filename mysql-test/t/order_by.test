@@ -2,7 +2,9 @@
 # Bug with order by
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
 
 CREATE TABLE t1 (
   id int(6) DEFAULT '0' NOT NULL,
@@ -168,7 +170,6 @@ drop table t1,t2,t3;
 
 #bug reported by Wouter de Jong
 
-drop table if exists t1;
 CREATE TABLE t1 (
   member_id int(11) NOT NULL auto_increment,
   inschrijf_datum varchar(20) NOT NULL default '',
@@ -330,3 +331,24 @@ INSERT INTO t2 (numeropost,pseudo) VALUES (1,'joce'),(1,'bug');
 SELECT titre,t1.numeropost,auteur,icone,nbrep,0,date,vue,ouvert,lastauteur,dest FROM t2 LEFT JOIN t1 USING(numeropost) WHERE t2.pseudo='joce' ORDER BY date DESC LIMIT 0,30;
 SELECT titre,t1.numeropost,auteur,icone,nbrep,'0',date,vue,ouvert,lastauteur,dest FROM t2 LEFT JOIN t1 USING(numeropost) WHERE t2.pseudo='joce' ORDER BY date DESC LIMIT 0,30;
 drop table t1,t2;
+
+#
+# Test of test_if_subkey() function
+#
+
+CREATE TABLE t1 (
+  FieldKey varchar(36) NOT NULL default '',
+  LongVal bigint(20) default NULL,
+  StringVal mediumtext,
+  KEY FieldKey (FieldKey),
+  KEY LongField (FieldKey,LongVal),
+  KEY StringField (FieldKey,StringVal(32))
+);
+INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
+EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
+SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
+EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
+SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
+DROP TABLE t1;

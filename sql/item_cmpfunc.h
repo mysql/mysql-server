@@ -85,25 +85,28 @@ public:
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
+class Item_cache;
 class Item_in_optimizer: public Item_bool_func
 {
 protected:
-  char buffer[80];
-  longlong int_cache;
-  double flt_cache;
-  String *str_cache;
-  bool int_cache_ok, flt_cache_ok, str_cache_ok;
+  Item_cache *cache;
 public:
-  Item_in_optimizer(Item *a,Item *b):
-    Item_bool_func(a,b), int_cache_ok(0), flt_cache_ok(0), str_cache_ok(0) {}
-  bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+  Item_in_optimizer(Item *a, Item_in_subselect *b):
+    Item_bool_func(a, (Item *)b), cache(0) {}
+  // used by row in transformer
+  bool preallocate_row();
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  bool is_null();
+  /*
+    Item_in_optimizer item is special boolean function. On value request 
+    (one of val, val_int or val_str methods) it evaluate left expression 
+    of IN by storing it value in cache item (one of Item_cache* items), 
+    then it test cache is it NULL. If left expression (cache) is NULL then
+    Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
+  */
   longlong val_int();
-
-  double get_cache();
-  longlong get_cache_int();
-  String *get_cache_str(String *s);
-
-  friend class Item_ref_in_optimizer;
+  
+  Item_cache **get_cache() { return &cache; }
 };
 
 class Item_bool_func2 :public Item_int_func
@@ -281,6 +284,11 @@ public:
   const char *func_name() const { return "interval"; }
   void update_used_tables();
   bool check_loop(uint id);
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_func::set_outer_resolving();
+  }
 };
 
 
@@ -363,6 +371,7 @@ public:
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 
@@ -542,10 +551,14 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row()
   {
-    if(comparators)
-      for(uint i= 0; i < n; i++)
+    if (comparators)
+    {
+      for (uint i= 0; i < n; i++)
+      {
 	if (comparators[i])
 	  delete comparators[i];
+      }
+    }
   }
   void store_value(Item *item);
   int cmp(Item *arg);
@@ -647,6 +660,11 @@ class Item_func_in :public Item_int_func
     DBUG_RETURN(item->check_loop(id));
   }
   bool nulls_in_row();
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_int_func::set_outer_resolving();
+  }
 };
 
 /* Functions used by where clause */
@@ -788,6 +806,7 @@ public:
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   bool check_loop(uint id);
   void top_level_item() { abort_on_null=1; }
+  void set_outer_resolving();
 };
 
 

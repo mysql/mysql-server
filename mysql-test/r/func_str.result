@@ -170,6 +170,9 @@ quote(concat('abc\'', '\\cba'))
 select quote(1/0), quote('\0\Z');
 quote(1/0)	quote('\0\Z')
 NULL	'\0\Z'
+select length(quote(concat(char(0),"test")));
+length(quote(concat(char(0),"test")))
+8
 select reverse("");
 reverse("")
 

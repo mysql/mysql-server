@@ -576,7 +576,7 @@ buf_read_recv_pages(
 
 		os_aio_print_debug = FALSE;
 
-		while (buf_pool->n_pend_reads >= RECV_POOL_N_FREE_BLOCKS / 2) {
+		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
 			os_thread_sleep(500000);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,6 +222,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FIRST_SYM
 %token	FIXED_SYM
 %token	FLOAT_NUM
+%token	FORCE_SYM
 %token	FOREIGN
 %token	FROM
 %token	FULL
@@ -587,7 +588,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
 	using_list expr_or_default set_expr_or_default
-	param_marker singleval_subselect singleval_subselect_init
+	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
 
 %type <item_list>
@@ -633,7 +634,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <charset>
 	charset_name
 	charset_name_or_default
-	opt_db_default_character_set
+	collation_name
+	collation_name_or_default
 
 %type <variable> internal_variable_name
 
@@ -822,7 +824,8 @@ create:
 						 ($2 &
 						  HA_LEX_CREATE_TMP_TABLE ?
 						  &tmp_table_alias :
-						  (LEX_STRING*) 0),1,
+						  (LEX_STRING*) 0),
+						 TL_OPTION_UPDATING,
 						 ((using_update_log)?
 						  TL_READ_NO_INSERT:
 						  TL_READ)))
@@ -835,6 +838,7 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
+	  lex->name=0;
 	}
 	create2
 	{}
@@ -842,7 +846,8 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $7,NULL,1))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $7, NULL,
+							TL_OPTION_UPDATING))
 	      YYABORT;
 	    lex->create_list.empty();
 	    lex->key_list.empty();
@@ -856,13 +861,14 @@ create:
 	    lex->key_list.push_back(new Key($2,$4.str, $5, lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident opt_db_default_character_set
+	| CREATE DATABASE opt_if_not_exists ident 
+	  { Lex->create_info.table_charset=NULL; }
+	  opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
 	    lex->name=$4.str;
             lex->create_info.options=$3;
-	    lex->create_info.table_charset=$5;
 	  }
 	| CREATE udf_func_type UDF_SYM ident
 	  {
@@ -883,7 +889,13 @@ create:
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
 	| opt_create_table_options create3 {}
-        ;
+	| LIKE table_ident
+      	  {
+      	    LEX *lex=Lex;
+     	    if (!(lex->name= (char *)$2))
+              YYABORT;
+    	  }
+  	  ;
 
 create3:
 	/* empty */ {}
@@ -899,6 +911,22 @@ create3:
 opt_as:
 	/* empty */ {}
 	| AS	    {};
+
+opt_create_database_options:
+	/* empty */			{}
+	| create_database_options	{};
+
+create_database_options:
+	create_database_option					{}
+	| create_database_options create_database_option	{};
+
+create_database_option:
+	  COLLATE_SYM collation_name_or_default	
+	  { Lex->create_info.table_charset=$2; }
+	| opt_default CHAR_SYM SET charset_name_or_default
+	  { Lex->create_info.table_charset=$4; }
+	| opt_default CHARSET charset_name_or_default
+	  { Lex->create_info.table_charset=$3; };
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -967,6 +995,11 @@ create_table_option:
 	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
+	| COLLATE_SYM opt_equal collation_name_or_default
+	  {
+	    Lex->create_info.table_charset= $3;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
+	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING    { Lex->create_info.index_file_name= $4.str; };
@@ -997,6 +1030,7 @@ merge_insert_types:
 
 opt_select_from:
 	opt_limit_clause {}
+	| FROM DUAL_SYM {}
 	| select_from select_lock_type;
 
 udf_func_type:
@@ -1223,21 +1257,14 @@ attribute:
 	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
-	| COMMENT_SYM text_literal { Lex->comment= $2; };
+	| COMMENT_SYM text_literal { Lex->comment= $2; }
+	| COLLATE_SYM collation_name { Lex->charset=$2; };
 
 
 charset_name:
-	BINARY
+	ident
 	{
-	  if (!($$=get_charset_by_name("binary",MYF(0))))
-	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"binary");
-	    YYABORT;
-	  }
-	}
-	| ident
-	{
-	  if (!($$=get_charset_by_name($1.str,MYF(0))))
+	  if (!($$=get_charset_by_csname($1.str,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
@@ -1248,14 +1275,23 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+collation_name:
+	ident
+	{
+	  if (!($$=get_charset_by_name($1.str,MYF(0))))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    YYABORT;
+	  }
+	};
+
+collation_name_or_default:
+	collation_name { $$=$1;   }
+	| DEFAULT    { $$=NULL; } ;
+
 opt_default:
 	/* empty */	{}
 	| DEFAULT	{};
-
-opt_db_default_character_set:
-	/* empty */	{ $$=default_charset_info; }
-	| opt_default CHAR_SYM SET charset_name_or_default	{ $$=$4; }
-	| opt_default CHARSET charset_name_or_default		{ $$=$3; };
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
@@ -1270,7 +1306,6 @@ opt_binary:
 	    YYABORT;
 	  }
 	}
-	| COLLATE_SYM charset_name	{ Lex->charset=$2; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 opt_primary:
@@ -1347,7 +1382,8 @@ opt_unique_or_fulltext:
 
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
-	| USING opt_btree_or_rtree { $$= $2; };
+	| USING opt_btree_or_rtree { $$= $2; }
+	| TYPE_SYM opt_btree_or_rtree  { $$= $2; };
 
 opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
@@ -1381,7 +1417,8 @@ alter:
 	  LEX *lex=&thd->lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
-	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,1))
+	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
+						 TL_OPTION_UPDATING))
 	    YYABORT;
 	  lex->drop_primary=0;
 	  lex->create_list.empty();
@@ -1400,12 +1437,11 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident opt_db_default_character_set
+	| ALTER DATABASE ident opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name=$3.str;
-	    lex->create_info.table_charset=$4;
 	  };
 
 
@@ -1648,8 +1684,10 @@ table_to_table:
 	{
 	  LEX *lex=Lex;	  
 	  SELECT_LEX_NODE *sl= lex->current_select;
-	  if (!sl->add_table_to_list(lex->thd, $1,NULL,1,TL_IGNORE) ||
-	      !sl->add_table_to_list(lex->thd, $3,NULL,1,TL_IGNORE))
+	  if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
+				     TL_IGNORE) ||
+	      !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
+				     TL_IGNORE))
 	    YYABORT;
 	};
 
@@ -1668,12 +1706,17 @@ select_init:
 	'(' SELECT_SYM select_part2 ')'
 	  {
 	    LEX *lex= Lex;
-            SELECT_LEX_NODE * sel= lex->current_select;
+            SELECT_LEX * sel= lex->current_select->select_lex();
 	    if (sel->set_braces(1))
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
+	  if (sel->linkage == UNION_TYPE && !sel->master_unit()->first_select()->braces)
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
             /* select in braces, can't contain global parameters */
             sel->master_unit()->global_parameters=
                sel->master_unit();
@@ -1683,7 +1726,13 @@ select_init2:
 	select_part2
         {
 	  LEX *lex= Lex;
+          SELECT_LEX * sel= lex->current_select->select_lex();
           if (lex->current_select->set_braces(0))
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
+	  if (sel->linkage == UNION_TYPE && sel->master_unit()->first_select()->braces)
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
@@ -1695,6 +1744,7 @@ select_init2:
 select_part2:
 	{
 	  LEX *lex=Lex;
+	  SELECT_LEX * sel= lex->current_select->select_lex();
 	  if (lex->current_select == &lex->select_lex)
 	    lex->lock_option= TL_READ; /* Only for global SELECT */
 	  mysql_init_select(lex);
@@ -1880,7 +1930,7 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| expr '-' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,1); }
-	| expr COLLATE_SYM charset_name
+	| expr COLLATE_SYM collation_name
 	  { $$= new Item_func_set_collation($1,$3); };
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
@@ -2017,7 +2067,7 @@ simple_expr:
 	    $$= new Item_row(*$5);
 	  }
 	| EXISTS exists_subselect { $$= $2; }
-	| singleval_subselect   { $$= $1; }
+	| singlerow_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' expr ')'
           { Select->add_ftfunc_to_list((Item_func_match *)
@@ -2201,9 +2251,9 @@ simple_expr:
 	| NOW_SYM '(' expr ')'
 	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
-	  {
-	    $$= new Item_func_password($3);
-	   }
+	  { $$= new Item_func_password($3); }
+        | PASSWORD '(' expr ',' expr ')'
+          { $$= new Item_func_password($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POINTFROMTEXT '(' expr ',' expr ')'
@@ -2489,12 +2539,14 @@ join_table:
 	{
 	  SELECT_LEX *sel= Select->select_lex();
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
+	  sel->table_join_options= 0;
 	}
         table_ident opt_table_alias opt_key_definition
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX_NODE *sel= lex->current_select;
-	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3, 0,
+	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3,
+					   sel->get_table_join_options(),
 					   lex->lock_option,
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
@@ -2509,7 +2561,9 @@ join_table:
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
                 add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
-				  lex->lock_option)))
+				  TL_READ,(List<String> *)0,
+	                          (List<String> *)0)))
+
 	    YYABORT;
 	};
 
@@ -2538,6 +2592,13 @@ opt_key_definition:
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	  }
+	| FORCE_SYM key_usage_list
+          {
+	    SELECT_LEX *sel= Select->select_lex();
+	    sel->use_index= *$2;
+	    sel->use_index_ptr= &sel->use_index;
+	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
+	  }
 	| IGNORE_SYM key_usage_list
 	  {
 	    SELECT_LEX *sel= Select->select_lex();
@@ -2547,8 +2608,14 @@ opt_key_definition:
 
 key_usage_list:
 	key_or_index { Select->select_lex()->interval_list.empty(); }
-        '(' key_usage_list2 ')'
-        { $$= &Select->select_lex()->interval_list; };
+        '(' key_list_or_empty ')'
+        { $$= &Select->select_lex()->interval_list; }
+	;
+
+key_list_or_empty:
+	/* empty */ 		{}
+	| key_usage_list2	{}
+	;
 
 key_usage_list2:
 	key_usage_list2 ',' ident
@@ -2909,7 +2976,8 @@ drop:
 	     lex->drop_list.empty();
 	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
-	     if (!lex->current_select->add_table_to_list(lex->thd, $5,NULL, 1))
+	     if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+							TL_OPTION_UPDATING))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
@@ -2933,7 +3001,11 @@ table_list:
 
 table_name:
 	table_ident
-	{ if (!Select->add_table_to_list(YYTHD, $1, NULL, 1)) YYABORT; };
+	{
+	  if (!Select->add_table_to_list(YYTHD, $1, NULL, TL_OPTION_UPDATING))
+	    YYABORT;
+	}
+	;
 
 if_exists:
 	/* empty */ { $$= 0; }
@@ -3168,7 +3240,8 @@ delete:
 single_multi:
  	FROM table_ident
 	{
-	  if (!Select->add_table_to_list(YYTHD, $2, NULL, 1, Lex->lock_option))
+	  if (!Select->add_table_to_list(YYTHD, $2, NULL, TL_OPTION_UPDATING,
+					 Lex->lock_option))
 	    YYABORT;
 	}
 	where_clause opt_order_clause
@@ -3187,16 +3260,17 @@ table_wild_list:
 	  | table_wild_list ',' table_wild_one {};
 
 table_wild_one:
-	ident opt_wild
+	ident opt_wild opt_table_alias
 	{
-	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), NULL, 1,
-	      Lex->lock_option))
+	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), $3,
+					 TL_OPTION_UPDATING, Lex->lock_option))
 	    YYABORT;
         }
-	| ident '.' ident opt_wild
+	| ident '.' ident opt_wild opt_table_alias
 	  {
 	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
-					   NULL, 1, Lex->lock_option))
+					   $5, TL_OPTION_UPDATING,
+					   Lex->lock_option))
 	      YYABORT;
 	  }
 	;
@@ -3360,7 +3434,7 @@ show_param:
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if(!Select->add_table_to_list(YYTHD, $3, NULL,0))
+	    if (!Select->add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM STATUS_SYM
@@ -3529,14 +3603,14 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
 	{
-	  if (!Select->add_table_to_list(YYTHD, $11, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $11, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 	}
         |
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!Select->add_table_to_list(YYTHD, $3, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
 
         }
@@ -3666,17 +3740,41 @@ simple_ident:
 	}
 	| ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $1.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $2.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $3.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
 	};
 
@@ -4461,7 +4559,8 @@ optional_order_or_limit:
       	/* Empty */ {}
 	|
 	  {
-	    LEX *lex=Lex;
+	    THD *thd= YYTHD;
+	    LEX *lex= &thd->lex;
 	    if (!lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
@@ -4473,8 +4572,15 @@ optional_order_or_limit:
 	    lex->current_select= sel->master_unit();
 	    lex->current_select->select_limit=
 	      lex->thd->variables.select_limit;
+	    lex->current_select->no_table_names_allowed= 1;
+	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit
+          {
+	    THD *thd= YYTHD;
+	    thd->lex.current_select->no_table_names_allowed= 0;
+	    thd->where= "";
+          }
 	;
 
 order_or_limit:
@@ -4487,17 +4593,17 @@ union_option:
 	/* empty */ {}
 	| ALL {Select->master_unit()->union_option= 1;};
 
-singleval_subselect:
-	subselect_start singleval_subselect_init
+singlerow_subselect:
+	subselect_start singlerow_subselect_init
 	subselect_end
 	{
 	  $$= $2;
 	};
 
-singleval_subselect_init:
+singlerow_subselect_init:
 	select_init2
 	{
-	  $$= new Item_singleval_subselect(YYTHD,
+	  $$= new Item_singlerow_subselect(YYTHD,
 					   Lex->current_select->master_unit()->
                                              first_select());
 	};

@@ -47,11 +47,6 @@ Item::Item():
   loop_id= 0;
 }
 
-Item_ref_in_optimizer::Item_ref_in_optimizer(Item_in_optimizer *master,
-					     char *table_name_par,
-					     char *field_name_par):
-  Item_ref(master->args, table_name_par, field_name_par), owner(master) {}
-
 
 bool Item::check_loop(uint id)
 {
@@ -121,7 +116,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff), my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -139,7 +134,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -178,7 +173,7 @@ const char *Item_ident::full_name() const
   char *tmp;
   if (!table_name)
     return field_name ? field_name : name ? name : "tmp_field";
-  if (db_name)
+  if (db_name && db_name[0])
   {
     tmp=(char*) sql_alloc((uint) strlen(db_name)+(uint) strlen(table_name)+
 			  (uint) strlen(field_name)+3);
@@ -198,6 +193,7 @@ String *Item_field::val_str(String *str)
 {
   if ((null_value=field->is_null()))
     return 0;
+  str->set_charset(str_value.charset());
   return field->val_str(str,&str_value);
 }
 
@@ -220,6 +216,7 @@ String *Item_field::str_result(String *str)
 {
   if ((null_value=result_field->is_null()))
     return 0;
+  str->set_charset(str_value.charset());
   return result_field->val_str(str,&str_value);
 }
 
@@ -383,7 +380,8 @@ double Item_param::val()
 {
   switch (item_result_type) {
   case STRING_RESULT:
-    return (double)my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)0); 
+    return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
+			       str_value.length(), (char**) 0); 
   case INT_RESULT:
     return (double)int_value;
   default:
@@ -437,20 +435,6 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
-double Item_ref_in_optimizer::val()
-{
-  return owner->get_cache();
-}
-longlong Item_ref_in_optimizer::val_int()
-{
-  return owner->get_cache_int();
-}
-String* Item_ref_in_optimizer::val_str(String* s)
-{
-  return owner->get_cache_str(s);
-}
-
-
 /*
   Functions to convert item to field (for send_fields)
 */
@@ -462,18 +446,6 @@ bool Item::fix_fields(THD *thd,
 {
   fixed= 1;
   return 0;
-}
-
-bool Item_outer_select_context_saver::fix_fields(THD *thd,
-						 struct st_table_list *list,
-						 Item ** ref)
-{
-  DBUG_ENTER("Item_outer_select_context_saver::fix_fields");
-  bool res= item->fix_fields(thd,
-			     0, // do not show current subselect fields
-			     &item);
-  *ref= item;
-  DBUG_RETURN(res);
 }
 
 bool Item_asterisk_remover::fix_fields(THD *thd,
@@ -529,6 +501,26 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
   DBUG_RETURN(res);
 }
 
+bool Item_ref_on_list_position::fix_fields(THD *thd,
+					   struct st_table_list *tables,
+					   Item ** reference)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  for (uint i= 0; (item= li++) && i < pos; i++);
+  if (item)
+  {
+    ref= li.ref();
+    return Item_ref_null_helper::fix_fields(thd, tables, reference);
+  }
+  else
+  {
+    ref= 0;
+    my_error(ER_CARDINALITY_COL, MYF(0), pos);
+    return 1;
+  }
+}
+
 double Item_ref_null_helper::val()
 {
   double tmp= (*ref)->val_result();
@@ -556,8 +548,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
-    Field *tmp;
-    if ((tmp= find_field_in_tables(thd, this, tables, 0)) == not_found_field)
+    TABLE_LIST *where= 0;
+    Field *tmp= (Field *)not_found_field;
+    if (outer_resolving || 
+	(tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
+	not_found_field)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -575,20 +570,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
-      if (cursel->linkage != DERIVED_TABLE_TYPE)
-	for (SELECT_LEX *sl=cursel->outer_select();
+      if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
+	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
 	     sl;
 	     sl= sl->outer_select())
 	{
 	  if ((tmp= find_field_in_tables(thd, this,
-					 (last= sl)->get_table_list(),
+					 (last= sl)->get_table_list(), &where,
 					 0)) != not_found_field)
 	    break;
 	  if ((refer= find_item_in_list(this, sl->item_list,
 				       REPORT_EXCEPT_NOT_FOUND)) !=
 	     (Item **)not_found_item)
 	    break;
-	  if (sl->linkage == DERIVED_TABLE_TYPE)
+	  if (sl->master_unit()->first_select()->linkage ==
+	      DERIVED_TABLE_TYPE)
 	    break; // do not look over derived table
 	}
       if (!tmp)
@@ -598,7 +594,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	// call to return error code
-	find_field_in_tables(thd, this, tables, 1);
+	find_field_in_tables(thd, this, tables, &where, 1);
 	return -1;
       }
       else if (refer != (Item **)not_found_item)
@@ -608,7 +604,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			   (char *)field_name);
 	if (!r)
 	  return 1;
-	int res;
 	if (r->check_cols(1) || r->fix_fields(thd, tables, ref))
 	  return 1;
 	r->depended_from= last;
@@ -624,6 +619,17 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  found table as depended (of select where was found table)
 	*/
 	thd->lex.current_select->mark_as_dependent(last);
+	if (depended_from->having_fix_field)
+	{
+	  Item_ref *rf;
+	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
+				 (char *)where->alias,
+				 (char *)field_name);
+	  if (!rf)
+	    return 1;
+	  (rf)->outer_resolving= outer_resolving;
+	  return rf->check_cols(1) || rf->fix_fields(thd, tables, ref);
+	}
       }
     } 
     else if (!tmp)
@@ -638,14 +644,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     field->query_id=thd->query_id;
     table->used_fields++;
     table->used_keys&=field->part_of_key;
-  }
-  if (depended_from != 0 && depended_from->having_fix_field)
-  {
-    *ref= new Item_ref((char *)db_name, (char *)table_name,
-		       (char *)field_name);
-    if (!*ref)
-      return 1;
-    return (*ref)->check_cols(1) || (*ref)->fix_fields(thd, tables, ref);
   }
   fixed= 1;
   return 0;
@@ -1075,16 +1073,21 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    TABLE_LIST *where= 0;
+    SELECT_LEX *sl= (outer_resolving?
+		     thd->lex.current_select->select_lex():
+		     thd->lex.current_select->outer_select());
     /*
       Finding only in current select will be performed for selects that have 
       not outer one and for derived tables (which not support using outer 
       fields for now)
     */
-    if ((ref= find_item_in_list(this, 
+    if (outer_resolving ||
+	(ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
 				((sl && 
-				  thd->lex.current_select->linkage !=
+				  thd->lex.current_select->master_unit()->
+				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
 				  REPORT_ALL_ERRORS))) ==
@@ -1108,9 +1111,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	   (Item **)not_found_item)
 	  break;
 	if ((tmp= find_field_in_tables(thd, this,
-				       sl->get_table_list(),
+				       sl->get_table_list(), &where,
 				       0)) != not_found_field);
-	if (sl->linkage == DERIVED_TABLE_TYPE)
+	if (sl->master_unit()->first_select()->linkage ==
+	    DERIVED_TABLE_TYPE)
 	  break; // do not look over derived table
       }
 
@@ -1206,7 +1210,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info),*result;
+    String tmp(buff,sizeof(buff),my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -1220,7 +1224,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
 #ifdef DELETE_ITEMS
     delete item;
 #endif
-    return new Item_string(name,tmp_str,length,default_charset_info);
+    return new Item_string(name,tmp_str,length,result->charset());
   }
   if (res_type == INT_RESULT)
   {
@@ -1261,8 +1265,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff),default_charset_info),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff),default_charset_info);
+    String item_tmp(item_buff,sizeof(item_buff),my_charset_bin),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),my_charset_bin);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true
@@ -1277,6 +1281,141 @@ bool field_is_equal_to_item(Field *field,Item *item)
   return result == field->val_real();
 }
 
+Item_cache* Item_cache::get_cache(Item_result type)
+{
+  switch (type)
+  {
+  case INT_RESULT:
+    return new Item_cache_int();
+  case REAL_RESULT:
+    return new Item_cache_real();
+  case STRING_RESULT:
+    return new Item_cache_str();
+  case ROW_RESULT:
+    return new Item_cache_row();
+  default:
+    // should never be in real life
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}
+
+void Item_cache_str::store(Item *item)
+{
+  str_value.set(buffer, sizeof(buffer), item->charset());
+  value= item->str_result(&str_value);
+  if ((null_value= item->null_value))
+    value= 0;
+  else if (value != &str_value)
+  {
+    /*
+      We copy string value to avoid changing value if 'item' is table field
+      in queries like following (where t1.c is varchar):
+      select a, 
+             (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),
+             (select c from t1 where a=t2.a)
+        from t2;
+    */
+    str_value.copy(*value);
+    value= &str_value;
+  }
+
+}
+double Item_cache_str::val()
+{ 
+  if (value)
+    return my_strntod(value->charset(), (char*) value->ptr(),
+		      value->length(), (char**) 0);
+  else
+    return (double)0;
+}
+longlong Item_cache_str::val_int()
+{
+  if (value)
+    return my_strntoll(value->charset(), value->ptr(),
+		       value->length(), (char**) 0, 10);
+  else
+    return (longlong)0;
+}
+
+bool Item_cache_row::allocate(uint num)
+{
+  item_count= num;
+  THD *thd= current_thd;
+  return (!(values= 
+	    (Item_cache **) thd->calloc(sizeof(Item_cache *)*item_count)));
+}
+
+bool Item_cache_row::setup(Item * item)
+{
+  if (!values && allocate(item->cols()))
+    return 1;
+  for (uint i= 0; i < item_count; i++)
+  {
+    Item *el= item->el(i);
+    Item_cache *tmp;
+    if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
+      return 1;
+    tmp->setup(el);
+  }
+  return 0;
+}
+
+void Item_cache_row::store(Item * item)
+{
+  null_value= 0;
+  item->bring_value();
+  for (uint i= 0; i < item_count; i++)
+  {
+    values[i]->store(item->el(i));
+    null_value|= values[i]->null_value;
+  }
+}
+
+void Item_cache_row::illegal_method_call(const char *method)
+{
+  DBUG_ENTER("Item_cache_row::illegal_method_call");
+  DBUG_PRINT("error", ("!!! %s method was called for row item", method));
+  DBUG_ASSERT(0);
+  my_error(ER_CARDINALITY_COL, MYF(0), 1);
+  DBUG_VOID_RETURN;
+}
+
+bool Item_cache_row::check_cols(uint c)
+{
+  if (c != item_count)
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
+    return 1;
+  }
+  return 0;
+}
+
+bool Item_cache_row::null_inside()
+{
+  for (uint i= 0; i < item_count; i++)
+  {
+    if (values[i]->cols() > 1)
+    {
+      if (values[i]->null_inside())
+	return 1;
+    }
+    else
+    {
+      values[i]->val_int();
+      if (values[i]->null_value)
+	return 1;
+    }
+  }
+  return 0;
+}
+
+void Item_cache_row::bring_value()
+{
+  for (uint i= 0; i < item_count; i++)
+    values[i]->bring_value();
+  return;
+}
 
 /*****************************************************************************
 ** Instantiate templates

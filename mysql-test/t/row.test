@@ -1,3 +1,8 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
 select row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
 select row(1,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
@@ -33,7 +38,7 @@ SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,3));
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL));
 -- error 1239
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,4);
-drop table if exists t1;
+
 create table t1 ( a int, b int, c int);
 insert into t1 values (1,2,3), (2,3,1), (3,2,1), (1,2,NULL);
 select * from t1 where ROW(1,2,3)=ROW(a,b,c);
@@ -47,7 +52,7 @@ drop table t1;
 
 -- error 1239
 select ROW(1,1);
-drop table if exists t1;
+
 create table t1 (i int);
 -- error 1239
 select 1 from t1 where ROW(1,1);

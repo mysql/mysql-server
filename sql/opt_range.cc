@@ -603,12 +603,14 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
   read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  if (head->force_index)
+    scan_time= read_time= DBL_MAX;
   if (limit < records)
     read_time=(double) records+scan_time+1;	// Force to use index
   else if (read_time <= 2.0 && !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
-  DBUG_PRINT("info",("Time to scan table: %ld",(long) read_time));
+  DBUG_PRINT("info",("Time to scan table: %g", read_time));
 
   keys_to_use&=head->keys_in_use_for_query;
   if (keys_to_use)
@@ -929,7 +931,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   {
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
-    String tmp(buff1,sizeof(buff1),default_charset_info),*res;
+    String tmp(buff1,sizeof(buff1),value->charset()),*res;
     uint length,offset,min_length,max_length;
 
     if (!field->optimize_range(param->real_keynr[key_part->key]))
@@ -1043,7 +1045,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length,
-		       key_part->image_type);
+		       field->charset(),key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
 
@@ -2162,18 +2164,29 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     tmp=1;					// Max one record
   else
   {
-    tmp=param->table->file->
-      records_in_range((int) keynr,
-		       (byte*) (!min_key_length ? NullS :
-				param->min_key),
-		       min_key_length,
-		       tmp_min_flag & NEAR_MIN ?
-		       HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
-		       (byte*) (!max_key_length ? NullS :
-				param->max_key),
-		       max_key_length,
-		       (tmp_max_flag & NEAR_MAX ?
-			HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
+    if (tmp_min_flag & GEOM_FLAG)
+    {
+      tmp= param->table->file->
+	records_in_range((int) keynr, (byte*)(param->min_key + 1),
+			 min_key_length,
+			 (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG),
+			 (byte *)NullS, 0, HA_READ_KEY_EXACT);
+    }
+    else
+    {
+      tmp=param->table->file->
+	records_in_range((int) keynr,
+			 (byte*) (!min_key_length ? NullS :
+				  param->min_key),
+			 min_key_length,
+                         tmp_min_flag & NEAR_MIN ?
+			  HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
+			 (byte*) (!max_key_length ? NullS :
+				  param->max_key),
+			 max_key_length,
+			 (tmp_max_flag & NEAR_MAX ?
+			  HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
+    }
   }
  end:
   if (tmp == HA_POS_ERROR)			// Impossible range
@@ -2783,7 +2796,7 @@ static void
 print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
-  String tmp(buff,sizeof(buff),default_charset_info);
+  String tmp(buff,sizeof(buff),my_charset_bin);
 
   for (uint length=0;
        length < used_length ;
@@ -2803,7 +2816,8 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
     }
     field->set_key_image((char*) key,key_part->part_length -
 			 ((field->type() == FIELD_TYPE_BLOB) ?
-			  HA_KEY_BLOB_LENGTH : 0));
+			  HA_KEY_BLOB_LENGTH : 0),
+			 field->charset());
     field->val_str(&tmp,&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }

@@ -8636,8 +8636,9 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_euc_kr =
 {
     19,			/* number */
-    MY_CS_COMPILED,	/* state      */
-    "euc_kr",		/* name */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
+    "euckr",		/* cs name    */
+    "euckr",		/* name */
     "",			/* comment    */
     ctype_euc_kr,
     to_lower_euc_kr,

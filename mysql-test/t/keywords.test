@@ -2,7 +2,10 @@
 # Test keywords as fields
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (time time, date date, timestamp timestamp);
 insert into t1 values ("12:22:22","97:02:03","1997-01-02");
 select * from t1;

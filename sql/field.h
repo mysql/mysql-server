@@ -133,7 +133,9 @@ public:
       tmp->unireg_check=Field::NONE;
       tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
 		    ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
+#ifdef PROBABLY_WRONG
       tmp->table_name= new_table->table_name;
+#endif
       tmp->reset_fields();
     }
     return tmp;
@@ -149,14 +151,14 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  inline void get_image(char *buff,uint length)
+  inline void get_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  inline void set_image(char *buff,uint length)
+  inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, imagetype type)
-    { get_image(buff,length); }
-  virtual void set_key_image(char *buff,uint length)
-    { set_image(buff,length); }
+  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type)
+    { get_image(buff,length,cs); }
+  virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
+    { set_image(buff,length,cs); }
   inline int cmp_image(char *buff,uint length)
     { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
@@ -166,7 +168,7 @@ public:
       ptr-=row_offset;
       return tmp;
     }
-  bool send_binary(Protocol *protocol);
+  virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
     uint32 length=pack_length();
@@ -792,7 +794,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -833,11 +834,10 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
@@ -876,7 +876,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_offset(uint offset);
@@ -908,8 +907,8 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   inline bool copy()
   { char *tmp;
@@ -952,8 +951,8 @@ public:
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY;}
   void sql_type(String &str) const;
 
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
 };
 
 
@@ -984,7 +983,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return (uint32) packlength; }
@@ -1100,7 +1098,8 @@ bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
 uint find_enum(TYPELIB *typelib,const char *x, uint length);
 ulonglong find_set(TYPELIB *typelib,const char *x, uint length);
-bool test_if_int(const char *str,int length,CHARSET_INFO *cs);
+bool test_if_int(const char *str, int length, const char *int_end,
+		 CHARSET_INFO *cs);
 
 /*
   The following are for the interface with the .frm file

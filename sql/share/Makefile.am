@@ -7,7 +7,7 @@ dist-hook:
 	done; \
 	sleep 1 ; touch $(srcdir)/*/errmsg.sys
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(distdir)/charsets
-	$(INSTALL_DATA) $(srcdir)/charsets/Index $(distdir)/charsets
+	$(INSTALL_DATA) $(srcdir)/charsets/Index.xml $(distdir)/charsets
 
 all: @AVAILABLE_LANGUAGES_ERRORS@
 
@@ -25,8 +25,7 @@ install-data-local:
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
-	$(INSTALL_DATA) $(srcdir)/charsets/Index $(DESTDIR)$(pkgdatadir)/charsets/Index
-	$(INSTALL_DATA) $(srcdir)/charsets/*.conf $(DESTDIR)$(pkgdatadir)/charsets
+	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 
 fix_errors:
 	for lang in @AVAILABLE_LANGUAGES@; \

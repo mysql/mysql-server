@@ -397,6 +397,10 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, ulonglong key_map,
 			    my_bool force);
 
+int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows);
+void mi_flush_bulk_insert(MI_INFO *info, uint inx);
+void mi_end_bulk_insert(MI_INFO *info);
+
 #ifdef	__cplusplus
 }
 #endif

@@ -2,7 +2,10 @@
 # test of updating of keys
 #
 
-drop table if exists t1;
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
 create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
 update t1 set a=a+10 where a > 34;
@@ -85,5 +88,8 @@ create table t1 (a int not null, b int not null);
 insert into t1 values (1,1),(1,2),(1,3);
 update t1 set b=4 where a=1 order by b asc limit 1;
 update t1 set b=4 where a=1 order by b desc limit 1;
+create table t2 (a int not null, b int not null);
+insert into t2 values (1,1),(1,2),(1,3);
 select * from t1;
-drop table t1;
+update t1 set b=(select distinct 1 from (select * from t2) a);
+drop table t1,t2;

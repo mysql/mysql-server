@@ -2,7 +2,10 @@
 # Test of --lower-case-table-names
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
+
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
 INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
 SELECT * FROM t1;

@@ -341,7 +341,8 @@ double Item_sum_hybrid::val()
   switch (hybrid_type) {
   case STRING_RESULT:
     String *res;  res=val_str(&str_value);
-    return res ? my_strntod(res->charset(),res->ptr(),res->length(),(char**)0) : 0.0;
+    return (res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
+			     (char**) 0) : 0.0);
   case INT_RESULT:
     if (unsigned_flag)
       return ulonglong2double(sum_int);
@@ -542,7 +543,7 @@ void Item_sum_hybrid::reset_field()
   if (hybrid_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info),*res;
+    String tmp(buff,sizeof(buff),result_field->charset()),*res;
 
     res=args[0]->val_str(&tmp);
     if (args[0]->null_value)
@@ -897,17 +898,17 @@ String *Item_variance_field::val_str(String *str)
 
 #include "sql_select.h"
 
-static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
+int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 {
   return memcmp(key1, key2, *(uint*) arg);
 }
 
-static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
+int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  /* BAR TODO: remove default_charset_info */
-  return my_strnncoll(default_charset_info,
-		    (const uchar*) key1, *(uint*) arg,
-		    (const uchar*) key2, *(uint*) arg);
+  Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
+  CHARSET_INFO *cs=item->key_charset;
+  uint len=item->key_length;
+  return my_strnncoll(cs, (const uchar*) key1, len, (const uchar*) key2, len);
 }
 
 /*
@@ -1037,14 +1038,22 @@ bool Item_sum_count_distinct::setup(THD *thd)
       Field* field = table->field[0];
       switch(field->type())
       {
-	/*
-	  If we have a string, we must take care of charsets and case
-	  sensitivity
-	*/
       case FIELD_TYPE_STRING:
       case FIELD_TYPE_VAR_STRING:
-	compare_key = (qsort_cmp2)(field->binary() ? simple_raw_key_cmp:
-				   simple_str_key_cmp);
+	if (field->binary())
+	{
+	  compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	  cmp_arg = (void*) &key_length;
+	}
+	else
+	{
+	  /*
+	    If we have a string, we must take care of charsets and case
+	    sensitivity
+	  */
+	  compare_key = (qsort_cmp2)simple_str_key_cmp;
+	  cmp_arg = (void*) this;
+	}
 	break;
       default:
 	/*
@@ -1052,11 +1061,12 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	  be compared with memcmp
 	*/
 	compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	cmp_arg = (void*) &key_length;
 	break;
       }
-      key_length = field->pack_length();
-      cmp_arg = (void*) &key_length;
-      rec_offset = 1;
+      key_charset = field->charset();
+      key_length  = field->pack_length();
+      rec_offset  = 1;
     }
     else // too bad, cannot cheat - there is more than one field
     {

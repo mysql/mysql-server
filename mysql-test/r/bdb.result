@@ -797,7 +797,6 @@ select * from t1 where i=1 and j=2;
 i	j
 1	2
 drop table t1;
-drop table if exists t1, t2, t3, t4, t5, t6, t7;
 create table t1
 (
 branch_id	int		auto_increment	primary key,
@@ -806,7 +805,6 @@ branch_active	int		not null 	default 1,
 unique  branch_name(branch_name),
 index	branch_active(branch_active)
 ) type=bdb;
-drop table if exists t2 ;
 create table t2
 (
 target_id	int		auto_increment	primary key,
@@ -815,7 +813,6 @@ target_active	int		not null 	default 1,
 unique	target_name(target_name),
 index	target_active(target_active)
 ) type=bdb;
-drop table if exists t3 ;
 create table t3
 (
 platform_id	int		auto_increment	primary key,
@@ -824,7 +821,6 @@ platform_active	int		not null 	default 1,
 unique	platform_name(platform_name),
 index	platform_active(platform_active)
 ) type=bdb;
-drop table if exists t4 ;
 create table t4
 (
 product_id	int		auto_increment	primary key,
@@ -834,7 +830,6 @@ product_active	int		not null 	default 1,
 unique	product_name(product_name),
 index	product_active(product_active)
 ) type=bdb;
-drop table if exists t5 ;
 create table t5
 (
 product_file_id		int		auto_increment	primary key,
@@ -847,7 +842,6 @@ file_included		int		not null	default 1,
 unique	product_file(product_id,file_name),
 index	file_included(file_included)
 ) type=bdb;
-drop table if exists t6 ;
 create table t6
 (
 file_platform_id	int		auto_increment	primary key,
@@ -860,7 +854,6 @@ build_filename		varchar(255)	not null,
 archive_filename	varchar(255)	not null,
 unique  file_platform(product_file_id,platform_id,branch_id)
 ) type=bdb;
-drop table if exists t8 ;
 create table t8
 (
 archive_id	int		auto_increment	primary key,
@@ -872,7 +865,6 @@ status_id	int		not null	default 1,
 unique  archive(branch_id,target_id,platform_id,product_id),
 index	status_id(status_id)
 ) type=bdb;
-drop table if exists t7 ;
 create table t7
 (
 build_id	int		auto_increment	primary key,
@@ -1057,7 +1049,6 @@ KINMU_DATE
 select T1.KINMU_DATE from t1 T1 ,t2 T2 where  T1.SYAIN_NO = '12345' and T1.KINMU_DATE = '200106' and T2.SYAIN_NO = T1.SYAIN_NO;
 KINMU_DATE
 DROP TABLE t1,t2;
-drop table if exists t1;
 create table t1 (a int(11) not null, b int(11) not null, unique (a,b)) type=bdb;
 insert into t1 values (1,1), (1,2);
 select * from t1 where a = 1;

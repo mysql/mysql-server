@@ -141,7 +141,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `ticket` int(11) default NULL,
-  `inhalt` text character set latin1,
+  `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
 ) TYPE=MyISAM CHARSET=latin1
@@ -206,7 +206,6 @@ select 8 from t1;
 8
 8
 drop table t1;
-drop table if exists t1;
 create table t1 (a text, fulltext key (a));
 insert into t1 values ('aaaa');
 repair table t1;

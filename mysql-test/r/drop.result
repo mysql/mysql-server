@@ -1,5 +1,4 @@
 drop table if exists t1;
-drop table if exists t1;
 drop table t1;
 Unknown table 't1'
 create table t1(n int);
@@ -13,6 +12,8 @@ select * from t1;
 n
 1
 drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'. Database doesn't exist
 create database mysqltest;
 drop database if exists mysqltest;
 create database mysqltest;
@@ -25,6 +26,8 @@ drop database if exists mysqltest;
 create database mysqltest;
 drop database mysqltest;
 drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'. Database doesn't exist
 flush tables with read lock;
 create database mysqltest;
 Got one of the listed errors

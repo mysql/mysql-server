@@ -580,3 +580,5 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 libmysqld/protocol.cc
+test_xml
+extra/mysql_waitpid

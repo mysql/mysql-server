@@ -279,9 +279,10 @@ int st_select_lex_unit::exec()
     }
     if (!thd->fatal_error)			// Check if EOM
     {
-      offset_limit_cnt= global_parameters->offset_limit;
-      select_limit_cnt= global_parameters->select_limit+
-	global_parameters->offset_limit;
+      SELECT_LEX *sl=thd->lex.current_select->master_unit()->first_select();
+      offset_limit_cnt= (sl->braces) ? global_parameters->offset_limit : 0;
+      select_limit_cnt= (sl->braces) ? global_parameters->select_limit+
+	global_parameters->offset_limit : HA_POS_ERROR;
       if (select_limit_cnt < global_parameters->select_limit)
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)

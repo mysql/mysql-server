@@ -572,7 +572,7 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
   In case of an error, set error value in *err.
 */
 
-longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
+static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 {
   longlong num;
   
@@ -596,7 +596,7 @@ longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
   values.
 */
 
-static ulonglong getopt_ull (char *arg, const struct my_option *optp, int *err)
+static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
   ulonglong num;
 

@@ -466,6 +466,9 @@ struct btr_pcur_struct{
 					BTR_PCUR_AFTER, depending on whether
 					cursor was on, before, or after the
 					old_rec record */
+	buf_block_t*	block_when_stored;/* buffer block when the position was
+					stored; note that if AWE is on, frames
+					may move */
 	dulint		modify_clock;	/* the modify clock value of the
 					buffer block when the cursor position
 					was stored */

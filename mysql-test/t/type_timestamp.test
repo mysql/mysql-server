@@ -2,7 +2,10 @@
 # Test timestamp
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 CREATE TABLE t1 (a int, t timestamp);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;

@@ -280,8 +280,15 @@ struct dict_foreign_struct{
 					table */
 };
 
+/* The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
+a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_DELETE_CASCADE	1
 #define DICT_FOREIGN_ON_DELETE_SET_NULL	2
+#define DICT_FOREIGN_ON_UPDATE_CASCADE	4
+#define DICT_FOREIGN_ON_UPDATE_SET_NULL	8
+#define DICT_FOREIGN_ON_DELETE_NO_ACTION 16
+#define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32
+
 
 #define	DICT_INDEX_MAGIC_N	76789786
 

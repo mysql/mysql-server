@@ -130,6 +130,7 @@ struct st_mysql_options {
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
   char *ssl_cipher;				/* cipher to use */
+  unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
@@ -415,7 +416,6 @@ MYSQL_RES *	STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 MYSQL_RES *	STDCALL mysql_list_processes(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_store_result(MYSQL *mysql);
 MYSQL_RES *	STDCALL mysql_use_result(MYSQL *mysql);
-MYSQL_RES *	STDCALL mysql_warnings(MYSQL *mysql);
 int		STDCALL mysql_options(MYSQL *mysql,enum mysql_option option,
 				      const char *arg);
 void		STDCALL mysql_free_result(MYSQL_RES *result);
@@ -473,13 +473,12 @@ typedef struct st_mysql_bind
 {
   long		*length;		/* output length pointer */
   gptr		buffer;			/* buffer */
-  unsigned long buffer_length;		/* buffer length */  
   enum enum_field_types buffer_type;	/* buffer type */
-  enum enum_field_types field_type;	/* field type */
   my_bool	is_null;		/* NULL indicator */
   my_bool	is_long_data;		/* long data indicator */
 
   /* The following are for internal use. Set by mysql_bind_param */
+  unsigned long buffer_length;		/* buffer length */  
   long		bind_length;		/* Default length of data */
   my_bool	long_ended;		/* All data supplied for long */
   unsigned int	param_number;		/* For null count and error messages */
@@ -536,15 +535,16 @@ int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 			      unsigned long len);
 MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 
 
 /* new status messages */
-#define MYSQL_SUCCESS    0
-#define MYSQL_WARNING    1
-#define MYSQL_STATUS_ERROR 2
-#define MYSQL_NO_DATA   100
-#define MYSQL_NEED_DATA  99 
-#define MYSQL_LONG_DATA_END 0xFF
+#define MYSQL_SUCCESS      0
+#define MYSQL_STATUS_ERROR 1
+#define MYSQL_NO_DATA      100
+#define MYSQL_NEED_DATA    99 
+#define MYSQL_NULL_DATA    (-1)
+#define MYSQL_LONG_DATA    (-2)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 

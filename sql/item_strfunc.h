@@ -108,14 +108,19 @@ public:
 	    separator->fix_fields(thd, tlist, &separator) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
- const char *func_name() const { return "concat_ws"; }
- bool check_loop(uint id)
- {
-   DBUG_ENTER("Item_func_concat_ws::check_loop");
-   if (Item_str_func::check_loop(id))
-     DBUG_RETURN(1);
-   DBUG_RETURN(separator->check_loop(id));
- }
+  const char *func_name() const { return "concat_ws"; }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_concat_ws::check_loop");
+    if (Item_str_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(separator->check_loop(id));
+  }
+  void set_outer_resolving()
+  {
+    separator->set_outer_resolving();
+    Item_func::set_outer_resolving();
+  }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -257,6 +262,7 @@ class Item_func_password :public Item_str_func
   char tmp_value[64]; /* This should be enough for new password format */
 public:
   Item_func_password(Item *a) :Item_str_func(a) {}
+  Item_func_password(Item *a, Item *b) :Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { max_length = get_password_length(opt_old_passwords); }
   const char *func_name() const { return "password"; }
@@ -393,6 +399,11 @@ public:
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
   }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_str_func::set_outer_resolving();
+  }
 };
 
 
@@ -420,6 +431,11 @@ public:
     if (Item_str_func::check_loop(id))
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
+  }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_str_func::set_outer_resolving();
   }
 };
 

@@ -597,6 +597,7 @@ CHARSET_INFO my_charset_czech =
 {
     2,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin2",		/* cs name    */
     "czech",		/* name */
     "",			/* comment    */
     ctype_czech,

@@ -1,5 +1,8 @@
+# Initialise
+--disable_warnings
 drop table if exists t1;
-drop table if exists t1;
+--enable_warnings
+
 --error 1051;
 drop table t1;
 create table t1(n int);

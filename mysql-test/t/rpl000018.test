@@ -13,7 +13,9 @@ reset slave;
 start slave;
 connection master;
 show binary logs;
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 create table t1(n int);
 insert into t1 values (3351);
 sync_slave_with_master;

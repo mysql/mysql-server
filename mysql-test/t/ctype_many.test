@@ -1,8 +1,10 @@
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 CREATE TABLE t1 (
   comment CHAR(32) ASCII NOT NULL,
-  koi8_ru_f CHAR(32) CHARACTER SET koi8_ru NOT NULL
+  koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL
 ) CHARSET=latin5;
 
 SHOW CREATE TABLE t1;
@@ -137,8 +139,11 @@ SELECT CONVERT(koi8_ru_f USING utf8),MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
 
 ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL;
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
-
 SELECT * FROM t1;
+
+ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL;
+UPDATE t1 SET bin_f=koi8_ru_f;
+SELECT COUNT(DISTINCT bin_f),COUNT(DISTINCT koi8_ru_f),COUNT(DISTINCT utf8_f) FROM t1;
 
 SELECT koi8_ru_f,MIN(comment) FROM t1 GROUP BY 1;
 SELECT utf8_f,MIN(comment) FROM t1 GROUP BY 1;
@@ -153,7 +158,7 @@ ORDER BY t11.koi8_ru_f,t11.comment,t12.comment;
 
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
-WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8_ru)
+WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
 ORDER BY t12.utf8_f,t11.comment,t12.comment;
 
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;

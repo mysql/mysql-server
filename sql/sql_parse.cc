@@ -74,7 +74,8 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data", "Close stmt"
+  "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Error"					// Last command number
 };
 
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
@@ -189,9 +190,9 @@ end:
 
 static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count,
-                       bool do_send_error, char* crypted_scramble,
-                       bool had_password,uint *cur_priv_version,
-                       ACL_USER** hint_user)
+                       bool simple_connect, bool do_send_error, 
+                       char* crypted_scramble, bool had_password,
+                       uint *cur_priv_version, ACL_USER** hint_user)
 {
   thd->db=0;
   thd->db_length=0;
@@ -211,7 +212,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
                                    cur_priv_version,hint_user);
 
   DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
+	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
 	      had_password ? "yes": "no",
@@ -222,14 +223,23 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   {
     if (do_send_error)
     {
-      net_printf(thd, ER_ACCESS_DENIED_ERROR,
-      	       thd->user,
-	       thd->host_or_ip,
-	       had_password ? ER(ER_YES) : ER(ER_NO));
-      mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
-		    thd->user,
-		    thd->host_or_ip,
-		    had_password ? ER(ER_YES) : ER(ER_NO));
+      /* Old client should get nicer error message if password version is not supported*/
+      if (simple_connect && *hint_user && (*hint_user)->pversion)
+      {
+        net_printf(thd, ER_NOT_SUPPORTED_AUTH_MODE);
+        mysql_log.write(thd,COM_CONNECT,ER(ER_NOT_SUPPORTED_AUTH_MODE));
+      }
+      else
+      {
+        net_printf(thd, ER_ACCESS_DENIED_ERROR,
+      	         thd->user,
+	         thd->host_or_ip,
+	         had_password ? ER(ER_YES) : ER(ER_NO));
+        mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
+	              thd->user,
+                      thd->host_or_ip,
+	              had_password ? ER(ER_YES) : ER(ER_NO));
+      }                
       return(1);					// Error already given
     }
     else
@@ -508,6 +518,9 @@ check_connections(THD *thd)
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
+      /* Cut very long hostnames to avoid possible overflows */
+      if (thd->host)
+	thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -524,6 +537,7 @@ check_connections(THD *thd)
     thd->ip=0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
+  /* Ensure that wrong hostnames doesn't cause buffer overflows */
   vio_keepalive(net->vio, TRUE);
 
   ulong pkt_len=0;
@@ -639,8 +653,9 @@ check_connections(THD *thd)
   /* Store information if we used password. passwd will be dammaged */
   bool using_password=test(passwd[0]);
   /* Check user permissions. If password failure we'll get scramble back */
-  if (check_user(thd,COM_CONNECT, user, passwd, db, 1, simple_connect,
-      prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
+  if (check_user(thd, COM_CONNECT, user, passwd, db, 1, simple_connect,
+      simple_connect, prepared_scramble, using_password, &cur_priv_version,
+      &cached_user)<0)
   {
     /* If The client is old we just have to return error */
     if (simple_connect)
@@ -680,7 +695,7 @@ check_connections(THD *thd)
       }
     /* Final attempt to check the user based on reply */
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-        tmp_db, 1, 1,prepared_scramble,using_password,&cur_priv_version,
+        tmp_db, 1, 0, 1, prepared_scramble, using_password, &cur_priv_version,
         &cached_user))
       return -1;
   }
@@ -753,7 +768,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
+    if (thd->variables.max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -829,7 +844,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -961,14 +976,22 @@ bool do_command(THD *thd)
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
   {
-     DBUG_PRINT("info",("Got error reading command from socket %s",
-			vio_description(net->vio) ));
-    return TRUE;
+    DBUG_PRINT("info",("Got error %d reading command from socket %s",
+		       net->error,
+		       vio_description(net->vio)));
+    /* Check if we can continue without closing the connection */
+    if (net->error != 3)
+      DBUG_RETURN(TRUE);			// We have to close it.
+    send_error(thd,net->last_errno,NullS);
+    net->error= 0;
+    DBUG_RETURN(FALSE);
   }
   else
   {
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
+    if (command >= COM_END)
+      command= COM_END;				// Wrong command
     DBUG_PRINT("info",("Command on %s = %d (%s)",
 		       vio_description(net->vio), command,
 		       command_name[command]));
@@ -1087,7 +1110,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
      Do not retry if we already have sent error (result>0)
     */
     if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
-        prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
+        simple_connect, prepared_scramble, using_password, &cur_priv_version,
+        &cached_user)<0)
     {
       /* If The client is old we just have to have auth failure */
       if (simple_connect)
@@ -1122,7 +1146,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       /* Final attempt to check the user based on reply */
       if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*)net->read_pos,
-          tmp_db, 0, 1,prepared_scramble,using_password,&cur_priv_version,
+          tmp_db, 0, 0, 1, prepared_scramble, using_password, &cur_priv_version,
           &cached_user))
         goto restore_user;
     }
@@ -1175,7 +1199,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     mysql_log.write(thd,command,"%s",thd->query);
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),WAIT_PRIOR);
@@ -1253,6 +1277,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       if (lower_case_table_names)
 	my_casedn_str(files_charset_info, db);
+      if (check_access(thd,DROP_ACL,db,0,1))
+	break;
       if (thd->locked_tables || thd->active_transaction())
       {
 	send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
@@ -1295,10 +1321,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_global_access(thd,RELOAD_ACL))
 	break;
       mysql_log.write(thd,command,NullS);
-      if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
-	send_error(thd,0);
-      else
-	send_eof(thd);
+      /* error sending is deferred to reload_acl_and_cache */
+      reload_acl_and_cache(thd, options, (TABLE_LIST*) 0) ;
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -1377,11 +1401,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
   case COM_DELAYED_INSERT:
+  case COM_END:
   default:
     send_error(thd, ER_UNKNOWN_COM_ERROR);
     break;
   }
-  if (thd->lock || thd->open_tables)
+  if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
@@ -1476,7 +1501,6 @@ mysql_execute_command(THD *thd)
   int	res= 0;
   LEX	*lex= &thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
-  TABLE_LIST *cursor;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
@@ -1527,9 +1551,11 @@ mysql_execute_command(THD *thd)
     for (SELECT_LEX *sl= lex->all_selects_list;
 	 sl;
 	 sl= sl->next_select_in_list())
+    {
       for (TABLE_LIST *cursor= sl->get_table_list();
 	   cursor;
 	   cursor= cursor->next)
+      {
 	if (cursor->derived && (res=mysql_derived(thd, lex,
 						  (SELECT_LEX_UNIT *)
 						  cursor->derived,
@@ -1539,6 +1565,8 @@ mysql_execute_command(THD *thd)
 	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 	  DBUG_VOID_RETURN;
 	}
+      }
+    }
   }
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables)) 
@@ -1619,7 +1647,14 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_DO:
-    res=mysql_do(thd, *lex->insert_list);
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+		   (res= open_and_lock_tables(thd,tables))))
+	break;
+
+    fix_tables_pointers(lex->all_selects_list);
+    res= mysql_do(thd, *lex->insert_list);
+    if (thd->net.report_error)
+      res= -1;
     break;
 
   case SQLCOM_EMPTY_QUERY:
@@ -1644,7 +1679,9 @@ mysql_execute_command(THD *thd)
   {
     res= mysqld_show_warnings(thd, (ulong)
 			      ((1L << (uint) MYSQL_ERROR::WARN_LEVEL_NOTE) |
-			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_WARN)));
+			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_WARN) |
+			       (1L << (uint) MYSQL_ERROR::WARN_LEVEL_ERROR)
+			       ));
     break;
   }
   case SQLCOM_SHOW_ERRORS:
@@ -1836,7 +1873,6 @@ mysql_execute_command(THD *thd)
       }
       if (tables->next)
       {
-	TABLE_LIST *table;
 	if (check_table_access(thd, SELECT_ACL, tables->next))
 	  goto error;				// Error message is given
       }
@@ -1863,10 +1899,14 @@ mysql_execute_command(THD *thd)
     }
     else // regular create
     {
-      res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
-			       tables->real_name, &lex->create_info,
-			       lex->create_list,
-			       lex->key_list,0,0,0); // do logging
+      if (lex->name)
+        res= mysql_create_like_table(thd, tables, &lex->create_info, 
+                                     (Table_ident *)lex->name); 
+      else
+        res= mysql_create_table(thd,tables->db ? tables->db : thd->db,
+			         tables->real_name, &lex->create_info,
+			         lex->create_list,
+			         lex->key_list,0,0,0); // do logging
       if (!res)
 	send_ok(thd);
     }
@@ -1894,6 +1934,24 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_SLAVE_STOP:
+  /*
+    If the client thread has locked tables, a deadlock is possible.
+    Assume that
+    - the client thread does LOCK TABLE t READ.
+    - then the master updates t.
+    - then the SQL slave thread wants to update t,
+      so it waits for the client thread because t is locked by it.
+    - then the client thread does SLAVE STOP.
+      SLAVE STOP waits for the SQL slave thread to terminate its
+      update t, which waits for the client thread because t is locked by it.
+    To prevent that, refuse SLAVE STOP if the
+    client thread has locked tables
+  */
+  if (thd->locked_tables || thd->active_transaction())
+  {
+    send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
+    break;
+  }
   {
     LOCK_ACTIVE_MI;
     stop_slave(thd,active_mi,1/* net report*/);
@@ -2272,6 +2330,7 @@ mysql_execute_command(THD *thd)
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
     if (&lex->select_lex != lex->all_selects_list)
+    {
       for (TABLE_LIST *t= select_lex->get_table_list();
 	   t; t= t->next)
       {
@@ -2282,6 +2341,7 @@ mysql_execute_command(THD *thd)
 	  break;
 	}
       }
+    }
     fix_tables_pointers(lex->all_selects_list);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
@@ -2305,12 +2365,17 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_DROP_TABLE:
   {
-    if (check_table_access(thd,DROP_ACL,tables))
-      goto error;				/* purecov: inspected */
-    if (end_active_trans(thd))
-      res= -1;
-    else
-      res = mysql_rm_table(thd,tables,lex->drop_if_exists);
+    if (!lex->drop_temporary)
+    {
+      if (check_table_access(thd,DROP_ACL,tables))
+	goto error;				/* purecov: inspected */
+      if (end_active_trans(thd))
+      {
+	res= -1;
+	break;
+      }
+    }
+    res= mysql_rm_table(thd,tables,lex->drop_if_exists, lex->drop_temporary);
   }
   break;
   case SQLCOM_DROP_INDEX:
@@ -2490,9 +2555,16 @@ mysql_execute_command(THD *thd)
   }
 #endif /* EMBEDDED_LIBRARY */
   case SQLCOM_SET_OPTION:
-    if (!(res=sql_set_variables(thd, &lex->var_list)))
+    if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+		   (res= open_and_lock_tables(thd,tables))))
+      break;
+    fix_tables_pointers(lex->all_selects_list);
+    if (!(res= sql_set_variables(thd, &lex->var_list)))
       send_ok(thd);
+    if (thd->net.report_error)
+      res= -1;
     break;
+
   case SQLCOM_UNLOCK_TABLES:
     unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)
@@ -2693,10 +2765,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_RESET:
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
-    if (reload_acl_and_cache(thd, lex->type, tables))
-      send_error(thd,0);
-    else
-      send_ok(thd);
+    /* error sending is deferred to reload_acl_and_cache */
+    reload_acl_and_cache(thd, lex->type, tables) ;
     break;
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
@@ -3043,6 +3113,7 @@ mysql_init_query(THD *thd)
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
+  lex->lock_option=TL_READ;
   thd->check_loops_counter= thd->select_number=
     lex->select_lex.select_number= 1;
   thd->free_list= 0;
@@ -3572,11 +3643,30 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 }
 
 
+/*
+  Add a table to list of used tables
+
+  SYNOPSIS
+    add_table_to_list()
+    table		Table to add
+    alias		alias for table (or null if no alias)
+    table_options	A set of the following bits:
+			TL_OPTION_UPDATING	Table will be updated
+			TL_OPTION_FORCE_INDEX	Force usage of index
+    lock_type		How table should be locked
+    use_index		List of indexed used in USE INDEX
+    ignore_index	List of indexed used in IGNORE INDEX
+
+    RETURN
+      0		Error
+      #		Pointer to TABLE_LIST element added to the total table list
+*/
+
 TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     Table_ident *table,
 					     LEX_STRING *alias,
-					     bool updating,
-					     thr_lock_type flags,
+					     ulong table_options,
+					     thr_lock_type lock_type,
 					     List<String> *use_index,
 					     List<String> *ignore_index)
 {
@@ -3633,8 +3723,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
-  ptr->lock_type=flags;
-  ptr->updating=updating;
+  ptr->lock_type= lock_type;
+  ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->derived= (SELECT_LEX_UNIT *) table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
@@ -3644,7 +3735,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 						   sizeof(*ignore_index));
 
   /* check that used name is unique */
-  if (flags != TL_IGNORE)
+  if (lock_type != TL_IGNORE)
   {
     for (TABLE_LIST *tables=(TABLE_LIST*) table_list.first ;
 	 tables ;
@@ -3714,10 +3805,15 @@ void add_join_natural(TABLE_LIST *a,TABLE_LIST *b)
   b->natural_join=a;
 }
 
+
+/*
+  Reload/resets privileges and the different caches
+*/
+
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 {
   bool result=0;
-
+  bool error_already_sent=0;
   select_errors=0;				/* Write if more errors */
   if (options & REFRESH_GRANT)
   {
@@ -3778,12 +3874,30 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
  {
    LOCK_ACTIVE_MI;
    if (reset_slave(thd, active_mi))
+   {
      result=1;
+     /*
+       reset_slave() sends error itself.
+       If it didn't, one would either change reset_slave()'s prototype, to
+       pass *errorcode and *errmsg to it when it's called or
+       change reset_slave to use my_error() to register the error.
+     */
+     error_already_sent=1;
+   }
    UNLOCK_ACTIVE_MI;
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh(thd,(LEX_USER *) NULL);
+
+ if (thd && !error_already_sent)
+ {
+   if (result)
+     send_error(thd,0);
+   else
+     send_ok(thd);
+ }
+
  return result;
 }
 

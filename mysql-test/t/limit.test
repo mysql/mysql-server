@@ -2,7 +2,10 @@
 # Test of update and delete with limit
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (a int primary key, b int not null);
 insert into t1 () values ();		-- Testing default values
 insert into t1 values (1,1),(2,1),(3,1);

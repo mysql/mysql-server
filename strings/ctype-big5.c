@@ -6218,7 +6218,8 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_big5 =
 {
     1,			/* number     */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
+    "big5",		/* cs name    */
     "big5",		/* name       */
     "",			/* comment    */
     ctype_big5,

@@ -97,6 +97,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   r=_mi_search(aio->info, aio->keyinfo, aio->keybuff, keylen,
 	       SEARCH_FIND | SEARCH_PREFIX, aio->key_root);
+  aio->info->update|= HA_STATE_AKTIV;  /* for _mi_test_if_changed() */
 
   while (!r)
   {

@@ -218,7 +218,7 @@ SOURCE=.\derror.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\client\errmsg.c
+SOURCE=..\libmysql\errmsg.c
 # End Source File
 # Begin Source File
 

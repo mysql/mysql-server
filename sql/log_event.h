@@ -212,8 +212,10 @@ struct sql_ex_info
 
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
-#define LOG_EVENT_TIME_F           0x1
-#define LOG_EVENT_FORCED_ROTATE_F  0x2
+#define LOG_EVENT_TIME_F            0x1
+#define LOG_EVENT_FORCED_ROTATE_F   0x2
+#define LOG_EVENT_THREAD_SPECIFIC_F 0x4 /* query depends on thread  
+                                           (for example: TEMPORARY TABLE) */
 
 enum Log_event_type
 {
@@ -466,9 +468,10 @@ public:
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli)
   {
-    return exec_event(thd->slave_net,rli);
+    return exec_event(thd->slave_net,rli,0);
   }
-  int exec_event(NET* net, struct st_relay_log_info* rli);
+  int exec_event(NET* net, struct st_relay_log_info* rli, 
+		 bool use_rli_only_for_errors);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);

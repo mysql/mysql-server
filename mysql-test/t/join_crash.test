@@ -2,7 +2,10 @@
 # This test gave a core dump
 #
 
+--disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3,t4;
+--enable_warnings
+
 CREATE TABLE t1 (
   project_id int(11) NOT NULL auto_increment,
   project_row_lock int(11) NOT NULL default '0',

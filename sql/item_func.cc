@@ -146,6 +146,16 @@ bool Item_func::check_loop(uint id)
   DBUG_RETURN(0);
 }
 
+void Item_func::set_outer_resolving()
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+      (*arg)->set_outer_resolving();
+  }
+}
+
 void Item_func::split_sum_func(List<Item> &fields)
 {
   Item **arg,**arg_end;
@@ -1885,7 +1895,7 @@ longlong Item_func_set_last_insert_id::val_int()
 longlong Item_func_benchmark::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff), default_charset_info);
+  String tmp(buff,sizeof(buff), my_charset_bin);
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -2031,7 +2041,7 @@ Item_func_set_user_var::update()
   case STRING_RESULT:
   {
     char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer),default_charset_info);
+    String tmp(buffer,sizeof(buffer),my_charset_bin);
     (void) val_str(&tmp);
     break;
   }
@@ -2171,9 +2181,12 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  if ((var_entry= get_variable(&thd->user_vars, name, 0)))
-    const_var_flag= thd->query_id != var_entry->update_query_id;
+  var_entry= get_variable(&thd->user_vars, name, 0);
 }
+
+
+bool Item_func_get_user_var::const_item() const
+{ return var_entry && current_thd->query_id != var_entry->update_query_id; }
 
 
 enum Item_result Item_func_get_user_var::result_type() const
@@ -2223,7 +2236,7 @@ longlong Item_func_inet_aton::val_int()
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
 
-  String *s,tmp(buff,sizeof(buff),default_charset_info);
+  String *s,tmp(buff,sizeof(buff),my_charset_bin);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
     goto err;
   null_value=0;
@@ -2356,6 +2369,15 @@ bool Item_func_match::check_loop(uint id)
     if (item->check_loop(id))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+void Item_func_match::set_outer_resolving()
+{
+  Item_real_func::set_outer_resolving();
+  List_iterator<Item> li(fields);
+  Item *item;
+  while ((item= li++))
+    item->set_outer_resolving();
 }
 
 bool Item_func_match::fix_index()

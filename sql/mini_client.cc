@@ -547,10 +547,13 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
     UNIXaddr.sun_family = AF_UNIX;
     strmov(UNIXaddr.sun_path, unix_socket);
-    if (mc_sock_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+    if (mc_sock_connect(sock,
+			my_reinterpret_cast(struct sockaddr *) (&UNIXaddr),
+			sizeof(UNIXaddr),
 			mysql->options.connect_timeout) <0)
     {
-      DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
+      DBUG_PRINT("error",("Got error %d on connect to local server",
+			  socket_errno));
       net->last_errno=CR_CONNECTION_ERROR;
       sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
       goto error;
@@ -637,7 +640,9 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       my_gethostbyname_r_free();
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);
-    if (mc_sock_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
+    if (mc_sock_connect(sock,
+			my_reinterpret_cast(struct sockaddr *) (&sock_addr),
+			sizeof(sock_addr),
 			mysql->options.connect_timeout) <0)
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",

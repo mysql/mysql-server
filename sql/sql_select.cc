@@ -184,6 +184,16 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   return res;
 }
 
+
+void relink_tables(SELECT_LEX *select_lex)
+{
+  for (TABLE_LIST *cursor= (TABLE_LIST *) select_lex->table_list.first;
+       cursor;
+       cursor=cursor->next)
+    cursor->table= cursor->table_list->table;
+}
+
+
 void fix_tables_pointers(SELECT_LEX *select_lex)
 {
   if (select_lex->next_select_in_list())
@@ -192,18 +202,15 @@ void fix_tables_pointers(SELECT_LEX *select_lex)
     for (SELECT_LEX *sl= select_lex;
 	 sl;
 	 sl= sl->next_select_in_list())
-    {
-      for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
-          cursor;
-	   cursor=cursor->next)
-	cursor->table= cursor->table_list->table;
-    }
+      relink_tables(sl);
   }
 }
 
+
 /*
-  Inline function to setup clauses without sum functions
+  Function to setup clauses without sum functions
 */
+
 inline int setup_without_group(THD *thd, TABLE_LIST *tables,
 			       List<Item> &fields,
 			       List<Item> &all_fields,
@@ -1160,7 +1167,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     if (thd->possible_loops)
     {
       Item *item;
-      while(thd->possible_loops->elements)
+      while (thd->possible_loops->elements)
       {
 	item= thd->possible_loops->pop();
     	if (item->check_loop(thd->check_loops_counter++))
@@ -1507,7 +1514,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       select->quick=0;
       if (records != HA_POS_ERROR)
       {
-	s->records=s->found_records=records;
+	s->found_records=records;
 	s->read_time= (ha_rows) (s->quick ? s->quick->read_time : 0.0);
       }
     }
@@ -2298,7 +2305,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  !(s->quick && best_key && s->quick->index == best_key->key &&
 	    best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
 	  !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
-	    s->table->used_keys && best_key))
+	    s->table->used_keys && best_key) &&
+	  !(s->table->force_index && best_key))
       {						// Check full join
 	if (s->on_expr)
 	{
@@ -4980,7 +4988,10 @@ join_read_const(JOIN_TAB *tab)
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
       {
-	sql_print_error("read_const: Got error %d when reading table %s",
+	/* Locking reads can legally return also these errors, do not
+	   print them to the .err log */
+	if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	  sql_print_error("read_const: Got error %d when reading table %s",
 			error, table->path);
 	table->file->print_error(error,MYF(0));
 	return 1;
@@ -5043,7 +5054,8 @@ join_read_always_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5072,7 +5084,8 @@ join_read_last_key(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND)
     {
-      sql_print_error("read_const: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_const: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5104,7 +5117,8 @@ join_read_next_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5126,7 +5140,8 @@ join_read_prev_same(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next: Got error %d when reading table %s",error,
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_next: Got error %d when reading table %s",error,
 		      table->path);
       table->file->print_error(error,MYF(0));
       error= 1;
@@ -5197,7 +5212,8 @@ join_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_first_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_first_with_key: Got error %d when reading table",
 		      error);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5216,7 +5232,9 @@ join_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_next_with_key: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		    "read_next_with_key: Got error %d when reading table %s",
 		      error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -5248,7 +5266,8 @@ join_read_last(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_last_with_key: Got error %d when reading table",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("read_last_with_key: Got error %d when reading table",
 		      error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5267,7 +5286,9 @@ join_read_prev(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("read_prev_with_key: Got error %d when reading table: %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error(
+		  "read_prev_with_key: Got error %d when reading table: %s",
 		      error,info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -5295,7 +5316,8 @@ join_ft_read_first(JOIN_TAB *tab)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_first: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_first: Got error %d when reading table %s",
                       error, table->path);
       table->file->print_error(error,MYF(0));
       return 1;
@@ -5313,7 +5335,8 @@ join_ft_read_next(READ_RECORD *info)
   {
     if (error != HA_ERR_END_OF_FILE)
     {
-      sql_print_error("ft_read_next: Got error %d when reading table %s",
+      if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+	sql_print_error("ft_read_next: Got error %d when reading table %s",
                       error, info->table->path);
       info->file->print_error(error,MYF(0));
       return 1;
@@ -5938,6 +5961,69 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
   return best;
 }
 
+/*
+  SYNOPSIS
+    is_subkey()
+    key_part		- first key parts
+    ref_key_part	- second key parts
+    ref_key_part_end	- last+1 part of the second key
+  DESCRIPTION
+    Test if a second key is the subkey of the first one.
+  NOTE
+    Second key MUST be shorter than the first one.
+  RETURN
+    1	- is the subkey
+    0	- otherwise
+*/
+
+inline bool 
+is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
+	  KEY_PART_INFO *ref_key_part_end)
+{
+  for (; ref_key_part < ref_key_part_end; key_part++, ref_key_part++)
+    if (!key_part->field->eq(ref_key_part->field))
+      return 0;
+  return 1;
+}
+
+/*
+  SYNOPSIS
+    test_if_subkey()
+    ref		- number of key, used for WHERE clause
+    usable_keys - keys for testing
+  DESCRIPTION
+    Test if we can use one of the 'usable_keys' instead of 'ref' key.
+  RETURN
+    MAX_KEY			- if we can't use other key
+    the number of found key	- otherwise
+*/
+
+static uint
+test_if_subkey(ORDER *order, TABLE *table, uint ref, key_map usable_keys)
+{
+  uint nr;
+  uint min_length= (uint) ~0;
+  uint best= MAX_KEY;
+  uint not_used;
+  KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
+  uint ref_key_parts= table->key_info[ref].key_parts;
+  KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
+  
+  for (nr= 0; usable_keys; usable_keys>>= 1, nr++)
+  {
+    if ((usable_keys & 1) &&
+	table->key_info[nr].key_length < min_length &&
+	table->key_info[nr].key_parts >= ref_key_parts &&
+	is_subkey(table->key_info[nr].key_part, ref_key_part,
+		  ref_key_part_end) &&
+	test_if_order_by_key(order, table, nr, &not_used))
+    {
+      min_length= table->key_info[nr].key_length;
+      best= nr;
+    }
+  }
+  return best;
+}
 
 /*
   Test if we can skip the ORDER BY by using an index.
@@ -5985,6 +6071,27 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     int order_direction;
     uint used_key_parts;
+    if (!(usable_keys & ((key_map) 1 << ref_key)))
+    {
+      /*
+	We come here when ref_key is not among usable_keys
+      */
+      uint a;
+      if ((a= test_if_subkey(order, table, ref_key, usable_keys)) < MAX_KEY)
+      {
+	if (tab->ref.key >= 0)
+	{
+	  tab->ref.key= a;
+	  table->file->index_init(a);
+	}
+	else
+	{
+	  select->quick->index= a;
+	  select->quick->init();
+	}
+	ref_key= a;
+      }  
+    }
     /* Check if we get the rows in requested sorted order by using the key */
     if ((usable_keys & ((key_map) 1 << ref_key)) &&
 	(order_direction = test_if_order_by_key(order,table,ref_key,
@@ -6650,12 +6757,14 @@ store_record_in_cache(JOIN_CACHE *cache)
     {
       if (last_record)
       {
-	copy->blob_field->get_image((char*) pos,copy->length+sizeof(char*));
+	copy->blob_field->get_image((char*) pos,copy->length+sizeof(char*), 
+				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->get_image((char*) pos,copy->length); // blob length
+	copy->blob_field->get_image((char*) pos,copy->length, // blob length
+				    copy->blob_field->charset());
 	memcpy(pos+copy->length,copy->str,copy->blob_length);  // Blob data
 	pos+=copy->length+copy->blob_length;
       }
@@ -6712,7 +6821,8 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (last_record)
       {
-	copy->blob_field->set_image((char*) pos,copy->length+sizeof(char*));
+	copy->blob_field->set_image((char*) pos,copy->length+sizeof(char*),
+				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
@@ -7517,7 +7627,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_string(message,strlen(message),
 					default_charset_info));
     if (result->send_data(item_list))
-      result->send_error(0,NullS);
+      join->error= 1;
   }
   else
   {
@@ -7527,7 +7637,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
-      char buff1[512], buff2[512], buff3[512];
+      char buff1[512], buff2[512];
       String tmp1(buff1,sizeof(buff1),default_charset_info);
       String tmp2(buff2,sizeof(buff2),default_charset_info);
       tmp1.length(0);
@@ -7658,7 +7768,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))
-	result->send_error(0,NullS);
+	join->error= 1;
     }
   }
   for (SELECT_LEX_UNIT *unit= join->select_lex->first_inner_unit();

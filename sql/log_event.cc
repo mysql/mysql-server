@@ -295,11 +295,27 @@ Log_event::Log_event(const char* buf, bool old_format)
  ****************************************************************************/
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
-  if (rli)					// QQ When is this not true ?
+  /*
+    rli is null when (as far as I (Guilhem) know)
+    the caller is
+    Load_log_event::exec_event *and* that one is called from
+    Execute_load_log_event::exec_event. 
+    In this case, we don't do anything here ;
+    Execute_load_log_event::exec_event will call Log_event::exec_event
+    again later with the proper rli.
+    Strictly speaking, if we were sure that rli is null
+    only in the case discussed above, 'if (rli)' is useless here.
+    But as we are not 100% sure, keep it for now.
+  */
+  if (rli)  
   {
-    rli->inc_pos(get_event_len(),log_pos);
-    DBUG_ASSERT(rli->sql_thd != 0);
-    flush_relay_log_info(rli);
+    if (rli->inside_transaction)
+      rli->inc_pending(get_event_len());
+    else
+    {
+      rli->inc_pos(get_event_len(),log_pos);
+      flush_relay_log_info(rli);
+    }
   }
   return 0;
 }
@@ -741,7 +757,9 @@ int Query_log_event::write_data(IO_CACHE* file)
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), data_buf(0), query(query_arg),
+  :Log_event(thd_arg, !thd_arg->lex.tmp_table_used ? 
+	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans), 
+   data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
   thread_id(thd_arg->thread_id)
@@ -823,6 +841,8 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
   *end++=';';
   *end++='\n';
   my_fwrite(file, (byte*) buff, (uint) (end-buff),MYF(MY_NABP | MY_WME));
+  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+    fprintf(file,"SET @@session.pseudo_thread_id=%lu;\n",(ulong)thread_id);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fprintf(file, ";\n");
 }
@@ -858,7 +878,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     thd->query_error= 0;			// clear error
     thd->clear_error();
     
-    thd->slave_proxy_id = thread_id;		// for temp tables
+    thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 	
     /*
       Sanity check to make sure the master did not get a really bad
@@ -870,6 +890,19 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_log.write(thd,COM_QUERY,"%s",thd->query);
       DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
+
+      /*
+	Set a flag if we are inside an transaction so that we can restart
+	the transaction from the start if we are killed
+
+	This will only be done if we are supporting transactional tables
+	in the slave.
+      */
+      if (!strcmp(thd->query,"BEGIN"))
+	rli->inside_transaction= opt_using_transactions;
+      else if (!strcmp(thd->query,"COMMIT"))
+	rli->inside_transaction=0;
+
       DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
 			 expected_error, thd->net.last_errno));
       if ((expected_error != (actual_error= thd->net.last_errno)) &&
@@ -1423,13 +1456,35 @@ void Load_log_event::set_fields(List<Item> &field_list)
 }
 #endif // !MYSQL_CLIENT
 
-/*****************************************************************************
-
-  Load_log_event::exec_event()
-
- ****************************************************************************/
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
+/*
+  Does the data loading job when executing a LOAD DATA on the slave
+
+  SYNOPSIS
+    Load_log_event::exec_event
+      net  
+      rli                             
+      use_rli_only_for_errors	  - if set to 1, rli is provided to 
+                                  Load_log_event::exec_event only for this 
+				  function to have RPL_LOG_NAME and 
+				  rli->last_slave_error, both being used by 
+				  error reports. rli's position advancing
+				  is skipped (done by the caller which is
+				  Execute_load_log_event::exec_event).
+				  - if set to 0, rli is provided for full use,
+				  i.e. for error reports and position
+				  advancing.
+
+  DESCRIPTION
+    Does the data loading job when executing a LOAD DATA on the slave
+ 
+  RETURN VALUE
+    0           Success                                                 
+    1    	Failure
+*/
+
+int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
+			       bool use_rli_only_for_errors)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
@@ -1477,7 +1532,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       set_fields(field_list);
-      thd->slave_proxy_id = thd->thread_id;
+      thd->variables.pseudo_thread_id= thd->thread_id;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
@@ -1491,9 +1546,15 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
+      {
+	/* 
+	   log_pos is the position of the LOAD
+	   event in the master log
+	*/
 	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s)", llstr(rli->master_log_pos,llbuff), RPL_LOG_NAME,
+'%s' produced %d warning(s)", llstr(log_pos,llbuff), RPL_LOG_NAME, 
 			thd->cuted_fields );
+      }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
     }
@@ -1532,7 +1593,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
     return 1;
   }
 
-  return Log_event::exec_event(rli); 
+  return ( use_rli_only_for_errors ? 0 : Log_event::exec_event(rli) ); 
 }
 #endif
 
@@ -2670,7 +2731,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   save_options = thd->options;
   thd->options &= ~ (ulong) (OPTION_BIN_LOG);
   lev->thd = thd;
-  if (lev->exec_event(0,0))
+  /*
+    lev->exec_event should use rli only for errors
+    i.e. should not advance rli's position
+  */
+  if (lev->exec_event(0,rli,1)) 
   {
     slave_print_error(rli,my_errno, "Failed executing load from '%s'", fname);
     thd->options = save_options;

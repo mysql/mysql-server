@@ -1,4 +1,11 @@
 #
+# Initialize
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
 # Test of reading of bigint values
 #
 select 0,256,00000000000000065536,2147483647,-2147483648,2147483648,+4294967296;
@@ -11,7 +18,6 @@ select +9999999999999999999,-9999999999999999999;
 # This will work on 4.0 as we then have internal handling of bigint variables.
 #
 
-drop table if exists t1;
 create table t1 (a bigint unsigned not null, primary key(a));
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
 select * from t1;

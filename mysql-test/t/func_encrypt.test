@@ -1,6 +1,9 @@
 -- source include/have_openssl.inc
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (x blob);
 insert into t1 values (des_encrypt('The quick red fox jumped over the lazy brown dog','The quick red fox jumped over the lazy brown dog'));
 insert into t1 values (des_encrypt('a','The quick red fox jumped over the lazy brown dog'));

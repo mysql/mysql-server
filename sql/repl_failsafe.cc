@@ -84,7 +84,7 @@ static int init_failsafe_rpl_thread(THD* thd)
 #endif
 
   thd->mem_root.free=thd->mem_root.used=0;	
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options|= OPTION_BIG_SELECTS;
 
   thd->proc_info="Thread initialized";

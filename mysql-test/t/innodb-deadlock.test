@@ -2,7 +2,10 @@
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
-drop table if exists t1;
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
 
 #
 # Testing of FOR UPDATE
@@ -36,7 +39,6 @@ select * from t1;
 commit;
 
 drop table t1;
-drop table if exists t1, t2;
 #
 # Testing of FOR UPDATE
 #

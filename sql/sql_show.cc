@@ -675,6 +675,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
+  field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
@@ -721,6 +722,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length());
+	protocol->store(field->charset()->name);
 
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -841,7 +843,6 @@ int
 mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
-  char buff[256];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_keys");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
@@ -1055,6 +1056,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     bool has_default = (field->type() != FIELD_TYPE_BLOB &&
 			field->type() != FIELD_TYPE_TIMESTAMP &&
 			field->unireg_check != Field::NEXT_NUMBER);
+    
+    /* 
+      For string types dump collation name only if 
+      collation is not primary for the given charset
+    */
+    if (!field->binary() && !(field->charset()->state & MY_CS_PRIMARY))
+    {
+      packet->append(" collate ",9);
+      packet->append(field->charset()->name);
+    }
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
@@ -1117,8 +1128,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       packet->append(" USING BTREE", 12);
 
     // +BAR: send USING only in non-default case: non-spatial rtree
-    if((key_info->algorithm == HA_KEY_ALG_RTREE) &&
-       !(key_info->flags & HA_SPATIAL))
+    if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
+	!(key_info->flags & HA_SPATIAL))
       packet->append(" USING RTREE",12);
 
     packet->append(" (", 2);
@@ -1167,7 +1178,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   if (table->table_charset)
   {
     packet->append(" CHARSET=");
-    packet->append(table->table_charset->name);
+    packet->append(table->table_charset->csname);
+    if (!(table->table_charset->state & MY_CS_PRIMARY))
+    {
+      packet->append(" COLLATE=");
+      packet->append(table->table_charset->name);
+    }
   }
 
   if (table->min_rows)
@@ -1273,6 +1289,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      struct st_my_thread_var *mysys_var;
 #ifndef EMBEDDED_LIBRARY
       if ((tmp->net.vio || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
@@ -1294,8 +1311,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
-        if (tmp->mysys_var)
-          pthread_mutex_lock(&tmp->mysys_var->mutex);
+        if ((mysys_var= tmp->mysys_var))
+          pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
 #ifndef EMBEDDED_LIBRARY
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
@@ -1311,8 +1328,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 #else
         thd_info->state_info= (char*)"Writing to net";
 #endif
-        if (tmp->mysys_var)
-          pthread_mutex_unlock(&tmp->mysys_var->mutex);
+        if (mysys_var)
+          pthread_mutex_unlock(&mysys_var->mutex);
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
@@ -1341,7 +1358,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
-    char buff[20],*end;
     protocol->prepare_for_resend();
     protocol->store((ulonglong) thd_info->thread_id);
     protocol->store(thd_info->user);
@@ -1375,10 +1391,14 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
+  char flags[64];
+
   DBUG_ENTER("mysqld_show_charsets");
 
-  field_list.push_back(new Item_empty_string("Name",30));
+  field_list.push_back(new Item_empty_string("CS_Name",30));
+  field_list.push_back(new Item_empty_string("COL_Name",30));
   field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
+  field_list.push_back(new Item_empty_string("Flags",30));
   field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_TINY));
   field_list.push_back(new Item_return_int("mb_maxlen",3, FIELD_TYPE_TINY));
 
@@ -1387,14 +1407,17 @@ int mysqld_show_charsets(THD *thd, const char *wild)
 
   for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
   {
-    if (!cs[0])
-      continue;
-    if (!(wild && wild[0] &&
+    if (cs[0] && !(wild && wild[0] &&
 	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
     {
       protocol->prepare_for_resend();
+      protocol->store(cs[0]->csname);
       protocol->store(cs[0]->name);
       protocol->store_short((longlong) cs[0]->number);
+      flags[0]='\0';
+      if (cs[0]->state & MY_CS_PRIMARY)
+        strcat(flags,"pri");
+      protocol->store(flags);
       protocol->store_tiny((longlong) cs[0]->strxfrm_multiply);
       protocol->store_tiny((longlong) cs[0]->mbmaxlen);
       if (protocol->write())
@@ -1450,6 +1473,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       case SHOW_LONGLONG:
 	end= longlong10_to_str(*(longlong*) value, buff, 10);
+	break;
+      case SHOW_HA_ROWS:
+        end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
         break;
       case SHOW_BOOL:
 	end= strmov(buff, *(bool*) value ? "ON" : "OFF");
@@ -1481,7 +1507,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
 #ifndef EMBEDDED_LIBRARY
       case SHOW_RPL_STATUS:
-	end= int10_to_str((long) rpl_status_type[(int)rpl_status], buff, 10);
+	end= strmov(buff, rpl_status_type[(int)rpl_status]);
 	break;
       case SHOW_SLAVE_RUNNING:
       {

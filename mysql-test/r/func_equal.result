@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 select 0<=>0,0.0<=>0.0,"A"<=>"A",NULL<=>NULL;
 0<=>0	0.0<=>0.0	"A"<=>"A"	NULL<=>NULL
 1	1	1	1
@@ -10,7 +11,6 @@ select 1.0<=>0.0,0.0<=>NULL,NULL<=>0.0;
 select "A"<=>"B","A"<=>NULL,NULL<=>"A";
 "A"<=>"B"	"A"<=>NULL	NULL<=>"A"
 0	0	0
-drop table if exists t1,t2;
 create table t1 (id int, value int);
 create table t2 (id int, value int);
 insert into t1 values (1,null);

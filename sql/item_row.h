@@ -16,24 +16,27 @@
 
 class Item_row: public Item
 {
-  bool array_holder;
-  table_map used_tables_cache;
-  bool const_item_cache;
-  uint arg_count;
   Item **items;
+  table_map used_tables_cache;
+  uint arg_count;
+  bool array_holder;
+  bool const_item_cache;
+  bool with_null;
 public:
   Item_row(List<Item> &);
   Item_row(Item_row *item):
-    Item(), array_holder(0), 
+    Item(),
+    items(item->items),
     used_tables_cache(item->used_tables_cache),
-    const_item_cache(item->const_item_cache),
     arg_count(item->arg_count),
-    items(item->items)
+    array_holder(0), 
+    const_item_cache(item->const_item_cache),
+    with_null(0)
   {}
 
   ~Item_row()
   {
-    if(array_holder && items)
+    if (array_holder && items)
       sql_element_free(items);
   }
 
@@ -64,10 +67,13 @@ public:
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
+  bool check_loop(uint id);
+  void set_outer_resolving();
 
   uint cols() { return arg_count; }
   Item* el(uint i) { return items[i]; }
   Item** addr(uint i) { return items + i; }
   bool check_cols(uint c);
-  bool null_inside();
+  bool null_inside() { return with_null; };
+  void bring_value();
 };

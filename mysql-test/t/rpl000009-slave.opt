@@ -1,1 +1,1 @@
---replicate-wild-do-table=bar.%
+--replicate-wild-do-table=mysqltest.%

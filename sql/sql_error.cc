@@ -105,31 +105,29 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 }
 
 /*
-  Store warning to the list
+  Push the warning/error to error list if there is still room in the list
+
+  SYNOPSIS
+    push_warning_printf()
+    thd			Thread handle
+    level		Severity of warning (note, warning, error ...)
+    code		Error number
+    msg			Clear error message
 */
 
-void store_warning(THD *thd, uint errcode, ...)
+void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
+			 uint code, const char *format, ...)
 {
-#if TESTS_TO_BE_FIXED
   va_list args;
-  const   char *format;
   char    warning[ERRMSGSIZE+20];
-  DBUG_ENTER("store_warning");  
-  DBUG_PRINT("enter",("warning: %u",errcode));
+  DBUG_ENTER("push_warning_printf");
+  DBUG_PRINT("enter",("warning: %u", code));
   
-  va_start(args,errcode);
-  if (errcode)
-    format= ER(errcode);
-  else
-  {
-    format=va_arg(args,char*);
-    errcode= ER_UNKNOWN_ERROR;
-  }
-  (void) vsprintf (warning,format,args);
+  va_start(args,format);
+  my_vsnprintf(warning, sizeof(warning), format, args);
   va_end(args);
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, errcode, warning);
+  push_warning(thd, level, code, warning);
   DBUG_VOID_RETURN;
-#endif
 }
 
 
