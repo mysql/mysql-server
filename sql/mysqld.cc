@@ -1589,6 +1589,7 @@ information that should help you find out what is causing the crash.\n");
 static void init_signals(void)
 {
   sigset_t set;
+  struct sigaction sa;
   DBUG_ENTER("init_signals");
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
@@ -1596,7 +1597,6 @@ static void init_signals(void)
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
-    struct sigaction sa;
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sigemptyset(&sa.sa_mask);
     sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
@@ -1638,15 +1638,22 @@ static void init_signals(void)
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
-  sigset(SIGTERM, print_signal_warning);	// If it's blocked by parent
-  sigset(SIGHUP, print_signal_warning);		// If it's blocked by parent
+
+  /* Fix signals if blocked by parents (can happen on Mac OS X) */
+  sa.sa_flags = 0;
+  sa.sa_handler = print_signal_warning;
+  sigaction(SIGTERM, &sa, (struct sigaction*) 0);
+  sa.sa_flags = 0;
+  sa.sa_handler = print_signal_warning;
+  sigaction(SIGHUP, &sa, (struct sigaction*) 0);
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
   sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
   sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
-  (void) pthread_sigmask(SIG_SETMASK,&set,NULL);
+  sigprocmask(SIG_SETMASK,&set,NULL);
+  pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
 }
 
