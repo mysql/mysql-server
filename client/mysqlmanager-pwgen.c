@@ -145,7 +145,7 @@ int main(int argc, char** argv)
     die("Could not open '%s'(errno=%d)",outfile,errno);
   get_pass(pw,sizeof(pw)-1);
   my_MD5Init(&context);
-  my_MD5Update(&context,pw,sizeof(pw)-1);
+  my_MD5Update(&context,(uchar*) pw,sizeof(pw)-1);
   my_MD5Final(digest,&context);
   fprintf(fp,"%s:",user);
   for (i=0;i<sizeof(digest);i++)

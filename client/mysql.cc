@@ -129,7 +129,7 @@ static String glob_buffer,old_buffer;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
-char mysql_charsets_dir[FN_REFLEN+1];
+static char mysql_charsets_dir[FN_REFLEN+1];
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",

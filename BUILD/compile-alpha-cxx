@@ -11,7 +11,7 @@ rm */.deps/*
 make
 if [ $? = 0 ]
 then
-  rm */.deps/*
+  find . -name ".deps" | xargs rm -r 
   bin/mysqladmin shutdown
   sur make install
   if [ $? = 0 ]

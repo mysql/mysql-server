@@ -163,13 +163,14 @@ void  _ftb_init_index_search(FT_INFO *ftb)
   {
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
-    r=_mi_search(info, keyinfo, ftbw->word, ftbw->len,
+    r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
                  SEARCH_FIND | SEARCH_PREFIX, keyroot);
     if (!r)
     {
       r=_mi_compare_text(default_charset_info,
                          info->lastkey+ftbw->trunc,ftbw->len-ftbw->trunc,
-                         ftbw->word+ftbw->trunc,ftbw->len-ftbw->trunc,0);
+                         (uchar*) ftbw->word+ftbw->trunc,ftbw->len-ftbw->trunc,
+			 0);
     }
     if (r) /* not found */
     {
@@ -306,13 +307,14 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       _ftb_climb_the_tree(ftbw, curdoc);
 
       /* update queue */
-      r=_mi_search(info, keyinfo, ftbw->word, USE_WHOLE_KEY,
+      r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
                    SEARCH_BIGGER , keyroot);
       if (!r)
       {
         r=_mi_compare_text(default_charset_info,
                            info->lastkey+ftbw->trunc,ftbw->len-ftbw->trunc,
-                           ftbw->word+ftbw->trunc,ftbw->len-ftbw->trunc,0);
+                           (uchar*) ftbw->word+ftbw->trunc,
+			   ftbw->len-ftbw->trunc,0);
       }
       if (r) /* not found */
       {
