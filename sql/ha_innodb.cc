@@ -3471,7 +3471,7 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
 
- 	DBUG_ENTER("info");
+ 	DBUG_ENTER("estimate_number_of_rows");
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
