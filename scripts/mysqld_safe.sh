@@ -10,6 +10,8 @@
 # mysql.server works by first doing a cd to the base directory and from there
 # executing mysqld_safe
 
+KILL_MYSQLD=1;
+
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 
 umask 007
@@ -34,6 +36,9 @@ parse_arguments() {
 
   for arg do
     case "$arg" in
+      --skip-kill-mysqld*)
+        KILL_MYSQLD=0;
+        ;;
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
@@ -82,6 +87,7 @@ parse_arguments() {
     esac
   done
 }
+
 
 MY_PWD=`pwd`
 # Check if we are starting this relative (for the binary release)
@@ -298,7 +304,7 @@ do
     break
   fi
 
-  if @IS_LINUX@
+  if test @IS_LINUX@ -a $KILL_MYSQLD -eq 1
   then
     # Test if one process was hanging.
     # This is only a fix for Linux (running as base 3 mysqld processes)
