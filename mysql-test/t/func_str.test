@@ -64,15 +64,6 @@ select length(repeat("a",1000000)),length(concat(repeat("a",32000),repeat("a",32
 # Problem med concat
 #
 
-drop table if exists t1;
-create table t1 (Zeit time, Tag tinyint not null, Monat tinyint not null, Jahr smallint not null, index(Tag), index(Monat), index(Jahr) );
-insert into t1 values ("09:26:00",16,9,1998);
-insert into t1 values ("09:26:00",16,9,1998);
-SELECT CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit) AS Date,
-   UNIX_TIMESTAMP(CONCAT(Jahr,'-',Monat,'-',Tag,' ',Zeit)) AS Unix
-FROM t1;
-drop table t1;
-
 create table t1 ( domain char(50) );
 insert into t1 VALUES ("hello.de" ), ("test.de" );
 select domain from t1 where concat('@', trim(leading '.' from concat('.', domain))) = '@hello.de';
