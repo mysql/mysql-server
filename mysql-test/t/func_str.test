@@ -114,6 +114,7 @@ INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter), '"') FROM t1;
 SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
 SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified,bugstatus,submitter) FROM t1;
+SELECT bugdesc, REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb') from t1 group by bugdesc;
 drop table t1;
 
 #
