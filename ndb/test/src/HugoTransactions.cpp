@@ -29,20 +29,13 @@ HugoTransactions::~HugoTransactions(){
   deallocRows();
 }
 
-
-int HugoTransactions::scanReadCommittedRecords(Ndb* pNdb, 
-				  int records,
-				  int abortPercent,
-				  int parallelism){
-  return  scanReadRecords(pNdb, records, abortPercent, parallelism, true);
-}
-
 int
 HugoTransactions::scanReadRecords(Ndb* pNdb, 
 				  int records,
 				  int abortPercent,
 				  int parallelism, 
-				  bool committed){
+				  NdbOperation::LockMode lm)
+{
   
   int                  retryAttempt = 0;
   const int            retryMax = 100;
@@ -80,8 +73,163 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     }
 
     NdbResultSet * rs;
-    rs = pOp ->readTuples(committed ? NdbScanOperation::LM_CommittedRead :
-			  NdbScanOperation::LM_Read);
+    rs = pOp ->readTuples(lm);
+
+    if( rs == 0 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    check = pOp->interpret_exit_ok();
+    if( check == -1 ) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+  
+    for(a = 0; a<tab.getNoOfColumns(); a++){
+      if((row.attributeStore(a) = 
+	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	ERR(pTrans->getNdbError());
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }
+    }
+
+    check = pTrans->execute(NoCommit);
+    if( check == -1 ) {
+      const NdbError err = pTrans->getNdbError();
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    // Abort after 1-100 or 1-records rows
+    int ranVal = rand();
+    int abortCount = ranVal % (records == 0 ? 100 : records); 
+    bool abortTrans = false;
+    if (abort > 0){
+      // Abort if abortCount is less then abortPercent 
+      if (abortCount < abortPercent) 
+	abortTrans = true;
+    }
+    
+    int eof;
+    int rows = 0;
+    while((eof = rs->nextResult(true)) == 0){
+      rows++;
+      if (calc.verifyRowValues(&row) != 0){
+	pNdb->closeTransaction(pTrans);
+	return NDBT_FAILED;
+      }
+
+      if (abortCount == rows && abortTrans == true){
+	ndbout << "Scan is aborted" << endl;
+	g_info << "Scan is aborted" << endl;
+	rs->close();
+	if( check == -1 ) {
+	  ERR(pTrans->getNdbError());
+	  pNdb->closeTransaction(pTrans);
+	  return NDBT_FAILED;
+	}
+	
+	pNdb->closeTransaction(pTrans);
+	return NDBT_OK;
+      }
+    }
+    if (eof == -1) {
+      const NdbError err = pTrans->getNdbError();
+      
+      if (err.status == NdbError::TemporaryError){
+	ERR_INFO(err);
+	pNdb->closeTransaction(pTrans);
+	NdbSleep_MilliSleep(50);
+	switch (err.code){
+	case 488:
+	case 245:
+	case 490:
+	  // Too many active scans, no limit on number of retry attempts
+	  break;
+	default:
+	  retryAttempt++;
+	}
+	continue;
+      }
+      ERR(err);
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    pNdb->closeTransaction(pTrans);
+
+    g_info << rows << " rows have been read" << endl;
+    if (records != 0 && rows != records){
+      g_err << "Check expected number of records failed" << endl 
+	     << "  expected=" << records <<", " << endl
+	     << "  read=" << rows << endl;
+      return NDBT_FAILED;
+    }
+    
+    return NDBT_OK;
+  }
+  return NDBT_FAILED;
+}
+
+int
+HugoTransactions::scanReadRecords(Ndb* pNdb, 
+				  const NdbDictionary::Index * pIdx,
+				  int records,
+				  int abortPercent,
+				  int parallelism, 
+				  NdbOperation::LockMode lm,
+				  bool sorted)
+{
+  
+  int                  retryAttempt = 0;
+  const int            retryMax = 100;
+  int                  check, a;
+  NdbConnection	       *pTrans;
+  NdbIndexScanOperation	       *pOp;
+
+  while (true){
+
+    if (retryAttempt >= retryMax){
+      g_err << "ERROR: has retried this operation " << retryAttempt 
+	    << " times, failing!" << endl;
+      return NDBT_FAILED;
+    }
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL) {
+      const NdbError err = pNdb->getNdbError();
+
+      if (err.status == NdbError::TemporaryError){
+	ERR(err);
+	NdbSleep_MilliSleep(50);
+	retryAttempt++;
+	continue;
+      }
+      ERR(err);
+      return NDBT_FAILED;
+    }
+
+    pOp = pTrans->getNdbIndexScanOperation(pIdx->getName(), tab.getName());
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    NdbResultSet * rs;
+    rs = pOp ->readTuples(lm, 0, parallelism, sorted);
 
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
