@@ -20,12 +20,6 @@
   NDB Cluster
 */
 
-/*
-  TODO 
-  After CREATE DATABASE gör discover på alla tabeller i den databasen
-
-*/
-
 
 #ifdef __GNUC__
 #pragma implementation                          // gcc: Class implementation
@@ -41,6 +35,7 @@
 
 #define USE_DISCOVER_ON_STARTUP
 //#define USE_NDB_POOL
+#define USE_EXTRA_ORDERED_INDEX
 
 // Default value for parallelism
 static const int parallelism= 240;
@@ -63,6 +58,10 @@ typedef NdbDictionary::Index  NDBINDEX;
 typedef NdbDictionary::Dictionary  NDBDICT;
 
 bool ndbcluster_inited= false;
+
+#ifdef USE_EXTRA_ORDERED_INDEX
+static const char* unique_suffix= "$unique";
+#endif
 
 // Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
@@ -95,6 +94,7 @@ static const err_code_mapping err_map[]=
   { 630, HA_ERR_FOUND_DUPP_KEY },
   { 893, HA_ERR_FOUND_DUPP_UNIQUE },
   { 721, HA_ERR_TABLE_EXIST },
+  { 4244, HA_ERR_TABLE_EXIST },
   { 241, HA_ERR_OLD_METADATA },
   { -1, -1 }
 };
@@ -354,14 +354,36 @@ int ha_ndbcluster::get_metadata(const char *path)
   m_table= (void*)tab;
 
   for (i= 0; i < MAX_KEY; i++)
+  {
     m_indextype[i]= UNDEFINED_INDEX;
+    m_unique_index_name[i]= NULL;
+  }
 
   // Save information about all known indexes
   for (i= 0; i < table->keys; i++)
-    m_indextype[i] = get_index_type_from_table(i);
+  {
+    m_indextype[i]= get_index_type_from_table(i);
+
+#ifdef USE_EXTRA_ORDERED_INDEX
+    if (m_indextype[i] == UNIQUE_INDEX)
+    {
+      char *name;
+      const char *index_name= get_index_name(i);
+      int name_len= strlen(index_name)+strlen(unique_suffix)+1;
+
+      if (!(name= my_malloc(name_len, MYF(MY_WME))))
+	DBUG_RETURN(2);
+      strxnmov(name, name_len, index_name, unique_suffix, NullS);
+      m_unique_index_name[i]= name;      
+      DBUG_PRINT("info", ("Created unique index name: %s for index %d",
+			  name, i));
+    }
+#endif
+  }
 
   DBUG_RETURN(0);  
 }
+
 
 /*
   Decode the type of an index from information 
@@ -380,10 +402,18 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint index_no) const
 
 void ha_ndbcluster::release_metadata()
 {
+  int i;
+
   DBUG_ENTER("release_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
   m_table= NULL;
+
+  for (i= 0; i < MAX_KEY; i++)
+  {
+    my_free((char*)m_unique_index_name[i], MYF(MY_ALLOW_ZERO_PTR));
+    m_unique_index_name[i]= NULL;
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -415,6 +445,18 @@ inline const char* ha_ndbcluster::get_index_name(uint idx_no) const
 {
   return table->keynames.type_names[idx_no];
 }
+
+inline const char* ha_ndbcluster::get_unique_index_name(uint idx_no) const
+{
+#ifdef USE_EXTRA_ORDERED_INDEX
+  DBUG_ASSERT(idx_no < MAX_KEY);
+  DBUG_ASSERT(m_unique_index_name[idx_no]);
+  return m_unique_index_name[idx_no];
+#else
+  return get_index_name(idx_no);
+#endif
+
+ }
 
 inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
@@ -550,7 +592,6 @@ int ha_ndbcluster::unique_index_read(const byte *key,
 				     uint key_len, byte *buf)
 {
   NdbConnection *trans= m_active_trans;
-  const char *index_name;
   NdbIndexOperation *op;
   THD *thd= current_thd;
   byte *key_ptr;
@@ -560,9 +601,10 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   DBUG_ENTER("unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
   DBUG_DUMP("key", (char*)key, key_len);
+  DBUG_PRINT("enter", ("name: %s", get_unique_index_name(active_index)));
   
-  index_name= get_index_name(active_index);
-  if (!(op= trans->getNdbIndexOperation(index_name, m_tabname)) ||
+  if (!(op= trans->getNdbIndexOperation(get_unique_index_name(active_index), 
+					m_tabname)) ||
       op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
   
@@ -635,24 +677,79 @@ inline int ha_ndbcluster::next_result(byte *buf)
 
 
 /*
+  Set bounds for a ordered index scan, use key_range
+*/
+
+int ha_ndbcluster::set_bounds(NdbOperation *op,
+			      const key_range *key,
+			      int bound)
+{
+  uint i, tot_len;
+  byte *key_ptr;
+  KEY* key_info= table->key_info + active_index;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+
+  DBUG_ENTER("set_bounds");
+  DBUG_PRINT("enter", ("bound: %d", bound));
+  DBUG_PRINT("enter", ("key_parts: %d", key_info->key_parts));
+  DBUG_PRINT("enter", ("key->length: %d", key->length));
+  DBUG_PRINT("enter", ("key->flag: %d", key->flag));
+
+  // Set bounds using key data
+  tot_len= 0;
+  key_ptr= (byte *) key->key;    
+  for (; key_part != end; key_part++)
+  {
+    Field* field= key_part->field;
+    uint32 field_len=  field->pack_length();
+    tot_len+= field_len;
+
+    const char* bounds[]= {"LE", "LT", "GE", "GT", "EQ"};
+    DBUG_ASSERT(bound >= 0 && bound <= 4);    
+    DBUG_PRINT("info", ("Set Bound%s on %s", 
+			bounds[bound],
+			field->field_name));
+    DBUG_DUMP("key", (char*)key_ptr, field_len);
+
+    if (op->setBound(field->field_name,
+		     bound, 
+		     key_ptr,
+		     field_len) != 0)
+      ERR_RETURN(op->getNdbError());
+    
+    key_ptr+= field_len;
+    
+    if (tot_len >= key->length)
+      break;
+
+    /*
+      Only one bound which is not EQ can be set
+      so if this bound was not EQ, bail out and make 
+      a best effort attempt
+    */
+    if (bound != NdbOperation::BoundEQ)
+      break;
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+/*
   Read record(s) from NDB using ordered index scan
 */
 
-int ha_ndbcluster::ordered_index_scan(const byte *key, uint key_len, 
-				      byte *buf,
-				      enum ha_rkey_function find_flag)
+int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
+				      const key_range *end_key,
+				      bool sorted, byte* buf)
 {  
   uint no_fields= table->fields;
-  uint tot_len, i;
+  uint i;
   NdbConnection *trans= m_active_trans;
   NdbResultSet *cursor= m_active_cursor;
   NdbScanOperation *op;
-  const char *bound_str= NULL;
   const char *index_name;
-  NdbOperation::BoundType bound_type = NdbOperation::BoundEQ;
-  bool can_be_handled_by_ndb= FALSE;
-  byte *key_ptr;
-  KEY *key_info;
   THD* thd = current_thd;
   DBUG_ENTER("ordered_index_scan");
   DBUG_PRINT("enter", ("index: %u", active_index));  
@@ -664,77 +761,27 @@ int ha_ndbcluster::ordered_index_scan(const byte *key, uint key_len,
   if (!(cursor= op->readTuples(parallelism)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
-  
-  switch (find_flag) {
-  case HA_READ_KEY_EXACT: /* Find first record else error */
-    bound_str= "HA_READ_KEY_EXACT";
-    bound_type= NdbOperation::BoundEQ;
-    can_be_handled_by_ndb= TRUE;
-    break;
-  case HA_READ_KEY_OR_NEXT: /* Record or next record */
-    bound_str= "HA_READ_KEY_OR_NEXT";
-    bound_type= NdbOperation::BoundLE;
-    can_be_handled_by_ndb= TRUE;
-    break;
-  case HA_READ_KEY_OR_PREV: /* Record or previous */
-    bound_str= "HA_READ_KEY_OR_PREV";
-    bound_type= NdbOperation::BoundGE;
-    can_be_handled_by_ndb= TRUE;
-    break;
-  case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
-    bound_str= "HA_READ_AFTER_KEY";
-    bound_type= NdbOperation::BoundLT;
-    can_be_handled_by_ndb= TRUE;
-    break;
-  case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
-    bound_str= "HA_READ_BEFORE_KEY";
-    bound_type= NdbOperation::BoundGT;
-    can_be_handled_by_ndb= TRUE;
-    break;
-  case HA_READ_PREFIX: /* Key which as same prefix */
-    bound_str= "HA_READ_PREFIX";
-    break;
-  case HA_READ_PREFIX_LAST: /* Last key with the same prefix */
-    bound_str= "HA_READ_PREFIX_LAST";
-    break;
-  case HA_READ_PREFIX_LAST_OR_PREV: 
-    /* Last or prev key with the same prefix */
-    bound_str= "HA_READ_PREFIX_LAST_OR_PREV";
-    break;
-  default:
-    bound_str= "UNKNOWN";
-    break;
-  }
-  DBUG_PRINT("info", ("find_flag: %s, bound_type: %d,"
-		      "can_be_handled_by_ndb: %d", 
-		      bound_str, bound_type, can_be_handled_by_ndb));    
-  if (!can_be_handled_by_ndb)
+
+  if (start_key && 
+      set_bounds(op, start_key, 
+		 (start_key->flag == HA_READ_KEY_EXACT) ? 
+		 NdbOperation::BoundEQ :
+		 (start_key->flag == HA_READ_AFTER_KEY) ? 
+		 NdbOperation::BoundLT : 
+		 NdbOperation::BoundLE))
     DBUG_RETURN(1);
+
+  if (end_key &&  
+      (start_key && start_key->flag != HA_READ_KEY_EXACT) &&
+      // MASV Is it a bug that end_key is not 0 
+      // if start flag is HA_READ_KEY_EXACT
       
-  // Set bounds using key data
-  tot_len= 0;
-  key_ptr= (byte *) key;    
-  key_info= table->key_info + active_index;
-  for (i= 0; i < key_info->key_parts; i++)
-  {
-    Field* field= key_info->key_part[i].field;
-    uint32 field_len=  field->pack_length();
-    DBUG_PRINT("info", ("Set index bound on %s", 
-			field->field_name));
-    DBUG_DUMP("key", (char*)key_ptr, field_len);
-    
-    if (op->setBound(field->field_name,
-		     bound_type, 
-		     key_ptr,
-		     field_len) != 0)
-      ERR_RETURN(op->getNdbError());
-    
-    key_ptr+= field_len;
-    tot_len+= field_len;
-    if (tot_len >= key_len)
-      break;
-  }
-    
+      set_bounds(op, end_key, 
+		 (end_key->flag == HA_READ_AFTER_KEY) ? 
+		 NdbOperation::BoundGE : 
+		 NdbOperation::BoundGT))
+    DBUG_RETURN(1);
+
   // Define attributes to read
   for (i= 0; i < no_fields; i++) 
   {
@@ -904,7 +951,8 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	(field->flags & PRI_KEY_FLAG))
+	(field->flags & PRI_KEY_FLAG) || 
+	retrieve_all_fields)
     {      
       if (get_ndb_value(op, i, field->ptr))
 	ERR_RETURN(op->getNdbError());
@@ -991,8 +1039,16 @@ int ha_ndbcluster::write_row(byte *record)
     to NoCommit the transaction between each row.
     Find out how this is detected!
   */
-  if (trans->execute(NoCommit) != 0)
-    DBUG_RETURN(ndb_err(trans));
+  rows_inserted++;
+  if ((rows_inserted % bulk_insert_rows) == 0)
+  {
+    // Send rows to NDB
+    DBUG_PRINT("info", ("Sending inserts to NDB, "\
+			"rows_inserted:%d, bulk_insert_rows: %d", 
+			rows_inserted, bulk_insert_rows)); 
+    if (trans->execute(NoCommit) != 0)
+      DBUG_RETURN(ndb_err(trans));
+  }
   DBUG_RETURN(0);
 }
 
@@ -1349,20 +1405,52 @@ int ha_ndbcluster::index_read(byte *buf,
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
                        active_index, key_len, find_flag));
  
+  KEY* key_info;
   int error= 1;
   statistic_increment(ha_read_key_count, &LOCK_status);
 
   switch (get_index_type(active_index)){    
   case PRIMARY_KEY_INDEX:
+#ifdef USE_EXTRA_ORDERED_INDEX
+    key_info= table->key_info + active_index;
+    if (key_len < key_info->key_length ||
+	find_flag != HA_READ_KEY_EXACT)
+    {
+      key_range start_key;
+      start_key.key=    key;
+      start_key.length= key_len;
+      start_key.flag=   find_flag;
+      error= ordered_index_scan(&start_key, 0, false, buf);
+      break;
+    
+    }
+#endif
     error= pk_read(key, key_len, buf);
     break;
     
   case UNIQUE_INDEX:
+#ifdef USE_EXTRA_ORDERED_INDEX
+    key_info= table->key_info + active_index;
+    if (key_len < key_info->key_length ||
+	find_flag != HA_READ_KEY_EXACT)
+    {
+      key_range start_key;
+      start_key.key=    key;
+      start_key.length= key_len;
+      start_key.flag=   find_flag;
+      error= ordered_index_scan(&start_key, 0, false, buf);
+      break;
+    }
+#endif
     error= unique_index_read(key, key_len, buf);
     break;
-    
+
   case ORDERED_INDEX:
-    error= ordered_index_scan(key, key_len, buf, find_flag);
+    key_range start_key;
+    start_key.key=    key;
+    start_key.length= key_len;
+    start_key.flag=   find_flag;
+    error= ordered_index_scan(&start_key, 0, false, buf);
     break;
 
   default:
@@ -1391,7 +1479,7 @@ int ha_ndbcluster::index_next(byte *buf)
 
   int error = 1;
   statistic_increment(ha_read_next_count,&LOCK_status);
-  if (get_index_type(active_index) == PRIMARY_KEY_INDEX)
+  if (!m_active_cursor)
     error= HA_ERR_END_OF_FILE;
   else
     error = next_result(buf);
@@ -1420,6 +1508,44 @@ int ha_ndbcluster::index_last(byte *buf)
   DBUG_ENTER("index_last");
   statistic_increment(ha_read_last_count,&LOCK_status);
   DBUG_RETURN(1);
+}
+
+
+int ha_ndbcluster::read_range_first(const key_range *start_key,
+				    const key_range *end_key,
+				    bool sorted)
+{
+  int error= 1;
+  DBUG_ENTER("ha_ndbcluster::read_range_first");
+
+  switch (get_index_type(active_index)){    
+  case PRIMARY_KEY_INDEX:
+    error= pk_read(start_key->key, start_key->length, 
+		   table->record[0]);
+    break;
+
+  case UNIQUE_INDEX:
+    error= unique_index_read(start_key->key, start_key->length, 
+			     table->record[0]);
+    break;
+
+  case ORDERED_INDEX:
+    // Start the ordered index scan and fetch the first row
+    error= ordered_index_scan(start_key, end_key, sorted,
+			      table->record[0]);
+    break;
+
+  default:
+  case UNDEFINED_INDEX:
+    break;
+  }
+  DBUG_RETURN(error);
+}
+
+int ha_ndbcluster::read_range_next(bool eq_range)
+{
+  DBUG_ENTER("ha_ndbcluster::read_range_next");
+  DBUG_RETURN(next_result(table->record[0]));
 }
 
 
@@ -1654,6 +1780,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 					 where field->query_id is the same as
 					 the current query id */
     DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_ALL_COLS"));
+    retrieve_all_fields = TRUE;
     break;
   case HA_EXTRA_PREPARE_FOR_DELETE:
     DBUG_PRINT("info", ("HA_EXTRA_PREPARE_FOR_DELETE"));
@@ -1676,6 +1803,53 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 
   }
   
+  DBUG_RETURN(0);
+}
+
+/* 
+   Start of an insert, remember number of rows to be inserted, it will
+   be used in write_row and get_autoincrement to send an optimal number
+   of rows in each roundtrip to the server
+
+   SYNOPSIS
+   rows     number of rows to insert, 0 if unknown
+
+*/
+
+void ha_ndbcluster::start_bulk_insert(ha_rows rows)
+{
+  int bytes, batch;
+  const NDBTAB *tab= (NDBTAB *) m_table;    
+
+  DBUG_ENTER("start_bulk_insert");
+  DBUG_PRINT("enter", ("rows: %d", rows));
+  
+  rows_inserted= 0;
+  rows_to_insert= rows; 
+
+  /* 
+    Calculate how many rows that should be inserted
+    per roundtrip to NDB. This is done in order to minimize the 
+    number of roundtrips as much as possible. However performance will 
+    degrade if too many bytes are inserted, thus it's limited by this 
+    calculation.   
+  */
+  bytes= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
+  batch= (1024*256); // 1024 rows, with size 256
+  batch= batch/bytes;   // 
+  batch= batch == 0 ? 1 : batch;
+  DBUG_PRINT("info", ("batch: %d, bytes: %d", batch, bytes));
+  bulk_insert_rows= batch;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  End of an insert
+ */
+int ha_ndbcluster::end_bulk_insert()
+{
+  DBUG_ENTER("end_bulk_insert");
   DBUG_RETURN(0);
 }
 
@@ -1853,6 +2027,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       (NdbConnection*)thd->transaction.all.ndb_tid:
       (NdbConnection*)thd->transaction.stmt.ndb_tid;
     DBUG_ASSERT(m_active_trans);
+
+    retrieve_all_fields = FALSE;
     
   } 
   else 
@@ -1904,6 +2080,8 @@ int ha_ndbcluster::start_stmt(THD *thd)
     thd->transaction.stmt.ndb_tid= trans;
   }
   m_active_trans= trans;
+
+  retrieve_all_fields = FALSE;
   
   DBUG_RETURN(error);
 }
@@ -2041,9 +2219,8 @@ int ha_ndbcluster::create(const char *name,
   NdbDictionary::Column::Type ndb_type;
   NDBCOL col;
   uint pack_length, length, i;
-  int res;
   const void *data, *pack_data;
-  const char **key_name= form->keynames.type_names;
+  const char **key_names= form->keynames.type_names;
   char name2[FN_HEADLEN];
    
   DBUG_ENTER("create");
@@ -2086,13 +2263,11 @@ int ha_ndbcluster::create(const char *name,
     col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
     if (field->flags & AUTO_INCREMENT_FLAG) 
     {
-      DBUG_PRINT("info", ("Found auto_increment key"));
       col.setAutoIncrement(TRUE);
-      ulonglong value = info->auto_increment_value ?
-	info->auto_increment_value -1 :
-	(ulonglong) 0;
-      DBUG_PRINT("info", ("initial value=%ld", value));
-//      col.setInitialAutIncValue(value);
+      ulonglong value= info->auto_increment_value ?
+	info->auto_increment_value -1 : (ulonglong) 0;
+      DBUG_PRINT("info", ("Autoincrement key, initial: %d", value));
+      col.setAutoIncrementInitialValue(value);
     }
     else
       col.setAutoIncrement(false);
@@ -2143,32 +2318,70 @@ int ha_ndbcluster::create(const char *name,
   }
   
   // Create secondary indexes
-  for (i= 0; i < form->keys; i++) 
+  KEY* key_info= form->key_info;
+  const char** key_name= key_names;
+  for (i= 0; i < form->keys; i++, key_info++, key_name++) 
   {
-    DBUG_PRINT("info", ("Found index %u: %s", i, key_name[i]));
+    int error= 0;
+    DBUG_PRINT("info", ("Index %u: %s", i, *key_name));
     if (i == form->primary_key)
-    {
-      DBUG_PRINT("info", ("Skipping it, PK already created"));
-      continue;
+    {    
+#ifdef USE_EXTRA_ORDERED_INDEX
+	error= create_ordered_index(*key_name, key_info);
+#endif
     }
+    else if (key_info->flags & HA_NOSAME)
+      error= create_unique_index(*key_name, key_info);
+    else
+      error= create_ordered_index(*key_name, key_info);
+
     
-    DBUG_PRINT("info", ("Creating index %u: %s", i, key_name[i]));
-    res= create_index(key_name[i], 
-		      form->key_info + i);
-    switch(res){
-    case 0:
-      // OK
-      break;
-    default:
+    if (error)
+    {
       DBUG_PRINT("error", ("Failed to create index %u", i));
       drop_table();
-      my_errno= res;
-      goto err_end;
+      my_errno= error;
+      break;
     }
   }
   
-err_end:
   DBUG_RETURN(my_errno);
+}
+
+
+int ha_ndbcluster::create_ordered_index(const char *name, 
+					KEY *key_info)
+{
+  DBUG_ENTER("create_ordered_index");
+  DBUG_RETURN(create_index(name, key_info, false));
+}
+
+int ha_ndbcluster::create_unique_index(const char *name, 
+				       KEY *key_info)
+{
+  int error;
+  const char* unique_name= name;
+  DBUG_ENTER("create_unique_index");
+
+#ifdef USE_EXTRA_ORDERED_INDEX
+  char buf[FN_HEADLEN];
+  strxnmov(buf, FN_HEADLEN, name, unique_suffix, NullS);
+  unique_name= buf;
+#endif
+
+  error= create_index(unique_name, key_info, true);
+  if (error)
+    DBUG_RETURN(error);
+
+#ifdef USE_EXTRA_ORDERED_INDEX
+  /*
+    If unique index contains more then one attribute 
+    an ordered index should be created to support 
+    partial key search 
+  */
+  error= create_ordered_index(name, key_info);
+#endif
+  DBUG_RETURN(error);
 }
 
 
@@ -2177,20 +2390,18 @@ err_end:
  */
 
 int ha_ndbcluster::create_index(const char *name, 
-				KEY *key_info){
+				KEY *key_info,
+				bool unique)
+{
   NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
   KEY_PART_INFO *end= key_part + key_info->key_parts;
   
   DBUG_ENTER("create_index");
   DBUG_PRINT("enter", ("name: %s ", name));
-  
-  // Check that an index with the same name do not already exist
-  if (dict->getIndex(name, m_tabname))
-    ERR_RETURN(dict->getNdbError());
-   
+
   NdbDictionary::Index ndb_index(name);
-  if (key_info->flags & HA_NOSAME)
+  if (unique)
     ndb_index.setType(NdbDictionary::Index::UniqueHashIndex);
   else 
   {
@@ -2321,10 +2532,10 @@ int ndbcluster_drop_database(const char *path)
 
 
 longlong ha_ndbcluster::get_auto_increment()
-{
-  // NOTE If number of values to be inserted is known 
-  // the autoincrement cache could be used here
-  Uint64 auto_value= m_ndb->getAutoIncrementValue(m_tabname);
+{  
+  int cache_size = rows_to_insert ? rows_to_insert : 32;
+  Uint64 auto_value= 
+    m_ndb->getAutoIncrementValue(m_tabname, cache_size);
   return (longlong)auto_value;
 }
 
@@ -2347,9 +2558,14 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
                 HA_NO_BLOBS |
                 HA_DROP_BEFORE_CREATE | 
                 HA_NOT_READ_AFTER_KEY),
-  m_use_write(false)
+  m_use_write(false),
+  retrieve_all_fields(FALSE),
+  rows_to_insert(0),
+  rows_inserted(0),
+  bulk_insert_rows(1024)
 { 
-
+  int i;
+  
   DBUG_ENTER("ha_ndbcluster");
 
   m_tabname[0]= '\0';
@@ -2359,6 +2575,12 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   // selection of scan/pk access
   records= 100;
   block_size= 1024;
+
+  for (i= 0; i < MAX_KEY; i++)
+  {
+    m_indextype[i]= UNDEFINED_INDEX;
+    m_unique_index_name[i]= NULL;      
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2765,6 +2987,7 @@ ha_ndbcluster::records_in_range(int inx,
   DBUG_PRINT("enter", ("end_key: %x, end_key_len: %d", end_key, end_key_len));
   DBUG_PRINT("enter", ("end_search_flag: %d", end_search_flag));
 
+#ifndef USE_EXTRA_ORDERED_INDEX
   /*
     Check that start_key_len is equal to 
     the length of the used index and
@@ -2779,6 +3002,14 @@ ha_ndbcluster::records_in_range(int inx,
 			   key_length));
     records= HA_POS_ERROR;
   }
+#else
+  /*
+    Extra ordered indexes are created primarily 
+    to support partial key scan/read and range scans of hash indexes.
+    I.e. the ordered index are used instead of the hash indexes for 
+    these queries.
+   */
+#endif
   DBUG_RETURN(records);
 }
 
