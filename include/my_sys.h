@@ -164,8 +164,10 @@ extern my_string my_strdup(const char *from,myf MyFlags);
 #undef  alloca
 #define alloca(size)   __builtin_alloca (size)
 #else /* xlc */
+#ifdef _AIX
  #pragma alloca
-#endif /* GCC.  */
+#endif /* _AIX */
+#endif /* __GNUC__  */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 #else
