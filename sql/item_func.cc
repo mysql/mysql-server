@@ -294,14 +294,11 @@ void Item_func::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
-Item * Item_func::get_tmp_table_item()
+Item *Item_func::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
-  {
     return new Item_field(result_field);
-  }
-  else
-    return get_same();
+  return copy_or_same(thd);
 }
 
 String *Item_int_func::val_str(String *str)

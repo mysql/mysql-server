@@ -1063,7 +1063,8 @@ int in_vector::find(Item *item)
 }
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
-  :in_vector(elements,sizeof(String),cmp_func),tmp(buff,sizeof(buff),default_charset_info)
+  :in_vector(elements, sizeof(String), cmp_func),
+   tmp(buff, sizeof(buff), default_charset_info)
 {}
 
 in_string::~in_string()
@@ -1102,11 +1103,7 @@ in_row::in_row(uint elements, Item * item)
 in_row::~in_row()
 {
   if (base)
-  {
-    cmp_item_row *arr= (cmp_item_row *) base;
-    for (uint i=0 ; i < count ; i++)
-      arr[i].~cmp_item_row();
-  }
+    delete [] (cmp_item_row*) base;
 }
 
 byte *in_row::get_value(Item *item)

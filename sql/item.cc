@@ -37,16 +37,22 @@ void item_init(void)
 Item::Item():
   fixed(0)
 {
-  marker=0;
+  marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  name=0;
-  decimals=0; max_length=0;
-  next=current_thd->free_list;			// Put in free list
-  current_thd->free_list=this;
+  name= 0;
+  decimals= 0; max_length= 0;
+  THD *thd= current_thd;
+  next= thd->free_list;			// Put in free list
+  thd->free_list= this;
   loop_id= 0;
 }
 
-Item::Item(Item &item):
+/*
+  Constructor used by Item_field, Item_ref & agregate (sum) functions.
+  Used for duplicating lists in processing queries with temporary
+  tables
+*/
+Item::Item(THD *thd, Item &item):
   loop_id(0),
   str_value(item.str_value),
   name(item.name),
@@ -59,12 +65,13 @@ Item::Item(Item &item):
   with_sum_func(item.with_sum_func),
   fixed(item.fixed)
 {
-  next=current_thd->free_list;			// Put in free list
-  current_thd->free_list= this;
+  next=thd->free_list;			// Put in free list
+  thd->free_list= this;
 }
 
-Item_ident::Item_ident(Item_ident &item):
-  Item(item),
+// Constructor used by Item_field & Item_ref (see Item comment)
+Item_ident::Item_ident(THD *thd, Item_ident &item):
+  Item(thd, item),
   db_name(item.db_name),
   table_name(item.table_name),
   field_name(item.field_name),
@@ -165,8 +172,9 @@ Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
   fixed= 1; // This item is not needed in fix_fields
 }
 
-Item_field::Item_field(Item_field &item):
-  Item_ident(item),
+// Constructor need to process subselect with temporary tables (see Item)
+Item_field::Item_field(THD *thd, Item_field &item):
+  Item_ident(thd, item),
   field(item.field),
   result_field(item.result_field)
 {}
@@ -281,9 +289,9 @@ table_map Item_field::used_tables() const
   return (depended_from? RAND_TABLE_BIT : field->table->map);
 }
 
-Item * Item_field::get_tmp_table_item()
+Item *Item_field::get_tmp_table_item(THD *thd)
 {
-  Item_field *new_item= new Item_field(*this);
+  Item_field *new_item= new Item_field(thd, *this);
   if (new_item)
     new_item->field= new_item->result_field;
   return new_item;
@@ -617,7 +625,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       thd->net.last_errno= 0;
 #endif
       Item **refer= (Item **)not_found_item;
-      uint counter= 0;
+      uint counter;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
       if (outer_resolving ||
@@ -658,19 +666,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	}
 
 	Item_ref *r;
-	*ref= r= new Item_ref(last->ref_pointer_array + counter-1
+	*ref= r= new Item_ref(last->ref_pointer_array + counter
 			      , (char *)table_name,
 			   (char *)field_name);
 	if (!r)
 	  return 1;
 	if (r->fix_fields(thd, tables, ref) || r->check_cols(1))
 	  return 1;
+	// store pointer on SELECT_LEX from wich item is dependent
 	r->depended_from= last;
 	cursel->mark_as_dependent(last);
 	return 0;
       }
       else
       {
+	// store pointer on SELECT_LEX from wich item is dependent
 	depended_from= last;
 	/*
 	  Mark all selects from resolved to 1 before select where was 
@@ -1071,7 +1081,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
 bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
-  uint counter= 0;
+  uint counter;
   if (!ref)
   {
     TABLE_LIST *where= 0;
@@ -1142,6 +1152,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* f;
 	if (!((*reference)= f= new Item_field(tmp)))
 	  return 1;
+	// store pointer on SELECT_LEX from wich item is dependent
 	f->depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
 	return 0;
@@ -1154,7 +1165,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-	ref= (depended_from= last)->ref_pointer_array + counter-1;
+        /*
+	  depended_from: pointer on SELECT_LEX from wich item is dependent
+	*/
+	ref= (depended_from= last)->ref_pointer_array + counter;
 	thd->lex.current_select->mark_as_dependent(last);
       }
     }
@@ -1168,7 +1182,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		 "forward reference in item list");
 	return -1;
       }
-      ref= thd->lex.current_select->ref_pointer_array + counter-1;
+      ref= thd->lex.current_select->ref_pointer_array + counter;
     }
   }
 

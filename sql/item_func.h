@@ -134,7 +134,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
   void set_outer_resolving();
-  Item * get_tmp_table_item();
+  Item *get_tmp_table_item(THD *thd);
 };
 
 

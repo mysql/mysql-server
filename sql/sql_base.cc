@@ -1845,10 +1845,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     table_name= ((Item_ident*) find)->table_name;
   }
 
-  uint i= 0;
-  while ((item=li++))
+  for (uint i= 0; (item=li++); i++)
   {
-    i++;
     if (field_name && item->type() == Item::FIELD_ITEM)
     {
       if (!my_strcasecmp(system_charset_info,

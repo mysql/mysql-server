@@ -140,7 +140,7 @@ static void calc_group_buffer(JOIN *join,ORDER *group);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
 static bool make_sum_func_list(JOIN *join,List<Item> &fields);
 // Create list for using with tempory table
-static bool change_to_use_tmp_fields(Item **ref_pointer_array,
+static bool change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 				     List<Item> &new_list1,
 				     List<Item> &new_list2,
 				     uint elements, List<Item> &items);
@@ -968,7 +968,7 @@ JOIN::exec()
       items1= items0 + all_fields.elements;
       if (sort_and_group || curr_tmp_table->group)
       {
-	if (change_to_use_tmp_fields(items1,
+	if (change_to_use_tmp_fields(thd, items1,
 				     tmp_fields_list1, tmp_all_fields1,
 				     fields_list.elements, all_fields))
 	  DBUG_VOID_RETURN;
@@ -1088,7 +1088,7 @@ JOIN::exec()
       if (!items2)
       {
 	items2= items1 + all_fields.elements;
-	if (change_to_use_tmp_fields(items2,
+	if (change_to_use_tmp_fields(thd, items2,
 				     tmp_fields_list2, tmp_all_fields2, 
 				     fields_list.elements, tmp_all_fields1))
 	  DBUG_VOID_RETURN;
@@ -7069,12 +7069,12 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     order->in_field_list= 1;
     return 0;
   }
-  uint counter= 0;
+  uint counter;
   Item **item= find_item_in_list(*order->item, fields, &counter,
 				 IGNORE_ERRORS);
   if (item)
   {
-    order->item= ref_pointer_array + counter-1;
+    order->item= ref_pointer_array + counter;
     order->in_field_list=1;
     return 0;
   }
@@ -7192,7 +7192,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   DBUG_ENTER("setup_new_fields");
 
   thd->set_query_id=1;				// Not really needed, but...
-  uint counter= 0;
+  uint counter;
   for (; new_field ; new_field= new_field->next)
   {
     if ((item= find_item_in_list(*new_field->item, fields, &counter,
@@ -7471,7 +7471,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      if (!(item= new Item_field(*((Item_field*) pos))))
+      if (!(item= new Item_field(thd, *((Item_field*) pos))))
 	goto err;
       pos= item;
       if (item->field->flags & BLOB_FLAG)
@@ -7590,7 +7590,7 @@ make_sum_func_list(JOIN *join,List<Item> &fields)
 */
 
 static bool
-change_to_use_tmp_fields(Item **ref_pointer_array,
+change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 			 List<Item> &new_list1, List<Item> &new_list2,
 			 uint elements, List<Item> &items)
 {
@@ -7609,7 +7609,7 @@ change_to_use_tmp_fields(Item **ref_pointer_array,
     else
       if (item->type() == Item::FIELD_ITEM)
       {
-	item_field= item->get_tmp_table_item();
+	item_field= item->get_tmp_table_item(thd);
       }
       else if ((field= item->tmp_table_field()))
       {
@@ -7665,7 +7665,7 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
   uint i, border= items.elements - elements;
   for (i= 0; (item= it++); i++)
   {
-    new_list2.push_back(new_item= item->get_tmp_table_item());
+    new_list2.push_back(new_item= item->get_tmp_table_item(thd));
     ref_pointer_array[((i < border)? items.elements-i-1 : i-border)]=
       new_item;
   }

@@ -53,8 +53,12 @@ public:
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
-  // copy constructor used by Item_field, Item_ref & agregate (sum) functions
-  Item(Item &item);
+  /*
+     Constructor used by Item_field, Item_ref & agregate (sum) functions.
+     Used for duplicating lists in processing queries with temporary
+     tables
+  */
+  Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
@@ -93,8 +97,8 @@ public:
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
   virtual void top_level_item() {}
-  virtual Item * get_same() { return this; }
-  virtual Item * get_tmp_table_item() { return get_same(); }
+  virtual Item *copy_or_same(THD *thd) { return this; }
+  virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   virtual bool binary() const
   { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
@@ -129,8 +133,8 @@ public:
     :db_name(db_name_par), table_name(table_name_par),
      field_name(field_name_par), depended_from(0), outer_resolving(0)
     { name = (char*) field_name_par; }
-  // copy constructor used by Item_field & Item_ref
-  Item_ident(Item_ident &item);
+  // Constructor used by Item_field & Item_ref (see Item comment)
+  Item_ident(THD *thd, Item_ident &item);
   const char *full_name() const;
   void set_outer_resolving() { outer_resolving= 1; }
 };
@@ -147,8 +151,8 @@ public:
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
   {}
-  // copy constructor need to process subselect with temporary tables
-  Item_field(Item_field &item);
+  // Constructor need to process subselect with temporary tables (see Item)
+  Item_field(THD *thd, Item_field &item);
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -177,7 +181,7 @@ public:
   bool get_date(TIME *ltime,bool fuzzydate);  
   bool get_time(TIME *ltime);  
   bool is_null() { return field->is_null(); }
-  Item * get_tmp_table_item();
+  Item *get_tmp_table_item(THD *thd);
   friend class Item_default_value;
 };
 
@@ -437,10 +441,10 @@ class Item_result_field :public Item	/* Item with result field */
 public:
   Field *result_field;				/* Save result here */
   Item_result_field() :result_field(0) {}
-  Item_result_field(Item_result_field &item): Item(item)
-  {
-    result_field= item.result_field;
-  }
+  // Constructor used for Item_sum (see Item comment)
+  Item_result_field(THD *thd, Item_result_field &item):
+    Item(thd, item), result_field(item.result_field)
+  {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
@@ -457,8 +461,9 @@ public:
     :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
   Item_ref(Item **item, char *table_name_par,char *field_name_par)
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
-  // copy constructor need to process subselect with temporary tables
-  Item_ref(Item_ref &item): Item_ident(item), ref(item.ref) {}
+  // Constructor need to process subselect with temporary tables (see Item)
+  Item_ref(THD *thd, Item_ref &item)
+    :Item_ident(thd, item), ref(item.ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
@@ -527,6 +532,12 @@ public:
 class Item_ref_on_list_position: public Item_ref_null_helper
 {
 protected:
+  /* 
+     select_lex used for:
+     1) receiving expanded variant of item list (to check max possible 
+        nunber of elements);
+     2) to have access to  ref_pointer_array, via wich item will refered.
+  */
   st_select_lex *select_lex;
   uint pos;
 public:
