@@ -114,7 +114,6 @@ protected:
   // Scan related variables
   Uint32 theParallelism;
   Uint32 m_keyInfo;
-  NdbApiSignal* theSCAN_TABREQ;
 
   int getFirstATTRINFOScan();
   int doSendScan(int ProcessorId);

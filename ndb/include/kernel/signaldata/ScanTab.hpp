@@ -65,7 +65,12 @@ private:
   UintR buddyConPtr;          // DATA 8
   UintR batch_byte_size;      // DATA 9
   UintR first_batch_size;     // DATA 10
-  
+
+  /**
+   * Optional
+   */
+  Uint32 distributionKey;
+
   /**
    * Get:ers for requestInfo
    */
@@ -76,6 +81,7 @@ private:
   static Uint8 getRangeScanFlag(const UintR & requestInfo);
   static Uint8 getKeyinfoFlag(const UintR & requestInfo);
   static Uint16 getScanBatch(const UintR & requestInfo);
+  static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -88,6 +94,7 @@ private:
   static void setRangeScanFlag(UintR & requestInfo, Uint32 flag);
   static void setKeyinfoFlag(UintR & requestInfo, Uint32 flag);
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
+  static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
 };
 
 /**
@@ -100,6 +107,7 @@ private:
  k = Keyinfo               - 1  Bit 12
  x = Range Scan (TUX)      - 1  Bit 15
  b = Scan batch            - 10 Bit 16-25 (max 1023)
+ d = Distribution key flag
 
            1111111111222222222233
  01234567890123456789012345678901
@@ -126,6 +134,8 @@ private:
 
 #define SCAN_BATCH_SHIFT (16)
 #define SCAN_BATCH_MASK  (1023)
+
+#define SCAN_DISTR_KEY_SHIFT (26)
 
 inline
 Uint8
@@ -225,6 +235,18 @@ ScanTabReq::setKeyinfoFlag(UintR & requestInfo, Uint32 flag){
   requestInfo |= (flag << KEYINFO_SHIFT);
 }
 
+inline
+Uint8
+ScanTabReq::getDistributionKeyFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> SCAN_DISTR_KEY_SHIFT) & 1);
+}
+
+inline
+void 
+ScanTabReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setKeyinfoFlag");
+  requestInfo |= (flag << SCAN_DISTR_KEY_SHIFT);
+}
 
 /**
  * 

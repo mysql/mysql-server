@@ -371,16 +371,6 @@ public:
     /** @} *******************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    void setTupleKey(bool);
-    bool getTupleKey() const;
-    
-    void setDistributionGroup(bool, int bits = 16);
-    bool getDistributionGroup() const;
-    int getDistributionGroupBits() const;
-    
-    void setIndexOnlyStorage(bool);
-    bool getIndexOnlyStorage() const;
-
     const Table * getBlobTable() const;
 
     /** 

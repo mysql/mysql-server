@@ -158,7 +158,6 @@ NdbSchemaOp::createAttribute( const char* anAttrName,
     col.setPrimaryKey(false);
 
   col.setDistributionKey(aDistributionKeyFlag);
-  col.setDistributionGroup(aDistributionGroupFlag,aDistributionGroupNoOfBits);
   col.setAutoIncrement(aAutoIncrement);
   col.setDefaultValue(aDefaultValue != 0 ? aDefaultValue : "");
   

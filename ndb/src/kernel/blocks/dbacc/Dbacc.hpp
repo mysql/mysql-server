@@ -22,6 +22,9 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 
+// primary key is stored in TUP
+#include <Dbtup.hpp>
+
 #ifdef DBACC_C
 // Debug Macros
 #define dbgWord32(ptr, ind, val) 
@@ -661,9 +664,10 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
 // elementLength: Length of element in bucket and overflow pages
 // keyLength: Length of key (== 0 if long key or variable key length)
+// wl-2066 always Length of key
 //-----------------------------------------------------------------------------
   Uint8 elementLength;
-  Uint8 keyLength;
+  Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
 // This flag is used to avoid sending a big number of expand or shrink signals
@@ -783,7 +787,7 @@ struct Operationrec {
   Uint8 dirtyRead;
   Uint8 commitDeleteCheckFlag;
   Uint8 isAccLockReq;
-  Uint32 nextOpList;
+  Uint8 isUndoLogReq;
 }; /* p2c: size = 168 bytes */
 
   typedef Ptr<Operationrec> OperationrecPtr;
@@ -914,6 +918,9 @@ public:
   Dbacc(const class Configuration &);
   virtual ~Dbacc();
 
+  // pointer to TUP instance in this thread
+  Dbtup* c_tup;
+
 private:
   BLOCK_DEFINES(Dbacc);
 
@@ -977,10 +984,8 @@ private:
   void initFragGeneral(FragmentrecPtr);
   void verifyFragCorrect(FragmentrecPtr regFragPtr);
   void sendFSREMOVEREQ(Signal* signal, Uint32 tableId);
-  void sendDROP_TABFILECONF(Signal* signal, TabrecPtr tabPtr);
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
   void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
-  void sendREL_TABMEMCONF(Signal* signal, TabrecPtr tabPtr);
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
   void releaseDirResources(Signal* signal,
                            Uint32 fragIndex,
@@ -1075,6 +1080,7 @@ private:
   void storeLongKeys(Signal* signal);
   void storeLongKeysAtPos(Signal* signal);
   void reorgLongPage(Signal* signal);
+  void readTablePk(Uint32 localkey1);
   void getElement(Signal* signal);
   void searchLongKey(Signal* signal);
   void getdirindex(Signal* signal);
@@ -1108,7 +1114,6 @@ private:
   void initLcpConnRec(Signal* signal);
   void initOverpage(Signal* signal);
   void initPage(Signal* signal);
-  void initPageZero(Signal* signal);
   void initRootfragrec(Signal* signal);
   void putOpInFragWaitQue(Signal* signal);
   void putOverflowRecInFrag(Signal* signal);
@@ -1162,8 +1167,6 @@ private:
   void refaccConnectLab(Signal* signal);
   void srReadOverPagesLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void exeoperationLab(Signal* signal);
-  void saveKeyDataLab(Signal* signal);
   void lcpOpenUndofileConfLab(Signal* signal);
   void srFsOpenConfLab(Signal* signal);
   void checkSyncUndoPagesLab(Signal* signal);
@@ -1175,13 +1178,12 @@ private:
   void srReadPagesLab(Signal* signal);
   void srDoUndoLab(Signal* signal);
   void ndbrestart1Lab(Signal* signal);
-  void initialiseRecordsLab(Signal* signal, Uint32 returnRef, Uint32 retData);
+  void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
   void srReadPagesAllocLab(Signal* signal);
   void checkNextBucketLab(Signal* signal);
   void endsavepageLab(Signal* signal);
   void saveZeroPageLab(Signal* signal);
   void srAllocPage0011Lab(Signal* signal);
-  void allocscanrecLab(Signal* signal);
   void sendLcpFragidconfLab(Signal* signal);
   void savepagesLab(Signal* signal);
   void saveOverPagesLab(Signal* signal);
@@ -1303,7 +1305,6 @@ private:
   Page8Ptr iloPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
-  Page8Ptr ipzPageptr;
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
   Page8Ptr lcnPageptr;
@@ -1333,7 +1334,6 @@ private:
   Page8Ptr ropPageptr;
   Page8Ptr rpPageptr;
   Page8Ptr slPageptr;
-  Page8Ptr slpPageptr;
   Page8Ptr spPageptr;
   Uint32 cfirstfreepage;
   Uint32 cfreepage;
@@ -1351,7 +1351,6 @@ private:
 /* --------------------------------------------------------------------------------- */
   Rootfragmentrec *rootfragmentrec;
   RootfragmentrecPtr rootfragrecptr;
-  RootfragmentrecPtr tmprootfrgptr;
   Uint32 crootfragmentsize;
   Uint32 cfirstfreerootfrag;
 /* --------------------------------------------------------------------------------- */
@@ -1424,7 +1423,6 @@ private:
   Uint32 tdelForward;
   Uint32 tiopPageId;
   Uint32 tipPageId;
-  Uint32 ttupKeyLength;
   Uint32 tgeLocked;
   Uint32 tgeResult;
   Uint32 tgeContainerptr;
@@ -1457,7 +1455,6 @@ private:
   Uint32 tscanFlag;
   Uint32 theadundoindex;
   Uint32 tgflBufType;
-  Uint32 thashvalue;
   Uint32 tgseIsforward;
   Uint32 tsscIsforward;
   Uint32 trscIsforward;
@@ -1466,17 +1463,7 @@ private:
   Uint32 tisoIsforward;
   Uint32 tgseIsLocked;
   Uint32 tsscIsLocked;
-  Uint32 tkey1;
-  Uint32 tkey2;
-  Uint32 tkey3;
-  Uint32 tkey4;
   Uint32 tkeylen;
-  Uint32 tkSize;
-  Uint32 tlhfragbits;
-  Uint32 tlhdirbits;
-  Uint32 tlocalkeylen;
-  Uint32 tmaxloadfactor;
-  Uint32 tminloadfactor;
   Uint32 tmp;
   Uint32 tmpP;
   Uint32 tmpP2;
@@ -1494,9 +1481,6 @@ private:
   Uint32 trsbPageindex;
   Uint32 tnciPageindex;
   Uint32 tlastPrevconptr;
-  Uint32 treqinfo;
-  Uint32 transactionid1;
-  Uint32 transactionid2;
   Uint32 tresult;
   Uint32 tslUpdateHeader;
   Uint32 tuserptr;
@@ -1509,16 +1493,13 @@ private:
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
   Uint32 tnciTmp;
-  Uint32 tlenKeyinfo;
   Uint32 tullIndex;
   Uint32 turlIndex;
   Uint32 tlfrTmp1;
   Uint32 tlfrTmp2;
   Uint32 tgnptNrTransaction;
-  Uint32 tudqeIndex;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
-  Uint32 taccscanTmp;
 
   Uint16 clastUndoPageIdWritten;
   Uint32 cactiveCheckpId;
@@ -1562,7 +1543,10 @@ private:
   Uint32 cexcPrevpageindex;
   Uint32 cexcPrevforward;
   Uint32 clocalkey[32];
+  union {
   Uint32 ckeys[2048];
+  Uint64 ckeys_align;
+  };
   
   Uint32 c_errorInsert3000_TableId;
   Uint32 cSrUndoRecords[5];

@@ -200,8 +200,7 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   operPtr.i = RNIL;
   operPtr.p = NULL;
   // do it
-  int ret = readAttributes(pagePtr.p, pageOffset, attrIds,
-			   numAttrs, dataOut, ZNIL, true);
+  int ret = readAttributes(pagePtr.p, pageOffset, attrIds, numAttrs, dataOut, ZNIL, true);
   // restore globals
   tabptr = tabptr_old;
   fragptr = fragptr_old;
@@ -226,6 +225,27 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* data
   } else {
     ret = terrorCode ? (-(int)terrorCode) : -1;
   }
+  return ret;
+}
+
+int
+Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut)
+{
+  ljamEntry();
+  // get table
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  // get fragment
+  FragrecordPtr fragPtr;
+  getFragmentrec(fragPtr, fragId, tablePtr.p);
+  // get real page id and tuple offset
+  PagePtr pagePtr;
+  Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
+  ndbrequire((pageIndex & 0x1) == 0);
+  Uint32 pageOffset = ZPAGE_HEADER_SIZE + (pageIndex >> 1) * tablePtr.p->tupheadsize;
+  // use TUX routine - optimize later
+  int ret = tuxReadPk(fragPtr.i, pageId, pageOffset, dataOut);
   return ret;
 }
 
