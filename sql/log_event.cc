@@ -329,8 +329,14 @@ void Load_log_event::pack_info(String* packet)
     pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
      
-  if ((int)skip_lines > 0)
-    tmp.append( " IGNORE %ld LINES ", (long) skip_lines);
+  if ((long) skip_lines > 0)
+  {
+    char nr_buff[32], *end;
+    tmp.append( " IGNORE ");
+    end= longlong10_to_str((longlong) skip_lines, nr_buff, 10);
+    tmp.append(nr_buff, (uint) (end-nr_buff));
+    tmp.append( " LINES");
+  }
 
   if (num_fields)
   {
@@ -1338,8 +1344,8 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
-  if ((int)skip_lines > 0)
-    fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
+  if ((long) skip_lines > 0)
+    fprintf(file, " IGNORE %ld LINES", (long) skip_lines);
 
   if (num_fields)
   {
@@ -1934,20 +1940,22 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       else if (sql_ex.opt_flags & IGNORE_FLAG)
         handle_dup= DUP_IGNORE;
       else
+      {
         /*
-          Note that when replication is running fine, if it was DUP_ERROR on the 
+          When replication is running fine, if it was DUP_ERROR on the 
           master then we could choose DUP_IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
           then there should be no uniqueness errors on slave, so DUP_IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
-          (because the data on the master and slave happen to be different (user
-          error or bug), we want LOAD DATA to print an error message on the
-          slave to discover the problem.
+          (because the data on the master and slave happen to be different
+	  (user error or bug), we want LOAD DATA to print an error message on
+	  the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
           to DUP_IGNORE.
         */
         handle_dup= DUP_ERROR;
+      }
 
       sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len);
