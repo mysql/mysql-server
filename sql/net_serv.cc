@@ -437,7 +437,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed,
   uint retry_count=0;
   if (!thr_alarm_in_use(alarmed))
   {
-    if (!thr_alarm(alarmed,net->timeout,alarm_buff) ||
+    if (thr_alarm(alarmed,net->timeout,alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
       return;					/* Can't setup, abort */
   }
