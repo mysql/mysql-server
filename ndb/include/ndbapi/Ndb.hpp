@@ -860,6 +860,7 @@
 
 #include <ndb_types.h>
 #include <ndbapi_limits.h>
+#include <ndb_cluster_connection.hpp>
 #include <NdbError.hpp>
 #include <NdbDictionary.hpp>
 
@@ -992,6 +993,8 @@ public:
    *       deprecated.
    */
   Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
+  Ndb(Ndb_cluster_connection *ndb_cluster_connection,
+      const char* aCatalogName = "", const char* aSchemaName = "def");
 
   ~Ndb();
 
@@ -1081,7 +1084,10 @@ public:
    * @return  0: Ndb is ready and timeout has not occurred.<br>
    *          -1: Timeout has expired
    */
+
   int waitUntilReady(int timeout = 60);
+
+  void connected(Uint32 block_reference);
   
   /** @} *********************************************************************/
 
@@ -1447,6 +1453,9 @@ public:
  ****************************************************************************/
 private:
   
+  void setup(Ndb_cluster_connection *ndb_cluster_connection,
+	     const char* aCatalogName, const char* aSchemaName);
+
   NdbConnection*  startTransactionLocal(Uint32 aPrio, Uint32 aFragmentId); 
 
 // Connect the connection object to the Database.
@@ -1585,6 +1594,7 @@ private:
  *	These are the private variables in this class.	
  *****************************************************************************/
   NdbObjectIdMap*       theNdbObjectIdMap;
+  Ndb_cluster_connection   *m_ndb_cluster_connection;
 
   NdbConnection**       thePreparedTransactionsArray;
   NdbConnection**       theSentTransactionsArray;
@@ -1703,7 +1713,7 @@ private:
 
   static void executeMessage(void*, NdbApiSignal *, 
 			     struct LinearSectionPtr ptr[3]);
-  static void statusMessage(void*, Uint16, bool, bool);
+  static void statusMessage(void*, Uint32, bool, bool);
 #ifdef VM_TRACE
   void printState(const char* fmt, ...);
 #endif

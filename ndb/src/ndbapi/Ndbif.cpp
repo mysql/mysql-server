@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include "NdbOperation.hpp"
@@ -53,6 +55,8 @@
 int
 Ndb::init(int aMaxNoOfTransactions)
 {
+  DBUG_ENTER("Ndb::init");
+
   int i;
   int aNrOfCon;
   int aNrOfOp;
@@ -67,7 +71,7 @@ Ndb::init(int aMaxNoOfTransactions)
       theError.code = 4104;
       break;
     }
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   theInitState = StartingInit;
   TransporterFacade * theFacade =  TransporterFacade::instance();
@@ -75,37 +79,17 @@ Ndb::init(int aMaxNoOfTransactions)
   
   const int tBlockNo = theFacade->open(this,
                                        executeMessage, 
-                                       statusMessage);
-  
-  
+                                       statusMessage);  
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
     theFacade->unlock_mutex();
-    return -1; // no more free blocknumbers
+    DBUG_RETURN(-1); // no more free blocknumbers
   }//if
   
   theNdbBlockNumber = tBlockNo;
   
-  theNode = theFacade->ownId();
-  theMyRef = numberToRef(theNdbBlockNumber, theNode);
-  
-  for (i = 1; i < MAX_NDB_NODES; i++){
-    if (theFacade->getIsDbNode(i)){
-      theDBnodes[theNoOfDBnodes] = i;
-      theNoOfDBnodes++;
-    }
-  }
-
-  theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+((Uint64)theNode << 40);
-  theFirstTransId += theFacade->m_max_trans_id;
   theFacade->unlock_mutex();
-
   
-  theDictionary = new NdbDictionaryImpl(*this);
-  if (theDictionary == NULL) {
-    theError.code = 4000;
-    return -1;
-  }
   theDictionary->setTransporter(this, theFacade);
   
   aNrOfCon = theNoOfDBnodes;
@@ -144,9 +128,6 @@ Ndb::init(int aMaxNoOfTransactions)
     theSentTransactionsArray[i] = NULL;
     theCompletedTransactionsArray[i] = NULL;
   }//for     
-  
-  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
-  
   for (i = 0; i < 16; i++){
     tSignal[i] = getSignal();
     if(tSignal[i] == NULL) {
@@ -156,11 +137,8 @@ Ndb::init(int aMaxNoOfTransactions)
   }
   for (i = 0; i < 16; i++)
     releaseSignal(tSignal[i]);
-  
   theInitState = Initialised; 
-
-  theCommitAckSignal = new NdbApiSignal(theMyRef);
-  return 0;
+  DBUG_RETURN(0);
   
 error_handler:
   ndbout << "error_handler" << endl;
@@ -176,12 +154,13 @@ error_handler:
   
   delete theDictionary;
   TransporterFacade::instance()->close(theNdbBlockNumber, 0);
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 void
 Ndb::releaseTransactionArrays()
 {
+  DBUG_ENTER("Ndb::releaseTransactionArrays");
   if (thePreparedTransactionsArray != NULL) {
     delete [] thePreparedTransactionsArray;
   }//if
@@ -191,6 +170,7 @@ Ndb::releaseTransactionArrays()
   if (theCompletedTransactionsArray != NULL) {
     delete [] theCompletedTransactionsArray;
   }//if
+  DBUG_VOID_RETURN;
 }//Ndb::releaseTransactionArrays()
 
 void
@@ -202,13 +182,46 @@ Ndb::executeMessage(void* NdbObject,
   tNdb->handleReceivedSignal(aSignal, ptr);
 }
 
-void
-Ndb::statusMessage(void* NdbObject, NodeId a_node, bool alive, bool nfComplete)
+void Ndb::connected(Uint32 ref)
 {
+  theMyRef= ref;
+  theNode= refToNode(theMyRef);
+  if (theNdbBlockNumber >= 0)
+    assert(theMyRef == numberToRef(theNdbBlockNumber, theNode));
+
+  TransporterFacade * theFacade =  TransporterFacade::instance();
+  int i;
+  theNoOfDBnodes= 0;
+  for (i = 1; i < MAX_NDB_NODES; i++){
+    if (theFacade->getIsDbNode(i)){
+      theDBnodes[theNoOfDBnodes] = i;
+      theNoOfDBnodes++;
+    }
+  }
+  theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+
+    ((Uint64)theNode << 40);
+  theFirstTransId += theFacade->m_max_trans_id;
+  //      assert(0);
+  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%d",
+		     theMyRef,
+		     theNode,
+		     theNoOfDBnodes,
+		     theFirstTransId));
+  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
+  theCommitAckSignal = new NdbApiSignal(theMyRef);
+
+  theDictionary->m_receiver.m_reference= theMyRef;
+}
+
+void
+Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+{
+  DBUG_ENTER("Ndb::statusMessage");
   Ndb* tNdb = (Ndb*)NdbObject;
   if (alive) {
     if (nfComplete) {
-      assert(0);
+      tNdb->connected(a_node);
+      DBUG_VOID_RETURN;
     }//if
   } else {
     if (nfComplete) {
@@ -219,6 +232,7 @@ Ndb::statusMessage(void* NdbObject, NodeId a_node, bool alive, bool nfComplete)
   }//if
   NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
 				   a_node, alive, nfComplete);
+  DBUG_VOID_RETURN;
 }
 
 void

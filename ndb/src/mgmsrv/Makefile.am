@@ -1,7 +1,8 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
+#MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
+MYSQLCLUSTERdir=        .
 
 ndbbin_PROGRAMS = ndb_mgmd
 
