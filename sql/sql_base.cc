@@ -1834,6 +1834,7 @@ bool setup_tables(TABLE_LIST *tables)
 	DBUG_RETURN(1);
       table->table->keys_in_use_for_query &= ~map;
     }
+    table->table->used_keys &= table->table->keys_in_use_for_query;
   }
   if (tablenr > MAX_TABLES)
   {
