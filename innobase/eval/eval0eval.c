@@ -725,7 +725,7 @@ eval_predefined(
 				uint_val = (ulint) int_val;
 			}
 			for (tmp = int_len; uint_val > 0; uint_val /= 10) {
-				data[--tmp] = '0' + (byte)(uint_val % 10);
+				data[--tmp] = (byte) ('0' + (byte)(uint_val % 10));
 			}
 		}
 

@@ -167,12 +167,10 @@ int init_slave()
     goto err;
   }
 
-  /*
-    make sure slave thread gets started if server_id is set,
-    valid master.info is present, and master_host has not been specified
-  */
   if (server_id && !master_host && active_mi->host[0])
     master_host= active_mi->host;
+
+  /* If server id is not set, start_slave_thread() will say it */
 
   if (master_host && !opt_skip_slave_start)
   {
@@ -2489,13 +2487,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL;
   /* 
      It's nonsense to constrain the slave threads with max_join_size; if a
-     query succeeded on master, we HAVE to execute it.
+     query succeeded on master, we HAVE to execute it. So set
+     OPTION_BIG_SELECTS. Setting max_join_size to HA_POS_ERROR is not enough
+     (and it's not needed if we have OPTION_BIG_SELECTS) because an INSERT
+     SELECT examining more than 4 billion rows would still fail (yes, because
+     when max_join_size is 4G, OPTION_BIG_SELECTS is automatically set, but
+     only for client threads.
   */
-  thd->variables.max_join_size= HA_POS_ERROR;    
+  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
+    OPTION_AUTO_IS_NULL | OPTION_BIG_SELECTS;
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
@@ -3156,6 +3158,7 @@ err:
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
+  thd->query_length = 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
@@ -3321,6 +3324,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
+  thd->query_length = 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);

@@ -27,6 +27,8 @@ static void mark_as_dependent(THD *thd,
 			      SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item);
 
+const String my_null_string("NULL", 4, default_charset_info);
+
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/
@@ -369,9 +371,14 @@ const char *Item_ident::full_name() const
   }
   else
   {
-    tmp=(char*) sql_alloc((uint) strlen(table_name)+
-			  (uint) strlen(field_name)+2);
-    strxmov(tmp,table_name,".",field_name,NullS);
+    if (table_name[0])
+    {
+      tmp= (char*) sql_alloc((uint) strlen(table_name) +
+			     (uint) strlen(field_name) + 2);
+      strxmov(tmp, table_name, ".", field_name, NullS);
+    }
+    else
+      tmp= (char*) field_name;
   }
   return tmp;
 }
@@ -618,13 +625,11 @@ default_set_param_func(Item_param *param,
   param->set_null();
 }
 
-Item_param::Item_param(unsigned position) :
-  value_is_set(FALSE),
+Item_param::Item_param(unsigned pos_in_query_arg) :
+  state(NO_VALUE),
   item_result_type(STRING_RESULT),
   item_type(STRING_ITEM),
-  item_is_time(FALSE),
-  long_data_supplied(FALSE),
-  pos_in_query(position),
+  pos_in_query(pos_in_query_arg),
   set_param_func(default_set_param_func)
 {
   name= (char*) "?";
@@ -640,74 +645,93 @@ void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
   /* These are cleared after each execution by reset() method */
-  null_value= value_is_set= 1;
+  max_length= 0;
+  null_value= 1;
+  /* 
+    Because of NULL and string values we need to set max_length for each new
+    placeholder value: user can submit NULL for any placeholder type, and 
+    string length can be different in each execution.
+  */
+  max_length= 0;
+  decimals= 0;
+  state= NULL_VALUE;
   DBUG_VOID_RETURN;
 }
 
-void Item_param::set_int(longlong i)
+void Item_param::set_int(longlong i, uint32 max_length_arg)
 {
   DBUG_ENTER("Item_param::set_int");
-  int_value= (longlong)i;
-  item_type= INT_ITEM;
-  value_is_set= 1;
+  value.integer= (longlong) i;
+  state= INT_VALUE;
+  max_length= max_length_arg;
+  decimals= 0;
   maybe_null= 0;
-  DBUG_PRINT("info", ("integer: %lld", int_value));
   DBUG_VOID_RETURN;
 }
 
-void Item_param::set_double(double value)
+void Item_param::set_double(double d)
 {
   DBUG_ENTER("Item_param::set_double");
-  real_value=value;
-  item_type= REAL_ITEM;
-  value_is_set= 1;
+  value.real= d;
+  state= REAL_VALUE;
+  max_length= DBL_DIG + 8;
+  decimals= NOT_FIXED_DEC;
   maybe_null= 0;
-  DBUG_PRINT("info", ("double: %lg", real_value));
   DBUG_VOID_RETURN;
 }
 
 
-void Item_param::set_value(const char *str, uint length)
-{
-  DBUG_ENTER("Item_param::set_value");
-  str_value.copy(str,length,default_charset());
-  item_type= STRING_ITEM;
-  value_is_set= 1;
-  maybe_null= 0;
-  DBUG_PRINT("info", ("string: %s", str_value.ptr()));
-  DBUG_VOID_RETURN;
-}
-
-
-void Item_param::set_time(TIME *tm, timestamp_type type)
+void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
 { 
-  ltime.year= tm->year;
-  ltime.month= tm->month;
-  ltime.day= tm->day;
-  
-  ltime.hour= tm->hour;
-  ltime.minute= tm->minute;
-  ltime.second= tm->second; 
+  DBUG_ENTER("Item_param::set_time");
 
-  ltime.second_part= tm->second_part;
+  value.time= *tm;
+  value.time.time_type= type;
 
-  ltime.neg= tm->neg;
-
-  ltime.time_type= type;
-  
-  item_is_time= TRUE;
-  item_type= STRING_ITEM;
-  value_is_set= 1;
+  state= TIME_VALUE;
   maybe_null= 0;
+  max_length= max_length_arg;
+  decimals= 0;
+  DBUG_VOID_RETURN;
 }
 
 
-void Item_param::set_longdata(const char *str, ulong length)
-{  
-  str_value.append(str,length);
-  long_data_supplied= 1;
-  value_is_set= 1;
+bool Item_param::set_str(const char *str, ulong length)
+{
+  DBUG_ENTER("Item_param::set_str");
+  /*
+    Assign string with no conversion: data is converted only after it's
+    been written to the binary log.
+  */
+  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin))
+    DBUG_RETURN(TRUE);
+  state= STRING_VALUE;
   maybe_null= 0;
+  /* max_length and decimals are set after charset conversion */
+  /* sic: str may be not null-terminated, don't add DBUG_PRINT here */
+  DBUG_RETURN(FALSE);
+}
+
+
+bool Item_param::set_longdata(const char *str, ulong length)
+{
+  DBUG_ENTER("Item_param::set_longdata");
+
+  /*
+    If client character set is multibyte, end of long data packet
+    may hit at the middle of a multibyte character.  Additionally,
+    if binary log is open we must write long data value to the
+    binary log in character set of client. This is why we can't
+    convert long data to connection character set as it comes
+    (here), and first have to concatenate all pieces together,
+    write query to the binary log and only then perform conversion.
+  */
+  if (str_value.append(str, length, &my_charset_bin))
+    DBUG_RETURN(TRUE);
+  state= LONG_DATA_VALUE;
+  maybe_null= 0;
+
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -723,9 +747,18 @@ void Item_param::set_longdata(const char *str, ulong length)
 */
 
 void Item_param::reset()
-{  
-  str_value.set("", 0, &my_charset_bin);
-  value_is_set= long_data_supplied= 0;
+{
+  /* Shrink string buffer if it's bigger than max possible CHAR column */
+  if (str_value.alloced_length() > MAX_CHAR_WIDTH)
+    str_value.free();
+  else
+    str_value.length(0);
+  /*
+    We must prevent all charset conversions unless data of str_value
+    has been written to the binary log.
+  */
+  str_value.set_charset(&my_charset_bin);
+  state= NO_VALUE;
   maybe_null= 1;
   null_value= 0;
 }
@@ -734,155 +767,223 @@ void Item_param::reset()
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
   DBUG_ASSERT(current_thd->command == COM_EXECUTE);
-  
-  if (null_value)
-    return (int) set_field_to_null(field);   
-    
+
   field->set_notnull();
-  if (item_result_type == INT_RESULT)
-  {
-    longlong nr=val_int();
-    return field->store(nr);
-  }
-  if (item_result_type == REAL_RESULT)
-  {
-    double nr=val();    
-    return field->store(nr); 
-  }  
-  if (item_is_time)
-  {
-    field->store_time(&ltime, ltime.time_type);
+
+  switch (state) {
+  case INT_VALUE:
+    return field->store(value.integer);
+  case REAL_VALUE:
+    return field->store(value.real);
+  case TIME_VALUE:
+    field->store_time(&value.time, value.time.time_type);
     return 0;
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    return field->store(str_value.ptr(), str_value.length(),
+                        str_value.charset());
+  case NULL_VALUE:
+    return set_field_to_null(field);
+  case NO_VALUE:
+  default:
+    DBUG_ASSERT(0);
   }
-  String *result=val_str(&str_value);
-  return field->store(result->ptr(),result->length(),field->charset());
+  return 1;
 }
+
 
 bool Item_param::get_time(TIME *res)
 {
-  *res=ltime;
-  return 0;
+  if (state == TIME_VALUE)
+  {
+    *res= value.time;
+    return 0;
+  }
+  /*
+    If parameter value isn't supplied assertion will fire in val_str()
+    which is called from Item::get_time().
+  */
+  return Item::get_time(res);
 }
+
 
 double Item_param::val() 
 {
-  DBUG_ASSERT(value_is_set == 1);
-  int err;
-  if (null_value)
+  switch (state) {
+  case REAL_VALUE:
+    return value.real;
+  case INT_VALUE:
+    return (double) value.integer;
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    {
+      int dummy_err;
+      return my_strntod(str_value.charset(), (char*) str_value.ptr(),
+                        str_value.length(), (char**) 0, &dummy_err);
+    }
+  case TIME_VALUE:
+    /*
+      This works for example when user says SELECT ?+0.0 and supplies
+      time value for the placeholder.
+    */
+    return (double) TIME_to_ulonglong(&value.time);
+  case NULL_VALUE:
     return 0.0;
-  switch (item_result_type) {
-  case STRING_RESULT:
-    return (double) my_strntod(str_value.charset(), (char*) str_value.ptr(),
-			       str_value.length(), (char**) 0, &err); 
-  case INT_RESULT:
-    return (double)int_value;
   default:
-    return real_value;
+    DBUG_ASSERT(0);
   }
+  return 0.0;
 } 
 
 
 longlong Item_param::val_int() 
 { 
-  DBUG_ASSERT(value_is_set == 1);
-  int err;
-  if (null_value)
-    return 0;
-  switch (item_result_type) {
-  case STRING_RESULT:
-    return my_strntoll(str_value.charset(),
-		       str_value.ptr(),str_value.length(),10,
-		       (char**) 0,&err);
-  case REAL_RESULT:
-    return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
+  switch (state) {
+  case REAL_VALUE:
+    return (longlong) (value.real + (value.real > 0 ? 0.5 : -0.5));
+  case INT_VALUE:
+    return value.integer;
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    {
+      int dummy_err;
+      return my_strntoll(str_value.charset(), str_value.ptr(),
+                         str_value.length(), 10, (char**) 0, &dummy_err);
+    }
+  case TIME_VALUE:
+    return (longlong) TIME_to_ulonglong(&value.time);
+  case NULL_VALUE:
+    return 0; 
   default:
-    return int_value;
+    DBUG_ASSERT(0);
   }
+  return 0;
 }
 
 
 String *Item_param::val_str(String* str) 
 { 
-  DBUG_ASSERT(value_is_set == 1);
-  if (null_value)
-    return NULL;
-  switch (item_result_type) {
-  case INT_RESULT:
-    str->set(int_value, &my_charset_bin);
+  switch (state) {
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    return &str_value;
+  case REAL_VALUE:
+    str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
     return str;
-  case REAL_RESULT:
-    str->set(real_value, 2, &my_charset_bin);
+  case INT_VALUE:
+    str->set(value.integer, &my_charset_bin);
     return str;
-  default:
-    return (String*) &str_value;
+  case TIME_VALUE:
+  {
+    if (str->reserve(MAX_DATE_REP_LENGTH))
+      break;
+    TIME_to_string(&value.time, str);
+    return str;
   }
+  case NULL_VALUE:
+    return NULL; 
+  default:
+    DBUG_ASSERT(0);
+  }
+  return str;
 }
 
 /*
   Return Param item values in string format, for generating the dynamic 
   query used in update/binary logs
+  TODO: change interface and implementation to fill log data in place
+  and avoid one more memcpy/alloc between str and log string.
 */
 
-String *Item_param::query_val_str(String* str) 
+const String *Item_param::query_val_str(String* str) const
 {
-  DBUG_ASSERT(value_is_set == 1);
-  switch (item_result_type) {
-  case INT_RESULT:
-  case REAL_RESULT:
-    return val_str(str);
+  switch (state) {
+  case INT_VALUE:
+    str->set(value.integer, &my_charset_bin);
+    break;
+  case REAL_VALUE:
+    str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
+    break;
+  case TIME_VALUE:
+    {
+      char *buf, *ptr;
+      String tmp;
+      str->length(0);
+      /*
+        TODO: in case of error we need to notify replication
+        that binary log contains wrong statement 
+      */
+      if (str->reserve(MAX_DATE_REP_LENGTH+3))
+        break; 
+
+      /* Create date string inplace */
+      buf= str->c_ptr_quick();
+      ptr= buf;
+      *ptr++= '\'';
+      tmp.set(ptr, MAX_DATE_REP_LENGTH, &my_charset_bin);
+      tmp.length(0);
+      TIME_to_string(&value.time, &tmp);
+
+      ptr+= tmp.length();
+      *ptr++= '\'';
+      str->length((uint32) (ptr - buf));
+      break;
+    }
+  case STRING_VALUE:
+  case LONG_DATA_VALUE:
+    {
+      char *buf, *ptr;
+      str->length(0);
+      if (str->reserve(str_value.length()*2+3))
+        break;
+
+      buf= str->c_ptr_quick();
+      ptr= buf;
+      *ptr++= '\'';
+      ptr+= escape_string_for_mysql(str_value.charset(), ptr,
+                                    str_value.ptr(), str_value.length());
+      *ptr++= '\'';
+      str->length(ptr - buf);
+      break;
+    }
+  case NULL_VALUE:
+    return &my_null_string;
   default:
-    str->set("'", 1, default_charset());
-    
-    if (!item_is_time)
-    {
-      str->append(str_value);
-      const char *from= str->ptr(); 
-      uint32 length= 1;
-      
-      // Escape misc cases
-      char *to= (char *)from, *end= (char *)to+str->length(); 
-      for (to++; to != end ; length++, to++)
-      {
-        switch(*to) {
-          case '\'':
-          case '"':  
-          case '\r':
-          case '\n':
-          case '\\': // TODO: Add remaining ..
-            str->replace(length,0,"\\",1); 
-            to++; end++; length++;
-            break;
-          default:     
-            break;
-        }
-      }
-    }
-    else
-    {
-      char buff[40];
-      String tmp(buff,sizeof(buff), &my_charset_bin);
-      
-      switch (ltime.time_type)  {
-      case TIMESTAMP_NONE:
-      case TIMESTAMP_DATETIME_ERROR:
-	tmp.length(0);				// Should never happen
-	break;
-      case TIMESTAMP_DATE:
-	make_date((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
-	break;
-      case TIMESTAMP_DATETIME:
-	make_datetime((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
-	break;
-      case TIMESTAMP_TIME:
-	make_time((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
-	break;
-      }
-      str->append(tmp);
-    }
-    str->append('\'');
+    DBUG_ASSERT(0);
   }
   return str;
 }
+
+
+/*
+  Convert string from client character set to the character set of
+  connection.
+*/
+
+bool Item_param::convert_str_value(THD *thd)
+{
+  bool rc= FALSE;
+  if (state == STRING_VALUE || state == LONG_DATA_VALUE)
+  {
+    /*
+      Check is so simple because all charsets were set up properly
+      in setup_one_conversion_function, where typecode of
+      placeholder was also taken into account: the variables are different
+      here only if conversion is really necessary.
+    */
+    if (value.cs_info.final_character_set_of_str_value !=
+        value.cs_info.character_set_client)
+    {
+      rc= thd->convert_string(&str_value,
+                              value.cs_info.character_set_client,
+                              value.cs_info.final_character_set_of_str_value);
+    }
+    max_length= str_value.length();
+    decimals= 0;
+  }
+  return rc;
+}
+
 /* End of Item_param related */
 
 
