@@ -2452,8 +2452,10 @@ elif test "$extra_charsets" = none; then
   CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = complex; then
   CHARSETS="$CHARSETS $CHARSETS_COMPLEX"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS])
 elif test "$extra_charsets" = all; then
   CHARSETS="$CHARSETS $CHARSETS_AVAILABLE"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS])
 else
   EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   CHARSETS="$CHARSETS $EXTRA_CHARSETS"
