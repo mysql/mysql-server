@@ -1704,7 +1704,7 @@ void Item_cache_str::store(Item *item)
     str_value.copy(*value);
     value= &str_value;
   }
-
+  collation.set(item->collation);
 }
 double Item_cache_str::val()
 { 

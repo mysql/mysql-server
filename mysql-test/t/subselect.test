@@ -853,3 +853,14 @@ insert into t3 values (1),(2),(10),(50);
 select a from t3 where t3.a in (select a from t1 where a <= 3 union select * from t2 where a <= 30);
 drop table t1,t2;
 
+#
+# collation test
+#
+CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
+                 s2 CHAR(5) COLLATE latin1_swedish_ci);
+INSERT INTO t1 VALUES ('z','?');
+-- error 1265
+select * from t1 where s1 > (select max(s2) from t1);
+-- error 1265
+select * from t1 where s1 > any (select max(s2) from t1);
+drop table t1;
