@@ -19,9 +19,9 @@
 #define CLUSTER_CONNECTION_HPP
 
 class TransporterFacade;
-class LocalConfig;
+struct LocalConfig;
 class ConfigRetriever;
-class NdbThread;
+struct NdbThread;
 
 extern "C" {
   void* run_ndb_cluster_connection_connect_thread(void*);

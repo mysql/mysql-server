@@ -103,7 +103,7 @@ public:
     m_mgmsrv = mgmsrv;
   }
   
-  MgmApiSession * newSession(NDB_SOCKET_TYPE socket){
+  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
     return new MgmApiSession(* m_mgmsrv, socket);
   }
 };

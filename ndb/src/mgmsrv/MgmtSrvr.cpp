@@ -124,7 +124,7 @@ MgmtSrvr::signalRecvThreadRun()
   while(!_isStopThread) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(siglist, handler, signal, DEFAULT_TIMEOUT)) {
+    if(m_signalRecvQueue.waitFor(siglist, &handler, &signal, DEFAULT_TIMEOUT)) {
       if(handler->function != 0)
 	(this->*handler->function)(signal);
     }
@@ -2652,7 +2652,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
   int p_type;
   unsigned val_32;
-  unsigned long long val_64;
+  Uint64 val_64;
   const char * val_char;
   do {
     p_type = 0;
@@ -2714,7 +2714,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
-template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);
+template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch**, NdbApiSignal**, unsigned);
 #endif
 
 template class MutexVector<unsigned short>;
