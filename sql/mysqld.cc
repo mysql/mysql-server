@@ -269,7 +269,7 @@ my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
-my_bool opt_innodb_safe_binlog;
+my_bool opt_innodb_safe_binlog= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -4629,6 +4629,12 @@ replicating a LOAD DATA INFILE command.",
    0, GET_LONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
 #ifdef HAVE_REPLICATION
   /*
+    Disabled for the 4.1.3 release. Disabling just this paragraph of code is
+    enough, as then user can't set it to 1 so it will always be ignored in the
+    rest of code.
+  */
+#if MYSQL_VERSION_ID > 40103
+  /*
     innodb_safe_binlog is not a variable, just an option. Does not make
     sense to make it a variable, as it is only used at startup (and so the
     value would be lost at next startup, so setting it on the fly would have no
@@ -4640,6 +4646,7 @@ InnoDB committed transaction. Use only if this server updates ONLY InnoDB \
 tables.",
    (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif
 #endif
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
