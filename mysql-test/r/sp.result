@@ -852,12 +852,12 @@ n	f
 20	2432902008176640000
 drop table fac;
 show function status like '%f%';
-Name	Type	Creator	Modified	Created	Suid	Comment
-fac	function	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
+Name	Type	Definer	Modified	Created	Security_type	Comment
+fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
 drop procedure ifac;
 drop function fac;
 show function status like '%f%';
-Name	Type	Creator	Modified	Created	Suid	Comment
+Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists primes;
 create table primes (
 i int unsigned not null primary key,
@@ -945,9 +945,9 @@ end if;
 end loop;
 end
 show procedure status like '%p%';
-Name	Type	Creator	Modified	Created	Suid	Comment
-ip	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
-opp	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	
+Name	Type	Definer	Modified	Created	Security_type	Comment
+ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
 call ip(200);
 select * from primes where i=45 or i=100 or i=199;
 i	p
@@ -958,7 +958,7 @@ drop table primes;
 drop procedure opp;
 drop procedure ip;
 show procedure status like '%p%';
-Name	Type	Creator	Modified	Created	Suid	Comment
+Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists fib;
 create table fib ( f bigint unsigned not null );
 insert into fib values (1), (1);
@@ -1008,8 +1008,8 @@ create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y);
 show procedure status like 'bar';
-Name	Type	Creator	Modified	Created	Suid	Comment
-bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	N	111111111111
+Name	Type	Definer	Modified	Created	Security_type	Comment
+bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
 alter procedure bar name bar2 comment "2222222222" sql security definer;
 alter procedure bar2 name bar comment "3333333333";
 alter procedure bar;
@@ -1019,8 +1019,8 @@ bar	create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)
 show procedure status like 'bar';
-Name	Type	Creator	Modified	Created	Suid	Comment
-bar	procedure	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	Y	3333333333
+Name	Type	Definer	Modified	Created	Security_type	Comment
+bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
 drop procedure bar;
 drop table t1;
 drop table t2;

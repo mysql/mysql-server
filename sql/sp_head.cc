@@ -190,14 +190,12 @@ sp_head::create(THD *thd)
     ret= sp_create_function(thd,
 			    m_name.str, m_name.length,
 			    m_defstr.str, m_defstr.length,
-			    m_comment.str, m_comment.length,
-			    m_suid);
+			    m_chistics);
   else
     ret= sp_create_procedure(thd,
 			     m_name.str, m_name.length,
 			     m_defstr.str, m_defstr.length,
-			     m_comment.str, m_comment.length,
-			     m_suid);
+			     m_chistics);
 
   DBUG_RETURN(ret);
 }

@@ -517,6 +517,13 @@ public:
 typedef class st_select_lex SELECT_LEX;
 
 
+struct st_sp_chistics
+{
+  LEX_STRING comment;
+  enum suid_behaviour suid;
+  bool detistic;
+};
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -583,7 +590,6 @@ typedef struct st_lex
   enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
   enum tablespace_op_type tablespace_op;
-  enum suid_behaviour suid;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
@@ -598,6 +604,7 @@ typedef struct st_lex
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
+  st_sp_chistics sp_chistics;
 
   st_lex()
   {
