@@ -1,7 +1,7 @@
 
 ndblib_LTLIBRARIES = libmgmapi.la libMGM_API.la
 
-libmgmapi_la_SOURCES_loc = mgmapi.cpp
+libmgmapi_la_SOURCES_loc = mgmapi.cpp mgmapi_configuration.cpp
 
 libmgmapi_la_SOURCES = $(libmgmapi_la_SOURCES_loc)
 libMGM_API_la_SOURCES = $(libmgmapi_la_SOURCES_loc)

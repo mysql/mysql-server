@@ -13,7 +13,7 @@ mgmtsrvr_SOURCES = \
 	MgmtSrvrConfig.cpp \
 	CommandInterpreter.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi -I$(top_srcdir)/ndb/include/mgmapi -I$(top_srcdir)/ndb/src/common/mgmcommon
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi -I$(top_srcdir)/ndb/src/common/mgmcommon -I$(top_srcdir)/ndb/src/mgmapi
 
 LDADD_LOC = \
 	$(top_srcdir)/ndb/src/mgmapi/libmgmapi.la \

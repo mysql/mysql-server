@@ -14,12 +14,13 @@ libkernel_a_SOURCES = \
 	TransporterCallback.cpp \
 	Emulator.cpp		\
 	Configuration.cpp		\
-	ClusterConfiguration.cpp	\
 	WatchDog.cpp \
         SimplePropertiesSection.cpp \
         SectionReader.cpp \
 	MetaData.cpp \
         Mutex.cpp SafeCounter.cpp
+
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_kernel.mk.am

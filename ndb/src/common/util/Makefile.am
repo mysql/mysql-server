@@ -7,7 +7,8 @@ libgeneral_la_SOURCES = \
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp Base64.cpp \
 	    NdbSqlUtil.cpp new.cpp \
             uucode.c random.c getarg.c version.c \
-            strdup.c strlcat.c strlcpy.c
+            strdup.c strlcat.c strlcpy.c \
+            ConfigValues.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_util.mk.am
