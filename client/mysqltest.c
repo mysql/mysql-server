@@ -156,7 +156,8 @@ static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
-static CHARSET_INFO *charset_info= &my_charset_latin1;
+static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
+static char *charset_name = "latin1"; /* Default character set name */
 
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
@@ -269,6 +270,7 @@ Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
+Q_CHARACTER_SET,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -349,6 +351,7 @@ const char *command_names[]=
   "query_horizontal",
   "start_timer",
   "end_timer",
+  "character_set",
   0
 };
 
@@ -370,6 +373,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
 void reject_dump(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query* q);
+static void set_charset(struct st_query*);
 VAR* var_get(const char *var_name, const char** var_name_end, my_bool raw,
 	     my_bool ignore_not_existing);
 int eval_expr(VAR* v, const char *p, const char** p_end);
@@ -1270,6 +1274,23 @@ static void get_file_name(char *filename, struct st_query* q)
   p[0]=0;
 }
 
+static void set_charset(struct st_query* q)
+{
+  char* charset_name= q->first_argument;
+  char* tmp;
+
+  if (!charset_name || !*charset_name)
+    die("Missing charset name in 'character_set'\n");
+  /* Remove end space */
+  tmp= charset_name;
+  while (*tmp && !my_isspace(charset_info,*tmp))
+    tmp++;
+  *tmp= 0;
+
+  charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
+  if (!charset_info)
+    abort_not_supported_test();
+}
 
 static uint get_errcodes(match_err *to,struct st_query* q)
 {
@@ -1630,7 +1651,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -1776,6 +1797,7 @@ int read_line(char* buf, int size)
     c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
+  found_eof:
       if ((*cur_file) != stdin)
 	my_fclose(*cur_file, MYF(0));
       cur_file--;
@@ -1885,7 +1907,39 @@ int read_line(char* buf, int size)
     }
 
     if (!no_save)
-      *p++= c;
+    {
+      /* Could be a multibyte character */
+      /* This code is based on the code in "sql_load.cc" */
+#ifdef USE_MB
+      int charlen = my_mbcharlen(charset_info, c);
+      /* We give up if multibyte character is started but not */
+      /* completed before we pass buf_end */
+      if ((charlen > 1) && (p + charlen) <= buf_end)
+      {
+	int i;
+	char* mb_start = p;
+
+	*p++ = c;
+
+	for (i= 1; i < charlen; i++)
+	{
+	  if (feof(*cur_file))
+	    goto found_eof;	/* FIXME: could we just break here?! */
+	  c= my_getc(*cur_file);
+	  *p++ = c;
+	}
+	if (! my_ismbchar(charset_info, mb_start, p))
+	{
+	  /* It was not a multiline char, push back the characters */
+	  /* We leave first 'c', i.e. pretend it was a normal char */
+	  while (p > mb_start)
+	    my_ungetc(*--p);
+	}
+      }
+      else
+#endif
+	*p++= c;
+    }
   }
   *p= 0;					/* Always end with \0 */
   DBUG_RETURN(feof(*cur_file));
@@ -2748,7 +2802,7 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -2932,6 +2986,9 @@ int main(int argc, char **argv)
 	/* End timer before ending mysqltest */
 	timer_output();
 	got_end_timer= TRUE;
+	break;
+      case Q_CHARACTER_SET: 
+	set_charset(q);
 	break;
       default: processed = 0; break;
       }
