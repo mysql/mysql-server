@@ -72,6 +72,8 @@ cli_mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag);
 
+void STDCALL cli_mysql_close(MYSQL *mysql);
+
 #ifdef HAVE_GETPWUID
 struct passwd *getpwuid(uid_t);
 char* getlogin(void);
@@ -166,14 +168,12 @@ static inline int mysql_init_charset(MYSQL *mysql)
 ** before calling mysql_real_connect !
 */
 
-static void STDCALL emb_mysql_close(MYSQL *mysql);
 static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL emb_mysql_store_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL emb_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS embedded_methods= 
 {
-  emb_mysql_close,
   emb_mysql_read_query_result,
   emb_advanced_command,
   emb_mysql_store_result,
@@ -276,9 +276,15 @@ error:
 ** If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-static void STDCALL emb_mysql_close(MYSQL *mysql)
+void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
+  if (mysql->methods != &embedded_methods)
+  {
+    cli_mysql_close(mysql);
+    DBUG_VOID_RETURN;
+  }
+
   if (mysql)					/* Some simple safety */
   {
     my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
