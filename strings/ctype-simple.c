@@ -844,7 +844,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  int result= -1;				// Not found, using wildcards
+  int result= -1;				/* Not found, using wildcards */
 
   while (wildstr != wildend)
   {
@@ -854,16 +854,16 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 	wildstr++;
 
       if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
-	return(1);				// No match
+	return(1);				/* No match */
       if (wildstr == wildend)
-	return (str != str_end);		// Match if both are at end
-      result=1;					// Found an anchor char
+	return (str != str_end);		/* Match if both are at end */
+      result=1;					/* Found an anchor char     */
     }
     if (*wildstr == w_one)
     {
       do
       {
-	if (str == str_end)			// Skip one char if possible
+	if (str == str_end)			/* Skip one char if possible */
 	  return (result);
 	INC_PTR(cs,str,str_end);
       } while (++wildstr < wildend && *wildstr == w_one);
@@ -871,7 +871,7 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 	break;
     }
     if (*wildstr == w_many)
-    {						// Found w_many
+    {						/* Found w_many */
       uchar cmp;
       
       wildstr++;
@@ -887,17 +887,17 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
 	  INC_PTR(cs,str,str_end);
 	  continue;
 	}
-	break;					// Not a wild character
+	break;					/* Not a wild character */
       }
       if (wildstr == wildend)
-	return(0);				// Ok if w_many is last
+	return(0);				/* Ok if w_many is last */
       if (str == str_end)
 	return -1;
       
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
 
-      INC_PTR(cs,wildstr,wildend);		// This is compared trough cmp
+      INC_PTR(cs,wildstr,wildend);		/* This is compared trough cmp */
       cmp=likeconv(cs,cmp);   
       do
       {
@@ -949,22 +949,22 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
   {
     if (*ptr == escape && ptr+1 != end)
     {
-      ptr++;					// Skip escape
+      ptr++;					/* Skip escape */
       *min_str++= *max_str++ = *ptr;
       continue;
     }
-    if (*ptr == w_one)				// '_' in SQL
+    if (*ptr == w_one)				/* '_' in SQL */
     {
-      *min_str++='\0';				// This should be min char
+      *min_str++='\0';				/* This should be min char */
       *max_str++=cs->max_sort_char;
       continue;
     }
-    if (*ptr == w_many)				// '%' in SQL
+    if (*ptr == w_many)				/* '%' in SQL */
     {
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
       do {
-	*min_str++ = ' ';			// Because if key compression
+	*min_str++ = ' ';			/* Because if key compression */
 	*max_str++ = cs->max_sort_char;
       } while (min_str != min_end);
       return 0;
@@ -981,7 +981,7 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
   }
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';		// Because if key compression
+    *min_str++ = *max_str++ = ' ';		/* Because if key compression */
   return 0;
 }
 
