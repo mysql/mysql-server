@@ -191,13 +191,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  ref.key_buff=key_buff;
 	  TABLE *table=((Item_field*) expr)->field->table;
 
-	  if ((outer_tables & table->map) ||
-	      !find_range_key(&ref, ((Item_field*) expr)->field,conds))
+	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
 	  {
 	    const_result=0;
 	    break;
 	  }
-	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
+	  if ((outer_tables & table->map) ||
+	      !find_range_key(&ref, ((Item_field*) expr)->field,conds))
 	  {
 	    const_result=0;
 	    break;
@@ -348,7 +348,13 @@ bool part_of_cond(COND *cond,Field *field)
 }
 
 
-/* Check if we can get value for field by using a key */
+/*
+  Check if we can get value for field by using a key
+
+  NOTES
+   This function may set table->key_read to 1, which must be reset after
+   index is used! (This can only happen when function returns 1)
+*/
 
 static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 {
