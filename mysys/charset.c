@@ -407,11 +407,15 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   MY_ADD_CHARSET(&my_charset_big5_bin);
 #endif
 
-#ifdef HAVE_CHARSET_czech
+#ifdef HAVE_CHARSET_cp1250
+  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
+#endif
+
+#ifdef HAVE_CHARSET_latin2
   MY_ADD_CHARSET(&my_charset_latin2_czech_ci);
 #endif
 
-#ifdef HAVE_CHARSET_euc_kr
+#ifdef HAVE_CHARSET_euckr
   MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
   MY_ADD_CHARSET(&my_charset_euckr_bin);
 #endif
@@ -449,10 +453,6 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_utf8
   MY_ADD_CHARSET(&my_charset_utf8_general_ci);
   MY_ADD_CHARSET(&my_charset_utf8_bin);
-#endif
-
-#ifdef HAVE_CHARSET_win1250ch
-  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
 #endif
 
   /* Copy compiled charsets */
