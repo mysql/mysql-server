@@ -608,7 +608,6 @@ x
 3
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
-ERROR HY000: You can't specify target table 't1' for update in FROM clause
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 ERROR 42S22: Unknown column 'x' in 'field list'
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
@@ -618,6 +617,8 @@ x
 2
 3
 3
+11
+11
 2
 drop table t1, t2, t3;
 CREATE TABLE t1 (x int not null, y int, primary key (x));

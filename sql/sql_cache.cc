@@ -761,7 +761,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   uint8 tables_type= 0;
 
   if ((local_tables = is_cacheable(thd, thd->query_length,
-				   thd->query, &thd->lex, tables_used,
+				   thd->query, thd->lex, tables_used,
 				   &tables_type)))
   {
     NET *net= &thd->net;

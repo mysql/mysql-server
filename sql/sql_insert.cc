@@ -1423,7 +1423,6 @@ void select_insert::send_error(uint errcode,const char *err)
   {
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For binary log
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -1455,7 +1454,6 @@ bool select_insert::send_eof()
   if (last_insert_id)
     thd->insert_id(last_insert_id);		// For binary log
   /* Write to binlog before commiting transaction */
-  mysql_update_log.write(thd,thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length,

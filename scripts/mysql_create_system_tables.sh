@@ -39,6 +39,7 @@ c_hc=""
 c_hr="" 
 c_hk="" 
 i_ht=""
+c_p=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -285,6 +286,22 @@ then
   c_hr="$c_hr   comment='keyword-topic relation';"
 fi
 
+if test ! -f $mdata/proc.frm
+then
+  c_p="$c_p CREATE TABLE proc ("
+  c_p="$c_p   name char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   type enum('function','procedure') NOT NULL,"
+  c_p="$c_p   body blob DEFAULT '' NOT NULL,"
+  c_p="$c_p   creator char(77) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   modified timestamp,"
+  c_p="$c_p   created timestamp,"
+  c_p="$c_p   suid enum ('N', 'Y') DEFAULT 'Y' NOT NULL,"
+  c_p="$c_p   comment char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   PRIMARY KEY (name,type)"
+  c_p="$c_p )"
+  c_p="$c_p   comment='Stored Procedures';"
+fi
+	      
 cat << END_OF_DATA
 use mysql;
 $c_d
@@ -306,5 +323,8 @@ $c_ht
 $c_hc
 $c_hr
 $c_hk
+
+$c_p
+
 END_OF_DATA
 
