@@ -52,13 +52,6 @@ Item *create_func_ord(Item* a)
   return new Item_func_ord(a);
 }
 
-Item *create_func_old_password(Item* a)
-{
-  return new Item_func_old_password(a);
-}
-
-
-
 Item *create_func_asin(Item* a)
 {
   return new Item_func_asin(a);
@@ -322,11 +315,6 @@ Item *create_func_current_user()
 Item *create_func_quarter(Item* a)
 {
   return new Item_func_quarter(a);
-}
-
-Item *create_func_password(Item* a)
-{
-  return new Item_func_password(a);
 }
 
 Item *create_func_radians(Item *a)

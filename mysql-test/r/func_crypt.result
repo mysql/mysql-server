@@ -1,15 +1,79 @@
 select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1
-select password("a",""), password("a",NULL), password("","a"), password(NULL,"a");
-password("a","")	password("a",NULL)	password("","a")	password(NULL,"a")
-*2517f7235d68d4ba2e5019c93420523101157a792c01	NULL		NULL
-select password("aaaaaaaaaaaaaaaa","a"), password("a","aaaaaaaaaaaaaaaa");
-password("aaaaaaaaaaaaaaaa","a")	password("a","aaaaaaaaaaaaaaaa")
-*2cd3b9a44e9a9994789a30f935c92f45a96c5472f381	*37c7c5c794ff144819f2531bf03c57772cd84e40db09
-select old_password('test'), length(password("1")), length(encrypt('test')), encrypt('test','aa');
-old_password('test')	length(password("1"))	length(encrypt('test'))	encrypt('test','aa')
-378b243e220ca493	45	13	aaqPiZY5xR5l.
-select old_password(""), old_password(NULL), password(""), password(NULL);
-old_password("")	old_password(NULL)	password("")	password(NULL)
-	NULL		NULL
+select password('abc');
+password('abc')
+*0D3CED9BEC10A777AEC23CCC353A8C08A633045E
+select password('');
+password('')
+
+select old_password('abc');
+old_password('abc')
+7cd2b5942be28759
+select old_password('');
+old_password('')
+
+select password('gabbagabbahey');
+password('gabbagabbahey')
+*B0F99D2963660DD7E16B751EC9EE2F17B6A68FA6
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+select length(password('1'));
+length(password('1'))
+41
+select length(encrypt('test'));
+length(encrypt('test'))
+13
+select encrypt('test','aa');
+encrypt('test','aa')
+aaqPiZY5xR5l.
+select old_password(NULL);
+old_password(NULL)
+NULL
+select password(NULL);
+password(NULL)
+NULL
+set global old_passwords=on;
+select password('');
+password('')
+
+select old_password('');
+old_password('')
+
+select password('idkfa');
+password('idkfa')
+*B669C9DAC3AA6F2254B03CDEF8DFDD6B2D1054BA
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set old_passwords=on;
+select password('idkfa');
+password('idkfa')
+5c078dc54ca0fcca
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set global old_passwords=off;
+select password('idkfa');
+password('idkfa')
+5c078dc54ca0fcca
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set old_passwords=off;
+select password('idkfa ');
+password('idkfa ')
+*2DC31D90647B4C1ABC9231563D2236E96C9A2DB2
+select password('idkfa');
+password('idkfa')
+*B669C9DAC3AA6F2254B03CDEF8DFDD6B2D1054BA
+select password(' idkfa');
+password(' idkfa')
+*12B099E56BB7FE8D43C78FD834A9D1D11178D045
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+select old_password(' i 	 d k f a ');
+old_password(' i 	 d k f a ')
+5c078dc54ca0fcca
