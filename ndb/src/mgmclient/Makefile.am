@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = mgmtclient
+ndbbin_PROGRAMS = mgmtclient
 
 mgmtclient_SOURCES = \
 	main.cpp \

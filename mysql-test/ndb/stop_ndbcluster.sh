@@ -4,7 +4,15 @@
 
 # This scripts stops the table handler ndbcluster
 
-bindir=`pwd`/../ndb/bin
+if [ -d ../sql ] ; then
+   SOURCE_DIST=1
+   ndbtop=../ndb
+   exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
+else
+   BINARY_DIST=1
+   exec_mgmtclient=@ndbbindir@/mgmtclient
+fi
+
 pidfile=ndbcluster.pid
 cfgfile=Ndb.cfg
 
@@ -36,7 +44,7 @@ ndb_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
 
 # Start management client
 
-exec_mgmtclient="$bindir/mgmtclient --try-reconnect=1 $ndb_host $ndb_port"
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_port"
 
 echo "$exec_mgmtclient"
 echo "all stop" | $exec_mgmtclient

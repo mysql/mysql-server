@@ -1,7 +1,7 @@
 
 SUBDIRS = bank
 
-bin_PROGRAMS = \
+ndbtest_PROGRAMS = \
 flexBench \
 drop_all_tabs \
 create_all_tabs \

@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = restore
+ndbtools_PROGRAMS = restore
 
 restore_SOURCES = main.cpp Restore.cpp
 
