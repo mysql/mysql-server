@@ -47600,6 +47600,10 @@ Utility from Artronic to stop MySQL on win9x.
 @item @uref{http://bardo.hyperlink.cz/mysqlmon/}
 A light weight GUI client for Windows.
 
+@item @uref{http://www.mysqlfront.de/}
+MySQLfront is a very nice Windows client with lots of useful features.
+By Angsar Becker.
+
 @item @uref{http://www.dbtools.com.br/}
 Dbtools, a tool to manage MySQL databases. Currently only for Windows.
 Some features:
