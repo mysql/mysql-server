@@ -74,6 +74,9 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
 {
   THD *thd=(THD *) net->vio->dest_thd;
   thd->store_globals();				// Fix if more than one connect
+  thd->net.last_error[0]=0;			// Clear error message
+  thd->net.last_errno=0;
+  
   net_new_transaction(&thd->net);
   return dispatch_command(command, thd, (char *) arg, length + 1);
 }
@@ -83,17 +86,17 @@ bool lib_dispatch_command(enum enum_server_command command, NET *net,
 void 
 lib_connection_phase(NET * net, int phase)
 {
-   THD * thd;
-   thd = (THD *)(net->vio->dest_thd);
-   if (thd)
-   {
-	switch (phase)
-	{
-		case 2: 
-		check_connections2(thd);
-		break;
-	}
-   }
+  THD * thd;
+  thd = (THD *)(net->vio->dest_thd);
+  if (thd)
+  {
+    switch (phase)
+    {
+    case 2: 
+      check_connections2(thd);
+      break;
+    }
+  }
 }
 }
 void start_embedded_conn1(NET * net)

@@ -1,3 +1,10 @@
+#
+# Only run the test if we are using --big-test, because this test takes a
+# long time
+#
+-- require r/big_test.require
+eval select $BIG_TEST as using_big_test;
+
 drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12), index(id2));
@@ -25,11 +32,20 @@ delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3
 
 check table t1, t2, t3;
 
-select * from t1 where id1 > 9500;
-select * from t2 where id2 > 9500;
-select * from t3 where id3 > 9500;
+select count(*) from t1 where id1 > 9500;
+select count(*) from t2 where id2 > 9500;
+select count(*) from t3 where id3 > 9500;
 
 delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 500;
-select * from t1 where id1 > 500;
-select * from t2 where id2 > 500;
-select * from t3 where id3 > 500;
+select count(*) from t1 where id1 > 500;
+select count(*) from t2 where id2 > 500;
+select count(*) from t3 where id3 > 500;
+
+delete t1, t2, t3  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 0;
+
+# These queries will force a scan of the table
+select count(*) from t1 where id1;
+select count(*) from t2 where id2;
+select count(*) from t3 where id3;
+
+drop table t1,t2,t3;
