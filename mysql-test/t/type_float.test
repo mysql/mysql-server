@@ -28,6 +28,14 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+create table t1 (c1 double, c2 varchar(20));
+insert t1 values (121,"16");
+select c1 + c1 * (c2 / 100) as col from t1;
+create table t2 select c1 + c1 * (c2 / 100) as col from t1;
+select * from t2;
+show create table t2;
+drop table t1,t2;
+
 #
 # FLOAT/DOUBLE/DECIMAL handling
 #
