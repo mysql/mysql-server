@@ -14,6 +14,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  TODO:
+  Fix that MAYBE_KEY are stored in the tree so that we can detect use
+  of full hash keys for queries like:
+
+  select s.id, kws.keyword_id from sites as s,kws where s.id=kws.site_id and kws.keyword_id in (204,205); 
+ 
+*/
+
+  
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
@@ -557,7 +567,7 @@ SEL_ARG *SEL_ARG::clone_tree()
 **	Returns:
 **	-1 if impossible select
 **	0 if can't use quick_select
-**	1 if found usably range
+**	1 if found usable range
 **	Updates the following in the select parameter:
 **	needed_reg ; Bits for keys with may be used if all prev regs are read
 **	quick	   ; Parameter to use when reading records.

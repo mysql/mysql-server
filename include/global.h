@@ -110,7 +110,7 @@
 #endif
 
 /* In Linux-alpha we have atomic.h if we are using gcc */
-#if defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95))
+#if defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__alpha__) && (__GNUC__ > 2 || ( __GNUC__ == 2 &&  __GNUC_MINOR__ >= 95)) && !defined(HAVE_ATOMIC_ADD)
 #define HAVE_ATOMIC_ADD
 #define HAVE_ATOMIC_SUB
 #endif

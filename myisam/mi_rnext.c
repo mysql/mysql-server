@@ -57,7 +57,7 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
       /* Skip rows that are inserted by other threads since we got a lock */
       if  ((error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
 				  info->lastkey_length,
-				  flag,
+				  SEARCH_BIGGER,
 				  info->s->state.key_root[inx])))
 	break;
     }

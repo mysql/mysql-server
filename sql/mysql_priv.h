@@ -127,7 +127,7 @@ void sql_element_free(void *ptr);
 #define TEST_NO_THREADS		32	/* For debugging under Linux */
 #define TEST_READCHECK		64	/* Force use of readcheck */
 #define TEST_NO_EXTRA		128
-#define TEST_KILL_ON_DEBUG	256	/* Kill server */
+#define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 
 /* options for select set by the yacc parser */
 #define SELECT_DISTINCT		1
@@ -319,10 +319,11 @@ TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
 bool reopen_table(TABLE *table,bool locked=0);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
-void close_old_data_files(THD *thd, TABLE *table, bool abort_locks);
+void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
+			  bool send_refresh);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
 bool wait_for_tables(THD *thd);
-bool table_is_used(TABLE *table);
+bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);

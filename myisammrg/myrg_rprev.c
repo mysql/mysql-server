@@ -24,7 +24,7 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
 {
   MYRG_TABLE *table;
   MI_INFO *mi;
-  uchar *key_buff;
+  byte *key_buff;
   uint pack_key_length;
   int err;
 
@@ -50,12 +50,13 @@ int myrg_rprev(MYRG_INFO *info, byte *buf, int inx)
   if (table < info->end_table)
   {
     mi=info->last_used_table->table;
-    key_buff=mi->lastkey+mi->s->base.max_key_length;
+    key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
     pack_key_length=mi->last_rkey_length;
     for (; table < info->end_table ; table++)
     {
       mi=table->table;
-      err=_mi_rkey(mi,NULL,inx,key_buff,pack_key_length,HA_READ_KEY_OR_PREV,FALSE);
+      err=_mi_rkey(mi,NULL,inx,key_buff,pack_key_length,
+		   HA_READ_KEY_OR_PREV,FALSE);
       info->last_used_table=table;
 
       if (err == HA_ERR_KEY_NOT_FOUND)

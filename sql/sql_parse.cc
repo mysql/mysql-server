@@ -1137,16 +1137,21 @@ mysql_execute_command(void)
       goto error;
     for (table=tables ; table ; table=table->next->next)
     {
-      if (check_access(thd, ALTER_ACL, table->db, &table->grant.privilege) ||
+      if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
+		       &table->grant.privilege) ||
 	  check_access(thd, INSERT_ACL | CREATE_ACL, table->next->db,
 		       &table->next->grant.privilege))
 	goto error;
       if (grant_option)
       {
-	if (check_grant(thd,ALTER_ACL,table) ||
+	TABLE_LIST old_list,new_list;
+	old_list=table[0];
+	new_list=table->next[0];
+	old_list.next=new_list.next=0;
+	if (check_grant(thd,ALTER_ACL,&old_list) ||
 	    (!test_all_bits(table->next->grant.privilege,
 			   INSERT_ACL | CREATE_ACL) &&
-	     check_grant(thd,INSERT_ACL | CREATE_ACL, table->next)))
+	     check_grant(thd,INSERT_ACL | CREATE_ACL, &new_list)))
 	  goto error;
       }
     }
@@ -1170,9 +1175,8 @@ mysql_execute_command(void)
 #endif
   case SQLCOM_REPAIR:
     {
-      if (!tables->db)
-        tables->db=thd->db;
-      if (check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
+      if (check_db_used(thd,tables) ||
+	  check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
 	goto error; /* purecov: inspected */
       res = mysql_repair_table(thd, tables, &lex->check_opt);
       break;
@@ -1695,6 +1699,10 @@ error:
 ** Get the user (global) and database privileges for all used tables
 ** Returns true (error) if we can't get the privileges and we don't use
 ** table/column grants.
+** The idea of EXTRA_ACL is that one will be granted access to the table if
+** one has the asked privilege on any column combination of the table; For
+** example to be able to check a table one needs to have SELECT privilege on
+** any column of the table.
 ****************************************************************************/
 
 bool
@@ -1760,7 +1768,8 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
-    if ((thd->master_access & want_access) == want_access && thd->db)
+    if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
+	thd->db)
       tables->grant.privilege= want_access;
     else if (tables->db && tables->db == thd->db)
     {
