@@ -752,7 +752,7 @@ static void cli_flush_use_result(MYSQL *mysql)
     {
       if (protocol_41(mysql))
       {
-        char *pos= (char*) mysql->net.read_pos;
+        char *pos= (char*) mysql->net.read_pos + 1;
         mysql->warning_count=uint2korr(pos); pos+=2;
         mysql->server_status=uint2korr(pos); pos+=2;
       }
