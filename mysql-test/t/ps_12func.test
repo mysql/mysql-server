@@ -1,0 +1,867 @@
+##################### ps_12func.test #####################
+#                                                        #
+#    Prepared Statement tests of functions               #
+#                                                        #
+#      Non prepared variants are also checked            #
+#                                                        #
+#    Checked functions:                                  #
+#                                                        #
+#       ROUND(X,D) and ROUND(X)                          #
+#       CONCAT_WS(separator,str1,str2,...)               #
+#       CHAR(N,...)                                      #
+#       CHAR_LENGTH(str)                                 #
+#       FIELD(str,str1,str2,str3,...)                    #
+#       INSERT(str,pos,len,newstr)                       #
+#       BIN(N)                                           #
+#       BIT_LENGTH(str)                                  #
+#       CONV(N,from_base,to_base)                        #
+#                                                        #
+##########################################################
+
+use test;
+
+# "--disable_abort_on_error" is definitely needed, because there are some tests
+# which intentional produce statements with wrong syntax and it is not
+# possible to put a "--error <whatever>" just before the execution calls
+# within patchwork-test.inc .
+--disable_abort_on_error
+
+##### ROUND(X,D)
+--disable_query_log
+select concat('###### Variations on ROUND(X,D) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= 'select ROUND(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ') as my_col' ;
+set @max_var_number= 2;
+
+
+#------------------------------------------------------------------
+# first parameter 11.298 (DOUBLE) , ROUND( m.n , p )  m = 2 ; n = 3
+# Variations on parameter2
+#------------------------------------------------------------------
+set @string_1= '11.298' ;
+set @type_1=   'DOUBLE' ;
+## data type BIGINT, if possible
+set @type_2=   'BIGINT' ;
+# p < n
+set @string_2= '1' ;
+--source include/patchwork-check.inc
+# p = n
+set @string_2=  '3' ;
+--source include/patchwork-check.inc
+# p > n
+set @string_2=  '4' ;
+--source include/patchwork-check.inc
+# p = 0   
+set @string_2=  '0' ;
+--source include/patchwork-check.inc
+# -p < m
+set @string_2=  '-1' ;
+--source include/patchwork-check.inc
+# -p = m   
+set @string_2=  '-2' ;
+--source include/patchwork-check.inc
+# -p > m   
+set @string_2=  '-3' ;
+--source include/patchwork-check.inc
+# -p = NULL   
+set @string_2=  'NULL' ;
+--source include/patchwork-check.inc
+
+## data type DOUBLE, if possible
+set @type_2=   'DOUBLE' ;
+# p < n
+set @string_2=  '1.0' ;
+--source include/patchwork-check.inc
+# p = n
+set @string_2=  '3.0' ;
+--source include/patchwork-check.inc
+# p > n
+set @string_2=  '4.0' ;
+--source include/patchwork-check.inc
+# p = 0
+set @string_2=  '0.0' ;
+--source include/patchwork-check.inc
+# -p < m
+set @string_2=  '-1.0' ;
+--source include/patchwork-check.inc
+# -p = m
+set @string_2=  '-2.0' ;
+--source include/patchwork-check.inc
+# -p > m
+set @string_2=  '-3.0' ;
+--source include/patchwork-check.inc
+# ugly values
+set @string_2=  '1.1' ;
+--source include/patchwork-check.inc
+set @string_2=  '1.9' ;
+--source include/patchwork-check.inc
+# -p = NULL
+set @string_2=  'NULL' ;
+--source include/patchwork-check.inc
+
+## data type LONGBLOB, content NULL
+set @type_2=   'LONGBLOB' ;
+set @string_2=  'NULL' ;
+--source include/patchwork-check.inc
+
+
+#------------------------------------------------------------------
+# first parameter data type BIGINT, content NULL
+# Variations on parameter2
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+--source include/patchwork-check.inc
+set @string_2= '-2' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+--source include/patchwork-check.inc
+set @string_2= '-2.0' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+
+#------------------------------------------------------------------
+# first parameter data type DOUBLE, content NULL
+# Variations on parameter2
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'DOUBLE' ;
+
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+--source include/patchwork-check.inc
+set @string_2= '-2' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+--source include/patchwork-check.inc
+set @string_2= '-2.0' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+
+#------------------------------------------------------------------
+# first parameter data type LONGBLOB, content NULL
+# Variations on parameter2
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+
+set @type_2=   'BIGINT' ;
+set @string_2= '2' ;
+--source include/patchwork-check.inc
+set @string_2= '-2' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'DOUBLE' ;
+set @string_2= '2.0' ;
+--source include/patchwork-check.inc
+set @string_2= '-2.0' ;
+--source include/patchwork-check.inc
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+set @type_2=   'LONGBLOB' ;
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# ROUND(D) Returns the argument X, rounded to the nearest integer.
+#------------------------------------------------------------------
+set @stmt_part_1= 'select ROUND(' ;
+set @stmt_part_2= ') as my_col' ;
+set @max_var_number= 1;
+## test cases with BIGINT
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '-11' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '0' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+## test cases with BIGINT
+set @string_1= '11.49' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= '10.51' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= '0.0' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= 'NULL' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= '-11.49' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= '-10.51' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+## Incomplete statement
+set @stmt_part_2= 'select ROUND() as my_col' ;
+set @max_var_number= 0;
+--source include/patchwork-check.inc
+
+##### CONCAT_WS(separator,str1,str2,...)
+#    Example: CONCAT_WS('S','My','QL')
+--disable_query_log
+select concat('###### Variations on CONCAT_WS(separator,str1,str2,...) ######')
+as '' union select '';
+--enable_query_log
+set @stmt_part_1= 'select CONCAT_WS(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ') as my_col' ;
+set @max_var_number= 3;
+
+### common case
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+### The separator (first parameter) is NULL.
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+### The first string (second parameter) is NULL.
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'NULL' ;
+set @type_2=   'LONGBLOB' ;
+set @string_3= 'QL' ;
+set @type_3=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+set @type_2=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @type_2=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+### The second string (third parameter) is NULL.
+set @string_1= 'S' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'My' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @type_3=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# some complicated things
+#------------------------------------------------------------------
+# select concat_ws('S',IF(parameter1=NULL,parameter2,parameter3),'QL')
+set @stmt_part_1= "select CONCAT_WS('S',IF(" ;
+set @stmt_part_2= ' IS NULL, ' ;
+set @stmt_part_3= ' , ' ;
+set @stmt_part_4= "),'QL') as my_col" ;
+set @max_var_number= 3;
+
+# common case
+set @string_1= 'My' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'X' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'My' ;
+set @type_3=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= 'X' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'My' ;
+set @type_3=   'LONGTEXT' ;
+# deactivated because of 
+# Bug#6297 : prepared statement, wrong handling of  <parameter> IS NULL
+# let $__debug_= 1;
+# --source include/patchwork-check.inc
+
+##### CHAR(N,...)
+# Example(Manual): SELECT CHAR(77,121,83,81,'76');
+--disable_query_log
+select concat('###### Variations on CHAR(N,...) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= 'select CHAR(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ',' ;
+set @stmt_part_6= ') as my_col' ;
+set @max_var_number= 5;
+
+### common case
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+# Only the first parameter is NULL.
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+##### ugly maybe wrong result
+# Bug#6317: string function CHAR, parameter is NULL, wrong result
+#--source include/patchwork-check.inc
+
+## Only one non first/last parameter is NULL.
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+# Bug#6317: string function CHAR, parameter is NULL, wrong result
+#--source include/patchwork-check.inc
+
+## Two neighbour parameters in the middle are NULL.
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+set @string_4= 'NULL' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+# Bug#6317: string function CHAR, parameter is NULL, wrong result
+#--source include/patchwork-check.inc
+
+## Only the last parameter is NULL.
+set @string_1= '77' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= 'NULL' ;
+set @type_5=   'BIGINT' ;
+# Bug#6317: string function CHAR, parameter is NULL, wrong result
+#--source include/patchwork-check.inc
+
+## The first parameter is NULL with bad type.
+set @string_1= 'NULL' ;
+set @type_1=   'LONGBLOB' ;
+set @string_2= '121' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '83' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '81' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '76' ;
+set @type_5=   'BIGINT' ;
+# Bug#6317: string function CHAR, parameter is NULL, wrong result
+#--source include/patchwork-check.inc
+
+
+##### CHAR_LENGTH(str)
+--disable_query_log
+select concat('###### Variations on CHAR_LENGTH ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= 'select CHAR_LENGTH(' ;
+set @stmt_part_2= ') as my_col' ;
+set @max_var_number= 1;
+
+### common case
+set @string_1= 'MySQL' ;
+set @type_1=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+
+##### FIELD(str,str1,str2,str3,...)
+--disable_query_log
+select concat('###### Variations on FIELD(str,str1,str2,str3,...) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= 'select FIELD(' ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ') as my_col' ;
+set @max_var_number= 4;
+
+### common case
+set @string_1= 'Hit' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '1it' ;
+set @type_2=   'LONGTEXT' ;
+set @string_3= 'Hit' ;
+set @type_3=   'LONGTEXT' ;
+set @string_4= '3it' ;
+set @type_4=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+# string to search for is NULL, all other strings not NULL
+set @string_1= 'NULL' ;
+# Bug#6321: strange error, string function FIELD(<uservariable content NULL>, ..
+--source include/patchwork-check.inc
+# string to search for and one of the other is NULL
+set @string_3= 'NULL' ;
+# Bug#6321: strange error, string function FIELD(<uservariable content NULL>, ..
+--source include/patchwork-check.inc
+
+
+##### INSERT(str,pos,len,newstr)
+# Manual Example: SELECT INSERT('Quadratic', 3, 4, 'What') -> 'QuWhattic'
+--disable_query_log
+select concat('###### Variations on INSERT(str,pos,len,newstr) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= "select INSERT(" ;
+set @stmt_part_2= ',' ;
+set @stmt_part_3= ',' ;
+set @stmt_part_4= ',' ;
+set @stmt_part_5= ") as my_col" ;
+set @max_var_number= 4;
+
+### common case (modified manual example)
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# Try DOUBLE instead of BIGINT for pos and len
+#------------------------------------------------------------------
+set @string_2= '+30.0E-1' ;
+set @type_2=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '+40.0E-1' ;
+set @type_3=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= 'NULL' ;
+set @type_2=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= 'NULL' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= 'NULL' ;
+set @type_4=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# Variations on the second parameter (start position)
+#------------------------------------------------------------------
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+# start position > length of the first string (9)
+set @string_2= '15' ;
+--source include/patchwork-check.inc
+# start position = 0
+set @string_2= '0' ;
+--source include/patchwork-check.inc
+# start position < 0
+set @string_2= '-1' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# Variations on the third parameter (# of chars of string one to be replaced)
+#------------------------------------------------------------------
+set @string_1= 'ABCDEFGHI' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '3' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '4' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '1234' ;
+set @type_4=   'LONGTEXT' ;
+## chars to be replaced > length of the second string
+#  start pos (3) + replace length(10) > length of first string(9)
+set @string_3= '10' ;
+--source include/patchwork-check.inc
+#  start pos (3) + chars to be replaced (5) < length of first string(9)
+set @string_3= '5' ;
+--source include/patchwork-check.inc
+# chars to be replaced = 0
+set @string_3= '0' ;
+--source include/patchwork-check.inc
+# chars to be replaced < 0
+set @string_3= '-1' ;
+--source include/patchwork-check.inc
+
+
+##### BIN(N)
+# manual example: SELECT BIN(12); -> '1100'
+--disable_query_log
+select concat('###### Variations on BIN(N) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= "select BIN(" ;
+set @stmt_part_2= ") as my_col" ;
+set @max_var_number= 1;
+
+set @string_1= '12' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+#### Variations on the parameter
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '2147483648' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '0' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '-1' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9000000000000000000' ;
+set @type_1=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '12.9E-0' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+set @string_1= '0.129E+2' ;
+set @type_1=   'DOUBLE' ;
+--source include/patchwork-check.inc
+
+##### BIT_LENGTH(str)
+# Manual example: SELECT BIT_LENGTH('text'); -> 32
+--disable_query_log
+select concat('###### Variations on BIT_LENGT(str) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= "select BIT_LENGTH(" ;
+set @stmt_part_2= ") as my_col" ;
+set @max_var_number= 1;
+
+set @string_1= 'text' ;
+set @type_1=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+# try NULL
+set @string_1= 'NULL' ;
+set @type_1=   'LONGTEXT' ;
+--source include/patchwork-check.inc
+
+
+##### CONV(N,from_base,to_base)
+# Manual example: SELECT CONV(-17,10,-18); -> '-H'
+--disable_query_log
+select concat('###### Variations on CONV(N,from_base,to_base) ######') as ''
+union select '';
+--enable_query_log
+set @stmt_part_1= "select CONV(" ;
+set @stmt_part_2= "," ;
+set @stmt_part_3= "," ;
+set @stmt_part_4= ") as my_col" ;
+set @max_var_number= 3;
+
+#------------------------------------------------------------------
+# Manual: If to_base is a negative number, N is regarded as a signed number.
+# Otherwise, N is treated as unsigned.
+# Experiments with positive/negative number/to_base
+#------------------------------------------------------------------
+# number positive written, to_base positive
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+# number negative written, to_base positive
+set @string_1= '-37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+# The last result (unsigned) BIGINT 18446744073709551579 might be surprising. 
+# The next statements could give an explanation.
+set @string_1= CAST(CAST(-37 AS unsigned INTEGER) AS CHAR);
+set @type_1=   'LONGTEXT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+# number positive written, to_base negative
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+# number negative written, to_base negative
+set @string_1= '-37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# conversions to and from the exotic 11 based number system
+#------------------------------------------------------------------
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '10' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= 'A' ;
+set @type_1=   'LONGTEXT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '11' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '10' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '11' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# Try the maximum base value 36
+#------------------------------------------------------------------
+set @string_1= '37' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '36' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '11' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '36' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# NULL at different parameter positions
+#------------------------------------------------------------------
+set @string_1= 'NULL' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '37' ;
+set @string_2= 'NULL' ;
+--source include/patchwork-check.inc
+set @string_2= '10' ;
+set @string_3= 'NULL' ;
+--source include/patchwork-check.inc
+set @string_3= '10' ;
+
+#------------------------------------------------------------------
+# The rule for from_base is: 2 <= from_base <= 36
+# Try values outside of this range.
+#------------------------------------------------------------------
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '37' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '1' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '0' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '-1' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '10' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+#------------------------------------------------------------------
+# The rule for to_base is: 2<= ABS(to_base) <= 36
+# Try values outside of this range.
+#------------------------------------------------------------------
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '37' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '1' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '0' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '0' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-1' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+set @string_1= '9' ;
+set @type_1=   'BIGINT' ;
+set @string_2= '10' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '-37' ;
+set @type_3=   'BIGINT' ;
+--source include/patchwork-check.inc
+
+
