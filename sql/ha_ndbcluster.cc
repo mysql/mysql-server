@@ -2197,6 +2197,9 @@ int ha_ndbcluster::index_read(byte *buf,
     break;
   }
   
+  if (m_active_cursor)
+    close_scan();
+    
   key_range start_key;
   start_key.key = key;
   start_key.length = key_len;
