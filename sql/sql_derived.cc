@@ -88,6 +88,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   
     if ((derived_result=new select_union(table)))
     {
+      derived_result->tmp_table_param=&tmp_table_param;
       unit->offset_limit_cnt= sl->offset_limit;
       unit->select_limit_cnt= sl->select_limit+sl->offset_limit;
       if (unit->select_limit_cnt < sl->select_limit)
@@ -118,7 +119,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  table->tmp_table=TMP_TABLE;
 	  if (!lex->describe)
 	    sl->exclude();
-	  t->db="";
+	  t->db=(char *)"";
 	  t->derived=(SELECT_LEX *)0; // just in case ...
 	}
       }
