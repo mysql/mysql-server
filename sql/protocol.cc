@@ -549,10 +549,18 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
       if (item->collation.collation == &my_charset_bin || thd_charset == NULL)
+      {
+        /* No conversion */
         int2store(pos, field.charsetnr);
+        int4store(pos+2, field.length);
+      }
       else
-        int2store(pos, thd_charset->number);      
-      int4store(pos+2, field.length);
+      {
+        /* With conversion */
+        int2store(pos, thd_charset->number);
+        uint char_len= field.length / item->collation.collation->mbmaxlen;
+        int4store(pos+2, char_len * thd_charset->mbmaxlen);
+      }
       pos[6]= field.type;
       int2store(pos+7,field.flags);
       pos[9]= (char) field.decimals;
