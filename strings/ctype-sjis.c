@@ -4474,6 +4474,11 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   
   if ((int) wc < 0x80)
   {
+    if (wc == 0x5c)
+    {
+      code= 0x815f;
+      goto mb;
+    }
     s[0]= (uchar) wc;
     return 1;
   }
@@ -4486,7 +4491,8 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
     s[0]= code;
     return 1;
   }
-  
+
+mb:
   if (s+2>e)
     return MY_CS_TOOSMALL;
   

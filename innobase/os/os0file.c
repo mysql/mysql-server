@@ -2314,18 +2314,18 @@ os_file_dirname(
 
 	if (last_slash < 0) {
 		/* no slash in the path, return "." */
-		return(ut_strdup((char*)"."));
+		return(mem_strdup("."));
 	}
 
 	/* ok, there is a slash */
 
 	if (last_slash == 0) {
 		/* last slash is the first char of the path */
-		return(ut_strdup((char*)"/"));
+		return(mem_strdup("/"));
 	}
 
 	/* non-trivial directory component */
-	dir = ut_strdup(path);
+	dir = mem_strdup(path);
 	dir[last_slash] = 0;
 
 	return(dir);
