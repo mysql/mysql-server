@@ -867,27 +867,36 @@ opt_create_table_options:
 	/* empty */
 	| create_table_options;
 
+create_table_options_space_separated:
+	create_table_option
+	| create_table_option create_table_options_space_separated;
+
 create_table_options:
 	create_table_option
-	| create_table_option create_table_options;
+	| create_table_option     create_table_options;
+	| create_table_option ',' create_table_options;
+
+o_eq:
+	/* empty */
+	| EQ		{};
 
 create_table_option:
-	TYPE_SYM EQ table_types		{ Lex->create_info.db_type= $3; }
-	| MAX_ROWS EQ ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
-	| MIN_ROWS EQ ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
-	| AVG_ROW_LENGTH EQ ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD EQ TEXT_STRING	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM EQ TEXT_STRING	{ Lex->create_info.comment=$3.str; }
-	| AUTO_INC EQ ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
-	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| PACK_KEYS_SYM EQ DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
-	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; }
-	| RAID_TYPE EQ raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKS EQ ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| RAID_CHUNKSIZE EQ ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
-	| UNION_SYM EQ '(' table_list ')'
+	TYPE_SYM o_eq table_types	{ Lex->create_info.db_type= $3; }
+	| MAX_ROWS o_eq ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
+	| MIN_ROWS o_eq ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
+	| AVG_ROW_LENGTH o_eq ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
+	| PASSWORD o_eq TEXT_STRING	{ Lex->create_info.password=$3.str; }
+	| COMMENT_SYM o_eq TEXT_STRING	{ Lex->create_info.comment=$3.str; }
+	| AUTO_INC o_eq ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
+	| PACK_KEYS_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| PACK_KEYS_SYM o_eq DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
+	| CHECKSUM_SYM o_eq ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
+	| DELAY_KEY_WRITE_SYM o_eq ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
+	| ROW_FORMAT_SYM o_eq row_types	{ Lex->create_info.row_type= $3; }
+	| RAID_TYPE o_eq raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKS o_eq ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| RAID_CHUNKSIZE o_eq ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
+	| UNION_SYM o_eq '(' table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
@@ -900,14 +909,14 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| CHARSET EQ charset_name_or_default
+	| CHARSET o_eq charset_name_or_default
 	  { 
 	    Lex->create_info.table_charset= $3;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
-	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.data_file_name= $4.str; }
-	| INDEX DIRECTORY_SYM EQ TEXT_STRING	{ Lex->create_info.index_file_name= $4.str; };
+	| INSERT_METHOD o_eq merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
+	| DATA_SYM DIRECTORY_SYM o_eq TEXT_STRING { Lex->create_info.data_file_name= $4.str; }
+	| INDEX DIRECTORY_SYM o_eq TEXT_STRING	  { Lex->create_info.index_file_name= $4.str; };
 
 table_types:
 	ISAM_SYM	{ $$= DB_TYPE_ISAM; }
@@ -1140,7 +1149,15 @@ attribute:
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
 charset_name:
-	ident	
+	BINARY
+	{ 
+	  if (!($$=get_charset_by_name("binary",MYF(0))))
+	  {
+	    net_printf(current_thd,ER_UNKNOWN_CHARACTER_SET,"binary");
+	    YYABORT;
+	  }
+	}
+	| ident	
 	{ 
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
@@ -1368,7 +1385,7 @@ alter_list_item:
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
 	  }
-        | create_table_options { Lex->simple_alter=0; }
+        | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
 
 opt_column:
