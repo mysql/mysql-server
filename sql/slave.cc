@@ -143,12 +143,10 @@ int init_slave()
     goto err;
   }
 
-  /*
-    make sure slave thread gets started if server_id is set,
-    valid master.info is present, and master_host has not been specified
-  */
   if (server_id && !master_host && active_mi->host[0])
     master_host= active_mi->host;
+
+  /* If server id is not set, start_slave_thread() will say it */
 
   if (master_host && !opt_skip_slave_start)
   {
