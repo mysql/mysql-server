@@ -937,8 +937,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
     // copy WHERE clause pointers to avoid damaging they by optimisation
     if (sl->prep_where)
       sl->where= sl->prep_where->copy_andor_structure(thd);
-    // force allocation new JOIN for this mem_root (for safety)
-    sl->join= 0;
+    DBUG_ASSERT(sl->join == 0);
   }
   init_stmt_execute(stmt);
 
