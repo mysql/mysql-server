@@ -23,11 +23,12 @@
 
 char wild_many='*';
 char wild_one='?';
-char wild_prefix=0;
+char wild_prefix=0; /* QQ this can potentially cause a SIGSEGV */
 
-int wild_compare(register const char *str, register const char *wildstr)
+int wild_compare(register const char *str, register const char *wildstr,
+                 pbool str_is_pattern)
 {
-  reg3 int flag;
+  char cmp;
   DBUG_ENTER("wild_compare");
 
   while (*wildstr)
@@ -35,33 +36,55 @@ int wild_compare(register const char *str, register const char *wildstr)
     while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
     {
       if (*wildstr == wild_prefix && wildstr[1])
+      {
 	wildstr++;
-      if (*wildstr++ != *str++) DBUG_RETURN(1);
+        if (str_is_pattern && *str++ != wild_prefix)
+          DBUG_RETURN(1);
+      }
+      if (*wildstr++ != *str++)
+        DBUG_RETURN(1);
     }
-    if (! *wildstr ) DBUG_RETURN (*str != 0);
+    if (! *wildstr )
+      DBUG_RETURN(*str != 0);
     if (*wildstr++ == wild_one)
     {
-      if (! *str++) DBUG_RETURN (1);	/* One char; skipp */
+      if (! *str || (str_is_pattern && *str == wild_many))
+        DBUG_RETURN(1);                     /* One char; skip */
+      if (*str++ == wild_prefix && str_is_pattern && *str)
+        str++;
     }
     else
     {						/* Found '*' */
-      if (!*wildstr) DBUG_RETURN(0);		/* '*' as last char: OK */
-      flag=(*wildstr != wild_many && *wildstr != wild_one);
-      do
+      while (str_is_pattern && *str == wild_many)
+        str++;
+      for (; *wildstr ==  wild_many || *wildstr == wild_one; wildstr++)
+        if (*wildstr == wild_many)
+        {
+          while (str_is_pattern && *str == wild_many)
+            str++;
+        }
+        else
+        {
+          if (str_is_pattern && *str == wild_prefix && str[1])
+            str+=2;
+          else if (! *str++)
+            DBUG_RETURN (1);
+        }
+      if (!*wildstr)
+        DBUG_RETURN(0);		/* '*' as last char: OK */
+      if ((cmp= *wildstr) == wild_prefix && wildstr[1] && !str_is_pattern)
+        cmp=wildstr[1];
+      for (;;str++)
       {
-	if (flag)
-	{
-	  char cmp;
-	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
-	    cmp=wildstr[1];
-	  while (*str && *str != cmp)
-	    str++;
-	  if (!*str) DBUG_RETURN (1);
-	}
-	if (wild_compare(str,wildstr) == 0) DBUG_RETURN (0);
-      } while (*str++ && wildstr[0] != wild_many);
-      DBUG_RETURN(1);
+        while (*str && *str != cmp)
+          str++;
+        if (!*str)
+          DBUG_RETURN (1);
+	if (wild_compare(str,wildstr,str_is_pattern) == 0)
+          DBUG_RETURN (0);
+      }
+      /* We will never come here */
     }
   }
-  DBUG_RETURN (*str != '\0');
+  DBUG_RETURN (*str != 0);
 } /* wild_compare */
