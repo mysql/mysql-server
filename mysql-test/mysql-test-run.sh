@@ -18,7 +18,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/bin/X11
 
 # Standard functions
 

@@ -104,6 +104,8 @@
 #define _H_STRINGS
 #define _SYS_STREAM_H
 #define _AIX32_CURSES
+#define longlong2double(A) my_longlong2double(A)
+double my_longlong2double(unsigned long long A);
 #endif
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */

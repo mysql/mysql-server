@@ -34,11 +34,6 @@
 #endif
 #endif /* !defined(MSDOS) && !defined(__WIN__) */
 
-#ifndef THREAD
-#define pthread_mutex_lock(A)
-#define pthread_mutex_unlock(A)
-#endif
-
 void my_inet_ntoa(struct in_addr in, char *buf)
 {
   char *ptr;

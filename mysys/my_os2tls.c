@@ -18,23 +18,23 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-DWORD    TlsAlloc( void);
-BOOL     TlsFree( DWORD);
-PVOID    TlsGetValue( DWORD);
-BOOL     TlsSetValue( DWORD, PVOID);
+DWORD	 TlsAlloc( void);
+BOOL	 TlsFree( DWORD);
+PVOID	 TlsGetValue( DWORD);
+BOOL	 TlsSetValue( DWORD, PVOID);
 
-#define TLS_MINIMUM_AVAILABLE   64
+#define TLS_MINIMUM_AVAILABLE	64
 
 
-PULONG           tls_storage;   /* TLS local storage */
-DWORD            tls_bits[2];   /* TLS in-use bits   */
-pthread_mutex_t  tls_mutex;     /* TLS mutex for in-use bits */
+PULONG		 tls_storage;	/* TLS local storage */
+DWORD		 tls_bits[2];	/* TLS in-use bits   */
+pthread_mutex_t  tls_mutex;	/* TLS mutex for in-use bits */
 
-DWORD    TlsAlloc( void)
+DWORD	 TlsAlloc( void)
 {
    DWORD index = -1;
    DWORD mask, tibidx;
-   int   i;
+   int	 i;
 
    if (tls_storage == NULL) {
 
@@ -43,12 +43,12 @@ DWORD    TlsAlloc( void)
       // allocate memory for TLS storage
       rc = DosAllocThreadLocalMemory( 1, &tls_storage);
       if (rc) {
-         fprintf( stderr, "DosAllocThreadLocalMemory error: return code = %u\n", rc);
+	 fprintf( stderr, "DosAllocThreadLocalMemory error: return code = %u\n", rc);
       }
 
       // create a mutex
       if (pthread_mutex_init( &tls_mutex, NULL))
-         fprintf( stderr, "Failed to init TLS mutex\n");
+	 fprintf( stderr, "Failed to init TLS mutex\n");
    }
 
    pthread_mutex_lock( &tls_mutex);
@@ -56,18 +56,18 @@ DWORD    TlsAlloc( void)
    tibidx = 0;
    if (tls_bits[0] == 0xFFFFFFFF) {
       if (tls_bits[1] == 0xFFFFFFFF) {
-            fprintf( stderr, "tid#%d, no more TLS bits available\n", _threadid);
-            pthread_mutex_unlock( &tls_mutex);
-            return -1;
+	    fprintf( stderr, "tid#%d, no more TLS bits available\n", _threadid);
+	    pthread_mutex_unlock( &tls_mutex);
+	    return -1;
       }
       tibidx = 1;
    }
    for( i=0; i<32; i++) {
       mask = (1 << i);
       if ((tls_bits[ tibidx] & mask) == 0) {
-         tls_bits[ tibidx] |= mask;
-         index = (tibidx*32) + i;
-         break;
+	 tls_bits[ tibidx] |= mask;
+	 index = (tibidx*32) + i;
+	 break;
       }
    }
    tls_storage[index] = 0;
@@ -79,9 +79,9 @@ DWORD    TlsAlloc( void)
    return index;
 }
 
-BOOL     TlsFree( DWORD index)
+BOOL	 TlsFree( DWORD index)
 {
-   int    tlsidx;
+   int	  tlsidx;
    DWORD  mask;
 
    if (index >= TLS_MINIMUM_AVAILABLE)
@@ -106,7 +106,7 @@ BOOL     TlsFree( DWORD index)
 }
 
 
-PVOID    TlsGetValue( DWORD index)
+PVOID	 TlsGetValue( DWORD index)
 {
    if (index >= TLS_MINIMUM_AVAILABLE)
       return NULL;
@@ -122,7 +122,7 @@ PVOID    TlsGetValue( DWORD index)
    return (PVOID) tls_array[ index];
 }
 
-BOOL     TlsSetValue( DWORD index, PVOID val)
+BOOL	 TlsSetValue( DWORD index, PVOID val)
 {
 
    // verify if memory has been allocated for this thread

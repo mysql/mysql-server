@@ -34,4 +34,4 @@ aaa
 sum(if(num is null,0.00,num))
 144.54
 min(if(y -x > 5,y,NULL))	max(if(y - x > 5,y,NULL))
-6	56
+16	6
