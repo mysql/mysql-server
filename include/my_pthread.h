@@ -100,6 +100,8 @@ int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
 int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
+struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
+
 
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
@@ -109,6 +111,7 @@ void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #endif
 #define pthread_self() win_pthread_self
 #define HAVE_LOCALTIME_R		1
+#define HAVE_GMTIME_R			1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
 
@@ -276,6 +279,8 @@ extern int my_pthread_create_detached;
 #define USE_ALARM_THREAD
 #undef	HAVE_LOCALTIME_R
 #define HAVE_LOCALTIME_R
+#undef	HAVE_GMTIME_R
+#define HAVE_GMTIME_R
 #undef	HAVE_PTHREAD_ATTR_SETSCOPE
 #define HAVE_PTHREAD_ATTR_SETSCOPE
 #undef HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE	/* If we are running linux */
@@ -374,6 +379,10 @@ void *my_pthread_getspecific_imp(pthread_key_t key);
 
 #ifndef HAVE_LOCALTIME_R
 struct tm *localtime_r(const time_t *clock, struct tm *res);
+#endif
+
+#ifndef HAVE_GMTIME_R
+struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #endif
 
 #ifdef HAVE_PTHREAD_CONDATTR_CREATE
