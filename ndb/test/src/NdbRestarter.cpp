@@ -33,13 +33,11 @@
 
 NdbRestarter::NdbRestarter(const char* _addr): 
   connected(false),
-  addr(_addr), 
-  host(NULL),
   port(-1),
   handle(NULL),
   m_config(0)
 {
-  if (addr == NULL){
+  if (_addr == NULL){
     LocalConfig lcfg;
     if(!lcfg.init()){
       lcfg.printError();
@@ -60,20 +58,20 @@ NdbRestarter::NdbRestarter(const char* _addr):
       case MgmId_TCP:
 	char buf[255];
 	snprintf(buf, 255, "%s:%d", m->data.tcp.remoteHost, m->data.tcp.port);
-	addr = strdup(buf);
-	host = strdup(m->data.tcp.remoteHost);
+	addr.assign(buf);
+	host.assign(m->data.tcp.remoteHost);
 	port = m->data.tcp.port;
+	return;
 	break;
       case MgmId_File:
 	break;
       default:
 	break;
       }
-      if (addr != NULL)
-	break;
     }
+  } else {
+    addr.assign(_addr);
   }
-
 }
 
 NdbRestarter::~NdbRestarter(){
@@ -398,10 +396,10 @@ NdbRestarter::connect(){
     g_err << "handle == NULL" << endl;
     return -1;
   }
-  g_info << "Connecting to mgmsrv at " << addr << endl;
-  if (ndb_mgm_connect(handle, addr) == -1) {
+  g_info << "Connecting to mgmsrv at " << addr.c_str() << endl;
+  if (ndb_mgm_connect(handle, addr.c_str()) == -1) {
     MGMERR(handle);
-    g_err  << "Connection to " << addr << " failed" << endl;
+    g_err  << "Connection to " << addr.c_str() << " failed" << endl;
     return -1;
   }
 

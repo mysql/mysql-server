@@ -230,10 +230,6 @@ NdbColumnImpl::assign(const NdbColumnImpl& org)
 NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), m_facade(this)
 {
-  m_noOfKeys = 0;
-  m_sizeOfKeysInWords = 0;
-  m_noOfBlobs = 0;
-  m_index = 0;
   init();
 }
 
@@ -1149,7 +1145,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   
   Uint32 keyInfoPos = 0;
   Uint32 keyCount = 0;
-  Uint32 blobCount;
+  Uint32 blobCount = 0;
   
   for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
@@ -1737,8 +1733,8 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     return 0;
   }
 
-  NdbTableImpl* primTab = getTable(tab->m_primaryTable.c_str());
-  if(primTab == 0){
+  NdbTableImpl* prim = getTable(tab->m_primaryTable.c_str());
+  if(prim == 0){
     m_error.code = 4243;
     return 0;
   }
@@ -1752,7 +1748,7 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
   idx->m_indexId = tab->m_tableId;
   idx->m_internalName.assign(internalName);
   idx->m_externalName.assign(externalName);
-  idx->m_tableName.assign(primTab->m_externalName);
+  idx->m_tableName.assign(prim->m_externalName);
   idx->m_type = tab->m_indexType;
   // skip last attribute (NDB$PK or NDB$TNODE)
   for(unsigned i = 0; i+1<tab->m_columns.size(); i++){
@@ -1760,6 +1756,14 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
     // Copy column definition
     *col = *tab->m_columns[i];
     idx->m_columns.push_back(col);
+    /**
+     * reverse map
+     */
+    int key_id = prim->getColumn(col->getName())->getColumnNo();
+    int fill = -1;
+    idx->m_key_ids.fill(key_id, fill);
+    idx->m_key_ids[key_id] = i;
+    col->m_keyInfoPos = key_id;
   }
   
   idx->m_table = tab;
