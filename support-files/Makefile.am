@@ -27,6 +27,8 @@ EXTRA_DIST =		mysql.spec.sh \
 			binary-configure.sh \
 			magic
 
+SUBDIRS = MacOSX
+
 pkgdata_DATA =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
