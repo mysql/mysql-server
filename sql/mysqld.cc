@@ -4493,17 +4493,17 @@ static void get_options(int argc,char **argv)
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
   /* To be deleted in MySQL 4.0 */
-  if (!thd->variables.record_rnd_cache_size)
+  if (thd && !thd->variables.record_rnd_cache_size)
     thd->variables.record_rnd_cache_size= my_default_record_cache_size;
 
   /* Fix variables that are base 1024*1024 */
   myisam_max_temp_length=
     (my_off_t) min(((ulonglong)
-		    thd->variables.myisam_max_sort_file_size)*1024 * 1024,
+		    global_system_variables.myisam_max_sort_file_size)*1024 * 1024,
 		   (ulonglong) MAX_FILE_SIZE);
   myisam_max_extra_temp_length= 
     (my_off_t) min(((ulonglong)
-		    thd->variables.myisam_max_extra_sort_file_size)*1024*1024,
+		    global_system_variables.myisam_max_extra_sort_file_size)*1024*1024,
 		   (ulonglong) MAX_FILE_SIZE);
 
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
