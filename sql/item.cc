@@ -2509,27 +2509,41 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   bool change_field= 0, skip_store_field= 0;
   Item_result new_type= type_convertor[item_type][item->result_type()];
 
-  // we have both fields
+  /*
+    we have both fields and field is not enum or set(different enums(sets)
+    can't be joinned in one enum(set) field)
+  */
   if (field_example && item->type() == Item::FIELD_ITEM)
   {
     Field *field= ((Item_field *)item)->field;
-    if (field_example->field_cast_type() != field->field_cast_type())
+    Field::field_cast_enum field_type= field->field_cast_type();
+
+    if (field_type != Field::FIELD_CAST_ENUM &&
+        field_type != Field::FIELD_CAST_SET)
     {
-      if (!(change_field=
-	    field_example->field_cast_compatible(field->field_cast_type())))
+      if (field_example->field_cast_type() != field_type)
       {
-	/*
-	  if old field can't store value of 'worse' new field we will make
-	  decision about result field type based only on Item result type
-	*/
-	if (!field->field_cast_compatible(field_example->field_cast_type()))
-	  skip_store_field= 1;
+        if (!(change_field=
+              field_example->field_cast_compatible(field->field_cast_type())))
+        {
+          /*
+            if old field can't store value of 'worse' new field we will make
+            decision about result field type based only on Item result type
+          */
+          if (!field->field_cast_compatible(field_example->field_cast_type()))
+            skip_store_field= 1;
+        }
       }
     }
+    else
+      skip_store_field= 1;
   }
+  else if (field_example || item->type() == Item::FIELD_ITEM)
+    skip_store_field= 1;
 
   // size/type should be changed
   if (change_field ||
+      skip_store_field ||
       (new_type != item_type) ||
       (max_length < new_length) ||
       ((new_type == INT_RESULT) &&
