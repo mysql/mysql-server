@@ -17,3 +17,61 @@ drop table t1;
 drop database mysqltest1;
 sync_slave_with_master;
 
+#
+# BUG#6353:
+#   Option --replicate-rewrite-db should work together with LOAD DATA INFILE
+#
+
+connection slave;
+--disable_warnings
+drop database if exists rewrite;
+--enable_warnings
+create database rewrite;
+
+connection master;
+use test;
+create table t1 (a date, b date, c date not null, d date);
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+sync_slave_with_master;
+
+connection slave;
+select * from rewrite.t1;
+
+connection master;
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+sync_slave_with_master;
+
+connection slave;
+select * from rewrite.t1;
+
+connection master;
+drop table t1;
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+sync_slave_with_master;
+
+connection slave;
+select concat('|',a,'|'), concat('|',b,'|') from rewrite.t1;
+
+connection master;
+drop table t1;
+create table t1 (a int, b char(10));
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+sync_slave_with_master;
+
+connection slave;
+select * from rewrite.t1;
+
+connection master;
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+sync_slave_with_master;
+
+connection slave;
+# The empty line last comes from the end line field in the file
+select * from rewrite.t1;
+
+connection master;
+drop table t1;
