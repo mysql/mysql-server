@@ -69,7 +69,7 @@ uint ha_isam::min_record_length(uint options) const
 
 int ha_isam::write_row(byte * buf)
 {
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
@@ -79,7 +79,7 @@ int ha_isam::write_row(byte * buf)
 
 int ha_isam::update_row(const byte * old_data, byte * new_data)
 {
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_on_update_now)
     update_timestamp(new_data+table->timestamp_on_update_now-1);
   return !nisam_update(file,old_data,new_data) ? 0 : my_errno ? my_errno : -1;
@@ -87,14 +87,14 @@ int ha_isam::update_row(const byte * old_data, byte * new_data)
 
 int ha_isam::delete_row(const byte * buf)
 {
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_delete_count, &LOCK_status);
   return !nisam_delete(file,buf) ? 0 : my_errno ? my_errno : -1;
 }
 
 int ha_isam::index_read(byte * buf, const byte * key,
 			uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   int error=nisam_rkey(file, buf, active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;
@@ -103,7 +103,7 @@ int ha_isam::index_read(byte * buf, const byte * key,
 int ha_isam::index_read_idx(byte * buf, uint index, const byte * key,
 			    uint key_len, enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   int error=nisam_rkey(file, buf, index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;
@@ -111,7 +111,7 @@ int ha_isam::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_isam::index_read_last(byte * buf, const byte * key, uint key_len)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   int error=nisam_rkey(file, buf, active_index, key, key_len,
 		       HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -120,7 +120,8 @@ int ha_isam::index_read_last(byte * buf, const byte * key, uint key_len)
 
 int ha_isam::index_next(byte * buf)
 {
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,
+		      &LOCK_status);
   int error=nisam_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : HA_ERR_END_OF_FILE;
@@ -128,7 +129,8 @@ int ha_isam::index_next(byte * buf)
 
 int ha_isam::index_prev(byte * buf)
 {
-  statistic_increment(ha_read_prev_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_prev_count,
+		      &LOCK_status);
   int error=nisam_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : HA_ERR_END_OF_FILE;
@@ -136,7 +138,8 @@ int ha_isam::index_prev(byte * buf)
 
 int ha_isam::index_first(byte * buf)
 {
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,
+		      &LOCK_status);
   int error=nisam_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : HA_ERR_END_OF_FILE;
@@ -144,7 +147,8 @@ int ha_isam::index_first(byte * buf)
 
 int ha_isam::index_last(byte * buf)
 {
-  statistic_increment(ha_read_last_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_last_count,
+		      &LOCK_status);
   int error=nisam_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : HA_ERR_END_OF_FILE;
@@ -157,7 +161,8 @@ int ha_isam::rnd_init(bool scan)
 
 int ha_isam::rnd_next(byte *buf)
 {
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   int error=nisam_rrnd(file, buf, NI_POS_ERROR);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;
@@ -165,7 +170,8 @@ int ha_isam::rnd_next(byte *buf)
 
 int ha_isam::rnd_pos(byte * buf, byte *pos)
 {
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_count,
+		      &LOCK_status);
   int error=nisam_rrnd(file, buf, (ulong) ha_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return !error ? 0 : my_errno ? my_errno : -1;
