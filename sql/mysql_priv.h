@@ -183,6 +183,13 @@ void kill_one_thread(THD *thd, ulong id);
 /* The following is set when parsing the query */
 #define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
 #define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
+/* The following can be set when importing tables in a 'wrong order'
+   to suppress foreign key checks */
+#define OPTION_NO_FOREIGN_KEY_CHECKS  QUERY_NO_GOOD_INDEX_USED*2
+/* The following speeds up inserts to InnoDB tables by suppressing unique
+   key checks in some cases */
+#define OPTION_RELAXED_UNIQUE_CHECKS  OPTION_NO_FOREIGN_KEY_CHECKS*2
+/* NOTE: we have now used 31 bits of the OPTION flag! */
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      1
