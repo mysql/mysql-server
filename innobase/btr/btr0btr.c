@@ -299,7 +299,9 @@ btr_page_alloc_for_ibuf(
 
 	new_page = buf_page_get(dict_tree_get_space(tree), node_addr.page,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	flst_remove(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		    new_page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE,
@@ -357,7 +359,9 @@ btr_page_alloc(
 
 	new_page = buf_page_get(dict_tree_get_space(tree), new_page_no,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 							
 	return(new_page);
 }	
@@ -398,7 +402,7 @@ btr_get_size(
 		
 		n += fseg_n_reserved_pages(seg_header, &dummy, &mtr);		
 	} else {
-		ut_a(0);
+		ut_error;
 	}
 
 	mtr_commit(&mtr);
@@ -663,8 +667,9 @@ btr_create(
 		ibuf_hdr_frame = fseg_create(space, 0,
 				IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(ibuf_hdr_frame, SYNC_TREE_NODE_NEW);
-
+#endif /* UNIV_SYNC_DEBUG */
 		ut_ad(buf_frame_get_page_no(ibuf_hdr_frame)
  						== IBUF_HEADER_PAGE_NO);
 		/* Allocate then the next page to the segment: it will be the
@@ -689,7 +694,9 @@ btr_create(
 
 	page_no = buf_frame_get_page_no(frame);
 	
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(frame, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (type & DICT_IBUF) {
 		/* It is an insert buffer tree: initialize the free list */
@@ -704,7 +711,9 @@ btr_create(
 									mtr);
 		/* The fseg create acquires a second latch on the page,
 		therefore we must declare it: */
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(frame, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 	}
 	
 	/* Create a new index page on the the allocated segment page */
@@ -1517,7 +1526,9 @@ func_start:
 	
 	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
 							MTR_MEMO_X_LOCK));
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_tree_get_lock(tree), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	page = btr_cur_get_page(cursor);
 

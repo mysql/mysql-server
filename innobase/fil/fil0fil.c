@@ -332,7 +332,9 @@ fil_node_close(
 	ibool	ret;
 
 	ut_ad(node && system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 
@@ -356,7 +358,9 @@ fil_node_free(
 	fil_space_t*	space)	/* in: space where the file node is chained */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 
 	if (node->open) {
@@ -632,7 +636,7 @@ fil_space_create(
 	/* Spaces with an odd id number are reserved to replicate spaces
 	used in log debugging */
 	
-	ut_anp((purpose == FIL_LOG) || (id % 2 == 0));
+	ut_a((purpose == FIL_LOG) || (id % 2 == 0));
 #endif
 	mutex_enter(&(system->mutex));
 
@@ -875,7 +879,9 @@ fil_node_prepare_for_io(
 	fil_node_t*	last_node;
 
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	if (node->open == FALSE) {
 		/* File is closed */
@@ -896,7 +902,7 @@ fil_node_prepare_for_io(
 	"InnoDB: Pending i/o's on %lu files exist\n",
 					system->n_open_pending);
 
-				ut_a(0);
+				ut_error;
 			}
 
 			fil_node_close(last_node, system);
@@ -952,7 +958,9 @@ fil_node_complete_io(
 {
 	ut_ad(node);
 	ut_ad(system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->n_pending > 0);
 	
 	node->n_pending--;
@@ -1201,7 +1209,7 @@ loop:
 	"InnoDB: Byte offset %lu, len %lu, i/o type %lu\n", 
  			block_offset, space_id, byte_offset, len, type);
  			
-			ut_a(0);
+			ut_error;
 		}
 
 		if (node->size > block_offset) {
@@ -1230,8 +1238,8 @@ loop:
 
 	/* Do aio */
 
-	ut_anp(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_anp((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -1331,7 +1339,7 @@ fil_aio_wait(
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
-		ut_a(0);
+		ut_error;
 #endif
 	} else {
 		srv_io_thread_op_info[segment] =(char *)"simulated aio handle";

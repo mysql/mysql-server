@@ -111,7 +111,7 @@ case "$target" in
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl
-		buf/Makefile com/Makefile data/Makefile dnl
+		buf/Makefile data/Makefile dnl
 		dict/Makefile dyn/Makefile dnl
 		eval/Makefile fil/Makefile fsp/Makefile fut/Makefile dnl
 		ha/Makefile ibuf/Makefile include/Makefile dnl

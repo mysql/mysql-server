@@ -261,7 +261,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 static void usage()
 {
-  printf("Use: ft_dump <table_name> <index_no>\n");
+  printf("Use: myisam_ftdump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   exit(1);

@@ -28,3 +28,11 @@ SELECT ACOS(0.2*5.0);
 SELECT ACOS(0.5*2.0);
 SELECT ASIN(0.8+0.2);
 SELECT ASIN(1.2-0.2);
+
+#
+# Bug #3051 FLOOR returns invalid 
+#
+
+select floor(log(4)/log(2));
+select floor(log(8)/log(2));
+select floor(log(16)/log(2));

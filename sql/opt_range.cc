@@ -2144,6 +2144,7 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 
 void SEL_ARG::test_use_count(SEL_ARG *root)
 {
+  uint e_count=0;
   if (this == root && use_count != 1)
   {
     sql_print_error("Note: Use_count: Wrong count %lu for root",use_count);
@@ -2151,7 +2152,6 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   }
   if (this->type != SEL_ARG::KEY_RANGE)
     return;
-  uint e_count=0;
   for (SEL_ARG *pos=first(); pos ; pos=pos->next)
   {
     e_count++;
@@ -2168,8 +2168,8 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     }
   }
   if (e_count != elements)
-    sql_print_error("Warning: Wrong use count: %u for tree at %lx", e_count,
-		    (gptr) this);
+    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at %lx",
+		    e_count, elements, (gptr) this);
 }
 
 #endif

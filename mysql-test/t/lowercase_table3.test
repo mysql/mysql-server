@@ -32,6 +32,6 @@ flush tables;
 #
 
 CREATE TABLE t1 (a int) type=INNODB;
---error 1146
+--error 1016
 SELECT * from T1;
 drop table t1;

@@ -525,11 +525,11 @@ buf_pool_invalidate(void);
 --------------------------- LOWER LEVEL ROUTINES -------------------------
 =========================================================================*/
 
+#ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
-page if we know the latching order level of the acquired latch. If
-UNIV_SYNC_DEBUG is not defined, compiles to an empty function. */
+page if we know the latching order level of the acquired latch. */
 UNIV_INLINE
 void
 buf_page_dbg_add_level(
@@ -537,6 +537,7 @@ buf_page_dbg_add_level(
 	buf_frame_t*	frame,	/* in: buffer page where we have acquired
 				a latch */
 	ulint		level);	/* in: latching order level */
+#endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE
@@ -778,11 +779,12 @@ struct buf_block_struct{
 					BTR_SEARCH_RIGHT_SIDE in hash
 					indexing */
 	/* 6. Debug fields */
-
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_t	debug_latch;	/* in the debug version, each thread
 					which bufferfixes the block acquires
 					an s-latch here; so we can use the
 					debug utilities in sync0rw */
+#endif
         ibool           file_page_was_freed;
                                         /* this is set to TRUE when fsp
                                         frees a page in buffer pool */
@@ -822,7 +824,7 @@ struct buf_pool_struct{
 	ulint		n_pages_created;/* number of pages created in the pool
 					with no read */
 	ulint		n_page_gets;	/* number of page gets performed;
-					also successful seraches through
+					also successful searches through
 					the adaptive hash index are
 					counted as page gets; this field
 					is NOT protected by the buffer

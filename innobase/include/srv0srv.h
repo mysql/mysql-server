@@ -13,7 +13,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #include "sync0sync.h"
 #include "os0sync.h"
-#include "com0com.h"
 #include "que0types.h"
 #include "trx0types.h"
 
@@ -398,9 +397,6 @@ struct srv_sys_struct{
 	os_event_t	operational;	/* created threads must wait for the
 					server to become operational by
 					waiting for this event */
-	com_endpoint_t*	endpoint;	/* the communication endpoint of the
-					server */
-
 	srv_table_t*	threads;	/* server thread table */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;		/* task queue */

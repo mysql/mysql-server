@@ -214,7 +214,9 @@ extern rw_lock_t*	btr_search_latch_temp;
 
 #define btr_search_latch	(*btr_search_latch_temp)
 
+#ifdef UNIV_SEARCH_PERF_STAT
 extern ulint	btr_search_n_succ;
+#endif /* UNIV_SEARCH_PERF_STAT */
 extern ulint	btr_search_n_hash_fail;
 
 /* After change in n_fields or n_bytes in info, this many rounds are waited

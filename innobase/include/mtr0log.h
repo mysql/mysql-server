@@ -32,7 +32,6 @@ mlog_write_dulint(
 /*==============*/
 	byte*	ptr,	/* in: pointer where to write */
 	dulint	val,	/* in: value to write */
-	byte	type,	/* in: MLOG_8BYTES */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /************************************************************
 Writes a string to a file page buffered in the buffer pool. Writes the

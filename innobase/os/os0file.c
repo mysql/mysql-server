@@ -722,7 +722,7 @@ try_again:
 	} else if (type == OS_DATA_FILE) {
 		type_str = "DATA";
 	} else {
-	        ut_a(0);
+	        ut_error;
 	}
 	  
 	if (purpose == OS_FILE_AIO) {
@@ -730,7 +730,7 @@ try_again:
 	} else if (purpose == OS_FILE_NORMAL) {
 		purpose_str = "NORMAL";
 	} else {
-	        ut_a(0);
+	        ut_error;
 	}
 
 /*	printf("Opening file %s, mode %s, type %s, purpose %s\n",
@@ -1016,7 +1016,7 @@ os_file_flush(
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
-	ut_a(0);
+	ut_error;
 
 	return(FALSE);
 #else
@@ -1050,7 +1050,7 @@ os_file_flush(
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
-	ut_a(0);
+	ut_error;
 
 	return(FALSE);
 #endif
@@ -1801,7 +1801,7 @@ os_aio_get_array_no(
 
 		return(3);
 	} else {
-		ut_a(0);
+		ut_error;
 
 		return(0);
 	}
@@ -1828,7 +1828,7 @@ os_aio_get_array_from_no(
 
 		return(os_aio_write_array);
 	} else {
-		ut_a(0);
+		ut_error;
 
 		return(NULL);
 	}
@@ -2418,7 +2418,7 @@ os_aio_posix_handle(
 
 	if (sig != SIGRTMIN + 1 + array_no) {
 
-		ut_a(0);
+		ut_error;
 	
 		return(FALSE);
 	}
@@ -2682,7 +2682,7 @@ consecutive_loop:
 "InnoDB: Error: trying a displaced write to %s %lu %lu, len %lu\n",
 					slot->name, slot->offset_high,
 					slot->offset, total_len);
-				ut_a(0);
+				ut_error;
 			}
 			  
 			/* Do a 'last millisecond' check that the page end

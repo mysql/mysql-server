@@ -34,12 +34,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "sync0ipm.h"
 #include "thr0loc.h"
-#include "com0com.h"
-#include "com0shm.h"
 #include "que0que.h"
 #include "srv0que.h"
 #include "log0recv.h"
-#include "odbc0odbc.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
 #include "lock0lock.h"
@@ -235,9 +232,6 @@ int     srv_query_thread_priority = 0;
 ulint	srv_n_spin_wait_rounds	= 20;
 ulint	srv_spin_wait_delay	= 5;
 ibool	srv_priority_boost	= TRUE;
-char	srv_endpoint_name[COM_MAX_ADDR_LEN];
-ulint	srv_n_com_threads	= ULINT_MAX;
-ulint	srv_n_worker_threads	= ULINT_MAX;
 
 ibool	srv_print_thread_releases	= FALSE;
 ibool	srv_print_lock_waits		= FALSE;
@@ -245,14 +239,14 @@ ibool	srv_print_buf_io		= FALSE;
 ibool	srv_print_log_io		= FALSE;
 ibool	srv_print_latch_waits		= FALSE;
 
-ulint	srv_n_rows_inserted		= 0;
-ulint	srv_n_rows_updated		= 0;
-ulint	srv_n_rows_deleted		= 0;
-ulint	srv_n_rows_read			= 0;
-ulint	srv_n_rows_inserted_old		= 0;
-ulint	srv_n_rows_updated_old		= 0;
-ulint	srv_n_rows_deleted_old		= 0;
-ulint	srv_n_rows_read_old		= 0;
+ulint		srv_n_rows_inserted		= 0;
+ulint		srv_n_rows_updated		= 0;
+ulint		srv_n_rows_deleted		= 0;
+ulint		srv_n_rows_read			= 0;
+static ulint	srv_n_rows_inserted_old		= 0;
+static ulint	srv_n_rows_updated_old		= 0;
+static ulint	srv_n_rows_deleted_old		= 0;
+static ulint	srv_n_rows_read_old		= 0;
 
 /*
   Set the following to 0 if you want InnoDB to write messages on
@@ -612,7 +606,9 @@ srv_suspend_thread(void)
 	ulint		slot_no;
 	ulint		type;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
@@ -662,7 +658,9 @@ srv_release_threads(
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
 	ut_ad(n > 0);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 	
@@ -1154,7 +1152,9 @@ srv_table_reserve_slot_for_mysql(void)
 	srv_slot_t*	slot;
 	ulint		i;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 	slot = srv_mysql_table + i;
@@ -1184,7 +1184,7 @@ srv_table_reserve_slot_for_mysql(void)
 			  (ulint)difftime(ut_time(), slot->suspend_time));
 			}
 
-		        ut_a(0);
+		        ut_error;
 		}
 		
 		slot = srv_mysql_table + i;
@@ -1219,7 +1219,9 @@ srv_suspend_mysql_thread(
 	ibool		had_dict_lock			= FALSE;
 	ibool		was_declared_inside_innodb	= FALSE;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 	
@@ -1338,7 +1340,9 @@ srv_release_mysql_thread_if_suspended(
 	srv_slot_t*	slot;
 	ulint		i;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 

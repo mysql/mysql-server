@@ -242,6 +242,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
+    char *extension;
     DBUG_PRINT("info",("Examining: %s", file->name));
 
     /* Check if file is a raid directory */
@@ -251,59 +252,55 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
 	!file->name[2] && !level)
     {
-      char newpath[FN_REFLEN];
+      char newpath[FN_REFLEN], *copy_of_path;
       MY_DIR *new_dirp;
       String *dir;
+      uint length;
 
       strxmov(newpath,org_path,"/",file->name,NullS);
-      unpack_filename(newpath,newpath);
+      length= unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
-	{
-	  my_dirend(dirp);
-	  DBUG_RETURN(-1);
-	}
-	raid_dirs.push_back(dir=new String(newpath));
-	dir->copy();
+	  goto err;
+	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
+	    !(dir= new String(copy_of_path, length)) ||
+	    raid_dirs.push_back(dir))
+	  goto err;
 	continue;
       }
       found_other_files++;
       continue;
     }
-    if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
+    extension= fn_ext(file->name);
+    if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
-      if (find_type(fn_ext(file->name),&known_extentions,1+2) <= 0)
+      if (find_type(extension, &known_extentions,1+2) <= 0)
 	found_other_files++;
       continue;
     }
-    strxmov(filePath,org_path,"/",file->name,NullS);
-    if (db && !my_strcasecmp(fn_ext(file->name), reg_ext))
+    if (db && !my_strcasecmp(extension, reg_ext))
     {
       /* Drop the table nicely */
-      *fn_ext(file->name)=0;			// Remove extension
+      *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
 	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+2);
       if (!table_list)
-      {
-	my_dirend(dirp);
-	DBUG_RETURN(-1);
-      }
+	goto err;
       table_list->db= (char*) (table_list+1);
-      strmov(table_list->real_name=strmov(table_list->db,db)+1,
-	     file->name);
+      strmov(table_list->real_name= strmov(table_list->db,db)+1, file->name);
+      table_list->alias= table_list->real_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next;
     }
     else
     {
-
+      strxmov(filePath, org_path, "/", file->name, NullS);
       if (my_delete_with_symlink(filePath,MYF(MY_WME)))
       {
-	my_dirend(dirp);
-	DBUG_RETURN(-1);
+	goto err;
       }
       deleted++;
     }
@@ -311,14 +308,17 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   if (thd->killed ||
       (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 1)))
   {
-    my_dirend(dirp);
-    DBUG_RETURN(-1);
+    goto err;
   }
-  List_iterator<String> it(raid_dirs);
-  String *dir;
-  while ((dir= it++))
-    if (rmdir(dir->c_ptr()) < 0)
-      found_other_files++;
+
+  /* Remove RAID directories */
+  {
+    List_iterator<String> it(raid_dirs);
+    String *dir;
+    while ((dir= it++))
+      if (rmdir(dir->c_ptr()) < 0)
+	found_other_files++;
+  }
   my_dirend(dirp);  
   
   /*
@@ -328,7 +328,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   if (!found_other_files)
   {
     char tmp_path[FN_REFLEN], *pos;
-    char *path=unpack_filename(tmp_path,org_path);
+    char *path= tmp_path;
+    unpack_filename(tmp_path,org_path);
 #ifdef HAVE_READLINK
     int error;
     
@@ -365,6 +366,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
   }
   DBUG_RETURN(deleted);
+
+err:
+  my_dirend(dirp);
+  DBUG_RETURN(-1);
 }
 
 
@@ -376,13 +381,13 @@ bool mysql_change_db(THD *thd,const char *name)
   ulong db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(db_length=strip_sp(dbname)))
+  if (!dbname || !(db_length= strlen(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if ((db_length > NAME_LEN) || check_db_name(dbname))
+  if (check_db_name(dbname))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, dbname);
     x_free(dbname);

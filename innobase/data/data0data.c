@@ -114,8 +114,8 @@ dtuple_datas_are_ordering_equal(
 	ulint		i;
 
 	ut_ad(tuple1 && tuple2);
-	ut_ad(tuple1->magic_n = DATA_TUPLE_MAGIC_N);
-	ut_ad(tuple2->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple1));
 	ut_ad(dtuple_check_typed(tuple2));
 
@@ -261,7 +261,7 @@ dfield_check_typed(
 "InnoDB: Error: data field type %lu, len %lu\n",
 			dfield_get_type(field)->mtype, dfield_get_len(field));
 
-		ut_a(0);
+		ut_error;
 	}
 
 	return(TRUE);
@@ -306,7 +306,7 @@ dtuple_validate(
 	ulint	 	i;
 	ulint	 	j;
 
-	ut_a(tuple->magic_n = DATA_TUPLE_MAGIC_N);
+	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 
 	n_fields = dtuple_get_n_fields(tuple);
 

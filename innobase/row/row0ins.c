@@ -80,9 +80,9 @@ ins_node_create(
 	node->trx_id = ut_dulint_zero;
 	
 	node->entry_sys_heap = mem_heap_create(128);
-
-	node->magic_n = INS_NODE_MAGIC_N;	
-	
+#ifdef UNIV_DEBUG
+	node->magic_n = INS_NODE_MAGIC_N;
+#endif /* UNIV_DEBUG */
 	return(node);
 }
 
@@ -194,6 +194,7 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/* in: insert node */
 	dtuple_t*	row)	/* in: new row (or first row) for the node */
 {
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
@@ -855,7 +856,7 @@ row_ins_foreign_check_on_constraint(
 			"InnoDB: Make a detailed bug report and send it\n");
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-		ut_a(0);
+		ut_error;
 */
 		err = DB_SUCCESS;		
 
@@ -1031,8 +1032,10 @@ row_ins_check_foreign_constraint(
 	mtr_t		mtr;
 
 run_again:
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	err = DB_SUCCESS;
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
@@ -2031,6 +2034,7 @@ row_ins(
 	ulint	err;
 	
 	ut_ad(node && thr);
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -2095,7 +2099,7 @@ row_ins_step(
 	trx_start_if_not_started(trx);
 	
 	node = thr->run_node;
-
+	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
 
 	parent = que_node_get_parent(node);
