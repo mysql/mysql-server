@@ -370,7 +370,7 @@ bool String::copy(const char *str, uint32 arg_length,
 
 bool String::set_ascii(const char *str, uint32 arg_length)
 {
-  if (!(str_charset->state & MY_CS_NONTEXT))
+  if (!(str_charset->mbminlen > 1))
   {
     set(str, arg_length, str_charset);
     return 0;

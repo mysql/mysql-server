@@ -5688,6 +5688,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
@@ -5700,6 +5701,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_gb2312,
   mbcharlen_gb2312,
   my_numchars_mb,
