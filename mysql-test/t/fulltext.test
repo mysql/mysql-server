@@ -10,6 +10,9 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 delete from t1 where a like "MySQL%";
+update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
+delete from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1;
 drop table t1;
 
 #
