@@ -274,10 +274,10 @@ int Show_instance_options::do_command(struct st_net *net,
         goto err;
     }
 
-    if (instance->options.is_guarded != NULL)
+    if (instance->options.nonguarded == NULL)
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "guarded", &position);
+      store_to_string(&send_buff, (char *) "nonguarded", &position);
       store_to_string(&send_buff, "", &position);
       if (my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
@@ -350,7 +350,7 @@ int Start_instance::execute(struct st_net *net, ulong connection_id)
     if (err_code= instance->start())
       return err_code;
 
-    if (instance->options.is_guarded != NULL)
+    if (instance->options.nonguarded == NULL)
         instance_map->guardian->guard(instance);
 
     net_send_ok(net, connection_id);
@@ -381,7 +381,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
   }
   else
   {
-    if (instance->options.is_guarded != NULL)
+    if (instance->options.nonguarded == NULL)
         instance_map->guardian->
                stop_guard(instance);
     if ((err_code= instance->stop()))

@@ -71,9 +71,7 @@ public:
   int unlock();
   int init();
 
-  Instance_map(const char *default_mysqld_path_arg,
-               const char *default_admin_user_arg,
-               const char *default_admin_password_arg);
+  Instance_map(const char *default_mysqld_path_arg);
   ~Instance_map();
 
   /* loads options from config files */
@@ -85,9 +83,6 @@ public:
 
 public:
   const char *mysqld_path;
-  /* user an password to shutdown MySQL */
-  const char *user;
-  const char *password;
   Guardian_thread *guardian;
   /* structure used for syncronization reasons in the stop command */
   CHILD_COND pid_cond;

@@ -67,9 +67,7 @@ void manager(const Options &options)
   */
 
   User_map user_map;
-  Instance_map instance_map(options.default_mysqld_path,
-                            options.default_admin_user,
-                            options.default_admin_password);
+  Instance_map instance_map(options.default_mysqld_path);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   options.monitoring_interval);
@@ -181,8 +179,17 @@ void manager(const Options &options)
         pthread_cond_broadcast(&guardian_thread.COND_guardian);
       break;
       default:
-        thread_registry.deliver_shutdown();
-        shutdown_complete= TRUE;
+        if (!guardian_thread.is_stopped)
+        {
+          guardian_thread.request_stop_instances();
+          guardian_thread.shutdown();
+          pthread_cond_broadcast(&guardian_thread.COND_guardian);
+        }
+        else
+        {
+          thread_registry.deliver_shutdown();
+          shutdown_complete= TRUE;
+        }
       break;
     }
   }

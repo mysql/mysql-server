@@ -35,8 +35,6 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::default_admin_user= QUOTE(DEFAULT_USER);
-const char *Options::default_admin_password= QUOTE(DEFAULT_PASSWORD);
 const char *Options::bind_address= 0;              /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
@@ -55,8 +53,6 @@ enum options {
   OPT_RUN_AS_SERVICE,
   OPT_USER,
   OPT_PASSWORD,
-  OPT_DEFAULT_ADMIN_USER,
-  OPT_DEFAULT_ADMIN_PASSWORD,
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
   OPT_BIND_ADDRESS
@@ -97,18 +93,6 @@ static struct my_option my_long_options[] =
                                             " Server binary.",
     (gptr *) &Options::default_mysqld_path, (gptr *) &Options::default_mysqld_path,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "default-admin-user", OPT_DEFAULT_ADMIN_USER, "Username to shutdown MySQL"
-                                           " instances.",
-                   (gptr *) &Options::default_admin_user,
-                   (gptr *) &Options::default_admin_user,
-                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "default-admin-password", OPT_DEFAULT_ADMIN_PASSWORD, "Password to"
-                                            "shutdown MySQL instances.",
-                   (gptr *) &Options::default_admin_password,
-                   (gptr *) &Options::default_admin_password,
-                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
                                             " in seconds.",

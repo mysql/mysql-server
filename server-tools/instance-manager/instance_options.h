@@ -38,14 +38,12 @@ class Instance_options
 public:
   Instance_options() :
     mysqld_socket(0), mysqld_datadir(0), mysqld_bind_address(0),
-    mysqld_pid_file(0), mysqld_port(0), mysqld_path(0), is_guarded(0),
+    mysqld_pid_file(0), mysqld_port(0), mysqld_path(0), nonguarded(0),
     filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
-  int complete_initialization(const char *default_path,
-                              const char *default_user,
-                              const char *default_password);
+  int complete_initialization(const char *default_path);
 
   int add_option(const char* option);
   int init(const char *instance_name_arg);
@@ -71,7 +69,8 @@ public:
   uint instance_name_len;
   const char *instance_name;
   const char *mysqld_path;
-  const char *is_guarded;
+  const char *nonguarded;
+  const char *shutdown_delay;
   DYNAMIC_ARRAY options_array;
 private:
   int add_to_argv(const char *option);

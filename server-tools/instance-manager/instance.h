@@ -41,10 +41,8 @@ public:
   int cleanup();
 
 public:
+  enum { DEFAULT_SHUTDOWN_DELAY= 35 };
   Instance_options options;
-
-  /* connection to the instance */
-  pid_t pid;
 
 private:
   /*
