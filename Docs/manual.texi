@@ -46928,6 +46928,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Fixed bug in ALTERing  TABLE of BDB type.
+@item
 Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
 active database.
 @item
