@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS t1, `"t"1`, t1aa,t2aa;
 drop database if exists mysqldump_test_db;
+drop view if exists v1;
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>

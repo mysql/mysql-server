@@ -136,7 +136,7 @@ int mysql_update(THD *thd,
 
   LINT_INIT(timestamp_query_id);
 
-  if (open_tables(thd, table_list, &table_count))
+  if (open_tables(thd, &table_list, &table_count))
     DBUG_RETURN(1);
 
   if (table_list->ancestor && table_list->ancestor->next_local)
@@ -637,7 +637,7 @@ bool mysql_multi_update_prepare(THD *thd)
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
   /* open tables and create derived ones, but do not lock and fill them */
-  if ((original_multiupdate && open_tables(thd, table_list, & table_count)) ||
+  if ((original_multiupdate && open_tables(thd, &table_list, & table_count)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
   /*

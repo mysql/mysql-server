@@ -272,6 +272,7 @@ THD::THD()
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
+  prelocked_mode= NON_PRELOCKED;
 }
 
 

@@ -169,13 +169,12 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;
+  lex->query_tables_own_last= 0;
 
   if (lex->spfuns.records)
     my_hash_reset(&lex->spfuns);
   if (lex->spprocs.records)
     my_hash_reset(&lex->spprocs);
-  if (lex->sptabs.records)
-    my_hash_reset(&lex->sptabs);
   DBUG_VOID_RETURN;
 }
 
@@ -1843,6 +1842,8 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
     */
     if ((query_tables= query_tables->next_global))
       query_tables->prev_global= &query_tables;
+    else
+      query_tables_last= &query_tables;
     first->next_global= 0;
 
     /*
@@ -1948,6 +1949,8 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
   {
     if ((first->next_global= query_tables))
       query_tables->prev_global= &first->next_global;
+    else
+      query_tables_last= &first->next_global;
     query_tables= first;
 
     if (link_to_local)

@@ -718,8 +718,29 @@ sp_drop_db_routines(THD *thd, char *db)
   PROCEDURE
 ******************************************************************************/
 
+/*
+  Obtain object representing stored procedure by its name from
+  stored procedures cache and looking into mysql.proc if needed.
+
+  SYNOPSIS
+    sp_find_procedure()
+      thd        - thread context
+      name       - name of procedure
+      cache_only - if true perform cache-only lookup
+                   (Don't look in mysql.proc).
+
+  TODO
+    We should consider merging of sp_find_procedure() and
+    sp_find_function() into one sp_find_routine() function
+    (the same applies to other similarly paired functions).
+
+  RETURN VALUE
+    Non-0 pointer to sp_head object for the procedure, or
+    0 - in case of error.
+*/
+
 sp_head *
-sp_find_procedure(THD *thd, sp_name *name)
+sp_find_procedure(THD *thd, sp_name *name, bool cache_only)
 {
   sp_head *sp;
   DBUG_ENTER("sp_find_procedure");
@@ -727,7 +748,7 @@ sp_find_procedure(THD *thd, sp_name *name)
 		       name->m_db.length, name->m_db.str,
 		       name->m_name.length, name->m_name.str));
 
-  if (!(sp= sp_cache_lookup(&thd->sp_proc_cache, name)))
+  if (!(sp= sp_cache_lookup(&thd->sp_proc_cache, name)) && !cache_only)
   {
     if (db_find_routine(thd, TYPE_ENUM_PROCEDURE, name, &sp) == SP_OK)
       sp_cache_insert(&thd->sp_proc_cache, sp);
@@ -852,6 +873,25 @@ sp_show_status_procedure(THD *thd, const char *wild)
 /*****************************************************************************
   FUNCTION
 ******************************************************************************/
+
+/*
+  Obtain object representing stored function by its name from
+  stored functions cache and looking into mysql.proc if needed.
+
+  SYNOPSIS
+    sp_find_function()
+      thd        - thread context
+      name       - name of function
+      cache_only - if true perform cache-only lookup
+                   (Don't look in mysql.proc).
+
+  NOTE
+    See TODO section for sp_find_procedure().
+
+  RETURN VALUE
+    Non-0 pointer to sp_head object for the function, or
+    0 - in case of error.
+*/
 
 sp_head *
 sp_find_function(THD *thd, sp_name *name, bool cache_only)
@@ -986,79 +1026,120 @@ sp_add_to_hash(HASH *h, sp_name *fun)
 }
 
 
-void
+/*
+  Merge contents of two hashes containing LEX_STRING's
+
+  SYNOPSIS
+    sp_merge_hash()
+      dst - hash to which elements should be added
+      src - hash from which elements merged
+
+  RETURN VALUE
+    TRUE  - if we have added some new elements to destination hash.
+    FALSE - there were no new elements in src.
+*/
+
+bool
 sp_merge_hash(HASH *dst, HASH *src)
 {
+  bool res= FALSE;
   for (uint i=0 ; i < src->records ; i++)
   {
     LEX_STRING *ls= (LEX_STRING *)hash_element(src, i);
 
     if (! hash_search(dst, (byte *)ls->str, ls->length))
+    {
       my_hash_insert(dst, (byte *)ls);
+      res= TRUE;
+    }
   }
+  return res;
 }
 
 
-int
-sp_cache_routines(THD *thd, LEX *lex, int type)
+/*
+  Cache all routines implicitly or explicitly used by query
+  (or whatever object is represented by LEX).
+
+  SYNOPSIS
+    sp_cache_routines()
+      thd - thread context
+      lex - LEX representing query
+
+  NOTE
+    If some function is missing this won't be reported here.
+    Instead this fact will be discovered during query execution.
+
+  TODO
+    Currently if after passing through routine hashes we discover
+    that we have added something to them, we do one more pass to
+    process all routines which were missed on previous pass because
+    of these additions. We can avoid this if along with hashes
+    we use lists holding routine names and iterate other these
+    lists instead of hashes (since addition to the end of list
+    does not reorder elements in it).
+*/
+
+void
+sp_cache_routines(THD *thd, LEX *lex)
 {
-  HASH *h= (type == TYPE_ENUM_FUNCTION ? &lex->spfuns : &lex->spprocs);
-  int ret= 0;
+  bool routines_added= TRUE;
 
-  for (uint i=0 ; i < h->records ; i++)
+  DBUG_ENTER("sp_cache_routines");
+
+  while (routines_added)
   {
-    LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
-    sp_name name(*ls);
+    routines_added= FALSE;
 
-    name.m_qname= *ls;
-    if (! sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
-			   &thd->sp_func_cache : &thd->sp_proc_cache),
-			  &name))
+    for (int type= TYPE_ENUM_FUNCTION; type < TYPE_ENUM_TRIGGER; type++)
     {
-      sp_head *sp;
-      LEX *oldlex= thd->lex;
-      LEX *newlex= new st_lex;
+      HASH *h= (type == TYPE_ENUM_FUNCTION ? &lex->spfuns : &lex->spprocs);
 
-      thd->lex= newlex;
-      newlex->proc_table= oldlex->proc_table; // hint if mysql.oper is opened
-      newlex->current_select= NULL;
-      name.m_name.str= strchr(name.m_qname.str, '.');
-      name.m_db.length= name.m_name.str - name.m_qname.str;
-      name.m_db.str= strmake_root(thd->mem_root,
-				  name.m_qname.str, name.m_db.length);
-      name.m_name.str+= 1;
-      name.m_name.length= name.m_qname.length - name.m_db.length - 1;
+      for (uint i=0 ; i < h->records ; i++)
+      {
+        LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
+        sp_name name(*ls);
+        sp_head *sp;
 
-      if (db_find_routine(thd, type, &name, &sp) == SP_OK)
-      {
-	if (type == TYPE_ENUM_FUNCTION)
-	  sp_cache_insert(&thd->sp_func_cache, sp);
-	else
-	  sp_cache_insert(&thd->sp_proc_cache, sp);
-	ret= sp_cache_routines(thd, newlex, TYPE_ENUM_FUNCTION);
-	if (!ret)
-	{
-	  sp_merge_hash(&lex->spfuns, &newlex->spfuns);
-	  ret= sp_cache_routines(thd, newlex, TYPE_ENUM_PROCEDURE);
-	}
-	if (!ret)
-	{
-	  sp_merge_hash(&lex->spprocs, &newlex->spprocs);
-	  sp_merge_table_hash(&lex->sptabs, &sp->m_sptabs);
-	}
-	delete newlex;
-	thd->lex= oldlex;
-	if (ret)
-	  break;
-      }
-      else
-      {
-	delete newlex;
-	thd->lex= oldlex;
+        name.m_qname= *ls;
+        if (!(sp= sp_cache_lookup((type == TYPE_ENUM_FUNCTION ?
+                                   &thd->sp_func_cache : &thd->sp_proc_cache),
+                                  &name)))
+        {
+          LEX *oldlex= thd->lex;
+          LEX *newlex= new st_lex;
+
+          thd->lex= newlex;
+          /* Pass hint pointer to mysql.proc table */
+          newlex->proc_table= oldlex->proc_table;
+          newlex->current_select= NULL;
+          name.m_name.str= strchr(name.m_qname.str, '.');
+          name.m_db.length= name.m_name.str - name.m_qname.str;
+          name.m_db.str= strmake_root(thd->mem_root, name.m_qname.str,
+                                      name.m_db.length);
+          name.m_name.str+= 1;
+          name.m_name.length= name.m_qname.length - name.m_db.length - 1;
+
+          if (db_find_routine(thd, type, &name, &sp) == SP_OK)
+          {
+            if (type == TYPE_ENUM_FUNCTION)
+              sp_cache_insert(&thd->sp_func_cache, sp);
+            else
+              sp_cache_insert(&thd->sp_proc_cache, sp);
+          }
+          delete newlex;
+          thd->lex= oldlex;
+        }
+
+        if (sp)
+        {
+          routines_added|= sp_merge_hash(&lex->spfuns, &sp->m_spfuns);
+          routines_added|= sp_merge_hash(&lex->spprocs, &sp->m_spprocs);
+        }
       }
     }
   }
-  return ret;
+  DBUG_VOID_RETURN;
 }
 
 /*
