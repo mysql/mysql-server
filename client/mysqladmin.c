@@ -87,7 +87,7 @@ enum commands {
   ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD, 
   ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS, 
   ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE, 
-  ADMIN_FLUSH_THREADS
+  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
 };
 static const char *command_names[]= {
   "create",               "drop",                "shutdown",
@@ -97,7 +97,7 @@ static const char *command_names[]= {
   "flush-hosts",          "flush-tables",        "password",
   "ping",                 "extended-status",     "flush-status",
   "flush-privileges",     "start-slave",         "stop-slave",  
-  "flush-threads", 
+  "flush-threads","old-password", 
   NullS
 };
 
@@ -419,7 +419,8 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
-
+  struct rand_struct rand_st;
+  
   for (; argc > 0 ; argv++,argc--)
   {
     switch (find_type(argv[0],&command_typelib,2)) {
@@ -721,17 +722,23 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       break;
     }
+    case ADMIN_OLD_PASSWORD:
     case ADMIN_PASSWORD:
     {
-      char buff[128],crypted_pw[33];
-
+      char buff[128],crypted_pw[64];
+      time_t start_time;
+      /* Do initialization the same way as we do in mysqld */
+      start_time=time((time_t*) 0);       
+      randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
+      
       if (argc < 2)
       {
 	my_printf_error(0,"Too few arguments to change password",MYF(ME_BELL));
 	return 1;
       }
       if (argv[1][0])
-	make_scrambled_password(crypted_pw,argv[1],0); /* New passwords only */
+	make_scrambled_password(crypted_pw,argv[1],(find_type(argv[0],&command_typelib,2)
+                                ==ADMIN_OLD_PASSWORD),&rand_st);
       else
 	crypted_pw[0]=0;			/* No password */
       sprintf(buff,"set password='%s',sql_log_off=0",crypted_pw);
@@ -836,7 +843,8 @@ static void usage(void)
   kill id,id,...	Kill mysql threads");
 #if MYSQL_VERSION_ID >= 32200
   puts("\
-  password new-password Change old password to new-password");
+  password new-password Change old password to new-password, MySQL 4.1 hashing.\n\
+  old-password new-password Change old password to new-password in old format.\n");
 #endif
   puts("\
   ping			Check if mysqld is alive\n\

@@ -32,6 +32,24 @@
   Example:
     update user set password=PASSWORD("hello") where user="test"
   This saves a hashed number as a string in the password field.
+  
+  
+  New in MySQL 4.1 authentication works even more secure way.
+  At the first step client sends user name to the sever, and password if 
+  it is empty. So in case of empty password authentication is as fast as before.
+  At the second stap servers sends scramble to client, which is encoded with
+  password stage2 hash stored in the password  database as well as salt, needed 
+  for client to build stage2 password to decrypt scramble.  
+  Client decrypts the scramble and encrypts it once again with stage1 password.
+  This information is sent to server.
+  Server decrypts the scramble to get stage1 password and hashes it to get 
+  stage2 hash. This hash is when compared to hash stored in the database.
+  
+  This authentication needs 2 packet round trips instead of one but it is much 
+  stronger. Now if one will steal mysql database content he will not be able 
+  to break into MySQL.
+  
+  
 *****************************************************************************/
 
 #include <my_global.h>
@@ -45,10 +63,23 @@
 /* Character to use as version identifier for version 4.1 */
 #define PVERSION41_CHAR '*'
 
+/* Scramble length for new password version */
+#define SCRAMBLE41_LENGTH 20
 
 
-
-
+/*
+  New (MySQL 3.21+) random generation structure initialization
+  
+  SYNOPSIS
+    randominit()
+    rand_st    OUT  Structure to initialize
+    seed1      IN   First initialization parameter
+    seed2      IN   Second initialization parameter
+                                  
+  RETURN
+    none
+*/
+                                            
 void randominit(struct rand_struct *rand_st,ulong seed1, ulong seed2)
 {						/* For mysql 3.21.# */
 #ifdef HAVE_purify
@@ -60,6 +91,19 @@ void randominit(struct rand_struct *rand_st,ulong seed1, ulong seed2)
   rand_st->seed2=seed2%rand_st->max_value;
 }
 
+
+/*
+  Old (MySQL 3.20) random generation structure initialization
+  
+  SYNOPSIS
+    old_randominit()
+    rand_st    OUT  Structure to initialize
+    seed1      IN   First initialization parameter
+                                  
+  RETURN
+    none
+*/
+
 static void old_randominit(struct rand_struct *rand_st,ulong seed1)
 {						/* For mysql 3.20.# */
   rand_st->max_value= 0x01FFFFFFL;
@@ -68,12 +112,93 @@ static void old_randominit(struct rand_struct *rand_st,ulong seed1)
   rand_st->seed1=seed1 ; rand_st->seed2=seed1/2;
 }
 
+
+/*
+  Generate Random number
+  
+  SYNOPSIS
+    rnd()
+    rand_st    INOUT  Structure used for number generation
+                                  
+  RETURN
+    Generated pseudo random number
+*/
+
 double rnd(struct rand_struct *rand_st)
 {
   rand_st->seed1=(rand_st->seed1*3+rand_st->seed2) % rand_st->max_value;
   rand_st->seed2=(rand_st->seed1+rand_st->seed2+33) % rand_st->max_value;
   return (((double) rand_st->seed1)/rand_st->max_value_dbl);
 }
+
+
+/*
+  Generate String of printable random characters of requested length
+  String will not be zero terminated.
+  
+  SYNOPSIS
+    create_random_string()
+    length     IN     Lenght of 
+    rand_st    INOUT  Structure used for number generation
+    target     OUT    Buffer for generation
+                                  
+  RETURN
+    none
+*/
+
+void create_random_string(int length,struct rand_struct *rand_st,char* target)
+{
+  char* end=target+length;
+  /* Use pointer arithmetics as it is faster way to do so. */
+  while (target<end)
+  {
+    *target=rnd(rand_st)*94+33; 
+    target++;
+  }
+}
+
+
+/*
+  Encrypt/Decrypt function used for password encryption in authentication
+  Simple XOR is used here but it is OK as we crypt random strings
+  
+  SYNOPSIS
+    password_crypt()
+    from     IN     Data for encryption
+    to       OUT    Encrypt data to the buffer (may be the same)
+    password IN     Password used for encryption (same length) 
+    length   IN     Length of data to encrypt
+                                  
+  RETURN
+    none
+*/
+
+inline void password_crypt(const char* from,char* to, const char* password,int length) 
+{
+ const char *from_end=from+length;
+ 
+ while(from<from_end)
+ {
+   *to=*from^*password;
+   from++;
+   to++; 
+   password++;   
+ }
+}
+
+
+/*
+  Generate binary hash from raw text password
+  Used for Pre-4.1 Password handling
+  
+  SYNOPSIS
+    hash_pasword()
+    result   OUT    Store hash in this location
+    password IN     Plain text password to build hash
+                                  
+  RETURN
+    none
+*/
 
 void hash_password(ulong *result, const char *password)
 {
@@ -94,15 +219,75 @@ void hash_password(ulong *result, const char *password)
 }
 
 
+/*
+  Stage one password hashing. 
+  Used in MySQL 4.1 password handling
+  
+  SYNOPSIS
+    password_hash_stage1()
+    to       OUT    Store stage one hash to this location
+    password IN     Plain text password to build hash
+                                  
+  RETURN
+    none
+*/
 
-
-
-void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble)
-{ 
-  ulong hash_res[2];  /* Used for pre 4.1 password hashing */
-  static uint salt=0; /* Salt for 4.1 version password */
-  unsigned char* slt=(unsigned char*)&salt;
+inline void password_hash_stage1(char *to, const char *password)
+{
   SHA1_CONTEXT context; 
+  sha1_reset(&context);
+  for (; *password ; password++)
+  {
+    if (*password == ' ' || *password == '\t') 
+      continue;/* skip space in password */
+    sha1_input(&context,(int8*)&password[0],1);	
+  }
+  sha1_result(&context,(uint8*)to);    
+}
+
+
+/*
+  Stage two password hashing. 
+  Used in MySQL 4.1 password handling
+  
+  SYNOPSIS
+    password_hash_stage2()
+    to       INOUT  Use this as stage one hash and store stage two hash here
+    salt     IN     Salt used for stage two hashing
+                                  
+  RETURN
+    none
+*/
+
+inline void password_hash_stage2(char *to,const char *salt)
+{
+  SHA1_CONTEXT context;     
+  sha1_reset(&context);
+  sha1_input(&context,(uint8*)salt,4);
+  sha1_input(&context,to,SHA1_HASH_SIZE);
+  sha1_result(&context,(uint8*)to);    
+}
+
+
+/*
+  Create password to be stored in user database from raw string
+  Handles both MySQL 4.1 and Pre-MySQL 4.1 passwords 
+  
+  SYNOPSIS
+    make_scramble_password()
+    to       OUT   Store scrambled password here 
+    password IN    Raw string password
+    force_old_scramle 
+             IN    Force generation of old scramble variant
+    rand_st  INOUT Structure for temporary number generation.                              
+  RETURN
+    none
+*/
+
+void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble,struct rand_struct *rand_st)
+{ 
+  ulong hash_res[2];   /* Used for pre 4.1 password hashing */
+  unsigned short salt; /* Salt for 4.1 version password */
   uint8 digest[SHA1_HASH_SIZE];
   if (force_old_scramble) /* Pre 4.1 password encryption */
   {
@@ -112,27 +297,16 @@ void make_scrambled_password(char *to,const char *password,my_bool force_old_scr
   else /* New password 4.1 password scrambling */ 
   {
     to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
-    /* We do not need too strong salt generation so this should be enough */
-    salt+=getpid()+time(NULL)+0x01010101;
+   /* Random returns number from 0 to 1 so this would be good salt generation.*/
+    salt=rnd(rand_st)*65535+1; 
     /* Use only 2 first bytes from it */ 
-    sprintf(&(to[1]),"%02x%02x",slt[0],slt[1]);
-    sha1_reset(&context);
-    /* Use Salt for Hash */
-    sha1_input(&context,(uint8*)&salt,2);
-    
-    for (; *password ; password++)
-    {
-      if (*password == ' ' || *password == '\t')
-        continue;/* skip space in password */
-      sha1_input(&context,(int8*)&password[0],1);	
-    }
-    sha1_result(&context,digest);
-    /* Hash one more time */
-    sha1_reset(&context);
-    sha1_input(&context,digest,SHA1_HASH_SIZE);
-    sha1_result(&context,digest);
+    sprintf(to+1,"%04x",salt);
+    /* First hasing is done without salt */
+    password_hash_stage1(digest,password);
+    /* Second stage is done with salt */
+    password_hash_stage2(digest,(char*)to+1),    
     /* Print resulting hash into the password*/
-    sprintf(&(to[5]),
+    sprintf(to+5,
       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
       digest[0],digest[1],digest[2],digest[3],digest[4],digest[5],digest[6],
       digest[7],digest[8],digest[9],digest[10],digest[11],digest[12],digest[13],
@@ -140,19 +314,129 @@ void make_scrambled_password(char *to,const char *password,my_bool force_old_scr
   }
 }
 
-uint get_password_length(my_bool force_old_scramble)
+
+/*
+  Convert password from binary string form to salt form 
+  Used for MySQL 4.1 password handling
+  
+  SYNOPSIS
+    get_salt_from_bin_password()
+    res      OUT Store salt form password here
+    password IN  Binary password to be converted
+    salt     IN  hashing-salt to be used for salt form generation
+                                  
+  RETURN
+    none
+*/
+
+void get_salt_from_bin_password(ulong *res,unsigned char *password,ulong salt)
+{
+  unsigned char* password_end=password+SCRAMBLE41_LENGTH;
+  *res=salt;
+  res++;
+  bzero(res,5*sizeof(res[0])); 
+  
+  /* Process password of known length*/
+  while (password<password_end)
+  {
+    ulong val=0;
+    uint i;
+    for (i=0 ; i < 4 ; i++)
+       val=(val << 8)+(*password++);
+    *res++=val;
+  }    
+}
+
+
+/*
+  Validate password for MySQL 4.1 password handling. 
+  
+  SYNOPSIS
+    validate_password()
+    password IN   Encrypted Scramble which we got from the client
+    message  IN   Original scramble which we have sent to the client before
+    salt     IN   Password in the salted form to match to 
+                                  
+  RETURN
+    0 for correct password
+   !0 for invalid password
+*/
+
+my_bool validate_password(const char* password, const char* message, ulong* salt)
+{
+  char buffer[SCRAMBLE41_LENGTH]; /* Used for password validation */
+  char tmpsalt[8]; /* Temporary value to convert salt to string form */
+  int i;
+  ulong salt_candidate[6]; /* Computed candidate salt */
+  
+  /* Now we shall get stage1 encrypted password in buffer*/
+  password_crypt(password,buffer,message,SCRAMBLE41_LENGTH);
+  
+  /* For compatibility reasons we use ulong to store salt while we need char */
+  sprintf(tmpsalt,"%04x",(unsigned short)salt[0]);
+  
+  password_hash_stage2(buffer,tmpsalt);
+  /* Convert password to salt to compare */
+  get_salt_from_bin_password(salt_candidate,buffer,salt[0]);
+  
+  /* Now we shall get exactly the same password as we have stored for user */ 
+  for(i=1;i<6;i++)
+    if (salt[i]!=salt_candidate[i]) return 1;
+  /* Or password correct*/    
+  return 0;
+} 
+
+
+/*
+  Get length of password string which is stored in mysql.user table
+  
+  SYNOPSIS
+    get_password_length()
+    force_old_scramble  IN  If we wish to use pre 4.1 scramble format     
+                                  
+  RETURN
+    password length >0
+*/
+
+inline uint get_password_length(my_bool force_old_scramble)
 {
   if (force_old_scramble)
     return 16;
   else return SHA1_HASH_SIZE*2+4+1;
 }
 
-uint8 get_password_version(const char* password)
+
+/*
+  Get version of the password based on mysql.user password string
+  
+  SYNOPSIS
+    get_password_version()
+    password IN   Password string as stored in mysql.user
+                                  
+  RETURN
+    0 for pre 4.1 passwords
+   !0 password version char for newer passwords
+*/
+
+inline uint8 get_password_version(const char* password)
 {
   if (password==NULL) return 0;
   if (password[0]==PVERSION41_CHAR) return PVERSION41_CHAR;
   return 0;
 }
+
+
+/*
+  Get integer value of Hex character 
+  
+  SYNOPSIS
+    char_val()
+    X        IN   Character to find value for
+                                  
+  RETURN
+    Appropriate integer value
+*/
+
 
 
 inline uint char_val(char X)
@@ -162,30 +446,45 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+
 /*
-** This code detects new version password by leading char. 
-** Old password has to be divisible by 8 length
-** do not forget to increase array length if you need longer passwords
-** THIS FUNCTION DOES NOT HAVE ANY LENGTH CHECK 
+  Get Binary salt from password as in mysql.user format
+  
+  SYNOPSIS
+    get_salt_from_password()
+    res      OUT  Store binary salt here
+    password IN   Password string as stored in mysql.user
+                                  
+  RETURN
+    none
+    
+  NOTE
+    This function does not have length check for passwords. It will just crash
+    Password hashes in old format must have length divisible by 8     
 */
 
 void get_salt_from_password(ulong *res,const char *password)
 {
   bzero(res,6*sizeof(res[0]));
-  if (password) // zero salt corresponds to empty password 
+  if (password) /* zero salt corresponds to empty password */
   {
-    if (password[0]==PVERSION41_CHAR) // if new password
+    if (password[0]==PVERSION41_CHAR) /* if new password */
     {
       uint val=0;
       uint i;
-      password++; // skip version identifier.
+      password++; /* skip version identifier */
       
-      //get hashing salt from password and store in in the start of array      
+      /*get hashing salt from password and store in in the start of array */
       for (i=0 ; i < 4 ; i++)
 	val=(val << 4)+char_val(*password++);
       *res++=val; 
     }
-     // We process old passwords the same way as new ones in other case
+     /* We process old passwords the same way as new ones in other case */
+#ifdef EXTRA_DEBUG
+    if (strlen(password)%8!=0)
+      fprintf(stderr,"Warning: Incorrect password length for salting: %d\n",
+              strlen(password)); 
+#endif     
     while (*password)
     {
       ulong val=0;
@@ -198,40 +497,168 @@ void get_salt_from_password(ulong *res,const char *password)
   return;
 }
 
+
+/*
+  Get string version as stored in mysql.user from salt form
+  
+  SYNOPSIS
+    make_password_from_salt()
+    to       OUT  Store resulting string password here
+    hash_res IN   Password in salt format
+    password_version
+             IN   According to which version salt should be treated
+                                  
+  RETURN
+    none
+*/
+
 void make_password_from_salt(char *to, ulong *hash_res,uint8 password_version)
 {
-  if (!password_version) // Handling of old passwords.
+  if (!password_version) /* Handling of old passwords. */
     sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
   else
     if (password_version==PVERSION41_CHAR)
-      sprintf(to,"%c%04x%08lx%08lx%08lx%08lx%08lx",(uint)hash_res[0],hash_res[1],
+      sprintf(to,"%c%04x%08lx%08lx%08lx%08lx%08lx",PVERSION41_CHAR,(unsigned short)hash_res[0],hash_res[1],
               hash_res[2],hash_res[3],hash_res[4],hash_res[5]);
-    else // Just use empty password if we can't handle it. This should not happen
+    else /* Just use empty password if we can't handle it. This should not happen */
       to[0]='\0';
 }
 
 
 /*
- * Genererate a new message based on message and password
- * The same thing is done in client and server and the results are checked.
- */
+  Convert password in salted form to binary string password and hash-salt
+  For old password this involes one more hashing
+  
+  SYNOPSIS
+    get_hash_and_password()
+    salt         IN  Salt to convert from
+    pversion     IN  Password version to use
+    hash         OUT Store zero ended hash here 
+    bin_password OUT Store binary password here (no zero at the end)
+                                  
+  RETURN
+    0 for pre 4.1 passwords
+   !0 password version char for newer passwords
+*/
 
+void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned char* bin_password)
+{
+  int t;
+  ulong* salt_end;
+  ulong val;
+  SHA1_CONTEXT context; 
+  unsigned char* bp; /* Binary password loop pointer */
+  
+  if (pversion) /* New password version assumed */
+  {
+    salt_end=salt+6;
+    sprintf(hash,"%04x",(unsigned short)salt[0]);
+    salt++; /* position to the second element */
+    while (salt<salt_end) /* Iterate over these elements*/
+    {
+      val=*salt;
+      for(t=3;t>=0;t--)
+      {
+        bin_password[t]=val%256;
+        val>>=8; /* Scroll 8 bits to get next part*/
+      }
+      bin_password+=4; /* Get to next 4 chars*/ 
+      salt++;
+    }
+  }
+  else 
+  {
+    /* Use zero starting hash as an indication of old password */
+    hash[0]=0; 
+    salt_end=salt+2;
+    bp=bin_password;
+    /* Encode salt using SHA1 here */
+    sha1_reset(&context);
+    while (salt<salt_end) /* Iterate over these elements*/
+    {
+      val=*salt;
+      for(t=3;t>=0;t--)
+      {
+        bp[t]=val%256;
+        
+        val>>=8; /* Scroll 8 bits to get next part*/
+      }
+      bp+=4; /* Get to next 4 chars*/ 
+      salt++;
+    }
+    /* Use 8 bytes of binary password for hash */
+    sha1_input(&context,(uint8*)bin_password,8);	
+    sha1_result(&context,(uint8*)bin_password);    
+  }    
+}
+
+
+/*
+  Create key from old password to decode scramble  
+  Used in 4.1 authentication with passwords stored old way
+  
+  SYNOPSIS
+    create_key_from_old_password()
+    passwd    IN  Password used for key generation
+    key       OUT Created 20 bytes key 
+                                  
+  RETURN
+    None
+*/
+
+
+void create_key_from_old_password(const char* passwd, char* key)
+{
+  char  buffer[20]; /* Buffer for various needs */
+  ulong salt[6];    /* Salt (large for safety) */
+  /* At first hash password to the string stored in password */
+  make_scrambled_password(buffer,passwd,1,(struct rand_struct *)NULL);
+  /* Now convert it to the salt form */
+  get_salt_from_password(salt,buffer);
+  /* Finally get hash and bin password from salt */
+  get_hash_and_password(salt,0,buffer,(unsigned char*) key);
+}
+
+ 
+/*
+  Scramble string with password 
+  Used at pre 4.1 authentication phase.
+  
+  SYNOPSIS
+    scramble()
+    to        OUT Store scrambled message here
+    message   IN  Message to scramble
+    password  IN  Password to use while scrambling
+    old_ver   IN  Forse old version random number generator
+                                  
+  RETURN
+    End of scrambled string
+*/
+ 
 char *scramble(char *to,const char *message,const char *password,
 	       my_bool old_ver)
 {
   struct rand_struct rand_st;
   ulong hash_pass[2],hash_message[2];
+  char message_buffer[9]; /* Real message buffer */
+  char* msg=message_buffer;  
+  
+  /* We use special message buffer now as new server can provide longer hash */
+  
+  memcpy(message_buffer,message,8);
+  message_buffer[8]=0;
+  
   if (password && password[0])
   {
     char *to_start=to;
     hash_password(hash_pass,password);
-    hash_password(hash_message,message);
+    hash_password(hash_message,message_buffer);
     if (old_ver)
       old_randominit(&rand_st,hash_pass[0] ^ hash_message[0]);
     else
       randominit(&rand_st,hash_pass[0] ^ hash_message[0],
 		 hash_pass[1] ^ hash_message[1]);
-    while (*message++)
+    while (*msg++)
       *to++= (char) (floor(rnd(&rand_st)*31)+64);
     if (!old_ver)
     {						/* Make it harder to break */
@@ -245,6 +672,22 @@ char *scramble(char *to,const char *message,const char *password,
 }
 
 
+/*
+  Check scrambled message 
+  Used for pre 4.1 password handling
+  
+  SYNOPSIS
+    scramble()
+    scrambled IN  Scrambled message to check
+    message   IN  Original message which was scramble
+    hash_pass IN  Password which should be used for scrambling
+    old_ver   IN  Forse old version random number generator
+                                  
+  RETURN
+    0  Password correct
+   !0  Password invalid
+*/
+
 my_bool check_scramble(const char *scrambled, const char *message,
 		       ulong *hash_pass, my_bool old_ver)
 {
@@ -252,8 +695,12 @@ my_bool check_scramble(const char *scrambled, const char *message,
   ulong hash_message[2];
   char buff[16],*to,extra;			/* Big enough for check */
   const char *pos;
+  char message_buffer[9];                      /* Copy of message */
 
-  hash_password(hash_message,message);
+  memcpy(message_buffer,message,8); /* Old auth uses 8 bytes at maximum */
+  message_buffer[8]=0;
+  
+  hash_password(hash_message,message_buffer);
   if (old_ver)
     old_randominit(&rand_st,hash_pass[0] ^ hash_message[0]);
   else

@@ -45,13 +45,13 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 #define SCRAMBLE_LENGTH 8
+#define SCRAMBLE41_LENGTH 20
 
 #define MEM_ROOT_BLOCK_SIZE       8192
 #define MEM_ROOT_PREALLOC         8192
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
-extern uint connection_auth_flag;
 
 extern int yyparse(void);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -180,40 +180,51 @@ end:
 */
 
 static bool check_user(THD *thd,enum_server_command command, const char *user,
-		       const char *passwd, const char *db, bool check_count)
+		       const char *passwd, const char *db, bool check_count, 
+                       bool do_send_error, char* crypted_scramble,int stage,
+                       bool had_password)
 {
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
-
-  if (!(thd->user = my_strdup(user, MYF(0))))
-  {
-    send_error(thd,ER_OUT_OF_RESOURCES);
-    return 1;
-  }
+  /* We shall avoid dupplicate user allocations here */ 
+  if (!(thd->user))
+    if (!(thd->user = my_strdup(user, MYF(0))))
+    {
+      send_error(thd,ER_OUT_OF_RESOURCES);
+      return 1;
+    }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&ur);
+				   CLIENT_LONG_PASSWORD),&ur,crypted_scramble,stage);
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
-	      passwd[0] ? "yes": "no",
+	      had_password ? "yes": "no",
 	      thd->master_access, thd->db ? thd->db : "*none*"));
+                            
+  /* in case we're going to retry we should not send error message at this point */              
   if (thd->master_access & NO_ACCESS)
   {
-    net_printf(thd, ER_ACCESS_DENIED_ERROR,
-	       thd->user,
+    if (do_send_error)
+    {
+      net_printf(thd, ER_ACCESS_DENIED_ERROR,
+      	       thd->user,
 	       thd->host_or_ip,
-	       passwd[0] ? ER(ER_YES) : ER(ER_NO));
-    mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
+	       had_password ? ER(ER_YES) : ER(ER_NO));
+      mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
 		    thd->user,
 		    thd->host_or_ip,
-		    passwd[0] ? ER(ER_YES) : ER(ER_NO));
-    return(1);					// Error already given
+		    had_password ? ER(ER_YES) : ER(ER_NO));
+      return(1);					// Error already given
+    }    
+    else     
+      return(-1); // do not report error in special handshake
   }
+      
   if (check_count)
   {
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -505,9 +516,10 @@ check_connections(THD *thd)
   ulong pkt_len=0;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
+    char buff[SERVER_VERSION_LENGTH + 
+    SCRAMBLE_LENGTH+64],*end;
     int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | 
-                       CLIENT_PROTOCOL_41 | connection_auth_flag;
+                       CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION;
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
@@ -529,6 +541,8 @@ check_connections(THD *thd)
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
+    
+    // At this point we write connection message and read reply
     if (net_write_command(net,(uchar) protocol_version, "", 0, buff,
 			  (uint) (end-buff)) ||
        (pkt_len= my_net_read(net)) == packet_error ||
@@ -581,19 +595,82 @@ check_connections(THD *thd)
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
-  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
-    return ER_HANDSHAKE_ERROR;
-  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
-    db=strend(passwd)+1;
+  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB) 
+     db=strend(passwd)+1; 
+  
+  /* We can get only old hash at this point */
+  if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH) 
+      return ER_HANDSHAKE_ERROR;
+
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
-    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
+     thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
-      opt_using_transactions)
-    thd->net.return_status= &thd->server_status;
+       opt_using_transactions)
+  thd->net.return_status= &thd->server_status;
   net->read_timeout=(uint) thd->variables.net_read_timeout;
-  if (check_user(thd,COM_CONNECT, user, passwd, db, 1))
-    return (-1);
-  thd->password=test(passwd[0]);
+    
+  char prepared_scramble[SCRAMBLE41_LENGTH+4]; /* Buffer for scramble and hash */
+   
+  /* Simple connect only for old clients. New clients always use secure auth */
+  bool simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
+  
+  /* Store information if we used password. passwd will be dammaged */
+  bool using_password=test(passwd[0]);
+  
+  /* Check user permissions. If password failure we'll get scramble back */
+  if (check_user(thd,COM_CONNECT, user, passwd, db, 1, simple_connect,
+      prepared_scramble,0,using_password))
+  { 
+    /* If The client is old we just have to return error */
+    if (simple_connect)
+      return -1;  
+          
+    /* Store current used and database as they are erased with next packet */
+    
+    char tmp_user[USERNAME_LENGTH+1];
+    char tmp_db[NAME_LEN+1];
+
+    if (user)
+    {
+      strncpy(tmp_user,user,USERNAME_LENGTH+1);
+      /* Extra safety if we have too long data */
+      tmp_user[USERNAME_LENGTH]=0;   
+    } 
+    else
+      tmp_user[0]=0;  
+    if (db)
+    {
+      strncpy(tmp_db,db,NAME_LEN+1);
+      tmp_db[NAME_LEN]=0;
+    }  
+    else 
+      tmp_db[0]=0;
+    
+    /* Write hash and encrypted scramble to client */
+    if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) 
+        || net_flush(net))                      
+      {
+        inc_host_errors(&thd->remote.sin_addr);
+        return ER_HANDSHAKE_ERROR;
+      }  
+    /* Reading packet back */  
+    if ((pkt_len=my_net_read(net)) == packet_error)     
+      {
+        inc_host_errors(&thd->remote.sin_addr);
+        return ER_HANDSHAKE_ERROR;
+      }
+    /* We have to get very specific packet size  */  
+    if (pkt_len!=SCRAMBLE41_LENGTH) 
+      {
+        inc_host_errors(&thd->remote.sin_addr);
+        return ER_HANDSHAKE_ERROR;  
+      }
+    /* Final attempt to check the user based on reply */ 
+    if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos, 
+        tmp_db, 1, 1,prepared_scramble,1,using_password))
+      return -1;
+  }
+  thd->password=using_password;
   return 0;
 }
 
@@ -954,7 +1031,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       send_error(thd, ER_UNKNOWN_COM_ERROR);
       break;
     }
-    if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0))
+    /* WARNING THIS HAS TO BE REWRITTEN */
+    char tmp_buffer[64];
+    printf("Change user called: %s %s %s\n",user,passwd,db);
+    if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0,1,tmp_buffer,0,1))
     {						// Restore old user
       x_free(thd->user);
       x_free(thd->db);

@@ -67,7 +67,7 @@ ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
                              | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
-			     | CLIENT_PROTOCOL_41)
+			     | CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
 
 #ifdef __WIN__
@@ -1585,6 +1585,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
+  char          password_hash[20]; /* Used for tmp storage of stage1 hash */
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1789,7 +1790,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
-  /* Check if version of protocoll matches current one */
+  /* Check if version of protocol matches current one */
 
   mysql->protocol_version= net->read_pos[0];
   DBUG_DUMP("packet",(char*) net->read_pos,10);
@@ -1855,7 +1856,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
     goto error;
   }
-
+  
   /* Save connection information */
   if (!user) user="";
   if (!passwd) passwd="";
@@ -1962,32 +1963,105 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld  status: %d  client_flag: %d",
 		     mysql->server_version,mysql->server_capabilities,
 		     mysql->server_status, client_flag));
-
   int3store(buff+2,max_allowed_packet);
   if (user && user[0])
     strmake(buff+5,user,32);			/* Max user name */
   else
     read_user_name((char*) buff+5);
+  /* We have to handle different version of handshake here */    
 #ifdef _CUSTOMCONFIG_
 #include "_cust_libmysql.h";
 #endif
   DBUG_PRINT("info",("user: %s",buff+5));
-  end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
-	       (my_bool) (mysql->protocol_version == 9));
+  /* 
+    We always start with old type handshake the only difference is message sent
+    If server handles secure connection type we'll not send the real scramble
+   */
+  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    if (passwd[0])
+    {
+      /* Use something for not empty password not to match it against empty one */
+      end=scramble(strend(buff+5)+1, mysql->scramble_buff,"~MySQL#!",
+                 (my_bool) (mysql->protocol_version == 9));                 
+    }             
+    else  /* For empty password*/ 
+    {
+      end=strend(buff+5)+1;
+      *end=0; /* Store zero length scramble */
+    }
+  }
+  /* Real scramble is sent only for servers. This is to be blocked by option */
+  else
+    end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
+                 (my_bool) (mysql->protocol_version == 9));
+                                              
+  /* Add database if needed */	       
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmake(end+1,db,NAME_LEN);
+    end=strmake(end+1,db,NAME_LEN);  
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
+  /* Write authentication package */ 
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
   {
-    net->last_errno= CR_SERVER_LOST;
+    net->last_errno= CR_SERVER_LOST; 
     strmov(net->last_error,ER(net->last_errno));    
     goto error;
   }
-  if (net_safe_read(mysql) == packet_error)
+    
+  /* We shall only query sever if it expect us to do so */ 
+    
+  if ( (pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
+
+  if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /* This should basically always happen with new server unless empty password */
+    if (pkt_length==24) /* We have new hash back */
+    {
+      /* Old passwords will have zero at the first byte of hash */
+      if (net->read_pos[0]) 
+      {
+        /* Build full password hash as it is required to decode scramble */        
+        password_hash_stage1(buff, passwd);        
+        /* Store copy as we'll need it later */
+        memcpy(password_hash,buff,20);
+        /* Finally hash complete password using hash we got from server */
+        password_hash_stage2(password_hash,net->read_pos);
+        /* Decypt and store scramble 4 = hash for stage2 */
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
+        mysql->scramble_buff[20]=0;    
+        /* Encode scramble with password. Recycle buffer */
+        password_crypt(mysql->scramble_buff,buff,buff,20);
+      }
+      else
+      {
+       /* Create password to decode scramble */
+       create_key_from_old_password(passwd,password_hash);
+       /* Decypt and store scramble 4 = hash for stage2 */
+       password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
+       mysql->scramble_buff[20]=0;    
+       /* Finally scramble decoded scramble with password */    
+       scramble(buff, mysql->scramble_buff, passwd,
+                 (my_bool) (mysql->protocol_version == 9));    
+      }    
+      /* Write second package of authentication */
+      if (my_net_write(net,buff,20) || net_flush(net))
+      {
+        net->last_errno= CR_SERVER_LOST; 
+        strmov(net->last_error,ER(net->last_errno));    
+        goto error;
+      }
+      /* Read What server thinks about out new auth message report */ 
+      if (net_safe_read(mysql) == packet_error)
+          goto error;
+    }
+  }
+    
+    /* End of authentication part of handshake */      
+    
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
   if (db && mysql_select_db(mysql,db))
