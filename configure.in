@@ -1881,7 +1881,10 @@ then
 
       echo "Modifying Berkeley DB install target"
       sed -e '/^install:/ c\
-install: all		# modified by MySQL configure' \
+install: all		# modified by MySQL configure\
+dnl This is needed because in some versions of BDB the install target
+dnl is continued on a second line.
+mysql-noinstall-hack:' \
         "$bdb/build_unix/Makefile" > ac_BDB_Makefile
 
       rm "$bdb/build_unix/Makefile" \

@@ -812,23 +812,24 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
   test -z "$db_minor" && db_minor=0
   test -z "$db_patch" && db_patch=0
 
-  if test $db_major -gt 3
-  then
-    bdb_version_ok=yes
-  elif test $db_major -eq 3 && test $db_minor -gt 2
-  then
-    bdb_version_ok=yes
-  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -gt 3
-  then
-    bdb_version_ok=yes
   # This is ugly, but about as good as it can get
-  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3 &&\
-       grep 'DB_VERSION_STRING.*h: ' [$1] > /dev/null
+  mysql_bdb=
+  if test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3
+  then
+    mysql_bdb=h
+  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 9
+  then
+    want_bdb_version="3.2.9a"	# hopefully this will stay up-to-date
+    mysql_bdb=a
+  fi
+
+  if test -n "$mysql_bdb" && \
+	grep "DB_VERSION_STRING.*:.*$mysql_bdb: " [$1] > /dev/null
   then
     bdb_version_ok=yes
   else
     bdb_version_ok="invalid version $db_major.$db_minor.$db_patch"
-    bdb_version_ok="$bdb_version_ok (must be at least version 3.2.3g)"
+    bdb_version_ok="$bdb_version_ok (must be version 3.2.3h or $want_bdb_version)"
   fi
 ])
 
