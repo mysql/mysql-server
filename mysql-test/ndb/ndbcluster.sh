@@ -81,9 +81,9 @@ while test $# -gt 0; do
   shift
 done
 
-fs_ndb=$fsdir/ndbcluster
-fs_name_1=$fs_ndb/node-1-fs-$port_base
-fs_name_2=$fs_ndb/node-2-fs-$port_base
+fs_ndb=$fsdir/ndbcluster-$port_base
+fs_name_1=$fs_ndb/node-1-fs
+fs_name_2=$fs_ndb/node-2-fs
 
 NDB_HOME=
 export NDB_CONNECTSTRING
@@ -100,11 +100,13 @@ if [ ! -x $exec_mgmtsrv ]; then
   exit 1
 fi
 
+ndb_host="localhost"
+ndb_mgmd_port=$port_base
+export NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
+
 start_default_ndbcluster() {
 
 # do some checks
-
-NDB_CONNECTSTRING=
 
 if [ $initial_ndb ] ; then
   [ -d $fs_ndb ] || mkdir $fs_ndb
@@ -118,11 +120,7 @@ fi
 
 # set som help variables
 
-ndb_host="localhost"
-ndb_mgmd_port=$port_base
 port_transporter=`expr $ndb_mgmd_port + 2`
-export NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
-
 
 # Start management server as deamon
 
@@ -143,29 +141,29 @@ sed \
     > "$fs_ndb/config.ini"
 fi
 
-rm -f Ndb.cfg
-rm -f $fs_ndb/Ndb.cfg
+rm -f $cfgfile 2>&1 | cat > /dev/null
+rm -f $fs_ndb/$cfgfile 2>&1 | cat > /dev/null
 
 if ( cd $fs_ndb ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
 
-cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
 # Start database node 
 
 echo "Starting ndbd"
 ( cd $fs_ndb ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
 # Start database node 
 
 echo "Starting ndbd"
 ( cd $fs_ndb ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
 # test if Ndb Cluster starts properly
 
@@ -175,14 +173,14 @@ if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   exit 1
 fi
 
-cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
 status_ndbcluster
 }
 
 status_ndbcluster() {
   # Start management client
-  echo "show" | $exec_mgmtclient $ndb_host $ndb_mgmd_port
+  echo "show" | $exec_mgmtclient
 }
 
 stop_default_ndbcluster() {
@@ -191,26 +189,20 @@ stop_default_ndbcluster() {
 #  exit 0
 #fi
 
-if [ ! -f $cfgfile ] ; then
-  echo "$cfgfile missing"
-  exit 1
-fi
-
-ndb_host=`cat $cfgfile | sed -e "s,.*host=\(.*\)\:.*,\1,1"`
-ndb_mgmd_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
+#if [ ! -f $cfgfile ] ; then
+#  echo "$cfgfile missing"
+#  exit 1
+#fi
 
 # Start management client
 
-exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_mgmd_port"
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 
-echo "$exec_mgmtclient"
-echo "all stop" | $exec_mgmtclient
+echo "all stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
 
-sleep 5
-
-if [ -f $pidfile ] ; then
-  kill `cat $pidfile` 2> /dev/null
-  rm $pidfile
+if [ -f $fs_ndb/$pidfile ] ; then
+  kill -9 `cat $fs_ndb/$pidfile` 2> /dev/null
+  rm $fs_ndb/$pidfile
 fi
 
 }
