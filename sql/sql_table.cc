@@ -877,7 +877,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	  DBUG_RETURN(-1);
       }
-      key_part_info->length=(uint8) length;
+      if (length > file->max_key_part_length())
+      {
+	my_error(ER_WRONG_SUB_KEY,MYF(0));
+	DBUG_RETURN(-1);
+      }
+      key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!(db_options & HA_OPTION_NO_PACK_KEYS) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&

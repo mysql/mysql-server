@@ -48,7 +48,6 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-char *memdup_mysql(struct st_mysql *mysql, const char*data, int length);
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
@@ -1420,8 +1419,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
 #else
-      thd->query_rest= (char*)memdup_mysql(thd->mysql, packet, length);
-      thd->query_rest_length= length;
+      /*
+	'packet' can point inside the query_rest's buffer
+	so we have to do memmove here
+       */
+      if (thd->query_rest.length() > length)
+      {
+	memmove(thd->query_rest.c_ptr(), packet, length);
+	thd->query_rest.length(length);
+      }
+      else
+	thd->query_rest.copy(length);
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
@@ -3854,23 +3862,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse((void *)thd) && ! thd->is_fatal_error &&
-        /*
-          If this is not a multiple query, ensure that it has been
-          successfully parsed until the last character. This is to prevent
-          against a wrong (too big) length passed to mysql_real_query(),
-          mysql_prepare()... which can generate garbage characters at the
-          end. If the query was initially multiple, found_colon will be false
-          only when we are in the last query; this last query had already
-          been end-spaces-stripped by alloc_query() in dispatch_command(); as
-          end spaces are the only thing we accept at the end of a query, and
-          they have been stripped already, here we can require that nothing
-          remains after parsing.
-        */
-        (thd->lex->found_colon ||
-         (char*)(thd->lex->ptr) == (thd->query+thd->query_length+1) ||
-         /* yyerror() will show the garbage chars to the user */
-         (yyerror("syntax error"), 0)))
+    if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->user_connect &&

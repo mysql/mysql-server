@@ -534,6 +534,8 @@ typedef struct st_mysql_stmt
   char		 *query;	       /* query buffer */
   MEM_ROOT	 mem_root;	       /* root allocations */
   my_ulonglong   last_fetched_column;  /* last fetched column */
+  my_ulonglong   affected_rows;        /* copy of mysql->affected_rows
+                                          after statement execution */
   unsigned long	 stmt_id;	       /* Id for prepared statement */
   unsigned int	 last_errno;	       /* error code */
   unsigned int   param_count;	       /* parameters count */

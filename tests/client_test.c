@@ -8113,6 +8113,84 @@ static void test_parse_error_and_bad_length()
 }
 
 
+static void test_bug2247()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_RES *res;
+  int rc;
+  int i;
+  const char *create= "CREATE TABLE bug2247(id INT UNIQUE AUTO_INCREMENT)";
+  const char *insert= "INSERT INTO bug2247 VALUES (NULL)";
+  const char *select= "SELECT id FROM bug2247";
+  const char *update= "UPDATE bug2247 SET id=id+10";
+  const char *drop= "DROP TABLE IF EXISTS bug2247";
+  ulonglong exp_count;
+  enum { NUM_ROWS= 5 };
+
+  myheader("test_bug2247");
+  
+  fprintf(stdout, "\nChecking if stmt_affected_rows is not affected by\n"
+                  "mysql_query ... ");
+  /* create table and insert few rows */
+  rc = mysql_query(mysql, drop);
+  myquery(rc);
+  
+  rc= mysql_query(mysql, create);
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, insert, strlen(insert));
+  mystmt_init(stmt);
+  for (i= 0; i < NUM_ROWS; ++i)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+  }
+  exp_count= mysql_stmt_affected_rows(stmt);
+  assert(exp_count == 1);
+
+  rc= mysql_query(mysql, select);
+  myquery(rc);
+  /* 
+    mysql_store_result overwrites mysql->affected_rows. Check that
+    mysql_stmt_affected_rows() returns the same value, whereas
+    mysql_affected_rows() value is correct.
+  */
+  res= mysql_store_result(mysql);
+  mytest(res);
+
+  assert(mysql_affected_rows(mysql) == NUM_ROWS);
+  assert(exp_count == mysql_stmt_affected_rows(stmt));
+  
+  rc= mysql_query(mysql, update);
+  myquery(rc);
+  assert(mysql_affected_rows(mysql) == NUM_ROWS);
+  assert(exp_count == mysql_stmt_affected_rows(stmt));
+
+  mysql_free_result(res);
+  mysql_stmt_close(stmt);
+
+  /* check that mysql_stmt_store_result modifies mysql_stmt_affected_rows */
+  stmt= mysql_prepare(mysql, select, strlen(select));
+  mystmt_init(stmt);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+  rc= mysql_stmt_store_result(stmt);
+  mystmt(stmt, rc);
+  exp_count= mysql_stmt_affected_rows(stmt);
+  assert(exp_count == NUM_ROWS);
+
+  rc= mysql_query(mysql, insert);
+  myquery(rc);
+  assert(mysql_affected_rows(mysql) == 1);
+  assert(mysql_stmt_affected_rows(stmt) == exp_count);
+  
+  mysql_stmt_close(stmt);
+  fprintf(stdout, "OK");
+}
+
+
+
 static void test_subqueries()
 {
   MYSQL_STMT *stmt;
@@ -8195,7 +8273,9 @@ static void test_distinct()
   myquery(rc);
 }
 
-
+/*
+  Test for bug#2248 "mysql_fetch without prior mysql_execute hangs"
+*/
 
 static void test_bug2248()
 {
@@ -8502,6 +8582,9 @@ int main(int argc, char **argv)
     test_bug2248();         /* BUG#2248 */ 
     test_parse_error_and_bad_length(); /* test if bad length param in
                                          mysql_prepare() triggers error */
+    test_bug2247();         /* test that mysql_stmt_affected_rows() returns
+                               number of rows affected by last prepared 
+                               statement execution */
     test_subqueries();	    /* repeatable subqueries */
     test_bad_union();       /* correct setup of UNION */
     test_distinct();	    /* distinct aggregate functions */
