@@ -5475,4 +5475,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
       def=new Item_string(pos,tmp.length(), charset);
     }
   }
+  if (sql_type == FIELD_TYPE_GEOMETRY)
+  {
+    geom_type= ((Field_geom*)old_field)->geom_type;
+  }
 }

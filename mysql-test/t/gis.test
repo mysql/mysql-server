@@ -121,3 +121,22 @@ Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gc g1, gc g2 ORDER BY first, second;
 
 DROP TABLE pt, ls, p, mpt, mls, mp, gc, geo;
+
+#
+# Check that ALTER TABLE doesn't loose geometry type
+#
+CREATE TABLE g1 (
+  pt  point,
+  ln  linestring,
+  pg  polygon,
+  mpt multipoint,
+  mln multilinestring,
+  mpg multipolygon,
+  gc  geometrycollection,
+  gm  geometry
+);
+
+SHOW FIELDS FROM g1;
+ALTER TABLE g1 ADD fid INT NOT NULL;
+SHOW FIELDS FROM g1;
+DROP TABLE g1;
