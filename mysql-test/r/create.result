@@ -456,6 +456,20 @@ Field	Type	Null	Key	Default	Extra
 name	varchar(10)	YES		NULL	
 age	smallint(6)	YES		-1	
 drop table t1, t2;
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+Warnings:
+Error	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Error	1291	Column 'cset' has duplicated value 'b' in SET
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+Warnings:
+Error	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Error	1291	Column 'cenum' has duplicated value 'A' in ENUM
+Error	1291	Column 'cenum' has duplicated value 'c' in ENUM
+Error	1291	Column 'cset' has duplicated value 'b' in SET
+Error	1291	Column 'cset' has duplicated value 'B' in SET
+Error	1291	Column 'cset' has duplicated value 'd' in SET
+drop table t1, t2, t3;
 create database test_$1;
 use test_$1;
 select database();

@@ -347,6 +347,15 @@ describe t2;
 drop table t1, t2;
 
 #
+# test for bug #1427 "enum allows duplicate values in the list"
+#
+
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+drop table t1, t2, t3;
+
+#
 # Bug #1209
 #
 
