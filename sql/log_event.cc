@@ -1968,10 +1968,10 @@ end:
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
+  char *load_data_query= 0;
   init_sql_alloc(&thd->mem_root, thd->variables.query_alloc_block_size, 0);
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query = 0;				// Should not be needed
   clear_all_errors(thd, rli);
 
   if (!use_rli_only_for_errors)
@@ -2024,6 +2024,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup;
+      /*
+        Make a simplified LOAD DATA INFILE query, for the information of the
+        user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
+      */
+      if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
+                                               strlen(tables.real_name) + 8)))
+      {
+        thd->query_length= (uint)(strxmov(load_data_query,
+                                          "LOAD DATA INFILE '", fname,
+                                          "' INTO TABLE `", tables.real_name,
+                                          "` <...>", NullS) - load_data_query);
+        thd->query= load_data_query;
+      }
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
@@ -2103,8 +2116,14 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
-  thd->db= 0;					// prevent db from being freed
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->db= 0;
+  thd->query= 0;
+  thd->query_length= 0;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
+  if (load_data_query)
+    my_afree(load_data_query);
   if (thd->query_error)
   {
     /* this err/sql_errno code is copy-paste from send_error() */
@@ -2326,7 +2345,7 @@ int Slave_log_event::exec_event(struct st_relay_log_info* rli)
 
 int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname_buf[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname_buf= proc_info+17;
   char *p;
   int fd = -1;
   IO_CACHE file;
@@ -2335,6 +2354,8 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   bzero((char*)&file, sizeof(file));
   p = slave_load_file_stem(fname_buf, file_id, server_id);
   strmov(p, ".info");			// strmov takes less code than memcpy
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
@@ -2376,6 +2397,7 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     my_close(fd, MYF(0));
+  thd->proc_info= 0;
   return error ? 1 : Log_event::exec_event(rli);
 }
 
@@ -2392,12 +2414,14 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
 
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
 
   memcpy(p, ".data", 6);
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
@@ -2413,6 +2437,7 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 err:
   if (fd >= 0)
     my_close(fd, MYF(0));
+  thd->proc_info= 0;
   return error ? error : Log_event::exec_event(rli);
 }
 
