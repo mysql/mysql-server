@@ -3168,6 +3168,12 @@ If you are interested in any of the jobs listed in our
 @uref{http://www.mysql.com/development/jobs/, jobs} section, please send mail
 to @email{jobs@@mysql.com}.
 
+For technical questions about @strong{MySQL}, please direct your question to the
+appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing list}.
+If this does not answer your question, perhaps it would better suit you to
+@uref{https://order.mysql.com/, order} one of our
+@uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
+
 For questions or comments about the workings or content of this website, please
 send mail to @email{webmaster@@mysql.com}.
 
