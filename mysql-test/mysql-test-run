@@ -43,6 +43,7 @@ cd ..
 BASEDIR=`pwd`
 cd $CWD
 MYSQL_TEST_DIR=$BASEDIR/mysql-test
+STD_DATA=$MYSQL_TEST_DIR/std_data
   
 TESTDIR="$MYSQL_TEST_DIR/t/"
 TESTSUFFIX=test
@@ -126,6 +127,7 @@ else
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  INSTALL_DB="../scripts/install_test_db -bin"
 fi
+
 
 SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
 
@@ -394,8 +396,8 @@ mysql_restart () {
 }
 
 mysql_loadstd () {
-
-    #sleep 2
+    
+    cp $STD_DATA/*.frm $STD_DATA/*.MRG $MASTER_MYDDIR/test  
     return 1
 }
 
@@ -506,11 +508,11 @@ then
  [ $res = 1 ] && echo_ok
 fi
 
-#$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
-#mysql_loadstd
-#res=$?
-#[ $res != 1 ] && echo_notok && error "Loading STD"
-#[ $res = 1 ] && echo_ok
+$SETCOLOR_NORMAL && $ECHO -n "Loading Standard Test Database"
+mysql_loadstd
+res=$?
+[ x$res != x1 ] && echo_notok && error "Loading STD"
+[ x$res = x1 ] && echo_ok
 
 $SETCOLOR_NORMAL && $ECHO -n "Starting Tests for MySQL $TESTVER Series"
 $SETCOLOR_SUCCESS && echo_ok
