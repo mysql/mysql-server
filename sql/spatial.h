@@ -211,8 +211,7 @@ public:
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
 public:
-  static Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer,
-					      int type_id)
+  static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id)
   {
     Class_info *ci;
     if (!(ci= find_class((int) type_id)))
@@ -251,7 +250,7 @@ public:
   }
 
   bool envelope(String *result) const;
-  static Geometry::Class_info *ci_collection[Geometry::wkb_end+1];
+  static Class_info *ci_collection[wkb_end+1];
 
 protected:
   static Class_info *find_class(int type_id)
