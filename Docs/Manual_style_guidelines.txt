@@ -258,3 +258,6 @@ Paul, I think we should also decide whether to write Version or version, and in 
 After a semicolon, don't use uppercase. It is NOT the start of a new sentence!
 
 It's "unstable", not "instable". ;-)
+
+It's "full-text", not "fulltext".
+
