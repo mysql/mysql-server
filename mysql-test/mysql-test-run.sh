@@ -1040,7 +1040,7 @@ start_slave()
           --core --init-rpl-role=slave \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --skip-innodb --skip-ndb --skip-slave-start \
+          --skip-innodb --skip-ndbcluster --skip-slave-start \
           --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
           --report-host=127.0.0.1 --report-user=root \
           --report-port=$slave_port \
