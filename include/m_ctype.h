@@ -257,11 +257,11 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define my_strcasecmp(s, a, b)        ((s)->strcasecmp((s), (a), (b)))
 #define my_strncasecmp(s, a, b, l)    ((s)->strncasecmp((s), (a), (b), (l)))
 
-#define my_strtol(s, a, b, c, d)      ((s)->strtol((s),(a),(b),(c),(d)))
-#define my_strtoul(s, a, b, c, d)     ((s)->strtoul((s),(a),(b),(c),(d)))
-#define my_strtoll(s, a, b, c, d)     ((s)->strtoll((s),(a),(b),(c),(d)))
-#define my_strtoull(s, a, b, c,d)     ((s)->strtoull((s),(a),(b),(c),(d)))
-#define my_strtod(s, a, b, c )        ((s)->strtod((s),(a),(b),(c)))
+#define my_strntol(s, a, b, c, d)      ((s)->strntol((s),(a),(b),(c),(d)))
+#define my_strntoul(s, a, b, c, d)     ((s)->strntoul((s),(a),(b),(c),(d)))
+#define my_strntoll(s, a, b, c, d)     ((s)->strntoll((s),(a),(b),(c),(d)))
+#define my_strntoull(s, a, b, c,d)     ((s)->strntoull((s),(a),(b),(c),(d)))
+#define my_strntod(s, a, b, c )        ((s)->strntod((s),(a),(b),(c)))
 
 
 /* XXX: still need to take care of this one */

@@ -921,8 +921,7 @@ void Field_decimal::sql_type(String &res) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,(char **)NULL,10);
   int error= 0;
 
   if (unsigned_flag)
@@ -1116,8 +1115,7 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,NULL,10);
   int error= 0;
   if (unsigned_flag)
   {
@@ -1380,8 +1378,7 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long tmp= strtol(tmp_str.c_ptr(),NULL,10);
+  long tmp= my_strntol(cs,from,len,NULL,10);
   int error= 0;
 
   if (unsigned_flag)
@@ -3097,8 +3094,7 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
-  String tmp_str(from,len,default_charset_info);
-  long nr= strtol(tmp_str.c_ptr(),NULL,10);
+  long nr= my_strntol(cs,from,len,NULL,10);
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
