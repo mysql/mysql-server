@@ -1305,7 +1305,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      error, i, intg0, frac0, len1, len2, dlen1, dintg;
+      error, i, intg0, frac0, len1, len2, dlen1, dintg, div=(!mod);
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1;
   dec2 norm_factor, x, guess, y;
@@ -1387,8 +1387,9 @@ static int do_div_mod(decimal *from1, decimal *from2,
   }
   buf0=to->buf;
   stop0=buf0+intg0+frac0;
-  while (dintg++ < 0)
-    *buf0++=0;
+  if (likely(div))
+    while (dintg++ < 0)
+      *buf0++=0;
 
   len1=(i=ROUND_UP(prec1))+ROUND_UP(2*frac2+scale_incr+1);
   set_if_bigger(len1, 3);
@@ -1427,7 +1428,8 @@ static int do_div_mod(decimal *from1, decimal *from2,
     if (unlikely(*start1 == 0))
     {
       start1++;
-      *buf0=0;
+      if (likely(div))
+        *buf0=0;
       continue;
     }
 
@@ -1493,7 +1495,8 @@ static int do_div_mod(decimal *from1, decimal *from2,
       }
       DBUG_ASSERT(carry==1);
     }
-    *buf0=(dec1)guess;
+    if (likely(div))
+      *buf0=(dec1)guess;
     if (*start1 == 0)
       start1++;
   }
@@ -1988,6 +1991,12 @@ main()
   test_md("234.567","10.555");
   test_md("-234.567","10.555");
   test_md("234.567","-10.555");
+  if (full)
+  {
+    c.buf[1]=0x3ABECA;
+    test_md("99999999999999999999999999999999999999","3");
+    printf("%X\n", c.buf[1]);
+  }
 
   printf("==== decimal2bin/bin2decimal ====\n");
   test_d2b2d("-10.55", 4, 2);
