@@ -105,7 +105,7 @@ static COND *make_cond_for_table(COND *cond,table_map table,
 static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, key_map usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
-				    ha_rows select_limit);
+				    ha_rows select_limit, bool no_changes);
 static int create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit);
 static bool fix_having(JOIN *join, Item **having);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
@@ -157,7 +157,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   TABLE		*tmp_table;
   int		error,tmp;
   bool		need_tmp,hidden_group_fields;
-  bool		simple_order,simple_group,no_order;
+  bool		simple_order,simple_group,no_order, skip_sort_order;
   Item::cond_result cond_value;
   SQL_SELECT	*select;
   DYNAMIC_ARRAY keyuse;
@@ -172,7 +172,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   select_distinct=test(select_options & SELECT_DISTINCT);
   tmp_table=0;
   select=0;
-  no_order=0;
+  no_order=skip_sort_order=0;
   bzero((char*) &keyuse,sizeof(keyuse));
   thd->proc_info="init";
   thd->used_tables=0;				// Updated by setup_fields
@@ -436,8 +436,10 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       select_distinct=0;
   }
   else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (order || thd->select_limit == HA_POS_ERROR ||
-	    (join.select_options & OPTION_FOUND_ROWS)))
+	   (thd->select_limit == HA_POS_ERROR ||
+	    (join.select_options & OPTION_FOUND_ROWS) ||
+	    order &&
+	    !(skip_sort_order=test_if_skip_sort_order(&join.join_tab[join.const_tables], order, thd->select_limit,1))))
   {
     if ((group=create_distinct_group(order,fields)))
     {
@@ -521,7 +523,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (!(select_options & SELECT_BIG_RESULT) &&
       ((group && join.const_tables != join.tables &&
 	!test_if_skip_sort_order(&join.join_tab[join.const_tables], group,
-				 HA_POS_ERROR)) ||
+				 thd->select_limit,0)) ||
        select_distinct) &&
       join.tmp_table_param.quick_group && !procedure)
   {
@@ -535,10 +537,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (order &&
 	(join.const_tables == join.tables ||
 	 test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
-				 (having || group ||
-				  join.const_tables != join.tables - 1 ||
+				 (join.const_tables != join.tables - 1 ||
 				  (join.select_options & OPTION_FOUND_ROWS)) ?
-				 HA_POS_ERROR : thd->select_limit)))
+				 HA_POS_ERROR : thd->select_limit,0)))
       order=0;
     select_describe(&join,need_tmp,
 		    (order != 0 &&
@@ -574,7 +575,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			    group : (ORDER*) 0),
 			   group ? 0 : select_distinct,
 			   group && simple_group,
-			   order == 0 &&
+			   (order == 0 || skip_sort_order) &&
 			   !(join.select_options & OPTION_FOUND_ROWS),
 			   join.select_options)))
       goto err;					/* purecov: inspected */
@@ -625,6 +626,13 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	  break;
 	join_tab->not_used_in_distinct=1;
       } while (join_tab-- != join.join_tab);
+      /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
+      if (order && skip_sort_order)
+      {
+	(void) test_if_skip_sort_order(&join.join_tab[join.const_tables],
+				       order, thd->select_limit,0);
+	order=0;
+      }
     }
 
     /* Copy data to the temporary table */
@@ -4770,15 +4778,15 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
-	if (++join->send_records >= join->tmp_table_param.end_write_records &
-	    join->do_send_rows)
-	{
-	  if (!(join->select_options & OPTION_FOUND_ROWS))
-	    DBUG_RETURN(-3);
-	  join->do_send_rows=0;
-	  join->thd->select_limit = HA_POS_ERROR;
-	  DBUG_RETURN(0);
-	}
+      }
+      if (++join->send_records >= join->tmp_table_param.end_write_records &
+	  join->do_send_rows)
+      {
+	if (!(join->select_options & OPTION_FOUND_ROWS))
+	  DBUG_RETURN(-3);
+	join->do_send_rows=0;
+	join->thd->select_limit = HA_POS_ERROR;
+	DBUG_RETURN(0);
       }
     }
   }
@@ -5179,7 +5187,8 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
 /* Return 1 if we don't have to do file sorting */
 
 static bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
+test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
+			bool no_changes)
 {
   int ref_key;
   TABLE *table=tab->table;
@@ -5234,11 +5243,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	int flag;
 	if ((flag=test_if_order_by_key(order,table,nr)))
 	{
-	  tab->index=nr;
-	  tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
-				    join_init_read_last_with_key);
-	  table->file->index_init(nr);
-	  tab->type=JT_NEXT;	// Read with index_first(), index_next()
+	  if (!no_changes)
+	  {
+	    tab->index=nr;
+	    tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
+				      join_init_read_last_with_key);
+	    table->file->index_init(nr);
+	    tab->type=JT_NEXT;	// Read with index_first(), index_next()
+	  }
 	  DBUG_RETURN(1);
 	}
       }
@@ -5257,7 +5269,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
   SQL_SELECT *select=tab->select;
   DBUG_ENTER("create_sort_index");
 
-  if (test_if_skip_sort_order(tab,order,select_limit))
+  if (test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
   if (!(sortorder=make_unireg_sortorder(order,&length)))
     goto err;				/* purecov: inspected */
