@@ -1719,8 +1719,8 @@ st_lex::st_lex()
     global_first	Save first global table here
     local_first		Save first local table here
 
-  NORES
-   global_first & local_first are used to save result for link_first_table_back
+  NOTES
+    This function assumes that outer select list is non-empty.
 
   RETURN
     global list without first table
@@ -1730,25 +1730,25 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 				       TABLE_LIST **global_first,
 				       TABLE_LIST **local_first)
 {
+  DBUG_ASSERT(select_lex.table_list.first != 0);
+  /*
+    Save pointers to first elements of global table list and list
+    of tables used in outer select. It does not harm if these lists
+    are the same.
+  */
   *global_first= tables;
   *local_first= (TABLE_LIST*)select_lex.table_list.first;
-  /*
-    Exclude from global table list
-  */
+
+  /* Exclude first elements from these lists */
+  select_lex.table_list.first= (byte*) (*local_first)->next;
   tables= tables->next;
-  /*
-    and from local list if it is not the same
-  */
-  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
-				(byte*) (*local_first)->next :
-				(byte*) tables);
   (*global_first)->next= 0;
   return tables;
 }
 
 
 /*
-  Link table back that was unlinked with unlink_first_table()
+  Link table which was unlinked with unlink_first_table() back.
 
   SYNOPSIS
     link_first_table_back()
@@ -1764,16 +1764,7 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
 					  TABLE_LIST *local_first)
 {
   global_first->next= tables;
-  if (&select_lex != all_selects_list)
-  {
-    /*
-      we do not touch local table 'next' field => we need just
-      put the table in the list
-    */
-    select_lex.table_list.first= (byte*) local_first;
-  }
-  else
-    select_lex.table_list.first= (byte*) global_first;
+  select_lex.table_list.first= (byte*) local_first;
   return global_first;
 }
 
