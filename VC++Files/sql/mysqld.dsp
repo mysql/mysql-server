@@ -1085,6 +1085,10 @@ SOURCE=.\mf_iocache.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_decimal.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_time.c
 # End Source File
 # Begin Source File
