@@ -2364,7 +2364,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       if (table->db_stat)
 	result=1;
       /* Kill delayed insert threads */
-      if (in_use->system_thread && ! in_use->killed)
+      if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+          ! in_use->killed)
       {
 	in_use->killed=1;
 	pthread_mutex_lock(&in_use->mysys_var->mutex);
