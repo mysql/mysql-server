@@ -164,7 +164,6 @@ NdbOperation::readTupleExclusive()
 int
 NdbOperation::simpleRead()
 {
-  NdbConnection* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
@@ -193,7 +192,6 @@ NdbOperation::dirtyRead()
 int
 NdbOperation::committedRead()
 {
-  NdbConnection* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;

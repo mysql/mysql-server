@@ -17,7 +17,6 @@
 #include "SysLogHandler.hpp"
 
 #include <syslog.h>
-#include <NdbString.h>
 
 //
 // PUBLIC

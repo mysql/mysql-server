@@ -16,10 +16,6 @@
 
 
 #include "common.hpp"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
 
 NdbOut &
 operator << (NdbOut & out, const Employee_t & emp){

@@ -18,7 +18,6 @@
 #include <File.hpp>
 
 #include <NdbOut.hpp>
-#include <assert.h>
 
 typedef bool (*TESTFUNC)(const char*);
 

@@ -24,7 +24,6 @@
 #define SignalLoggerManager_H
 
 
-#include <NdbStdio.h>
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <TransporterDefinitions.hpp>
@@ -153,7 +152,7 @@ public:
 
 private:
   bool m_logDistributed;
-  int m_ownNodeId;
+  Uint32 m_ownNodeId;
 
   FILE * outputStream;
   int log(int cmd, BlockNumber bno, LogMode logMode);

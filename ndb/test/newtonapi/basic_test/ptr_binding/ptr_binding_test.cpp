@@ -26,7 +26,6 @@ extern "C" {
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbMain.h>
-#include <assert.h>
 
 static const
 DBA_ColumnDesc_t ColDesc[] = {

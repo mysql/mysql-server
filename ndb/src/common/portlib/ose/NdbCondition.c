@@ -17,7 +17,6 @@
 
 #include "NdbCondition.h"
 #include <pthread.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <malloc.h>
 

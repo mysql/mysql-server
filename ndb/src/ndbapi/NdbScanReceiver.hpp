@@ -24,7 +24,6 @@
 #include "NdbReceiver.hpp"
 #include <NdbOut.hpp>
 
-#include <assert.h>
 
 class NdbScanReceiver
 {

@@ -23,10 +23,8 @@
 #include "RepApiInterpreter.hpp"
 #include "repapi/repapi.h"
 #include <NdbMutex.h>
-#include <NdbStdio.h>
 #include <OutputStream.hpp>
 
-#include <NdbString.h>
 /**
    const char * name;
    const char * realName;

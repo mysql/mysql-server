@@ -31,6 +31,7 @@ max_allowed_packet = 1M
 table_cache = 256
 sort_buffer_size = 1M
 read_buffer_size = 1M
+read_rnd_buffer_size = 4M
 myisam_sort_buffer_size = 64M
 thread_cache = 8
 query_cache_size= 16M

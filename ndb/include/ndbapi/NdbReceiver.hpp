@@ -18,7 +18,7 @@
 #define NdbReceiver_H
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL  // Not part of public interface
 
-#include <stdlib.h>
+#include <ndb_types.h>
 
 class Ndb;
 class NdbReceiver

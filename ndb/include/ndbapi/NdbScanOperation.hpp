@@ -172,25 +172,6 @@ SetValueRec::SetValueRec() :
 {
 }
 
-inline
-SetValueRec::~SetValueRec() 
-{
-  if ((stype == SET_STRING_ATTR1) ||
-      (stype == SET_INT32_ATTR1)  ||
-      (stype == SET_UINT32_ATTR1) ||
-      (stype == SET_INT64_ATTR1) ||
-      (stype == SET_UINT64_ATTR1) ||
-      (stype == SET_FLOAT_ATTR1) ||
-      (stype == SET_DOUBLE_ATTR1))
-    free(anAttrName);
-
-  if ((stype == SET_STRING_ATTR1) ||
-      (stype == SET_STRING_ATTR2))
-    free(stringStruct.aStringValue);
-  if (next) delete next;
-  next = 0;
-}
-
 class SetValueRecList {
 public:
   SetValueRecList();

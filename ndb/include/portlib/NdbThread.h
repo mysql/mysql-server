@@ -17,8 +17,7 @@
 #ifndef NDB_THREAD_H
 #define NDB_THREAD_H
 
-#include <sys/types.h>
-
+#include <ndb_global.h>
 
 #ifdef	__cplusplus
 extern "C" {

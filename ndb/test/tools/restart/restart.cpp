@@ -15,7 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <string.h>
+#include <ndb_global.h>
+
 #include <NdbMain.h>
 #include <OutputStream.hpp>
 #include <NdbOut.hpp>
@@ -24,8 +25,6 @@
 
 #include <NdbRestarter.hpp>
 #include <NDBT.hpp>
-#include <assert.h>
-#include <NdbStdio.h>
 
 int main(int argc, const char** argv){
 

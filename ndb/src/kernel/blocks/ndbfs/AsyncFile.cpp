@@ -23,19 +23,16 @@
 #endif
 #endif
 
+#include <ndb_global.h>
+
 #include "Error.hpp"
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>
-#include <string.h>
 #include <NdbMem.h>
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
-
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
 
 #ifdef NDB_LINUX
 // This is for pread and pwrite
@@ -44,9 +41,7 @@
 #endif
 #endif
 
-#include <NdbUnistd.h>
 #if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
-#include <NdbStdio.h>
 #else
 // For readv and writev
 #include <sys/uio.h> 
@@ -566,9 +561,8 @@ AsyncFile::writeReq( Request * request)
         if (((i + 1) < request->par.readWrite.numberOfPages)) {
           // There are more pages to write
           // Check that offsets are consequtive
-          if ((page_offset + request->par.readWrite.pages[i].size)
-              !=
-              request->par.readWrite.pages[i+1].offset) {
+	  off_t tmp = page_offset + request->par.readWrite.pages[i].size;
+          if (tmp != request->par.readWrite.pages[i+1].offset) {
             // Next page is not aligned with previous, not allowed
             DEBUG(ndbout_c("Page offsets are not aligned"));
             request->error = EINVAL;

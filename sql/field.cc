@@ -2307,7 +2307,8 @@ int Field_float::store(double nr)
     }
     else
     {
-      max_value= (log_10[field_length]-1)/log_10[dec];
+      uint tmp=min(field_length,array_elements(log_10)-1);
+      max_value= (log_10[tmp]-1)/log_10[dec];
       /*
 	The following comparison is needed to not get an overflow if nr
 	is close to FLT_MAX
@@ -2607,7 +2608,8 @@ int Field_double::store(double nr)
     }
     else
     {
-      max_value= (log_10[field_length]-1)/log_10[dec];
+      uint tmp=min(field_length,array_elements(log_10)-1);
+      max_value= (log_10[tmp]-1)/log_10[dec];
       if (fabs(nr) < DBL_MAX/10.0e+32)
 	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
     }

@@ -17,12 +17,13 @@
 #ifndef REQUESTOR_HPP
 #define REQUESTOR_HPP
 
+#include <ndb_global.h>
+
 #include <TransporterDefinitions.hpp>
 #include <TransporterFacade.hpp>
 #include <ClusterMgr.hpp>
 #include <API.hpp>
 #include <Vector.hpp>
-#include <stdio.h>
 #include <GrepError.hpp>
 
 #include <rep/storage/GCIContainer.hpp>

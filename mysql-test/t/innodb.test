@@ -1044,3 +1044,46 @@ drop table t1;
 create table t1 (a int) engine=innodb;
 create table t2 like t1;
 drop table t1,t2;
+
+#
+# Test of automaticly created foreign keys
+#
+
+create table t1 (id int(11) not null, id2 int(11) not null, unique (id,id2)) engine=innodb;
+create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) references t1 (id)) engine = innodb;
+show create table t1;
+show create table t2;
+create index id on t2 (id);
+show create table t2;
+create index id2 on t2 (id);
+show create table t2;
+drop index id2 on t2;
+--error 1025,1025
+drop index id on t2;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id,id2) references t1 (id,id2)) engine = innodb;
+show create table t2;
+create unique index id on t2 (id,id2);
+show create table t2;
+drop table t2;
+
+# Check foreign key columns created in different order than key columns
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), constraint t1_id_fk foreign key (id) references t1 (id)) engine = innodb;
+show create table t2;
+drop table t2;
+
+create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+show create table t2;
+drop table t2;
+
+# Test error handling
+--error 1005
+create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
+
+drop table t1;

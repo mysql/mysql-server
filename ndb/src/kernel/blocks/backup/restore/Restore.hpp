@@ -17,16 +17,13 @@
 #ifndef RESTORE_H
 #define RESTORE_H
 
-#include <stddef.h>
+#include <ndb_global.h>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
 #include <AttrType.hpp>
 
 #include <NdbOut.hpp>
 #include "myVector.hpp"
-#include <NdbStdio.h>
-#include <NdbUnistd.h>
-#include <NdbString.h>
 
 #include <ndb_version.h>
 #include <version.h>
