@@ -19,8 +19,6 @@
 #pragma interface			/* gcc class interface */
 #endif
 
-#include <mysql_time.h>
-
 #if !defined(TESTTIME) && !defined(TZINFO2SQL)
 
 /*

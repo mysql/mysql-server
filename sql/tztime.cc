@@ -32,6 +32,7 @@
 #include "mysql_priv.h"
 #else
 #include <my_global.h>
+#include <my_time.h>
 #include "tztime.h"
 #include <my_sys.h>
 #endif
