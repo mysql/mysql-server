@@ -147,6 +147,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
+  bool is_union;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);
@@ -183,10 +184,11 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   
   thd_arg->lex->current_select= sl= first_select= first_select_in_union();
   found_rows_for_union= first_select->options & OPTION_FOUND_ROWS;
+  is_union= test(first_select->next_select());
 
   /* Global option */
 
-  if (first_select->next_select())
+  if (is_union)
   {
     if (!(tmp_result= union_result= new select_union(0)))
       goto err;
@@ -195,14 +197,11 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       tmp_result= sel_result;
   }
   else
-  {
     tmp_result= sel_result;
-    // single select should be processed like select in p[arantses
-    first_select->braces= 1;
-  }
 
   for (;sl; sl= sl->next_select())
   {
+    bool can_skip_order_by;
     sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->options | additional_options,
@@ -217,14 +216,17 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       select_limit_cnt= HA_POS_ERROR;		// no limit
     if (select_limit_cnt == HA_POS_ERROR || sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
-    
+
+    can_skip_order_by= is_union &&
+                       (!sl->braces || select_limit_cnt == HA_POS_ERROR);
+
     res= join->prepare(&sl->ref_pointer_array,
 		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
 		       sl->where,
-		       ((sl->braces) ? sl->order_list.elements : 0) +
-		       sl->group_list.elements,
-		       (sl->braces) ? 
-		       (ORDER *)sl->order_list.first : (ORDER *) 0,
+                       (can_skip_order_by ? 0 : sl->order_list.elements) +
+                       sl->group_list.elements,
+                       can_skip_order_by ?
+                       (ORDER*) 0 : (ORDER *)sl->order_list.first,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
@@ -264,10 +266,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
-  if (first_select->next_select())
+  if (is_union)
   {
-    /* This is not a single select */
-
     /*
       Check that it was possible to aggregate
       all collations together for UNION.
@@ -364,8 +364,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
   }
-  else
-    first_select->braces= 0; // remove our changes
 
   thd_arg->lex->current_select= lex_select_save;
 
