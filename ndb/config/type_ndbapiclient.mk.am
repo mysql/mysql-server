@@ -1,2 +1,2 @@
 
-INCLUDES += @NDB_NDBAPICLIENT_INCLUDES@
+INCLUDES += -I$(top_srcdir)/ndb/include/ndbapi

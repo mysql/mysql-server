@@ -267,14 +267,14 @@ fi
 
 # NDB Cluster
 if [ x$NDBCLUSTER = x1 ]; then
-  if [ ! -f ndb/BinDist.sh ]; then
-    echo "Missing ndb/BinDist.sh"; exit 1
-  fi
-  mkdir $BASE/ndb || exit 1
-  # assume we have cpio..
-  if (cd ndb && sh BinDist.sh | cpio -pdm $BASE/ndb); then :; else
-    echo "Copy failed - missing files in ndb/BinDist.sh ?"; exit 1
-  fi
+  ( cd ndb            ; make DESTDIR=$BASE/ndb-stage install )
+  ( cd mysql-test/ndb ; make DESTDIR=$BASE/ndb-stage install )
+  $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
+  $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
+  $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
+  $CP -r $BASE/ndb-stage@pkgincludedir@/ndb $BASE/lib/.
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
+  rm -rf $BASE/ndb-stage
 fi
 
 # Change the distribution to a long descriptive name
