@@ -10,6 +10,7 @@
 # written by Lenz Grimmer <lenz@mysql.com>
 #
 
+use Cwd;
 use Getopt::Long;
 Getopt::Long::Configure ("bundling");
 
@@ -26,10 +27,9 @@ else
 
 # Some predefined settings
 $build_command= "BUILD/compile-pentium-max";
-chomp ($LOGFILE= `pwd`);
-$LOGFILE.= "/Bootstrap.log";
-chomp ($opt_directory= `pwd`);
-$opt_docdir= $opt_directory . "/mysqldoc";
+$PWD= cwd();
+$LOGFILE= $PWD . "/Bootstrap.log";
+$opt_docdir= $PWD . "/mysqldoc";
 $opt_build_command= undef;
 $opt_changelog= undef;
 $opt_delete= undef;
@@ -82,8 +82,7 @@ if (defined $opt_log)
 		}
 		else
 		{
-			chomp ($LOGFILE= `pwd`);
-			$LOGFILE.= "/" . $opt_log;
+			$LOGFILE= $PWD . "/" . $opt_log;
 		}
 	}
 }
