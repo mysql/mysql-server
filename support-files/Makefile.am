@@ -71,6 +71,7 @@ SUFFIXES = .sh
 	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
 	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
 	  -e 's!@''VERSION''@!@VERSION@!' \
+	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  -e 's!@''COMPILATION_COMMENT''@!@COMPILATION_COMMENT@!' \
 	  -e 's!@''MACHINE_TYPE''@!@MACHINE_TYPE@!' \
 	  -e 's!@''HOSTNAME''@!@HOSTNAME@!' \
