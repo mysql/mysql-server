@@ -20,6 +20,9 @@
 #define RESOLVE_VERSION "2.0"
  
 #include <global.h>
+#include <m_ctype.h>
+#include <my_sys.h>
+#include <m_string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifndef HAVE_BROKEN_NETINET_INCLUDES
@@ -27,8 +30,6 @@
 #endif
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <m_ctype.h>
-#include <my_sys.h>
 #include <getopt.h>
 
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)

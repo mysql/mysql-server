@@ -123,7 +123,7 @@ enum l1_symbols {
     L1_SARA_AE,
     L1_SARA_O,
     L1_SARA_AI_MAIMUAN,
-    L1_SARA_AI_MAIMALAI,
+    L1_SARA_AI_MAIMALAI
 };
   
 // level 2 symbols & order
@@ -137,7 +137,7 @@ enum l2_symbols {
     L2_TONE1,
     L2_TONE2,
     L2_TONE3,
-    L2_TONE4,
+    L2_TONE4
 };
   
 // level 3 symbols & order
@@ -182,7 +182,7 @@ enum l3_symbols {
     L3_LESS_THAN,
     L3_EQUAL,
     L3_GREATER_THAN,
-    L3_V_LINE,
+    L3_V_LINE
 };
 
 // level 4 symbols & order
@@ -190,7 +190,7 @@ enum l4_symbols {
     L4_BLANK = TOT_LEVELS,
     L4_MIN,
     L4_CAP,
-    L4_EXT,
+    L4_EXT
 };
 
 enum level_symbols {
