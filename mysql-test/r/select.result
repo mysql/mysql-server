@@ -2157,13 +2157,10 @@ a	a	a
 3	3	3
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a	a
-1	1	NULL
 2	1	1
 3	1	1
-1	2	NULL
 2	2	2
 3	2	2
-1	3	NULL
 2	3	3
 3	3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
@@ -2174,13 +2171,7 @@ a	a	a
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 a	a	a
 1	1	1
-2	1	NULL
-3	1	NULL
-1	2	NULL
 2	2	2
-3	2	NULL
-1	3	NULL
-2	3	NULL
 3	3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) left outer join t1 on t1.a>1;
 a	a	a
@@ -2192,14 +2183,12 @@ a	a	a
 3	3	3
 select * from t1 left outer join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a	a
-1	1	NULL
+1	NULL	NULL
 2	1	1
-3	1	1
-1	2	NULL
 2	2	2
-3	2	2
-1	3	NULL
 2	3	3
+3	1	1
+3	2	2
 3	3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) left join t1 using ( a );
 a	a	a
@@ -2209,13 +2198,7 @@ a	a	a
 select * from t1 left join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 a	a	a
 1	1	1
-2	1	NULL
-3	1	NULL
-1	2	NULL
 2	2	2
-3	2	NULL
-1	3	NULL
-2	3	NULL
 3	3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) natural left join t1;
 a	a	a
@@ -2229,9 +2212,7 @@ a	a	a
 3	3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) right join t1 on t1.a>1;
 a	a	a
-1	NULL	1
-2	NULL	1
-3	NULL	1
+NULL	NULL	1
 1	1	2
 2	2	2
 3	3	2
@@ -2249,13 +2230,7 @@ a	a	a
 select * from (t1 as t2 left join t1 as t3 using (a)) right outer join t1 using ( a );
 a	a	a
 1	1	1
-2	NULL	1
-3	NULL	1
-1	NULL	2
 2	2	2
-3	NULL	2
-1	NULL	3
-2	NULL	3
 3	3	3
 select * from t1 right outer join (t1 as t2 left join t1 as t3 using (a)) using ( a );
 a	a	a
@@ -2265,13 +2240,7 @@ a	a	a
 select * from (t1 as t2 left join t1 as t3 using (a)) natural right join t1;
 a	a	a
 1	1	1
-2	NULL	1
-3	NULL	1
-1	NULL	2
 2	2	2
-3	NULL	2
-1	NULL	3
-2	NULL	3
 3	3	3
 select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
 a	a	a

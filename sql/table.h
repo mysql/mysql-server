@@ -26,7 +26,6 @@ class st_select_lex_unit;
 typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
-  Item	 *item_ptr;			/* Storage for initial item */
   Item   **item_copy;			/* For SPs; the original item ptr */
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
@@ -67,8 +66,7 @@ struct st_table {
   handler *file;
   Field **field;			/* Pointer to fields */
   Field_blob **blob_field;		/* Pointer to blob fields */
-  /* hash of field names (contains pointers to elements of field array) */
-  HASH	name_hash;
+  HASH	name_hash;			/* hash of field names */
   byte *record[2];			/* Pointer to records */
   byte *default_values;          	/* Default values for INSERT */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
@@ -99,20 +97,8 @@ struct st_table {
   uint raid_type,raid_chunks;
   uint status;				/* Used by postfix.. */
   uint system;				/* Set if system record */
-
-  /* 
-    These two members hold offset in record + 1 for TIMESTAMP field
-    with NOW() as default value or/and with ON UPDATE NOW() option. 
-    If 0 then such field is absent in this table or auto-set for default
-    or/and on update should be temporaly disabled for some reason.
-    These values is setup to offset value for each statement in open_table()
-    and turned off in statement processing code (see mysql_update as example).
-  */
-  ulong timestamp_default_now;
-  ulong timestamp_on_update_now;
-  /* Index of auto-updated TIMESTAMP field in field array */
+  ulong time_stamp;			/* Set to offset+1 of record */
   uint timestamp_field_offset;
-  
   uint next_number_index;
   uint blob_ptr_size;			/* 4 or 8 */
   uint next_number_key_offset;
@@ -123,7 +109,7 @@ struct st_table {
   my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
-  my_bool key_read;
+  my_bool key_read, bulk_insert;
   my_bool crypted;
   my_bool db_low_byte_first;		/* Portable row format */
   my_bool locked_by_flush;
@@ -133,7 +119,7 @@ struct st_table {
   my_bool is_view;
   my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
-  my_bool auto_increment_field_not_null;
+  my_bool auto_increment_field_not_null;     
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
@@ -157,12 +143,8 @@ struct st_table {
   uint		quick_key_parts[MAX_KEY];
   key_part_map  const_key_parts[MAX_KEY];
   ulong		query_id;
-
-  union					/* Temporary variables */
-  {
-    uint        temp_pool_slot;		/* Used by intern temp tables */
-    struct st_table_list *pos_in_table_list;
-  };
+  uint        temp_pool_slot;		/* Used by intern temp tables */
+  struct st_table_list *pos_in_table_list;/* Element referring to this table */
   /* number of select if it is derived table */
   uint          derived_select_number;
   THD		*in_use;		/* Which thread uses this */
@@ -188,17 +170,28 @@ typedef struct st_table_list
  GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
-  uint		shared;			/* Used in multi-upd */
+  uint		shared;			/* Used in union or in multi-upd */
   uint32        db_length, real_name_length;
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
-  bool		force_index;		/* Prefer index over table scan */
-  bool          ignore_leaves;          /* Preload only non-leaf nodes */
-  bool		cacheable_table;	/* stop PS caching */
-  /* used in multi-upd privelege check */
-  bool		table_in_update_from_clause;
+  bool		force_index;		/* prefer index over table scan */
+  bool          ignore_leaves;          /* preload only non-leaf nodes */
+  table_map     dep_tables;             /* tables the table depends on      */
+  table_map     on_expr_dep_tables;     /* tables on expression depends on  */ 
+  struct st_nested_join *nested_join;   /* if the element is a nested join  */
+  st_table_list *embedding;             /* nested join containing the table */
+  List<struct st_table_list> *join_list;/* join list the table belongs to   */ 
 } TABLE_LIST;
 
+typedef struct st_nested_join
+{
+  List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
+  table_map         used_tables;     /* bitmap of tables in the nested join */
+  table_map         not_null_tables; /* tables that rejects nulls           */ 
+  struct st_join_table *first_nested;/* the first nested table in the plan  */
+  uint              counter;         /* to count tables in the nested join  */
+} NESTED_JOIN;
+  
 typedef struct st_changed_table_list
 {
   struct	st_changed_table_list *next;
@@ -206,8 +199,7 @@ typedef struct st_changed_table_list
   uint32        key_length;
 } CHANGED_TABLE_LIST;
 
-typedef struct st_open_table_list
-{
+typedef struct st_open_table_list{
   struct st_open_table_list *next;
   char	*db,*table;
   uint32 in_use,locked;

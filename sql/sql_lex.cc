@@ -1003,6 +1003,9 @@ void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
   table_list.empty();
+  top_join_list.empty();
+  join_list= &top_join_list;
+  embedding= 0;
   item_list.empty();
   join= 0;
   where= 0;
