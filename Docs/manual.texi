@@ -9333,9 +9333,10 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the
 @code{--socket} option to specify the name of the pipe.
 
-Note that starting from 3.23.50, named pipes are only enabled if you start
-@code{mysqld} with @code{--enable-named-pipe}.  This is because some users have
-experienced problems shutting down the MySQL server when named pipes are used.
+Note that starting from 3.23.50, named pipes are only enabled if mysqld is
+started with with @code{--enable-named-pipe}.  This is because some users
+have experienced problems shutting down the MySQL server when one uses
+named pipes.
 
 You can test whether or not MySQL is working by executing the
 following commands:
@@ -9614,8 +9615,8 @@ option to the new MySQL clients or create an option file
 host = localhost
 @end example
 
-Starting from 3.23.50, named pipes are only enabled if start mysqld with
-@code{--enable-named-pipe}.
+Starting from 3.23.50, named pipes are only enabled if mysqld is started
+with @code{--enable-named-pipe}.
 
 @item @code{Access denied for user} error
 If you get the error @code{Access denied for user: 'some-user@@unknown'
@@ -14178,8 +14179,7 @@ which a not fully working lockd() (as on Linux) you will easily get
 mysqld to deadlock.
 
 @item --enable-named-pipe
-Enable support for named pipes; This only works on NT and newer windows
-versions.
+Enable support for named pipes (only on NT/Win2000/XP).
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -14784,7 +14784,7 @@ system.  This section describes how it works.
 * General security::            General security
 * Security::                    How to make MySQL secure against crackers
 * Privileges options::          Startup Options for @code{mysqld} Concerning Security
-* LOAD DATA LOCAL::
+* LOAD DATA LOCAL::             
 * What Privileges::             What the privilege system does
 * Privileges::                  How the privilege system works
 * Privileges provided::         Privileges provided by MySQL
@@ -49310,6 +49310,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.51::                Changes in release 3.23.51
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
@@ -49364,10 +49365,28 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
+@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.51
+
+@itemize @bullet
+@item
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
+@item
+Fixed bug in character table converts.
+@end itemize
+
+@node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 
 @itemize @bullet
+@item
+@code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
+and @code{CREATE/DROP INDEX}.
+@item
+@code{InnoDB} now allows foreign key constraints to be added through the
+@code{ALTER TABLE} syntax.
+@item
+@code{InnoDB} tables can now be set to automatically grow in size (autoextend).
 @item
 Our Linux RPMS and binaries are now compiled with @code{gcc} 3.0.4, which
 should make them a bit faster.
@@ -49375,7 +49394,7 @@ should make them a bit faster.
 Fixed some buffer overflow problems when reading startup parameters.
 @item
 Because of problems on shutdown we have now disabled named pipes on
-Windows by default.  To override this, start @code{mysqld} with
+windows by default.  One can enable named pipes by starting mysqld with
 @code{--enable-named-pipe}.
 @item
 Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.

@@ -2115,6 +2115,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
   }
+
   return 0;
 }
 

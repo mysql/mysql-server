@@ -1921,18 +1921,21 @@ String* Item_func_inet_ntoa::val_str(String* str)
   uchar buf[8], *p;
   ulonglong n = (ulonglong) args[0]->val_int();
   char num[4];
-  // we do not know if args[0] is NULL until we have called
-  // some val function on it if args[0] is not a constant!
+  /*
+    we do not know if args[0] is NULL until we have called
+    some val function on it if args[0] is not a constant!
+  */
   if ((null_value=args[0]->null_value))
     return 0;					// Null value
+
   str->length(0);
   int8store(buf,n);
 
-  // now we can assume little endian
-  // we handle the possibility of an 8-byte IP address
-  // however, we do not want to confuse those who are just using
-  // 4 byte ones
-
+  /*
+    Now we can assume little endian. 
+    We handle the possibility of an 8-byte IP address however, we do
+    not want to confuse those who are just using 4 byte ones
+  */
   for (p= buf + 8; p > buf+4 && p[-1] == 0 ; p-- ) ;
   num[3]='.';
   while (p-- > buf)

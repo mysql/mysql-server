@@ -39,7 +39,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.23";
+const char *VER="12.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -467,12 +467,12 @@ static struct option long_options[] =
   {"no-auto-rehash",no_argument,	   0, 'A'},
   {"no-beep",       no_argument,           0, 'b'},
   {"no-named-commands", no_argument,       0, 'g'},
-  {"no-tee",        no_argument,           0, OPT_NOTEE},
 #ifndef __WIN__
   {"no-pager",      no_argument,           0, OPT_NOPAGER},
   {"nopager",       no_argument,           0, OPT_NOPAGER},  /* we are kind */
   {"pager",         optional_argument,     0, OPT_PAGER},
 #endif
+  {"no-tee",        no_argument,           0, OPT_NOTEE},
   {"notee",         no_argument,           0, OPT_NOTEE},    /* we are kind */
   {"tee",           required_argument,     0, OPT_TEE},
   {"one-database",  no_argument,	   0, 'o'},
@@ -558,7 +558,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
                         still work from the first line.\n\
   -G, --enable-named-commands\n\
                         Named commands are enabled. Opposite to -g.\n\
-  -i, --ignore-space	Ignore space after function names.\n\
+  -i, --ignore-spaces	Ignore spaces after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
   -X, --xml		Produce XML output.\n\
