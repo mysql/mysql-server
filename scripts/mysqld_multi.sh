@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.11";
+$VER="2.12";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -427,6 +427,16 @@ sub find_groups
       open(MY_CNF, "</etc/my.cnf") && (@tmp=<MY_CNF>) && close(MY_CNF);
     }
     for ($i = 0; ($line = shift @tmp); $i++)
+    {
+      $data[$i] = $line;
+    }
+    if (defined($ENV{MYSQL_HOME}) && -f "$ENV{MYSQL_HOME}/my.cnf" &&
+	-r "$ENV{MYSQL_HOME}/my.cnf")
+    {
+      open(MY_CNF, "<$ENV{MYSQL_HOME}/my.cnf") && (@tmp=<MY_CNF>) &&
+      close(MY_CNF);
+    }
+    for (; ($line = shift @tmp); $i++)
     {
       $data[$i] = $line;
     }
