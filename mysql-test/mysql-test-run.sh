@@ -1469,16 +1469,23 @@ $ECHO  "Starting Tests"
 #
 if [ "$DO_BENCH" = 1 ]
 then
+  start_master
+
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+    EXTRA_BENCH_ARGS="--create-options=TYPE=ndb"
+  fi 
+
   BENCHDIR=$BASEDIR/sql-bench/
   savedir=`pwd`
   cd $BENCHDIR
   if [ -z "$1" ]
   then
-    ./run-all-tests --socket=$MASTER_MYSOCK --user=root
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
   else
     if [ -x "./$1" ]
     then
-       ./$1 --socket=$MASTER_MYSOCK --user=root
+       ./$1 --socket=$MASTER_MYSOCK --user=root $EXTRA_BENCH_ARGS
     else
       echo "benchmark $1 not found"
     fi
