@@ -831,6 +831,7 @@ select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(va
 id	stddev_pop(value1)	var_pop(value1)	stddev_samp(value1)	var_samp(value1)
 1	0.816497	0.666667	1.000000	1.000000
 2	1.118034	1.250000	1.290994	1.666667
+DROP TABLE t1;
 CREATE TABLE t1(
 id int PRIMARY KEY,
 a  int,

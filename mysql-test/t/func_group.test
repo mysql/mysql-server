@@ -536,6 +536,7 @@ drop table t1, t2, t3;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
 select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
+DROP TABLE t1;
 #
 # Bug 8893: wrong result for min/max optimization with 2 indexes
 #
