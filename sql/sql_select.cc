@@ -235,9 +235,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
   res|= thd->net.report_error;
   if (unlikely(res))
   {
-    /*
-      If we have real error reported erly then this will be ignored
-    */
+    /* If we had a another error reported earlier then this will be ignored */
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
   }
@@ -4873,7 +4871,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 				  &keyinfo->key_part[i],
 				  (char*) key_buff,maybe_null);
       /*
-	Remeber if we are going to use REF_OR_NULL
+	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
 	instead of JT_REF_OR_NULL in case if field can't be null
       */
@@ -7538,7 +7536,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
 {
   Field *new_field;
 
-  if (convert_blob_length && org_field->flags & BLOB_FLAG)
+  if (convert_blob_length && (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
                                    org_field->field_name, table,
@@ -7805,7 +7803,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
     {
       (*tmp->item)->marker=4;			// Store null in key
-      if ((*tmp->item)->max_length >= MAX_CHAR_WIDTH)
+      if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
 	using_unique_constraint=1;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)
@@ -8147,16 +8145,17 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
-      key_part_info->length= (uint16) field->pack_length();
+      key_part_info->length= (uint16) field->key_length();
       key_part_info->type=   (uint8) field->key_type();
       key_part_info->key_type =
 	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT) ?
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(thd->mem_root,table)))
+	if (!(group->field=field->new_key_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -8177,7 +8176,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  group->field->move_field((char*) group_buff);
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
-	group_buff+= key_part_info->length;
+	group_buff+= group->field->pack_length();
       }
       keyinfo->key_length+=  key_part_info->length;
     }
@@ -8241,7 +8240,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
 	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT) ?
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
     }
   }
@@ -8291,8 +8291,8 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   MI_KEYDEF keydef;
   MI_UNIQUEDEF uniquedef;
   KEY *keyinfo=param->keyinfo;
-
   DBUG_ENTER("create_myisam_tmp_table");
+
   if (table->keys)
   {						// Get keys for ni_create
     bool using_unique_constraint=0;
@@ -8340,19 +8340,18 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       {
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
-	 HA_KEYTYPE_VARBINARY : HA_KEYTYPE_VARTEXT);
-	seg->bit_start=seg->length - table->blob_ptr_size;
+	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
+	seg->bit_start= field->pack_length() - table->blob_ptr_size;
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
       else
       {
-	seg->type= ((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
-                    HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT);
+	seg->type= keyinfo->key_part[i].type;
         /* Tell handler if it can do suffic space compression */
 	if (field->real_type() == MYSQL_TYPE_STRING &&
 	    keyinfo->key_part[i].length > 4)
-	  seg->flag|=HA_SPACE_PACK;
+	  seg->flag|= HA_SPACE_PACK;
       }
       if (!(field->flags & NOT_NULL_FLAG))
       {
@@ -8361,7 +8360,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	/*
 	  We are using a GROUP BY on something that contains NULL
 	  In this case we have to tell MyISAM that two NULL should
-	  on INSERT be compared as equal
+	  on INSERT be regarded at the same value
 	*/
 	if (!using_unique_constraint)
 	  keydef.flag|= HA_NULL_ARE_EQUAL;
@@ -8645,21 +8644,19 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   if (table)
   {
-    int tmp;
+    int tmp, new_errno= 0;
     if ((tmp=table->file->extra(HA_EXTRA_NO_CACHE)))
     {
       DBUG_PRINT("error",("extra(HA_EXTRA_NO_CACHE) failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
     if ((tmp=table->file->ha_index_or_rnd_end()))
     {
       DBUG_PRINT("error",("ha_index_or_rnd_end() failed"));
-      my_errno= tmp;
-      error= -1;
+      new_errno= tmp;
     }
-    if (error == -1)
-      table->file->print_error(my_errno,MYF(0));
+    if (new_errno)
+      table->file->print_error(new_errno,MYF(0));
   }
 #ifndef DBUG_OFF
   if (error)
@@ -9831,13 +9828,19 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     DBUG_RETURN(0);
   }
 
-  /* The null bits are already set */
+  /*
+    Copy null bits from group key to table
+    We can't copy all data as the key may have different format
+    as the row data (for example as with VARCHAR keys)
+  */
   KEY_PART_INFO *key_part;
   for (group=table->group,key_part=table->key_info[0].key_part;
        group ;
        group=group->next,key_part++)
-    memcpy(table->record[0]+key_part->offset, group->buff, key_part->length);
-
+  {
+    if (key_part->null_bit)
+      memcpy(table->record[0]+key_part->offset, group->buff, 1);
+  }
   init_tmptable_sum_functions(join->sum_funcs);
   copy_funcs(join->tmp_table_param.items_to_copy);
   if ((error=table->file->write_row(table->record[0])))
@@ -11647,8 +11650,10 @@ calc_group_buffer(JOIN *join,ORDER *group)
     {
       if (field->type() == FIELD_TYPE_BLOB)
 	key_length+=MAX_BLOB_WIDTH;		// Can't be used as a key
+      else if (field->type() == MYSQL_TYPE_VARCHAR)
+        key_length+= field->field_length + HA_KEY_BLOB_LENGTH;
       else
-	key_length+=field->pack_length();
+	key_length+= field->pack_length();
     }
     else if ((*group->item)->result_type() == REAL_RESULT)
       key_length+=sizeof(double);

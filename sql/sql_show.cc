@@ -3319,7 +3319,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
 
 /*
-  Fill temporaty schema tables before SELECT
+  Fill temporary schema tables before SELECT
 
   SYNOPSIS
     get_schema_tables_result()

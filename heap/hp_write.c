@@ -138,7 +138,7 @@ static byte *next_free_record_pos(HP_SHARE *info)
     pos=info->del_link;
     info->del_link= *((byte**) pos);
     info->deleted--;
-    DBUG_PRINT("exit",("Used old position: %lx",pos));
+    DBUG_PRINT("exit",("Used old position: 0x%lx",pos));
     DBUG_RETURN(pos);
   }
   if (!(block_pos=(info->records % info->block.records_in_block)))
