@@ -684,7 +684,7 @@ public:
   delayed_insert *di;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
   struct st_transactions {
-    IO_CACHE trans_log;
+    IO_CACHE trans_log;                 // Inited ONLY if binlog is open !
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
     uint bdb_lock_count;

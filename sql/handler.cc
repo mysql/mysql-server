@@ -486,7 +486,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       operation_done=1;
     }
 #endif
-    if (trans == &thd->transaction.all)
+    if ((trans == &thd->transaction.all) && mysql_bin_log.is_open())
     {
       /* 
          Update the binary log with a BEGIN/ROLLBACK block if we have cached some
@@ -494,7 +494,6 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
          be rare (updating a non-transactional table inside a transaction...).
       */
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
                    my_b_tell(&thd->transaction.trans_log)))
         mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
       /* Flushed or not, empty the binlog cache */
@@ -559,7 +558,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
-    else
+    else if (mysql_bin_log.is_open())
     {
       /* 
          Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
@@ -567,7 +566,6 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
          from the SAVEPOINT command.
       */
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
@@ -596,23 +594,26 @@ Return value: always 0, that is, succeeds always
 
 int ha_savepoint(THD *thd, char *savepoint_name)
 {
-  my_off_t binlog_cache_pos=0;
   int error=0;
   DBUG_ENTER("ha_savepoint");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    binlog_cache_pos=my_b_tell(&thd->transaction.trans_log);
-#ifdef HAVE_INNOBASE_DB
-    innobase_savepoint(thd,savepoint_name, binlog_cache_pos);
-#endif
-    /* Write it to the binary log (see comments of ha_rollback_to_savepoint). */
+    /* Write it to the binary log (see comments of ha_rollback_to_savepoint) */
     if (mysql_bin_log.is_open())
     {
+#ifdef HAVE_INNOBASE_DB
+      innobase_savepoint(thd,savepoint_name,
+                         my_b_tell(&thd->transaction.trans_log));
+#endif
       Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }
+#ifdef HAVE_INNOBASE_DB
+    else
+      innobase_savepoint(thd,savepoint_name,0);
+#endif
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
