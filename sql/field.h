@@ -1198,6 +1198,7 @@ public:
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
+  List<String> interval_list;
   CHARSET_INFO *charset;
   Field::geometry_type geom_type;
   Field *field;				// For alter table

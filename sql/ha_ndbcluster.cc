@@ -1197,9 +1197,10 @@ int ha_ndbcluster::unique_index_read(const byte *key,
 
   for (i= 0; key_part != end; key_part++, i++) 
   {
-    if (set_ndb_key(op, key_part->field, i, key_ptr))
+    if (set_ndb_key(op, key_part->field, i, 
+		    key_part->null_bit ? key_ptr + 1 : key_ptr))
       ERR_RETURN(trans->getNdbError());
-    key_ptr+= key_part->length;
+    key_ptr+= key_part->store_length;
   }
 
   // Get non-index attribute(s)
@@ -2287,6 +2288,28 @@ int ha_ndbcluster::index_end()
   DBUG_RETURN(close_scan());
 }
 
+/**
+ * Check if key contains null
+ */
+static
+int
+check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
+{
+  KEY_PART_INFO *curr_part, *end_part;
+  const byte* end_ptr = key + key_len;
+  curr_part= key_info->key_part;
+  end_part= curr_part + key_info->key_parts;
+  
+
+  for (; curr_part != end_part && key < end_ptr; curr_part++)
+  {
+    if(curr_part->null_bit && *key)
+      return 1;
+
+    key += curr_part->store_length;
+  }
+  return 0;
+}
 
 int ha_ndbcluster::index_read(byte *buf,
 			      const byte *key, uint key_len, 
@@ -2304,6 +2327,8 @@ int ha_ndbcluster::index_read(byte *buf,
   case PRIMARY_KEY_INDEX:
     if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
     {
+      if(m_active_cursor && (error= close_scan()))
+	DBUG_RETURN(error);
       DBUG_RETURN(pk_read(key, key_len, buf));
     }
     else if (type == PRIMARY_KEY_INDEX)
@@ -2313,8 +2338,11 @@ int ha_ndbcluster::index_read(byte *buf,
     break;
   case UNIQUE_ORDERED_INDEX:
   case UNIQUE_INDEX:
-    if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len)
+    if (find_flag == HA_READ_KEY_EXACT && key_info->key_length == key_len &&
+	!check_null_in_key(key_info, key, key_len))
     {
+      if(m_active_cursor && (error= close_scan()))
+	DBUG_RETURN(error);
       DBUG_RETURN(unique_index_read(key, key_len, buf));
     }
     else if (type == UNIQUE_INDEX)
@@ -2418,6 +2446,8 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 	start_key->length == key_info->key_length &&
 	start_key->flag == HA_READ_KEY_EXACT)
     {
+      if(m_active_cursor && (error= close_scan()))
+	DBUG_RETURN(error);
       error= pk_read(start_key->key, start_key->length, buf);      
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
@@ -2425,10 +2455,12 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   case UNIQUE_ORDERED_INDEX:
   case UNIQUE_INDEX:
     key_info= table->key_info + active_index;
-    if (start_key && 
-	start_key->length == key_info->key_length &&
-	start_key->flag == HA_READ_KEY_EXACT)
+    if (start_key && start_key->length == key_info->key_length &&
+	start_key->flag == HA_READ_KEY_EXACT && 
+	!check_null_in_key(key_info, start_key->key, start_key->length))
     {
+      if(m_active_cursor && (error= close_scan()))
+	DBUG_RETURN(error);
       error= unique_index_read(start_key->key, start_key->length, buf);
       DBUG_RETURN(error == HA_ERR_KEY_NOT_FOUND ? HA_ERR_END_OF_FILE : error);
     }
@@ -4199,7 +4231,7 @@ bool ndbcluster_init()
        new Ndb_cluster_connection(ndbcluster_connectstring)) == 0)
   {
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
 
   // Create a Ndb object to open the connection  to NDB
@@ -4208,25 +4240,33 @@ bool ndbcluster_init()
   if (g_ndb->init() != 0)
   {
     ERR_PRINT (g_ndb->getNdbError());
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
 
-  if ((res= g_ndb_cluster_connection->connect(1)) == 0)
+  if ((res= g_ndb_cluster_connection->connect(0,0,0)) == 0)
   {
+    DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
+		       g_ndb_cluster_connection->get_connected_host(),
+		       g_ndb_cluster_connection->get_connected_port()));
     g_ndb->waitUntilReady(10);
   } 
   else if(res == 1)
   {
     if (g_ndb_cluster_connection->start_connect_thread()) {
       DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-      DBUG_RETURN(TRUE);
+      goto ndbcluster_init_error;
+    }
+    {
+      char buf[1024];
+      DBUG_PRINT("info",("NDBCLUSTER storage engine not started, will connect using %s",
+			 g_ndb_cluster_connection->get_connectstring(buf,sizeof(buf))));
     }
   }
   else
   {
     DBUG_ASSERT(res == -1);
     DBUG_PRINT("error", ("permanent error"));
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
   
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
@@ -4236,9 +4276,12 @@ bool ndbcluster_init()
   ndbcluster_inited= 1;
 #ifdef USE_DISCOVER_ON_STARTUP
   if (ndb_discover_tables() != 0)
-    DBUG_RETURN(TRUE);    
+    goto ndbcluster_init_error;    
 #endif
   DBUG_RETURN(FALSE);
+ ndbcluster_init_error:
+  ndbcluster_end();
+  DBUG_RETURN(TRUE);
 }
 
 
