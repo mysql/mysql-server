@@ -601,6 +601,27 @@ less	2
 more	17
 delete from t1;
 drop procedure bug1495;
+create procedure bug1547(s char(16))
+begin
+declare x int;
+select data into x from t1 where s = id limit 1;
+if x > 10 then
+insert into t1 values ("less", x-10);
+else
+insert into t1 values ("more", x+10);
+end if;
+end;
+insert into t1 values ("foo", 12), ("bar", 7);
+call bug1547("foo");
+call bug1547("bar");
+select * from t1;
+id	data
+foo	12
+bar	7
+less	2
+more	17
+delete from t1;
+drop procedure bug1547;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)

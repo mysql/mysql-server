@@ -266,6 +266,16 @@ public:
     this_item()->make_field(field);
   }
 
+  inline Item_result result_type() const
+  {
+    return this_const_item()->result_type();
+  }
+
+  inline bool const_item() const
+  {
+    return FALSE;
+  }
+
 };
 
 
