@@ -510,7 +510,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   noOfNodes = nodeNo;
 
   noOfTables+= 2; // Add System tables
-  noOfAttributes += 5;  // Add System table attributes
+  noOfAttributes += 9;  // Add System table attributes
 
   ConfigValues::Iterator it2(*ownConfig, db.m_config);
   it2.set(CFG_DB_NO_TABLES, noOfTables);
