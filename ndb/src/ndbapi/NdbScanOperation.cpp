@@ -230,17 +230,17 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
   if(parallel > m_allocated_receivers){
     const Uint32 sz = parallel * (4*sizeof(char*)+sizeof(Uint32));
 
-    Uint32 * tmp = new Uint32[(sz+3)/4];
+    Uint64 * tmp = new Uint64[(sz+7)/8];
     // Save old receivers
-    memcpy(tmp+parallel, m_receivers, m_allocated_receivers*sizeof(char*));
+    memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
     delete[] m_array;
-    m_array = tmp;
+    m_array = (Uint32*)tmp;
     
-    m_prepared_receivers = tmp;
-    m_receivers = (NdbReceiver**)(tmp + parallel);
+    m_receivers = (NdbReceiver**)tmp;
     m_api_receivers = m_receivers + parallel;
     m_conf_receivers = m_api_receivers + parallel;
     m_sent_receivers = m_conf_receivers + parallel;
+    m_prepared_receivers = (Uint32*)(m_sent_receivers + parallel);
 
     // Only get/init "new" receivers
     NdbReceiver* tScanRec;

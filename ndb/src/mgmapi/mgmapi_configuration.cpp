@@ -1,7 +1,6 @@
 #include <ndb_types.h>
 #include <mgmapi.h>
 #include "mgmapi_configuration.hpp"
-#include <new>
 
 ndb_mgm_configuration_iterator::ndb_mgm_configuration_iterator
 (const ndb_mgm_configuration & conf, unsigned type_of_section)
