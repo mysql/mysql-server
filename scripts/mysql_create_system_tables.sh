@@ -41,7 +41,7 @@ c_hk=""
 i_ht=""
 c_tzn="" c_tz="" c_tzt="" c_tztt="" c_tzls=""
 i_tzn="" i_tz="" i_tzt="" i_tztt="" i_tzls=""
-c_p=""
+c_p="" c_pp=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -69,14 +69,17 @@ then
   c_d="$c_d   Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d   Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_d="$c_d   Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_d="$c_d PRIMARY KEY Host (Host,Db,User),"
   c_d="$c_d KEY User (User)"
   c_d="$c_d ) engine=MyISAM"
   c_d="$c_d CHARACTER SET utf8 COLLATE utf8_bin"
   c_d="$c_d comment='Database privileges';"
   
-  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y');
-  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y');"
+  i_d="INSERT INTO db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');
+  INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N');"
 fi
 
 if test ! -f $mdata/host.frm
@@ -141,6 +144,8 @@ then
   c_u="$c_u   Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Create_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
+  c_u="$c_u   Alter_routine_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   ssl_type enum('','ANY','X509', 'SPECIFIED') DEFAULT '' NOT NULL,"
   c_u="$c_u   ssl_cipher BLOB NOT NULL,"
   c_u="$c_u   x509_issuer BLOB NOT NULL,"
@@ -155,24 +160,24 @@ then
 
   if test "$1" = "test" 
   then
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+    REPLACE INTO user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
     INSERT INTO user (host,user) values ('localhost','');
     INSERT INTO user (host,user) values ('$hostname','');"
   else
-    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
+    i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
     if test "$windows" = "0"
     then
       i_u="$i_u
-           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+           INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
            INSERT INTO user (host,user) values ('$hostname','');
            INSERT INTO user (host,user) values ('localhost','');"
     else
       i_u="$i_u
-	   INSERT INTO user VALUES ('%','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
-	   INSERT INTO user VALUES ('%','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0);"
+	   INSERT INTO user VALUES ('%','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+	   INSERT INTO user VALUES ('localhost','','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);
+	   INSERT INTO user VALUES ('%','','','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0);"
     fi
   fi 
 fi
@@ -234,6 +239,27 @@ then
   c_c="$c_c ) engine=MyISAM"
   c_c="$c_c CHARACTER SET utf8 COLLATE utf8_bin"
   c_c="$c_c   comment='Column privileges';"
+fi
+
+if test ! -f $mdata/procs_priv.frm
+then
+  if test "$1" = "verbose" ; then
+    echo "Preparing procs_priv table" 1>&2;
+  fi
+
+  c_pp="$c_pp CREATE TABLE procs_priv ("
+  c_pp="$c_pp   Host char(60) binary DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   Db char(64) binary DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   User char(16) binary DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   Routine_name char(64) binary DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   Grantor char(77) DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   Timestamp timestamp(14),"
+  c_pp="$c_pp   Proc_priv set('Execute','Alter Routine','Grant') DEFAULT '' NOT NULL,"
+  c_pp="$c_pp   PRIMARY KEY (Host,Db,User,Routine_name),"
+  c_pp="$c_pp   KEY Grantor (Grantor)"
+  c_pp="$c_pp ) engine=MyISAM"
+  c_pp="$c_pp CHARACTER SET utf8 COLLATE utf8_bin"
+  c_pp="$c_pp   comment='Procedure privileges';"
 fi
 
 if test ! -f $mdata/help_topic.frm
@@ -718,6 +744,7 @@ $c_tzls
 $i_tzls
 
 $c_p
+$c_pp
 
 END_OF_DATA
 

@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#line __LINE__ "decimal.c"
+
 /*
 =======================================================================
   NOTE: this library implements SQL standard "exact numeric" type
@@ -680,8 +682,12 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
   /* frac1x part */
   if (frac1x)
   {
-    int i=dig2bytes[frac1x];
-    dec1 x=(*buf1 / powers10[DIG_PER_DEC1 - frac1x]) ^ mask;
+    dec1 x;
+    int i=dig2bytes[frac1x],
+        lim=(frac1 < frac0 ? DIG_PER_DEC1 : frac0x);
+    while (frac1x < lim && dig2bytes[frac1x] == i)
+      frac1x++;
+    x=(*buf1 / powers10[DIG_PER_DEC1 - frac1x]) ^ mask;
     switch (i)
     {
       case 1: mi_int1store(to, x); break;
@@ -2087,6 +2093,8 @@ main()
   test_d2b2d("-.000000012345000098765", 30, 20,"-.00000001234500009876");
   test_d2b2d("1234500009876.5", 30, 5,"1234500009876.50000");
   test_d2b2d("111111111.11", 10, 2,"11111111.11");
+  full=1;
+  test_d2b2d("123.4", 10, 2, "123.40");
 
   printf("==== decimal_cmp ====\n");
   test_dc("12","13",-1);

@@ -37,6 +37,9 @@ sp_head *
 sp_find_procedure(THD *thd, sp_name *name);
 
 int
+sp_exists_routine(THD *thd, TABLE_LIST *procs, bool any, bool no_error);
+
+int
 sp_create_procedure(THD *thd, sp_head *sp);
 
 int

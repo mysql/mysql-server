@@ -290,12 +290,12 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
     const Uint32 nullable = AttributeDescriptor::getNullable(desc);
     const Uint32 DKey = AttributeDescriptor::getDKey(desc);
 
-    w.add(DictTabInfo::AttributeType, attrType);
+    // AttributeType deprecated
     w.add(DictTabInfo::AttributeSize, attrSize);
     w.add(DictTabInfo::AttributeArraySize, arraySize);
     w.add(DictTabInfo::AttributeNullableFlag, nullable);
     w.add(DictTabInfo::AttributeDKey, DKey);
-    w.add(DictTabInfo::AttributeExtType, attrPtr.p->extType);
+    w.add(DictTabInfo::AttributeExtType, attrType);
     w.add(DictTabInfo::AttributeExtPrecision, attrPtr.p->extPrecision);
     w.add(DictTabInfo::AttributeExtScale, attrPtr.p->extScale);
     w.add(DictTabInfo::AttributeExtLength, attrPtr.p->extLength);
@@ -4169,7 +4169,7 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
     LqhAddAttrReq::Entry& entry = req->attributes[i];
     entry.attrId = attrPtr.p->attributeId;
     entry.attrDescriptor = attrPtr.p->attributeDescriptor;
-    entry.extTypeInfo = attrPtr.p->extType;
+    entry.extTypeInfo = 0;
     // charset number passed to TUP, TUX in upper half
     entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
     if (tabPtr.p->isIndex()) {
@@ -4792,7 +4792,6 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->attributeId = attrDesc.AttributeId;
     attrPtr.p->tupleKey = (keyCount + 1) * attrDesc.AttributeKeyFlag;
 
-    attrPtr.p->extType = attrDesc.AttributeExtType;
     attrPtr.p->extPrecision = attrDesc.AttributeExtPrecision;
     attrPtr.p->extScale = attrDesc.AttributeExtScale;
     attrPtr.p->extLength = attrDesc.AttributeExtLength;
@@ -4843,7 +4842,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     }
     
     Uint32 desc = 0;
-    AttributeDescriptor::setType(desc, attrDesc.AttributeType);
+    AttributeDescriptor::setType(desc, attrDesc.AttributeExtType);
     AttributeDescriptor::setSize(desc, attrDesc.AttributeSize);
     AttributeDescriptor::setArray(desc, attrDesc.AttributeArraySize);
     AttributeDescriptor::setNullable(desc, attrDesc.AttributeNullableFlag);
@@ -6406,6 +6405,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       jam();
       const Uint32 a = aRec->attributeDescriptor;
       bool isNullable = AttributeDescriptor::getNullable(a);
+      Uint32 attrType = AttributeDescriptor::getType(a);
       w.add(DictTabInfo::AttributeName, aRec->attributeName);
       w.add(DictTabInfo::AttributeId, k);
       if (indexPtr.p->isHashIndex()) {
@@ -6416,8 +6416,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
         w.add(DictTabInfo::AttributeKeyFlag, (Uint32)false);
         w.add(DictTabInfo::AttributeNullableFlag, (Uint32)isNullable);
       }
-      // ext type overrides
-      w.add(DictTabInfo::AttributeExtType, aRec->extType);
+      w.add(DictTabInfo::AttributeExtType, attrType);
       w.add(DictTabInfo::AttributeExtPrecision, aRec->extPrecision);
       w.add(DictTabInfo::AttributeExtScale, aRec->extScale);
       w.add(DictTabInfo::AttributeExtLength, aRec->extLength);
@@ -6431,7 +6430,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     w.add(DictTabInfo::AttributeId, opPtr.p->m_attrList.sz);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)false);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)false);
-    // ext type overrides
     w.add(DictTabInfo::AttributeExtType, (Uint32)DictTabInfo::ExtUnsigned);
     w.add(DictTabInfo::AttributeExtLength, tablePtr.p->tupKeyLength);
     w.add(DictTabInfo::AttributeEnd, (Uint32)true);
@@ -6443,7 +6441,6 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     w.add(DictTabInfo::AttributeId, opPtr.p->m_attrList.sz);
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)true);
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)false);
-    // ext type overrides
     w.add(DictTabInfo::AttributeExtType, (Uint32)DictTabInfo::ExtUnsigned);
     w.add(DictTabInfo::AttributeExtLength, indexPtr.p->tupKeyLength);
     w.add(DictTabInfo::AttributeEnd, (Uint32)true);

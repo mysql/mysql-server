@@ -206,6 +206,7 @@ protected:
   bool m_ordered;
   bool m_descending;
   Uint32 m_read_range_no;
+  NdbRecAttr *m_curr_row; // Pointer to last returned row
 };
 
 inline
