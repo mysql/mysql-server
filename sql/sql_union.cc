@@ -25,7 +25,7 @@
 #include "sql_select.h"
 
 
-int mysql_union(THD *thd, LEX *lex)
+int mysql_union(THD *thd, LEX *lex,select_result *create_insert=(select_result *)NULL)
 {
   SELECT_LEX *sl, *last_sl;
   ORDER *order;
@@ -60,6 +60,7 @@ int mysql_union(THD *thd, LEX *lex)
 
     /* Create a list of items that will be in the result set */
     first_table= (TABLE_LIST*) lex->select_lex.table_list.first;
+		if (create_insert) first_table=first_table->next;
     while ((item= it++))
       if (item_list.push_back(item))
 	DBUG_RETURN(-1);
@@ -95,7 +96,8 @@ int mysql_union(THD *thd, LEX *lex)
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd,(TABLE_LIST*) sl->table_list.first,
+    res=mysql_select(thd,(sl == &lex->select_lex) ? first_table : 
+				 (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
 		     sl->ftfunc_list,
@@ -114,17 +116,9 @@ int mysql_union(THD *thd, LEX *lex)
     goto exit;
   }
   delete union_result;
-
-  /*
-    Sinisa, we must also be able to handle
-    CREATE TABLE ... and INSERT ... SELECT with unions
-
-    To do this, it's probably best that we add a new handle_select() function
-    which takes 'select_result' as parameter and let this internally handle
-    SELECT with and without unions.
-  */
-
-  if (lex->exchange)
+	if (create_insert)
+		result=create_insert;
+  else if (lex->exchange)
   {
     if (lex->exchange->dumpfile)
       result=new select_dump(lex->exchange);
