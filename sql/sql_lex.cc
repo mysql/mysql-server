@@ -172,7 +172,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->proc_list.first= 0;
 
   if (lex->spfuns.records)
-    hash_reset(&lex->spfuns);
+    my_hash_reset(&lex->spfuns);
 }
 
 void lex_end(LEX *lex)
