@@ -304,7 +304,7 @@ drop table t1;
 # Bug when blob is updated
 #
 
-create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
+create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
 insert into t1 (id) values (1);
 # We have to clean up the path in the results for safe comparison
 --replace_result $MYSQL_TEST_DIR ../..

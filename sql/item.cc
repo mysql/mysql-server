@@ -4220,6 +4220,7 @@ bool Item_default_value::fix_fields(THD *thd,
   return FALSE;
 }
 
+
 void Item_default_value::print(String *str)
 {
   if (!arg)
@@ -4231,6 +4232,27 @@ void Item_default_value::print(String *str)
   arg->print(str);
   str->append(')');
 }
+
+
+int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
+{
+  if (!arg)
+  {
+    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG)
+    {
+      push_warning_printf(field_arg->table->in_use,
+                          MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_NO_DEFAULT_FOR_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_FIELD),
+                          field_arg->field_name);
+      return 1;
+    }
+    field_arg->set_default();
+    return 0;
+  }
+  return Item_field::save_in_field(field_arg, no_conversions);
+}
+
 
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {

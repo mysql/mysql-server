@@ -502,7 +502,7 @@ select foobar, boggle from t1 where foobar = 'fish' and boggle = 10;
 foobar	boggle
 fish	10
 drop table t1;
-create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
+create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
 insert into t1 (id) values (1);
 select 
 charset(load_file('../../std_data/words.dat')),
