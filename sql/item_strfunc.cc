@@ -1587,10 +1587,22 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  for (uint i=1 ; i < arg_count ; i++)
+  
+  for (uint i=0 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
+    if (i == 0)
+      set_charset(args[i]->charset(),args[i]->coercibility);
+    else
+    {
+      if (set_charset(charset(), coercibility,
+		      args[i]->charset(), args[i]->coercibility))
+      {
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+        break;
+      }
+    }
   }
   maybe_null=1;					// NULL if wrong first arg
   with_sum_func= with_sum_func || item->with_sum_func;
