@@ -257,10 +257,11 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 		  db ? db : (char*) "");
   thd->db_access=0;
   /* Don't allow user to connect if he has done too many queries */
-  if ((ur.questions || ur.updates || ur.connections) &&
+  if ((ur.questions || ur.updates || ur.connections || max_user_connections) &&
       get_or_create_user_conn(thd,user,thd->host_or_ip,&ur))
     return -1;
-  if (thd->user_connect && thd->user_connect->user_resources.connections && 
+  if (thd->user_connect && ((thd->user_connect->user_resources.connections) ||
+			    max_user_connections) && 
       check_for_max_user_connections(thd->user_connect))
     return -1;
   if (db && db[0])
@@ -308,7 +309,7 @@ static int check_for_max_user_connections(USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
   
   if (max_user_connections &&
-      (max_user_connections <=  (uint) uc->connections))
+      (max_user_connections <  (uint) uc->connections))
   {
     net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;

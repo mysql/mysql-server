@@ -315,6 +315,7 @@ static CHARSET_INFO *add_charset(uint cs_number, const char *cs_name, myf flags)
   cs->to_lower=tmp_to_lower;
   cs->to_upper=tmp_to_upper;
   cs->sort_order=tmp_sort_order;
+  cs->strxfrm_multiply=cs->mbmaxlen=1;
   if (read_charset_file(cs_number, cs, flags))
     return NULL;
 
