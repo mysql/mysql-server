@@ -2005,6 +2005,7 @@ mysql_execute_command(THD *thd)
       CHARSET_INFO *to_cs= thd->variables.collation_connection;
       bool need_conversion;
       user_var_entry *entry;
+      String *pstr= &str;
       uint32 unused;
       /*
         Convert @var contents to string in connection character set. Although
@@ -2020,26 +2021,43 @@ mysql_execute_command(THD *thd)
         String *pstr;
         my_bool is_var_null;
         pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
+        /*
+          NULL value of variable checked early as entry->value so here
+          we can't get NULL in normal conditions
+        */
         DBUG_ASSERT(!is_var_null);
         if (!pstr)
-          send_error(thd, ER_OUT_OF_RESOURCES);
-        DBUG_ASSERT(pstr == &str);
+        {
+          res= -1;
+          break;      // EOM (error should be reported by allocator)
+        }
       }
       else
+      {
+        /*
+          variable absent or equal to NULL, so we need to set variable to
+          something reasonable to get readable error message during parsing
+        */
         str.set("NULL", 4, &my_charset_latin1);
-      need_conversion=
-        String::needs_conversion(str.length(), str.charset(), to_cs, &unused);
+      }
 
-      query_len= need_conversion? (str.length() * to_cs->mbmaxlen) :
-                                  str.length();
+      need_conversion=
+        String::needs_conversion(pstr->length(), pstr->charset(),
+                                 to_cs, &unused);
+
+      query_len= need_conversion? (pstr->length() * to_cs->mbmaxlen) :
+                                  pstr->length();
       if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
-        send_error(thd, ER_OUT_OF_RESOURCES);
+      {
+        res= -1;
+        break;        // EOM (error should be reported by allocator)
+      }
 
       if (need_conversion)
-        query_len= copy_and_convert(query_str, query_len, to_cs, str.ptr(),
-                                    str.length(), str.charset());
+        query_len= copy_and_convert(query_str, query_len, to_cs, pstr->ptr(),
+                                    pstr->length(), pstr->charset());
       else
-        memcpy(query_str, str.ptr(), str.length());
+        memcpy(query_str, pstr->ptr(), pstr->length());
       query_str[query_len]= 0;
     }
     else
