@@ -29,6 +29,12 @@
 
 static int g_run_connect_thread= 0;
 
+#include <NdbMutex.h>
+NdbMutex *ndb_global_event_buffer_mutex= NULL;
+#ifdef VM_TRACE
+NdbMutex *ndb_print_state_mutex= NULL;
+#endif
+
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
 {
   DBUG_ENTER("Ndb_cluster_connection");
@@ -42,6 +48,17 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
   m_local_config= 0;
   m_connect_thread= 0;
   m_connect_callback= 0;
+
+  if (ndb_global_event_buffer_mutex == NULL)
+  {
+    ndb_global_event_buffer_mutex= NdbMutex_Create();
+  }
+#ifdef VM_TRACE
+  if (ndb_print_state_mutex == NULL)
+  {
+    ndb_print_state_mutex= NdbMutex_Create();
+  }
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -85,11 +102,10 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
   if ((r = connect(1)) == 1)
   {
     DBUG_PRINT("info",("starting thread"));
-    m_connect_thread= NdbThread_Create(run_ndb_cluster_connection_connect_thread,
-				       (void**)this,
-				       32768,
-				       "ndb_cluster_connection",
-				       NDB_THREAD_PRIO_LOW);
+    m_connect_thread= 
+      NdbThread_Create(run_ndb_cluster_connection_connect_thread,
+		       (void**)this, 32768, "ndb_cluster_connection",
+		       NDB_THREAD_PRIO_LOW);
   }
   else if (r < 0)
   {
@@ -112,13 +128,14 @@ int Ndb_cluster_connection::connect(int reconnect)
       if (m_local_config == 0) {
 	m_local_config= new LocalConfig();
 	if (!m_local_config->init(m_connect_string,0)) {
-	  ndbout << "Configuration error: Unable to retrieve local config" << endl;
+	  ndbout_c("Configuration error: Unable to retrieve local config");
 	  m_local_config->printError();
 	  m_local_config->printUsage();
 	  DBUG_RETURN(-1);
 	}
       }
-      m_config_retriever= new ConfigRetriever(*m_local_config, NDB_VERSION, NODE_TYPE_API);
+      m_config_retriever=
+	new ConfigRetriever(*m_local_config, NDB_VERSION, NODE_TYPE_API);
     }
     else
       if (reconnect == 0)
