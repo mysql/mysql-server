@@ -2379,6 +2379,8 @@ void usage()
 
 #include <help_end.h>
 
+#include <help_end.h>
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
