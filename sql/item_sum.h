@@ -691,7 +691,9 @@ public:
   {
     int err_not_used;
     char *end_not_used;
-    String *res;  res=val_str(&str_value);
+    char *end_not_used;
+    String *res;
+    res=val_str(&str_value);
     return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),
 			    &end_not_used, &err_not_used) : 0.0;
   }
