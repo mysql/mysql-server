@@ -57,11 +57,8 @@ TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV_MASTER_MSG=/tmp/mysqld-master-gcov.out #gcov output
-GCOV_MASTER_ERR=/tmp/mysqld-master-gcov.err  
-GCOV_SLAVE_MSG=/tmp/mysqld-slave-gcov.out #gcov output
-GCOV_SLAVE_ERR=/tmp/mysqld-slave-gcov.err  
-GCOV_SLAVE_SRC=/tmp/mysqld-slave-src/
+GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
+GCOV_ERR=/tmp/mysqld-gcov.err  
 
 [ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
 
@@ -130,6 +127,7 @@ else
  INSTALL_DB="../scripts/install_test_db -bin"
 fi
 
+SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
 
 
 MYSQL_TEST="$MYSQL_TEST --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
@@ -279,38 +277,21 @@ mysql_install_db () {
 gcov_prepare () {
     $FIND $BASEDIR -name \*.gcov \
     -or -name \*.da | $XARGS $RM
-    $RM -rf $GCOV_SLAVE_SRC
-    for d in $MYSQLD_SRC_DIRS; do
-	cd $BASEDIR/$d
-        mkdir -p $GCOV_SLAVE_SRC/$d  
-	for f in *.h *.cc *.c; do
-	  cp $f $GCOV_SLAVE_SRC/$d
-	done
-	cd $MYSQL_TEST_DIR
-   done    
 }
 
 gcov_collect () {
     $ECHO "Collecting source coverage info..."
-    [ -f $GCOV_MASTER_MSG ] && $RM $GCOV_MASTER_MSG
-    [ -f $GCOV_MASTER_ERR ] && $RM $GCOV_MASTER_ERR
-    [ -f $GCOV_SLAVE_MSG ] && $RM $GCOV_SLAVE_MSG
-    [ -f $GCOV_SLAVE_ERR ] && $RM $GCOV_SLAVE_ERR
+    [ -f $GCOV_MSG ] && $RM $GCOV_MSG
+    [ -f $GCOV_ERR ] && $RM $GCOV_ERR
     for d in $MYSQLD_SRC_DIRS; do
 	cd $BASEDIR/$d
 	for f in *.h *.cc *.c; do
-	    $GCOV $f 2>>$GCOV_MASTER_ERR  >>$GCOV_MASTER_MSG
-	done
-	cd $MYSQL_TEST_DIR
-	cd $GCOV_SLAVE_SRC/$d
-	for f in *.h *.cc *.c; do
-	    $GCOV $f 2>>$GCOV_SLAVE_ERR  >>$GCOV_SLAVE_MSG
+	    $GCOV $f 2>>$GCOV_ERR  >>$GCOV_MSG
 	done
 	cd $MYSQL_TEST_DIR
     done
 
-    $ECHO "gcov master info in $GCOV_MASTER_MSG, errors in $GCOV_MASTER_ERR"
-    $ECHO "gcov slave info in $GCOV_SLAVE_MSG, errors in $GCOV_SLAVE_ERR"
+    $ECHO "gcov  info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
 start_master()
@@ -341,7 +322,6 @@ start_master()
 start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
-    [ -d $GCOV_SLAVE_SRC ] && cd $GCOV_SLAVE_SRC
     slave_args="--no-defaults --server-id=2 \
 	    --master-user=root \
 	    --master-connect-retry=1 \
@@ -359,10 +339,10 @@ start_slave()
     if [ x$DO_GDB = x1 ]
     then
       echo "set args $slave_args" > $GDB_SLAVE_INIT
-      xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $MYSQLD &
+      xterm -title "Slave" -e gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD &
       prompt_user "Hit enter to continue after you've started the slave"
-    else	    
-      $MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
+    else
+      $SLAVE_MYSQLD $slave_args  >> $SLAVE_MYERR 2>&1 &
     fi
     SLAVE_RUNNING=1
 }
