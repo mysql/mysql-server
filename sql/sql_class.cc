@@ -150,7 +150,8 @@ THD::~THD()
 
   DBUG_PRINT("info", ("freeing host"));
   
-  safeFree(host);
+  if (host != localhost)			// If not pointer to constant
+    safeFree(host);
   safeFree(user);
   safeFree(db);
   safeFree(ip);

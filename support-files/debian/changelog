@@ -1,0 +1,410 @@
+mysql (3.23.23-1potato.2) unstable; urgency=low
+
+  * move patch into debian/patches/
+    if you want to make new patch,
+    write patch file and put it into debian/patches/.
+    debian/rules do patch debian/patches/* automatically.
+  * change debian/rules , debian/move
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue,  5 Sep 2000 05:07:35 +0900
+
+mysql (3.23.23-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat,  2 Sep 2000 05:07:35 +0900
+
+mysql (3.23.22-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue,  1 Aug 2000 05:07:35 +0900
+
+mysql (3.23.21-1potato.2) unstable; urgency=low
+
+  * MYI patch
+  * /usr/lib/mysql/libmysqlclient.a -> /usr/lib/
+  * libmysqlclient patch
+  * fix mysql-dev conflicts libmysqlclient6
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun, 30 Jul 2000 05:07:35 +0900
+
+mysql (3.23.21-1potato.1) unstable; urgency=low
+
+  * MYI patch
+  * /usr/lib/mysql/libmysqlclient.a -> /usr/lib/
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 25 Jul 2000 05:07:35 +0900
+
+mysql (3.23.21-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr,  6 Jul 2000 05:07:35 +0900
+
+mysql (3.23.20-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 29 Jun 2000 05:07:35 +0900
+
+mysql (3.23.19-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 29 Jun 2000 05:07:35 +0900
+
+mysql (3.23.18-1) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 13 May 2000 05:07:35 +0900
+
+mysql (3.23.17-1) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 31 May 2000 05:07:35 +0900
+
+mysql (3.23.16-1) unstable; urgency=low
+
+  * new
+  * branch static mysqld & shared mysqld
+  * no need ujis,sjis branch. 3.23 support dynamic charset
+  * add conf file /etc/my.cnf
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 31 May 2000 05:07:35 +0900
+
+mysql (3.22.32-2) unstable; urgency=low
+
+  * fix mysqldump
+  * fix sjis
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr,  6 Apr 2000 05:07:35 +0900
+
+mysql (3.22.32-1) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 15 Feb 2000 05:07:35 +0900
+
+mysql (3.22.30-2) unstable; urgency=low
+
+  * fix perl path
+  * with system readline
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue,  8 Feb 2000 05:07:35 +0900
+
+mysql (3.22.30-1) unstable; urgency=low
+
+  * new
+  * OOP! debian remove libreadlineg2-dev!
+     --without-readline => --with-readline
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 14 Jan 2000 05:07:35 +0900
+
+mysql (3.22.29-1) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon,  3 Jan 2000 05:07:35 +0900
+
+mysql (3.22.29-0bo) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon,  3 Jan 2000 05:07:35 +0900
+
+mysql (3.22.27-0bo.2) unstable; urgency=low
+
+  * with linuxthread-0.71
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr,  9 Dec 1999 05:07:35 +0900
+
+mysql (3.22.27-0bo.1) unstable; urgency=low
+
+  * fix: mysqlaccess incorrect path
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 13 Nov 1999 05:07:35 +0900
+
+mysql (3.22.27-0bo) unstable; urgency=low
+
+  * sql/sql_parse.cc patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 13 Oct 1999 05:07:35 +0900
+
+mysql (3.22.26a-0bo.1) unstable; urgency=low
+
+  * BLOB SELECT DISTINCT patch
+  * all static linked
+  * fix: @sbindir@ was not changed
+  * mysql_find_rows -> /usr/bin/
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon, 20 Sep 1999 05:07:35 +0900
+
+mysql (3.22.26a-0bo) unstable; urgency=low
+
+  * new upstream
+  * fix incorrect path: init.d/mysql (= mysql.server.sh), msql2mysql, mysql_install_db
+  * change daemon user -> mysql
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon, 13 Sep 1999 05:07:35 +0900
+
+mysql (3.22.25-0bo) unstable; urgency=low
+
+  * new
+  * change : libmysql6 -> libmysqlclient6
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue,  3 Aug 1999 05:07:35 +0900
+
+mysql (3.22.24-0bo) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon, 25 Jul 1999 05:07:35 +0900
+
+mysql (3.22.23b-0bo.1) unstable; urgency=low
+
+  * new
+  * gcc patch + sql_load patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 24 Jun 1999 05:07:35 +0900
+
+mysql (3.22.23b-0bo) unstable; urgency=low
+
+  * new
+  * gcc patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 15 Jun 1999 05:07:35 +0900
+
+mysql (3.22.22-0bo) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Mon,  3 May 1999 05:07:35 +0900
+
+mysql (3.22.21-0bo.1) unstable; urgency=low
+
+  * re-compile
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 30 Apr 1999 05:07:35 +0900
+
+mysql (3.22.21-0bo) unstable; urgency=low
+
+  * New up stream
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue,  6 Apr 1999 05:07:35 +0900
+
+mysql (3.22.20a-0bo) unstable; urgency=low
+
+  * New up stream
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 19 Mar 1999 05:07:35 +0900
+
+mysql (3.22.19a-0bo) unstable; urgency=low
+
+  * New up stream
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed,  3 Mar 1999 05:07:35 +0900
+
+mysql (3.22.18-0bo) unstable; urgency=low
+
+  * New up stream
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun, 28 Feb 1999 05:07:35 +0900
+
+mysql (3.22.16a-gamma-0bo.1) unstable; urgency=low
+
+  * fix libmysqlclient5 -> libmysqlclient6
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 11 Feb 1999 05:07:35 +0900
+
+mysql (3.22.16a-gamma-0bo) unstable; urgency=low
+
+  * new upstream
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun,  7 Feb 1999 05:07:35 +0900
+
+mysql (3.22.15-gamma-0bo) unstable; urgency=low
+
+  * new upstream
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 29 Jan 1999 05:07:35 +0900
+
+mysql (3.22.14b-gamma-0bo) unstable; urgency=low
+
+  * new upstream
+  * apply mb problem patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 26 Jan 1999 05:07:35 +0900
+
+mysql (3.22.14-gamma-0bo.1) unstable; urgency=low
+
+  * egcs -all-static
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun,  3 Jan 1999 05:07:35 +0900
+
+mysql (3.22.14-gamma-0bo) unstable; urgency=low
+
+  * New upstream
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun,  3 Jan 1999 05:07:35 +0900
+
+mysql (3.22.13-beta-0bo) unstable; urgency=low
+
+  * New upstream
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 11 Nov 1998 00:29:14 +0900
+
+mysql (3.22.12-beta-0bo) unstable; urgency=low
+
+  * New upstream
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 11 Nov 1998 00:29:14 +0900
+
+mysql (3.22.11-beta-0bo) unstable; urgency=low
+
+  * New upstream
+  * !!! CHANGE PACKAGE NAME !!!
+      libmysql5    <- only libmysqlclinet.so.5
+      mysql-client <- client commands
+      mysql-server <- server
+      mysql-dev    <- .h & .a
+      mysql-doc    <- Docs
+      mysql-bench  <- benchmark suite.
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 25 Nov 1998 15:03:45 +0900
+
+mysql (3.22.10-beta-0bo.2) unstable; urgency=low
+
+  * fix debian/rules , debian/*.dirs
+  * gcc-2.7.2.3, g++-2.7.2.1 compiled
+  * remove /usr/bin/mysql-sub/
+  * rename /usr/bin/mysql-sub/replace -> /usr/bin/mysql_replace
+  * mv mysql-base:/usr/bin/mysql-sub/{perror,resolveip} -> mysql-server:/usr/bin/
+                              perror  ->          mysql_perror
+                              resolveip->         mysql_resolveip
+  * mv add_*, make_binary_distribution -> /usr/share/mysql/
+  * add japanese errmsg (/usr/share/mysql/japanese)
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 13 Nov 1998 15:03:45 +0900
+
+mysql (3.22.10-beta-0bo.1) unstable; urgency=low
+
+  * fix debian/rules
+  * egcs compiled
+  * link libstdc++2.8.a (mysqld), so, you don't need libstdc++2.8 for running mysqld.
+    (not client programs.)
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 11 Nov 1998 15:03:45 +0900
+
+mysql (3.22.10-beta-0bo) unstable; urgency=low
+
+  * New upstream
+  * egcs compiled
+  * fix: mysql-base-{char}/usr/bin/comp_err -> mysql-server-{char}/usr/sbin/comp_err
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr,  5 Nov 1998 15:03:45 +0900
+
+mysql (3.22.9-beta-0bo.1) unstable; urgency=low
+
+  * new patch to sql_string.cc ('%' bug)
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 27 Oct 1998 15:03:45 +0900
+
+mysql (3.22.9-beta-0bo) unstable; urgency=low
+
+  * fix cflags
+  * fix diff files
+  * fix & change categorize of client or server
+    mysql-server:
+        /usr/sbin/mysql_install_db
+            safe_mysqld            mysqld
+            isamchk            isamlog
+
+    mysql-base:
+         /usr/bin/
+           comp_err  msql2mysql  mysql  mysql_zap
+           mysqlaccess    mysqladmin    mysqlbug
+           mysqldump      mysqlimport   mysqlshow
+
+         /usr/bin/mysql-sub/
+          add_file_priv     add_func_table
+          add_long_password     make_binary_distribution
+          perror     replace     resolveip
+
+  * patch to sql_string.cc ('%' bug)
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed,  7 Oct 1998 15:03:45 +0900
+
+mysql (3.22.8-beta-0bo) unstable; urgency=low
+
+  * New up stream
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed,  7 Oct 1998 15:03:45 +0900
+
+mysql (3.22.7b-0bo.1) unstable; urgency=low
+
+  * left join patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 24 Sep 1998 15:03:45 +0900
+
+mysql (3.22.7b-0bo) unstable; urgency=low
+
+  * New upstream version (bo)
+  * mb patch
+  * *.a -> /usr/lib/mysql/
+  * add_file_priv add_func_table make_binary_distribution
+    add_long_password perror replace resolveip
+    -> /usr/bin/mysql-sub/
+  * mysqld, safe_mysqld, mysql_install_db -> mysql-server /usr/sbin/
+  * add '-lm -lz -ldl' when building libmysqlclient.so.4.0.0
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 15 Aug 1998 15:03:45 +0900
+
+mysql (3.22.4a-0bo) unstable; urgency=low
+
+  * New upstream version (bo)
+  * use system libreadline
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 15 Aug 1998 15:03:45 +0900
+
+mysql (3.21.33-0bo) unstable; urgency=low
+
+  * New upstream version
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 22 Jul 1998 12:51:45 +0900
+
+mysql (3.21.30-1) unstable; urgency=low
+
+  * New upstream version
+  * fix conffile setting
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 12 May 1998 20:24:45 +0900
+
+mysql (3.21.29.gamma-2) unstable; urgency=low
+
+  * charset=ujis,sjis packages
+  * branch mysql-base-* (lib*.so)
+  * /usr/local/mysql/lib/mysql/lib* -> /usr/lib/
+  * /usr/local/mysql/include -> /usr/include
+  * /usr/local/mysql/info -> /usr/info
+  * /usr/local/mysql/man -> /usr/man
+  * /usr/local/mysql/share -> /usr/share
+  * /usr/local/mysql/bin -> /usr/bin
+  * /usr/local/mysql/libexec -> /usr/sbin
+  * /usr/local/mysql/var -> /var/mysql/data
+  * /usr/local/mysql/sql-bench -> /var/mysql/sql-bench
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 8 May 1998 00:04:45 +0900
+
+mysql (3.21.29.gamma-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 2 May 1998 03:42:24 +0900
+
+Local variables:
+mode: debian-changelog
+add-log-mailing-address: "takeshi@softagency.co.jp"
+End:

@@ -2368,6 +2368,7 @@ keyword:
 	| ESCAPE_SYM		{}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
+	| FULL			{}
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
 	| FIXED_SYM		{}

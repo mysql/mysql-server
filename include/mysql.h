@@ -73,6 +73,8 @@ extern char *mysql_unix_port;
 #define IS_NOT_NULL(n)	((n) & NOT_NULL_FLAG)
 #define IS_BLOB(n)	((n) & BLOB_FLAG)
 #define IS_NUM(t)	((t) <= FIELD_TYPE_INT24 || (t) == FIELD_TYPE_YEAR)
+#define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
+#define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && (f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8) || (f)->type == FIELD_TYPE_YEAR)
 
 typedef struct st_mysql_field {
   char *name;			/* Name of column */

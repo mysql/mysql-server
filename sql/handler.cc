@@ -317,8 +317,11 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   }
   if (!error)
   {
-    if (!(ref=(byte*) alloc_root(&table->mem_root,
-				 ALIGN_SIZE(ref_length)*2)))
+    if (!alloc_root_inited(&table->mem_root))	// If temporary table
+      ref=sql_alloc(ALIGN_SIZE(ref_length)*2);
+    else
+      ref=(byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2);
+    if (!ref)
     {
       close();
       error=HA_ERR_OUT_OF_MEM;

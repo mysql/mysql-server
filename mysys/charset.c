@@ -380,7 +380,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags)
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   cs=get_internal_charset(cs_number);
 
-  if (!cs && flags & MY_WME)
+  if (!cs && (flags & MY_WME))
   {
     char index_file[FN_REFLEN], cs_string[23];
     strmov(get_charsets_dir(index_file), "Index");

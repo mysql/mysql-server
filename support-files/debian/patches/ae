@@ -1,0 +1,41 @@
+--- mysql-3.23.23.orig/support-files/mysql.server.sh	Tue Sep  5 19:13:35 2000
++++ mysql-3.23.23/support-files/mysql.server.sh	Tue Sep  5 19:19:40 2000
+@@ -16,6 +16,7 @@
+ PATH=/sbin:/usr/sbin:/bin:/usr/bin
+ basedir=@prefix@
+ bindir=@bindir@
++sbindir=@sbindir@
+ datadir=@localstatedir@
+ pid_file=@localstatedir@/mysqld.pid
+ log_file=@localstatedir@/mysqld.log
+@@ -64,6 +65,10 @@
+   then
+     bindir=`grep "^bindir" $conf | cut -f 2 -d= | tr -d ' '`
+   fi
++  if grep "^sbindir" $conf >/dev/null
++  then
++    sbindir=`grep "^sbindir" $conf | cut -f 2 -d= | tr -d ' '`
++  fi
+   if grep "^log[ \t]*=" $conf >/dev/null
+   then
+     log_file=`grep "log[ \t]*=" $conf | cut -f 2 -d= | tr -d ' '`
+@@ -78,14 +83,15 @@
+   'start')
+     # Start daemon
+ 
+-    if test -x $bindir/safe_mysqld
++    if test -x $sbindir/safe_mysqld
+     then
+       # Give extra arguments to mysqld with the my.cnf file. This script may
+       # be overwritten at next upgrade.
+-      $bindir/safe_mysqld \
+-	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file --log=$log_file  &
++      $sbindir/safe_mysqld \
++	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file &
++# --log=$log_file  &
+     else
+-      echo "Can't execute $bindir/safe_mysqld"
++      echo "Can't execute $sbindir/safe_mysqld"
+     fi
+     ;;
+ 

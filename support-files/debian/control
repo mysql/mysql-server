@@ -1,0 +1,71 @@
+Source: mysql
+Section: devel
+Priority: extra
+Maintainer: takeshi <takeshi@softagency.co.jp>
+Standards-Version: 2.1.2.2
+
+Package: mysql
+Architecture: all
+Description: mysql
+ Missing
+
+Package: mysql-doc
+Architecture: all
+Description: mysql Documentation (html)
+ MySQL Doc.
+
+Package: libmysqlclient9
+Architecture: any
+Provides: libmysqlclient9
+Description: libmysqlclient.so.9
+ libmysqlclient.so.9
+
+Package: mysql-client
+Architecture: any
+Depends: ${shlibs:Depends}
+Section: devel
+Priority: extra
+Conflicts: mysql-client-ujis, mysql-client-sjis
+Replaces: mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-client-ujis, mysql-client-sjis
+Provides: mysql-client
+Description: mysql clients.
+ MySQL clients programs.
+
+Package: mysql-server
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Provides: mysql-server
+Description: MySQL server (static linked)
+ MySQL server. static linked.
+
+Package: mysql-server-shared
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Description: MySQL server (dynamic linked)
+ MySQL server. dynamic linked.
+
+Package: mysql-server-debug
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Description: MySQL server debug
+ MySQL server. debug
+
+Package: mysql-dev
+Architecture: any
+Depends: ${shlibs:Depends}
+Conflicts: mysql-dev-sjis, mysql-dev-ujis
+Replaces: mysql-dev-sjis, mysql-dev-ujis, libmysqlclient6-ujis, libmysqlclient6-sjis
+Provides: mysql-dev
+Description: MySQL develop suite
+ MySQL develop.
+
+Package: mysql-bench
+Architecture: all
+Description: mysql benchmark suite.
+ MySQL sql-bench files.
