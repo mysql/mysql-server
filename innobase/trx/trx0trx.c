@@ -30,6 +30,17 @@ sess_t*		trx_dummy_sess = NULL;
 the kernel mutex */
 ulint	trx_n_mysql_transactions = 0;
 
+/********************************************************************
+Retrieves the error_info field from a trx. */
+
+void*
+trx_get_error_info(
+/*===============*/
+		     /* out: the error info */
+	trx_t*  trx) /* in: trx object */
+{
+        return(trx->error_info);
+}
 
 /********************************************************************
 Creates and initializes a transaction object. */

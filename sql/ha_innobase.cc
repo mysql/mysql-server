@@ -2575,10 +2575,16 @@ ha_innobase::info(
 		}
 	}
 
+	/* The trx struct in Innobase contains a pthread mutex embedded:
+	in the debug version of MySQL that it replaced by a 'safe mutex'
+	which is of a different size. We have to use a function to access
+	trx fields. Otherwise trx->error_info will be a random
+	pointer and cause a seg fault. */
+
   	if (flag & HA_STATUS_ERRKEY) {
 		errkey = (unsigned int) row_get_mysql_key_number_for_index(
-						(dict_index_t*)
-						prebuilt->trx->error_info);
+				       (dict_index_t*)
+				       trx_get_error_info(prebuilt->trx));
   	}
 
   	DBUG_VOID_RETURN;
