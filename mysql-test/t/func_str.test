@@ -198,3 +198,20 @@ select quote(trim(concat('    ', 'a')));
 CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
 SELECT QUOTE('A') FROM t1;
 DROP TABLE t1;
+
+#
+# Test case for bug #8669: null aes_decrypt result in order by query
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t2 (id int NOT NULL UNIQUE);
+INSERT INTO t2 VALUES (1),(2);
+INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
+INSERT INTO t1 VALUES (2, 'not valid');
+
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id;
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id
+ ORDER BY t1.id;
+
+DROP TABLE t1, t2;
+
