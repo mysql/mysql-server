@@ -368,9 +368,11 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   ulonglong id;
+  ulong row_pos;
   DBUG_ENTER("read_fixed_length");
 
-  id=0;
+  id= 0;
+  row_pos= 1;
   /* No fields can be null in this format. mark all fields as not null */
   while ((sql_field= (Item_field*) it++))
       sql_field->field->set_notnull();
@@ -392,8 +394,11 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
       Field *field=sql_field->field;
       if (pos == read_info.row_end)
       {
-	thd->cuted_fields++;			/* Not enough fields */
-	field->reset();
+        thd->cuted_fields++;			/* Not enough fields */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_WARN_TOO_FEW_RECORDS, 
+                            ER(ER_WARN_TOO_FEW_RECORDS), row_pos);
+        field->reset();
       }
       else
       {
@@ -403,14 +408,25 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-	field->store((char*) pos,length,read_info.read_charset);
+ 	if (field->store((char*) pos,length,read_info.read_charset))
+ 	{
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+          	              ER_WARN_DATA_TRUNCATED, 
+                	      ER(ER_WARN_DATA_TRUNCATED), 
+                	      field->field_name, row_pos);
+ 	}
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
       }
     }
     if (pos != read_info.row_end)
+    {
       thd->cuted_fields++;			/* To long row */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_WARN_TOO_MANY_RECORDS, 
+                          ER(ER_WARN_TOO_MANY_RECORDS), row_pos);
+    }
     if (write_record(table,&info))
       DBUG_RETURN(1);
     /*
@@ -426,7 +442,13 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
+    {
       thd->cuted_fields++;			/* To long row */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_WARN_TOO_MANY_RECORDS, 
+                          ER(ER_WARN_TOO_MANY_RECORDS), row_pos);
+    }
+    row_pos++;
   }
   if (id && !read_info.error)
     thd->insert_id(id);			// For binary/update log
@@ -444,11 +466,13 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   Item_field *sql_field;
   uint enclosed_length;
   ulonglong id;
+  ulong row_pos;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-  id=0;
-  
+  id= 0;
+  row_pos= 1;
+
   for (;;it.rewind())
   {
     if (thd->killed)
@@ -478,13 +502,26 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	  if (field->type() == FIELD_TYPE_TIMESTAMP)
 	    ((Field_timestamp*) field)->set_time();
 	  else if (field != table->next_number_field)
+ 	  {
 	    thd->cuted_fields++;
+ 	    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_WARN_NULL_TO_NOTNULL, 
+                          ER(ER_WARN_NULL_TO_NOTNULL), 
+                          field->field_name, row_pos);
+ 	  }
 	}
 	continue;
       }
       field->set_notnull();
       read_info.row_end[0]=0;			// Safe to change end marker
-      field->store((char*) read_info.row_start,length,read_info.read_charset);
+      if (field->store((char*) read_info.row_start,length,read_info.read_charset))
+      {
+        // Data truncated or out of bounds
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                            ER_WARN_DATA_TRUNCATED, 
+                            ER(ER_WARN_DATA_TRUNCATED), 
+                            field->field_name, row_pos);
+      }
     }
     if (read_info.error)
       break;
@@ -497,6 +534,9 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	sql_field->field->set_null();
 	sql_field->field->reset();
 	thd->cuted_fields++;
+ 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                	    ER_WARN_TOO_FEW_RECORDS,
+                	    ER(ER_WARN_TOO_FEW_RECORDS), row_pos);
       }
     }
     if (write_record(table,&info))
@@ -514,7 +554,13 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
     if (read_info.next_line())			// Skip to next line
       break;
     if (read_info.line_cuted)
+    {
       thd->cuted_fields++;			/* To long row */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_WARN_TOO_MANY_RECORDS, 
+                          ER(ER_WARN_TOO_MANY_RECORDS), row_pos);
+    }
+    row_pos++;
   }
   if (id && !read_info.error)
     thd->insert_id(id);			// For binary/update log
