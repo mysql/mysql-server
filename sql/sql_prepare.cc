@@ -1679,7 +1679,10 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
         Copy WHERE clause pointers to avoid damaging they by optimisation
       */
       if (sl->prep_where)
+      {
         sl->where= sl->prep_where->copy_andor_structure(thd);
+        sl->where->cleanup();
+      }
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
