@@ -90,7 +90,7 @@ END-INFO-DIR-ENTRY
 
 @ifset nusphere
 @oddheading @thischapter @| @| @thispage
-@evenheading @thispage @| @| @thischapter
+@evenheading @thispage @| @| MySQL Technical Reference for Version @value{mysql_version}
 @end ifset
 
 @end iftex
