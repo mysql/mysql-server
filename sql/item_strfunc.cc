@@ -2730,6 +2730,7 @@ String *Item_func_uuid::val_str(String *str)
 
   str->realloc(UUID_LENGTH+1);
   str->length(UUID_LENGTH);
+  str->set_charset(system_charset_info);
   s=(char *) str->ptr();
   s[8]=s[13]='-';
   tohex(s, time_low, 8);
