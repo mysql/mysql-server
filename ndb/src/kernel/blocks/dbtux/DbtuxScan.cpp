@@ -172,7 +172,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       BoundInfo& b = boundInfo[j][attrId];
       if (b.type != -1) {
         // compare with previous bound
-        if (b.type != type2 ||
+        if (b.type != (int)type2 ||
             b.size != 2 + dataSize ||
             memcmp(&data[b.offset + 2], &data[offset + 2], dataSize << 2) != 0) {
           jam();
