@@ -313,6 +313,25 @@ void mysql_lock_abort(THD *thd, TABLE *table)
 }
 
 
+/* Abort one thread / table combination */
+
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
+{
+  MYSQL_LOCK *locked;
+  TABLE *write_lock_used;
+  DBUG_ENTER("mysql_lock_abort_for_thread");
+
+  if ((locked = get_lock_data(thd,&table,1,1,&write_lock_used)))
+  {
+    for (uint i=0; i < locked->lock_count; i++)
+      thr_abort_locks_for_thread(locked->locks[i]->lock,
+				 table->in_use->real_id);
+    my_free((gptr) locked,MYF(0));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 {
   MYSQL_LOCK *sql_lock;
