@@ -2470,7 +2470,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2496,7 +2496,7 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->safe_to_cache_query=0;
+  thd->lex.safe_to_cache_query=0;
   item->set_name(item_name);		// Will use original name
   return item;
 }
