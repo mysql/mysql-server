@@ -250,7 +250,7 @@
 "Varje 'derived table' måste ha sitt eget alias",
 "Select %u reducerades vid optimiering",
 "Tabell '%-.64s' från en SELECT kan inte användas i %-.32s",
-"Klienten stöder inte autentiseringsprotokollet som begärts av servern. Överväg uppgradering av klientprogrammet.",
+"Klienten stöder inte autentiseringsprotokollet som begärts av servern; överväg uppgradering av klientprogrammet.",
 "Alla delar av en SPATIAL KEY måste vara NOT NULL",
 "COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'",
 "Slaven har redan startat",
