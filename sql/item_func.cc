@@ -76,7 +76,7 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 
 
 bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
-                                   bool allow_superset_conversion)
+                                   uint flags)
 {
   uint i;
   c.nagg= 0;
@@ -84,7 +84,7 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation, allow_superset_conversion))
+    if (c.aggregate(av[i]->collation, flags))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
@@ -96,9 +96,9 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count,
-                                                  bool allow_superset_conv)
+                                                  uint flags)
 {
-  if (agg_arg_collations(c, av, count, allow_superset_conv))
+  if (agg_arg_collations(c, av, count, flags))
     return TRUE;
 
   if (c.derivation == DERIVATION_NONE)
