@@ -2934,7 +2934,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "max_write_lock_count",    (long*) &max_write_lock_count,
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_bulk_insert_tree_size", (long*) &myisam_bulk_insert_tree_size,
-      8192*1024, 4, ~0L, 0, 1 },
+      8192*1024, 0, ~0L, 0, 1 },
   { "myisam_block_size", 	(long*) &opt_myisam_block_size,
       MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
     0, MI_MIN_KEY_BLOCK_LENGTH },
