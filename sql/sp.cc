@@ -121,10 +121,10 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   const char *params, *returns, *body;
   int ret;
   bool opened;
-  const char *creator;
+  const char *definer;
   longlong created;
   longlong modified;
-  st_sp_chistics *chistics;
+  st_sp_chistics chistics;
   char *ptr;
   uint length;
   char buff[65];
@@ -147,8 +147,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
-  chistics= (st_sp_chistics *)thd->alloc(sizeof(st_sp_chistics));
-  chistics->detistic= (ptr[0] == 'N' ? FALSE : TRUE);    
+  bzero((char *)&chistics, sizeof(chistics));
+  chistics.detistic= (ptr[0] == 'N' ? FALSE : TRUE);    
 
   if ((ptr= get_field(&thd->mem_root,
 		      table->field[MYSQL_PROC_FIELD_SECURITY_TYPE])) == NULL)
@@ -156,7 +156,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
-  chistics->suid= (ptr[0] == 'I' ? IS_NOT_SUID : IS_SUID);    
+  chistics.suid= (ptr[0] == 'I' ? IS_NOT_SUID : IS_SUID);    
 
   if ((params= get_field(&thd->mem_root,
 			 table->field[MYSQL_PROC_FIELD_PARAM_LIST])) == NULL)
@@ -181,7 +181,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   }
 
   // Get additional information
-  if ((creator= get_field(&thd->mem_root,
+  if ((definer= get_field(&thd->mem_root,
 			  table->field[MYSQL_PROC_FIELD_DEFINER])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -198,8 +198,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   ptr= 0;
   if ((length= str.length()))
     ptr= thd->strmake(str.ptr(), length);
-  chistics->comment.str= ptr;
-  chistics->comment.length= length;
+  chistics.comment.str= ptr;
+  chistics.comment.length= length;
 
   if (opened)
   {
@@ -224,7 +224,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
 			  params, strlen(params),
 			  returns, strlen(returns),
 			  body, strlen(body),
-			  chistics);
+			  &chistics);
     lex_start(thd, (uchar*)defstr, deflen);
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)
     {
@@ -243,8 +243,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     else
     {
       *sphp= thd->lex->sphead;
-      (*sphp)->set_info((char *) creator, (uint) strlen(creator),
-			created, modified, chistics);
+      (*sphp)->set_info((char *)definer, (uint)strlen(definer),
+			created, modified, &chistics);
     }
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
@@ -265,6 +265,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   TABLE_LIST tables;
+  char definer[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
@@ -275,6 +276,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   else
   {
     restore_record(table, default_values); // Get default values for fields
+    strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
 
     if (table->fields != MYSQL_PROC_FIELD_COUNT)
     {
@@ -300,7 +302,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     table->field[MYSQL_PROC_FIELD_BODY]->
       store(sp->m_body.str, sp->m_body.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_DEFINER]->
-      store(thd->user, (uint)strlen(thd->user), system_charset_info);
+      store(definer, (uint)strlen(definer), system_charset_info);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     table->field[MYSQL_PROC_FIELD_SQL_MODE]->
       store((longlong)thd->variables.sql_mode);
@@ -853,7 +855,7 @@ create_string(THD *thd, ulong *lenp,
     ptr+= my_sprintf(ptr, (ptr, (char *)"    DETERMINISTIC\n"));
   if (chistics->suid == IS_NOT_SUID)
     ptr+= my_sprintf(ptr, (ptr, (char *)"    SQL SECURITY INVOKER\n"));
-  if (chistics->comment.str)
+  if (chistics->comment.length)
     ptr+= my_sprintf(ptr, (ptr, (char *)"    COMMENT '%*s'\n",
 			   chistics->comment.length,
 			   chistics->comment.str));

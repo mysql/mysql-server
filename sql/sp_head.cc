@@ -19,6 +19,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "sql_acl.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"
@@ -183,9 +184,10 @@ sp_head::init_strings(LEX_STRING *name, LEX *lex)
 
   DBUG_PRINT("info", ("name: %*s", name->length, name->str));
   m_name.length= name->length;
-  m_name.str= lex->thd->strmake(name->str, name->length);
+  m_name.str= strmake_root(&m_mem_root, name->str, name->length);
   m_params.length= m_param_end- m_param_begin;
-  m_params.str= lex->thd->strmake((char *)m_param_begin, m_params.length);
+  m_params.str= strmake_root(&m_mem_root,
+			     (char *)m_param_begin, m_params.length);
   if (m_returns_begin && m_returns_end)
   {
     /* QQ KLUDGE: We can't seem to cut out just the type in the parser
@@ -202,12 +204,13 @@ sp_head::init_strings(LEX_STRING *name, LEX *lex)
       p-= 1;
     m_returns_end= (uchar *)p+1;
     m_retstr.length=  m_returns_end - m_returns_begin;
-    m_retstr.str= lex->thd->strmake((char *)m_returns_begin, m_retstr.length);
+    m_retstr.str= strmake_root(&m_mem_root,
+			       (char *)m_returns_begin, m_retstr.length);
   }
   m_body.length= lex->end_of_query - m_body_begin;
-  m_body.str= lex->thd->strmake((char *)m_body_begin, m_body.length);
+  m_body.str= strmake_root(&m_mem_root, (char *)m_body_begin, m_body.length);
   m_defstr.length= lex->end_of_query - lex->buf;
-  m_defstr.str= lex->thd->strmake((char *)lex->buf, m_defstr.length);
+  m_defstr.str= strmake_root(&m_mem_root, (char *)lex->buf, m_defstr.length);
   DBUG_VOID_RETURN;
 }
 
@@ -664,6 +667,34 @@ sp_head::backpatch(sp_label_t *lab)
     }
 }
 
+void
+sp_head::set_info(char *definer, uint definerlen,
+		  longlong created, longlong modified,
+		  st_sp_chistics *chistics)
+{
+  char *p= strchr(definer, '@');
+  uint len;
+
+  if (! p)
+    p= definer;		// Weird...
+  len= p-definer;
+  m_definer_user.str= strmake_root(&m_mem_root, definer, len);
+  m_definer_user.length= len;
+  len= definerlen-len-1;
+  m_definer_host.str= strmake_root(&m_mem_root, p+1, len);
+  m_definer_host.length= len;
+  m_created= created;
+  m_modified= modified;
+  m_chistics= (st_sp_chistics *)alloc_root(&m_mem_root, sizeof(st_sp_chistics));
+  memcpy(m_chistics, chistics, sizeof(st_sp_chistics));
+  if (m_chistics->comment.length == 0)
+    m_chistics->comment.str= 0;
+  else
+    m_chistics->comment.str= strmake_root(&m_mem_root,
+					  m_chistics->comment.str,
+					  m_chistics->comment.length);
+}
+
 int
 sp_head::show_create_procedure(THD *thd)
 {
@@ -1040,4 +1071,65 @@ sp_instr_cfetch::execute(THD *thd, uint *nextp)
     res= c->fetch(thd, &m_varlist);
   *nextp= m_ip+1;
   DBUG_RETURN(res);
+}
+
+
+//
+// Security context swapping
+//
+
+void
+sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+{
+  ctxp->changed= (sp->m_chistics->suid != IS_NOT_SUID &&
+		   (strcmp(sp->m_definer_user.str, thd->priv_user) ||
+		    strcmp(sp->m_definer_host.str, thd->priv_host)));
+
+  if (ctxp->changed)
+  {
+    ctxp->master_access= thd->master_access;
+    ctxp->db_access= thd->db_access;
+    ctxp->db= thd->db;
+    ctxp->db_length= thd->db_length;
+    ctxp->priv_user= thd->priv_user;
+    strncpy(ctxp->priv_host, thd->priv_host, sizeof(ctxp->priv_host));
+    ctxp->user= thd->user;
+    ctxp->host= thd->host;
+    ctxp->ip= thd->ip;
+
+    /* Change thise just to do the acl_getroot_no_password */
+    thd->user= sp->m_definer_user.str;
+    thd->host= thd->ip = sp->m_definer_host.str;
+
+    if (acl_getroot_no_password(thd))
+    {			// Failed, run as invoker for now
+      ctxp->changed= FALSE;
+      thd->master_access= ctxp->master_access;
+      thd->db_access= ctxp->db_access;
+      thd->db= ctxp->db;
+      thd->db_length= ctxp->db_length;
+      thd->priv_user= ctxp->priv_user;
+      strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+    }
+
+    /* Restore these immiediately */
+    thd->user= ctxp->user;
+    thd->host= ctxp->host;
+    thd->ip= ctxp->ip;
+  }
+}
+
+void
+sp_restore_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp)
+{
+  if (ctxp->changed)
+  {
+    ctxp->changed= FALSE;
+    thd->master_access= ctxp->master_access;
+    thd->db_access= ctxp->db_access;
+    thd->db= ctxp->db;
+    thd->db_length= ctxp->db_length;
+    thd->priv_user= ctxp->priv_user;
+    strncpy(thd->priv_host, ctxp->priv_host, sizeof(thd->priv_host));
+  }
 }

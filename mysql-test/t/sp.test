@@ -1013,26 +1013,6 @@ delete from t1|
 delete from t2|
 drop procedure bug1874|
 
-#
-# BUG#1653
-#
---disable_warnings
-drop table if exists table_1|
---enable_warnings
-create table t3 (column_1_0 int)|
-
-create procedure bug1653()
-  update t3 set column_1 = 0|
-
---error 1054
-call bug1653()|
-drop table t3|
-create table t3 (column_1 int)|
-call bug1653()|
-
-drop procedure bug1653|
-drop table t3|
-
 
 #
 # Some "real" examples
