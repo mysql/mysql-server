@@ -102,8 +102,10 @@ rw_lock_create_func(
 
 	lock->mutex.cfile_name = cfile_name;
 	lock->mutex.cline = cline;
+#ifndef UNIV_HOTBACKUP
   lock->mutex.cmutex_name = cmutex_name;
   lock->mutex.mutex_type = 1;
+#endif /* !UNIV_HOTBACKUP */
   
 	rw_lock_set_waiters(lock, 0);
 	rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);

@@ -1844,7 +1844,7 @@ trx_recover_for_mysql(
 				/* out: number of prepared transactions 
 				stored in xid_list */
 	XID*    xid_list, 	/* in/out: prepared transactions */
-	uint	len)		/* in: number of slots in xid_list */
+	ulint	len)		/* in: number of slots in xid_list */
 {
 	trx_t*	trx;
 	int	num_of_transactions = 0;
