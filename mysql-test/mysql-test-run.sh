@@ -185,7 +185,6 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
-    --skip-gdb-magic) SKIP_GDB_MAGIC=1 ;;
     --wait-timeout=*)
      START_WAIT_TIMEOUT=`$ECHO "$1" | $SED -e "s;--wait-timeout=;;"`
      STOP_WAIT_TIMEOUT=$START_WAIT_TIMEOUT;;
@@ -222,7 +221,6 @@ while test $# -gt 0; do
     --gdb )
       START_WAIT_TIMEOUT=300
       STOP_WAIT_TIMEOUT=300
-      USE_MANAGER=1
       if [ x$BINARY_DIST = x1 ] ; then
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
@@ -705,13 +703,11 @@ start_master()
     elif [ x$DO_GDB = x1 ]
     then
       ( echo set args $master_args;
-        if [ -z "$SKIP_GDB_MAGIC" ] ;
-	then
+        if [ $USE_MANAGER = 0 ] ; then
 	 cat <<EOF
 b mysql_parse
 commands 1
-echo If you do not want to break here anymore, type dele 1\n
-echo If you not want to break at all, use --skip-gdb-magic\n
+disa 1
 end
 r
 EOF
