@@ -381,9 +381,7 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt1 from ' handler t1 open ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' commit ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' rollback ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt4 from ' SET sql_mode=ansi ';
 execute stmt4;
 select 'a' || 'b' ;
@@ -459,11 +457,8 @@ m
 1
 drop table t3;
 prepare stmt3 from ' create index t2_idx on t2(b) ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' drop index t2_idx on t2 ' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 prepare stmt3 from ' alter table t2 drop primary key ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop table if exists new_t2;
 prepare stmt3 from ' rename table t2 to new_t2 ';
 execute stmt3;
