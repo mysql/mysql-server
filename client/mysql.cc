@@ -186,7 +186,7 @@ static void safe_put_field(const char *pos,ulong length);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
 static void end_pager();
-static void init_tee();
+static int init_tee(char *);
 static void end_tee();
 static const char* construct_prompt();
 static void init_username();
@@ -619,11 +619,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	end_tee();
     }
     else
-      if (!opt_outfile)
-      {
-	strmov(outfile, argument);
-	init_tee();
-      }
+      opt_outfile= init_tee(argument);
     break;
   case OPT_NOTEE:
     printf("WARNING: option deprecated; use --disable-tee instead.\n");
@@ -1517,18 +1513,20 @@ static void end_pager()
 #endif
 }
 
-static void init_tee()
+
+static int init_tee(char* newfile)
 {
+  FILE* new_outfile;
+  if (!(new_outfile= my_fopen(newfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
+    return 0;
   if (opt_outfile)
-    end_tee();					// This resets opt_outfile
-  if (!(OUTFILE= my_fopen(outfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
-  {
-    init_pager();
-    return;
-  }
-  opt_outfile= 1;
+    end_tee();
+  OUTFILE = new_outfile;
+  strmake(outfile,newfile,FN_REFLEN-1);
   tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
+  return 1;
 }
+
 
 static void end_tee()
 {
@@ -1841,28 +1839,38 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     if (!strlen(outfile))
     {
       printf("No previous outfile available, you must give a filename!\n");
-      opt_outfile= 0;
       return 0;
     }
+    else if (opt_outfile)
+    {
+      tee_fprintf(stdout, "Currently logging to file '%s'\n", outfile);
+      return 0;
+    }
+    else
+      param = outfile;			//resume using the old outfile
   }
-  else
-  {
-    while (isspace(*param))
-      param++;
-    end= strmake(file_name, param, sizeof(file_name) - 1);
-    while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
-      end--;
-    end[0]= 0;
-    strmov(outfile, file_name);
-  }
+
+  /* eliminate the spaces before the parameters */
+  while (isspace(*param))
+    param++;
+  end= strmake(file_name, param, sizeof(file_name) - 1);
+  /* remove end space from command line */
+  while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
+    end--;
+  end[0]= 0;
   if (!strlen(outfile))
   {
     printf("No outfile specified!\n");
     return 0;
   }
-  init_tee();
+  opt_outfile= init_tee(file_name);
+  if (opt_outfile)
+    tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
+  else
+    tee_fprintf(stdout, "Error logging to file '%s'\n",file_name);
   return 0;
 }
+
 
 static int
 com_notee(String *buffer __attribute__((unused)),

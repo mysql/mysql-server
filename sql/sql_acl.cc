@@ -29,6 +29,7 @@
 #include "sql_acl.h"
 #include "hash_filo.h"
 #include <m_ctype.h>
+#include <assert.h>
 #include <stdarg.h>
 
 struct acl_host_and_ip
