@@ -35,7 +35,8 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   uint page_size = mi_getint(page_buf);
   uint nod_flag = mi_test_if_nod(page_buf);
 
-  if (page_size + key_length + nod_flag <= keyinfo->block_length)  
+  if (page_size + key_length + info->s->base.rec_reflength <=
+      keyinfo->block_length)
   {
     /* split won't be necessary */
     if (nod_flag)
@@ -93,47 +94,4 @@ int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     return -1;
 
   return rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length);
-}
-
-
-/*
-  Choose non-leaf better key for insertion
-*/
-
-uchar *rtree_choose_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-			uint key_length, uchar *page_buf, uint nod_flag)
-{
-  double increase;
-  double best_incr = DBL_MAX;
-  double area;
-  double best_area;
-  uchar *best_key;
-  uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
-  uchar *last = rt_PAGE_END(page_buf);
-
-  LINT_INIT(best_area);
-  LINT_INIT(best_key);
-
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
-  {
-    if ((increase = rtree_area_increase(keyinfo->seg, key, k, key_length, 
-                                        &area)) == -1)
-      return NULL;
-    if (increase < best_incr)
-    {
-      best_key = k;
-      best_area = area;
-      best_incr = increase;
-    }
-    else
-    {
-      if ((increase == best_incr) && (area < best_area))
-      {
-        best_key = k;
-        best_area = area;
-        best_incr = increase;
-      }
-    }
-  }
-  return best_key;
 }

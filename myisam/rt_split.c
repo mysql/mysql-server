@@ -265,11 +265,11 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
 
   n_dim = keyinfo->keysegs / 2;
   
-  if (!my_multi_malloc(MYF(0),
-		       &coord_buf, n_dim * 2 * sizeof(double) * (max_keys + 1 + 4),
-		       &task, sizeof(SplitStruct) * (max_keys + 1),
-		       NullS))
+  if (!(coord_buf= my_alloca(n_dim * 2 * sizeof(double) * (max_keys + 1 + 4) +
+			     sizeof(SplitStruct) * (max_keys + 1))))
     return -1;
+
+  task= (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
 
   next_coord = coord_buf;
  
@@ -343,6 +343,6 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   my_afree((byte*)new_page);
 
 split_err:
-  my_free((gptr) coord_buf, MYF(0));
+  my_afree((byte*) coord_buf);
   return err_code;
 }
