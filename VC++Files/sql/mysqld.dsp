@@ -1053,6 +1053,10 @@ SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
