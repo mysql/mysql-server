@@ -60,16 +60,6 @@
 #define NORM_SUM				   (docstat.nsum)
 #define NORM_COS			    (sqrt(docstat.nsum2))
 
-#ifdef EVAL_RUN
-/*
-extern ulong collstat;
-#define PIVOT_STAT  (docstat.uniq)
-#define PIVOT_SLOPE (0.69)
-#define PIVOT_PIVOT ((double)collstat/(info->state->records+1))
-#define NORM_PIVOT  ((1-PIVOT_SLOPE)*PIVOT_PIVOT+PIVOT_SLOPE*docstat.uniq)
-*/
-#endif /* EVAL_RUN */
-
 #define PIVOT_VAL (0.0115)
 #define NORM_PIVOT  (1+PIVOT_VAL*docstat.uniq)
 /*---------------------------------------------------------------*/
@@ -102,9 +92,6 @@ typedef struct st_ft_word {
   byte * pos;
   uint	 len;
   double weight;
-#ifdef EVAL_RUN
-  byte	 cnt;
-#endif /* EVAL_RUN */
 } FT_WORD;
 
 typedef struct st_ftb_param {

@@ -38,9 +38,9 @@ static int _mi_balance_page(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key);
-int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_tree(register MI_INFO *info, uint keynr,uchar *key,
 		      uint key_length);
-int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_btree(register MI_INFO *info, uint keynr,uchar *key,
 		       uint key_length);
 
 	/* Write new record to database */
@@ -250,11 +250,12 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
   int error;
   uint comp_flag;
   MI_KEYDEF *keyinfo=info->s->keyinfo+keynr;
+  my_off_t  *root=&info->s->state.key_root[keynr];
   DBUG_ENTER("_mi_ck_write_btree");
 
   if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
     comp_flag=SEARCH_BIGGER;			/* Put after same key */
-  else if (keyinfo->flag & HA_NOSAME)
+  else if (keyinfo->flag & (HA_NOSAME|HA_FULLTEXT))
   {
     comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
     if (keyinfo->flag & HA_NULL_ARE_EQUAL)
@@ -263,37 +264,34 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
   else
     comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
 
-  if (info->s->state.key_root[keynr] == HA_OFFSET_ERROR ||
+  if (*root == HA_OFFSET_ERROR ||
       (error=w_search(info, keyinfo, comp_flag, key, key_length,
-		      info->s->state.key_root[keynr], (uchar *) 0, (uchar*) 0,
+		      *root, (uchar *) 0, (uchar*) 0,
 		      (my_off_t) 0, 1)) > 0)
-    error=_mi_enlarge_root(info,keynr,key);
+    error=_mi_enlarge_root(info,keyinfo,key,root);
   DBUG_RETURN(error);
 } /* _mi_ck_write_btree */
 
 
 	/* Make a new root with key as only pointer */
 
-int _mi_enlarge_root(register MI_INFO *info, uint keynr, uchar *key)
+int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                     my_off_t *root)
 {
   uint t_length,nod_flag;
-  reg2 MI_KEYDEF *keyinfo;
   MI_KEY_PARAM s_temp;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_enlarge_root");
 
-  nod_flag= (share->state.key_root[keynr] != HA_OFFSET_ERROR) ?
-    share->base.key_reflength : 0;
-  _mi_kpointer(info,info->buff+2,share->state.key_root[keynr]); /* if nod */
-  keyinfo=share->keyinfo+keynr;
+  nod_flag= (*root != HA_OFFSET_ERROR) ?  share->base.key_reflength : 0;
+  _mi_kpointer(info,info->buff+2,*root); /* if nod */
   t_length=(*keyinfo->pack_key)(keyinfo,nod_flag,(uchar*) 0,
 				(uchar*) 0, (uchar*) 0, key,&s_temp);
   mi_putint(info->buff,t_length+2+nod_flag,nod_flag);
   (*keyinfo->store_key)(keyinfo,info->buff+2+nod_flag,&s_temp);
   info->buff_used=info->page_changed=1;		/* info->buff is used */
-  if ((share->state.key_root[keynr]= _mi_new(info,keyinfo)) ==
-      HA_OFFSET_ERROR ||
-      _mi_write_keypage(info,keyinfo,share->state.key_root[keynr],info->buff))
+  if ((*root= _mi_new(info,keyinfo)) == HA_OFFSET_ERROR ||
+      _mi_write_keypage(info,keyinfo,*root,info->buff))
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 } /* _mi_enlarge_root */
@@ -333,15 +331,54 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (flag == 0)
   {
     uint tmp_key_length;
-    my_errno=HA_ERR_FOUND_DUPP_KEY;
 	/* get position to record with duplicated key */
     tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&keypos,keybuff);
     if (tmp_key_length)
       info->dupp_key_pos=_mi_dpos(info,0,keybuff+tmp_key_length);
     else
       info->dupp_key_pos= HA_OFFSET_ERROR;
-    my_afree((byte*) temp_buff);
-    DBUG_RETURN(-1);
+    if (keyinfo->flag & HA_FULLTEXT)
+    {
+      uint off;
+      int  subkeys;
+
+      get_key_full_length_rdonly(off, keybuff);
+      subkeys=ft_sintXkorr(keybuff+off);
+      comp_flag=SEARCH_SAME;
+      if (subkeys >= 0)
+      {
+        /* normal word, one-level tree structure */
+        flag=(*keyinfo->bin_search)(info, keyinfo, temp_buff, key,
+                                    USE_WHOLE_KEY, comp_flag,
+                                    &keypos, keybuff, &was_last_key);
+      }
+      else
+      {
+        /* popular word. two-level tree. going down */
+        my_off_t root=info->dupp_key_pos;
+        keyinfo=&info->s->ft2_keyinfo;
+        key+=off;
+        keypos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
+        if ((error=w_search(info, keyinfo, comp_flag, key, HA_FT_WLEN, root,
+                            (uchar *) 0, (uchar*) 0, (my_off_t) 0, 1)) > 0)
+        {
+          error=_mi_enlarge_root(info, keyinfo, key, &root);
+          _mi_dpointer(info, keypos+HA_FT_WLEN, root);
+        }
+        subkeys--; /* should there be underflow protection ? */
+        ft_intXstore(keypos, subkeys);
+        if (!error)
+          error=_mi_write_keypage(info,keyinfo,page,temp_buff);
+        my_afree((byte*) temp_buff);
+        DBUG_RETURN(error);
+      }
+    }
+    else /* not HA_FULLTEXT, normal HA_NOSAME key */
+    {
+      my_afree((byte*) temp_buff);
+      my_errno=HA_ERR_FOUND_DUPP_KEY;
+      DBUG_RETURN(-1);
+    }
   }
   if (flag == MI_FOUND_WRONG_KEY)
     DBUG_RETURN(-1);
@@ -394,7 +431,9 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 #ifndef DBUG_OFF
   if (key_pos != anc_buff+2+nod_flag && (keyinfo->flag &
 					 (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
+  {
     DBUG_DUMP("prev_key",(byte*) key_buff,_mi_keylength(keyinfo,key_buff));
+  }
   if (keyinfo->flag & HA_PACK_KEY)
   {
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
@@ -753,7 +792,7 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
   DBUG_ENTER("_mi_ck_write_tree");
 
   error= tree_insert(&info->bulk_insert[keynr], key,
-         key_length + info->s->rec_reflength, 
+         key_length + info->s->rec_reflength,
          info->bulk_insert[keynr].custom_arg) ? 0 : HA_ERR_OUT_OF_MEM ;
 
   DBUG_RETURN(error);
