@@ -39409,7 +39409,7 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 @appendixsec Converters
 
 @itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.14.tgz, dbf2mysql-1.14.tgz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.14.tar.gz, dbf2mysql-1.14.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables. By Maarten
 Boekhold (@email{boekhold@@cindy.et.tudelft.nl}), William Volkman, and
 Michael Widenius.  This converter includes rudimentary read-only support
