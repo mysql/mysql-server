@@ -1623,7 +1623,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_PREPARE:
   {
-    mysql_stmt_prepare(thd, packet, packet_length);
+    mysql_stmt_prepare(thd, packet, packet_length, 0);
     break;
   }
   case COM_CLOSE_STMT:
@@ -2261,7 +2261,7 @@ mysql_execute_command(THD *thd)
   */
   if (all_tables || &lex->select_lex != lex->all_selects_list ||
       lex->spfuns.records || lex->spprocs.records)
-    mysql_reset_errors(thd);
+    mysql_reset_errors(thd, 0);
 
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
@@ -2935,7 +2935,8 @@ unsent_create_error:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info);
+			       lex->duplicates, lex->ignore, &lex->alter_info,
+                               1);
       }
       break;
     }
@@ -3337,14 +3338,10 @@ unsent_create_error:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | DELETE_ACL : INSERT_ACL);
+		     INSERT_ACL | DELETE_ACL : INSERT_ACL) |
+                    (lex->local_file ? 0 : FILE_ACL);
 
-    if (!lex->local_file)
-    {
-      if (check_access(thd, privilege | FILE_ACL, first_table->db, 0, 0, 0))
-	goto error;
-    }
-    else
+    if (lex->local_file)
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
 	  ! opt_local_infile)
@@ -3352,12 +3349,14 @@ unsent_create_error:
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
 	goto error;
       }
-      if (check_one_table_access(thd, privilege, all_tables))
-	goto error;
     }
+
+    if (check_one_table_access(thd, privilege, all_tables))
+      goto error;
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, lex->ignore, (bool) lex->local_file,
-		    lex->lock_option);
+                    lex->update_list, lex->value_list, lex->duplicates,
+                    lex->ignore, (bool) lex->local_file);
     break;
   }
 
@@ -3627,6 +3626,24 @@ unsent_create_error:
 		     first_table ? 0 : 1, 0))
       goto error;
 
+    if (thd->user)				// If not replication
+    {
+      LEX_USER *user;
+      List_iterator <LEX_USER> user_list(lex->users_list);
+      while ((user=user_list++))
+      {
+	if (user->password.str &&
+	    strcmp(thd->user, user->user.str) ||
+	    user->host.str &&
+	    my_strcasecmp(system_charset_info,
+			  user->host.str, thd->host_or_ip))
+	{
+	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 0))
+	    goto error;
+	  break;			// We are allowed to do changes
+	}
+      }
+    }
     if (specialflag & SPECIAL_NO_RESOLVE)
     {
       LEX_USER *user;
@@ -3764,7 +3781,7 @@ unsent_create_error:
     if (check_db_used(thd, all_tables) ||
 	check_table_access(thd, SELECT_ACL, all_tables, 0))
       goto error;
-    res= mysql_ha_open(thd, first_table);
+    res= mysql_ha_open(thd, first_table, 0);
     break;
   case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -4109,7 +4126,7 @@ unsent_create_error:
 	sp= sp_find_procedure(thd, lex->spname);
       else
 	sp= sp_find_function(thd, lex->spname);
-      mysql_reset_errors(thd);
+      mysql_reset_errors(thd, 0);
       if (! sp)
 	result= SP_KEY_NOT_FOUND;
       else
@@ -4150,7 +4167,7 @@ unsent_create_error:
 	sp= sp_find_procedure(thd, lex->spname);
       else
 	sp= sp_find_function(thd, lex->spname);
-      mysql_reset_errors(thd);
+      mysql_reset_errors(thd, 0);
       if (sp)
       {
         db= thd->strdup(sp->m_db.str);
@@ -4382,6 +4399,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
@@ -4390,9 +4409,7 @@ unsent_create_error:
       if ((r= ha_commit(thd)))
         my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
@@ -4400,9 +4417,7 @@ unsent_create_error:
       if (ha_commit_one_phase(thd, 1))
         my_error(ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     {
@@ -4419,6 +4434,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state != XA_IDLE &&
@@ -4760,7 +4777,7 @@ check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
     1            error
 */
 
-bool check_some_routine_access(THD *thd, char *db, char *name)
+bool check_some_routine_access(THD *thd, const char *db, const char *name)
 {
   ulong save_priv;
   if (thd->master_access & SHOW_PROC_ACLS)
@@ -4768,12 +4785,7 @@ bool check_some_routine_access(THD *thd, char *db, char *name)
   if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, 0, 1) ||
       (save_priv & SHOW_PROC_ACLS))
     return FALSE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (grant_option)
-    return check_routine_level_acl(thd, db, name);
-#endif
-
-  return FALSE;
+  return check_routine_level_acl(thd, db, name);
 }
 
 
@@ -5851,11 +5863,14 @@ bool st_select_lex::init_nested_join(THD *thd)
 TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 {
   TABLE_LIST *ptr;
+  NESTED_JOIN *nested_join;
   DBUG_ENTER("end_nested_join");
+
+  DBUG_ASSERT(embedding);
   ptr= embedding;
   join_list= ptr->join_list;
   embedding= ptr->embedding;
-  NESTED_JOIN *nested_join= ptr->nested_join;
+  nested_join= ptr->nested_join;
   if (nested_join->join_list.elements == 1)
   {
     TABLE_LIST *embedded= nested_join->join_list.head();
@@ -5864,6 +5879,11 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     embedded->embedding= embedding;
     join_list->push_front(embedded);
     ptr= embedded;
+  }
+  else if (nested_join->join_list.elements == 0)
+  {
+    join_list->pop();
+    ptr= 0;                                     // return value
   }
   DBUG_RETURN(ptr);
 }
@@ -6496,7 +6516,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info));
+				DUP_ERROR, 0, &alter_info, 1));
 }
 
 
@@ -6514,7 +6534,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info));
+				DUP_ERROR, 0, alter_info, 1));
 }
 
 

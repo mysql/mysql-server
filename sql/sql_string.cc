@@ -686,16 +686,16 @@ void String::qs_append(double *d)
 
 void String::qs_append(int i)
 {
-  char *buff = Ptr + str_length;
-  sprintf(buff,"%d", i);
-  str_length += strlen(buff);
+  char *buff= Ptr + str_length;
+  char *end= int10_to_str(i, buff, -10);
+  str_length+= (int) (end-buff);
 }
 
 void String::qs_append(uint i)
 {
-  char *buff = Ptr + str_length;
-  sprintf(buff,"%u", i);
-  str_length += strlen(buff);
+  char *buff= Ptr + str_length;
+  char *end= int10_to_str(i, buff, 10);
+  str_length+= (int) (end-buff);
 }
 
 /*

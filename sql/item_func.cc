@@ -3294,12 +3294,28 @@ Item_func_set_user_var::fix_length_and_dec()
 }
 
 
-bool Item_func_set_user_var::update_hash(void *ptr, uint length,
-					 Item_result type,
-					 CHARSET_INFO *cs,
-					 Derivation dv)
+/*
+  Set value to user variable.
+
+  SYNOPSYS
+    update_hash()
+    entry    - pointer to structure representing variable
+    set_null - should we set NULL value ?
+    ptr      - pointer to buffer with new value
+    length   - length of new value
+    type     - type of new value
+    cs       - charset info for new value
+    dv       - derivation for new value
+
+  RETURN VALUE
+    False - success, True - failure
+*/
+
+static bool
+update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
+            Item_result type, CHARSET_INFO *cs, Derivation dv)
 {
-  if ((null_value=args[0]->null_value))
+  if (set_null)
   {
     char *pos= (char*) entry+ ALIGN_SIZE(sizeof(user_var_entry));
     if (entry->value && entry->value != pos)
@@ -3332,7 +3348,7 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
 	  entry->value=0;
 	if (!(entry->value=(char*) my_realloc(entry->value, length,
 					      MYF(MY_ALLOW_ZERO_PTR))))
-	  goto err;
+	  return 1;
       }
     }
     if (type == STRING_RESULT)
@@ -3348,11 +3364,21 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->collation.set(cs, dv);
   }
   return 0;
+}
 
- err:
-  current_thd->fatal_error();			// Probably end of memory
-  null_value= 1;
-  return 1;
+
+bool
+Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
+                                    CHARSET_INFO *cs, Derivation dv)
+{
+  if (::update_hash(entry, (null_value= args[0]->null_value),
+                    ptr, length, type, cs, dv))
+  {
+    current_thd->fatal_error();     // Probably end of memory
+    null_value= 1;
+    return 1;
+  }
+  return 0;
 }
 
 
@@ -3878,6 +3904,77 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 }
 
 
+bool Item_user_var_as_out_param::fix_fields(THD *thd, TABLE_LIST *tables,
+                                            Item **ref)
+{
+  DBUG_ASSERT(fixed == 0);
+  if (Item::fix_fields(thd, tables, ref) ||
+      !(entry= get_variable(&thd->user_vars, name, 1)))
+    return TRUE;
+  entry->type= STRING_RESULT;
+  /*
+    Let us set the same collation which is used for loading
+    of fields in LOAD DATA INFILE.
+    (Since Item_user_var_as_out_param is used only there).
+  */
+  entry->collation.set(thd->variables.collation_database);
+  entry->update_query_id= thd->query_id;
+  return FALSE;
+}
+
+
+void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
+{
+  if (::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
+                    DERIVATION_IMPLICIT))
+    current_thd->fatal_error();			// Probably end of memory
+}
+
+
+void Item_user_var_as_out_param::set_value(const char *str, uint length,
+                                           CHARSET_INFO* cs)
+{
+  if (::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
+                    DERIVATION_IMPLICIT))
+    current_thd->fatal_error();			// Probably end of memory
+}
+
+
+double Item_user_var_as_out_param::val_real()
+{
+  DBUG_ASSERT(0);
+  return 0.0;
+}
+
+
+longlong Item_user_var_as_out_param::val_int()
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
+String* Item_user_var_as_out_param::val_str(String *str)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
+my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
+{
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+
+void Item_user_var_as_out_param::print(String *str)
+{
+  str->append('@');
+  str->append(name.str,name.length);
+}
+
+
 longlong Item_func_inet_aton::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4370,18 +4467,18 @@ Item_func_sp::Item_func_sp(sp_name *name)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
-  bzero(dummy_table, sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
+
 
 Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
   :Item_func(list), m_name(name), m_sp(NULL)
 {
   maybe_null= 1;
   m_name->init_qname(current_thd);
-  dummy_table= (TABLE *)sql_alloc(sizeof(TABLE));
-  bzero(dummy_table, sizeof(TABLE));
+  dummy_table= (TABLE*) sql_calloc(sizeof(TABLE));
 }
+
 
 const char *
 Item_func_sp::func_name() const

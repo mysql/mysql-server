@@ -401,11 +401,20 @@ sym_tab_add_null_lit() */
 
 struct dtype_struct{
 	ulint	mtype;		/* main data type */
-	ulint	prtype;		/* precise type; MySQL data type */
+	ulint	prtype;		/* precise type; MySQL data type, charset code,
+				flags to indicate nullability, signedness,
+				whether this is a binary string, whether this
+				is a true VARCHAR where MySQL uses 2 bytes to
+				store the length */
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	ulint	len;		/* length */
+	ulint	len;		/* length; for MySQL data this is
+				field->pack_length(), except that for a
+				>= 5.0.3 type true VARCHAR this is the
+				maximum byte length of the string data
+				(in addition to the string, MySQL uses 1 or
+				2 bytes to store the string length) */
 	ulint	prec;		/* precision */
 
 	ulint	mbminlen;	/* minimum length of a character, in bytes */

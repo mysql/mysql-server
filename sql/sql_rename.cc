@@ -90,7 +90,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
     send_ok(thd);
   }
 
-  unlock_table_names(thd, table_list);
+  unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
 
 err:
   pthread_mutex_unlock(&LOCK_open);

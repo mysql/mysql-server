@@ -122,10 +122,10 @@ EXPLAIN SELECT t2.*, t4.DOCTYPENAME, t1.CONTENTSIZE,t1.MIMETYPE FROM t2 INNER JO
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	0	const row not found
 1	PRIMARY	t2	ALL	DDOCTYPEID_IDX	NULL	NULL	NULL	9	Using where
-1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	32	test.t2.DOCTYPEID	1	
-2	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	32	func	1	Using index; Using where
-3	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	32	func	1	Using index; Using where
-4	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	32	func	1	Using index; Using where
-5	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	32	func	1	Using index; Using where
-6	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	32	func	1	Using index; Using where
+1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	34	test.t2.DOCTYPEID	1	
+2	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	34	func	1	Using index; Using where
+3	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	34	func	1	Using index; Using where
+4	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	34	func	1	Using index; Using where
+5	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	34	func	1	Using index; Using where
+6	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	34	func	1	Using index; Using where
 drop table t1, t2, t3, t4;

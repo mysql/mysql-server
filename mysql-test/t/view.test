@@ -1117,8 +1117,7 @@ create view v1 as select x1() from t1;
 drop function x1;
 -- error 1356
 select * from v1;
---replace_column 12 # 13 #
---replace_result "2147483647	" "21474836479	"
+--replace_column 8 # 12 # 13 #
 show table status;
 drop view v1;
 drop table t1;
