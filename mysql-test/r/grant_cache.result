@@ -41,17 +41,53 @@ grant SELECT on mysqltest.* to mysqltest_1@localhost;
 grant SELECT on mysqltest.t1 to mysqltest_2@localhost;
 grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	6
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	0
 select "user1";
 user1
 user1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	6
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	1
 select * from t1;
 a	b	c
 1	1	1
 2	2	2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	6
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	1
 select a from t1 ;
 a
 1
 2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	6
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+show status like "Qcache_not_cached";
+Variable_name	Value
+Qcache_not_cached	1
 select c from t1;
 c
 1
@@ -94,7 +130,7 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	3
+Qcache_not_cached	2
 select "user3";
 user3
 user3
@@ -118,7 +154,7 @@ Variable_name	Value
 Qcache_hits	7
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	8
+Qcache_not_cached	7
 select "user4";
 user4
 user4
@@ -144,7 +180,7 @@ Variable_name	Value
 Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
-Qcache_not_cached	9
+Qcache_not_cached	8
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.tables_priv where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
