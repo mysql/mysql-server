@@ -591,7 +591,6 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  void fill_and_store(char *from,uint len);
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_time(TIME *ltime);
 

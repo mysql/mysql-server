@@ -221,3 +221,12 @@ ts1
 20040101000000
 20040101010000
 drop table t1;
+create table t1 (ts timestamp);
+set TIMESTAMP=1000000000;
+insert into t1 values ();
+set new=1;
+select ts+0 from t1;
+ts+0
+20010909044640
+set new=0;
+drop table t1;
