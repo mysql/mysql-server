@@ -1367,9 +1367,11 @@ int ha_ndbcluster::write_row(byte *record)
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
   int res;
+  THD *thd= current_thd;
+
   DBUG_ENTER("write_row");
   
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(thd->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   has_auto_increment= (table->next_number_field && record == table->record[0]);
@@ -1499,7 +1501,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   uint i;
   DBUG_ENTER("update_row");
   
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_on_update_now)
     update_timestamp(new_data+table->timestamp_on_update_now-1);
   
@@ -1606,12 +1608,13 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 
 int ha_ndbcluster::delete_row(const byte *record)
 {
+  THD *thd= current_thd;
   NdbConnection *trans= m_active_trans;
   NdbResultSet* cursor= m_active_cursor;
   NdbOperation *op;
   DBUG_ENTER("delete_row");
 
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
 
   if (cursor)
   {
@@ -1926,7 +1929,7 @@ int ha_ndbcluster::index_read_idx(byte *buf, uint index_no,
 			      const byte *key, uint key_len, 
 			      enum ha_rkey_function find_flag)
 {
-  statistic_increment(ha_read_key_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_key_count, &LOCK_status);
   DBUG_ENTER("index_read_idx");
   DBUG_PRINT("enter", ("index_no: %u, key_len: %u", index_no, key_len));  
   index_init(index_no);  
@@ -1939,7 +1942,8 @@ int ha_ndbcluster::index_next(byte *buf)
   DBUG_ENTER("index_next");
 
   int error= 1;
-  statistic_increment(ha_read_next_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_next_count,
+		      &LOCK_status);
   DBUG_RETURN(next_result(buf));
 }
 
@@ -1947,7 +1951,8 @@ int ha_ndbcluster::index_next(byte *buf)
 int ha_ndbcluster::index_prev(byte *buf)
 {
   DBUG_ENTER("index_prev");
-  statistic_increment(ha_read_prev_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_prev_count,
+		      &LOCK_status);
   DBUG_RETURN(1);
 }
 
@@ -1955,7 +1960,8 @@ int ha_ndbcluster::index_prev(byte *buf)
 int ha_ndbcluster::index_first(byte *buf)
 {
   DBUG_ENTER("index_first");
-  statistic_increment(ha_read_first_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_first_count,
+		      &LOCK_status);
   DBUG_RETURN(1);
 }
 
@@ -2077,7 +2083,8 @@ int ha_ndbcluster::rnd_end()
 int ha_ndbcluster::rnd_next(byte *buf)
 {
   DBUG_ENTER("rnd_next");
-  statistic_increment(ha_read_rnd_next_count, &LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
 
   if (!m_active_cursor)
     DBUG_RETURN(full_table_scan(buf));
@@ -2095,7 +2102,8 @@ int ha_ndbcluster::rnd_next(byte *buf)
 int ha_ndbcluster::rnd_pos(byte *buf, byte *pos)
 {
   DBUG_ENTER("rnd_pos");
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(current_thd->status_var.ha_read_rnd_count,
+		      &LOCK_status);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   DBUG_RETURN(pk_read(pos, ref_length, buf));  
