@@ -1707,7 +1707,6 @@ mysql_execute_command(void)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
-    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_CHECK:
@@ -1716,7 +1715,6 @@ mysql_execute_command(void)
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
-    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_ANALYZE:
@@ -1979,8 +1977,9 @@ mysql_execute_command(void)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= ((TABLE_LIST*) auxi->table)->table;
-    if (!thd->fatal_error && (result=new multi_delete(thd,aux_tables,
-						      lex->lock_option,table_count)))
+    if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
+						       lex->lock_option,
+						       table_count)))
     {
       res=mysql_select(thd,tables,select_lex->item_list,
 		       select_lex->where,
