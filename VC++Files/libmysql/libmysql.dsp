@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "USE_OLD_FUNCTIONS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
@@ -59,7 +59,7 @@ LINK32=link.exe
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=copy release\libmysql.lib ..\lib_release
+PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /v
 # End Special Build Tool
 
 !ELSEIF  "$(CFG)" == "libmySQL - Win32 Debug"
@@ -76,7 +76,8 @@ PostBuild_Cmds=copy release\libmysql.lib ..\lib_release
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Gm /Zi /Od /I "." /I "..\include" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "USE_OLD_FUNCTIONS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Gm /ZI /Od /I "." /I "..\include" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -91,7 +92,7 @@ LINK32=link.exe
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=copy     debug\libmysql.lib ..\lib_debug
+PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll C:\winnt\system32\ /v 	xcopy     debug\libmysql.lib ..\lib_debug\ /v
 # End Special Build Tool
 
 !ENDIF 
@@ -443,10 +444,6 @@ SOURCE=..\strings\strnmov.c
 # Begin Source File
 
 SOURCE=..\strings\strxmov.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 
