@@ -389,8 +389,20 @@ row_ins_foreign_delete_or_set_null(
 	char		err_buf[1000];
 	
 	ut_a(thr && foreign && pcur && mtr);
+	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);
 
 	node = thr->run_node;
+
+	if (!node->is_delete) {
+	        /* According to SQL-92 an UPDATE with respect to FOREIGN
+	        KEY constraints is not semantically equivalent to a
+                DELETE + INSERT. Therefore we do not perform any action
+	        here and consequently the child rows would be left
+	        orphaned if we would let the UPDATE happen. Thus we return
+		an error. */
+
+	        return(DB_ROW_IS_REFERENCED);
+	}
 
 	if (node->cascade_node == NULL) {
 		/* Extend our query graph by creating a child to current
