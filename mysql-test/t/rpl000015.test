@@ -18,7 +18,7 @@ eval change master to master_host='127.0.0.1',master_user='root',
  master_password='',master_port=$MASTER_MYPORT;
 --replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
-slave start;
+start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
@@ -26,12 +26,8 @@ connection master;
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (10),(45),(90);
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1;
 connection master;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;

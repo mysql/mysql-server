@@ -1029,12 +1029,12 @@ type:
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
 	| BINARY '(' NUM ')' 		{ Lex->length=$3.str;
-					  Lex->type|=BINARY_FLAG;
+					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
-					  Lex->type|=BINARY_FLAG;
+					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; Lex->length=$2; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
@@ -1043,17 +1043,17 @@ type:
 	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_TIMESTAMP; }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
-	| TINYBLOB			{ Lex->type|=BINARY_FLAG;
+	| TINYBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
-	| BLOB_SYM			{ Lex->type|=BINARY_FLAG;
+	| BLOB_SYM			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
-	| GEOMETRY_SYM			{ Lex->type|=BINARY_FLAG;
+	| GEOMETRY_SYM			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
-	| MEDIUMBLOB			{ Lex->type|=BINARY_FLAG;
+	| MEDIUMBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONGBLOB			{ Lex->type|=BINARY_FLAG;
+	| LONGBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_LONG_BLOB; }
-	| LONG_SYM VARBINARY		{ Lex->type|=BINARY_FLAG;
+	| LONG_SYM VARBINARY		{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
@@ -1064,13 +1064,13 @@ type:
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| NUMERIC_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
-	| ENUM {Lex->interval_list.empty();} '(' string_list ')'
+	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_ENUM;
 	  }
-	| SET { Lex->interval_list.empty();} '(' string_list ')'
+	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
 	    LEX *lex=Lex;
 	    lex->interval=typelib(lex->interval_list);
@@ -1186,7 +1186,7 @@ opt_db_default_character_set:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
-	| BINARY			{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
+	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 references:
@@ -1423,6 +1423,20 @@ opt_to:
 	| AS		{};
 
 slave:
+	START_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+         |
+	STOP_SYM SLAVE slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         };
+         |
 	SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
@@ -1849,7 +1863,7 @@ simple_expr:
         | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
           { Select->ftfunc_list->push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
-	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
+	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,my_charset_bin); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -2971,7 +2985,7 @@ show_param:
 	    Lex->mi.pos = $12;
 	    Lex->mi.server_id = $16;
           }
-        | MASTER_SYM LOGS_SYM
+        | BINARY LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
           }
@@ -3291,7 +3305,7 @@ text_string:
 	TEXT_STRING	{ $$=  new String($1.str,$1.length,default_charset_info); }
 	| HEX_NUM
 	  {
-	    Item *tmp = new Item_varbinary($1.str,$1.length,default_charset_info);
+	    Item *tmp = new Item_varbinary($1.str,$1.length);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  };
 param_marker:
@@ -3318,7 +3332,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length,default_charset_info);}
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };

@@ -93,13 +93,13 @@ c int not null comment 'int column'
 show create table t1 ;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test_set` set('val1','val2','val3') NOT NULL default '',
+  `test_set` set('val1','val2','val3') character set latin1 NOT NULL default '',
   `name` char(20) character set latin1 default 'O''Brien' COMMENT 'O''Brien as default',
   `c` int(11) NOT NULL default '0' COMMENT 'int column'
 ) TYPE=MyISAM CHARSET=latin1 COMMENT='it''s a table'
 show full columns from t1;
 Field	Type	Null	Key	Default	Extra	Privileges	Comment
-test_set	set('val1','val2','val3')					select,insert,update,references	
+test_set	set('val1','val2','val3') character set latin1					select,insert,update,references	
 name	char(20) character set latin1	YES		O'Brien		select,insert,update,references	O'Brien as default
 c	int(11)			0		select,insert,update,references	int column
 drop table t1;

@@ -43,7 +43,6 @@ public:
   uint8 marker,decimals;
   my_bool maybe_null;			/* If item may be null */
   my_bool null_value;			/* if item is null */
-  my_bool binary;
   my_bool unsigned_flag;
   my_bool with_sum_func;
 
@@ -84,7 +83,10 @@ public:
   virtual void split_sum_func(List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
-  virtual bool is_null() { return 0; }
+  virtual bool is_null() { return 0; };
+  virtual CHARSET_INFO *charset() const { return str_value.charset(); };
+  virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
 };
 
 
@@ -361,7 +363,7 @@ public:
 class Item_varbinary :public Item
 {
 public:
-  Item_varbinary(const char *str,uint str_length,CHARSET_INFO *cs);
+  Item_varbinary(const char *str,uint str_length);
   ~Item_varbinary() {}
   enum Type type() const { return VARBIN_ITEM; }
   double val() { return (double) Item_varbinary::val_int(); }

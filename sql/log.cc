@@ -1072,6 +1072,13 @@ bool MYSQL_LOG::write(Log_event* event_info)
       if (e.write(file))
 	goto err;
     }
+    if (thd && thd->rand_used)
+    {
+      Rand_log_event e(thd,thd->rand_saved_seed1,thd->rand_saved_seed2);
+      e.set_log_pos(this);
+      if (e.write(file))
+	goto err;
+    }
     if (thd && thd->variables.convert_set)
     {
       char buf[1024] = "SET CHARACTER SET ";

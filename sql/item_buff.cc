@@ -56,7 +56,7 @@ bool Item_str_buff::cmp(void)
   }
   else if (null_value)
     return 0;					// new and old value was null
-  else if (!item->binary)
+  else if (!item->binary())
     tmp= sortcmp(&value,res) != 0;
   else
     tmp= stringcmp(&value,res) != 0;
