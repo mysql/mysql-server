@@ -324,10 +324,10 @@ then
   echo
   if test "$IN_RPM" -eq 0
   then
-    echo "You can start the MySQL demon with:"
+    echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/safe_mysqld &"
     echo
-    echo "You can test the MySQL demon with the benchmarks in the 'sql-bench' directory:"
+    echo "You can test the MySQL daemon with the benchmarks in the 'sql-bench' directory:"
     echo "cd sql-bench ; run-all-tests"
     echo
   fi
@@ -342,7 +342,7 @@ else
   echo "Installation of grant tables failed!"
   echo
   echo "Examine the logs in $ldata for more information."
-  echo "You can also try to start the mysqld demon with:"
+  echo "You can also try to start the mysqld daemon with:"
   echo "$execdir/mysqld --skip-grant &"
   echo "You can use the command line tool"
   echo "$bindir/mysql to connect to the mysql"
