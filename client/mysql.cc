@@ -19,9 +19,11 @@
  *
  * Written by:
  *   Michael 'Monty' Widenius
- *   Andi Gutmans  <andi@zend.com>
+ *   Andi Gutmans <andi@zend.com>
  *   Zeev Suraski <zeev@zend.com>
  *   Jani Tolonen <jani@mysql.com>
+ *   Matt Wagner  <mwagner@mysql.com>
+ *   Jeremy Cole  <jcole@mysql.com>
  *
  **/
 
@@ -39,7 +41,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.13";
+const char *VER="11.14";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -120,7 +122,7 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
 	    opt_compress=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-	    opt_nopager=1, opt_outfile=0, no_named_cmds=1;
+            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -131,6 +133,11 @@ static String glob_buffer,old_buffer;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
+static char *xmlmeta[] = {
+  "&", "&amp;",
+  "<", "&lt;",
+  0, 0
+};
 static char default_pager[FN_REFLEN];
 char pager[FN_REFLEN], outfile[FN_REFLEN];
 FILE *PAGER, *OUTFILE;
@@ -166,6 +173,9 @@ static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static int put_info(const char *str,INFO_TYPE info,uint error=0);
 static void safe_put_field(const char *pos,ulong length);
+static char *array_value(char **array, char *key);
+static char *xmlencode(char *dest, char *src);
+static void my_chomp(char *end);
 static void init_pager();
 static void end_pager();
 static void init_tee();
@@ -250,6 +260,7 @@ static bool add_line(String &buffer,char *line,char *in_string);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
+static void print_table_data_xml(MYSQL_RES *result);
 static void print_tab_data(MYSQL_RES *result);
 static void print_table_data_vertically(MYSQL_RES *result);
 static ulong start_timer(void);
@@ -313,7 +324,7 @@ int main(int argc,char *argv[])
 
 #ifdef HAVE_READLINE
   initialize_readline(my_progname);
-  if (!status.batch && !quick && !opt_html)
+  if (!status.batch && !quick && !opt_html && !opt_xml)
   {
     /*read-history from file, default ~/.mysql_history*/
     if (getenv("MYSQL_HISTFILE"))
@@ -351,7 +362,7 @@ sig_handler mysql_end(int sig)
   if (connected)
     mysql_close(&mysql);
 #ifdef HAVE_READLINE
-  if (!status.batch && !quick && ! opt_html)
+  if (!status.batch && !quick && !opt_html && !opt_xml)
   {
     /* write-history */
     if (verbose)
@@ -396,6 +407,7 @@ static struct option long_options[] =
   {"force",	    no_argument,	   0, 'f'},
   {"help",	    no_argument,	   0, '?'},
   {"html",	    no_argument,	   0, 'H'},
+  {"xml",           no_argument,           0, 'X'},
   {"host",	    required_argument,	   0, 'h'},
   {"ignore-spaces", no_argument,	   0, 'i'},
   {"no-auto-rehash",no_argument,	   0, 'A'},
@@ -490,6 +502,7 @@ static void usage(int version)
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
+  -X, --xml		Produce XML output.\n\
   -L, --skip-line-numbers\n\
                         Don't write line number for errors.\n");
 #ifndef __WIN__
@@ -564,7 +577,7 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			"?ABCD:LfgGHinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
+			"?ABCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -676,6 +689,7 @@ static int get_options(int argc, char **argv)
     case 'G': no_named_cmds=0; break;
     case 'g': no_named_cmds=1; break;
     case 'H': opt_html=1; break;
+    case 'X': opt_xml=1; break;
     case 'i': connect_flag|= CLIENT_IGNORE_SPACE; break;
     case 'B':
       if (!status.batch)
@@ -1433,6 +1447,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
       init_pager();
       if (opt_html)
 	print_table_data_html(result);
+      else if (opt_xml)
+	print_table_data_xml(result);
       else if (vertical)
 	print_table_data_vertically(result);
       else if (opt_silent && verbose <= 2 && !output_tables)
@@ -1635,6 +1651,49 @@ print_table_data_html(MYSQL_RES *result)
 }
 
 
+static void
+print_table_data_xml(MYSQL_RES *result)
+{
+  MYSQL_ROW   cur;
+  MYSQL_FIELD *fields;
+
+  mysql_field_seek(result,0);
+
+  char *statement;
+  statement=(char*) my_malloc(strlen(glob_buffer.ptr())*5+1, MYF(MY_WME));
+  xmlencode(statement, (char*) glob_buffer.ptr());
+
+  (void) my_chomp(strend(statement));
+
+  tee_fprintf(PAGER,"<?xml version=\"1.0\"?>\n\n<resultset statement=\"%s\">", statement);
+
+  my_free(statement,MYF(MY_ALLOW_ZERO_PTR));
+
+  fields = mysql_fetch_fields(result);
+
+  while ((cur = mysql_fetch_row(result)))
+  {
+    (void) tee_fputs("\n  <row>\n", PAGER);
+    for (uint i=0; i < mysql_num_fields(result); i++)
+    {
+      char *data;
+      ulong *lengths=mysql_fetch_lengths(result);
+      data=(char*) my_malloc(lengths[i]*5+1, MYF(MY_WME));
+      tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
+				  (fields[i].name[0] ? fields[i].name :
+				   " &nbsp; ") : "NULL"));
+      xmlencode(data, cur[i]);
+      safe_put_field(data, strlen(data));
+      tee_fprintf(PAGER, "</%s>\n", (fields[i].name ?
+				     (fields[i].name[0] ? fields[i].name :
+				      " &nbsp; ") : "NULL"));
+      my_free(data,MYF(MY_ALLOW_ZERO_PTR));
+    }
+    (void) tee_fputs("  </row>\n", PAGER);
+  }
+  (void) tee_fputs("</resultset>\n", PAGER);
+}
+
 
 static void
 print_table_data_vertically(MYSQL_RES *result)
@@ -1666,6 +1725,43 @@ print_table_data_vertically(MYSQL_RES *result)
   }
 }
 
+static char
+*array_value(char **array, char *key) {
+  int x;
+  for(x=0; array[x]; x+=2)
+    if(!strcmp(array[x], key))
+      return array[x+1];
+  return 0;
+}
+
+static char
+*xmlencode(char *dest, char *src) {
+  char *p = src;
+  char *t;
+  char s[2] = { 0, 0 };
+  *dest = 0;
+  
+  do {
+    s[0] = *p;
+    if(!(t=array_value(xmlmeta, s))) t = s;
+    strcat(dest, t);
+  } while(*p++);
+  return dest;
+}
+
+static void
+my_chomp(char *end) {
+  char *mend;
+  mend = end;
+
+  do {
+    if (isspace(*mend)) {
+      *mend = '\0';
+    } else
+      mend--;
+  } while (mend && *mend);
+}
+    
 
 static void
 safe_put_field(const char *pos,ulong length)
@@ -1696,7 +1792,7 @@ safe_put_field(const char *pos,ulong length)
 	tee_fputs("\\n", PAGER); // This too
       else if (*pos == '\\')
 	tee_fputs("\\\\", PAGER);
-      else
+	else
 	tee_putc(*pos, PAGER);
     }
   }

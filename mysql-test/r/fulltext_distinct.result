@@ -1,0 +1,10 @@
+id	tag	value
+1	foo123	bar111
+2	foo123	bar222
+3	bar345	baz333 ar
+id_t2	id_t1	field_number
+12346	3	1
+2231626	64280	0
+2231626	64281	0
+id_t2
+12346

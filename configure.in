@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.37)
+AM_INIT_AUTOMAKE(mysql, 4.0.0)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -177,7 +177,7 @@ AC_DEFUN(AC_SYS_COMPILER_FLAG,
   [
     CFLAGS="[$]OLD_CFLAGS $1"
     AC_TRY_RUN([int main(){exit(0);}],mysql_cv_option_$2=yes,mysql_cv_option_$2=no,mysql_cv_option_$2=no)
-  ])
+ ])
 
   CFLAGS="[$]OLD_CFLAGS"
   
@@ -654,6 +654,39 @@ int main()
 
   if test -z "$atom_ops"; then atom_ops="no"; fi
   AC_MSG_RESULT($atom_ops)
+
+  AC_ARG_WITH(pstack,
+    [  --without-pstack        Don't use the pstack backtrace library],
+    [USE_PSTACK=$withval],
+    [USE_PSTACK=yes])
+  pstack_libs= pstack_dirs=
+  if test "$USE_PSTACK" = yes
+  then
+    have_libiberty= have_libbfd=
+    my_save_LIBS="$LIBS"
+dnl I have no idea if this is a good test - can't find docs for libiberty  
+    AC_CHECK_LIB([iberty], [fdmatch],
+      [have_libiberty=yes
+       AC_CHECK_LIB([bfd], [bfd_openr], [have_libbfd=yes], , [-liberty])])
+    LIBS="$my_save_LIBS"
+
+    AC_MSG_CHECKING([for pstack libs])
+    if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
+    then
+      pstack_dirs='$(top_srcdir)'/pstack
+      pstack_libs="$pstack_dirs/libpstack.a -lbfd -liberty"
+      AC_SUBST([pstack_dirs])
+      AC_SUBST([pstack_libs])
+      AC_DEFINE([USE_PSTACK])
+      AC_MSG_RESULT([yes])
+dnl This check isn't needed, but might be nice to give some feedback....
+dnl    AC_CHECK_HEADER(libiberty.h,
+dnl      have_libiberty_h=yes,
+dnl      have_libiberty_h=no)
+    else
+      AC_MSG_RESULT([no (missing libbfd)])
+    fi
+  fi
 fi
 
 # Check for gtty if termio.h doesn't exists
@@ -1581,6 +1614,27 @@ AC_ARG_WITH(server,
     [with_server=yes]
 )
 
+AC_ARG_WITH(embedded-server,
+    [  --with-embedded-server  Build the embedded server (libmysqld).],
+    [with_embedded_server=$withval],
+    [with_embedded_server=no]
+)
+
+MYSQL_CHECK_MYSQLFS
+
+libmysqld_dirs=
+if test "$with_embedded_server" = "yes"
+then
+  libmysqld_dirs=libmysqld
+  # We can't build embedded library without building the server, because
+  # we depend on libmysys, libmystrings, libmyisam, etc.
+  with_server=yes
+fi
+# XXX: We need to add @libmysqld_extra_libs@ (or whatever) so that
+# mysql_config --libmysqld-libs will print out something like
+# -L/path/to/lib/mysql -lmysqld -lmyisam -lmysys -lmystrings -ldbug ...
+AC_SUBST([libmysqld_dirs])
+
 # Shall we build the docs?
 AC_ARG_WITH(docs,
     [  --without-docs          Skip building of the documentation.],
@@ -2017,13 +2071,13 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
- man/Makefile \
- readline/Makefile libmysql_r/Makefile libmysql/Makefile client/Makefile \
- sql/Makefile sql/share/Makefile \
+ man/Makefile readline/Makefile \
+ libmysql_r/Makefile libmysqld/Makefile libmysql/Makefile client/Makefile \
+ pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
- mysql-test/Makefile \
+ mysql-test/Makefile fs/Makefile \
  include/mysql_version.h
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h

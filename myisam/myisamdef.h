@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -37,7 +37,7 @@ typedef struct st_mi_status_info
   my_off_t key_empty;			/* lost space in indexfile */
   my_off_t key_file_length;
   my_off_t data_file_length;
-} MI_STATUS_INFO;  
+} MI_STATUS_INFO;
 
 typedef struct st_mi_state_info
 {
@@ -285,7 +285,7 @@ struct st_myisam_info {
 
 #define STATE_CHANGED		1
 #define STATE_CRASHED		2
-#define STATE_CRASHED_ON_REPAIR 4 
+#define STATE_CRASHED_ON_REPAIR 4
 #define STATE_NOT_ANALYZED	8
 #define STATE_NOT_OPTIMIZED_KEYS 16
 #define STATE_NOT_SORTED_PAGES	32
@@ -473,6 +473,9 @@ extern int _mi_bin_search(struct st_myisam_info *info,MI_KEYDEF *keyinfo,
 extern int _mi_seq_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 			  uchar *key,uint key_len,uint comp_flag,
 			  uchar **ret_pos,uchar *buff, my_bool *was_last_key);
+extern int _mi_prefix_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
+			  uchar *key,uint key_len,uint comp_flag,
+			  uchar **ret_pos,uchar *buff, my_bool *was_last_key);
 extern int _mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			    my_bool);
 extern my_off_t _mi_kpos(uint nod_flag,uchar *after_key);
@@ -640,6 +643,7 @@ int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
+int flush_pending_blocks(MI_CHECK *param);
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,58 @@
+MySQL Filesystem
+Tõnu Samuel - tonu@mysql.com
+Some additional information is available on http://no.spam.ee/~tonu/mysqlfs.html
+
+WARNING: Experimental code and known to crash computer.
+
+Instructions, how to get this stuff working:
+1. Make sure you have ORBit, includeing development libraries installed. They should be version 0.5.3 or later.
+- I am lazy man and use default ones included with my RedHat:
+   [root@localhost /root]# rpm -qa | grep ORBit
+   ORBit-0.5.3-2
+   ORBit-devel-0.5.3-2
+   [root@localhost /root]#
+
+2. Prepare kernel to include korbit:
+- Get Linux 2.4.1 kernel source. (very possibly this patch works on 2.4.0 without modifications too)
+- unpack it
+- apply patch named "korbit-kernel-2.4.1-patch" on it.
+- make menuconfig
+- In section "Networking options":
+   ...
+   [*]   Kernel ORB (EXPERIMENTAL)
+   ...
+   <M>     CORBA User-space FileSystem (EXPERIMENTAL)
+   ...
+- make dep ; make bzlilo ; make modules ; make modules_install
+- reboot
+- Execute: insmod /lib/modules/$(uname -r)/kernel/net/korbit/modules/CorbaFS/client/corba-corbafs-client.o
+  You should see "gethostname() = localhost". Look at known bug 3 in the end of this doc.
+
+3. Make sure MySQL server is working on your system
+- On my RedHat 7.0 I execute "/etc/init.d/mysqld start"
+
+4. Prepare MySQL FS daemon
+- Get MySQL 4.0 from repository OR get MySQL FS source from http://no.spam.ee/~tonu/mysqlfs.html
+- unpack it. In MySQL 4.0 source this is located in directory named "fs". cd into it.
+- make
+- Execute command "./RunServer" 
+
+5. mount MySQL server to disk tree
+- Execute command "mkdir /mnt/mysql" 
+- Execute command "mount -t corbafs -o `cat /tmp/mysqlcorbafs.ior` none /mnt/mysql/"
+- Check you SQL server content by executing "ls -la /mnt/mysql/"
+
+Known bugs:
+
+1. User bugs. fix user ;)
+
+2. MySQL FS daemon will crash or will be stopped when cobrafs is mounted, then there is no way
+to unmount disks anymore. This is korbit business to handle such cases and I had no time to dig
+into korbit code.
+
+3. host name returned by gethostname() should be "localhost" or korbit will crash. Also "localhost"
+must be first string after 127.0.0.1 in /etc/hosts
+
+
+
+
