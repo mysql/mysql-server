@@ -521,8 +521,9 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
     length=(length <= info->read_length) ?
                    length + IO_ROUND_DN(info->read_length - length) :
                    length - IO_ROUND_UP(length - info->read_length) ;
-    if (info->type != READ_FIFO && (length > info->end_of_file - pos_in_file))
-      length=info->end_of_file - pos_in_file;
+    if (info->type != READ_FIFO &&
+	(length > (uint) (info->end_of_file - pos_in_file)))
+      length= (uint) (info->end_of_file - pos_in_file);
     if (length == 0)
     {
       info->error=(int) read_len;

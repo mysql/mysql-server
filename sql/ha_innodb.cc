@@ -306,7 +306,8 @@ innobase_mysql_print_thd(
 	  *buf++=' ';
 	  buf=strnmov(buf, thd->query, 150);
   	}  
-	*buf='\n';
+	buf[0]='\n';
+	buf[1]=0;
 }
 }
 

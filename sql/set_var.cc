@@ -669,7 +669,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);    
-    global_system_variables.*offset=tmp;
+    global_system_variables.*offset= (ulong) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
@@ -998,7 +998,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   if (!active_mi->rli.slave_running)
   {
     pthread_mutex_lock(&active_mi->rli.data_lock);
-    active_mi->rli.slave_skip_counter= var->value->val_int();
+    active_mi->rli.slave_skip_counter= (ulong) var->value->val_int();
     pthread_mutex_unlock(&active_mi->rli.data_lock);
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
