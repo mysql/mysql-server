@@ -340,6 +340,6 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   my_afree((byte*)new_page);
 
 split_err:
-  my_afree((byte*)coord_buf);
+  my_free((gptr) coord_buf, MYF(0));
   return err_code;
 }
