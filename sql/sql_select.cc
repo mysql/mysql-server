@@ -65,7 +65,8 @@ static ORDER *remove_const(JOIN *join,ORDER *first_order,COND *cond,
 static int return_zero_rows(select_result *res,TABLE_LIST *tables,
 			    List<Item> &fields, bool send_row,
 			    uint select_options, const char *info,
-			    Item *having, Procedure *proc);
+			    Item *having, Procedure *proc,
+			    SELECT_LEX_UNIT *unit);
 static COND *optimize_cond(COND *conds,Item::cond_result *cond_value);
 static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
@@ -166,7 +167,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		     select_lex->having,
 		     (ORDER*) lex->proc_list.first,
 		     select_lex->options | thd->options,
-		     result);
+		     result, &(lex->unit));
   if (res && result)
     result->abort();
   delete result;
@@ -182,7 +183,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 int
 mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	     ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-	     ulong select_options,select_result *result)
+	     ulong select_options,select_result *result,
+	     SELECT_LEX_UNIT *unit)
 {
   TABLE		*tmp_table;
   int		error, tmp_error;
@@ -195,8 +197,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   Procedure	*procedure;
   List<Item>	all_fields(fields);
   bool		select_distinct;
-  SELECT_LEX *select_lex = &(thd->lex.select_lex);
-  SELECT_LEX *cur_sel = thd->lex.select;
+  SELECT_LEX *select_lex= &(thd->lex.select_lex);
+  SELECT_LEX *cur_sel= thd->lex.select;
   DBUG_ENTER("mysql_select");
 
   /* Check that all tables, fields, conds and order are ok */
@@ -312,7 +314,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   join.do_send_rows = 1;
   join.group= group != 0;
   join.row_limit= ((select_distinct || order || group) ? HA_POS_ERROR :
-		   thd->select_limit);
+		   unit->select_limit_cnt);
+  join.unit= unit;
 
 #ifdef RESTRICTED_GROUP
   if (join.sum_func_count && !group && (join.func_count || join.field_count))
@@ -322,7 +325,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     DBUG_RETURN(-1);
   }
 #endif
-  if (!procedure && result->prepare(fields))
+  if (!procedure && result->prepare(fields, unit))
   {						/* purecov: inspected */
     DBUG_RETURN(-1);				/* purecov: inspected */
   }
@@ -351,7 +354,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     delete procedure;
     DBUG_RETURN(0);
   }
-  if (cond_value == Item::COND_FALSE || !thd->select_limit)
+  if (cond_value == Item::COND_FALSE || !unit->select_limit_cnt)
   {					/* Impossible cond */
     if (select_options & SELECT_DESCRIBE && select_lex->next)
       select_describe(&join,false,false,false,"Impossible WHERE");
@@ -359,7 +362,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       error=return_zero_rows(result, tables, fields,
 			     join.tmp_table_param.sum_func_count != 0 && !group,
 			     select_options,"Impossible WHERE",having,
-			     procedure);
+			     procedure, unit);
     delete procedure;
     DBUG_RETURN(error);
   }
@@ -376,8 +379,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	  select_describe(&join,false,false,false,"No matching min/max row");
 	else 
 	  error=return_zero_rows(result, tables, fields, !group,
-				 select_options,"No matching min/max row",
-				 having,procedure);
+				 select_options, "No matching min/max row",
+				 having, procedure, unit);
 	delete procedure;
 	DBUG_RETURN(error);
       }
@@ -435,9 +438,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (join.const_table_map != join.found_const_table_map &&
       !(select_options & SELECT_DESCRIBE))
   {
-    error=return_zero_rows(result,tables,fields,
-			   join.tmp_table_param.sum_func_count != 0 &&
-			   !group,0,"",having,procedure);
+    error= return_zero_rows(result, tables, fields,
+			    join.tmp_table_param.sum_func_count != 0 &&
+			    !group, 0, "", having, procedure, unit);
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
@@ -483,11 +486,12 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (select_options & SELECT_DESCRIBE && select_lex->next)
       select_describe(&join,false,false,false,"Impossible WHERE noticed after reading const tables");
     else 
-      error=return_zero_rows(result,tables,fields,
-			     join.tmp_table_param.sum_func_count != 0 && !group,
-			     select_options,
-			     "Impossible WHERE noticed after reading const tables",
-			     having,procedure);
+      error= return_zero_rows(result,tables,fields,
+			      join.tmp_table_param.sum_func_count != 0 && 
+			      !group,
+			      select_options,
+			      "Impossible WHERE noticed after reading const tables",
+			      having, procedure, unit);
     goto err;
   }
 
@@ -501,12 +505,12 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       select_distinct=0;
   }
   else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (thd->select_limit == HA_POS_ERROR ||
+	   (unit->select_limit_cnt == HA_POS_ERROR ||
 	    (join.select_options & OPTION_FOUND_ROWS) ||
 	    order &&
 	    !(skip_sort_order=
 	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				      order, thd->select_limit,1))))
+				      order, unit->select_limit_cnt,1))))
   {
     if ((group=create_distinct_group(order,fields)))
     {
@@ -593,7 +597,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       ((group && join.const_tables != join.tables &&
 	(!simple_group ||
 	 !test_if_skip_sort_order(&join.join_tab[join.const_tables], group,
-				  thd->select_limit,0))) ||
+				  unit->select_limit_cnt, 0))) ||
        select_distinct) &&
       join.tmp_table_param.quick_group && !procedure)
   {
@@ -610,7 +614,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	  test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
 				  (join.const_tables != join.tables - 1 ||
 				   (join.select_options & OPTION_FOUND_ROWS)) ?
-				  HA_POS_ERROR : thd->select_limit,0))))
+				  HA_POS_ERROR : unit->select_limit_cnt, 0))))
       order=0;
     select_describe(&join,need_tmp,
 		    order != 0 && !skip_sort_order,
@@ -637,7 +641,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			   group && simple_group,
 			   (order == 0 || skip_sort_order) &&
 			   !(join.select_options & OPTION_FOUND_ROWS),
-			   join.select_options)))
+			   join.select_options, unit)))
       goto err;					/* purecov: inspected */
 
     if (having && (join.sort_and_group || (tmp_table->distinct && !group)))
@@ -690,7 +694,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       if (order && skip_sort_order)
       {
 	(void) test_if_skip_sort_order(&join.join_tab[join.const_tables],
-				       order, thd->select_limit,0);
+				       order, unit->select_limit_cnt, 0);
 	order=0;
       }
     }
@@ -760,7 +764,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 					  (ORDER*) 0,
 					  select_distinct && !group,
 					  1, 0,
-					  join.select_options)))
+					  join.select_options, unit)))
 	goto err;				/* purecov: inspected */
       if (group)
       {
@@ -817,9 +821,9 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (procedure)
   {
     if (procedure->change_columns(fields) ||
-	result->prepare(fields))
+	result->prepare(fields, unit))
       goto err;
-    count_field_types(&join.tmp_table_param,all_fields,0);
+    count_field_types(&join.tmp_table_param, all_fields, 0);
   }
   if (join.group || join.tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
@@ -864,7 +868,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			  (having || group ||
 			   join.const_tables != join.tables - 1 ||
 			   (join.select_options & OPTION_FOUND_ROWS)) ?
-			  HA_POS_ERROR : thd->select_limit))
+			  HA_POS_ERROR : unit->select_limit_cnt))
       goto err; /* purecov: inspected */
   }
   join.having=having;				// Actually a parameter
@@ -2480,7 +2484,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	  if ((tab->keys & ~ tab->const_keys && i > 0) ||
 	      (tab->const_keys && i == join->const_tables &&
-	       join->thd->select_limit < join->best_positions[i].records_read &&
+	       join->unit->select_limit_cnt < 
+	       join->best_positions[i].records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
 	    /* Join with outer join condition */
@@ -2491,7 +2496,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
-					join->thd->select_limit)) < 0)
+					join->unit->select_limit_cnt)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
 	    sel->cond=orig_cond;
 	  }
@@ -2929,7 +2934,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 static int
 return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
 		 bool send_row, uint select_options,const char *info,
-		 Item *having, Procedure *procedure)
+		 Item *having, Procedure *procedure, SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("return_zero_rows");
 
@@ -2940,7 +2945,7 @@ return_zero_rows(select_result *result,TABLE_LIST *tables,List<Item> &fields,
   }
   if (procedure)
   {
-    if (result->prepare(fields))		// This hasn't been done yet
+    if (result->prepare(fields, unit))		// This hasn't been done yet
       DBUG_RETURN(-1);
   }
   if (send_row)
@@ -3475,7 +3480,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 bool allow_distinct_limit, ulong select_options)
+		 bool allow_distinct_limit, ulong select_options,
+		 SELECT_LEX_UNIT *unit)
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
@@ -3846,8 +3852,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			 test(null_pack_length));
     if (allow_distinct_limit)
     {
-      set_if_smaller(table->max_rows,thd->select_limit);
-      param->end_write_records=thd->select_limit;
+      set_if_smaller(table->max_rows, unit->select_limit_cnt);
+      param->end_write_records= unit->select_limit_cnt;
     }
     else
       param->end_write_records= HA_POS_ERROR;
@@ -4892,7 +4898,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
-    if (++join->send_records >= join->thd->select_limit && join->do_send_rows)
+    if (++join->send_records >= join->unit->select_limit_cnt &&
+	join->do_send_rows)
     {
       if (join->select_options & OPTION_FOUND_ROWS)
       {
@@ -4907,8 +4914,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	}
 	else 
 	{
-	  join->do_send_rows=0;
-	  join->thd->select_limit = HA_POS_ERROR;
+	  join->do_send_rows= 0;
+	  join->unit->select_limit= HA_POS_ERROR;
 	  DBUG_RETURN(0);
 	}
       }
@@ -4969,13 +4976,13 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
 	  DBUG_RETURN(0);
-	if (!error && ++join->send_records >= join->thd->select_limit &&
+	if (!error && ++join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
 	  if (!(join->select_options & OPTION_FOUND_ROWS))
 	    DBUG_RETURN(-3);				// Abort nicely
 	  join->do_send_rows=0;
-	  join->thd->select_limit = HA_POS_ERROR;
+	  join->unit->select_limit_cnt = HA_POS_ERROR;
         }
       }
     }
@@ -5056,7 +5063,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (!(join->select_options & OPTION_FOUND_ROWS))
 	  DBUG_RETURN(-3);
 	join->do_send_rows=0;
-	join->thd->select_limit = HA_POS_ERROR;
+	join->unit->select_limit_cnt = HA_POS_ERROR;
 	DBUG_RETURN(0);
       }
     }
@@ -5755,7 +5762,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
   if (!field_count)
   {						// only const items
-    join->thd->select_limit=1;			// Only send first row
+    join->unit->select_limit_cnt= 1;		// Only send first row
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->fields - field_count;

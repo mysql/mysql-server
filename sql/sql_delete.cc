@@ -232,9 +232,10 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 
 
 int
-multi_delete::prepare(List<Item> &values)
+multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("multi_delete::prepare");
+  unit= u;
   do_delete = true;   
   thd->proc_info="deleting from main table";
 

@@ -1203,11 +1203,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 void
 mysql_execute_command(void)
 {
-  int	res=0;
-  THD	*thd=current_thd;
+  int	res= 0;
+  THD	*thd= current_thd;
   LEX	*lex= &thd->lex;
-  TABLE_LIST *tables=(TABLE_LIST*) lex->select_lex.table_list.first;
-  SELECT_LEX *select_lex = lex->select;
+  TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
+  SELECT_LEX *select_lex= lex->select;
+  SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
   if (thd->slave_thread)
@@ -1274,11 +1275,11 @@ mysql_execute_command(void)
       break;					// Error message is given
     }
 
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// no limit
-    if (thd->select_limit == HA_POS_ERROR)
+    unit->offset_limit_cnt =select_lex->offset_limit;
+    unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
+    if (unit->select_limit_cnt < select_lex->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (lex->exchange)
@@ -1503,10 +1504,11 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
-      thd->offset_limit=select_lex->offset_limit;
-      thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-      if (thd->select_limit < select_lex->select_limit)
-	thd->select_limit= HA_POS_ERROR;		// No limit
+      unit->offset_limit_cnt= select_lex->offset_limit;
+      unit->select_limit_cnt= select_lex->select_limit+
+	select_lex->offset_limit;
+      if (unit->select_limit_cnt < select_lex->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
       /* Skip first table, which is the table we are creating */
       lex->select_lex.table_list.first=
@@ -1788,13 +1790,13 @@ mysql_execute_command(void)
 	while ((item=value_list++))
 	  total_list.push_back(item);
 	
-	res=mysql_select(thd,tables,total_list,
-			 select_lex->where,
-			 (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-			 (ORDER *)NULL,
-			 select_lex->options | thd->options |
-			 SELECT_NO_JOIN_CACHE,
-			 result);
+	res= mysql_select(thd, tables, total_list,
+			  select_lex->where,
+			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
+			  (ORDER *)NULL,
+			  select_lex->options | thd->options |
+			  SELECT_NO_JOIN_CACHE,
+			  result, unit);
 	delete result;
       }
       else
@@ -1844,10 +1846,10 @@ mysql_execute_command(void)
     }
 
     select_result *result;
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// No limit
+    unit->offset_limit_cnt= select_lex->offset_limit;
+    unit->select_limit_cnt= select_lex->select_limit+select_lex->offset_limit;
+    if (unit->select_limit_cnt < select_lex->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
     if (check_dup(tables->db, tables->real_name, tables->next))
     {
@@ -1963,7 +1965,7 @@ mysql_execute_command(void)
 		       (ORDER *)NULL,
 		       select_lex->options | thd->options |
 		       SELECT_NO_JOIN_CACHE,
-		       result);
+		       result, unit);
       delete result;
     }
     else
@@ -2667,8 +2669,10 @@ mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
   thd->lex.unit.init_query();
+  thd->lex.unit.init_select();
   thd->lex.select_lex.init_query();
   thd->lex.unit.slave= &thd->lex.select_lex;
+  thd->lex.unit.select_limit= thd->default_select_limit; //Global limit
   thd->lex.select_lex.master= &thd->lex.unit;
   thd->lex.select_lex.prev= &thd->lex.unit.slave;
   thd->lex.value_list.empty();
@@ -2716,6 +2720,7 @@ mysql_new_select(LEX *lex, bool move_down)
   else
     select_lex->include_neighbour(lex->select);
     
+  ((SELECT_LEX_UNIT*)select_lex->master)->global_parameters= select_lex;
   select_lex->include_global(&lex->select->link_next);
   lex->select= select_lex;
   return 0;

@@ -28,13 +28,13 @@
 static const char *any_db="*any*";	// Special symbol for check_access
 
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 {
   /*
     TODO: make derived tables with union inside (now only 1 SELECT may be
     procesed)
   */
-  SELECT_LEX *sl= (SELECT_LEX*)s->slave;
+  SELECT_LEX *sl= (SELECT_LEX*)unit->slave;
   List<Item> item_list;
   TABLE *table;
   int res;
@@ -75,9 +75,11 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t)
     }
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count=item_list.elements;
-    if (!(table=create_tmp_table(thd, &tmp_table_param, sl->item_list,
-			       (ORDER*) 0, 0, 1, 0,
-			       (sl->options | thd->options | TMP_TABLE_ALL_COLUMNS))))
+    if (!(table= create_tmp_table(thd, &tmp_table_param, sl->item_list,
+				  (ORDER*) 0, 0, 1, 0,
+				  (sl->options | thd->options | 
+				   TMP_TABLE_ALL_COLUMNS),
+				  unit)))
     {
       res=-1;
       goto exit;
@@ -85,11 +87,11 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t)
   
     if ((derived_result=new select_union(table)))
     {
-      thd->offset_limit=sl->offset_limit;
-      thd->select_limit=sl->select_limit+sl->offset_limit;
-      if (thd->select_limit < sl->select_limit)
-	thd->select_limit= HA_POS_ERROR;
-      if (thd->select_limit == HA_POS_ERROR)
+      unit->offset_limit_cnt= sl->offset_limit;
+      unit->select_limit_cnt= sl->select_limit+sl->offset_limit;
+      if (unit->select_limit_cnt < sl->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;
+      if (unit->select_limit_cnt == HA_POS_ERROR)
 	sl->options&= ~OPTION_FOUND_ROWS;
     
       res=mysql_select(thd, tables,  sl->item_list,
@@ -97,7 +99,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t)
 		       (ORDER*) sl->group_list.first,
 		       sl->having, (ORDER*) NULL,
 		       sl->options | thd->options | SELECT_NO_UNLOCK,
-		       derived_result);
+		       derived_result, unit);
       if (!res)
       {
 // Here we entirely fix both TABLE_LIST and list of SELECT's as there were no derived tables
