@@ -19,6 +19,7 @@
 #include "sql_select.h"
 #include "parse_file.h"
 #include "sp.h"
+#include "sp_head.h"
 
 #define MD5_BUFF_LENGTH 33
 
@@ -615,10 +616,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
   lex_start(thd, (uchar*)table->query.str, table->query.length);
   view_select= &lex->select_lex;
-  /* Only if we're not in the pre-open phase */
-  if (!thd->shortcut_make_view)
-    view_select->select_number= ++thd->select_number;
-  old_lex->derived_tables|= DERIVED_VIEW;
+  view_select->select_number= ++thd->select_number;
   {
     ulong options= thd->options;
     /* switch off modes which can prevent normal parsing of VIEW
@@ -662,35 +660,13 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
 
-    /* move SP to main LEX */
-    if (lex->spfuns.records)
-      sp_merge_hash(&old_lex->spfuns, &lex->spfuns);
-
-    /* cleanup LEX */
-    if (lex->spfuns.array.buffer)
-      hash_free(&lex->spfuns);
-    if (lex->spprocs.array.buffer)
-      hash_free(&lex->spprocs);
-    if (lex->sptabs.array.buffer)
-      hash_free(&lex->sptabs);
-
-    /* If we're pre-opening tables to find SPs and tables we need
-       not go any further; doing so will cause an infinite loop. */
-    if (thd->shortcut_make_view)
-    {
-      extern bool
-	sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
-			    LEX *lex_for_tmp_check = 0);
-
-      sp_merge_table_list(thd, &old_lex->sptabs, view_tables);
-      goto ok;
-    }
-
     /*
-      check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
-      underlying tables
+      Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
+      underlying tables.
+      Skip this step if we are opening view for prelocking only.
     */
-    if ((old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
+    if (!table->prelocking_placeholder &&
+        (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
       if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
           check_table_access(thd, SHOW_VIEW_ACL, table, 1))
@@ -699,7 +675,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         goto err;
       }
     }
-    else if (old_lex->sql_command == SQLCOM_SHOW_CREATE)
+    else if (!table->prelocking_placeholder &&
+             old_lex->sql_command == SQLCOM_SHOW_CREATE)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
@@ -717,13 +694,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       tbl->belong_to_view= top_view;
     }
 
-    /* move SQL_NO_CACHE & Co to whole query */
-    old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
-				   lex->safe_to_cache_query);
-    /* move SQL_CACHE to whole query */
-    if (view_select->options & OPTION_TO_QUERY_CACHE)
-      old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
-
     /*
       Put tables of VIEW after VIEW TABLE_LIST
 
@@ -740,11 +710,28 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       }
       else
       {
-        lex->query_tables_last= &view_tables_tail->next_global;
+        old_lex->query_tables_last= &view_tables_tail->next_global;
       }
       view_tables->prev_global= &table->next_global;
       table->next_global= view_tables;
     }
+
+    /*
+      If we are opening this view as part of implicit LOCK TABLES, then
+      this view serves as simple placeholder and we should not continue
+      further processing.
+    */
+    if (table->prelocking_placeholder)
+      goto ok2;
+
+    old_lex->derived_tables|= DERIVED_VIEW;
+
+    /* move SQL_NO_CACHE & Co to whole query */
+    old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
+				   lex->safe_to_cache_query);
+    /* move SQL_CACHE to whole query */
+    if (view_select->options & OPTION_TO_QUERY_CACHE)
+      old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 
     /*
       check MERGE algorithm ability
@@ -850,8 +837,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     goto err;
 
 ok:
-  if (arena)
-    thd->restore_backup_item_arena(arena, &backup);
   /* global SELECT list linking */
   end= view_select;	// primary SELECT_LEX is always last
   end->link_next= old_lex->all_selects_list;
@@ -860,6 +845,9 @@ ok:
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
 
+ok2:
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   thd->lex= old_lex;
   DBUG_RETURN(0);
 

@@ -1004,7 +1004,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
 
-  if (!open_tables(thd, table_list, &table_count))
+  if (!open_tables(thd, &table_list, &table_count))
   {
     if (table_list->ancestor && table_list->ancestor->next_local)
     {
@@ -1545,22 +1545,6 @@ static int check_prepared_statement(Prepared_statement *stmt,
   lex->first_lists_tables_same();
   tables= lex->query_tables;
 
-  /*
-    Preopen 'proc' system table and cache all functions used in this
-    statement. We must do that before we open ordinary tables to avoid
-    deadlocks. We can't open and lock any table once query tables were
-    opened.
-  */
-  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
-      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
-  {
-    /* The error is printed inside */
-    if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
-      DBUG_RETURN(-1);
-    if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
-      DBUG_RETURN(-1);
-  }
-
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
@@ -1793,9 +1777,9 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     thd->lex->sphead= NULL;
   }
   lex_end(lex);
+  close_thread_tables(thd);
   thd->restore_backup_statement(stmt, &thd->stmt_backup);
   cleanup_items(stmt->free_list);
-  close_thread_tables(thd);
   thd->rollback_item_tree_changes();
   thd->cleanup_after_query();
   thd->current_arena= thd;
@@ -1884,6 +1868,11 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
     TODO: When the new table structure is ready, then have a status bit 
     to indicate the table is altered, and re-do the setup_* 
     and open the tables back.
+  */
+  /*
+    NOTE: We should reset whole table list here including all tables added
+    by prelocking algorithm (it is not a problem for substatements since
+    they have their own table list).
   */
   for (TABLE_LIST *tables= lex->query_tables;
 	 tables;

@@ -870,7 +870,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_refresh(THD *thd);
-int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
+int open_tables(THD *thd, TABLE_LIST **tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_and_lock_tables(THD *thd,TABLE_LIST *tables);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables);
