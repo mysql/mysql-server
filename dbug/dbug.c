@@ -21,7 +21,8 @@
  *	all copies and derivative works.  Thank you.			      *
  *									      *
  *	The author makes no warranty of any kind  with	respect  to  this     *
- *	product  and  explicitly disclaims any implied warranties of mer-     *
+ *	product  and  explicitly disclaims any implied warranties of mer-     *ct_lex.table_list.first=0;
+  thd->lex.selec
  *	chantability or fitness for any particular purpose.		      *
  *									      *
  ******************************************************************************
@@ -58,7 +59,7 @@
  *	seismo!bpa!sjuvax!bbanerje
  *
  *	Michael Widenius:
- *	DBUG_DUMP	- To dump a pice of memory.
+ *	DBUG_DUMP	- To dump a block of memory.
  *	PUSH_FLAG "O"	- To be used insted of "o" if we don't
  *			  want flushing (for slow systems)
  *	PUSH_FLAG "A"	- as 'O', but we will append to the out file instead
@@ -707,7 +708,13 @@ char ***_sframep_ __attribute__((unused)))
     int save_errno=errno;
     if (!init_done)
       _db_push_ (_DBUG_START_CONDITION_);
-    state=code_state();
+    /* Sasha: the test below is so we could call functions with DBUG_ENTER
+       before my_thread_init(). I needed this because I suspected corruption
+       of a block allocated by my_thread_init() itself, so I wanted to use
+       my_malloc()/my_free() in my_thread_init()/my_thread_end()
+    */
+    if (!(state=code_state()))
+      return;
 
     *_sfunc_ = state->func;
     *_sfile_ = state->file;
@@ -855,6 +862,9 @@ uint _line_,
 const char *keyword)
 {
   CODE_STATE *state=code_state();
+  /* Sasha: pre-my_thread_init() safety */
+  if (!state)
+    return;
   state->u_line = _line_;
   state->u_keyword = (char*) keyword;
 }
@@ -890,7 +900,9 @@ void _db_doprnt_ (const char *format,...)
 {
   va_list args;
   CODE_STATE *state;
-  state=code_state();
+  /* Sasha: pre-my_thread_init() safety */
+  if (!(state=code_state()))
+    return;
 
   va_start(args,format);
 
@@ -942,7 +954,9 @@ uint length)
   int pos;
   char dbuff[90];
   CODE_STATE *state;
-  state=code_state();
+  /* Sasha: pre-my_thread_init() safety */
+  if (!(state=code_state()))
+    return;
 
   if (_db_keyword_ ((char*) keyword))
   {
@@ -1224,7 +1238,9 @@ const char *keyword)
 
   if (!init_done)
     _db_push_ ("");
-  state=code_state();
+  /* Sasha: pre-my_thread_init() safety */
+  if (!(state=code_state()))
+    return FALSE;
   result = FALSE;
   if (DEBUGGING &&
       state->level <= stack -> maxdepth &&
