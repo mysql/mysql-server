@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -145,15 +145,16 @@ static int run_test(const char *filename)
     }
     printf("Query %d: `%s'. Found: %d. Top five documents:\n",
 	    i,query[i],result->ndocs);
-    for(j=0;j<5;j++) { double w;
-	w=ft_read_next(result, read_record);
-	if(w<0) {
-	    printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
-	    break;
-	} else if (w==0) {
+    for(j=0;j<5;j++) { double w; int err;
+	err=ft_read_next(result, read_record);
+	if(err==HA_ERR_KEY_NOT_FOUND) {
 	    printf("No more matches!\n");
 	    break;
+	} else if (err) {
+	    printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
+	    break;
 	}
+        w=ft_get_relevance(result);
 	if(key_field == FIELD_VARCHAR) {
 	    uint l;
 	    char *p;

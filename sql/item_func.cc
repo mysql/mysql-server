@@ -1837,43 +1837,49 @@ err:
 
 double Item_func_match::val()
 {
-  int a,b,c;
-  FT_DOC  *docs;
-  my_off_t docid;
+  my_off_t docid=table->file->row_position();  // HAVE to do it here...
 
-  docid = table->file->row_position();  // HAVE to do it here...
-
-  if (table->file->ft_handler==NULL && !auto_init_was_done)
+  if (first_call)
   {
-    /* join won't use this ft-key, but we must to init it anyway */
-    String *ft_tmp=0;
-    char tmp1[FT_QUERY_MAXLEN];
-    String tmp2(tmp1,sizeof(tmp1));
+    if (join_key=(table->file->get_index() == key &&
+                 (ft_handler=(FT_DOCLIST *)table->file->ft_handler)))
+      ;
+    else
+    {
+      /* join won't use this ft-key, but we must to init it anyway */
+      String *ft_tmp=0;
+      char tmp1[FT_QUERY_MAXLEN];
+      String tmp2(tmp1,sizeof(tmp1));
 
-    ft_tmp=key_item()->val_str(&tmp2);
-    table->file->ft_init(key, (byte*) ft_tmp->ptr(), ft_tmp->length(), FALSE);
-    auto_init_was_done=1;
+      ft_tmp=key_item()->val_str(&tmp2);
+      ft_handler=(FT_DOCLIST *)
+         table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length());
+    }
+    first_call=0;
   }
 
   // Don't know how to return an error from val(), so NULL will be returned
-  if ((null_value=(table->file->ft_handler==NULL)))
+  if ((null_value=(ft_handler==NULL)))
     return 0.0;
 
-  if (auto_init_was_done)
+  if (join_key)
   {
-    /* implicit initialization was done, so nobody will set proper
-       ft_relevance for us. We'll look for it in ft_handler array */
+    return ft_get_relevance(ft_handler);
+  }
+  else
+  {
+    /* implicit initialization was done, so we'll have to find
+       ft_relevance manually in ft_handler array */
 
-    docs  = ((FT_DOCLIST *)table->file->ft_handler)->doc;
-//    docid = table->file->row_position();
+    int a,b,c;
+    FT_DOC  *docs=ft_handler->doc;
 
     if ((null_value=(docid==HA_OFFSET_ERROR)))
       return 0.0;
 
     // Assuming docs[] is sorted by dpos...
 
-    a=0, b=((FT_DOCLIST *)table->file->ft_handler)->ndocs;
-    for (c=(a+b)/2; b-a>1; c=(a+b)/2)
+    for (a=0, b=ft_handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
     {
       if (docs[c].dpos > docid)
         b=c;
@@ -1881,12 +1887,10 @@ double Item_func_match::val()
         a=c;
     }
     if (docs[a].dpos == docid)
-      table->file->ft_relevance=docs[a].weight;
+      return docs[a].weight;
     else
-      table->file->ft_relevance=0;
+      return 0.0;
   }
-
-  return table->file->ft_relevance;
 }
 
 bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
@@ -1912,8 +1916,6 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     return 1;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
-  auto_init_was_done=0;
-  table->file->ft_close(); // It's a bad solution to do it here, I know :-(
   return 0;
 }
 
@@ -1978,7 +1980,7 @@ bool Item_func_match::fix_index()
   }
 
   this->key=max_key;
-
+  first_call=1;
   maybe_null=1;
 
   return 0;

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -189,7 +189,6 @@ public:
   time_t check_time;
   time_t update_time;
   ulong mean_rec_length;		/* physical reclength */
-  double ft_relevance;
   void  *ft_handler;
 
   handler(TABLE *table_arg) : table(table_arg),active_index(MAX_REF_PARTS),
@@ -198,7 +197,7 @@ public:
     delete_length(0), auto_increment_value(0), raid_type(0),
     key_used_on_scan(MAX_KEY),
     create_time(0), check_time(0), update_time(0), mean_rec_length(0),
-    ft_relevance(0.0), ft_handler(0)
+    ft_handler(0)
     {}
   virtual ~handler(void) { my_free((char*) ref,MYF(MY_ALLOW_ZERO_PTR)); }
   int ha_open(const char *name, int mode, int test_if_locked);
@@ -231,10 +230,11 @@ public:
   virtual int index_first(byte * buf)=0;
   virtual int index_last(byte * buf)=0;
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
-  virtual int ft_init(uint inx,const byte *key, uint keylen, bool presort)
-  { return -1; }
+  virtual int ft_init(uint inx,const byte *key, uint keylen, bool presort=1)
+                                 { return -1; }
+  virtual void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort=0)
+                                 { return (void *)NULL; }
   virtual int ft_read(byte *buf) { return -1; }
-  virtual int ft_close() { return -1; }
   virtual int rnd_init(bool scan=1)=0;
   virtual int rnd_end() { return 0; }
   virtual int rnd_next(byte *buf)=0;
@@ -266,7 +266,7 @@ public:
   // not implemented by default
   virtual int net_read_dump(NET* net)
   { return ER_DUMP_NOT_IMPLEMENTED; }
-  
+
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -37,10 +37,10 @@ class ha_myisam: public handler
     int_option_flag(HA_READ_NEXT+HA_READ_PREV+HA_READ_RND_SAME+
 		    HA_KEYPOS_TO_RNDPOS+ HA_READ_ORDER+ HA_LASTKEY_ORDER+
 		    HA_HAVE_KEY_READ_ONLY+ HA_READ_NOT_EXACT_KEY+
-		    HA_LONGLONG_KEYS+ HA_NULL_KEY + 
+		    HA_LONGLONG_KEYS+ HA_NULL_KEY +
 		    HA_DUPP_POS + HA_BLOB_KEY + HA_AUTO_PART_KEY)
   {}
-  ~ha_myisam() { ft_close(); }
+  ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
@@ -63,9 +63,10 @@ class ha_myisam: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int ft_init(uint inx,const byte *key, uint keylen, bool presort);
+  int ft_init(uint inx,const byte *key, uint keylen, bool presort=1);
+  void *ft_init_ext(uint inx,const byte *key, uint keylen, bool presort=0)
+               { return ft_init_search(file,inx,(byte*) key,keylen,presort); }
   int ft_read(byte *buf);
-  int ft_close() { if(ft_handler) ft_close_search(ft_handler); ft_handler=0; return 0;}
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);

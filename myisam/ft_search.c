@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -187,7 +187,7 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
     goto err;
 
   dlist->ndocs=aio.dtree.elements_in_tree;
-  dlist->curdoc=0;
+  dlist->curdoc=-1;
   dlist->info=aio.info;
   dptr=dlist->doc;
 
@@ -205,19 +205,19 @@ err:
   return dlist;
 }
 
-double ft_read_next(FT_DOCLIST *handler, char *record)
+int ft_read_next(FT_DOCLIST *handler, char *record)
 {
   MI_INFO *info=handler->info;
 
-  if (handler->curdoc >= handler->ndocs)
-    return 0;
+  if (++handler->curdoc >= handler->ndocs)
+    return HA_ERR_END_OF_FILE;
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   if (!(*info->read_record)(info,handler->doc[handler->curdoc].dpos,record))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
-    return handler->doc[handler->curdoc++].weight;
+    return 0;
   }
-  return -my_errno;
+  return my_errno;
 }

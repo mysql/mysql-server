@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -82,7 +82,7 @@ int main(int argc,char *argv[])
   if (!silent)
     printf("- Reading rows with key\n");
   for(i=1;create_record(record,qf);i++) {
-    FT_DOCLIST *result; double w; int t;
+    FT_DOCLIST *result; double w; int t,err;
 
     result=ft_init_search(file,0,blob_record,(uint) strlen(blob_record),1);
     if(!result) {
@@ -91,11 +91,12 @@ int main(int argc,char *argv[])
     }
     if (!silent)
       printf("Query %d. Found: %d.\n",i,result->ndocs);
-    for(j=0;(w=ft_read_next(result, read_record))>0;j++) {
+    for(j=0;(err=ft_read_next(result, read_record))==0;j++) {
       t=uint2korr(read_record);
+      w=ft_get_relevance(result);
       printf("%d %.*s %f\n",i,t,read_record+2,w);
     }
-    if(w<0) {
+    if(err != HA_ERR_KEY_NOT_FOUND) {
       printf("ft_read_next %d failed with errno %3d\n",j,my_errno);
       goto err;
     }
