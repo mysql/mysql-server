@@ -118,7 +118,7 @@ select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
 drop table t1,t2,t3;
 
 #
-# two more bugtests
+# three more bugtests
 #
 
 CREATE TABLE t1 (
@@ -130,6 +130,7 @@ CREATE TABLE t1 (
 ) TYPE=MyISAM;
 
 insert into t1 (title) values ('this is a test');
+select * from t1 where match title against ('test' in boolean mode);
 update t1 set title='this is A test' where id=1;
 check table t1;
 update t1 set title='this test once revealed a bug' where id=1;
