@@ -620,5 +620,11 @@ SELECT * FROM test.t1;
 USE test;
 DROP TABLE t1;
 
+#
+# charset with NULL
+#
+set character_set_results=null;
+select @@character_set_results;
+set character_set_results=default;
 
 SET GLOBAL query_cache_size=0;
