@@ -589,6 +589,7 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
     m_ndb(ndb)
 {
   m_globalHash = 0;
+  m_local_table_data_size= 0;
 }
 
 static int f_dictionary_count = 0;
@@ -600,7 +601,7 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
     while(curr != 0){
       m_globalHash->lock();
       m_globalHash->release(curr->theData->m_table_impl);
-      delete curr->theData;
+      Ndb_local_table_info::destroy(curr->theData);
       m_globalHash->unlock();
       
       curr = m_localHash.m_tableHash.getNext(curr);
@@ -641,9 +642,7 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
     }
   }
 
-  Ndb_local_table_info *info= new Ndb_local_table_info(impl, 32);
-  info->m_first_tuple_id= ~0;
-  info->m_last_tuple_id= ~0;
+  Ndb_local_table_info *info= Ndb_local_table_info::create(impl, m_local_table_data_size);
 
   m_localHash.put(internalTableName, info);
 
