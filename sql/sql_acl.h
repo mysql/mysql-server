@@ -190,6 +190,8 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
 bool mysql_procedure_grant(THD *thd, TABLE_LIST *table, 
 			   List <LEX_USER> &user_list, ulong rights,
 			   bool revoke, bool no_error);
+ACL_USER *check_acl_user(LEX_USER *user_name,
+			 uint *acl_acl_userdx);
 my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);
