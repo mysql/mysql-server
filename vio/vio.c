@@ -98,6 +98,9 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 	    vio->sd);
 #if !defined(___WIN__) && !defined(__EMX__) && !defined(OS2)
 #if !defined(NO_FCNTL_NONBLOCK)
+#if defined(__FreeBSD__)
+    fcntl(sd, F_SETFL, vio->fcntl_mode); /* Yahoo! FreeBSD patch */
+#endif
     vio->fcntl_mode = fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
