@@ -293,7 +293,7 @@ SimpleProperties::Reader::printAll(NdbOut& ndbout){
       break;
     default:
       ndbout << "Unknown type for key: " << getKey() 
-             << " type: " << getValueType() << endl;
+             << " type: " << (Uint32)getValueType() << endl;
     }
   }
 }

@@ -33,7 +33,7 @@ Ndb::checkFailedNode()
   DBUG_PRINT("enter", ("theNoOfDBnodes: %d", theNoOfDBnodes));
 
   DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
-  for (int i = 0; i < theNoOfDBnodes; i++){
+  for (Uint32 i = 0; i < theNoOfDBnodes; i++){
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
