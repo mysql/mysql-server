@@ -1785,7 +1785,6 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   longlong tmp;
   long store_tmp;
   int error;
-  bool warning_given= 0;
   char *end;
   
   tmp= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
@@ -2075,8 +2074,7 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   longlong tmp;
   int error= 0;
   char *end;
-  bool warning_given;
-  
+
   tmp= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
   len-= (uint)tmp;
   from+= tmp;

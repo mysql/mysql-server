@@ -2116,7 +2116,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     }
     table->field[11]->store((longlong) file->index_file_length);
     table->field[12]->store((longlong) file->delete_length);
-    if (table->found_next_number_field)
+    if (show_table->found_next_number_field)
     {
       show_table->next_number_field=show_table->found_next_number_field;
       show_table->next_number_field->reset();
@@ -2196,12 +2196,16 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
-
-    char *comment= show_table->file->
-      update_table_comment(show_table->comment);
-    table->field[20]->store(comment, strlen(comment), cs);
-    if (comment != show_table->comment)
-      my_free(comment,MYF(0));
+    {
+      char *comment= show_table->file->
+        update_table_comment(show_table->comment);
+      if (comment)
+      {
+        table->field[20]->store(comment, strlen(comment), cs);
+        if (comment != show_table->comment)
+          my_free(comment,MYF(0));
+      }
+    }
   }
   table->file->write_row(table->record[0]);
   DBUG_RETURN(0);
