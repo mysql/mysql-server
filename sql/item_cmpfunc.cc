@@ -1503,7 +1503,11 @@ void in_string::set(uint pos,Item *item)
   String *str=((String*) base)+pos;
   String *res=item->val_str(str);
   if (res && res != str)
+  {
+    if (res->uses_buffer_owned_by(str))
+      res->copy();
     *str= *res;
+  }
   if (!str->charset())
   {
     CHARSET_INFO *cs;
