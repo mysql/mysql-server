@@ -8061,8 +8061,16 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   }
   else if (select && select->quick)		// Range found by opt_range
   {
-    /* assume results are not ordered when index merge is used */
-    if (select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+    int quick_type= select->quick->get_type();
+    /* 
+      assume results are not ordered when index merge is used 
+      TODO: sergeyp: Results of all index merge selects actually are ordered 
+      by clustered PK values.
+    */
+  
+    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
       DBUG_RETURN(0);
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
@@ -8123,9 +8131,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            int quick_type= select->quick->get_type();
             if (table->file->index_flags(ref_key) & HA_NOT_READ_PREFIX_LAST ||
-                (select->quick->get_type() == 
-                QUICK_SELECT_I::QS_TYPE_INDEX_MERGE))
+                quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)
               DBUG_RETURN(0);			// Use filesort
             
             // ORDER BY range_key DESC
@@ -10105,6 +10115,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   select_result *result=join->result;
   Item *item_null= new Item_null();
   CHARSET_INFO *cs= system_charset_info;
+  int quick_type;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -10196,17 +10207,20 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
-      char buff[512],*buff_ptr=buff;
+      char buff[512]; 
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
+      String extra(buff, sizeof(buff),cs);
       char table_name_buffer[NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
+      extra.length(0);
       tmp1.length(0);
       tmp2.length(0);
       tmp3.length(0);
 
+      quick_type= -1;
       item_list.empty();
       /* id */
       item_list.push_back(new Item_uint((uint32)
@@ -10217,8 +10231,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        quick_type= tab->select->quick->get_type();
+        if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
         else
 	  tab->type = JT_RANGE;
@@ -10241,7 +10257,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 					  strlen(join_type_str[tab->type]),
 					  cs));
       uint j;
-      /* possible_keys */
+      /* Build "possible_keys" value and add it to item_list */
       if (!tab->keys.is_clear_all())
       {
         for (j=0 ; j < table->keys ; j++)
@@ -10260,7 +10276,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
 	item_list.push_back(item_null);
-      /* key key_len ref */
+
+      /* Build "key", "key_len", and "ref" values and add them to item_list */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -10296,48 +10313,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else if (tab->select && tab->select->quick)
       {
-        if (tab->select->quick->get_type() == 
-            QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
-        {
-          QUICK_INDEX_MERGE_SELECT *quick_imerge=
-            (QUICK_INDEX_MERGE_SELECT*)tab->select->quick;
-          QUICK_RANGE_SELECT *quick;
-
-          List_iterator_fast<QUICK_RANGE_SELECT> it(quick_imerge->
-                                                    quick_selects);
-          while ((quick= it++))
-          {
-	    KEY *key_info= table->key_info + quick->index;
-            register uint length;
-            if (tmp3.length())
-	      tmp3.append(',');
-	    
-            tmp3.append(key_info->name);
-
-	    if (tmp2.length())
-	      tmp2.append(',');
-
-            length= longlong2str(quick->max_used_key_length, keylen_str_buf,
-                                 10) - 
-                    keylen_str_buf;
-
-            tmp2.append(keylen_str_buf, length);
-          }
-        }
-        else
-        {
-	  KEY *key_info= table->key_info + tab->select->quick->index;
-          register uint length;
-          tmp3.append(key_info->name);
-          
-          length= longlong2str(tab->select->quick->max_used_key_length, 
-                               keylen_str_buf, 10) -
-                  keylen_str_buf;
-          tmp2.append(keylen_str_buf, length);
-        }
-
-	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
+        tab->select->quick->add_keys_and_lengths(&tmp2, &tmp3);
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
 	item_list.push_back(item_null);
       }
       else
@@ -10346,52 +10324,68 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
-      /* rows */
+      /* Add "rows" field to item_list. */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
 				       21));
-      /* extra */
+      /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
           table->used_keys.is_set(tab->index))
 	key_read=1;
-
+      if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
+          !((QUICK_ROR_INTERSECT_SELECT*)tab->select->quick)->need_to_fetch_row)
+        key_read=1;
+        
       if (tab->info)
 	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
       else
       {
+        if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
+            quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
+        {
+          extra.append("; Using ");
+          tab->select->quick->add_info_string(&extra);
+        }
 	if (tab->select)
 	{
 	  if (tab->use_quick == 2)
 	  {
             char buf[MAX_KEY/8+1];
-	    sprintf(buff_ptr,"; Range checked for each record (index map: 0x%s)",
-                tab->keys.print(buf));
-	    buff_ptr=strend(buff_ptr);
+            extra.append("; Range checked for each record (index map: 0x");
+            extra.append(tab->keys.print(buf));
+            extra.append(')');
 	  }
 	  else
-	    buff_ptr=strmov(buff_ptr,"; Using where");
+            extra.append("; Using where");
 	}
 	if (key_read)
-	  buff_ptr= strmov(buff_ptr,"; Using index");
+	  extra.append("; Using index");
 	if (table->reginfo.not_exists_optimize)
-	  buff_ptr= strmov(buff_ptr,"; Not exists");
+	  extra.append("; Not exists");
 	if (need_tmp_table)
 	{
 	  need_tmp_table=0;
-	  buff_ptr= strmov(buff_ptr,"; Using temporary");
+	  extra.append("; Using temporary");
 	}
 	if (need_order)
 	{
 	  need_order=0;
-	  buff_ptr= strmov(buff_ptr,"; Using filesort");
+	  extra.append("; Using filesort");
 	}
 	if (distinct & test_all_bits(used_tables,thd->used_tables))
-	  buff_ptr= strmov(buff_ptr,"; Distinct");
-	if (buff_ptr == buff)
-	  buff_ptr+= 2;				// Skip inital "; "
-	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2,
-					    cs));
+	  extra.append("; Distinct");
+        
+        /* Skip initial "; "*/
+        const char *str= extra.ptr();
+        uint32 len= extra.length();
+        if (len)
+        {
+          str += 2;
+          len -= 2;
+        }
+	item_list.push_back(new Item_string(str, len, cs));
       }
       // For next iteration
       used_tables|=table->map;
