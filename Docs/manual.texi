@@ -46768,11 +46768,6 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed @code{SIGINT} and @code{SIGQUIT} problems in mysql.cc
-@item
-Fixed bug in convert.cc, which is caused by having a wrong net_store_length 
-linked in CONVERT::store method
-@item
 Multi-table @code{DELETE}.
 @item
 Don't support old client protocols prior to MySQL 3.21 any more.
@@ -46859,6 +46854,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.51::                
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
@@ -46913,7 +46909,17 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
+@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.51
+
+@itemize @bullet
+@item
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
+@item
+Fixed bug in character table converts when used with big ( > 64K) strings.
+@end itemize
+
+@node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 
 @itemize @bullet
