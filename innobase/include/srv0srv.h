@@ -93,7 +93,7 @@ extern ulint	srv_max_n_open_files;
 extern ulint	srv_max_dirty_pages_pct;
 
 extern ulint	srv_force_recovery;
-extern ulint	srv_thread_concurrency;
+extern ulong	srv_thread_concurrency;
 
 extern ulint	srv_max_n_threads;
 
@@ -112,6 +112,7 @@ extern ibool	srv_use_checksums;
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
+extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ibool	srv_use_awe;
 extern ibool	srv_use_adaptive_hash_indexes;
@@ -131,9 +132,9 @@ extern ibool    srv_print_innodb_table_monitor;
 extern ibool	srv_lock_timeout_and_monitor_active;
 extern ibool	srv_error_monitor_active; 
 
-extern ulint	srv_n_spin_wait_rounds;
-extern ulint	srv_n_free_tickets_to_enter;
-extern ulint	srv_thread_sleep_delay;
+extern ulong	srv_n_spin_wait_rounds;
+extern ulong	srv_n_free_tickets_to_enter;
+extern ulong	srv_thread_sleep_delay;
 extern ulint	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 		
