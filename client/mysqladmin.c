@@ -787,9 +787,26 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       if (mysql_query(mysql,buff))
       {
-	my_printf_error(0,"unable to change password; error: '%s'",
-			MYF(ME_BELL),mysql_error(mysql));
-	return -1;
+	if (mysql_errno(mysql)!=1290)
+	{
+	  my_printf_error(0,"unable to change password; error: '%s'",
+			  MYF(ME_BELL),mysql_error(mysql));
+	  return -1;
+	}
+	else
+	{
+	  /*
+	    We don't try to execute 'update mysql.user set..'
+	    because we can't perfectly find out the host
+	   */
+	  my_printf_error(0,"\n"
+			  "You cannot use 'password' command as mysqld runs\n"
+			  " with grant tables disabled (was started with"
+			  " --skip-grant-tables).\n"
+			  "Use: \"mysqladmin flush-privileges password '*'\""
+			  " instead", MYF(ME_BELL));
+	  return -1;
+	}
       }
       argc--; argv++;
       break;

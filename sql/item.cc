@@ -517,7 +517,33 @@ String *Item_null::val_str(String *str)
 { null_value=1; return 0;}
 
 
-/* Item_param related */
+/*********************** Item_param related ******************************/
+
+/* 
+  Default function of Item_param::set_param_func, so in case
+  of malformed packet the server won't SIGSEGV
+*/
+
+static void
+default_set_param_func(Item_param *param,
+                       uchar **pos __attribute__((unused)),
+                       ulong len __attribute__((unused)))
+{
+  param->set_null();
+}
+
+Item_param::Item_param(unsigned position) :
+  value_is_set(FALSE),
+  item_result_type(STRING_RESULT),
+  item_type(STRING_ITEM),
+  item_is_time(FALSE),
+  long_data_supplied(FALSE),
+  pos_in_query(position),
+  set_param_func(default_set_param_func)
+{
+  name= (char*) "?";
+}
+
 void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
@@ -928,6 +954,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			       (char *)field_name);
 	if (!rf)
 	  return 1;
+	/*
+	  rf is Item_ref => never substitute other items (in this case)
+	  during fix_fields() => we can use rf after fix_fields()
+	*/
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
 
@@ -946,6 +976,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				 (char *)field_name);
 	  if (!rf)
 	    return 1;
+	  /*
+	    rf is Item_ref => never substitute other items (in this case)
+	    during fix_fields() => we can use rf after fix_fields()
+	  */
 	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
@@ -1658,16 +1692,15 @@ bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
+bool Item_default_value::fix_fields(THD *thd,
+				    struct st_table_list *table_list,
+				    Item **items)
 {
   if (!arg)
-    return false;
-  bool res= arg->fix_fields(thd, table_list, items);
-  if (res)
-    return res;
-  /* arg->type() can be only REF_ITEM or FIELD_ITEM for it defined as
-   simple_ident in sql_yacc.yy
-  */
+    return 0;
+  if (arg->fix_fields(thd, table_list, &arg))
+    return 1;
+  
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
@@ -1711,13 +1744,9 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   struct st_table_list *table_list,
 				   Item **items)
 {
-  bool res= arg->fix_fields(thd, table_list, items);
-  if (res)
-    return res;
-  /*
-    arg->type() can be only REF_ITEM or FIELD_ITEM as arg is
-    a simple_ident in sql_yacc.yy
-  */
+  if (arg->fix_fields(thd, table_list, &arg))
+    return 1;
+
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;

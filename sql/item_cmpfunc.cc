@@ -225,6 +225,13 @@ void Item_bool_func2::fix_length_and_dec()
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
+
+  if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
+  {
+    set_cmp_func();
+    return;
+  }
+    
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
@@ -1775,8 +1782,11 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     if (abort_on_null)
       item->top_level_item();
+
+    // item can be substituted in fix_fields
     if ((!item->fixed &&
-	 item->fix_fields(thd, tables, li.ref())) || item->check_cols(1))
+	 item->fix_fields(thd, tables, li.ref())) ||
+	(item= *li.ref())->check_cols(1))
       return 1; /* purecov: inspected */
     used_tables_cache|=     item->used_tables();
     tmp_table_map=	    item->not_null_tables();

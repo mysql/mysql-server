@@ -73,6 +73,19 @@ create table ```a` (i int);
 drop table ```a`;
 
 #
+# Bug #2591 "mysqldump quotes names inconsistently"
+#
+
+create table t1(a int);
+--exec $MYSQL_DUMP --comments=0 test
+--exec $MYSQL_DUMP --comments=0 --compatible=ansi test
+set global sql_mode='ANSI_QUOTES';
+--exec $MYSQL_DUMP --comments=0 test
+--exec $MYSQL_DUMP --comments=0 --compatible=ansi test
+set global sql_mode='';
+drop table t1;
+
+#
 # Bug #2705 'mysqldump --tab extra output'
 #
 

@@ -1169,8 +1169,12 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     ls= gl++;
     Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+    /*
+      Item_func_set_user_var can't substitute something else on its place =>
+      0 can be passed as last argument (reference on item)
+    */
     xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		   &item);
+		   0);
     xx->fix_length_and_dec();
     vars.push_back(xx);
   }

@@ -285,3 +285,17 @@ select @@global.max_user_connections,@@local.max_join_size;
 set @a=1, @b=2;
 set @a=@b, @b=@a;
 select @a, @b;
+
+#
+# Bug#2586:Disallow global/session/local as structured var. instance names
+#
+--error 1149
+set @@global.global.key_buffer_size= 1;
+--error 1149
+set GLOBAL global.key_buffer_size= 1;
+--error 1149
+SELECT @@global.global.key_buffer_size;
+--error 1149
+SELECT @@global.session.key_buffer_size;
+--error 1149
+SELECT @@global.local.key_buffer_size;
