@@ -212,6 +212,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
 
+/* If set to 0, then the thread will ignore all warnings with level notes.
+   Set by executing SET SHOW_NOTES=1 */
+#define OPTION_NOTES                    (1L << 31)
+
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
 #define MODE_PIPES_AS_CONCAT    	2
