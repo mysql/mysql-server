@@ -232,7 +232,7 @@ void hash_password(ulong *result, const char *password)
     none
 */
 
-inline void password_hash_stage1(char *to, const char *password)
+void password_hash_stage1(char *to, const char *password)
 {
   SHA1_CONTEXT context; 
   sha1_reset(&context);
@@ -259,7 +259,7 @@ inline void password_hash_stage1(char *to, const char *password)
     none
 */
 
-inline void password_hash_stage2(char *to,const char *salt)
+void password_hash_stage2(char *to,const char *salt)
 {
   SHA1_CONTEXT context;     
   sha1_reset(&context);
@@ -398,7 +398,7 @@ my_bool validate_password(const char* password, const char* message, ulong* salt
     password length >0
 */
 
-inline uint get_password_length(my_bool force_old_scramble)
+inline int get_password_length(my_bool force_old_scramble)
 {
   if (force_old_scramble)
     return 16;
@@ -418,7 +418,7 @@ inline uint get_password_length(my_bool force_old_scramble)
    !0 password version char for newer passwords
 */
 
-inline uint8 get_password_version(const char* password)
+inline char get_password_version(const char* password)
 {
   if (password==NULL) return 0;
   if (password[0]==PVERSION41_CHAR) return PVERSION41_CHAR;
