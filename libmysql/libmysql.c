@@ -158,7 +158,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
-    result= init_embedded_server(argc, argv, groups);
+    if (argc > -1)
+      result= init_embedded_server(argc, argv, groups);
 #endif
   }
 #ifdef THREAD
