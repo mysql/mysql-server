@@ -964,6 +964,9 @@ public:
   {
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
+  double val_result();
+  longlong val_int_result();
+  String *str_result(String* tmp);
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
