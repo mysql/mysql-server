@@ -2061,9 +2061,15 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION)
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
 bool sys_var_character_set_server::check(THD *thd, set_var *var)
 {
+  /*
+    To be perfect we should fail even if we are a 5.0.3 slave, a 4.1 master,
+    and user wants to change our global character set variables. Because
+    replicating a 4.1 assumes those are not changed. But that's not easy to
+    do.
+  */
   if ((var->type == OPT_GLOBAL) &&
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
@@ -2168,7 +2174,7 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
-#if defined(HAVE_REPLICATION)
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50003)
 bool sys_var_collation_server::check(THD *thd, set_var *var)
 {
   if ((var->type == OPT_GLOBAL) &&
