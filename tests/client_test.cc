@@ -693,6 +693,240 @@ static void client_use_result()
 }
 
 
+/*
+  Accepts arbitrary number of queries and runs them against the database.
+  Used to fill tables for each test.
+*/
+
+void fill_tables(const char **query_list, unsigned query_count)
+{
+  int rc;
+  for (const char **query= query_list; query < query_list + query_count;
+       ++query)
+  {
+    rc= mysql_query(mysql, *query);
+    if (rc)
+    {
+      fprintf(stderr,
+              "fill_tables failed: query is\n"
+              "%s,\n"
+              "error: %s\n", *query, mysql_error(mysql));
+      exit(1);
+    }
+  }
+}
+
+/*
+  All state of fetch from one statement: statement handle, out buffers,
+  fetch position.
+  See fetch_n for for the only use case.
+*/
+
+struct Stmt_fetch
+{
+  enum { MAX_COLUMN_LENGTH= 255 };
+
+  Stmt_fetch() {}
+  ~Stmt_fetch();
+
+  void init(unsigned stmt_no_arg, const char *query_arg);
+  int fetch_row();
+
+  const char *query;
+  unsigned stmt_no;
+  MYSQL_STMT *stmt;
+  bool is_open;
+  MYSQL_BIND *bind_array;
+  char **out_data;
+  unsigned long *out_data_length;
+  unsigned column_count;
+  unsigned row_count;
+};
+
+/*
+  Create statement handle, prepare it with statement, execute and allocate
+  fetch buffers.
+*/
+
+void Stmt_fetch::init(unsigned stmt_no_arg, const char *query_arg)
+{
+  unsigned long type= CURSOR_TYPE_READ_ONLY;
+  int rc;
+  unsigned i;
+  MYSQL_RES *metadata;
+
+  /* Save query and statement number for error messages */
+  stmt_no= stmt_no_arg;
+  query= query_arg;
+
+  stmt= mysql_stmt_init(mysql);
+
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  if (rc)
+  {
+    fprintf(stderr,
+            "mysql_stmt_prepare of stmt %d failed:\n"
+            "query: %s\n"
+            "error: %s\n",
+            stmt_no, query, mysql_stmt_error(stmt));
+    exit(1);
+  }
+
+  /*
+    The attribute is sent to server on execute and asks to open read-only
+    for result set
+  */
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void *) &type);
+
+  rc= mysql_stmt_execute(stmt);
+  if (rc)
+  {
+    fprintf(stderr,
+            "mysql_stmt_execute of stmt %d failed:\n"
+            "query: %s\n"
+            "error: %s\n",
+            stmt_no, query, mysql_stmt_error(stmt));
+    exit(1);
+  }
+
+  /* Find out total number of columns in result set */
+  metadata= mysql_stmt_result_metadata(stmt);
+  column_count= mysql_num_fields(metadata);
+  mysql_free_result(metadata);
+
+  /*
+    Now allocate bind handles and buffers for output data:
+    calloc memory to reduce number of MYSQL_BIND members we need to
+    set up.
+  */
+
+  bind_array= (MYSQL_BIND *) calloc(1, sizeof(MYSQL_BIND) * column_count);
+  out_data= (char **) calloc(1, sizeof(*out_data) * column_count);
+  out_data_length= (unsigned long *) calloc(1,
+                                       sizeof(*out_data_length) * column_count);
+
+  for (i= 0; i < column_count; ++i)
+  {
+    out_data[i]= (char *) calloc(1, MAX_COLUMN_LENGTH);
+    bind_array[i].buffer_type= MYSQL_TYPE_STRING;
+    bind_array[i].buffer= out_data[i];
+    bind_array[i].buffer_length= MAX_COLUMN_LENGTH;
+    bind_array[i].length= out_data_length + i;
+  }
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  row_count= 0;
+  is_open= true;
+
+  /* Ready for reading rows */
+}
+
+
+/* Fetch and print one row from cursor */
+
+int Stmt_fetch::fetch_row()
+{
+  int rc;
+  unsigned i;
+
+  if ((rc= mysql_stmt_fetch(stmt)) == 0)
+  {
+    ++row_count;
+    printf("Stmt %d fetched row %d:\n", stmt_no, row_count);
+    for (i= 0; i < column_count; ++i)
+    {
+      out_data[i][out_data_length[i]]= '\0';
+      printf("column %d: %s\n", i+1, out_data[i]);
+    }
+  }
+  else
+    is_open= false;
+  return rc;
+}
+
+
+Stmt_fetch::~Stmt_fetch()
+{
+  unsigned i;
+
+  for (i= 0; i < column_count; ++i)
+    free(out_data[i]);
+  free(out_data);
+  free(bind_array);
+  mysql_stmt_close(stmt);
+}
+
+/* We need these to compile without libstdc++ */
+
+void *operator new[] (size_t sz)
+{
+  return (void *) malloc (sz ? sz : 1);
+}
+
+void operator delete[] (void *ptr) throw ()
+{
+  if (ptr)
+    free(ptr);
+}
+
+/*
+  For given array of queries, open query_count cursors and fetch
+  from them in simultaneous manner.
+  In case there was an error in one of the cursors, continue
+  reading from the rest.
+*/
+
+bool fetch_n(const char **query_list, unsigned query_count)
+{
+  unsigned open_statements= query_count;
+  unsigned i;
+  int rc, error_count= 0;
+  Stmt_fetch *stmt_array= new Stmt_fetch[query_count];
+  Stmt_fetch *stmt;
+
+  for (i= 0; i < query_count; ++i)
+  {
+    /* Init will exit(1) in case of error */
+    stmt_array[i].init(i, query_list[i]);
+  }
+
+  while (open_statements)
+  {
+    for (stmt= stmt_array; stmt < stmt_array + query_count; ++stmt)
+    {
+      if (stmt->is_open && (rc= stmt->fetch_row()))
+      {
+        --open_statements;
+        /*
+          We try to fetch from the rest of the statements in case of
+          error
+        */
+        if (rc != MYSQL_NO_DATA)
+        {
+          fprintf(stderr,
+                  "Got error reading rows from statement %d,\n"
+                  "query is: %s,\n"
+                  "error message: %s", stmt - stmt_array, stmt->query,
+                  mysql_stmt_error(stmt->stmt));
+          ++error_count;
+        }
+      }
+    }
+  }
+  if (error_count)
+    fprintf(stderr, "Fetch FAILED");
+  else
+  {
+    unsigned total_row_count= 0;
+    for (stmt= stmt_array; stmt < stmt_array + query_count; ++stmt)
+      total_row_count+= stmt->row_count;
+    printf("Success, total rows fetched: %d\n", total_row_count);
+  }
+  delete [] stmt_array;
+  return error_count != 0;
+}
+
 /* Separate thread query to test some cases */
 
 static my_bool thread_query(char *query)
@@ -10043,7 +10277,7 @@ static void test_view()
   int rc, i;
   MYSQL_BIND      bind[1];
   char            str_data[50];
-  long            length = 0L;
+  ulong           length = 0L;
   long            is_null = 0L;
   const char *query=
     "SELECT COUNT(*) FROM v1 WHERE `SERVERNAME`=?";
@@ -10141,7 +10375,7 @@ static void test_view_2where()
   int rc, i;
   MYSQL_BIND      bind[8];
   char            parms[8][100];
-  long            length[8];
+  ulong           length[8];
   const char *query= "SELECT `RELID` ,`REPORT` ,`HANDLE` ,`LOG_GROUP` ,`USERNAME` ,`VARIANT` ,`TYPE` ,`VERSION` ,`ERFDAT` ,`ERFTIME` ,`ERFNAME` ,`AEDAT` ,`AETIME` ,`AENAME` ,`DEPENDVARS` ,`INACTIVE` FROM `V_LTDX` WHERE `MANDT` = ? AND `RELID` = ? AND `REPORT` = ? AND `HANDLE` = ? AND `LOG_GROUP` = ? AND `USERNAME` IN ( ? , ? ) AND `TYPE` = ?";
 
   myheader("test_view_2where");
@@ -10189,7 +10423,7 @@ static void test_view_star()
   int rc, i;
   MYSQL_BIND      bind[8];
   char            parms[8][100];
-  long            length[8];
+  ulong           length[8];
   const char *query= "SELECT * FROM vt1 WHERE a IN (?,?)";
 
   myheader("test_view_star");
@@ -10338,7 +10572,7 @@ static void test_view_insert_fields()
 {
   MYSQL_STMT	*stmt;
   char		parm[11][1000];
-  long		l[11];
+  ulong         l[11];
   int		rc, i;
   MYSQL_BIND	bind[11];
   const char    *query= "INSERT INTO `v1` ( `K1C4` ,`K2C4` ,`K3C4` ,`K4N4` ,`F1C4` ,`F2I4` ,`F3N5` ,`F7F8` ,`F6N4` ,`F5C8` ,`F9D8` ) VALUES( ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )";
@@ -10388,6 +10622,61 @@ static void test_view_insert_fields()
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
+}
+
+
+static void test_basic_cursors()
+{
+  myheader("test_basic_cursors");
+  const char *basic_tables[]=
+  {
+    "DROP TABLE IF EXISTS t1, t2",
+
+    "CREATE TABLE t1 "
+    "(id INTEGER NOT NULL PRIMARY KEY, "
+    " name VARCHAR(20) NOT NULL)",
+
+    "INSERT INTO t1 (id, name) VALUES "
+    "  (2, 'Ja'), (3, 'Ede'), "
+    "  (4, 'Haag'), (5, 'Kabul'), "
+    "  (6, 'Almere'), (7, 'Utrecht'), "
+    "  (8, 'Qandahar'), (9, 'Amsterdam'), "
+    "  (10, 'Amersfoort'), (11, 'Constantine')",
+
+    "CREATE TABLE t2 "
+    "(id INTEGER NOT NULL PRIMARY KEY, "
+    " name VARCHAR(20) NOT NULL)",
+
+    "INSERT INTO t2 (id, name) VALUES "
+    "  (4, 'Guam'), (5, 'Aruba'), "
+    "  (6, 'Angola'), (7, 'Albania'), "
+    "  (8, 'Anguilla'), (9, 'Argentina'), "
+    "  (10, 'Azerbaijan'), (11, 'Afghanistan'), "
+    "  (12, 'Burkina Faso'), (13, 'Faroe Islands')"
+  };
+
+  fill_tables(basic_tables, sizeof(basic_tables)/sizeof(*basic_tables));
+
+  const char *queries[]=
+  {
+    "SELECT * FROM t1",
+    "SELECT * FROM t2"
+  };
+
+  fetch_n(queries, sizeof(queries)/sizeof(*queries));
+}
+
+
+static void test_cursors_with_union()
+{
+  myheader("test_cursors_with_union");
+
+  const char *queries[]=
+  {
+    "SELECT t1.name FROM t1 UNION SELECT t2.name FROM t2",
+    "SELECT t1.id FROM t1 WHERE t1.id < 5"
+  };
+  fetch_n(queries, sizeof(queries)/sizeof(*queries));
 }
 
 /*
@@ -10694,6 +10983,8 @@ int main(int argc, char **argv)
     test_view_insert();     /* inserting in VIEW without field list */
     test_left_join_view();  /* left join on VIEW with WHERE condition */
     test_view_insert_fields(); /* insert into VIOEW with fields list */
+    test_basic_cursors();
+    test_cursors_with_union();
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.

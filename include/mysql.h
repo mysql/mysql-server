@@ -580,6 +580,12 @@ typedef struct st_mysql_stmt
   int            (*read_row_func)(struct st_mysql_stmt *stmt, 
                                   unsigned char **row);
   unsigned long	 stmt_id;	       /* Id for prepared statement */
+  unsigned long  flags;                /* i.e. type of cursor to open */
+  /*
+    Copied from mysql->server_status after execute/fetch to know
+    server-side cursor status for this statement.
+  */
+  unsigned int   server_status;
   unsigned int	 last_errno;	       /* error code */
   unsigned int   param_count;          /* inpute parameters count */
   unsigned int   field_count;          /* number of columns in result set */
@@ -608,7 +614,12 @@ enum enum_stmt_attr_type
     In the new API we do that only by request because it slows down
     mysql_stmt_store_result sufficiently.
   */
-  STMT_ATTR_UPDATE_MAX_LENGTH
+  STMT_ATTR_UPDATE_MAX_LENGTH,
+  /*
+    unsigned long with combination of cursor flags (read only, for update,
+    etc)
+  */
+  STMT_ATTR_CURSOR_TYPE
 };
 
 

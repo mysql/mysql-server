@@ -563,7 +563,8 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       }
     }
     /* Print header */
-    if (thd->protocol->send_fields(&field_list,1))
+    if (thd->protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                                Protocol::SEND_EOF))
     {
       res= SP_INTERNAL_ERROR;
       goto err_case;

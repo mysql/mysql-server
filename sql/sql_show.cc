@@ -66,7 +66,8 @@ mysqld_show_dbs(THD *thd,const char *wild)
     strxmov(end," (",wild,")",NullS);
   field_list.push_back(field);
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,NullS,mysql_data_home,wild,1))
     DBUG_RETURN(1);
@@ -107,7 +108,8 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
   field_list.push_back(new Item_return_int("In_use", 1, MYSQL_TYPE_TINY));
   field_list.push_back(new Item_return_int("Name_locked", 4, MYSQL_TYPE_TINY));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
@@ -160,7 +162,8 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   field_list.push_back(field);
   if (show_type)
     field_list.push_back(new Item_empty_string("table_type", 10));
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,db,path,wild,0))
     DBUG_RETURN(-1);
@@ -208,7 +211,8 @@ int mysqld_show_storage_engines(THD *thd)
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   const char *default_type_name= 
@@ -282,7 +286,8 @@ int mysqld_show_privileges(THD *thd)
   field_list.push_back(new Item_empty_string("Context",15));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   show_privileges_st *privilege= sys_privileges;
@@ -357,7 +362,8 @@ int mysqld_show_column_types(THD *thd)
   field_list.push_back(new Item_empty_string("Default",NAME_LEN));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   /* TODO: Change the loop to not use 'i' */
@@ -530,7 +536,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
   item->maybe_null=1;
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   if (mysql_find_files(thd,&files,db,path,wild,0))
@@ -721,7 +728,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   }
         // Send first number of fields and records
   if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
-      protocol->send_fields(&field_list,0))
+      protocol->send_fields(&field_list, Protocol::SEND_EOF))
     DBUG_RETURN(1);
   restore_record(table,default_values);      // Get empty record
 
@@ -859,7 +866,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Create Table",
 					     max(buffer.length(),1024)));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   buffer.length(0);
@@ -943,7 +951,8 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   protocol->prepare_for_resend();
@@ -985,7 +994,8 @@ mysqld_show_logs(THD *thd)
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
 #ifdef HAVE_BERKELEY_DB
@@ -1034,7 +1044,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Comment",255));
   item->maybe_null=1;
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   KEY *key_info=table->key_info;
@@ -1121,7 +1132,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
       field_list.push_back(new Item_field(field));
   }
   restore_record(table,default_values);              // Get empty record
-  if (thd->protocol->send_fields(&field_list,2))
+  if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
+                                              Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
   net_flush(&thd->net);
   DBUG_VOID_RETURN;
@@ -1615,7 +1627,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
@@ -1751,7 +1764,8 @@ int mysqld_show_collations(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Compiled",30));
   field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -1804,7 +1818,8 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Default collation",60));
   field_list.push_back(new Item_return_int("Maxlen",3, FIELD_TYPE_SHORT));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -1838,7 +1853,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1); /* purecov: inspected */
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
