@@ -93,6 +93,7 @@ typedef struct st_ft_info
   CHARSET_INFO *charset;
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE /*, SCAN*/ } state;
   uint       with_scan;
+  my_off_t   lastpos;
   FTB_EXPR  *root;
   QUEUE      queue;
   TREE       no_dupes;
@@ -297,6 +298,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     default_charset_info              :
     info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
+  ftb->lastpos=0;
   bzero(& ftb->no_dupes, sizeof(TREE));
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
@@ -540,6 +542,21 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   if (!ftb->queue.elements)
     return 0;
 
+  if (ftb->state != INDEX_SEARCH && docid < ftb->lastpos)
+  {
+    FTB_EXPR *x;
+    uint i;
+
+    for (i=0; i < ftb->queue.elements; i++)
+    {
+      ftb->list[i]->docid[1]=HA_POS_ERROR;
+      for (x=ftb->list[i]->up; x; x=x->up)
+        x->docid[1]=HA_POS_ERROR;
+    }
+  }
+
+  ftb->lastpos=docid;
+
   if (ftb->keynr==NO_SUCH_KEY)
     _mi_ft_segiterator_dummy_init(record, length, &ftsi);
   else
@@ -557,7 +574,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       int a, b, c;
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
-        ftbw=(FTB_WORD *)(ftb->list[c]);
+        ftbw=ftb->list[c];
         if (_mi_compare_text(ftb->charset, word.pos, word.len,
                              (uchar*) ftbw->word+1, ftbw->len-1,
                              (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
@@ -567,7 +584,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       }
       for (; c>=0; c--)
       {
-        ftbw=(FTB_WORD *)(ftb->list[c]);
+        ftbw=ftb->list[c];
         if (_mi_compare_text(ftb->charset, word.pos,word.len,
                              (uchar*) ftbw->word+1,ftbw->len-1,
                               (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
@@ -614,3 +631,4 @@ void ft_boolean_reinit_search(FT_INFO *ftb)
 {
   _ftb_init_index_search(ftb);
 }
+
