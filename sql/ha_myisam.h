@@ -128,6 +128,7 @@ class ha_myisam: public handler
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int restore(THD* thd, HA_CHECK_OPT* check_opt);
   int backup(THD* thd, HA_CHECK_OPT* check_opt);
+  int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
 #ifdef HAVE_REPLICATION
   int dump(THD* thd, int fd);

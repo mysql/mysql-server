@@ -1958,10 +1958,20 @@ mysql_execute_command(THD *thd)
     res = mysql_restore_table(thd, tables);
     break;
   }
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
+  {
+    if (check_db_used(thd, tables) ||
+        check_access(thd, INDEX_ACL, tables->db,
+                     &tables->grant.privilege, 0, 0))
+      goto error;
+    res = mysql_assign_to_keycache(thd, tables);
+    break;
+  }
   case SQLCOM_PRELOAD_KEYS:
   {
     if (check_db_used(thd, tables) ||
-	check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege,0,0))
+	check_access(thd, INDEX_ACL, tables->db,
+                     &tables->grant.privilege, 0, 0))
       goto error; 
     res = mysql_preload_keys(thd, tables);
     break;
@@ -4264,7 +4274,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     ulong table_options,
 					     thr_lock_type lock_type,
 					     List<String> *use_index,
-					     List<String> *ignore_index)
+					     List<String> *ignore_index,
+                                             LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
   char *alias_str;
@@ -4325,7 +4336,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (ignore_index)
     ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index,
 						   sizeof(*ignore_index));
-
+  ptr->option= option ? option->str : 0;
   /* check that used name is unique */
   if (lock_type != TL_IGNORE)
   {
