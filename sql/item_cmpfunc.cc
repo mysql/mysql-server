@@ -1405,7 +1405,8 @@ void Item_func_in::fix_length_and_dec()
   Item **arg, **arg_end;
   uint const_itm= 1;
   
-  if ((args[0]->result_type() == STRING_RESULT) &&
+  agg_cmp_type(&cmp_type, args, arg_count);
+  if ((cmp_type == STRING_RESULT) &&
       (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
     return;
   
@@ -1418,7 +1419,7 @@ void Item_func_in::fix_length_and_dec()
   */
   if (const_itm && !nulls_in_row())
   {
-    switch (args[0]->result_type()) {
+    switch (cmp_type) {
     case STRING_RESULT:
       uint i;
       array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
@@ -1452,7 +1453,7 @@ void Item_func_in::fix_length_and_dec()
   else
   {
     in_item= cmp_item::get_comparator(args[0]);
-    if (args[0]->result_type() == STRING_RESULT)
+    if (cmp_type  == STRING_RESULT)
       in_item->cmp_charset= cmp_collation.collation;
   }
   maybe_null= args[0]->maybe_null;
