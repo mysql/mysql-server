@@ -34,7 +34,8 @@ void item_init(void)
   item_user_lock_init();
 }
 
-Item::Item()
+Item::Item():
+  fixed(0)
 {
   marker=0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
@@ -139,6 +140,7 @@ CHARSET_INFO * Item::thd_charset() const
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
+  fixed= 1; // This item is not needed in fix_fields
 }
 
 
@@ -438,6 +440,7 @@ bool Item::fix_fields(THD *thd,
 		      struct st_table_list *list,
 		      Item ** ref)
 {
+  fixed= 1;
   return 0;
 }
 
@@ -459,22 +462,47 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       */
       SELECT_LEX *last= 0;
       
+      Item **refer= (Item **)not_found_item;
       // Prevent using outer fields in subselects, that is not supported now
       if (thd->lex.current_select->linkage != DERIVED_TABLE_TYPE)
 	for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
 	     sl;
 	     sl= sl->outer_select())
+	{
 	  if ((tmp= find_field_in_tables(thd, this,
 					 (last= sl)->get_table_list(),
 					 0)) != not_found_field)
 	    break;
+	  if((refer= find_item_in_list(this, (last= sl)->item_list,
+				       REPORT_EXCEPT_NOT_FOUND)) !=
+	     (Item **)not_found_item)
+	    break;
+	  
+	}
       if (!tmp)
 	return -1;
-      else if (tmp == not_found_field)
+      else if (!refer)
+	return 1;
+      else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	// call to return error code
 	find_field_in_tables(thd, this, tables, 1);
 	return -1;
+      }
+      else if (refer != (Item **)not_found_item)
+      {
+	Item_ref *r;
+	*ref= r= new Item_ref((char *)db_name, (char *)table_name,
+			   (char *)field_name);
+	if (!r)
+	  return 1;
+	int res;
+	if ((res= r->fix_fields(thd, tables, ref)))
+	  return res;
+	r->depended_from= last;
+	thd->lex.current_select->mark_as_dependent(last);
+	thd->add_possible_loop(r);
+	return 0;
       }
       else
       {
@@ -507,6 +535,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       return 1;
     return (*ref)->fix_fields(thd, tables, ref);
   }
+  fixed= 1;
   return 0;
 }
 
@@ -885,6 +914,19 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;
   }
+  if (((*ref)->with_sum_func && 
+       (depended_from || 
+	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
+	  thd->lex.current_select->select_lex()->having_fix_field))) ||
+      !(*ref)->fixed)
+  {
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 
+	     ((*ref)->with_sum_func?
+	      "reference on group function":
+	      "forward reference in item list"));
+    return 1;
+  }
+  fixed= 1;
   return 0;
 }
 

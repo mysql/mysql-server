@@ -2065,6 +2065,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   const_item_cache=args[0]->const_item();
   set_charset(conv_charset);
   fix_length_and_dec();
+  fixed= 1;
   return 0;
 }
 
@@ -2099,6 +2100,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   used_tables_cache=args[0]->used_tables();
   const_item_cache=args[0]->const_item();
   fix_length_and_dec();
+  fixed= 1;
   return 0;
 }
 
