@@ -4967,11 +4967,28 @@ static void test_pure_coverage()
   stmt = mysql_prepare(mysql,"insert into test_pure(c67788) values(10)",100);
   mystmt_init_r(stmt);
   
+#ifndef DBUG_OFF
+  stmt = mysql_prepare(mysql,(const char *)0,0);
+  mystmt_init_r(stmt);
+  
+  stmt = mysql_prepare(mysql,"insert into test_pure(c2) values(10)",100);
+  mystmt_init(stmt);
+
+  verify_param_count(stmt, 0);
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt_r(stmt, rc);
+
+  mysql_stmt_close(stmt);
+#endif
+
   stmt = mysql_prepare(mysql,"insert into test_pure(c2) values(?)",100);
   mystmt_init(stmt);
 
+#ifndef DBUG_OFF
   rc = mysql_execute(stmt);
   mystmt_r(stmt, rc);/* No parameters supplied */
+#endif
 
   bind[0].length= &length;
   bind[0].is_null= 0;
@@ -4998,6 +5015,11 @@ static void test_pure_coverage()
 
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
+
+#ifndef DBUG_OFF
+  rc = mysql_bind_result(stmt, (MYSQL_BIND *)0);
+  mystmt_r(stmt, rc);
+#endif
 
   rc = mysql_stmt_store_result(stmt);
   mystmt(stmt, rc);
