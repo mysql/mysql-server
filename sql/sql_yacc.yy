@@ -549,7 +549,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_var_type opt_var_ident_type
-	delete_option
+	delete_option opt_with_if_not_exists
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -877,6 +877,10 @@ table_option:
 opt_if_not_exists:
 	/* empty */	 { $$= 0; }
 	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; };
+
+opt_with_if_not_exists:
+	/* empty */	 { $$= 0; }
+	| WITH IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; };
 
 opt_create_table_options:
 	/* empty */
@@ -3106,7 +3110,7 @@ show_param:
 	    lex->grant_user=$3;
 	    lex->grant_user->password.str=NullS;
 	  }
-	| CREATE DATABASE opt_if_not_exists ident
+	| CREATE DATABASE opt_with_if_not_exists ident
 	  {
 	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
 	    Lex->create_info.options=$3;
