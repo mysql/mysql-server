@@ -1609,7 +1609,7 @@ static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat, char *las
   char ccat= (*cur)[num_cat][0];
   if (*last_char != ccat)
   {
-    put_info(ccat == 'Y' ? "categories :" : "topics :", INFO_INFO);
+    put_info(ccat == 'Y' ? "categories:" : "topics:", INFO_INFO);
     *last_char= ccat;
   }
   tee_fprintf(PAGER, "   %s\n", (*cur)[num_name]);
@@ -1676,8 +1676,8 @@ static int com_server_help(String *buffer __attribute__((unused)),
 
       if (num_fields == 2)
       {
-	put_info("Many help items for your request exist", INFO_INFO);
-	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of next", INFO_INFO);
+	put_info("Many help items for your request exist.", INFO_INFO);
+	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of the following", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
 	last_char= '_';
