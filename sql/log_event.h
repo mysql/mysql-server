@@ -163,10 +163,12 @@ struct sql_ex_info
 
   See the #defines below for the format specifics.
 
-  The events which really update data are Query_log_event and
-  Load_log_event/Create_file_log_event/Execute_load_log_event (these 3 act
-  together to replicate LOAD DATA INFILE, with the help of
-  Append_block_log_event which prepares temporary files to load into the table).
+  The events which really update data are Query_log_event,
+  Execute_load_query_log_event and old Load_log_event and
+  Execute_load_log_event events (Execute_load_query is used together with
+  Begin_load_query and Append_block events to replicate LOAD DATA INFILE.
+  Create_file/Append_block/Execute_load (which includes Load_log_event)
+  were used to replicate LOAD DATA before the 5.0.3).
 
  ****************************************************************************/
 
@@ -194,6 +196,8 @@ struct sql_ex_info
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
+#define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
+#define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 
 /*
    Event header offsets;
@@ -283,6 +287,12 @@ struct sql_ex_info
 
 /* DF = "Delete File" */
 #define DF_FILE_ID_OFFSET  0
+
+/* ELQ = "Execute Load Query" */
+#define ELQ_FILE_ID_OFFSET QUERY_HEADER_LEN
+#define ELQ_FN_POS_START_OFFSET ELQ_FILE_ID_OFFSET + 4
+#define ELQ_FN_POS_END_OFFSET ELQ_FILE_ID_OFFSET + 8
+#define ELQ_DUP_HANDLING_OFFSET ELQ_FILE_ID_OFFSET + 12
 
 /* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
@@ -387,6 +397,8 @@ enum Log_event_type
   RAND_EVENT, USER_VAR_EVENT,
   FORMAT_DESCRIPTION_EVENT,
   XID_EVENT,
+  BEGIN_LOAD_QUERY_EVENT,
+  EXECUTE_LOAD_QUERY_EVENT,
 
   /*
     add new events here - right above this comment!
@@ -711,13 +723,17 @@ public:
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+  int exec_event(struct st_relay_log_info* rli, const char *query_arg,
+                 uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
+  void print_query_header(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
   void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
 #endif
 
   Query_log_event(const char* buf, uint event_len,
-                  const Format_description_log_event *description_event);
+                  const Format_description_log_event *description_event,
+                  Log_event_type event_type);
   ~Query_log_event()
   {
     if (data_buf)
@@ -728,6 +744,14 @@ public:
   Log_event_type get_type_code() { return QUERY_EVENT; }
   bool write(IO_CACHE* file);
   bool is_valid() const { return query != 0; }
+
+  /*
+    Returns number of bytes additionaly written to post header by derived
+    events (so far it is only Execute_load_query event).
+  */
+  virtual ulong get_post_header_size_for_derived() { return 0; }
+  /* Writes derived event-specific part of post header. */
+  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
 };
 
 #ifdef HAVE_REPLICATION
@@ -779,6 +803,10 @@ public:
  ****************************************************************************/
 class Load_log_event: public Log_event
 {
+private:
+  uint get_query_buffer_length();
+  void print_query(bool need_db, char *buf, char **end,
+                   char **fn_start, char **fn_end);
 protected:
   int copy_log_event(const char *buf, ulong event_len,
                      int body_offset, const Format_description_log_event* description_event);
@@ -1312,6 +1340,7 @@ public:
 #ifdef HAVE_REPLICATION
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(Protocol* protocol);
+  virtual int get_open_mode() const;
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
@@ -1393,6 +1422,93 @@ public:
   bool write(IO_CACHE* file);
   const char* get_db() { return db; }
 };
+
+
+/***************************************************************************
+
+  Begin load query Log Event class
+
+  Event for the first block of file to be loaded, its only difference from
+  Append_block event is that this event creates or truncates existing file
+  before writing data.
+
+****************************************************************************/
+class Begin_load_query_log_event: public Append_block_log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Begin_load_query_log_event(THD* thd_arg, const char *db_arg,
+                             char* block_arg, uint block_len_arg,
+                             bool using_trans);
+#ifdef HAVE_REPLICATION
+  Begin_load_query_log_event(THD* thd);
+  int get_open_mode() const;
+#endif /* HAVE_REPLICATION */
+#endif
+  Begin_load_query_log_event(const char* buf, uint event_len,
+                             const Format_description_log_event* description_event);
+  ~Begin_load_query_log_event() {}
+  Log_event_type get_type_code() { return BEGIN_LOAD_QUERY_EVENT; }
+};
+
+
+/*
+  Elements of this enum describe how LOAD DATA handles duplicates.
+*/
+enum enum_load_dup_handling { LOAD_DUP_ERROR= 0, LOAD_DUP_IGNORE,
+                              LOAD_DUP_REPLACE };
+
+/****************************************************************************
+
+  Execute load query Log Event class
+
+  Event responsible for LOAD DATA execution, it similar to Query_log_event
+  but before executing the query it substitutes original filename in LOAD DATA
+  query with name of temporary file.
+
+****************************************************************************/
+class Execute_load_query_log_event: public Query_log_event
+{
+public:
+  uint file_id;       // file_id of temporary file
+  uint fn_pos_start;  // pointer to the part of the query that should
+                      // be substituted
+  uint fn_pos_end;    // pointer to the end of this part of query
+  /*
+    We have to store type of duplicate handling explicitly, because
+    for LOAD DATA it also depends on LOCAL option. And this part
+    of query will be rewritten during replication so this information
+    may be lost...
+  */
+  enum_load_dup_handling dup_handling;
+
+#ifndef MYSQL_CLIENT
+  Execute_load_query_log_event(THD* thd, const char* query_arg,
+                       ulong query_length, uint fn_pos_start_arg,
+                       uint fn_pos_end_arg,
+                       enum_load_dup_handling dup_handling_arg,
+                       bool using_trans, bool suppress_use);
+#ifdef HAVE_REPLICATION
+  void pack_info(Protocol* protocol);
+  int exec_event(struct st_relay_log_info* rli);
+#endif /* HAVE_REPLICATION */
+#else
+  void print(FILE* file, bool short_form = 0,
+             LAST_EVENT_INFO* last_event_info= 0);
+  /* Prints the query as LOAD DATA LOCAL and with rewritten filename */
+  void print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info,
+             const char *local_fname);
+#endif
+  Execute_load_query_log_event(const char* buf, uint event_len,
+                               const Format_description_log_event *description_event);
+  ~Execute_load_query_log_event() {}
+
+  Log_event_type get_type_code() { return EXECUTE_LOAD_QUERY_EVENT; }
+  bool is_valid() const { return Query_log_event::is_valid() && file_id != 0; }
+
+  ulong get_post_header_size_for_derived();
+  bool write_post_header_for_derived(IO_CACHE* file);
+ };
 
 
 #ifdef MYSQL_CLIENT
