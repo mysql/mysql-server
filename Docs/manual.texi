@@ -30479,10 +30479,10 @@ mysql> SELECT "a" ="A ";
 @node Logical Operators, Control flow functions, Comparison Operators, Non-typed Operators
 @subsubsection Logical Operators
 
-@findex Logical functions
-@findex Functions, logical
+@findex Logical operators
+@findex Operators, logical
 
-All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
+All logical operators evaluate to @code{1} (TRUE), @code{0} (FALSE) or
 @code{NULL} (unknown, which is in most cases the same as FALSE):
 
 @table @code
@@ -30490,9 +30490,9 @@ All logical functions return @code{1} (TRUE), @code{0} (FALSE) or
 @findex ! (logical NOT)
 @item NOT
 @itemx !
-Logical NOT. Returns @code{1} if the argument is @code{0}, otherwise returns
-@code{0}.
-Exception: @code{NOT NULL} returns @code{NULL}:
+Logical NOT. Evaluates to @code{1} if the operand is @code{0}, otherwise
+evaluates to @code{0}.
+Exception: @code{NOT NULL} evaluates to @code{NULL}:
 @example
 mysql> SELECT NOT 1;
         -> 0
@@ -30503,14 +30503,14 @@ mysql> SELECT ! (1+1);
 mysql> SELECT ! 1+1;
         -> 1
 @end example
-The last example returns @code{1} because the expression evaluates
+The last example produces @code{1} because the expression evaluates
 the same way as @code{(!1)+1}.
 
 @findex OR, logical
 @findex || (logical OR)
 @item OR
 @itemx ||
-Logical OR. Returns @code{1} if either argument is not @code{0} and not
+Logical OR. Evaluates to @code{1} if either operand is not @code{0} and not
 @code{NULL}:
 @example
 mysql> SELECT 1 || 0;
@@ -30526,9 +30526,9 @@ mysql> SELECT 1 || NULL;
 @findex && (logical AND)
 @item AND
 @itemx &&
-Logical AND. For non-@{NULL} operands, returns @code{1} if both operands are
-non-zero and @code{0} otherwise.
-Returns @code{NULL} if either argument is @code{NULL}:
+Logical AND. For non-@code{NULL} operands, evaluates to @code{1} if both
+operands are non-zero and to @code{0} otherwise.
+Produces @code{NULL} if either operand is @code{NULL}:
 @example
 mysql> SELECT 1 && 1;
         -> 1
