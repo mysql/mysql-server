@@ -87,9 +87,9 @@ typedef struct st_ft_info {
 int FTB_WORD_cmp(void *v, byte *a, byte *b)
 {
   /* ORDER BY docid, ndepth DESC */
-  int i=comp(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
+  int i=CMP(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
   if (!i)
-    i=comp(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
+    i=CMP(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
   return i;
 }
 

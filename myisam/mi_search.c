@@ -19,8 +19,6 @@
 #include "fulltext.h"
 #include "m_ctype.h"
 
-#define CMP(a,b) (a<b ? -1 : a == b ? 0 : 1)
-
 static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                                 uchar *key, uchar *keypos,
                                 uint *return_key_length);
