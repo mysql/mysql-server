@@ -483,8 +483,8 @@ transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
 on the table. */
 
 ibool
-lock_table_exclusive(
-/*=================*/
+lock_is_table_exclusive(
+/*====================*/
 				/* out: TRUE if table is only locked by trx,
 				with LOCK_IX, and possibly LOCK_AUTO_INC */
 	dict_table_t*	table,	/* in: table */
