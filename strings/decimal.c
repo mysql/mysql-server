@@ -115,6 +115,9 @@ static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 3, 4, 4};
 
+#define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
+                              (d)->buf[(d)->len-1] | 1))
+
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \
         {                                                               \
@@ -306,6 +309,8 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
   int i, intg, frac, error, intg1, frac1;
   dec1 x,*buf;
 
+  sanity(to);
+
   while (my_isspace(&my_charset_latin1, *s))
     s++;
   if ((to->sign= (*s == '-')))
@@ -460,6 +465,8 @@ static int ull2dec(ulonglong from, decimal *to)
   int intg1, error=E_DEC_OK;
   ulonglong x=from;
   dec1 *buf;
+
+  sanity(to);
 
   for (intg1=1; from > DIG_BASE; intg1++, from/=DIG_BASE);
   if (unlikely(intg1 > to->len))
@@ -684,6 +691,8 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   dec1 *buf=to->buf, mask=(*from <0) ? -1 : 0;
   char *stop;
 
+  sanity(to);
+
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac1, error);
   if (unlikely(error))
   {
@@ -812,6 +821,8 @@ int decimal_round(decimal *from, decimal *to, int scale, dec_round_mode mode)
   int frac0=ROUND_UP(scale), frac1=ROUND_UP(from->frac),
       intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
+
+  sanity(to);
 
   if (unlikely(frac0+intg0 > len))
   {
@@ -955,6 +966,8 @@ static int do_add(decimal *from1, decimal *from2, decimal *to)
       frac0=max(frac1, frac2), intg0=max(intg1, intg2), error;
   dec1 *buf1, *buf2, *buf0, *stop, *stop2, x, carry;
 
+  sanity(to);
+
   /* is there a need for extra word because of carry ? */
   x=intg1 > intg2 ? from1->buf[0] :
     intg2 > intg1 ? from2->buf[0] :
@@ -1071,6 +1084,8 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
 
   if (to == 0) /* decimal_cmp() */
     return carry == from1->sign ? 1 : -1;
+
+  sanity(to);
 
   to->sign=from1->sign;
 
@@ -1190,6 +1205,8 @@ int decimal_mul(decimal *from1, decimal *from2, decimal *to)
   dec1 *buf1=from1->buf+intg1, *buf2=from2->buf+intg2, *buf0,
        *start2, *stop2, *stop1, *start0, carry;
 
+  sanity(to);
+
   i=intg0;
   j=frac0;
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);
@@ -1264,6 +1281,8 @@ static int do_div_mod(decimal *from1, decimal *from2,
 
   if (mod)
     to=mod;
+
+  sanity(to);
 
   /* removing all the leading zeroes */
   i=prec1 % DIG_PER_DEC1;
