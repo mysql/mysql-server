@@ -330,11 +330,15 @@ private:
 
   /*
    * Attribute metadata.  Size must be multiple of word size.
+   *
+   * Prefix comparison of char data must use strxfrm and binary
+   * comparison.  The charset is currently unused.
    */
   struct DescAttr {
     Uint32 m_attrDesc;          // standard AttributeDescriptor
     Uint16 m_primaryAttrId;
-    Uint16 m_typeId;
+    unsigned m_typeId : 6;
+    unsigned m_charset : 10;
   };
   static const unsigned DescAttrSize = sizeof(DescAttr) >> 2;
 

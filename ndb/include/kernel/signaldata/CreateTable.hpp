@@ -89,7 +89,8 @@ public:
     ArraySizeTooBig = 737,
     RecordTooBig = 738,
     InvalidPrimaryKeySize  = 739,
-    NullablePrimaryKey = 740
+    NullablePrimaryKey = 740,
+    InvalidCharset = 743
   };
 
 private:
