@@ -1,13 +1,5 @@
 drop table if exists t1,t2;
 create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a)) type=isam;
-Warnings:
-Warning	1263	Data truncated for column 'b' at row 1
-Warnings:
-Warning	1263	Data truncated for column 'b' at row 1
-Warnings:
-Warning	1263	Data truncated for column 'b' at row 1
-Warnings:
-Warning	1263	Data truncated for column 'b' at row 1
 delete from t1 where (a & 1);
 select sum(length(b)) from t1;
 sum(length(b))
