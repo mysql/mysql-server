@@ -994,7 +994,8 @@ JOIN::exec()
   }
   having=having_list;				// Actually a parameter
   thd->proc_info="Sending data";
-  error=do_select(this, &fields_list, NULL, procedure);
+  error= thd->net.report_error ||
+    do_select(this, &fields_list, NULL, procedure);
   DBUG_VOID_RETURN;
 }
 
@@ -1078,7 +1079,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     goto err;
   } 
 
-  if (free_join && join->global_optimize())
+  if (thd->net.report_error || (free_join && join->global_optimize()))
     goto err;
 
   join->exec();
