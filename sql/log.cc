@@ -1104,6 +1104,23 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	if (e.write(file))
 	  goto err;
       }
+      if (thd->user_var_events.elements)
+      {
+	for (uint i= 0; i < thd->user_var_events.elements; i++)
+	{
+	  BINLOG_USER_VAR_EVENT *user_var_event;
+	  get_dynamic(&thd->user_var_events,(gptr) &user_var_event, i);
+          User_var_log_event e(thd, user_var_event->user_var_event->name.str,
+                               user_var_event->user_var_event->name.length,
+                               user_var_event->value,
+                               user_var_event->length,
+                               user_var_event->type,
+			       user_var_event->charset_number);
+          e.set_log_pos(this);
+	  if (e.write(file))
+	    goto err;
+	}
+      }
       if (thd->variables.convert_set)
       {
 	char buf[256], *p;
