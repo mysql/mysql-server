@@ -263,7 +263,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
-  memcpy(ftb->list, ftb->queue.root, sizeof(FTB_WORD *)*ftb->queue.elements);
+  memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
   qsort2(ftb->list, ftb->queue.elements, sizeof(FTB_WORD *),
                                            (qsort2_cmp)FTB_WORD_cmp_list, 0);
   if (ftb->queue.elements<2) ftb->with_scan=0;
