@@ -27537,7 +27537,7 @@ To make a complex application portable you need to choose a number of
 SQL servers that it should work with.
 
 You can use the @strong{MySQL} crash-me program/web-page
-@uref{http://www.mysql.com/information/crashme/choose.php} to find functions,
+@uref{http://www.mysql.com/information/crash-me.php} to find functions,
 types, and limits you can use with a selection of database
 servers. Crash-me now tests far from everything possible, but it
 is still comprehensive with about 450 things tested.
