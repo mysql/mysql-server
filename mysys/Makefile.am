@@ -44,7 +44,7 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			my_quick.c my_lockmem.c my_static.c \
 			getopt.c getopt1.c getvar.c my_mkdir.c \
 			default.c my_compress.c checksum.c raid.cc my_net.c \
-			my_vsnprintf.c charset.c
+			my_vsnprintf.c charset.c my_bitmap.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
