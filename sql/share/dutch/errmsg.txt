@@ -236,3 +236,5 @@
 "Het combineren van transactionele en niet-transactionele tabellen is uitgeschakeld.",
 "Optie '%s' tweemaal gebruikt in opdracht",
 "Gebruiker '%-64s' heeft het maximale gebruik van de '%s' faciliteit overschreden (huidige waarde: %ld)",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",

@@ -901,6 +901,7 @@ void st_select_lex_node::init_select()
 
 void st_select_lex_unit::init_query()
 {
+  linkage= GLOBAL_OPTIONS_TYPE;
   st_select_lex_node::init_query();
   global_parameters= this;
   select_limit_cnt= HA_POS_ERROR;

@@ -233,3 +233,5 @@
 "Mixing of transactional and non-transactional tables is disabled",
 "Option '%s' used twice in statement",
 "User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"Пiдзапит поверта╓ бiльш нiж 1 стовбець",
+"Пiдзапит поверта╓ бiльш нiж 1 запис",

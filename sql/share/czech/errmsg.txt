@@ -237,3 +237,5 @@
 "Mixing of transactional and non-transactional tables is disabled",
 "Option '%s' used twice in statement",
 "User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"Subselect return more than 1 field",
+"Subselect return more than 1 record",

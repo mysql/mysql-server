@@ -774,3 +774,30 @@ bool select_dump::send_eof()
   file= -1;
   return error;
 }
+
+select_subselect::select_subselect(Item_subselect *item)
+{
+  this->item=item;
+}
+
+bool select_subselect::send_data(List<Item> &items)
+{
+  if (item->executed){
+    my_printf_error(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
+    return 1;
+  }
+  Item *val_item= (Item *)item->select_lex->item_list.head();
+  if ((item->null_value= val_item->is_null()))
+  {
+    item->assign_null();
+  } else {
+    item->max_length= val_item->max_length;
+    item->decimals= val_item->decimals;
+    item->binary= val_item->binary;
+    val_item->val_str(&item->str_value);
+    item->int_value= val_item->val_int();
+    item->real_value= val_item->val();
+    item->res_type= val_item->result_type();
+  }
+  return 0;
+}

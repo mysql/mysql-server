@@ -32,7 +32,8 @@ public:
   enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM,
-	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM};
+	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
+             SUBSELECT_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -45,7 +46,6 @@ public:
   my_bool binary;
   my_bool unsigned_flag;
   my_bool with_sum_func;
-
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -371,6 +371,7 @@ public:
 #include "item_strfunc.h"
 #include "item_timefunc.h"
 #include "item_uniq.h"
+#include "item_subselect.h"
 
 class Item_copy_string :public Item
 {
@@ -458,3 +459,4 @@ extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern Item *resolve_const_item(Item *item,Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);
 Item *get_system_var(LEX_STRING name);
+
