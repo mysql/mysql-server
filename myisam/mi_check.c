@@ -1464,6 +1464,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   my_off_t index_pos[MI_MAX_POSSIBLE_KEY];
   uint r_locks,w_locks;
   MYISAM_SHARE *share=info->s;
+  MI_STATE_INFO old_state;
   DBUG_ENTER("sort_index");
 
   if (!(param->testflag & T_SILENT))
@@ -1502,9 +1503,10 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   /* Flush key cache for this file if we are calling this outside myisamchk */
   flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
 
-	/* Put same locks as old file */
   share->state.version=(ulong) time((time_t*) 0);
+  old_state=share->state;			/* save state if not stored */
   r_locks=share->r_locks; w_locks=share->w_locks;
+	/* Put same locks as old file */
   share->r_locks=share->w_locks=0;
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   VOID(my_close(share->kfile,MYF(MY_WME)));
@@ -1518,6 +1520,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   _mi_readinfo(info,F_WRLCK,0);			/* Will lock the table */
   info->lock_type=F_WRLCK;
   share->r_locks=r_locks; share->w_locks=w_locks;
+  share->state=old_state;			/* Restore old state */
 
   info->state->key_file_length=param->new_file_pos;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -3144,7 +3147,7 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows)
 */
 
 my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows, 
-			    my_bool force __attribute__((unused)))
+			    my_bool force)
 {
   MYISAM_SHARE *share=info->s;
   uint i;
@@ -3160,7 +3163,8 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
    is very time-consuming process, it's better to leave it to repair stage
    but this repair shouldn't be repair_by_sort (serg)
  */
-    if (mi_too_big_key_for_sort(key,rows) || (key->flag & HA_FULLTEXT))
+    if (!force && mi_too_big_key_for_sort(key,rows) ||
+	(key->flag & HA_FULLTEXT))
       return FALSE;
   }
   return TRUE;

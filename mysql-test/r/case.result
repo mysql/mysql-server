@@ -32,3 +32,11 @@ case when 1>0 then "TRUE" else "FALSE" END
 TRUE
 case when 1<0 then "TRUE" else "FALSE" END
 FALSE
+fcase	count(*)
+0	2
+2	1
+3	1
+fcase	count(*)
+nothing	2
+one	1
+two	1
