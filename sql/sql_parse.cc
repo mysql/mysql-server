@@ -2264,7 +2264,8 @@ mysql_execute_command(THD *thd)
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
-      lex->select_lex.options |= OPTION_BUFFER_RESULT;
+      net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
+      DBUG_VOID_RETURN;
     }
 
     /* Skip first table, which is the table we are inserting in */
