@@ -267,10 +267,12 @@ public:
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
   void set_log_pos(MYSQL_LOG* log);
-  virtual void pack_info(Protocol *protocol);
-  int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
   static void init_show_field_list(List<Item>* field_list);
+#ifndef EMBEDDED_LIBRARY
+  int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+  virtual void pack_info(Protocol *protocol);
   virtual int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
   virtual const char* get_db()
   {
     return thd ? thd->db : 0;
@@ -355,8 +357,10 @@ public:
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
 		  bool using_trans);
   const char* get_db() { return db; }
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -383,6 +387,7 @@ public:
   }
 };
 
+#ifndef EMBEDDED_LIBRARY
 
 /*****************************************************************************
 
@@ -404,8 +409,10 @@ public:
 
 #ifndef MYSQL_CLIENT  
   Slave_log_event(THD* thd_arg, struct st_relay_log_info* rli);
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -417,6 +424,8 @@ public:
   Log_event_type get_type_code() { return SLAVE_EVENT; }
   int write_data(IO_CACHE* file );
 };
+
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -454,13 +463,15 @@ public:
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
 		 bool using_trans);
   void set_fields(List<Item> &fields_arg);
-  void pack_info(Protocol* protocol);
   const char* get_db() { return db; }
+#ifndef EMBEDDED_LIBRARY
+  void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli)
   {
     return exec_event(thd->slave_net,rli);
   }
   int exec_event(NET* net, struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -507,8 +518,10 @@ public:
     created = (uint32) when;
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
   }
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -542,8 +555,10 @@ public:
   Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
     :Log_event(),val(val_arg),type(type_arg)
   {}
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -574,8 +589,10 @@ class Rand_log_event: public Log_event
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
     :Log_event(thd_arg,0,0),seed1(seed1_arg),seed2(seed2_arg)
   {}
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -594,13 +611,17 @@ class Rand_log_event: public Log_event
   Stop Log Event class
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
+
 class Stop_log_event: public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT
   Stop_log_event() :Log_event()
   {}
+#ifndef EMBEDDED_LIBRARY
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -612,6 +633,8 @@ public:
   Log_event_type get_type_code() { return STOP_EVENT;}
   bool is_valid() { return 1; }
 };
+
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -636,8 +659,10 @@ public:
     pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
 			   (uint) strlen(new_log_ident_arg)), alloced(0)
   {}
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -683,8 +708,10 @@ public:
 			enum enum_duplicates handle_dup,
 			char* block_arg, uint block_len_arg,
 			bool using_trans);
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -733,8 +760,10 @@ public:
 #ifndef MYSQL_CLIENT
   Append_block_log_event(THD* thd, char* block_arg,
 			 uint block_len_arg, bool using_trans);
+#ifndef EMBEDDED_LIBRARY
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(Protocol* protocol);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -759,8 +788,10 @@ public:
   
 #ifndef MYSQL_CLIENT
   Delete_file_log_event(THD* thd, bool using_trans);
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  
@@ -785,8 +816,10 @@ public:
   
 #ifndef MYSQL_CLIENT
   Execute_load_log_event(THD* thd, bool using_trans);
+#ifndef EMBEDDED_LIBRARY
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);
+#endif /* EMBEDDED_LIBRARY */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif  

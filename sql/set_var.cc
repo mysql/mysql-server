@@ -45,6 +45,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include <mysql.h>
 #include "slave.h"
 #include "sql_acl.h"
 #include <my_getopt.h>
@@ -205,8 +206,10 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
+#ifndef EMBEDDED_LIBRARY
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
+#endif
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
 sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
@@ -296,7 +299,9 @@ static sys_var_readonly		sys_warning_count("warning_count",
 						  get_warning_count);
 
 /* alias for last_insert_id() to be compatible with Sybase */
+#ifndef EMBEDDED_LIBRARY
 static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter");
+#endif
 static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
 static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
@@ -378,9 +383,11 @@ sys_var *sys_variables[]=
   &sys_safe_updates,
   &sys_select_limit,
   &sys_server_id,
+#ifndef EMBEDDED_LIBRARY
   &sys_slave_compressed_protocol,
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
+#endif
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -473,7 +480,9 @@ struct show_var_st init_vars[]= {
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
+#ifndef EMBEDDED_LIBRARY
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
+#endif
   {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
@@ -525,7 +534,9 @@ struct show_var_st init_vars[]= {
   {"shared_memory_base_name", (char*) &shared_memory_base_name,     SHOW_CHAR_PTR},
 #endif
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
+#ifndef EMBEDDED_LIBRARY
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
+#endif
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
@@ -625,6 +636,7 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
   If we are changing the thread variable, we have to copy it to NET too
 */
 
+#ifndef EMBEDDED_LIBRARY
 static void fix_net_read_timeout(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
@@ -643,6 +655,14 @@ static void fix_net_retry_count(THD *thd, enum_var_type type)
   if (type != OPT_GLOBAL)
     thd->net.retry_count=thd->variables.net_retry_count;
 }
+#else /* EMBEDDED_LIBRARY */
+static void fix_net_read_timeout(THD *thd __attribute__(unused), enum_var_type type __attribute__(unused))
+{}
+static void fix_net_write_timeout(THD *thd __attribute__(unused), enum_var_type type __attribute__(unused))
+{}
+static void fix_net_retry_count(THD *thd __attribute__(unused), enum_var_type type __attribute__(unused))
+{}
+#endif /* EMBEDDED_LIBRARY */
 
 
 static void fix_query_cache_size(THD *thd, enum_var_type type)
@@ -1059,6 +1079,7 @@ byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
   int result= 0;
@@ -1094,7 +1115,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   UNLOCK_ACTIVE_MI;
   return 0;
 }
-
+#endif /* EMBEDDED_LIBRARY */
 
 bool sys_var_rand_seed1::update(THD *thd, set_var *var)
 {

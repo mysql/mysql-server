@@ -3640,7 +3640,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
 	  thd->insert_id())
       {
+#ifndef EMBEDDED_LIBRARY
 	query_cache_abort(&thd->net);
+#endif
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
@@ -5563,6 +5565,9 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     Item *item= *group->item;
     item->save_org_in_field(group->field);
+#ifdef EMBEDDED_LIBRARY
+    join->thd->net.last_errno= 0;
+#endif
     /* Store in the used key if the field was 0 */
     if (item->maybe_null)
       group->buff[-1]=item->null_value ? 1 : 0;

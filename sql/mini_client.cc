@@ -22,6 +22,7 @@
  in case we decide to make them external at some point
 */
 
+#ifndef EMBEDDED_LIBRARY
 #include <my_global.h>
 /* my_pthread must be included early to be able to fix things */
 #if defined(THREAD)
@@ -1471,3 +1472,5 @@ MYSQL_RES *mc_mysql_store_result(MYSQL *mysql)
   mysql->fields=0;				/* fields is now in result */
   DBUG_RETURN(result);				/* Data fetched */
 }
+
+#endif /*EMBEDDED_LIBRARY*/

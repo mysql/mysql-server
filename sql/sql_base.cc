@@ -195,7 +195,6 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
   DBUG_RETURN(open_list);
 }
 
-
 /*****************************************************************************
  *	 Functions to free open table cache
  ****************************************************************************/

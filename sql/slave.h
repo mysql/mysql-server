@@ -1,3 +1,5 @@
+#ifndef EMBEDDED_LIBRARY
+
 #ifndef SLAVE_H
 #define SLAVE_H
 
@@ -461,3 +463,7 @@ extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;
 
 #endif
+#else
+#define SLAVE_IO  1
+#define SLAVE_SQL 2
+#endif /* EMBEDDED_LIBRARY */

@@ -1,3 +1,4 @@
+#ifndef EMBEDDED_LIBRARY
 #include "slave.h"
 
 typedef struct st_slave_info
@@ -53,3 +54,6 @@ typedef struct st_load_file_info
 } LOAD_FILE_INFO;
 
 int log_loaded_block(IO_CACHE* file);
+
+#endif /* EMBEDDED_LIBRARY */
+

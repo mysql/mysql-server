@@ -52,8 +52,6 @@ extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 ** Send list of databases
 ** A database is a directory in the mysql_data_home directory
 ****************************************************************************/
-
-
 int
 mysqld_show_dbs(THD *thd,const char *wild)
 {
@@ -650,7 +648,6 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 /***************************************************************************
 ** List all columns in a table_list->real_name
 ***************************************************************************/
-
 int
 mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 		   bool verbose)
@@ -687,13 +684,14 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     field_list.push_back(new Item_empty_string("Comment",255));
   }
         // Send first number of fields and records
+#ifndef EMBEDDED_LIBRARY
   {
     char *pos;
     pos=net_store_length(tmp, (uint) field_list.elements);
     pos=net_store_length(pos,(ulonglong) file->records);
     (void) my_net_write(&thd->net,tmp,(uint) (pos-tmp));
   }
-
+#endif
   if (protocol->send_fields(&field_list,0))
     DBUG_RETURN(1);
   restore_record(table,2);      // Get empty record
@@ -753,8 +751,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	{
 	  /* Add grant options & comments */
-	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  end=tmp;
+	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
 	  {
 	    if (col_access & 1)
@@ -962,7 +960,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,2);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
+#ifndef EMBEDDED_LIBRARY
   VOID(net_flush(&thd->net));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -979,6 +979,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
+#ifndef EMBEDDED_LIBRARY
   if (protocol->convert)
     protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
@@ -993,6 +994,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 		 MYF(MY_WME)))
       DBUG_RETURN(-1);
   }
+#endif
   DBUG_RETURN(0);
 }
 
@@ -1238,7 +1240,7 @@ public:
 template class I_List<thread_info>;
 #endif
 
-
+#ifndef EMBEDDED_LIBRARY
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
@@ -1351,7 +1353,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   send_eof(thd);
   DBUG_VOID_RETURN;
 }
-
+#else /* EMBEDDED_LIBRARY */
+void mysqld_list_processes(THD *thd __attribute__(unused),
+			   const char *user __attribute__(unused),
+			   bool verbose __attribute__(unused))
+{}
+#endif
 
 /*****************************************************************************
   Status functions
@@ -1468,6 +1475,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_QUESTION:
 	end= int10_to_str((long) thd->query_id, buff, 10);
         break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_RPL_STATUS:
 	end= int10_to_str((long) rpl_status_type[(int)rpl_status], buff, 10);
 	break;
@@ -1479,6 +1487,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif /* EMBEDDED_LIBRARY */
       case SHOW_OPENTABLES:
 	end= int10_to_str((long) cached_tables(), buff, 10);
         break;
