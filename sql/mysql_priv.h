@@ -175,6 +175,10 @@ void kill_one_thread(THD *thd, ulong id);
 
 #define BINLOG_DUMP_NON_BLOCK   1
 
+/* sql_show.cc:show_log_files() */
+#define SHOW_LOG_STATUS_FREE "FREE"
+#define SHOW_LOG_STATUS_INUSE "IN USE"
+
 /* Some portable defines */
 
 #define portable_sizeof_char_ptr 8
@@ -354,6 +358,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_show_keys(THD *thd, TABLE_LIST *table);
+int mysqld_show_logs(THD *thd);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
