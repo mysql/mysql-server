@@ -655,8 +655,9 @@ innobase_query_caching_of_table_permitted(
 	char*	full_name,	/* in: concatenation of database name,
 				the null character '\0', and the table
 				name */
-	uint	full_name_len)	/* in: length of the full name, i.e.
+	uint	full_name_len,	/* in: length of the full name, i.e.
 				len(dbname) + len(tablename) + 1 */
+        ulonglong *unused)      /* unused for this engine */
 {
 	ibool	is_autocommit;
 	trx_t*	trx;

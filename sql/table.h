@@ -207,6 +207,10 @@ typedef struct st_table_list
   TABLE          *table;      /* opened table */
   st_table_list  *table_list; /* pointer to node of list of all tables */
   class st_select_lex_unit *derived;	/* SELECT_LEX_UNIT of derived table */
+  /* data need by some engines in query cache*/
+  ulonglong     engine_data;
+  /* call back function for asking handler about caching in query cache */
+  qc_engine_callback callback_func;
  GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */

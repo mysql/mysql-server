@@ -912,12 +912,12 @@ end:
 int
 Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 {
+  ulonglong engine_data;
   Query_cache_query *query;
   Query_cache_block *first_result_block, *result_block;
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
-  bool check_tables;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   if (query_cache_size == 0 || thd->variables.query_cache_type == 0)
@@ -1018,7 +1018,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err_unlock;
   }
       
-  check_tables= query->tables_type() & HA_CACHE_TBL_ASKTRANSACT;
   // Check access;
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
@@ -1079,19 +1078,29 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-    if (check_tables && !ha_caching_allowed(thd, table->db(), 
-                                         table->key_length(),
-                                         table->type()))
+    engine_data= table->engine_data();
+    if (table->callback() &&
+        !(*table->callback())(thd, table->db(),
+                              table->key_length(),
+                              &engine_data))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
       BLOCK_UNLOCK_RD(query_block);
       thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
+      if (engine_data != table->engine_data())
+      {
+        DBUG_PRINT("qcache",
+                   ("Handler require invalidation queries of %s.%s %lld-%lld",
+                              table_list.db, table_list.alias,
+                              engine_data, table->engine_data()));
+        invalidate_table(table->db(), table->key_length());
+      }
       goto err_unlock;				// Parse query
     }
     else
-      DBUG_PRINT("qcache", ("handler allow caching (%d) %s,%s",
-			    check_tables, table_list.db, table_list.alias));
+      DBUG_PRINT("qcache", ("handler allow caching %s,%s",
+			    table_list.db, table_list.alias));
   }
   move_to_query_list_end(query_block);
   hits++;
@@ -2116,7 +2125,9 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
     if (!insert_table(tables_used->table->key_length,
 		      tables_used->table->table_cache_key, block_table,
 		      tables_used->db_length,
-		      tables_used->table->file->table_cache_type()))
+		      tables_used->table->file->table_cache_type(),
+                      tables_used->callback_func,
+                      tables_used->engine_data))
       break;
 
     if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
@@ -2132,9 +2143,13 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	uint key_length= filename_2_table_key(key, table->table->filename,
 					      &db_length);
 	(++block_table)->n= ++n;
+        /*
+          There are not callback function for for MyISAM, and engine data
+        */
 	if (!insert_table(key_length, key, block_table,
 			  db_length,
-			  tables_used->table->file->table_cache_type()))
+			  tables_used->table->file->table_cache_type(),
+                          0, 0))
 	  goto err;
       }
     }
@@ -2161,7 +2176,9 @@ err:
 my_bool
 Query_cache::insert_table(uint key_len, char *key,
 			  Query_cache_block_table *node,
-			  uint32 db_length, uint8 cache_type)
+			  uint32 db_length, uint8 cache_type,
+                          qc_engine_callback callback,
+                          ulonglong engine_data)
 {
   DBUG_ENTER("Query_cache::insert_table");
   DBUG_PRINT("qcache", ("insert table node 0x%lx, len %d",
@@ -2170,6 +2187,23 @@ Query_cache::insert_table(uint key_len, char *key,
   Query_cache_block *table_block = ((Query_cache_block *)
 				    hash_search(&tables, (byte*) key,
 						key_len));
+
+  if (table_block &&
+      table_block->table()->engine_data() != engine_data)
+  {
+    DBUG_PRINT("qcache",
+               ("Handler require invalidation queries of %s.%s %lld-%lld",
+                table_block->table()->db(),
+                table_block->table()->table(),
+                engine_data,
+                table_block->table()->engine_data()));
+    /*
+      as far as we delete all queries with this table, table block will be
+      deleted, too
+    */
+    invalidate_table(table_block);
+    table_block= 0;
+  }
 
   if (table_block == 0)
   {
@@ -2201,6 +2235,8 @@ Query_cache::insert_table(uint key_len, char *key,
     header->table(db + db_length + 1);
     header->key_length(key_len);
     header->type(cache_type);
+    header->callback(callback);
+    header->engine_data(engine_data);
   }
 
   Query_cache_block_table *list_root = table_block->table(0);
@@ -2721,9 +2757,11 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
   for (; tables_used; tables_used= tables_used->next)
   {
     TABLE *table= tables_used->table;
-    if (!ha_caching_allowed(thd, table->table_cache_key,
-                         table->key_length,
-                         table->file->table_cache_type()))
+    handler *handler= table->file;
+    if (!handler->cached_table_registration(thd, table->table_cache_key,
+                                            table->key_length,
+                                            &tables_used->callback_func,
+                                            &tables_used->engine_data))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
