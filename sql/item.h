@@ -332,7 +332,7 @@ public:
 
   inline bool const_item() const
   {
-    return FALSE;
+    return TRUE;
   }
 
   inline int save_in_field(Field *field, bool no_conversions)

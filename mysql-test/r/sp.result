@@ -1372,6 +1372,21 @@ select 1+2|
 1+2
 3
 drop procedure bug3843|
+drop table if exists t3|
+create table t3 ( s1 char(10) )|
+insert into t3 values ('a'), ('b')|
+create procedure bug3368(v char(10))
+begin
+select group_concat(v) from t3;
+end|
+call bug3368('x')|
+group_concat(v)
+x,x
+call bug3368('yz')|
+group_concat(v)
+yz,yz
+drop procedure bug3368|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
