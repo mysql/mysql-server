@@ -36,7 +36,7 @@
 	/* Functions defined in this file */
 
 static int check_k_link(MI_CHECK *param, MI_INFO *info,uint nr);
-static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
+static int chk_index(MI_CHECK *param, MI_INFO *info,MI_KEYDEF *keyinfo,
 		     my_off_t page, uchar *buff, ha_rows *keys,
 		     ha_checksum *key_checksum, uint level);
 static uint isam_key_length(MI_INFO *info,MI_KEYDEF *keyinfo);
@@ -3681,6 +3681,9 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
       tmp=records;
     else
       tmp= (records + (count+1)/2) / (count+1);
+    /* for some weird keys (e.g. FULLTEXT) tmp can be <1 here.
+       let's ensure it is not */
+    set_if_bigger(tmp,1);
     if (tmp >= (ulonglong) ~(ulong) 0)
       tmp=(ulonglong) ~(ulong) 0;
     *rec_per_key_part=(ulong) tmp;
