@@ -1028,6 +1028,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
     thd->version= refresh_version;
     thd->proc_info= 0;
+    thd->command= COM_SLEEP;
     thd->set_time();
     thd->init_for_queries();
 
