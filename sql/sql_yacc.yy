@@ -6573,6 +6573,7 @@ keyword:
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
 	| RELAY_THREAD		{}
+	| LABEL_SYM             {}
 	| LANGUAGE_SYM          {}
 	| LAST_SYM		{}
 	| LEAVES                {}
