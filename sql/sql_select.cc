@@ -7690,6 +7690,36 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   return new_field;
 }
 
+
+/*
+  Create field for information schema table
+
+  SYNOPSIS
+    create_tmp_field_for_schema()
+    thd			Thread handler
+    table		Temporary table
+    item		Item to create a field for
+
+  RETURN
+    0			on error
+    new_created field
+*/
+
+Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
+{
+  if (item->field_type() == MYSQL_TYPE_VARCHAR)
+  {
+    if (item->max_length > MAX_FIELD_VARCHARLENGTH /
+        item->collation.collation->mbmaxlen)
+      return new Field_blob(item->max_length, item->maybe_null,
+                            item->name, table, item->collation.collation);
+    return new Field_varstring(item->max_length, item->maybe_null, item->name,
+                               table, item->collation.collation);
+  }
+  return item->tmp_table_field_from_field_type(table);
+}
+
+
 /*
   Create field for temporary table
 
@@ -7992,10 +8022,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	We here distinguish between UNION and multi-table-updates by the fact
 	that in the later case group is set to the row pointer.
       */
-      Field *new_field= create_tmp_field(thd, table, item, type, &copy_func,
-                                         tmp_from_field, group != 0,
-                                         not_all_columns || group !=0,
-                                         param->convert_blob_length);
+      Field *new_field= (param->schema_table) ?
+        create_tmp_field_for_schema(thd, item, table) :
+        create_tmp_field(thd, table, item, type, &copy_func,
+                         tmp_from_field, group != 0,
+                         not_all_columns || group !=0,
+                         param->convert_blob_length);
+
       if (!new_field)
       {
 	if (thd->is_fatal_error)
