@@ -81,7 +81,6 @@ Item *create_func_tan(Item* a);;
 Item *create_func_time_format(Item *a, Item *b);
 Item *create_func_time_to_sec(Item* a);
 Item *create_func_to_days(Item* a);
-Item *create_func_truncate (Item *a, Item *b);
 Item *create_func_ucase(Item* a);
 Item *create_func_version(void);
 Item *create_func_weekday(Item* a);

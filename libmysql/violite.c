@@ -32,6 +32,9 @@
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
+#ifdef HAVE_POLL
+#include <sys/poll.h>
+#endif
 
 #if defined(__EMX__)
 #include <sys/ioctl.h>
@@ -98,7 +101,9 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_reset(vio, type, sd, 0, localhost);
-    sprintf(vio->desc, "socket (%d)", vio->sd);
+    sprintf(vio->desc,
+	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
+	    vio->sd);
 #if !defined(___WIN__) && !defined(__EMX__)
 #if !defined(NO_FCNTL_NONBLOCK)
     vio->fcntl_mode = fcntl(sd, F_GETFL);
@@ -261,7 +266,7 @@ vio_is_blocking(Vio * vio)
 }
 
 
-int vio_fastsend(Vio * vio, my_bool onoff)
+int vio_fastsend(Vio * vio __attribute__((unused)), my_bool onoff)
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
@@ -322,7 +327,7 @@ int vio_close(Vio * vio)
   if (vio->type == VIO_TYPE_NAMEDPIPE)
   {
 #if defined(__NT__) && defined(MYSQL_SERVER)
-    CancelIO(vio->hPipe);
+    CancelIo(vio->hPipe);
     DisconnectNamedPipe(vio->hPipe);
 #endif
     r=CloseHandle(vio->hPipe);
@@ -395,6 +400,28 @@ void vio_in_addr(Vio *vio, struct in_addr *in)
   else
     *in=vio->remote.sin_addr;
   DBUG_VOID_RETURN;
+}
+
+
+/* Return 0 if there is data to be read */
+
+my_bool vio_poll_read(Vio *vio,uint timeout)
+{
+#ifndef HAVE_POLL
+  return 0;
+#else
+  struct pollfd fds;
+  int res;
+  DBUG_ENTER("vio_poll");
+  fds.fd=vio->sd;
+  fds.events=POLLIN;
+  fds.revents=0;
+  if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
+  {
+    DBUG_RETURN(res < 0 ? 0 : 1);		/* Don't return 1 on errors */
+  }
+  DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
+#endif
 }
 
 #endif /* HAVE_VIO */

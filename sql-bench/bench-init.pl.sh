@@ -339,6 +339,15 @@ sub end_benchmark
   exit 0;
 }
 
+sub print_time
+{
+  my ($estimated)=@_;
+  if ($estimated)
+  { print "Estimated time"; }
+  else
+  { print "Time"; }
+}
+
 #
 # Create a filename part for the machine that can be used for log file.
 #
