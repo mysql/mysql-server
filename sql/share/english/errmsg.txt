@@ -143,7 +143,7 @@ character-set=latin1
 "No paths allowed for shared library",
 "Function '%-.64s' already exists",
 "Can't open shared library '%-.64s' (errno: %d %-.64s)",
-"Can't find function '%-.64s' in library'",
+"Can't find function '%-.64s' in library",
 "Function '%-.64s' is not defined",
 "Host '%-.64s' is blocked because of many connection errors; unblock with 'mysqladmin flush-hosts'",
 "Host '%-.64s' is not allowed to connect to this MySQL server",
