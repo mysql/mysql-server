@@ -529,6 +529,7 @@ TransporterFacade::TransporterFacade() :
   theClusterMgr = NULL;
   theArbitMgr = NULL;
   theStartNodeId = 1;
+  m_open_count = 0;
 }
 
 bool
@@ -683,6 +684,7 @@ TransporterFacade::open(void* objRef,
                         ExecuteFunction fun, 
                         NodeStatusFunction statusFun)
 {
+  m_open_count++;
   return m_threads.open(objRef, fun, statusFun);
 }
 
