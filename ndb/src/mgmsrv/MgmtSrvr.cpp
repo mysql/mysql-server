@@ -1698,7 +1698,7 @@ MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode,
     logSpec = TestOrd::InputOutputSignals;
     break;
   default:
-    NDB_ASSERT(false, "Unexpected value, MgmtSrvr::setSignalLoggingMode");
+    assert("Unexpected value, MgmtSrvr::setSignalLoggingMode" == 0);
   }
 
   NdbApiSignal* signal = getSignal();
