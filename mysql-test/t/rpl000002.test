@@ -9,6 +9,7 @@ save_master_pos;
 connection slave;
 use test;
 sync_with_master;
+sleep 1;
 @r/rpl000002.result select * from t1;
 connection master;
 drop table t1;

@@ -412,7 +412,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 ***************************************************************************/
 
 int
-mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
+mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
+		   bool verbose)
 {
   TABLE *table;
   handler *file;
@@ -437,7 +438,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(new Item_empty_string("Default",NAME_LEN));
   field_list.push_back(new Item_empty_string("Extra",20));
-  field_list.push_back(new Item_empty_string("Privileges",80));
+  if (verbose)
+    field_list.push_back(new Item_empty_string("Privileges",80));
 
         // Send first number of fields and records
   {
@@ -502,18 +504,21 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
           end=strmov(tmp,"auto_increment");
         net_store_data(packet,tmp,(uint) (end-tmp));
 
-        /* Add grant options */
-        col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
-        end=tmp;
-        for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
-        {
-          if (col_access & 1)
-          {
-            *end++=',';
-            end=strmov(end,grant_types.type_names[bitnr]);
-          }
-        }
-        net_store_data(packet,tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+	if (verbose)
+	{
+	  /* Add grant options */
+	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
+	  end=tmp;
+	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+	  {
+	    if (col_access & 1)
+	    {
+	      *end++=',';
+	      end=strmov(end,grant_types.type_names[bitnr]);
+	    }
+	  }
+	  net_store_data(packet,tmp+1,end == tmp ? 0 : (uint) (end-tmp-1));
+	}
         if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
           DBUG_RETURN(1);
       }

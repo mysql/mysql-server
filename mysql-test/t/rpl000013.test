@@ -22,6 +22,7 @@ connection master2;
 save_master_pos;
 connection slave;
 sync_with_master;
+sleep 1;
 @r/rpl000013.result select * from t2;
 @r/rpl000013.status.result show status like 'Slave_open_temp_tables';
 #

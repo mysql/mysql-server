@@ -1545,7 +1545,8 @@ mysql_execute_command(void)
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2))
 	goto error;
       res= mysqld_show_fields(thd,tables,
-			      (lex->wild ? lex->wild->ptr() : NullS));
+			      (lex->wild ? lex->wild->ptr() : NullS),
+			      lex->verbose);
       break;
     }
 #endif

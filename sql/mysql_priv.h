@@ -362,7 +362,8 @@ int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
-int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild);
+int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
+		       bool verbose);
 int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);

@@ -20,6 +20,7 @@ insert into choo values(55);
 save_master_pos;
 connection slave;
 sync_with_master;
+sleep 1;
 @r/rpl000008.result select foo.n,bar.m,choo.k from foo,bar,choo;
 connection master;
 drop table if exists foo,bar,choo;

@@ -2159,12 +2159,12 @@ show_param:
 	    Lex->db= $3;
 	    Lex->options=0;
 	  }
-	| COLUMNS FROM table_ident opt_db wild
+	| opt_full COLUMNS FROM table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
-	    if ($4)
-	      $3->change_db($4);
-	    if (!add_table_to_list($3,NULL,0))
+	    if ($5)
+	      $4->change_db($5);
+	    if (!add_table_to_list($4,NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM LOGS_SYM
@@ -2181,10 +2181,8 @@ show_param:
 	  }
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
-	| PROCESSLIST_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST; Lex->verbose=0; }
-	| FULL PROCESSLIST_SYM
-	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST; Lex->verbose=1; }
+	| opt_full PROCESSLIST_SYM
+	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
 	| VARIABLES wild
 	  { Lex->sql_command= SQLCOM_SHOW_VARIABLES; }
 	| LOGS_SYM
@@ -2215,11 +2213,16 @@ wild:
 	/* empty */
 	| LIKE text_string { Lex->wild= $2; }
 
+opt_full:
+	/* empty */ { Lex->verbose=0; }
+	| FULL	    { Lex->verbose=1; }
+
 /* A Oracle compatible synonym for show */
 describe:
 	describe_command table_ident
 	{
 	  Lex->wild=0;
+	  Lex->verbose=0;
 	  Lex->sql_command=SQLCOM_SHOW_FIELDS;
 	  if (!add_table_to_list($2, NULL,0))
 	    YYABORT;
