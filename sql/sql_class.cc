@@ -336,6 +336,8 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry = THD_SENTRY_GONE;
 #endif  
+  /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
+  init_alloc_root(&stmt_backup.mem_root, 0, 0);
   DBUG_VOID_RETURN;
 }
 
