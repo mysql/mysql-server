@@ -824,8 +824,12 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       if (table->key_length == key_length &&
 	  !memcmp(table->table_cache_key,key,key_length) &&
-	  !my_strcasecmp(table->table_name,alias))
+	  !my_strcasecmp(table->table_name,alias) &&
+	  table->query_id != thd->query_id)
+      {
+	table->query_id=thd->query_id;
 	goto reset;
+      }
     }
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
