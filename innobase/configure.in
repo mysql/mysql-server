@@ -86,7 +86,7 @@ fi
 
 case "$target_os" in
        hp*)
-	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
        irix*)
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
        osf*)
