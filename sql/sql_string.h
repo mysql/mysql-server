@@ -237,7 +237,7 @@ public:
     q_*** methods writes values of parameters itself
     qs_*** methods writes string representation of value
   */
-  void q_append(const char &c)
+  void q_append(const char c)
   {
     Ptr[str_length++] = c;
   }
@@ -262,15 +262,19 @@ public:
     str_length += data_len;
   }
 
-  void WriteAtPosition(int position, uint32 value)
+  void write_at_position(int position, uint32 value)
   {
     int4store(Ptr + position,value);
   }
 
-  void qs_append(const char *str);
+  void qs_append(const char *str, uint32 len);
   void qs_append(double d);
   void qs_append(double *d);
-  void qs_append(const char &c);
+  inline void qs_append(const char c)
+  {
+     Ptr[str_length]= c;
+     str_length++;
+  }
 
   /* Inline (general) functions used by the protocol functions */
 
