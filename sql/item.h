@@ -109,60 +109,6 @@ public:
 };
 
 
-/*
-  Wrapper base class
-*/
-
-class Item_wrapper :public Item
-{
-protected:
-  Item *item;
-public:
-  /* 
-     Following methods should not be used, because fix_fields exclude this 
-     item (it assign '*ref' with field 'item' in derived classes)
-  */
-  enum Type type() const         { return item->type(); }
-  enum_field_types field_type() const { return item->field_type(); }
-  double val()                   { return item->val(); }
-  longlong val_int()             { return item->val_int(); }
-  String* val_str(String* s)     { return item->val_str(s); }
-  bool check_cols(uint col)      { return item->check_cols(col); }
-  bool eq(const Item *item, bool binary_cmp) const
-  { return item->eq(item, binary_cmp); }
-  bool is_null() 
-  {
-    item->val_int();
-    return item->null_value;
-  }
-  bool get_date(TIME *ltime, bool fuzzydate)
-  {  
-    return (null_value=item->get_date(ltime, fuzzydate));
-  }
-  bool send(Protocol *prot, String *tmp) { return item->send(prot, tmp); }
-  int  save_in_field(Field *field, bool no_conversions)
-  {
-    return item->save_in_field(field, no_conversions);
-  }
-  void save_org_in_field(Field *field)	{ item->save_org_in_field(field); }
-  enum Item_result result_type () const { return item->result_type(); }
-  table_map used_tables() const		{ return item->used_tables(); }  
-};
-
-
-/*
-  Save context of name resolution for Item, used in subselect transformer.
-*/
-class Item_outer_select_context_saver :public Item_wrapper
-{
-public:
-  Item_outer_select_context_saver(Item *it)
-  {
-    item= it;
-  }
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
 class st_select_lex;
 class Item_ident :public Item
 {
@@ -577,24 +523,6 @@ public:
     item(it) 
   {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-class Item_in_optimizer;
-class Item_ref_in_optimizer: public Item_ref
-{
-protected:
-  Item_in_optimizer* owner;
-public:
-  Item_ref_in_optimizer(Item_in_optimizer* master,
-			char *table_name_par,char *field_name_par);
-  double val();
-  longlong val_int();
-  String* val_str(String* s);
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref)
-  {
-    fixed= 1;
-    return 0;
-  }
 };
 
 /*

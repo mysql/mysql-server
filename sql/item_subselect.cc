@@ -409,8 +409,9 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
     As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
     we can use same item for all selects.
   */
-  Item *expr= new Item_ref_in_optimizer(optimizer, (char *)"<no matter>",
-					(char*)"<left expr>");
+  Item *expr= new Item_ref(optimizer->get_cache(), 
+			   (char *)"<no matter>",
+			   (char*)"<left expr>");
   select_lex->master_unit()->dependent= 1;
   for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
   {
