@@ -104,7 +104,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
-mysql.proc b where a.ROUTINE_NAME = b.name;
+mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8);
 select count(*) from information_schema.ROUTINES;
 
 #
@@ -222,4 +222,23 @@ create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
- 
+
+create table t1 (s1 int);
+insert into t1 values (0),(9),(0);
+select s1 from t1 where s1 in (select version from
+information_schema.tables) union select version from
+information_schema.tables;
+drop table t1;
+
+SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+set names latin2;
+SHOW CREATE TABLE INFORMATION_SCHEMA.CHARACTER_SETS;
+set names latin1;
+
+create table t1 select * from information_schema.CHARACTER_SETS
+where CHARACTER_SET_NAME like "latin1";
+select * from t1;
+alter table t1 default character set utf8;
+show create table t1;
+drop table t1;  
+

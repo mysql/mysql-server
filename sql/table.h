@@ -232,7 +232,6 @@ typedef struct st_field_info
   enum enum_field_types field_type;
   int value;
   bool maybe_null;
-  bool utf8;
   const char* old_name;
 } ST_FIELD_INFO;
 

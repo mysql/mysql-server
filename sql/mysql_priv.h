@@ -701,7 +701,7 @@ void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
-int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
+int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd = -1);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
