@@ -535,7 +535,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 {
   int error=0;
-  uint extra_testflag=0;
+  uint local_testflag=param.testflag;
   bool optimize_done= !optimize, statistics_done=0;
   char fixed_name[FN_REFLEN];
   const char *old_proc_info=thd->proc_info;
@@ -565,19 +565,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
        (!param.opt_rep_quick ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
-    ulonglong key_map= ((param.testflag & T_CREATE_MISSING_KEYS) ? 
+    ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ? 
 			((ulonglong) 1L << share->base.keys)-1 :
 			share->state.key_map);
+    uint testflag=param.testflag;
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
-	(param.testflag & T_REP_BY_SORT))
+	(local_testflag & T_REP_BY_SORT))
     {
-      uint testflag=param.testflag;
-      extra_testflag=  T_STATISTICS;
+      local_testflag|= T_STATISTICS;
       param.testflag|= T_STATISTICS;		// We get this for free
       thd->proc_info="Repair by sorting";
       statistics_done=1;
       error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
-      param.testflag=testflag;
     }
     else
     {
@@ -585,22 +584,28 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       param.testflag &= ~T_REP_BY_SORT;
       error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
     }
+    param.testflag=testflag;
+    optimize_done=1;
   }
   if (!error)
   {
-    if ((param.testflag & T_SORT_INDEX) &&
+    if ((local_testflag & T_SORT_INDEX) &&
 	(share->state.changed & STATE_NOT_SORTED_PAGES))
     {
       optimize_done=1;
       thd->proc_info="Sorting index";
       error=mi_sort_index(&param,file,fixed_name);
     }
-    if (!statistics_done && (param.testflag & T_STATISTICS) &&
-	(share->state.changed & STATE_NOT_ANALYZED))
+    if (!statistics_done && (local_testflag & T_STATISTICS))
     {
-      optimize_done=1;
-      thd->proc_info="Analyzing";
-      error = chk_key(&param, file);
+      if (share->state.changed & STATE_NOT_ANALYZED)
+      {
+	optimize_done=1;
+	thd->proc_info="Analyzing";
+	error = chk_key(&param, file);
+      }
+      else
+	local_testflag&= ~T_STATISTICS;		// Don't update statistics
     }
   }
   thd->proc_info="Saving state";
@@ -615,10 +620,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     file->save_state=file->s->state.state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
-    error = update_state_info(&param, file,
-			      UPDATE_TIME | UPDATE_OPEN_COUNT |
-			      ((param.testflag | extra_testflag) &
-			       T_STATISTICS ? UPDATE_STAT : 0));
+    if (optimize_done)
+      error = update_state_info(&param, file,
+				UPDATE_TIME | UPDATE_OPEN_COUNT |
+				(local_testflag &
+				 T_STATISTICS ? UPDATE_STAT : 0));
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	 HA_STATUS_CONST);
     if (rows != file->state->records && ! (param.testflag & T_VERY_SILENT))

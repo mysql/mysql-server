@@ -36,3 +36,15 @@ check table t1;
 repair table t1;
 check table t1;
 drop table t1;
+
+#
+# Test bug: Two optimize in a row reset index cardinality
+#
+
+create table t1 (a int not null auto_increment, b int not null, primary key (a), index(b));
+insert into t1 (b) values (1),(2),(2),(2),(2);
+optimize table t1;
+show index from t1;
+optimize table t1;
+show index from t1;
+drop table t1;
