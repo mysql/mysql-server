@@ -4173,7 +4173,7 @@ struct my_option my_long_options[] =
    (gptr*) &abort_slave_event_count,  (gptr*) &abort_slave_event_count,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_REPLICATION */
-  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax.", 0, 0, 0,
+  {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
