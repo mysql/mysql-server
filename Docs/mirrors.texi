@@ -58,8 +58,9 @@ WWW (@uref{http://mysql.fastorama.com/})
 FTP (@uref{ftp://ftp.fastorama.com/unix/mysql/})
 
 @item
-@image{Flags/france} France [mtesa.net] @@
-WWW (@uref{http://mysql.mtesa.net/})
+@image{Flags/france} France [free.fr] @@
+WWW (@uref{http://mysql-mirror.free.fr/})
+FTP (@uref{ftp://ftp.free.fr/pub/MySQL/})
 
 @item
 @image{Flags/france} France [Omegatomic] @@
@@ -388,3 +389,5 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
+
+
