@@ -46898,8 +46898,8 @@ Added internal safety checks for InnoDB.
 Some InnoDB variables was always shown in @code{SHOW VARIABLES} as
 @code{OFF} on high-byte-first systems (like sparc).
 @item
-Fixed problem with one threads using an InnoDB table and another
-thread using an @code{ALTER TABLE} on the table.
+Fixed problem with one thread using an InnoDB table and another
+thread doing an @code{ALTER TABLE} on the same table.
 @item
 If inserts to several tables containing an auto-inc column are wrapped
 inside one @code{LOCK TABLES}, InnoDB asserted in @code{lock0lock.c}.
