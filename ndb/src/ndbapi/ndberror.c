@@ -150,7 +150,7 @@ ErrorBundle ErrorCodes[] = {
   { 623,  IS, "623" },
   { 624,  IS, "624" },
   { 625,  IS, "Out of memory in Ndb Kernel, index part" },
-  { 826,  IS, "826" },
+  { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes)" },
   { 827,  IS, "Out of memory in Ndb Kernel, data part" },
   { 832,  IS, "832" },
 
