@@ -2220,6 +2220,7 @@ fil_create_new_single_table_tablespace(
 		ut_free(buf2);
 	error_exit:
 		os_file_close(file);
+	error_exit2:
 		os_file_delete(path);
 
 		mem_free(path);
@@ -2262,10 +2263,7 @@ fil_create_new_single_table_tablespace(
 	os_file_close(file);
 
 	if (*space_id == ULINT_UNDEFINED) {
-		os_file_delete(path);
-	error_exit2:
-		mem_free(path);
-		return(DB_ERROR);
+		goto error_exit2;
 	}
 
 	success = fil_space_create(path, *space_id, FIL_TABLESPACE);
