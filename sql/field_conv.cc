@@ -121,6 +121,7 @@ set_field_to_null(Field *field)
   field->reset();
   if (current_thd->count_cuted_fields)
   {
+    field->set_default();
     current_thd->cuted_fields++;		// Increment error counter
     return 0;
   }
@@ -175,6 +176,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;					// field is set in handler.cc
   if (current_thd->count_cuted_fields)
   {
+    field->set_default();
     current_thd->cuted_fields++;		// Increment error counter
     return 0;
   }
