@@ -56,6 +56,15 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
+  int readTuple(LockMode);
+
+  /**
+   * Define the NdbIndexOperation to be a standard operation of type readTuple.
+   * When calling NdbConnection::execute, this operation
+   * reads a tuple.
+   *
+   * @return 0 if successful otherwise -1.
+   */
   int readTuple();
 
   /**
