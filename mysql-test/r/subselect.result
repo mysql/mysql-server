@@ -46,7 +46,7 @@ SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
 SELECT (SELECT 1), a;
-Unknown column 'a' in 'checking transformed subquery'
+ERROR 42S22: Unknown column 'a' in 'checking transformed subquery'
 SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 a
 1
