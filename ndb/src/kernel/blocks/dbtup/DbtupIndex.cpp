@@ -349,14 +349,14 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   do {
     // get fragment
     FragrecordPtr fragPtr;
-    if (buildPtr.p->m_fragNo == 2 * NO_OF_FRAG_PER_NODE) {
+    if (buildPtr.p->m_fragNo == 2 * MAX_FRAG_PER_NODE) {
       ljam();
       // build ready
       buildIndexReply(signal, buildPtr.p);
       c_buildIndexList.release(buildPtr);
       return;
     }
-    ndbrequire(buildPtr.p->m_fragNo < 2 * NO_OF_FRAG_PER_NODE);
+    ndbrequire(buildPtr.p->m_fragNo < 2 * MAX_FRAG_PER_NODE);
     fragPtr.i = tablePtr.p->fragrec[buildPtr.p->m_fragNo];
     if (fragPtr.i == RNIL) {
       ljam();

@@ -6174,7 +6174,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
       break;
     case DictTabInfo::AllNodesMediumTable:
       jam();
-      noOfFragments = 2 * cnoOfNodeGroups;
+      noOfFragments = csystemnodes;
       break;
     case DictTabInfo::AllNodesLargeTable:
       jam();
@@ -6196,7 +6196,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
     }
     if(err)
       break;
-    
+   
     NodeGroupRecordPtr NGPtr;
     TabRecordPtr primTabPtr;
     if (primaryTableId == RNIL) {
