@@ -767,6 +767,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         if the trx isolation level would have been specified as SERIALIZABLE */
 
         prebuilt->select_lock_type = LOCK_NONE;
+        prebuilt->stored_select_lock_type = LOCK_NONE;
 
         /* Always fetch all columns in the index record */
 
@@ -4562,40 +4563,40 @@ ha_innobase::start_stmt(
 	  
 	        prebuilt->select_lock_type = LOCK_X;
 	} else {
-		/* When we first come here after LOCK TABLES,
-		select_lock_type is set to LOCK_S or LOCK_X. Store the value
-		in case we run also consistent reads and need to restore the
-		value later. */
+		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
+		    && thd->lex.sql_command == SQLCOM_SELECT
+		    && thd->lex.lock_option == TL_READ) {
+	
+			/* For other than temporary tables, we obtain
+			no lock for consistent read (plain SELECT). */
 
-		if (prebuilt->select_lock_type != LOCK_NONE) {
-			prebuilt->stored_select_lock_type =
-					prebuilt->select_lock_type;
+			prebuilt->select_lock_type = LOCK_NONE;
+		} else {
+			/* Not a consistent read: restore the
+			select_lock_type value. The value of
+			stored_select_lock_type was decided in:
+			1) ::store_lock(),
+			2) ::external_lock(), and
+			3) ::init_table_handle_for_HANDLER(). */
+
+			prebuilt->select_lock_type =
+				prebuilt->stored_select_lock_type;
 		}
 
 		if (prebuilt->stored_select_lock_type != LOCK_S
 		    && prebuilt->stored_select_lock_type != LOCK_X) {
 			fprintf(stderr,
-"InnoDB: Error: select_lock_type is %lu inside ::start_stmt()!\n",
+"InnoDB: Error: stored_select_lock_type is %lu inside ::start_stmt()!\n",
 			prebuilt->stored_select_lock_type);
 
-			ut_error;
-		}
+			/* Set the value to LOCK_X: this is just fault
+			tolerance, we do not know what the correct value
+			should be! */
 
-		if (thd->lex.sql_command == SQLCOM_SELECT
-					&& thd->lex.lock_option == TL_READ) {
-	
-			/* For other than temporary tables, we obtain
-			no lock for consistent read (plain SELECT) */
-
-			prebuilt->select_lock_type = LOCK_NONE;
-		} else {
-			/* Not a consistent read: restore the
-			select_lock_type value */
-			prebuilt->select_lock_type =
-				prebuilt->stored_select_lock_type;
+			prebuilt->select_lock_type = LOCK_X;
 		}
 	}
-	
+
 	/* Set the MySQL flag to mark that there is an active transaction */
 	thd->transaction.all.innodb_active_trans = 1;
 
@@ -4656,6 +4657,7 @@ ha_innobase::external_lock(
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
 	}
 
 	if (lock_type != F_UNLCK) {
@@ -4910,14 +4912,22 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if (lock_type == TL_READ_WITH_SHARED_LOCKS ||
+	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
+	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT) {
-		/* This is a SELECT ... IN SHARE MODE, or
-		we are doing a complex SQL statement like
+		/* The OR cases above are in this order:
+		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
+		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
+		3) this is a SELECT ... IN SHARE MODE, or
+		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
-		binlog) requires the use of a locking read */
+		binlog) requires the use of a locking read, or
+		MySQL is doing LOCK TABLES ... READ. */
 
 		prebuilt->select_lock_type = LOCK_S;
+		prebuilt->stored_select_lock_type = LOCK_S;
+
 	} else if (lock_type != TL_IGNORE) {
 
 	        /* In ha_berkeley.cc there is a comment that MySQL
@@ -4928,6 +4938,7 @@ ha_innobase::store_lock(
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
+		prebuilt->stored_select_lock_type = LOCK_NONE;
 	}
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
