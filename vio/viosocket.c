@@ -192,7 +192,7 @@ vio_should_retry(Vio * vio __attribute__((unused)))
 
 int vio_close(Vio * vio)
 {
-  int r;
+  int r=0;
   DBUG_ENTER("vio_close");
 #ifdef __WIN__
   if (vio->type == VIO_TYPE_NAMEDPIPE)
@@ -206,7 +206,6 @@ int vio_close(Vio * vio)
   else if (vio->type != VIO_CLOSED)
 #endif /* __WIN__ */
   {
-    r=0;
     if (shutdown(vio->sd,2))
       r= -1;
     if (closesocket(vio->sd))
@@ -369,9 +368,9 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
 
   remain_local = size;
   current_postion=buf;
-  do 
+  do
   {
-    if (vio->shared_memory_remain == 0) 
+    if (vio->shared_memory_remain == 0)
     {
       if (WaitForSingleObject(vio->event_server_wrote,vio->net->read_timeout*1000)  != WAIT_OBJECT_0)
       {
@@ -384,9 +383,9 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
 
     length = size;
 
-    if (vio->shared_memory_remain < length) 
+    if (vio->shared_memory_remain < length)
        length = vio->shared_memory_remain;
-    if (length > remain_local) 
+    if (length > remain_local)
        length = remain_local;
 
     memcpy(current_postion,vio->shared_memory_pos,length);
@@ -396,7 +395,7 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
     current_postion+=length;
     remain_local-=length;
 
-    if (!vio->shared_memory_remain) 
+    if (!vio->shared_memory_remain)
       if (!SetEvent(vio->event_client_read)) DBUG_RETURN(-1);
   } while (remain_local);
   length = size;
@@ -419,11 +418,11 @@ int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
 
   remain = size;
   current_postion = buf;
-  while (remain != 0) 
+  while (remain != 0)
   {
     if (WaitForSingleObject(vio->event_server_read,vio->net->write_timeout*1000) != WAIT_OBJECT_0)
     {
-      DBUG_RETURN(-1); 
+      DBUG_RETURN(-1);
     };
 
     sz = remain > shared_memory_buffer_length ? shared_memory_buffer_length: remain;
