@@ -1332,11 +1332,6 @@ mysql_execute_command(THD *thd)
     TODO: make derived tables processing 'inside' SELECT processing.
     TODO: solve problem with depended derived tables in subselects
   */
-  if ((lex->select_lex.next_select_in_list() && 
-       lex->unit.create_total_list(thd, lex, &tables)) ||
-      (table_rules_on && tables && thd->slave_thread &&
-       !tables_ok(thd,tables)))
-    DBUG_VOID_RETURN;
   if (lex->derived_tables)
   {
     for (TABLE_LIST *cursor= tables;
@@ -1351,6 +1346,11 @@ mysql_execute_command(THD *thd)
 	DBUG_VOID_RETURN;
       }
   } 
+  if ((lex->select_lex.next_select_in_list() && 
+       lex->unit.create_total_list(thd, lex, &tables)) ||
+      (table_rules_on && tables && thd->slave_thread &&
+       !tables_ok(thd,tables)))
+    DBUG_VOID_RETURN;
 
   thread_safe_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
