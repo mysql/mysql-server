@@ -370,7 +370,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       tr.add_transporter_interface(localHostName, server_port);
     }
     DBUG_PRINT("info", ("Transporter between this node %d and node %d using port %d, signalId %d, checksum %d",
-               nodeId, remoteNodeId, tmp_server_port, sendSignalId, checksum));
+               nodeId, remoteNodeId, server_port, sendSignalId, checksum));
     switch(type){
     case CONNECTION_TYPE_SHM:{
       SHM_TransporterConfiguration conf;
@@ -385,7 +385,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       conf.port= server_port;
 
       if(!tr.createTransporter(&conf)){
-        DBUG_PRINT("error", ("Failed to create SCI Transporter from %d to %d",
+        DBUG_PRINT("error", ("Failed to create SHM Transporter from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
 	ndbout << "Failed to create SHM Transporter from: " 
 	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
@@ -403,7 +403,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       conf.remoteNodeId = remoteNodeId;
       conf.checksum     = checksum;
       conf.signalId     = sendSignalId;
-      conf.port= tmp_server_port;
+      conf.port= server_port;
       
       if(iter.get(CFG_SCI_HOSTNAME_1, &host1)) break;
       if(iter.get(CFG_SCI_HOSTNAME_2, &host2)) break;
