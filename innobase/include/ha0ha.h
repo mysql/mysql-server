@@ -54,7 +54,7 @@ ha_create(
 /*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
-is inserted. */
+is inserted. This function is only used in the adaptive hash index. */
 
 ibool
 ha_insert_for_fold(
@@ -111,7 +111,6 @@ void
 ha_remove_all_nodes_to_page(
 /*========================*/
 	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: fold value */
 	page_t*		page);	/* in: buffer page */
 /*****************************************************************
 Validates a hash table. */
@@ -134,9 +133,18 @@ ha_print_info(
 
 typedef struct ha_node_struct ha_node_t;
 struct ha_node_struct {
-	ha_node_t* next; /* next chain node or NULL if none */
-	void*	data;	/* pointer to the data */
-	ulint	fold;	/* fold value for the data */
+	ha_node_t* 	next; 	/* next chain node; NULL if none */
+	void*		data;	/* pointer to the data */
+	ulint		fold;	/* fold value for the data */
+	ha_node_t* 	next_for_block;/* in an adaptive hash index
+				(btr0sea.c), a doubly linked list of hash
+				nodes for the buffer block; these nodes
+				contain pointers to index records on the
+				page; in the last node this field is NULL;
+				note that we do not use UT_LST_ macros
+				to manipulate this list */
+	ha_node_t* 	prev_for_block;/* pointer to the previous node; in the
+				first node NULL */
 };
 
 #ifndef UNIV_NONINL
