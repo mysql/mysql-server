@@ -152,7 +152,7 @@ int initgroups(const char *,unsigned int);
 typedef fp_except fp_except_t;
 #endif
 
-  /* We can't handle floating point expections with threads, so disable
+  /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
   */
 
@@ -186,14 +186,10 @@ inline void reset_floating_point_exceptions()
 #else
 #include <my_pthread.h>			// For thr_setconcurency()
 #endif
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(HAVE_mit_thread)
-#define SET_RLIMIT_NOFILE
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
-
 
 /* Set prefix for windows binary */
 #ifdef __WIN__
@@ -254,6 +250,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool lower_case_table_names_used= 0;
 bool server_id_supplied = 0;
 bool opt_endinfo,using_udf_functions, locked_in_memory;
 bool opt_using_transactions, using_update_log;
@@ -265,18 +262,20 @@ my_bool opt_reckless_slave = 0;
 my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
+my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
+my_bool lower_case_file_system= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
+uint lower_case_table_names;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
 ulong back_log, connect_timeout, concurrency;
@@ -301,7 +300,8 @@ ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
       created_tmp_disk_tables=0;
-ulong max_connections,max_insert_delayed_threads,max_used_connections,
+ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
+ulong max_connections,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
@@ -309,9 +309,17 @@ ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
+double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
-double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
+ulonglong log_10_int[20]=
+{
+  1, 10, 100, 1000, 10000UL, 100000UL, 1000000UL, 10000000UL,
+  ULL(100000000), ULL(1000000000), ULL(10000000000), ULL(100000000000),
+  ULL(1000000000000), ULL(10000000000000), ULL(100000000000000),
+  ULL(1000000000000000), ULL(10000000000000000), ULL(100000000000000000),
+  ULL(1000000000000000000), ULL(10000000000000000000)
+};
 
 time_t start_time;
 
@@ -321,7 +329,8 @@ char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
-     *opt_init_connect, *opt_init_slave;
+     *opt_init_connect, *opt_init_slave,
+     opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
 
@@ -375,7 +384,7 @@ pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status,
-		LOCK_error_log,
+		LOCK_error_log, LOCK_uuid_generator,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
@@ -435,7 +444,7 @@ static	 NTService  Service;	      // Service object for WinNT
 #endif /* __WIN__ */
 
 #ifdef __NT__
-static char szPipeName [ 257 ];
+static char pipe_name[512];
 static SECURITY_ATTRIBUTES saPipeSecurity;
 static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
@@ -495,9 +504,6 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
 extern "C" pthread_handler_decl(handle_slave,arg);
-#ifdef SET_RLIMIT_NOFILE
-static uint set_maximum_open_files(uint max_file_limit);
-#endif
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
@@ -581,7 +587,7 @@ static void close_connections(void)
     DBUG_PRINT( "quit", ("Closing named pipes") );
 
     /* Create connection to the handle named pipe handler to break the loop */
-    if ((temp = CreateFile(szPipeName,
+    if ((temp = CreateFile(pipe_name,
 			   GENERIC_READ | GENERIC_WRITE,
 			   0,
 			   NULL,
@@ -589,7 +595,7 @@ static void close_connections(void)
 			   0,
 			   NULL )) != INVALID_HANDLE_VALUE)
     {
-      WaitNamedPipe(szPipeName, 1000);
+      WaitNamedPipe(pipe_name, 1000);
       DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
       SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
       CancelIo(temp);
@@ -922,6 +928,7 @@ void clean_up(bool print_message)
 #ifdef USE_RAID
   end_raid();
 #endif
+  my_free_open_file_info();
   my_free((char*) global_system_variables.date_format,
 	  MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) global_system_variables.time_format,
@@ -1057,8 +1064,8 @@ static void set_user(const char *user)
     {
       /* Don't give a warning, if real user is same as given with --user */
       struct passwd *user_info= getpwnam(user);
-
-      if (!user_info || user_id != user_info->pw_uid)
+      if ((!user_info || user_id != user_info->pw_uid) &&
+	  global_system_variables.log_warnings)
 	fprintf(stderr,
 		"Warning: One can only use the --user switch if running as root\n");
     }
@@ -1192,11 +1199,14 @@ static void server_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    sprintf(szPipeName, "\\\\.\\pipe\\%s", mysqld_unix_port );
-    ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
-    ZeroMemory( &sdPipeDescriptor, sizeof(sdPipeDescriptor) );
-    if ( !InitializeSecurityDescriptor(&sdPipeDescriptor,
-				       SECURITY_DESCRIPTOR_REVISION) )
+    
+    pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
+    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
+	     mysqld_unix_port, NullS);
+    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
+    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
+    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
+				      SECURITY_DESCRIPTOR_REVISION))
     {
       sql_perror("Can't start server : Initialize security descriptor");
       unireg_abort(1);
@@ -1209,16 +1219,16 @@ static void server_init(void)
     saPipeSecurity.nLength = sizeof( SECURITY_ATTRIBUTES );
     saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
     saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe = CreateNamedPipe(szPipeName,
-				 PIPE_ACCESS_DUPLEX,
-				 PIPE_TYPE_BYTE |
-				 PIPE_READMODE_BYTE |
-				 PIPE_WAIT,
-				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_system_variables.net_buffer_length,
-				 (int) global_system_variables.net_buffer_length,
-				 NMPWAIT_USE_DEFAULT_WAIT,
-				 &saPipeSecurity )) == INVALID_HANDLE_VALUE)
+    if ((hPipe= CreateNamedPipe(pipe_name,
+				PIPE_ACCESS_DUPLEX,
+				PIPE_TYPE_BYTE |
+				PIPE_READMODE_BYTE |
+				PIPE_WAIT,
+				PIPE_UNLIMITED_INSTANCES,
+				(int) global_system_variables.net_buffer_length,
+				(int) global_system_variables.net_buffer_length,
+				NMPWAIT_USE_DEFAULT_WAIT,
+				&saPipeSecurity)) == INVALID_HANDLE_VALUE)
       {
 	LPVOID lpMsgBuf;
 	int error=GetLastError();
@@ -1716,7 +1726,7 @@ static void start_signal_handler(void)
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
-  pthread_attr_setstacksize(&thr_attr, 129*1024);
+  pthread_attr_setstacksize(&thr_attr,thread_stack);
 #endif
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1750,7 +1760,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(max_connections+max_insert_delayed_threads+10);
+  init_thr_alarm(max_connections +
+		 global_system_variables.max_insert_delayed_threads + 10);
 #if SIGINT != THR_KILL_SIGNAL
   if (test_flags & TEST_SIGINT)
   {
@@ -2101,10 +2112,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
 #ifndef DBUG_OFF
-  strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
-#else
-  strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
+  if (!*(MYSQL_SERVER_SUFFIX))
+    strmov(strend(server_version),"-debug");
+  else
 #endif
+    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
@@ -2114,28 +2126,33 @@ static int init_common_variables(const char *conf_file_name, int argc,
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
-#if defined( SET_RLIMIT_NOFILE) || defined( OS2)
   /* connections and databases needs lots of files */
   {
-    uint wanted_files=10+(uint) max(max_connections*5,
-				    max_connections+table_cache_size*2);
+    uint files, wanted_files;
+
+    wanted_files= 10+(uint) max(max_connections*5,
+				 max_connections+table_cache_size*2);
     set_if_bigger(wanted_files, open_files_limit);
-    // Note that some system returns 0 if we succeed here:
-    uint files=set_maximum_open_files(wanted_files);
-    if (files && files < wanted_files && ! open_files_limit)
+    files= my_set_max_open_files(wanted_files);
+
+    if (files < wanted_files)
     {
-      max_connections=	(ulong) min((files-10),max_connections);
-      table_cache_size= (ulong) max((files-10-max_connections)/2,64);
-      DBUG_PRINT("warning",
-		 ("Changed limits: max_connections: %ld  table_cache: %ld",
-		  max_connections,table_cache_size));
-      sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
+      if (!open_files_limit)
+      {
+	max_connections=	(ulong) min((files-10),max_connections);
+	table_cache_size= (ulong) max((files-10-max_connections)/2,64);
+	DBUG_PRINT("warning",
+		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+		    files, max_connections, table_cache_size));
+	if (global_system_variables.log_warnings)
+	  sql_print_error("Warning: Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+			files, max_connections, table_cache_size);
+      }
+      else if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
   }
-#else
-  open_files_limit= 0;		/* Can't set or detect limit */
-#endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (init_errmessage())	/* Read error messages from file */
     return 1;
@@ -2180,10 +2197,14 @@ static int init_common_variables(const char *conf_file_name, int argc,
   sys_init_connect.value_length= 0;
   if ((sys_init_connect.value= opt_init_connect))
     sys_init_connect.value_length= strlen(opt_init_connect);
+  else
+    sys_init_connect.value=my_strdup("",MYF(0));
 
   sys_init_slave.value_length= 0;
   if ((sys_init_slave.value= opt_init_slave))
     sys_init_slave.value_length= strlen(opt_init_slave);
+  else
+    sys_init_slave.value=my_strdup("",MYF(0));
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -2210,6 +2231,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
@@ -2263,8 +2285,9 @@ static void init_ssl()
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
-  table_cache_init();
-  hostname_cache_init();
+  if (table_cache_init() || hostname_cache_init())
+    unireg_abort(1);
+
   query_cache_result_size_limit(query_cache_limit);
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_resize(query_cache_size);
@@ -2391,10 +2414,10 @@ Now disabling --log-slave-updates.");
   {
     if (mlockall(MCL_CURRENT))
     {
-      sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      locked_in_memory= 0;
     }
-    else
-      locked_in_memory=1;
   }
 #else
   locked_in_memory=0;
@@ -2412,7 +2435,7 @@ static void create_maintenance_thread()
 {
   if (
 #ifdef HAVE_BERKELEY_DB
-      !berkeley_skip ||
+      (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
   {
@@ -2558,7 +2581,37 @@ int main(int argc, char **argv)
     }
   }
 #endif
+  thread_stack_min=thread_stack - STACK_MIN_SIZE;
+
   (void) thr_setconcurrency(concurrency);	// 10 by default
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
+  if (!lower_case_table_names &&
+      (lower_case_file_system=
+       (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  {
+    if (lower_case_table_names_used)
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_error("\
+Warning: You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
+			mysql_real_data_home);
+    }
+    else
+    {
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      lower_case_table_names= 2;
+    }
+  }
 
   select_thread=pthread_self();
   select_thread_in_use=1;
@@ -2989,8 +3042,6 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
-  if (thread_count-delayed_insert_threads > max_used_connections)
-    max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
 
   thd->real_id=pthread_self();			// Keep purify happy
@@ -3019,6 +3070,8 @@ static void create_new_thread(THD *thd)
       thread_count++;
       thread_created++;
       threads.append(thd);
+      if (thread_count-delayed_insert_threads > max_used_connections)
+        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,
@@ -3311,7 +3364,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     if (!fConnected)
     {
       CloseHandle( hPipe );
-      if ((hPipe = CreateNamedPipe(szPipeName,
+      if ((hPipe = CreateNamedPipe(pipe_name,
 				   PIPE_ACCESS_DUPLEX,
 				   PIPE_TYPE_BYTE |
 				   PIPE_READMODE_BYTE |
@@ -3329,7 +3382,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     }
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
-    if ((hPipe = CreateNamedPipe(szPipeName,
+    if ((hPipe = CreateNamedPipe(pipe_name,
 				 PIPE_ACCESS_DUPLEX,
 				 PIPE_TYPE_BYTE |
 				 PIPE_READMODE_BYTE |
@@ -3594,7 +3647,7 @@ enum options_mysqld
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
-  OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
+  OPT_BDB_TMP,                 OPT_BDB_SYNC,
   OPT_BDB_LOCK,                OPT_BDB,
   OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
   OPT_MASTER_HOST,             OPT_MASTER_USER,
@@ -3634,7 +3687,7 @@ enum options_mysqld
   OPT_HAVE_NAMED_PIPE,
   OPT_DO_PSTACK, OPT_REPORT_HOST,
   OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-  OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+  OPT_SHOW_SLAVE_AUTH_INFO,
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
@@ -3644,7 +3697,7 @@ enum options_mysqld
   OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
   OPT_CONNECT_TIMEOUT, OPT_DELAYED_INSERT_TIMEOUT,
   OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
-  OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
+  OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN, OPT_FT_BOOLEAN_SYNTAX,
   OPT_FT_MAX_WORD_LEN, OPT_FT_QUERY_EXPANSION_LIMIT, OPT_FT_STOPWORD_FILE,
   OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
   OPT_KEY_BUFFER_SIZE, OPT_KEY_CACHE_BLOCK_SIZE,
@@ -3666,7 +3719,7 @@ enum options_mysqld
   OPT_OPEN_FILES_LIMIT,
   OPT_PRELOAD_BUFFER_SIZE,
   OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
-  OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
+  OPT_QUERY_CACHE_TYPE, OPT_QUERY_CACHE_WLOCK_INVALIDATE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT, OPT_RELAY_LOG_PURGE,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
   OPT_READONLY, OPT_DEBUGGING,
@@ -3695,6 +3748,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
+  OPT_SYNC_FRM, OPT_BDB_NOSYNC,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
@@ -3735,8 +3789,14 @@ struct my_option my_long_options[] =
   {"bdb-no-recover", OPT_BDB_NO_RECOVER,
    "Don't try to recover Berkeley DB tables on start.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-no-sync", OPT_BDB_NOSYNC, "Don't synchronously flush logs.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"bdb-no-sync", OPT_BDB_NOSYNC,
+   "Disable synchronously flushing logs. This option is deprecated, use --skip-sync-bdb-logs or sync-bdb-logs=0 instead",
+   //   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sync-bdb-logs", OPT_BDB_SYNC,
+   "Synchronously flush logs. Enabled by default",
+   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"bdb-shared-data", OPT_BDB_SHARED,
    "Start Berkeley DB in multi-process mode.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -3744,6 +3804,9 @@ struct my_option my_long_options[] =
    (gptr*) &berkeley_tmpdir, (gptr*) &berkeley_tmpdir, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_BERKELEY_DB */
+  {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default",
+   (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
+   0, 0, 0, 0},
   {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
 Disable with --skip-bdb (will save memory).",
    (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
@@ -3960,7 +4023,8 @@ log and this option justs turns on --log-bin instead.",
    0, 0, 0, 0},
   {"master-password", OPT_MASTER_PASSWORD,
    "The password the slave thread will authenticate with when connecting to the master. If not set, an empty password is assumed.The value in master.info will take precedence if it can be read.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*)&master_password, (gptr*)&master_password, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-port", OPT_MASTER_PORT,
    "The port the master is listening on. If not set, the compiled setting of MYSQL_PORT is assumed. If you have not tinkered with configure options, this should be 3306. The value in master.info will take precedence if it can be read.",
    (gptr*) &master_port, (gptr*) &master_port, 0, GET_UINT, REQUIRED_ARG,
@@ -4045,10 +4109,6 @@ master-ssl",
    (gptr*) &global_system_variables.old_passwords,
    (gptr*) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"old-rpl-compat", OPT_OLD_RPL_COMPAT,
-   "Use old LOAD DATA format in the binary log (don't save data in file).",
-   (gptr*) &opt_old_rpl_compat, (gptr*) &opt_old_rpl_compat, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef ONE_THREAD
   {"one-thread", OPT_ONE_THREAD,
    "Only use one thread (for debugging under Linux).", 0, 0, 0, GET_NO_ARG,
@@ -4217,7 +4277,7 @@ log and this option does nothing anymore.",
    0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files. Several paths may be specified, separated by a "
-#if defined( __WIN__) || defined(OS2)
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
    "semicolon (;)"
 #else
    "colon (:)"
@@ -4243,11 +4303,11 @@ log and this option does nothing anymore.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4295,6 +4355,10 @@ log and this option does nothing anymore.",
     "A dedicated thread is created to flush all tables at the given interval.",
     (gptr*) &flush_time, (gptr*) &flush_time, 0, GET_ULONG, REQUIRED_ARG,
     FLUSH_TIME, 0, LONG_TIMEOUT, 0, 1, 0},
+  { "ft_boolean_syntax", OPT_FT_BOOLEAN_SYNTAX,
+    "List of operators for MATCH ... AGAINST ( ... IN BOOLEAN MODE)",
+    0, 0, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "ft_min_word_len", OPT_FT_MIN_WORD_LEN,
     "The minimum length of the word to be included in a FULLTEXT index. Note: FULLTEXT indexes must be rebuilt after changing this variable.",
     (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_ULONG,
@@ -4410,15 +4474,15 @@ log and this option does nothing anymore.",
    (gptr*) &max_system_variables.long_query_time, 0, GET_ULONG,
    REQUIRED_ARG, 10, 1, LONG_TIMEOUT, 0, 1, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
-   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
+   "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.  Should be set to 2 if you are using a case insensitive file system",
    (gptr*) &lower_case_table_names,
-   (gptr*) &lower_case_table_names, 0, GET_BOOL, NO_ARG,
+   (gptr*) &lower_case_table_names, 0, GET_UINT, OPT_ARG,
 #ifdef FN_NO_CASE_SENCE
     1
 #else
     0
 #endif
-   , 0, 1, 0, 1, 0},
+   , 0, 2, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
@@ -4444,7 +4508,8 @@ The minimum value for this variable is 4096.",
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
    "Don't start more than this number of threads to handle INSERT DELAYED statements. If set to zero, which means INSERT DELAYED is not used.",
-   (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
+   (gptr*) &global_system_variables.max_insert_delayed_threads,
+   (gptr*) &max_system_variables.max_insert_delayed_threads,
    0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_error_count", OPT_MAX_ERROR_COUNT,
    "Max number of errors/warnings to store for a statement.",
@@ -4549,7 +4614,7 @@ The minimum value for this variable is 4096.",
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, 65535, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, OS_FILE_LIMIT, 0, 1, 0},
   {"plan_search_depth", OPT_PLAN_SEARCH_DEPTH,
    "Maximum depth of search performed by the query optimizer. Values larger than the number of relations in a query result in better query plans, but take longer to compile a query. Smaller values than the number of tables in a relation result in faster optimization, but may produce very bad query plans. If set to 0, the system will automatically pick a reasonable value; if set to MAX_TABLES+2, the optimizer will switch to the original find_best (used for testing/comparison).",
    (gptr*) &global_system_variables.plan_search_depth,
@@ -4586,12 +4651,17 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.query_cache_type,
    (gptr*) &max_system_variables.query_cache_type,
    0, GET_ULONG, REQUIRED_ARG, 1, 0, 2, 0, 1, 0},
+  {"query_cache_wlock_invalidate", OPT_QUERY_CACHE_WLOCK_INVALIDATE,
+   "Invalidate queries in query cache on LOCK for write",
+   (gptr*) &global_system_variables.query_cache_wlock_invalidate,
+   (gptr*) &max_system_variables.query_cache_wlock_invalidate,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif /*HAVE_QUERY_CACHE*/
   {"query_prealloc_size", OPT_QUERY_PREALLOC_SIZE,
    "Persistent buffer for query parsing and execution",
    (gptr*) &global_system_variables.query_prealloc_size,
    (gptr*) &max_system_variables.query_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
-#endif /*HAVE_QUERY_CACHE*/
   {"read_buffer_size", OPT_RECORD_BUFFER,
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
@@ -4635,7 +4705,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
   {"read-only", OPT_READONLY,
-   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege.",
+   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -4651,8 +4721,8 @@ The minimum value for this variable is 4096.",
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
-   0},
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
+   0, 1, 0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
    (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_ULONG, REQUIRED_ARG,
@@ -4684,7 +4754,8 @@ The minimum value for this variable is 4096.",
    "The number of seconds the server waits for activity on a connection before closing it.",
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
-   REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+   REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
+   0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
    "Binary logs will be rotated after expire-log-days days ",
    (gptr*) &expire_logs_days,
@@ -4717,6 +4788,8 @@ The minimum value for this variable is 4096.",
 struct show_var_st status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
+  {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
+  {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
   {"Bytes_received",           (char*) &bytes_received,         SHOW_LONG},
   {"Bytes_sent",               (char*) &bytes_sent,             SHOW_LONG},
   {"Com_admin_commands",       (char*) &com_other,		SHOW_LONG},
@@ -4771,13 +4844,13 @@ struct show_var_st status_vars[]= {
   {"Com_savepoint",	       (char*) (com_stat+(uint) SQLCOM_SAVEPOINT),SHOW_LONG},
   {"Com_select",	       (char*) (com_stat+(uint) SQLCOM_SELECT),SHOW_LONG},
   {"Com_set_option",	       (char*) (com_stat+(uint) SQLCOM_SET_OPTION),SHOW_LONG},
-  {"Com_show_binlogs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOGS),SHOW_LONG},
   {"Com_show_binlog_events",   (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOG_EVENTS),SHOW_LONG},
+  {"Com_show_binlogs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOGS),SHOW_LONG},
   {"Com_show_charsets",	       (char*) (com_stat+(uint) SQLCOM_SHOW_CHARSETS),SHOW_LONG},
   {"Com_show_collations",      (char*) (com_stat+(uint) SQLCOM_SHOW_COLLATIONS),SHOW_LONG},
   {"Com_show_column_types",    (char*) (com_stat+(uint) SQLCOM_SHOW_COLUMN_TYPES),SHOW_LONG},
-  {"Com_show_create_table",    (char*) (com_stat+(uint) SQLCOM_SHOW_CREATE),SHOW_LONG},
   {"Com_show_create_db",       (char*) (com_stat+(uint) SQLCOM_SHOW_CREATE_DB),SHOW_LONG},
+  {"Com_show_create_table",    (char*) (com_stat+(uint) SQLCOM_SHOW_CREATE),SHOW_LONG},
   {"Com_show_databases",       (char*) (com_stat+(uint) SQLCOM_SHOW_DATABASES),SHOW_LONG},
   {"Com_show_errors",	       (char*) (com_stat+(uint) SQLCOM_SHOW_ERRORS),SHOW_LONG},
   {"Com_show_fields",	       (char*) (com_stat+(uint) SQLCOM_SHOW_FIELDS),SHOW_LONG},
@@ -4805,11 +4878,11 @@ struct show_var_st status_vars[]= {
   {"Com_update_multi",	       (char*) (com_stat+(uint) SQLCOM_UPDATE_MULTI),SHOW_LONG},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
   {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
-  {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
+  {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
+  {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_CONST},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
-  {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_CONST},
   {"Handler_commit",           (char*) &ha_commit_count,        SHOW_LONG},
   {"Handler_delete",           (char*) &ha_delete_count,        SHOW_LONG},
@@ -4836,24 +4909,24 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
-  {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
+  {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
-  {"Questions",                (char*) 0,                       SHOW_QUESTION},
 #ifdef HAVE_QUERY_CACHE
-  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
-  {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
-  {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
-  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
-  {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory,
-   SHOW_LONG_CONST},
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,
    SHOW_LONG_CONST},
+  {"Qcache_free_memory",       (char*) &query_cache.free_memory,
+   SHOW_LONG_CONST},
+  {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
+  {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
+  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
+  {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
+  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,
    SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
+  {"Questions",                (char*) 0,                       SHOW_QUESTION},
   {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
   {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
@@ -4869,35 +4942,35 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"Ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
-  {"Ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"Ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
   {"Ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"Ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"Ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
   {"Ssl_callback_cache_hits",  (char*) 0,	SHOW_SSL_CTX_SESS_CB_HITS},
-  {"Ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
-  {"Ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
-  {"Ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
-  {"Ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
-  {"Ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
-  {"Ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
-  {"Ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"Ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"Ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
-  {"Ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"Ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"Ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
-  {"Ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
-  {"Ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
   {"Ssl_cipher",               (char*) 0,  	SHOW_SSL_GET_CIPHER},
   {"Ssl_cipher_list",          (char*) 0,  	SHOW_SSL_GET_CIPHER_LIST},
+  {"Ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
+  {"Ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"Ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"Ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
   {"Ssl_default_timeout",      (char*) 0,  	SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"Ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"Ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"Ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
+  {"Ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
+  {"Ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"Ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"Ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"Ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"Ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
+  {"Ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
+  {"Ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
+  {"Ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
+  {"Ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
-  {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
+  {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
   {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
@@ -5012,6 +5085,7 @@ static void mysql_init_variables(void)
   filesort_merge_passes= select_range_check_count= select_range_count= 0;
   select_scan_count= select_full_range_join_count= select_full_join_count= 0;
   specialflag= opened_tables= created_tmp_tables= created_tmp_disk_tables= 0;
+  binlog_cache_use=  binlog_cache_disk_use= 0;
   max_used_connections= slow_launch_threads = 0;
   max_sort_char= 0;
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
@@ -5483,8 +5557,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_STORAGE_ENGINE:
   {
-    if ((enum db_type)((global_system_variables.table_type= 
-    	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
+    if ((enum db_type)((global_system_variables.table_type=
+	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown table type: %s\n",argument);
       exit(1);
@@ -5531,7 +5605,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
-    berkeley_env_flags|=DB_TXN_NOSYNC;
+    /* Deprecated option */
+    opt_sync_bdb_logs= 0;
+    /* Fall through */
+  case OPT_BDB_SYNC:
+    if (!opt_sync_bdb_logs)
+      berkeley_env_flags|= DB_TXN_NOSYNC;
+    else
+      berkeley_env_flags&= ~DB_TXN_NOSYNC;
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(DB_RECOVER);
@@ -5565,43 +5646,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BDB:
 #ifdef HAVE_BERKELEY_DB
     if (opt_bdb)
-    {
-      berkeley_skip=0;
       have_berkeley_db=SHOW_OPTION_YES;
-    }
     else
-    {
-      berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_ISAM:
 #ifdef HAVE_ISAM
     if (opt_isam)
-    {
-      isam_skip=0;
       have_isam= SHOW_OPTION_YES;
-    }
     else
-    {
-      isam_skip=1;
       have_isam= SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
-    {
-      innodb_skip=0;
       have_innodb=SHOW_OPTION_YES;
-    }
     else
-    {
-      innodb_skip=1;
       have_innodb=SHOW_OPTION_DISABLED;
-    }
 #endif
     break;
   case OPT_INNODB_DATA_FILE_PATH:
@@ -5648,14 +5711,24 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     global_system_variables.sql_mode= fix_sql_mode(global_system_variables.
 						   sql_mode);
+    break;
   }
-  case OPT_MASTER_PASSWORD:
-    master_password=argument;
+  case OPT_FT_BOOLEAN_SYNTAX:
+    if (ft_boolean_check_syntax_string((byte*) argument))
+    {
+      fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
+      exit(1);
+    }
+    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
     sf_malloc_quick=1;
 #endif
+    break;
+  case OPT_LOWER_CASE_TABLE_NAMES:
+    lower_case_table_names= argument ? atoi(argument) : 1;
+    lower_case_table_names_used= 1;
     break;
   }
   return 0;
@@ -5696,6 +5769,8 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
+  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (argc > 0)
@@ -5751,6 +5826,9 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
+  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+	  sizeof(ft_boolean_syntax)-1);
+
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
   if (opt_log_queries_not_using_indexes)
@@ -5847,108 +5925,7 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
-
-  /*
-    Ensure that lower_case_table_names is set on system where we have case
-    insensitive names.  If this is not done the users MyISAM tables will
-    get corrupted if accesses with names of different case.
-  */
-  if (!lower_case_table_names &&
-      test_if_case_insensitive(mysql_real_data_home) == 1)
-  {
-    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
-    lower_case_table_names= 1;
-  }
 }
-
-
-/*
-  set how many open files we want to be able to handle
-
-  SYNOPSIS
-    set_maximum_open_files()  
-    max_file_limit		Files to open
-
-  NOTES
-    The request may not fulfilled becasue of system limitations
-
-  RETURN
-    Files available to open
-*/
-
-#ifdef SET_RLIMIT_NOFILE
-
-#ifndef RLIM_INFINITY
-#define RLIM_INFINITY ((uint) 0xffffffff)
-#endif
-
-static uint set_maximum_open_files(uint max_file_limit)
-{
-  struct rlimit rlimit;
-  uint old_cur;
-  DBUG_ENTER("set_maximum_open_files");
-  DBUG_PRINT("enter",("files: %u", max_file_limit));
-
-  if (!getrlimit(RLIMIT_NOFILE,&rlimit))
-  {
-    old_cur= (uint) rlimit.rlim_cur;
-    DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
-			(uint) rlimit.rlim_cur,
-			(uint) rlimit.rlim_max));
-    if (rlimit.rlim_cur >= max_file_limit ||
-	rlimit.rlim_cur == RLIM_INFINITY)
-      DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */
-    rlimit.rlim_cur= rlimit.rlim_max= max_file_limit;
-    if (setrlimit(RLIMIT_NOFILE,&rlimit))
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %u (request: %u)",
-			old_cur, max_file_limit); /* purecov: inspected */
-      max_file_limit= old_cur;
-    }
-    else
-    {
-      rlimit.rlim_cur= 0;			// Safety if next call fails
-      (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      DBUG_PRINT("info", ("rlim_cur: %u", (uint) rlimit.rlim_cur));
-      if ((uint) rlimit.rlim_cur < max_file_limit &&
-	  global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %u (request: %u)",
-			(uint) rlimit.rlim_cur,
-			max_file_limit); /* purecov: inspected */
-      max_file_limit= (uint) rlimit.rlim_cur;
-    }
-  }
-  DBUG_PRINT("exit",("max_file_limit: %u", max_file_limit));
-  DBUG_RETURN(max_file_limit);
-}
-#endif
-
-
-#ifdef OS2
-static uint set_maximum_open_files(uint max_file_limit)
-{
-  LONG     cbReqCount;
-  ULONG    cbCurMaxFH, cbCurMaxFH0;
-  APIRET   ulrc;
-  DBUG_ENTER("set_maximum_open_files");
-
-  // get current limit
-  cbReqCount = 0;
-  DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
-
-  // set new limit
-  cbReqCount = max_file_limit - cbCurMaxFH0;
-  ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-  if (ulrc) {
-    sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
-		    cbCurMaxFH0);
-    cbCurMaxFH = cbCurMaxFH0;
-  }
-
-  DBUG_RETURN(cbCurMaxFH);
-}
-#endif
 
 
 /*
@@ -6031,6 +6008,7 @@ static int test_if_case_insensitive(const char *dir_name)
   File file;
   char buff[FN_REFLEN], buff2[FN_REFLEN];
   MY_STAT stat_info;
+  DBUG_ENTER("test_if_case_insensitive");
 
   fn_format(buff, glob_hostname, dir_name, ".lower-test",
 	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
@@ -6040,13 +6018,14 @@ static int test_if_case_insensitive(const char *dir_name)
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
     sql_print_error("Warning: Can't create test file %s", buff);
-    return -1;
+    DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));
   if (my_stat(buff2, &stat_info, MYF(0)))
     result= 1;					// Can access file
   (void) my_delete(buff, MYF(MY_WME));
-  return result;
+  DBUG_PRINT("exit", ("result: %d", result));
+  DBUG_RETURN(result);
 }
 
 
