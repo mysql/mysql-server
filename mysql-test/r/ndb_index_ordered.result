@@ -82,6 +82,24 @@ a	b	c
 4	5	12
 5	6	12
 6	7	12
+update t1 set b = b + 1 where b > 4 and b < 7;
+select * from t1 order by a;
+a	b	c
+1	2	13
+2	3	13
+3	4	12
+4	6	12
+5	7	12
+6	7	12
+update t1 set a = a + 10 where b > 1 and b < 7;
+select * from t1 order by a;
+a	b	c
+5	7	12
+6	7	12
+11	2	13
+12	3	13
+13	4	12
+14	6	12
 drop table t1;
 CREATE TABLE t1 (
 a int unsigned NOT NULL PRIMARY KEY,

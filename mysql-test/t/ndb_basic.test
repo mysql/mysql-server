@@ -14,10 +14,12 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 #
 CREATE TABLE t1 (
   pk1 INT NOT NULL PRIMARY KEY,
-  attr1 INT NOT NULL
+  attr1 INT NOT NULL,
+  attr2 INT,
+  attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 
-INSERT INTO t1 VALUES (9410,9412);
+INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
   
 SELECT pk1 FROM t1;
 SELECT * FROM t1;
@@ -27,9 +29,10 @@ SELECT t1.* FROM t1;
 UPDATE t1 SET attr1=1 WHERE pk1=9410;
 SELECT * FROM t1;
 
-# Can't UPDATE PK! Test that correct error is returned
--- error 1112
+# Update primary key
 UPDATE t1 SET pk1=2 WHERE attr1=1;
+SELECT * FROM t1;
+UPDATE t1 SET pk1=pk1 + 1;
 SELECT * FROM t1;
 
 # Delete the record
@@ -37,8 +40,8 @@ DELETE FROM t1;
 SELECT * FROM t1;
 
 # Insert more records and update them all at once
-INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765),
-(7,8), (8,9), (9,10), (10,11), (11,12), (12,13), (13,14);
+INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9408, 8765, NULL, '8765'),
+(7,8, NULL, NULL), (8,9, NULL, NULL), (9,10, NULL, NULL), (10,11, NULL, NULL), (11,12, NULL, NULL), (12,13, NULL, NULL), (13,14, NULL, NULL);
 UPDATE t1 SET attr1 = 9999;
 SELECT * FROM t1 ORDER BY pk1;
 
@@ -58,13 +61,13 @@ SELECT * FROM t1;
 
 # Insert three records with attr1=4 and two with attr1=5
 # Delete all with attr1=4
-INSERT INTO t1 values (1, 4), (2, 4), (3, 5), (4, 4), (5, 5);
+INSERT INTO t1 values (1, 4, NULL, NULL), (2, 4, NULL, NULL), (3, 5, NULL, NULL), (4, 4, NULL, NULL), (5, 5, NULL, NULL);
 DELETE FROM t1 WHERE attr1=4;
 SELECT * FROM t1 order by pk1;
 DELETE FROM t1;
 
 # Insert two records and delete one
-INSERT INTO t1 VALUES (9410,9412), (9411, 9413);
+INSERT INTO t1 VALUES (9410,9412, NULL, NULL), (9411, 9413, NULL, NULL);
 DELETE FROM t1 WHERE pk1 = 9410;
 SELECT * FROM t1;
 DROP TABLE t1;

@@ -161,8 +161,8 @@ NdbSqlUtil::m_typeList[] = {
     NULL // cmpDatetime
   },
   {
-    Type::Clob,
-    cmpClob
+    Type::Text,
+    cmpText
   }
 };
 
@@ -299,9 +299,9 @@ NdbSqlUtil::cmpBlob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size
 }
 
 int
-NdbSqlUtil::cmpClob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpText(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Clob, p1, p2, full, size);
+  return cmp(Type::Text, p1, p2, full, size);
 }
 
 #ifdef NDB_SQL_UTIL_TEST
