@@ -4223,9 +4223,9 @@ join_table:
 	  '(' using_list ')'
 	  { add_join_on($3,$7); $$=$3; }
 
-	| table_ref LEFT opt_outer JOIN_SYM table_ref ON expr
+	| table_ref LEFT opt_outer JOIN_SYM table_factor ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
-	| table_ref LEFT opt_outer JOIN_SYM table_ref
+	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
             sel->save_names_for_using_list($1, $5);
@@ -4238,14 +4238,14 @@ join_table:
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
 	  }
-	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
+	| table_ref RIGHT opt_outer JOIN_SYM table_factor ON expr
           { 
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
             add_join_on($$, $7);
           }
-	| table_ref RIGHT opt_outer JOIN_SYM table_ref
+	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
             sel->save_names_for_using_list($1, $5);
