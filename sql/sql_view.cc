@@ -483,6 +483,10 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     mysql_make_view()
     parser		- parser object;
     table		- TABLE_LIST structure for filling
+
+  RETURN
+    TRUE  OK
+    FALSE error
 */
 my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
@@ -576,6 +580,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   }
   if (!res && !thd->is_fatal_error)
   {
+    TABLE_LIST *top_view= (table->belong_to_view ?
+                           table->belong_to_view :
+                           table);
 
     /* move SP to main LEX */
     sp_merge_funs(old_lex, lex);
@@ -586,9 +593,12 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if ((table->next_global= lex->query_tables))
       table->next_global->prev_global= &table->next_global;
 
-    /* mark to avoid temporary table using */
+    /* mark to avoid temporary table using and put view reference*/
     for (TABLE_LIST *tbl= table->next_global; tbl; tbl= tbl->next_global)
+    {
       tbl->skip_temporary= 1;
+      tbl->belong_to_view= top_view;
+    }
 
     /*
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
