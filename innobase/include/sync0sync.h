@@ -371,10 +371,12 @@ or row lock! */
 #define SYNC_NO_ORDER_CHECK	3000	/* this can be used to suppress
 					latching order checking */
 #define	SYNC_LEVEL_NONE		2000	/* default: level not defined */
-#define	SYNC_FOREIGN_KEY_CHECK	1001
+#define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
+					this in X-mode, implicit or backround
+					operations purge, rollback, foreign
+					key checks reserve this in S-mode */
 #define SYNC_DICT		1000
 #define SYNC_DICT_AUTOINC_MUTEX	999
-#define	SYNC_PURGE_IS_RUNNING	997
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
 #define SYNC_IBUF_PESS_INSERT_MUTEX 912

@@ -102,8 +102,6 @@ que_node_t */
 #include "que0que.h"
 #include "row0sel.h"
 
-#include <math.h>
-
 #define YYSTYPE que_node_t*
 
 /* #define __STDC__ */

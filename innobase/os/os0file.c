@@ -148,7 +148,7 @@ Gets the operating system version. Currently works only on Windows. */
 ulint
 os_get_os_version(void)
 /*===================*/
-                  /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
+                  /* out: OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
 {
 #ifdef __WIN__
   	OSVERSIONINFO     os_info;
@@ -162,7 +162,11 @@ os_get_os_version(void)
   	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
     		return(OS_WIN95);
   	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-    		return(OS_WINNT);
+		if (os_info.dwMajorVersion <= 4) {
+    			return(OS_WINNT);
+    		} else {
+			return(OS_WIN2000);
+    		}
   	} else {
     		ut_error;
     		return(0);
@@ -268,9 +272,7 @@ os_file_get_last_error(void)
 }
 
 /********************************************************************
-Does error handling when a file operation fails. If we have run out
-of disk space, then the user can clean the disk. If we do not find
-a specified file, then the user can copy it to disk. */
+Does error handling when a file operation fails. */
 static
 ibool
 os_file_handle_error(
@@ -503,7 +505,11 @@ try_again:
 		        value 2 denotes that we do not flush the log at every
 		        commit, but only once per second */
 		} else {
-		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
+			if (srv_win_file_flush_method ==
+					SRV_WIN_IO_UNBUFFERED) {
+		        	attributes = attributes
+						| FILE_FLAG_NO_BUFFERING;
+			}
 		}
 #endif
 	} else if (purpose == OS_FILE_NORMAL) {
@@ -514,7 +520,11 @@ try_again:
 		        value 2 denotes that we do not flush the log at every
 		        commit, but only once per second */
 		} else {
-		        attributes = attributes | FILE_FLAG_NO_BUFFERING;
+			if (srv_win_file_flush_method ==
+					SRV_WIN_IO_UNBUFFERED) {
+		        	attributes = attributes
+						| FILE_FLAG_NO_BUFFERING;
+			}
 		}
 #endif
 	} else {
@@ -1752,6 +1762,7 @@ os_aio(
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 #ifdef WIN_ASYNC_IO
+	ibool		retval;
 	BOOL		ret		= TRUE;
 	DWORD		len		= n;
 	void*		dummy_mess1;
@@ -1824,6 +1835,8 @@ try_again:
 		if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
 			os_n_file_reads++;
+			os_bytes_read_since_printout += len;
+			
 			ret = ReadFile(file, buf, (DWORD)n, &len,
 							&(slot->control));
 #elif defined(POSIX_ASYNC_IO)
@@ -1870,10 +1883,12 @@ try_again:
 	    		    where we also use async i/o: in Windows we must
 	    		    use the same wait mechanism as for async i/o */
 	    		
-	    		    return(os_aio_windows_handle(ULINT_UNDEFINED,
+	    		    retval = os_aio_windows_handle(ULINT_UNDEFINED,
 					slot->pos,
 		    			&dummy_mess1, &dummy_mess2,
-					&dummy_type));
+					&dummy_type);
+
+			    return(retval);
 	    		}
 
 			return(TRUE);
@@ -1897,8 +1912,6 @@ try_again:
 		goto try_again;
 	}	
 
-	ut_error;
-	
 	return(FALSE);
 }
 
@@ -1958,14 +1971,14 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		srv_io_thread_op_info[orig_seg] = "wait windows aio for 1 page";
+		srv_io_thread_op_info[orig_seg] = "wait Windows aio for 1 page";
 
 		ut_ad(pos < array->n_slots); 
 		os_event_wait(array->events[pos]);
 		i = pos;
 	} else {
 		srv_io_thread_op_info[orig_seg] =
-						"wait windows aio for n pages";
+						"wait Windows aio";
 		i = os_event_wait_multiple(n, (array->events) + segment * n);
 	}
 
@@ -1991,10 +2004,8 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_get_last_error();
-
-		ut_error;
-
+		os_file_handle_error(slot->file, slot->name);
+		
 		ret_val = FALSE;
 	}		  
 

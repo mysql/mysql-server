@@ -111,6 +111,7 @@ log. */
 #define OS_WIN31     1
 #define OS_WIN95     2	
 #define OS_WINNT     3
+#define OS_WIN2000   4
 
 extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
@@ -122,7 +123,7 @@ Gets the operating system version. Currently works only on Windows. */
 ulint
 os_get_os_version(void);
 /*===================*/
-                  /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
+                  /* out: OS_WIN95, OS_WIN31, OS_WINNT, or OS_WIN2000 */
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
 

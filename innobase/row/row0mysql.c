@@ -27,6 +27,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "lock0lock.h"
 #include "rem0cmp.h"
 #include "log0log.h"
+#include "btr0sea.h"
 
 /* A dummy variable used to fool the compiler */
 ibool	row_mysql_identically_false	= FALSE;
@@ -203,7 +204,6 @@ row_mysql_handle_errors(
 	que_thr_t*	thr,	/* in: query thread */
 	trx_savept_t*	savept)	/* in: savepoint or NULL */
 {
-	ibool	timeout_expired;
 	ulint	err;
 
 handle_new_error:
@@ -240,11 +240,9 @@ handle_new_error:
 		/* MySQL will roll back the latest SQL statement */
 	} else if (err == DB_LOCK_WAIT) {
 
-		timeout_expired = srv_suspend_mysql_thread(thr);
+		srv_suspend_mysql_thread(thr);
 
-		if (timeout_expired) {
-			trx->error_state = DB_LOCK_WAIT_TIMEOUT;
-
+		if (trx->error_state != DB_SUCCESS) {
 			que_thr_stop_for_mysql(thr);
 
 			goto handle_new_error;
@@ -1146,7 +1144,7 @@ row_mysql_lock_data_dictionary(void)
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&(dict_sys->mutex));
 }
 
@@ -1161,7 +1159,7 @@ row_mysql_unlock_data_dictionary(void)
 	no deadlocks can occur then in these operations */
 
 	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+	rw_lock_x_unlock(&dict_operation_lock);
 }
 
 /*************************************************************************
@@ -1184,6 +1182,7 @@ row_create_table_for_mysql(
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	
 	if (srv_created_new_raw) {
@@ -1383,7 +1382,8 @@ row_create_index_for_mysql(
 	ulint		namelen;
 	ulint		keywordlen;
 	ulint		err;
-	
+
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
@@ -1464,6 +1464,7 @@ row_table_add_foreign_constraints(
 	ulint	err;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_a(sql_string);
 	
 	trx->op_info = (char *) "adding foreign keys";
@@ -1846,12 +1847,16 @@ row_drop_table_for_mysql(
 	no deadlocks can occur then in these operations */
 
 	if (!has_dict_mutex) {
-		/* Prevent foreign key checks while we are dropping the table */
-		rw_lock_x_lock(&(dict_foreign_key_check_lock));
+		/* Prevent foreign key checks etc. while we are dropping the
+		table */
+		rw_lock_x_lock(&dict_operation_lock);
 
 		mutex_enter(&(dict_sys->mutex));
 	}
 
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	
 	graph = pars_sql(buf);
 
 	ut_a(graph);
@@ -1860,9 +1865,6 @@ row_drop_table_for_mysql(
 	trx->graph = NULL;
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	/* Prevent purge from running while we are dropping the table */
-	rw_lock_s_lock(&(purge_sys->purge_is_running));
 
 	table = dict_table_get_low(name);
 
@@ -1944,12 +1946,11 @@ row_drop_table_for_mysql(
 
 		}
 	}
-funct_exit:	
-	rw_lock_s_unlock(&(purge_sys->purge_is_running));
+funct_exit:
 
 	if (!has_dict_mutex) {
 		mutex_exit(&(dict_sys->mutex));
-		rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+		rw_lock_x_unlock(&dict_operation_lock);
 	}
 
 	que_graph_free(graph);
@@ -1985,7 +1986,7 @@ row_drop_database_for_mysql(
 	
 	trx_start_if_not_started(trx);
 loop:
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&(dict_sys->mutex));
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
@@ -2000,7 +2001,7 @@ loop:
 
 		if (table->n_mysql_handles_opened > 0) {
 		        mutex_exit(&(dict_sys->mutex));
-			rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+			rw_lock_x_unlock(&dict_operation_lock);
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2028,7 +2029,7 @@ loop:
 	}
 
 	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+	rw_lock_x_unlock(&dict_operation_lock);
 	
 	trx_commit_for_mysql(trx);
 
@@ -2165,7 +2166,7 @@ row_rename_table_for_mysql(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	rw_lock_x_lock(&(dict_foreign_key_check_lock));
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&(dict_sys->mutex));
 
 	table = dict_table_get_low(old_name);
@@ -2249,7 +2250,7 @@ row_rename_table_for_mysql(
 	}
 funct_exit:	
 	mutex_exit(&(dict_sys->mutex));
-	rw_lock_x_unlock(&(dict_foreign_key_check_lock));
+	rw_lock_x_unlock(&dict_operation_lock);
 
 	que_graph_free(graph);
 	
@@ -2394,18 +2395,28 @@ row_check_table_for_mysql(
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
 					handle */
 {
-	dict_table_t*	table	= prebuilt->table;
+	dict_table_t*	table		= prebuilt->table;
 	dict_index_t*	index;
 	ulint		n_rows;
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ulint		ret 	= DB_SUCCESS;
-
+	ulint		ret 		= DB_SUCCESS;
+	ulint		old_isolation_level;
+	
 	prebuilt->trx->op_info = (char *) "checking table";
 
+	old_isolation_level = prebuilt->trx->isolation_level;
+
+	/* We must run the index record counts at an isolation level
+	>= READ COMMITTED, because a dirty read can see a wrong number
+	of records in some index; to play safe, we use always
+	REPEATABLE READ here */
+
+	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+	
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-      /*        fprintf(stderr, "Validating index %s\n", index->name); */
+      		/* fprintf(stderr, "Validating index %s\n", index->name); */
 	
 		if (!btr_validate_tree(index->tree)) {
 			ret = DB_ERROR;
@@ -2433,6 +2444,9 @@ row_check_table_for_mysql(
 		index = dict_table_get_next_index(index);
 	}
 
+	/* Restore the original isolation level */
+	prebuilt->trx->isolation_level = old_isolation_level;
+	
 	/* We validate also the whole adaptive hash index for all tables
 	at every CHECK TABLE */
 

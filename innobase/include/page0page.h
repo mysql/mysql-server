@@ -666,6 +666,16 @@ page_rec_validate(
 			/* out: TRUE if ok */
 	rec_t* 	rec);	/* in: record on the page */
 /*******************************************************************
+This function checks the consistency of an index page when we do not
+know the index. This is also resilient so that this should never crash
+even if the page is total garbage. */
+
+ibool
+page_simple_validate(
+/*=================*/
+			/* out: TRUE if ok */
+	page_t*	page);	/* in: index page */
+/*******************************************************************
 This function checks the consistency of an index page. */
 
 ibool

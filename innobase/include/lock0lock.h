@@ -292,6 +292,27 @@ lock_sec_rec_modify_check_and_lock(
 	dict_index_t*	index,	/* in: secondary index */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
+Like the counterpart for a clustered index below, but now we read a
+secondary index record. */
+
+ulint
+lock_sec_rec_read_check_and_lock(
+/*=============================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
+				does nothing */
+	rec_t*		rec,	/* in: user record or page supremum record
+				which should be read or passed over by a read
+				cursor */
+	dict_index_t*	index,	/* in: secondary index */
+	ulint		mode,	/* in: mode of the lock which the read cursor
+				should set on records: LOCK_S or LOCK_X; the
+				latter is possible in SELECT FOR UPDATE */
+	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP */
+	que_thr_t*	thr);	/* in: query thread */
+/*************************************************************************
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
 if the query thread should anyway be suspended for some reason; if not, then
@@ -313,25 +334,8 @@ lock_clust_rec_read_check_and_lock(
 	ulint		mode,	/* in: mode of the lock which the read cursor
 				should set on records: LOCK_S or LOCK_X; the
 				latter is possible in SELECT FOR UPDATE */
-	que_thr_t*	thr);	/* in: query thread */
-/*************************************************************************
-Like the counterpart for a clustered index above, but now we read a
-secondary index record. */
-
-ulint
-lock_sec_rec_read_check_and_lock(
-/*=============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: user record or page supremum record
-				which should be read or passed over by a read
-				cursor */
-	dict_index_t*	index,	/* in: secondary index */
-	ulint		mode,	/* in: mode of the lock which the read cursor
-				should set on records: LOCK_S or LOCK_X; the
-				latter is possible in SELECT FOR UPDATE */
+	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 Checks that a record is seen in a consistent read. */
@@ -509,6 +513,7 @@ lock_validate(void);
 extern lock_sys_t*	lock_sys;
 
 /* Lock modes and types */
+/* Basic modes */
 #define	LOCK_NONE	0	/* this flag is used elsewhere to note
 				consistent read */
 #define	LOCK_IS		2	/* intention shared */
@@ -519,15 +524,20 @@ extern lock_sys_t*	lock_sys;
 				in an exclusive mode */
 #define LOCK_MODE_MASK	0xF	/* mask used to extract mode from the
 				type_mode field in a lock */
+/* Lock types */
 #define LOCK_TABLE	16	/* these type values should be so high that */
 #define	LOCK_REC	32	/* they can be ORed to the lock mode */
 #define LOCK_TYPE_MASK	0xF0	/* mask used to extract lock type from the
 				type_mode field in a lock */
+/* Waiting lock flag */
 #define LOCK_WAIT	256	/* this wait bit should be so high that
 				it can be ORed to the lock mode and type;
 				when this bit is set, it means that the
 				lock has not yet been granted, it is just
 				waiting for its turn in the wait queue */
+/* Precise modes */
+#define LOCK_ORDINARY	0	/* this flag denotes an ordinary next-key lock
+				in contrast to LOCK_GAP or LOCK_REC_NOT_GAP */ 
 #define LOCK_GAP	512	/* this gap bit should be so high that
 				it can be ORed to the other flags;
 				when this bit is set, it means that the
@@ -537,7 +547,15 @@ extern lock_sys_t*	lock_sys;
 				the bit is set; locks of this type are created
 				when records are removed from the index chain
 				of records */
-#define LOCK_INSERT_INTENTION 1024 /* this bit is set when we place a waiting
+#define LOCK_REC_NOT_GAP 1024 	/* this bit means that the lock is only on
+				the index record and does NOT block inserts
+				to the gap before the index record; this is
+				used in the case when we retrieve a record
+				with a unique key, and is also used in
+				locking plain SELECTs (not part of UPDATE
+				or DELETE) when the user has set the READ
+				COMMITTED isolation level */
+#define LOCK_INSERT_INTENTION 2048 /* this bit is set when we place a waiting
 				gap type record lock request in order to let
 				an insert of an index record to wait until
 				there are no conflicting locks by other
