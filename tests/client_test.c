@@ -176,7 +176,7 @@ static void client_connect()
   int  rc;
   myheader_r("client_connect");  
 
-  fprintf(stdout, "\n Establishing a connection ...");
+  fprintf(stdout, "\n Establishing a connection to '%s' ...", opt_host);
   
   if (!(mysql = mysql_init(NULL)))
   { 
@@ -3729,7 +3729,7 @@ static void test_stmt_close()
   fprintf(stdout, "\n Establishing a test connection ...");
   if (!(lmysql = mysql_init(NULL)))
   { 
-	  myerror("mysql_init() failed");
+    myerror("mysql_init() failed");
     exit(0);
   }
   if (!(mysql_real_connect(lmysql,opt_host,opt_user,
@@ -6071,7 +6071,7 @@ static void test_prepare_grant()
     fprintf(stdout, "\n Establishing a test connection ...");
     if (!(lmysql = mysql_init(NULL)))
     { 
-	    myerror("mysql_init() failed");
+      myerror("mysql_init() failed");
       exit(0);
     }
     if (!(mysql_real_connect(lmysql,opt_host,"test_grant",
@@ -6460,7 +6460,7 @@ static void test_drop_temp()
     fprintf(stdout, "\n Establishing a test connection ...");
     if (!(lmysql = mysql_init(NULL)))
     { 
-	    myerror("mysql_init() failed");
+      myerror("mysql_init() failed");
       exit(0);
     }
 
@@ -7160,6 +7160,11 @@ static void test_mem_overun()
   
   rc = mysql_real_query(mysql, buffer, length);
   myquery(rc);
+
+  rc = mysql_query(mysql,"select * from t_mem_overun");
+  myquery(rc);
+
+  myassert(1 == my_process_result(mysql));
   
   stmt = mysql_prepare(mysql, "select * from t_mem_overun",30);
   mystmt_init(stmt);
@@ -7456,6 +7461,83 @@ static void test_sqlmode()
   mysql_stmt_close(stmt);
 }
 
+/*
+  test for timestamp handling
+*/
+static void test_ts()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  MYSQL_TIME ts;
+  char       strts[30];
+  long       length;
+  int        rc;
+
+  myheader("test_ts");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_ts");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_ts(a TIMESTAMP)");
+  myquery(rc);
+
+  rc = mysql_commit(mysql);
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql,"INSERT INTO test_ts VALUES(?),(?)",40);
+  mystmt_init(stmt);
+
+  ts.year= 2003;
+  ts.month= 07;
+  ts.day= 12;
+  ts.hour= 21;
+  ts.minute= 07;
+  ts.second= 46;
+  length= (long)(strmov(strts,"2003-07-12 21:07:46") - strts);
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char *)strts;
+  bind[0].buffer_length= sizeof(strts);
+  bind[0].is_null= 0;
+  bind[0].length= &length;
+
+  bind[1].buffer_type= MYSQL_TYPE_TIMESTAMP;
+  bind[1].buffer= (char *)&ts;
+  bind[1].buffer_length= sizeof(ts);
+  bind[1].is_null= 0;
+  bind[1].length= 0;
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  mysql_stmt_close(stmt);
+
+  verify_col_data("test_ts","a","2003-07-12 21:07:46");
+
+  stmt = mysql_prepare(mysql,"SELECT a FROM test_ts WHERE a >= ?",50);
+  mystmt_init(stmt);
+
+  rc = mysql_bind_param(stmt, bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -7703,6 +7785,7 @@ int main(int argc, char **argv)
     test_fetch_offset();    /* to test mysql_fetch_column with offset */
     test_fetch_column();    /* to test mysql_fetch_column */
     test_sqlmode();         /* test for SQL_MODE */
+    test_ts();              /* test for timestamp BR#819 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

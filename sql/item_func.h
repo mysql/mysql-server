@@ -115,6 +115,7 @@ public:
   virtual const char *func_name() const { return "?"; }
   virtual bool const_item() const { return const_item_cache; }
   inline Item **arguments() const { return args; }
+  void set_arguments(List<Item> &list);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
@@ -1067,7 +1068,7 @@ public:
 
 /* For type casts */
 
-enum Item_cast
+enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR

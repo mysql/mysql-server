@@ -382,7 +382,7 @@ public:
   Item_uint(const char *str_arg, uint length) :
     Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
   Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
-  double val() { return ulonglong2double(value); }
+  double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
