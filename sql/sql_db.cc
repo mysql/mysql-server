@@ -104,14 +104,14 @@ exit2:
   DBUG_RETURN(error);
 }
 
-const char *del_exts[]= {".frm", ".BAK", NullS};
+const char *del_exts[]= {".frm", ".BAK", ".TMD", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
 const char *known_exts[]=
-{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD", ".db", NullS};
+{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db",NullS};
 static TYPELIB known_extentions=
-{array_elements(del_exts)-1,"del_exts", known_exts};
+{array_elements(known_exts)-1,"known_exts", known_exts};
 
 /*
   Drop all tables in a database.
