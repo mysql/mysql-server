@@ -1258,3 +1258,16 @@ create view v1 as select * from t1;
 handler v1 open as xx;
 drop view v1;
 drop table t1;
+
+#
+# view with WHERE in nested join
+#
+create table t1(a int);
+insert into t1 values (0), (1), (2), (3);
+create table t2 (a int);
+insert into t2 select a from t1 where a > 1;
+create view v1 as select a from t1 where a > 1;
+select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
+drop view v1;
+drop table t1;
