@@ -262,6 +262,7 @@ public:
 	   unireg_check_arg, field_name_arg, table_arg)
     { field_charset=charset; }
   Item_result result_type () const { return STRING_RESULT; }
+  void add_binary_or_charset(String &res) const;
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
