@@ -6903,7 +6903,7 @@ We recommend the following @code{configure} line with @code{egcs} and
 shell> CC="gcc -pipe -mcpu=power2 -Wa,-many" \
        CXX="gcc -pipe -mcpu=power2 -Wa,-many" \
        CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti" \
-       ./configure --prefix=/usr/local/mysql --with-debug --with-low-memory
+       ./configure --prefix=/usr/local/mysql --with-low-memory
 @end example
 
 The @code{-Wa,-many} is necessary for the compile to be successful. IBM is
@@ -35032,7 +35032,7 @@ Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
 you to create, change and delete databases and tables.
 You can change field - structure and add, change and delete data in
 these tables directly without ODBC-driver.
-@uref{http://www.presult.de, MySQL Maker homepage (look under support/downloads)}
+@uref{http://62.26.183.157/presult/support/su_sweiche_download.html, MySQL Maker homepage}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
@@ -35819,6 +35819,8 @@ Fixed small memory leak introduced from 3.23.22 when creating a
 temporary table.
 @item
 Fixed problem with BDB tables and reading on unique (not primary) key.
+@item
+Restored the win1251 character set (it's now only marked deprecated). 
 @end itemize
 
 @node News-3.23.23, News-3.23.22, News-3.23.24, News-3.23.x
