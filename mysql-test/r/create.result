@@ -198,9 +198,9 @@ t3	CREATE TABLE `t3` (
 ) TYPE=MyISAM CHARSET=latin1
 select * from t3;
 id	name
-drop table t3;
+drop table t2, t3;
+drop database if exists test_$1;
 create database test_$1;
-drop table if exists test_$1.t3;
 create table test_$1.t3 like t1;
 create temporary table t3 like test_$1.t3;
 show create table t3;
@@ -209,6 +209,15 @@ t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL default '0',
   `name` char(20) character set latin1 default NULL
 ) TYPE=MyISAM CHARSET=latin1
+create table t2 like t3;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL default '0',
+  `name` char(20) character set latin1 default NULL
+) TYPE=MyISAM CHARSET=latin1
+select * from t2;
+id	name
 create table t3 like t1;
 create table t3 like test_$1.t3;
 Table 't3' already exists
@@ -218,6 +227,8 @@ create table t3 like non_existing_table;
 Unknown table 'non_existing_table'
 create temporary table t3 like t1;
 Table 't3' already exists
+create table t3 like `a/a`;
+Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
 drop database test_$1;
