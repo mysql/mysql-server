@@ -1125,6 +1125,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     printf("- recovering (with keycache) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(info->state->records,llbuff));
   }
+  param->testflag|=T_REP; /* for easy checking */
 
   if (!param->using_global_keycache)
     VOID(init_key_cache(param->use_buffers,NEED_MEM));
@@ -1767,6 +1768,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     printf("- recovering (with sort) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
+  param->testflag|=T_REP; /* for easy checking */
 
   bzero((char*)&sort_info,sizeof(sort_info));
   if (!(sort_info.key_block=
@@ -1863,7 +1865,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   else
     length=share->base.pack_reclength;
   sort_info.max_records=
-    ((param->testflag & T_TRUST_HEADER) ? info->state->records :
+    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records :
      (ha_rows) (sort_info.filelength/length+1));
   sort_param.key_cmp=sort_key_cmp;
   sort_param.key_write=sort_key_write;
@@ -2109,6 +2111,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
     printf("- parallel recovering (with sort) MyISAM-table '%s'\n",name);
     printf("Data records: %s\n", llstr(start_records,llbuff));
   }
+  param->testflag|=T_REP; /* for easy checking */
 
   bzero((char*)&sort_info,sizeof(sort_info));
   if (!(sort_info.key_block=
@@ -2196,7 +2199,7 @@ int mi_repair_by_sort_r(MI_CHECK *param, register MI_INFO *info,
   else
     length=share->base.pack_reclength;
   sort_info.max_records=
-    ((param->testflag & T_TRUST_HEADER) ? info->state->records :
+    ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records :
      (ha_rows) (sort_info.filelength/length+1));
 
   del=info->state->del;
@@ -3528,7 +3531,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     return;
   }
   if (!(param->testflag & T_SILENT) &&
-      !(param->testflag & (T_REP | T_REP_BY_SORT)))
+      !(param->testflag & T_REP))
     printf("Updating MyISAM file: %s\n", param->isam_file_name);
   /* We have to use keyread here as a normal read uses info->rec_buff */
   mi_extra(info,HA_EXTRA_KEYREAD);
