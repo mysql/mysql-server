@@ -788,7 +788,7 @@ Fstat(int fd, MY_STAT *stat_area, myf MyFlags )
   DBUG_PRINT("enter",("fd: %d MyFlags: %d",fd,MyFlags));
   uint i;
   int error=0;
-  MY_STAT my_stat;
+  MY_STAT status;
   stat_area->st_size=0;
   stat_area->st_mtime=0;
   stat_area->st_atime=0;
@@ -796,12 +796,12 @@ Fstat(int fd, MY_STAT *stat_area, myf MyFlags )
 
   for(i=0 ; i < _raid_chunks ; i++)
   {
-    if (my_fstat(_fd_vector[i],&my_stat,MyFlags))
+    if (my_fstat(_fd_vector[i],&status,MyFlags))
       error=1;
-    stat_area->st_size+=my_stat.st_size;
-    set_if_bigger(stat_area->st_mtime,my_stat.st_mtime);
-    set_if_bigger(stat_area->st_atime,my_stat.st_atime);
-    set_if_bigger(stat_area->st_ctime,my_stat.st_ctime);
+    stat_area->st_size+=status.st_size;
+    set_if_bigger(stat_area->st_mtime,status.st_mtime);
+    set_if_bigger(stat_area->st_atime,status.st_atime);
+    set_if_bigger(stat_area->st_ctime,status.st_ctime);
   }
   DBUG_RETURN(error);
 }
