@@ -1,6 +1,9 @@
 SET NAMES binary;
+drop database if exists mysqltest;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
 select current_user();
@@ -22,6 +25,30 @@ GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
 GRANT ALL PRIVILEGES ON `my\_1`.* TO 'mysqltest_2'@'localhost' WITH GRANT OPTION
 show grants for mysqltest_3@localhost;
 ERROR 42000: There is no such grant defined for user 'mysqltest_3' on host 'localhost'
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
+create database mysqltest;
+grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
+flush privileges;
+use mysqltest;
+create table t1 (id int primary key, data varchar(255));
+show grants for current_user();
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT SELECT, INSERT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
+use mysqltest;
+insert into t1 values (1, 'I can''t change it!');
+update t1 set data='I can change it!' where id = 1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
+select * from t1;
+id	data
+1	I can't change it!
+drop table t1;
+drop database mysqltest;
+use test;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;

@@ -895,10 +895,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
   int res= -1;
   TABLE_LIST *insert_table_list=
     (TABLE_LIST*) lex->select_lex.table_list.first;
-  my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
   DBUG_ENTER("mysql_test_insert");
 
-  if ((res= insert_precheck(thd, table_list, update)))
+  if ((res= insert_precheck(thd, table_list)))
     DBUG_RETURN(res);
 
   /*
@@ -1388,8 +1387,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     res= mysql_test_insert(stmt, tables, lex->field_list,
 			   lex->many_values,
 			   select_lex->item_list, lex->value_list,
-			   (lex->value_list.elements ?
-			    DUP_UPDATE : lex->duplicates));
+			   lex->duplicates);
     break;
 
   case SQLCOM_UPDATE:
