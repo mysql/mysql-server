@@ -1669,7 +1669,7 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
 {
   String str;
   if (Item_date_func::fix_fields(thd_arg, tables_arg, ref))
-    return 1;
+    return TRUE;
 
   tz_tables= thd_arg->lex->time_zone_tables_used;
 
@@ -1679,7 +1679,7 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
   if (args[2]->const_item())
     to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
 
-  return 0;
+  return FALSE;
 }
 
 

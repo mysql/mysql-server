@@ -44,7 +44,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
   if (thd->locked_tables || thd->active_transaction())
   {
-    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -156,7 +157,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     unpack_filename(name, name);
     if (!access(name,F_OK))
     {
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_alias);
+      my_printf_error(ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                      MYF(0), new_alias);
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
@@ -165,7 +167,8 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
     unpack_filename(name, name);
     if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
     {
-      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+      my_printf_error(ER_FILE_NOT_FOUND, ER(ER_FILE_NOT_FOUND), MYF(0),
+                      name, my_errno);
       if (!skip_error)
 	DBUG_RETURN(ren_table);
     }

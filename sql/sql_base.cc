@@ -1262,7 +1262,8 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh)
     next=table->next;
     if (!tables || (!db_stat && reopen_table(table,1)))
     {
-      my_error(ER_CANT_REOPEN_TABLE,MYF(0),table->table_name);
+      my_printf_error(ER_CANT_REOPEN_TABLE, ER(ER_CANT_REOPEN_TABLE),
+                      MYF(0),table->table_name);
       VOID(hash_delete(&open_cache,(byte*) table));
       error=1;
     }
@@ -1547,7 +1548,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     {
       /* Give right error message */
       thd->clear_error();
-      my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
+      my_printf_error(ER_NOT_KEYFILE, ER(ER_NOT_KEYFILE), MYF(0),
+                      name, my_errno);
       sql_print_error("Couldn't repair table: %s.%s",db,name);
       if (entry->file)
 	closefrm(entry);
@@ -1612,7 +1614,8 @@ err:
   {
     TABLE_LIST * view= table_desc->belong_to_view;
     thd->clear_error();
-    my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str, view->view_name.str);
+    my_printf_error(ER_VIEW_INVALID, ER(ER_VIEW_INVALID), MYF(0),
+                    view->view_db.str, view->view_name.str);
   }
   DBUG_RETURN(1);
 }
@@ -1853,15 +1856,14 @@ int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
     tables	- list of tables for open&locking
 
   RETURN
-    0  - ok
-    -1 - error
-    1  - error reported to user
+    FALSE - ok
+    TRUE  - error
 
   NOTE
     The lock will automaticly be freed by close_thread_tables()
 */
 
-int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
@@ -1870,7 +1872,7 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
       mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
        mysql_handle_derived(thd->lex, &mysql_derived_filling)))
-    DBUG_RETURN(thd->net.report_error ? -1 : 1); /* purecov: inspected */
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   relink_tables_for_multidelete(thd);
   DBUG_RETURN(0);
 }
@@ -2692,9 +2694,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 ** Check that all given fields exists and fill struct with current data
 ****************************************************************************/
 
-int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
-		 List<Item> &fields, bool set_query_id,
-		 List<Item> *sum_func_list, bool allow_sum_func)
+bool setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables, 
+                  List<Item> &fields, bool set_query_id,
+                  List<Item> *sum_func_list, bool allow_sum_func)
 {
   reg2 Item *item;
   List_iterator<Item> it(fields);
@@ -2712,7 +2714,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 	(item= *(it.ref()))->check_cols(1))
     {
       select_lex->no_wrap_view_item= 0;
-      DBUG_RETURN(-1); /* purecov: inspected */
+      DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (ref)
       *(ref++)= item;
@@ -2820,8 +2822,9 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
         (pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
         0)
     {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->real_name);
+      my_printf_error(ER_KEY_COLUMN_DOES_NOT_EXITS,
+                      ER(ER_KEY_COLUMN_DOES_NOT_EXITS), MYF(0),
+                      name->c_ptr(), table->real_name);
       map->set_all();
       return 1;
     }
@@ -3037,9 +3040,10 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     DBUG_RETURN(0);
 
   if (!table_name)
-    my_error(ER_NO_TABLES_USED, MYF(0));
+    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+    my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
+                    table_name);
 
 err:
   DBUG_RETURN(1);
@@ -3261,8 +3265,25 @@ err_no_arena:
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
 
-int
-fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
+
+/*
+  Fill fields with given items.
+
+  SYNOPSIS
+    fill_record()
+    thd           thread handler
+    fields        Item_fields list to be filled
+    values        values to fill with
+    ignore_errors TRUE if we should ignore errors
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+            bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value;
@@ -3277,14 +3298,32 @@ fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors)
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
-      DBUG_RETURN(1);
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(thd->net.report_error);
 }
 
 
-int
-fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
+/*
+  Fill field buffer with values from Field list
+
+  SYNOPSIS
+    fill_record()
+    thd           thread handler
+    ptr           pointer on pointer to record
+    values        list of fields
+    ignore_errors TRUE if we should ignore errors
+
+  RETURN
+    FALSE   OK
+    TRUE    error occured
+*/
+
+bool
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -3298,9 +3337,12 @@ fill_record(Field **ptr,List<Item> &values, bool ignore_errors)
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if ((value->save_in_field(field, 0) < 0) && !ignore_errors)
-      DBUG_RETURN(1);
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(thd->net.report_error);
 }
 
 
@@ -3531,7 +3573,8 @@ open_new_frm(const char *path, const char *alias,
     {
       if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
-        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
+        my_printf_error(ER_WRONG_OBJECT, ER(ER_WRONG_OBJECT), MYF(0),
+                        db, table_name, "BASE TABLE");
         goto err;
       }
       if (mysql_make_view(parser, table_desc))
@@ -3540,7 +3583,8 @@ open_new_frm(const char *path, const char *alias,
     else
     {
       /* only VIEWs are supported now */
-      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), path,  parser->type()->str);
+      my_printf_error(ER_FRM_UNKNOWN_TYPE, ER(ER_FRM_UNKNOWN_TYPE), MYF(0),
+                      path,  parser->type()->str);
       goto err;
     }
     DBUG_RETURN(0);

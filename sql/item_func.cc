@@ -45,10 +45,11 @@ bool check_reserved_words(LEX_STRING *name)
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
+                  ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
+                  c1.collation->name, c1.derivation_name(),
+                  c2.collation->name, c2.derivation_name(),
+                  fname);
 }
 
 static void my_coll_agg_error(DTCollation &c1,
@@ -56,11 +57,12 @@ static void my_coll_agg_error(DTCollation &c1,
 			       DTCollation &c3,
 			       const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
+  my_printf_error(ER_CANT_AGGREGATE_3COLLATIONS,
+                  ER(ER_CANT_AGGREGATE_3COLLATIONS), MYF(0),
+                  c1.collation->name, c1.derivation_name(),
+                  c2.collation->name, c2.derivation_name(),
+                  c3.collation->name, c3.derivation_name(),
+                  fname);
 }
 
 
@@ -74,7 +76,8 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 		      args[2]->collation,
 		      fname);
   else
-    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+    my_printf_error(ER_CANT_AGGREGATE_NCOLLATIONS,
+                    ER(ER_CANT_AGGREGATE_NCOLLATIONS), MYF(0),fname);
 }
 
 
@@ -281,8 +284,8 @@ Item_func::Item_func(THD *thd, Item_func *item)
    item.
 
   RETURN VALUES
-  0	ok
-  1	Got error.  Stored with my_error().
+  FALSE	ok
+  TRUE	Got error.  Stored with my_error().
 */
 
 bool
@@ -298,7 +301,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   const_item_cache=1;
 
   if (check_stack_overrun(thd, buff))
-    return 1;					// Fatal error if flag is set!
+    return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -310,7 +313,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       */
       if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
 	  (*arg)->check_cols(allowed_arg_cols))
-	return 1;				/* purecov: inspected */
+	return TRUE;				/* purecov: inspected */
       item= *arg;
       if (item->maybe_null)
 	maybe_null=1;
@@ -322,10 +325,10 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
   }
   fix_length_and_dec();
-  if (thd->net.last_errno) // An error inside fix_length_and_dec occured
-    return 1;
+  if (thd->net.report_error) // An error inside fix_length_and_dec occured
+    return TRUE;
   fixed= 1;
-  return 0;
+  return FALSE;
 }
 
 bool Item_func::walk (Item_processor processor, byte *argument)
@@ -1708,7 +1711,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (check_stack_overrun(thd, buff))
-    DBUG_RETURN(1);				// Fatal error flag is set!
+    DBUG_RETURN(TRUE);				// Fatal error flag is set!
 
   udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
 
@@ -1716,7 +1719,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   {
     my_printf_error(ER_CANT_FIND_UDF,ER(ER_CANT_FIND_UDF),MYF(0),u_d->name.str,
 		    errno);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
   u_d=tmp_udf;
   args=arguments;
@@ -1733,7 +1736,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 
     {
       free_udf(u_d);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
     uint i;
     Item **arg,**arg_end;
@@ -1746,7 +1749,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	DBUG_RETURN(1);
+	DBUG_RETURN(TRUE);
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -1779,7 +1782,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 						       sizeof(long))))
     {
       free_udf(u_d);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
   }
   func->fix_length_and_dec();
@@ -1838,7 +1841,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
       my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
 		      u_d->name.str, thd->net.last_error);
       free_udf(u_d);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
@@ -1850,9 +1853,9 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   {
     my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
 		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -2463,7 +2466,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
-    return 1;
+    return TRUE;
   /* 
      Remember the last query which updated it, this way a query can later know
      if this variable is a constant item in the query (it is if update_query_id
@@ -2489,7 +2492,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
     entry->collation.set(args[0]->collation);
   collation.set(entry->collation);
   cached_result_type= args[0]->result_type();
-  return 0;
+  return FALSE;
 }
 
 
@@ -2647,7 +2650,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
     will be catched by thd->net.report_error check in sql_set_variables().
 
   RETURN
-    0 - OK.
+    FALSE OK.
 */
 
 bool
@@ -2677,7 +2680,7 @@ Item_func_set_user_var::check()
     DBUG_ASSERT(0);
     break;
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -3140,7 +3143,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
       !args[0]->const_during_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
-    return 1;
+    return TRUE;
   }
 
   const_item_cache=0;
@@ -3163,7 +3166,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
-    return 1;
+    return TRUE;
   }
   table=((Item_field *)item)->field->table;
   table->fulltext_searched=1;
@@ -3245,7 +3248,8 @@ err:
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_error(ER_FT_MATCHING_KEY_NOT_FOUND,MYF(0));
+  my_message(ER_FT_MATCHING_KEY_NOT_FOUND,
+             ER(ER_FT_MATCHING_KEY_NOT_FOUND), MYF(0));
   return 1;
 }
 
@@ -3374,7 +3378,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   {
     if (!var->is_struct())
     {
-      net_printf(thd, ER_VARIABLE_IS_NOT_STRUCT, base_name->str);
+      my_printf_error(ER_VARIABLE_IS_NOT_STRUCT, ER(ER_VARIABLE_IS_NOT_STRUCT),
+                      MYF(0), base_name->str);
       return 0;
     }
   }
