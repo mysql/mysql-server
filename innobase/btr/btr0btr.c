@@ -6,6 +6,9 @@ The B-tree
 Created 6/2/1994 Heikki Tuuri
 *******************************************************/
 
+/* Test a change in bitkeeper */
+
+
 #include "btr0btr.h"
 
 #ifdef UNIV_NONINL
