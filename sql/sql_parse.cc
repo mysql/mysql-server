@@ -1835,7 +1835,7 @@ mysql_execute_command(THD *thd)
       !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
       (uc_update_queries[lex->sql_command] > 0))
   {
-    send_error(thd, ER_CANT_UPDATE_WITH_READLOCK);
+    net_printf(thd, ER_OPTION_PREVENTS_STATEMENT, "--read-only");
     DBUG_VOID_RETURN;
   }
 
@@ -3053,6 +3053,22 @@ mysql_execute_command(THD *thd)
       net_printf(thd, ER_WRONG_DB_NAME, lex->name);
       break;
     }
+    /*
+      If in a slave thread :
+      ALTER DATABASE DB may not be preceded by USE DB.
+      For that reason, maybe db_ok() in sql/slave.cc did not check the 
+      do_db/ignore_db. And as this query involves no tables, tables_ok()
+      above was not called. So we have to check rules again here.
+    */
+#ifdef HAVE_REPLICATION
+    if (thd->slave_thread && 
+	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(lex->name)))
+    {
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      break;
+    }
+#endif
     if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
