@@ -1523,7 +1523,7 @@ sp_proc_stmt:
 	      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
 		  lex->sql_command != SQLCOM_SET_OPTION)
 	      {
-		send_error(YYTHD, ER_SP_BADQUERY);
+		send_error(YYTHD, ER_SP_BADSTATEMENT);
 		YYABORT;
 	      }
 	      else
