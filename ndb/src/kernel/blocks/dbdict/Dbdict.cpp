@@ -4725,6 +4725,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     /**
      * Ignore incoming old-style type and recompute it.
      */
+    attrDesc.print(stdout);
     bool translateOk = attrDesc.translateExtType();
     tabRequire(translateOk, CreateTableRef::Inconsistency);
 
