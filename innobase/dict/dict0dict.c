@@ -1987,7 +1987,7 @@ loop:
 	ptr = dict_accept(ptr, (char *) "FOREIGN", &success);		
 	
 	if (!isspace(*ptr)) {
-		return(DB_CANNOT_ADD_CONSTRAINT);
+	        goto loop;
 	}
 
 	ptr = dict_accept(ptr, (char *) "KEY", &success);

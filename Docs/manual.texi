@@ -48998,6 +48998,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
 * News-3.23.47::                Changes in release 3.23.47
@@ -49051,7 +49052,23 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.49, News-3.23.48, News-3.23.x, News-3.23.x
+@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.50
+@itemize @bullet
+@item
+Memory leak (16 bytes per every @strong{corrupted} table) closed.
+@item
+Fixed binary builds to use @code{--enable-local-infile}.
+@item
+Update source to work with new @code{bison} version.
+@item
+Updated shell scripts to new agree with new POSIX standard.
+@item
+Fixed bug where @code{DATE_FORMAT()} returned empty string when used
+with @code{GROUP BY}.
+@end itemize
+
+@node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x
 @appendixsubsec Changes in release 3.23.49
 @itemize @bullet
 @item
@@ -49066,6 +49083,8 @@ Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 MySQL binary release 3.23.48 for Linux contained a new glibc library, which
 has serious problems under high load and RedHat 7.2.  The 3.23.49 binary
 release doesn't have this problem.
+@item
+Fixed shutdown problem on NT.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x

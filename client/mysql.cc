@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.20";
+const char *VER="11.21";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1886,10 +1886,17 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   {
     while (isspace(*param))
       param++;
-    end=strmake(file_name, param, sizeof(file_name)-1);
+    end= strend(param);
     while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
       end--;
-    end[0]=0;
+    end[0]= 0;
+    if ((*(end - 1) == '"' && *param == '"') ||
+	(*(end - 1) == '\'' && *param == '\''))
+    {
+      *--end= 0;
+      param++;
+    }
+    strmake(file_name, param, sizeof(file_name) - 1);
     strmov(outfile, file_name);
   }
   if (!strlen(outfile))
@@ -1897,11 +1904,10 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     printf("No outfile specified!\n");
     return 0;
   }
-  if (!opt_outfile)
-  {
-    init_tee();
-    opt_outfile=1;
-  }
+  if (opt_outfile)
+    end_tee();
+  init_tee();
+  opt_outfile= 1;
   tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
   return 0;
 }
