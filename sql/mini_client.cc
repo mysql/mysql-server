@@ -351,11 +351,11 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
 ** or packet is an error message
 *****************************************************************************/
 
-uint STDCALL
+ulong STDCALL
 mc_net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
-  uint len=0;
+  ulong len=0;
 
   if (net->vio != 0)
     len=my_net_read(net);
@@ -514,7 +514,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   my_socket	sock;
   ulong		ip_addr;
   struct	sockaddr_in sock_addr;
-  uint		pkt_length;
+  ulong		pkt_length;
   NET		*net= &mysql->net;
   thr_alarm_t   alarmed;
   ALARM alarm_buff;
@@ -921,8 +921,8 @@ void STDCALL mc_mysql_free_result(MYSQL_RES *result)
       DBUG_PRINT("warning",("Not all rows in set were read; Ignoring rows"));
       for (;;)
       {
-	uint pkt_len;
-	if ((pkt_len=(uint) mc_net_safe_read(result->handle)) == packet_error)
+	ulong pkt_len;
+	if ((pkt_len=mc_net_safe_read(result->handle)) == packet_error)
 	  break;
 	if (pkt_len == 1 && result->handle->net.read_pos[0] == 254)
 	  break;				/* End of data */
@@ -999,7 +999,7 @@ int STDCALL mc_mysql_read_query_result(MYSQL *mysql)
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
-  uint length;
+  ulong length;
   DBUG_ENTER("mc_mysql_read_query_result");
 
   if ((length = mc_net_safe_read(mysql)) == packet_error)
@@ -1174,7 +1174,8 @@ static my_ulonglong mc_net_field_length_ll(uchar **packet)
 static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			     uint fields)
 {
-  uint	field,pkt_len;
+  uint	field;
+  ulong pkt_len;
   ulong len;
   uchar *cp;
   char	*to;
@@ -1183,7 +1184,7 @@ static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   NET *net = &mysql->net;
   DBUG_ENTER("mc_read_rows");
 
-  if ((pkt_len=(uint) mc_net_safe_read(mysql)) == packet_error)
+  if ((pkt_len=mc_net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
@@ -1260,7 +1261,7 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
   ulong pkt_len,len;
   uchar *pos,*prev_pos;
 
-  if ((pkt_len=(uint) mc_net_safe_read(mysql)) == packet_error)
+  if ((pkt_len=mc_net_safe_read(mysql)) == packet_error)
     return -1;
   if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
     return 1;				/* End of data */

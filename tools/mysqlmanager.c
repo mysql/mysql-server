@@ -133,7 +133,7 @@ typedef enum {PARAM_STDOUT,PARAM_STDERR} PARAM_TYPE;
 
 struct manager_thd
 {
-  Vio* vio;
+  NET net;
   char user[MAX_USER_NAME+1];
   int priv_flags;
   char* cmd_buf;
@@ -154,7 +154,7 @@ struct manager_exec* cur_launch_exec=0;
 static struct manager_thd* manager_thd_new(Vio* vio);
 
 static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end);
-static void manager_exec_print(Vio* vio,struct manager_exec* e);
+static void manager_exec_print(NET* net,struct manager_exec* e);
 static void manager_thd_free(struct manager_thd* thd);
 static void manager_exec_free(void* e);
 static void manager_exec_connect(struct manager_exec* e);
@@ -291,9 +291,9 @@ static void die(const char* fmt,...);
 static void print_time(FILE* fp);
 static void clean_up();
 static struct manager_cmd* lookup_cmd(char* s,int len);
-static void client_msg(Vio* vio,int err_code,const char* fmt,...);
-static void client_msg_pre(Vio* vio,int err_code,const char* fmt,...);
-static void client_msg_raw(Vio* vio,int err_code,int pre,const char* fmt,
+static int client_msg(NET* net,int err_code,const char* fmt,...);
+static int client_msg_pre(NET* net,int err_code,const char* fmt,...);
+static int client_msg_raw(NET* net,int err_code,int pre,const char* fmt,
 			    va_list args);
 static int authenticate(struct manager_thd* thd);
 static char* read_line(struct manager_thd* thd); /* returns pointer to end of
@@ -306,6 +306,27 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 #ifdef DO_STACKTRACE
 void print_stacktrace();
 #endif
+
+static void log_msg(const char* fmt, int msg_type, va_list args);
+
+/* No 'inline' here becasue functions with ... can't do that portable */
+#define LOG_MSG_FUNC(type,TYPE) static void type  \
+ (const char* fmt,...) { \
+  va_list args; \
+  va_start(args,fmt); \
+  log_msg(fmt,TYPE,args);\
+ }
+
+LOG_MSG_FUNC(log_err,LOG_ERR)
+LOG_MSG_FUNC(log_warn,LOG_WARN)
+LOG_MSG_FUNC(log_info,LOG_INFO)
+
+#ifndef DBUG_OFF
+LOG_MSG_FUNC(log_debug,LOG_DEBUG)
+#else
+void log_debug(const char* __attribute__((unused)) fmt,...) {}
+#endif
+
 
 static void handle_segfault(int sig)
 {
@@ -369,11 +390,13 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
   struct manager_cmd* cmd;
   for (;p<buf_end && !isspace(*p);p++)
     *p=tolower(*p);
+  log_info("Command '%s'", buf);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
-    client_msg(thd->vio,MANAGER_CLIENT_ERR,
-	       "Unrecognized command, type help to see list of supported\
- commands");
+    if(client_msg(&thd->net,MANAGER_CLIENT_ERR,
+	       "Unrecognized command '%s', type help to see list of supported\
+ commands", buf))
+      thd->fatal=1;
     return 1;
   }
   for (;p<buf_end && isspace(*p);p++);
@@ -393,13 +416,13 @@ static struct manager_cmd* lookup_cmd(char* s,int len)
 
 HANDLE_NOARG_DECL(handle_ping)
 {
-  client_msg(thd->vio,MANAGER_OK,"Server management daemon is alive");
+  client_msg(&thd->net,MANAGER_OK,"Server management daemon is alive");
   return 0;
 }
 
 HANDLE_NOARG_DECL(handle_quit)
 {
-  client_msg(thd->vio,MANAGER_OK,"Goodbye");
+  client_msg(&thd->net,MANAGER_OK,"Goodbye");
   thd->finished=1;
   return 0;
 }
@@ -407,19 +430,19 @@ HANDLE_NOARG_DECL(handle_quit)
 HANDLE_NOARG_DECL(handle_help)
 {
   struct manager_cmd* cmd = commands;
-  Vio* vio = thd->vio;
-  client_msg_pre(vio,MANAGER_INFO,"Available commands:");
+  NET* net = &thd->net;
+  client_msg_pre(net,MANAGER_INFO,"Available commands:");
   for (;cmd->name;cmd++)
   {
-    client_msg_pre(vio,MANAGER_INFO,"%s - %s", cmd->name, cmd->help);
+    client_msg_pre(net,MANAGER_INFO,"%s - %s", cmd->name, cmd->help);
   }
-  client_msg_pre(vio,MANAGER_INFO,"End of help");
+  client_msg_pre(net,MANAGER_INFO,"End of help");
   return 0;
 }
 
 HANDLE_NOARG_DECL(handle_shutdown)
 {
-  client_msg(thd->vio,MANAGER_OK,"Shutdown started, goodbye");
+  client_msg(&thd->net,MANAGER_OK,"Shutdown started, goodbye");
   thd->finished=1;
   shutdown_requested = 1;
   if (!one_thread)
@@ -470,10 +493,10 @@ HANDLE_DECL(handle_set_exec_con)
     }
   }
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MANAGER_OK,"Entry updated");
+  client_msg(&thd->net,MANAGER_OK,"Entry updated");
   return 0;
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -531,10 +554,10 @@ static int set_exec_param(struct manager_thd* thd, char* args_start,
   }
   strnmov(param,arg_p,FN_REFLEN);
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MANAGER_OK,"Entry updated");
+  client_msg(&thd->net,MANAGER_OK,"Entry updated");
   return 0;
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -581,10 +604,10 @@ HANDLE_DECL(handle_start_exec)
   pthread_mutex_unlock(&e->lock);
   if (error)
     goto err;
-  client_msg(thd->vio,MANAGER_OK,"'%s' started",e->ident);
+  client_msg(&thd->net,MANAGER_OK,"'%s' started",e->ident);
   return 0;
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -636,11 +659,11 @@ HANDLE_DECL(handle_stop_exec)
   pthread_mutex_unlock(&e->lock);
   if (!error)
   {
-    client_msg(thd->vio,MANAGER_OK,"'%s' terminated",e->ident);
+    client_msg(&thd->net,MANAGER_OK,"'%s' terminated",e->ident);
     return 0;
   }
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -705,7 +728,7 @@ HANDLE_DECL(handle_query)
       *p++='\t';
     }
     *p=0;
-    client_msg_pre(thd->vio,MANAGER_OK,buf);
+    client_msg_pre(&thd->net,MANAGER_OK,buf);
     
     while ((row=mysql_fetch_row(res)))
     {
@@ -716,14 +739,14 @@ HANDLE_DECL(handle_query)
 	*p++='\t';
       }
       *p=0;
-      client_msg_pre(thd->vio,MANAGER_OK,buf);
+      client_msg_pre(&thd->net,MANAGER_OK,buf);
     }
   }
   pthread_mutex_unlock(&e->lock);
-  client_msg(thd->vio,MANAGER_OK,"End");
+  client_msg(&thd->net,MANAGER_OK,"End");
   return 0;
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   return 1;
 }
 
@@ -756,10 +779,10 @@ HANDLE_DECL(handle_def_exec)
   }
   hash_insert(&exec_hash,(byte*)e);
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MANAGER_OK,"Exec definition created");
+  client_msg(&thd->net,MANAGER_OK,"Exec definition created");
   return 0;
 err:
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  client_msg(&thd->net,MANAGER_CLIENT_ERR,error);
   if (e)
     manager_exec_free(e);
   return 1;
@@ -768,16 +791,16 @@ err:
 HANDLE_NOARG_DECL(handle_show_exec)
 {
   uint i;
-  client_msg_pre(thd->vio,MANAGER_INFO,"Exec_def\tPid\tExit_status\tCon_info\
+  client_msg_pre(&thd->net,MANAGER_INFO,"Exec_def\tPid\tExit_status\tCon_info\
 \tStdout\tStderr\tArguments");
   pthread_mutex_lock(&lock_exec_hash);
   for (i=0;i<exec_hash.records;i++)
   {
     struct manager_exec* e=(struct manager_exec*)hash_element(&exec_hash,i);
-    manager_exec_print(thd->vio,e);
+    manager_exec_print(&thd->net,e);
   }
   pthread_mutex_unlock(&lock_exec_hash);
-  client_msg(thd->vio,MANAGER_INFO,"End");
+  client_msg(&thd->net,MANAGER_INFO,"End");
   return 0;
 }
 
@@ -873,7 +896,7 @@ static char* arg_strmov(char* dest, const char* src, int n)
   return dest;
 }
 
-static void manager_exec_print(Vio* vio,struct manager_exec* e)
+static void manager_exec_print(NET* net,struct manager_exec* e)
 {
   char buf[MAX_MYSQL_MANAGER_MSG];
   char* p=buf,*buf_end=buf+sizeof(buf)-1;
@@ -921,7 +944,7 @@ static void manager_exec_print(Vio* vio,struct manager_exec* e)
   }
 end:  
   *p=0;
-  client_msg_pre(vio,MANAGER_INFO,buf);
+  client_msg_pre(net,MANAGER_INFO,buf);
   return;
 }
 
@@ -933,7 +956,7 @@ static int authenticate(struct manager_thd* thd)
   struct manager_user* u;
   char c;
   
-  client_msg(thd->vio,MANAGER_INFO, manager_greeting);
+  client_msg(&thd->net,MANAGER_INFO, manager_greeting);
   if (!(buf_end=read_line(thd)))
     return -1;
   for (buf=thd->cmd_buf,p=thd->user,p_end=p+MAX_USER_NAME;
@@ -959,7 +982,7 @@ static int authenticate(struct manager_thd* thd)
   my_MD5Final(digest,&context);
   if (memcmp(u->md5_pass,digest,MD5_LEN))
     return 1;
-  client_msg(thd->vio,MANAGER_OK,"OK");
+  client_msg(&thd->net,MANAGER_OK,"OK");
   return 0;
 }
 
@@ -1024,24 +1047,6 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   fflush(errfp);
   pthread_mutex_unlock(&lock_log);
 }
-
-/* No 'inline' here becasue functions with ... can't do that portable */
-#define LOG_MSG_FUNC(type,TYPE) static void type  \
- (const char* fmt,...) { \
-  va_list args; \
-  va_start(args,fmt); \
-  log_msg(fmt,TYPE,args);\
- }
-
-LOG_MSG_FUNC(log_err,LOG_ERR)
-LOG_MSG_FUNC(log_warn,LOG_WARN)
-LOG_MSG_FUNC(log_info,LOG_INFO)
-
-#ifndef DBUG_OFF
-LOG_MSG_FUNC(log_debug,LOG_DEBUG)
-#else
-void log_debug(const char* __attribute__((unused)) fmt,...) {}
-#endif
 
 static pthread_handler_decl(process_launcher_messages,
 			    __attribute__((unused)) arg)
@@ -1121,7 +1126,7 @@ static pthread_handler_decl(process_connection,arg)
   return 0;					/* Don't get cc warning */
 }
 
-static void client_msg_raw(Vio* vio, int err_code, int pre, const char* fmt,
+static int client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
 			   va_list args)
 {
   char buf[MAX_CLIENT_MSG_LEN],*p,*buf_end;
@@ -1136,73 +1141,51 @@ static void client_msg_raw(Vio* vio, int err_code, int pre, const char* fmt,
     p=buf_end - 2;
   *p++='\r';
   *p++='\n';
-  if (vio_write(vio,buf,(uint)(p-buf))<=0)
-    log_err("Failed writing to client: errno=%d",errno);
+  
+  if (my_net_write(net,buf,(uint)(p-buf)) || net_flush(net))
+  {
+    p[-2]=0;
+    log_err("Failed writing '%s' to client: errno=%d",buf,errno);
+    net_end(net);
+    return 1;
+  }
+  return 0;
 }
 
-static void client_msg(Vio* vio, int err_code, const char* fmt, ...)
+static int client_msg(NET* net, int err_code, const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
-  client_msg_raw(vio,err_code,0,fmt,args);
+  return client_msg_raw(net,err_code,0,fmt,args);
 }
 
-static void client_msg_pre(Vio* vio, int err_code, const char* fmt, ...)
+static int client_msg_pre(NET* net, int err_code, const char* fmt, ...)
 {
   va_list args;
   va_start(args,fmt);
-  client_msg_raw(vio,err_code,1,fmt,args);
+  return client_msg_raw(net,err_code,1,fmt,args);
 }
 
 static char* read_line(struct manager_thd* thd)
 {
-  char* p=thd->cmd_buf;
-  char* buf_end = thd->cmd_buf + manager_max_cmd_len;
-  int escaped = 0;
-  for (;p<buf_end;)
-  {
-    int len,read_len;
-    char *block_end,*p_back;
-    uint retry_count=0;
-
-    read_len = min(NET_BLOCK,(uint)(buf_end-p));
-    while ((len=vio_read(thd->vio,p,read_len))<=0)
+  int len;
+  char* p, *buf_end;
+  if ((len=my_net_read(&thd->net)) == (int)packet_error || !len)
     {
-      if (vio_should_retry(thd->vio) && retry_count++ < MAX_RETRY_COUNT)
-	continue;
       log_err("Error reading command from client (Error: %d)",
-	      vio_errno(thd->vio));
+	      errno);
       thd->fatal=1;
       return 0;
     }
-    block_end=p+len;
-    /* a trick to unescape in place */
-    for (p_back=p;p<block_end;p++)
+  buf_end=thd->cmd_buf+len;
+  for (p=thd->cmd_buf;p<buf_end;p++)
+    if (*p == '\r' || *p == '\n')
     {
-      char c=*p;
-      if (c==ESCAPE_CHAR)
-      {
-	if (!escaped)
-	{
-	  escaped=1;
-	  continue;
-	}
-	else
-	  escaped=0;
-      }
-      if (c==EOL_CHAR && !escaped)
-	break;
-      *p_back++=c;
-      escaped=0;
+      *p=0;
+      break;
     }
-    if (p!=block_end)
-    {
-      *p_back=0;
-      return p_back;
-    }
-  }
-  client_msg(thd->vio,MANAGER_CLIENT_ERR,"Command line too long");
-  return 0;
+  
+  return p;
 }
 
 static void handle_child(int __attribute__((unused)) sig)
@@ -1225,25 +1208,29 @@ static void handle_child(int __attribute__((unused)) sig)
 struct manager_thd* manager_thd_new(Vio* vio)
 {
   struct manager_thd* tmp;
-  if (!(tmp=(struct manager_thd*)my_malloc(sizeof(*tmp)+manager_max_cmd_len,
+  if (!(tmp=(struct manager_thd*)my_malloc(sizeof(*tmp),
 					MYF(0))))
   {
     log_err("Out of memory in manager_thd_new");
     return 0;
   }
-  tmp->vio=vio;
+  my_net_init(&tmp->net,vio);
   tmp->user[0]=0;
   tmp->priv_flags=0;
   tmp->fatal=tmp->finished=0;
-  tmp->cmd_buf=(char*)tmp+sizeof(*tmp);
+  tmp->cmd_buf=tmp->net.read_pos;
   return tmp;
 }
 
 static void manager_thd_free(struct manager_thd* thd)
 {
-  if (thd->vio)
-    vio_close(thd->vio);
-  my_free((byte*)thd->vio,MYF(0));
+  NET* net=&thd->net;
+  if (net->vio)
+  {
+    vio_delete(net->vio);
+    net->vio=0;
+  }
+  net_end(&thd->net);
 }
 
 static void clean_up()
@@ -1410,15 +1397,18 @@ static int run_server_loop()
       vio_close(vio);
       continue;
     }
-    
     if (authenticate(thd))
     {
-      client_msg(vio,MANAGER_ACCESS, "Access denied");
+      client_msg(&thd->net,MANAGER_ACCESS, "Access denied");
       manager_thd_free(thd);
+      log_info("Client failed to authenticate");
       continue;
     }
     if (shutdown_requested)
+    {
+      manager_thd_free(thd);
       break;
+    }
     if (one_thread)
     {
       process_connection((void*)thd);
@@ -1427,7 +1417,8 @@ static int run_server_loop()
     }
     else if (pthread_create(&th,&thr_attr,process_connection,(void*)thd))
     {
-      client_msg(vio,MANAGER_INTERNAL_ERR,"Could not create thread, errno=%d",
+      client_msg(&thd->net,MANAGER_INTERNAL_ERR,
+		 "Could not create thread, errno=%d",
 		 errno);
       manager_thd_free(thd);
       continue;

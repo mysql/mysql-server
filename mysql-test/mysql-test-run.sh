@@ -233,6 +233,9 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
       ;;
+    --strace-client )
+      STRACE_CLIENT=1
+      ;;        
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
        --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
@@ -298,6 +301,10 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
+ if [ -n "$STRACE_CLIENT" ]; then
+  MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
+ fi
+ 
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
@@ -667,8 +674,8 @@ start_master()
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
-      manager_launch master $XTERM -display :0 -title "Master" -e gdb -x \
-       $GDB_MASTER_INIT $MYSQLD 
+      manager_launch master $XTERM -display $DISPLAY \
+      -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD 
     else	    
       manager_launch master $MYSQLD $master_args  
     fi  

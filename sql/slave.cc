@@ -335,7 +335,7 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
 {
-  uint packet_len = my_net_read(net); // read create table statement
+  ulong packet_len = my_net_read(net); // read create table statement
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -870,7 +870,7 @@ command");
 
 static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
-  uint len = packet_error;
+  ulong len = packet_error;
   // for convinience lets think we start by
   // being in the interrupted state :-)
   int read_errno = EINTR;
@@ -890,7 +890,7 @@ static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
   }
   if (abort_loop || abort_slave)
     return packet_error;
-  if (len == packet_error || (int) len < 1)
+  if (len == packet_error || (long) len < 1)
   {
     sql_print_error("Error reading packet from server: %s (read_errno %d,\
 server_errno=%d)",
