@@ -2559,6 +2559,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   When using LOCK TABLE's external_lock is only called when the actual
   TABLE LOCK is done.
   Under LOCK TABLES, each used tables will force a call to start_stmt.
+  Ndb doesn't currently support table locks, and will do ordinary
+  startTransaction for each transaction/statement.
 */
 
 int ha_ndbcluster::start_stmt(THD *thd)
@@ -2574,7 +2576,9 @@ int ha_ndbcluster::start_stmt(THD *thd)
     NdbConnection *tablock_trans= 
       (NdbConnection*)thd->transaction.all.ndb_tid;
     DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
-    DBUG_ASSERT(tablock_trans);    trans= m_ndb->hupp(tablock_trans);
+    DBUG_ASSERT(tablock_trans);
+//    trans= m_ndb->hupp(tablock_trans);
+    trans= m_ndb->startTransaction();
     if (trans == NULL)
       ERR_RETURN(m_ndb->getNdbError());
     thd->transaction.stmt.ndb_tid= trans;
