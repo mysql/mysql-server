@@ -65,7 +65,7 @@ static bool create_total_list(THD *thd, LEX *lex,
 			      TABLE_LIST **result, bool skip_first);
 static bool check_one_table_access(THD *thd, ulong want_access,
 				   TABLE_LIST *table, bool no_errors);
-static inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
+
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -108,6 +108,7 @@ static void unlock_locked_tables(THD *thd)
   }
 }
 
+
 static bool end_active_trans(THD *thd)
 {
   int error=0;
@@ -120,6 +121,14 @@ static bool end_active_trans(THD *thd)
       error=1;
   }
   return error;
+}
+
+
+inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
+{
+  return (table_rules_on && tables && !tables_ok(thd,tables) &&
+          ((thd->lex.sql_command != SQLCOM_DELETE_MULTI) ||
+           !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)));
 }
 
 
@@ -2967,12 +2976,6 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select->table_list.save_and_clear(&lex->auxilliary_table_list);
 }
 
-static inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
-{
-  return (table_rules_on && tables && !tables_ok(thd,tables) &&
-          ((thd->lex.sql_command != SQLCOM_DELETE_MULTI) ||
-           !tables_ok(thd,(TABLE_LIST *)thd->lex.auxilliary_table_list.first)));
-}
 
 /*
   When you modify mysql_parse(), you may need to mofify
