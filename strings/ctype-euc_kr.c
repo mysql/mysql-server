@@ -183,19 +183,19 @@ uchar NEAR sort_order_euc_kr[]=
 #define iseuc_kr(c)     ((0xa1<=(uchar)(c) && (uchar)(c)<=0xfe))
 
 
-int ismbchar_euc_kr(const char* p, const char *e)
+int ismbchar_euc_kr(CHARSET_INFO *cs,const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
           iseuc_kr(*(p)) && (e)-(p)>1 && iseuc_kr(*((p)+1))? 2:\
           0);
 }
 
-my_bool ismbhead_euc_kr(uint c)
+my_bool ismbhead_euc_kr(CHARSET_INFO *cs,uint c)
 {
   return (iseuc_kr(c));
 }
 
-int mbcharlen_euc_kr(uint c)
+int mbcharlen_euc_kr(CHARSET_INFO *cs,uint c)
 {
   return (iseuc_kr(c) ? 2 : 0);
 }

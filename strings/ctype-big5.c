@@ -378,17 +378,17 @@ my_bool my_like_range_big5(CHARSET_INFO *cs,
   return 0;
 }
 
-int ismbchar_big5(const char* p, const char *e)
+int ismbchar_big5(CHARSET_INFO *cs,const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_big5(uint c)
+my_bool ismbhead_big5(CHARSET_INFO *cs, uint c)
 {
   return isbig5head(c);
 }
 
-int mbcharlen_big5(uint c)
+int mbcharlen_big5(CHARSET_INFO *cs, uint c)
 {
   return (isbig5head(c)? 2: 0);
 }
