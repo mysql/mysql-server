@@ -2178,7 +2178,7 @@ mysql_execute_command(void)
       }
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
-      if (!thd->col_access && grant_option && check_grant_db(thd,db))
+      if (!thd->col_access && check_grant_db(thd,db))
       {
 	net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 		   thd->priv_user,
