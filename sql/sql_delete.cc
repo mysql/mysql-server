@@ -150,7 +150,7 @@ int mysql_delete(THD *thd,
 			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
 #ifdef HAVE_INNOBASE_DB
   /* We need to add code to not generate table based on the table type */
-  if (!innobase_skip)
+  if (!innodb_skip)
     use_generate_table=0;		// Innobase can't use re-generate table
 #endif
   if (use_generate_table && ! thd->open_tables)
@@ -294,15 +294,27 @@ int mysql_delete(THD *thd,
 
 
 #define MEM_STRIP_BUF_SIZE 2048
+#ifndef SINISAS_STRIP
+int refposcmp2(void* arg, const void *a,const void *b)
+{
+  return memcmp(a,b,(int)arg);
+}
+#endif
 
 int
 multi_delete::prepare(List<Item> &values)
 {
   DBUG_ENTER("multi_delete::prepare");
+  uint counter = 0;
+#ifdef SINISAS_STRIP
   tempfiles = (IO_CACHE **) sql_calloc(sizeof(IO_CACHE *)*(num_of_tables));
-  memory_lane = (byte *)sql_alloc(MAX_REFLENGTH*MEM_STRIP_BUF_SIZE); uint counter = 0;
+  memory_lane = (byte *)sql_alloc(MAX_REFLENGTH*MEM_STRIP_BUF_SIZE);
+#else
+  tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables));
+#endif
+  do_delete = true;   
   dup_checking = (byte *) sql_calloc(MAX_REFLENGTH * (num_of_tables + 1));
-  memset(dup_checking,'\xFF', MAX_REFLENGTH * (num_of_tables + 1)); do_delete = true;
+  memset(dup_checking,'\xFF', MAX_REFLENGTH * (num_of_tables + 1)); 
   for (table_being_deleted=delete_tables; table_being_deleted; table_being_deleted=table_being_deleted->next, counter++)
   {
     TABLE *table=table_being_deleted->table;
@@ -314,12 +326,16 @@ multi_delete::prepare(List<Item> &values)
     (void) table->file->extra(HA_EXTRA_NO_READCHECK);
     if (counter < num_of_tables)
     {
+#ifdef SINISAS_STRIP
       tempfiles[counter]=(IO_CACHE *)sql_alloc(sizeof(IO_CACHE));
       if (open_cached_file(tempfiles[counter], mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE, MYF(MY_WME)))
       {
 	my_error(ER_CANT_OPEN_FILE,MYF(0),(tempfiles[counter])->file_name,errno);
 	DBUG_RETURN(1);
       }
+#else
+    tempfiles[counter] = new Unique (refposcmp2,(void *)table->file->ref_length,table->file->ref_length,MEM_STRIP_BUF_SIZE);
+#endif
     }
   }
   thd->proc_info="updating";
@@ -330,7 +346,11 @@ multi_delete::~multi_delete()
 {
   for (uint counter = 0; counter < num_of_tables; counter++)
     if (tempfiles[counter])
-    end_io_cache(tempfiles[counter]);
+#ifdef SINISAS_STRIP
+//      end_io_cache(tempfiles[counter]);
+#else
+  delete tempfiles[counter];
+#endif
 // Here it crashes ...
 }
 
@@ -342,7 +362,7 @@ bool multi_delete::send_data(List<Item> &values)
     TABLE *table=table_being_deleted->table;
     table->file->position(table->record[0]); int rl = table->file->ref_length;
     byte *dup_check = dup_checking + (secure_counter + 1)*MAX_REFLENGTH;
-    if (!table->null_row && memcmp(dup_check,table->file->ref, rl) && memcmp(table->file->ref,wrong_record,rl))
+    if (!table->null_row && memcmp(dup_check,table->file->ref, rl))
     {
       memcpy(dup_check,table->file->ref,rl);
       if (secure_counter == -1)
@@ -357,7 +377,11 @@ bool multi_delete::send_data(List<Item> &values)
       }
       else
       {
+#ifdef SINISAS_STRIP
 	if (my_b_write(tempfiles[secure_counter],table->file->ref,rl))
+#else
+	if (tempfiles[secure_counter]->unique_add(table->file->ref))
+#endif
 	{
 	  error=-1;
 	  return 1;
@@ -687,11 +711,7 @@ static IO_CACHE *strip_duplicates_from_temp (byte *memory_lane, IO_CACHE *ptr, u
     return tempptr;
   }
 }
-#else
-int refposcmp2(void* arg, const void *a,const void *b)
-{
-  return memcmp(a,b,(int)arg);
-}
+
 #endif
 
 static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
@@ -708,9 +728,14 @@ static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
 
 void multi_delete::send_error(uint errcode,const char *err)
 {
+// First send error what ever it is ...
   ::send_error(&thd->net,errcode,err);
+// If nothing deleted return
   if (!deleted) return;
+// Below can happen when thread is killed ...
   if (!table_being_deleted) table_being_deleted=delete_tables;
+// If rows from the first table only has been deleted and it is transactional, just do rollback
+// The same if all tables are transactional, regardless of where we are. In all other cases do attempt deletes ...
   if ((table_being_deleted->table->file->has_transactions() && table_being_deleted == delete_tables) || !some_table_is_not_transaction_safe(delete_tables))
     ha_rollback(current_thd);
   else if (do_delete)
@@ -732,30 +757,16 @@ int  multi_delete::do_deletes (bool from_send_error)
   for (table_being_deleted=table_being_deleted->next; table_being_deleted ; counter++, table_being_deleted=table_being_deleted->next)
   { 
     table = table_being_deleted->table; int rl = table->file->ref_length;
+#ifdef SINISAS_STRIP
     int num_of_positions =  (int)my_b_tell(tempfiles[counter])/rl;
     if (!num_of_positions) continue;
-#ifdef SINISAS_STRIP
     tempfiles[counter] = strip_duplicates_from_temp(memory_lane, tempfiles[counter],rl,&num_of_positions);
     if (!num_of_positions)
     {
       error=1; break;
     }
 #else
-    Unique strip_it(refposcmp2,(void *)rl,rl,MEM_STRIP_BUF_SIZE);
-    if (reinit_io_cache(tempfiles[counter],READ_CACHE,0L,0,0))
-    {
-      error=1; break;
-    }
-    for (count = 0; count < num_of_positions; count++)
-    {
-      byte tmp [MAX_REFLENGTH];
-      if (my_b_read(tempfiles[counter], tmp, rl) || strip_it.unique_add(tmp))
-      {
-	error = 1;
-	break;
-      }
-    }
-    strip_it.get(table);
+    tempfiles[counter]->get(table);
 #endif
 #if 0
     if (num_of_positions == table->file->records) // nice little optimization ....
@@ -773,12 +784,17 @@ int  multi_delete::do_deletes (bool from_send_error)
     else
     {
 #endif				
+      READ_RECORD	info; error=0;
+#ifdef SINISAS_STRIP
       SQL_SELECT	*select= new SQL_SELECT;
-      READ_RECORD	info;
       select->head=table;
       select->file=*tempfiles[counter];
-      init_read_record(&info,thd,table,select,0,0); error=0;
-      while (!(error=info.read_record(&info)) && (!thd->killed ||  from_send_error))
+      init_read_record(&info,thd,table,select,0,0);
+#else
+      init_read_record(&info,thd,table,NULL,0,0);
+#endif
+      bool not_trans_safe = some_table_is_not_transaction_safe(delete_tables);
+      while (!(error=info.read_record(&info)) && (!thd->killed ||  from_send_error || not_trans_safe))
       {
 	error=table->file->delete_row(table->record[0]);
 	if (error)
@@ -789,8 +805,11 @@ int  multi_delete::do_deletes (bool from_send_error)
 	else
 	  deleted++;
       }
-      end_read_record(&info);	 delete select;
-      if (error = -1) error = 0; // Monty, that is what read_record returns on end of the file !!
+      end_read_record(&info); 
+#ifdef SINISAS_STRIP
+      delete select;
+#endif
+      if (error = -1) error = 0;
 #if 0
     }
 #endif
@@ -821,11 +840,6 @@ bool multi_delete::send_eof()
     if (mysql_bin_log.write(&qinfo) && !some_table_is_not_transaction_safe(delete_tables))
       error=1;
     VOID(ha_autocommit_or_rollback(thd,error >= 0));
-  }
-  if (thd->lock)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
   }
   ::send_ok(&thd->net,deleted);
   return 0;

@@ -464,34 +464,6 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
 };
-
- class multi_delete : public select_result {
-   TABLE_LIST *delete_tables, *table_being_deleted;
-   IO_CACHE **tempfiles;
-   thr_lock_type lock_option;
-   ulong deleted;
-   byte *dup_checking, wrong_record[MAX_REFLENGTH], *memory_lane;
-   int num_of_tables, error;
-   bool do_delete;
-   THD *thd;
- public:
-   multi_delete(TABLE_LIST *dt, thr_lock_type o, uint n)
-     : delete_tables (dt), lock_option(o), deleted(0), num_of_tables(n), error(0)
-   {
-     memset(wrong_record,'\xFF',MAX_REFLENGTH);
-     thd = current_thd; do_delete = false;
-   }
-   ~multi_delete();
-   int prepare(List<Item> &list);
-   bool send_fields(List<Item> &list,
- 		   uint flag) { return 0; }
-   bool send_data(List<Item> &items);
-   void send_error(uint errcode,const char *err);
-   int  do_deletes (bool from_send_error);
-   bool send_eof();
- };
-
-
 class select_insert :public select_result {
  protected:
   TABLE *table;
@@ -619,3 +591,35 @@ public:
   friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
+
+ class multi_delete : public select_result {
+   TABLE_LIST *delete_tables, *table_being_deleted;
+#ifdef SINISAS_STRIP
+   IO_CACHE **tempfiles;
+   byte *memory_lane;
+#else
+   Unique  **tempfiles;
+#endif
+   byte * dup_checking;
+   THD *thd;
+   ha_rows deleted;
+   int num_of_tables, error;
+   thr_lock_type lock_option;
+   bool do_delete;
+ public:
+   multi_delete(TABLE_LIST *dt, thr_lock_type o, uint n)
+     : delete_tables (dt), lock_option(o), deleted(0), num_of_tables(n), error(0)
+   {
+     thd = current_thd; do_delete = false;
+   }
+   ~multi_delete();
+   int prepare(List<Item> &list);
+   bool send_fields(List<Item> &list,
+ 		   uint flag) { return 0; }
+   bool send_data(List<Item> &items);
+   void send_error(uint errcode,const char *err);
+   int  do_deletes (bool from_send_error);
+   bool send_eof();
+ };
+
+
