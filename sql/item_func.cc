@@ -303,10 +303,24 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	We can't yet set item to *arg as fix_fields may change *arg
 	We shouldn't call fix_fields() twice, so check 'fixed' field first
       */
-      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
-	  (*arg)->check_cols(allowed_arg_cols))
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)))
 	return 1;				/* purecov: inspected */
+
       item= *arg;
+
+      if (allowed_arg_cols)
+      {
+        if (item->check_cols(allowed_arg_cols))
+          return 1;
+      }
+      else
+      {
+        /*  we have to fetch allowed_arg_cols from first argument */
+        DBUG_ASSERT(arg == args); // it is first argument
+        allowed_arg_cols= item->cols();
+        DBUG_ASSERT(allowed_arg_cols); // Can't be 0 any more
+      }
+
       if (item->maybe_null)
 	maybe_null=1;
 

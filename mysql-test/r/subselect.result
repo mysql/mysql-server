@@ -2160,3 +2160,17 @@ ERROR 42S22: Unknown column 'a2' in 'scalar IN/ALL/ANY subquery'
 select * from t1 where a1 > any(select b1 from t2);
 a1
 drop table t1,t2;
+create table t1 (a integer, b integer);
+select (select * from t1) = (select 1,2);
+(select * from t1) = (select 1,2)
+NULL
+select (select 1,2) = (select * from t1);
+(select 1,2) = (select * from t1)
+NULL
+select  row(1,2) = ANY (select * from t1);
+row(1,2) = ANY (select * from t1)
+0
+select  row(1,2) != ALL (select * from t1);
+row(1,2) != ALL (select * from t1)
+1
+drop table t1;

@@ -1414,8 +1414,11 @@ SELECT f1 FROM t1
    WHERE f1 <> ALL ( SELECT SUM(f1) AS sf1 FROM t2 HAVING sf1 > 10000);
 
 drop table t1,t2;
+
+#
 # Test for BUG#7885: Server crash when 'any' subselect compared to
 # non-existant field.
+#
 create table t1 (a1 int);
 create table t2 (b1 int);
 --error 1054
@@ -1423,3 +1426,14 @@ select * from t1 where a2 > any(select b1 from t2);
 select * from t1 where a1 > any(select b1 from t2);
 drop table t1,t2;
 
+
+#
+# Comparison subquery with * and row
+#
+create table t1 (a integer, b integer);
+select (select * from t1) = (select 1,2);
+select (select 1,2) = (select * from t1);
+# queries whih can be converted to IN
+select  row(1,2) = ANY (select * from t1);
+select  row(1,2) != ALL (select * from t1);
+drop table t1;
