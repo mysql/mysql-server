@@ -67,9 +67,9 @@ drop table t1;
 create table t1 (a int, b char(10));
 load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 3
+Warning	1264	Out of range value adjusted for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
-Warning	1265	Data truncated for column 'a' at row 5
+Warning	1264	Out of range value adjusted for column 'a' at row 5
 Warning	1262	Row 5 was truncated; it contained more data than there were input columns
 select * from rewrite.t1;
 a	b
@@ -81,7 +81,7 @@ a	b
 truncate table t1;
 load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 4
+Warning	1264	Out of range value adjusted for column 'a' at row 4
 Warning	1261	Row 4 doesn't contain data for all columns
 select * from rewrite.t1;
 a	b
