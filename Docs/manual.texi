@@ -49662,8 +49662,8 @@ impossible (causing crashes).
 @item
 Fixed a rare bug when @code{FULLTEXT} index is present and no tables are used.
 @item
-Added privileges @code{CREATE TEMPORARY TABLES}, @code{LOCK TABLES},
-@code{REPLICATION CLIENT}, @code{REPLICATION SLAVE},
+Added privileges @code{CREATE TEMPORARY TABLES}, @code{EXECUTE},
+@code{LOCK TABLES}, @code{REPLICATION CLIENT}, @code{REPLICATION SLAVE},
 @code{SHOW DATABASES} and @code{SUPER}. To use these, you must have
 run the @code{mysql_fix_privilege_tables} script after upgrading.
 @item
