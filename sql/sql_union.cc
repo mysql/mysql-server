@@ -398,6 +398,8 @@ bool st_select_lex_unit::exec()
   
   if (uncacheable || !item || !item->assigned() || describe)
   {
+    if (item)
+      item->reset_value_registration();
     if (optimized && item)
     {
       if (item->assigned())

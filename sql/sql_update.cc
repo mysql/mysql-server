@@ -21,7 +21,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -225,7 +224,7 @@ int mysql_update(THD *thd,
   table_list->grant.want_privilege= table->grant.want_privilege=
     (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(1);				/* purecov: inspected */
@@ -621,9 +620,8 @@ bool mysql_multi_update_prepare(THD *thd)
   LEX *lex= thd->lex;
   ulong opened_tables;
   TABLE_LIST *table_list= lex->query_tables;
+  TABLE_LIST *tl, *leaves;
   List<Item> *fields= &lex->select_lex.item_list;
-  TABLE_LIST *tl;
-  TABLE_LIST *leaves;
   table_map tables_for_update;
   int res;
   bool update_view= 0;
@@ -635,9 +633,10 @@ bool mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables != 0;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
+  DBUG_ENTER("mysql_multi_update_prepare");
+
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
-  DBUG_ENTER("mysql_multi_update_prepare");
 
   /* open tables and create derived ones, but do not lock and fill them */
   if ((original_multiupdate && open_tables(thd, table_list, & table_count)) ||
@@ -652,24 +651,7 @@ bool mysql_multi_update_prepare(THD *thd)
   if (setup_tables(thd, table_list, &lex->select_lex.where,
                    &lex->select_lex.leaf_tables, FALSE, FALSE))
     DBUG_RETURN(TRUE);
-  /*
-    Ensure that we have update privilege for all tables and columns in the
-    SET part
-  */
-  for (tl= (leaves= lex->select_lex.leaf_tables); tl; tl= tl->next_leaf)
-  {
-    /*
-      Update of derived tables is checked later
-      We don't check privileges here, becasue then we would get error
-      "UPDATE command denided .. for column N" instead of
-      "Target table ... is not updatable"
-    */
-    TABLE *table= tl->table;
-    TABLE_LIST *tlist;
-    if (!(tlist= tl->belong_to_view?tl->belong_to_view:tl)->derived)
-      tlist->grant.want_privilege= table->grant.want_privilege=
-        (UPDATE_ACL & ~table->grant.privilege);
-  }
+  leaves= lex->select_lex.leaf_tables;
 
   if ((lex->select_lex.no_wrap_view_item= 1,
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
@@ -699,11 +681,6 @@ bool mysql_multi_update_prepare(THD *thd)
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
-    TABLE_LIST *tlist= tl->belong_to_view?tl->belong_to_view:tl;
-
-    /* We only need SELECT privilege for columns in the values list */
-    tlist->grant.want_privilege= table->grant.want_privilege=
-      (SELECT_ACL & ~table->grant.privilege);
     /* Only set timestamp column if this is not modified */
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
@@ -731,15 +708,26 @@ bool mysql_multi_update_prepare(THD *thd)
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
       tl->lock_type= lex->multi_lock_option;
       tl->updating= 1;
-      }
+    }
     else
     {
       DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
       tl->lock_type= TL_READ;
       tl->updating= 0;
     }
-    if (!using_lock_tables)
-      tl->table->reginfo.lock_type= tl->lock_type;
+
+    /* Check access privileges for table */
+    if (!tl->derived)
+    {
+      uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
+      if (!using_lock_tables)
+        tl->table->reginfo.lock_type= tl->lock_type;
+
+      if (check_access(thd, want_privilege,
+                        tl->db, &tl->grant.privilege, 0, 0) ||
+          (grant_option && check_grant(thd, want_privilege, tl, 0, 1, 0)))
+        DBUG_RETURN(TRUE);
+    }
   }
 
   /* check single table update for view compound from several tables */
@@ -794,6 +782,22 @@ bool mysql_multi_update_prepare(THD *thd)
          res))
       DBUG_RETURN(TRUE);
   }
+
+  /* We only need SELECT privilege for columns in the values list */
+  for (tl= leaves; tl; tl= tl->next_leaf)
+  {
+    TABLE *table= tl->table;
+    TABLE_LIST *tlist;
+    if (!(tlist= tl->belong_to_view ? tl->belong_to_view : tl)->derived)
+    {
+      tlist->grant.want_privilege=
+        (SELECT_ACL & ~tlist->grant.privilege);
+      table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
+    }
+    DBUG_PRINT("info", ("table: %s  want_privilege: %u", tl->alias,
+                        (uint) table->grant.want_privilege));
+  }
+
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(TRUE);

@@ -26,7 +26,7 @@
 #endif
 
 SectionReader::SectionReader
-(class SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
+(struct SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
   : m_pool(pool)
 {
   if(ptr.p == 0){

@@ -475,8 +475,8 @@ int NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
 	/**
 	 * No completed...
 	 */
-	theNdb->theWaiter.m_node = nodeId;
-	theNdb->theWaiter.m_state = WAIT_SCAN;
+	theNdb->theImpl->theWaiter.m_node = nodeId;
+	theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
 	int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
@@ -1324,8 +1324,8 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 	Uint32 tmp = m_sent_receivers_count;
 	s_idx = m_current_api_receiver; 
 	while(m_sent_receivers_count > 0 && !theError.code){
-	  theNdb->theWaiter.m_node = nodeId;
-	  theNdb->theWaiter.m_state = WAIT_SCAN;
+	  theNdb->theImpl->theWaiter.m_node = nodeId;
+	  theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
 	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    continue;
@@ -1472,8 +1472,8 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
    */
   while(theError.code == 0 && m_sent_receivers_count)
   {
-    theNdb->theWaiter.m_node = nodeId;
-    theNdb->theWaiter.m_state = WAIT_SCAN;
+    theNdb->theImpl->theWaiter.m_node = nodeId;
+    theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
     int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
     switch(return_code){
     case 0:
@@ -1542,8 +1542,8 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
    */
   while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count)
   {
-    theNdb->theWaiter.m_node = nodeId;
-    theNdb->theWaiter.m_state = WAIT_SCAN;
+    theNdb->theImpl->theWaiter.m_node = nodeId;
+    theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
     int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
     switch(return_code){
     case 0:

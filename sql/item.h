@@ -941,7 +941,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_string("",0, cs ? cs : &my_charset_bin)
-    { name=(char*) header; max_length=length;}
+    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
 
@@ -1010,14 +1010,36 @@ public:
 
 class Item_ref :public Item_ident
 {
+protected:
+  void set_properties();
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(const char *db_par, const char *table_name_par,
            const char *field_name_par)
     :Item_ident(db_par, table_name_par, field_name_par), result_field(0), ref(0) {}
+  /*
+    This constructor is used in two scenarios:
+    A) *item = NULL
+      No initialization is performed, fix_fields() call will be necessary.
+      
+    B) *item points to an Item this Item_ref will refer to. This is 
+      used for GROUP BY. fix_fields() will not be called in this case,
+      so we call set_properties to make this item "fixed". set_properties
+      performs a subset of action Item_ref::fix_fields does, and this subset
+      is enough for Item_ref's used in GROUP BY.
+    
+    TODO we probably fix a superset of problems like in BUG#6658. Check this 
+         with Bar, and if we have a more broader set of problems like this.
+  */
   Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS, table_name_par, field_name_par), result_field(0), ref(item) {}
+    :Item_ident(NullS, table_name_par, field_name_par), result_field(0), ref(item)
+  {
+    DBUG_ASSERT(item);
+    if (*item)
+      set_properties();
+  }
+
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
@@ -1025,29 +1047,34 @@ public:
   { return ref && (*ref)->eq(item, binary_cmp); }
   double val_real()
   {
+    DBUG_ASSERT(fixed);
     double tmp=(*ref)->val_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   longlong val_int()
   {
+    DBUG_ASSERT(fixed);
     longlong tmp=(*ref)->val_int_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   String *val_str(String* tmp)
   {
+    DBUG_ASSERT(fixed);
     tmp=(*ref)->str_result(tmp);
     null_value=(*ref)->null_value;
     return tmp;
   }
   bool is_null()
   {
+    DBUG_ASSERT(fixed);
     (void) (*ref)->val_int_result();
     return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,uint fuzzydate)
   {
+    DBUG_ASSERT(fixed);
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   double val_result();
@@ -1079,7 +1106,52 @@ public:
   void cleanup();
 };
 
+
+/*
+  The same as Item_ref, but get value from val_* family of method to get
+  value of item on which it referred instead of result* family.
+*/
+class Item_direct_ref :public Item_ref
+{
+public:
+  Item_direct_ref(Item **item, const char *table_name_par,
+                  const char *field_name_par)
+    :Item_ref(item, table_name_par, field_name_par) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+
+  double val_real()
+  {
+    double tmp=(*ref)->val_real();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  longlong val_int()
+  {
+    longlong tmp=(*ref)->val_int();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  String *val_str(String* tmp)
+  {
+    tmp=(*ref)->val_str(tmp);
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  bool is_null()
+  {
+    (void) (*ref)->val_int();
+    return (*ref)->null_value;
+  }
+  bool get_date(TIME *ltime,uint fuzzydate)
+  {
+    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  }
+};
+
+
 class Item_in_subselect;
+
 class Item_ref_null_helper: public Item_ref
 {
 protected:
@@ -1101,9 +1173,9 @@ class Item_null_helper :public Item_ref_null_helper
 public:
   Item_null_helper(Item_in_subselect* master, Item *item,
 		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
      store(item)
-    {}
+    { ref= &store; }
   void print(String *str);
 };
 

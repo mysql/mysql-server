@@ -438,6 +438,9 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
          Note that Rotate_log_event::exec_event() does not call this function,
          so there is no chance that a fake rotate event resets
          last_master_timestamp.
+         Note that we update without mutex (probably ok - except in some very
+         rare cases, only consequence is that value may take some time to
+         display in Seconds_Behind_Master - not critical).
       */
       rli->last_master_timestamp= when;
     }
@@ -2126,7 +2129,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       List<Item> &fields_arg,
 			       enum enum_duplicates handle_dup,
 			       bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
+  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
+	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+   thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
@@ -2329,6 +2334,9 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
             commented ? "# " : "",
             db);
 
+  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+    fprintf(file,"%sSET @@session.pseudo_thread_id=%lu;\n",
+            commented ? "# " : "", (ulong)thread_id);
   fprintf(file, "%sLOAD DATA ",
           commented ? "# " : "");
   if (check_fname_outside_temp_buf())

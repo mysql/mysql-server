@@ -702,7 +702,7 @@ public:
     /**
      * Get a specific column in the index
      */
-    const NdbDictionary::Column * getColumn(unsigned no) const ;
+    const Column * getColumn(unsigned no) const ;
 
     /**
      * Get a specific column name in the index
@@ -973,13 +973,6 @@ public:
      * @return table if successful otherwise NULL.
      */
     const Table * getTable(const char * name);
-
-    /**
-     * Get table with given name for alteration.
-     * @param name   Name of table to alter
-     * @return table if successful. NULL if undefined
-     */
-    Table getTableForAlteration(const char * name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**

@@ -749,7 +749,8 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h)
+ sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
+ sys/resource.h sys/param.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -1919,7 +1920,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
-  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  realpath rename rint rwlock_init setupterm \
+  shmget shmat shmdt shmctl \
+  sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
 
@@ -2648,15 +2651,26 @@ then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
-  if test "$with_debug" = "yes"
+  if test "$have_ndb_debug" = "default"
+  then
+    have_ndb_debug=$with_debug
+  fi
+
+  if test "$have_ndb_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  elif test "$with_debug" = "full"
+  elif test "$have_ndb_debug" = "full"
   then
     NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
-    NDB_DEFS="-DNDEBUG"
+    # no extra ndb debug but still do asserts if debug version
+    if test "$with_debug" = "yes" -o "$with_debug" = "full"
+    then
+      NDB_DEFS=""
+    else
+      NDB_DEFS="-DNDEBUG"
+    fi
   fi
 
 AC_SUBST([NDB_DEFS])
@@ -2676,10 +2690,19 @@ fi
 AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
-if test X"$have_ndb_shm" = Xyes
+if test "$ac_cv_func_shmget" = "yes" &&
+   test "$ac_cv_func_shmat" = "yes" &&
+   test "$ac_cv_func_shmdt" = "yes" &&
+   test "$ac_cv_func_shmctl" = "yes"
 then
-  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+   AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
+             [Including Ndb Cluster DB shared memory transporter])
+   AC_MSG_RESULT([Including ndb shared memory transporter])
+   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+else
+   AC_MSG_RESULT([Not including ndb shared memory transporter])
 fi
+
 if test X"$have_ndb_sci" = Xyes
 then
   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
@@ -2742,6 +2765,7 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
    ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
    )
 fi
 

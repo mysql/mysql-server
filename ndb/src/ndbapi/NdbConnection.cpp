@@ -83,7 +83,7 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
 {
   theListState = NotInList;
   theError.code = 0;
-  theId = theNdb->theNdbObjectIdMap->map(this);
+  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -99,7 +99,7 @@ Remark:        Deletes the connection object.
 NdbConnection::~NdbConnection()
 {
   DBUG_ENTER("NdbConnection::~NdbConnection");
-  theNdb->theNdbObjectIdMap->unmap(theId, this);
+  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
   DBUG_VOID_RETURN;
 }//NdbConnection::~NdbConnection()
 
@@ -1616,7 +1616,7 @@ from other transactions.
                (theLastExecOpInList->theCommitIndicator == 1)){
 
 
-      if (m_abortOption == IgnoreError && theError.code != 0){
+      if (m_abortOption == AO_IgnoreError && theError.code != 0){
 	/**
 	 * There's always a TCKEYCONF when using IgnoreError
 	 */
@@ -1867,7 +1867,7 @@ NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
     //decide the success of the whole transaction since a simple
     //operation is not really part of that transaction.
     //------------------------------------------------------------------------
-    if (abortOption == IgnoreError){
+    if (abortOption == AO_IgnoreError){
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */

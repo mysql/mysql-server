@@ -851,27 +851,27 @@ count(*)
 26
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	0
+Slow_queries	1
 select count(*) from t1 where b=13;
 count(*)
 10
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	1
+Slow_queries	3
 select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
 count(*)
 10
 26
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	2
+Slow_queries	5
 select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
 count(*)
 26
 10
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	3
+Slow_queries	7
 drop table t1;
 create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');

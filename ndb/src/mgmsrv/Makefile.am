@@ -32,9 +32,7 @@ LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
 DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\"" \
-			-DNDB_PORT="\"@ndb_port@\"" \
-			-DNDB_BASE_PORT="\"@ndb_port_base@\""
+			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\""
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
@@ -43,3 +41,17 @@ ndb_mgmd_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
+windoze-dsp: ndb_mgmd.dsp
+
+ndb_mgmd.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ $(ndbbin_PROGRAMS)
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_mgmd_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)

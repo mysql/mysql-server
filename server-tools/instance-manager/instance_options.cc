@@ -101,9 +101,9 @@ int Instance_options::add_option(const char* option)
     {"--datadir=", 10, &mysqld_datadir, SAVE_WHOLE_AND_ADD},
     {"--bind-address=", 15, &mysqld_bind_address, SAVE_WHOLE_AND_ADD},
     {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
-    {"--mysqld_path=", 14, &mysqld_path, SAVE_VALUE},
-    {"--admin_user=", 13, &mysqld_user, SAVE_VALUE},
-    {"--admin_password=", 17, &mysqld_password, SAVE_VALUE},
+    {"--mysqld-path=", 14, &mysqld_path, SAVE_VALUE},
+    {"--admin-user=", 13, &mysqld_user, SAVE_VALUE},
+    {"--admin-password=", 17, &mysqld_password, SAVE_VALUE},
     {"--guarded", 9, &is_guarded, SAVE_WHOLE},
     {NULL, 0, NULL, 0}
   };

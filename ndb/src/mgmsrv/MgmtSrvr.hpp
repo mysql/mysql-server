@@ -43,27 +43,34 @@ class Config;
 class SetLogLevelOrd;
 class SocketServer;
 
-class MgmStatService : public EventLoggerBase 
+class Ndb_mgmd_event_service : public EventLoggerBase 
 {
   friend class MgmtSrvr;
 public:
-  struct StatListener : public EventLoggerBase {
+  struct Event_listener : public EventLoggerBase {
     NDB_SOCKET_TYPE m_socket;
   };
   
 private:  
   class MgmtSrvr * m_mgmsrv;
-  MutexVector<StatListener> m_clients;
+  MutexVector<Event_listener> m_clients;
 public:
-  MgmStatService(class MgmtSrvr * m) : m_clients(5) {
+  Ndb_mgmd_event_service(class MgmtSrvr * m) : m_clients(5) {
     m_mgmsrv = m;
   }
   
-  void add_listener(const StatListener&);
+  void add_listener(const Event_listener&);
+  void update_max_log_level(const LogLevel&);
+  void update_log_level(const LogLevel&);
   
   void log(int eventType, const Uint32* theData, NodeId nodeId);
   
-  void stopSessions();
+  void stop_sessions();
+
+  Event_listener& operator[](unsigned i) { return m_clients[i]; }
+  const Event_listener& operator[](unsigned i) const { return m_clients[i]; }
+  void lock() { m_clients.lock(); }
+  void unlock(){ m_clients.unlock(); }
 };
 
 /**
@@ -122,7 +129,7 @@ public:
    * @param serverity the log level/serverity.
    * @return true if the severity was enabled.
    */
-  bool setEventLogFilter(int severity);
+  bool setEventLogFilter(int severity, int enable);
 
   /**
    * Returns true if the log level/severity is enabled.
@@ -357,7 +364,7 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, bool waitCompleted = false);
+  int startBackup(Uint32& backupId, int waitCompleted= 2);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
@@ -661,7 +668,7 @@ private:
    */
   static void signalReceivedNotification(void* mgmtSrvr, 
 					 NdbApiSignal* signal, 
-					 class LinearSectionPtr ptr[3]);
+					 struct LinearSectionPtr ptr[3]);
   
   /**
    *   Called from "outside" of MgmtSrvr when a DB process has died.
@@ -732,8 +739,8 @@ private:
   LogLevel m_nodeLogLevel[MAX_NODES];
   enum ndb_mgm_node_type nodeTypes[MAX_NODES];
   friend class MgmApiSession;
-  friend class MgmStatService;
-  MgmStatService m_statisticsListner;
+  friend class Ndb_mgmd_event_service;
+  Ndb_mgmd_event_service m_event_listner;
   
   /**
    * Handles the thread wich upon a 'Node is started' event will

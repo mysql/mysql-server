@@ -303,6 +303,7 @@ public:
    *
    * @deprecated do not use!
    */
+#ifndef NDB_WIN32
   inline int	createTable(	const char* aTableName, 
 				Uint32 aTableSize, 
 				KeyType aTupleKey,
@@ -324,6 +325,7 @@ public:
                        aMemoryType, 
                        (aStoredTable == 1 ? true : false));
   }
+#endif
 
   /**
    * Add a new attribute to a database table.

@@ -345,3 +345,34 @@ show binlog events from 95;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
 drop table t2;
+
+
+#
+# Check that ucs2 works with ENUM and SET type
+#
+set names latin1;
+create table t1 (a enum('x','y','z') character set ucs2);
+show create table t1;
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+select a, hex(a) from t1 order by a;
+alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set ucs2;
+show create table t1;
+insert into t1 values ('D');
+insert into t1 values ('E ');
+insert into t1 values ('Ä');
+insert into t1 values ('Ö');
+insert into t1 values ('Ü');
+select a, hex(a) from t1 order by a;
+drop table t1;
+
+create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
+show create table t1;
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+insert into t1 values ('x,y');
+insert into t1 values ('x,y,z,Ä,Ö,Ü');
+select a, hex(a) from t1 order by a;
+drop table t1;

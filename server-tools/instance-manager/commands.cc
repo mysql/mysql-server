@@ -266,7 +266,7 @@ int Show_instance_options::do_command(struct st_net *net,
     if (instance->options.mysqld_path != NULL)
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "mysqld_path", &position);
+      store_to_string(&send_buff, (char *) "mysqld-path", &position);
       store_to_string(&send_buff,
                      (char *) instance->options.mysqld_path,
                      &position);
@@ -286,7 +286,7 @@ int Show_instance_options::do_command(struct st_net *net,
     if (instance->options.mysqld_user != NULL)
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "admin_user", &position);
+      store_to_string(&send_buff, (char *) "admin-user", &position);
       store_to_string(&send_buff,
                       (char *) instance->options.mysqld_user,
                       &position);
@@ -297,7 +297,7 @@ int Show_instance_options::do_command(struct st_net *net,
     if (instance->options.mysqld_password != NULL)
     {
       position= 0;
-      store_to_string(&send_buff, (char *) "admin_password", &position);
+      store_to_string(&send_buff, (char *) "admin-password", &position);
       store_to_string(&send_buff,
                       (char *) instance->options.mysqld_password,
                       &position);
@@ -408,7 +408,6 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
                stop_guard(instance);
     if ((err_code= instance->stop()))
       return err_code;
-    printf("instance was stopped\n");
     net_send_ok(net, connection_id);
     return 0;
   }

@@ -3553,7 +3553,7 @@ Suma::Restart::Restart(Suma& s) : suma(s) {
     c_okToStart[i]      = false;
     c_waitingToStart[i] = false;
   }
-};
+}
 
 void
 Suma::Restart::resetNode(Uint32 sumaRef)

@@ -9,7 +9,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0load.h"
 #include "trx0undo.h"
 #include "trx0sys.h"
-#include "rem0rec.h"
 
 /*************************************************************************
 Gets the column data type. */
@@ -310,51 +309,6 @@ dict_index_get_sys_col_pos(
 
 	return(dict_index_get_nth_col_pos(index,
 		dict_table_get_sys_col_no(index->table, type)));
-}
-
-/************************************************************************
-Gets the value of a system column in a clustered index record. The clustered
-index must contain the system column: if the index is unique, row id is
-not contained there! */
-UNIV_INLINE
-dulint
-dict_index_rec_get_sys_col(
-/*=======================*/
-				/* out: system column value */
-	dict_index_t*	index,	/* in: clustered index describing the record */
-	const ulint*	offsets,/* in: offsets returned by rec_get_offsets() */
-	ulint		type,	/* in: column type: DATA_ROLL_PTR, ... */
-	rec_t*		rec)	/* in: record */
-{
-	ulint	pos;
-	byte*	field;
-	ulint	len;
-	
-	ut_ad(index);
-	ut_ad(index->type & DICT_CLUSTERED);
-	ut_ad(rec_offs_validate(rec, index, offsets));
-
-	pos = dict_index_get_sys_col_pos(index, type);
-
-	ut_ad(pos != ULINT_UNDEFINED);	
-	
-	field = rec_get_nth_field(rec, offsets, pos, &len);
-
-	if (type == DATA_ROLL_PTR) {
-		ut_ad(len == 7);
-	
-		return(trx_read_roll_ptr(field));
-	} else if (type == DATA_TRX_ID) {
-
-		return(trx_read_trx_id(field));
-	} else if (type == DATA_MIX_ID) {
-
-		return(mach_dulint_read_compressed(field));
-	} else {
-		ut_a(type == DATA_ROW_ID);
-
-		return(mach_read_from_6(field));
-	}
 }
 
 /*************************************************************************
@@ -663,32 +617,4 @@ dict_table_get_index(
 	}	
 	
 	return(index);
-}
-
-/***********************************************************************
-Checks if a table which is a mixed cluster member owns a record. */
-UNIV_INLINE
-ibool
-dict_is_mixed_table_rec(
-/*====================*/
-				/* out: TRUE if the record belongs to this
-				table */
-	dict_table_t*	table,	/* in: table in a mixed cluster */
-	rec_t*		rec)	/* in: user record in the clustered index */
-{
-	byte*	mix_id_field;
-	ulint	len;
-
-	ut_ad(!table->comp);
-
-	mix_id_field = rec_get_nth_field_old(rec,
-					table->mix_len, &len);
-
-	if ((len != table->mix_id_len)
-	    || (0 != ut_memcmp(table->mix_id_buf, mix_id_field, len))) {
-
-		return(FALSE);
-	}
-
-	return(TRUE);
 }

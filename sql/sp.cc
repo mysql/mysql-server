@@ -16,7 +16,6 @@
 
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_cache.h"
