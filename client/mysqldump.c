@@ -81,7 +81,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_names=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 	        opt_delete_master_logs=0, tty_password=0,
-		opt_single_transaction=0, opt_comments= 0;
+		opt_single_transaction=0, opt_comments= 0, opt_compact= 0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -140,6 +140,10 @@ static struct my_option my_long_options[] =
    "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: ansi, mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
    (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compact", OPT_COMPACT,
+   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --no-set-names --skip-disable-keys --skip-lock-tables",
+   (gptr*) &opt_compact, (gptr*) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
    (gptr*) &cFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
@@ -347,15 +351,19 @@ static void write_header(FILE *sql_file, char *db_name)
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
     fputs("<mysqldump>\n", sql_file);
   }
-  else if (opt_comments)
+  else if (!opt_compact)
   {
-    fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
-    fprintf(sql_file, "-- Host: %s    Database: %s\n",
-	    current_host ? current_host : "localhost", db_name ? db_name : "");
-    fputs("-- ------------------------------------------------------\n",
-	  sql_file);
-    fprintf(sql_file, "-- Server version\t%s\n",
-	    mysql_get_server_info(&mysql_connection));
+    if (opt_comments)
+    {
+      fprintf(sql_file, "-- MySQL dump %s\n--\n", DUMP_VERSION);
+      fprintf(sql_file, "-- Host: %s    Database: %s\n",
+	      current_host ? current_host : "localhost", db_name ? db_name :
+	      "");
+      fputs("-- ------------------------------------------------------\n",
+	    sql_file);
+      fprintf(sql_file, "-- Server version\t%s\n",
+	      mysql_get_server_info(&mysql_connection));
+    }
     if (!opt_set_names)
       fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
     fprintf(md_result_file,"\
@@ -371,17 +379,18 @@ static void write_header(FILE *sql_file, char *db_name)
 static void write_footer(FILE *sql_file)
 {
   if (opt_xml)
-    fputs("</mysqldump>", sql_file);
-  else
+    fputs("</mysqldump>\n", sql_file);
+  else if (!opt_compact)
   {
     fprintf(md_result_file,"\n\
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n\
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n\
-");
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n");
+    if (!opt_set_names)
+      fprintf(md_result_file,
+	      "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n");
+    fputs("\n", sql_file);
   }
-  fputs("\n", sql_file);
 } /* write_footer */
 
 
@@ -448,6 +457,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     extended_insert= opt_drop= opt_lock= quick= create_options=
       opt_disable_keys= lock_tables= 0;
     break;
+  case (int) OPT_COMPACT:
+  if (opt_compact)
+  {
+    opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
+    opt_set_names= 1;
+  }
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
@@ -1270,7 +1285,7 @@ static void dumpTable(uint numFields, char *table)
 	fprintf(md_result_file,"-- WHERE:  %s\n",where);
       strxmov(strend(query), " WHERE ",where,NullS);
     }
-    if (!opt_xml)
+    if (!opt_xml && !opt_compact)
       fputs("\n", md_result_file);
     if (mysql_query(sock, query))
     {

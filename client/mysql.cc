@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.4";
+const char *VER= "14.5";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -2703,6 +2703,9 @@ com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
   const char *status;
+  char buff[22];
+  ulonglong id;
+
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
@@ -2748,6 +2751,9 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
+  if ((id= mysql_insert_id(&mysql)))
+    tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
+
   tee_fprintf(stdout, "Client characterset:\t%s\n",
 	      charset_info->name);
   tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);

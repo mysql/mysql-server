@@ -482,8 +482,11 @@ int mysql_multi_update(THD *thd,
     for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
     {
       if (tl->derived && (item_tables & tl->table->map))
+      {
 	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
 			MYF(0), tl->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
     }
   }
 

@@ -519,8 +519,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       // Send error to Comment field
       protocol->store(thd->net.last_error, system_charset_info);
-      thd->net.last_error[0]=0;
-      thd->net.last_errno= 0;
+      thd->clear_error();
     }
     else
     {

@@ -1283,16 +1283,21 @@ longlong Item_func_sec_to_time::val_int()
 void Item_func_date_format::fix_length_and_dec()
 {
   decimals=0;
+  collation.set(&my_charset_bin);
   if (args[1]->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
-    max_length= format_length(((Item_string*) args[1])->const_string())*
-		collation.collation->mbmaxlen;
+    /*
+      The result is a binary string (no reason to use collation->mbmaxlen
+      This is becasue make_date_time() only returns binary strings
+    */
+    max_length= format_length(((Item_string*) args[1])->const_string());
   }
   else
   {
     fixed_length=0;
-    max_length=args[1]->max_length*10*collation.collation->mbmaxlen;
+    /* The result is a binary string (no reason to use collation->mbmaxlen */
+    max_length=args[1]->max_length*10;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date

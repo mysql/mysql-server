@@ -252,9 +252,7 @@ drop table t1;
 CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',
 `M` tinyint(1) default '0',
-) TYPE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 select * from t1;
@@ -279,9 +277,7 @@ OBJECTID int(11) NOT NULL default '0',
 SORTORDER int(11) NOT NULL auto_increment,
 KEY t1_SortIndex (SORTORDER),
 KEY t1_IdIndex (OBJECTID)
-) TYPE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 CREATE TABLE t2 (
 ID int(11) default NULL,
 PARID int(11) default NULL,
