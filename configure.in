@@ -2823,7 +2823,7 @@ then
       AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags=
+      bdb_conf_flags="--disable-shared"
       if test $with_debug = "yes"
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
