@@ -27,6 +27,13 @@
 #include "sql_acl.h"
 #include <m_ctype.h>
 
+void Item_geometry_func::fix_length_and_dec()
+{
+  collation.set(&my_charset_bin);
+  decimals=0;
+  max_length=MAX_BLOB_WIDTH;
+}
+
 
 String *Item_func_geometry_from_text::val_str(String *str)
 {
@@ -55,12 +62,6 @@ String *Item_func_geometry_from_text::val_str(String *str)
 }
 
 
-void Item_func_geometry_from_text::fix_length_and_dec()
-{
-  max_length=MAX_BLOB_WIDTH;
-}
-
-
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -83,12 +84,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 	str->append(*wkb))))
     return 0;
   return str;
-}
-
-
-void Item_func_geometry_from_wkb::fix_length_and_dec()
-{
-  max_length=MAX_BLOB_WIDTH;
 }
 
 
@@ -137,12 +132,6 @@ String *Item_func_as_wkb::val_str(String *str)
   str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
 	    &my_charset_bin);
   return str;
-}
-
-
-void Item_func_as_wkb::fix_length_and_dec()
-{
-  max_length= MAX_BLOB_WIDTH;
 }
 
 
