@@ -296,6 +296,58 @@ CHARSET_INFO *Item::default_charset()
 
 
 /*
+  Move SUM items out from item tree and replace with reference
+
+  SYNOPSIS
+    split_sum_func2()
+    thd			Thread handler
+    ref_pointer_array	Pointer to array of reference fields
+    fields		All fields in select
+    ref			Pointer to item
+
+  NOTES
+   This is from split_sum_func2() for items that should be split
+
+   All found SUM items are added FIRST in the fields list and
+   we replace the item with a reference.
+
+   thd->fatal_error() may be called if we are out of memory
+*/
+
+
+void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
+                           List<Item> &fields, Item **ref)
+{
+  if (type() != SUM_FUNC_ITEM && with_sum_func)
+  {
+    /* Will split complicated items and ignore simple ones */
+    split_sum_func(thd, ref_pointer_array, fields);
+  }
+  else if ((type() == SUM_FUNC_ITEM ||
+            (used_tables() & ~PARAM_TABLE_BIT)) &&
+           type() != REF_ITEM)
+  {
+    /*
+      Replace item with a reference so that we can easily calculate
+      it (in case of sum functions) or copy it (in case of fields)
+
+      The test above is to ensure we don't do a reference for things
+      that are constants (PARAM_TABLE_BIT is in effect a constant)
+      or already referenced (for example an item in HAVING)
+    */
+    uint el= fields.elements;
+    Item *new_item;    
+    ref_pointer_array[el]= this;
+    if (!(new_item= new Item_ref(ref_pointer_array + el, 0, name)))
+      return;                                   // fatal_error is set
+    fields.push_front(this);
+    ref_pointer_array[el]= this;
+    thd->change_item_tree(ref, new_item);
+  }
+}
+
+
+/*
    Aggregate two collations together taking
    into account their coercibility (aka derivation):
 
@@ -2745,7 +2797,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
   Field *field= get_holder_example_field(thd, item, table);
-  bool item_is_a_field= field;
+  bool item_is_a_field= (field != NULL);
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.

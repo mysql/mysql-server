@@ -637,7 +637,7 @@ extern int pthread_dummy(int);
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
   To resolve hostnames
 */
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(256*1024L)
 #else
 #define DEFAULT_THREAD_STACK	(192*1024)
 #endif
