@@ -312,6 +312,7 @@ typedef struct st_master_info
 
 } MASTER_INFO;
 
+
 int queue_event(MASTER_INFO* mi,const char* buf,ulong event_len);
 
 typedef struct st_table_rule_ent

@@ -389,12 +389,12 @@ err:
 			the NEXT log file name in the index file.
     log_name		Filename to find in the index file.
 			Is a null pointer if we want to read the first entry
-    need_mutex		Set this to 1 if the parent doesn't already have a
+    need_lock		Set this to 1 if the parent doesn't already have a
 			lock on LOCK_index
 
   NOTE
-    On systems without the truncate function the file will end with one ore
-    more empty lines
+    On systems without the truncate function the file will end with one or
+    more empty lines.  These will be ignored when reading the file.
 
   RETURN VALUES
     0			ok
@@ -1388,6 +1388,7 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
     		This can be set to 0 if we are going to do call open
 		at once after close, in which case we don't want to
 		close the index file.
+		We only write a 'stop' event to the log if exiting is set
 */
 
 void MYSQL_LOG::close(bool exiting)
@@ -1396,7 +1397,7 @@ void MYSQL_LOG::close(bool exiting)
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
   if (is_open())
   {
-    if (log_type == LOG_BIN && !no_auto_events)
+    if (log_type == LOG_BIN && !no_auto_events && exiting)
     {
       Stop_log_event s;
       s.set_log_pos(this);

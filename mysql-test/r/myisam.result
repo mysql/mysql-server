@@ -108,3 +108,9 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), KEY t1 (a, b, c));
+Specified key was too long. Max key length is 500
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255));
+ALTER TABLE t1 ADD INDEX t1 (a, b, c);
+Specified key was too long. Max key length is 500
+DROP TABLE t1;

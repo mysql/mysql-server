@@ -2,12 +2,10 @@ slave start;
 Could not initialize master info structure, check permisions on master.info
 slave start;
 Could not initialize master info structure, check permisions on master.info
-change master to master_host='127.0.0.1',master_port=MASTER_PORT,
-master_user='root';
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 Could not initialize master info
 reset slave;
-change master to master_host='127.0.0.1',master_port=MASTER_PORT,
-master_user='root';
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
 slave start;
 drop table if exists t1, t2, t3, t4;

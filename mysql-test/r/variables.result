@@ -65,7 +65,7 @@ Variable_name	Value
 max_join_size	4294967295
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
-@@max_join_size	@@max_join_size
+@@session.max_join_size	@@global.max_join_size
 1000	2000
 select @@identity,  length(@@version)>0;
 @@identity	length(@@version)>0
