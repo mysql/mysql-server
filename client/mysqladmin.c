@@ -24,7 +24,7 @@
 #endif
 #include <sys/stat.h>
 
-#define ADMIN_VERSION "8.37"
+#define ADMIN_VERSION "8.38"
 #define MAX_MYSQL_VAR 128
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -163,8 +163,8 @@ static struct my_option my_long_options[] =
    "Print output vertically. Is similar to --relative, but prints output vertically.",
    (gptr*) &opt_vertical, (gptr*) &opt_vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"wait", 'w', "Wait and retry if connection is down", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if connection is down", 0, 0, 0, GET_UINT,
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
    (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 3600*12, 0,
    3600*12, 0, 1, 0},
