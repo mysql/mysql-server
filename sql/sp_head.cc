@@ -88,10 +88,10 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
 {
   const char *dstr = (const char*)lex->buf;
 
-  m_call_lex= lex;
-  m_name= new Item_string(name->str, name->length, default_charset_info);
+  m_name= new Item_string(name->str, name->length, system_charset_info);
   m_defstr= new Item_string(dstr, lex->end_of_query - lex->buf,
-			    default_charset_info);
+			    system_charset_info);
+  m_pcont= lex->spcont;
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_backpatch.empty();
 }
@@ -143,11 +143,10 @@ sp_head::execute(THD *thd)
 int
 sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 {
-  DBUG_ENTER("sp_head::execute");
-  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
-  sp_pcontext *pctx = m_call_lex->spcont;
-  uint csize = pctx->max_framesize();
-  uint params = pctx->params();
+  DBUG_ENTER("sp_head::execute_function");
+  DBUG_PRINT("info", ("function %s", ((String *)m_name->const_string())->c_ptr()));
+  uint csize = m_pcont->max_framesize();
+  uint params = m_pcont->params();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   uint i;
@@ -157,7 +156,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   nctx= new sp_rcontext(csize);
   for (i= 0 ; i < params && i < argcount ; i++)
   {
-    sp_pvar_t *pvar = pctx->find_pvar(i);
+    sp_pvar_t *pvar = m_pcont->find_pvar(i);
 
     nctx->push_item(eval_func_item(thd, *argp++, pvar->type));
   }
@@ -178,13 +177,12 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
 int
 sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
-  DBUG_ENTER("sp_head::execute");
-  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
+  DBUG_ENTER("sp_head::execute_procedure");
+  DBUG_PRINT("info", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
   int ret;
   sp_instr *p;
-  sp_pcontext *pctx = m_call_lex->spcont;
-  uint csize = pctx->max_framesize();
-  uint params = pctx->params();
+  uint csize = m_pcont->max_framesize();
+  uint params = m_pcont->params();
   sp_rcontext *octx = thd->spcont;
   sp_rcontext *nctx = NULL;
   my_bool tmp_octx = FALSE;	// True if we have allocated a temporary octx
@@ -204,7 +202,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     // QQ: No error checking whatsoever right now. Should do type checking?
     for (i = 0 ; (it= li++) && i < params ; i++)
     {
-      sp_pvar_t *pvar = pctx->find_pvar(i);
+      sp_pvar_t *pvar = m_pcont->find_pvar(i);
 
       if (! pvar)
 	nctx->set_oindex(i, -1); // Shouldn't happen
@@ -236,7 +234,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   // Don't copy back OUT values if we got an error
   if (ret == 0 && csize > 0)
   {
-    List_iterator_fast<Item> li(m_call_lex->value_list);
+    List_iterator_fast<Item> li(*args);
     Item *it;
 
     // Copy back all OUT or INOUT values to the previous frame, or
@@ -324,6 +322,9 @@ sp_head::restore_lex(THD *thd)
   m_lex.next_state= thd->lex.next_state;
 
   // Collect some data from the sub statement lex.
+  sp_merge_funs(&m_lex, &thd->lex);
+#if 0
+  // We're not using this at the moment.
   if (thd->lex.sql_command == SQLCOM_CALL)
   {
     // It would be slightly faster to keep the list sorted, but we need
@@ -362,6 +363,7 @@ sp_head::restore_lex(THD *thd)
 	m_tables.push_back(&tables->real_name);
     }
   }
+#endif
 
   memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Restore lex
 }

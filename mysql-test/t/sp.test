@@ -7,11 +7,17 @@ use test;
 
 --disable_warnings
 drop table if exists t1;
+drop table if exists t2;
 --enable_warnings
 
 create table t1 (
 	id   char(16) not null,
         data int not null
+);
+create table t2 (
+	s   char(16) not null,
+        i   int not null,
+	d   double not null
 );
 
 
@@ -481,11 +487,32 @@ end|
 
 select fac(1), fac(2), fac(5), fac(10)|
 
+# Nested calls
+create function fun(d double, i int, u int unsigned) returns double
+  return mul(inc(i), fac(u)) / e()|
+
+select fun(2.3, 3, 5)|
+
+
+# Various function calls in differen statements
+
+insert into t2 values (append("xxx", "yyy"), mul(4,3), e())|
+insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
+
+# These don't work yet.
+select * from t2 where s = append("a", "b")|
+select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2)|
+select * from t2 where d = e()|
+select * from t2|
+delete from t2|
+
 drop function e|
 drop function inc|
 drop function mul|
 drop function append|
 drop function fac|
+drop function fun|
 
 delimiter ;|
 drop table t1;
+drop table t2;

@@ -1584,6 +1584,18 @@ mysql_execute_command(THD *thd)
   DBUG_ENTER("mysql_execute_command");
 
   /*
+    Clear the SP function cache before each statement (QQ this is a temporary
+    solution; caching will be rehacked later), and the new ones.
+  */
+  sp_clear_function_cache(thd);
+  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
+      lex->sql_command != SQLCOM_CREATE_FUNCTION)
+  {
+    if (sp_cache_functions(thd, lex))
+      DBUG_RETURN(-1);
+  }
+
+  /*
     Reset warning count for each query that uses tables
     A better approach would be to reset this for any commands
     that is not a SHOW command or a select that only access local

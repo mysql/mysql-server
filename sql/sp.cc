@@ -19,20 +19,23 @@
 #include "sp.h"
 #include "sp_head.h"
 
+  static sp_head *
+    sp_find_cached_function(THD *thd, char *name, uint namelen);
+
 /*
  *
  * DB storage of Stored PROCEDUREs and FUNCTIONs
  *
  */
 
+// *openeed=true means we opened ourselves
 static int
 db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
-		    enum thr_lock_type ltype, TABLE **tablep)
+		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
 {
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   TABLE *table;
-  TABLE_LIST tables;
   byte key[65];			// We know name is 64 and the enum is 1 byte
   uint keylen;
   int ret;
@@ -46,13 +49,25 @@ db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
   key[sizeof(key)-1]= type;
   keylen= sizeof(key);
 
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
-  if (! (table= open_ltable(thd, &tables, ltype)))
+  for (table= thd->open_tables ; table ; table= table->next)
+    if (strcmp(table->table_cache_key, "mysql") == 0 &&
+	strcmp(table->real_name, "proc") == 0)
+      break;
+  if (table)
+    *opened= FALSE;
+  else
   {
-    *tablep= NULL;
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+    TABLE_LIST tables;
+
+    memset(&tables, 0, sizeof(tables));
+    tables.db= (char*)"mysql";
+    tables.real_name= tables.alias= (char*)"proc";
+    if (! (table= open_ltable(thd, &tables, ltype)))
+    {
+      *tablep= NULL;
+      DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+    }
+    *opened= TRUE;
   }
 
   if (table->file->index_read_idx(table->record[0], 0,
@@ -77,9 +92,10 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   TABLE *table;
   const char *defstr;
   int ret;
+  bool opened;
 
   // QQ Set up our own mem_root here???
-  ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table);
+  ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
   if (ret != SP_OK)
     goto done;
   if ((defstr= get_field(&thd->mem_root, table->field[2])) == NULL)
@@ -87,8 +103,11 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
-  close_thread_tables(thd);
-  table= NULL;
+  if (opened)
+  {
+    close_thread_tables(thd);
+    table= NULL;
+  }
 
   tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
   if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
@@ -97,7 +116,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     *sphp= tmplex->sphead;
 
  done:
-  if (table)
+  if (table && opened)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -122,9 +141,9 @@ db_create_routine(THD *thd, int type,
   {
     restore_record(table, 2);	// Get default values for fields
 
-    table->field[0]->store(name, namelen, default_charset_info);
+    table->field[0]->store(name, namelen, system_charset_info);
     table->field[1]->store((longlong)type);
-    table->field[2]->store(def, deflen, default_charset_info);
+    table->field[2]->store(def, deflen, system_charset_info);
 
     if (table->file->write_row(table->record[0]))
       ret= SP_WRITE_ROW_FAILED;
@@ -143,15 +162,17 @@ db_drop_routine(THD *thd, int type, char *name, uint namelen)
   DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
   TABLE *table;
   int ret;
+  bool opened;
 
-  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table);
+  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table, &opened);
   if (ret == SP_OK)
   {
     if (table->file->delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
   }
 
-  close_thread_tables(thd);
+  if (opened)
+    close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -216,10 +237,13 @@ sp_find_function(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
-		      name->str, name->length, &sp) != SP_OK)
-    sp= NULL;
-
+  sp= sp_find_cached_function(thd, name->str, name->length);
+  if (! sp)
+  {
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
+			name->str, name->length, &sp) != SP_OK)
+      sp= NULL;
+  }
   DBUG_RETURN(sp);
 }
 
@@ -253,12 +277,115 @@ sp_function_exists(THD *thd, LEX_STRING *name)
 {
   TABLE *table;
   bool ret= FALSE;
+  bool opened;
 
   if (db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
-			  name->str, name->length, TL_READ, &table) == SP_OK)
+			  name->str, name->length, TL_READ,
+			  &table, &opened) == SP_OK)
   {
     ret= TRUE;
   }
-  close_thread_tables(thd);
+  if (opened)
+    close_thread_tables(thd);
   return ret;
+}
+
+
+/*
+ *
+ *   The temporary FUNCTION cache. (QQ This will be rehacked later, but
+ *   it's needed now to make functions work at all.)
+ *
+ */
+
+void
+sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
+{
+  List_iterator_fast<char> li(lex->spfuns);
+  char *fn;
+
+  while ((fn= li++))
+  {
+    if (strncasecmp(fn, fun.str, fun.length) == 0)
+      break;
+  }
+  if (! fn)
+  {
+    char *s= sql_strmake(fun.str, fun.length);
+    lex->spfuns.push_back(s);
+  }
+}
+
+void
+sp_merge_funs(LEX *dst, LEX *src)
+{
+  List_iterator_fast<char> li(src->spfuns);
+  char *fn;
+
+  while ((fn= li++))
+  {
+    LEX_STRING lx;
+
+    lx.str= fn; lx.length= strlen(fn);
+    sp_add_fun_to_lex(dst, lx);
+  }
+}
+
+/* QQ Not terribly efficient right now, but it'll do for starters.
+      We should actually open the mysql.proc table just once. */
+int
+sp_cache_functions(THD *thd, LEX *lex)
+{
+  List_iterator<char> li(lex->spfuns);
+  char *fn;
+  enum_sql_command cmd= lex->sql_command;
+  int ret= 0;
+
+  while ((fn= li++))
+  {
+    List_iterator_fast<sp_head> lisp(thd->spfuns);
+    sp_head *sp;
+
+    while ((sp= lisp++))
+    {
+      if (strcasecmp(fn, sp->name()) == 0)
+	break;
+    }
+    if (sp)
+      continue;
+    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, strlen(fn), &sp) == SP_OK)
+    {
+      ret= sp_cache_functions(thd, &thd->lex);
+      if (ret)
+	break;
+      thd->spfuns.push_back(sp);
+    }
+    else
+    {
+      send_error(thd, ER_SP_DOES_NOT_EXIST);
+      ret= 1;
+    }
+  }
+  lex->sql_command= cmd;
+  return ret;
+}
+
+void
+sp_clear_function_cache(THD *thd)
+{
+  thd->spfuns.empty();
+}
+
+static sp_head *
+sp_find_cached_function(THD *thd, char *name, uint namelen)
+{
+  List_iterator_fast<sp_head> li(thd->spfuns);
+  sp_head *sp;
+
+  while ((sp= li++))
+  {
+    if (strncasecmp(name, sp->name(), namelen) == 0)
+      break;
+  }
+  return sp;
 }

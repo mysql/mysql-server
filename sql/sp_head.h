@@ -46,8 +46,11 @@ public:
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
+#if 0
+  // We're not using this at the moment.
   List<char *> m_calls;		// Called procedures.
   List<char *> m_tables;	// Used tables.
+#endif
 
   static void *operator new(size_t size)
   {
@@ -59,7 +62,7 @@ public:
     /* Empty */
   }
 
-  sp_head(LEX_STRING *name, LEX* lex);
+  sp_head(LEX_STRING *name, LEX *lex);
 
   int
   create(THD *thd);
@@ -118,7 +121,7 @@ private:
 
   Item_string *m_name;
   Item_string *m_defstr;
-  LEX *m_call_lex;		// The CALL's own lex
+  sp_pcontext *m_pcont;		// Parse context
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
   typedef struct

@@ -176,6 +176,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->sql_command=SQLCOM_END;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->spfuns.empty();
   return lex;
 }
 
