@@ -5508,6 +5508,7 @@ static void test_subselect()
   MYSQL_STMT *stmt;
   int        rc, id;
   MYSQL_BIND bind[1];
+  DBUG_ENTER("test_subselect");
 
   myheader("test_subselect");
 
@@ -5609,6 +5610,7 @@ static void test_subselect()
   assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
+  DBUG_VOID_RETURN;
 }
 
 

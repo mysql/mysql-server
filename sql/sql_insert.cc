@@ -86,14 +86,13 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
       return -1;
     }
 
-    table_list->next_local= 0;
     thd->dupp_field=0;
-    save_next= table_list->next_local;        // fields only from first table
- 
     thd->lex->select_lex.no_wrap_view_item= 1;
+    save_next= table_list->next_local;        // fields only from first table
+    table_list->next_local= 0;
     res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
-    thd->lex->select_lex.no_wrap_view_item= 0;
     table_list->next_local= save_next;
+    thd->lex->select_lex.no_wrap_view_item= 0;
     if (res)
       return -1;
 
