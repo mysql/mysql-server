@@ -7,11 +7,11 @@ replace-targets := all clean
 NDB_RELEASE := $(shell ../scripts/mysql_config --version)
 
 all:
-	$(MAKE) -C src
-	$(MAKE) -C test/src
-	$(MAKE) -C tools
-	$(MAKE) -C test/ndbapi/flexBench
-	$(MAKE) -C test/tools/waiter
+	$(MAKE) -j 1 -C src
+	$(MAKE) -j 1 -C test/src
+	$(MAKE) -j 1 -C tools
+	$(MAKE) -j 1 -C test/ndbapi/flexBench
+	$(MAKE) -j 1 -C test/tools/waiter
 
 include $(NDB_TOP)/Epilogue.mk
 

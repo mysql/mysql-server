@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #define DBDICT_C
 #include "Dbdict.hpp"
 
@@ -5703,7 +5705,7 @@ void Dbdict::sendGET_TABINFOREF(Signal* signal,
 }//sendGET_TABINFOREF()
 
 Uint32 convertEndian(Uint32 in) {
-#ifdef _BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
   Uint32 ut = 0;
   ut += ((in >> 24) & 255);
   ut += (((in >> 16) & 255) << 8);
