@@ -752,7 +752,7 @@ bool setup_params_data_withlog(st_prep_stmt *stmt)
       if (*client_param->is_null)
       {
         param->maybe_null= param->null_value= 1;
-        res= &null_string;
+        res= &my_null_string;
       }
       else
       {

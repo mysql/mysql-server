@@ -76,7 +76,7 @@ Long data handling:
 
 #define STMT_QUERY_LOG_LENGTH 8192
 
-String null_string("NULL", 4, default_charset_info);
+String my_null_string("NULL", 4, default_charset_info);
 
 /*
   Find prepared statement in thd
@@ -428,7 +428,7 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
       if (IS_PARAM_NULL(pos,param_no))
       {
         param->maybe_null= param->null_value= 1;
-        res= &null_string;
+        res= &my_null_string;
       }
       else
       {
