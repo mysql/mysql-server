@@ -228,21 +228,21 @@ private:
  * Scan Info
  *
  t = Scan take over indicator -  1 Bit
- n = Take over node           - 16 Bits -> max 65535
- p = Scan Info                - 12 Bits -> max 4095
+ n = Take over node           - 12 Bits -> max 65535
+ p = Scan Info                - 18 Bits -> max 4095
 
            1111111111222222222233
  01234567890123456789012345678901
- tpppppppppppp   nnnnnnnnnnnnnnnn
+ tpppppppppppppppppp nnnnnnnnnnnn
 */
 
 #define TAKE_OVER_SHIFT      (0)
 
-#define TAKE_OVER_NODE_SHIFT (16)
-#define TAKE_OVER_NODE_MASK  (65535)
+#define TAKE_OVER_NODE_SHIFT (20)
+#define TAKE_OVER_NODE_MASK  (4095)
 
 #define SCAN_INFO_SHIFT      (1)
-#define SCAN_INFO_MASK       (4095)
+#define SCAN_INFO_MASK       (262143)
 
 /**
  * Attr Len

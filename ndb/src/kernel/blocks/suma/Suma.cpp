@@ -1844,7 +1844,7 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->tableId = tabPtr.p->m_tableId;
   req->requestInfo = 0;
   req->savePointId = 0;
-  ScanFragReq::setConcurrency(req->requestInfo, parallelism);
+  //ScanFragReq::setConcurrency(req->requestInfo, parallelism);
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
@@ -1853,9 +1853,10 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
-  
+    
   for(unsigned int i = 0; i<parallelism; i++){
-    req->clientOpPtr[i] = (ptrI << 16) + (i + 1);
+    //req->clientOpPtr[i] = (ptrI << 16) + (i + 1);
+    req->clientOpPtr = (ptrI << 16) + (i + 1);
   }
   suma.sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 25, JBB);
   

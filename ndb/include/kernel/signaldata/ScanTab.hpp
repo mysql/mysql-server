@@ -45,7 +45,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 25 );
+  STATIC_CONST( StaticLength = 11 );
 
 private:
 
@@ -63,7 +63,8 @@ private:
   UintR transId1;             // DATA 6
   UintR transId2;             // DATA 7
   UintR buddyConPtr;          // DATA 8
-  UintR apiOperationPtr[16];  // DATA 9-25
+  UintR batch_byte_size;      // DATA 9
+  UintR first_batch_size;     // DATA 10
   
   /**
    * Get:ers for requestInfo
@@ -95,11 +96,11 @@ private:
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
  x = Range Scan (TUX)      - 1  Bit 15
- b = Scan batch            - 5  Bit 16-19 (max 15)
+ b = Scan batch            - 10 Bit 16-25 (max 1023)
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hc   xbbbbb
+ ppppppppl hc   xbbbbbbbbbb
 */
 
 #define PARALLELL_SHIFT     (0)
@@ -118,7 +119,7 @@ private:
 #define RANGE_SCAN_MASK         (1)
 
 #define SCAN_BATCH_SHIFT (16)
-#define SCAN_BATCH_MASK  (31)
+#define SCAN_BATCH_MASK  (1023)
 
 inline
 Uint8
@@ -201,6 +202,7 @@ inline
 void
 ScanTabReq::setScanBatch(Uint32 & requestInfo, Uint32 flag){
   ASSERT_MAX(flag, SCAN_BATCH_MASK,  "ScanTabReq::setScanBatch");
+  requestInfo &= ~(SCAN_BATCH_MASK << SCAN_BATCH_SHIFT);
   requestInfo |= (flag << SCAN_BATCH_SHIFT);
 }
 
@@ -250,8 +252,8 @@ private:
     Uint32 info;
   };
 
-  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 5; };
-  static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 31;}
+  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; };
+  static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 1023;}
 };
 
 /**
