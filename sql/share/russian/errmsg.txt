@@ -208,3 +208,4 @@
 "Не получилось инициализировать структуру master info, проверте persmissions на файле master.info",
 "Не могу создать процесс SLAVE, проверьте системные ресурсы",
 "User %-.64s has already more than 'max_user_connections' active connections",
+"You may only use constant expressions with SET",
