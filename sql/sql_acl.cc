@@ -343,10 +343,19 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
         ptr = get_field(&mem, table->field[next_field++]);
         user.user_resource.updates=ptr ? atoi(ptr) : 0;
         ptr = get_field(&mem, table->field[next_field++]);
-        user.user_resource.connections=ptr ? atoi(ptr) : 0;
+        user.user_resource.conn_per_hour= ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
-            user.user_resource.connections)
+            user.user_resource.conn_per_hour)
           mqh_used=1;
+
+        if (table->fields >= 34) 
+        {
+          /* Starting from 5.0.3 we have max_user_connections field */
+          ptr= get_field(&mem, table->field[next_field++]);
+          user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
+        }
+        else
+          user.user_resource.user_conn= 0;
       }
       else
       {
@@ -934,12 +943,14 @@ static void acl_update_user(const char *user, const char *host,
 	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
       {
 	acl_user->access=privileges;
-	if (mqh->bits & 1)
+	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
-	if (mqh->bits & 2)
+	if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
 	  acl_user->user_resource.updates=mqh->updates;
-	if (mqh->bits & 4)
-	  acl_user->user_resource.connections=mqh->connections;
+	if (mqh->specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
+	  acl_user->user_resource.conn_per_hour= mqh->conn_per_hour;
+	if (mqh->specified_limits & USER_RESOURCES::USER_CONNECTIONS)
+	  acl_user->user_resource.user_conn= mqh->user_conn;
 	if (ssl_type != SSL_TYPE_NOT_SPECIFIED)
 	{
 	  acl_user->ssl_type= ssl_type;
@@ -1622,7 +1633,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.str)			// If password given
       table->field[2]->store(password, password_len, system_charset_info);
     else if (!rights && !revoke_grant &&
-             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED && !lex->mqh.bits)
+             lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
+             !lex->mqh.specified_limits)
     {
       DBUG_RETURN(0);
     }
@@ -1684,13 +1696,16 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
 
     USER_RESOURCES mqh= lex->mqh;
-    if (mqh.bits & 1)
+    if (mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
       table->field[28]->store((longlong) mqh.questions);
-    if (mqh.bits & 2)
+    if (mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
       table->field[29]->store((longlong) mqh.updates);
-    if (mqh.bits & 4)
-      table->field[30]->store((longlong) mqh.connections);
-    mqh_used = mqh_used || mqh.questions || mqh.updates || mqh.connections;
+    if (mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR)
+      table->field[30]->store((longlong) mqh.conn_per_hour);
+    if (table->fields >= 34 &&
+        (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
+      table->field[33]->store((longlong) mqh.user_conn);
+    mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
   }
   if (old_row_exists)
   {
@@ -3817,8 +3832,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
     if ((want_access & GRANT_ACL) ||
-	(acl_user->user_resource.questions | acl_user->user_resource.updates |
-	 acl_user->user_resource.connections))
+	(acl_user->user_resource.questions ||
+         acl_user->user_resource.updates ||
+         acl_user->user_resource.conn_per_hour ||
+         acl_user->user_resource.user_conn))
     {
       global.append(" WITH",5);
       if (want_access & GRANT_ACL)
@@ -3827,8 +3844,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		      "MAX_QUERIES_PER_HOUR");
       add_user_option(&global, acl_user->user_resource.updates,
 		      "MAX_UPDATES_PER_HOUR");
-      add_user_option(&global, acl_user->user_resource.connections,
+      add_user_option(&global, acl_user->user_resource.conn_per_hour,
 		      "MAX_CONNECTIONS_PER_HOUR");
+      add_user_option(&global, acl_user->user_resource.user_conn,
+		      "MAX_USER_CONNECTIONS");
     }
     protocol->prepare_for_resend();
     protocol->store(global.ptr(),global.length(),global.charset());
