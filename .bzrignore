@@ -1055,3 +1055,4 @@ vio/viotest-ssl
 include/mysqld_ername.h
 include/mysqld_error.h
 include/sql_state.h
+support-files/ndb-config-2-node.ini
