@@ -1328,7 +1328,7 @@ int extend;
 	print_error("Found wrong record at %lu",(ulong) start_recpos);
 	got_error=1;
       }
-      crc^=checksum(record,info->s->base.reclength);
+      crc^=_nisam_checksum(record,info->s->base.reclength);
       link_used+=info->s->pack.ref_length;
       used+=block_info.rec_len+info->s->pack.ref_length;
     }

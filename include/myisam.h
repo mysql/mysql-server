@@ -53,8 +53,6 @@ extern "C" {
 
 #define mi_portable_sizeof_char_ptr 8
 
-typedef uint32 ha_checksum;
-
 	/* Param to/from mi_info */
 
 typedef struct st_mi_isaminfo		/* Struct from h_info */

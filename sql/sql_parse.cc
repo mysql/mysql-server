@@ -2285,6 +2285,14 @@ mysql_execute_command(THD *thd)
       break;
     }
 #endif
+  case SQLCOM_CHECKSUM:
+  {
+    if (check_db_used(thd,tables) ||
+	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
+      goto error; /* purecov: inspected */
+    res = mysql_checksum_table(thd, tables, &lex->check_opt);
+    break;
+  }
   case SQLCOM_REPAIR:
   {
     if (check_db_used(thd,tables) ||

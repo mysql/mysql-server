@@ -2554,6 +2554,31 @@ null:
   return 0;
 }
 
+longlong Item_func_uncompressed_length::val_int()
+{
+  String *res= args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  if (res->is_empty()) return 0;
+  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
+}
+
+longlong Item_func_crc32::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  if (!res)
+  {
+    null_value=1;
+    return 0; /* purecov: inspected */
+  }
+  null_value=0;
+  return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
+}
+
 #ifdef HAVE_COMPRESS
 #include "zlib.h"
 
@@ -2581,7 +2606,7 @@ String *Item_func_compress::val_str(String *str)
 
   buffer.realloc((uint32)new_size + 4 + 1);
   Byte *body= ((Byte*)buffer.c_ptr()) + 4;
-  
+
   if ((err= compress(body, &new_size,
 		     (const Bytef*)res->c_ptr(), res->length())) != Z_OK)
   {
@@ -2603,7 +2628,7 @@ String *Item_func_compress::val_str(String *str)
   }
 
   buffer.length((uint32)new_size + 4);
-  
+
   return &buffer;
 }
 
@@ -2615,7 +2640,7 @@ String *Item_func_uncompress::val_str(String *str)
   ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
   int err= Z_OK;
   uint code;
-  
+
   if (new_size > MAX_BLOB_WIDTH)
   {
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -2624,21 +2649,20 @@ String *Item_func_uncompress::val_str(String *str)
     null_value= 0;
     return 0;
   }
-  
+
   buffer.realloc((uint32)new_size);
-  
-  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size, 
+
+  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size,
 		       ((const Bytef*)res->c_ptr())+4,res->length())) == Z_OK)
   {
     buffer.length((uint32)new_size);
     return &buffer;
   }
-  
-  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR : 
+
+  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR :
     err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR;
   push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
   null_value= 1;
   return 0;
 }
-
 #endif
