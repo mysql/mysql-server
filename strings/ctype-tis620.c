@@ -15,6 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
+   Copyright (C) 2003  by Sathit Jittanupat <jsat66@hotmail.com,jsat66@yahoo.com>
+	* solving bug crash with long text field string
+	* sorting with different number of space or sign char. within string
+
    Copyright (C) 2001  by Korakot Chaovavanich <korakot@iname.com> and
 			  Apisilp Trunganont <apisilp@pantip.inet.co.th>
    Copyright (C) 1998, 1999 by Pruet Boonma <pruet@eng.cmu.ac.th>
@@ -49,10 +53,6 @@
 #include "m_ctype.h"
 #include "t_ctype.h"
 
-static uchar* thai2sortable(const uchar *tstr,int len);
-
-#define BUFFER_MULTIPLY 4
-#define buffsize(s)	(BUFFER_MULTIPLY * (strlen(s) + 1))
 #define M  L_MIDDLE
 #define U  L_UPPER
 #define L  L_LOWER
@@ -453,13 +453,77 @@ uchar NEAR sort_order_tis620[]=
    Arg: const source string and length of converted string
    Ret: Sortable string
 */
+static	void	_thai2sortable(uchar *tstr)
+{
+	uchar	*p ;
+	int	len,tlen ;
+	uchar	c,l2bias ;
+
+	tlen= len	= strlen (tstr) ;
+	l2bias	= 256 - 8 ;
+	for (p=tstr; tlen > 0; p++,tlen--)
+	{
+		c	= *p ;
+
+		if (isthai(c))
+		{
+		    int	*t_ctype0 = t_ctype[c]  ;
+		    
+			if (isconsnt(c))
+				l2bias	-= 8 ;
+			if (isldvowel(c) && isconsnt(p[1]))
+			{
+				/* 
+				simply swap between leading-vowel and consonant
+				*/
+				*p	= p[1];
+				p[1]= c ;
+				tlen-- ;
+				p++; 
+				continue ;
+			}
+
+			// if found level 2 char (L2_GARAN,L2_TONE*,L2_TYKHU) move to last
+			if (t_ctype0[1]>= L2_GARAN)
+			{
+				// l2bias use to control position weight of l2char
+				// example (*=l2char) XX*X must come before X*XX
+				strcpy (p,p+1) ;
+				tstr[len-1]	= l2bias + t_ctype0[1]- L2_GARAN +1 ;
+				p-- ;
+				continue ;
+			}
+		}
+		else
+		{
+			l2bias	-= 8 ;
+			*p	= to_lower_tis620[c]; 
+		}
+		/*	
+			this routine skip non-printable char
+			but not necessary, leave it like raw ascii 8 bits
+		*/
+		/*
+		t_ctype0 = t_ctype[p[0]];
+		if ((t_ctype0[0]|t_ctype0[1]|t_ctype0[2])==IGNORE)
+		{
+			strcpy(p,p+1);
+			p-- ;
+		}
+		*/
+	}
+}
+
 /*
   NOTE: isn't it faster to alloc buffer in calling function?
- */
+*/
+/*
+Sathit's NOTE: we don't use this function anymore 
 static uchar* thai2sortable(const uchar * tstr,int len)
 {
+*/
 /* We use only 3 levels (neglect capitalization). */
-
+/*
   const uchar* p= tstr;
   uchar		*outBuf;
   uchar		*pRight1, *pRight2, *pRight3;
@@ -526,6 +590,7 @@ static uchar* thai2sortable(const uchar * tstr,int len)
   memcpy(pRight1, pLeft3, pRight3 - pLeft3);
   return outBuf;
 }
+*/
 
 /* strncoll() replacement, compare 2 string, both are conveted to sortable string
    Arg: 2 Strings and it compare length
@@ -533,16 +598,27 @@ static uchar* thai2sortable(const uchar * tstr,int len)
 */
 int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
 {
-  uchar *tc1, *tc2;
-  int i;
-  tc1= thai2sortable(s1, len1);
-  tc2= thai2sortable(s2, len2);
-  i= strcmp((char*)tc1, (char*)tc2);
-  if (tc1 != s1)
-    free(tc1);
-  if (tc2 != s2)
-    free(tc2);
-  return i;
+	uchar	buf[80] ;
+	uchar *tc1, *tc2;
+	int i;
+
+	len1= (int) strnlen((char*) s1,len1);
+	len2= (int) strnlen((char*) s2,len2);
+	if ((len1 + len2 +2) > (int) sizeof(buf))
+		tc1	= (uchar *)malloc(len1+len2) ;
+	else
+		tc1	= buf ;
+	tc2	= tc1 + len1+1 ;
+	strncpy((char *)tc1,(char *)s1,len1) ;
+	tc1[len1]	= 0;	// if s1's length > len1, need to put 'end of string'
+	strncpy((char *)tc2,(char *)s2,len2) ; 
+	tc2[len2]	= 0;	// put end of string
+	_thai2sortable(tc1);
+	_thai2sortable(tc2);
+	i= strcmp((char*)tc1, (char*)tc2);
+	if (tc1 != buf )
+		free(tc1);
+	return i;
 }
 
 /* strnxfrm replacment, convert Thai string to sortable string
@@ -551,15 +627,12 @@ int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
 */
 int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
 {
-  uint bufSize;
-  uchar *tmp;
-  bufSize= (uint) buffsize((char*)src);
-  tmp= thai2sortable(src,srclen);
-  set_if_smaller(bufSize,(uint) len);
-  memcpy((uchar *)dest, tmp, bufSize);
-  if (tmp != src)
-    free(tmp);
-  return (int)bufSize;
+	if (len > srclen)
+		len	= srclen ;
+	strncpy (dest,src,len) ;
+	dest[len]	= 0;	// if src's length > len, need to put 'end of string'
+	_thai2sortable(dest);
+	return strlen(dest); 
 }
 
 /* strcoll replacment, compare 2 strings
@@ -568,16 +641,7 @@ int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
 */
 int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 {
-  uchar *tc1, *tc2;
-  int i;
-  tc1= thai2sortable(s1, (int) strlen((char*)s1));
-  tc2= thai2sortable(s2, (int) strlen((char*)s2));
-  i= strcmp((char*)tc1, (char*)tc2);
-  if (tc1 != s1)
-    free(tc1);
-  if (tc2 != s2)
-    free(tc2);
-  return i;
+	return my_strnncoll_tis620(s1, strlen((char *)s1),s2,strlen((char *)s2));
 }
 
 /* strxfrm replacment, convert Thai string to sortable string
@@ -586,15 +650,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
 */
 int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
 {
-  uint bufSize;
-  uchar *tmp;
-
-  bufSize= (uint)buffsize((char*) src);
-  tmp= thai2sortable(src, len);
-  memcpy((uchar *)dest, tmp, bufSize);
-  if (tmp != src)
-    free(tmp);
-  return bufSize;
+  return my_strnxfrm_tis620(dest,src,len,strlen((char *)src));
 }
 
 /* Convert SQL like string to C string
@@ -658,20 +714,31 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 {
   const uchar* fr= from;
   uchar* p= ptr;
+  uint	i; 
 
   if (length > field_length)
     length= field_length;
 
-  while (length--)
-    if ((istone(*fr) || isdiacrt1(*fr)) &&
-       (islwrvowel(fr[1]) || isuprvowel(fr[1])))
-    {
-      *p= fr[1];
-      p[1]= *fr;
-      fr+= 2;
-      p+= 2;
-      length--;
+  for (i=0;i<length;i++,p++,fr++)
+  {
+	*p	= *fr ;
+	
+/*	Sathit's NOTE: it's better idea not to do any normalize
+*/
+	if (istone(*fr) || isdiacrt1(*fr))
+	{
+		if (i > 0 && (islwrvowel(fr[-1]) || isuprvowel(fr[-1])))
+			continue ;
+		if(islwrvowel(fr[1]) || isuprvowel(fr[1]))
+		{
+			*p= fr[1];
+			p[1]= *fr;
+			fr++;
+			p++;
+			i++ ;
+		}
     }
-    else
-      *p++ = *fr++;
+
+  }
+
 }
