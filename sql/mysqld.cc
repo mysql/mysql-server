@@ -2231,7 +2231,8 @@ enum options {
 	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
 	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
 	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE,
-	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE
+	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE,
+	       OPT_DISCONNECT_SLAVE_EVENT_COUNT
 };
 
 static struct option long_options[] = {
@@ -2287,6 +2288,10 @@ static struct option long_options[] = {
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
+    // needs to be available for the test case to pass in non-debugging mode
+    // is a no-op
+  {"disconnect-slave-event-count",      required_argument, 0,
+     (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
@@ -2887,6 +2892,12 @@ static void get_options(int argc,char **argv)
       x_free(opt_bin_logname);
       if (optarg && optarg[0])
 	opt_bin_logname=my_strdup(optarg,MYF(0));
+      break;
+      // needs to be handled (as no-op) in non-debugging mode for test suite
+    case (int)OPT_DISCONNECT_SLAVE_EVENT_COUNT:
+#ifndef DBUG_OFF      
+      disconnect_slave_event_count = atoi(optarg);
+#endif      
       break;
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
