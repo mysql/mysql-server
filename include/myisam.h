@@ -384,7 +384,7 @@ typedef struct st_mi_sort_param
   IO_CACHE tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
   my_off_t pos,max_pos,filepos,start_recpos;
-  my_bool fix_datafile;
+  my_bool fix_datafile, master;
   char *record;
   char *tmpdir;
   int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
@@ -405,6 +405,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 	      my_string name, int rep_quick);
 int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name);
 int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
+		      const char * name, int rep_quick);
+int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, uint raid_chunks,

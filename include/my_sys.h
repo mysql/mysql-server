@@ -666,8 +666,6 @@ extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);
 extern void init_io_cache_share(IO_CACHE *info,
 				IO_CACHE_SHARE *s, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
-int lock_io_cache(IO_CACHE *);
-void unlock_io_cache(IO_CACHE *);
 #endif
 extern int _my_b_seq_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
