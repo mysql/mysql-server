@@ -133,7 +133,7 @@ static String glob_buffer,old_buffer;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
-static char *xmlmeta[] = {
+static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
   0, 0
@@ -173,8 +173,8 @@ static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static int put_info(const char *str,INFO_TYPE info,uint error=0);
 static void safe_put_field(const char *pos,ulong length);
-static char *array_value(char **array, char *key);
-static char *xmlencode(char *dest, char *src);
+static const char *array_value(const char **array, char *key);
+static void xmlencode(char *dest, char *src);
 static void my_chomp(char *end);
 static void init_pager();
 static void end_pager();
@@ -1739,8 +1739,8 @@ print_table_data_vertically(MYSQL_RES *result)
   }
 }
 
-static char
-*array_value(char **array, char *key) {
+static const char
+*array_value(const char **array, char *key) {
   int x;
   for(x=0; array[x]; x+=2)
     if(!strcmp(array[x], key))
@@ -1748,19 +1748,21 @@ static char
   return 0;
 }
 
-static char
-*xmlencode(char *dest, char *src) {
+static void
+xmlencode(char *dest, char *src)
+{
   char *p = src;
-  char *t;
+  const char *t;
   char s[2] = { 0, 0 };
   *dest = 0;
   
-  do {
+  do
+  {
     s[0] = *p;
-    if(!(t=array_value(xmlmeta, s))) t = s;
-    strcat(dest, t);
+    if (!(t=array_value(xmlmeta, s)))
+      t = s;
+    dest=strmov(dest, t);
   } while(*p++);
-  return dest;
 }
 
 static void
