@@ -312,11 +312,6 @@ Item *create_func_current_user()
 			 system_charset_info);
 }
 
-Item *create_func_quarter(Item* a)
-{
-  return new Item_func_quarter(a);
-}
-
 Item *create_func_radians(Item *a)
 {
   return new Item_func_units((char*) "radians",a,M_PI/180,0.0);
