@@ -70,7 +70,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   }
   error=mysql_rm_table_part2(thd,tables,if_exists,0);
 
- err:  
+ err:
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   pthread_mutex_unlock(&LOCK_open);
 
@@ -209,7 +209,6 @@ int quick_rm_table(enum db_type base,const char *db,
   PRIMARY keys are prioritized.
 */
 
-
 static int sort_keys(KEY *a, KEY *b)
 {
   if (a->flags & HA_NOSAME)
@@ -251,7 +250,8 @@ static int sort_keys(KEY *a, KEY *b)
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
-		       List<Key> &keys,bool tmp_table,bool no_log)
+		       List<Key> &keys,bool tmp_table,bool no_log,
+                       uint select_field_count)
 {
   char		path[FN_REFLEN];
   const char	*key_name;
@@ -259,10 +259,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   int		error= -1;
   uint		db_options,field,null_fields,blob_columns;
   ulong		pos;
-  KEY	*key_info,*key_info_buffer;
+  KEY	        *key_info,*key_info_buffer;
   KEY_PART_INFO *key_part_info;
   int		auto_increment=0;
   handler	*file;
+  int           field_no,dup_no;
   DBUG_ENTER("mysql_create_table");
 
   /*
@@ -275,6 +276,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
   List_iterator<create_field> it(fields),it2(fields);
+  int select_field_pos=fields.elements - select_field_count;
   null_fields=blob_columns=0;
   db_options=create_info->table_options;
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
@@ -288,10 +290,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
 
-  /* Don't pack keys in old tables if the user has requested this */
 
-  while ((sql_field=it++))
+  for(field_no=0; (sql_field=it++) ; field_no++)
   {
+    /* Don't pack keys in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
 	sql_field->sql_type == FIELD_TYPE_VAR_STRING &&
 	create_info->row_type != ROW_TYPE_FIXED)
@@ -300,14 +302,29 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
-    while ((dup_field=it2++) != sql_field)
+    for(dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
     {
-      if (my_strcasecmp(system_charset_info, 
-                        sql_field->field_name, 
+      if (my_strcasecmp(system_charset_info,
+                        sql_field->field_name,
                         dup_field->field_name) == 0)
       {
-	my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
-	DBUG_RETURN(-1);
+        if (field_no<select_field_pos || dup_no>=select_field_pos)
+        {
+          my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
+          DBUG_RETURN(-1);
+        }
+        else
+        {
+            sql_field->length=dup_field->length;
+            sql_field->decimals=dup_field->decimals;
+            sql_field->flags=dup_field->flags;
+            sql_field->pack_length=dup_field->pack_length;
+            sql_field->unireg_check=dup_field->unireg_check;
+            sql_field->sql_type=dup_field->sql_type;
+            it2.remove();
+            select_field_pos--;
+            break;
+        }
       }
     }
     it2.rewind();
@@ -793,6 +810,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE *table;
   tmp_table.table_name=0;
+  uint select_field_count=0;
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -826,11 +844,12 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 					   (Field*) 0))))
       DBUG_RETURN(0);
     extra_fields->push_back(cr_field);
+    select_field_count++;
   }
   /* create and lock table */
   /* QQ: This should be done atomic ! */
   if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0,1)) // no logging
+			 *keys,0,1,select_field_count)) // no logging
     DBUG_RETURN(0);
   if (!(table=open_table(thd,db,name,name,(bool*) 0)))
   {
@@ -1719,7 +1738,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   if ((error=mysql_create_table(thd, new_db, tmp_name,
 				create_info,
-				create_list,key_list,1,1))) // no logging
+				create_list,key_list,1,1,0))) // no logging
     DBUG_RETURN(error);
 
   if (table->tmp_table)

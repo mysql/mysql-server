@@ -1598,7 +1598,7 @@ mysql_execute_command(void)
       res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
 			       tables->real_name, &lex->create_info,
 			       lex->create_list,
-			       lex->key_list,0, 0); // do logging
+			       lex->key_list,0,0,0); // do logging
       if (!res)
 	send_ok(&thd->net);
     }
