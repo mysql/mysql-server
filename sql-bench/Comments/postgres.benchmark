@@ -18,39 +18,43 @@
 # corresponding file. If you are using csh, use ´setenv´.
 #
 
-export POSTGRES_INCLUDE=/usr/local/pgsql/include
-export POSTGRES_LIB=/usr/local/pgsql/lib
+export POSTGRES_INCLUDE=/usr/local/pg/include
+export POSTGRES_LIB=/usr/local/pg/lib
 
-PATH=$PATH:/usr/local/pgsql/bin
-MANPATH=$MANPATH:/usr/local/pgsql/man
+PATH=$PATH:/usr/local/pg/bin
+MANPATH=$MANPATH:/usr/local/pg/man
 
 #
 # Add the following line to /etc/ld.so.conf:
 #
 
-/usr/local/pgsql/lib
+/usr/local/pg/lib
 and run ldconfig.
 
-#
-# untar the postgres source distribution and cd to src/
-# run the following commands:
-#
+# untar the postgres source distribution,  cd to postgresql-*
+# and run the following commands:
 
-./configure
+CFLAGS=-O3 ./configure
 gmake
 gmake install
 
-mkdir /usr/local/pgsql/data
-chown postgres /usr/local/pgsql/data
+mkdir /usr/local/pg/data
+chown postgres /usr/local/pg/data
 su - postgres
-/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
-su postgres -c "/usr/local/pgsql/bin/postmaster -o -F -D /usr/local/pgsql/data" &
-su postgres -c "/usr/local/pgsql/bin/createdb test"
+/usr/local/pg/bin/initdb -D /usr/local/pg/data
+/usr/local/pg/bin/postmaster -o -F -D /usr/local/pg/data &
+/usr/local/pg/bin/createdb test
+exit
 
 #
-# Second, install packages DBD-Pg-0.95.tar.gz and DBI-1.14.tar.gz,
+# Second, install packages DBD-Pg-1.00.tar.gz and DBI-1.14.tar.gz,
 # available from http://www.perl.com/CPAN/
-#
+
+export POSTGRES_LIB=/usr/local/pg/lib/
+export POSTGRES_INCLUDE=/usr/local/pg/include/postgresql
+perl Makefile.PL
+make
+make install
 
 #
 # Now we run the test that can be found in the sql-bench directory in the
@@ -59,17 +63,16 @@ su postgres -c "/usr/local/pgsql/bin/createdb test"
 # We did run two tests:
 # The standard test
 
-run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --user=postgres --server=pg --cmp=mysql
 
 # and a test where we do a vacuum() after each update.
 # (The time for vacuum() is counted in the book-keeping() column)
 
-run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast
 
 # If you want to store the results in a output/RUN-xxx file, you should
 # repeate the benchmark with the extra option --log --use-old-result
 # This will create a the RUN file based of the previous results
-#
 
-run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --log --use-old-result
-run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast --log --use-old-result
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512M, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --log --use-old-result
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 512MG, pg started with -o -F" --user=postgres --server=pg --cmp=mysql --fast --log --use-old-result
