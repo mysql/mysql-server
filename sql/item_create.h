@@ -150,3 +150,4 @@ Item *create_func_subtime(Item* a,Item* b);
 Item *create_func_timediff(Item* a,Item* b);
 Item *create_func_maketime(Item* a,Item* b,Item* c);
 Item *create_func_str_to_date(Item* a,Item* b);
+Item *create_func_last_day(Item *a);
