@@ -76,7 +76,7 @@ int decimal_round(decimal *from, decimal *to, int new_scale, dec_round_mode mode
 #define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 1)
 
 /* negate a decimal */
-#define decimal_neg(dec) do { (dec)->sign=!(dec)->sign; } while(0)
+#define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
 
 /*
   conventions:
