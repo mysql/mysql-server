@@ -985,7 +985,7 @@ public:
   Item *new_item() 
   {
     return new Item_string(name, str_value.ptr(), 
-    			   str_value.length(), &my_charset_bin);
+    			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }
