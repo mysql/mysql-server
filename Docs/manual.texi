@@ -46362,13 +46362,13 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
-If one dropped and added an @code{AUTO_INCREMENT} column, the
-@code{AUTO_INCREMENT} sequence wasn't reset.
+The @code{AUTO_INCREMENT} sequence wasn't reset when dropping
+and adding an @code{AUTO_INCREMENT} column.
 @item
-@code{CREATE .. SELECT} now creates not unique indexes delayed.
+@code{CREATE ... SELECT} now creates non-unique indexes delayed.
 @item
 Fixed problem where @code{LOCK TABLES table_name READ} followed by
-@code{FLUSH TABLES} put a exclusive lock on the table.
+@code{FLUSH TABLES} put an exclusive lock on the table.
 @item
 @code{REAL} @@variables with was represented with 2 digits when
 converted to strings.
@@ -46380,8 +46380,8 @@ that only had the open count wrong.
 @item
 Added functions to handle symbolic links to make life easier in 4.0.
 @item
-We are now using the @code{-lcma} thread library on HP-UX 10.20 to
-get @strong{MySQL} more stable on HP-UX.
+We are now using the @code{-lcma} thread library on HP-UX 10.20 so
+that @strong{MySQL} will be more stable on HP-UX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item
