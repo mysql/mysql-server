@@ -1399,6 +1399,23 @@ void item_user_lock_free(void)
 void item_user_lock_release(ULL *ull)
 {
   ull->locked=0;
+  if (mysql_bin_log.is_open())
+  {
+    THD *thd = current_thd;
+    int save_errno;
+    char buf[256];
+    String tmp(buf,sizeof(buf));
+    tmp.length(0);
+    tmp.append("SELECT release_lock(\"");
+    tmp.append(ull->key,ull->key_length);
+    tmp.append("\")");
+    save_errno=thd->net.last_errno;
+    thd->net.last_errno=0;
+    thd->query_length=tmp.length();
+    Query_log_event qev(thd,tmp.ptr());
+    mysql_bin_log.write(&qev);
+    thd->net.last_errno=save_errno;
+  }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
   else
