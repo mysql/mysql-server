@@ -4037,7 +4037,7 @@ If you set an @code{ENUM} column to an unsupported value, it will be set to
 the error value 'empty string', with numeric value 0.
 
 @item
-If you set an @cod{SET} column to an unsupported value, the value will
+If you set an @code{SET} column to an unsupported value, the value will
 be ignored. @xref{Bugs}.
 
 @end itemize
