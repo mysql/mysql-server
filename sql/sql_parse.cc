@@ -563,7 +563,10 @@ check_connections(THD *thd)
 	thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
 	/* Cut very long hostnames to avoid possible overflows */
 	if (thd->host)
+	{
 	  thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+	  thd->host_or_ip= thd->host;
+	}
 	if (connect_errors > max_connect_errors)
 	  return(ER_HOST_IS_BLOCKED);
       }

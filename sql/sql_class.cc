@@ -186,7 +186,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   */
   {
     pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (rnd(&sql_rand) * 0xffffffff); /* make all bits random */
+    ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
     pthread_mutex_unlock(&LOCK_thread_count);
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }

@@ -283,6 +283,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
+%token	MEMORY_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
 %token	NAMES_SYM
@@ -1009,6 +1010,7 @@ table_types:
 	| MYISAM_SYM	{ $$= DB_TYPE_MYISAM; }
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
+	| MEMORY_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
 	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; };
 
@@ -4088,6 +4090,7 @@ keyword:
 	| MAX_UPDATES_PER_HOUR	{}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
+	| MEMORY_SYM		{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}
