@@ -922,4 +922,24 @@ group_concat(a)
 12345678901234567890
 set group_concat_max_len=default;
 drop table t1;
-SET GLOBAL query_cache_size=0;
+set global query_cache_size=1024*1024;
+flush query cache;
+create table t1 ( a int );
+insert into t1 values (1);
+select a from t1;
+a
+1
+select a from t1;
+a
+1
+show status like 'qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+show status like 'qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+set GLOBAL query_cache_size=0;
