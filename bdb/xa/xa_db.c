@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 1999, 2000
+ * Copyright (c) 1998-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: xa_db.c,v 11.9 2000/09/06 18:57:59 ubell Exp $";
+static const char revid[] = "$Id: xa_db.c,v 11.21 2002/08/29 14:22:25 margo Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -16,15 +16,14 @@ static const char revid[] = "$Id: xa_db.c,v 11.9 2000/09/06 18:57:59 ubell Exp $
 #endif
 
 #include "db_int.h"
-#include "xa.h"
-#include "xa_ext.h"
-#include "txn.h"
+#include "dbinc/xa.h"
+#include "dbinc/txn.h"
 
 static int __xa_close __P((DB *, u_int32_t));
 static int __xa_cursor __P((DB *, DB_TXN *, DBC **, u_int32_t));
 static int __xa_del __P((DB *, DB_TXN *, DBT *, u_int32_t));
 static int __xa_get __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
-static int __xa_open __P((DB *,
+static int __xa_open __P((DB *, DB_TXN *,
 	    const char *, const char *, DBTYPE, u_int32_t, int));
 static int __xa_put __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
 
@@ -33,7 +32,7 @@ typedef struct __xa_methods {
 	int (*cursor) __P((DB *, DB_TXN *, DBC **, u_int32_t));
 	int (*del) __P((DB *, DB_TXN *, DBT *, u_int32_t));
 	int (*get) __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
-	int (*open) __P((DB *,
+	int (*open) __P((DB *, DB_TXN *,
 	    const char *, const char *, DBTYPE, u_int32_t, int));
 	int (*put) __P((DB *, DB_TXN *, DBT *, DBT *, u_int32_t));
 } XA_METHODS;
@@ -73,8 +72,9 @@ __db_xa_create(dbp)
  */
 
 static int
-__xa_open(dbp, name, subdb, type, flags, mode)
+__xa_open(dbp, txn, name, subdb, type, flags, mode)
 	DB *dbp;
+	DB_TXN *txn;
 	const char *name, *subdb;
 	DBTYPE type;
 	u_int32_t flags;
@@ -85,7 +85,7 @@ __xa_open(dbp, name, subdb, type, flags, mode)
 
 	xam = (XA_METHODS *)dbp->xa_internal;
 
-	if ((ret = xam->open(dbp, name, subdb, type, flags, mode)) != 0)
+	if ((ret = xam->open(dbp, txn, name, subdb, type, flags, mode)) != 0)
 		return (ret);
 
 	xam->cursor = dbp->cursor;
@@ -109,7 +109,7 @@ __xa_cursor(dbp, txn, dbcp, flags)
 {
 	DB_TXN *t;
 
-	t = txn != NULL && txn == dbp->open_txn ? txn : dbp->dbenv->xa_txn;
+	t = txn != NULL ? txn : dbp->dbenv->xa_txn;
 	if (t->txnid == TXN_INVALID)
 		t = NULL;
 
@@ -125,7 +125,7 @@ __xa_del(dbp, txn, key, flags)
 {
 	DB_TXN *t;
 
-	t = txn != NULL && txn == dbp->open_txn ? txn : dbp->dbenv->xa_txn;
+	t = txn != NULL ? txn : dbp->dbenv->xa_txn;
 	if (t->txnid == TXN_INVALID)
 		t = NULL;
 
@@ -141,7 +141,7 @@ __xa_close(dbp, flags)
 
 	real_close = ((XA_METHODS *)dbp->xa_internal)->close;
 
-	__os_free(dbp->xa_internal, sizeof(XA_METHODS));
+	__os_free(dbp->dbenv, dbp->xa_internal);
 	dbp->xa_internal = NULL;
 
 	return (real_close(dbp, flags));
@@ -156,7 +156,7 @@ __xa_get(dbp, txn, key, data, flags)
 {
 	DB_TXN *t;
 
-	t = txn != NULL && txn == dbp->open_txn ? txn : dbp->dbenv->xa_txn;
+	t = txn != NULL ? txn : dbp->dbenv->xa_txn;
 	if (t->txnid == TXN_INVALID)
 		t = NULL;
 
@@ -173,7 +173,7 @@ __xa_put(dbp, txn, key, data, flags)
 {
 	DB_TXN *t;
 
-	t = txn != NULL && txn == dbp->open_txn ? txn : dbp->dbenv->xa_txn;
+	t = txn != NULL ? txn : dbp->dbenv->xa_txn;
 	if (t->txnid == TXN_INVALID)
 		t = NULL;
 

@@ -1,15 +1,16 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 2000
+# Copyright (c) 2000-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb009.tcl,v 11.4 2000/08/25 14:21:53 sue Exp $
+# $Id: sdb009.tcl,v 11.9 2002/07/11 18:53:46 sandstro Exp $
 #
-# Subdatabase Test 9 (replacement)
-# Test the DB->rename method.
+# TEST	subdb009
+# TEST	Test DB->rename() method for subdbs
 proc subdb009 { method args } {
 	global errorCode
 	source ./include.tcl
+
 	set omethod [convert_method $method]
 	set args [convert_args $method $args]
 
@@ -20,43 +21,72 @@ proc subdb009 { method args } {
 		return
 	}
 
-	set file $testdir/subdb009.db
+	set txnenv 0
+	set envargs ""
+	set eindex [lsearch -exact $args "-env"]
+	#
+	# If we are using an env, then testfile should just be the db name.
+	# Otherwise it is the test directory and the name.
+	if { $eindex == -1 } {
+		set testfile $testdir/subdb009.db
+		set env NULL
+	} else {
+		set testfile subdb009.db
+		incr eindex
+		set env [lindex $args $eindex]
+		set envargs " -env $env "
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			append envargs " -auto_commit "
+		}
+		set testdir [get_home $env]
+	}
 	set oldsdb OLDDB
 	set newsdb NEWDB
 
 	# Make sure we're starting from a clean slate.
-	cleanup $testdir NULL
-	error_check_bad "$file exists" [file exists $file] 1
+	cleanup $testdir $env
+	error_check_bad "$testfile exists" [file exists $testfile] 1
 
 	puts "\tSubdb009.a: Create/rename file"
 	puts "\t\tSubdb009.a.1: create"
 	set db [eval {berkdb_open -create -mode 0644}\
-	    $omethod $args $file $oldsdb]
+	    $omethod $args {$testfile $oldsdb}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
 	# The nature of the key and data are unimportant; use numeric key
 	# so record-based methods don't need special treatment.
+	set txn ""
 	set key 1
 	set data [pad_data $method data]
 
-	error_check_good dbput [$db put $key $data] 0
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	error_check_good dbput [eval {$db put} $txn {$key $data}] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good dbclose [$db close] 0
 
 	puts "\t\tSubdb009.a.2: rename"
-	error_check_good rename_file [eval {berkdb dbrename} $file \
-	    $oldsdb $newsdb] 0
+	error_check_good rename_file [eval {berkdb dbrename} $envargs \
+	    {$testfile $oldsdb $newsdb}] 0
 
 	puts "\t\tSubdb009.a.3: check"
 	# Open again with create to make sure we've really completely
 	# disassociated the subdb from the old name.
 	set odb [eval {berkdb_open -create -mode 0644}\
-	    $omethod $args $file $oldsdb]
+	    $omethod $args $testfile $oldsdb]
 	error_check_good odb_open [is_valid_db $odb] TRUE
 	set odbt [$odb get $key]
 	error_check_good odb_close [$odb close] 0
 
 	set ndb [eval {berkdb_open -create -mode 0644}\
-	    $omethod $args $file $newsdb]
+	    $omethod $args $testfile $newsdb]
 	error_check_good ndb_open [is_valid_db $ndb] TRUE
 	set ndbt [$ndb get $key]
 	error_check_good ndb_close [$ndb close] 0
@@ -69,7 +99,8 @@ proc subdb009 { method args } {
 	# Now there's both an old and a new.  Rename the "new" to the "old"
 	# and make sure that fails.
 	puts "\tSubdb009.b: Make sure rename fails instead of overwriting"
-	set ret [catch {eval {berkdb dbrename} $file $oldsdb $newsdb} res]
+	set ret [catch {eval {berkdb dbrename} $envargs $testfile \
+	    $oldsdb $newsdb} res]
 	error_check_bad rename_overwrite $ret 0
 	error_check_good rename_overwrite_ret [is_substr $errorCode EEXIST] 1
 

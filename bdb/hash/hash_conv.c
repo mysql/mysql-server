@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: hash_conv.c,v 11.5 2000/03/31 00:30:32 ubell Exp $";
+static const char revid[] = "$Id: hash_conv.c,v 11.13 2002/08/06 05:34:35 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -15,20 +15,21 @@ static const char revid[] = "$Id: hash_conv.c,v 11.5 2000/03/31 00:30:32 ubell E
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "hash.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_swap.h"
+#include "dbinc/hash.h"
 
 /*
  * __ham_pgin --
  *	Convert host-specific page layout from the host-independent format
  *	stored on disk.
  *
- * PUBLIC: int __ham_pgin __P((DB_ENV *, db_pgno_t, void *, DBT *));
+ * PUBLIC: int __ham_pgin __P((DB_ENV *, DB *, db_pgno_t, void *, DBT *));
  */
 int
-__ham_pgin(dbenv, pg, pp, cookie)
+__ham_pgin(dbenv, dummydbp, pg, pp, cookie)
 	DB_ENV *dbenv;
+	DB *dummydbp;
 	db_pgno_t pg;
 	void *pp;
 	DBT *cookie;
@@ -45,16 +46,16 @@ __ham_pgin(dbenv, pg, pp, cookie)
 	 * initialize the rest of the page and return.
 	 */
 	if (h->type != P_HASHMETA && h->pgno == PGNO_INVALID) {
-		P_INIT(pp, pginfo->db_pagesize,
+		P_INIT(pp, (db_indx_t)pginfo->db_pagesize,
 		    pg, PGNO_INVALID, PGNO_INVALID, 0, P_HASH);
 		return (0);
 	}
 
-	if (!pginfo->needswap)
+	if (!F_ISSET(pginfo, DB_AM_SWAP))
 		return (0);
 
 	return (h->type == P_HASHMETA ?  __ham_mswap(pp) :
-	    __db_byteswap(dbenv, pg, pp, pginfo->db_pagesize, 1));
+	    __db_byteswap(dbenv, dummydbp, pg, pp, pginfo->db_pagesize, 1));
 }
 
 /*
@@ -62,11 +63,12 @@ __ham_pgin(dbenv, pg, pp, cookie)
  *	Convert host-specific page layout to the host-independent format
  *	stored on disk.
  *
- * PUBLIC: int __ham_pgout __P((DB_ENV *, db_pgno_t, void *, DBT *));
+ * PUBLIC: int __ham_pgout __P((DB_ENV *, DB *, db_pgno_t, void *, DBT *));
  */
 int
-__ham_pgout(dbenv, pg, pp, cookie)
+__ham_pgout(dbenv, dummydbp, pg, pp, cookie)
 	DB_ENV *dbenv;
+	DB *dummydbp;
 	db_pgno_t pg;
 	void *pp;
 	DBT *cookie;
@@ -75,12 +77,12 @@ __ham_pgout(dbenv, pg, pp, cookie)
 	PAGE *h;
 
 	pginfo = (DB_PGINFO *)cookie->data;
-	if (!pginfo->needswap)
+	if (!F_ISSET(pginfo, DB_AM_SWAP))
 		return (0);
 
 	h = pp;
 	return (h->type == P_HASHMETA ?  __ham_mswap(pp) :
-	     __db_byteswap(dbenv, pg, pp, pginfo->db_pagesize, 0));
+	    __db_byteswap(dbenv, dummydbp, pg, pp, pginfo->db_pagesize, 0));
 }
 
 /*
@@ -108,5 +110,7 @@ __ham_mswap(pg)
 	SWAP32(p);		/* h_charkey */
 	for (i = 0; i < NCACHED; ++i)
 		SWAP32(p);	/* spares */
+	p += 59 * sizeof(u_int32_t); /* unusued */
+	SWAP32(p);		/* crypto_magic */
 	return (0);
 }

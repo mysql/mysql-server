@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -39,7 +39,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_log2.c,v 11.4 2000/02/14 02:59:41 bostic Exp $";
+static const char revid[] = "$Id: db_log2.c,v 11.7 2002/02/01 18:15:30 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -47,7 +47,6 @@ static const char revid[] = "$Id: db_log2.c,v 11.4 2000/02/14 02:59:41 bostic Ex
 #endif
 
 #include "db_int.h"
-#include "common_ext.h"
 
 /*
  * PUBLIC: u_int32_t __db_log2 __P((u_int32_t));

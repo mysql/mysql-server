@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: mp_fput.c,v 11.16 2000/11/30 00:58:41 ubell Exp $";
+static const char revid[] = "$Id: mp_fput.c,v 11.36 2002/08/09 19:04:11 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -15,43 +15,32 @@ static const char revid[] = "$Id: mp_fput.c,v 11.16 2000/11/30 00:58:41 ubell Ex
 
 #endif
 
-#ifdef  HAVE_RPC
-#include "db_server.h"
-#endif
-
 #include "db_int.h"
-#include "db_shash.h"
-#include "mp.h"
-
-#ifdef HAVE_RPC
-#include "gen_client_ext.h"
-#include "rpc_client_ext.h"
-#endif
+#include "dbinc/db_shash.h"
+#include "dbinc/mp.h"
 
 /*
- * memp_fput --
+ * __memp_fput --
  *	Mpool file put function.
+ *
+ * PUBLIC: int __memp_fput __P((DB_MPOOLFILE *, void *, u_int32_t));
  */
 int
-memp_fput(dbmfp, pgaddr, flags)
+__memp_fput(dbmfp, pgaddr, flags)
 	DB_MPOOLFILE *dbmfp;
 	void *pgaddr;
 	u_int32_t flags;
 {
-	BH *bhp;
+	BH *argbhp, *bhp, *prev;
 	DB_ENV *dbenv;
 	DB_MPOOL *dbmp;
-	MPOOL *c_mp, *mp;
-	int ret, wrote;
+	DB_MPOOL_HASH *hp;
+	MPOOL *c_mp;
+	u_int32_t n_cache;
+	int adjust, ret;
 
 	dbmp = dbmfp->dbmp;
 	dbenv = dbmp->dbenv;
-	mp = dbmp->reginfo[0].primary;
-
-#ifdef HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT))
-		return (__dbcl_memp_fput(dbmfp, pgaddr, flags));
-#endif
 
 	PANIC_CHECK(dbenv);
 
@@ -72,17 +61,6 @@ memp_fput(dbmfp, pgaddr, flags)
 		}
 	}
 
-	R_LOCK(dbenv, dbmp->reginfo);
-
-	/* Decrement the pinned reference count. */
-	if (dbmfp->pinref == 0) {
-		__db_err(dbenv,
-		    "%s: more pages returned than retrieved", __memp_fn(dbmfp));
-		R_UNLOCK(dbenv, dbmp->reginfo);
-		return (EINVAL);
-	} else
-		--dbmfp->pinref;
-
 	/*
 	 * If we're mapping the file, there's nothing to do.  Because we can
 	 * stop mapping the file at any time, we have to check on each buffer
@@ -90,39 +68,50 @@ memp_fput(dbmfp, pgaddr, flags)
 	 * region.
 	 */
 	if (dbmfp->addr != NULL && pgaddr >= dbmfp->addr &&
-	    (u_int8_t *)pgaddr <= (u_int8_t *)dbmfp->addr + dbmfp->len) {
-		R_UNLOCK(dbenv, dbmp->reginfo);
+	    (u_int8_t *)pgaddr <= (u_int8_t *)dbmfp->addr + dbmfp->len)
 		return (0);
+
+#ifdef DIAGNOSTIC
+	/*
+	 * Decrement the per-file pinned buffer count (mapped pages aren't
+	 * counted).
+	 */
+	R_LOCK(dbenv, dbmp->reginfo);
+	if (dbmfp->pinref == 0) {
+		ret = EINVAL;
+		__db_err(dbenv,
+		    "%s: more pages returned than retrieved", __memp_fn(dbmfp));
+	} else {
+		ret = 0;
+		--dbmfp->pinref;
 	}
+	R_UNLOCK(dbenv, dbmp->reginfo);
+	if (ret != 0)
+		return (ret);
+#endif
 
-	/* Convert the page address to a buffer header. */
+	/* Convert a page address to a buffer header and hash bucket. */
 	bhp = (BH *)((u_int8_t *)pgaddr - SSZA(BH, buf));
+	n_cache = NCACHE(dbmp->reginfo[0].primary, bhp->mf_offset, bhp->pgno);
+	c_mp = dbmp->reginfo[n_cache].primary;
+	hp = R_ADDR(&dbmp->reginfo[n_cache], c_mp->htab);
+	hp = &hp[NBUCKET(c_mp, bhp->mf_offset, bhp->pgno)];
 
-	/* Convert the buffer header to a cache. */
-	c_mp = BH_TO_CACHE(dbmp, bhp);
-
-/* UNLOCK THE REGION, LOCK THE CACHE. */
+	MUTEX_LOCK(dbenv, &hp->hash_mutex);
 
 	/* Set/clear the page bits. */
-	if (LF_ISSET(DB_MPOOL_CLEAN) && F_ISSET(bhp, BH_DIRTY)) {
-		++c_mp->stat.st_page_clean;
-		--c_mp->stat.st_page_dirty;
+	if (LF_ISSET(DB_MPOOL_CLEAN) &&
+	    F_ISSET(bhp, BH_DIRTY) && !F_ISSET(bhp, BH_DIRTY_CREATE)) {
+		DB_ASSERT(hp->hash_page_dirty != 0);
+		--hp->hash_page_dirty;
 		F_CLR(bhp, BH_DIRTY);
 	}
 	if (LF_ISSET(DB_MPOOL_DIRTY) && !F_ISSET(bhp, BH_DIRTY)) {
-		--c_mp->stat.st_page_clean;
-		++c_mp->stat.st_page_dirty;
+		++hp->hash_page_dirty;
 		F_SET(bhp, BH_DIRTY);
 	}
 	if (LF_ISSET(DB_MPOOL_DISCARD))
 		F_SET(bhp, BH_DISCARD);
-
-	/*
-	 * If the page is dirty and being scheduled to be written as part of
-	 * a checkpoint, we no longer know that the log is up-to-date.
-	 */
-	if (F_ISSET(bhp, BH_DIRTY) && F_ISSET(bhp, BH_SYNC))
-		F_SET(bhp, BH_SYNC_LOGFLSH);
 
 	/*
 	 * Check for a reference count going to zero.  This can happen if the
@@ -131,56 +120,83 @@ memp_fput(dbmfp, pgaddr, flags)
 	if (bhp->ref == 0) {
 		__db_err(dbenv, "%s: page %lu: unpinned page returned",
 		    __memp_fn(dbmfp), (u_long)bhp->pgno);
-		R_UNLOCK(dbenv, dbmp->reginfo);
+		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
 		return (EINVAL);
 	}
 
 	/*
-	 * If more than one reference to the page, we're done.  Ignore the
-	 * discard flags (for now) and leave it at its position in the LRU
-	 * chain.  The rest gets done at last reference close.
+	 * If more than one reference to the page or a reference other than a
+	 * thread waiting to flush the buffer to disk, we're done.  Ignore the
+	 * discard flags (for now) and leave the buffer's priority alone.
 	 */
-	if (--bhp->ref > 0) {
-		R_UNLOCK(dbenv, dbmp->reginfo);
+	if (--bhp->ref > 1 || (bhp->ref == 1 && !F_ISSET(bhp, BH_LOCKED))) {
+		MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
 		return (0);
 	}
 
-	/*
-	 * Move the buffer to the head/tail of the LRU chain.  We do this
-	 * before writing the buffer for checkpoint purposes, as the write
-	 * can discard the region lock and allow another process to acquire
-	 * buffer.  We could keep that from happening, but there seems no
-	 * reason to do so.
-	 */
-	SH_TAILQ_REMOVE(&c_mp->bhq, bhp, q, __bh);
-	if (F_ISSET(bhp, BH_DISCARD))
-		SH_TAILQ_INSERT_HEAD(&c_mp->bhq, bhp, q, __bh);
-	else
-		SH_TAILQ_INSERT_TAIL(&c_mp->bhq, bhp, q);
+	/* Update priority values. */
+	if (F_ISSET(bhp, BH_DISCARD) ||
+	    dbmfp->mfp->priority == MPOOL_PRI_VERY_LOW)
+		bhp->priority = 0;
+	else {
+		/*
+		 * We don't lock the LRU counter or the stat.st_pages field, if
+		 * we get garbage (which won't happen on a 32-bit machine), it
+		 * only means a buffer has the wrong priority.
+		 */
+		bhp->priority = c_mp->lru_count;
 
-	/*
-	 * If this buffer is scheduled for writing because of a checkpoint, we
-	 * need to write it (if it's dirty), or update the checkpoint counters
-	 * (if it's not dirty).  If we try to write it and can't, that's not
-	 * necessarily an error as it's not completely unreasonable that the
-	 * application have permission to write the underlying file, but set a
-	 * flag so that the next time the memp_sync function is called we try
-	 * writing it there, as the checkpoint thread of control better be able
-	 * to write all of the files.
-	 */
-	if (F_ISSET(bhp, BH_SYNC)) {
-		if (F_ISSET(bhp, BH_DIRTY)) {
-			if (__memp_bhwrite(dbmp,
-			    dbmfp->mfp, bhp, NULL, &wrote) != 0 || !wrote)
-				F_SET(mp, MP_LSN_RETRY);
-		} else {
-			F_CLR(bhp, BH_SYNC);
+		adjust = 0;
+		if (dbmfp->mfp->priority != 0)
+			adjust =
+			    (int)c_mp->stat.st_pages / dbmfp->mfp->priority;
+		if (F_ISSET(bhp, BH_DIRTY))
+			adjust += c_mp->stat.st_pages / MPOOL_PRI_DIRTY;
 
-			--mp->lsn_cnt;
-			--dbmfp->mfp->lsn_cnt;
-		}
+		if (adjust > 0) {
+			if (UINT32_T_MAX - bhp->priority <= (u_int32_t)adjust)
+				bhp->priority += adjust;
+		} else if (adjust < 0)
+			if (bhp->priority > (u_int32_t)-adjust)
+				bhp->priority += adjust;
 	}
 
-	R_UNLOCK(dbenv, dbmp->reginfo);
+	/*
+	 * Buffers on hash buckets are sorted by priority -- move the buffer
+	 * to the correct position in the list.
+	 */
+	argbhp = bhp;
+	SH_TAILQ_REMOVE(&hp->hash_bucket, argbhp, hq, __bh);
+
+	prev = NULL;
+	for (bhp = SH_TAILQ_FIRST(&hp->hash_bucket, __bh);
+	    bhp != NULL; prev = bhp, bhp = SH_TAILQ_NEXT(bhp, hq, __bh))
+		if (bhp->priority > argbhp->priority)
+			break;
+	if (prev == NULL)
+		SH_TAILQ_INSERT_HEAD(&hp->hash_bucket, argbhp, hq, __bh);
+	else
+		SH_TAILQ_INSERT_AFTER(&hp->hash_bucket, prev, argbhp, hq, __bh);
+
+	/* Reset the hash bucket's priority. */
+	hp->hash_priority = SH_TAILQ_FIRST(&hp->hash_bucket, __bh)->priority;
+
+#ifdef DIAGNOSTIC
+	__memp_check_order(hp);
+#endif
+
+	/*
+	 * The sync code has a separate counter for buffers on which it waits.
+	 * It reads that value without holding a lock so we update it as the
+	 * last thing we do.  Once that value goes to 0, we won't see another
+	 * reference to that buffer being returned to the cache until the sync
+	 * code has finished, so we're safe as long as we don't let the value
+	 * go to 0 before we finish with the buffer.
+	 */
+	if (F_ISSET(argbhp, BH_LOCKED) && argbhp->ref_sync != 0)
+		--argbhp->ref_sync;
+
+	MUTEX_UNLOCK(dbenv, &hp->hash_mutex);
+
 	return (0);
 }

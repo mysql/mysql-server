@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_spin.c,v 11.5 2000/03/30 01:46:42 ubell Exp $";
+static const char revid[] = "$Id: os_spin.c,v 11.13 2002/08/07 02:02:07 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -22,9 +22,10 @@ static const char revid[] = "$Id: os_spin.c,v 11.5 2000/03/30 01:46:42 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "os_jump.h"
 
 #if defined(HAVE_PSTAT_GETDYNAMIC)
+static int __os_pstat_getdynamic __P((void));
+
 /*
  * __os_pstat_getdynamic --
  *	HP/UX.
@@ -40,6 +41,8 @@ __os_pstat_getdynamic()
 #endif
 
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+static int __os_sysconf __P((void));
+
 /*
  * __os_sysconf --
  *	Solaris, Linux.
@@ -47,9 +50,9 @@ __os_pstat_getdynamic()
 static int
 __os_sysconf()
 {
-	int nproc;
+	long nproc;
 
-	return ((nproc = sysconf(_SC_NPROCESSORS_ONLN)) > 1 ? nproc : 1);
+	return ((nproc = sysconf(_SC_NPROCESSORS_ONLN)) > 1 ? (int)nproc : 1);
 }
 #endif
 
@@ -57,10 +60,11 @@ __os_sysconf()
  * __os_spin --
  *	Return the number of default spins before blocking.
  *
- * PUBLIC: int __os_spin __P((void));
+ * PUBLIC: int __os_spin __P((DB_ENV *));
  */
 int
-__os_spin()
+__os_spin(dbenv)
+	DB_ENV *dbenv;
 {
 	/*
 	 * If the application specified a value or we've already figured it
@@ -71,25 +75,25 @@ __os_spin()
 	 * it can be expensive (e.g., requiring multiple filesystem accesses
 	 * under Debian Linux).
 	 */
-	if (DB_GLOBAL(db_tas_spins) != 0)
-		return (DB_GLOBAL(db_tas_spins));
+	if (dbenv->tas_spins != 0)
+		return (dbenv->tas_spins);
 
-	DB_GLOBAL(db_tas_spins) = 1;
+	dbenv->tas_spins = 1;
 #if defined(HAVE_PSTAT_GETDYNAMIC)
-	DB_GLOBAL(db_tas_spins) = __os_pstat_getdynamic();
+	dbenv->tas_spins = __os_pstat_getdynamic();
 #endif
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
-	DB_GLOBAL(db_tas_spins) = __os_sysconf();
+	dbenv->tas_spins = __os_sysconf();
 #endif
 
 	/*
 	 * Spin 50 times per processor, we have anecdotal evidence that this
 	 * is a reasonable value.
 	 */
-	if (DB_GLOBAL(db_tas_spins) != 1)
-		DB_GLOBAL(db_tas_spins) *= 50;
+	if (dbenv->tas_spins != 1)
+		dbenv->tas_spins *= 50;
 
-	return (DB_GLOBAL(db_tas_spins));
+	return (dbenv->tas_spins);
 }
 
 /*
@@ -103,7 +107,7 @@ __os_yield(dbenv, usecs)
 	DB_ENV *dbenv;
 	u_long usecs;
 {
-	if (__db_jump.j_yield != NULL && __db_jump.j_yield() == 0)
+	if (DB_GLOBAL(j_yield) != NULL && DB_GLOBAL(j_yield)() == 0)
 		return;
-	__os_sleep(dbenv, 0, usecs);
+	(void)__os_sleep(dbenv, 0, usecs);
 }

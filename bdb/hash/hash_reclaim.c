@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: hash_reclaim.c,v 11.4 2000/11/30 00:58:37 ubell Exp $";
+static const char revid[] = "$Id: hash_reclaim.c,v 11.12 2002/03/28 19:49:43 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,10 +18,8 @@ static const char revid[] = "$Id: hash_reclaim.c,v 11.4 2000/11/30 00:58:37 ubel
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_shash.h"
-#include "hash.h"
-#include "lock.h"
+#include "dbinc/db_page.h"
+#include "dbinc/hash.h"
 
 /*
  * __ham_reclaim --
@@ -52,13 +50,58 @@ __ham_reclaim(dbp, txn)
 	if ((ret = __ham_get_meta(dbc)) != 0)
 		goto err;
 
-	if ((ret = __ham_traverse(dbp,
-	    dbc, DB_LOCK_WRITE, __db_reclaim_callback, dbc)) != 0)
+	if ((ret = __ham_traverse(dbc,
+	    DB_LOCK_WRITE, __db_reclaim_callback, dbc, 1)) != 0)
 		goto err;
 	if ((ret = dbc->c_close(dbc)) != 0)
 		goto err;
 	if ((ret = __ham_release_meta(dbc)) != 0)
 		goto err;
+	return (0);
+
+err:	if (hcp->hdr != NULL)
+		(void)__ham_release_meta(dbc);
+	(void)dbc->c_close(dbc);
+	return (ret);
+}
+
+/*
+ * __ham_truncate --
+ *	Reclaim the pages from a subdatabase and return them to the
+ * parent free list.
+ *
+ * PUBLIC: int __ham_truncate __P((DB *, DB_TXN *txn, u_int32_t *));
+ */
+int
+__ham_truncate(dbp, txn, countp)
+	DB *dbp;
+	DB_TXN *txn;
+	u_int32_t *countp;
+{
+	DBC *dbc;
+	HASH_CURSOR *hcp;
+	db_trunc_param trunc;
+	int ret;
+
+	/* Open up a cursor that we'll use for traversing. */
+	if ((ret = dbp->cursor(dbp, txn, &dbc, 0)) != 0)
+		return (ret);
+	hcp = (HASH_CURSOR *)dbc->internal;
+
+	if ((ret = __ham_get_meta(dbc)) != 0)
+		goto err;
+
+	trunc.count = 0;
+	trunc.dbc = dbc;
+
+	if ((ret = __ham_traverse(dbc,
+	    DB_LOCK_WRITE, __db_truncate_callback, &trunc, 1)) != 0)
+		goto err;
+	if ((ret = __ham_release_meta(dbc)) != 0)
+		goto err;
+	if ((ret = dbc->c_close(dbc)) != 0)
+		goto err;
+	*countp = trunc.count;
 	return (0);
 
 err:	if (hcp->hdr != NULL)

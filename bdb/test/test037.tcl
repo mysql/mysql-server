@@ -1,12 +1,15 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test037.tcl,v 11.11 2000/08/25 14:21:55 sue Exp $
+# $Id: test037.tcl,v 11.18 2002/03/15 16:30:54 sue Exp $
 #
-# Test037: RMW functionality.
+# TEST	test037
+# TEST	Test DB_RMW
 proc test037 { method {nentries 100} args } {
+	global encrypt
+
 	source ./include.tcl
 	set eindex [lsearch -exact $args "-env"]
 	#
@@ -21,6 +24,8 @@ proc test037 { method {nentries 100} args } {
 	puts "Test037: RMW $method"
 
 	set args [convert_args $method $args]
+	set encargs ""
+	set args [split_encargs $args encargs]
 	set omethod [convert_method $method]
 
 	# Create the database
@@ -28,7 +33,7 @@ proc test037 { method {nentries 100} args } {
 	set testfile test037.db
 
 	set local_env \
-	    [berkdb env -create -mode 0644 -txn -home $testdir]
+	    [eval {berkdb_env -create -mode 0644 -txn} $encargs -home $testdir]
 	error_check_good dbenv [is_valid_env $local_env] TRUE
 
 	set db [eval {berkdb_open \
@@ -73,9 +78,9 @@ proc test037 { method {nentries 100} args } {
 	puts "\tTest037.b: Setting up environments"
 
 	# Open local environment
-	set env_cmd [concat berkdb env -create -txn -home $testdir]
+	set env_cmd [concat berkdb_env -create -txn $encargs -home $testdir]
 	set local_env [eval $env_cmd]
-	error_check_good dbenv [is_valid_widget $local_env env] TRUE
+	error_check_good dbenv [is_valid_env $local_env] TRUE
 
 	# Open local transaction
 	set local_txn [$local_env txn]
@@ -101,11 +106,11 @@ proc test037 { method {nentries 100} args } {
 	set did [open $dict]
 	set rkey 0
 
-	set db [berkdb_open -env $local_env $testfile]
+	set db [berkdb_open -auto_commit -env $local_env $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set rdb [send_cmd $f1 \
-	    "berkdb_open -env $remote_env -mode 0644 $testfile"]
-	error_check_good remote:dbopen [is_valid_widget $rdb db] TRUE
+	    "berkdb_open -auto_commit -env $remote_env -mode 0644 $testfile"]
+	error_check_good remote:dbopen [is_valid_db $rdb] TRUE
 
 	puts "\tTest037.d: Testing without RMW"
 
@@ -142,12 +147,12 @@ proc test037 { method {nentries 100} args } {
 	# Open local transaction
 	set local_txn [$local_env txn]
 	error_check_good \
-	    txn_open [is_valid_widget $local_txn $local_env.txn] TRUE
+	    txn_open [is_valid_txn $local_txn $local_env] TRUE
 
 	# Open remote transaction
 	set remote_txn [send_cmd $f1 "$remote_env txn"]
 	error_check_good remote:txn_open \
-	    [is_valid_widget $remote_txn $remote_env.txn] TRUE
+	    [is_valid_txn $remote_txn $remote_env] TRUE
 
 	# Now, get a key and try to "get" it from both DBs.
 	error_check_bad "gets on new open" [gets $did str] -1

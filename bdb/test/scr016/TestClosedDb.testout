@@ -1,0 +1,2 @@
+Got expected Db Exception: com.sleepycat.db.DbException: null object: Invalid argument
+finished test

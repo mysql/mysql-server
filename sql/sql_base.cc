@@ -1464,9 +1464,8 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       }
     }
     pthread_mutex_unlock(&LOCK_open);
-    thd->net.last_error[0]=0;				// Clear error message
-    thd->net.last_errno=0;
-    error=0;
+    thd->clear_error();				// Clear error message
+    error= 0;
     if (openfrm(path,alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 			 HA_TRY_READ_ONLY),
@@ -1476,8 +1475,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       /* Give right error message */
-      thd->net.last_error[0]=0;
-      thd->net.last_errno=0;
+      thd->clear_error();
       my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
       if (entry->file)
@@ -1486,8 +1484,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     }
     else
     {
-      thd->net.last_error[0]=0;			// Clear error message
-      thd->net.last_errno=0;
+      thd->clear_error();			// Clear error message
     }
     pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);

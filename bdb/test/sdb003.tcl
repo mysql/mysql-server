@@ -1,15 +1,19 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb003.tcl,v 11.17 2000/08/25 14:21:52 sue Exp $
+# $Id: sdb003.tcl,v 11.24 2002/06/10 15:39:37 sue Exp $
 #
-# Sub DB Test 3 {access method}
-# Use the first 10,000 entries from the dictionary as subdbnames.
-# Insert each with entry as name of subdatabase and a partial list as key/data.
-# After all are entered, retrieve all; compare output to original.
-# Close file, reopen, do retrieve and re-verify.
+# TEST	subdb003
+# TEST	Tests many subdbs
+# TEST		Creates many subdbs and puts a small amount of
+# TEST		data in each (many defaults to 2000)
+# TEST
+# TEST	Use the first 10,000 entries from the dictionary as subdbnames.
+# TEST	Insert each with entry as name of subdatabase and a partial list
+# TEST	as key/data.  After all are entered, retrieve all; compare output
+# TEST	to original.  Close file, reopen, do retrieve and re-verify.
 proc subdb003 { method {nentries 1000} args } {
 	source ./include.tcl
 
@@ -23,12 +27,32 @@ proc subdb003 { method {nentries 1000} args } {
 
 	puts "Subdb003: $method ($args) many subdb tests"
 
+	set txnenv 0
+	set eindex [lsearch -exact $args "-env"]
+	#
+	# If we are using an env, then testfile should just be the db name.
+	# Otherwise it is the test directory and the name.
+	if { $eindex == -1 } {
+		set testfile $testdir/subdb003.db
+		set env NULL
+	} else {
+		set testfile subdb003.db
+		incr eindex
+		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			if { $nentries == 1000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
+	}
 	# Create the database and open the dictionary
-	set testfile $testdir/subdb003.db
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
-	cleanup $testdir NULL
+	cleanup $testdir $env
 
 	set pflags ""
 	set gflags ""
@@ -62,18 +86,35 @@ proc subdb003 { method {nentries 1000} args } {
 			} else {
 				set key $str
 			}
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
 			set ret [eval {$db put} \
 			    $txn $pflags {$key [chop_data $method $str]}]
 			error_check_good put $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 
 			set ret [eval {$db get} $gflags {$key}]
-			error_check_good get $ret [list [list $key [pad_data $method $str]]]
+			error_check_good get $ret [list [list $key \
+			    [pad_data $method $str]]]
 			incr count
 		}
 		close $did
 		incr fcount
 
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		dump_file $db $txn $t1 $checkfunc
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		error_check_good db_close [$db close] 0
 
 		# Now compare the keys to see if they match
@@ -95,7 +136,7 @@ proc subdb003 { method {nentries 1000} args } {
 		    [filecmp $t3 $t2] 0
 
 		# Now, reopen the file and run the last test again.
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
+		open_and_dump_subfile $testfile $env $t1 $checkfunc \
 		dump_file_direction "-first" "-next" $subdb
 		if { [is_record_based $method] != 1 } {
 			filesort $t1 $t3
@@ -106,7 +147,7 @@ proc subdb003 { method {nentries 1000} args } {
 
 		# Now, reopen the file and run the last test again in the
 		# reverse direction.
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
+		open_and_dump_subfile $testfile $env $t1 $checkfunc \
 		    dump_file_direction "-last" "-prev" $subdb
 
 		if { [is_record_based $method] != 1 } {
@@ -120,6 +161,7 @@ proc subdb003 { method {nentries 1000} args } {
 			flush stdout
 		}
 	}
+	close $fdid
 	puts ""
 }
 

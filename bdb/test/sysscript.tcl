@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sysscript.tcl,v 11.12 2000/05/22 12:51:38 bostic Exp $
+# $Id: sysscript.tcl,v 11.17 2002/07/29 17:05:24 sue Exp $
 #
 # System integration test script.
 # This script runs a single process that tests the full functionality of
@@ -31,7 +31,6 @@ source ./include.tcl
 source $test_path/test.tcl
 source $test_path/testutils.tcl
 
-set alphabet "abcdefghijklmnopqrstuvwxyz"
 set mypid [pid]
 
 set usage "sysscript dir nfiles key_avg data_avg method"
@@ -64,7 +63,7 @@ puts "$data_avg average data length"
 flush stdout
 
 # Create local environment
-set dbenv [berkdb env -txn -home $dir]
+set dbenv [berkdb_env -txn -home $dir]
 set err [catch {error_check_good $mypid:dbenv [is_substr $dbenv env] 1} ret]
 if {$err != 0} {
 	puts $ret
@@ -74,7 +73,7 @@ if {$err != 0} {
 # Now open the files
 for { set i 0 } { $i < $nfiles } { incr i } {
 	set file test044.$i.db
-	set db($i) [berkdb open -env $dbenv $method $file]
+	set db($i) [berkdb open -auto_commit -env $dbenv $method $file]
 	set err [catch {error_check_bad $mypid:dbopen $db($i) NULL} ret]
 	if {$err != 0} {
 		puts $ret

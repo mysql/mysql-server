@@ -857,8 +857,7 @@ bool do_command(THD *thd)
   old_timeout=net->read_timeout;
   // Wait max for 8 hours
   net->read_timeout=(uint) thd->variables.net_wait_timeout;
-  net->last_error[0]=0;				// Clear error message
-  net->last_errno=0;
+  thd->clear_error();				// Clear error message
 
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
@@ -1388,10 +1387,14 @@ mysql_execute_command(THD *thd)
     for (TABLE_LIST *cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
-      if (cursor->derived && mysql_derived(thd, lex,
+      if (cursor->derived && (res=mysql_derived(thd, lex,
 					   (SELECT_LEX_UNIT *)cursor->derived,
-					   cursor, 0))
+						cursor, 0)))
+      {  
+	if (res < 0)
+	  send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 	DBUG_VOID_RETURN;
+      }
   }
   if ((lex->select_lex.next_select_in_list() && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
@@ -2781,7 +2784,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 	found=1;
       }
     }
-    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+    else if (tables->db && check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors))
       return TRUE;
   }

@@ -1,0 +1,77 @@
+#!/bin/sh -
+#
+# $Id: chk.define,v 1.21 2002/03/27 04:32:58 bostic Exp $
+#
+# Check to make sure that all #defines are actually used.
+
+d=../..
+
+[ -f $d/LICENSE ] || {
+	echo 'FAIL: cannot find source distribution directory.'
+	exit 1
+}
+
+exitv=0
+t1=__1
+t2=__2
+t3=__3
+
+egrep '^#define' $d/dbinc/*.h $d/dbinc/*.in |
+    sed -e '/db_185.in/d' -e '/xa.h/d' |
+    awk '{print $2}' |
+    sed -e '/^B_DELETE/d' \
+	-e '/^B_MAX/d' \
+	-e '/^CIRCLEQ_/d' \
+	-e '/^DB_BTREEOLDVER/d' \
+	-e '/^DB_HASHOLDVER/d' \
+	-e '/^DB_LOCKVERSION/d' \
+	-e '/^DB_MAX_PAGES/d' \
+	-e '/^DB_QAMOLDVER/d' \
+	-e '/^DB_TXNVERSION/d' \
+	-e '/^DB_UNUSED/d' \
+	-e '/^DEFINE_DB_CLASS/d' \
+	-e '/^HASH_UNUSED/d' \
+	-e '/^LIST_/d' \
+	-e '/^LOG_OP/d' \
+	-e '/^MINFILL/d' \
+	-e '/^MUTEX_FIELDS/d' \
+	-e '/^NCACHED2X/d' \
+	-e '/^NCACHED30/d' \
+	-e '/^PAIR_MASK/d' \
+	-e '/^P_16_COPY/d' \
+	-e '/^P_32_COPY/d' \
+	-e '/^P_32_SWAP/d' \
+	-e '/^P_TO_UINT16/d' \
+	-e '/^QPAGE_CHKSUM/d' \
+	-e '/^QPAGE_NORMAL/d' \
+	-e '/^QPAGE_SEC/d' \
+	-e '/^SH_CIRCLEQ_/d' \
+	-e '/^SH_LIST_/d' \
+	-e '/^SH_TAILQ_/d' \
+	-e '/^SIZEOF_PAGE/d' \
+	-e '/^TAILQ_/d' \
+	-e '/^WRAPPED_CLASS/d' \
+	-e '/^__BIT_TYPES_DEFINED__/d' \
+	-e '/^__DBC_INTERNAL/d' \
+	-e '/^i_/d' \
+	-e '/_H_/d' \
+	-e 's/(.*//' | sort > $t1
+
+find $d -name '*.c' -o -name '*.cpp' > $t2
+for i in `cat $t1`; do
+	if egrep -w $i `cat $t2` > /dev/null; then
+	    :;
+	else
+	    f=`egrep -l "#define.*$i" $d/dbinc/*.h  $d/dbinc/*.in |
+	    sed 's;\.\.\/\.\.\/dbinc/;;' | tr -s "[:space:]" " "`
+	    echo "FAIL: $i: $f"
+	fi
+done | sort -k 2 > $t3
+
+test -s $t3 && {
+	cat $t3
+	echo "FAIL: found unused #defines"
+	exit 1
+}
+
+exit $exitv

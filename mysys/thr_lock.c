@@ -91,7 +91,7 @@ enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 #define MAX_LOCKS   100
 
 
-static LIST *thread_list;			/* List of threads in use */
+LIST *thr_lock_thread_list;			/* List of threads in use */
 ulong max_write_lock_count= ~(ulong) 0L;
 
 static inline pthread_cond_t *get_cond(void)
@@ -307,7 +307,7 @@ void thr_lock_init(THR_LOCK *lock)
 
   pthread_mutex_lock(&THR_LOCK_lock);		/* Add to locks in use */
   lock->list.data=(void*) lock;
-  thread_list=list_add(thread_list,&lock->list);
+  thr_lock_thread_list=list_add(thr_lock_thread_list,&lock->list);
   pthread_mutex_unlock(&THR_LOCK_lock);
   DBUG_VOID_RETURN;
 }
@@ -318,7 +318,7 @@ void thr_lock_delete(THR_LOCK *lock)
   DBUG_ENTER("thr_lock_delete");
   VOID(pthread_mutex_destroy(&lock->mutex));
   pthread_mutex_lock(&THR_LOCK_lock);
-  thread_list=list_delete(thread_list,&lock->list);
+  thr_lock_thread_list=list_delete(thr_lock_thread_list,&lock->list);
   pthread_mutex_unlock(&THR_LOCK_lock);
   DBUG_VOID_RETURN;
 }
@@ -1061,7 +1061,7 @@ void thr_print_locks(void)
 
   pthread_mutex_lock(&THR_LOCK_lock);
   puts("Current locks:");
-  for (list=thread_list ; list && count++ < MAX_THREADS ; list=rest(list))
+  for (list=thr_lock_thread_list ; list && count++ < MAX_THREADS ; list=rest(list))
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
     VOID(pthread_mutex_lock(&lock->mutex));

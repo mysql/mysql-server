@@ -481,6 +481,7 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
+  CHARSET_INFO *thd_charset;
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
@@ -624,6 +625,12 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
+  inline void clear_error()
+  {
+    net.last_error[0]= 0;
+    net.last_errno= 0;
+    net.report_error= 0;
+  }
 };
 
 /*

@@ -18,3 +18,9 @@ a	y
 3	3
 3	3
 drop table if exists  t1.t2,t3;
+select * from (select 1);
+1
+1
+select a from (select 1 as a);
+a
+1

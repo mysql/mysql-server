@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_salloc.c,v 11.10 2000/12/06 19:55:44 ubell Exp $";
+static const char revid[] = "$Id: db_salloc.c,v 11.16 2002/08/24 20:27:25 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -59,8 +59,8 @@ __db_shalloc_init(area, size)
 }
 
 /*
- * __db_shalloc --
- *	Allocate some space from the shared region.
+ * __db_shalloc_size --
+ *	Return the space needed for an allocation, including alignment.
  *
  * PUBLIC: int __db_shalloc_size __P((size_t, size_t));
  */
@@ -81,7 +81,7 @@ __db_shalloc_size(len, align)
 	if (align <= sizeof(db_align_t))
 		align = sizeof(db_align_t);
 
-	return (ALIGN(len, align) + sizeof (struct __data));
+	return ((int)(ALIGN(len, align) + sizeof (struct __data)));
 }
 
 /*
@@ -284,28 +284,6 @@ __db_shalloc_free(regionp, ptr)
 }
 
 /*
- * __db_shalloc_count --
- *	Return the amount of memory on the free list.
- *
- * PUBLIC: size_t __db_shalloc_count __P((void *));
- */
-size_t
-__db_shalloc_count(addr)
-	void *addr;
-{
-	struct __data *elp;
-	size_t count;
-
-	count = 0;
-	for (elp = SH_LIST_FIRST((struct __head *)addr, __data);
-	    elp != NULL;
-	    elp = SH_LIST_NEXT(elp, links, __data))
-		count += elp->len;
-
-	return (count);
-}
-
-/*
  * __db_shsizeof --
  *	Return the size of a shalloc'd piece of memory.
  *
@@ -355,6 +333,6 @@ __db_shalloc_dump(addr, fp)
 	for (elp = SH_LIST_FIRST((struct __head *)addr, __data);
 	    elp != NULL;
 	    elp = SH_LIST_NEXT(elp, links, __data))
-		fprintf(fp, "%#lx: %lu\t", (u_long)elp, (u_long)elp->len);
+		fprintf(fp, "%#lx: %lu\t", P_TO_ULONG(elp), (u_long)elp->len);
 	fprintf(fp, "\n");
 }

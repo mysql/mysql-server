@@ -228,11 +228,9 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
     break;
   case STRING_RESULT:
     if (max_length > 255)
-      res= new Field_blob(max_length, maybe_null, name, t_arg, 
-			  str_value.charset());
+      res= new Field_blob(max_length, maybe_null, name, t_arg, charset());
     else
-      res= new Field_string(max_length, maybe_null, name, t_arg, 
-			    str_value.charset());
+      res= new Field_string(max_length, maybe_null, name, t_arg, charset());
     break;
   }
   return res;
@@ -245,7 +243,7 @@ String *Item_real_func::val_str(String *str)
   if (null_value)
     return 0; /* purecov: inspected */
   else
-    str->set(nr,decimals);
+    str->set(nr,decimals,my_thd_charset);
   return str;
 }
 
@@ -258,9 +256,9 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr);
+      str->set(nr,my_thd_charset);
     else
-      str->set((ulonglong) nr);
+      str->set((ulonglong) nr,my_thd_charset);
   }
   else
   {
@@ -268,7 +266,7 @@ String *Item_num_func::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals);
+      str->set(nr,decimals,my_thd_charset);
   }
   return str;
 }
@@ -288,9 +286,9 @@ String *Item_int_func::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr);
+    str->set(nr,my_thd_charset);
   else
-    str->set((ulonglong) nr);
+    str->set((ulonglong) nr,my_thd_charset);
   return str;
 }
 
@@ -317,9 +315,9 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else if (!unsigned_flag)
-      str->set(nr);
+      str->set(nr,my_thd_charset);
     else
-      str->set((ulonglong) nr);
+      str->set((ulonglong) nr,my_thd_charset);
   }
   else
   {
@@ -327,7 +325,7 @@ String *Item_num_op::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals);
+      str->set(nr,decimals,my_thd_charset);
   }
   return str;
 }
@@ -815,9 +813,9 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0;
     else if (!unsigned_flag)
-      str->set(nr);
+      str->set(nr,my_thd_charset);
     else
-      str->set((ulonglong) nr);
+      str->set((ulonglong) nr,my_thd_charset);
     return str;
   }
   case REAL_RESULT:
@@ -826,7 +824,7 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0; /* purecov: inspected */
     else
-      str->set(nr,decimals);
+      str->set(nr,decimals,my_thd_charset);
     return str;
   }
   case STRING_RESULT:
@@ -1449,7 +1447,7 @@ String *Item_func_udf_float::val_str(String *str)
   if (null_value)
     return 0;					/* purecov: inspected */
   else
-    str->set(nr,decimals);
+    str->set(nr,decimals,my_thd_charset);
   return str;
 }
 
@@ -1470,9 +1468,9 @@ String *Item_func_udf_int::val_str(String *str)
   if (null_value)
     return 0;
   else if (!unsigned_flag)
-    str->set(nr);
+    str->set(nr,my_thd_charset);
   else
-    str->set((ulonglong) nr);
+    str->set((ulonglong) nr,my_thd_charset);
   return str;
 }
 
@@ -2036,10 +2034,10 @@ Item_func_get_user_var::val_str(String *str)
     return NULL;
   switch (entry->type) {
   case REAL_RESULT:
-    str->set(*(double*) entry->value,decimals);
+    str->set(*(double*) entry->value,decimals,my_thd_charset);
     break;
   case INT_RESULT:
-    str->set(*(longlong*) entry->value);
+    str->set(*(longlong*) entry->value,my_thd_charset);
     break;
   case STRING_RESULT:
     if (str->copy(entry->value, entry->length-1))

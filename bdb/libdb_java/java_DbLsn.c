@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: java_DbLsn.c,v 11.5 2000/11/30 00:58:39 ubell Exp $";
+static const char revid[] = "$Id: java_DbLsn.c,v 11.12 2002/05/07 16:12:41 dda Exp $";
 #endif /* not lint */
 
 #include <jni.h>
@@ -15,7 +15,6 @@ static const char revid[] = "$Id: java_DbLsn.c,v 11.5 2000/11/30 00:58:39 ubell 
 #include <string.h>
 #include <stdio.h>              /* needed for FILENAME_MAX */
 
-#include "db.h"
 #include "db_int.h"
 #include "java_util.h"
 #include "com_sleepycat_db_DbLsn.h"
@@ -23,8 +22,9 @@ static const char revid[] = "$Id: java_DbLsn.c,v 11.5 2000/11/30 00:58:39 ubell 
 JNIEXPORT void JNICALL Java_com_sleepycat_db_DbLsn_init_1lsn
   (JNIEnv *jnienv, /*DbLsn*/ jobject jthis)
 {
-	/* Note: the DB_LSN object stored in the private_dbobj_
-	 * is allocated in get_DbLsn().
+	/*
+	 * Note: the DB_LSN object stored in the private_dbobj_
+	 * is allocated in get_DbLsn() or get_DB_LSN().
 	 */
 
 	COMPQUIET(jnienv, NULL);
@@ -38,6 +38,6 @@ JNIEXPORT void JNICALL Java_com_sleepycat_db_DbLsn_finalize
 
 	dblsn = get_DB_LSN(jnienv, jthis);
 	if (dblsn) {
-		free(dblsn);
+		(void)__os_free(NULL, dblsn);
 	}
 }
