@@ -571,10 +571,12 @@ innobase_invalidate_query_cache(
 				chars count */
 {
 	/* Argument TRUE below means we are using transactions */
+#ifdef HAVE_QUERY_CACHE
 	query_cache.invalidate((THD*)(trx->mysql_thd),
 					(const char*)full_name,
 					(uint32)full_name_len,
 					TRUE);
+#endif
 }
 }
 

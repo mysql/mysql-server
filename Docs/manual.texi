@@ -50453,6 +50453,8 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+One didn't get an error message if mysqld couldn't open the privilege tables.
+@item
 @code{SET PASSWORD FOR ...} closed the connection in case of errors (bug
 from 4.0.3).
 @item
