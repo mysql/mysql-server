@@ -1,0 +1,155 @@
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);
+insert into t1 values (1,1,"a","a");
+insert into t1 values (2,2,"b","a");
+insert into t1 values (2,3,"c","b");
+insert into t1 values (3,4,"E","a");
+insert into t1 values (3,5,"C","b");
+insert into t1 values (3,6,"D","b");
+insert into t1 values (3,7,"d","d");
+insert into t1 values (3,8,"d","d");
+insert into t1 values (3,9,"D","c");
+select grp,group_concat(c) from t1 group by grp;
+grp	group_concat(c)
+1	a
+2	b c
+3	E C D d d D
+select grp,group_concat(a,c) from t1 group by grp;
+grp	group_concat(a,c)
+1	1a
+2	2b 3c
+3	4E 5C 6D 7d 8d 9D
+select grp,group_concat("(",a,":",c,")") from t1 group by grp;
+grp	group_concat("(",a,":",c,")")
+1	(1:a)
+2	(2:b) (3:c)
+3	(4:E) (5:C) (6:D) (7:d) (8:d) (9:D)
+select grp,group_concat(c separator ",") from t1 group by grp;
+grp	group_concat(c separator ",")
+1	a
+2	b,c
+3	E,C,D,d,d,D
+select grp,group_concat(c separator "---->") from t1 group by grp;
+grp	group_concat(c separator "---->")
+1	a
+2	b---->c
+3	E---->C---->D---->d---->d---->D
+select grp,group_concat(c order by c) from t1 group by grp;
+grp	group_concat(c order by c)
+1	a
+2	b c
+3	C D d d D E
+select grp,group_concat(c order by c desc) from t1 group by grp;
+grp	group_concat(c order by c desc)
+1	a
+2	c b
+3	E D d d D C
+select grp,group_concat(d order by a) from t1 group by grp;
+grp	group_concat(d order by a)
+1	a
+2	a b
+3	a b b d d c
+select grp,group_concat(d order by a desc) from t1 group by grp;
+grp	group_concat(d order by a desc)
+1	a
+2	b a
+3	c d d b b a
+select grp,group_concat(a order by a,d+c) from t1 group by grp;
+grp	group_concat(a order by a,d+c)
+1	1
+2	2 3
+3	4 5 6 7 8 9
+select grp,group_concat(c order by 1) from t1 group by grp;
+grp	group_concat(c order by 1)
+1	a
+2	b c
+3	C D d d D E
+select grp,group_concat(c order by "c") from t1 group by grp;
+grp	group_concat(c order by "c")
+1	a
+2	b c
+3	C D d d D E
+select grp,group_concat(distinct c order by c) from t1 group by grp;
+grp	group_concat(distinct c order by c)
+1	a
+2	b c
+3	C D E
+select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+grp	group_concat(distinct c order by c desc)
+1	a
+2	c b
+3	E D C
+select grp,group_concat(c order by c separator ",") from t1 group by grp;
+grp	group_concat(c order by c separator ",")
+1	a
+2	b,c
+3	C,D,d,d,D,E
+select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
+grp	group_concat(c order by c desc separator ",")
+1	a
+2	c,b
+3	E,D,d,d,D,C
+select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+grp	group_concat(distinct c order by c separator ",")
+1	a
+2	b,c
+3	C,D,E
+select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
+grp	group_concat(distinct c order by c desc separator ",")
+1	a
+2	c,b
+3	E,D,C
+select grp,group_concat(c order by grp desc) from t1 group by grp order by grp;
+grp	group_concat(c order by grp desc)
+1	a
+2	c b
+3	D d d D C E
+select grp, group_concat(a separator "")+0 from t1 group by grp;
+grp	group_concat(a separator "")+0
+1	1
+2	23
+3	456789
+select grp, group_concat(a separator "")+0.0 from t1 group by grp;
+grp	group_concat(a separator "")+0.0
+1	1.0
+2	23.0
+3	456789.0
+select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
+grp	ROUND(group_concat(a separator ""))
+1	1
+2	23
+3	456789
+drop table if exists t1;
+create table t1 (grp int, c char(10));
+insert into t1 values (1,NULL);
+insert into t1 values (2,"b");
+insert into t1 values (2,NULL);
+insert into t1 values (3,"E");
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+insert into t1 values (3,NULL);
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+select grp,group_concat(c order by c) from t1 group by grp;
+grp	group_concat(c order by c)
+1	
+2	 b
+3	   D D E
+set group_concat_max_len = 5;
+select grp,group_concat(c) from t1 group by grp;
+grp	group_concat(c)
+1	
+2	b 
+3	E  D 
+Warnings:
+Warning	1250	1 line(s) was(were) cut by group_concat()
+show warnings;
+Level	Code	Message
+Warning	1250	1 line(s) was(were) cut by group_concat()
+select group_concat(sum(a)) from t1 group by grp;
+Invalid use of group function
+select grp,group_concat(c order by 2) from t1 group by grp;
+Unknown column '2' in 'group statement'
+drop table if exists t1;

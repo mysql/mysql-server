@@ -477,6 +477,7 @@ typedef struct st_lex
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;
+  SQL_LIST *gorder_list;
 
   inline void uncacheable()
   {
