@@ -4092,7 +4092,8 @@ replicating a LOAD DATA INFILE command.",
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
-   (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0, GET_ULL,
+   (gptr*) &keybuff_size, (gptr*) &keybuff_size, 0,
+   (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
@@ -5298,10 +5299,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 	/* Initiates DEBUG - but no debugging here ! */
 
+
+extern "C" gptr *
+mysql_getopt_value(char *keyname, uint key_length,
+		   const struct my_option *option)
+{
+  return option->value;
+}
+
 static void get_options(int argc,char **argv)
 {
   int ho_error;
 
+  my_getopt_register_get_addr(mysql_getopt_value);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (argc > 0)
