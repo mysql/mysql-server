@@ -392,7 +392,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  break;
 	case NdbReceiver::NDB_SCANRECEIVER:
 	  tCon->theScanningOp->receiver_delivered(tRec);
-	  theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
+	  theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+			       (Uint32) NO_WAIT : tWaitState);
 	  break;
 	default:
 	  goto InvalidSignal;
@@ -764,7 +765,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
+	theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+			      (Uint32) NO_WAIT : tWaitState);
 	break;
       case 0:
 	break;
@@ -888,8 +890,8 @@ Ndb::completedTransaction(NdbConnection* aCon)
       return;
     }//if
   } else {
-    ndbout << "theNoOfSentTransactions = " << theNoOfSentTransactions;
-    ndbout << " theListState = " << aCon->theListState;
+    ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
+    ndbout << " theListState = " << (int) aCon->theListState;
     ndbout << " theTransArrayIndex = " << aCon->theTransArrayIndex;
     ndbout << endl << flush;
 #ifdef VM_TRACE
@@ -940,7 +942,7 @@ Ndb::pollCompleted(NdbConnection** aCopyArray)
       aCopyArray[i] = theCompletedTransactionsArray[i];
       if (aCopyArray[i]->theListState != NdbConnection::InCompletedList) {
         ndbout << "pollCompleted error ";
-        ndbout << aCopyArray[i]->theListState << endl;
+        ndbout << (int) aCopyArray[i]->theListState << endl;
 	abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;
