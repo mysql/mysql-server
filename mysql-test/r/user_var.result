@@ -1,2 +1,8 @@
 @a - connection_id()
 3
+i
+1
+2
+i	@vv1:=if(sv1.i,1,0)	@vv2:=if(sv2.i,1,0)	@vv3:=if(sv3.i,1,0)	@vv1+@vv2+@vv3
+1	1	0	1	2
+2	1	0	0	1

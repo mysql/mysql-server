@@ -835,6 +835,8 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
+  bool const_item() const { return 0; }
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 };
 
 class Item_func_inet_aton : public Item_int_func

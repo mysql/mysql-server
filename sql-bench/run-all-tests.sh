@@ -37,6 +37,7 @@ use DBI;
 
 $opt_silent=1;			# Don't write header
 
+@ORG_ARGV=@ARGV;
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 $opt_silent=0;
@@ -46,7 +47,7 @@ $redirect= !($machine =~ /windows/i || $machine =~ "^NT\s") ? "2>&1" : "";
 $dir= ($pwd =~ /\\/) ? '\\' : '/';	# directory symbol for shell
 
 $prog_args="";
-foreach $arg (@ARGV)
+foreach $arg (@ORG_ARGV)
 {
   if ($redirect)
   {
