@@ -29,7 +29,7 @@
 #include <assert.h>
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
-			      "MAYBE_REF","ALL","range","index" };
+			      "MAYBE_REF","ALL","range","index","fulltext" };
 
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
                         DYNAMIC_ARRAY *keyuse,List<Item_func_match> &ftfuncs);
@@ -800,6 +800,14 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if ((s->on_expr=tables->on_expr))
     {
       // table->maybe_null=table->outer_join=1;	// Mark for send fields
+      if (!table->file->records)
+      {						// Empty table
+	s->key_dependent=s->dependent=0;
+	s->type=JT_SYSTEM;
+	const_table_map|=table->map;
+	set_position(join,const_count++,s,(KEYUSE*) 0);
+	continue;
+      }
       s->key_dependent=s->dependent=
 	s->on_expr->used_tables() & ~(table->map);
       s->dependent|=stat_vector[i-1]->dependent | table_vector[i-1]->map;
@@ -1272,15 +1280,54 @@ static void
 add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
             JOIN_TAB *stat,COND *cond,table_map usable_tables)
 {
-  /* for now, handling only the simples WHERE MATCH (...) case */
-  /* a bit more complex WHERE MATCH (...) > const,
-     AND's and (perhaps) OR's are on the way          SerG */
+  Item_func_match *cond_func=NULL;
 
-  if (cond->type() != Item::FUNC_ITEM ||
-      ((Item_func*) cond)->functype() != Item_func::FT_FUNC)
-   return;
+  if (cond->type() == Item::FUNC_ITEM)
+  {
+    Item_func *func=(Item_func *)cond,
+              *arg0=(Item_func *)(func->arguments()[0]),
+              *arg1=(Item_func *)(func->arguments()[1]);
 
-  Item_func_match *cond_func= (Item_func_match *) cond;
+    if (func->functype() == Item_func::FT_FUNC)
+      cond_func=(Item_func_match *)cond;
+    else if (arg0->type() == Item::FUNC_ITEM           &&
+             arg0->functype() == Item_func::FT_FUNC    &&
+             (func->functype() == Item_func::GE_FUNC ||
+              func->functype() == Item_func::GT_FUNC)  &&
+              arg1->const_item() && arg1->val()>=0)
+      cond_func=(Item_func_match *)arg0;
+    else if (arg1->type() == Item::FUNC_ITEM           &&
+             arg1->functype() == Item_func::FT_FUNC    &&
+             (func->functype() == Item_func::LE_FUNC ||
+              func->functype() == Item_func::LT_FUNC)  &&
+              arg0->const_item() && arg0->val()>=0)
+      cond_func=(Item_func_match *)arg1;
+  }
+  else if (cond->type() == Item::COND_ITEM)
+  {
+    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+
+    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
+    {
+      Item *item;
+      /* I'm too lazy to implement proper recursive descent here,
+         and anyway, nobody will use such a stupid queries
+         that will require it :-)
+         May be later...
+       */
+      while ((item=li++))
+        if (item->type() == Item::FUNC_ITEM &&
+            ((Item_func *)item)->functype() == Item_func::FT_FUNC)
+        {
+          cond_func=(Item_func_match *)item;
+          break;
+        }
+    }
+  }
+
+  if(!cond_func)
+    return;
+
   KEYUSE keyuse;
 
   keyuse.table= cond_func->table;
@@ -1928,8 +1975,7 @@ get_best_combination(JOIN *join)
       if (ftkey)
       {
         j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
-        if (!keyuse->used_tables &&
-            !(join->select_options & SELECT_DESCRIBE))
+        if (!keyuse->used_tables)
         {
           // AFAIK key_buff is zeroed...
 	  // We don't need to free ft_tmp as the buffer will be freed atom.

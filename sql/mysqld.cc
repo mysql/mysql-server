@@ -1003,6 +1003,20 @@ static void init_signals(void)
 }
 #else
 
+#ifdef HAVE_LINUXTHREADS
+
+/* Produce a core for the thread */
+
+static sig_handler write_core(int sig)
+{
+  fprintf(stderr,"Got signal %s in thread %d\n",sys_siglist[sig],getpid());
+  signal(sig, SIG_DFL);
+  if (fork() != 0) exit(1);			// Abort main program
+  // Core will be written at exit
+}
+#endif
+
+
 static void init_signals(void)
 {
   sigset_t set;
@@ -1012,6 +1026,16 @@ static void init_signals(void)
 
   sigset(THR_KILL_SIGNAL,end_thread_signal);
   sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
+#ifdef HAVE_LINUXTHREADS
+  if (test_flags & TEST_CORE_ON_SIGNAL)
+  {
+    struct sigaction sa; sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
+    sa.sa_handler=write_core;
+    sigaction(SIGSEGV, &sa, NULL);
+  }
+#endif
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
   sigset(SIGPIPE,abort_thread);
@@ -2134,7 +2158,7 @@ enum options {OPT_ISAM_LOG=256,OPT_SKIP_NEW,OPT_SKIP_GRANT,
 	      OPT_MASTER_PORT, OPT_MASTER_INFO_FILE, OPT_MASTER_CONNECT_RETRY,
               OPT_SQL_BIN_UPDATE_SAME, OPT_REPLICATE_DO_DB,
 	      OPT_REPLICATE_IGNORE_DB, OPT_LOG_SLAVE_UPDATES,
-              OPT_BINLOG_DO_DB, OPT_BINLOG_IGNORE_DB};
+              OPT_BINLOG_DO_DB, OPT_BINLOG_IGNORE_DB, OPT_WANT_CORE};
 
 static struct option long_options[] =
 {
@@ -2156,6 +2180,7 @@ static struct option long_options[] =
 #ifdef __WIN__
   {"console",		no_argument,	  0,  OPT_CONSOLE},
 #endif
+  {"core-file",		no_argument,	   0, OPT_WANT_CORE},
   {"chroot",		required_argument,0,  'r'},
   {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR},
   {"datadir",		required_argument, 0, 'h'},
@@ -2188,8 +2213,10 @@ static struct option long_options[] =
   {"master-connect-retry", required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
   {"master-info-file",  required_argument, 0, (int) OPT_MASTER_INFO_FILE},
   {"new",		no_argument,	   0, 'n'},
-  {"old-protocol",	no_argument,	0, 'o'},
+  {"old-protocol",	no_argument,	   0, 'o'},
+#ifndef DBUG_OFF
   {"one-thread",	no_argument,	   0, OPT_ONE_THREAD},
+#endif
   {"pid-file",		required_argument, 0, (int) OPT_PID_FILE},
   {"port",		required_argument, 0, 'P'},
   {"replicate-do-db", required_argument, 0, OPT_REPLICATE_DO_DB},
@@ -2407,6 +2434,12 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
+static void use_help(void)
+{
+  print_version();
+  printf("Use %s --help for a list of available options\n",my_progname);
+}  
+
 static void usage(void)
 {
   print_version();
@@ -2426,6 +2459,7 @@ static void usage(void)
   --character-sets-dir=...\n\
                         Directory where character sets are\n\
   --chroot=path		Chroot mysqld daemon during startup\n\
+  --core-file		Write core on errors\n\
   -h, --datadir=path	Path to the database root");
 #ifndef DBUG_OFF
   printf("\
@@ -2454,11 +2488,17 @@ static void usage(void)
   --log-isam[=file]	Log all isam changes to file\n\
   --log-long-format	Log some extra information to update log\n\
   --low-priority-updates INSERT/DELETE/UPDATE has lower priority than selects\n\
+  --log-slow-queries=[file]\n\
+			Log slow queries to this log file\n\
   --pid-file=path	Pid file used by safe_mysqld\n\
   -P, --port=...	Port number to use for connection\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
-  -o, --old-protocol	Use the old (3.20) protocol\n\
-  --one-thread		Only use one thread (for debugging under Linux)\n\
+  -o, --old-protocol	Use the old (3.20) protocol\n");
+#ifndef DBUG_OFF
+  puts("\
+  --one-thread		Only use one thread (for debugging under Linux)\n");
+#endif
+  puts("\
   -O, --set-variable var=option\n\
 			Give a variable an value. --help lists variables\n\
   -Sg, --skip-grant-tables\n\
@@ -2621,7 +2661,7 @@ static void get_options(int argc,char **argv)
     case 'O':
       if (set_changeable_var(optarg, changeable_vars))
       {
-	usage();
+	use_help();
 	exit(1);
       }
       break;
@@ -2666,7 +2706,8 @@ static void get_options(int argc,char **argv)
 	opt_noacl=1;
       else
       {
-	usage();
+	fprintf(stderr,"%s: Unrecognized option: %s\n",my_progname,optarg);
+	use_help();
 	exit(1);
       }
       break;
@@ -2718,8 +2759,6 @@ static void get_options(int argc,char **argv)
 	binlog_do_db.push_back(db);
         break;
       }
-
-
     case (int) OPT_SQL_BIN_UPDATE_SAME:
       opt_sql_bin_update  = 1;
       break;
@@ -2773,6 +2812,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_ONE_THREAD:
       test_flags |= TEST_NO_THREADS;
+      break;
+    case (int) OPT_WANT_CORE:
+      test_flags |= TEST_CORE_ON_SIGNAL;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))
@@ -2910,7 +2952,7 @@ static void get_options(int argc,char **argv)
 
     default:
       fprintf(stderr,"%s: Unrecognized option: %c\n",my_progname,c);
-      usage();
+      use_help();
       exit(1);
     }
   }
@@ -2920,7 +2962,7 @@ static void get_options(int argc,char **argv)
   if (argc != optind)
   {
     fprintf(stderr,"%s: Too many parameters\n",my_progname);
-    usage();
+    use_help();
     exit(1);
   }
   fix_paths();

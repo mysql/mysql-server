@@ -40,9 +40,9 @@ $columns_cols="Host, Db, User, Table_name, Column_name, Column_priv";
 # clear grant tables
 #
 
-$dbh = DBI->connect("DBI:mysql:mysql:$opt_host;mysql_read_default_group=perl",
+$dbh = DBI->connect("DBI:mysql:mysql:$opt_host",
 		    $opt_root_user,$opt_password,
-		    { PrintError => 0}) || die "Can't connect to mysql server: $DBI::errstr\n";
+		    { PrintError => 0}) || die "Can't connect to mysql server with user '$opt_root_user': $DBI::errstr\n";
 
 safe_query("delete from user where user='$opt_user' or user='${opt_user}2'");
 safe_query("delete from db where user='$opt_user'");
@@ -171,8 +171,7 @@ user_query("create table $opt_database.test2 (a int not null)");
 user_query("alter table $opt_database.test2 add b int");
 user_query("create index dummy on $opt_database.test2 (a)");
 user_query("drop table $opt_database.test2");
-user_query("show tables");
-
+user_query("show tables from grant_test");
 # These should fail
 user_query("insert into mysql.user (host,user) values ('error','$opt_user',0)",1);
 
@@ -242,7 +241,22 @@ user_query("grant select on $opt_database.test2 to $user with grant option",1);
 safe_query("grant drop on $opt_database.test2 to $user with grant option");
 user_query("grant drop on $opt_database.test2 to $user with grant option");
 user_query("grant select on $opt_database.test2 to $user with grant option",1);
-user_query("drop table $opt_database.test2");
+
+# check rename privileges
+user_query("rename table $opt_database.test2 to $opt_database.test3",1);
+safe_query("grant CREATE,DROP on $opt_database.test3 to $user");
+user_query("rename table $opt_database.test2 to $opt_database.test3",1);
+user_query("create table $opt_database.test3 (a int)");
+safe_query("grant INSERT on $opt_database.test3 to $user");
+user_query("drop table $opt_database.test3");
+user_query("rename table $opt_database.test2 to $opt_database.test3");
+user_query("rename table $opt_database.test3 to $opt_database.test2",1);
+safe_query("grant ALTER on $opt_database.test3 to $user");
+user_query("rename table $opt_database.test3 to $opt_database.test2");
+safe_query("revoke DROP on $opt_database.test2 from $user");
+user_query("rename table $opt_database.test2 to $opt_database.test3");
+user_query("drop table if exists $opt_database.test2,$opt_database.test3",1);
+safe_query("drop table if exists $opt_database.test2,$opt_database.test3");
 
 # Check that the user doesn't have some user privileges
 user_query("create database $opt_database",1);
@@ -253,9 +267,9 @@ safe_query("flush privileges");
 safe_query("select $tables_cols from mysql.tables_priv");
 safe_query("revoke ALL PRIVILEGES on $opt_database.test from $user");
 safe_query("revoke ALL PRIVILEGES on $opt_database.test2 from $user");
+safe_query("revoke ALL PRIVILEGES on $opt_database.test3 from $user");
 safe_query("revoke GRANT OPTION on $opt_database.test2 from $user");
 safe_query("select $tables_cols from mysql.tables_priv");
-
 user_query("select count(a) from test",1);
 
 #
@@ -435,7 +449,8 @@ sub print_info
   my $tmp;
   print <<EOF;
 This test will clear your table and column grant table and recreate the
-$opt_database database !  All privileges for $user will be destroyed !
+$opt_database database !
+All privileges for $user will be destroyed !
 
 Don\'t run this test if you have done any GRANT commands that you want to keep!
 EOF

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -488,7 +488,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
-  
+
   String *packet = &thd->packet;
   for(;table; table = table->next)
     {
@@ -510,7 +510,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       // into fewer, so we cannot use net_store_data() anymore,
       // and do it ourselves
       char* p = (char*)packet->ptr() + store_len_offset;
-      *p++ = (char) 253; // The client the length is stored using 3-bytes 
+      *p++ = (char) 253; // The client the length is stored using 3-bytes
       int3store(p, create_len);
 
       // now we are in business :-)
@@ -649,10 +649,10 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_PRINT("enter",("table: %s",table->real_name));
   String* packet = &thd->packet;
   packet->length(0);
-  
+
   if(store_create_info(thd,table,packet))
     DBUG_RETURN(-1);
-  
+
   if(fd < 0)
     {
       if(my_net_write(&thd->net, (char*)packet->ptr(), packet->length()))
@@ -661,14 +661,14 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
     }
   else
     {
-      if(my_write(fd, (const byte*) packet->ptr(), packet->length(), 
+      if(my_write(fd, (const byte*) packet->ptr(), packet->length(),
 		  MYF(MY_WME)))
 	DBUG_RETURN(-1);
     }
 
   DBUG_RETURN(0);
 }
-  
+
 static int
 store_create_info(THD *thd, TABLE *table, String* packet)
 {
@@ -676,37 +676,37 @@ store_create_info(THD *thd, TABLE *table, String* packet)
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
   restore_record(table,2); // Get empty record
-  
+
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
   String type(tmp, sizeof(tmp));
   packet->append("create table ", 13);
   packet->append(table->real_name);
   packet->append('(');
-  
+
   Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
     if(ptr != table->field)
       packet->append(',');
-    
+
     uint flags = field->flags;
     packet->append(field->field_name);
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if(type.ptr() != tmp)
       type.set(tmp, sizeof(tmp));
-    
+
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
-    
+
     bool null_default_value =  (field->type() == FIELD_TYPE_TIMESTAMP ||
 				field->unireg_check == Field::NEXT_NUMBER);
     bool has_default = (field->type() != FIELD_TYPE_BLOB);
-    
+
     if((flags & NOT_NULL_FLAG) && !null_default_value)
 	packet->append(" not null", 9);
-    
+
 
     if(has_default)
       {
@@ -724,51 +724,54 @@ store_create_info(THD *thd, TABLE *table, String* packet)
 	else
 	  packet->append(tmp,0);
       }
-    
+
     if (field->unireg_check == Field::NEXT_NUMBER)
 	  packet->append(" auto_increment", 15 );
 
-    
+
   }
 
   KEY *key_info=table->key_info;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   uint primary_key = table->primary_key;
-  
+
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
     packet->append(',');
-    
+
     KEY_PART_INFO *key_part= key_info->key_part;
     if(i == primary_key)
       packet->append("primary", 7);
     else if(key_info->flags & HA_NOSAME)
       packet->append("unique", 6);
+    else if(key_info->flags & HA_FULLTEXT)
+      packet->append("fulltext", 8);
     packet->append(" key ", 5);
 
     if(i != primary_key)
      packet->append(key_info->name);
-    
+
     packet->append('(');
-    
+
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
       if(j)
 	packet->append(',');
-      
+
       if(key_part->field)
 	packet->append(key_part->field->field_name);
       KEY *key=table->key_info+i;
-      
+
       if (!key_part->field ||
-	  key_part->length !=
-	  table->field[key_part->fieldnr-1]->key_length())
+	  (key_part->length !=
+	   table->field[key_part->fieldnr-1]->key_length() &&
+	   !(key_info->flags & HA_FULLTEXT)))
       {
 	char buff[64];
 	buff[0] = '(';
 	char* end=int10_to_str((long) key_part->length, buff + 1,10);
 	*end++ = ')';
-	packet->append(buff,(uint) (end-buff)); 
+	packet->append(buff,(uint) (end-buff));
       }
     }
 
@@ -776,13 +779,13 @@ store_create_info(THD *thd, TABLE *table, String* packet)
   }
 
   packet->append(')');
-  
+
   handler *file = table->file;
   packet->append(" type=", 6);
   packet->append(file->table_type());
   char buff[128];
   char* p;
-  
+
   if(table->min_rows)
     {
       packet->append(" min_rows=");
@@ -796,7 +799,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
       p = longlong10_to_str(table->max_rows, buff, 10);
       packet->append(buff, (uint) (p - buff));
     }
-  
+
   if (table->db_create_options & HA_OPTION_PACK_KEYS)
     packet->append(" pack_keys=1", 12);
   if (table->db_create_options & HA_OPTION_NO_PACK_KEYS)
@@ -806,7 +809,7 @@ store_create_info(THD *thd, TABLE *table, String* packet)
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" delay_key_write=1",18);
 
-  
+
   DBUG_RETURN(0);
 }
 

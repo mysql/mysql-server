@@ -91,6 +91,7 @@ struct st_table {
   my_bool crypted;
   my_bool db_low_byte_first;		/* Portable row format */
   my_bool locked_by_flush;
+  my_bool locked_by_name;
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;

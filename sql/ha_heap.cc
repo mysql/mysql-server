@@ -251,6 +251,21 @@ int ha_heap::rename_table(const char * from, const char * to)
 }
 
 
+ha_rows ha_heap::records_in_range(int inx,
+				  const byte *start_key,uint start_key_len,
+				  enum ha_rkey_function start_search_flag,
+				  const byte *end_key,uint end_key_len,
+				  enum ha_rkey_function end_search_flag)
+{
+  KEY *pos=table->key_info+inx;
+  if (start_key_len != end_key_len ||
+      start_key_len != pos->key_length ||
+      start_search_flag != HA_READ_KEY_EXACT ||
+      end_search_flag != HA_READ_KEY_EXACT)
+    return HA_POS_ERROR;			// Can't only use exact keys
+  return 10;					// Good guess
+}
+
 /* We can just delete the heap on creation */
 
 int ha_heap::create(const char *name, TABLE *form, HA_CREATE_INFO *create_info)
