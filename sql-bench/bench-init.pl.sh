@@ -31,8 +31,9 @@
 # $server	Object for current server
 # $limits	Hash reference to limits for benchmark
 
-$benchmark_version="2.14";
+$benchmark_version="2.15";
 use Getopt::Long;
+use POSIX;
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
@@ -417,24 +418,8 @@ sub machine_part
 
 sub machine
 {
-  $name= `uname -s -r -m`;
-  if ($?)
-  {
-    $name= `uname -s -m`;
-  }
-  if ($?)
-  {
-    $name= `uname -s`;
-  }
-  if ($?)
-  {
-    $name= `uname`;
-  }
-  if ($?)
-  {
-    $name="unknown";
-  }
-  chomp($name); $name =~ s/[\n\r]//g;
+  my @name = POSIX::uname();
+  my $name= $name[0] . " " . $name[2] . " " . $name[4];
   return $name;
 }
 

@@ -1,7 +1,7 @@
 # Example mysql config file for small systems.
 #
 # This is for a system with little memory (<= 64M) where MySQL is only used
-# from time to time and it's important that the mysqld deamon
+# from time to time and it's important that the mysqld daemon
 # doesn't use much resources.
 #
 # You can copy this file to

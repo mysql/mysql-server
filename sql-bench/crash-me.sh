@@ -41,9 +41,11 @@
 
 $version="1.61";
 
+use Cwd;
 use DBI;
 use Getopt::Long;
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+use POSIX;
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
@@ -3247,24 +3249,8 @@ EOF
 
 sub machine
 {
-  $name= `uname -s -r -m`;
-  if ($?)
-  {
-    $name= `uname -s -m`;
-  }
-  if ($?)
-  {
-    $name= `uname -s`;
-  }
-  if ($?)
-  {
-    $name= `uname`;
-  }
-  if ($?)
-  {
-    $name="unknown";
-  }
-  chomp($name); $name =~ s/[\n\r]//g;
+  my @name = POSIX::uname();
+  my $name= $name[0] . " " . $name[2] . " " . $name[4];
   return $name;
 }
 

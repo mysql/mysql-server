@@ -303,9 +303,9 @@ t1	index	id	id	4	NULL	2	Using index; Using temporary
 t2	index	id	id	8	NULL	1	Using index; Distinct
 t3	index	id	id	8	NULL	1	Using index; Distinct
 j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct
-t2_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct
+t2_lj	ref	id	id	4	j_lj_t2.id	1	Using where; Using index; Distinct
 j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct
-t3_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct
+t3_lj	ref	id	id	4	j_lj_t3.id	1	Using where; Using index; Distinct
 SELECT DISTINCT
 t1.id
 from

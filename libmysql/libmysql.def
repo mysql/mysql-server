@@ -24,6 +24,7 @@ EXPORTS
 	mysql_get_host_info
 	mysql_get_proto_info
 	mysql_get_server_info
+	mysql_get_client_version
 	mysql_info
 	mysql_init
 	mysql_insert_id

@@ -1835,8 +1835,8 @@ bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
   if (Item_func::fix_fields(thd,tables) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
-  entry->type= cached_result_type;
-  entry->update_query_id=thd->query_id;
+  entry->update_query_id= thd->query_id;
+  cached_result_type= args[0]->result_type();
   return 0;
 }
 
@@ -1847,10 +1847,10 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
-  cached_result_type=args[0]->result_type();
 }
 
-void Item_func_set_user_var::update_hash(void *ptr, uint length,
+
+bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
 					 Item_result type)
 {
   if ((null_value=args[0]->null_value))
@@ -1863,6 +1863,8 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
   }
   else
   {
+    if (type == STRING_RESULT)
+      length++;					// Store strings with end \0
     if (length <= extra_size)
     {
       /* Save value in value struct */
@@ -1887,64 +1889,151 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
 	  goto err;
       }
     }
+    if (type == STRING_RESULT)
+    {
+      length--;					// Fix length change above
+      entry->value[length]= 0;			// Store end \0
+    }
     memcpy(entry->value,ptr,length);
     entry->length= length;
     entry->type=type;
   }
-  return;
+  return 0;
 
  err:
   current_thd->fatal_error=1;			// Probably end of memory
   null_value=1;
-  return;
+  return 1;					// Error
 }
+
+
+/* Get the value of a variable as a double */
+
+double user_var_entry::val(my_bool *null_value)
+{
+  if ((*null_value= (value == 0)))
+    return 0.0;
+
+  switch (type) {
+  case REAL_RESULT:
+    return *(double*) value;
+  case INT_RESULT:
+    return (double) *(longlong*) value;
+  case STRING_RESULT:
+    return atof(value);				// This is null terminated
+  }
+  return 0.0;					// Impossible
+}
+
+
+/* Get the value of a variable as an integer */
+
+longlong user_var_entry::val_int(my_bool *null_value)
+{
+  if ((*null_value= (value == 0)))
+    return LL(0);
+
+  switch (type) {
+  case REAL_RESULT:
+    return (longlong) *(double*) value;
+  case INT_RESULT:
+    return *(longlong*) value;
+  case STRING_RESULT:
+    return strtoull(value,NULL,10);		// String is null terminated
+  }
+  return LL(0);					// Impossible
+}
+
+
+/* Get the value of a variable as a string */
+
+String *user_var_entry::val_str(my_bool *null_value, String *str,
+				uint decimals)
+{
+  if ((*null_value= (value == 0)))
+    return (String*) 0;
+
+  switch (type) {
+  case REAL_RESULT:
+    str->set(*(double*) value, decimals);
+    break;
+  case INT_RESULT:
+    str->set(*(longlong*) value);
+    break;
+  case STRING_RESULT:
+    if (str->copy(value, length))
+      str= 0;					// EOM error
+  }
+  return(str);
+}
+
+
+/*
+  This functions is invoked on SET @variable or @variable:= expression.
+
+  SYNOPSIS
+    Item_func_set_user_var::update()
+
+  NOTES
+    We have to store the expression as such in the variable, independent of
+    the value method used by the user
+
+  RETURN
+    0	Ok
+    1	EOM Error
+
+*/
 
 
 bool
 Item_func_set_user_var::update()
 {
+  bool res;
+  DBUG_ENTER("Item_func_set_user_var::update");
+  LINT_INIT(res);
+
   switch (cached_result_type) {
   case REAL_RESULT:
-    (void) val();
-    break;
-  case INT_RESULT:
-    (void) val_int();
-    break;
-  case STRING_RESULT:
-    char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer));
-    (void) val_str(&tmp);
+  {
+    double value=args[0]->val();
+    res= update_hash((void*) &value,sizeof(value), REAL_RESULT);
     break;
   }
-  return current_thd->fatal_error;
+  case INT_RESULT:
+  {
+    longlong value=args[0]->val_int();
+    res= update_hash((void*) &value,sizeof(longlong), INT_RESULT);
+    break;
+  }
+  case STRING_RESULT:
+    String *tmp;
+    tmp=args[0]->val_str(&value);
+    if (!tmp)					// Null value
+      res= update_hash((void*) 0,0,STRING_RESULT);
+    else
+      res= update_hash((void*) tmp->ptr(),tmp->length(),STRING_RESULT);
+    break;
+  }
+  DBUG_RETURN(res);
 }
 
 
-double
-Item_func_set_user_var::val()
+double Item_func_set_user_var::val()
 {
-  double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT);
-  return value;
+  update();					// Store expression
+  return entry->val(&null_value);
 }
 
-longlong
-Item_func_set_user_var::val_int()
+longlong Item_func_set_user_var::val_int()
 {
-  longlong value=args[0]->val_int();
-  update_hash((void*) &value,sizeof(longlong),INT_RESULT);
-  return value;
+  update();					// Store expression
+  return entry->val_int(&null_value);
 }
 
-String *
-Item_func_set_user_var::val_str(String *str)
+String *Item_func_set_user_var::val_str(String *str)
 {
-  String *res=args[0]->val_str(str);
-  if (!res)					// Null value
-    update_hash((void*) 0,0,STRING_RESULT);
-  else
-    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
-  return res;
+  update();					// Store expression
+  return entry->val_str(&null_value, str, decimals);
 }
 
 
@@ -1958,74 +2047,30 @@ void Item_func_set_user_var::print(String *str)
 }
 
 
-user_var_entry *Item_func_get_user_var::get_entry()
-{
-  if (!var_entry  || ! var_entry->value)
-  {
-    null_value=1;
-    return 0;
-  }
-  null_value=0;
-  return var_entry;
-}
-
 
 String *
 Item_func_get_user_var::val_str(String *str)
 {
-  user_var_entry *entry=get_entry();
-  if (!entry)
-    return NULL;
-  switch (entry->type) {
-  case REAL_RESULT:
-    str->set(*(double*) entry->value,decimals);
-    break;
-  case INT_RESULT:
-    str->set(*(longlong*) entry->value);
-    break;
-  case STRING_RESULT:
-    if (str->copy(entry->value, entry->length-1))
-    {
-      null_value=1;
-      return NULL;
-    }
-    break;
-  }
-  return str;
+  DBUG_ENTER("Item_func_get_user_var::val_str");
+  if (!var_entry)
+    return (String*) 0;				// No such variable
+  DBUG_RETURN(var_entry->val_str(&null_value, str, decimals));
 }
 
 
 double Item_func_get_user_var::val()
 {
-  user_var_entry *entry=get_entry();
-  if (!entry)
-    return 0.0;
-  switch (entry->type) {
-  case REAL_RESULT:
-    return *(double*) entry->value;
-  case INT_RESULT:
-    return (double) *(longlong*) entry->value;
-  case STRING_RESULT:
-    return atof(entry->value);			// This is null terminated
-  }
-  return 0.0;					// Impossible
+  if (!var_entry)
+    return 0.0;					// No such variable
+  return (var_entry->val(&null_value));
 }
 
 
 longlong Item_func_get_user_var::val_int()
 {
-  user_var_entry *entry=get_entry();
-  if (!entry)
-    return LL(0);
-  switch (entry->type) {
-  case REAL_RESULT:
-    return (longlong) *(double*) entry->value;
-  case INT_RESULT:
-    return *(longlong*) entry->value;
-  case STRING_RESULT:
-    return strtoull(entry->value,NULL,10);	// String is null terminated
-  }
-  return LL(0);					// Impossible
+  if (!var_entry)
+    return LL(0);				// No such variable
+  return (var_entry->val_int(&null_value));
 }
 
 
@@ -2035,12 +2080,15 @@ void Item_func_get_user_var::fix_length_and_dec()
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
-  var_entry= get_variable(&thd->user_vars, name, 0);
+  if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
+    null_value= 1;
 }
 
 
 bool Item_func_get_user_var::const_item() const
-{ return var_entry && current_thd->query_id != var_entry->update_query_id; }
+{
+  return var_entry && current_thd->query_id != var_entry->update_query_id;
+}
 
 
 enum Item_result Item_func_get_user_var::result_type() const
