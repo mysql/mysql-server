@@ -435,3 +435,7 @@ INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06280648062F0646062F USING utf8));
 INSERT INTO t1 VALUES (CONVERT(_ucs2 0x06450647064506270646 USING utf8));
 SELECT HEX(CONVERT(col1 USING ucs2)) FROM t1 ORDER BY col1 COLLATE utf8_persian_ci, col1 COLLATE utf8_bin;
 DROP TABLE t1;
+
+SET @test_character_set= 'utf8';
+SET @test_collation= 'utf8_swedish_ci';
+-- source include/ctype_common.inc
