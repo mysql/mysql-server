@@ -610,7 +610,7 @@ class Item_sum_udf_float :public Item_sum_num
  public:
   Item_sum_udf_float(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_float(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
-  Item_sum_udf_float(THD *thd, Item_sum_udf_float &item)
+  Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val() { return 0.0; }
@@ -625,7 +625,7 @@ class Item_sum_udf_int :public Item_sum_num
 public:
   Item_sum_udf_int(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_int(udf_func *udf_arg, List<Item> &list) :Item_sum_num() {}
-  Item_sum_udf_int(THD *thd, Item_sum_udf_int &item)
+  Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   longlong val_int() { return 0; }
@@ -641,7 +641,7 @@ class Item_sum_udf_str :public Item_sum_num
 public:
   Item_sum_udf_str(udf_func *udf_arg) :Item_sum_num() {}
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
-  Item_sum_udf_str(THD *thd, Item_sum_udf_str &item)
+  Item_sum_udf_str(THD *thd, Item_sum_udf_str *item)
     :Item_sum_num(thd, item) {}
   String *val_str(String *) { null_value=1; return 0; }
   double val() { null_value=1; return 0.0; }
