@@ -324,8 +324,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
-	  Item_subselect::OK)
-	DBUG_RETURN((res == Item_subselect::ERROR));
+	  Item_subselect::RES_OK)
+	DBUG_RETURN((res == Item_subselect::RES_ERROR));
     }
   }
 
