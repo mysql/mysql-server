@@ -29,6 +29,9 @@
 #define TYPE_ENUM_FUNCTION  1
 #define TYPE_ENUM_PROCEDURE 2
 
+Item_result
+sp_map_result_type(enum enum_field_types type);
+
 struct sp_label;
 
 class sp_instr;
@@ -62,7 +65,10 @@ public:
   create(THD *thd);
   
   int
-  execute(THD *thd);
+  execute_function(THD *thd, Item **args, uint argcount, Item **resp);
+
+  int
+  execute_procedure(THD *thd, List<Item> *args);
 
   inline void
   add_instr(sp_instr *i)
@@ -103,6 +109,11 @@ public:
     return n->c_ptr();
   }
 
+  inline Item_result result()
+  {
+    return sp_map_result_type(m_returns);
+  }
+
 private:
 
   Item_string *m_name;
@@ -122,9 +133,13 @@ private:
   {
     sp_instr *in= NULL;
 
-    get_dynamic(&m_instr, (gptr)&in, i);
+    if (i < m_instr.elements)
+      get_dynamic(&m_instr, (gptr)&in, i);
     return in;
   }
+
+  int
+  execute(THD *thd);
 
 }; // class sp_head : public Sql_alloc
 
@@ -318,5 +333,29 @@ private:
   Item *m_expr;			// The condition
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump
+
+
+class sp_instr_return : public sp_instr
+{
+  sp_instr_return(const sp_instr_return &);	/* Prevent use of these */
+  void operator=(sp_instr_return &);
+
+public:
+
+  sp_instr_return(uint ip, Item *val, enum enum_field_types type)
+    : sp_instr(ip), m_value(val), m_type(type)
+  {}
+
+  virtual ~sp_instr_return()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+protected:
+
+  Item *m_value;
+  enum enum_field_types m_type;
+
+}; // class sp_instr_return : public sp_instr
 
 #endif /* _SP_HEAD_H_ */

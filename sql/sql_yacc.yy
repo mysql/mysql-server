@@ -506,6 +506,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROUND
 %token	SECOND_SYM
 %token	SHARE_SYM
+%token  SP_FUNC
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
@@ -575,7 +576,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
-        UNDERSCORE_CHARSET
+        UNDERSCORE_CHARSET SP_FUNC ident_or_spfunc
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -903,7 +904,7 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE udf_func_type FUNCTION_SYM IDENT
+	| CREATE udf_func_type FUNCTION_SYM ident_or_spfunc
 	  {
 	    LEX *lex=Lex;
 	    lex->udf.name = $4;
@@ -927,6 +928,11 @@ create:
 	  {
 	    Lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	  } 
+	;
+
+ident_or_spfunc:
+	  IDENT { $$= $1; }
+	| SP_FUNC { $$= $1; }
 	;
 
 create_function_tail:
@@ -1122,7 +1128,11 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      /* QQ nothing yet */
+	      sp_instr_return *i=
+	        new sp_instr_return(lex->sphead->instructions(),
+		                    $2, lex->sphead->m_returns);
+
+	      lex->sphead->add_instr(i);
 	    }
 	  }
 	| IF sp_if END IF {}
@@ -2863,6 +2873,13 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
+	| SP_FUNC '(' udf_expr_list ')'
+	  {
+	    if ($3)
+	      $$= new Item_func_sp($1, *$3);
+	    else
+	      $$= new Item_func_sp($1);
+	  }
 	| UDA_CHAR_SUM '(' udf_expr_list ')'
 	  {
 	    if ($3 != NULL)

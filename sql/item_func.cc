@@ -28,6 +28,9 @@
 #include <time.h>
 #include <ft_global.h>
 #include <zlib.h>
+#include "sp_head.h"
+#include "sp_rcontext.h"
+#include "sp.h"
 
 /* return TRUE if item is a constant */
 
@@ -2769,4 +2772,76 @@ double Item_func_glength::val()
                !GEOM_METHOD_PRESENT(geom,length) || 
                geom.length(&res));
   return res;
+}
+
+
+int
+Item_func_sp::execute(Item **itp)
+{
+  DBUG_ENTER("Item_func_sp::execute");
+  THD *thd= current_thd;
+
+  if (!m_sp && !(m_sp= sp_find_function(thd, &m_name)))
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+}
+
+Item_result
+Item_func_sp::result_type() const
+{
+  DBUG_ENTER("Item_func_sp::result_type");
+  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+
+  if (m_sp)
+  {
+    DBUG_RETURN(m_sp->result());
+  }
+  else
+  {
+    sp_head *sp= sp_find_function(current_thd, (LEX_STRING *)(&m_name));
+    if (sp)
+      DBUG_RETURN(m_sp->result());
+    DBUG_RETURN(STRING_RESULT);
+  }
+}
+
+void
+Item_func_sp::make_field(Send_field *field)
+{
+  DBUG_ENTER("Item_func_sp::make_field");
+  Item *it;
+
+  if (!execute(&it))
+  {
+    it->set_name(name, 0);
+    init_make_field(field, field_type());
+    it->make_field(field);
+  }
+  DBUG_VOID_RETURN;
+}
+
+void
+Item_func_sp::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+
+  if (m_sp || (m_sp= sp_find_function(current_thd, &m_name)))
+  {
+    switch (m_sp->result()) {
+    case STRING_RESULT:
+      maybe_null= 1;
+      max_length= 0;
+      break;
+    case REAL_RESULT:
+      decimals= NOT_FIXED_DEC;
+      max_length= float_length(decimals);
+      break;
+    case INT_RESULT:
+      decimals= 0;
+      max_length= 21;
+      break;
+    }
+  }
+  DBUG_VOID_RETURN;
 }

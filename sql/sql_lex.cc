@@ -21,6 +21,8 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
+#include "sp.h"
+#include "sp_head.h"
 
 LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
@@ -197,6 +199,17 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.length=len;
     return symbol->tok;
   }
+
+  LEX_STRING ls;
+  ls.str = (char *)tok; ls.length= len;
+  if (function && sp_function_exists(current_thd, &ls))	// QQ temp fix
+  {
+    lex->safe_to_cache_query= 0;
+    lex->yylval->lex_str.str= lex->thd->strmake((char*)lex->tok_start, len);
+    lex->yylval->lex_str.length= len;
+    return SP_FUNC;
+  }
+
 #ifdef HAVE_DLOPEN
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))

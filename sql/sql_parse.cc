@@ -2959,6 +2959,7 @@ mysql_execute_command(THD *thd)
     {
       uint namelen;
       char *name= lex->sphead->name(&namelen);
+#ifdef HAVE_DLOPEN
       udf_func *udf = find_udf(name, namelen);
 
       if (udf)
@@ -2966,6 +2967,7 @@ mysql_execute_command(THD *thd)
 	net_printf(thd, ER_UDF_EXISTS, name);
 	goto error;
       }
+#endif
       res= lex->sphead->create(thd);
       switch (res)
       {
@@ -3000,7 +3002,7 @@ mysql_execute_command(THD *thd)
 
 	thd->net.no_send_ok= TRUE;
 #endif
-	res= sp->execute(thd);
+	res= sp->execute_procedure(thd, &lex->value_list);
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;
 #endif

@@ -24,6 +24,26 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 
+Item_result
+sp_map_result_type(enum enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+    return INT_RESULT;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    return REAL_RESULT;
+  default:
+    return STRING_RESULT;
+  }
+}
+
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
@@ -36,48 +56,28 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
     return it;			// Shouldn't happen?
 
   /* QQ How do we do this? Is there some better way? */
-  switch (type)
+  if (type == MYSQL_TYPE_NULL)
+    it= new Item_null();
+  else
   {
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_INT24:
-    it= new Item_int(it->val_int());
-    break;
-  case MYSQL_TYPE_DECIMAL:
-  case MYSQL_TYPE_FLOAT:
-  case MYSQL_TYPE_DOUBLE:
-    it= new Item_real(it->val());
-    break;
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_STRING:
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIME:
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_YEAR:
-  case MYSQL_TYPE_NEWDATE:
-    {
-      char buffer[MAX_FIELD_WIDTH];
-      String tmp(buffer, sizeof(buffer), default_charset_info);
-      String *s= it->val_str(&tmp);
-
-      it= new Item_string(s->c_ptr_quick(), s->length(), default_charset_info);
+    switch (sp_map_result_type(type)) {
+    case INT_RESULT:
+      it= new Item_int(it->val_int());
       break;
+    case REAL_RESULT:
+      it= new Item_real(it->val());
+      break;
+    default:
+      {
+	char buffer[MAX_FIELD_WIDTH];
+	String tmp(buffer, sizeof(buffer), default_charset_info);
+	String *s= it->val_str(&tmp);
+
+	it= new Item_string(s->c_ptr_quick(), s->length(),
+			    default_charset_info);
+	break;
+      }
     }
-  case MYSQL_TYPE_NULL:
-    it= new Item_null();	// A NULL is a NULL is a NULL...
-    break;
-  case MYSQL_TYPE_ENUM:
-  case MYSQL_TYPE_SET:
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
-    /* QQ Don't know what to do with the rest. */
-    break;
   }
 
   return it;
@@ -118,12 +118,69 @@ sp_head::create(THD *thd)
   DBUG_RETURN(ret);
 }
 
+
 int
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
   int ret= 0;
+  uint ip= 0;
+
+  do
+  {
+    sp_instr *i;
+
+    i = get_instr(ip);	// Returns NULL when we're done.
+    if (i == NULL)
+      break;
+    DBUG_PRINT("execute", ("Instruction %u", ip));
+    ret= i->execute(thd, &ip);
+  } while (ret == 0);
+  DBUG_RETURN(ret);
+}
+
+
+int
+sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
+{
+  DBUG_ENTER("sp_head::execute");
+  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
+  sp_pcontext *pctx = m_call_lex->spcont;
+  uint csize = pctx->max_framesize();
+  uint params = pctx->params();
+  sp_rcontext *octx = thd->spcont;
+  sp_rcontext *nctx = NULL;
+  uint i;
+  int ret;
+
+  // QQ Should have some error checking here? (no. of args, types, etc...)
+  nctx= new sp_rcontext(csize);
+  for (i= 0 ; i < params && i < argcount ; i++)
+  {
+    sp_pvar_t *pvar = pctx->find_pvar(i);
+
+    nctx->push_item(eval_func_item(thd, *argp++, pvar->type));
+  }
+  // The rest of the frame are local variables which are all IN.
+  // QQ See comment in execute_procedure below.
+  for (; i < csize ; i++)
+    nctx->push_item(NULL);
+  thd->spcont= nctx;
+
+  ret= execute(thd);
+  if (ret == 0)
+    *resp= nctx->get_result();
+
+  thd->spcont= octx;
+  DBUG_RETURN(ret);
+}
+
+int
+sp_head::execute_procedure(THD *thd, List<Item> *args)
+{
+  DBUG_ENTER("sp_head::execute");
+  DBUG_PRINT("executing", ("procedure %s", ((String *)m_name->const_string())->c_ptr()));
+  int ret;
   sp_instr *p;
   sp_pcontext *pctx = m_call_lex->spcont;
   uint csize = pctx->max_framesize();
@@ -135,7 +192,7 @@ sp_head::execute(THD *thd)
   if (csize > 0)
   {
     uint i;
-    List_iterator_fast<Item> li(m_call_lex->value_list);
+    List_iterator_fast<Item> li(*args);
     Item *it;
 
     nctx = new sp_rcontext(csize);
@@ -174,20 +231,7 @@ sp_head::execute(THD *thd)
     thd->spcont= nctx;
   }
 
-  {				// Execute instructions...
-    uint ip= 0;
-
-    while (ret == 0)
-    {
-      sp_instr *i;
-
-      i = get_instr(ip);	// Returns NULL when we're done.
-      if (i == NULL)
-	break;
-      DBUG_PRINT("execute", ("Instruction %u", ip));
-      ret= i->execute(thd, &ip);
-    }
-  }
+  ret= execute(thd);
 
   // Don't copy back OUT values if we got an error
   if (ret == 0 && csize > 0)
@@ -422,5 +466,17 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
     *nextp = m_dest;
   else
     *nextp = m_ip+1;
+  DBUG_RETURN(0);
+}
+
+//
+// sp_instr_return
+//
+int
+sp_instr_return::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_return::execute");
+  thd->spcont->set_result(eval_func_item(thd, m_value, m_type));
+  *nextp= UINT_MAX;
   DBUG_RETURN(0);
 }

@@ -84,6 +84,8 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     ret= SP_GET_FIELD_FAILED;
     goto done;
   }
+  close_thread_tables(thd);
+  table= NULL;
 
   tmplex= lex_start(thd, (uchar*)defstr, strlen(defstr));
   if (yyparse(thd) || thd->is_fatal_error || tmplex->sphead == NULL)
@@ -92,7 +94,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     *sphp= tmplex->sphead;
 
  done:
-  if (ret == SP_OK && table)
+  if (ret != SP_OK && table)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -208,7 +210,7 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
 sp_head *
 sp_find_function(THD *thd, LEX_STRING *name)
 {
-  DBUG_ENTER("sp_find_function_i");
+  DBUG_ENTER("sp_find_function");
   sp_head *sp;
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
@@ -242,4 +244,19 @@ sp_drop_function(THD *thd, char *name, uint namelen)
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
 
   DBUG_RETURN(ret);
+}
+
+// QQ Temporary until the function call detection in sql_lex has been reworked.
+bool
+sp_function_exists(THD *thd, LEX_STRING *name)
+{
+  TABLE *table;
+
+  if (db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
+			  name->str, name->length, TL_READ, &table) == SP_OK)
+  {
+    close_thread_tables(thd);
+    return TRUE;
+  }
+  return FALSE;
 }
