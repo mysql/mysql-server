@@ -188,6 +188,11 @@ typedef struct st_net {
   my_bool no_send_ok;  /* For SPs and other things that do multiple stmts */
   my_bool no_send_eof; /* For SPs' first version read-only cursors */
   /*
+    Set if OK packet is already sent, and we do not need to send error
+    messages
+  */
+  my_bool no_send_error;
+  /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
