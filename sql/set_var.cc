@@ -204,6 +204,8 @@ sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
+sys_var_bool_ptr	sys_readonly("read_only",
+				     &opt_readonly);
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
 sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
@@ -375,6 +377,7 @@ sys_var *sys_variables[]=
   &sys_slave_compressed_protocol,
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
+  &sys_readonly,
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -522,6 +525,7 @@ struct show_var_st init_vars[]= {
 #endif /* HAVE_QUERY_CACHE */
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
