@@ -44,7 +44,7 @@ static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
 		*escaped=0, *opt_columns=0, 
-		*default_charset= (char*) MYSQL_CHARSET;
+		*default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static my_string opt_ignore_lines=0;
