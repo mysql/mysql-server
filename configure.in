@@ -1658,6 +1658,8 @@ AC_ARG_WITH(embedded-server,
 )
 
 MYSQL_CHECK_MYSQLFS
+MYSQL_CHECK_VIO
+MYSQL_CHECK_OPENSSL
 
 libmysqld_dirs=
 if test "$with_embedded_server" = "yes"
