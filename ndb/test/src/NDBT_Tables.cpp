@@ -832,7 +832,7 @@ NDBT_Tables::dropAllTables(Ndb* pNdb){
 int
 NDBT_Tables::print(const char * _name){
   
-  const NdbDictionary::Table* tab = NDBT_Tables::getTable(_name);
+  const NDBT_Table * tab = (const NDBT_Table*)NDBT_Tables::getTable(_name);
   if (tab == NULL){
     ndbout << "Could not print table " << _name 
 	   << ", it doesn't exist in list of tables "

@@ -41,7 +41,7 @@ args: -n PkInsertTwice T1 T6 T10
 
 max-time: 1500
 cmd: testBasic
-args: -n Fill T1 
+args: -n Fill T13 
 
 max-time: 1500
 cmd: testBasic
