@@ -2648,9 +2648,15 @@ longlong Item_func_inet_aton::val_int()
   }
   if (c != '.')					// IP number can't end on '.'
   {
+    /*
+      Handle short-forms addresses according to standard. Examples:
+      127		-> 0.0.0.127
+      127.1		-> 127.0.0.1
+      127.2.1		-> 127.2.0.1
+    */
     switch (dot_count) {
-    case 1: result<<= 8; /* fall through */
-    case 2: result<<= 8; /* fall through */
+    case 1: result<<= 8; /* Fall through */
+    case 2: result<<= 8; /* Fall through */
     }
     return (result << 8) + (ulonglong) byte_result;
   }

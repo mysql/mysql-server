@@ -19,11 +19,6 @@
 #include "fulltext.h"
 #include "rt_index.h"
 
-#ifdef	__WIN__
-#include <errno.h>
-#endif
-
-
 int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
 {
   int flag,key_changed,save_errno;

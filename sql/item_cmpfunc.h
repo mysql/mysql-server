@@ -929,7 +929,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
-    if((item= new Item_cond_and(thd, this)))
+    if ((item= new Item_cond_and(thd, this)))
        item->copy_andor_arguments(thd, this);
     return item;
   }
@@ -950,7 +950,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;
-    if((item= new Item_cond_or(thd, this)))
+    if ((item= new Item_cond_or(thd, this)))
       item->copy_andor_arguments(thd, this);
     return item;
   }
