@@ -18,6 +18,7 @@
 
 #include "heapdef.h"
 #include <m_ctype.h>
+#include <assert.h>
 
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       uint start_key_len,
