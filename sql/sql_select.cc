@@ -4128,7 +4128,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     select_describe(join, FALSE, FALSE, FALSE, info);
     DBUG_RETURN(0);
   }
-  join->cleanup();
+
   if (send_row)
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
