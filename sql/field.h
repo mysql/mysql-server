@@ -83,7 +83,8 @@ public:
   virtual void reset_fields() {}
   virtual void set_default()
   {
-    my_ptrdiff_t offset = table->default_values - table->record[0];
+    my_ptrdiff_t offset = (my_ptrdiff_t) (table->default_values -
+					  table->record[0]);
     memcpy(ptr, ptr + offset, pack_length());
     if (null_ptr)
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
