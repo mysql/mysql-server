@@ -1301,7 +1301,9 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     }
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = save_temporary_tables; // restore temp tables
+  (void) pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   glob_mi.pending = 0;  //this should always be set to 0 when the slave thread
   // is started
   
@@ -1501,7 +1503,9 @@ position %s",
   pthread_mutex_unlock(&LOCK_slave);
   net_end(&thd->net); // destructor will not free it, because we are weird
   slave_thd = 0;
+  (void) pthread_mutex_lock(&LOCK_thread_count);
   delete thd;
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
 #ifndef DBUG_OFF
   if(abort_slave_event_count && !events_till_abort)
