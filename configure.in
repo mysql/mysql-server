@@ -2075,6 +2075,7 @@ EOF
 AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 
+MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_GEMINI
@@ -2107,12 +2108,23 @@ then
   AC_SUBST(THREAD_LPROGRAMS)
   THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o"
   AC_SUBST(THREAD_LOBJECTS)
-  sql_server_dirs="strings dbug mysys extra regex isam merge myisam myisammrg heap vio sql"
   server_scripts="mysqld_safe mysql_install_db"
+  sql_server_dirs="strings dbug mysys extra regex"
+
+
+  #
+  # Configuration for optional table handlers
+  #
+
+  if test X"$have_isam" != Xno
+  then
+    sql_server_dirs="$sql_server_dirs isam merge"
+  fi
+
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
-      sql_server_dirs="$have_berkeley_db $sql_server_dirs"
+      sql_server_dirs="$sql_server_dirs $have_berkeley_db"
 
       echo "CONFIGURING FOR BERKELEY DB" 
       bdb_conf_flags=
@@ -2179,7 +2191,7 @@ EOF
 
   if test X"$have_innodb" = Xyes
   then
-    sql_server_dirs="innobase $sql_server_dirs"
+    sql_server_dirs="$sql_server_dirs innobase"
     echo "CONFIGURING FOR INNODB" 
     if test ! -d "innobase"; then
         # This should only happen when doing a VPATH build
@@ -2198,7 +2210,7 @@ EOF
   fi
 
   if test "X$have_gemini_db" = "Xyes"; then 
-    sql_server_dirs="gemini $sql_server_dirs"
+    sql_server_dirs="$sql_server_dirs gemini"
     echo "CONFIGURING FOR GEMINI DB"
     (cd gemini && sh ./configure) \
     || AC_MSG_ERROR([could not configure Gemini DB])
@@ -2207,6 +2219,12 @@ EOF
 
     AC_DEFINE(HAVE_GEMINI_DB)
   fi
+
+  #
+  # END of configuration for optional table handlers
+  #
+
+  sql_server_dirs="$sql_server_dirs myisam myisammrg heap vio sql"
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
   then

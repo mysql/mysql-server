@@ -30,8 +30,7 @@ SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
-LDADD =			../isam/libnisam.a \
-			../merge/libmerge.a \
+LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
 			../myisammrg/libmyisammrg.a \
 			../heap/libheap.a \
