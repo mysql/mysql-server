@@ -62,7 +62,6 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,
     NULL,
-    NULL,
     NULL
   }
 };

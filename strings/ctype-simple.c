@@ -116,14 +116,6 @@ int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
 }
 
 
-int my_strncasecmp_8bit(CHARSET_INFO * cs,
-				const char *s, const char *t, uint len)
-{
- register uchar *map=cs->to_upper;
- while (len-- != 0 && map[(uchar)*s++] == map[(uchar)*t++]) ;
-   return (int) len+1;
-}
-
 int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc,
 		  const unsigned char *str,
 		  const unsigned char *end __attribute__((unused)))

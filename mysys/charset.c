@@ -127,7 +127,6 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->strnncoll   = b->strnncoll;
     cs->strnncollsp = b->strnncollsp;
     cs->strcasecmp  = b->strcasecmp;
-    cs->strncasecmp = b->strncasecmp;
     cs->hash_sort   = b->hash_sort;
   }
   else
@@ -138,7 +137,6 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->strnncoll   = my_strnncoll_simple;
     cs->strnncollsp = my_strnncollsp_simple;
     cs->strcasecmp  = my_strcasecmp_8bit;
-    cs->strncasecmp = my_strncasecmp_8bit;
     cs->hash_sort   = my_hash_sort_simple;
   }
   

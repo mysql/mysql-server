@@ -8463,7 +8463,6 @@ CHARSET_INFO my_charset_ujis =
     my_caseup_mb,
     my_casedn_mb,
     my_strcasecmp_mb,
-    my_strncasecmp_mb,
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
