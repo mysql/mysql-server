@@ -46,7 +46,8 @@ typedef enum
   ndberror_cl_internal_error = 12,
   ndberror_cl_function_not_implemented = 13,
   ndberror_cl_unknown_error_code = 14,
-  ndberror_cl_node_shutdown = 15
+  ndberror_cl_node_shutdown = 15,
+  ndberror_cl_configuration = 16  
 } ndberror_classification_enum;
 
 
