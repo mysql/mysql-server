@@ -1327,20 +1327,20 @@ fld3
 select t2.fld3 from t2 where fld3 LIKE 'don_t_find_me_please%';
 fld3
 explain select t2.fld3 from t2 where fld3 = 'honeysuckle';
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ref	fld3	fld3	30	const	1	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	fld3	fld3	30	const	1	where used; Using index
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	index	NULL	fld3	30	NULL	1199	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	fld3	30	NULL	1199	where used; Using index
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	index	NULL	fld3	30	NULL	1199	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	fld3	30	NULL	1199	where used; Using index
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ref	fld3	fld3	30	const	1	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	fld3	fld3	30	const	1	where used; Using index
 explain select fld3 from t2 use index (fld1,fld3) where fld3 = 'honeysuckle';
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ref	fld3	fld3	30	const	1	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	fld3	fld3	30	const	1	where used; Using index
 explain select fld3 from t2 ignore index (fld3,not_used);
 Key column 'not_used' doesn't exist in table
 explain select fld3 from t2 use index (not_used);
@@ -1350,8 +1350,8 @@ fld3
 honeysuckle
 honoring
 explain select t2.fld3 from t2 where fld3 >= 'honeysuckle' and fld3 <= 'honoring' order by fld3;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	range	fld3	fld3	30	NULL	2	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	fld3	fld3	30	NULL	2	where used; Using index
 select fld1,fld3 from t2 where fld3="Colombo" or fld3 = "nondecreasing" order by fld3;
 fld1	fld3
 148504	Colombo
@@ -1370,8 +1370,8 @@ fld1
 250501
 250502
 explain select fld1 from t2 where fld1=250501 or fld1="250502";
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	range	fld1	fld1	4	NULL	2	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	fld1	fld1	4	NULL	2	where used; Using index
 select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 and fld1 <= 250601 or fld1 between 250501 and 250502;
 fld1
 250501
@@ -1379,8 +1379,8 @@ fld1
 250505
 250601
 explain select fld1 from t2 where fld1=250501 or fld1=250502 or fld1 >= 250505 and fld1 <= 250601 or fld1 between 250501 and 250502;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	range	fld1	fld1	4	NULL	4	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	fld1	fld1	4	NULL	4	where used; Using index
 select fld1,fld3 from t2 where companynr = 37 and fld3 like 'f%';
 fld1	fld3
 218401	faithful
@@ -1806,21 +1806,21 @@ companynr	rtrim(space(512+companynr))
 select distinct fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr order by fld3;
 fld3
 explain select t3.t2nr,fld3 from t2,t3 where t2.companynr = 34 and t2.fld1=t3.t2nr order by t3.t2nr,fld3;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	fld1	NULL	NULL	NULL	1199	where used; Using temporary; Using filesort
-t3	eq_ref	PRIMARY	PRIMARY	4	t2.fld1	1	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	fld1	NULL	NULL	NULL	1199	where used; Using temporary; Using filesort
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	t2.fld1	1	where used; Using index
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
-t3	ref	period	period	4	t1.period	4181	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
+1	SIMPLE	t3	ref	period	period	4	t1.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	index	period	period	4	NULL	41810	
-t1	ref	period	period	4	t3.period	4181	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	index	period	period	4	NULL	41810	
+1	SIMPLE	t1	ref	period	period	4	t3.period	4181	
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	index	period	period	4	NULL	41810	
-t3	ref	period	period	4	t1.period	4181	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	period	period	4	NULL	41810	
+1	SIMPLE	t3	ref	period	period	4	t1.period	4181	
 select period from t1;
 period
 9410
@@ -1833,9 +1833,9 @@ select fld3,period from t2,t3 where t2.fld1 = 011401 and t2.fld1=t3.t2nr and t3.
 fld3	period
 breaking	1001
 explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1 and 1001 = t3.period;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	const	fld1	fld1	4	const	1	
-t3	const	PRIMARY,period	PRIMARY	4	const	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	const	fld1	fld1	4	const	1	
+1	SIMPLE	t3	const	PRIMARY,period	PRIMARY	4	const	1	
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -2573,21 +2573,21 @@ fld1	fld1
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 companynr	companyname
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	
-t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	where used; Not exists
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	where used; Not exists
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t4	ALL	NULL	NULL	NULL	NULL	12	
-t2	ALL	NULL	NULL	NULL	NULL	1199	where used; Not exists
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	where used; Not exists
 select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 companynr	companynr
 37	36
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	Using temporary
-t4	index	NULL	PRIMARY	1	NULL	12	where used; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using temporary
+1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	where used; Using index
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008
@@ -3096,11 +3096,11 @@ select t2.fld1,sum(price) from t3,t2 where t2.fld1 = t3.t2nr and t3.companynr = 
 fld1	sum(price)
 038008	234298
 explain select fld3 from t2 where 1>2 or 2>3;
-Comment
-Impossible WHERE
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE								Impossible WHERE
 explain select fld3 from t2 where fld1=fld1;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	ALL	NULL	NULL	NULL	NULL	1199	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
 companynr	fld1
 34	250501
@@ -3151,8 +3151,8 @@ select count(*) from t3 where companynr=512 and price2=76234234;
 count(*)
 4181
 explain select min(fld1),max(fld1),count(*) from t2;
-Comment
-Select tables optimized away
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE								Select tables optimized away
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
 0	1232609	1199

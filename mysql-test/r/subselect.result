@@ -1,7 +1,7 @@
 select (select 2);
 (select 2)
 2
-drop table if exists t1,t2,t3,t4,attend,clinic;
+drop table if exists t1,t2,t3,t4,t5,attend,clinic;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -46,6 +46,13 @@ a	b
 2	7
 3	8
 4	8
+explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
+union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	where used
+3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	where used; Using filesort
+4	SUBSELECT	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
 (select a from t3 where a<t2.a*4 order by 1 desc limit 1)	a
 3	1
@@ -54,6 +61,12 @@ select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 (select * from t2 where a>1) as tt;
 (select t3.a from t3 where a<8 order by 1 desc limit 1)	a
 7	2
+explain select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
+(select * from t2 where a>1) as tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	where used
+1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	
+2	SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	where used; Using filesort
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
 a
 2
@@ -67,6 +80,11 @@ b	(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)
 8	7.5000
 8	4.5000
 9	7.5000
+explain select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	
+2	DEPENDENT SUBSELECT	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	DEPENDENT SUBSELECT	t3	ALL	NULL	NULL	NULL	NULL	3	where used
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 a
 7
@@ -82,6 +100,28 @@ select b,max(a) as ma from t4 group by b having b >= (select max(t2.a)
 from t2 where t2.b=t4.b);
 b	ma
 7	12
+create table t5 (a int);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+insert into t5 values (5);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+insert into t5 values (2);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+(select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)	a
+NULL	1
+2	2
+explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBSELECT	t1	system	NULL	NULL	NULL	NULL	1	where used
+3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	where used
+select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
+Subselect return more than 1 record
 create table attend (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table clinic( uq int primary key, name char(25));
 insert into clinic values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
@@ -91,4 +131,20 @@ patient_uq	clinic_uq
 1	1
 1	2
 2	2
-drop table t1,t2,t3,t4,attend,clinic;
+drop table if exists t1,t2,t3;
+CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
+INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
+CREATE TABLE t2 (a varchar(20),b int NOT NULL default '0');
+INSERT INTO t2 VALUES ('W','1'),('A','3'),('J','2');
+CREATE TABLE t1 (a varchar(20),b date NOT NULL default '0000-00-00');
+INSERT INTO t1 VALUES ('W','1732-02-22'),('A','1735-10-30'),('J','1743-04-13');
+SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
+a	b
+W	1732-02-22
+SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
+a	b
+W	1
+SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
+a	b
+W	a
+drop table t1,t2,t3,t4,t5,attend,clinic;

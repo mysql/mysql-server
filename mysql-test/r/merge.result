@@ -34,11 +34,11 @@ insert into t2 select NULL,message from t1;
 insert into t1 select NULL,message from t2;
 create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
 explain select * from t3 where a < 10;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	where used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	a	a	4	NULL	10	where used
 explain select * from t3 where a > 10 and a < 20;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	range	a	a	4	NULL	10	where used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	range	a	a	4	NULL	10	where used
 select * from t3 where a = 10;
 a	b
 10	Testing
@@ -84,8 +84,8 @@ a	b
 19	Testing
 19	Testing
 explain select a from t3 order by a desc limit 10;
-table	type	possible_keys	key	key_len	ref	rows	Extra
-t3	index	NULL	a	4	NULL	1131	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	index	NULL	a	4	NULL	1131	Using index
 select a from t3 order by a desc limit 10;
 a
 699

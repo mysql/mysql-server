@@ -680,7 +680,7 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
     free_root(&thd->mem_root,MYF(0));
-    if (net->error && net->vio != 0)
+    if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && thd->variables.log_warnings)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
@@ -1305,6 +1305,7 @@ mysql_execute_command(THD *thd)
   */
   thd->old_total_warn_count= thd->total_warn_count;
 
+  thd->net.report_error= 0;
   if (thd->slave_thread)
   {
     /* 
@@ -1327,18 +1328,69 @@ mysql_execute_command(THD *thd)
 #endif
   }
   
+  select_result *explain_result= 0;  
   /*
-    Skip if we are in the slave thread, some table rules have been given
-    and the table list says the query should not be replicated
+    TODO: make derived tables processing 'inside' SELECT processing.
+    TODO: solve problem with depended derived tables in subselects
   */
-  if (lex->derived_tables)
+  if (lex->sql_command == SQLCOM_SELECT && 
+      (select_lex->options & SELECT_DESCRIBE) &&
+      lex->derived_tables)
+  {
+    if (!(explain_result= new select_send()))
+    {
+      send_error(&thd->net, ER_OUT_OF_RESOURCES);
+      DBUG_VOID_RETURN;
+    }
+    //check rights
+    for (TABLE_LIST *cursor= tables;
+	 cursor;
+	 cursor= cursor->next)
+      if (cursor->derived)
+      {
+	TABLE_LIST *tables= 
+	  (TABLE_LIST *)((SELECT_LEX_UNIT *)
+			 cursor->derived)->first_select()->table_list.first;
+	int res;
+	if (tables)
+	  res= check_table_access(thd,SELECT_ACL, tables);
+	else
+	  res= check_access(thd, SELECT_ACL, any_db);
+	if (res)
+	  DBUG_VOID_RETURN;
+      }
+    thd->send_explain_fields(explain_result);
+    // EXPLAIN derived tables
+    for (TABLE_LIST *cursor= tables;
+	 cursor;
+	 cursor= cursor->next)
+      if (cursor->derived)
+      {
+	SELECT_LEX *select_lex= ((SELECT_LEX_UNIT *)
+				 cursor->derived)->first_select();
+	if (!open_and_lock_tables(thd, 
+				  (TABLE_LIST*) select_lex->table_list.first))
+	{
+	  mysql_explain_select(thd, select_lex,
+			       "DERIVED", explain_result);
+	  // execute derived table SELECT to provide table for other SELECTs
+	  if (mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
+			    cursor, 1))
+	    DBUG_VOID_RETURN;
+	}
+	else
+	  DBUG_VOID_RETURN;
+      }
+      
+  }
+  else if (lex->derived_tables)
   {
     for (TABLE_LIST *cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
       if (cursor->derived && mysql_derived(thd, lex,
 					   (SELECT_LEX_UNIT *)cursor->derived,
-					   cursor))
+					   cursor, 0))
 	DBUG_VOID_RETURN;
   }
   if ((lex->select_lex.next_select_in_list() && 
@@ -1420,8 +1472,46 @@ mysql_execute_command(THD *thd)
 
     if (!(res=open_and_lock_tables(thd,tables)))
     {
-      query_cache_store_query(thd, tables);
-      res=handle_select(thd, lex, result);
+      if (select_lex->options & SELECT_DESCRIBE)
+      {
+	delete result; // we do not need it for explain
+	if (!explain_result)
+	  if (!(explain_result= new select_send()))
+	  {
+	    send_error(&thd->net, ER_OUT_OF_RESOURCES);
+	    DBUG_VOID_RETURN;
+	  }
+	  else
+	    thd->send_explain_fields(explain_result);
+	fix_tables_pointers(select_lex);
+	for ( SELECT_LEX *sl= select_lex;
+	     sl && res == 0;
+	     sl= sl->next_select_in_list())
+	{
+	  SELECT_LEX *first= sl->master_unit()->first_select();
+	  res= mysql_explain_select(thd, sl,
+				    ((select_lex==sl)?
+				     ((sl->next_select_in_list())?"PRIMARY":
+				       "SIMPLE"):
+				     ((sl == first)?
+				      ((sl->depended)?"DEPENDENT SUBSELECT":
+				       "SUBSELECT"):
+				      ((sl->depended)?"DEPENDENT UNION":
+				       "UNION"))),
+				    explain_result);
+	}
+	if (res > 0)
+	  res= -res; // mysql_explain_select do not report error
+	MYSQL_LOCK *save_lock= thd->lock;
+	thd->lock= (MYSQL_LOCK *)0;
+	explain_result->send_eof();
+	thd->lock= save_lock;
+      }
+      else
+      {
+	query_cache_store_query(thd, tables);
+	res=handle_select(thd, lex, result);
+      }
     }
     else
       delete result;
@@ -1939,7 +2029,7 @@ mysql_execute_command(THD *thd)
 			  (ORDER *)NULL,
 			  select_lex->options | thd->options |
 			  SELECT_NO_JOIN_CACHE,
-			  result, unit);
+			  result, unit, select_lex, 0);
 	delete result;
       }
       else
@@ -2100,13 +2190,13 @@ mysql_execute_command(THD *thd)
 						       lex->lock_option,
 						       table_count)))
     {
-      res=mysql_select(thd,tables,select_lex->item_list,
-		       select_lex->where,
-		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-		       (ORDER *)NULL,
-		       select_lex->options | thd->options |
-		       SELECT_NO_JOIN_CACHE,
-		       result, unit);
+      res= mysql_select(thd,tables,select_lex->item_list,
+			select_lex->where,
+			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+			(ORDER *)NULL,
+			select_lex->options | thd->options |
+			SELECT_NO_JOIN_CACHE,
+			result, unit, select_lex, 0);
       delete result;
     }
     else
@@ -2850,6 +2940,7 @@ mysql_init_query(THD *thd)
   thd->lex.unit.global_parameters= &thd->lex.select_lex; //Global limit & order
   thd->lex.select_lex.master= &thd->lex.unit;
   thd->lex.select_lex.prev= &thd->lex.unit.slave;
+  thd->select_number= thd->lex.select_lex.select_number= 1;
   thd->lex.value_list.empty();
   thd->free_list= 0;
   thd->lex.union_option= 0;
@@ -2882,6 +2973,7 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
+  select_lex->select_number= ++lex->thd->select_number;
   if (!select_lex)
     return 1;
   select_lex->init_query();
@@ -2953,6 +3045,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
+  thd->lex.derived_tables= false;
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
