@@ -911,7 +911,7 @@ public:
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
-  inline void ps_setup_prepare_memory()
+  inline void allocate_temporary_memory_pool_for_ps_preparing()
   {
     DBUG_ASSERT(current_statement!=0);
     /*
@@ -928,7 +928,7 @@ public:
 		   variables.query_prealloc_size);
     free_list= 0;
   }
-  inline void ps_setup_free_memory()
+  inline void free_temporary_memory_pool_for_ps_preparing()
   {
     DBUG_ASSERT(current_statement!=0);
     cleanup_items(current_statement->free_list);

@@ -626,10 +626,10 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
-  thd->ps_setup_prepare_memory();
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (open_and_lock_tables(thd, table_list))
   {
-    thd->ps_setup_free_memory();
+    thd->free_temporary_memory_pool_for_ps_preparing();
     DBUG_RETURN(1);
   }
 
@@ -642,11 +642,10 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
     
     if (check_insert_fields(thd,table,fields,*values,1))
     {
-      thd->ps_setup_free_memory();
+      thd->free_temporary_memory_pool_for_ps_preparing();
       DBUG_RETURN(1);
     }
-    // this memory pool was opened in open_and_lock_tables
-    thd->ps_setup_free_memory();
+    thd->free_temporary_memory_pool_for_ps_preparing();
 
     value_count= values->elements;
     its.rewind();
@@ -665,8 +664,7 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
   }
   else
   {
-    // this memory pool was opened in open_and_lock_tables
-    thd->ps_setup_free_memory();
+    thd->free_temporary_memory_pool_for_ps_preparing();
   }
   if (send_prep_stmt(stmt, 0))
     DBUG_RETURN(1);
@@ -702,24 +700,16 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
-  thd->ps_setup_prepare_memory();
-  if (open_and_lock_tables(thd, table_list))
-  {
-    // this memory pool was opened in open_and_lock_tables
-    thd->ps_setup_free_memory();
-    DBUG_RETURN(1);
-  }
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
 
+  if (open_and_lock_tables(thd, table_list))
+    goto err;
   if (setup_tables(table_list) ||
       setup_fields(thd, 0, table_list, fields, 1, 0, 0) ||
       setup_conds(thd, table_list, &conds) || thd->net.report_error)
-  {
-    // this memory pool was opened in open_and_lock_tables
-    thd->ps_setup_free_memory();
-    DBUG_RETURN(1);
-  }
-  // this memory pool was opened in open_and_lock_tables
-  thd->ps_setup_free_memory();
+    goto err;
+
+  thd->free_temporary_memory_pool_for_ps_preparing();
 
   /* 
      Currently return only column list info only, and we are not
@@ -728,6 +718,9 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
   if (send_prep_stmt(stmt, 0))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
+err:
+  thd->free_temporary_memory_pool_for_ps_preparing();
+  DBUG_RETURN(1);
 }
 
 /*
@@ -777,7 +770,7 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
-  thd->ps_setup_prepare_memory();
+  thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (open_and_lock_tables(thd, tables))
     goto err;
 
@@ -809,15 +802,13 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
 
     unit->cleanup();
   }
-  // this memory pool was opened in open_and_lock_tables
-  thd->ps_setup_free_memory();
+  thd->free_temporary_memory_pool_for_ps_preparing();
   DBUG_RETURN(0);
 
 err_prep:
   unit->cleanup();
 err:
-  // this memory pool was opened in open_and_lock_tables
-  thd->ps_setup_free_memory();
+  thd->free_temporary_memory_pool_for_ps_preparing();
   DBUG_RETURN(1);
 }
 
