@@ -163,9 +163,9 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::thd_charset() const
+CHARSET_INFO * Item::default_charset() const
 {
-  return current_thd->variables.thd_charset;
+  return current_thd->db_charset;
 }
 
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
@@ -303,7 +303,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 String *Item_int::val_str(String *str)
 {
-  str->set(value, thd_charset());
+  str->set(value, default_charset());
   return str;
 }
 
@@ -311,7 +311,7 @@ void Item_int::print(String *str)
 {
   if (!name)
   {
-    str_value.set(value, thd_charset());
+    str_value.set(value, default_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -319,7 +319,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
-  str->set((ulonglong) value, thd_charset());
+  str->set((ulonglong) value, default_charset());
   return str;
 }
 
@@ -327,7 +327,7 @@ void Item_uint::print(String *str)
 {
   if (!name)
   {
-    str_value.set((ulonglong) value, thd_charset());
+    str_value.set((ulonglong) value, default_charset());
     name=str_value.c_ptr();
   }
   str->append(name);
@@ -336,7 +336,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
-  str->set(value,decimals,thd_charset());
+  str->set(value,decimals,default_charset());
   return str;
 }
 
@@ -377,7 +377,7 @@ void Item_param::set_double(double value)
 
 void Item_param::set_value(const char *str, uint length)
 {  
-  str_value.set(str,length,thd_charset());
+  str_value.set(str,length,default_charset());
   item_type = STRING_ITEM;
 }
 
@@ -474,10 +474,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, thd_charset());
+    str->set(int_value, default_charset());
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, thd_charset());
+    str->set(real_value, 2, default_charset());
     return str;
   default:
     return (String*) &str_value;

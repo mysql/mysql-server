@@ -333,8 +333,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    max_length= MAX_FIELD_NAME * thd_charset()->mbmaxlen; 
-    set_charset(thd_charset());
+    max_length= MAX_FIELD_NAME * default_charset()->mbmaxlen; 
+    set_charset(default_charset());
   }
   const char *func_name() const { return "database"; }
 };
@@ -346,8 +346,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*thd_charset()->mbmaxlen; 
-    set_charset(thd_charset());
+    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*default_charset()->mbmaxlen; 
+    set_charset(default_charset());
   }
   const char *func_name() const { return "user"; }
 };
@@ -612,7 +612,7 @@ public:
   void fix_length_and_dec() 
   {
      max_length=40; // should be enough
-     set_charset(thd_charset());
+     set_charset(default_charset());
   };
 };
 
@@ -625,7 +625,7 @@ public:
   void fix_length_and_dec() 
   {
      max_length=40; // should be enough
-     set_charset(thd_charset());
+     set_charset(default_charset());
   };
 };
 
