@@ -18,13 +18,27 @@
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
+#include "InitConfigFileParser.hpp"
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
-#define MAX_INT_RNIL (RNIL - 1)
+
+#define RNIL_STRING         "0xffffff00"
+#define MAX_INT_RNIL_STRING "0xfffffeff"
+#define MAX_NODES_STRING "63"
+
 /****************************************************************************
  * Section names
  ****************************************************************************/
+
+const ConfigInfo::AliasPair
+ConfigInfo::m_sectionNameAliases[]={
+  {"API", "MYSQLD"},
+  {"DB", "NDBD"},
+  {"MGM", "NDB_MGMD"},
+  {0, 0}
+};
+
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
@@ -207,6 +221,7 @@ const DepricationTransform f_deprication[] = {
  * Parameters used under development should be marked "NOTIMPLEMENTED"
  * *******************************************************************
  */
+
 const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   /****************************************************************************
@@ -232,8 +247,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    0 },
+    0, 0 },
 
   {
     KEY_INTERNAL,
@@ -244,8 +258,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
   
   /****************************************************************************
    * SYSTEM
@@ -258,9 +271,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    CFG_SECTION_SYSTEM,
-    0,
-    0 },
+    (const char *)CFG_SECTION_SYSTEM,
+    0, 0 },
 
   {
     CFG_SYS_NAME,
@@ -271,8 +283,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    0 },
+    0, 0 },
   
   {
     CFG_SYS_REPLICATION_ROLE,
@@ -283,8 +294,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    0 },
+    0, 0 },
   
   {
     CFG_SYS_PRIMARY_MGM_NODE,
@@ -294,9 +304,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_SYS_CONFIG_GENERATION,
@@ -306,9 +316,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   /***************************************************************************
    * DB
@@ -321,8 +331,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    NODE_TYPE_DB, 
-    0, 0 
+    (const char *)NODE_TYPE_DB, 
+    0, 0
   },
 
   {
@@ -334,8 +344,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_SYSTEM,
@@ -346,8 +355,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_ID,
@@ -358,8 +366,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    1,
-    (MAX_NODES - 1) },
+    "1",
+    MAX_NODES_STRING },
 
   {
     KEY_INTERNAL,
@@ -370,8 +378,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     UNDEFINED,
-    1,
-    65535 },
+    "1",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_NO_REPLICAS,
@@ -382,8 +390,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    1,
-    4 },
+    "1",
+    "4" },
 
   {
     CFG_DB_NO_ATTRIBUTES,
@@ -393,9 +401,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1000,
-    32,
-    MAX_INT_RNIL/16 },
+    "1000",
+    "32",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_DB_NO_TABLES,
@@ -405,9 +413,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    128,
-    8,
-    MAX_INT_RNIL },
+    "128",
+    "8",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_DB_NO_INDEXES,
@@ -417,9 +425,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    128,
-    0,
-    MAX_INT_RNIL },
+    "128",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_NO_INDEX_OPS,
@@ -429,9 +437,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    8192,
-    0,
-    MAX_INT_RNIL 
+    "8K",
+    "0",
+    MAX_INT_RNIL_STRING 
    },
 
   {
@@ -442,9 +450,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    768,
-    0,
-    MAX_INT_RNIL },
+    "768",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_NO_TRIGGER_OPS,
@@ -454,9 +462,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    4000,
-    0,
-    MAX_INT_RNIL },
+    "4000",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -466,9 +474,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    UNDEFINED,
+    0, 0 },
   
   {
     CFG_DB_NO_SAVE_MSGS,
@@ -478,9 +485,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    25,
-    0,
-    MAX_INT_RNIL },
+    "25",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_MEMLOCK,
@@ -490,9 +497,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::BOOL,
-    false,
-    0,
-    MAX_INT_RNIL },
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_DB_WATCHDOG_INTERVAL,
@@ -502,9 +509,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    6000,
-    70,
-    MAX_INT_RNIL },
+    "6000",
+    "70",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_STOP_ON_ERROR,
@@ -514,9 +521,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::BOOL,
-    true,
-    0,
-    MAX_INT_RNIL },
+    "true",
+    "false",
+    "true" },
 
   { 
     CFG_DB_STOP_ON_ERROR_INSERT,
@@ -526,9 +533,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INTERNAL,
     true,
     ConfigInfo::INT,
-    2,
-    0,
-    4 },
+    "2",
+    "0",
+    "4" },
   
   {
     CFG_DB_NO_OPS,
@@ -538,9 +545,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    32768,
-    32,
-    MAX_INT_RNIL },
+    "32K",
+    "32",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_NO_TRANSACTIONS,
@@ -550,9 +557,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    4096,
-    32,
-    MAX_INT_RNIL },
+    "4096",
+    "32",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_NO_SCANS,
@@ -562,9 +569,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    256,
-    2,
-    500 },
+    "256",
+    "2",
+    "500" },
 
   {
     CFG_DB_TRANS_BUFFER_MEM,
@@ -574,9 +581,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    (1024 * 1024),
-    1024,
-    MAX_INT_RNIL },
+    "1M",
+    "1K",
+    MAX_INT_RNIL_STRING },
  
   {
     CFG_DB_INDEX_MEM,
@@ -586,9 +593,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    3 * 1024 * 8192,
-    128 * 8192,
-    ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
+    "18M",
+    "1M",
+    "1024G" },
 
   {
     CFG_DB_DATA_MEM,
@@ -598,9 +605,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    10 * 1024 * 8192,
-    128 * 8192,
-    ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
+    "80M",
+    "1M",
+    "1024G" },
 
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
@@ -610,9 +617,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    30000,
-    0,
-    ~0 },
+    "30000",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_START_PARTITION_TIMEOUT,
@@ -622,9 +629,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    60000,
-    0,
-    ~0 },
+    "60000",
+    "0",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_DB_START_FAILURE_TIMEOUT,
@@ -634,9 +641,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    0,
-    0,
-    ~0 },
+    "0",
+    "0",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_DB_HEARTBEAT_INTERVAL,
@@ -646,9 +653,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    1500,
-    10,
-    MAX_INT_RNIL },
+    "1500",
+    "10",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_API_HEARTBEAT_INTERVAL,
@@ -658,9 +665,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    1500,
-    100,
-    MAX_INT_RNIL },
+    "1500",
+    "100",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_LCP_INTERVAL,
@@ -670,9 +677,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    20,
-    0,
-    31 },
+    "20",
+    "0",
+    "31" },
 
   {
     CFG_DB_GCP_INTERVAL,
@@ -682,9 +689,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    2000,
-    10,
-    32000 },
+    "2000",
+    "10",
+    "32000" },
 
   {
     CFG_DB_NO_REDOLOG_FILES,
@@ -694,9 +701,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    8,
-    1,
-    MAX_INT_RNIL },
+    "8",
+    "1",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -706,9 +713,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    40,
-    20,
-    256 },
+    "40",
+    "20",
+    "256" },
 
   
   {
@@ -719,9 +726,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    1000,
-    1000,
-    MAX_INT_RNIL },
+    "1000",
+    "1000",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
@@ -735,9 +742,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    MAX_INT_RNIL,
-    0,
-    MAX_INT_RNIL },
+    MAX_INT_RNIL_STRING,
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
@@ -750,9 +757,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    1200,
-    50,
-    MAX_INT_RNIL },
+    "1200",
+    "50",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -762,9 +769,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    40,
-    1,
-    MAX_INT_RNIL },
+    "40",
+    "1",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -774,9 +781,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    40,
-    1,
-    MAX_INT_RNIL },
+    "40",
+    "1",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -786,9 +793,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    20,
-    1,
-    MAX_INT_RNIL },
+    "20",
+    "1",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -798,9 +805,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    20,
-    1,
-    MAX_INT_RNIL },
+    "20",
+    "1",
+    MAX_INT_RNIL_STRING },
   
 
   {
@@ -811,9 +818,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::BOOL,
-    0,
-    0,
-    1},
+    "false",
+    "false",
+    "true"},
 
   {
     KEY_INTERNAL,
@@ -823,9 +830,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::DEPRICATED,
     true,
     ConfigInfo::BOOL,
-    0,
-    0,
-    1},
+    "false",
+    "false",
+    "true"},
   
 
   
@@ -837,9 +844,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    3000,
-    10,
-    MAX_INT_RNIL },
+    "3000",
+    "10",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_DB_FILESYSTEM_PATH,
@@ -849,9 +856,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    DATADIR,
+    0, 0 },
 
   {
     CFG_LOGLEVEL_STARTUP,
@@ -861,9 +867,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1,
-    0,
-    15 },
+    "1",
+    "0",
+    "15" },
   
   {
     CFG_LOGLEVEL_SHUTDOWN,
@@ -873,9 +879,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_STATISTICS,
@@ -885,9 +891,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_CHECKPOINT,
@@ -897,9 +903,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_NODERESTART,
@@ -909,9 +915,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_CONNECTION,
@@ -921,9 +927,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_ERROR,
@@ -933,9 +939,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   {
     CFG_LOGLEVEL_INFO,
@@ -945,9 +951,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    15 },
+    "0",
+    "0",
+    "15" },
 
   /**
    * Backup
@@ -960,9 +966,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::NOTIMPLEMENTED,
     false,
     ConfigInfo::INT,
-    1,
-    1,
-    1 },
+    "1",
+    "1",
+    "1" },
   
   { 
     CFG_DB_BACKUP_MEM,
@@ -972,9 +978,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    (2 * 1024 * 1024) + (2 * 1024 * 1024), // sum of BackupDataBufferSize and BackupLogBufferSize
-    0,
-    MAX_INT_RNIL },
+    "4M", // sum of BackupDataBufferSize and BackupLogBufferSize
+    "0",
+    MAX_INT_RNIL_STRING },
   
   { 
     CFG_DB_BACKUP_DATA_BUFFER_MEM,
@@ -984,9 +990,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    (2 * 1024 * 1024), // remember to change BackupMemory
-    0,
-    MAX_INT_RNIL },
+    "2M", // remember to change BackupMemory
+    "0",
+    MAX_INT_RNIL_STRING },
 
   { 
     CFG_DB_BACKUP_LOG_BUFFER_MEM,
@@ -996,9 +1002,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    (2 * 1024 * 1024), // remember to change BackupMemory
-    0,
-    MAX_INT_RNIL },
+    "2M", // remember to change BackupMemory
+    "0",
+    MAX_INT_RNIL_STRING },
 
   { 
     CFG_DB_BACKUP_WRITE_SIZE,
@@ -1008,9 +1014,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    32768,
-    0,
-    MAX_INT_RNIL },
+    "32K",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   /***************************************************************************
    * REP
@@ -1023,8 +1029,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    NODE_TYPE_REP, 
-    0, 0 
+    (const char *)NODE_TYPE_REP, 
+    0, 0
   },
 
   {
@@ -1036,8 +1042,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_SYSTEM,
@@ -1048,8 +1053,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_ID,
@@ -1060,8 +1064,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    1,
-    (MAX_NODES - 1) },
+    "1",
+    MAX_NODES_STRING },
 
   {
     KEY_INTERNAL,
@@ -1072,8 +1076,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_REP_HEARTBEAT_INTERVAL,
@@ -1083,9 +1086,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    3000,
-    100,
-    MAX_INT_RNIL },
+    "3000",
+    "100",
+    MAX_INT_RNIL_STRING },
 
   /***************************************************************************
    * API
@@ -1098,8 +1101,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    NODE_TYPE_API, 
-    0, 0 
+    (const char *)NODE_TYPE_API, 
+    0, 0
   },
 
   {
@@ -1111,8 +1114,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_SYSTEM,
@@ -1123,8 +1125,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_ID,
@@ -1135,8 +1136,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    1,
-    (MAX_NODES - 1) },
+    "1",
+    MAX_NODES_STRING },
 
   {
     KEY_INTERNAL,
@@ -1146,9 +1147,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    0,
-    0,
-    MAX_INT_RNIL },
+    UNDEFINED,
+    0, 0 },
 
   {
     CFG_NODE_ARBIT_RANK,
@@ -1158,9 +1158,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    2 },
+    "0",
+    "0",
+    "2" },
 
   {
     CFG_NODE_ARBIT_DELAY,
@@ -1170,9 +1170,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_MAX_SCAN_BATCH_SIZE,
@@ -1221,8 +1221,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    NODE_TYPE_MGM, 
-    0, 0 
+    (const char *)NODE_TYPE_MGM, 
+    0, 0
   },
 
   {
@@ -1234,8 +1234,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_SYSTEM,
@@ -1246,8 +1245,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_NODE_ID,
@@ -1258,8 +1256,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    1,
-    (MAX_NODES - 1) },
+    "1",
+    MAX_NODES_STRING },
   
   {
     CFG_LOG_DESTINATION,
@@ -1270,8 +1268,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     0,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
   
   {
     KEY_INTERNAL,
@@ -1282,9 +1279,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     0,
-    0,
-    MAX_INT_RNIL },
-  
+    0, 0 },
+
   {
     KEY_INTERNAL,
     "MaxNoOfSavedEvents",
@@ -1293,9 +1289,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    100,
-    0,
-    MAX_INT_RNIL },
+    "100",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_MGM_PORT,
@@ -1306,8 +1302,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     NDB_BASE_PORT,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     KEY_INTERNAL,
@@ -1317,9 +1313,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2199,
-    0,
-    MAX_INT_RNIL },
+    "2199",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_NODE_ARBIT_RANK,
@@ -1329,9 +1325,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1,
-    0,
-    2 },
+    "1",
+    "0",
+    "2" },
 
   {
     CFG_NODE_ARBIT_DELAY,
@@ -1341,9 +1337,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    0,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   /****************************************************************************
    * TCP
@@ -1356,8 +1352,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    CONNECTION_TYPE_TCP, 
-    0, 0 
+    (const char *)CONNECTION_TYPE_TCP, 
+    0, 0
   },
 
   {
@@ -1369,8 +1365,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_TCP_HOSTNAME_2,
@@ -1381,8 +1376,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_1,
@@ -1393,8 +1387,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1405,8 +1398,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1416,9 +1408,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    true,
-    0,
-    MAX_INT_RNIL },
+    "true",
+    "false",
+    "true" },
 
 
   {
@@ -1429,9 +1421,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    false,
-    0,
-    MAX_INT_RNIL },
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_CONNECTION_SERVER_PORT,
@@ -1442,8 +1434,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_TCP_SEND_BUFFER_SIZE,
@@ -1453,9 +1445,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    16 * 16384,
-    1 * 16384,
-    MAX_INT_RNIL },
+    "256K",
+    "16K",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_TCP_RECEIVE_BUFFER_SIZE,
@@ -1465,9 +1457,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    4 * 16384,
-    1 * 16384,
-    MAX_INT_RNIL },
+    "64K",
+    "16K",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_TCP_PROXY,
@@ -1478,8 +1470,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    0 },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
@@ -1490,8 +1481,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1502,8 +1492,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
   
 
   /****************************************************************************
@@ -1517,9 +1506,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    CONNECTION_TYPE_SHM, 
-    0, 0 
-  },
+    (const char *)CONNECTION_TYPE_SHM, 
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_1,
@@ -1530,8 +1518,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
   
   {
     CFG_CONNECTION_SERVER_PORT,
@@ -1542,8 +1529,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0", 
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1554,8 +1541,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
   
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1565,9 +1551,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    false,
-    0,
-    MAX_INT_RNIL },
+    "false",
+    "false",
+    "true" },
   
   
   {
@@ -1578,9 +1564,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    true,
-    0,
-    MAX_INT_RNIL },
+    "true",
+    "false",
+    "true" },
   
   {
     CFG_SHM_KEY,
@@ -1591,8 +1577,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_SHM_BUFFER_MEM,
@@ -1602,10 +1588,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1048576,
-    4096,
-    MAX_INT_RNIL },
-  
+    "1M",
+    "4K",
+    MAX_INT_RNIL_STRING },
+
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
     "NodeId1_System",
@@ -1615,8 +1601,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1627,8 +1612,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   /****************************************************************************
    * SCI
@@ -1641,7 +1625,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    CONNECTION_TYPE_SCI, 
+    (const char *)CONNECTION_TYPE_SCI, 
     0, 0 
   },
 
@@ -1654,8 +1638,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1666,8 +1650,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_SCI_ID_0,
@@ -1678,8 +1662,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_SCI_ID_1,
@@ -1690,8 +1674,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1701,9 +1685,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    true,
-    0,
-    MAX_INT_RNIL },
+    "true",
+    "false",
+    "true" },
 
   {
     CFG_CONNECTION_CHECKSUM,
@@ -1713,9 +1697,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    false,
-    0,
-    MAX_INT_RNIL },
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_SCI_SEND_LIMIT,
@@ -1725,9 +1709,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2048,
-    512,
-    MAX_INT_RNIL },
+    "2K",
+    "512",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_SCI_BUFFER_MEM,
@@ -1737,9 +1721,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1048576,
-    262144,
-    MAX_INT_RNIL },
+    "1M",
+    "256K",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
@@ -1750,8 +1734,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1762,8 +1745,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   /****************************************************************************
    * OSE
@@ -1776,7 +1758,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::SECTION,
-    CONNECTION_TYPE_OSE, 
+    (const char *)CONNECTION_TYPE_OSE, 
     0, 0 
   },
 
@@ -1789,8 +1771,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_OSE_HOSTNAME_2,
@@ -1801,8 +1782,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_1,
@@ -1813,8 +1793,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     MANDATORY,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1825,8 +1805,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1836,9 +1816,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    true,
-    0,
-    MAX_INT_RNIL },
+    "true",
+    "false",
+    "true" },
 
   {
     CFG_CONNECTION_CHECKSUM,
@@ -1848,9 +1828,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::BOOL,
-    false,
-    0,
-    MAX_INT_RNIL },
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_OSE_PRIO_A_SIZE,
@@ -1860,9 +1840,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1000,
-    0,
-    MAX_INT_RNIL },
+    "1000",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_OSE_PRIO_B_SIZE,
@@ -1872,9 +1852,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1000,
-    0,
-    MAX_INT_RNIL },
+    "1000",
+    "0",
+    MAX_INT_RNIL_STRING },
   
   {
     CFG_OSE_RECEIVE_ARRAY_SIZE,
@@ -1884,9 +1864,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    10,
-    0,
-    MAX_INT_RNIL },
+    "10",
+    "0",
+    MAX_INT_RNIL_STRING },
 
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
@@ -1897,8 +1877,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL},
+    0, 0 },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1909,8 +1888,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::STRING,
     UNDEFINED,
-    0,
-    MAX_INT_RNIL },
+    0, 0 },
 };
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
@@ -1921,21 +1899,31 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
  ****************************************************************************/
 static void require(bool v) { if(!v) abort();}
 
-ConfigInfo::ConfigInfo() {
+ConfigInfo::ConfigInfo()
+  : m_info(true), m_systemDefaults(true)
+{
   int i;
   Properties *section;
   const Properties *oldpinfo;
 
-  m_info.setCaseInsensitiveNames(true);
-  m_systemDefaults.setCaseInsensitiveNames(true);
+  {
+    Uint64 tmp_uint64;
+    require(InitConfigFileParser::convertStringToUint64(RNIL_STRING, tmp_uint64));
+    require(tmp_uint64 == RNIL);
+    require(InitConfigFileParser::convertStringToUint64(MAX_INT_RNIL_STRING, tmp_uint64));
+    require(tmp_uint64 == ((Uint64)RNIL-1));
+    require(InitConfigFileParser::convertStringToUint64(MAX_NODES_STRING, tmp_uint64));
+    require(tmp_uint64 == (MAX_NODES-1));
+  }
 
   for (i=0; i<m_NoOfParams; i++) {
     const ParamInfo & param = m_ParamInfo[i];
+    Uint64 default_uint64;
+    bool   default_bool;
     
     // Create new section if it did not exist
     if (!m_info.getCopy(param._section, &section)) {
-      Properties newsection;
-      newsection.setCaseInsensitiveNames(true);
+      Properties newsection(true);
       m_info.put(param._section, &newsection);
     }
     
@@ -1943,16 +1931,44 @@ ConfigInfo::ConfigInfo() {
     m_info.getCopy(param._section, &section);
     
     // Create pinfo (parameter info) entry 
-    Properties pinfo; 
+    Properties pinfo(true); 
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
     pinfo.put("Description", param._description);
     pinfo.put("Updateable",  param._updateable);
     pinfo.put("Type",        param._type);
     pinfo.put("Status",      param._status);
-    pinfo.put64("Default",     param._default);
-    pinfo.put64("Min",         param._min);
-    pinfo.put64("Max",         param._max);
+
+    if(param._default == MANDATORY){
+      pinfo.put("Mandatory", (Uint32)1);
+    }
+
+    switch (param._type) {
+      case BOOL:
+      {
+	bool tmp_bool;
+	require(InitConfigFileParser::convertStringToBool(param._min, tmp_bool));
+	pinfo.put64("Min", tmp_bool);
+	require(InitConfigFileParser::convertStringToBool(param._max, tmp_bool));
+	pinfo.put64("Max", tmp_bool);
+	break;
+      }
+      case INT:
+      case INT64:
+      {
+	Uint64 tmp_uint64;
+	require(InitConfigFileParser::convertStringToUint64(param._min, tmp_uint64));
+	pinfo.put64("Min", tmp_uint64);
+	require(InitConfigFileParser::convertStringToUint64(param._max, tmp_uint64));
+	pinfo.put64("Max", tmp_uint64);
+	break;
+      }
+      case SECTION:
+	pinfo.put("SectionType", (Uint32)param._default);
+	break;
+      case STRING:
+	break;
+    }
 
     // Check that pinfo is really new
     if (section->get(param._fname, &oldpinfo)) {
@@ -1971,13 +1987,33 @@ ConfigInfo::ConfigInfo() {
     if(param._type != ConfigInfo::SECTION){
       Properties * p;
       if(!m_systemDefaults.getCopy(param._section, &p)){
-	p = new Properties();
-	p->setCaseInsensitiveNames(true);
+	p = new Properties(true);
       }
-      if(param._type != STRING && 
-	 param._default != UNDEFINED &&
+      if(param._default != UNDEFINED &&
 	 param._default != MANDATORY){
-	require(p->put(param._fname, param._default));
+	switch (param._type)
+        {
+	  case SECTION:
+	    break;
+	  case STRING:
+	    require(p->put(param._fname, param._default));
+	    break;
+	  case BOOL:
+	    {
+	      bool tmp_bool;
+	      require(InitConfigFileParser::convertStringToBool(param._default, default_bool));
+	      require(p->put(param._fname, default_bool));
+	      break;
+	    }
+	  case INT:
+	  case INT64:
+	    {
+	      Uint64 tmp_uint64;
+	      require(InitConfigFileParser::convertStringToUint64(param._default, default_uint64));
+	      require(p->put(param._fname, default_uint64));
+	      break;
+	    }
+	}
       }
       require(m_systemDefaults.put(param._section, p, true));
       delete p;
@@ -2019,7 +2055,8 @@ const Properties *
 ConfigInfo::getInfo(const char * section) const {
   const Properties * p;
   if(!m_info.get(section, &p)){
-    warning("getInfo", section);
+    return 0;
+    //    warning("getInfo", section);
   }
   return p;
 }
@@ -2028,7 +2065,8 @@ const Properties *
 ConfigInfo::getDefaults(const char * section) const {
   const Properties * p;
   if(!m_systemDefaults.get(section, &p)){
-    warning("getDefaults", section);
+    return 0;
+    //warning("getDefaults", section);
   }
   return p;
 }
@@ -2099,6 +2137,14 @@ ConfigInfo::isSection(const char * section) const {
   return false;
 }
 
+const char*
+ConfigInfo::getAlias(const char * section) const {
+  for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
+    if(!strcasecmp(section, m_sectionNameAliases[i].alias))
+      return m_sectionNameAliases[i].name;
+  return 0;
+}
+
 bool
 ConfigInfo::verify(const Properties * section, const char* fname, 
 		   Uint64 value) const {
@@ -2161,7 +2207,7 @@ void ConfigInfo::print(const Properties * section,
       ndbout << "Default: N (Legal values: Y, N)" << endl; 
     } else if (getDefault(section, parameter) == true) {
       ndbout << "Default: Y (Legal values: Y, N)" << endl;
-    } else if (getDefault(section, parameter) == MANDATORY) {
+    } else if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
       ndbout << "MANDATORY (Legal values: Y, N)" << endl;
     } else {
       ndbout << "UNKNOWN" << endl;
@@ -2173,9 +2219,9 @@ void ConfigInfo::print(const Properties * section,
   case ConfigInfo::INT64:
     ndbout << " (Non-negative Integer)" << endl;
     ndbout << getDescription(section, parameter) << endl;
-    if (getDefault(section, parameter) == MANDATORY) {
+    if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
       ndbout << "MANDATORY (";
-    } else if (getDefault(section, parameter) == UNDEFINED) {
+    } else if (getDefault(section, parameter) == (UintPtr)UNDEFINED) {
       ndbout << "UNDEFINED (";
     } else {
       ndbout << "Default: " << getDefault(section, parameter) << " (";
@@ -2188,7 +2234,7 @@ void ConfigInfo::print(const Properties * section,
   case ConfigInfo::STRING:
     ndbout << " (String)" << endl;
     ndbout << getDescription(section, parameter) << endl;
-    if (getDefault(section, parameter) == MANDATORY) {
+    if (getDefault(section, parameter) == (UintPtr)MANDATORY) {
       ndbout << "MANDATORY" << endl;
     } else {
       ndbout << "No default value" << endl;
@@ -2254,17 +2300,17 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
 bool
 fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
+  const char * hostname;
+  if (ctx.m_currentSection->get("HostName", &hostname))
+    return true;
+
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
-    require(ctx.m_currentSection->put("HostName", ""));
-
     const char * type;
-    if(ctx.m_currentSection->get("Type", &type) && strcmp(type,"DB") == 0) {
-      ctx.reportError("Parameter \"ExecuteOnComputer\" missing from DB section"
-		      " [%s] starting at line: %d",
-		      ctx.fname, ctx.m_sectionLineno);
-      return false;
-    }
+    if(ctx.m_currentSection->get("Type", &type) && strcmp(type,"DB") == 0)
+      require(ctx.m_currentSection->put("HostName", "localhost"));
+    else
+      require(ctx.m_currentSection->put("HostName", ""));
     return true;
   }
   
@@ -2278,7 +2324,6 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
     return false;
   }
   
-  const char * hostname;
   if(!computer->get("HostName", &hostname)){
     ctx.reportError("HostName missing in [COMPUTER] (Id: %d) "
 		    " - [%s] starting at line: %d",
@@ -2476,7 +2521,7 @@ checkMandatory(InitConfigFileParser::Context & ctx, const char * data){
     const Properties * info = NULL;
     ::require(ctx.m_currentInfo->get(name, &info));
     Uint32 val;
-    if(info->get("Default", &val) && val == MANDATORY){
+    if(info->get("Mandatory", &val)){
       const char * fname;
       ::require(info->get("Fname", &fname));
       if(!ctx.m_currentSection->contains(fname)){
@@ -2670,7 +2715,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     if (!ctx.m_userProperties.get("ServerPortBase", &base)){
       if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
 	 !ctx.m_systemDefaults->get("PortNumber", &base)) {
-	base= NDB_BASE_PORT+2;
+	base= strtoll(NDB_BASE_PORT,0,0)+2;
       //      ctx.reportError("Cannot retrieve base port number");
       //      return false;
       }
@@ -2855,7 +2900,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
    * Transform old values to new values
    * Transform new values to old values (backward compatible)
    */
-  Properties tmp;
+  Properties tmp(true);
   Properties::Iterator it(ctx.m_currentSection);
   for (name = it.first(); name != NULL; name = it.next()) {
     const DepricationTransform * p = &f_deprication[0];
@@ -2922,7 +2967,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     require(sec->get("Fname", &secName));
     require(sec->get("Id", &id));
     require(sec->get("Status", &status));
-    require(sec->get("Default", &typeVal));
+    require(sec->get("SectionType", &typeVal));
     
     if(id == KEY_INTERNAL || status == ConfigInfo::INTERNAL){
       ndbout_c("skipping section %s", ctx.fname);
@@ -2987,8 +3032,8 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
   Uint32 i;
   Properties * props= ctx.m_config;
-  Properties p_connections;
-  Properties p_connections2;
+  Properties p_connections(true);
+  Properties p_connections2(true);
 
   for (i = 0;; i++){
     const Properties * tmp;
@@ -3008,8 +3053,8 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 nNodes;
   ctx.m_userProperties.get("NoOfNodes", &nNodes);
 
-  Properties p_db_nodes;
-  Properties p_api_mgm_nodes;
+  Properties p_db_nodes(true);
+  Properties p_api_mgm_nodes(true);
 
   Uint32 i_db= 0, i_api_mgm= 0, n;
   for (i= 0, n= 0; n < nNodes; i++){
@@ -3035,7 +3080,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
 	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties;
+	s.m_sectionData= new Properties(true);
 	char buf[16];
 	snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
@@ -3052,7 +3097,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
 	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties;
+	s.m_sectionData= new Properties(true);
 	char buf[16];
 	snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
@@ -3073,7 +3118,7 @@ static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
 #if 0
   Properties * props= ctx.m_config;
-  Properties computers;
+  Properties computers(true);
   Uint32 port_base = NDB_BASE_PORT+2;
 
   Uint32 nNodes;

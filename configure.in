@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.4-beta)
+AM_INIT_AUTOMAKE(mysql, 4.1.4-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -389,8 +389,6 @@ then
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
-  # ndb cannot be compiled with -fno-implicit-templaces
-  ndb_cxxflags_fix="$ndb_cxxflags_fix -fimplicit-templates"
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -1874,6 +1872,22 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
+# for libedit 2.6.7
+case "${host}" in
+  *-*-solaris2*)
+	AC_DEFINE_UNQUOTED(SUNOS, 1, [macro for libedit-2.6.7, current platform is solaris-2])
+	;;
+esac
+
+LIBEDIT_LOBJECTS=""
+AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
+AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
+AC_CHECK_FUNC(strlcpy,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcpy.o"])
+AC_CHECK_FUNC(strlcat,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcat.o"])
+AC_CHECK_FUNC(fgetln,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS fgetln.o"])
+AC_SUBST(LIBEDIT_LOBJECTS)
+enable_readline="yes"
+
 # End of readline/libedit stuff
 #########################################################################
 
@@ -2303,6 +2317,20 @@ AC_ARG_WITH(libedit,
     [ with_libedit=undefined ]
     )
 
+#
+# We support next variants of compilation:
+#                              --with-readline
+#                |       yes      |  no  |               undefined
+# --with-libedit |                |      |
+# ---------------+----------------+------+----------------------------------
+#       yes      |      ERROR!    |   use libedit from mysql sources
+# ---------------+----------------+------+----------------------------------
+#       no       | use readline   | use system readline or external libedit
+#                | from mysql     | according to results of m4 tests
+# ---------------+ sources (if it +      +----------------------------------
+#    undefined   | is presented)  |      | use libedit from mysql sources
+                   
+
 compile_readline="no"
 compile_libedit="no"
 
@@ -2327,9 +2355,10 @@ then
     readline_topdir="cmd-line-utils"
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
 elif test "$with_readline" = "yes"
 then
@@ -2341,8 +2370,12 @@ then
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
+    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+    AC_LANG_RESTORE
     if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
     then
         readline_link="-lreadline"
@@ -2823,7 +2856,7 @@ then
       AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags=
+      bdb_conf_flags="--disable-shared"
       if test $with_debug = "yes"
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
@@ -2984,6 +3017,13 @@ then
 
 AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
+
+
+if test X"$ndb_port_base" = Xdefault
+then
+  ndb_port_base="2200"
+fi
+AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
 if test X"$have_ndb_shm" = Xyes

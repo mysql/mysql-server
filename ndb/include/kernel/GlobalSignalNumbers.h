@@ -23,13 +23,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-
-
-
 const GlobalSignalNumber MAX_GSN = 712;
-
-
-
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -898,7 +892,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_REF               679
 
 // not used                             680
-// not used                             712
 // not used                             681
 
 /**
@@ -951,6 +944,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711
-
+#define GSN_READ_ROWCOUNT_REQ           712
 
 #endif

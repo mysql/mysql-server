@@ -325,7 +325,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	if (theStatus == FinalGetValue) {
 	  ; // Simply continue with getValue
 	} else if (theStatus == ExecInterpretedValue) {
-	  if (insertATTRINFO(Interpreter::EXIT_OK_LAST) == -1)
+	  if (insertATTRINFO(Interpreter::EXIT_OK) == -1)
 	    return NULL;
 	  theInterpretedSize = theTotalCurrAI_Len -
 	    (theInitialReadSize + 5);
@@ -415,7 +415,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 	// We insert an exit from interpretation since we are now starting 
 	// to set values in the tuple by setValue.
 	//--------------------------------------------------------------------
-        if (insertATTRINFO(Interpreter::EXIT_OK_LAST) == -1){
+        if (insertATTRINFO(Interpreter::EXIT_OK) == -1){
           return -1;
 	}
         theInterpretedSize = theTotalCurrAI_Len - 

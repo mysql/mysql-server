@@ -148,6 +148,7 @@ Dbacc::Dbacc(const class Configuration & conf):
   addRecSignal(GSN_ACC_OVER_REC, &Dbacc::execACC_OVER_REC);
   addRecSignal(GSN_ACC_SAVE_PAGES, &Dbacc::execACC_SAVE_PAGES);
   addRecSignal(GSN_NEXTOPERATION, &Dbacc::execNEXTOPERATION);
+  addRecSignal(GSN_READ_ROWCOUNT_REQ, &Dbacc::execREAD_ROWCOUNTREQ);
 
   // Received signals
   addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);

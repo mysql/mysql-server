@@ -324,6 +324,8 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_TUX_ADD_ATTRCONF, &Dblqh::execTUX_ADD_ATTRCONF);
   addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
+  addRecSignal(GSN_READ_ROWCOUNT_REQ, &Dblqh::execREAD_ROWCOUNTREQ);
+
   initData();
 
 #ifdef VM_TRACE

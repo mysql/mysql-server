@@ -211,10 +211,17 @@ bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
       if (!(key_part->key_type & (FIELDFLAG_NUMBER+FIELDFLAG_BINARY+
 				  FIELDFLAG_PACK)))
       {
-	if (my_strnncoll(key_part->field->charset(),
-			 (const uchar*) key, length,
-		         (const uchar*) table->record[0]+key_part->offset,
-			 length))
+        CHARSET_INFO *cs= key_part->field->charset();
+        uint char_length= key_part->length / cs->mbmaxlen;
+        const byte *pos= table->record[0] + key_part->offset;
+        if (length > char_length)
+        {
+          char_length= my_charpos(cs, pos, pos + length, char_length);
+          set_if_smaller(char_length, length);
+        }
+	if (cs->coll->strnncollsp(cs,
+                                  (const uchar*) key, length,
+                                  (const uchar*) pos, char_length))
 	  return 1;
       }
       else if (memcmp(key,table->record[0]+key_part->offset,length))

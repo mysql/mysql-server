@@ -354,7 +354,7 @@ NdbOperation::prepareSendInterpreted()
   Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
   Uint32 tInitReadSize = theInitialReadSize;
   if (theStatus == ExecInterpretedValue) {
-    if (insertATTRINFO(Interpreter::EXIT_OK_LAST) != -1) {
+    if (insertATTRINFO(Interpreter::EXIT_OK) != -1) {
 //-------------------------------------------------------------------------
 // Since we read the total length before inserting the last entry in the
 // signals we need to add one to the total length.

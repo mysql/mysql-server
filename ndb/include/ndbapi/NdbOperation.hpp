@@ -609,6 +609,20 @@ public:
   int   interpret_exit_nok(Uint32 ErrorCode);
   int   interpret_exit_nok();
 
+  
+  /**
+   * Interpreted program instruction:
+   *
+   * For scanning transactions, 
+   * return this row, but no more from this fragment
+   *
+   * For non-scanning transactions,
+   * abort the whole transaction.
+   *
+   * @return            -1 if unsuccessful.
+   */
+  int interpret_exit_last_row();
+  
   /**
    * Interpreted program instruction:
    * Define a subroutine in an interpreted operation.

@@ -1401,6 +1401,7 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
 
 void Dbdih::execREAD_NODESCONF(Signal* signal) 
 {
+  unsigned i;
   ReadNodesConf * const readNodes = (ReadNodesConf *)&signal->theData[0];
   jamEntry();
   Uint32 nodeArray[MAX_NDB_NODES];
@@ -1408,9 +1409,10 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
   csystemnodes  = readNodes->noOfNodes;
   cmasterNodeId = readNodes->masterNodeId;
   int index = 0;
-  for (unsigned i = 1; i < MAX_NDB_NODES; i++){
+  NdbNodeBitmask tmp; tmp.assign(2, readNodes->allNodes);
+  for (i = 1; i < MAX_NDB_NODES; i++){
     jam();
-    if(NodeBitmask::get(readNodes->allNodes, i)){
+    if(tmp.get(i)){
       jam();
       nodeArray[index] = i;
       if(NodeBitmask::get(readNodes->inactiveNodes, i) == false){
@@ -1420,6 +1422,32 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
       index++;
     }//if
   }//for  
+  
+  if(cstarttype == NodeState::ST_SYSTEM_RESTART || 
+     cstarttype == NodeState::ST_NODE_RESTART){
+
+    for(i = 1; i<MAX_NDB_NODES; i++){
+      const Uint32 stat = Sysfile::getNodeStatus(i, SYSFILE->nodeStatus);
+      if(stat == Sysfile::NS_NotDefined && !tmp.get(i)){
+	jam();
+	continue;
+      }
+      
+      if(tmp.get(i) && stat != Sysfile::NS_NotDefined){
+	jam();
+	continue;
+      }
+      char buf[255];
+      snprintf(buf, sizeof(buf), 
+	       "Illegal configuration change."
+	       " Initial start needs to be performed "
+	       " when changing no of storage nodes (node %d)", i);
+      progError(__LINE__, 
+		ERR_INVALID_CONFIG,
+		buf);
+    }
+  }
+  
   ndbrequire(csystemnodes >= 1 && csystemnodes < MAX_NDB_NODES);  
   if (cstarttype == NodeState::ST_INITIAL_START) {
     jam();
@@ -3451,10 +3479,37 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
     }//if
   }//for
   ndbrequire(masterCandidateId != 0);
+  setNodeGroups();
   signal->theData[0] = masterCandidateId;
   signal->theData[1] = gci;
   sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal, 2, JBB);
-  setNodeGroups();
+
+  Uint32 node_groups[MAX_NDB_NODES];
+  memset(node_groups, 0, sizeof(node_groups));
+  for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+    jam();
+    const Uint32 ng = Sysfile::getNodeGroup(nodePtr.i, SYSFILE->nodeGroups);
+    if(ng != NO_NODE_GROUP_ID){
+      ndbrequire(ng < MAX_NDB_NODES);
+      node_groups[ng]++;
+    }
+  }
+  
+  for (nodePtr.i = 0; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
+    jam();
+    Uint32 count = node_groups[nodePtr.i];
+    if(count != 0 && count != cnoReplicas){
+      char buf[255];
+      snprintf(buf, sizeof(buf), 
+	       "Illegal configuration change."
+	       " Initial start needs to be performed "
+	       " when changing no of replicas (%d != %d)", 
+	       node_groups[nodePtr.i], cnoReplicas);
+      progError(__LINE__, 
+		ERR_INVALID_CONFIG,
+		buf);
+    }
+  }
 }//Dbdih::selectMasterCandidate()
 
 /* ------------------------------------------------------------------------- */
