@@ -145,6 +145,9 @@ public:
     time(&end_time);
     exec_time = (ulong) (end_time  - thd->start_time);
     db_len = (db) ? (uint32) strlen(db) : 0;
+    // do not log stray system errors such as EE_WRITE
+    if (error_code < ERRMOD)
+      error_code = 0; 
   }
 #endif
 
