@@ -36,19 +36,19 @@ identified by 'looser' ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 drop table mysqltest.t9 ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 prepare s_t1 from 'select a as my_col from t1' ;
 execute s_t1 ;
 my_col
@@ -79,3 +79,15 @@ commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
 drop database mysqltest;
+prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
+identified by ''looser'' ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+grant all on test.t1 to drop_user@localhost
+identified by 'looser' ;
+prepare stmt3 from ' revoke all privileges on test.t1 from 
+drop_user@localhost ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+revoke all privileges on test.t1 from drop_user@localhost ;
+prepare stmt3 from ' drop user drop_user@localhost ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+drop user drop_user@localhost;

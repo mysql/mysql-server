@@ -1606,7 +1606,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id2,id) references t1 (id)) engine = innodb;
-ERROR HY000: Can't create table './test/t2.frm' (errno: 150)
+ERROR HY000: Can't create table './test/t2' (errno: 150)
 create table t2 (a int auto_increment primary key, b int, index(b), foreign key (b) references t1(id), unique(b)) engine=innodb;
 show create table t2;
 Table	Create Table
@@ -2360,7 +2360,7 @@ length(v)
 65530
 drop table t1;
 create table t1 (v varchar(65530), key(v));
-ERROR HY000: Can't create table './test/t1.frm' (errno: 139)
+ERROR HY000: Can't create table './test/t1' (errno: 139)
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
