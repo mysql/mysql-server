@@ -53,7 +53,7 @@ sinclude(config/ac-macros/zlib.m4)
 # Remember to add a directory sql/share/LANGUAGE
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
-italian japanese japanese-sjis korean norwegian norwegian-ny polish portuguese \
+italian japanese korean norwegian norwegian-ny polish portuguese \
 romanian russian serbian slovak spanish swedish ukrainian"
 
 
