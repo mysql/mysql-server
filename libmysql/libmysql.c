@@ -1740,7 +1740,7 @@ static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
   STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
 */
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
-static bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
+static my_bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
 
 /*
   Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
@@ -3077,7 +3077,7 @@ static my_bool int_is_null_false= 0;
     values and mysql_stmt_execute() the statement.
 
     See also: mysql_stmt_send_long_data() for sending long text/blob
-    data in pieces, examples in tests/client_test.c.
+    data in pieces, examples in tests/mysql_client_test.c.
     Next steps you might want to make:
     - execute statement with mysql_stmt_execute(),
     - reset statement using mysql_stmt_reset() or reprepare it with
@@ -3718,7 +3718,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       longlongstore(buffer, data);
     }
     *param->error= value != (param->is_unsigned ?
-                             (double) (*(ulonglong*) buffer) :
+                             ulonglong2double(*(ulonglong*) buffer) :
                              (double) (*(longlong*) buffer));
     break;
   case MYSQL_TYPE_FLOAT:

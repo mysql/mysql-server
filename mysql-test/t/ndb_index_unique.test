@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1, t2, t3, t4, t5, t6, t7;
+drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
 --enable_warnings
 
 #
@@ -286,3 +286,24 @@ select * from t8 order by a;
 select * from t1 order by a;
 drop table t1, t8;
 
+###############################
+# Bug 8101
+#
+# Unique index not specified in the same order as in table
+#
+
+create table t1(
+        id integer not null auto_increment,
+        month integer not null,
+        year integer not null,
+        code varchar( 2) not null,
+        primary key ( id),
+	unique idx_t1( month, code, year)
+) engine=ndb;
+
+INSERT INTO t1 (month, year, code) VALUES (4,2004,'12');
+INSERT INTO t1 (month, year, code) VALUES (5,2004,'12');
+
+select * from t1 where code = '12' and month = 4 and year = 2004 ;
+
+drop table t1;

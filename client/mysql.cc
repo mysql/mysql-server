@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.7";
+const char *VER= "14.8";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -144,6 +144,7 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static char *histfile;
+static char *histfile_tmp;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
 static char *full_username=0,*part_username=0,*default_prompt=0;
@@ -442,6 +443,13 @@ int main(int argc,char *argv[])
       if (verbose)
 	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
       read_history(histfile);
+      if (!(histfile_tmp= (char*) my_malloc((uint) strlen(histfile) + 5,
+					    MYF(MY_WME))))
+      {
+	fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
+	exit(1);
+      }
+      sprintf(histfile_tmp, "%s.TMP", histfile);
     }
   }
 #endif
@@ -470,7 +478,8 @@ sig_handler mysql_end(int sig)
     /* write-history */
     if (verbose)
       tee_fprintf(stdout, "Writing history-file %s\n",histfile);
-    write_history(histfile);
+    if (!write_history(histfile_tmp))
+      my_rename(histfile_tmp, histfile, MYF(MY_WME));
   }
   batch_readline_end(status.line_buff);
   completion_hash_free(&ht);
@@ -485,6 +494,7 @@ sig_handler mysql_end(int sig)
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
   my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(histfile_tmp,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
@@ -1430,12 +1440,6 @@ static void build_completion_hash(bool rehash, bool write_info)
   if (status.batch || quick || !current_db)
     DBUG_VOID_RETURN;			// We don't need completion in batches
 
-  if (tables)
-  {
-    mysql_free_result(tables);
-    tables=0;
-  }
-
   /* hash SQL commands */
   while (cmd->name) {
     add_word(&ht,(char*) cmd->name);
@@ -1681,8 +1685,8 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else if (num_fields >= 2 && num_rows)
     {
       init_pager();
-      char last_char;
-      
+      char last_char= 0;
+
       int num_name= 0, num_cat= 0;
       LINT_INIT(num_name);
       LINT_INIT(num_cat);
@@ -1693,7 +1697,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
 	put_info("To make a more specific request, please type 'help <item>',\nwhere <item> is one of the following", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
-	last_char= '_';
       }
       else if ((cur= mysql_fetch_row(result)))
       {
@@ -1703,7 +1706,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
       }
-      
+
       while ((cur= mysql_fetch_row(result)))
 	print_help_item(&cur,num_name,num_cat,&last_char);
       tee_fprintf(PAGER, "\n");

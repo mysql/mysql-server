@@ -134,8 +134,7 @@ extern EventLogger g_eventLogger;
 extern int global_mgmt_server_check;
 
 enum ndb_mgmd_options {
-  NDB_STD_OPTS_OPTIONS,
-  OPT_INTERACTIVE,
+  OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
   OPT_NO_NODEID_CHECKS,
   OPT_NO_DAEMON
 };
@@ -169,14 +168,10 @@ static void short_usage_sub(void)
 {
   printf("Usage: %s [OPTIONS]\n", my_progname);
 }
-static void print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
 static void usage()
 {
   short_usage_sub();
-  print_version();
+  ndb_std_print_version();
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -184,25 +179,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch (optid) {
-  case '#':
-    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_mgmd.trace");
-    break;
-  case 'V':
-    print_version();
-    exit(0);
-  case OPT_NDB_SHM:
-#ifndef NDB_SHM_TRANSPORTER
-    printf("Warning: binary not compiled with shared memory support,\n"
-	   "use configure option --with-ndb-shm to enable support.\n"
-	   "Tcp connections will now be used instead\n");
-    opt_ndb_shm= 0;
-#endif
-    break;
-  case '?':
-    usage();
-    exit(0);
-  }
+  ndb_std_get_one_option(optid, opt, argument ? argument :
+			 "d:t:O,/tmp/ndb_mgmd.trace");
   return 0;
 }
 
