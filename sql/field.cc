@@ -4268,24 +4268,21 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   Store double value in Field_string or Field_varstring.
 
   SYNOPSIS
-    store_double_in_string_field()
-    field         field to store value in
-    field_length  number of characters in the field
+    store(double nr)
     nr            number
 
   DESCRIPTION
     Pretty prints double number into field_length characters buffer.
 */
 
-static int store_double_in_string_field(Field_str *field, uint32 field_length,
-                                         double nr)
+int Field_str::store(double nr)
 {
   bool use_scientific_notation=TRUE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   int length;
-  if (field_length < 32 && nr > 1)
+  if (field_length < 32 && nr > 1) // TODO: negative numbers
   {
-    if (field->ceiling == 0)
+    if (ceiling == 0)
     {
       static double e[]= {1e1, 1e2, 1e4, 1e8, 1e16 };
       double p= 1;
@@ -4294,22 +4291,16 @@ static int store_double_in_string_field(Field_str *field, uint32 field_length,
         if (field_length & j)
           p*= e[i];
       }
-      field->ceiling= p-1;
+      ceiling= p-1;
     }
-    use_scientific_notation= (field->ceiling < nr);
+    use_scientific_notation= (ceiling < nr);
   }
   length= sprintf(buff, "%-.*g",
                   use_scientific_notation ? max(0,field_length-5) : field_length,
                   nr);
   DBUG_ASSERT(length <= field_length);
-  return field->store(buff, (uint) length);
+  return store((const char *)buff, (uint) length, charset());
 }
-
-int Field_string::store(double nr)
- {
-  return store_double_in_string_field(this, field_length, nr);
-}
-
 
 int Field_string::store(longlong nr)
 {
@@ -4476,12 +4467,6 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   memcpy(ptr+HA_KEY_BLOB_LENGTH,from,length);
   int2store(ptr, length);
   return error;
-}
-
-
-int Field_varstring::store(double nr)
-{
-  return store_double_in_string_field(this, field_length, nr);
 }
 
 

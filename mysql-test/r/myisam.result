@@ -529,3 +529,12 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	HASH	
 drop table t1,t2;
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
+insert into t1 values (null,''), (null,'');
+explain select count(*) from t1 where a is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	idx	idx	4	const	1	Using where
+select count(*) from t1 where a is null;
+count(*)
+2
+drop table t1;

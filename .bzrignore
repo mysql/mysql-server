@@ -907,3 +907,4 @@ ndb/test/tools/hugoScanUpdate
 ndb/test/tools/ndb_cpcc
 ndb/test/tools/restart
 ndb/test/tools/verify_index
+EXCEPTIONS-CLIENT

@@ -613,7 +613,6 @@ show_failed_diff ()
     echo "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
     echo ""
-    echo "Test $1 failed!"
   fi
 }
 
