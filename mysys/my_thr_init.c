@@ -105,7 +105,7 @@ void my_thread_global_end(void)
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif
-#ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errchk_mutexattr);
 #endif
   pthread_mutex_destroy(&THR_LOCK_malloc);
