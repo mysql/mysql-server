@@ -31,18 +31,25 @@ functions */
 
 #define HAVE_SMEM 1
 
-#if defined(__NT__)
-#define SYSTEM_TYPE	"NT"
-#elif defined(__WIN2000__)
-#define SYSTEM_TYPE	"WIN2000"
+#if defined(_WIN64) || defined(WIN64) 
+#define SYSTEM_TYPE	"Win64" 
+#elif defined(_WIN32) || defined(WIN32) 
+#define SYSTEM_TYPE	"Win32" 
 #else
-#define SYSTEM_TYPE	"Win95/Win98"
+#define SYSTEM_TYPE	"Windows"
 #endif
 
-#if defined(_WIN64) || defined(WIN64)
-#define MACHINE_TYPE	"ia64"		/* Define to machine type name */
+#if defined(_M_IA64) 
+#define MACHINE_TYPE	"ia64" 
+#elif defined(_M_IX86) 
+#define MACHINE_TYPE	"ia32" 
+#elif defined(_M_ALPHA) 
+#define MACHINE_TYPE	"axp" 
 #else
-#define MACHINE_TYPE	"i32"		/* Define to machine type name */
+#define MACHINE_TYPE	"unknown"	/* Define to machine type name */
+#endif 
+ 
+#if !(defined(_WIN64) || defined(WIN64)) 
 #ifndef _WIN32
 #define _WIN32				/* Compatible with old source */
 #endif
