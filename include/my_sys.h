@@ -583,7 +583,6 @@ extern void allow_break(void);
 #endif
 
 extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
-extern void case_sort(CHARSET_INFO *cs, my_string str,uint length);
 extern uint dirname_part(my_string to,const char *name);
 extern uint dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
