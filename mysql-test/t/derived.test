@@ -34,3 +34,4 @@ while ($1)
 enable_query_log;
 SELECT * FROM (SELECT * FROM t1) ORDER BY a  ASC LIMIT 0,20;
 drop table if exists  t1;
+SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a)));
