@@ -1,3 +1,6 @@
+select -1 as "before_use_test" ;
+before_use_test
+-1
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -21,3 +24,128 @@ select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
+select otto from (select 1 as otto) as t1;
+otto
+1
+select 0 as "after_successful_stmt_errno" ;
+after_successful_stmt_errno
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 1064 as "after_wrong_syntax_errno" ;
+after_wrong_syntax_errno
+1064
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 1064 as "after_let_var_equal_value" ;
+after_let_var_equal_value
+1064
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+set @my_var= 'abc' ;
+select 0 as "after_set_var_equal_value" ;
+after_set_var_equal_value
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 1064 as "after_disable_warnings_command" ;
+after_disable_warnings_command
+1064
+drop table if exists t1 ;
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+drop table if exists t1 ;
+select 0 as "after_disable_warnings" ;
+after_disable_warnings
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 1146 as "after_minus_masked" ;
+after_minus_masked
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 1146 as "after_!_masked" ;
+after_!_masked
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select -1 as "after_let_errno_equal_value" ;
+after_let_errno_equal_value
+-1
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+prepare stmt from "select 3 from t1" ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 1146 as "after_failing_prepare" ;
+after_failing_prepare
+1146
+create table t1 ( f1 char(10));
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+prepare stmt from "select 3 from t1" ;
+select 0 as "after_successful_prepare" ;
+after_successful_prepare
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute stmt;
+3
+select 0 as "after_successful_execute" ;
+after_successful_execute
+0
+drop table t1;
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 1146 as "after_failing_execute" ;
+after_failing_execute
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+execute __stmt_;
+ERROR HY000: Unknown prepared statement handler (__stmt_) given to EXECUTE
+select 1243 as "after_failing_execute" ;
+after_failing_execute
+1243
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+deallocate prepare stmt;
+select 0 as "after_successful_deallocate" ;
+after_successful_deallocate
+0
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+deallocate prepare __stmt_;
+ERROR HY000: Unknown prepared statement handler (__stmt_) given to DEALLOCATE PREPARE
+select 1243 as "after_failing_deallocate" ;
+after_failing_deallocate
+1243
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 1064 as "after_--disable_abort_on_error" ;
+after_--disable_abort_on_error
+1064
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 1146 as "after_!errno_masked_error" ;
+after_!errno_masked_error
+1146
+garbage ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+select 1064 as "after_--enable_abort_on_error" ;
+after_--enable_abort_on_error
+1064
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
+select 3 from t1 ;
+ERROR 42S02: Table 'test.t1' doesn't exist
