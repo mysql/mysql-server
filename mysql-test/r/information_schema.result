@@ -125,7 +125,7 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int(11)	NULL	YES	MUL	NULL		select,insert,update,references	
 show full columns from mysql.db like "Insert%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-Insert_priv	enum('N','Y')	utf8_bin	NO		N		select,insert,update,references	
+Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
 show full columns from v1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	varchar(64)	utf8_general_ci	NO				select,insert,update,references	
@@ -604,3 +604,9 @@ Variable_name	Value
 show global status like "Threads_running";
 Variable_name	Value
 Threads_running	1
+create table t1(f1 int);
+create table t2(f2 int);
+create view v1 as select * from t1, t2;
+set @got_val= (select count(*) from information_schema.columns);
+drop view v1;
+drop table t1, t2;

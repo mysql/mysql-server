@@ -87,6 +87,8 @@ enum enum_sql_command {
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
   SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
+  SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
+  SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
   /* This should be the last !!! */
 
   SQLCOM_END
@@ -285,8 +287,7 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root)
-  { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
@@ -636,6 +637,9 @@ struct st_trg_chistics
 
 extern sys_var_long_ptr trg_new_row_fake_var;
 
+enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
+                      XA_SUSPEND, XA_FOR_MIGRATE};
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -655,12 +659,12 @@ typedef struct st_lex
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
-  char* found_colon;                            /* For multi queries - next query */
+  char* found_semicolon;                        /* For multi queries - next query */
   String *wild;
   sql_exchange *exchange;
   select_result *result;
   Item *default_value, *on_update_value;
-  LEX_STRING *comment, name_and_length;
+  LEX_STRING comment, ident;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
@@ -690,7 +694,6 @@ typedef struct st_lex
   List<LEX_STRING>    view_list; // view list (list of field names in view)
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   create_field	      *last_field;
-  char		      *savepoint_name;		// Transaction savepoint id
   udf_func udf;
   HA_CHECK_OPT   check_opt;			// check/repair options
   HA_CREATE_INFO create_info;
@@ -704,7 +707,10 @@ typedef struct st_lex
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
+  union {
   enum ha_rkey_function ha_rkey_mode;
+    enum xa_option_words xa_opt;
+  };
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;

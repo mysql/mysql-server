@@ -19,5 +19,5 @@ create database mysqltest;
 create table t1(a int, b int, unique(b));
 use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
-show binlog events from 95; # should be nothing
+show binlog events from 96; # should be nothing
 drop database mysqltest;

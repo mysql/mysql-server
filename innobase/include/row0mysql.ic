@@ -67,6 +67,7 @@ row_mysql_store_col_in_innobase_format(
 					as dfield is used! */
 	ulint		col_len,	/* in: MySQL column length */
 	ulint		type,		/* in: data type */
+	bool		comp,		/* in: TRUE=compact format */
 	ulint		is_unsigned)	/* in: != 0 if unsigned integer type */
 {
 	byte*	ptr 	= mysql_data;
@@ -93,17 +94,11 @@ row_mysql_store_col_in_innobase_format(
 						|| type == DATA_BINARY) {
 		/* Remove trailing spaces. */
 
-		/* Handle UCS2 strings differently.  As no new
-		collations will be introduced in 4.1, we hardcode the
-		charset-collation codes here.  In 5.0, the logic will
-		be based on mbminlen. */
-		ulint	cset	= dtype_get_charset_coll(
-				dtype_get_prtype(dfield_get_type(dfield)));
+		/* Handle UCS2 strings differently. */
+		ulint	mbminlen	= dtype_get_mbminlen(
+						dfield_get_type(dfield));
 		ptr = row_mysql_read_var_ref(&col_len, mysql_data);
-		if (cset == 35/*ucs2_general_ci*/
-				|| cset == 90/*ucs2_bin*/
-				|| (cset >= 128/*ucs2_unicode_ci*/
-				&& cset <= 144/*ucs2_persian_ci*/)) {
+		if (mbminlen == 2) {
 			/* space=0x0020 */
 			/* Trim "half-chars", just in case. */
 			col_len &= ~1;
@@ -113,10 +108,42 @@ row_mysql_store_col_in_innobase_format(
 				col_len -= 2;
 			}
 		} else {
+			ut_a(mbminlen == 1);
 			/* space=0x20 */
 			while (col_len > 0 && ptr[col_len - 1] == 0x20) {
 				col_len--;
 			}
+		}
+	} else if (comp && type == DATA_MYSQL
+			&& dtype_get_mbminlen(dfield_get_type(dfield)) == 1
+			&& dtype_get_mbmaxlen(dfield_get_type(dfield)) > 1) {
+		/* We assume that this CHAR field is encoded in a
+		variable-length character set where spaces have
+		1:1 correspondence to 0x20 bytes, such as UTF-8.
+
+		Consider a CHAR(n) field, a field of n characters.
+		It will contain between n*mbminlen and n*mbmaxlen bytes.
+		We will try to truncate it to n bytes by stripping
+		space padding.  If the field contains single-byte
+		characters only, it will be truncated to n characters.
+		Consider a CHAR(5) field containing the string ".a   "
+		where "." denotes a 3-byte character represented by
+		the bytes "$%&".  After our stripping, the string will
+		be stored as "$%&a " (5 bytes).  The string ".abc "
+		will be stored as "$%&abc" (6 bytes).
+
+		The space padding will be restored in row0sel.c, function
+		row_sel_field_store_in_mysql_format(). */
+
+		ulint		n_chars;
+		dtype_t*	dtype = dfield_get_type(dfield);
+
+		ut_a(!(dtype_get_len(dtype) % dtype_get_mbmaxlen(dtype)));
+		n_chars = dtype_get_len(dtype) / dtype_get_mbmaxlen(dtype);
+
+		/* Strip space padding. */
+		while (col_len > n_chars && ptr[col_len - 1] == 0x20) {
+			col_len--;
 		}
 	} else if (type == DATA_BLOB) {
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);

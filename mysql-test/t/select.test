@@ -1970,3 +1970,37 @@ SELECT K2C4, K4N4, F2I4 FROM t1
   WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
 
 DROP TABLE t1;
+
+#
+# Test case for bug 7520: a wrong cost of the index for a BLOB field
+#
+
+CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
+CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
+
+INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
+INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
+
+DROP TABLE t1, t2;
+
+
+#
+# Test case for bug 7098: substitution of a constant for a string field 
+#
+
+CREATE TABLE t1 ( city char(30) );
+INSERT INTO t1 VALUES ('London');
+INSERT INTO t1 VALUES ('Paris');
+
+SELECT * FROM t1 WHERE city='London';
+SELECT * FROM t1 WHERE city='london';
+EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
+SELECT * FROM t1 WHERE city='London' AND city='london';
+EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
+
+DROP TABLE t1;
+
