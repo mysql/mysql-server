@@ -2043,6 +2043,10 @@ String* Item_func_export_set::val_str(String* str)
     null_value=1;
     return 0;
   }
+  /*
+    Arg count can only be 3, 4 or 5 here. This is guaranteed from the
+    grammar for EXPORT_SET()
+  */
   switch(arg_count) {
   case 5:
     num_set_values = (uint) args[4]->val_int();
