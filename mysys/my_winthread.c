@@ -48,13 +48,13 @@ static pthread_handler_decl(pthread_start,param)
 {
   pthread_handler func=((struct pthread_map *) param)->func;
   void *func_param=((struct pthread_map *) param)->param;
-  my_thread_init();
-  pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beingthread to return */
+  my_thread_init();			/* Will always succeed in windows */
+  pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beginthread to return */
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
-  free((char*) param);
+  free((char*) param);			  /* Free param from create */
   pthread_exit((*func)(func_param));
-  return 0;
+  return 0;				  /* Safety */
 }
 
 
