@@ -4491,6 +4491,8 @@ CHARSET_INFO my_charset_sjis =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
+    my_l10tostr_8bit,
+    my_ll10tostr_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,

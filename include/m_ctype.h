@@ -123,7 +123,9 @@ typedef struct charset_info_st
   char    max_sort_char; /* For LIKE optimization */
   
   /* Charset dependant snprintf() */
-  int (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+  int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+  int  (*l10tostr)(struct charset_info_st *, char *to, uint n, int radix, long int val);
+  int (*ll10tostr)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
   ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
@@ -174,6 +176,9 @@ ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int 
 longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 double      my_strntod_8bit(CHARSET_INFO *, const char *s, uint l,char **e);
+
+int  my_l10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
+int my_ll10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);
 
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			const char *ptr, uint ptr_length,
