@@ -1458,12 +1458,7 @@ TransporterRegistry::startReceiving()
       DBUG_PRINT("error",("Install failed"));
       g_eventLogger.error("Failed to install signal handler for"
 			  " SHM transporter errno: %d (%s)", errno, 
-#ifdef HAVE_STRERROR
-			  strerror(errno)
-#else
-                          ""
-#endif
-			  );
+			  strerror(errno));
     }
   }
 #endif // NDB_SHM_TRANSPORTER
@@ -1578,7 +1573,11 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
       ndb_mgm_destroy_handle(&h);
       return NDB_INVALID_SOCKET;
     }
-  return ndb_mgm_convert_to_transporter(h);
+
+  NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
+  if ( sockfd == NDB_INVALID_SOCKET)
+    ndb_mgm_destroy_handle(&h);
+  return sockfd;
 }
 
 template class Vector<TransporterRegistry::Transporter_interface>;
