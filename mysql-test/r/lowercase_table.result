@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4;
+drop table if exists t0,t5,t6,t7,t8,t9;
+drop database if exists mysqltest;
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
 create table t4 (id int primary key, Word varchar(40) not null);
 INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
@@ -42,6 +44,26 @@ select count(bags.a) from t1 as Bags;
 count(bags.a)
 0
 drop table t1;
+create database mysqltest;
+use MYSQLTEST;
+create table t1 (a int);
+select T1.a from MYSQLTEST.T1;
+a
+select t1.a from MYSQLTEST.T1;
+a
+select mysqltest.t1.* from MYSQLTEST.t1;
+a
+select MYSQLTEST.t1.* from MYSQLTEST.t1;
+a
+select MYSQLTEST.T1.* from MYSQLTEST.T1;
+a
+select MYSQLTEST.T1.* from T1;
+a
+alter table t1 rename to T1;
+select MYSQLTEST.t1.* from MYSQLTEST.t1;
+a
+drop database mysqltest;
+use test;
 create table t1 (a int);
 create table t2 (a int);
 delete p1.*,P2.* from t1 as p1, t2 as p2 where p1.a=P2.a;
@@ -58,10 +80,3 @@ ERROR 42000: Not unique table/alias: 'C'
 drop table t1, t2;
 show tables;
 Tables_in_test
-create table t1 (a int);
-select TEST.t1.* from TEST.t1;
-a
-alter table t1 rename to T1;
-select TEST.t1.* from TEST.t1;
-a
-drop table t1;
