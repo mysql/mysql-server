@@ -276,7 +276,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-comment=\"Official MySQL RPM\" \
 	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
@@ -333,6 +332,7 @@ BuildMySQL "--enable-shared \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
 		--with-embedded-server \
+		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
 		--with-server-suffix='-Max'"
 
 # Save everything for debug
@@ -379,6 +379,7 @@ BuildMySQL "--disable-shared \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
 %endif
+		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-berkeley-db \
@@ -694,7 +695,12 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Monday Feb 7 2005 Tomas Ulin <tomas@mysql.com>
+* Mon Feb 14 2005 Tomas Ulin <tomas@mysql.com>
+
+* Fixed the compilation comments and moved them into the separate build sections
+  for Max and Standard
+
+* Mon Feb 7 2005 Tomas Ulin <tomas@mysql.com>
 
 - enabled the "Ndbcluster" storage engine for the max binary
 - added extra make install in ndb subdir after Max build to get ndb binaries
