@@ -943,6 +943,7 @@ private:
   void ndbStartReqLab(Signal *, BlockReference ref);
   void nodeRestartStartRecConfLab(Signal *);
   void dihCopyCompletedLab(Signal *);
+  void release_connect(ConnectRecordPtr ptr);
   void copyTableNode(Signal *,
                      CopyTableNode* ctn,
                      NodeRecordPtr regNodePtr);
