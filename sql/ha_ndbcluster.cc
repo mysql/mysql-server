@@ -474,9 +474,7 @@ static const ulong index_type_flags[]=
   0,                         
 
   /* PRIMARY_KEY_INDEX */
-  HA_NOT_READ_PREFIX_LAST | 
-  HA_ONLY_WHOLE_INDEX | 
-  HA_WRONG_ASCII_ORDER,
+  HA_ONLY_WHOLE_INDEX, 
 
   /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
@@ -484,23 +482,20 @@ static const ulong index_type_flags[]=
      thus ORDERD BY clauses can be optimized by reading directly 
      through the index.
   */
-  HA_NOT_READ_PREFIX_LAST | 
-  HA_WRONG_ASCII_ORDER,
+  // HA_KEY_READ_ONLY | 
+  HA_READ_NEXT |              
+  HA_READ_RANGE,
 
   /* UNIQUE_INDEX */
-  HA_NOT_READ_PREFIX_LAST |
-  HA_ONLY_WHOLE_INDEX |
-  HA_WRONG_ASCII_ORDER,
+  HA_ONLY_WHOLE_INDEX,
 
   /* UNIQUE_ORDERED_INDEX */
-  HA_NOT_READ_PREFIX_LAST |
-  HA_WRONG_ASCII_ORDER,
+  HA_READ_NEXT |              
+  HA_READ_RANGE,
 
   /* ORDERED_INDEX */
   HA_READ_NEXT |              
-  HA_READ_PREV | 
-  HA_NOT_READ_PREFIX_LAST |
-  HA_WRONG_ASCII_ORDER
+  HA_READ_RANGE,
 };
 
 static const int index_flags_size= sizeof(index_type_flags)/sizeof(ulong);
@@ -529,7 +524,7 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
     flags depending on the type of the index.
 */
 
-inline ulong ha_ndbcluster::index_flags(uint idx_no) const 
+inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part) const 
 { 
   DBUG_ENTER("index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
@@ -1390,6 +1385,7 @@ void ha_ndbcluster::print_results()
 
     switch (col->getType()) {
     case NdbDictionary::Column::Blob:
+    case NdbDictionary::Column::Clob:
     case NdbDictionary::Column::Undefined:
       fprintf(DBUG_FILE, "Unknown type: %d", col->getType());
       break;
@@ -2622,13 +2618,9 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ndb(NULL),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
-                HA_KEYPOS_TO_RNDPOS | 
                 HA_NOT_EXACT_COUNT |
-                HA_NO_WRITE_DELAYED |
                 HA_NO_PREFIX_CHAR_KEYS | 
-                HA_NO_BLOBS |
-                HA_DROP_BEFORE_CREATE | 
-                HA_NOT_READ_AFTER_KEY),
+                HA_NO_BLOBS),
   m_use_write(false),
   retrieve_all_fields(FALSE),
   rows_to_insert(0),
@@ -2941,6 +2933,14 @@ bool ndbcluster_end()
   DBUG_RETURN(0);
 }
 
+void ndbcluster_print_error(int error)
+{
+  DBUG_ENTER("ndbcluster_print_error");
+  TABLE tab;
+  tab.table_name = NULL;
+  ha_ndbcluster error_handler(&tab);
+  error_handler.print_error(error, MYF(0));
+}
 
 /*
   Set m_tabname from full pathname to table file 
