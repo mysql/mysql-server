@@ -25,6 +25,9 @@ int myrg_rnext(MYRG_INFO *info, byte *buf, int inx)
   int err;
   MI_INFO *mi;
 
+  if (!info->current_table)
+    return (HA_ERR_KEY_NOT_FOUND);
+
   /* at first, do rnext for the table found before */
   if ((err=mi_rnext(info->current_table->table,NULL,inx)))
   {
