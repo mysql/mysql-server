@@ -702,9 +702,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
   if (!table)
     table= table_list->table;
 
-  if ((thd->lex->sql_command == SQLCOM_INSERT ||
-       thd->lex->sql_command == SQLCOM_REPLACE) &&
-      unique_table(table_list, table_list->next_global))
+  if (!select_insert && unique_table(table_list, table_list->next_global))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);

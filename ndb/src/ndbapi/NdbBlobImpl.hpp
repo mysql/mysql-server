@@ -14,23 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NdbApi_H
-#define NdbApi_H
+#ifndef NdbBlobImpl_H
+#define NdbBlobImpl_H
 
-#include "ndb_init.h"
-#include "ndb_cluster_connection.hpp"
-#include "ndbapi_limits.h"
-#include "Ndb.hpp"
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
-#include "NdbScanOperation.hpp"
-#include "NdbIndexOperation.hpp"
-#include "NdbIndexScanOperation.hpp"
-#include "NdbScanFilter.hpp"
-#include "NdbRecAttr.hpp"
-#include "NdbResultSet.hpp"
-#include "NdbDictionary.hpp"
-#include "NdbEventOperation.hpp"
-#include "NdbPool.hpp"
-#include "NdbBlob.hpp"
+class NdbBlobImpl {
+public:
+  STATIC_CONST( BlobTableNameSize = 40 );
+  // "Invalid blob attributes or invalid blob parts table"
+  STATIC_CONST( ErrTable = 4263 );
+  // "Invalid usage of blob attribute" 
+  STATIC_CONST( ErrUsage = 4264 );
+  // "Method is not valid in current blob state"
+  STATIC_CONST( ErrState = 4265 );
+  // "Invalid blob seek position"
+  STATIC_CONST( ErrSeek = 4266 );
+  // "Corrupted blob value"
+  STATIC_CONST( ErrCorrupt = 4267 );
+  // "Error in blob head update forced rollback of transaction"
+  STATIC_CONST( ErrAbort = 4268 );
+  // "Unknown blob error"
+  STATIC_CONST( ErrUnknown = 4269 );
+};
+
 #endif

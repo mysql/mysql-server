@@ -376,3 +376,13 @@ insert into t1 values ('x,y');
 insert into t1 values ('x,y,z,Ä,Ö,Ü');
 select a, hex(a) from t1 order by a;
 drop table t1;
+
+#
+# Bug#7302 UCS2 data in ENUM fields get truncated when new column is added
+#
+create table t1(a enum('a','b','c')) default character set ucs2;
+insert into t1 values('a'),('b'),('c');
+alter table t1 add b char(1);
+show warnings;
+select * from t1 order by a;
+drop table t1;
