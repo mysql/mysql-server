@@ -482,8 +482,9 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
 {
   DBUG_ENTER("close_thread_table");
 
-  bool found_old_table=0;
-  TABLE *table=*table_ptr;
+  bool found_old_table= 0;
+  TABLE *table= *table_ptr;
+  DBUG_ASSERT(table->key_read == 0);
 
   *table_ptr=table->next;
   if (table->version != refresh_version ||
