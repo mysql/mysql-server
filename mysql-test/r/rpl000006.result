@@ -5,13 +5,11 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 set SQL_LOG_BIN=0,timestamp=200006;
-drop table if exists t1;
 create table t1(t timestamp not null,a char(1));
 insert into t1 ( a) values ('F');
 select unix_timestamp(t) from t1;
 unix_timestamp(t)
 200006
-drop table if exists t1;
 load table t1 from master;
 select unix_timestamp(t) from t1;
 unix_timestamp(t)

@@ -82,7 +82,8 @@ are declared in mysqld.cc: */
 
 long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_log_file_size, innobase_log_buffer_size,
-     innobase_buffer_pool_size, innobase_additional_mem_pool_size,
+     innobase_buffer_pool_size, innobase_buffer_pool_awe_mem_mb,
+     innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery;
 
@@ -225,9 +226,13 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_ROW_IS_REFERENCED);
 
- 	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
+        } else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
 
     		return(HA_ERR_CANNOT_ADD_FOREIGN);
+
+        } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
+
+    		return(HA_ERR_WRONG_TABLE_DEF);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
@@ -749,7 +754,25 @@ innobase_init(void)
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
-	srv_pool_size = (ulint) innobase_buffer_pool_size;
+	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
+	changes the value so that it becomes the number of database pages. */
+
+        if (innobase_buffer_pool_awe_mem_mb == 0) {
+	        /* Careful here: we first convert the signed long int to ulint
+	        and only after that divide */
+
+	        srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
+	} else {
+	        srv_use_awe = TRUE;
+	        srv_pool_size = (ulint)
+		                (1024 * innobase_buffer_pool_awe_mem_mb);
+	        srv_awe_window_size = (ulint) innobase_buffer_pool_size;
+
+		/* Note that what the user specified as
+		innodb_buffer_pool_size is actually the AWE memory window
+		size in this case, and the real buffer pool size is
+		determined by .._awe_mem_mb. */
+	}
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
@@ -1235,7 +1258,14 @@ ha_innobase::open(
 	        if (primary_key != MAX_KEY) {
 	                fprintf(stderr,
 		    "InnoDB: Error: table %s has no primary key in InnoDB\n"
-		    "InnoDB: data dictionary, but has one in MySQL!\n", name);
+		    "InnoDB: data dictionary, but has one in MySQL!\n"
+		    "InnoDB: If you created the table with a MySQL\n"
+                    "InnoDB: version < 3.23.54 and did not define a primary\n"
+                    "InnoDB: key, but defined a unique key with all non-NULL\n"
+                    "InnoDB: columns, then MySQL internally treats that key\n"
+                    "InnoDB: as the primary key. You can fix this error by\n"
+		    "InnoDB: dump + DROP + CREATE + reimport of the table.\n",
+				name);
 		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
@@ -1572,6 +1602,8 @@ build_template(
 	ibool		fetch_all_in_key	= FALSE;
 	ulint		i;
 
+	ut_a(templ_type != ROW_MYSQL_REC_FIELDS || thd == current_thd);
+
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
 	if (!prebuilt->hint_no_need_to_fetch_extra_cols) {
@@ -1596,6 +1628,12 @@ build_template(
 	}
 
 	if (prebuilt->select_lock_type == LOCK_X) {
+		/* In versions < 3.23.50 we always retrieved the clustered
+		index record if prebuilt->select_lock_type == LOCK_S,
+		but there is really not need for that, and in some cases
+		performance could be seriously degraded because the MySQL
+		optimizer did not know about our convention! */
+
 		/* We always retrieve the whole clustered index record if we
 		use exclusive row level locks, for example, if the read is
 		done in an UPDATE statement. */
@@ -1604,12 +1642,6 @@ build_template(
 	}
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
-		/* In versions < 3.23.50 we always retrieved the clustered
-		index record if prebuilt->select_lock_type == LOCK_S,
-		but there is really not need for that, and in some cases
-		performance could be seriously degraded because the MySQL
-		optimizer did not know about our convention! */
-
 		index = prebuilt->index;
 	} else {
 		index = clust_index;
@@ -1900,12 +1932,9 @@ ha_innobase::write_row(
 		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
-
-	        if (error == DB_DUPLICATE_KEY) {
-	                ut_a(user_thd->query);
-	                dict_accept(user_thd->query, "REPLACE",
-				                       &skip_auto_inc_decr);
-		}
+	        if (error == DB_DUPLICATE_KEY &&
+		    user_thd->lex.sql_command == SQLCOM_REPLACE)
+		  skip_auto_inc_decr= TRUE;
 
 	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
 		    && prebuilt->trx->auto_inc_lock) {
@@ -2441,7 +2470,9 @@ ha_innobase::index_read_last(
 }
 
 /************************************************************************
-Changes the active index of a handle. */
+Changes the active index of a handle. Note that since we build also the
+template for a search, update_thd() must already have been called, in
+::external_lock, for example. */
 
 int
 ha_innobase::change_active_index(
@@ -2455,6 +2486,10 @@ ha_innobase::change_active_index(
   KEY*		key=0;
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
+
+  ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->transaction.all.innobase_tid);
+  ut_a(user_thd == current_thd);
 
   active_index = keynr;
 
@@ -2481,11 +2516,13 @@ ha_innobase::change_active_index(
   dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
 			prebuilt->index->n_fields);
 
-  /* Maybe MySQL changes the active index for a handle also
-     during some queries, we do not know: then it is safest to build
-     the template such that all columns will be fetched */
+  /* MySQL changes the active index for a handle also during some
+  queries, for example SELECT MAX(a), SUM(a) first retrieves the MAX()
+  and then calculates te sum. Previously we played safe and used
+  the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
+  copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
-  build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
+  build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
 
   DBUG_RETURN(0);
 }
@@ -3717,8 +3754,18 @@ ha_innobase::extra(
 	obsolete! */
 
 	switch (operation) {
+	        case HA_EXTRA_FLUSH:
+	                if (prebuilt->blob_heap) {
+	                        row_mysql_prebuilt_free_blob_heap(prebuilt);
+	                }
+	                break;
  		case HA_EXTRA_RESET:
-  		case HA_EXTRA_RESET_STATE:
+	                if (prebuilt->blob_heap) {
+	                        row_mysql_prebuilt_free_blob_heap(prebuilt);
+	                }
+	        	prebuilt->read_just_key = 0;
+	        	break;
+ 		case HA_EXTRA_RESET_STATE:
 	        	prebuilt->read_just_key = 0;
 	        	break;
 		case HA_EXTRA_NO_KEYREAD:
@@ -3805,8 +3852,8 @@ innobase_map_isolation_level(
 	enum_tx_isolation	iso)	/* in: MySQL isolation level code */
 {
 	switch(iso) {
-		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_REPEATABLE_READ: return(TRX_ISO_REPEATABLE_READ);
+		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_SERIALIZABLE: return(TRX_ISO_SERIALIZABLE);
 		case ISO_READ_UNCOMMITTED: return(TRX_ISO_READ_UNCOMMITTED);
 		default: ut_a(0); return(0);
@@ -3861,11 +3908,9 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
-		if (thd->variables.tx_isolation != ISO_REPEATABLE_READ) {
-			trx->isolation_level = innobase_map_isolation_level(
+		trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
-		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {

@@ -77,8 +77,9 @@ ut_malloc_low(
 	ret = malloc(n + sizeof(ut_mem_block_t));
 
 	if (ret == NULL) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"InnoDB: Fatal error: cannot allocate %lu bytes of\n"
+		"  InnoDB: Fatal error: cannot allocate %lu bytes of\n"
 		"InnoDB: memory with malloc! Total allocated memory\n"
 		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
 		"InnoDB: Cannot continue operation!\n"
@@ -133,6 +134,40 @@ ut_malloc(
 {
         return(ut_malloc_low(n, TRUE));
 }
+
+/**************************************************************************
+Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
+out. It cannot be used if we want to return an error message. Prints to
+stderr a message if fails. */
+
+ibool
+ut_test_malloc(
+/*===========*/
+			/* out: TRUE if succeeded */
+	ulint	n)	/* in: try to allocate this many bytes */
+{
+	void*	ret;
+
+	ret = malloc(n);
+
+	if (ret == NULL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+		"  InnoDB: Error: cannot allocate %lu bytes of memory for\n"
+		"InnoDB: a BLOB with malloc! Total allocated memory\n"
+		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
+		"InnoDB: Check if you should increase the swap file or\n"
+		"InnoDB: ulimits of your operating system.\n"
+		"InnoDB: On FreeBSD check you have compiled the OS with\n"
+		"InnoDB: a big enough maximum process size.\n",
+		                  n, ut_total_allocated_memory, errno);
+		return(FALSE);
+	}
+
+	free(ret);
+
+	return(TRUE);
+}	
 
 /**************************************************************************
 Frees a memory block allocated with ut_malloc. */

@@ -1,7 +1,10 @@
 #
 # Basic cleanup
 #
+--disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
+--enable_warnings
+
 
 #
 # Check syntax for creating BLOB/TEXT
@@ -23,7 +26,11 @@ drop table t1,t2,t3
 CREATE TABLE t1 (a char(257) default "hello");
 --error 1101
 CREATE TABLE t2 (a blob default "hello");
+
+# Safety to be able to continue with other tests if above fails
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
 
 #
 # test of full join with blob

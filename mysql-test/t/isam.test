@@ -1,6 +1,8 @@
 -- source include/have_isam.inc
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
 
 #
 # Test possible problem with rows that are about 65535 bytes long
@@ -41,10 +43,14 @@ drop table t1;
 #
 # Test of some CREATE TABLE's that should fail
 #
-!$1121 create table t1 (a int,b text, index(a)) type=isam;
-!$1073 create table t1 (a int,b text, index(b)) type=isam;
-!$1075 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=isam;
-!$1121 create table t1 (ordid int(8), unique (ordid)) type=isam;
+--error 1121
+create table t1 (a int,b text, index(a)) type=isam;
+--error 1073
+create table t1 (a int,b text, index(b)) type=isam;
+--error 1075
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=isam;
+--error 1121
+create table t1 (ordid int(8), unique (ordid)) type=isam;
 drop table if exists t1;
 
 #

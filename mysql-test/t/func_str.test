@@ -4,7 +4,9 @@
 # -----------
 # Testing string functions
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 select 'hello' 'monty';
@@ -69,6 +71,7 @@ select decode(encode("abcdef","monty"),"monty")="abcdef";
 select quote('\'\"\\test');
 select quote(concat('abc\'', '\\cba'));
 select quote(1/0), quote('\0\Z');
+select length(quote(concat(char(0),"test")));
 
 #
 # Wrong usage of functions

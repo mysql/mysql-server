@@ -10,7 +10,10 @@ flush query cache; # This crashed in some versions
 flush query cache; # This crashed in some versions
 reset query cache;
 flush status;
+--disable_warnings
+drop database if exists mysqltest;
 drop table if exists t1,t2,t3,t11,t21, mysqltest.t1;
+--enable_warnings
 
 #
 # First simple test
@@ -368,6 +371,7 @@ select * from t2;
 show status like "Qcache_queries_in_cache";
 select * from t3;
 show status like "Qcache_queries_in_cache";
+update t1 set i=(select distinct 1 from (select * from t2) a);
 drop table t1, t2, t3;
 
 #

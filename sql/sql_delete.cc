@@ -536,7 +536,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
     bzero((char*) &create_info,sizeof(create_info));
     create_info.auto_increment_value= table->file->auto_increment_value;
-    create_info.table_charset=default_charset_info;
+    create_info.table_charset=table->table_charset;
 
     db_type table_type=table->db_type;
     strmov(path,table->path);
@@ -580,7 +580,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.table_charset=default_charset_info;
+  create_info.table_charset=table_list->table->table_charset;
 
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;

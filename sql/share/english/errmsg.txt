@@ -199,8 +199,8 @@
 "Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
 "Some non-transactional changed tables couldn't be rolled back",
 "Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
-"This operation cannot be performed with a running slave, run SLAVE STOP first",
-"This operation requires a running slave, configure slave and do SLAVE START",
+"This operation cannot be performed with a running slave, run STOP SLAVE first",
+"This operation requires a running slave, configure slave and do START SLAVE",
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
 "Could not initialize master info structure, check permisions on master.info",
 "Could not create slave thread, check system resources",
@@ -217,8 +217,8 @@
 "Deadlock found when trying to get lock; Try restarting transaction",
 "The used table type doesn't support FULLTEXT indexes",
 "Cannot add foreign key constraint",
-"Cannot add a child row: a foreign key constraint fails",
-"Cannot delete a parent row: a foreign key constraint fails",
+"Cannot add or update a child row: a foreign key constraint fails",
+"Cannot delete or update a parent row: a foreign key constraint fails",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Error when executing command %s: %-.128s",
@@ -250,3 +250,4 @@
 "Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"

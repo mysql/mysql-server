@@ -199,8 +199,8 @@
 "Tabela '%-.64s' está marcada como danificada e a última reparação (automática?) falhou",
 "Aviso: Algumas tabelas não-transacionais alteradas não puderam ser reconstituídas (rolled back)",
 "Transações multi-declaradas (multi-statement transactions) requeriram mais do que o valor limite (max_binlog_cache_size) de bytes para armazenagem. Aumente o valor desta variável do mysqld e tente novamente",
-"Esta operação não pode ser realizada com um 'slave' em execução. Execute SLAVE STOP primeiro",
-"Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute SLAVE START",
+"Esta operação não pode ser realizada com um 'slave' em execução. Execute STOP SLAVE primeiro",
+"Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute START SLAVE",
 "O servidor não está configurado como 'slave'. Acerte o arquivo de configuração ou use CHANGE MASTER TO",
 "Não pode inicializar a estrutura de informação do 'master'. Verifique as permissões em 'master.info'",
 "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema",
@@ -250,3 +250,4 @@
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"

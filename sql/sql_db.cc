@@ -114,10 +114,12 @@ static bool load_db_opt(const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
-	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	  if (strcmp(pos+1,"DEFAULT"))
 	  {
-	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),
-			    pos+1);
+	    if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
+	    {
+	      sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+	    }
 	  }
 	}
       }
@@ -333,7 +335,8 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      store_warning(thd,ER_DB_DROP_EXISTS,db);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
       if (!silent)
         send_ok(thd,0);
     }
@@ -468,7 +471,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   my_dirend(dirp);
 
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 1)))
+      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 0, 1)))
     DBUG_RETURN(-1);
 
   /*
@@ -675,9 +678,13 @@ int mysqld_show_create_db(THD *thd, const char *dbname,
   to=strxmov(to,"`",dbname,"`", NullS);
   
   if (create.table_charset)
-    to= strxmov(to," /*!40100 DEFAULT CHARACTER SET ", 
-		create.table_charset->name,"*/",NullS);
-  
+  {
+    int cl= (create.table_charset->state & MY_CS_PRIMARY) ? 0 : 1;
+    to= strxmov(to," /*!40100"
+		" DEFAULT CHARACTER SET ",create.table_charset->csname,
+		cl ? " COLLATE " : "", cl ? create.table_charset->name : "",
+		" */",NullS);
+  }
   protocol->store(path, (uint) (to-path));
   
   if (protocol->write())

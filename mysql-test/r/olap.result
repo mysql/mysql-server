@@ -1,6 +1,6 @@
-drop table if exists sales;
-create table sales ( product varchar(32), country varchar(32), year int, profit int);
-insert into sales  values ( 'Computer', 'India',2000, 1200),
+drop table if exists t1;
+create table t1 ( product varchar(32), country varchar(32), year int, profit int);
+insert into t1  values ( 'Computer', 'India',2000, 1200),
 ( 'TV', 'United States', 1999, 150),
 ( 'Calculator', 'United States', 1999,50),
 ( 'Computer', 'United States', 1999,1500),
@@ -14,14 +14,14 @@ insert into sales  values ( 'Computer', 'India',2000, 1200),
 ( 'Computer', 'India', 1999,1200),
 ( 'Computer', 'United States', 2000,1500),
 ( 'Calculator', 'United States', 2000,75);
-select product, country , year, sum(profit) from sales group by product, country, year with cube;
+select product, country , year, sum(profit) from t1 group by product, country, year with cube;
 This version of MySQL doesn't yet support 'CUBE'
-explain select product, country , year, sum(profit) from sales group by product, country, year with cube;
+explain select product, country , year, sum(profit) from t1 group by product, country, year with cube;
 This version of MySQL doesn't yet support 'CUBE'
-select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
 This version of MySQL doesn't yet support 'ROLLUP'
-explain select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+explain select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
 This version of MySQL doesn't yet support 'ROLLUP'
-select product, country , year, sum(profit) from sales group by product, country, year with cube union all select product, country , year, sum(profit) from sales group by product, country, year with rollup;
+select product, country , year, sum(profit) from t1 group by product, country, year with cube union all select product, country , year, sum(profit) from t1 group by product, country, year with rollup;
 This version of MySQL doesn't yet support 'CUBE'
-drop table sales;
+drop table t1;

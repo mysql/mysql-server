@@ -209,7 +209,10 @@ net_printf(THD *thd, uint errcode, ...)
   {
     if (thd->bootstrap)
     {
-      /* In bootstrap it's ok to print on stderr */
+      /*
+	In bootstrap it's ok to print on stderr
+	This may also happen when we get an error from a slave thread
+      */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
       thd->fatal_error=1;
     }
@@ -397,7 +400,7 @@ net_store_length(char *pkg, ulonglong length)
   }
   *packet++=254;
   int8store(packet,length);
-  return (char*) packet+9;
+  return (char*) packet+8;
 }
 
 
@@ -657,7 +660,7 @@ bool Protocol_simple::store_null()
   field_pos++;
 #endif
   char buff[1];
-  buff[0]= 251;
+  buff[0]= (char)251;
   return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
 }
 
@@ -815,13 +818,27 @@ bool Protocol_simple::store_time(TIME *tm)
 
 /****************************************************************************
   Functions to handle the binary protocol used with prepared statements
+
+  Data format:
+
+   [ok:1]                            <-- reserved ok packet
+   [null_field:(field_count+7+2)/8]  <-- reserved to send null data. The size is
+                                         calculated using:
+                                         bit_fields= (field_count+7+2)/8; 
+                                         2 bits are reserved
+   [[length]data]                    <-- data field (the length applies only for 
+                                         string/binary/time/timestamp fields and 
+                                         rest of them are not sent as they have 
+                                         the default length that client understands
+                                         based on the field type
+   [..]..[[length]data]              <-- data
 ****************************************************************************/
 
 bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 {
   Protocol::prepare_for_send(item_list);
-  bit_fields= (field_count+3)/8;
-  if (packet->alloc(bit_fields))
+  bit_fields= (field_count+9)/8;
+  if (packet->alloc(bit_fields+1))
     return 1;
   /* prepare_for_resend will be called after this one */
   return 0;
@@ -830,9 +847,8 @@ bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 
 void Protocol_prep::prepare_for_resend()
 {
-  packet->length(bit_fields);
-  bzero((char*) packet->ptr()+1, bit_fields-1);
-  packet[0]=1;					// Marker for ok packet
+  packet->length(bit_fields+1);
+  bzero((char*) packet->ptr(), 1+bit_fields);
   field_pos=0;
 }
 
@@ -851,10 +867,9 @@ bool Protocol_prep::store(const char *from,uint length)
   return net_store_data(from, length);
 }
 
-
 bool Protocol_prep::store_null()
 {
-  uint offset=(field_pos+2)/8, bit= (1 << ((field_pos+2) & 7));
+  uint offset= (field_pos+2)/8+1, bit= (1 << ((field_pos+2) & 7));
   /* Room for this as it's allocated in prepare_for_send */
   char *to= (char*) packet->ptr()+offset;
   *to= (char) ((uchar) *to | (uchar) bit);
@@ -880,7 +895,8 @@ bool Protocol_prep::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_SHORT);
+        field_types[field_pos] == MYSQL_TYPE_SHORT ||
+        field_types[field_pos] == MYSQL_TYPE_YEAR);
 #endif
   field_pos++;
   char *to= packet->prep_append(2, PACKET_BUFFET_EXTRA_ALLOC);
@@ -977,11 +993,11 @@ bool Protocol_prep::store(TIME *tm)
   pos= buff+1;
   
   int2store(pos, tm->year);
-  int2store(pos+2, tm->month);
-  int2store(pos+3, tm->day);
-  int2store(pos+4, tm->hour);
-  int2store(pos+5, tm->minute);
-  int2store(pos+6, tm->second);
+  pos[2]= (uchar) tm->month;
+  pos[3]= (uchar) tm->day;
+  pos[4]= (uchar) tm->hour;
+  pos[5]= (uchar) tm->minute;
+  pos[6]= (uchar) tm->second;
   int4store(pos+7, tm->second_part);
   if (tm->second_part)
     length=11;
@@ -1014,17 +1030,24 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
-  int4store(pos+1, tm->day);
-  int2store(pos+5, tm->hour);
-  int2store(pos+7, tm->minute);
-  int2store(pos+9, tm->second);
-  int4store(pos+11, tm->second_part);
+  int4store(pos+1, tm->day); 
+  pos[5]= (uchar) tm->hour;
+  pos[6]= (uchar) tm->minute;
+  pos[7]= (uchar) tm->second;
+  int4store(pos+8, tm->second_part);
   if (tm->second_part)
-    length=14;
+    length=11;
   else if (tm->hour || tm->minute || tm->second || tm->day)
-    length=10;
+    length=8;
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
   return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
 }
+
+#if 0
+bool Protocol_prep::send_fields(List<Item> *list, uint flag) 
+{
+  return prepare_for_send(list);
+};
+#endif

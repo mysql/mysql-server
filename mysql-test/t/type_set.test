@@ -2,7 +2,10 @@
 # Test of SET with space
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (a set (' ','a','b') not null);
 show create table t1;
 drop table t1;

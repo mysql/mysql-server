@@ -27,6 +27,13 @@ extern "C" {
 #endif
 
 
+#define MY_CS_NAME_SIZE			32
+#define MY_CS_CTYPE_TABLE_SIZE		257
+#define MY_CS_TO_LOWER_TABLE_SIZE	256
+#define MY_CS_TO_UPPER_TABLE_SIZE	256
+#define MY_CS_SORT_ORDER_TABLE_SIZE	256
+#define MY_CS_TO_UNI_TABLE_SIZE		256
+
 #define CHARSET_DIR	"charsets/"
 
 #define my_wc_t ulong
@@ -49,6 +56,7 @@ typedef struct unicase_info_st {
 #define MY_CS_INDEX     4      /* sets listed in the Index file  */
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
+#define MY_CS_PRIMARY	32     /* if primary collation           */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -65,6 +73,7 @@ typedef struct charset_info_st
 {
   uint      number;
   uint      state;
+  const char *csname;
   const char *name;
   const char *comment;
   uchar    *ctype;
@@ -127,11 +136,12 @@ typedef struct charset_info_st
   int  (*l10tostr)(struct charset_info_st *, char *to, uint n, int radix, long int val);
   int (*ll10tostr)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
+  /* String-to-number convertion routines */
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
   ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
   longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);
   ulonglong (*strntoull)(struct charset_info_st *, const char *s, uint l, char **e, int base);
-  double      (*strntod)(struct charset_info_st *, const char *s, uint l, char **e);
+  double      (*strntod)(struct charset_info_st *, char *s, uint l, char **e);
   
 } CHARSET_INFO;
 
@@ -142,7 +152,8 @@ extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern my_bool init_compiled_charsets(myf flags);
-
+extern my_bool my_parse_charset_xml(const char *bug, uint len,
+				    int (*add)(CHARSET_INFO *cs));
 
 /* declarations for simple charsets */
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *, uint); 
@@ -175,7 +186,7 @@ long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int 
 ulong      my_strntoul_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 longlong   my_strntoll_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
 ulonglong my_strntoull_8bit(CHARSET_INFO *, const char *s, uint l,char **e, int base);
-double      my_strntod_8bit(CHARSET_INFO *, const char *s, uint l,char **e);
+double      my_strntod_8bit(CHARSET_INFO *, char *s, uint l,char **e);
 
 int  my_l10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, long int val);
 int my_ll10tostr_8bit(CHARSET_INFO *, char *to, uint l, int radix, longlong val);

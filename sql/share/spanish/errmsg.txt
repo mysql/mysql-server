@@ -200,8 +200,8 @@
 "Tabla '%-.64s' está marcada como crashed y la última reparación (automactica?) falló",
 "Aviso:  Algunas tablas no transancionales no pueden tener rolled back",
 "Multipla transición necesita mas que 'max_binlog_cache_size' bytes de almacenamiento. Aumente esta variable mysqld y tente de nuevo',
-"Esta operación no puede ser hecha con el esclavo funcionando, primero use SLAVE STOP",
-"Esta operación necesita el esclavo funcionando, configure esclavo y haga el SLAVE START",
+"Esta operación no puede ser hecha con el esclavo funcionando, primero use STOP SLAVE",
+"Esta operación necesita el esclavo funcionando, configure esclavo y haga el START SLAVE",
 "El servidor no está configurado como esclavo, edite el archivo config file o con CHANGE MASTER TO",
 "No puedo inicializar la estructura info del master, verifique permisiones en el master.info",
 "No puedo crear el thread esclavo, verifique recursos del sistema",
@@ -251,3 +251,4 @@
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"

@@ -133,6 +133,7 @@ public:
   friend class udf_handler;
   Field *tmp_table_field(TABLE *t_arg);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 
@@ -632,6 +633,11 @@ public:
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
   }
+  void set_outer_resolving()
+  {
+    item->set_outer_resolving();
+    Item_int_func::set_outer_resolving();
+  }
 };
 
 
@@ -807,7 +813,7 @@ public:
   double val()
   {
     String *res;  res=val_str(&str_value);
-    return res ? my_strntod(res->charset(),res->ptr(),res->length(),0) : 0.0;
+    return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),0) : 0.0;
   }
   longlong val_int()
   {
@@ -928,11 +934,10 @@ class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
   user_var_entry *var_entry;
-  bool const_var_flag;
 
 public:
   Item_func_get_user_var(LEX_STRING a):
-    Item_func(), name(a), const_var_flag(1) {}
+    Item_func(), name(a) {}
   user_var_entry *get_entry();
   double val();
   longlong val_int();
@@ -946,9 +951,9 @@ public:
   */
   enum_field_types field_type() const  { return MYSQL_TYPE_STRING; }
   const char *func_name() const { return "get_user_var"; }
-  bool const_item() const { return const_var_flag; }
+  bool const_item() const;
   table_map used_tables() const
-  { return const_var_flag ? 0 : RAND_TABLE_BIT; }
+  { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const;
 };
 
@@ -989,7 +994,7 @@ public:
     {
       ft_handler->please->close_search(ft_handler);
       ft_handler=0;
-      if(join_key)
+      if (join_key)
 	table->file->ft_handler=0;
       table->fulltext_searched=0;
     }
@@ -1006,6 +1011,7 @@ public:
   bool fix_index();
   void init_search(bool no_order);
   bool check_loop(uint id);
+  void set_outer_resolving();
 };
 
 

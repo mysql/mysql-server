@@ -4,7 +4,9 @@
 #
 # Without auto_commit.
 #
+--disable_warnings
 drop table if exists t1, t2, t3;
+--enable_warnings
 flush status;
 set autocommit=0;
 create table t1 (a int not null) type=bdb;

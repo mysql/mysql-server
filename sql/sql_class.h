@@ -351,8 +351,8 @@ struct system_variables
 {
   ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
-  ulonglong select_limit;
-  ulonglong max_join_size;
+  ha_rows select_limit;
+  ha_rows max_join_size;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
@@ -376,6 +376,12 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+
+  /*
+    In slave thread we need to know in behalf of which
+    thread the query is being run to replicate temp tables properly
+  */
+  ulong pseudo_thread_id;
 
   my_bool log_warnings;
   my_bool low_priority_updates; 
@@ -435,7 +441,7 @@ public:
   uint client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   uint sql_mode;
-  uint max_client_packet_length;
+  ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
@@ -445,7 +451,7 @@ public:
     handler_tables - list of tables that were opened with HANDLER OPEN
      and are still in use by this thread
   */
-  TABLE   *open_tables,*temporary_tables, *handler_tables;
+  TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
   // TODO: document the variables below
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
@@ -534,11 +540,6 @@ public:
     each thread that is using LOG_INFO needs to adjust the pointer to it
   */
   LOG_INFO*  current_linfo;
-  /*
-    In slave thread we need to know in behalf of which
-    thread the query is being run to replicate temp tables properly
-  */
-  ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
   /* Used by the sys_var class to store temporary values */
@@ -839,10 +840,10 @@ public:
 };
 
 /* Single value subselect interface class */
-class select_singleval_subselect :public select_subselect
+class select_singlerow_subselect :public select_subselect
 {
 public:
-  select_singleval_subselect(Item_subselect *item):select_subselect(item){}
+  select_singlerow_subselect(Item_subselect *item):select_subselect(item){}
   bool send_data(List<Item> &items);
 };
 

@@ -1,29 +1,36 @@
-#this one assumes we are ignoring updates on table foo, but doing
-#the ones on all other tables
+# This one assumes we are ignoring updates on table mysqltest_foo, but doing
+# the ones on all other tables
+
 source include/master-slave.inc;
 connection slave;
+
+#
+# For this test we must be in the test database
+#
 use test;
-drop table if exists foo;
-create table foo (n int);
-insert into foo values(4);
+
+--disable_warnings
+drop table if exists mysqltest_foo;
+drop table if exists mysqltest_bar;
+--enable_warnings
+
+create table mysqltest_foo (n int);
+insert into mysqltest_foo values(4);
 connection master;
 use test;
-drop table if exists foo;
-create table foo (n int);
-insert into foo values(5);
-drop table if exists bar;
-create table bar (m int);
-insert into bar values(15);
-drop table if exists choo;
-create table choo (k int);
-insert into choo values(55);
+create table mysqltest_foo (n int);
+insert into mysqltest_foo values(5);
+create table mysqltest_bar (m int);
+insert into mysqltest_bar values(15);
+create table t1 (k int);
+insert into t1 values(55);
 save_master_pos;
 connection slave;
 sync_with_master;
-select foo.n,bar.m,choo.k from foo,bar,choo;
+select mysqltest_foo.n,mysqltest_bar.m,t1.k from mysqltest_foo,mysqltest_bar,t1;
 connection master;
-drop table if exists foo,bar,choo;
+drop table mysqltest_foo,mysqltest_bar,t1;
 save_master_pos;
 connection slave;
 sync_with_master;
-drop table if exists foo,bar,choo;
+drop table mysqltest_foo,mysqltest_bar,t1;

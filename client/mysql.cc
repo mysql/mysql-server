@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "13.1";
+const char *VER= "13.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -195,7 +195,7 @@ static void end_pager();
 static int init_tee(char *);
 static void end_tee();
 static const char* construct_prompt();
-static char *get_arg(char *line);
+static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 
@@ -280,7 +280,8 @@ static void initialize_readline (char *name);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string);
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -388,9 +389,11 @@ int main(int argc,char *argv[])
     }
   }
 #endif
-  sprintf(buff, "%s%s",
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n",
+  sprintf(buff, "%s",
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer.\n");
+#ifdef NOT_YET
 	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
+#endif
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   if (opt_outfile)
@@ -662,7 +665,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_nopager= 1;
   case OPT_MYSQL_PROTOCOL:
   {
-    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) ==
+	~(ulong) 0)
     {
       fprintf(stderr, "Unknown option to protocol: %s\n", argument);
       exit(1);
@@ -805,9 +809,10 @@ static int read_lines(bool execute_commands)
   char	*line;
   char	in_string=0;
   ulong line_number=0;
+  bool ml_comment= 0;  
   COMMANDS *com;
   status.exit_status=1;
-
+  
   for (;;)
   {
     if (status.batch || !execute_commands)
@@ -873,7 +878,7 @@ static int read_lines(bool execute_commands)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -934,7 +939,8 @@ static COMMANDS *find_command (char *name,char cmd_char)
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string)
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment)
 {
   uchar inchar;
   char buff[80],*pos,*out;
@@ -965,7 +971,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
     }
 #endif
-    if (inchar == '\\')
+    if (!*ml_comment && inchar == '\\')
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
@@ -999,7 +1005,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
       }
     }
-    else if (inchar == ';' && !*in_string)
+    else if (!*ml_comment && inchar == ';' && !*in_string)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1019,17 +1025,33 @@ static bool add_line(String &buffer,char *line,char *in_string)
       buffer.length(0);
       out=line;
     }
-    else if (!*in_string && (inchar == '#' ||
-			     inchar == '-' && pos[1] == '-' &&
-			     my_isspace(system_charset_info,pos[2])))
+    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
+			      inchar == '-' && pos[1] == '-' &&
+			      my_isspace(system_charset_info,pos[2]))))
       break;					// comment to end of line
+    else if (!*in_string && inchar == '/' && *(pos+1) == '*')
+    {
+      pos++;
+      *ml_comment= 1;
+      if (out != line)
+      {
+        buffer.append(line,(uint) (out-line));
+        out=line;
+      }
+    }
+    else if (*ml_comment && !*in_string && inchar == '*' && *(pos+1) == '/')
+    {
+      pos++;
+      *ml_comment= 0;
+    }      
     else
     {						// Add found char to buffer
       if (inchar == *in_string)
 	*in_string=0;
       else if (!*in_string && (inchar == '\'' || inchar == '"'))
 	*in_string=(char) inchar;
-      *out++ = (char) inchar;
+      if (!(*ml_comment))
+        *out++ = (char) inchar;
     }
   }
   if (out != line || !buffer.is_empty())
@@ -1038,7 +1060,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     uint length=(uint) (out-line);
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
-    if (buffer.append(line,length))
+    if (!(*ml_comment) && buffer.append(line,length))
       return 1;
   }
   return 0;
@@ -1280,7 +1302,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
 						  sizeof(char *) *
 						  (num_fields*2+1))))
 	break;
-      field_names[i][num_fields*2]='\0';
+      field_names[i][num_fields*2]= '\0';
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
@@ -1300,7 +1322,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     {
       tee_fprintf(stdout,
 		  "Didn't find any fields in table '%s'\n",table_row[0]);
-      field_names[i]=0;
+      field_names[i]= 0;
     }
     i++;
   }
@@ -1388,17 +1410,14 @@ static int com_server_help(String *buffer __attribute__((unused)),
   MYSQL_ROW cur;
   const char *server_cmd= buffer->ptr();
   char cmd_buf[100];
+  MYSQL_RES *result;
+  int error;
 
-  if (help_arg[0]!='\'')
+  if (help_arg[0] != '\'')
   {
-    (void*)sprintf(cmd_buf,"help \'%s\';",help_arg);
+    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
     server_cmd= cmd_buf;
   }
-
-  char buff[16], time_buf[32];
-  MYSQL_RES *result;
-  ulong timer;
-  uint error= 0;
 
   if (!status.batch)
   {
@@ -1409,26 +1428,24 @@ static int com_server_help(String *buffer __attribute__((unused)),
   if (!connected && reconnect())
     return 1;
 
-  timer= start_timer();
-
-  error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd));
-  if (error)
+  if ((error= mysql_real_query_for_lazy(server_cmd,strlen(server_cmd))))
     return error;
-
-  error= mysql_store_result_for_lazy(&result);
-  if (error)
+  if ((error= mysql_store_result_for_lazy(&result)))
     return error;
 
   if (result)
   {
     int num_rows= mysql_num_rows(result);
-    if (num_rows==1)
+    if (num_rows == 1)
     {
       if (!(cur= mysql_fetch_row(result)))
-	return -1;
+      {
+	error= -1;
+	goto err;
+      }
 
       init_pager();
-      if (cur[1][0]=='Y')
+      if (cur[1][0] == 'Y')
       {
 	tee_fprintf(PAGER, "\nHelp topic \'%s\'\n", cur[0]);
 	tee_fprintf(PAGER, "%s\n", cur[2]);
@@ -1442,17 +1459,19 @@ static int com_server_help(String *buffer __attribute__((unused)),
       }
       end_pager();
     }
-    else if (num_rows>1)
+    else if (num_rows > 1)
     {
       put_info("\nMany help items for your request exist", INFO_INFO);
       put_info("For more specific request please type 'help <item>' where item is one of next :", INFO_INFO);
 
       init_pager();
       char last_char= '_';
-      while ((cur= mysql_fetch_row(result))){
-	if (cur[1][0]!=last_char){
+      while ((cur= mysql_fetch_row(result)))
+      {
+	if (cur[1][0]!=last_char)
+	{
 	  put_info("-------------------------------------------", INFO_INFO);
-	  put_info(cur[1][0]=='Y' ? 
+	  put_info(cur[1][0] == 'Y' ? 
 		   "categories:" : "functions:", INFO_INFO);
 	  put_info("-------------------------------------------", INFO_INFO);
 	}
@@ -1468,6 +1487,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     }
   }
 
+err:
   mysql_free_result(result);
   return error;
 }
@@ -2212,23 +2232,21 @@ com_print(String *buffer,char *line __attribute__((unused)))
 static int
 com_connect(String *buffer, char *line)
 {
-  char *tmp,buff[256];
+  char *tmp, buff[256];
   bool save_rehash= rehash;
   int error;
 
+  bzero(buff, sizeof(buff));
   if (buffer)
   {
-    while (my_isspace(system_charset_info,*line))
-      line++;
-    strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
-    if (buff[0] == '\\')			// Short command
-      buff[1]=' ';
-    tmp=(char *) strtok(buff," \t");		// Skip connect command
-    if (tmp && (tmp=(char *) strtok(NullS," \t;")))
+    strmov(buff, line);
+    tmp= get_arg(buff, 0);
+    if (tmp && *tmp)
     {
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-      current_db=my_strdup(tmp,MYF(MY_WME));
-      if ((tmp=(char *) strtok(NullS," \t;")))
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      current_db= my_strdup(tmp, MYF(MY_WME));
+      tmp= get_arg(buff, 1);
+      if (tmp)
       {
 	my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
 	current_host=my_strdup(tmp,MYF(MY_WME));
@@ -2314,8 +2332,9 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp;
   char buff[256];
 
+  bzero(buff, sizeof(buff));
   strmov(buff, line);
-  tmp= get_arg(buff);
+  tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -2357,9 +2376,20 @@ com_use(String *buffer __attribute__((unused)), char *line)
 }
 
 
+
+/*
+  Gets argument from a command on the command line. If get_next_arg is
+  not defined, skips the command and returns the first argument. The
+  line is modified by adding zero to the end of the argument. If
+  get_next_arg is defined, then the function searches for end of string
+  first, after found, returns the next argument and adds zero to the
+  end. If you ever wish to use this feature, remember to initialize all
+  items in the array to zero first.
+*/
+
 enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
 
-char *get_arg(char *line)
+char *get_arg(char *line, my_bool get_next_arg)
 {
   char *ptr;
   my_bool quoted= 0, valid_arg= 0;
@@ -2367,13 +2397,22 @@ char *get_arg(char *line)
   enum quote_type qtype= NO_QUOTE;
 
   ptr= line;
-  /* skip leading white spaces */
-  while (my_isspace(system_charset_info, *ptr))
-    ptr++;
-  if (*ptr == '\\') // short command was used
-    ptr+= 2;
-  while (!my_isspace(system_charset_info, *ptr)) // skip command
-    ptr++;
+  if (get_next_arg)
+  {
+    for (; ptr && *ptr; ptr++);
+    if ((ptr + 1) && *(ptr + 1))
+      ptr++;
+  }
+  else
+  {
+    /* skip leading white spaces */
+    while (my_isspace(system_charset_info, *ptr))
+      ptr++;
+    if (*ptr == '\\') // short command was used
+      ptr+= 2;
+    while (!my_isspace(system_charset_info, *ptr)) // skip command
+      ptr++;
+  }
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
   if ((*ptr == '\'' && (qtype= SQUOTE)) ||
@@ -2396,9 +2435,8 @@ char *get_arg(char *line)
       ptr= line;
       ptr+= count;
     }
-    else if (!quoted && *ptr == ' ')
-      *(ptr + 1) = 0;
-    else if ((*ptr == '\'' && qtype == SQUOTE) ||
+    else if ((!quoted && *ptr == ' ') ||
+	     (*ptr == '\'' && qtype == SQUOTE) ||
 	     (*ptr == '\"' && qtype == DQUOTE) ||
 	     (*ptr == '`' && qtype == BTICK))
     {

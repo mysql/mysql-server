@@ -416,6 +416,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   }
   if ((thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL)) && mi->slave_running)
   {
+    DBUG_PRINT("info",("Terminating IO thread"));
     mi->abort_slave=1;
     if ((error=terminate_slave_thread(mi->io_thd,io_lock,
 				        io_cond_lock,
@@ -426,6 +427,7 @@ int terminate_slave_threads(MASTER_INFO* mi,int thread_mask,bool skip_lock)
   }
   if ((thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL)) && mi->rli.slave_running)
   {
+    DBUG_PRINT("info",("Terminating SQL thread"));
     DBUG_ASSERT(mi->rli.sql_thd != 0) ;
     mi->rli.abort_slave=1;
     if ((error=terminate_slave_thread(mi->rli.sql_thd,sql_lock,
@@ -1750,7 +1752,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   if (thd_type == SLAVE_THD_SQL)
@@ -2575,12 +2577,6 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 
   memcpy(mi->master_log_name, rev->new_log_ident, rev->ident_len+1);
   mi->master_log_pos= rev->pos;
-
-  pthread_mutex_lock(&mi->rli.data_lock);
-  memcpy(mi->rli.master_log_name, rev->new_log_ident, rev->ident_len+1);
-  mi->rli.master_log_pos= rev->pos;
-  pthread_mutex_unlock(&mi->rli.data_lock);
-
   DBUG_PRINT("info", ("master_log_pos: '%s' %d",
 		      mi->master_log_name, (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
@@ -2968,7 +2964,12 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
   if ((rli->cur_log_fd=open_binlog(cur_log,rli->relay_log_name,
 				   errmsg)) <0)
     DBUG_RETURN(0);
-  my_b_seek(cur_log,rli->relay_log_pos);
+  /*
+    We want to start exactly where we was before:
+    relay_log_pos	Current log pos
+    pending		Number of bytes already processed from the event
+  */
+  my_b_seek(cur_log,rli->relay_log_pos + rli->pending);
   DBUG_RETURN(cur_log);
 }
 

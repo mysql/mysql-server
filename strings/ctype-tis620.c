@@ -688,7 +688,8 @@ void ThNormalize(uchar* ptr, uint field_length, const uchar* from, uint length)
 CHARSET_INFO my_charset_tis620 =
 {
     18,			/* number    */
-    MY_CS_COMPILED,	/* state     */
+    MY_CS_COMPILED|MY_CS_PRIMARY,	/* state     */
+    "tis620",		/* cs name    */
     "tis620",		/* name      */
     "",			/* comment   */
     ctype_tis620,

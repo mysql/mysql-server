@@ -7,12 +7,16 @@ connection slave;
 !stop slave;
 @r/slave-stopped.result show status like 'Slave_running';
 connection master;
+--disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
 reset master;
 connection slave;
 reset slave;
 # Clean up old test tables
+--disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
 start slave;
 @r/slave-running.result show status like 'Slave_running';
 

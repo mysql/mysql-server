@@ -153,11 +153,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
       }
     else
-    {
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-      current_thd->fatal_error= 1;
       return 1;
-    }
   }
   return 0;
 }
@@ -247,6 +243,8 @@ int Arg_comparator::compare_e_int()
 int Arg_comparator::compare_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -261,6 +259,8 @@ int Arg_comparator::compare_row()
 int Arg_comparator::compare_e_row()
 {
   int res= 0;
+  (*a)->bring_value();
+  (*b)->bring_value();
   uint n= (*a)->cols();
   for (uint i= 0; i<n; i++)
   {
@@ -270,13 +270,46 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
+bool Item_in_optimizer::preallocate_row()
+{
+  return (!(cache= Item_cache::get_cache(ROW_RESULT)));
+}
+
+bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
+				   Item ** ref)
+{
+  if (args[0]->fix_fields(thd, tables, args))
+    return 1;
+  if (args[0]->maybe_null)
+    maybe_null=1;
+  if (args[0]->binary())
+	set_charset(my_charset_bin);
+  with_sum_func= args[0]->with_sum_func;
+  used_tables_cache= args[0]->used_tables();
+  const_item_cache= args[0]->const_item();
+  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
+    return 1;
+  cache->setup(args[0]);
+  if (args[1]->fix_fields(thd, tables, args))
+    return 1;
+  Item_in_subselect * sub= (Item_in_subselect *)args[1];
+  if (args[0]->cols() != sub->engine->cols())
+  {
+    my_error(ER_CARDINALITY_COL, MYF(0), args[0]->cols());
+    return 1;
+  }
+  if (args[1]->maybe_null)
+    maybe_null=1;
+  with_sum_func= with_sum_func || args[1]->with_sum_func;
+  used_tables_cache|= args[1]->used_tables();
+  const_item_cache&= args[1]->const_item();
+  return 0;
+}
+
 longlong Item_in_optimizer::val_int()
 {
-  int_cache_ok= 1;
-  flt_cache_ok= 0;
-  str_cache_ok= 0;
-  int_cache= args[0]->val_int_result();
-  if (args[0]->null_value)
+  cache->store(args[0]);
+  if (cache->null_value)
   {
     null_value= 1;
     return 0;
@@ -286,44 +319,10 @@ longlong Item_in_optimizer::val_int()
   return tmp;
 }
 
-longlong Item_in_optimizer::get_cache_int()
+bool Item_in_optimizer::is_null()
 {
-  if (!int_cache_ok)
-  {
-    int_cache_ok= 1;
-    flt_cache_ok= 0;
-    str_cache_ok= 0;
-    int_cache= args[0]->val_int_result();
-    null_value= args[0]->null_value;
-  }
-  return int_cache;
-}
-
-double Item_in_optimizer::get_cache()
-{
-  if (!flt_cache_ok)
-  {
-    flt_cache_ok= 1;
-    int_cache_ok= 0;
-    str_cache_ok= 0;
-    flt_cache= args[0]->val_result();
-    null_value= args[0]->null_value;
-  }
-  return flt_cache;
-}
-
-String *Item_in_optimizer::get_cache_str(String *s)
-{
-  if (!str_cache_ok)
-  {
-    str_cache_ok= 1;
-    int_cache_ok= 0;
-    flt_cache_ok= 0;
-    str_value.set(buffer, sizeof(buffer), s->charset());
-    str_cache= args[0]->str_result(&str_value);
-    null_value= args[0]->null_value;
-  }
-  return str_cache;
+  cache->store(args[0]);
+  return (null_value= (cache->null_value || args[1]->is_null()));
 }
 
 longlong Item_func_eq::val_int()
@@ -869,8 +868,9 @@ String *Item_func_case::val_str(String *str)
     null_value=1;
     return 0;
   }
+  null_value= 0;
   if (!(res=item->val_str(str)))
-    null_value=1;
+    null_value= 1;
   return res;
 }
 
@@ -933,6 +933,13 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!else_expr || else_expr->maybe_null)
     maybe_null=1;				// The result may be NULL
   return 0;
+}
+
+void Item_func_case::set_outer_resolving()
+{
+  first_expr->set_outer_resolving();
+  else_expr->set_outer_resolving();
+  Item_func::set_outer_resolving();
 }
 
 bool Item_func_case::check_loop(uint id)
@@ -1217,8 +1224,9 @@ void cmp_item_row::store_value(Item *item)
 {
   THD *thd= current_thd;
   n= item->cols();
-  if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
+  if ((comparators= (cmp_item **) thd->calloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
@@ -1227,18 +1235,10 @@ void cmp_item_row::store_value(Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    thd->fatal_error= 1;
     return;
-  }
 }
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
@@ -1252,6 +1252,7 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
   n= tmpl->n;
   if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
   {
+    item->bring_value();
     item->null_value= 0;
     for (uint i=0; i < n; i++)
       if ((comparators[i]= tmpl->comparators[i]->make_same()))
@@ -1261,18 +1262,10 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item)
 	item->null_value|= item->el(i)->null_value;
       }
       else
-      {
-	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
 	return;
-      }	  
   }
   else
-  {
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    current_thd->fatal_error= 1;
     return;
-  }	  
 }
 
 int cmp_item_row::cmp(Item *arg)
@@ -1284,6 +1277,7 @@ int cmp_item_row::cmp(Item *arg)
     return 1;
   }
   bool was_null= 0;
+  arg->bring_value();
   for (uint i=0; i < n; i++)
     if (comparators[i]->cmp(arg->el(i)))
     {
@@ -1507,6 +1501,15 @@ bool Item_cond::check_loop(uint id)
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
+}
+
+void Item_cond::set_outer_resolving()
+{
+  Item_func::set_outer_resolving();
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+    item->set_outer_resolving();
 }
 
 void Item_cond::split_sum_func(List<Item> &fields)

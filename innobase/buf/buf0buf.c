@@ -196,7 +196,29 @@ If a new page is referenced in the buf_pool, and several pages
 of its random access area (for instance, 32 consecutive pages
 in a tablespace) have recently been referenced, we may predict
 that the whole area may be needed in the near future, and issue
-the read requests for the whole area. */
+the read requests for the whole area.
+
+		AWE implementation
+		------------------
+
+By a 'block' we mean the buffer header of type buf_block_t. By a 'page'
+we mean the physical 16 kB memory area allocated from RAM for that block.
+By a 'frame' we mean a 16 kB area in the virtual address space of the
+process, in the frame_mem of buf_pool.
+
+We can map pages to the frames of the buffer pool.
+
+1) A buffer block allocated to use as a non-data page, e.g., to the lock
+table, is always mapped to a frame.
+2) A bufferfixed or io-fixed data page is always mapped to a frame.
+3) When we need to map a block to frame, we look from the list
+awe_LRU_free_mapped and try to unmap its last block, but note that
+bufferfixed or io-fixed pages cannot be unmapped.
+4) For every frame in the buffer pool there is always a block whose page is
+mapped to it. When we create the buffer pool, we map the first elements
+in the free list to the frames.
+5) When we have AWE enabled, we disable adaptive hash indexes.
+*/
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
@@ -346,11 +368,14 @@ void
 buf_block_init(
 /*===========*/
 	buf_block_t*	block,	/* in: pointer to control block */
-	byte*		frame)	/* in: pointer to buffer frame */
+	byte*		frame)	/* in: pointer to buffer frame, or NULL if in
+				the case of AWE there is no frame */
 {
 	block->state = BUF_BLOCK_NOT_USED;
 	
 	block->frame = frame;
+
+	block->awe_info = NULL;
 
 	block->modify_clock = ut_dulint_zero;
 	
@@ -360,34 +385,48 @@ buf_block_init(
 
 	rw_lock_create(&(block->lock));
 	ut_ad(rw_lock_validate(&(block->lock)));
-
-	rw_lock_create(&(block->read_lock));
-	rw_lock_set_level(&(block->read_lock), SYNC_NO_ORDER_CHECK);
 	
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_create(&(block->debug_latch));
 	rw_lock_set_level(&(block->debug_latch), SYNC_NO_ORDER_CHECK);
+#endif
 }
 
 /************************************************************************
-Creates a buffer buf_pool object. */
-static
+Creates the buffer pool. */
+
 buf_pool_t*
-buf_pool_create(
-/*============*/
+buf_pool_init(
+/*==========*/
 				/* out, own: buf_pool object, NULL if not
-				enough memory */
+				enough memory or error */
 	ulint	max_size,	/* in: maximum size of the buf_pool in
 				blocks */
-	ulint	curr_size)	/* in: current size to use, must be <=
+	ulint	curr_size,	/* in: current size to use, must be <=
 				max_size, currently must be equal to
 				max_size */
+	ulint	n_frames)	/* in: number of frames; if AWE is used,
+				this is the size of the address space window
+				where physical memory pages are mapped; if
+				AWE is not used then this must be the same
+				as max_size */
 {
 	byte*		frame;
 	ulint		i;
 	buf_block_t*	block;
 	
 	ut_a(max_size == curr_size);
+	ut_a(srv_use_awe || n_frames == max_size);
 	
+	if (n_frames > curr_size) {
+	        fprintf(stderr,
+"InnoDB: AWE: Error: you must specify in my.cnf .._awe_mem_mb larger\n"
+"InnoDB: than .._buffer_pool_size. Now the former is %lu pages,\n"
+"InnoDB: the latter %lu pages.\n", curr_size, n_frames);
+
+		return(NULL);
+	}
+
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
 	/* 1. Initialize general fields
@@ -396,8 +435,38 @@ buf_pool_create(
 	mutex_set_level(&(buf_pool->mutex), SYNC_BUF_POOL);
 
 	mutex_enter(&(buf_pool->mutex));
-	
-	buf_pool->frame_mem = ut_malloc(UNIV_PAGE_SIZE * (max_size + 1));
+
+	if (srv_use_awe) {
+		/*----------------------------------------*/
+		/* Allocate the virtual address space window, i.e., the
+		buffer pool frames */
+
+		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window(
+					UNIV_PAGE_SIZE * (n_frames + 1));
+					
+		/* Allocate the physical memory for AWE and the AWE info array
+		for buf_pool */
+
+		if ((curr_size % ((1024 * 1024) / UNIV_PAGE_SIZE)) != 0) {
+
+		        fprintf(stderr,
+"InnoDB: AWE: Error: physical memory must be allocated in full megabytes.\n"
+"InnoDB: Trying to allocate %lu database pages.\n", 
+			  curr_size);
+
+		        return(NULL);
+		}
+
+		if (!os_awe_allocate_physical_mem(&(buf_pool->awe_info),
+			curr_size / ((1024 * 1024) / UNIV_PAGE_SIZE))) {
+
+			return(NULL);
+		}
+		/*----------------------------------------*/
+	} else {
+		buf_pool->frame_mem = ut_malloc(
+					UNIV_PAGE_SIZE * (n_frames + 1));
+	}
 
 	if (buf_pool->frame_mem == NULL) {
 
@@ -414,21 +483,60 @@ buf_pool_create(
 	buf_pool->max_size = max_size;
 	buf_pool->curr_size = curr_size;
 
+	buf_pool->n_frames = n_frames;
+
 	/* Align pointer to the first frame */
 
 	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
+
 	buf_pool->frame_zero = frame;
+	buf_pool->high_end = frame + UNIV_PAGE_SIZE * n_frames;
 
-	buf_pool->high_end = frame + UNIV_PAGE_SIZE * curr_size;
+	if (srv_use_awe) {
+		/*----------------------------------------*/
+		/* Map an initial part of the allocated physical memory to
+		the window */
 
-	/* Init block structs and assign frames for them */
+		os_awe_map_physical_mem_to_window(buf_pool->frame_zero,
+					n_frames *
+					(UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE),
+					buf_pool->awe_info);
+		/*----------------------------------------*/
+	}
+
+	buf_pool->blocks_of_frames = ut_malloc(sizeof(void*) * n_frames);
+	
+	if (buf_pool->blocks_of_frames == NULL) {
+
+		return(NULL);
+	}
+
+	/* Init block structs and assign frames for them; in the case of
+	AWE there are less frames than blocks. Then we assign the frames
+	to the first blocks (we already mapped the memory above). We also
+	init the awe_info for every block. */
+
 	for (i = 0; i < max_size; i++) {
 
 		block = buf_pool_get_nth_block(buf_pool, i);
+
+		if (i < n_frames) {
+			frame = buf_pool->frame_zero + i * UNIV_PAGE_SIZE;
+			*(buf_pool->blocks_of_frames + i) = block;
+		} else {
+			frame = NULL;
+		}
+		
 		buf_block_init(block, frame);
-		frame = frame + UNIV_PAGE_SIZE;
+
+		if (srv_use_awe) {
+			/*----------------------------------------*/
+			block->awe_info = buf_pool->awe_info
+				+ i * (UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE);
+			/*----------------------------------------*/
+		}
 	}
-	
+
 	buf_pool->page_hash = hash_create(2 * max_size);
 
 	buf_pool->n_pend_reads = 0;
@@ -438,12 +546,14 @@ buf_pool_create(
 	buf_pool->n_pages_read = 0;
 	buf_pool->n_pages_written = 0;
 	buf_pool->n_pages_created = 0;
-
+	buf_pool->n_pages_awe_remapped = 0;
+	
 	buf_pool->n_page_gets = 0;
 	buf_pool->n_page_gets_old = 0;
 	buf_pool->n_pages_read_old = 0;
 	buf_pool->n_pages_written_old = 0;
 	buf_pool->n_pages_created_old = 0;
+	buf_pool->n_pages_awe_remapped_old = 0;
 	
 	/* 2. Initialize flushing fields
 	   ---------------------------- */
@@ -466,40 +576,120 @@ buf_pool_create(
 
 	buf_pool->LRU_old = NULL;
 
+	UT_LIST_INIT(buf_pool->awe_LRU_free_mapped);
+
 	/* Add control blocks to the free list */
 	UT_LIST_INIT(buf_pool->free);
+
 	for (i = 0; i < curr_size; i++) {
 
 		block = buf_pool_get_nth_block(buf_pool, i);
 
-		/* Wipe contents of page to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
+		if (block->frame) {
+			/* Wipe contents of frame to eliminate a Purify
+			warning */
 
-		UT_LIST_ADD_FIRST(free, buf_pool->free, block);
+			memset(block->frame, '\0', UNIV_PAGE_SIZE);
+
+			if (srv_use_awe) {
+				/* Add to the list of blocks mapped to
+				frames */
+				
+				UT_LIST_ADD_LAST(awe_LRU_free_mapped,
+					buf_pool->awe_LRU_free_mapped, block);
+			}
+		}
+
+		UT_LIST_ADD_LAST(free, buf_pool->free, block);
 	}
 
 	mutex_exit(&(buf_pool->mutex));
 
-	btr_search_sys_create(curr_size * UNIV_PAGE_SIZE / sizeof(void*) / 64);
+	if (srv_use_adaptive_hash_indexes) {
+	  	btr_search_sys_create(
+			  curr_size * UNIV_PAGE_SIZE / sizeof(void*) / 64);
+	} else {
+	        /* Create only a small dummy system */
+	        btr_search_sys_create(1000);
+	}
 
 	return(buf_pool);
 }	
 
 /************************************************************************
-Initializes the buffer buf_pool of the database. */
+Maps the page of block to a frame, if not mapped yet. Unmaps some page
+from the end of the awe_LRU_free_mapped. */
 
 void
-buf_pool_init(
-/*==========*/
-	ulint	max_size,	/* in: maximum size of the buf_pool in blocks */
-	ulint	curr_size)	/* in: current size to use, must be <=
-				max_size */
+buf_awe_map_page_to_frame(
+/*======================*/
+	buf_block_t*	block,		/* in: block whose page should be
+					mapped to a frame */
+	ibool		add_to_mapped_list) /* in: TRUE if we in the case
+					we need to map the page should also
+					add the block to the
+					awe_LRU_free_mapped list */
 {
-	ut_a(buf_pool == NULL);
+	buf_block_t*	bck;
 
-	buf_pool_create(max_size, curr_size);
+	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(block);
 
-	ut_ad(buf_validate());
+	if (block->frame) {
+
+		return;
+	}
+
+	/* Scan awe_LRU_free_mapped from the end and try to find a block
+	which is not bufferfixed or io-fixed */
+
+	bck = UT_LIST_GET_LAST(buf_pool->awe_LRU_free_mapped);
+
+	while (bck) {	
+		if (bck->state == BUF_BLOCK_FILE_PAGE
+	    	    && (bck->buf_fix_count != 0 || bck->io_fix != 0)) {
+
+			/* We have to skip this */
+			bck = UT_LIST_GET_PREV(awe_LRU_free_mapped, bck);
+		} else {
+			/* We can map block to the frame of bck */
+
+			os_awe_map_physical_mem_to_window(
+				bck->frame,
+				UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
+				block->awe_info);
+
+			block->frame = bck->frame;
+
+			*(buf_pool->blocks_of_frames
+				+ (((ulint)(block->frame
+						- buf_pool->frame_zero))
+						>> UNIV_PAGE_SIZE_SHIFT))
+				= block;
+			
+			bck->frame = NULL;
+			UT_LIST_REMOVE(awe_LRU_free_mapped,
+					buf_pool->awe_LRU_free_mapped,
+					bck);
+
+			if (add_to_mapped_list) {
+				UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
+					buf_pool->awe_LRU_free_mapped,
+					block);
+			}
+
+			buf_pool->n_pages_awe_remapped++;
+			
+			return;
+		}
+	}
+
+	fprintf(stderr,
+"InnoDB: AWE: Fatal error: cannot find a page to unmap\n"
+"InnoDB: awe_LRU_free_mapped list length %lu\n",
+		UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
+
+	ut_a(0);
 }
 
 /************************************************************************
@@ -508,7 +698,9 @@ UNIV_INLINE
 buf_block_t*
 buf_block_alloc(void)
 /*=================*/
-				/* out, own: the allocated block */
+				/* out, own: the allocated block; also if AWE
+				is used it is guaranteed that the page is
+				mapped to a frame */
 {
 	buf_block_t*	block;
 
@@ -846,6 +1038,19 @@ loop:
 		}
 	}		
 
+	/* If AWE is enabled and the page is not mapped to a frame, then
+	map it */
+
+	if (block->frame == NULL) {
+		ut_a(srv_use_awe);
+
+		/* We set second parameter TRUE because the block is in the
+		LRU list and we must put it to awe_LRU_free_mapped list once
+		mapped to a frame */
+		
+		buf_awe_map_page_to_frame(block, TRUE);
+	}
+	
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
 #else
@@ -900,8 +1105,26 @@ loop:
 	} else if (rw_latch == RW_NO_LATCH) {
 
 		if (must_read) {
-			rw_lock_x_lock(&(block->read_lock));
-			rw_lock_x_unlock(&(block->read_lock));
+		        /* Let us wait until the read operation
+			completes */
+
+		        for (;;) {
+			        mutex_enter(&(buf_pool->mutex));
+
+		                if (block->io_fix == BUF_IO_READ) {
+
+				        mutex_exit(&(buf_pool->mutex));
+				  
+				        /* Sleep 20 milliseconds */
+
+				        os_thread_sleep(20000);
+				} else {
+				  
+				       mutex_exit(&(buf_pool->mutex));
+
+				       break;
+				}
+			}
 		}
 
 		fix_type = MTR_MEMO_BUF_FIX;
@@ -940,28 +1163,27 @@ buf_page_optimistic_get_func(
 /*=========================*/
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
-	buf_frame_t*	guess,	/* in: guessed frame */
+	buf_block_t*	block,	/* in: guessed buffer block */
+	buf_frame_t*	guess,	/* in: guessed frame; note that AWE may move
+				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
-	buf_block_t*	block;
 	ibool		accessed;
 	ibool		success;
 	ulint		fix_type;
 
-	ut_ad(mtr && guess);
+	ut_ad(mtr && block);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
-
-	buf_pool->n_page_gets++;
-
-	block = buf_block_align(guess);
 	
 	mutex_enter(&(buf_pool->mutex));
 
-	if (block->state != BUF_BLOCK_FILE_PAGE) {
+	/* If AWE is used, block may have a different frame now, e.g., NULL */
+	
+	if (block->state != BUF_BLOCK_FILE_PAGE || block->frame != guess) {
 
 		mutex_exit(&(buf_pool->mutex));
 
@@ -1054,12 +1276,15 @@ buf_page_optimistic_get_func(
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
+	buf_pool->n_page_gets++;
+
 	return(TRUE);
 }
 
 /************************************************************************
 This is used to get access to a known database page, when no waiting can be
-done. */
+done. For example, if a search in an adaptive hash index leads us to this
+frame. */
 
 ibool
 buf_page_get_known_nowait(
@@ -1078,12 +1303,10 @@ buf_page_get_known_nowait(
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
-
-	buf_pool->n_page_gets++;
-
-	block = buf_block_align(guess);
 	
 	mutex_enter(&(buf_pool->mutex));
+
+	block = buf_block_align(guess);
 
 	if (block->state == BUF_BLOCK_REMOVE_HASH) {
 	        /* Another thread is just freeing the block from the LRU list
@@ -1152,6 +1375,8 @@ buf_page_get_known_nowait(
 	ut_a((mode == BUF_KEEP_OLD)
 		|| (ibuf_count_get(block->space, block->offset) == 0));
 #endif
+	buf_pool->n_page_gets++;
+
 	return(TRUE);
 }
 
@@ -1322,8 +1547,6 @@ buf_page_init_for_read(
 	is completed. The x-lock is cleared by the io-handler thread. */
 	
 	rw_lock_x_lock_gen(&(block->lock), BUF_IO_READ);
-
-	rw_lock_x_lock_gen(&(block->read_lock), BUF_IO_READ);
 	
  	mutex_exit(&(buf_pool->mutex));
 
@@ -1546,9 +1769,7 @@ buf_page_io_complete(
 		buf_pool->n_pend_reads--;
 		buf_pool->n_pages_read++;
 
-
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
-		rw_lock_x_unlock_gen(&(block->read_lock), BUF_IO_READ);
 
 		if (buf_debug_prints) {
 			printf("Has read ");
@@ -1732,7 +1953,7 @@ buf_print(void)
 	
 	ut_ad(buf_pool);
 
-	size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE;
+	size = buf_pool->curr_size;
 
 	index_ids = mem_alloc(sizeof(dulint) * size);
 	counts = mem_alloc(sizeof(ulint) * size);
@@ -1847,7 +2068,7 @@ buf_print_io(
 		return;
 	}
 
-	size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE;
+	size = buf_pool->curr_size;
 
 	mutex_enter(&(buf_pool->mutex));
 	
@@ -1866,6 +2087,15 @@ buf_print_io(
 	buf += sprintf(buf,
 		"Modified db pages  %lu\n",
 				UT_LIST_GET_LEN(buf_pool->flush_list));
+	if (srv_use_awe) {
+		buf += sprintf(buf,
+		"AWE: Buffer pool memory frames                        %lu\n",
+				buf_pool->n_frames);
+		
+		buf += sprintf(buf,
+		"AWE: Database pages and free buffers mapped in frames %lu\n",
+				UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
+	}
 
 	buf += sprintf(buf, "Pending reads %lu \n", buf_pool->n_pend_reads);
 
@@ -1891,6 +2121,13 @@ buf_print_io(
 		(buf_pool->n_pages_written - buf_pool->n_pages_written_old)
 		/ time_elapsed);
 
+	if (srv_use_awe) {
+		buf += sprintf(buf, "AWE: %.2f page remaps/s\n",
+		(buf_pool->n_pages_awe_remapped
+				- buf_pool->n_pages_awe_remapped_old)
+			/ time_elapsed);
+	}
+		
 	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
 		buf += sprintf(buf, "Buffer pool hit rate %lu / 1000\n",
 		1000
@@ -1906,6 +2143,7 @@ buf_print_io(
 	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
 	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
+	buf_pool->n_pages_awe_remapped_old = buf_pool->n_pages_awe_remapped;
 
 	mutex_exit(&(buf_pool->mutex));
 }
@@ -1922,6 +2160,7 @@ buf_refresh_io_stats(void)
 	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
 	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
+	buf_pool->n_pages_awe_remapped_old = buf_pool->n_pages_awe_remapped; 
 }
 
 /*************************************************************************

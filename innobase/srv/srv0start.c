@@ -529,6 +529,9 @@ open_or_create_log_file(
 					new database */
 	ibool*	log_file_created,	/* out: TRUE if new log file
 					created */
+	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
+					opened before: then it is an error
+					to try to create another log file */
 	ulint	k,			/* in: log group number */
 	ulint	i)			/* in: log file number in group */
 {
@@ -581,12 +584,17 @@ open_or_create_log_file(
 		}					
 	} else {
 		*log_file_created = TRUE;
-					
+
 	    	ut_print_timestamp(stderr);
 
 		fprintf(stderr,
 		"  InnoDB: Log file %s did not exist: new to be created\n",
 									name);
+		if (log_file_has_been_opened) {
+
+			return(DB_ERROR);
+		}
+
 		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
 			             name, srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
@@ -927,6 +935,7 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 				/* out: DB_SUCCESS or error code */
 {
+	buf_pool_t*	ret;
 	ibool	create_new_db;
 	ibool	log_file_created;
 	ibool	log_created	= FALSE;
@@ -964,6 +973,11 @@ innobase_start_or_create_for_mysql(void)
 "InnoDB: !!!!!!!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
 #endif
 
+#ifdef UNIV_SIMULATE_AWE
+	fprintf(stderr,
+"InnoDB: !!!!!!!!!!!!!! UNIV_SIMULATE_AWE switched on !!!!!!!!!!!!!!!!!\n");
+#endif
+
         if (srv_sizeof_trx_t_in_ha_innodb_cc != (ulint)sizeof(trx_t)) {
 	        fprintf(stderr,
   "InnoDB: Error: trx_t size is %lu in ha_innodb.cc but %lu in srv0start.c\n"
@@ -993,6 +1007,17 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
         srv_startup_is_before_trx_rollback_phase = TRUE;
 	os_aio_use_native_aio = FALSE;
+
+#if !defined(__NT__) && !defined(UNIV_SIMULATE_AWE)
+	if (srv_use_awe) {
+
+	        fprintf(stderr,
+"InnoDB: Error: You have specified innodb_buffer_pool_awe_mem_mb\n"
+"InnoDB: in my.cnf, but AWE can only be used in Windows 2000 and later.\n");
+
+	        return(DB_ERROR);
+	}
+#endif
 
 #ifdef __WIN__
 	if (os_get_os_version() == OS_WIN95
@@ -1049,6 +1074,9 @@ innobase_start_or_create_for_mysql(void)
 	  	return(DB_ERROR);
 	}
 
+	/* Note that the call srv_boot() also changes the values of
+	srv_pool_size etc. to the units used by InnoDB internally */
+	
 	err = srv_boot();
 
 	if (err != DB_SUCCESS) {
@@ -1080,7 +1108,26 @@ innobase_start_or_create_for_mysql(void)
 	
 	fil_init(SRV_MAX_N_OPEN_FILES);
 
-	buf_pool_init(srv_pool_size, srv_pool_size);
+	if (srv_use_awe) {
+		fprintf(stderr,
+"InnoDB: Using AWE: Memory window is %lu MB and AWE memory is %lu MB\n",
+		srv_awe_window_size / ((1024 * 1024) / UNIV_PAGE_SIZE),
+		srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE));
+
+		/* We must disable adaptive hash indexes because they do not
+		tolerate remapping of pages in AWE */
+		
+		srv_use_adaptive_hash_indexes = FALSE;
+		ret = buf_pool_init(srv_pool_size, srv_pool_size,
+							srv_awe_window_size);
+	} else {
+		ret = buf_pool_init(srv_pool_size, srv_pool_size,
+							srv_pool_size);
+	}
+
+	if (ret == NULL) {
+		return(DB_ERROR);
+	}
 
 	fsp_init();
 	log_init();
@@ -1160,7 +1207,8 @@ innobase_start_or_create_for_mysql(void)
 		for (i = 0; i < srv_n_log_files; i++) {
 
 			err = open_or_create_log_file(create_new_db,
-						&log_file_created, k, i);
+						&log_file_created,
+						log_opened, k, i);
 			if (err != DB_SUCCESS) {
 
 				return((int) err);

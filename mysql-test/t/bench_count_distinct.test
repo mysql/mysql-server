@@ -1,4 +1,10 @@
+#
+# Test of count(distinct ..)
+#
+
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 create table t1(n int not null, key(n)) delay_key_write = 1;
 let $1=100;
 disable_query_log;

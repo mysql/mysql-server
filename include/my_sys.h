@@ -206,6 +206,7 @@ extern const char *get_charset_name(uint cs_number);
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern my_bool set_default_charset(uint cs, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags);
 extern my_bool set_default_charset_by_name(const char *cs_name, myf flags);
 extern void free_charsets(void);
 extern char *list_charsets(myf want_flags); /* my_free() this string... */
@@ -505,6 +506,8 @@ extern int my_setwd(const char *dir,myf MyFlags);
 extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
 extern gptr my_once_alloc(uint Size,myf MyFlags);
 extern void my_once_free(void);
+extern char *my_once_strdup(const char *src,myf myflags);
+extern char *my_once_memdup(const char *src, uint len, myf myflags);
 extern my_string my_tempnam(const char *dir,const char *pfx,myf MyFlags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
@@ -566,9 +569,6 @@ extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...)
 				    __attribute__ ((format (printf, 2, 4))));
-extern int my_vsnprintf( char *str, size_t n,
-                                const char *format, va_list ap );
-extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);

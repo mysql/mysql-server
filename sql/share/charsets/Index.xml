@@ -1,0 +1,460 @@
+<?xml version='1.0' encoding="utf-8"?>
+
+<charsets max-id=63>
+
+<description>
+This file lists all of the available character sets.
+To make maintaining easier please:
+ - keep records sorted by collation number.
+ - change charsets.max-id when adding a new collation.
+</description>
+
+<charset name="big5">
+  <family>Traditional Chinese</family>
+  <alias>big-5</alias>
+  <alias>bigfive</alias>
+  <alias>big-five</alias>
+  <alias>cn-big5</alias>
+  <alias>csbig5</alias>
+  <collation name="big5"	id="1"	order="Chinese"	flag="primary" flag="compiled"/>
+</charset>
+
+<charset name="latin2">
+  <family>Central European</family>
+  <alias>csisolatin2</alias>
+  <alias>iso-8859-2</alias>
+  <alias>iso-ir-101</alias>
+  <alias>iso_8859-2</alias>
+  <alias>iso_8859-2:1987</alias>
+  <alias>l2</alias>
+  <collation name="czech" 	id="2"	order="Czech" flag="compiled"/>
+  <collation name="latin2"	id="9"	flag="primary">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+  <collation name="hungarian"	id="21"	order="Hungarian"/>
+  <collation name="croat"	id="27"	order="Croatian"/>
+</charset>
+
+<charset name="dec8">
+  <family>Western</family>
+  <collation name="dec8"	id="3"	flag="primary">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+</charset>
+
+<charset name="pclatin1">
+  <family>Western</family>
+  <alias>850</alias>
+  <alias>cp850</alias>
+  <alias>cspc850multilingual</alias>
+  <alias>ibm850</alias>
+  <collation name="pclatin1"	id="4"	flag="primary">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+</charset>
+
+<charset name="latin1">
+  <family>Western</family>
+  <alias>csisolatin1</alias>
+  <alias>iso-8859-1</alias>
+  <alias>iso-ir-100</alias>
+  <alias>iso_8859-1</alias>
+  <alias>iso_8859-1:1987</alias>
+  <alias>l1</alias>
+  <alias>latin1</alias>
+  <collation name="german1"		id="5"	order="German Duden"/>
+  <collation name="latin1"		id="8"	order="Finnish, Swedish"	flag="primary"/>
+  <collation name="danish"		id="15"	order="Danish"/>
+  <collation name="latin1_de"		id="31"	order="German DIN"	flag="compiled"/>
+  <collation name="latin1_bin"		id="47"	order="Binary"/>
+  <collation name="latin1_ci_as"	id="48">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+  <collation name="latin1_cs_as"	id="49">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+</charset>
+
+<charset name="hp8">
+  <family>Western</family>
+  <alias>hproman8</alias>
+  <collation name="hp8"		id="6"	flag="primary">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+</charset>
+
+<charset name="koi8r">
+  <family>Cyrillic</family>
+  <alias>koi8-r</alias>
+  <alias>cskoi8r</alias>
+  <collation name="koi8r"	id="7"	order="Russian"	flag="primary"/>
+</charset>
+
+<charset name="swe7">
+  <family>Western</family>
+  <alias>iso-646-se</alias>
+  <collation name="swe7"	id="10"	order="Swedish"	flag="primary"/>
+</charset>
+
+<charset name="ascii">
+  <family>Western</family>
+  <alias>us</alias>
+  <alias>us-ascii</alias>
+  <alias>csascii</alias>
+  <alias>iso-ir-6</alias>
+  <alias>iso646-us</alias>
+  <collation name="ascii"	id="11"	order="English"	flag="primary"/>
+</charset>
+
+<charset name="ujis">
+  <family>Japanese</family>
+  <alias>euc-jp</alias>
+  <collation name="ujis"	id="12"	order="Japanese"	flag="primary"/>
+</charset>
+
+<charset name="sjis">
+  <family>Japanese</family>
+  <alias>s-jis</alias>
+  <alias>shift-jis</alias>
+  <alias>x-sjis</alias>
+  <collation name="sjis" 	id="13"	order="Japanese"	flag="primary"/>
+</charset>
+
+<charset name="cp1251">
+  <family>Cyrillic</family>
+  <alias>windows-1251</alias>
+  <alias>ms-cyr</alias>
+  <alias>ms-cyrillic</alias>
+  <collation name="cp1251"	id="14"	flag="primary">
+    <order>Belarusian</order>
+    <order>Bulgarian</order>
+    <order>Macedonian</order>
+    <order>Russian</order>
+    <order>Serbian</order>
+    <order>Mongolian</order>
+    <order>Ukrainian</order>
+  </collation>
+  <collation name="win1251ukr" 		id="23"	order="<Depreciated>"/>
+  <collation name="cp1251_bin"		id="50"	order="Binary"/>
+  <collation name="cp1251_ci_as"	id="51">
+    <order>Belarusian</order>
+    <order>Bulgarian</order>
+    <order>Macedonian</order>
+    <order>Russian</order>
+    <order>Serbian</order>
+    <order>Mongolian</order>
+    <order>Ukrainian</order>
+  </collation>
+  <collation name="cp1251_cs_as"	id="52">
+    <order>Belarusian</order>
+    <order>Bulgarian</order>
+    <order>Macedonian</order>
+    <order>Russian</order>
+    <order>Serbian</order>
+    <order>Mongolian</order>
+    <order>Ukrainian</order>
+  </collation>
+</charset>
+
+<charset name="hebrew">
+  <family>Hebrew</family>
+  <alias>csisolatinhebrew</alias>
+  <alias>iso-8859-8</alias>
+  <alias>iso-ir-138</alias>
+  <collation name="hebrew"	id="16"	order="Hebrew"	flag="primary"/>
+</charset>
+
+<charset name="tis620">
+  <family>Thai</family>
+  <alias>tis-620</alias>
+  <collation name="tis620"	id="18"	order="Thai"	flag="primary"	flag="compiled"/>
+</charset>
+
+<charset name="euckr">
+  <family>Korean</family>
+  <alias>euc_kr</alias>
+  <alias>euc-kr</alias>
+  <collation name="euckr"	id="19"	order="Korean"	flag="primary"	flag="compiled"/>
+</charset>
+
+<charset name="latin7">
+  <family>Baltic</family>
+  <alias>BalticRim</alias>
+  <alias>iso-8859-13</alias>
+  <alias>l7</alias>
+  <collation name="estonia"	id="20"	order="Estonian"	flag="primary"/>
+  <collation name="latvian"	id="41"	order="Latvian"/>
+  <collation name="latvian1"	id="42"	order="Latvian"/>
+</charset>
+
+<charset name="koi8u">
+  <family>Cyrillic</family>
+  <alias>koi8-u</alias>
+  <collation name="koi8u"	id="22"	order="Ukranian"	flag="primary"/>
+</charset>
+
+<charset name="gb2312">
+  <family>Simplified Chinese</family>
+  <alias>chinese</alias>
+  <alias>iso-ir-58</alias>
+  <collation name="gb2312"	id="24"	order="Chinese"	flag="primary"	flag="compiled"/>
+</charset>
+
+<charset name="greek">
+  <family>Greek</family>
+  <alias>csisolatingreek</alias>
+  <alias>ecma-118</alias>
+  <alias>greek8</alias>
+  <alias>iso-8859-7</alias>
+  <alias>iso-ir-126</alias>
+  <collation name="greek" 	id="25"	order="Greek"	flag="primary"/>
+</charset>
+
+<charset name="cp1250">
+  <family>Central European</family>
+  <alias>ms-ce</alias>
+  <alias>windows-1250</alias>
+  <collation name="cp1250"	id="26"	flag="primary">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+  <collation name="cp1250_czech"	id="34"	order="Czech"/>
+</charset>
+
+<charset name="gbk">
+  <family>East Asian</family>
+  <alias>cp936</alias>
+  <collation name="gbk"		id="28"	order="Chinese"	flag="primary"	flag="compiled"/>
+</charset>
+
+<charset name="cp1257">
+  <family>Baltic</family>
+  <alias>WinBaltRim</alias>
+  <alias>windows-1257</alias>
+  <collation name="cp1257"		id="29"	order="<Depreciated>"/>
+  <collation name="cp1257_bin"		id="58"	order="Binary"/>
+  <collation name="cp1257_ci_ai"	id="59"	flag="primary">
+    <order>Latvian</order>
+    <order>Lithuanian</order>
+  </collation>
+  <collation name="cp1257_ci_as"	id="60">
+    <order>Latvian</order>
+    <order>Lithuanian</order>
+  </collation>
+  <collation name="cp1257_cs_as"	id="61">
+    <order>Latvian</order>
+    <order>Lithuanian</order>
+  </collation>
+</charset>
+
+<charset name="latin5">
+  <family>South Asian</family>
+  <alias>csisolatin5</alias>
+  <alias>iso-8859-9</alias>
+  <alias>iso-ir-148</alias>
+  <alias>l5</alias>
+  <alias>latin5</alias>
+  <alias>turkish</alias>
+  <collation name="latin5"	id="30"	order="Turkish"	flag="primary"/>
+</charset>
+
+<charset name="armscii8">
+  <family>South Asian</family>
+  <alias>armscii-8</alias>
+  <collation name="armscii8"	id="32"	order="Armenian"	flag="primary"/>
+</charset>
+
+<charset name="utf8">
+  <family>Unicode</family>
+  <alias>utf-8</alias>
+  <collation name="utf8"	id="33"	flag="primary"/>
+</charset>
+
+<charset name="ucs2">
+  <family>Unicode</family>
+  <collation name="ucs2"	id="35"	flag="primary"/>
+</charset>
+
+<charset name="cp866">
+  <family>Cyrillic</family>
+  <alias>866</alias>
+  <alias>csibm866</alias>
+  <alias>ibm866</alias>
+  <alias>DOSCyrillicRussian</alias>
+  <collation name="cp866"	id="36"	order="Russian"	flag="primary"/>
+</charset>
+
+<charset name="keybcs2">
+  <family>Central European</family>
+  <collation name="keybcs2"	id="37"	order="Czech"	flag="primary"/>
+</charset>
+
+<charset name="MacCE">
+  <family>Central European</family>
+  <alias>MacCentralEurope</alias>
+  <collation name="macce"	id="38"	flag="primary">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+  <collation name="macce_bin"	id="43"	order="Binary"/>
+  <collation name="macce_ci_ai"	id="44">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+  <collation name="macce_ci_as"	id="45">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+  <collation name="macce_cs_as"	id="46">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+</charset>
+
+<charset name="MacRoman">
+  <family>Western</family>
+  <alias>Mac</alias>
+  <alias>Macintosh</alias>
+  <alias>csmacintosh</alias>
+  <collation name="macroman"		id="39"	flag="primary">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+  <collation name="macroman_bin"	id="53"	order="Binary"/>
+  <collation name="macroman_ci_as"	id="54">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+  <collation name="macroman_ci_ai"	id="55">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+  <collation name="macroman_cs_as"	id="56">
+    <order>Dutch</order>
+    <order>English</order>
+    <order>French</order>
+    <order>German Duden</order>
+    <order>Italian</order>
+    <order>Latin</order>
+    <order>Pogtuguese</order>
+    <order>Spanish</order>
+  </collation>
+</charset>
+
+<charset name="pclatin2">
+  <family>Central European</family>
+  <alias>852</alias>
+  <alias>cp852</alias>
+  <alias>ibm852</alias>
+  <collation name="pclatin2"	id="40"	flag="primary">
+    <order>Hungarian</order>
+    <order>Polish</order>
+    <order>Romanian</order>
+    <order>Croatian</order>
+    <order>Slovak</order>
+    <order>Slovenian</order>
+    <order>Sorbian</order>
+  </collation>
+</charset>
+
+<charset name="cp1256">
+  <family>Arabic</family>
+  <alias>ms-arab</alias>
+  <alias>windows-1256</alias>
+  <collation name="cp1256"	id="57"	order="Arabic"	flag="primary">
+    <order>Arabic</order>
+    <order>Persian</order>
+    <order>Pakistani</order>
+    <order>Urdu</order>
+  </collation>
+</charset>
+
+<charset name="binary">
+  <collation name="binary"	id="63"	order="Binary"	flag="primary"	flag="compiled"/>
+</charset>
+
+</charsets>

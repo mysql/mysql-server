@@ -268,6 +268,8 @@ __log_txn_lsn(dbenv, lsnp, mbytesp, bytesp)
 	if (mbytesp != NULL) {
 		*mbytesp = lp->stat.st_wc_mbytes;
 		*bytesp = (u_int32_t)(lp->stat.st_wc_bytes + lp->b_off);
+
+		lp->stat.st_wc_mbytes = lp->stat.st_wc_bytes = 0;
 	}
 
 	R_UNLOCK(dbenv, &dblp->reginfo);

@@ -512,7 +512,8 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       file->app_private= (void*) (table->key_info+table->primary_key);
     if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
 	(error= (file->open(file, transaction,
-			    fn_format(name_buff, name, "", ha_berkeley_ext, 2 | 4),
+			    fn_format(name_buff, name, "", ha_berkeley_ext,
+				      2 | 4),
 			    "main", DB_BTREE, open_mode, 0))) ||
 	(error= transaction->commit(transaction, 0)))
     {
@@ -1940,6 +1941,27 @@ int ha_berkeley::delete_table(const char *name)
   DBUG_RETURN(error);
 }
 
+
+int ha_berkeley::rename_table(const char * from, const char * to)
+{
+  int error;
+  char from_buff[FN_REFLEN];
+  char to_buff[FN_REFLEN];
+
+  if ((error= db_create(&file, db_env, 0)))
+    my_errno= error;
+  else
+  {
+    /* On should not do a file->close() after rename returns */
+    error= file->rename(file, 
+			fn_format(from_buff, from, "", ha_berkeley_ext, 2 | 4),
+			NULL, fn_format(to_buff, to, "", ha_berkeley_ext,
+					2 | 4), 0);
+  }
+  return error;
+}
+
+
 /*
   How many seeks it will take to read through the table
   This is to be comparable to the number returned by records_in_range so
@@ -2098,7 +2120,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (key_file[i]->stat(key_file[i], (void*) &stat, 0))
+    if ((key_file[i]->stat)(key_file[i], (void*) &stat, 0))
       goto err; /* purecov: inspected */
     share->rec_per_key[i]= (stat->bt_ndata /
 			    (stat->bt_nkeys ? stat->bt_nkeys : 1));
@@ -2111,7 +2133,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (file->stat(file, (void*) &stat, 0))
+    if ((file->stat)(file, (void*) &stat, 0))
       goto err; /* purecov: inspected */
   }
   pthread_mutex_lock(&share->mutex);

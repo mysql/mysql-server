@@ -2,7 +2,10 @@
 # Test syntax of foreign keys
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (
 	a int not null references t2,
 	b int not null references t2 (c),

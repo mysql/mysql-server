@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
 select @test,@`select`,@TEST,@not_used;
 @test	@`select`	@TEST	@not_used
@@ -48,6 +48,9 @@ set max_join_size=100;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	100
+show global variables like 'max_join_size';
+Variable_name	Value
+max_join_size	HA_POS_ERROR
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value
@@ -59,7 +62,7 @@ max_join_size	2000
 set GLOBAL max_join_size=DEFAULT;
 show global variables like 'max_join_size';
 Variable_name	Value
-max_join_size	18446744073709551615
+max_join_size	HA_POS_ERROR
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 @@session.max_join_size	@@global.max_join_size
@@ -312,7 +315,6 @@ set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
-DROP TABLE IF EXISTS t1,t2;
 create table t1 (a int not null auto_increment, primary key(a));
 create table t2 (a int not null auto_increment, primary key(a));
 insert into t1 values(null),(null),(null);

@@ -32,12 +32,12 @@ public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
 
-  enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
-	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
-	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
-	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, 
-	     FIELD_VARIANCE_ITEM,CONST_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM};
+  enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
+	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
+	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_ITEM,
+	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM, 
+	     FIELD_VARIANCE_ITEM, CONST_ITEM,
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -101,6 +101,7 @@ public:
   CHARSET_INFO *thd_charset() const;
   CHARSET_INFO *charset() const { return str_value.charset(); };
   void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  virtual void set_outer_resolving() {}
 
   // Row emulation
   virtual uint cols() { return 1; }
@@ -108,63 +109,11 @@ public:
   virtual Item** addr(uint i) { return 0; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
-  virtual bool null_inside() { return 0; };
+  virtual bool null_inside() { return 0; }
+  // used in row subselects to get value of elements
+  virtual void bring_value() {}
 };
 
-
-/*
-  Wrapper base class
-*/
-
-class Item_wrapper :public Item
-{
-protected:
-  Item *item;
-public:
-  /* 
-     Following methods should not be used, because fix_fields exclude this 
-     item (it assign '*ref' with field 'item' in derived classes)
-  */
-  enum Type type() const         { return item->type(); }
-  enum_field_types field_type() const { return item->field_type(); }
-  double val()                   { return item->val(); }
-  longlong val_int()             { return item->val_int(); }
-  String* val_str(String* s)     { return item->val_str(s); }
-  bool check_cols(uint col)      { return item->check_cols(col); }
-  bool eq(const Item *item, bool binary_cmp) const
-  { return item->eq(item, binary_cmp); }
-  bool is_null() 
-  {
-    item->val_int();
-    return item->null_value;
-  }
-  bool get_date(TIME *ltime, bool fuzzydate)
-  {  
-    return (null_value=item->get_date(ltime, fuzzydate));
-  }
-  bool send(Protocol *prot, String *tmp) { return item->send(prot, tmp); }
-  int  save_in_field(Field *field, bool no_conversions)
-  {
-    return item->save_in_field(field, no_conversions);
-  }
-  void save_org_in_field(Field *field)	{ item->save_org_in_field(field); }
-  enum Item_result result_type () const { return item->result_type(); }
-  table_map used_tables() const		{ return item->used_tables(); }  
-};
-
-
-/*
-  Save context of name resolution for Item, used in subselect transformer.
-*/
-class Item_outer_select_context_saver :public Item_wrapper
-{
-public:
-  Item_outer_select_context_saver(Item *it)
-  {
-    item= it;
-  }
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
 
 class st_select_lex;
 class Item_ident :public Item
@@ -174,12 +123,14 @@ public:
   const char *table_name;
   const char *field_name;
   st_select_lex *depended_from;
+  bool outer_resolving; /* used for items from reduced subselect */
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par)
-    :db_name(db_name_par),table_name(table_name_par),
-    field_name(field_name_par), depended_from(0)
+    :db_name(db_name_par), table_name(table_name_par),
+     field_name(field_name_par), depended_from(0), outer_resolving(0)
     { name = (char*) field_name_par; }
   const char *full_name() const;
+  void set_outer_resolving() { outer_resolving= 1; }
 };
 
 
@@ -394,7 +345,8 @@ public:
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
-  Item_string(const char *name_par,const char *str,uint length,CHARSET_INFO *cs)
+  Item_string(const char *name_par, const char *str, uint length,
+	      CHARSET_INFO *cs)
   {
     str_value.set(str,length,cs);
     max_length=length;
@@ -405,11 +357,13 @@ public:
   enum Type type() const { return STRING_ITEM; }
   double val()
   { 
-    return my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)NULL);
+    return my_strntod(str_value.charset(), (char*) str_value.ptr(),
+		      str_value.length(), (char**) 0);
   }
   longlong val_int()
   {
-    return my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10);
+    return my_strntoll(str_value.charset(), str_value.ptr(),
+		       str_value.length(), (char**) 0, 10);
   }
   String *val_str(String*) { return (String*) &str_value; }
   int save_in_field(Field *field, bool no_conversions);
@@ -568,12 +522,34 @@ protected:
   Item_in_subselect* owner;
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
-		       char *table_name_par,char *field_name_par):
+		       char *table_name_par, char *field_name_par):
     Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);
   bool get_date(TIME *ltime, bool fuzzydate);
+};
+
+
+/*
+  Used to find item in list of select items after '*' items processing.
+
+  Because item '*' can be used in item list. when we create
+  Item_ref_on_list_position we do not know how item list will be changed, but
+  we know number of item position (I mean queries like "select * from t").
+*/
+class Item_ref_on_list_position: public Item_ref_null_helper
+{
+protected:
+  List<Item> &list;
+  uint pos;
+public:
+  Item_ref_on_list_position(Item_in_subselect* master,
+			    List<Item> &li, uint num,
+			    char *table_name, char *field_name):
+    Item_ref_null_helper(master, 0, table_name, field_name),
+    list(li), pos(num) {}
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
 };
 
 /*
@@ -590,24 +566,6 @@ public:
     item(it) 
   {}
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-class Item_in_optimizer;
-class Item_ref_in_optimizer: public Item_ref
-{
-protected:
-  Item_in_optimizer* owner;
-public:
-  Item_ref_in_optimizer(Item_in_optimizer* master,
-			char *table_name_par,char *field_name_par);
-  double val();
-  longlong val_int();
-  String* val_str(String* s);
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref)
-  {
-    fixed= 1;
-    return 0;
-  }
 };
 
 /*
@@ -658,7 +616,11 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return cached_field_type; }
   double val()
-  { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
+  {
+    return (null_value ? 0.0 :
+	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
+		       str_value.length(),NULL));
+  }
   longlong val_int()
   { return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10); }
   String *val_str(String*);
@@ -722,6 +684,122 @@ public:
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
+};
+
+class Item_cache: public Item
+{
+public:
+  virtual bool allocate(uint i) { return 0; };
+  virtual bool setup(Item *) { return 0; };
+  virtual void store(Item *)= 0;
+  void set_len_n_dec(uint32 max_len, uint8 dec)
+  {
+    max_length= max_len;
+    decimals= dec;
+  }
+  enum Type type() const { return CACHE_ITEM; }
+  static Item_cache* get_cache(Item_result type);
+};
+
+class Item_cache_int: public Item_cache
+{
+  longlong value;
+public:
+  Item_cache_int() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item)
+  {
+    value= item->val_int_result();
+    null_value= item->null_value;
+  }
+  double val() { return (double) value; }
+  longlong val_int() { return value; }
+  String* val_str(String *str) { str->set(value, thd_charset()); return str; }
+  enum Item_result result_type() const { return INT_RESULT; }
+};
+
+class Item_cache_real: public Item_cache
+{
+  double value;
+public:
+  Item_cache_real() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item)
+  {
+    value= item->val_result();
+    null_value= item->null_value;
+  }
+  double val() { return value; }
+  longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
+  String* val_str(String *str)
+  {
+    str->set(value, decimals, thd_charset());
+    return str;
+  }
+  enum Item_result result_type() const { return REAL_RESULT; }
+};
+
+class Item_cache_str: public Item_cache
+{
+  char buffer[80];
+  String *value;
+public:
+  Item_cache_str() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item);
+  double val();
+  longlong val_int();
+  String* val_str(String *) { return value; }
+  enum Item_result result_type() const { return STRING_RESULT; }
+  CHARSET_INFO *charset() const { return value->charset(); };
+};
+
+class Item_cache_row: public Item_cache
+{
+  Item_cache  **values;
+  uint item_count;
+public:
+  Item_cache_row(): values(0), item_count(2) { fixed= 1; null_value= 1; }
+  
+  /*
+    'allocate' used only in row transformer, to preallocate space for row 
+    cache.
+  */
+  bool allocate(uint num);
+  /*
+    'setup' is needed only by row => it not called by simple row subselect
+    (only by IN subselect (in subselect optimizer))
+  */
+  bool setup(Item *item);
+  void store(Item *item);
+  void illegal_method_call(const char *);
+  void make_field(Send_field *)
+  {
+    illegal_method_call((const char*)"make_field");
+  };
+  double val()
+  {
+    illegal_method_call((const char*)"val");
+    return 0;
+  };
+  longlong val_int()
+  {
+    illegal_method_call((const char*)"val_int");
+    return 0;
+  };
+  String *val_str(String *)
+  {
+    illegal_method_call((const char*)"val_str");
+    return 0;
+  };
+  enum Item_result result_type() const { return ROW_RESULT; }
+  
+  uint cols() { return item_count; }
+  Item* el(uint i) { return values[i]; }
+  Item** addr(uint i) { return (Item **) (values + i); }
+  bool check_cols(uint c);
+  bool null_inside();
+  void bring_value();
 };
 
 extern Item_buff *new_Item_buff(Item *item);

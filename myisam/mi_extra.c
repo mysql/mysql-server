@@ -55,12 +55,17 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     /*
       Free buffers and reset the following flags:
       EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
+
+      If the row buffer cache is large (for dynamic tables), reduce it
+      to save memory.
     */
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
       error=end_io_cache(&info->rec_cache);
     }
+    if (share->base.blobs)
+      mi_alloc_rec_buff(info, -1, &info->rec_buff);
 #if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
     if (info->opt_flag & MEMMAP_USED)
       madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
@@ -357,33 +362,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_QUICK:
     info->quick_mode=1;
-    break;
-  case HA_EXTRA_BULK_INSERT_BEGIN:
-    error=_mi_init_bulk_insert(info, (extra_arg ? *(ulong*) extra_arg :
-				      myisam_bulk_insert_tree_size));
-    break;
-  case HA_EXTRA_BULK_INSERT_FLUSH:
-    if (info->bulk_insert)
-    {
-      uint index_to_flush= *(uint*) extra_arg;
-      if (is_tree_inited(&info->bulk_insert[index_to_flush]))
-	reset_tree(&info->bulk_insert[index_to_flush]);
-    }
-    break;
-  case HA_EXTRA_BULK_INSERT_END:
-    if (info->bulk_insert)
-    {
-      uint i;
-      for (i=0 ; i < share->base.keys ; i++)
-      {
-        if (is_tree_inited(& info->bulk_insert[i]))
-        {
-          delete_tree(& info->bulk_insert[i]);
-        }
-      }
-      my_free((void *)info->bulk_insert, MYF(0));
-      info->bulk_insert=0;
-    }
     break;
   case HA_EXTRA_NO_ROWS:
     if (!share->state.header.uniques)

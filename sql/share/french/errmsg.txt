@@ -199,8 +199,8 @@
 "La table '%-.64s' est marquée 'crashed' et le dernier 'repair' a échoué",
 "Attention: certaines tables ne supportant pas les transactions ont été changées et elles ne pourront pas être restituées",
 "Cette transaction à commandes multiples nécessite plus de 'max_binlog_cache_size' octets de stockage, augmentez cette variable de mysqld et réessayez',
-"Cette opération ne peut être réalisée avec un esclave actif, faites SLAVE STOP d'abord",
-"Cette opération nécessite un esclave actif, configurez les esclaves et faites SLAVE START",
+"Cette opération ne peut être réalisée avec un esclave actif, faites STOP SLAVE d'abord",
+"Cette opération nécessite un esclave actif, configurez les esclaves et faites START SLAVE",
 "Le server n'est pas configuré comme un esclave, changez le fichier de configuration ou utilisez CHANGE MASTER TO",
 "Impossible d'initialiser les structures d'information de maître, vérifiez les permissions sur master.info",
 "Impossible de créer une tâche esclave, vérifiez les ressources système",
@@ -250,3 +250,4 @@
 "Every derived table must have it's own alias"
 "Select %u was reduced during optimisation",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"

@@ -1,5 +1,5 @@
 #
-# Test are run with max_binlog_size=2048 to force automatic rotation of the
+# Test is run with max_binlog_size=2048 to force automatic rotation of the
 # binary log
 # Tests done:
 # - Check that slaves reports correct failures if master.info has strange
@@ -8,14 +8,18 @@
 # - Ensure that temporary tables works over flush logs and binary log
 #   changes
 # - Test creating a duplicate key error and recover from it
-#
+
 connect (master,localhost,root,,test,0,master.sock);
+--disable_warnings
 drop table if exists t1, t2, t3, t4;
+--enable_warnings
 connect (slave,localhost,root,,test,0,slave.sock);
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
+--disable_warnings
 drop table if exists t1, t2, t3, t4;
+--enable_warnings
 --error 1201
 start slave;
 system chmod 600 var/slave-data/master.info;
@@ -46,7 +50,6 @@ show slave status;
 select * from t1;
 connection master;
 flush logs;
-drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
@@ -102,7 +105,7 @@ connection master;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 let $1=100;
-drop table if exists t3;
+
 create table t3 (n int);
 disable_query_log;
 while ($1)

@@ -1936,7 +1936,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 			       ulong rights, ulong col_rights,
 			       bool revoke_grant)
 {
-  char grantor[HOSTNAME_LENGTH+1+USERNAME_LENGTH];
+  char grantor[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
   int old_row_exists = 1;
   int error=0;
   ulong store_table_rights, store_col_rights;

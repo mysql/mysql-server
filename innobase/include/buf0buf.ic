@@ -36,25 +36,27 @@ buf_block_peek_if_too_old(
 }
 
 /*************************************************************************
-Gets the current size of buffer buf_pool in bytes. */
+Gets the current size of buffer buf_pool in bytes. In the case of AWE, the
+size of AWE window (= the frames). */
 UNIV_INLINE
 ulint
 buf_pool_get_curr_size(void)
 /*========================*/
 			/* out: size in bytes */
 {
-	return((buf_pool->curr_size) * UNIV_PAGE_SIZE);
+	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
 }	
 
 /*************************************************************************
-Gets the maximum size of buffer buf_pool in bytes. */
+Gets the maximum size of buffer buf_pool in bytes. In the case of AWE, the
+size of AWE window (= the frames). */
 UNIV_INLINE
 ulint
 buf_pool_get_max_size(void)
 /*=======================*/
 			/* out: size in bytes */
 {
-	return((buf_pool->max_size) * UNIV_PAGE_SIZE);
+	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
 }	
 
 /***********************************************************************
@@ -207,54 +209,24 @@ buf_block_align(
 
 	frame_zero = buf_pool->frame_zero;
 
-	ut_ad((ulint)ptr >= (ulint)frame_zero);
+	if ((ulint)ptr < (ulint)frame_zero
+	    || (ulint)ptr > (ulint)(buf_pool->high_end)) {
 
-	block = buf_pool_get_nth_block(buf_pool, ((ulint)(ptr - frame_zero))
-						>> UNIV_PAGE_SIZE_SHIFT);
-	if (block < buf_pool->blocks
-	    || block >= buf_pool->blocks + buf_pool->max_size) {
-
+		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)frame_zero, buf_pool->max_size);
+"  InnoDB: Error: trying to access a stray pointer %lx\n"
+"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Probable reason is database corruption or memory\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
+"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: how to force recovery.\n",
+ 			(ulint)ptr, (ulint)frame_zero,
+					(ulint)(buf_pool->high_end));
 		ut_a(0);
 	}
-
-	return(block);
-}	
-
-/***********************************************************************
-Gets the block to whose frame the pointer is pointing to. Does not
-require a file page to be bufferfixed. */
-UNIV_INLINE
-buf_block_t*
-buf_block_align_low(
-/*================*/
-			/* out: pointer to block */
-	byte*	ptr)	/* in: pointer to a frame */
-{
-	buf_block_t*	block;
-	buf_frame_t*	frame_zero;
-
-	ut_ad(ptr);
-
-	frame_zero = buf_pool->frame_zero;
-
-	ut_ad((ulint)ptr >= (ulint)frame_zero);
-
-	block = buf_pool_get_nth_block(buf_pool, ((ulint)(ptr - frame_zero))
-						>> UNIV_PAGE_SIZE_SHIFT);
-	if (block < buf_pool->blocks
-	    || block >= buf_pool->blocks + buf_pool->max_size) {
-
-		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)frame_zero, buf_pool->max_size);
-		ut_a(0);
-	}
-
+	
+	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
+						>> UNIV_PAGE_SIZE_SHIFT));
 	return(block);
 }	
 
@@ -264,7 +236,7 @@ UNIV_INLINE
 buf_frame_t*
 buf_frame_align(
 /*============*/
-			/* out: pointer to block */
+			/* out: pointer to frame */
 	byte*	ptr)	/* in: pointer to a frame */
 {
 	buf_frame_t*	frame;
@@ -273,14 +245,19 @@ buf_frame_align(
 
 	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
 
-	if (((ulint)frame
-		< (ulint)(buf_pool->frame_zero))
-	    || ((ulint)frame > (ulint)(buf_pool_get_nth_block(buf_pool,
-					buf_pool->max_size - 1)->frame))) {
+	if (((ulint)frame < (ulint)(buf_pool->frame_zero))
+	    || (ulint)frame >= (ulint)(buf_pool->high_end)) {
+
+		ut_print_timestamp(stderr);	
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %lx\n"
-"InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
-			(ulint)(buf_pool->frame_zero), buf_pool->max_size);
+"  InnoDB: Error: trying to access a stray pointer %lx\n"
+"InnoDB: buf pool start is at %lx, end at %lx\n"
+"InnoDB: Probable reason is database corruption or memory\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
+"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: how to force recovery.\n",
+ 			(ulint)ptr, (ulint)(buf_pool->frame_zero),
+					(ulint)(buf_pool->high_end));
 		ut_a(0);
 	}
 
@@ -469,8 +446,27 @@ buf_frame_modify_clock_inc(
 
 	ut_ad(frame);
 
-	block = buf_block_align_low(frame);
+	block = buf_block_align(frame);
 
+	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+
+	UT_DULINT_INC(block->modify_clock);
+
+	return(block->modify_clock);
+}
+
+/************************************************************************
+Increments the modify clock of a frame by 1. The caller must (1) own the
+buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
+on the block. */
+UNIV_INLINE
+dulint
+buf_block_modify_clock_inc(
+/*=======================*/
+				/* out: new value */
+	buf_block_t*	block)	/* in: block */
+{
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 
@@ -508,15 +504,16 @@ void
 buf_block_buf_fix_inc_debug(
 /*========================*/
 	buf_block_t*	block,	/* in: block to bufferfix */
-	char*		file,	/* in: file name */
-	ulint		line)	/* in: line */
+	char*		file __attribute__ ((unused)),	/* in: file name */
+	ulint		line __attribute__ ((unused)))	/* in: line */
 {
+#ifdef UNIV_SYNC_DEBUG	
 	ibool	ret;
-	
+
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 
 	ut_ad(ret == TRUE);
-
+#endif
 	block->buf_fix_count++;
 }
 

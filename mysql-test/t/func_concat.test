@@ -2,7 +2,10 @@
 # Test of problem with CONCAT_WS() and long separators.
 #
 
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
+
 CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
 INSERT INTO t1 VALUES (1413006,'idlfmv'),
 (1413065,'smpsfz'),(1413127,'sljrhx'),(1413304,'qerfnd');

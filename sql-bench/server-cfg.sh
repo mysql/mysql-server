@@ -1,4 +1,5 @@
 #!@PERL@
+# -*- perl -*-
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -671,9 +672,9 @@ sub create
     $field =~ s/int\(\d*\)/int/;
     $field =~ s/float\(\d*,\d*\)/float/;
     $field =~ s/ double/ float/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     # Pg doesn't have blob, it has text instead
     $field =~ s/ blob/ text/;
     $query.= $field . ',';
@@ -946,9 +947,9 @@ sub create
     $field =~ s/ double/ float/i;
     # Solid doesn't have blob, it has long varchar
     $field =~ s/ blob/ long varchar/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ float/i;
+#    $field =~ s/ date/ int/i;
     $query.= $field . ',';
   }
   substr($query,-1)=")";		# Remove last ',';
@@ -1194,9 +1195,9 @@ sub create
     $field =~ s/ blob/ text/;
     $field =~ s/ varchar\((\d+)\)/ char($1,3)/;
     $field =~ s/ char\((\d+)\)/ char($1,3)/;
-    $field =~ s/ decimal/ float/i;
-    $field =~ s/ big_decimal/ longfloat/i;
-    $field =~ s/ date/ int/i;
+#    $field =~ s/ decimal/ float/i;
+#    $field =~ s/ big_decimal/ longfloat/i;
+#    $field =~ s/ date/ int/i;
     $field =~ s/ float(.*)/ float/i;
     if ($field =~ / int\((\d+)\)/) {
       if ($1 > 4) {
@@ -2896,8 +2897,8 @@ sub create
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ decimal/ double(10,2)/i;
-    $field =~ s/ big_decimal/ double(10,2)/i;
+#    $field =~ s/ decimal/ double(10,2)/i;
+#    $field =~ s/ big_decimal/ double(10,2)/i;
     $field =~ s/ tinyint\(.*\)/ smallint/i;
     $field =~ s/ smallint\(.*\)/ smallint/i;
     $field =~ s/ mediumint/ integer/i;
@@ -2985,7 +2986,7 @@ sub new
   bless $self;
 
   $self->{'cmp_name'}		= "interbase";
-  $self->{'data_source'}	= "DBI:InterBase:database=$database:ib_dialect=3";
+  $self->{'data_source'}	= "DBI:InterBase:database=$database;ib_dialect=3";
   $self->{'limits'}		= \%limits;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "";
@@ -3000,7 +3001,7 @@ sub new
   $limits{'max_tables'}		= 65000;	# Should be big enough
   $limits{'max_text_size'}	= 15000; # Max size with default buffers.
   $limits{'query_size'}		= 1000000; # Max size with default buffers.
-  $limits{'max_index'}		= 31; # Max number of keys
+  $limits{'max_index'}		= 65000; # Max number of keys
   $limits{'max_index_parts'}	= 8; # Max segments/key
   $limits{'max_column_name'}	= 128; # max table and column name
 
@@ -3050,16 +3051,13 @@ sub new
 sub version
 {
   my ($self)=@_;
-  my ($dbh,$sth,$version,@row);
-
+  my ($dbh,$version);
+  
+  $version='Interbase ?';
+  
   $dbh=$self->connect();
-#  $sth = $dbh->prepare("show version");
-#  $sth->execute;
-#  @row = $sth->fetchrow_array;
-#  $version = $row[0];
-#  $version =~ s/.*version \"(.*)\"$/$1/;
+  eval { $version =   $dbh->func('version','ib_database_info')->{'version'}; }; 
   $dbh->disconnect;
-  $version = "6.0Beta";
   $version .= "/ODBC" if ($self->{'data_source'} =~ /:ODBC:/);
   return $version;
 }
@@ -3090,36 +3088,34 @@ sub connect
 sub create
 {
   my($self,$table_name,$fields,$index,$options) = @_;
-  my($query,@queries);
+  my($query,@queries,@keys,@indexes);
 
   $query="create table $table_name (";
   foreach $field (@$fields)
   {
-    $field =~ s/ big_decimal/ float/i;
-    $field =~ s/ double/ float/i;
+#    $field =~ s/ big_decimal/ decimal/i;
+    $field =~ s/ double/ double precision/i;
     $field =~ s/ tinyint/ smallint/i;
-    $field =~ s/ mediumint/ int/i;
-    $field =~ s/ integer/ int/i;
+    $field =~ s/ mediumint/ integer/i;
+    $field =~ s/\bint\b/integer/i;
     $field =~ s/ float\(\d,\d\)/ float/i;
-    $field =~ s/ date/ int/i;		# Because of tcp ?
     $field =~ s/ smallint\(\d\)/ smallint/i;
-    $field =~ s/ int\(\d\)/ int/i;
+    $field =~ s/ integer\(\d\)/ integer/i;
     $query.= $field . ',';
   }
   foreach $ind (@$index)
   {
-    my @index;
-    if ( $ind =~ /\bKEY\b/i ){
+    if ( $ind =~ /(\bKEY\b)|(\bUNIQUE\b)/i ){
       push(@keys,"ALTER TABLE $table_name ADD $ind");
     }else{
-      my @fields = split(' ',$index);
+      my @fields = split(' ',$ind);
       my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
-      push(@index,$query);
+      push(@indexes,$query);
     }
   }
   substr($query,-1)=")";		# Remove last ',';
   $query.=" $options" if (defined($options));
-  push(@queries,$query);
+  push(@queries,$query,@keys,@indexes);
   return @queries;
 }
 
@@ -3470,7 +3466,8 @@ sub version
   if ($sth->execute && (@row = $sth->fetchrow_array)
       && $row[0] =~ /([\d\.]+)/)
   {
-    $version="sap-db $1";
+    $version=$row[0];
+    $version =~ s/KERNEL/SAP DB/i; 
   }
   $sth->finish;
   $dbh->disconnect;
@@ -3531,7 +3528,6 @@ sub create
     }else{
       my @fields = split(' ',$ind);
       my $query="CREATE INDEX $fields[1] ON $table_name $fields[2]";
-      print "$query \n";
       push(@index,$query);
     }
   }

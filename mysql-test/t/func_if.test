@@ -1,7 +1,9 @@
 #
 # Init section
 #
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 #
 # Simple IF tests

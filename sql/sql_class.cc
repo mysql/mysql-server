@@ -90,7 +90,7 @@ THD::THD():user_time(0), fatal_error(0),
   db_length=query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
-  open_tables=temporary_tables=handler_tables=0;
+  open_tables= temporary_tables= handler_tables= derived_tables= 0;
   current_tablenr=0;
   handler_items=0;
   tmp_table=0;
@@ -100,7 +100,7 @@ THD::THD():user_time(0), fatal_error(0),
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
-  slave_proxy_id = 0;
+  variables.pseudo_thread_id= 0;
   file_id = 0;
   cond_count=0;
   warn_id= 0;
@@ -532,7 +532,7 @@ bool select_send::send_data(List<Item> &items)
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), system_charset_info);
+  String buffer(buff, sizeof(buff), my_charset_bin);
   DBUG_ENTER("send_data");
 
   protocol->prepare_for_resend();
@@ -656,7 +656,7 @@ bool select_export::send_data(List<Item> &items)
   DBUG_ENTER("send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),my_charset_bin),*res;
   tmp.length(0);
 
   if (unit->offset_limit_cnt)
@@ -717,10 +717,11 @@ bool select_export::send_data(List<Item> &items)
 	     pos++)
 	{
 #ifdef USE_MB
-	  if (use_mb(default_charset_info))
+          CHARSET_INFO *res_charset=res->charset();
+	  if (use_mb(res_charset))
 	  {
 	    int l;
-	    if ((l=my_ismbchar(default_charset_info, pos, end)))
+	    if ((l=my_ismbchar(res_charset, pos, end)))
 	    {
 	      pos += l-1;
 	      continue;
@@ -863,7 +864,7 @@ bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),my_charset_bin),*res;
   tmp.length(0);
   Item *item;
   DBUG_ENTER("send_data");
@@ -923,10 +924,10 @@ select_subselect::select_subselect(Item_subselect *item)
   this->item=item;
 }
 
-bool select_singleval_subselect::send_data(List<Item> &items)
+bool select_singlerow_subselect::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_singleval_subselect::send_data");
-  Item_singleval_subselect *it= (Item_singleval_subselect *)item;
+  DBUG_ENTER("select_singlerow_subselect::send_data");
+  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
       my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
@@ -938,32 +939,9 @@ bool select_singleval_subselect::send_data(List<Item> &items)
     DBUG_RETURN(0);
   }
   List_iterator_fast<Item> li(items);
-  Item *val_item= li++;                   // Only one (single value subselect)
-  /*
-    Following val() call have to be first, because function AVG() & STD()
-    calculate value on it & determinate "is it NULL?".
-  */
-  it->real_value= val_item->val_result();
-  if ((it->null_value= val_item->null_value))
-  {
-    it->reset();
-  } 
-  else 
-  {
-    it->max_length= val_item->max_length;
-    it->decimals= val_item->decimals;
-    it->set_charset(val_item->charset());
-    it->int_value= val_item->val_int_result();
-    String *s= val_item->str_result(&it->string_value);
-    if (s != &it->string_value)
-    {
-      it->string_value.set(*s, 0, s->length());
-    }
-    // TODO: remove when correct charset handling appeared for Item
-    it->str_value.set(*s, 0, s->length()); // store charset
-
-    it->res_type= val_item->result_type();
-  }
+  Item *val_item;
+  for (uint i= 0; (val_item= li++); i++)
+    it->store(i, val_item);
   it->assigned(1);
   DBUG_RETURN(0);
 }

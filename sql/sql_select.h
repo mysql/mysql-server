@@ -374,3 +374,4 @@ public:
 
 bool cp_buffer_from_ref(TABLE_REF *ref);
 bool error_if_full_join(JOIN *join);
+void relink_tables(SELECT_LEX *select_lex);

@@ -1,6 +1,15 @@
 select length(encrypt('foo', 'ff')) <> 0;
 length(encrypt('foo', 'ff')) <> 0
 1
-select old_password('test'),length(password("1")),length(encrypt('test')),encrypt('test','aa');
+select password("a",""), password("a",NULL), password("","a"), password(NULL,"a");
+password("a","")	password("a",NULL)	password("","a")	password(NULL,"a")
+*2517f7235d68d4ba2e5019c93420523101157a792c01	NULL		NULL
+select password("aaaaaaaaaaaaaaaa","a"), password("a","aaaaaaaaaaaaaaaa");
+password("aaaaaaaaaaaaaaaa","a")	password("a","aaaaaaaaaaaaaaaa")
+*2cd3b9a44e9a9994789a30f935c92f45a96c5472f381	*37c7c5c794ff144819f2531bf03c57772cd84e40db09
+select old_password('test'), length(password("1")), length(encrypt('test')), encrypt('test','aa');
 old_password('test')	length(password("1"))	length(encrypt('test'))	encrypt('test','aa')
 378b243e220ca493	45	13	aaqPiZY5xR5l.
+select old_password(""), old_password(NULL), password(""), password(NULL);
+old_password("")	old_password(NULL)	password("")	password(NULL)
+	NULL		NULL

@@ -99,7 +99,7 @@ bool Item_field_buff::cmp(void)
 {
   bool tmp= field->cmp(buff) != 0;		// This is not a blob!
   if (tmp)
-    field->get_image(buff,length);
+    field->get_image(buff,length,field->charset());
   if (null_value != field->is_null())
   {
     null_value= !null_value;

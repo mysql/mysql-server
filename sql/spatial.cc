@@ -44,7 +44,7 @@ static Geometry::GClassInfo ci_collection[] =
   IMPLEMENT_GEOM(GGeometryCollection, wkbGeometryCollection, "GEOMETRYCOLLECTION")
 };
 
-static Geometry::GClassInfo *ci_collection_end = ci_collection + sizeof(ci_collection);
+static Geometry::GClassInfo *ci_collection_end = ci_collection + sizeof(ci_collection)/sizeof(ci_collection[0]);
 
 /***************************** Geometry *******************************/
 
@@ -66,7 +66,7 @@ Geometry::GClassInfo *Geometry::find_class(const char *name, size_t len)
               cur_rt < ci_collection_end; ++cur_rt)
   {
     if ((cur_rt->m_name[len] == 0) && 
-            (strncmp(cur_rt->m_name, name, len) == 0))
+            (strncasecmp(cur_rt->m_name, name, len) == 0))
     {
       return cur_rt;
     }
@@ -506,7 +506,7 @@ int GPolygon::get_data_as_text(String *txt) const
 
   for (; n_linear_rings>0; --n_linear_rings)
   {
-    if(no_data(data, 4))
+    if (no_data(data, 4))
       return 1;
     uint32 n_points = uint4korr(data);
     data += 4;
@@ -593,7 +593,7 @@ int GPolygon::area(double *ar) const
       data += (8+8);
     }
     lr_area=fabs(lr_area)/2;
-    if(result==-1) result=lr_area;
+    if (result==-1) result=lr_area;
     else result-=lr_area;
   }
   *ar=fabs(result);
@@ -1344,7 +1344,7 @@ int GGeometryCollection::get_mbr(MBR *mbr) const
   data += 4;
   for (; n_objects>0; --n_objects)
   {
-    if(no_data(data, WKB_HEADER_SIZE))
+    if (no_data(data, WKB_HEADER_SIZE))
       return 1;
     uint32 wkb_type = uint4korr(data + sizeof(char));
     data += WKB_HEADER_SIZE;

@@ -355,12 +355,7 @@ in the debug version: spaces with an odd number as the id are replicate
 spaces */
 #define RECV_REPLICA_SPACE_ADD	1
 
-/* This many blocks must be left free in the buffer pool when we scan
-the log and store the scanned log records in the buffer pool: we will
-use these free blocks to read in pages when we start applying the
-log records to the database. */
-
-#define RECV_POOL_N_FREE_BLOCKS	 (ut_min(256, buf_pool_get_curr_size() / 8))
+extern ulint	recv_n_pool_free_frames;
 
 #ifndef UNIV_NONINL
 #include "log0recv.ic"

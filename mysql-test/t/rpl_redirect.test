@@ -19,7 +19,6 @@ rpl_probe;
 
 #turn on master/slave query direction auto-magic
 enable_rpl_parse;
-drop table if exists t1;
 create table t1 ( n int);
 insert into t1 values (1),(2),(3),(4);
 disable_rpl_parse;

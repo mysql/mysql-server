@@ -2,7 +2,10 @@
 # Problem med range optimizer
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 CREATE TABLE t1 (
   event_date date DEFAULT '0000-00-00' NOT NULL,
   type int(11) DEFAULT '0' NOT NULL,

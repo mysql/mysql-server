@@ -2,7 +2,10 @@
 # test of safe selects
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
 create table t1 (a int primary key, b char(20));
 insert into t1 values(1,"test");

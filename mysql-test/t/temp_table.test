@@ -2,7 +2,10 @@
 # Test of temporary tables
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 CREATE TABLE t1 (c int not null, d char (10) not null);
 insert into t1 values(1,""),(2,"a"),(3,"b");
 CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
@@ -34,7 +37,6 @@ drop table t1;
 # Test CONCAT_WS with temporary tables
 #
 
-drop table if exists t1;
 CREATE TABLE t1 (pkCrash INTEGER PRIMARY KEY,strCrash VARCHAR(255));
 INSERT INTO t1 ( pkCrash, strCrash ) VALUES ( 1, '1');
 SELECT CONCAT_WS(pkCrash, strCrash) FROM t1;
@@ -73,8 +75,6 @@ drop table t1;
 #
 # In MySQL 4.0.4 doing a GROUP BY on a NULL column created a disk based
 # temporary table when a memory based one would be good enough.
-
-drop table if exists t1;
 
 CREATE TABLE t1 (
   d datetime default NULL

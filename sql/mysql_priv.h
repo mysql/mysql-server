@@ -235,6 +235,10 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
 
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+
 /* Some portable defines */
 
 #define portable_sizeof_char_ptr 8
@@ -323,11 +327,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
-int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
+int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
+		   my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool log_query);
+			 bool drop_temporary, bool log_query);
 int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
-				   bool if_exists,
+				   bool if_exists, bool drop_temporary,
 				   bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
@@ -422,6 +427,9 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
 		      bool simple_alter=0);
+int mysql_create_like_table(THD *thd, TABLE_LIST *table,
+                            HA_CREATE_INFO *create_info,
+                            Table_ident *src_table);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
@@ -463,7 +471,7 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 extern const Field *not_found_field;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-			    bool report_error);
+			    TABLE_LIST **where, bool report_error);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
@@ -523,7 +531,8 @@ int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 /* sql_error.cc */
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 		  const char *msg);
-void store_warning(THD *thd, uint errcode, ...);
+void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
+			 uint code, const char *format, ...);
 void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
@@ -574,8 +583,7 @@ bool rm_temporary_table(enum db_type base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
-void close_thread_tables(THD *thd,bool locked=0);
-bool close_thread_table(THD *thd, TABLE **table_ptr);
+void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 void close_temporary_tables(THD *thd);
 TABLE_LIST * find_table_in_list(TABLE_LIST *table,
 				const char *db_name, const char *table_name);
@@ -705,6 +713,8 @@ extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_enable_named_pipe;
+extern char *shared_memory_base_name;
+extern bool opt_enable_shared_memory;
 extern char f_fyllchar;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
@@ -814,7 +824,6 @@ uint calc_week(TIME *ltime, bool with_year, bool sunday_first_day_of_week,
 void find_date(char *pos,uint *vek,uint flag);
 TYPELIB *convert_strings_to_array_type(my_string *typelibs, my_string *end);
 TYPELIB *typelib(List<String> &strings);
-void clean_up(bool print_message=1);
 ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);

@@ -165,11 +165,13 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->current_select= &lex->select_lex;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
+  lex->thd_charset= lex->thd->variables.thd_charset;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
   lex->slave_thd_opt=0;
   lex->sql_command=SQLCOM_END;
   lex->safe_to_cache_query= 1;
+  lex->tmp_table_used= 0;
   bzero(&lex->mi,sizeof(lex->mi));
   return lex;
 }
@@ -556,7 +558,7 @@ int yylex(void *arg, void *yythd)
       */
 
       if ((yylval->lex_str.str[0]=='_') && 
-          (lex->charset=get_charset_by_name(yylval->lex_str.str+1,MYF(0))))
+          (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,MYF(0))))
         return(UNDERSCORE_CHARSET);
       else
         return(IDENT);
@@ -941,7 +943,7 @@ int yylex(void *arg, void *yythd)
 
 void st_select_lex_node::init_query()
 {
-  dependent= 0;
+  no_table_names_allowed= dependent= 0;
 }
 
 void st_select_lex_node::init_select()
@@ -1035,7 +1037,7 @@ void st_select_lex_node::include_global(st_select_lex_node **plink)
 //excluding from global list (internal function)
 void st_select_lex_node::fast_exclude()
 {
-  if(link_prev)
+  if (link_prev)
   {
     if ((*link_prev= link_next))
       link_next->link_prev= link_prev;
@@ -1067,7 +1069,7 @@ void st_select_lex_node::exclude()
 void st_select_lex_unit::exclude_level()
 {
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
@@ -1141,7 +1143,7 @@ void st_select_lex_node::mark_as_dependent(SELECT_LEX *last)
   for (SELECT_LEX_NODE *s= this;
        s &&s != last;
        s= s->outer_select())
-    if( !s->dependent )
+    if ( !s->dependent )
     {
       // Select is dependent of outer select
       s->dependent= 1;
@@ -1169,13 +1171,14 @@ List<String>* st_select_lex_node::get_use_index()    { return 0; }
 List<String>* st_select_lex_node::get_ignore_index() { return 0; }
 TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
-						  bool updating,
+						  ulong table_join_options,
 						  thr_lock_type flags,
 						  List<String> *use_index,
 						  List<String> *ignore_index)
 {
   return 0;
 }
+ulong st_select_lex_node::get_table_join_options() { return 0; }
 
 /*
   This is used for UNION & subselect to create a new table list of all used 
@@ -1330,6 +1333,11 @@ List<String>* st_select_lex::get_use_index()
 List<String>* st_select_lex::get_ignore_index()
 {
   return ignore_index_ptr;
+}
+
+ulong st_select_lex::get_table_join_options()
+{
+  return table_join_options;
 }
 
 /*

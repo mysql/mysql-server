@@ -573,7 +573,7 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
     while (salt<salt_end) /* Iterate over these elements*/
     {
       val=*salt;
-      for(t=3;t>=0;t--)
+      for (t=3;t>=0;t--)
       {
         bp[t]=val%256;
 

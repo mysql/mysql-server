@@ -431,7 +431,7 @@ BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
     if (ret_error == ERROR_ACCESS_DENIED)
     {
      printf("Install/Remove of the Service Denied!\n");
-     if(!is_super_user())
+     if (!is_super_user())
       printf("That operation should be made by an user with Administrator privileges!\n");
     }
     else
@@ -530,13 +530,13 @@ BOOL NTService::is_super_user()
   UINT x;
   BOOL ret_value=FALSE;
  
-  if(!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,&hAccessToken ))
+  if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE,&hAccessToken ))
   {
-   if(GetLastError() != ERROR_NO_TOKEN)
-    return FALSE;
+   if (GetLastError() != ERROR_NO_TOKEN)
+     return FALSE;
  
-   if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
-    return FALSE;
+   if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
+     return FALSE;
   }
  
   ret_value= GetTokenInformation(hAccessToken,TokenGroups,InfoBuffer,
@@ -544,21 +544,21 @@ BOOL NTService::is_super_user()
 
   CloseHandle(hAccessToken);
  
-  if(!ret_value )
-   return FALSE;
+  if (!ret_value )
+    return FALSE;
  
-  if(!AllocateAndInitializeSid(&siaNtAuthority, 2,
-      SECURITY_BUILTIN_DOMAIN_RID,
-      DOMAIN_ALIAS_RID_ADMINS,
-      0, 0, 0, 0, 0, 0,
-      &psidAdministrators))
-      return FALSE;
+  if (!AllocateAndInitializeSid(&siaNtAuthority, 2,
+				SECURITY_BUILTIN_DOMAIN_RID,
+				DOMAIN_ALIAS_RID_ADMINS,
+				0, 0, 0, 0, 0, 0,
+				&psidAdministrators))
+    return FALSE;
 
   ret_value = FALSE;
  
-  for(x=0;x<ptgGroups->GroupCount;x++)
+  for (x=0;x<ptgGroups->GroupCount;x++)
   {
-   if( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
+   if ( EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid) )
    {
     ret_value = TRUE;
     break;

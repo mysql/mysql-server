@@ -59,7 +59,7 @@ public:
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
   void set(const char *str,uint length,CHARSET_INFO *cs)
-  { value=my_strntod(cs,str,length,(char**)0); }
+  { value=my_strntod(cs,(char*) str,length,(char**)0); }
   double val() { return value; }
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s) { s->set(value,decimals,thd_charset()); return s; }
@@ -99,7 +99,8 @@ public:
   double val() 
   { 
     CHARSET_INFO *cs=str_value.charset();
-    return my_strntod(cs, str_value.ptr(), str_value.length(),(char**)0);
+    return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
+		      (char**) 0);
   }
   longlong val_int()
   { 

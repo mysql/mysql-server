@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sql_select.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -306,7 +307,8 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     close_old_data_files(thd,thd->open_tables,1,1);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
-    DBUG_PRINT("info", ("Waiting for others threads to close their open tables"));
+    DBUG_PRINT("info",
+	       ("Waiting for others threads to close their open tables"));
     while (found && ! thd->killed)
     {
       found=0;
@@ -347,12 +349,40 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 }
 
 
-/* Put all tables used by thread in free list */
+/*
+  Close all tables used by thread
 
-void close_thread_tables(THD *thd, bool locked)
+  SYNOPSIS
+    close_thread_tables()
+    thd			Thread handler
+    lock_in_use		Set to 1 (0 = default) if caller has a lock on
+			LOCK_open
+    skip_derived	Set to 1 (0 = default) if we should not free derived
+			tables.
+
+  IMPLEMENTATION
+    Unlocks tables and frees derived tables.
+    Put all normal tables used by thread in free list.
+*/
+
+void close_thread_tables(THD *thd, bool lock_in_use, bool skip_derived)
 {
   DBUG_ENTER("close_thread_tables");
 
+  if (thd->derived_tables && !skip_derived)
+  {
+    TABLE *table, *next;
+    /*
+      Close all derived tables generated from questions like
+      SELECT * from (select * from t1))
+    */
+    for (table= thd->derived_tables ; table ; table= next)
+    {
+      next= table->next;
+      free_tmp_table(thd, table);
+    }
+    thd->derived_tables= 0;
+  }
   if (thd->locked_tables)
   {
     ha_commit_stmt(thd);			// If select statement
@@ -363,10 +393,11 @@ void close_thread_tables(THD *thd, bool locked)
 
   if (thd->lock)
   {
-    mysql_unlock_tables(thd, thd->lock); thd->lock=0;
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
   }
   /* VOID(pthread_sigmask(SIG_SETMASK,&thd->block_signals,NULL)); */
-  if (!locked)
+  if (!lock_in_use)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
@@ -385,7 +416,7 @@ void close_thread_tables(THD *thd, bool locked)
     /* Tell threads waiting for refresh that something has happened */
     VOID(pthread_cond_broadcast(&COND_refresh));
   }
-  if (!locked)
+  if (!lock_in_use)
     VOID(pthread_mutex_unlock(&LOCK_open));
   /*  VOID(pthread_sigmask(SIG_SETMASK,&thd->signals,NULL)); */
   DBUG_VOID_RETURN;
@@ -553,7 +584,7 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   uint	key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   TABLE *table,**prev;
 
-  int4store(key+key_length,thd->slave_proxy_id);
+  int4store(key+key_length,thd->variables.pseudo_thread_id);
   key_length += 4;
 
   prev= &thd->temporary_tables;
@@ -593,7 +624,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
     (strmov((table->real_name=strmov(table->table_cache_key=key,
 				     db)+1),
 	    table_name) - table->table_cache_key)+1;
-  int4store(key+table->key_length,thd->slave_proxy_id);
+  int4store(key+table->key_length,thd->variables.pseudo_thread_id);
   table->key_length += 4;
   return 0;
 }
@@ -715,7 +746,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -747,7 +778,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  int4store(key + key_length, thd->slave_proxy_id);
+  int4store(key + key_length, thd->variables.pseudo_thread_id);
 
   for (table=thd->temporary_tables; table ; table=table->next)
   {
@@ -761,6 +792,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	DBUG_RETURN(0);
       }
       table->query_id=thd->query_id;
+      thd->lex.tmp_table_used= 1;
       goto reset;
     }
   }
@@ -873,7 +905,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->outer_join=table->null_row=table->maybe_null=0;
+  table->outer_join= table->null_row= table->maybe_null= table->force_index= 0;
   table->status=STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
@@ -944,6 +976,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.status=		table->status;
   tmp.keys_in_use_for_query= tmp.keys_in_use;
   tmp.used_keys= 	tmp.keys_for_keyread;
+  tmp.force_index=	tmp.force_index;
 
   /* Get state */
   tmp.key_length=	table->key_length;
@@ -1561,7 +1594,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 					 +1), table_name)
 				 - tmp_table->table_cache_key)+1;
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
-	    thd->slave_proxy_id);
+	    thd->variables.pseudo_thread_id);
   tmp_table->key_length += 4;
 
   if (link_in_list)
@@ -1653,6 +1686,7 @@ const Field *not_found_field= (Field*) 0x1;
     thd - pointer to current thread structure
     item - field item that should be found
     tables - tables for scaning
+    where - table where field found will be returned via this parameter
     report_error - if FALSE then do not report error if item not found and 
       return not_found_field;
 
@@ -1666,7 +1700,7 @@ const Field *not_found_field= (Field*) 0x1;
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-		     bool report_error)
+		     TABLE_LIST **where, bool report_error)
 {
   Field *found=0;
   const char *db=item->db_name;
@@ -1687,6 +1721,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					grant_option && !thd->master_access,1);
 	if (find)
 	{
+	  (*where)= tables;
 	  if (find == WRONG_GRANT)
 	    return (Field*) 0;
 	  if (db || !thd->where)
@@ -1706,19 +1741,15 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     if (!found_table && report_error)
     {
       char buff[NAME_LEN*2+1];
-      if (db)
+      if (db && db[0])
       {
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
       if (report_error)
       {
-	if (thd->lex.current_select->get_master()->order_list.elements)
-	  my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, ER(ER_TABLENAME_NOT_ALLOWED_HERE), 
-			  MYF(0), table_name, thd->where);
-	else
-	  my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			  table_name, thd->where);
+	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+			table_name, thd->where);
       }
       else
 	return (Field*) not_found_field;
@@ -1734,6 +1765,14 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   bool allow_rowid= tables && !tables->next;	// Only one table
   for (; tables ; tables=tables->next)
   {
+    if (!tables->table)
+    {
+      if (report_error)
+	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
+			item->full_name(),thd->where);
+      return (Field*) not_found_field;
+    }
+
     Field *field=find_field_in_table(thd,tables->table,name,length,
 				     grant_option &&
 				     !thd->master_access, allow_rowid);
@@ -1741,6 +1780,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (field == WRONG_GRANT)
 	return (Field*) 0;
+      (*where)= tables;
       if (found)
       {
 	if (!thd->where)			// Returns first found
@@ -1925,6 +1965,7 @@ bool setup_tables(TABLE_LIST *tables)
     table->maybe_null=test(table->outer_join=table_list->outer_join);
     table->tablenr=tablenr;
     table->map= (table_map) 1 << tablenr;
+    table->force_index= table_list->force_index;
     if (table_list->use_index)
     {
       key_map map= get_key_map_from_key_list(table,

@@ -4,80 +4,78 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-drop database if exists foo;
-create database foo;
-drop database if exists bar;
-create database bar;
-drop table if exists foo.foo;
-create table foo.foo (n int);
-insert into foo.foo values(4);
-drop table if exists foo.foo;
-create table foo.foo (n int);
-insert into foo.foo values(5);
-drop table if exists bar.bar;
-create table bar.bar (m int);
-insert into bar.bar values(15);
-select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
+drop database if exists mysqltest2;
+create database mysqltest2;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest2.foo (n int);
+insert into mysqltest2.foo values(4);
+create table mysqltest2.foo (n int);
+insert into mysqltest2.foo values(5);
+create table mysqltest.bar (m int);
+insert into mysqltest.bar values(15);
+select mysqltest2.foo.n,mysqltest.bar.m from mysqltest2.foo,mysqltest.bar;
 n	m
 4	15
-drop database if exists bar;
-drop database if exists foo;
-drop database if exists bar;
-drop database if exists foo;
+drop database mysqltest;
+drop database mysqltest2;
 set sql_log_bin = 0;
-create database foo;
-create database bar;
+create database mysqltest2;
+create database mysqltest;
 show databases;
 Database
-bar
-foo
 mysql
+mysqltest
+mysqltest2
 test
-create table foo.t1(n int, s char(20));
-create table foo.t2(n int, s text);
-insert into foo.t1 values (1, 'one'), (2, 'two'), (3, 'three');
-insert into foo.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen');
-create table bar.t1(n int, s char(20));
-create table bar.t2(n int, s text);
-insert into bar.t1 values (1, 'one bar'), (2, 'two bar'), (3, 'three bar');
-insert into bar.t2 values (11, 'eleven bar'), (12, 'twelve bar'),
-(13, 'thirteen bar');
+create table mysqltest2.t1(n int, s char(20));
+create table mysqltest2.t2(n int, s text);
+insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three');
+insert into mysqltest2.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen');
+create table mysqltest.t1(n int, s char(20));
+create table mysqltest.t2(n int, s text);
+insert into mysqltest.t1 values (1, 'one test'), (2, 'two test'), (3, 'three test');
+insert into mysqltest.t2 values (11, 'eleven test'), (12, 'twelve test'),
+(13, 'thirteen test');
 set sql_log_bin = 1;
 show databases;
 Database
 mysql
 test
 load data from master;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'. Database doesn't exist
+Note	1008	Can't drop database 'mysqltest2'. Database doesn't exist
 show databases;
 Database
-bar
-foo
 mysql
+mysqltest
+mysqltest2
 test
-use foo;
+use mysqltest2;
 show tables;
-Tables_in_foo
-use bar;
+Tables_in_mysqltest2
+use mysqltest;
 show tables;
-Tables_in_bar
+Tables_in_mysqltest
 t1
 t2
-select * from bar.t1;
+select * from mysqltest.t1;
 n	s
-1	one bar
-2	two bar
-3	three bar
-select * from bar.t2;
+1	one test
+2	two test
+3	three test
+select * from mysqltest.t2;
 n	s
-11	eleven bar
-12	twelve bar
-13	thirteen bar
-insert into bar.t1 values (4, 'four bar');
-select * from bar.t1;
+11	eleven test
+12	twelve test
+13	thirteen test
+insert into mysqltest.t1 values (4, 'four test');
+select * from mysqltest.t1;
 n	s
-1	one bar
-2	two bar
-3	three bar
-4	four bar
-drop database bar;
-drop database foo;
+1	one test
+2	two test
+3	three test
+4	four test
+drop database mysqltest;
+drop database mysqltest2;

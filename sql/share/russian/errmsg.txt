@@ -202,8 +202,8 @@
 "Таблица '%-.64s' помечена как испорченная и последняя попытка исправления (автоматическая?) не удалась",
 "Предупреждение: некоторые нетранзакционные таблицы не подчиняются ROLLBACK",
 "Многозапросная транзакция требует увеличения 'max_binlog_cache_size' - увеличте эту переменную и попробуйте еще раз",
-"Эта операция невозможна с активным  slave, надо SLAVE STOP",
-"Эта операция невозможна с пассивным slave, надо SLAVE START",
+"Эта операция невозможна с активным  slave, надо STOP SLAVE",
+"Эта операция невозможна с пассивным slave, надо START SLAVE",
 "Этот сервер не slave, исправьте в конфигурационном файле или коммандой CHANGE MASTER TO",
 "Не получилось инициализировать структуру master info, проверте persmissions на файле master.info",
 "Не могу создать процесс SLAVE, проверьте системные ресурсы",
@@ -253,3 +253,4 @@
 "Every derived table must have it's own alias"
 "Select %u был упразднен в процессе оптимизации",
 "Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"

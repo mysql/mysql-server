@@ -2,7 +2,10 @@
 # Test of rename table
 #
 
+--disable_warnings
 drop table if exists t0,t1,t2,t3,t4;
+--enable_warnings
+
 create table t0 SELECT 1,"table 1";
 create table t2 SELECT 2,"table 2";
 create table t3 SELECT 3,"table 3";
@@ -29,4 +32,6 @@ rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
 select * from t1;
 select * from t2;
 select * from t3;
+
+# This should give a warning for t4
 drop table if exists t1,t2,t3,t4;

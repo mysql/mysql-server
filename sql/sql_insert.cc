@@ -109,7 +109,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & SUPER_ACL));
-  bool transactional_table, log_delayed, bulk_insert=0;
+  bool transactional_table, log_delayed, bulk_insert;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -217,21 +217,17 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((bulk_insert= (values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT &&
-		     lock_type != TL_WRITE_DELAYED &&
-		     !(specialflag & SPECIAL_SAFE_MODE))))
+  if ((lock_type != TL_WRITE_DELAYED && !(specialflag & SPECIAL_SAFE_MODE)) &&
+      values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT)
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			   min(thd->variables.read_buff_size,
 			       table->avg_row_length*values_list.elements));
-    if (thd->variables.bulk_insert_buff_size)
-      table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     min(thd->variables.bulk_insert_buff_size,
-				 (table->total_key_length +
-				  table->keys * TREE_ELEMENT_EXTRA_SIZE)*
-				 values_list.elements));
-    table->bulk_insert= 1;
+    table->file->deactivate_non_unique_index(values_list.elements);
+    bulk_insert=1;
   }
+  else
+    bulk_insert=0;
 
   while ((values= its++))
   {
@@ -309,7 +305,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  error=1;
 	}
       }
-      if (table->file->extra(HA_EXTRA_BULK_INSERT_END))
+      if (table->file->activate_all_index(thd))
       {
 	if (!error)
 	{
@@ -317,7 +313,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  error=1;
 	}
       }
-      table->bulk_insert= 0;
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log

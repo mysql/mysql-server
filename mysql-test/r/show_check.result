@@ -93,15 +93,15 @@ c int not null comment 'int column'
 show create table t1 ;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test_set` set('val1','val2','val3') character set latin1 NOT NULL default '',
-  `name` char(20) character set latin1 default 'O''Brien' COMMENT 'O''Brien as default',
+  `test_set` set('val1','val2','val3') NOT NULL default '',
+  `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
   `c` int(11) NOT NULL default '0' COMMENT 'int column'
 ) TYPE=MyISAM CHARSET=latin1 COMMENT='it''s a table'
 show full columns from t1;
-Field	Type	Null	Key	Default	Extra	Privileges	Comment
-test_set	set('val1','val2','val3') character set latin1					select,insert,update,references	
-name	char(20) character set latin1	YES		O'Brien		select,insert,update,references	O'Brien as default
-c	int(11)			0		select,insert,update,references	int column
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+test_set	set('val1','val2','val3')	latin1					select,insert,update,references	
+name	char(20)	latin1	YES		O'Brien		select,insert,update,references	O'Brien as default
+c	int(11)	binary			0		select,insert,update,references	int column
 drop table t1;
 create table t1 (a int not null, unique aa (a));
 show create table t1;
@@ -133,7 +133,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
-  `b` char(10) character set latin1 default NULL,
+  `b` char(10) default NULL,
   KEY `b` (`b`)
 ) TYPE=MyISAM CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
 alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
@@ -141,7 +141,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
-  `b` varchar(10) character set latin1 default NULL,
+  `b` varchar(10) default NULL,
   KEY `b` (`b`)
 ) TYPE=MyISAM CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
 ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
@@ -149,40 +149,40 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
-  `b` varchar(10) character set latin1 default NULL,
+  `b` varchar(10) default NULL,
   KEY `b` (`b`)
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
 show columns from t1;
-Field	Type	Null	Key	Default	Extra
-a	decimal(9,2)	YES		NULL	
-b	decimal(9,0)	YES		NULL	
-e	double(9,2)	YES		NULL	
-f	double(5,0)	YES		NULL	
-h	float(3,2)	YES		NULL	
-i	float(3,0)	YES		NULL	
+Field	Type	Collation	Null	Key	Default	Extra
+a	decimal(9,2)	binary	YES		NULL	
+b	decimal(9,0)	binary	YES		NULL	
+e	double(9,2)	binary	YES		NULL	
+f	double(5,0)	binary	YES		NULL	
+h	float(3,2)	binary	YES		NULL	
+i	float(3,0)	binary	YES		NULL	
 show full columns from t1;
-Field	Type	Null	Key	Default	Extra	Privileges	Comment
-a	decimal(9,2)	YES		NULL		select,insert,update,references	
-b	decimal(9,0)	YES		NULL		select,insert,update,references	
-e	double(9,2)	YES		NULL		select,insert,update,references	
-f	double(5,0)	YES		NULL		select,insert,update,references	
-h	float(3,2)	YES		NULL		select,insert,update,references	
-i	float(3,0)	YES		NULL		select,insert,update,references	
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	decimal(9,2)	binary	YES		NULL		select,insert,update,references	
+b	decimal(9,0)	binary	YES		NULL		select,insert,update,references	
+e	double(9,2)	binary	YES		NULL		select,insert,update,references	
+f	double(5,0)	binary	YES		NULL		select,insert,update,references	
+h	float(3,2)	binary	YES		NULL		select,insert,update,references	
+i	float(3,0)	binary	YES		NULL		select,insert,update,references	
 drop table t1;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;
-Field	Type	Null	Key	Default	Extra
-c	decimal(10,0)	YES		NULL	
-d	double	YES		NULL	
-f	float	YES		NULL	
-r	double	YES		NULL	
+Field	Type	Collation	Null	Key	Default	Extra
+c	decimal(10,0)	binary	YES		NULL	
+d	double	binary	YES		NULL	
+f	float	binary	YES		NULL	
+r	double	binary	YES		NULL	
 drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
-Field	Type	Null	Key	Default	Extra
-c	decimal(4,3)	YES		NULL	
-d	double(4,3)	YES		NULL	
-f	float(4,3)	YES		NULL	
+Field	Type	Collation	Null	Key	Default	Extra
+c	decimal(4,3)	binary	YES		NULL	
+d	double(4,3)	binary	YES		NULL	
+f	float(4,3)	binary	YES		NULL	
 drop table t1;

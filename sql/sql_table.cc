@@ -46,7 +46,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 ** This will wait for all users to free the table before dropping it
 *****************************************************************************/
 
-int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
+int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
+		   my_bool drop_temporary)
 {
   int error;
   DBUG_ENTER("mysql_rm_table");
@@ -57,7 +58,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (global_read_lock)
+  if (!drop_temporary && global_read_lock)
   {
     if (thd->global_read_lock)
     {
@@ -72,7 +73,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     }
 
   }
-  error=mysql_rm_table_part2(thd,tables,if_exists,0);
+  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary, 0);
 
  err:
   pthread_mutex_unlock(&LOCK_open);
@@ -91,14 +92,15 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
 int mysql_rm_table_part2_with_lock(THD *thd,
 				   TABLE_LIST *tables, bool if_exists,
-				   bool dont_log_query)
+				   bool drop_temporary, bool dont_log_query)
 {
   int error;
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  error=mysql_rm_table_part2(thd,tables, if_exists, dont_log_query);
+  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary,
+			     dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
@@ -111,6 +113,17 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 }
 
 /*
+  Execute the drop of a normal or temporary table
+
+  SYNOPSIS
+    mysql_rm_table_part2()
+    thd			Thread handler
+    tables		Tables to drop
+    if_exists		If set, don't give an error if table doesn't exists.
+			In this case we give an warning of level 'NOTE'
+    drop_temporary	Only drop temporary tables
+    dont_log_query	Don't log the query
+
   TODO:
     When logging to the binary log, we should log
     tmp_tables and transactional tables as separate statements if we
@@ -120,10 +133,15 @@ int mysql_rm_table_part2_with_lock(THD *thd,
    The current code only writes DROP statements that only uses temporary
    tables to the cache binary log.  This should be ok on most cases, but
    not all.
+
+ RETURN
+   0	ok
+   1	Error
+   -1	Thread was killed
 */
 
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool dont_log_query)
+			 bool drop_temporary, bool dont_log_query)
 {
   TABLE_LIST *table;
   char	path[FN_REFLEN];
@@ -142,29 +160,33 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       continue;					// removed temporary table
     }
 
-    abort_locked_tables(thd,db,table->real_name);
-    while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
-    {
-      dropping_tables++;
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-      dropping_tables--;
-    }
-    drop_locked_tables(thd,db,table->real_name);
-    if (thd->killed)
-      DBUG_RETURN(-1);
-
-    /* remove form file and isam files */
-    strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
-	    NullS);
-    (void) unpack_filename(path,path);
     error=0;
+    if (!drop_temporary)
+    {
+      abort_locked_tables(thd,db,table->real_name);
+      while (remove_table_from_cache(thd,db,table->real_name) && !thd->killed)
+      {
+	dropping_tables++;
+	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+	dropping_tables--;
+      }
+      drop_locked_tables(thd,db,table->real_name);
+      if (thd->killed)
+	DBUG_RETURN(-1);
 
-    table_type=get_table_type(path);
+      /* remove form file and isam files */
+      strxmov(path, mysql_data_home, "/", db, "/", table->real_name, reg_ext,
+	      NullS);
+      (void) unpack_filename(path,path);
 
-    if (access(path,F_OK))
+      table_type=get_table_type(path);
+    }
+    if (drop_temporary || access(path,F_OK))
     {
       if (if_exists)
-        store_warning(thd, ER_BAD_TABLE_ERROR, table->real_name);
+	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+			    table->real_name);
       else
         error= 1;
     }
@@ -190,6 +212,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name,default_charset_info));
     }
   }
+  thd->lex.tmp_table_used= tmp_table_deleted;
   if (some_tables_deleted || tmp_table_deleted)
   {
     query_cache_invalidate3(thd, tables, 0);
@@ -398,7 +421,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   it.rewind();
   while ((sql_field=it++))
   {
-    if(!sql_field->charset)
+    if (!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
 			   create_info->table_charset : 
 			   thd->db_charset? thd->db_charset :
@@ -824,6 +847,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       (void) rm_temporary_table(create_info->db_type, path);
       goto end;
     }
+    thd->lex.tmp_table_used= 1;
   }
   if (!tmp_table && !no_log)
   {
@@ -1389,6 +1413,127 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,
 				&handler::optimize));
+}
+
+
+/*
+  Create a table identical to the specified table
+
+  SYNOPSIS
+    mysql_create_like_table()
+    thd	        Thread object
+    table       Table list (one table only)
+    create_info Create info
+    table_ident Src table_ident
+
+  RETURN VALUES
+    0	  ok
+    -1	error
+*/
+
+int mysql_create_like_table(THD* thd, TABLE_LIST* table, 
+                            HA_CREATE_INFO *create_info,
+                            Table_ident *table_ident)
+{
+  TABLE **tmp_table;
+  char src_path[FN_REFLEN], dst_path[FN_REFLEN];
+  char *db= table->db;
+  char *table_name= table->real_name;
+  char *src_db= thd->db;
+  char *src_table= table_ident->table.str;
+  int  err;
+ 
+  DBUG_ENTER("mysql_create_like_table");
+
+  /*
+    Validate the source table
+  */
+  if (table_ident->table.length > NAME_LEN ||
+      (table_ident->table.length &&
+       check_table_name(src_table,table_ident->table.length)) ||
+      table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
+    DBUG_RETURN(-1);
+  }
+
+  if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
+    strxmov(src_path, (*tmp_table)->path, reg_ext, NullS);
+  else
+  {
+    strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table, 
+            reg_ext, NullS); 
+    if (access(src_path, F_OK))
+    {
+      my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
+      DBUG_RETURN(-1);
+    }
+  }
+
+  /*
+    Validate the destination table
+
+    skip the destination table name checking as this is already 
+    validated.
+  */
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    if (find_temporary_table(thd, db, table_name))
+      goto table_exists;
+    sprintf(dst_path,"%s%s%lx_%lx_%x%s",mysql_tmpdir,tmp_file_prefix,
+	    current_pid, thd->thread_id, thd->tmp_table++,reg_ext);
+    create_info->table_options|= HA_CREATE_DELAY_KEY_WRITE;
+  }
+  else
+  {
+    strxmov(dst_path, mysql_data_home, "/", db, "/", table_name, 
+            reg_ext, NullS); 
+    if (!access(dst_path, F_OK))
+      goto table_exists;
+  }
+
+  /* 
+    Create a new table by copying from source table
+  */
+  if (my_copy(src_path, dst_path, MYF(MY_WME)))
+    DBUG_RETURN(-1);
+
+  /*
+    As mysql_truncate don't work on a new table at this stage of 
+    creation, instead create the table directly (for both normal 
+    and temporary tables).
+  */
+  *fn_ext(dst_path)= 0; 
+  err= ha_create_table(dst_path, create_info, 1);
+  
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
+    if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
+    {
+      (void) rm_temporary_table(create_info->db_type, 
+                                dst_path); /* purecov: inspected */
+      DBUG_RETURN(-1);     /* purecov: inspected */
+    }
+  }
+  else if (err)
+  {
+    (void) quick_rm_table(create_info->db_type, db, 
+                          table_name); /* purecov: inspected */
+    DBUG_RETURN(-1);       /* purecov: inspected */
+  }
+  DBUG_RETURN(0);
+  
+table_exists:
+  if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(warn_buff,ER(ER_TABLE_EXISTS_ERROR),table_name);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                 ER_TABLE_EXISTS_ERROR,warn_buff);
+    DBUG_RETURN(0);
+  }
+  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+  DBUG_RETURN(-1);
 }
 
 

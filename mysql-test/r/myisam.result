@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
 KEY string_data (STRING_DATA)
@@ -83,7 +83,6 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
-drop table if exists t1;
 create table t1 ( t1 char(255), key(t1(250)));
 insert t1 values ('137513751375137513751375137513751375137569516951695169516951695169516951695169');
 insert t1 values ('178417841784178417841784178417841784178403420342034203420342034203420342034203');
@@ -121,7 +120,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-drop table if exists t1;
 create table t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
 int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, i17
 int, i18 int, i19 int, i20 int, i21 int, i22 int, i23 int, i24 int, i25 int,
@@ -286,7 +284,7 @@ insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
-drop table if exists t1;
+drop table t1;
 CREATE TABLE `t1` (
 `post_id` mediumint(8) unsigned NOT NULL auto_increment,
 `topic_id` mediumint(8) unsigned NOT NULL default '0',
@@ -318,3 +316,51 @@ CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255));
 ALTER TABLE t1 ADD INDEX t1 (a, b, c);
 Specified key was too long. Max key length is 500
 DROP TABLE t1;
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
+INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
+INSERT into t2 values (1,1,1), (2,2,2);
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+show index from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	b	1	b	A	5	NULL	NULL	YES	BTREE	
+t1	1	c	1	c	A	5	NULL	NULL	YES	BTREE	
+t1	1	a	1	a	A	1	NULL	NULL		BTREE	
+t1	1	a	2	b	A	5	NULL	NULL	YES	BTREE	
+t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE	
+t1	1	c_2	2	a	A	5	NULL	NULL		BTREE	
+explain select * from t1,t2 where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	Using where
+explain select * from t1,t2 force index(a) where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ref	a	a	4	t2.a	3	
+explain select * from t1,t2 where t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ref	b	b	5	t2.b	1	Using where
+explain select * from t1,t2 force index(c) where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain select * from t1 where a=0 or a=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
+explain select * from t1 force index (a) where a=0 or a=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
+explain select * from t1 where c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c,c_2	c	5	const	1	Using where
+explain select * from t1 use index() where c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+drop table t1,t2;

@@ -2,7 +2,10 @@
 # Problem with count(distinct)
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
+
 create table t1 (libname varchar(21) not null, city text, primary key (libname));
 create table t2 (isbn varchar(21) not null, author text, title text, primary key (isbn));
 create table t3 (isbn varchar(21) not null, libname varchar(21) not null, quantity int ,primary key (isbn,libname));

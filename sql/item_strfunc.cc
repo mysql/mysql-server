@@ -54,7 +54,8 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
+  return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
+			  NULL) : 0.0;
 }
 
 longlong Item_str_func::val_int()
@@ -1271,18 +1272,60 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
+/*
+ Password() function can have 2 args now. Second argument can be used
+ to make results repeatable
+*/ 
 
 String *Item_func_password::val_str(String *str)
 {
-  String *res  =args[0]->val_str(str);
+  struct rand_struct rand_st; // local structure for 2 param version
+  ulong  seed=0;              // seed to initialise random generator to
+  
+  String *res  =args[0]->val_str(str);          
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length() == 0)
-    return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
-                          &current_thd->rand);
-  str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
-  return str;
+  
+  if (arg_count == 1)
+  {    
+    if (res->length() == 0)
+      return &empty_string;
+    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+                            &current_thd->rand);
+    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    return str;
+  }
+  else
+  {
+   /* We'll need the buffer to get second parameter */
+    char key_buff[80];
+    String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
+    String *key  =args[1]->val_str(&tmp_key_value);          
+    
+    /* Check second argument for NULL value. First one is already checked */
+    if ((null_value=args[1]->null_value))
+      return 0;
+      
+    /* This shall be done after checking for null for proper results */       
+    if (res->length() == 0)
+      return &empty_string;  
+      
+    /* Generate the seed first this allows to avoid double allocation */  
+    char* seed_ptr=key->c_ptr();
+    while (*seed_ptr)
+    {
+      seed=seed*211+*seed_ptr; /* Use simple hashing */
+      seed_ptr++;
+    }
+    
+    /* Use constants which allow nice random values even with small seed */
+    randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
+    
+    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+                            &rand_st);
+    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    return str;
+  }       
 }
 
 String *Item_func_old_password::val_str(String *str)
@@ -1438,6 +1481,8 @@ String *Item_func_soundex::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
+  CHARSET_INFO *cs=my_charset_latin1;
+
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
 
@@ -1445,22 +1490,23 @@ String *Item_func_soundex::val_str(String *str)
     return str; /* purecov: inspected */
   char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
-
-  while (from != end && my_isspace(str->charset(),*from)) // Skip pre-space
+  tmp_value.set_charset(cs);
+  
+  while (from != end && my_isspace(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &empty_string;		// No alpha characters.
-  *to++ = my_toupper(str->charset(),*from);// Copy first letter
-  last_ch = get_scode(str->charset(),from);// code of the first letter
+  *to++ = my_toupper(cs,*from);		// Copy first letter
+  last_ch = get_scode(cs,from);		// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
 					// letter code count = 3
   for (from++ ; from < end ; from++)
   {
-    if (!my_isalpha(str->charset(),*from))
+    if (!my_isalpha(cs,*from))
       continue;
-    ch=get_scode(str->charset(),from);
+    ch=get_scode(cs,from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
@@ -1958,7 +2004,8 @@ String *Item_func_conv_charset::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while( s < se && d < de){
+  while (s < se && d < de)
+  {
 
     cnvres=from->mb_wc(from,&wc,s,se);
     if (cnvres>0)
@@ -2032,7 +2079,7 @@ String *Item_func_conv_charset3::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while( s < se && d < de){
+  while (s < se && d < de){
 
     cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
     if (cnvres>0)
@@ -2394,7 +2441,7 @@ String *Item_func_quote::val_str(String *str)
   */
   to= (char*) str->ptr() + new_length - 1;
   *to--= '\'';
-  for (start= (char*) arg->ptr() ; end-- != start; to--)
+  for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
     /*
       We can't use the bitmask here as we want to replace \O and ^Z with 0
@@ -2436,7 +2483,8 @@ General functions for spatial objects
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry geom;
-  String *wkt = args[0]->val_str(str);
+  String arg_val;
+  String *wkt = args[0]->val_str(&arg_val);
   GTextReadStream trs(wkt->ptr(), wkt->length());
 
   str->length(0);
@@ -2454,7 +2502,8 @@ void Item_func_geometry_from_text::fix_length_and_dec()
 
 String *Item_func_as_text::val_str(String *str)
 {
-  String *wkt = args[0]->val_str(str);
+  String arg_val;
+  String *wkt = args[0]->val_str(&arg_val);
   Geometry geom;
 
   if ((null_value=(args[0]->null_value ||
@@ -2491,7 +2540,8 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   null_value = args[0]->null_value ||
@@ -2504,7 +2554,8 @@ String *Item_func_envelope::val_str(String *str)
 
 String *Item_func_centroid::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   null_value = args[0]->null_value ||
@@ -2522,7 +2573,8 @@ String *Item_func_centroid::val_str(String *str)
 
 String *Item_func_spatial_decomp::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   if ((null_value = (args[0]->null_value ||
@@ -2530,6 +2582,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
     return 0;
 
   null_value=1;
+  str->length(0);
   switch(decomp_func)
   {
     case SP_STARTPOINT:
@@ -2559,7 +2612,8 @@ ret:
 
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
-  String *wkb  =        args[0]->val_str(str);
+  String arg_val;
+  String *wkb  =        args[0]->val_str(&arg_val);
   long n       = (long) args[1]->val_int();
   Geometry geom;
 
@@ -2613,6 +2667,9 @@ Functions to concatinate various spatial objects
 
 String *Item_func_point::val_str(String *str)
 {
+  double x= args[0]->val();
+  double y= args[1]->val();
+
   if ( (null_value = (args[0]->null_value ||
                      args[1]->null_value ||
                      str->realloc(1+4+8+8))))
@@ -2621,8 +2678,8 @@ String *Item_func_point::val_str(String *str)
   str->length(0);
   str->q_append((char)Geometry::wkbNDR);
   str->q_append((uint32)Geometry::wkbPoint);
-  str->q_append((double)args[0]->val());
-  str->q_append((double)args[1]->val());
+  str->q_append(x);
+  str->q_append(y);
   return str;
 }
 
@@ -2639,12 +2696,13 @@ String *Item_func_point::val_str(String *str)
 
 String *Item_func_spatial_collection::val_str(String *str)
 {
+  String arg_value;
   uint i;
 
   null_value=1;
 
   str->length(0);
-  if(str->reserve(9,512))
+  if (str->reserve(9,512))
     return 0;
 
   str->q_append((char)Geometry::wkbNDR);
@@ -2653,10 +2711,9 @@ String *Item_func_spatial_collection::val_str(String *str)
 
   for (i = 0; i < arg_count; ++i)
   {
+    String *res = args[i]->val_str(&arg_value);
     if (args[i]->null_value)
       goto ret;
-
-    String *res = args[i]->val_str(str);
 
     if ( coll_type == Geometry::wkbGeometryCollection )
     {
@@ -2715,10 +2772,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 
-	if (len < WKB_HEADER_SIZE + 4 + 8 + 8)
+	if (len < 4 + 2 * POINT_DATA_SIZE)
 	  goto ret;
-	data+=WKB_HEADER_SIZE;
-	len-=WKB_HEADER_SIZE;
 
 	uint32 llen=len;
 	const char *ldata=data;
@@ -2730,10 +2785,6 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(y1,data);
 	data+=8;
 
-	len-= 4 + 8 + 8;
-
-	if (len < n_points * POINT_DATA_SIZE)
-	  goto ret;
 	data+=(n_points-2) * POINT_DATA_SIZE;
 
 	float8get(x2,data);
