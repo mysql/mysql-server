@@ -52,6 +52,7 @@
 #define SP_COM_STRING(LP) \
   ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
    (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
+   (LP)->sql_command == SQLCOM_SHOW_CREATE_FUNC || \
    (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
    "FUNCTION" : "PROCEDURE")
 
