@@ -19,13 +19,11 @@
 	<key>IFPkgFlagAuthorizationAction</key>
 	<string>RootAuthorization</string>
 	<key>IFPkgFlagDefaultLocation</key>
-	<string>/Library/StartupItems/</string>
+	<string>/Library/StartupItems</string>
 	<key>IFPkgFlagInstallFat</key>
 	<false/>
 	<key>IFPkgFlagIsRequired</key>
 	<false/>
-	<key>IFPkgFlagOverwritePermissions</key>
-	<true/>
 	<key>IFPkgFlagRelocatable</key>
 	<false/>
 	<key>IFPkgFlagRestartAction</key>
@@ -33,8 +31,6 @@
 	<key>IFPkgFlagRootVolumeOnly</key>
 	<true/>
 	<key>IFPkgFlagUpdateInstalledLanguages</key>
-	<false/>
-	<key>IFPkgFlagUseUserMask</key>
 	<false/>
 	<key>IFPkgFormatVersion</key>
 	<real>0.10000000149011612</real>
