@@ -52,6 +52,13 @@ const LEX_STRING null_lex_str={0,0};
 		      ER_WARN_DEPRECATED_SYNTAX, \
 		      ER(ER_WARN_DEPRECATED_SYNTAX), (A), (B));
 
+#define TEST_ASSERT(A) \
+  if (!(A)) \
+  {					\
+    yyerror(ER(ER_SYNTAX_ERROR));	\
+    YYABORT;				\
+  }
+
 /* Helper for parsing "IS [NOT] truth_value" */
 inline Item *is_truth_value(Item *A, bool v1, bool v2)
 {
@@ -692,6 +699,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
+        union_opt select_derived_init
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -737,6 +745,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <table_list>
 	join_table_list  join_table
         table_factor table_ref
+        select_derived derived_table_list
 
 %type <date_time_type> date_time_type;
 %type <interval> interval
@@ -771,6 +780,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <variable> internal_variable_name
 
 %type <select_lex> in_subselect in_subselect_init
+	get_select_lex
 
 %type <boolfunc2creator> comp_op
 
@@ -4022,13 +4032,53 @@ optional_braces:
 
 /* all possible expressions */
 expr:	
-	expr or bool_term	{ $$= new Item_cond_or($1,$3); }
-	| expr XOR bool_term	{ $$= new Item_cond_xor($1,$3); }
-	| bool_term ;
+	  bool_term { Select->expr_list.push_front(new List<Item>); }
+          bool_or_expr
+          {
+            List<Item> *list= Select->expr_list.pop();
+            if (list->elements)
+            {
+              list->push_front($1);
+              $$= new Item_cond_or(*list);
+              /* optimize construction of logical OR to reduce
+                 amount of objects for complex expressions */
+            }
+            else
+              $$= $1;
+            delete list;
+          }
+	;
+
+bool_or_expr:
+	/* empty */
+        | bool_or_expr or bool_term
+          { Select->expr_list.head()->push_back($3); }
+        ;
 
 bool_term:
-	bool_term and bool_factor { $$= new Item_cond_and($1,$3); }
-	| bool_factor ;
+	bool_term XOR bool_term { $$= new Item_cond_xor($1,$3); }
+	| bool_factor { Select->expr_list.push_front(new List<Item>); }
+          bool_and_expr
+          {
+            List<Item> *list= Select->expr_list.pop();
+            if (list->elements)
+            {
+              list->push_front($1);
+              $$= new Item_cond_and(*list);
+              /* optimize construction of logical AND to reduce
+                 amount of objects for complex expressions */
+            }
+            else
+              $$= $1;
+            delete list;
+          }
+	;
+
+bool_and_expr:
+	/* empty */
+        | bool_and_expr and bool_factor
+          { Select->expr_list.head()->push_back($3); }
+        ;
 
 bool_factor:
 	NOT_SYM bool_factor	{ $$= negate_expression(YYTHD, $2); }
@@ -4911,6 +4961,7 @@ when_list2:
 	    sel->when_list.head()->push_back($5);
 	  };
 
+/* Warning - may return NULL in case of incomplete SELECT */
 table_ref:
         table_factor            { $$=$1; }
         | join_table            { $$=$1; }
@@ -4922,36 +4973,47 @@ table_ref:
         ;
 
 join_table_list:
+	derived_table_list		{ TEST_ASSERT($$=$1); }
+	;
+        
+/* Warning - may return NULL in case of incomplete SELECT */
+derived_table_list:
         table_ref { $$=$1; }
-        | join_table_list ',' table_ref { $$=$3; }
+        | derived_table_list ',' table_ref
+          {
+            TEST_ASSERT($1 && ($$=$3));
+          }
         ;
 
 join_table:
-        table_ref normal_join table_ref { $$=$3; }
+        table_ref normal_join table_ref { TEST_ASSERT($1 && ($$=$3)); }
 	| table_ref STRAIGHT_JOIN table_factor
-	  { $3->straight=1; $$=$3 ; }
+	  {  TEST_ASSERT($1 && ($$=$3)); $3->straight=1; }
 	| table_ref normal_join table_ref ON expr
-	  { add_join_on($3,$5); $$=$3; }
+	  { TEST_ASSERT($1 && ($$=$3)); add_join_on($3,$5); }
 	| table_ref normal_join table_ref
 	  USING
 	  {
 	    SELECT_LEX *sel= Select;
+            TEST_ASSERT($1 && $3);
             sel->save_names_for_using_list($1, $3);
 	  }
 	  '(' using_list ')'
 	  { add_join_on($3,$7); $$=$3; }
 
 	| table_ref LEFT opt_outer JOIN_SYM table_ref ON expr
-	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
+	  { TEST_ASSERT($1 && $5); add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
+            TEST_ASSERT($1 && $5);
             sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
 	  {
+            TEST_ASSERT($1 && $6);
 	    add_join_natural($1,$6);
 	    $6->outer_join|=JOIN_TYPE_LEFT;
 	    $$=$6;
@@ -4959,6 +5021,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_ref ON expr
           { 
 	    LEX *lex= Lex;
+            TEST_ASSERT($1 && $5);
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
             add_join_on($$, $7);
@@ -4966,6 +5029,7 @@ join_table:
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
 	    SELECT_LEX *sel= Select;
+            TEST_ASSERT($1 && $5);
             sel->save_names_for_using_list($1, $5);
 	  }
 	  USING '(' using_list ')'
@@ -4977,13 +5041,14 @@ join_table:
           }
 	| table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
 	  {
+            TEST_ASSERT($1 && $6);
 	    add_join_natural($6,$1);
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->convert_right_join()))
               YYABORT;
 	  }
 	| table_ref NATURAL JOIN_SYM table_factor
-	  { add_join_natural($1,$4); $$=$4; };
+	  { TEST_ASSERT($1 && ($$=$4)); add_join_natural($1,$4); };
         
 
 normal_join:
@@ -4992,6 +5057,7 @@ normal_join:
 	| CROSS JOIN_SYM	{}
 	;
 
+/* Warning - may return NULL in case of incomplete SELECT */
 table_factor:
 	{
 	  SELECT_LEX *sel= Select;
@@ -5010,50 +5076,96 @@ table_factor:
 	    YYABORT;
           sel->add_joined_table($$);
 	}
-        | '('
-          {
-            LEX *lex= Lex;
-            if (lex->current_select->init_nested_join(lex->thd))
-              YYABORT;
-          }
-          join_table_list ')'
-          {
-            LEX *lex= Lex;
-            if (!($$= lex->current_select->end_nested_join(lex->thd)))
-              YYABORT;
-          }
 	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
-	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
-	| '(' select_derived union_opt ')' opt_table_alias
+	  { TEST_ASSERT($3 && $7); add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
+	| select_derived_init get_select_lex select_derived2
+          {
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;
+            if ($1)
+            {
+	      if (sel->set_braces(1))
+	      {
+	        yyerror(ER(ER_SYNTAX_ERROR));
+	        YYABORT;
+	      }
+              /* select in braces, can't contain global parameters */
+	      if (sel->master_unit()->fake_select_lex)
+                sel->master_unit()->global_parameters=
+                   sel->master_unit()->fake_select_lex;
+            }
+            if ($2->init_nested_join(lex->thd))
+              YYABORT;            
+            $$= 0;
+            /* incomplete derived tables return NULL, we must be 
+               nested in select_derived rule to be here. */
+          }
+	| '(' get_select_lex select_derived union_opt ')' opt_table_alias
 	{
-	  LEX *lex=Lex;
-	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
-	  lex->current_select= unit->outer_select();
-	  if (!($$= lex->current_select->
-                add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
-				  TL_READ,(List<String> *)0,
-	                          (List<String> *)0)))
+          /* Use $2 instead of Lex->current_select as derived table will
+             alter value of Lex->current_select. */
 
-	    YYABORT;
-          lex->current_select->add_joined_table($$);           
-	};
+          if (!($3 || $6) && $2->embedding && 
+              !$2->embedding->nested_join->join_list.elements)
+          {
+            /* we have a derived table ($3 == NULL) but no alias,
+               Since we are nested in further parentheses so we
+               can pass NULL to the outer level parentheses
+               Permits parsing of "((((select ...))) as xyz)" */
+            $$= 0;
+          }
+          else
+          if (!$3)
+          {
+            /* Handle case of derived table, alias may be NULL if there
+               are no outer parentheses, add_table_to_list() will throw
+               error in this case */
+	    LEX *lex=Lex;
+            SELECT_LEX *sel= lex->current_select;
+	    SELECT_LEX_UNIT *unit= sel->master_unit();
+	    lex->current_select= sel= unit->outer_select();
+	    if (!($$= sel->
+                  add_table_to_list(lex->thd, new Table_ident(unit), $6, 0,
+				    TL_READ,(List<String> *)0,
+	                            (List<String> *)0)))
 
-
-select_derived:
-	SELECT_SYM select_derived2
-	| '(' select_derived ')'
+	      YYABORT;
+            sel->add_joined_table($$);           
+          }
+	  else
+          if ($4 || $6)
 	  {
-            SELECT_LEX *sel= Select;
-	    if (sel->set_braces(1))
-	    {
+            /* simple nested joins cannot have aliases or unions */
+            yyerror(ER(ER_SYNTAX_ERROR));
+	    YYABORT;
+	  }
+          else
+            $$= $3;
+	}
+        ;
+
+/* handle contents of parentheses in join expression */
+select_derived:
+	  get_select_lex
+	  {
+            LEX *lex= Lex;
+            if ($1->init_nested_join(lex->thd))
+              YYABORT;
+          }
+          derived_table_list
+          {
+            LEX *lex= Lex;
+            /* for normal joins, $3 != NULL and end_nested_join() != NULL,
+               for derived tables, both must equal NULL */
+            
+            if (!($$= $1->end_nested_join(lex->thd)) && $3)
+              YYABORT;
+            if (!$3 && $$)
+            {
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
-	    }
-            /* select in braces, can't contain global parameters */
-	    if (sel->master_unit()->fake_select_lex)
-              sel->master_unit()->global_parameters=
-                 sel->master_unit()->fake_select_lex;
-	  }
+            }
+          }
  	;
 
 select_derived2:
@@ -5079,6 +5191,29 @@ select_derived2:
 	  Select->parsing_place= NO_MATTER;
 	}
 	opt_select_from
+        ;
+
+get_select_lex:
+	/* Empty */ { $$= Select; }
+        ;
+
+select_derived_init:
+          SELECT_SYM
+          {
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;        
+            TABLE_LIST *embedding;
+            if (!sel->embedding || sel->end_nested_join(lex->thd))
+	    {
+              /* we are not in parentheses */
+              yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+            embedding= Select->embedding;
+            $$= embedding &&
+                !embedding->nested_join->join_list.elements;
+            /* return true if we are deeply nested */
+          }
         ;
 
 opt_outer:
@@ -8077,13 +8212,12 @@ union_list:
 	;
 
 union_opt:
-	union_list {}
-	| optional_order_or_limit {}
+	/* Empty */ { $$= 0; }
+	| union_list { $$= 1; }
+	| union_order_or_limit { $$= 1; }
 	;
 
-optional_order_or_limit:
-	/* Empty */ {}
-	|
+union_order_or_limit:
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
