@@ -65,6 +65,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 #endif
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
+static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
@@ -2078,6 +2079,8 @@ mysql_execute_command(THD *thd)
   LEX	*lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
+  bool slave_fake_lock= 0;
+  MYSQL_LOCK *fake_prev_lock= 0;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
   /* list of all tables in query */
@@ -2124,6 +2127,22 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
+    if (lex->sql_command == SQLCOM_UPDATE_MULTI)
+    {
+      DBUG_PRINT("info",("need faked locked tables"));
+      
+      if (check_multi_update_lock(thd))
+        goto error;
+
+      /* Fix for replication, the tables are opened and locked,
+         now we pretend that we have performed a LOCK TABLES action */
+	 
+      fake_prev_lock= thd->locked_tables;
+      if (thd->lock)
+        thd->locked_tables= thd->lock;
+      thd->lock= 0;
+      slave_fake_lock= 1;
+    }
     /*
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated
@@ -4130,11 +4149,22 @@ unsent_create_error:
   default:
     thd->row_count_func= -1;
   }
+  goto cleanup;
+  
+error:
+  res= 1;
+
+cleanup:
+  if (unlikely(slave_fake_lock))
+  {
+    DBUG_PRINT("info",("undoing faked lock"));
+    thd->lock= thd->locked_tables;
+    thd->locked_tables= fake_prev_lock;
+    if (thd->lock == thd->locked_tables)
+      thd->lock= 0;
+  }
 
   DBUG_RETURN(res || thd->net.report_error);
-
-error:
-  DBUG_RETURN(TRUE);
 }
 
 
@@ -5940,6 +5970,56 @@ bool check_simple_select()
     return 1;
   }
   return 0;
+}
+
+/*
+  Setup locking for multi-table updates. Used by the replication slave.
+  Replication slave SQL thread examines (all_tables_not_ok()) the
+  locking state of referenced tables to determine if the query has to
+  be executed or ignored. Since in multi-table update, the 
+  'default' lock is read-only, this lock is corrected early enough by
+  calling this function, before the slave decides to execute/ignore.
+
+  SYNOPSIS
+    check_multi_update_lock()
+    thd		Current thread
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+static bool check_multi_update_lock(THD *thd)
+{
+  bool res= 1;
+  LEX *lex= thd->lex;
+  TABLE_LIST *table, *tables= lex->query_tables;
+  DBUG_ENTER("check_multi_update_lock");
+  
+  if (check_db_used(thd, tables))
+    goto error;
+
+  /*
+    Ensure that we have UPDATE or SELECT privilege for each table
+    The exact privilege is checked in mysql_multi_update()
+  */
+  for (table= tables ; table ; table= table->next_local)
+  {
+    TABLE_LIST *save= table->next_local;
+    table->next_local= 0;
+    if ((check_access(thd, UPDATE_ACL, table->db, &table->grant.privilege,0,1) ||
+        (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
+	check_one_table_access(thd, SELECT_ACL, table))
+	goto error;
+    table->next_local= save;
+  }
+    
+  if (mysql_multi_update_prepare(thd))
+    goto error;
+  
+  res= 0;
+  
+error:
+  DBUG_RETURN(res);
 }
 
 
