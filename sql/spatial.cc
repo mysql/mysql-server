@@ -66,8 +66,7 @@ Geometry::GClassInfo *Geometry::find_class(const char *name, size_t len)
               cur_rt < ci_collection_end; ++cur_rt)
   {
     if ((cur_rt->m_name[len] == 0) && 
-	(default_charset_info->strncasecmp(default_charset_info,
-					   cur_rt->m_name, name, len) == 0))
+	(my_strncasecmp(&my_charset_latin1, cur_rt->m_name, name, len) == 0))
     {
       return cur_rt;
     }
