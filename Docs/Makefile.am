@@ -16,7 +16,7 @@ TEXINFO_TEX =		Support/texinfo.tex
 
 noinst_SCRIPTS =	Support/texi2html Support/generate-text-files.pl \
 			Support/generate-mirror-listing.pl
-info_TEXINFOS =		manual.texi
+info_TEXINFOS =		manual.texi reservedwords.texi
 
 targets =		manual.txt mysql.info manual.html
 
@@ -26,7 +26,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt INSTALL-BINARY
 all:			$(targets) txt_files
 
 txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
-			../MIRRORS INSTALL-BINARY
+			INSTALL-BINARY
 
 CLEAN_FILES:		$(BUILD_SOURCES)
 	touch $(BUILD_SOURCES)
@@ -144,9 +144,6 @@ INSTALL-BINARY:	mysql.info $(GT)
 
 ../COPYING.LIB:		mysql.info $(GT)
 	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
-
-../MIRRORS:		manual.texi $(srcdir)/Support/generate-mirror-listing.pl
-	perl -w $(srcdir)/Support/generate-mirror-listing.pl manual.texi > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

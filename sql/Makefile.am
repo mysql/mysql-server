@@ -91,7 +91,7 @@ DEFS =			-DMYSQL_SERVER \
 # Don't put lex_hash.h in BUILT_SOURCES as this will give infinite recursion
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
-YFLAGS =		-d
+AM_YFLAGS =		-d
 
 link_sources:
 	rm -f mini_client_errors.c
