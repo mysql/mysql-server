@@ -159,6 +159,7 @@ class ha_innobase: public handler
   	void position(const byte *record);
   	void info(uint);
         int analyze(THD* thd,HA_CHECK_OPT* check_opt);
+        int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   	int extra(enum ha_extra_function operation);
   	int reset(void);
   	int external_lock(THD *thd, int lock_type);
