@@ -1599,11 +1599,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
-  AC_ARG_WITH([ndb-shm],
-              [
-  --with-ndb-shm        Include the NDB Cluster shared memory transporter],
-              [ndb_shm="$withval"],
-              [ndb_shm=no])
   AC_ARG_WITH([ndb-test],
               [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
@@ -1633,19 +1628,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
                                                                                 
-  have_ndb_shm=no
-  case "$ndb_shm" in
-    yes )
-      AC_MSG_RESULT([-- including shared memory transporter])
-      AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
-                [Including Ndb Cluster DB shared memory transporter])
-      have_ndb_shm="yes"
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including shared memory transporter])
-      ;;
-  esac
-
   have_ndb_test=no
   case "$ndb_test" in
     yes )
