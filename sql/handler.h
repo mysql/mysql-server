@@ -74,6 +74,7 @@
 #define HA_NOT_DELETE_WITH_CACHE (HA_NOT_READ_AFTER_KEY*2)
 #define HA_NO_TEMP_TABLES       (HA_NOT_DELETE_WITH_CACHE*2)
 #define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
+#define HA_NO_FULLTEXT_KEY      (HA_NO_PREFIX_CHAR_KEYS*2)
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
@@ -353,3 +354,4 @@ int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
 int ha_commit_rename(THD *thd);
+int ha_recovery_logging(THD *thd, bool on);

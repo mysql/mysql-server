@@ -999,10 +999,10 @@ dnl echo "DBG_GEM1: gemini='$gemini'"
   gemini_includes=
   gemini_libs=
   case "$gemini" in
-    no | default | *)
+    no) 
       AC_MSG_RESULT([Not using Gemini DB])
       ;;
-    yes )
+    yes | default | *)
       have_gemini_db="yes"
       gemini_includes="-I../gemini/incl -I../gemini"
       gemini_libs="\
