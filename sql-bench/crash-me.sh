@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.57";
+$version="1.58";
 
 use DBI;
 use Getopt::Long;
@@ -2186,20 +2186,20 @@ EOF
   print <<EOF;
 
 Some of the tests you are about to execute may require a lot of
-memory.  Your tests WILL adversely affect system performance. It's
+memory.  Your tests WILL adversely affect system performance. It\'s
 not uncommon that either this crash-me test program, or the actual
 database back-end, will DIE with an out-of-memory error. So might
 any other program on your system if it requests more memory at the
 wrong time.
 
 Note also that while crash-me tries to find limits for the database server
-it will make a lot of queries that can't be categorized as 'normal'.  It's
+it will make a lot of queries that can\'t be categorized as \'normal\'.  It\'s
 not unlikely that crash-me finds some limit bug in your server so if you
 run this test you have to be prepared that your server may die during it!
 
 We, the creators of this utility, are not responsible in any way if your
 database server unexpectedly crashes while this program tries to find the
-limitations of your server. By accepting the following question with 'yes',
+limitations of your server. By accepting the following question with \'yes\',
 you agree to the above!
 
 You have been warned!
@@ -2468,7 +2468,6 @@ sub report
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
     save_config_data($limit,safe_query(\@queries) ? "yes" : "no",$prompt);
   }
   print "$limits{$limit}\n";
@@ -2481,7 +2480,6 @@ sub report_fail
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
     save_config_data($limit,safe_query(\@queries) ? "no" : "yes",$prompt);
   }
   print "$limits{$limit}\n";
@@ -2498,7 +2496,7 @@ sub report_one
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
+    save_incomplete($limit,$prompt);
     $result="no";
     foreach $query (@$queries)
     {
@@ -2524,7 +2522,7 @@ sub report_result
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
+    save_incomplete($limit,$prompt);
     $error=safe_query_result($query,"1",2);
     save_config_data($limit,$error ? "not supported" : $last_result,$prompt);
   }
@@ -2537,7 +2535,7 @@ sub report_trans
   my ($limit,$queries,$check,$clear)=@_;
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
+    save_incomplete($limit,$prompt);
     eval {undef($dbh->{AutoCommit})};
     if (!$@)
     {
@@ -2579,7 +2577,7 @@ sub check_and_report
   print "$prompt: " if (!defined($skip_prompt));
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
+    save_incomplete($limit,$prompt);
     $tmp=1-safe_query(\@$pre);
     $tmp=safe_query_result($query,$answer,$string_type) if (!$tmp);
     safe_query(\@$post);
@@ -2615,7 +2613,7 @@ sub try_and_report
 
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,"incompleted",$prompt);
+    save_incomplete($limit,$prompt);
     $type="no";			# Not supported
     foreach $test (@tests)
     {
@@ -2695,7 +2693,8 @@ sub safe_query_result
     $sth->finish;
     return ($result_type == 8) ? 0 : 1;
   }
-  if($result_type == 8) {
+  if ($result_type == 8)
+  {
     $sth->finish;
     return 1;
   }
@@ -2787,7 +2786,7 @@ sub find_limit()
     print "$end (cache)\n";
     return $end;
   }
-  save_config_data($limit,"incompleted",$prompt);
+  save_incomplete($limit,$prompt);
 
   if (defined($query->{'init'}) && !defined($end=$limits{'restart'}{'tohigh'}))
   {
@@ -2959,6 +2958,16 @@ sub save_all_config_data
       "# $prompts{$key}\n";
   }
   close CONFIG_FILE;
+}
+
+#
+# Save 'incomplete' in the limits file to be able to continue if
+# crash-me dies because of a bug in perl/DBI
+
+sub save_incomplete
+{
+  my ($limit,$prompt)= @_;
+  save_config_data($limit,"incompleted",$prompt) if ($opt_restart);
 }
 
 

@@ -38,6 +38,15 @@ extern "C" {
 #define THR_SERVER_ALARM SIGALRM
 #endif
 
+typedef struct st_alarm_info
+{
+  ulong next_alarm_time;
+  uint active_alarms;
+  uint max_used_alarms;
+} ALARM_INFO;
+
+void thr_alarm_info(ALARM_INFO *info);
+
 #if defined(DONT_USE_THR_ALARM) || !defined(THREAD)
 
 #define USE_ALARM_THREAD

@@ -3951,10 +3951,6 @@ Automatic output from @code{mysql} to Netscape.
 @item
 @code{LOCK DATABASES} (with various options.)
 @item
-@code{DECIMAL} and @code{NUMERIC} types can't read exponential numbers;
-@code{Field_decimal::store(const char *from,uint len)} must be recoded
-to fix this.
-@item
 Functions:
 ADD_TO_SET(value,set) and REMOVE_FROM_SET(value,set).
 @item
@@ -49368,6 +49364,9 @@ Emulation of @code{pthread_mutex()} for OS/2.
 @item Benjamin Pflugmann
 Extended @code{MERGE} tables to handle @code{INSERTS}. Active member
 on the MySQL mailing lists.
+@item Guilhem Bichot
+Fixed handling of exponents for @code{DECIMAL}.
+Author of @code{mysql_tableinfo}.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
@@ -49495,6 +49494,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Removed @code{mysql_ssl_clear()}, as this was not needed.
+@item
+@code{DECIMAL} and @code{NUMERIC} types can now read exponential numbers.
 @item
 Fixed bug in @code{innodb_log_group_home_dir} in @code{SHOW VARIABLES}.
 @item
