@@ -274,8 +274,8 @@ multi_delete::initialize_tables(JOIN *join)
     {
       /* We are going to delete from this table */
       TABLE *tbl=walk->table=tab->table;
+      /* Don't use KEYREAD optimization on this table */
       tbl->no_keyread=1;
-      tbl->used_keys=0;
       walk=walk->next;
       if (!not_trans_safe && !tbl->file->has_transactions())
 	not_trans_safe=true;
