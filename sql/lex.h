@@ -98,6 +98,7 @@ static SYMBOL symbols[] = {
   { "CONSTRAINT",	SYM(CONSTRAINT),0,0},
   { "CREATE",		SYM(CREATE),0,0},
   { "CROSS",		SYM(CROSS),0,0},
+  { "CUBE",		SYM(CUBE),0,0},
   { "CURRENT_DATE",	SYM(CURDATE),0,0},
   { "CURRENT_TIME",	SYM(CURTIME),0,0},
   { "CURRENT_TIMESTAMP", SYM(NOW_SYM),0,0},
@@ -303,6 +304,7 @@ static SYMBOL symbols[] = {
   { "RIGHT",		SYM(RIGHT),0,0},
   { "RLIKE",		SYM(REGEXP),0,0},	/* Like in mSQL2 */
   { "ROLLBACK",		SYM(ROLLBACK_SYM),0,0},
+  { "ROLLUP",		SYM(ROLLUP),0,0},
   { "ROW",		SYM(ROW_SYM),0,0},
   { "ROWS",		SYM(ROWS_SYM),0,0},
   { "SECOND",		SYM(SECOND_SYM),0,0},

@@ -146,7 +146,7 @@ static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
 static void describe_info(JOIN *join, const char *info);
-
+extern  int handle_olaps(LEX *lex, SELECT_LEX *select);
 /*
   This handles SELECT with and without UNION
 */
@@ -155,6 +155,23 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
+  if (lex->olap)
+  {
+    SELECT_LEX *sl, *last_sl;
+    int returned;
+    for (sl= &lex->select_lex;sl;sl=sl->next)
+    {
+      if (sl->olap != NON_EXISTING_ONE)
+      {
+	last_sl=sl->next;
+	if ((returned=handle_olaps(lex,sl)))
+	  return returned;
+	lex->last_selects->next=sl=last_sl;
+	if (!sl) break;
+      }
+    }
+    lex->select = select_lex;
+  }
   if (select_lex->next)
     res=mysql_union(thd,lex,result);
   else

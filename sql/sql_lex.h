@@ -89,7 +89,12 @@ typedef struct st_lex_master_info
 
 enum sub_select_type
 {
-  UNSPECIFIED_TYPE, UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT
+  UNSPECIFIED_TYPE, UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, OLAP_TYPE, NOT_A_SELECT
+};
+
+enum olap_type 
+{
+  NON_EXISTING_ONE, CUBE_TYPE, ROLLUP_TYPE
 };
 
 /* The state of the lex parsing for selects */
@@ -97,6 +102,7 @@ enum sub_select_type
 typedef struct st_select_lex
 {
   enum sub_select_type linkage;
+  enum olap_type olap;
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   Item *where,*having;
   ha_rows select_limit,offset_limit;
@@ -133,7 +139,7 @@ typedef struct st_lex
 {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
-  SELECT_LEX select_lex, *select;
+  SELECT_LEX select_lex, *select, *last_selects;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
@@ -179,7 +185,7 @@ typedef struct st_lex
   uint grant,grant_tot_col,which_columns, union_option;
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
-  bool  in_comment,ignore_space,verbose,simple_alter, option_type;
+  bool  in_comment,ignore_space,verbose,simple_alter, option_type, olap;
   uint slave_thd_opt;
 } LEX;
 
