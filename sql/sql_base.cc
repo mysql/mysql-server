@@ -1506,7 +1506,8 @@ memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
   DBUG_RETURN(0);
 err:
   /* Hide "Table doesn't exist" errors if table belong to view */
-  if (thd->net.last_errno == ER_NO_SUCH_TABLE && table_desc->belong_to_view)
+  if (thd->net.last_errno == ER_NO_SUCH_TABLE &&
+      table_desc && table_desc->belong_to_view)
   {
     TABLE_LIST * view= table_desc->belong_to_view;
     thd->clear_error();
