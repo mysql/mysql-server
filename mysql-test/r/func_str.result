@@ -249,6 +249,33 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+select POSITION(_latin1'B' IN _latin1'abcd');
+POSITION(_latin1'B' IN _latin1'abcd')
+2
+select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
+POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin)
+0
+select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
+POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd')
+0
+select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_bin,EXPLICIT) and (latin1_general_ci,EXPLICIT) for operation 'locate'
+select POSITION(_latin1'B' IN _latin2'abcd');
+ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'locate'
+select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
+FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')
+2
+select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'find_in_set'
+select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'find_in_set'
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
+SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2)
+abcdabc
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'substr_index'
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'substr_index'
 select collation(bin(130)), coercibility(bin(130));
 collation(bin(130))	coercibility(bin(130))
 latin1_swedish_ci	3

@@ -1045,10 +1045,18 @@ longlong Item_func_coercibility::val_int()
   return (longlong) args[0]->derivation();
 }
 
+void Item_func_locate::fix_length_and_dec()
+{
+  maybe_null=0; max_length=11;
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+}
+
 longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
+  bool binary_cmp= (cmp_collation.collation->state & MY_CS_BINSORT) ? 1 : 0;
   if (!a || !b)
   {
     null_value=1;
@@ -1063,7 +1071,7 @@ longlong Item_func_locate::val_int()
   {
     start=(uint) args[2]->val_int()-1;
 #ifdef USE_MB
-    if (use_mb(a->charset()))
+    if (use_mb(cmp_collation.collation))
     {
       start0=start;
       if (!binary_cmp)
@@ -1076,7 +1084,7 @@ longlong Item_func_locate::val_int()
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
 #ifdef USE_MB
-  if (use_mb(a->charset()) && !binary_cmp)
+  if (use_mb(cmp_collation.collation) && !binary_cmp)
   {
     const char *ptr=a->ptr()+start;
     const char *search=b->ptr();
@@ -1095,7 +1103,7 @@ longlong Item_func_locate::val_int()
         return (longlong) start0+1;
       }
   skipp:
-      if ((l=my_ismbchar(a->charset(),ptr,strend)))
+      if ((l=my_ismbchar(cmp_collation.collation,ptr,strend)))
 	ptr+=l;
       else ++ptr;
       ++start0;
@@ -1201,6 +1209,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
+  if (cmp_collation.set(args[0]->collation, args[1]->collation))
+    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
 }
 
 static const char separator=',';
@@ -1228,7 +1238,6 @@ longlong Item_func_find_in_set::val_int()
   null_value=0;
 
   int diff;
-  CHARSET_INFO *charset= find->charset();
   if ((diff=buffer->length() - find->length()) >= 0)
   {
     const char *f_pos=find->ptr();
@@ -1242,7 +1251,8 @@ longlong Item_func_find_in_set::val_int()
       const char *pos= f_pos;
       while (pos != f_end)
       {
-	if (my_toupper(charset,*str) != my_toupper(charset,*pos))
+	if (my_toupper(cmp_collation.collation,*str) != 
+	    my_toupper(cmp_collation.collation,*pos))
 	  goto not_found;
 	str++;
 	pos++;
