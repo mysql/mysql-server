@@ -3545,8 +3545,16 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+
+  /* XXX this should not be necessary. The error message is already printed
+     by replace_xxx_table. my_error() should be use above instead of
+     sql_print_error(), and print ER_NONEXISTING_GRANT - as other grant
+     commands do */
+  /* when this code is deleted, the error slot (error 1268) can be reused,
+     as this error code was not present in any MySQL release */
   if (result)
     my_error(ER_REVOKE_GRANTS, MYF(0));
+
   DBUG_RETURN(result);
 }
 

@@ -424,7 +424,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!sql_field->charset)
       sql_field->charset= create_info->table_charset;
     sql_field->create_length_to_internal_length();
-    
+
     /* Don't pack keys in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
 	sql_field->sql_type == FIELD_TYPE_VAR_STRING &&
@@ -663,12 +663,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     key_info->usable_key_parts= key_number;
     key_info->algorithm=key->algorithm;
 
-    /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key->type == Key::FULLTEXT)
     {
       if (!(file->table_flags() & HA_CAN_FULLTEXT))
       {
-        my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
+        my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
         DBUG_RETURN(-1);
       }
     }
@@ -680,6 +679,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        checking for proper key parts number:
     */
 
+    /* TODO: Add proper checks if handler supports key_type and algorithm */
     if (key_info->flags == HA_SPATIAL)
     {
       if (key_info->key_parts != 1)
@@ -704,6 +704,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
 
     List_iterator<key_part_spec> cols(key->columns);
+    CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
       it.rewind();
@@ -727,64 +728,88 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
          from a data prefix, ignoring column->length).
       */
       if (key->type == Key::FULLTEXT)
+      {
+        if ((sql_field->sql_type != FIELD_TYPE_STRING &&
+             sql_field->sql_type != FIELD_TYPE_VAR_STRING &&
+             !f_is_blob(sql_field->pack_flag)) ||
+            sql_field->charset == &my_charset_bin ||
+            sql_field->charset->state & MY_CS_NONTEXT || // ucs2 doesn't work yet
+            (ft_key_charset && sql_field->charset != ft_key_charset))
+        {
+            my_printf_error(ER_BAD_FT_COLUMN,ER(ER_BAD_FT_COLUMN),MYF(0),
+                            column->field_name);
+            DBUG_RETURN(-1);
+        }
+        ft_key_charset=sql_field->charset;
+        /*
+          for fulltext keys keyseg length is 1 for blobs (it's ignored in ft
+          code anyway, and 0 (set to column width later) for char's. it has
+          to be correct col width for char's, as char data are not prefixed
+          with length (unlike blobs, where ft code takes data length from a
+          data prefix, ignoring column->length).
+        */
         column->length=test(f_is_blob(sql_field->pack_flag));
+      }
       else
+      {
         column->length*= sql_field->charset->mbmaxlen;
 
-      if (f_is_blob(sql_field->pack_flag))
-      {
-	if (!(file->table_flags() & HA_BLOB_KEY))
-	{
-	  my_printf_error(ER_BLOB_USED_AS_KEY,ER(ER_BLOB_USED_AS_KEY),MYF(0),
-			  column->field_name);
-	  DBUG_RETURN(-1);
-	}
-	if (!column->length)
-	{
-          my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-                          ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-                          column->field_name);
-          DBUG_RETURN(-1);
-	}
+        if (f_is_blob(sql_field->pack_flag))
+        {
+          if (!(file->table_flags() & HA_BLOB_KEY))
+          {
+            my_printf_error(ER_BLOB_USED_AS_KEY,ER(ER_BLOB_USED_AS_KEY),MYF(0),
+                            column->field_name);
+            DBUG_RETURN(-1);
+          }
+          if (!column->length)
+          {
+            my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
+                            ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
+                            column->field_name);
+            DBUG_RETURN(-1);
+          }
+        }
+        if (key->type  == Key::SPATIAL)
+        {
+          if (!column->length )
+          {
+            /*
+            BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+                 Lately we'll extend this code to support more dimensions
+            */
+            column->length=4*sizeof(double);
+          }
+        }
+        if (!(sql_field->flags & NOT_NULL_FLAG))
+        {
+          if (key->type == Key::PRIMARY)
+          {
+            /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+            sql_field->flags|= NOT_NULL_FLAG;
+            sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
+          }
+          else
+             key_info->flags|= HA_NULL_PART_KEY;
+          if (!(file->table_flags() & HA_NULL_KEY))
+          {
+            my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
+                            MYF(0),column->field_name);
+            DBUG_RETURN(-1);
+          }
+          if (key->type == Key::SPATIAL)
+          {
+            my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
+            DBUG_RETURN(-1);
+          }
+        }
+        if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
+        {
+          if (column_nr == 0 || (file->table_flags() & HA_AUTO_PART_KEY))
+            auto_increment--;			// Field is used
+        }
       }
-      if (key->type  == Key::SPATIAL)
-      {
-	if (!column->length )
-	{
-	  /*
-          BAR: 4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
-               Lately we'll extend this code to support more dimensions
-          */
-          column->length=4*sizeof(double);
-	}
-      }
-      if (!(sql_field->flags & NOT_NULL_FLAG))
-      {
-	if (key->type == Key::PRIMARY)
-	{
-	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
-	  sql_field->flags|= NOT_NULL_FLAG;
-	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
-	}
-	else
-	   key_info->flags|= HA_NULL_PART_KEY;
-	if (!(file->table_flags() & HA_NULL_KEY))
-	{
-	  my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
-			  MYF(0),column->field_name);
-	  DBUG_RETURN(-1);
-	}
-	if (key->type == Key::SPATIAL)
-	{
-	  my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
-	  DBUG_RETURN(-1);
-	}
-      }
-      if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
-      {
-	if (column_nr == 0 || (file->table_flags() & HA_AUTO_PART_KEY))
-	  auto_increment--;			// Field is used
-      }
+
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;

@@ -22,8 +22,9 @@
 #include <m_ctype.h>
 #include <my_tree.h>
 
-#define HYPHEN_IS_DELIM
-#define HYPHEN_IS_CONCAT     /* not used for now */
+#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
+#define misc_word_char(X)	((X)=='\'')
+#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
 
 #define COMPILE_STOPWORDS_IN
 
@@ -107,8 +108,8 @@ int is_stopword(char *word, uint len);
 
 uint _ft_make_key(MI_INFO *, uint , byte *, FT_WORD *, my_off_t);
 
-byte ft_get_word(byte **, byte *, FT_WORD *, FTB_PARAM *);
-byte ft_simple_get_word(byte **, byte *, FT_WORD *);
+byte ft_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *, FTB_PARAM *);
+byte ft_simple_get_word(CHARSET_INFO *, byte **, byte *, FT_WORD *);
 
 typedef struct _st_ft_seg_iterator {
   uint        num, len;
@@ -123,7 +124,7 @@ uint _mi_ft_segiterator(FT_SEG_ITERATOR *);
 void ft_parse_init(TREE *, CHARSET_INFO *);
 int ft_parse(TREE *, byte *, int);
 FT_WORD * ft_linearize(TREE *);
-FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, byte *, const byte *);
+FT_WORD * _mi_ft_parserecord(MI_INFO *, uint, const byte *);
 uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record);
 
 extern const struct _ft_vft _ft_vft_nlq;

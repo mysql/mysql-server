@@ -513,8 +513,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       NullS))
     goto err;
   errpos=6;
-  
-  if (!have_rtree) 
+
+  if (!have_rtree)
     info.rtree_recursion_state= NULL;
 
   strmov(info.filename,org_name);
@@ -536,6 +536,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   info.lock_type=F_UNLCK;
   info.quick_mode=0;
   info.bulk_insert=0;
+  info.ft1_to_ft2=0;
   info.errkey= -1;
   info.page_changed=1;
   pthread_mutex_lock(&share->intern_lock);
@@ -1112,7 +1113,7 @@ char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
 
 /**************************************************************************
 Open data file with or without RAID
-We can't use dup() here as the data file descriptors need to have different 
+We can't use dup() here as the data file descriptors need to have different
 active seek-positions.
 
 The argument file_to_dup is here for the future if there would on some OS

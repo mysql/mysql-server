@@ -1675,7 +1675,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 	goto found;
     }
   }
-  if (allow_rowid && 
+  if (allow_rowid &&
       !my_strcasecmp(system_charset_info, name, "_rowid") &&
       (field=table->rowid_field))
     goto found;
@@ -1688,7 +1688,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     {
       field->query_id=thd->query_id;
       table->used_fields++;
-      table->used_keys&= field->part_of_key;
+      table->used_keys.intersect(field->part_of_key);
     }
     else
       thd->dupp_field=field;
@@ -1717,7 +1717,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   RETURN VALUES
     0			Field is not found or field is not unique- error
 			message is reported
-    not_found_field	Function was called with report_error == FALSE and 
+    not_found_field	Function was called with report_error == FALSE and
 			field was not found. no error message reported.
     found field
 */
@@ -2041,21 +2041,21 @@ bool setup_tables(TABLE_LIST *tables)
     table->used_keys= table->keys_for_keyread;
     if (table_list->use_index)
     {
-      key_map map= get_key_map_from_key_list(table,
-					     table_list->use_index);
-      if (map == ~(key_map) 0)
+      key_map map;
+      get_key_map_from_key_list(&map, table, table_list->use_index);
+      if (map.is_set_all())
 	DBUG_RETURN(1);
       table->keys_in_use_for_query=map;
     }
     if (table_list->ignore_index)
     {
-      key_map map= get_key_map_from_key_list(table,
-					     table_list->ignore_index);
-      if (map == ~(key_map) 0)
+      key_map map;
+      get_key_map_from_key_list(&map, table, table_list->ignore_index);
+      if (map.is_set_all())
 	DBUG_RETURN(1);
-      table->keys_in_use_for_query &= ~map;
+      table->keys_in_use_for_query.subtract(map);
     }
-    table->used_keys &= table->keys_in_use_for_query;
+    table->used_keys.intersect(table->keys_in_use_for_query);
     if (table_list->shared  || table->clear_query_id)
     {
       table->clear_query_id= 0;
@@ -2073,24 +2073,26 @@ bool setup_tables(TABLE_LIST *tables)
 }
 
 
-key_map get_key_map_from_key_list(TABLE *table, 
-				  List<String> *index_list)
+void get_key_map_from_key_list(key_map *map, TABLE *table,
+                               List<String> *index_list)
 {
-  key_map map=0;
   List_iterator_fast<String> it(*index_list);
   String *name;
   uint pos;
+
+  map->clear_all();
   while ((name=it++))
   {
     if ((pos=find_type(name->c_ptr(), &table->keynames, 1+2)) <= 0)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
 	       table->real_name);
-      return (~ (key_map) 0);
+      map->set_all();
+      return;
     }
-    map|= ((key_map) 1) << (pos-1);
+    map->set_bit(pos-1);
   }
-  return map;
+  return;
 }
 
 /****************************************************************************
@@ -2135,7 +2137,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
-	table->used_keys&= field->part_of_key;
+	table->used_keys.intersect(field->part_of_key);
       }
       /* All fields are used */
       table->used_fields=table->fields;
@@ -2226,8 +2228,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	    /* Mark field used for table cache */
 	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
 	    cond_and->list.push_back(tmp);
-	    t1->used_keys&= t1->field[i]->part_of_key;
-	    t2->used_keys&= t2->field[j]->part_of_key;
+	    t1->used_keys.intersect(t1->field[i]->part_of_key);
+	    t2->used_keys.intersect(t2->field[j]->part_of_key);
 	    break;
 	  }
 	}

@@ -844,7 +844,7 @@ int ha_berkeley::write_row(byte * record)
     ulong thd_options = table->in_use ? table->in_use->options : 0;
     for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
     {
-      key_map changed_keys = 0;
+      key_map changed_keys;
       if (using_ignore && (thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
       {
 	if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -855,7 +855,7 @@ int ha_berkeley::write_row(byte * record)
 							key_buff, record),
 			    &row, key_type[primary_key])))
       {
-	changed_keys |= (key_map) 1 << primary_key;
+	changed_keys.set_bit(primary_key);
 	for (uint keynr=0 ; keynr < table->keys ; keynr++)
 	{
 	  if (keynr == primary_key)
@@ -868,7 +868,7 @@ int ha_berkeley::write_row(byte * record)
 	    last_dup_key=keynr;
 	    break;
 	  }
-	  changed_keys |= (key_map) 1 << keynr;
+	  changed_keys.set_bit(keynr);
 	}
       }
       else
@@ -885,12 +885,12 @@ int ha_berkeley::write_row(byte * record)
 	    DBUG_PRINT("trans",("aborting subtransaction")); /* purecov: deadcode */
 	    new_error=txn_abort(sub_trans); /* purecov: deadcode */
 	  }
-	  else if (changed_keys)
+	  else if (!changed_keys.is_clear_all())
 	  {
 	    new_error = 0;
-	    for (uint keynr=0; changed_keys; keynr++, changed_keys >>= 1)
+	    for (uint keynr=0; keynr < changed_keys.length(); keynr++)
 	    {
-	      if (changed_keys & 1)
+	      if (changed_keys.is_set(keynr))
 	      {
 		if ((new_error = remove_key(sub_trans, keynr, record,
 					    &prim_key)))
@@ -1034,18 +1034,22 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
      rolled back.  The last key set in changed_keys is the one that
      triggered the duplicate key error (it wasn't inserted), so for
      that one just put back the old value. */
-  for (keynr=0; changed_keys; keynr++, changed_keys >>= 1)
+  if (!changed_keys.is_clear_all())
   {
-    if (changed_keys & 1)
+    key_map map1(1);
+    for (keynr=0; keynr < changed_keys.length(); keynr++)
     {
-      if (changed_keys != 1 &&
-	  (error = remove_key(trans, keynr, new_row, new_key)))
-	break; /* purecov: inspected */
-      if ((error = key_file[keynr]->put(key_file[keynr], trans,
-					create_key(&tmp_key, keynr, key_buff2,
-						   old_row),
-					old_key, key_type[keynr])))
-	break; /* purecov: inspected */
+      if (changed_keys.is_set(keynr))
+      {
+        if (changed_keys.is_subset(map1) &&
+            (error = remove_key(trans, keynr, new_row, new_key)))
+          break; /* purecov: inspected */
+        if ((error = key_file[keynr]->put(key_file[keynr], trans,
+                                          create_key(&tmp_key, keynr, key_buff2,
+                                                     old_row),
+                                          old_key, key_type[keynr])))
+          break; /* purecov: inspected */
+      }
     }
   }
 
@@ -1090,7 +1094,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   sub_trans = transaction;
   for (uint retry=0 ; retry < berkeley_trans_retry ; retry++)
   {
-    key_map changed_keys = 0;
+    key_map changed_keys;
     if (using_ignore &&	(thd_options & OPTION_INTERNAL_SUBTRANSACTIONS))
     {
       if ((error=txn_begin(db_env, transaction, &sub_trans, 0))) /* purecov: deadcode */
@@ -1123,7 +1127,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	    }
 	    DBUG_RETURN(error);			// Fatal error /* purecov: inspected */
 	  }
-	  changed_keys |= (key_map)1 << keynr;
+	  changed_keys.set_bit(keynr);
 	  if ((error=key_file[keynr]->put(key_file[keynr], sub_trans,
 					  create_key(&key, keynr, key_buff2,
 						     new_row),
@@ -1147,7 +1151,7 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
 	  DBUG_PRINT("trans",("aborting subtransaction")); /* purecov: deadcode */
 	  new_error=txn_abort(sub_trans); /* purecov: deadcode */
 	}
-	else if (changed_keys)
+	else if (!changed_keys.is_clear_all())
 	  new_error=restore_keys(transaction, changed_keys, primary_key,
 				 old_row, &old_prim_key, new_row, &prim_key,
 				 thd_options);
@@ -1232,9 +1236,9 @@ int ha_berkeley::remove_keys(DB_TXN *trans, const byte *record,
 			     DBT *new_record, DBT *prim_key, key_map keys)
 {
   int result = 0;
-  for (uint keynr=0; keys; keynr++, keys>>=1)
+  for (uint keynr=0; keynr < keys.length(); keynr++)
   {
-    if (keys & 1)
+    if (keys.is_set(keynr))
     {
       int new_error=remove_key(trans, keynr, record, prim_key);
       if (new_error)
@@ -1261,7 +1265,7 @@ int ha_berkeley::delete_row(const byte * record)
     DBUG_RETURN((error)); /* purecov: inspected */
   create_key(&prim_key, primary_key, key_buff, record);
   if (hidden_primary_key)
-    keys|= (key_map) 1 << primary_key;
+    keys.set_bit(primary_key);
 
   /* Subtransactions may be used in order to retry the delete in
      case we get a DB_LOCK_DEADLOCK error. */

@@ -103,4 +103,106 @@ count(*)
 select count(*) from t1 where match a against ('aaazzz' in boolean mode);
 count(*)
 262
-DROP TABLE IF EXISTS t1;
+drop table t1;
+CREATE TABLE t1 (
+i int(10) unsigned not null auto_increment primary key,
+a varchar(255) not null,
+FULLTEXT KEY (a)
+) TYPE=MyISAM;
+select count(*) from t1 where match a against ('aaaxxx');
+count(*)
+260
+select count(*) from t1 where match a against ('aaayyy');
+count(*)
+250
+select count(*) from t1 where match a against ('aaazzz');
+count(*)
+255
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+count(*)
+260
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+count(*)
+250
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+count(*)
+255
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz');
+count(*)
+765
+select count(*) from t1 where match a against ('aaaxxx aaayyy aaazzz' in boolean mode);
+count(*)
+765
+select count(*) from t1 where match a against ('aaax*' in boolean mode);
+count(*)
+260
+select count(*) from t1 where match a against ('aaay*' in boolean mode);
+count(*)
+250
+select count(*) from t1 where match a against ('aaa*' in boolean mode);
+count(*)
+765
+insert t1 (a) values ('aaaxxx'),('aaayyy');
+insert t1 (a) values ('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz'),('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx');
+count(*)
+261
+select count(*) from t1 where match a against ('aaayyy');
+count(*)
+251
+select count(*) from t1 where match a against ('aaazzz');
+count(*)
+260
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+count(*)
+1
+delete from t1 where match a against ('000000');
+select count(*) from t1 where match a against ('000000');
+count(*)
+0
+select count(*) from t1 where match a against ('aaaxxx');
+count(*)
+261
+delete from t1 where match a against ('aaazzz');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+count(*)
+261
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+count(*)
+251
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+count(*)
+0
+select count(*) from t1 where a = 'aaaxxx';
+count(*)
+261
+select count(*) from t1 where a = 'aaayyy';
+count(*)
+251
+select count(*) from t1 where a = 'aaazzz';
+count(*)
+0
+insert t1 (a) values ('aaaxxx 000000');
+select count(*) from t1 where match a against ('000000');
+count(*)
+1
+update t1 set a='aaazzz' where match a against ('000000');
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+count(*)
+261
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+count(*)
+1
+update t1 set a='aaazzz' where a = 'aaaxxx';
+update t1 set a='aaaxxx' where a = 'aaayyy';
+select count(*) from t1 where match a against ('aaaxxx' in boolean mode);
+count(*)
+251
+select count(*) from t1 where match a against ('aaayyy' in boolean mode);
+count(*)
+0
+select count(*) from t1 where match a against ('aaazzz' in boolean mode);
+count(*)
+262
+drop table t1;
