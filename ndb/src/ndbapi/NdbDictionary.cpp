@@ -343,6 +343,18 @@ NdbDictionary::Table::getColumn(const int attrId) const {
   return m_impl.getColumn(attrId);
 }
 
+NdbDictionary::Column*
+NdbDictionary::Table::getColumn(const char * name) 
+{
+  return m_impl.getColumn(name);
+}
+
+NdbDictionary::Column* 
+NdbDictionary::Table::getColumn(const int attrId)
+{
+  return m_impl.getColumn(attrId);
+}
+
 void
 NdbDictionary::Table::setLogging(bool val){
   m_impl.m_logging = val;
