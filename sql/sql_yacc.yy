@@ -4422,7 +4422,9 @@ opt_db:
 
 wild:
 	/* empty */
-	| LIKE text_string { Lex->wild= $2; };
+	| LIKE TEXT_STRING_sys
+	  { Lex->wild=  new (&YYTHD->mem_root) String($2.str, $2.length,
+                                                      system_charset_info); };
 
 opt_full:
 	/* empty */ { Lex->verbose=0; }
