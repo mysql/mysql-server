@@ -190,6 +190,13 @@ int main(int argc, char** argv)
     exit(-1);
   }
 
+  // Re-use the mgm handle as a transporter
+  if(!globalTransporterRegistry.connect_client(
+		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
+      ERROR_SET(fatal, ERR_INVALID_CONFIG,
+		"Connection to mgmd terminated before setup was complete", 
+		"StopOnError missing");
+
   if (!globalTransporterRegistry.start_clients()){
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     exit(-1);
