@@ -768,7 +768,7 @@ int yylex(void *arg)
       return(TEXT_STRING);
 
     case STATE_COMMENT:			//  Comment
-      lex->options|= OPTION_FOUND_COMMENT;
+      lex->select_lex.options|= OPTION_FOUND_COMMENT;
       while ((c = yyGet()) != '\n' && c) ;
       yyUnget();			// Safety against eof
       state = STATE_START;		// Try again
@@ -780,7 +780,7 @@ int yylex(void *arg)
 	break;
       }
       yySkip();				// Skip '*'
-      lex->options|= OPTION_FOUND_COMMENT;
+      lex->select_lex.options|= OPTION_FOUND_COMMENT;
       if (yyPeek() == '!')		// MySQL command in comment
       {
 	ulong version=MYSQL_VERSION_ID;

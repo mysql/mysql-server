@@ -121,8 +121,6 @@ void start_embedded_conn1(NET * net)
 
   if (thd->max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
-  if (thd->options & OPTION_ANSI_MODE)
-    thd->client_capabilities|=CLIENT_IGNORE_SPACE;
 
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;

@@ -598,7 +598,7 @@ query:
 	{
 	   THD *thd=current_thd;
 	   if (!thd->bootstrap &&
-	      (!(thd->lex.options & OPTION_FOUND_COMMENT)))
+	      (!(thd->lex.select_lex.options & OPTION_FOUND_COMMENT)))
 	   {
 	     send_error(&current_thd->net,ER_EMPTY_QUERY);
 	     YYABORT;

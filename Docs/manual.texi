@@ -10065,6 +10065,14 @@ but as of January 25th, 2001, it's only available in the ``-current'' branch.
 The symptoms of this threading bug are: slow response, high load, high CPU
 usage, and crashes.
 
+If you get an error like @code{Error in accept:: Bad file descriptor} or
+error 9 when trying to open tables or directories, the problem is probably
+that you haven't allocated enough file descriptors for MySQL.
+
+In this case try starting @code{safe_mysqld} as root with the following
+options:
+
+@code{--user=mysql --open-files-limit=2048}
 
 @node BSDI, BSDI3, OpenBSD 2.8, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
@@ -14614,6 +14622,7 @@ system.  This section describes how it works.
 * General security::            General security
 * Security::                    How to make MySQL secure against crackers
 * Privileges options::          Startup Options for @code{mysqld} Concerning Security
+* LOAD DATA LOCAL::             
 * What Privileges::             What the privilege system does
 * Privileges::                  How the privilege system works
 * Privileges provided::         Privileges provided by MySQL
@@ -14931,13 +14940,16 @@ can do this by setting the @code{max_user_connections} variable in
 @end itemize
 
 
-
-@node Privileges options, What Privileges, Security, Privilege system
+@node Privileges options, LOAD DATA LOCAL, Security, Privilege system
 @subsection Startup Options for @code{mysqld} Concerning Security
 
 The following @code{mysqld} options affect security:
 
 @table @code
+@item --local-infile[=(0|1)]
+If one uses @code{--local-infile=0} then one can't use @code{LOAD DATA LOCAL
+INFILE}.
+
 @item --safe-show-database
 With this option,
 @code{SHOW DATABASES} returns only those databases for which the user has
@@ -14979,8 +14991,50 @@ With this option, the
 
 @end table
 
+@node LOAD DATA LOCAL, What Privileges, Privileges options, Privilege system
+@subsection Security issues with LOAD DATA LOCAL
 
-@node What Privileges, Privileges, Privileges options, Privilege system
+In MySQL 3.23.49 and MySQL 4.0.2 we added some new options to deal with
+possible security issues when it comes to @code{LOAD DATA LOCAL}.
+
+There are two possible problems with supporting this command:
+
+As the reading of the file is initiated from the server, one could
+theoretically create a patched MySQL server that could read any file one
+the client machine, for which the current user have read privilege, when
+the client issues a query against the table.
+
+In a web environment where the clients are connection from an web
+server, a user could use @code{LOAD DATA LOCAL} to read any files for
+which the web server process have read access to (assuming a user could
+run any command against the SQL server).
+
+There are two separte fixes for this:
+
+If one doesn't configure with @code{--enable-local-infile} then
+@code{LOAD DATA LOCAL} will be disabled by all clients, unless one
+calls @code{mysql_options(... MYSQL_OPT_LOCAL_INFILE, 0)} in the client.
+@xref{mysql_options, , @code{mysql_options}}.
+
+One can enable this command in the @code{mysql} command line client by
+specify the option @code{--local-infile[=1]} and disable it with
+@code{--local-infile=0}.
+
+By default all MySQL clients and libraries are compiled with
+@code{--enable-local-infile}, to be compatible with MySQL 3.23.48 and
+before.
+
+One can disable all @code{LOAD DATA LOCAL} commands in the MySQL server
+by starting @code{mysqld} with @code{--local-infile=0}.
+
+In the case of that @code{LOAD DATA INFILE} is disabled in the server or
+the client, you will get the error message (1148):
+
+@example
+The used command is not allowed with this MySQL version
+@end example
+
+@node What Privileges, Privileges, LOAD DATA LOCAL, Privilege system
 @subsection What the Privilege System Does
 
 @cindex system, privilege
@@ -33816,6 +33870,10 @@ Also, to use @code{LOAD DATA INFILE} on server files, you must have the
 @strong{file} privilege on the server host.
 @xref{Privileges provided}.
 
+In MySQL 3.23.49 and MySQL 4.0.2 @code{LOCAL} will only work if you have
+not started @code{mysqld} with @code{--local-infile=0} or if you
+have not enabled your client to support @code{LOCAL}. @xref{LOAD DATA LOCAL}.
+
 If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{LOAD DATA} statement is delayed until no other clients are reading
 from the table.
@@ -42444,6 +42502,7 @@ Possible options values:
 @item @strong{Option} @tab @strong{Argument type} @tab @strong{Function}
 @item @code{MYSQL_OPT_CONNECT_TIMEOUT} @tab @code{unsigned int *} @tab Connect timeout in seconds.
 @item @code{MYSQL_OPT_COMPRESS} @tab Not used @tab Use the compressed client/server protocol.
+@item @code{MYSQL_OPT_LOCAL_INFILE} @tab optional pointer to uint @tab If no pointer is given or if pointer points to an @code{unsigned int != 0} the command @code{LOAD LOCAL INFILE} is enabled.
 @item @code{MYSQL_OPT_NAMED_PIPE} @tab Not used @tab Use named pipes to connect to a MySQL server on NT.
 @item @code{MYSQL_INIT_COMMAND} @tab @code{char *} @tab Command to execute when connecting to the MySQL server. Will automatically be re-executed when reconnecting.
 @item @code{MYSQL_READ_DEFAULT_FILE} @tab @code{char *} @tab Read options from the named option file instead of from @file{my.cnf}.
@@ -42461,9 +42520,11 @@ The specified group in the option file may contain the following options:
 @item @code{compress} @tab Use the compressed client/server protocol.
 @item @code{database} @tab Connect to this database if no database was specified in the connect command.
 @item @code{debug} @tab Debug options.
+@item @code{disable-local-infile} @tab Disable use of @code{LOAD DATA LOCAL}.
 @item @code{host} @tab Default host name.
 @item @code{init-command} @tab Command to execute when connecting to MySQL server. Will automatically be re-executed when reconnecting.
 @item @code{interactive-timeout} @tab Same as specifying @code{CLIENT_INTERACTIVE} to @code{mysql_real_connect()}. @xref{mysql_real_connect}.
+@item @code{local-infile[(=0|1)]} @tab If no argument or argument != 0 then enable use of @code{LOAD DATA LOCAL}.
 @item @code{password} @tab Default password.
 @item @code{pipe} @tab Use named pipes to connect to a MySQL server on NT.
 @item @code{port} @tab Default port number.
@@ -49510,7 +49571,7 @@ This ensures that one gets same values for date functions like @code{NOW()}
 when using @code{mysqlbinlog} to pipe the queries to another server.
 @item
 Allow one to use @code{--skip-gemini}, @code{--skip-bdb} and
-@code{--skip-innobase} to @code{mysqld} even if these databases are not
+@code{--skip-innodb} to @code{mysqld} even if these databases are not
 compiled in @code{mysqld}.
 @item
 One can now do @code{GROUP BY ... DESC}.
