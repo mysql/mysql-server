@@ -13,6 +13,7 @@ CREATE TABLE t1 (a int);
 send CREATE TABLE t2 LIKE t1;
 
 connection con_to_harm_sleeper;
+sleep 1;
 ALTER TABLE t1 add key(a);
 
 connection con_to_sleep;
