@@ -3168,6 +3168,9 @@ void my_net_local_init(NET *net)
   null byte. When mysql_hex_string() returns, the contents of "to" will
   be a null-terminated string. The return value is the length of the
   encoded string, not including the terminating null character.
+
+  The return value does not contain any leading 0x or a leading X' and
+  trailing '. The caller must supply whichever of those is desired.
 */
 
 unsigned long
