@@ -430,6 +430,7 @@ insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values(2),(4);
 select * from t1 natural left join t2 natural left join t3;
+select * from t1 natural left join t2 where (t2.i is not null)=0;
 drop table t1,t2,t3;
 
 #
