@@ -223,18 +223,27 @@ foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
     eval { $dbh->do( "use $db" ); };
     die "Database '$db' not accessible: $@"  if ( $@ );
-    my @dbh_tables = $dbh->func( '_ListTables' );
+    my @dbh_tables = $dbh->tables();
 
     ## generate regex for tables/files
-    my $t_regex = $rdb->{t_regex};        ## assign temporary regex
-    my $negated = $t_regex =~ tr/~//d;    ## remove and count negation operator: we don't allow ~ in table names
-    $t_regex = qr/$t_regex/;              ## make regex string from user regex
+    my $t_regex;
+    my $negated;
+    if ($rdb->{t_regex}) {
+        $t_regex = $rdb->{t_regex};        ## assign temporary regex
+        $negated = $t_regex =~ tr/~//d;    ## remove and count
+                                           ## negation operator: we
+                                           ## don't allow ~ in table
+                                           ## names
 
-    ## filter (out) tables specified in t_regex
-    print "Filtering tables with '$t_regex'\n" if $opt{debug};
-    @dbh_tables = ( $negated 
-		    ? grep { $_ !~ $t_regex } @dbh_tables 
-		    : grep { $_ =~ $t_regex } @dbh_tables );
+        $t_regex = qr/$t_regex/;           ## make regex string from
+                                           ## user regex
+
+        ## filter (out) tables specified in t_regex
+        print "Filtering tables with '$t_regex'\n" if $opt{debug};
+        @dbh_tables = ( $negated 
+                        ? grep { $_ !~ $t_regex } @dbh_tables
+                        : grep { $_ =~ $t_regex } @dbh_tables );
+    }
 
     ## get list of files to copy
     my $db_dir = "$datadir/$db";
@@ -249,10 +258,18 @@ foreach my $rdb ( @db_desc ) {
     closedir( DBDIR );
 
     ## filter (out) files specified in t_regex
-    my @db_files = ( $negated 
-			  ? grep { $db_files{$_} !~ $t_regex } keys %db_files
-			  : grep { $db_files{$_} =~ $t_regex } keys %db_files );
+    my @db_files;
+    if ($rdb->{t_regex}) {
+        @db_files = ($negated
+                     ? grep { $db_files{$_} !~ $t_regex } keys %db_files
+                     : grep { $db_files{$_} =~ $t_regex } keys %db_files );
+    }
+    else {
+        @db_files = keys %db_files;
+    }
+
     @db_files = sort @db_files;
+
     my @index_files=();
 
     ## remove indices unless we're told to keep them
@@ -808,4 +825,8 @@ Monty - working --noindex (copy only first 2048 bytes of index file)
 Ask Bjoern Hansen - Cleanup code to fix a few bugs and enable -w again.
 
 Emil S. Hansen - Added resetslave and resetmaster.
+
+Jeremy D. Zawodny - Removed depricated DBI calls.  Fixed bug which
+resulted in nothing being copied when a regexp was specified but no
+database name(s).
 
