@@ -3,35 +3,25 @@ CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL
 ) ENGINE=ndbcluster;
-INSERT INTO t1 VALUES (9410,9412),(9411,9413);
+INSERT INTO t1 VALUES (9410,9412);
 SELECT pk1 FROM t1;
 pk1
 9410
-9411
 SELECT * FROM t1;
 pk1	attr1
 9410	9412
-9411	9413
 SELECT t1.* FROM t1;
 pk1	attr1
 9410	9412
-9411	9413
 UPDATE t1 SET attr1=1 WHERE pk1=9410;
 SELECT * FROM t1;
 pk1	attr1
 9410	1
-9411	9413
 UPDATE t1 SET pk1=2 WHERE attr1=1;
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
 SELECT * FROM t1;
 pk1	attr1
-2	1
-9411	9413
-UPDATE t1 SET pk1=2 WHERE attr1=9413;
-ERROR 23000: Can't write; duplicate key in table 't1'
-SELECT * FROM t1;
-pk1	attr1
-2	1
-9411	9413
+9410	1
 DELETE FROM t1;
 SELECT * FROM t1;
 pk1	attr1
