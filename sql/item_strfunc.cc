@@ -2128,12 +2128,16 @@ String *Item_func_as_text::val_str(String *str)
 {
   String *wkt = args[0]->val_str(str);
   Geometry geom;
-  
-  str->length(0);
+
   if ((null_value=(args[0]->null_value ||
-                   geom.create_from_wkb(wkt->ptr(),wkt->length()) || 
-                   geom.as_wkt(str))))
+                   geom.create_from_wkb(wkt->ptr(),wkt->length())))) 
     return 0;
+
+  str->length(0);
+
+  if ((null_value=geom.as_wkt(str)))
+    return 0;
+
   return str;
 }
 
