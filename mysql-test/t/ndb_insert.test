@@ -429,5 +429,34 @@ INSERT INTO t1 VALUES
 SELECT COUNT(*) FROM t1;
 
 
+#
+# Insert duplicate rows
+# 
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+
+
+
+begin;
+
+#
+# Insert duplicate rows, inside transaction
+# 
+--error 1062
+INSERT INTO t1 VALUES 
+(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
+(6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
+
+commit;
+
+#
+# Insert duplicate rows using "insert .. select" 
+
+#
+--error 1062
+insert into t1 select * from t1 where b < 10 order by pk1;
+
 
 DROP TABLE t1;
