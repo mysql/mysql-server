@@ -9433,6 +9433,152 @@ select col1 FROM t1 where col1=2");
 
 
 /*
+  This tests for various mysql_send_long_data bugs described in #1664
+*/
+
+static void test_bug1664()
+{
+    MYSQL_STMT *stmt;
+    int        rc, int_data;
+    const char *data;
+    const char *str_data= "Simple string";
+    MYSQL_BIND bind[2];
+    const char *query= "INSERT INTO test_long_data(col2, col1) VALUES(?,?)";
+    
+    myheader("test_bug1664");
+    
+    rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_long_data");
+    myquery(rc);
+    
+    rc= mysql_query(mysql,"CREATE TABLE test_long_data(col1 int, col2 long varchar)");
+    myquery(rc);
+    
+    stmt= mysql_stmt_init(mysql);
+    mystmt_init(stmt);
+    rc= mysql_stmt_prepare(stmt, query, strlen(query));
+    mystmt(stmt, rc);
+    
+    verify_param_count(stmt, 2);
+   
+    bzero(&bind, sizeof(bind));
+    
+    bind[0].buffer_type= FIELD_TYPE_STRING;
+    bind[0].buffer= (char *)str_data;
+    bind[0].buffer_length= strlen(str_data);
+
+    bind[1].buffer= (char *)&int_data;
+    bind[1].buffer_type= FIELD_TYPE_LONG;
+    
+    rc= mysql_stmt_bind_param(stmt,bind);
+    mystmt(stmt, rc);
+    
+    int_data= 1;
+
+    /* 
+      Let us supply empty long_data. This should work and should 
+      not break following execution.
+    */
+    data= "";
+    rc= mysql_stmt_send_long_data(stmt,0,data,strlen(data));
+    mystmt(stmt,rc);
+
+    rc= mysql_stmt_execute(stmt);
+    fprintf(stdout," mysql_execute() returned %d\n",rc);
+    mystmt(stmt,rc);
+    
+    verify_col_data("test_long_data","col1","1");
+    verify_col_data("test_long_data","col2","");
+
+    rc= mysql_query(mysql,"DELETE FROM test_long_data");
+    myquery(rc);
+    
+    /* This should pass OK */
+    data= (char *)"Data";
+    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    mystmt(stmt, rc);
+
+    rc= mysql_stmt_execute(stmt);
+    fprintf(stdout," mysql_execute() returned %d\n",rc);
+    mystmt(stmt, rc);
+    
+    verify_col_data("test_long_data", "col1", "1");
+    verify_col_data("test_long_data", "col2", "Data");
+
+    /* clean up */
+    rc= mysql_query(mysql, "DELETE FROM test_long_data");
+    myquery(rc);
+
+    /*
+      Now we are changing int parameter and don't do anything
+      with first parameter. Second mysql_execute() should run
+      OK treating this first parameter as string parameter.
+    */
+    
+    int_data= 2;
+    /* execute */
+    rc = mysql_stmt_execute(stmt);
+    fprintf(stdout, " mysql_execute() returned %d\n", rc);
+    mystmt(stmt, rc);
+  
+    verify_col_data("test_long_data", "col1", "2");
+    verify_col_data("test_long_data", "col2", str_data);
+
+    /* clean up */
+    rc= mysql_query(mysql, "DELETE FROM test_long_data");
+    myquery(rc);
+    
+    /*
+      Now we are sending other long data. It should not be 
+      concatened to previous.
+    */
+
+    data= (char *)"SomeOtherData";
+    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    mystmt(stmt, rc);
+    
+    rc= mysql_stmt_execute(stmt);
+    fprintf(stdout, " mysql_execute() returned %d\n", rc);
+    mystmt(stmt, rc);
+
+    verify_col_data("test_long_data", "col1", "2");
+    verify_col_data("test_long_data", "col2", "SomeOtherData");
+    
+    mysql_stmt_close(stmt);
+
+    /* clean up */
+    rc= mysql_query(mysql, "DELETE FROM test_long_data");
+    myquery(rc);
+    
+    /* Now let us test how mysql_stmt_reset works. */
+    stmt= mysql_stmt_init(mysql);
+    mystmt_init(stmt);
+    rc= mysql_stmt_prepare(stmt, query, strlen(query));
+    mystmt(stmt, rc);
+    rc= mysql_bind_param(stmt, bind);
+    mystmt(stmt, rc);
+    
+    data= (char *)"SomeData";
+    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    mystmt(stmt, rc);
+
+    rc= mysql_stmt_reset(stmt);
+    mystmt(stmt, rc);
+
+    rc= mysql_stmt_execute(stmt);
+    fprintf(stdout," mysql_execute() returned %d\n",rc);
+    mystmt(stmt, rc);
+    
+    verify_col_data("test_long_data", "col1", "2");
+    verify_col_data("test_long_data", "col2", str_data);
+
+    mysql_stmt_close(stmt);
+    
+    /* Final clean up */
+    rc= mysql_query(mysql, "DROP TABLE test_long_data");
+    myquery(rc);
+}
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -9712,6 +9858,8 @@ int main(int argc, char **argv)
     test_xjoin();	    /* complex join test */
     test_bug3035();         /* inserts of INT32_MAX/UINT32_MAX */
     test_union2();	    /* repeatable execution of union (Bug #3577) */
+    test_bug1664();         /* test for bugs in mysql_stmt_send_long_data() 
+                               call (Bug #1664) */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

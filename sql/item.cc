@@ -605,12 +605,19 @@ Item_param::Item_param(unsigned position) :
   set_param_func(default_set_param_func)
 {
   name= (char*) "?";
+  /* 
+    Since we can't say whenever this item can be NULL or cannot be NULL
+    before mysql_stmt_execute(), so we assuming that it can be NULL until
+    value is set.
+  */
+  maybe_null= 1;
 }
 
 void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
-  maybe_null= null_value= value_is_set= 1;
+  /* These are cleared after each execution by reset() method */
+  null_value= value_is_set= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -620,6 +627,7 @@ void Item_param::set_int(longlong i)
   int_value= (longlong)i;
   item_type= INT_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("integer: %lld", int_value));
   DBUG_VOID_RETURN;
 }
@@ -630,6 +638,7 @@ void Item_param::set_double(double value)
   real_value=value;
   item_type= REAL_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("double: %lg", real_value));
   DBUG_VOID_RETURN;
 }
@@ -641,6 +650,7 @@ void Item_param::set_value(const char *str, uint length)
   str_value.copy(str,length,default_charset());
   item_type= STRING_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
   DBUG_PRINT("info", ("string: %s", str_value.ptr()));
   DBUG_VOID_RETURN;
 }
@@ -665,6 +675,7 @@ void Item_param::set_time(TIME *tm, timestamp_type type)
   item_is_time= TRUE;
   item_type= STRING_ITEM;
   value_is_set= 1;
+  maybe_null= 0;
 }
 
 
@@ -673,6 +684,27 @@ void Item_param::set_longdata(const char *str, ulong length)
   str_value.append(str,length);
   long_data_supplied= 1;
   value_is_set= 1;
+  maybe_null= 0;
+}
+
+
+/*
+    Resets parameter after execution.
+  
+  SYNOPSIS
+     Item_param::reset()
+ 
+  NOTES
+    We clear null_value here instead of setting it in set_* methods, 
+    because we want more easily handle case for long data.
+*/
+
+void Item_param::reset()
+{  
+  str_value.set("", 0, &my_charset_bin);
+  value_is_set= long_data_supplied= 0;
+  maybe_null= 1;
+  null_value= 0;
 }
 
 
