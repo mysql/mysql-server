@@ -34306,6 +34306,8 @@ can be fixed by a simple repair. In this case you have to do:
 ALTER TABLE table MAX_ROWS=xxx AVG_ROW_LENGTH=yyy;
 @end example
 
+@end itemize
+
 In the other cases, you must repair your tables. @code{myisamchk}
 can usually detect and fix most things that go wrong.
 
