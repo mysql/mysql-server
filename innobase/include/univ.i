@@ -9,6 +9,7 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
+
 #if (defined(_WIN32) || defined(_WIN64))
 #define __WIN__
 #include <windows.h>
@@ -19,6 +20,10 @@ be defined:
 #define HANDLE void*
 #define CRITICAL_SECTION	ulint
 */
+
+#ifdef _NT_
+#define __NT__
+#endif
 
 #else
 /* The Unix version */
