@@ -141,6 +141,26 @@ VAR var_reg[10];
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
 
+  /* Add new commands before Q_UNKNOWN !*/
+
+enum enum_commands {
+Q_CONNECTION=1,     Q_QUERY, 
+Q_CONNECT,          Q_SLEEP, 
+Q_INC,              Q_DEC,
+Q_SOURCE,           Q_DISCONNECT,
+Q_LET,              Q_ECHO, 
+Q_WHILE,            Q_END_BLOCK,
+Q_SYSTEM,           Q_RESULT, 
+Q_REQUIRE,          Q_SAVE_MASTER_POS,
+Q_SYNC_WITH_MASTER, Q_ERROR, 
+Q_SEND,             Q_REAP, 
+Q_DIRTY_CLOSE,      Q_REPLACE,
+Q_PING,             Q_EVAL,
+Q_UNKNOWN,                             /* Unknown command.   */
+Q_COMMENT,                             /* Comments, ignored. */
+Q_COMMENT_WITH_COMMAND
+};
+
 /* this should really be called command */
 struct st_query
 {
@@ -149,23 +169,7 @@ struct st_query
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
   char record_file[FN_REFLEN];
-  /* Add new commands before Q_UNKNOWN */
-  enum { Q_CONNECTION=1,     Q_QUERY, 
-         Q_CONNECT,          Q_SLEEP, 
-         Q_INC,              Q_DEC,
-         Q_SOURCE,           Q_DISCONNECT,
-         Q_LET,              Q_ECHO, 
-         Q_WHILE,            Q_END_BLOCK,
-         Q_SYSTEM,           Q_RESULT, 
-         Q_REQUIRE,          Q_SAVE_MASTER_POS,
-         Q_SYNC_WITH_MASTER, Q_ERROR, 
-         Q_SEND,             Q_REAP, 
-         Q_DIRTY_CLOSE,      Q_REPLACE,
-	 Q_PING,             Q_EVAL,
-         Q_UNKNOWN,                             /* Unknown command.   */
-         Q_COMMENT,                             /* Comments, ignored. */
-         Q_COMMENT_WITH_COMMAND
-  } type;
+  enum enum_commands type;
 };
 
 const char *command_names[] = {
@@ -475,10 +479,12 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 	   my_malloc(v->alloced_len, MYF(MY_WME))))
 	 die("Out of memory");
     }
-  memcpy(v->str_val, var_val, val_len-1);
-  v->str_val_len = val_len - 1;
+  val_len--;
+  memcpy(v->str_val, var_val, val_len);
+  v->str_val_len = val_len;
   v->str_val[val_len] = 0;
   v->int_val = atoi(v->str_val);
+  v->int_dirty=0;
   return 0;
 }
 
@@ -515,7 +521,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
     {
       if ((vp = var_get(p,p_end,0)))
 	{
-	  memcpy(v, vp, sizeof(VAR));
+	  memcpy(v, vp, sizeof(*v));
 	  return 0;
 	}
     }
@@ -523,6 +529,8 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
     {
       v->str_val = (char*)p;
       v->str_val_len = (p_end && *p_end) ? *p_end - p : strlen(p);
+      v->int_val=atoi(p);
+      v->int_dirty=0;
       return 0;
     }
 
@@ -557,7 +565,7 @@ int do_system(struct st_query* q)
   char* p=q->first_argument;
   VAR v;
   eval_expr(&v, p, 0); /* NULL terminated */
-  if (v.str_val_len > 1)
+  if (v.str_val_len)
     {
       char expr_buf[512];
       if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
@@ -576,11 +584,11 @@ int do_echo(struct st_query* q)
   char* p=q->first_argument;
   VAR v;
   eval_expr(&v, p, 0); /* NULL terminated */
-  if (v.str_val_len > 1)
-    {
-      fflush(stdout);
-      write(1, v.str_val, v.str_val_len - 1);
-    }
+  if (v.str_val_len)
+  {
+    fflush(stdout);
+    write(1, v.str_val, v.str_val_len);
+  }
   write(1, "\n", 1);
   return 0;
 }
@@ -671,15 +679,15 @@ int do_sleep(struct st_query* q)
       p++;
     if (*p == '.')
     {
-      char c;
+      int c;
       char *p_end;
       p++;
       p_end = p + 6;
 
       for(;p <= p_end; ++p)
       {
-	c = *p - '0';
-	if (c < 10 && c >= 0)
+	c = (int) (*p - '0');
+	if (c < 10 && (int) c >= 0)
 	{
 	  t.tv_usec = t.tv_usec * 10 + c;
 	  dec_mul /= 10;
@@ -1228,7 +1236,7 @@ static char read_query_buf[MAX_QUERY];
 int read_query(struct st_query** q_ptr)
 {
   char *p = read_query_buf, * p1 ;
-  int c, expected_errno;
+  int expected_errno;
   struct st_query* q;
 
   if (parser.current_line < parser.read_lines)
@@ -1283,8 +1291,8 @@ int read_query(struct st_query** q_ptr)
     {
       p++;
       p1 = q->record_file;
-      while(!isspace(c = *p) &&
-	    p1 < q->record_file + sizeof(q->record_file) - 1)
+      while (!isspace(*p) &&
+	     p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
       *p1 = 0;
     }
@@ -1487,7 +1495,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   unsigned long* lengths;
   char* val;
   int len;
-  int q_error = 0 ;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
@@ -1516,8 +1523,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   else
     ds= &ds_res;
   
-  if ((flags & QUERY_SEND) &&
-      (q_error = mysql_send_query(mysql, query, query_len)))
+  if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
     die("At line %u: unable to send query '%s'", start_lineno, query);
   if(!(flags & QUERY_REAP))
     return 0;
@@ -1660,7 +1666,7 @@ void get_query_type(struct st_query* q)
   type=find_type(q->query, &command_typelib, 1+2);
   q->query[q->first_word_len]=save;
   if (type > 0)
-    q->type=type;				/* Found command */
+    q->type=(enum enum_commands) type;		/* Found command */
 }
 
 
@@ -1784,7 +1790,7 @@ int main(int argc, char** argv)
       case Q_REPLACE:
 	get_replace(q);
 	break;
-      case Q_SAVE_MASTER_POS: do_save_master_pos(q); break;	
+      case Q_SAVE_MASTER_POS: do_save_master_pos(); break;	
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:
