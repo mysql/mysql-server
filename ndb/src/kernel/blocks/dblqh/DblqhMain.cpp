@@ -1444,6 +1444,7 @@ Dblqh::sendAddAttrReq(Signal* signal)
       tupreq->notused1 = 0;
       tupreq->attrId = attrId;
       tupreq->attrDescriptor = entry.attrDescriptor;
+      tupreq->extTypeInfo = entry.extTypeInfo;
       sendSignal(fragptr.p->tupBlockref, GSN_TUP_ADD_ATTRREQ,
           signal, TupAddAttrReq::SignalLength, JBB);
       return;
