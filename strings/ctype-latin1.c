@@ -180,7 +180,7 @@ CHARSET_INFO my_charset_latin1 =
     8,0,0,				/* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY,	/* state     */
     "latin1",				/* cs name    */
-    "latin1",				/* name      */
+    "latin1_swedish_ci",		/* name      */
     "",					/* comment   */
     ctype_latin1,
     to_lower_latin1,
