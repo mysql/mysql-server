@@ -65,7 +65,8 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Zi /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /ZI /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -477,10 +478,6 @@ SOURCE=..\strings\strtoull.c
 # Begin Source File
 
 SOURCE=..\strings\strxmov.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 
