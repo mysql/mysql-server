@@ -3144,6 +3144,11 @@ Item_func_sp::fix_length_and_dec()
       decimals= 0;
       max_length= 21;
       break;
+    case ROW_RESULT:
+    default:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      break;
     }
   }
   DBUG_VOID_RETURN;
