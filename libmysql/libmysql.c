@@ -4097,8 +4097,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %d", param->buffer_type,
     param->buffer ? param->buffer : "0", *param->length));
   
-  if (param->is_null || param->buffer_type == MYSQL_TYPE_NULL ||
-      *param->length == MYSQL_NULL_DATA)
+  if (param->is_null || *param->length == MYSQL_NULL_DATA)
     store_param_null(net, param);
   else
   {
@@ -4190,7 +4189,7 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     for (param= stmt->params; param < param_end; param++)
     {
       /* Check for long data which has not been propery given/terminated */
-      if (param->is_long_data)
+      if (param->is_long_data || *param->length == MYSQL_LONG_DATA)
       {
         if (!param->long_ended)
           DBUG_RETURN(MYSQL_NEED_DATA);
@@ -4281,7 +4280,7 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_NULL:
-      param->is_null=1;
+      param->is_null= 1;
       break;
     case MYSQL_TYPE_TINY:
       param->bind_length= 1;
@@ -4412,41 +4411,32 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
     1	Error	(Can't alloc net->buffer)
 ****************************************************************************/
 
-
-static ulong get_field_length(uint type)
+/* Return the default binary data length for the common types */
+static unsigned int get_binary_length(uint type)
 {
-  ulong length;
-
-  switch (type) {
-
+  switch(type) {
   case MYSQL_TYPE_TINY:
-    length= 1;
-    break;
+    return 1;
   case MYSQL_TYPE_SHORT:
   case MYSQL_TYPE_YEAR:
-    length= 2;
-    break;
+    return 2;
   case MYSQL_TYPE_LONG:
   case MYSQL_TYPE_FLOAT:
-    length= 4;
-    break;
+    return 4;
   case MYSQL_TYPE_LONGLONG:
   case MYSQL_TYPE_DOUBLE:
-    length= 8;
-    break;
+    return 8;
   default:
-    length= 0;
+    return 0;
   }
-  return length;
 }
 
+/* Convert Numeric to buffer types */
 static void send_data_long(MYSQL_BIND *param, longlong value)
 {  
   char *buffer= param->buffer;
   
-  *param->length= get_field_length(param->buffer_type);
   switch(param->buffer_type) {
-
   case MYSQL_TYPE_TINY:
     *param->buffer= (uchar) value;
     break;
@@ -4480,13 +4470,12 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
   } 
 }
 
+/* Convert Double to buffer types */
 static void send_data_double(MYSQL_BIND *param, double value)
 {  
   char *buffer= param->buffer;
 
-  *param->length= get_field_length(param->buffer_type);
   switch(param->buffer_type) {
-
   case MYSQL_TYPE_TINY:
     *buffer= (uchar)value;
     break;
@@ -4520,63 +4509,64 @@ static void send_data_double(MYSQL_BIND *param, double value)
   } 
 }
 
-static void send_data_str(MYSQL_BIND *param, char *value, uint src_length)
+/* Convert string to buffer types */
+static void send_data_str(MYSQL_BIND *param, char *value, uint length)
 {  
   char *buffer= param->buffer;
 
-  *param->length= get_field_length(param->buffer_type);
   switch(param->buffer_type) {
-
   case MYSQL_TYPE_TINY:
-    *buffer= (char)*value;
+  {
+    uchar data= (uchar)my_strntol(system_charset_info,value,length,NULL,10);
+    *buffer= data;
     break;
+  }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short)sint2korr(value);
+    short data= (short)my_strntol(system_charset_info,value,length,NULL,10);
     int2store(buffer, data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)sint4korr(value);
+    int32 data= (int32)my_strntol(system_charset_info,value,length,NULL,10);
     int4store(buffer, data);    
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong data= sint8korr(value);
+    longlong data= my_strntoll(system_charset_info,value,length,NULL,10);
     int8store(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data;
-    float4get(data, value);
+    float data = (float)my_strntod(system_charset_info,value,length,NULL);
     float4store(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data;
-    float8get(data, value);
+    double data= my_strntod(system_charset_info,value,length,NULL);
     float8store(buffer, data);
     break;
   }
   default:
-    *param->length= src_length;
-    memcpy(buffer, value, src_length);
-    buffer[src_length]='\0';
+    *param->length= length;
+    memcpy(buffer, value, length);
+    buffer[length]='\0';
   } 
 }
 
+/* Fetch data to buffers */
 static my_bool fetch_results(MYSQL_STMT *stmt, MYSQL_BIND *param,
                              uint field_type, uchar **row)
 {
   ulong length;
-
-  length= get_field_length(field_type);
+  
+  length= (ulong)get_binary_length(field_type);
+  
   switch (field_type) {
-
   case MYSQL_TYPE_TINY:
   {
     uchar value= (uchar) **row;
@@ -4813,27 +4803,21 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_TINY:
-      param->bind_length= 1;
       param->fetch_result= fetch_result_tinyint;
       break;
     case MYSQL_TYPE_SHORT:
-      param->bind_length= 2;
       param->fetch_result= fetch_result_short;
       break;
     case MYSQL_TYPE_LONG:
-      param->bind_length= 4;
       param->fetch_result= fetch_result_int32;
       break;
     case MYSQL_TYPE_LONGLONG:
-      param->bind_length= 8;
       param->fetch_result= fetch_result_int64;
       break;
     case MYSQL_TYPE_FLOAT:
-      param->bind_length= 4;
       param->fetch_result= fetch_result_float;
       break;
     case MYSQL_TYPE_DOUBLE:
-      param->bind_length= 8;
       param->fetch_result= fetch_result_double;
       break;
     case MYSQL_TYPE_TINY_BLOB:
@@ -4842,7 +4826,6 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
-      param->bind_length= 0;        
       param->fetch_result= fetch_result_str;
       break;
     default:
@@ -4852,6 +4835,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     }
     if (!param->length)
       param->length= &param->bind_length;
+    *param->length= (long)get_binary_length(param->buffer_type);
   }
   stmt->res_buffers= 1;
   DBUG_RETURN(0);

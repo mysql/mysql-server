@@ -439,13 +439,12 @@ typedef struct st_mysql_bind
 {
   long		*length;		/* output length pointer */
   gptr		buffer;			/* buffer */
-  unsigned long buffer_length;		/* buffer length */  
   enum enum_field_types buffer_type;	/* buffer type */
-  enum enum_field_types field_type;	/* field type */
   my_bool	is_null;		/* NULL indicator */
   my_bool	is_long_data;		/* long data indicator */
 
   /* The following are for internal use. Set by mysql_bind_param */
+  unsigned long buffer_length;		/* buffer length */  
   long		bind_length;		/* Default length of data */
   my_bool	long_ended;		/* All data supplied for long */
   unsigned int	param_number;		/* For null count and error messages */
@@ -511,6 +510,7 @@ MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 #define MYSQL_NO_DATA   100
 #define MYSQL_NEED_DATA  99 
 #define MYSQL_NULL_DATA (-1)
+#define MYSQL_LONG_DATA (-2)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
