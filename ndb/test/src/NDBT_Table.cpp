@@ -14,105 +14,35 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NDBT_Table.hpp"
+#include <NDBT_Table.hpp>
 #include <NdbTimer.hpp>
 #include <NDBT.hpp>
-
 
 class NdbOut& 
 operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
 
   NdbDictionary::Column::Type type = attr.getType();
-  bool key = attr.getPrimaryKey();
-  bool null = attr.getNullable();
 
-  ndbout << attr.getName() << " ";
-  char tmp[100];
-  if(attr.getLength() != 1)
-    snprintf(tmp, 100," [%d]", attr.getLength());
-  else
-    tmp[0] = 0;
+  ndbout << attr.getName() << " " << type;
   
   switch(type){
-  case NdbDictionary::Column::Tinyint:
-    ndbout << "Tinyint" << tmp;
-    break;
-  case NdbDictionary::Column::Tinyunsigned:
-    ndbout << "Tinyunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Smallint:
-    ndbout << "Smallint" << tmp;
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    ndbout << "Smallunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Mediumint:
-    ndbout << "Mediumint" << tmp;
-    break;
-  case NdbDictionary::Column::Mediumunsigned:
-    ndbout << "Mediumunsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Int:
-    ndbout << "Int" << tmp;
-    break;
-  case NdbDictionary::Column::Unsigned:
-    ndbout << "Unsigned" << tmp;
-    break;
-  case NdbDictionary::Column::Bigint:
-    ndbout << "Bigint"  << tmp;
-    break;
-  case NdbDictionary::Column::Bigunsigned:
-    ndbout << "Bigunsigned"  << tmp;
-    break;
-  case NdbDictionary::Column::Float:
-    ndbout << "Float" << tmp;
-    break;
-  case NdbDictionary::Column::Double:
-    ndbout << "Double"  << tmp;
-    break;
   case NdbDictionary::Column::Decimal:
-    ndbout << "Decimal(" 
-	   << attr.getScale() << ", " << attr.getPrecision() << ")"
-	   << tmp;
-    break;
-  case NdbDictionary::Column::Char:
-    ndbout << "Char(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Varchar:
-    ndbout << "Varchar(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Binary:
-    ndbout << "Binary(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Varbinary:
-    ndbout << "Varbinary(" << attr.getLength() << ")";
-    break;
-  case NdbDictionary::Column::Datetime:
-    ndbout << "Datetime"  << tmp;
-    break;
-  case NdbDictionary::Column::Timespec:
-    ndbout << "Timespec"  << tmp;
-    break;
-  case NdbDictionary::Column::Blob:
-    ndbout << "Blob"  << tmp;
-    break;
-  case NdbDictionary::Column::Undefined:
-    ndbout << "Undefined"  << tmp;
+    ndbout << "(" << attr.getScale() << ", " << attr.getPrecision() << ")";
     break;
   default:
-    ndbout << "Unknown(" << type << ")";
+    break;
   }
   
-  ndbout << " ";
-  if(null){
-    ndbout << "NULL";
-  } else {
-    ndbout << "NOT NULL";
-  }
-  ndbout << " ";
+  if(attr.getLength() != 1)
+    ndbout << "[" << attr.getLength() << "]";
+
+  if(attr.getNullable())
+    ndbout << " NULL";
+  else
+    ndbout << " NOT NULL";
   
-  if(key)
-    ndbout << "PRIMARY KEY";
+  if(attr.getPrimaryKey())
+    ndbout << " PRIMARY KEY";
   
   return ndbout;
 }
