@@ -31,16 +31,10 @@ public:
   ConfigRetriever(LocalConfig &local_config, Uint32 version, Uint32 nodeType);
   ~ConfigRetriever();
 
-  /**
-   * Read local config 
-   * @return Own node id, -1 means fail
-   */
-  int init();
-
   int do_connect(int exit_on_connect_failure= false);
   
   /**
-   * Get configuration for current (nodeId given in local config file) node.
+   * Get configuration for current node.
    * 
    * Configuration is fetched from one MGM server configured in local config 
    * file.  The method loops over all the configured MGM servers and tries

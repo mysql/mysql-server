@@ -52,6 +52,7 @@ ConfigRetriever::ConfigRetriever(LocalConfig &local_config,
   m_handle= 0;
   m_version = version;
   m_node_type = node_type;
+  _ownNodeId = _localConfig._ownNodeId;
 }
 
 ConfigRetriever::~ConfigRetriever(){
@@ -66,11 +67,6 @@ ConfigRetriever::~ConfigRetriever(){
 //****************************************************************************
 //****************************************************************************
  
-int 
-ConfigRetriever::init() {
-  return _ownNodeId = _localConfig._ownNodeId;
-}
-
 int
 ConfigRetriever::do_connect(int exit_on_connect_failure){
 
@@ -93,12 +89,18 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
     BaseString tmp;
     for (unsigned int i = 0; i<_localConfig.ids.size(); i++){
       MgmtSrvrId * m = &_localConfig.ids[i];
+      DBUG_PRINT("info",("trying %s:%d",
+			 m->name.c_str(),
+			 m->port));
       switch(m->type){
       case MgmId_TCP:
 	tmp.assfmt("%s:%d", m->name.c_str(), m->port);
 	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
 	  m_mgmd_port= m->port;
 	  m_mgmd_host= m->name.c_str();
+	  DBUG_PRINT("info",("connected to ndb_mgmd at %s:%d",
+			     m_mgmd_host,
+			     m_mgmd_port));
 	  return 0;
 	}
 	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
@@ -106,9 +108,10 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
 	break;
       }
     }
-    if (exit_on_connect_failure)
-      return 1;
     if(latestErrorType == CR_RETRY){
+      DBUG_PRINT("info",("CR_RETRY"));
+      if (exit_on_connect_failure)
+	return 1;
       REPORT_WARNING("Failed to retrieve cluster configuration");
       ndbout << "(Cause of failure: " << getErrorString() << ")" << endl;
       ndbout << "Attempt " << retry << " of " << retry_max << ". " 

@@ -3746,12 +3746,14 @@ bool ndbcluster_init()
   {
     g_ndb->waitUntilReady(10);
   } 
-  else if(res == 1 && g_ndb_cluster_connection->start_connect_thread())
+  else if(res == 1)
   {
-    DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-    DBUG_RETURN(TRUE);
+    if (g_ndb_cluster_connection->start_connect_thread()) {
+      DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
+      DBUG_RETURN(TRUE);
+    }
   }
-  else 
+  else
   {
     DBUG_ASSERT(res == -1);
     DBUG_PRINT("error", ("permanent error"));
@@ -3764,7 +3766,7 @@ bool ndbcluster_init()
 
   ndbcluster_inited= 1;
 #ifdef USE_DISCOVER_ON_STARTUP
-  if (ndb_discover_tables() != 0)
+  if (res == 0 && ndb_discover_tables() != 0)
     DBUG_RETURN(TRUE);    
 #endif
   DBUG_RETURN(false);

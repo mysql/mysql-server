@@ -60,6 +60,7 @@ void Ndb_cluster_connection::connect_thread()
   DBUG_ENTER("Ndb_cluster_connection::connect_thread");
   int r;
   do {
+    NdbSleep_SecSleep(1);
     if ((r = connect(1)) == 0)
       break;
     if (r == -1) {
@@ -80,6 +81,7 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
   m_connect_callback= connect_callback;
   if ((r = connect(1)) == 1)
   {
+    DBUG_PRINT("info",("starting thread"));
     m_connect_thread= NdbThread_Create(run_ndb_cluster_connection_connect_thread,
 				       (void**)this,
 				       32768,
@@ -114,8 +116,6 @@ int Ndb_cluster_connection::connect(int reconnect)
 	}
       }
       m_config_retriever= new ConfigRetriever(*m_local_config, NDB_VERSION, NODE_TYPE_API);
-      if(m_config_retriever->init() == -1)
-	break;
     }
     else
       if (reconnect == 0)
@@ -131,6 +131,7 @@ int Ndb_cluster_connection::connect(int reconnect)
     else
       if(m_config_retriever->do_connect() == -1)
 	break;
+
     Uint32 nodeId = m_config_retriever->allocNodeId();
     for(Uint32 i = 0; nodeId == 0 && i<5; i++){
       NdbSleep_SecSleep(3);
