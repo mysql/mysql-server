@@ -292,7 +292,7 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
     report_errors();
     DBUG_VOID_RETURN;
   }
-  DBUG_PRINT("info", ("ssl_=%p",vio->ssl_));
+  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
   vio_blocking(vio, FALSE);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
@@ -348,7 +348,7 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
     report_errors();
     DBUG_VOID_RETURN;
   }
-  DBUG_PRINT("info",("ssl_=%p",vio->ssl_));
+  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
   SSL_clear(vio->ssl_);
   vio_blocking(vio, FALSE);
   SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
