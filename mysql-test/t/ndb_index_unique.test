@@ -30,6 +30,32 @@ select * from t1 order by a;
 
 drop table t1;
 
+#
+# Indexing NULL values
+#
+
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned,
+  c int unsigned,
+  UNIQUE bc(b,c)
+) engine = ndb;
+
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 use index (bc) where b IS NULL order by a;
+
+select * from t1 use index (bc)order by a;
+select * from t1 use index (bc) order by a;
+select * from t1 use index (PRIMARY) where b IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
+select * from t1 use index (bc) where b < 4 order by a;
+select * from t1 use index (bc) where b IS NOT NULL order by a;
+-- error 1062
+insert into t1 values(5,1,1);
+drop table t1;
+
 
 #
 # Show use of UNIQUE USING HASH indexes 
@@ -57,6 +83,14 @@ insert into t2 values(8, 2, 3);
 select * from t2 order by a;
 
 drop table t2;
+
+-- error 1121
+CREATE TABLE t2 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned,
+  UNIQUE USING HASH (b, c)	
+) engine=ndbcluster;
 
 #
 # Show use of PRIMARY KEY USING HASH indexes 

@@ -797,7 +797,8 @@ int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 	  error= create_unique_index(unique_index_name, key_info);
 	break;
       case UNIQUE_INDEX:
-	error= create_unique_index(unique_index_name, key_info);
+	if (!(error= check_index_fields_not_null(i)))
+	  error= create_unique_index(unique_index_name, key_info);
 	break;
       case ORDERED_INDEX:
 	error= create_ordered_index(index_name, key_info);
@@ -849,6 +850,26 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint inx) const
 	    ORDERED_INDEX);
 } 
 
+int ha_ndbcluster::check_index_fields_not_null(uint inx)
+{
+  KEY* key_info= table->key_info + inx;
+  KEY_PART_INFO* key_part= key_info->key_part;
+  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  DBUG_ENTER("check_index_fields_not_null");
+  
+  for (; key_part != end; key_part++) 
+    {
+      Field* field= key_part->field;
+      if (field->maybe_null())
+      {
+	my_printf_error(ER_NULL_COLUMN_IN_INDEX,ER(ER_NULL_COLUMN_IN_INDEX),
+			MYF(0),field->field_name);
+	DBUG_RETURN(ER_NULL_COLUMN_IN_INDEX);
+      }
+    }
+  
+  DBUG_RETURN(0);
+}
 
 void ha_ndbcluster::release_metadata()
 {

@@ -175,7 +175,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->sphead= NULL;
   lex->spcont= NULL;
-  lex->trg_table= NULL;
   lex->proc_list.first= 0;
 
   if (lex->spfuns.records)

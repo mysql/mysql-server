@@ -1069,7 +1069,21 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(3001)) {
+    jam();
+    addFragRefuse(signal, 1);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
   tabptr.i = req->tableId;
+#ifndef VM_TRACE
+  // config mismatch - do not crash if release compiled
+  if (tabptr.i >= ctablesize) {
+    jam();
+    addFragRefuse(signal, 800);
+    return;
+  }
+#endif
   ptrCheckGuard(tabptr, ctablesize, tabrec);
   ndbrequire((req->reqInfo & 0xF) == ZADDFRAG);
   ndbrequire(!getrootfragmentrec(signal, rootfragrecptr, req->fragId));
@@ -8949,7 +8963,6 @@ void Dbacc::execACC_SCANREQ(Signal* signal)
   rootfragrecptr.p->scan[i] = scanPtr.i;
   scanPtr.p->scanBucketState =  ScanRec::FIRST_LAP;
   scanPtr.p->scanLockMode = AccScanReq::getLockMode(tscanFlag);
-  scanPtr.p->scanKeyinfoFlag = AccScanReq::getKeyinfoFlag(tscanFlag);
   scanPtr.p->scanReadCommittedFlag = AccScanReq::getReadCommittedFlag(tscanFlag);
   
   /* TWELVE BITS OF THE ELEMENT HEAD ARE SCAN */
@@ -10083,53 +10096,19 @@ void Dbacc::sendNextScanConf(Signal* signal)
 {
   scanPtr.p->scanTimer = scanPtr.p->scanContinuebCounter;
   Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
-  if (!scanPtr.p->scanKeyinfoFlag){
-    jam();
-    /** ---------------------------------------------------------------------
-     * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
-     * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
-     * ---------------------------------------------------------------------- */
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = operationRecPtr.i;
-    signal->theData[2] = operationRecPtr.p->fid;
-    signal->theData[3] = operationRecPtr.p->localdata[0];
-    signal->theData[4] = operationRecPtr.p->localdata[1];
-    signal->theData[5] = fragrecptr.p->localkeylen;
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
-    return;
-  }//if
-  
-  fragrecptr.i = operationRecPtr.p->fragptr;
-  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  readTablePk(operationRecPtr.p->localdata[0]);
+  jam();
+  /** ---------------------------------------------------------------------
+   * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
+   * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
+   * ---------------------------------------------------------------------- */
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = operationRecPtr.i;
   signal->theData[2] = operationRecPtr.p->fid;
   signal->theData[3] = operationRecPtr.p->localdata[0];
   signal->theData[4] = operationRecPtr.p->localdata[1];
   signal->theData[5] = fragrecptr.p->localkeylen;
-  signal->theData[6] = fragrecptr.p->keyLength;
-  signal->theData[7] = ckeys[0];
-  signal->theData[8] = ckeys[1];
-  signal->theData[9] = ckeys[2];
-  signal->theData[10] = ckeys[3];
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 11);
-  const Uint32 keyLength = fragrecptr.p->keyLength;
-  Uint32 total = 4;
-  while (total < keyLength) {
-    jam();
-    Uint32 length = keyLength - total;
-    if (length > 20)
-      length = 20;
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = operationRecPtr.i; // not used by LQH
-    signal->theData[2] = operationRecPtr.p->fid; // not used by LQH
-    signal->theData[3] = length;
-    memcpy(&signal->theData[4], &ckeys[total], length << 2);
-    EXECUTE_DIRECT(blockNo, GSN_ACC_SCAN_INFO24, signal, 4 + length);
-    // wl-2066 remove GSN_ACC_SCAN_INFO
-    total += length;
-  }//if
+  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
+  return;
 }//Dbacc::sendNextScanConf()
 
 /*---------------------------------------------------------------------------
@@ -11233,13 +11212,12 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      scanPtr.p->minBucketIndexToRescan,
 	      scanPtr.p->maxBucketIndexToRescan);
     infoEvent(" scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d, "
-	      "scanMask=%d scanLockMode=%d, keyInfoFlag=%d",
+	      "scanMask=%d scanLockMode=%d",
 	      scanPtr.p->scanBucketState,
 	      scanPtr.p->scanLockHeld,
 	      scanPtr.p->scanUserblockref,
 	      scanPtr.p->scanMask,
-	      scanPtr.p->scanLockMode,
-	      scanPtr.p->scanKeyinfoFlag);
+	      scanPtr.p->scanLockMode);
     return;
   }
 

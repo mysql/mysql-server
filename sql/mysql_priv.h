@@ -378,6 +378,15 @@ typedef struct st_sql_list {
     first= save->first;
     elements+= save->elements;
   }
+  inline void push_back(struct st_sql_list *save)
+  {
+    if (save->first)
+    {
+      *next= save->first;
+      next= save->next;
+      elements+= save->elements;
+    }
+  }
 } SQL_LIST;
 
 
