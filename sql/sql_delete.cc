@@ -36,8 +36,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   TABLE		*table;
   SQL_SELECT	*select=0;
   READ_RECORD	info;
-  bool 		using_limit=limit != HA_POS_ERROR;
-  bool		transactional_table, log_delayed, safe_update, const_cond; 
+  bool          using_limit=limit != HA_POS_ERROR;
+  bool		transactional_table, safe_update, const_cond;
   ha_rows	deleted;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_delete");
@@ -232,7 +232,6 @@ cleanup:
 
   delete select;
   transactional_table= table->file->has_transactions();
-  log_delayed= (transactional_table || table->s->tmp_table);
   /*
     We write to the binary log even if we deleted no row, because maybe the
     user is using this command to ensure that a table is clean on master *and
@@ -248,11 +247,11 @@ cleanup:
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed, FALSE);
+			    transactional_table, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;
     }
-    if (!log_delayed)
+    if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (transactional_table)
@@ -397,7 +396,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
 			   uint num_of_tables_arg)
   : delete_tables(dt), thd(thd_arg), deleted(0), found(0),
     num_of_tables(num_of_tables_arg), error(0),
-    do_delete(0), transactional_tables(0), log_delayed(0), normal_tables(0)
+    do_delete(0), transactional_tables(0), normal_tables(0)
 {
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
 }
@@ -444,9 +443,7 @@ multi_delete::initialize_tables(JOIN *join)
       tbl->no_cache= 1;
       tbl->used_keys.clear_all();
       if (tbl->file->has_transactions())
-	log_delayed= transactional_tables= 1;
-      else if (tbl->s->tmp_table != NO_TMP_TABLE)
-	log_delayed= 1;
+	transactional_tables= 1;
       else
 	normal_tables= 1;
     }
@@ -669,14 +666,14 @@ bool multi_delete::send_eof()
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed, FALSE);
+			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
-    if (!log_delayed)
+    if (!transactional_tables)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  /* Commit or rollback the current SQL statement */ 
+  /* Commit or rollback the current SQL statement */
   if (transactional_tables)
     if (ha_autocommit_or_rollback(thd,local_error > 0))
       local_error=1;
@@ -767,7 +764,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1);
-  query_cache_invalidate3(thd, table_list, 0); 
+  query_cache_invalidate3(thd, table_list, 0);
 
 end:
   if (!dont_send_ok)
@@ -778,7 +775,7 @@ end:
       {
         thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      thd->tmp_table, FALSE);
+			      0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);		// This should return record count

@@ -1100,7 +1100,7 @@ at offset %lu ; this could be a log format error or read error",
           /* EOF can't be hit here normally, so it's a real error */
           die("Could not read a Rotate_log_event event \
 at offset %lu ; this could be a log format error or read error",
-              tmp_pos); 
+              tmp_pos);
       }
       else
         break;
@@ -1169,9 +1169,16 @@ static int dump_local_log_entries(const char* logname)
     Log_event* ev = Log_event::read_log_event(file, description_event);
     if (!ev)
     {
-      if (file->error)
+      /*
+        if binlog wasn't closed properly ("in use" flag is set) don't complain
+        about a corruption, but issue a "ROLLBACK" to annihilate half-logged
+        transaction. Otherwise, treat it as EOF and move to the next binlog.
+      */
+      if (description_event->flags & LOG_EVENT_BINLOG_IN_USE_F)
+        fprintf(result_file, "ROLLBACK;\n");
+      else if (file->error)
       {
-	fprintf(stderr,
+        fprintf(stderr,
                 "Could not read entry at offset %s:"
                 "Error in log format or read error\n",
                 llstr(old_off,llbuff));
