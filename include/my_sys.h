@@ -160,7 +160,7 @@ extern char *my_strdup_with_length(const byte *from, uint length,
 #endif
 
 #ifdef HAVE_ALLOCA
-#if defined(_AIX) && !defined(__GNUC__)
+#if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H)
@@ -226,9 +226,8 @@ extern void add_compiled_collation(CHARSET_INFO *cs);
 extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
 		my_cache_read;
 extern ulong	my_blocks_used, my_blocks_changed;
-extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
-extern my_bool	key_cache_inited, my_init_done;
+extern my_bool	my_init_done;
 
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),

@@ -552,27 +552,27 @@ typedef struct st_mysql_stmt
 
 typedef struct st_mysql_methods
 {
-  my_bool (STDCALL *read_query_result)(MYSQL *mysql);
-  my_bool (STDCALL *advanced_command)(MYSQL *mysql,
+  my_bool (* STDCALL read_query_result)(MYSQL *mysql);
+  my_bool (* STDCALL advanced_command)(MYSQL *mysql,
 				      enum enum_server_command command,
 				      const char *header,
 				      unsigned long header_length,
 				      const char *arg,
 				      unsigned long arg_length,
 				      my_bool skip_check);
-  MYSQL_DATA *(STDCALL *read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+  MYSQL_DATA *(* STDCALL read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 				   unsigned int fields);
-  MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
-  void (STDCALL *fetch_lengths)(unsigned long *to, 
+  MYSQL_RES * (* STDCALL use_result)(MYSQL *mysql);
+  void (* STDCALL fetch_lengths)(unsigned long *to, 
 				MYSQL_ROW column, unsigned int field_count);
 #if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
-  MYSQL_FIELD * (STDCALL *list_fields)(MYSQL *mysql);
-  my_bool (STDCALL *read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
-  int (STDCALL *stmt_execute)(MYSQL_STMT *stmt);
-  MYSQL_DATA *(STDCALL *read_binary_rows)(MYSQL_STMT *stmt);
-  int (STDCALL *unbuffered_fetch)(MYSQL *mysql, char **row);
-  void (STDCALL *free_embedded_thd)(MYSQL *mysql);
-  const char *(STDCALL *read_statistic)(MYSQL *mysql);
+  MYSQL_FIELD * (* STDCALL list_fields)(MYSQL *mysql);
+  my_bool (* STDCALL read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
+  int (* STDCALL stmt_execute)(MYSQL_STMT *stmt);
+  MYSQL_DATA *(* STDCALL read_binary_rows)(MYSQL_STMT *stmt);
+  int (* STDCALL unbuffered_fetch)(MYSQL *mysql, char **row);
+  void (* STDCALL free_embedded_thd)(MYSQL *mysql);
+  const char *(* STDCALL read_statistic)(MYSQL *mysql);
 #endif
 } MYSQL_METHODS;
 
