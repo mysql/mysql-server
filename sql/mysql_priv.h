@@ -566,8 +566,8 @@ int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
 int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit);
 int mysql_handle_derived(LEX *lex, int (*processor)(THD *thd,
-                                                    st_lex *lex,
-                                                    st_table_list *table));
+                                                    LEX *lex,
+                                                    TABLE_LIST *table));
 int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,

@@ -1965,7 +1965,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       switch (show_type) {
       case SHOW_LONG_STATUS:
       case SHOW_LONG_CONST_STATUS:
-	value= ((char *) status_var + (uint) value);
+	value= ((char *) status_var + (ulong) value);
 	  /* fall through */
       case SHOW_LONG:
       case SHOW_LONG_CONST:

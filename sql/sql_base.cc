@@ -3056,6 +3056,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   SELECT_LEX *select_lex= thd->lex->current_select;
   Item_arena *arena= thd->current_arena, backup;
   bool save_wrapper= thd->lex->current_select->no_wrap_view_item;
+  TABLE_LIST *table= NULL;	// For HP compilers
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
@@ -3075,7 +3076,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   }
 
   /* Check if we are using outer joins */
-  for (TABLE_LIST *table= tables; table; table= table->next_local)
+  for (table= tables; table; table= table->next_local)
   {
     TABLE_LIST *embedded;
     TABLE_LIST *embedding= table;
