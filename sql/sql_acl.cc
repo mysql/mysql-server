@@ -3035,7 +3035,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   /* Add database access */
   for (counter=0 ; counter < acl_dbs.elements ; counter++)
   {
-    const char *user,*host;
+    const char *user, *host;
 
     acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
     if (!(user=acl_db->user))
@@ -3096,7 +3096,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   /* Add table & column access */
   for (index=0 ; index < hash_tables.records ; index++)
   {
-    const char *user,*host;
+    const char *user;
     GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&hash_tables,index);
 
     if (!(user=grant_table->user))
