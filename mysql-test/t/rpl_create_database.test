@@ -56,6 +56,7 @@ USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
 let $VERSION=`select version()`;
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 SHOW BINLOG EVENTS;
 SHOW DATABASES;
 sync_slave_with_master;

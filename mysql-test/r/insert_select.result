@@ -87,8 +87,8 @@ reset master;
 create table t2(unique(a)) select a from t1;
 ERROR 23000: Duplicate entry '1' for key 1
 show binlog events;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
 drop table t1;
 create table t1 (a int not null);
 create table t2 (a int not null);

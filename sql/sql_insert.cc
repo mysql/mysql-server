@@ -116,7 +116,8 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
       Item *item;
       TABLE_LIST *tbl= 0;
       table_map map= 0;
-      while (item= it++)
+
+      while ((item= it++))
         map|= item->used_tables();
       if (table_list->check_single_table(&tbl, map) || tbl == 0)
       {
@@ -1840,19 +1841,23 @@ bool select_insert::send_data(List<Item> &values)
     DBUG_RETURN(0);
   }
 
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		// calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_WARN;	// Calculate cuted fields
   store_values(values);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   if (thd->net.report_error)
     DBUG_RETURN(1);
-  switch (table_list->view_check_option(thd,
-                                        thd->lex->duplicates == DUP_IGNORE)) {
-  case VIEW_CHECK_SKIP:
-    DBUG_RETURN(0);
-  case VIEW_CHECK_ERROR:
-    DBUG_RETURN(1);
+  if (table_list)                               // Not CREATE ... SELECT
+  {
+    switch (table_list->view_check_option(thd,
+                                          thd->lex->duplicates ==
+                                          DUP_IGNORE)) {
+    case VIEW_CHECK_SKIP:
+      DBUG_RETURN(0);
+    case VIEW_CHECK_ERROR:
+      DBUG_RETURN(1);
+    }
   }
-  if (!(error= write_record(table,&info)) && table->next_number_field)
+  if (!(error= write_record(thd, table,&info)) && table->next_number_field)
   {
     /* Clear for next record */
     table->next_number_field->reset();
@@ -1866,9 +1871,9 @@ bool select_insert::send_data(List<Item> &values)
 void select_insert::store_values(List<Item> &values)
 {
   if (fields->elements)
-    fill_record(*fields, values, 1);
+    fill_record(thd, *fields, values, 1);
   else
-    fill_record(table->field, values, 1);
+    fill_record(thd, table->field, values, 1);
 }
 
 void select_insert::send_error(uint errcode,const char *err)

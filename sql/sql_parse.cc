@@ -615,7 +615,7 @@ end:
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
+static void reset_mqh(LEX_USER *lu, bool get_them= 0)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -3396,7 +3396,7 @@ create_error:
     {
       if (mysql_bin_log.is_open())
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3512,7 +3512,7 @@ create_error:
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
 	  while ((user=str_list++))
-	    reset_mqh(thd,user);
+	    reset_mqh(user);
 	}
       }
     }
@@ -5637,7 +5637,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     acl_reload(thd);
     grant_reload(thd);
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL,TRUE);
+      reset_mqh((LEX_USER *) NULL,TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
@@ -5713,7 +5713,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
-  if (options & REFRESH_STATUS)
+  if (thd && (options & REFRESH_STATUS))
     refresh_status();
   if (options & REFRESH_THREADS)
     flush_thread_cache();
@@ -5743,7 +5743,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
  }
 #endif
  if (options & REFRESH_USER_RESOURCES)
-   reset_mqh(thd,(LEX_USER *) NULL);
+   reset_mqh((LEX_USER *) NULL);
  if (write_to_binlog)
    *write_to_binlog= tmp_write_to_binlog;
  return result;
