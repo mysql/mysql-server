@@ -2675,12 +2675,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->attrinfo15[3] = Tdata5;
 
   if (TOperationType == ZREAD) {
-    Uint8 TreadCount = c_counters.creadCount;
+    Uint32 TreadCount = c_counters.creadCount;
     jam();
     regCachePtr->opLock = 0;
     c_counters.creadCount = TreadCount + 1;
   } else if(TOperationType == ZREAD_EX){
-    Uint8 TreadCount = c_counters.creadCount;
+    Uint32 TreadCount = c_counters.creadCount;
     jam();
     TOperationType = ZREAD;
     regTcPtr->operation = ZREAD;
