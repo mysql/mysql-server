@@ -90,7 +90,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (!table->quick_keys)
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
-    if (safe_update && use_limit)
+    if (safe_update && !using_limit)
     {
       delete select;
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
