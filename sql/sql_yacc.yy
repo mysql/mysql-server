@@ -444,7 +444,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TINYINT
 %token	TINYTEXT
 %token	UNSIGNED
->>>>>>> BitKeeper/tmp/sql_yacc.yy_serg@1.85
 %token	VARBINARY
 %token	VARCHAR
 %token	VARIABLES
@@ -2185,7 +2184,7 @@ values:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM opt_low_priority opt_ignore table 
+	UPDATE_SYM opt_low_priority opt_ignore table_name
         SET update_list 
         where_clause 
         opt_order_clause
@@ -2224,7 +2223,7 @@ delete:
           Lex->order_list.first=0;
           Lex->order_list.next= (byte**) &Lex->order_list.first;
         }
-        opt_delete_options FROM table
+        opt_delete_options FROM table_name
 	where_clause opt_order_clause delete_limit_clause
 
 
@@ -2237,7 +2236,7 @@ opt_delete_option:
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
-	TRUNCATE_SYM opt_table_sym table
+	TRUNCATE_SYM opt_table_sym table_name
 	{
 	  LEX* lex = Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;

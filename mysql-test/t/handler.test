@@ -59,7 +59,7 @@ handler t2 read a=(19) where b="yyy";
 handler t2 read first;
 handler t2 read next;
 handler t2 read next;
-handler t2 read last;
+!$1064 handler t2 read last;
 
 handler t2 close;
 drop table if exists t1;

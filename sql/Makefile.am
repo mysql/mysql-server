@@ -41,7 +41,7 @@ LDADD =			../isam/libnisam.a \
 			../regex/libregex.a \
 			../strings/libmystrings.a
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
-			@bdb_libs@ @innobase_libs@ @pstack_libs@ \
+			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @gemini_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS)
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
