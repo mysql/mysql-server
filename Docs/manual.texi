@@ -30180,6 +30180,10 @@ with these, change the columns to @code{DATETIME}.
 In some cases, Access may generate illegal SQL queries that
 @strong{MySQL} can't understand. You can fix this by selecting
 @code{"Query|SQLSpecific|Pass-Through"} from the Access menu.
+@item
+If you have in Access a column defined as BYTE, Access will try to export this
+as @code(TINYINT} instead of @code{TINYINT UNSIGNED}.  This will give you
+problems if you have values > 127 in the column!
 @end itemize
 
 @cindex ADO program

@@ -867,10 +867,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
+      char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       net_store_data(packet, table_name);
       net_store_data(packet, operator_name);
       net_store_data(packet, "error");
-      net_store_data(packet, ER(ER_OPEN_AS_READONLY));
+      sprintf(buff, ER(ER_OPEN_AS_READONLY), table_name);
+      net_store_data(packet, buff);
       close_thread_tables(thd);
       if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
 		       packet->length()))

@@ -91,9 +91,9 @@ void pthread_exit(unsigned A);	 /* was #define pthread_exit(A) ExitThread(A)*/
 #define pthread_key_create(A,B) ((*A=TlsAlloc())==0xFFFFFFFF)
 #define pthread_getspecific(A) (TlsGetValue(A))
 #define my_pthread_getspecific(T,A) ((T) TlsGetValue(A))
-#define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(A))
-#define my_pthread_setspecific_ptr(T,V) TlsSetValue(T,V)
-#define pthread_setspecific(A,B) TlsSetValue(A,B)
+#define my_pthread_getspecific_ptr(T,V) ((T) TlsGetValue(V))
+#define my_pthread_setspecific_ptr(T,V) (!TlsSetValue((T),(V)))
+#define pthread_setspecific(A,B) (!TlsSetValue((A),(B)))
 #else
 #define pthread_key(T,V) __declspec(thread) T V
 #define pthread_key_create(A,B) pthread_dummy(0)
