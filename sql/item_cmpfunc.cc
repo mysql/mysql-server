@@ -890,6 +890,9 @@ void in_string::set(uint pos,Item *item)
   String *res=item->val_str(str);
   if (res && res != str)
     *str= *res;
+  // BAR TODO: I'm not sure this is absolutely correct
+  if (!str->charset())
+      str->set_charset(default_charset_info);
 }
 
 byte *in_string::get_value(Item *item)
