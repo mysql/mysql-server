@@ -1047,7 +1047,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1063,7 +1063,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -2241,7 +2241,7 @@ mysql_execute_command(void)
     break;
   case SQLCOM_CREATE_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2253,7 +2253,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_DROP_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2991,7 +2991,9 @@ bool add_field_to_list(char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
-	new_field->length+=(uint) strlen(*pos)+1;
+      {
+	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+      }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
@@ -3012,10 +3014,10 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=(uint) strlen(interval->type_names[0]);
+      new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strlen(*pos);
+	uint length=(uint) strip_sp((char*) *pos);
 	set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
