@@ -48987,18 +48987,18 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed problem on win98 that made sending of results very slow.
+Fixed problem on Windows 98 that made sending of results very slow.
 @item
 Boolean fulltext search weighting scheme changed to something more reasonable.
 @item
-Fixed bug in boolean fulltext search, that caused MySQL to ignore queries of
+Fixed bug in boolean fulltext search that caused MySQL to ignore queries of
 @code{ft_min_word_len} characters.
 @item
-Boolean fulltext search now supports "phrase searches".
+Boolean fulltext search now supports ``phrase searches''.
 @item
 New configure option @code{--without-query-cache}. 
 @item
-Memory allocation strategy for 'root memory' changed. Block size now grows 
+Memory allocation strategy for ``root memory'' changed. Block size now grows 
 with number of allocated blocks.
 @item
 @code{INET_NTOA()} now returns @code{NULL} if you give it an argument that
