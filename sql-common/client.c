@@ -874,6 +874,7 @@ static const char *default_options[]=
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-queries", "secure-auth",
+  "report-data-truncation",
   NullS
 };
 
@@ -1083,6 +1084,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
         case 32: /* secure-auth */
           options->secure_auth= TRUE;
+          break;
+        case 33: /* report-data-truncation */
+          options->report_data_truncation= opt_arg ? test(atoi(opt_arg)) : 1;
           break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -1427,6 +1431,7 @@ mysql_init(MYSQL *mysql)
 #endif
 
   mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
+  mysql->options.report_data_truncation= TRUE;  /* default */
   return mysql;
 }
 
@@ -2665,6 +2670,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_SECURE_AUTH:
     mysql->options.secure_auth= *(my_bool *) arg;
+    break;
+  case MYSQL_REPORT_DATA_TRUNCATION:
+    mysql->options.report_data_truncation= test(*(my_bool *) arg);
     break;
   default:
     DBUG_RETURN(1);
