@@ -63,7 +63,7 @@
    0, \
    0, 0 }
 
-class ParserDummy : SocketServer::Session 
+class ParserDummy : private SocketServer::Session 
 {
 public:
   ParserDummy(NDB_SOCKET_TYPE sock);
@@ -491,11 +491,12 @@ extern "C"
 const char * 
 ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status)
 {
-  for(int i = 0; i<no_of_status_values; i++)
+  int i;
+  for(i = 0; i<no_of_status_values; i++)
     if(status_values[i].value == status)
       return status_values[i].str;
 
-  for(int i = 0; i<no_of_status_values; i++)
+  for(i = 0; i<no_of_status_values; i++)
     if(status_values[i].value == NDB_MGM_NODE_STATUS_UNKNOWN)
       return status_values[i].str;
   
@@ -1559,3 +1560,5 @@ ndb_mgm_rep_command(NdbMgmHandle handle, unsigned int request,
   delete reply;
   return 0;
 }
+
+template class Vector<const ParserRow<ParserDummy>*>;

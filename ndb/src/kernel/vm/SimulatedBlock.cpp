@@ -1005,7 +1005,8 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * FragInfo == 2 or 3
      */
-    for(Uint32 i = 0; i<secs; i++){
+    Uint32 i;
+    for(i = 0; i<secs; i++){
       Uint32 sectionNo = secNos[i];
       ndbassert(sectionNo < 3);
       Uint32 sectionPtrI = signal->m_sectionPtr[i].i;
@@ -1027,7 +1028,6 @@ SimulatedBlock::assembleFragments(Signal * signal){
     /**
      * fragInfo = 3
      */
-    Uint32 i;
     for(i = 0; i<3; i++){
       Uint32 ptrI = fragPtr.p->m_sectionPtrI[i];
       if(ptrI != RNIL){

@@ -985,13 +985,13 @@ MgmtSrvr::version(int * stopCount, bool abort,
 
   m_versionRec.callback = callback;
   m_versionRec.inUse = true ;
-  
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  Uint32 i; 
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM) {
       m_versionRec.callback(i, NDB_VERSION, this,0);
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
       node = 
 	TransporterFacade::instance()->theClusterMgr->getNodeInfo(i);
@@ -1003,7 +1003,7 @@ MgmtSrvr::version(int * stopCount, bool abort,
       
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_API) {
       return sendVersionReq(i);   
     }
@@ -1463,7 +1463,8 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 				     const SetLogLevelOrd & ll, 
 				     bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1494,7 +1495,7 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 
   EventSubscribeReq * dst = 
     CAST_PTR(EventSubscribeReq, signal->getDataPtrSend());
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
@@ -1523,7 +1524,8 @@ int
 MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 			  bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1554,7 +1556,7 @@ MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 
   SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal->getDataPtrSend());
 
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
