@@ -2253,10 +2253,10 @@ a	a
 2	2
 3	3
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
-a	a	a
-1	1	1
-2	2	2
-3	3	3
+a	a
+1	1
+2	2
+3	3
 drop table t1;
 CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
@@ -2283,8 +2283,8 @@ left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t4	ALL	id4	NULL	NULL	NULL	1	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t4	ALL	id4	NULL	NULL	NULL	1	Using where
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id1	id2	id3	id4	id44

@@ -454,6 +454,7 @@ public:
   /* explicit LIMIT clause was used */
   bool explicit_limit;
   bool first_execution; /* first execution in SP or PS */
+  bool first_cond_optimization;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning
