@@ -54,7 +54,7 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
-#ifdef NDB_SHM_TRANSPORTER
+#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
 #define OPT_NDB_SHM_DEFAULT 1
 #else
 #define OPT_NDB_SHM_DEFAULT 0
@@ -141,15 +141,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 
-#ifdef __STDC__
-#define my_fromhost(A)	   fromhost(A)
-#define my_hosts_access(A) hosts_access(A)
-#define my_eval_client(A)  eval_client(A)
-#else
-#define my_fromhost(A)	   fromhost()
-#define my_hosts_access(A) hosts_access()
-#define my_eval_client(A)  eval_client()
-#endif /* __STDC__ */
 #endif /* HAVE_LIBWRAP */
 
 #ifdef HAVE_SYS_MMAN_H
@@ -3689,8 +3680,8 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	my_fromhost(&req);
-	if (!my_hosts_access(&req))
+	fromhost(&req);
+	if (!hosts_access(&req))
 	{
 	  /*
 	    This may be stupid but refuse() includes an exit(0)
@@ -3698,7 +3689,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s",
-		 my_eval_client(&req));
+		 eval_client(&req));
 
 	  /*
 	    C++ sucks (the gibberish in front just translates the supplied
@@ -3939,6 +3930,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     HANDLE event_client_read= 0;    // for transfer data server <-> client
     HANDLE event_server_wrote= 0;
     HANDLE event_server_read= 0;
+    HANDLE event_conn_closed= 0;
     THD *thd= 0;
 
     p= int10_to_str(connect_number, connect_number_char, 10);
@@ -3969,27 +3961,33 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client write event";
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server write event";
+      goto errorconn;
+    }
+    strmov(suffix_pos, "CONNECTION_CLOSED");
+    if ((event_conn_closed= CreateEvent(0, TRUE , FALSE, tmp)) == 0)
+    {
+      errmsg= "Could not create closed connection event";
       goto errorconn;
     }
     if (abort_loop)
@@ -4010,13 +4008,14 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       goto errorconn;
     }
     if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
-						   handle_client_file_map,
-						   handle_client_map,
-						   event_client_wrote,
-						   event_client_read,
-						   event_server_wrote,
-						   event_server_read)) ||
-	my_net_init(&thd->net, thd->net.vio))
+                                                   handle_client_file_map,
+                                                   handle_client_map,
+                                                   event_client_wrote,
+                                                   event_client_read,
+                                                   event_server_wrote,
+                                                   event_server_read,
+                                                   event_conn_closed)) ||
+                        my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
       errmsg= 0;
@@ -4036,12 +4035,20 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) CloseHandle(handle_client_file_map);
-    if (handle_client_map)	UnmapViewOfFile(handle_client_map);
-    if (event_server_wrote)	CloseHandle(event_server_wrote);
-    if (event_server_read)	CloseHandle(event_server_read);
-    if (event_client_wrote)	CloseHandle(event_client_wrote);
-    if (event_client_read)	CloseHandle(event_client_read);
+    if (handle_client_file_map) 
+      CloseHandle(handle_client_file_map);
+    if (handle_client_map)
+      UnmapViewOfFile(handle_client_map);
+    if (event_server_wrote)
+      CloseHandle(event_server_wrote);
+    if (event_server_read)
+      CloseHandle(event_server_read);
+    if (event_client_wrote)
+      CloseHandle(event_client_wrote);
+    if (event_client_read)
+      CloseHandle(event_client_read);
+    if (event_conn_closed)
+      CloseHandle(event_conn_closed);
     delete thd;
   }
 

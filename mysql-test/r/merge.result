@@ -677,4 +677,9 @@ a	b	c
 1	2	0
 1	1	1
 1	1	0
+show index from t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t3	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t3	1	a	2	b	A	NULL	NULL	NULL	YES	BTREE	
+t3	1	a	3	c	A	NULL	NULL	NULL	YES	BTREE	
 drop table t1, t2, t3;

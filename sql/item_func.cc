@@ -1187,7 +1187,8 @@ double Item_func_round::val_real()
 bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
                                 Item **ref)
 {
-  Item_real_func::fix_fields(thd, tables, ref);
+  if (Item_real_func::fix_fields(thd, tables, ref))
+    return TRUE;
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
