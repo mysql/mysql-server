@@ -4116,11 +4116,6 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  if (procedure)
-  {
-    if (result->prepare(fields, unit))		// This hasn't been done yet
-      DBUG_RETURN(-1);
-  }
   if (send_row)
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
