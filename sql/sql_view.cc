@@ -624,15 +624,19 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
       underlaying tables
     */
-    if ((old_lex->sql_command == SQLCOM_SELECT && old_lex->describe) ||
-        old_lex->sql_command == SQLCOM_SHOW_CREATE)
+    if ((old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
       if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
-          check_table_access(thd, SHOW_VIEW_ACL, view_tables, 1))
+          check_table_access(thd, SHOW_VIEW_ACL, table, 1))
       {
         my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
         goto err;
       }
+    }
+    else if (old_lex->sql_command == SQLCOM_SHOW_CREATE)
+    {
+      if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
+        goto err;
     }
 
     /* move SQL_NO_CACHE & Co to whole query */

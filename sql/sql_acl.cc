@@ -2873,7 +2873,7 @@ err:
     else if (want_access & CREATE_VIEW_ACL)
       command= "create view";
     else if (want_access & SHOW_VIEW_ACL)
-      command= "show view";
+      command= "show create view";
     net_printf(thd,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
