@@ -900,6 +900,23 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
   VOID(pthread_mutex_lock(&LOCK_open));
+  if (global_read_lock)
+  {
+    thd->mysys_var->current_mutex= &LOCK_open;
+    thd->mysys_var->current_cond= &COND_refresh;
+    if (thd->global_read_lock)
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
+	       table_name);
+    else
+      while (global_read_lock && ! thd->killed)
+	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+    pthread_mutex_lock(&thd->mysys_var->mutex);
+    thd->mysys_var->current_mutex= 0;
+    thd->mysys_var->current_cond= 0;
+    pthread_mutex_unlock(&thd->mysys_var->mutex);
+    if (error)
+      goto end;
+  }
   if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
