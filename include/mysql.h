@@ -537,14 +537,12 @@ typedef struct st_mysql_stmt
 } MYSQL_STMT;
 
 
-#define mysql_close(sock) (*(sock)->methods->close)(sock)
 #define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
 #define mysql_store_result(mysql) (*(mysql)->methods->store_result)(mysql)
 #define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
 
 typedef struct st_mysql_methods
 {
-  void    STDCALL (*close)(MYSQL *sock);
   my_bool STDCALL (*read_query_result)(MYSQL *mysql);
   my_bool STDCALL (*advanced_command)(MYSQL *mysql, 
 				      enum enum_server_command command,
@@ -590,6 +588,8 @@ MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt,
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
 void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
 my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
+void STDCALL mysql_close(MYSQL *sock);
+
 
 /* status return codes */
 #define MYSQL_NO_DATA      100
