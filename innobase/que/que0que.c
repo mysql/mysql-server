@@ -1473,10 +1473,6 @@ loop:
 		mutex_exit(&kernel_mutex);
 	}	
 */
-	/* TRUE below denotes that the thread is allowed to own the dictionary
-	mutex, though */
-	ut_ad(sync_thread_levels_empty_gen(TRUE));
-
 	loop_count++;
 
 	if (next_thr != thr) {

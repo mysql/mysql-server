@@ -309,6 +309,13 @@ struct dict_table_struct{
 	char*		name;	/* table name */
 	ulint		space;	/* space where the clustered index of the
 				table is placed */
+	ibool		ibd_file_missing;/* TRUE if this is in a single-table
+				tablespace and the .ibd file is missing; then
+				we must return in ha_innodb.cc an error if the
+				user tries to query such an orphaned table */
+	ibool		tablespace_discarded;/* this flag is set TRUE when the
+				user calls DISCARD TABLESPACE on this table,
+				and reset to FALSE in IMPORT TABLESPACE */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
 	ulint		n_def;	/* number of columns defined so far */

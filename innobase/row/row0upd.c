@@ -1532,7 +1532,8 @@ row_upd_clust_step(
 	then we have to free the file segments of the index tree associated
 	with the index */
 
-	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->is_delete
+	    && ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
 
 		dict_drop_index_tree(btr_pcur_get_rec(pcur), mtr);
 

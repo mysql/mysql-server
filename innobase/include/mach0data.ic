@@ -17,7 +17,7 @@ mach_write_to_1(
 	ulint   n)      /* in: ulint integer to be stored, >= 0, < 256 */ 
 {
 	ut_ad(b);
-	ut_ad(n <= 0xFF);
+	ut_ad(n <= 0xFFUL);
 
 	b[0] = (byte)n;
 }
@@ -46,7 +46,7 @@ mach_write_to_2(
 	ulint	n)      /* in: ulint integer to be stored */ 
 {
 	ut_ad(b);
-	ut_ad(n <= 0xFFFF);
+	ut_ad(n <= 0xFFFFUL);
 
 	b[0] = (byte)(n >> 8);
 	b[1] = (byte)(n);
@@ -79,7 +79,7 @@ mach_write_to_3(
 	ulint	n)      /* in: ulint integer to be stored */ 
 {
 	ut_ad(b);
-	ut_ad(n <= 0xFFFFFF);
+	ut_ad(n <= 0xFFFFFFUL);
 
 	b[0] = (byte)(n >> 16);
 	b[1] = (byte)(n >> 8);
@@ -222,20 +222,20 @@ mach_write_compressed(
 {
 	ut_ad(b);
 
-	if (n < 0x80) {
+	if (n < 0x80UL) {
 		mach_write_to_1(b, n);
 		return(1);
-	} else if (n < 0x4000) {
-		mach_write_to_2(b, n | 0x8000);
+	} else if (n < 0x4000UL) {
+		mach_write_to_2(b, n | 0x8000UL);
 		return(2);
-	} else if (n < 0x200000) {
-		mach_write_to_3(b, n | 0xC00000);
+	} else if (n < 0x200000UL) {
+		mach_write_to_3(b, n | 0xC00000UL);
 		return(3);
-	} else if (n < 0x10000000) {
-		mach_write_to_4(b, n | 0xE0000000);
+	} else if (n < 0x10000000UL) {
+		mach_write_to_4(b, n | 0xE0000000UL);
 		return(4);
 	} else {
-		mach_write_to_1(b, 0xF0);
+		mach_write_to_1(b, 0xF0UL);
 		mach_write_to_4(b + 1, n);
 		return(5);
 	}
@@ -250,13 +250,13 @@ mach_get_compressed_size(
 			/* out: compressed size in bytes */
 	ulint   n)      /* in: ulint integer (< 2^32) to be stored */ 
 {
-	if (n < 0x80) {
+	if (n < 0x80UL) {
 		return(1);
-	} else if (n < 0x4000) {
+	} else if (n < 0x4000UL) {
 		return(2);
-	} else if (n < 0x200000) {
+	} else if (n < 0x200000UL) {
 		return(3);
-	} else if (n < 0x10000000) {
+	} else if (n < 0x10000000UL) {
 		return(4);
 	} else {
 		return(5);
@@ -278,16 +278,16 @@ mach_read_compressed(
 
 	flag = mach_read_from_1(b);
 
-	if (flag < 0x80) {
+	if (flag < 0x80UL) {
 		return(flag);
-	} else if (flag < 0xC0) {
-		return(mach_read_from_2(b) & 0x7FFF);
-	} else if (flag < 0xE0) {
-		return(mach_read_from_3(b) & 0x3FFFFF);
-	} else if (flag < 0xF0) {
-		return(mach_read_from_4(b) & 0x1FFFFFFF);
+	} else if (flag < 0xC0UL) {
+		return(mach_read_from_2(b) & 0x7FFFUL);
+	} else if (flag < 0xE0UL) {
+		return(mach_read_from_3(b) & 0x3FFFFFUL);
+	} else if (flag < 0xF0UL) {
+		return(mach_read_from_4(b) & 0x1FFFFFFFUL);
 	} else {
-		ut_ad(flag == 0xF0);
+		ut_ad(flag == 0xF0UL);
 		return(mach_read_from_4(b + 1));
 	}
 }
@@ -477,7 +477,7 @@ mach_dulint_write_much_compressed(
 		return(mach_write_compressed(b, ut_dulint_get_low(n)));
 	}
 	
-	*b = 0xFF;
+	*b = (byte)0xFF;
 	size = 1 + mach_write_compressed(b + 1, ut_dulint_get_high(n));
 
 	size += mach_write_compressed(b + size, ut_dulint_get_low(n));
@@ -517,7 +517,7 @@ mach_dulint_read_much_compressed(
 
 	ut_ad(b);
 
-	if (*b != 0xFF) {
+	if (*b != (byte)0xFF) {
 		high = 0;
 		size = 0;
 	} else {
@@ -717,11 +717,10 @@ mach_write_to_2_little_endian(
 {
 	ut_ad(n < 256 * 256);
 
-	*dest = (byte)(n & 0xFF);
+	*dest = (byte)(n & 0xFFUL);
 
 	n = n >> 8;
 	dest++;
 
-	*dest = (byte)(n & 0xFF);
+	*dest = (byte)(n & 0xFFUL);
 }
-

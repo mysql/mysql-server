@@ -19,6 +19,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "srv0start.h"
 
 /************************************************************************
 Finds the first table name in the given database. */
@@ -120,8 +121,8 @@ dict_print(void)
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
-	char		table_name[10000];
 	mtr_t		mtr;
+	char		table_name[10000];
 	
 	mutex_enter(&(dict_sys->mutex));
 
@@ -175,6 +176,100 @@ loop:
 			}
 
 			dict_table_print_low(table);
+		}
+
+		mtr_start(&mtr);
+
+		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
+	}
+
+	goto loop;
+}
+
+/************************************************************************
+In a crash recovery we already have all the tablespace objects created.
+This function compares the space id information in the InnoDB data dictionary
+to what we already read with fil_load_single_table_tablespaces().
+In a normal startup we just scan the biggest space id, and store it to
+fil_system. */
+
+void
+dict_check_tablespaces_or_store_max_id(
+/*===================================*/
+	ibool	in_crash_recovery)	/* in: are we doing a crash recovery */
+{
+	dict_table_t*	sys_tables;
+	dict_index_t*	sys_index;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	byte*		field;
+	ulint		len;
+	ulint		space_id;
+	ulint		max_space_id	= 0;
+	mtr_t		mtr;
+	char		name[OS_FILE_MAX_PATH];
+	
+	mutex_enter(&(dict_sys->mutex));
+
+	mtr_start(&mtr);
+
+	sys_tables = dict_table_get_low((char *) "SYS_TABLES");
+	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
+
+	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
+								TRUE, &mtr);
+loop:
+	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+
+	rec = btr_pcur_get_rec(&pcur);
+
+	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
+		/* end of index */
+
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+		
+		/* We must make the tablespace cache aware of the biggest
+		known space id */
+
+		/* printf("Biggest space id in data dictionary %lu\n",
+							    max_space_id); */
+		fil_set_max_space_id_if_bigger(max_space_id);
+
+		mutex_exit(&(dict_sys->mutex));
+
+		return;
+	}	
+
+	field = rec_get_nth_field(rec, 0, &len);
+
+	if (!rec_get_deleted_flag(rec)) {
+
+		/* We found one */
+
+		ut_a(len < OS_FILE_MAX_PATH - 10);
+		ut_memcpy(name, field, len);
+		name[len] = '\0';
+
+		field = rec_get_nth_field(rec, 9, &len);
+		ut_a(len == 4);
+			
+		space_id = mach_read_from_4(field);
+
+		btr_pcur_store_position(&pcur, &mtr);
+
+		mtr_commit(&mtr);
+		
+		if (space_id != 0 && in_crash_recovery) {
+			/* Check that the tablespace (the .ibd file) really
+			exists; print a warning to the .err log if not */
+			
+			fil_space_for_table_exists_in_mem(space_id, name,
+								TRUE, TRUE);
+		}
+		
+		if (space_id > max_space_id) {
+			max_space_id = space_id;
 		}
 
 		mtr_start(&mtr);
@@ -359,13 +454,13 @@ dict_load_fields(
 
 		pos_and_prefix_len = mach_read_from_4(field);
 
-		ut_a((pos_and_prefix_len & 0xFFFF) == i
-		     || (pos_and_prefix_len & 0xFFFF0000) == (i << 16));
+		ut_a((pos_and_prefix_len & 0xFFFFUL) == i
+		     || (pos_and_prefix_len & 0xFFFF0000UL) == (i << 16));
 
 		if ((i == 0 && pos_and_prefix_len > 0)
-		    || (pos_and_prefix_len & 0xFFFF0000) > 0) {
+		    || (pos_and_prefix_len & 0xFFFF0000UL) > 0) {
 
-		        prefix_len = pos_and_prefix_len & 0xFFFF;
+		        prefix_len = pos_and_prefix_len & 0xFFFFUL;
 		} else {
 		        prefix_len = 0;
 		}
@@ -540,8 +635,8 @@ dict_load_indexes(
 			    && (0 == ut_memcmp(name_buf, (char*) "ID_IND",
 							name_len))))) {
 
-			/* The index was created in memory already in
-			booting */
+			/* The index was created in memory already at booting
+			of the database server */
 		} else {
  			index = dict_mem_index_create(table->name, name_buf,
 						space, type, n_fields);
@@ -572,9 +667,14 @@ dictionary cache. */
 dict_table_t*
 dict_load_table(
 /*============*/
-			/* out: table, NULL if does not exist */
-	char*	name)	/* in: table name */
+			/* out: table, NULL if does not exist; if the table is
+			stored in an .ibd file, but the file does not exist,
+			then we set the ibd_file_missing flag TRUE in the table
+			object we return */
+	char*	name)	/* in: table name in the databasename/tablename
+			format */
 {
+	ibool		ibd_file_missing	= FALSE;
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -641,6 +741,23 @@ dict_load_table(
 	field = rec_get_nth_field(rec, 9, &len);
 	space = mach_read_from_4(field);
 
+	/* Check if the tablespace exists and has the right name */
+	if (space != 0) {
+		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
+								   FALSE)) {
+			/* Ok; (if we did a crash recovery then the tablespace
+			can already be in the memory cache) */
+		} else {
+			/* Try to open the tablespace */
+			if (!fil_open_single_table_tablespace(space, name)) {
+				/* We failed to find a sensible tablespace
+				file */
+
+				ibd_file_missing = TRUE;
+			}
+		}
+	}
+
 	ut_a(0 == ut_strcmp((char *) "N_COLS",
 		dict_field_get_col(
 		dict_index_get_nth_field(
@@ -650,6 +767,8 @@ dict_load_table(
 	n_cols = mach_read_from_4(field);
 
 	table = dict_mem_table_create(name, space, n_cols);
+
+	table->ibd_file_missing = ibd_file_missing;
 
 	ut_a(0 == ut_strcmp((char *) "ID",
 		dict_field_get_col(
@@ -1003,7 +1122,7 @@ dict_load_foreign(
 	/* We store the type to the bits 24-31 of n_fields */
 	
 	foreign->type = foreign->n_fields >> 24;
-	foreign->n_fields = foreign->n_fields & 0xFFFFFF;
+	foreign->n_fields = foreign->n_fields & 0xFFFFFFUL;
 	
 	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(id) + 1);
 				

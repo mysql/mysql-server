@@ -191,7 +191,7 @@ int mysql_update(THD *thd,
       We can't update table directly;  We must first search after all
       matching rows before updating the table!
     */
-    table->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
+    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     if (old_used_keys & ((key_map) 1 << used_index))
     {
       table->key_read=1;

@@ -7,7 +7,7 @@ Created 2/5/1996 Heikki Tuuri
 *******************************************************/
 
 #define DYN_BLOCK_MAGIC_N	375767
-#define DYN_BLOCK_FULL_FLAG	0x1000000
+#define DYN_BLOCK_FULL_FLAG	0x1000000UL
 
 /****************************************************************
 Adds a new block to a dyn array. */

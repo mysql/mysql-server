@@ -105,7 +105,7 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
-	trx->mysql_master_log_file_name = "";
+	trx->mysql_master_log_file_name = (char*)"";
 	trx->mysql_master_log_pos = 0;
 	
 	mutex_create(&(trx->undo_mutex));
@@ -1624,14 +1624,14 @@ trx_print(
 	}
 
 	buf += sprintf(buf, "\n");
-
-	if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
-
-		buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
-				    trx->n_mysql_tables_in_use,
-				    trx->mysql_n_tables_locked);
-	}
   	
+        if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
+
+                buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
+                                    trx->n_mysql_tables_in_use,
+                                    trx->mysql_n_tables_locked);
+        }
+
 	start_of_line = buf;
 
   	switch (trx->que_state) {

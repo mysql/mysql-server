@@ -32,6 +32,7 @@ typedef struct st_innobase_share {
   uint table_name_length,use_count;
 } INNOBASE_SHARE;
 
+
 /* The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
@@ -184,7 +185,7 @@ class ha_innobase: public handler
 			     		enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
-	uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
+        uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
 };
 
 extern bool innodb_skip;
@@ -195,16 +196,18 @@ extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern long innobase_log_file_size, innobase_log_buffer_size;
-extern long innobase_buffer_pool_size, innobase_buffer_pool_awe_mem_mb,
-  innobase_additional_mem_pool_size;
+extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
+extern long innobase_buffer_pool_awe_mem_mb;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern long innobase_force_recovery, innobase_thread_concurrency;
+extern long innobase_open_files;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
 extern my_bool innobase_log_archive,
-               innobase_use_native_aio, innobase_fast_shutdown;
+               innobase_use_native_aio, innobase_fast_shutdown,
+	       innobase_file_per_table;
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 }
@@ -237,6 +240,6 @@ int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 int innodb_show_status(THD* thd);
 
-bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
-					       uint full_name_len);
+my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
+						uint full_name_len);
 void innobase_release_temporary_latches(void* innobase_tid);

@@ -93,7 +93,7 @@ dict_create(void);
 					indexes; ibuf tables and indexes are
 					assigned as the id the number
 					DICT_IBUF_ID_MIN plus the space id */
-#define DICT_IBUF_ID_MIN	ut_dulint_create(0xFFFFFFFF, 0)
+#define DICT_IBUF_ID_MIN	ut_dulint_create(0xFFFFFFFFUL, 0)
 					
 /* The offset of the dictionary header on the page */
 #define	DICT_HDR		FSEG_PAGE_DATA

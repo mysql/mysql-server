@@ -121,6 +121,11 @@ rw_lock_create_func(
 	lock->last_x_line = 0;
 
 	mutex_enter(&rw_lock_list_mutex);
+	
+	if (UT_LIST_GET_LEN(rw_lock_list) > 0) {
+		ut_a(UT_LIST_GET_FIRST(rw_lock_list)->magic_n
+							== RW_LOCK_MAGIC_N);
+	}
 
 	UT_LIST_ADD_FIRST(list, rw_lock_list, lock);
 
@@ -137,7 +142,7 @@ rw_lock_free(
 /*=========*/
 	rw_lock_t*	lock)	/* in: rw-lock */
 {
-	ut_ad(rw_lock_validate(lock));
+	ut_a(rw_lock_validate(lock));
 	ut_a(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
 	ut_a(rw_lock_get_waiters(lock) == 0);
 	ut_a(rw_lock_get_reader_count(lock) == 0);
@@ -147,6 +152,13 @@ rw_lock_free(
 	mutex_free(rw_lock_get_mutex(lock));
 
 	mutex_enter(&rw_lock_list_mutex);
+
+	if (UT_LIST_GET_PREV(list, lock)) {
+		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
+	}
+	if (UT_LIST_GET_NEXT(list, lock)) {
+		ut_a(UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
+	}
 
 	UT_LIST_REMOVE(list, rw_lock_list, lock);
 

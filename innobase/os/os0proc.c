@@ -321,7 +321,7 @@ os_awe_allocate_virtual_mem_window(
 #elif defined(__WIN2000__)
 	byte*	ptr;
 
-	if (size > 0x7FFFFFFFFF) {
+	if (size > (ulint)0x7FFFFFFFUL) {
 		fprintf(stderr,
 "InnoDB: AWE: Cannot allocate %lu bytes of virtual memory\n", size);
 
@@ -333,7 +333,7 @@ os_awe_allocate_virtual_mem_window(
 	if (ptr == NULL) {
 		fprintf(stderr,
 "InnoDB: AWE: Cannot allocate %lu bytes of virtual memory, error %lu\n",
-			size, (ulint)GetLastError());
+		size, (ulint)GetLastError());
 
 		return(NULL);
 	}
