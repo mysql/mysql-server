@@ -3286,7 +3286,7 @@ option_value:
 	  {
 	    LEX *lex=Lex;
 	    lex->var_list.push_back(new set_var(lex->option_type,
-						find_sys_var("transaction_isolation_num"),
+						find_sys_var("tx_isolation"),
 						new Item_int((int) $4)));
 	  }
 	| CHAR_SYM SET opt_equal set_expr_or_default

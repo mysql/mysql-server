@@ -222,7 +222,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       option_wait= ~0;
     break;
-#include "sslopt-case.h"
   case '?':
   case 'I':					/* Info */
     error++;
@@ -275,10 +274,13 @@ int main(int argc,char *argv[])
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
   }
 #ifdef HAVE_OPENSSL
+  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
+      opt_ssl_cipher)
+    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
-#endif /* HAVE_OPENSSL */
+#endif
   if (sql_connect(&mysql, option_wait))
     error = 1;
   else

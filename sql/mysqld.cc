@@ -828,16 +828,6 @@ void clean_up(bool print_message)
 #ifdef USE_RAID
   end_raid();
 #endif
-#ifdef HAVE_OPENSSL
-  my_free(opt_ssl_key,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
-  my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
-  opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
-#endif /* HAVE_OPENSSL */
-
   if (defaults_argv)
     free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
@@ -1868,13 +1858,16 @@ int main(int argc, char **argv)
   charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
 
 #ifdef HAVE_OPENSSL
+  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
+      opt_ssl_cipher)
+    opt_use_ssl= 1;
   if (opt_use_ssl)
   {
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher);
-    DBUG_PRINT("info",("ssl_acceptor_fd: %p", ssl_acceptor_fd));
+    DBUG_PRINT("info",("ssl_acceptor_fd: %lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
   }
@@ -4237,14 +4230,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir)-1);
     charsets_dir = mysql_charsets_dir;
     break;
-#ifdef HAVE_OPENSSL
-#include "sslopt-case.h"
-#endif
-  case OPT_DES_KEY_FILE:
-#ifdef HAVE_OPENSSL
-    des_key_file=argument;
-#endif
-    break;
   case OPT_TX_ISOLATION:
   {
     int type;
@@ -4361,7 +4346,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static void get_options(int argc,char **argv)
 {
   int ho_error;
-  THD *thd= current_thd;
 
   myisam_delay_key_write=1;			// Allow use of this
 #ifndef HAVE_purify

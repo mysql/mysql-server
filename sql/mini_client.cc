@@ -492,7 +492,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		 uint port, const char *unix_socket,uint client_flag,
 		 uint net_read_timeout)
 {
-  char		buff[100],*end,*host_info;
+  char		buff[NAME_LEN+USERNAME_LENGTH+100],*end,*host_info;
   my_socket	sock;
   ulong		ip_addr;
   struct	sockaddr_in sock_addr;
@@ -518,7 +518,6 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   thr_alarm_init(&alarmed);
   thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
 
-  bzero((char*) &mysql->options,sizeof(mysql->options));
   net->vio = 0;				/* If something goes wrong */
   mysql->charset=default_charset_info;  /* Set character set */
   if (!port)
@@ -527,13 +526,14 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     unix_socket=MYSQL_UNIX_ADDR;
 
   mysql->reconnect=1;			/* Reconnect as default */
+  mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
 
   /*
   ** Grab a socket and connect it to the server
   */
 
 #if defined(HAVE_SYS_UN_H)
-  if (!host || !strcmp(host,LOCAL_HOST))
+  if ((!host || !strcmp(host,LOCAL_HOST)) && unix_socket)
   {
     host=LOCAL_HOST;
     host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
@@ -598,7 +598,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       host=LOCAL_HOST;
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
-    if ((sock = socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+    if ((sock = (my_socket) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
       sprintf(net->last_error,ER(net->last_errno),socket_errno);
@@ -652,7 +652,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   if (!net->vio || my_net_init(net, net->vio))
   {
     vio_delete(net->vio);
-    net->vio = 0; // safety
+    net->vio = 0;
     net->last_errno=CR_OUT_OF_MEMORY;
     strmov(net->last_error,ER(net->last_errno));
     goto error;
@@ -661,6 +661,13 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   net->read_timeout=slave_net_timeout;
   /* Get version info */
   mysql->protocol_version= PROTOCOL_VERSION;	/* Assume this */
+  if (mysql->options.connect_timeout &&
+      vio_poll_read(net->vio, mysql->options.connect_timeout))
+  {
+    net->last_errno= CR_SERVER_LOST;
+    strmov(net->last_error,ER(net->last_errno));    
+    goto error;
+  }
   if ((pkt_length=mc_net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -682,8 +689,15 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->thread_id=uint4korr(end+1);
   end+=5;
   strmake(mysql->scramble_buff,end,8);
-  if (pkt_length > (uint) (end+9 - (char*) net->read_pos))
-    mysql->server_capabilities=uint2korr(end+9);
+  end+=9;
+  if (pkt_length >= (uint) (end+1 - (char*) net->read_pos))
+    mysql->server_capabilities=uint2korr(end);
+  if (pkt_length >= (uint) (end+18 - (char*) net->read_pos))
+  {
+    /* New protocol with 16 bytes to describe server characteristics */
+    mysql->server_language=end[2];
+    mysql->server_status=uint2korr(end+3);
+  }
 
   /* Save connection information */
   if (!user) user="";
@@ -710,7 +724,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->unix_socket=0;
   strmov(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
-  mysql->client_flag=client_flag | mysql->options.client_flag;
+  client_flag|=mysql->options.client_flag;
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %ld",
 		     mysql->server_version,mysql->server_capabilities));
 
@@ -718,6 +732,10 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag|=CLIENT_CAPABILITIES;
 
 #ifdef HAVE_OPENSSL
+  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
+      mysql->options.ssl_ca || mysql->options.ssl_capath ||
+      mysql->options.ssl_cipher)
+    mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     client_flag|=CLIENT_SSL;
 #endif /* HAVE_OPENSSL */
@@ -725,8 +743,8 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 #ifdef HAVE_COMPRESS
-  if (mysql->server_capabilities & CLIENT_COMPRESS &&
-      (mysql->options.compress || client_flag & CLIENT_COMPRESS))
+  if ((mysql->server_capabilities & CLIENT_COMPRESS) &&
+      (mysql->options.compress || (client_flag & CLIENT_COMPRESS)))
     client_flag|=CLIENT_COMPRESS;		/* We will use compression */
   else
 #endif
@@ -753,22 +771,10 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
-  if ((mysql->server_capabilities & CLIENT_SSL) &&
-      (mysql->options.use_ssl || (client_flag & CLIENT_SSL)))
-  {
-    DBUG_PRINT("info", ("Changing IO layer to SSL"));
-    client_flag |= CLIENT_SSL;
-  }
-  else
-  {
-    if (client_flag & CLIENT_SSL)
-    {
-      DBUG_PRINT("info", ("Leaving IO layer intact because server doesn't support SSL"));
-    }
-    client_flag &= ~CLIENT_SSL;
-  }
-  /* Oops.. are we careful enough to not send ANY information */
-  /* without encryption? */
+  /*
+    Oops.. are we careful enough to not send ANY information without
+    encryption?
+  */
   if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
@@ -776,32 +782,33 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio,60L);
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio, (long)(mysql->options.connect_timeout));
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
-  max_allowed_packet=mysql->net.max_packet;
+  max_allowed_packet=mysql->net.max_packet_size;
   int3store(buff+2,max_allowed_packet);
 
 
   if (user && user[0])
     strmake(buff+5,user,32);
   else
-    {
-      user = getenv("USER");
-      if (!user) user = "mysql";
-       strmov((char*) buff+5, user );
-    }
+  {
+    user = getenv("USER");
+    if (!user) user = "mysql";
+    strmov((char*) buff+5, user );
+  }
 
   DBUG_PRINT("info",("user: %s",buff+5));
   end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
 	       (my_bool) (mysql->protocol_version == 9));
   if (db)
   {
-    end=strmov(end+1,db);
+    end=strmake(end+1,db,NAME_LEN);
     mysql->db=my_strdup(db,MYF(MY_WME));
+    db=0;
   }
-  if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net) ||
+  if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net) ||
       mc_net_safe_read(mysql) == packet_error)
     goto error;
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
@@ -837,10 +844,12 @@ mysql_ssl_clear(MYSQL *mysql)
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
   mysql->options.ssl_capath = 0;
+  mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->connector_fd = 0;
