@@ -6655,7 +6655,7 @@ static const char spanish2[]=	/* Also good for Asturian and Galician */
 
 static const char roman[]= /* i.e. Classical Latin */
     "& I << j <<< J "
-    "& U << v <<< V ";
+    "& V << u <<< U ";
 
 /*
   Unicode Collation Algorithm:
