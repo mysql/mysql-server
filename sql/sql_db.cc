@@ -323,6 +323,9 @@ bool mysql_change_db(THD *thd,const char *name)
   uint db_access;
   DBUG_ENTER("mysql_change_db");
 
+  if (lower_case_table_names)
+    casedn_str(dbname);
+
   if (!dbname || !(length=strip_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
