@@ -1198,6 +1198,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
+  mysql_ha_closeall(thd, tables);
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
