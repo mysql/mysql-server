@@ -1167,8 +1167,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
-      net_store_data(packet, "error");
-      net_store_data(packet, ER(ER_CHECK_NOT_IMPLEMENTED));
+      {
+        char buf[ERRMSGSIZE+20];
+        my_snprintf(buf, ERRMSGSIZE,
+            ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
+        net_store_data(packet, "error");
+        net_store_data(packet, buf);
+      }
       break;
 
     case HA_ADMIN_OK:
