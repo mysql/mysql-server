@@ -119,7 +119,7 @@ struct getargs args[] = {
     "filename" },
   { "interactive", 0, arg_flag, &glob.interactive,
     "Run interactive. Not supported but provided for testing purposes", "" },
-  { "nodaemon", 'n', arg_flag, &glob.non_interactive,
+  { "nodaemon", 0, arg_flag, &glob.non_interactive,
     "Don't run as daemon, but don't read from stdin", "non-interactive" }
 };
 
