@@ -169,7 +169,7 @@ void  _ftb_init_index_search(FT_INFO *ftb)
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
     r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
-                 SEARCH_FIND | SEARCH_PREFIX, keyroot);
+                 SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
       r=_mi_compare_text(default_charset_info,
