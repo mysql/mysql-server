@@ -808,10 +808,10 @@ public:
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     volatile killed;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
+  my_bool    volatile killed;
 
   /*
     If we do a purge of binary logs, log index info of the threads

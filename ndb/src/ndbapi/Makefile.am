@@ -1,6 +1,6 @@
 #SUBDIRS = signal-sender
 
-ndblib_LTLIBRARIES = libndbapi.la libNDB_API.la
+noinst_LTLIBRARIES = libndbapi.la libNDB_API.la
 
 libndbapi_la_SOURCES_loc = \
         TransporterFacade.cpp   \
