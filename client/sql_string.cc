@@ -40,19 +40,16 @@ extern void sql_element_free(void *ptr);
 bool String::real_alloc(uint32 arg_length)
 {
   arg_length=ALIGN_SIZE(arg_length+1);
+  str_length=0;
   if (Alloced_length < arg_length)
   {
     free();
     if (!(Ptr=(char*) my_malloc(arg_length,MYF(MY_WME))))
-    {
-      str_length=0;
       return TRUE;
-    }
     Alloced_length=arg_length;
     alloced=1;
   }
   Ptr[0]=0;
-  str_length=0;
   return FALSE;
 }
 
@@ -94,36 +91,40 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set(longlong num)
+bool String::set(longlong num, CHARSET_INFO *cs)
 {
   if (alloc(21))
     return TRUE;
   str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  str_charset=cs;
   return FALSE;
 }
 
-bool String::set(ulonglong num)
+bool String::set(ulonglong num, CHARSET_INFO *cs)
 {
   if (alloc(21))
     return TRUE;
   str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  str_charset=cs;
   return FALSE;
 }
 
-bool String::set(double num,uint decimals)
+bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
+
+  str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff));
+    return copy(buff, (uint32) strlen(buff), my_charset_latin1);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!isdigit(buff[1]))
+  if (!my_isdigit(system_charset_info, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -181,7 +182,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff));
+  return copy(buff,(uint32) strlen(buff), my_charset_latin1);
 #endif
 }
 
@@ -203,16 +204,18 @@ bool String::copy(const String &str)
   str_length=str.str_length;
   bmove(Ptr,str.Ptr,str_length);		// May be overlapping
   Ptr[str_length]=0;
+  str_charset=str.str_charset;
   return FALSE;
 }
 
-bool String::copy(const char *str,uint32 arg_length)
+bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 {
   if (alloc(arg_length))
     return TRUE;
   if ((str_length=arg_length))
     memcpy(Ptr,str,arg_length);
   Ptr[arg_length]=0;
+  str_charset=cs;
   return FALSE;
 }
 
@@ -489,7 +492,7 @@ void String::qs_append(double d)
 void String::qs_append(double *d)
 {
   double ld;
-  float8get(ld, d);
+  float8get(ld, (char*) d);
   qs_append(ld);
 }
 
@@ -523,12 +526,23 @@ int sortcmp(const String *x,const String *y)
 #endif /* USE_STRCOLL */
     x_len-=len;					// For easy end space test
     y_len-=len;
-    while (len--)
+    if (x->str_charset->sort_order)
     {
-      if (x->str_charset->sort_order[(uchar) *s++] != 
+      while (len--)
+      {
+        if (x->str_charset->sort_order[(uchar) *s++] != 
           x->str_charset->sort_order[(uchar) *t++])
-        return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
-                (int) x->str_charset->sort_order[(uchar) t[-1]]);
+            return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
+                  (int) x->str_charset->sort_order[(uchar) t[-1]]);
+      }
+    }
+    else
+    {
+      while (len--)
+      {
+        if (*s++ != *t++)
+            return ((int) s[-1] - (int) t[-1]);
+      }
     }
 #ifndef CMP_ENDSPACE
     /* Don't compare end space in strings */
@@ -586,6 +600,7 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
     return from;				// Actually an error
   if ((to->str_length=min(from->str_length,from_length)))
     memcpy(to->Ptr,from->Ptr,to->str_length);
+  to->str_charset=from->str_charset;
   return to;
 }
 
@@ -658,7 +673,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
     {						// Found wild_many
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
-      for ( ; wildstr != wildend ; wildstr++)
+      for (; wildstr != wildend ; wildstr++)
       {
 	if (*wildstr == wild_many)
 	  continue;
@@ -787,7 +802,7 @@ int wild_compare(const char *str,const char *str_end,
     {						// Found wild_many
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
-      for ( ; wildstr != wildend ; wildstr++)
+      for (; wildstr != wildend ; wildstr++)
       {
 	if (*wildstr == wild_many)
 	  continue;
