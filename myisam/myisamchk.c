@@ -186,7 +186,7 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.max_data_file_length,
    0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extend-check", 'e',
-   "Try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option if you are not totally desperate.",
+   "If used when checking a table, ensure that the table is 100 percent consistent, which will take a long time. If used when repairing a table, try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option with repair if you are not totally desperate.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fast", 'F',
    "Check only tables that haven't been closed properly.",

@@ -356,6 +356,18 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(TABLE *table)
 }
 
 
+#ifdef SIGNAL_WITH_VIO_CLOSE
+void THD::close_active_vio()
+{
+  safe_mutex_assert_owner(&LOCK_delete); 
+  if (active_vio)
+  {
+    vio_close(active_vio);
+    active_vio = 0;
+  }
+}
+#endif
+
 /*****************************************************************************
 ** Functions to provide a interface to select results
 *****************************************************************************/

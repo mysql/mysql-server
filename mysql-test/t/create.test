@@ -91,3 +91,6 @@ show create table t1;
 drop table t1;
 create table t1 select if(1,'1','0'), month("2002-08-02");
 drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+drop table if exists t1;
