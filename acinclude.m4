@@ -1113,7 +1113,7 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
 #    mysql_bdb=a
 #  fi
 
-dbl RAM:
+dnl RAM:
 want_bdb_version="4.1.24"
 bdb_version_ok=yes
 
