@@ -6,5 +6,14 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
---exec $MYSQL_DUMP -X test t1
+--exec $MYSQL_DUMP --skip-all -X test t1
 DROP TABLE t1;
+
+#
+# Bug #1707
+#
+
+CREATE TABLE `t"1` (`a"b"c"` char(2));
+INSERT INTO `t"1` VALUES ("\"1"), ("2\"");
+--exec $MYSQL_DUMP --skip-all -X test
+DROP TABLE `t"1`;

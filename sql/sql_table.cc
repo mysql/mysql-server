@@ -1613,6 +1613,112 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 
 /*
+  Assigned specified indexes for a table into key cache
+
+  SYNOPSIS
+    mysql_assign_to_keycache()
+    thd	        Thread object
+    tables      Table list (one table only)
+
+  RETURN VALUES
+    0	  ok
+   -1	  error
+*/
+
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables)
+{
+  DBUG_ENTER("mysql_assign_to_keycache");
+  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
+				"assign_to_keycache", TL_READ, 0, 
+                                HA_OPEN_TO_ASSIGN, 0,
+				&handler::assign_to_keycache));
+}
+
+
+/*
+  Reassign all tables assigned to a key cache to another key cache
+
+  SYNOPSIS
+    reassign_keycache_tables()
+    thd	        Thread object
+    src_cache   Reference to the key cache to clean up
+    dest_name   Name of the cache to assign tables to
+    remove_fl   Flag to destroy key cache when all tables are reassigned      
+
+  RETURN VALUES
+    0	  ok
+   -1	  error
+*/
+
+int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache, 
+                             char *dest_name, bool remove_fl)
+{
+  int rc= 0;
+  TABLE_LIST table;
+  KEY_CACHE_ASMT *key_cache_asmt;
+
+  DBUG_ENTER("reassign_keycache_tables");
+
+  VOID(pthread_mutex_lock(&LOCK_assign));
+  for (key_cache_asmt= src_cache->assign_list ; 
+       key_cache_asmt;
+       key_cache_asmt= key_cache_asmt->next)
+    key_cache_asmt->to_reassign = 1;
+  key_cache_asmt= src_cache->assign_list; 
+  while (key_cache_asmt)
+  {
+    if (key_cache_asmt->to_reassign)
+    {
+      bool refresh;
+      VOID(pthread_mutex_unlock(&LOCK_assign));
+      bzero((byte *) &table, sizeof(table));
+      table.option= dest_name;
+      table.db= key_cache_asmt->db_name;
+      table.alias= table.real_name= key_cache_asmt->table_name;
+      thd->open_options|= HA_OPEN_TO_ASSIGN;
+      while (!(table.table=open_table(thd,table.db,
+			              table.real_name,table.alias,
+			              &refresh)) && refresh) ;
+      thd->open_options&= ~HA_OPEN_TO_ASSIGN;
+      if (!table.table)
+        DBUG_RETURN(-1);
+      table.table->pos_in_table_list= &table;
+      key_cache_asmt->triggered= 1;
+      rc= table.table->file->assign_to_keycache(thd, 0);
+      close_thread_tables(thd);
+      if (rc)
+        DBUG_RETURN(rc);
+      VOID(pthread_mutex_lock(&LOCK_assign));
+      key_cache_asmt= src_cache->assign_list;
+      continue;
+    }
+    else
+      key_cache_asmt= key_cache_asmt->next;
+  }
+  
+  while (src_cache->assignments)
+  {
+    struct st_my_thread_var *waiting_thread= my_thread_var;
+    pthread_cond_wait(&waiting_thread->suspend, &LOCK_assign);
+  }
+  if (src_cache->extra_info)
+  {
+    my_free((char *) src_cache->extra_info, MYF(0));
+    src_cache->extra_info= 0;
+  }
+
+  if (remove_fl && !src_cache->assign_list && src_cache != &dflt_key_cache_var)
+  {
+    end_key_cache(&src_cache->cache, 1);
+    src_cache->buff_size= 0;
+    src_cache->block_size= 0;
+  }
+  VOID(pthread_mutex_unlock(&LOCK_assign));
+  DBUG_RETURN(0);            
+}
+
+
+/*
   Preload specified indexes for a table into key cache
 
   SYNOPSIS

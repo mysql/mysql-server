@@ -905,9 +905,16 @@ static SEL_TREE *
 get_mm_parts(PARAM *param, Field *field, Item_func::Functype type, 
 	     Item *value, Item_result cmp_type)
 {
+  bool ne_func= FALSE;
   DBUG_ENTER("get_mm_parts");
   if (field->table != param->table)
     DBUG_RETURN(0);
+
+  if (type == Item_func::NE_FUNC)
+  {
+    ne_func= TRUE;
+    type= Item_func::LT_FUNC;
+  }
 
   KEY_PART *key_part = param->key_parts;
   KEY_PART *end = param->key_parts_end;
@@ -942,6 +949,14 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
     }
+  }
+
+  if (ne_func)
+  {
+    SEL_TREE *tree2= get_mm_parts(param, field, Item_func::GT_FUNC,
+                                  value, cmp_type);
+    if (tree2)
+      tree= tree_or(param,tree,tree2);
   }
   DBUG_RETURN(tree);
 }

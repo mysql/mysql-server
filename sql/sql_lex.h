@@ -59,7 +59,8 @@ enum enum_sql_command {
   SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, SQLCOM_PRELOAD_KEYS,
+  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK, 
+  SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
   SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
   SQLCOM_COMMIT, SQLCOM_SAVEPOINT,
@@ -257,6 +258,13 @@ public:
   virtual List<String>* get_use_index();
   virtual List<String>* get_ignore_index();
   virtual ulong get_table_join_options();
+  virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
+					LEX_STRING *alias,
+					ulong table_options,
+					thr_lock_type flags= TL_UNLOCK,
+					List<String> *use_index= 0,
+					List<String> *ignore_index= 0,
+                                        LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
   friend class st_select_lex_unit;
@@ -443,8 +451,8 @@ public:
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
-				List<String> *ignore_index= 0);
-
+				List<String> *ignore_index= 0,
+                                LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   List<Item>* get_item_list();
   List<String>* get_use_index();
