@@ -77,7 +77,7 @@
 #define HA_NO_FULLTEXT_KEY      (HA_NO_PREFIX_CHAR_KEYS*2)
 
 	/* Parameters for open() (in register form->filestat) */
-	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
+	/* HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED */
 
 #define HA_OPEN_KEYFILE		1
 #define HA_OPEN_RNDFILE		2

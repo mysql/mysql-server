@@ -110,3 +110,25 @@ int _export FAR PASCAL libmain(HANDLE hModule,short cbHeapSize,
 }
 
 #endif
+
+#ifdef OS2
+
+//
+// This function is called automatically by _DLL_InitTerm
+// Every dll runtime enviroment is not tz enabled, so tzset()
+// must be called to enable TZ handling
+// Also timezone is fixed.
+//
+extern "C" unsigned long _System DllMain(unsigned long modhandle,
+                                        unsigned long flag)
+{
+   if (flag == 0) {
+      tzset();			// Set tzname
+      time_t currentTime = time(NULL);
+      struct tm *ts = localtime(&currentTime);
+      if (ts->tm_isdst > 0)
+         _timezone -= 3600;
+   }
+}
+
+#endif

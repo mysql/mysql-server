@@ -27,13 +27,8 @@
 */
 #define IMPORT_VERSION "2.7"
 
-#include <global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include "mysql.h"
+#include "client_priv.h"
 #include "mysql_version.h"
-#include <getopt.h>
-
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -53,9 +48,6 @@ static char	*opt_password=0, *current_user=0,
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 #include "sslopt-vars.h"
-
-enum mi_options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
-		 OPT_LOW_PRIORITY, OPT_CHARSETS_DIR, OPT_DEFAULT_CHARSET};
 
 static struct option long_options[] =
 {

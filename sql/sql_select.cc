@@ -2595,6 +2595,7 @@ static void
 join_free(JOIN *join)
 {
   JOIN_TAB *tab,*end;
+  DBUG_ENTER("join_free");
 
   if (join->table)
   {
@@ -2636,6 +2637,7 @@ join_free(JOIN *join)
   join->tmp_table_param.copy_funcs.delete_elements();
   delete [] join->tmp_table_param.copy_field;
   join->tmp_table_param.copy_field=0;
+  DBUG_VOID_RETURN;
 }
 
 

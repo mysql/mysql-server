@@ -38,7 +38,7 @@ int heap_write(HP_INFO *info, const byte *record)
   DBUG_ENTER("heap_write");
 
 #ifndef DBUG_OFF
-  if (info->mode && O_RDONLY)
+  if (info->mode & O_RDONLY)
   {
     DBUG_RETURN(my_errno=EACCES);
   }

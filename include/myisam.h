@@ -70,7 +70,7 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
   ulonglong key_map;			/* Which keys are used */
   char  *data_file_name, *index_file_name;
   uint  keys;				/* Number of keys in use */
-  uint	options;			/* HA_OPTIONS_... used */
+  uint	options;			/* HA_OPTION_... used */
   int	errkey,				/* With key was dupplicated on err */
 	sortkey;			/* clustered by this key */
   File	filenr;				/* (uniq) filenr for datafile */

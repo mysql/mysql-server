@@ -17,13 +17,8 @@
 /* maintaince of mysql databases */
 
 
-#include <global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include "client_priv.h"
 #include <signal.h>
-#include "mysql.h"
-#include "errmsg.h"
-#include <getopt.h>
 #ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
@@ -101,8 +96,6 @@ static const char *command_names[]= {
 
 static TYPELIB command_typelib=
 { array_elements(command_names)-1,"commands", command_names};
-
-enum options { OPT_CHARSETS_DIR=256 };
 
 static struct option long_options[] = {
   {"compress",           no_argument,       0, 'C'},

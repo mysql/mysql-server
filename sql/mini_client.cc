@@ -117,16 +117,10 @@ static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 #if defined(MSDOS) || defined(__WIN__)
-#define ERRNO WSAGetLastError()
 #define perror(A)
-#elif defined(OS2)
-#define ERRNO sock_errno()
-#define SOCKET_ERROR -1
 #else
-#include <sys/errno.h>
-#define ERRNO errno
+#include <errno.h>
 #define SOCKET_ERROR -1
-#define closesocket(A) close(A)
 #endif
 
 #ifdef __WIN__
@@ -370,7 +364,7 @@ mc_net_safe_read(MYSQL *mysql)
   {
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
-    if (socket_errno != EINTR)
+    if (socket_errno != SOCKET_EINTR)
     {
       mc_end_server(mysql);
       if(net->last_errno != ER_NET_PACKET_TOO_LARGE)
@@ -563,7 +557,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_SOCKET_CREATE_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);

@@ -524,3 +524,6 @@ a	b	a	b
 a	b
 1	1
 1	2
+id	id2	id3	dummy1
+id	id2	id3	dummy1
+NULL	NULL	NULL	NULL

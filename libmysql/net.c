@@ -89,7 +89,7 @@ extern ulong mysqld_net_retry_count;
 typedef my_bool thr_alarm_t;
 typedef my_bool ALARM;
 #define thr_alarm_init(A) (*(A))=0
-#define thr_alarm_in_use(A) (*(A))
+#define thr_alarm_in_use(A) (*(A)!= 0)
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
 inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
@@ -436,7 +436,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #endif /* EXTRA_DEBUG */
       }
 #if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-      if (vio_errno(net->vio) == EINTR)
+      if (vio_errno(net->vio) == SOCKET_EINTR)
       {
 	DBUG_PRINT("warning",("Interrupted write. Retrying..."));
 	continue;

@@ -1181,9 +1181,11 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
   DBUG_ENTER("remove_key");
   DBUG_PRINT("enter",("index: %d",keynr));
 
-  if (keynr == primary_key ||
-      ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
-       HA_NOSAME))
+  if (keynr == active_index && cursor)
+    error=cursor->c_del(cursor,0);
+  else if (keynr == primary_key ||
+	   ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
+	    HA_NOSAME))
   {						// Unique key
     dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
     error=key_file[keynr]->del(key_file[keynr], trans,
@@ -1304,7 +1306,7 @@ int ha_berkeley::delete_row(const byte * record)
 int ha_berkeley::index_init(uint keynr)
 {
   int error;
-  DBUG_ENTER("index_init");
+  DBUG_ENTER("ha_berkeley::index_init");
   DBUG_PRINT("enter",("table: '%s'  key: %d", table->real_name, keynr));
 
   /*
@@ -1312,7 +1314,10 @@ int ha_berkeley::index_init(uint keynr)
     an active cursor at this point
   */
   if (cursor)
+  {
+    DBUG_PRINT("note",("Closing active cursor"));
     cursor->c_close(cursor);
+  }
   active_index=keynr;
   if ((error=key_file[keynr]->cursor(key_file[keynr], transaction, &cursor,
 				     table->reginfo.lock_type >
@@ -1342,7 +1347,7 @@ int ha_berkeley::index_end()
 int ha_berkeley::read_row(int error, char *buf, uint keynr, DBT *row,
 			  DBT *found_key, bool read_next)
 {
-  DBUG_ENTER("read_row");
+  DBUG_ENTER("ha_berkeley::read_row");
   if (error)
   {
     if (error == DB_NOTFOUND || error == DB_KEYEMPTY)
@@ -1394,6 +1399,7 @@ int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
   statistic_increment(ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
+  active_index= -1;
   DBUG_RETURN(read_row(key_file[keynr]->get(key_file[keynr], transaction,
 				 pack_key(&last_key, keynr, key_buff, key,
 					  key_len),
@@ -1408,7 +1414,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   DBT row;
   int error;
   KEY *key_info= &table->key_info[active_index];
-  DBUG_ENTER("index_read");
+  DBUG_ENTER("ha_berkeley::index_read");
 
   statistic_increment(ha_read_key_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
@@ -1513,8 +1519,9 @@ int ha_berkeley::index_last(byte * buf)
 
 int ha_berkeley::rnd_init(bool scan)
 {
+  DBUG_ENTER("rnd_init");
   current_row.flags=DB_DBT_REALLOC;
-  return index_init(primary_key);
+  DBUG_RETURN(index_init(primary_key));
 }
 
 int ha_berkeley::rnd_end()
@@ -1529,7 +1536,7 @@ int ha_berkeley::rnd_next(byte *buf)
   statistic_increment(ha_read_rnd_next_count,&LOCK_status);
   bzero((char*) &row,sizeof(row));
   DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT),
-		       (char*) buf, active_index, &row, &last_key, 1));
+		       (char*) buf, primary_key, &row, &last_key, 1));
 }
 
 
@@ -1559,10 +1566,11 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
   DBT db_pos;
   statistic_increment(ha_read_rnd_count,&LOCK_status);
 
+  active_index= (uint) -1;			// Don't delete via cursor
   return read_row(file->get(file, transaction,
 			    get_pos(&db_pos, pos),
 			    &current_row, 0),
-		 (char*) buf, active_index, &current_row, (DBT*) 0, 0);
+		 (char*) buf, primary_key, &current_row, (DBT*) 0, 0);
 }
 
 void ha_berkeley::position(const byte *record)
@@ -1577,10 +1585,10 @@ void ha_berkeley::position(const byte *record)
 
 void ha_berkeley::info(uint flag)
 {
-  DBUG_ENTER("info");
+  DBUG_ENTER("ha_berkeley::info");
   if (flag & HA_STATUS_VARIABLE)
   {
-    records = share->rows;		// Just to get optimisations right
+    records = share->rows + changed_rows; // Just to get optimisations right
     deleted = 0;
   }
   if ((flag & HA_STATUS_CONST) || version != share->version)
@@ -1658,12 +1666,15 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
   {
     if (!thd->transaction.bdb_lock_count++)
     {
+      DBUG_ASSERT(thd->transaction.stmt.bdb_tid == 0);
+      transaction=0;				// Safety
       /* First table lock, start transaction */
-      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+      if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
+			   OPTION_TABLE_LOCK)) &&
 	  !thd->transaction.all.bdb_tid)
       {
 	/* We have to start a master transaction */
-	DBUG_PRINT("trans",("starting transaction"));
+	DBUG_PRINT("trans",("starting transaction all"));
 	if ((error=txn_begin(db_env, 0,
 			     (DB_TXN**) &thd->transaction.all.bdb_tid,
 			     0)))
@@ -1671,8 +1682,10 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
 	  thd->transaction.bdb_lock_count--;	// We didn't get the lock /* purecov: inspected */
 	  DBUG_RETURN(error); /* purecov: inspected */
 	}
+	if (thd->in_lock_tables)
+	  DBUG_RETURN(0);			// Don't create stmt trans
       }
-      DBUG_PRINT("trans",("starting transaction for statement"));
+      DBUG_PRINT("trans",("starting transaction stmt"));
       if ((error=txn_begin(db_env,
 			   (DB_TXN*) thd->transaction.all.bdb_tid,
 			   (DB_TXN**) &thd->transaction.stmt.bdb_tid,
@@ -1684,12 +1697,12 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
       }
     }
     transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
-    changed_rows=0;
   }
   else
   {
     lock.type=TL_UNLOCK;			// Unlocked
     thread_safe_add(share->rows, changed_rows, &share->mutex);
+    changed_rows=0;
     if (!--thd->transaction.bdb_lock_count)
     {
       if (thd->transaction.stmt.bdb_tid)
@@ -1722,11 +1735,12 @@ int ha_berkeley::start_stmt(THD *thd)
   DBUG_ENTER("ha_berkeley::start_stmt");
   if (!thd->transaction.stmt.bdb_tid)
   {
+    DBUG_PRINT("trans",("starting transaction stmt"));
     error=txn_begin(db_env, (DB_TXN*) thd->transaction.all.bdb_tid,
 		    (DB_TXN**) &thd->transaction.stmt.bdb_tid,
 		    0);
-    transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
   }
+  transaction= (DB_TXN*) thd->transaction.stmt.bdb_tid;
   DBUG_RETURN(error);
 }
 
@@ -1931,6 +1945,8 @@ longlong ha_berkeley::get_auto_increment()
   longlong nr=1;				// Default if error or new key
   int error;
   (void) ha_berkeley::extra(HA_EXTRA_KEYREAD);
+
+  /* Set 'active_index' */
   ha_berkeley::index_init(table->next_number_index);
 
   if (!table->next_number_key_offset)
