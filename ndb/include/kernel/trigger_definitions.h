@@ -56,6 +56,7 @@ struct TriggerActionTime {
 };
 
 struct TriggerEvent {
+  /** TableEvent must match 1 << TriggerEvent */
   enum Value {
     TE_INSERT = 0,
     TE_DELETE = 1,

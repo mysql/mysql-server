@@ -392,3 +392,9 @@ NdbOperation::getTableName() const
 {
   return m_currentTable->m_externalName.c_str();
 }
+
+const NdbDictionary::Table*
+NdbOperation::getTable() const
+{
+  return m_currentTable;
+}

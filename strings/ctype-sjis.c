@@ -299,7 +299,9 @@ static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
     else
       *dest++ = sort_order_sjis[(uchar)*src++];
   }
-  return srclen;
+  if (len > srclen)
+    bfill(dest, len - srclen, ' ');
+  return len;
 }
 
 
