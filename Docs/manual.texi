@@ -28179,6 +28179,13 @@ column that only can take 2 values: A @code{CHAR(0)}, that is not defined
 as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
 @code{NULL} or @code{""}. @xref{CHAR}.
 
+@tindex BOOL
+@tindex BIT
+@item BIT
+@itemx BOOL
+@itemx CHAR
+These three are synonyms for @code{CHAR(1)}.
+
 @tindex CHARACTER VARYING
 @tindex CHAR VARYING
 @tindex VARCHAR
