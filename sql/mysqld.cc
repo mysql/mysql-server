@@ -2169,7 +2169,7 @@ pthread_handler_decl(handle_flush,arg __attribute__((unused)))
   flush_thread_in_use=1;
 
   pthread_mutex_lock(&LOCK_flush);
-  for (;;)
+  while (flush_time)
   {
     struct timespec abstime;
 #ifdef HAVE_TIMESPEC_TS_SEC

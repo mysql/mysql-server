@@ -37,8 +37,8 @@ done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
  extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk myisam/myisampack sql/mysqld sql/mysqlbinlog \
- client/mysql sql/mysqld client/mysqlshow client/mysqladmin client/mysqldump client/mysqlimport client/mysql-test \
- client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysql-test
+ client/mysql sql/mysqld client/mysqlshow client/mysqladmin client/mysqldump client/mysqlimport \
+ client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport
 do
   cp -p $i $BASE/bin
 done
