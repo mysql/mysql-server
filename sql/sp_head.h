@@ -99,11 +99,9 @@ public:
 
   char *name(uint *lenp = 0) const
   {
-    String *n= m_name->const_string();
-
     if (lenp)
-      *lenp= n->length();
-    return n->c_ptr();
+      *lenp= m_name.length;
+    return m_name.str;
   }
 
   inline Item_result result()
@@ -113,8 +111,8 @@ public:
 
 private:
 
-  Item_string *m_name;
-  Item_string *m_defstr;
+  LEX_STRING m_name;
+  LEX_STRING m_defstr;
   sp_pcontext *m_pcont;		// Parse context
   LEX m_lex;			// Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	// The "instructions"
