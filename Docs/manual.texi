@@ -40383,6 +40383,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
+@code{HOUR()} on a @code{CHAR} column always returned @code{NULL}.
+@item
 Fixed security bug in something (please upgrade if you are using a earlier
 MySQL 3.23 version).
 @item
