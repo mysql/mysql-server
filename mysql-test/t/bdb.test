@@ -822,3 +822,28 @@ alter table t1 modify a char(10) binary;
 explain select a from t1;
 select a from t1;
 drop table t1;
+
+#
+# Bug #4000: problem with active cursor.
+#
+
+set autocommit=0;
+create table t1(b varchar(30)) engine=bdb;
+insert into t1 values ('one');
+commit;
+select b FROM t1 outer_table where
+exists (select 'two' from t1 where 'two' = outer_table.b);
+drop table t1;
+set autocommit=1;
+
+#
+# Bug #4089: subselect and open cursor.
+#
+
+#create table t1(a int primary key, b varchar(30)) engine=bdb;
+#insert into t1 values (1,'one'), (2,'two'), (3,'three'), (4,'four');
+#create table t2 like t1;
+#insert into t2 (a, b)
+#  select a, b from t1 where (a, b) in (select a, b from t1);
+#select * from t2;
+#drop table t1, t2;
