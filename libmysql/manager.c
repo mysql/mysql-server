@@ -55,7 +55,9 @@
 #endif
 
 #define RES_BUF_SHIFT 5
+#ifndef __WIN__
 #define SOCKET_ERROR -1
+#endif
 #define NET_BUF_SIZE  2048
 
 MYSQL_MANAGER*  STDCALL mysql_manager_init(MYSQL_MANAGER* con)
