@@ -16200,6 +16200,7 @@ mysql> select UCASE('Hej');
 This function is multi-byte safe.
 
 @findex FILE
+@findex LOAD_FILE()
 @item LOAD_FILE(file_name)
 Reads the file and returns the file contents as a string.  The file
 must be on the server, you must specify the full pathname to the
