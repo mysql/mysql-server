@@ -16,60 +16,7 @@
 
 #include <NdbSqlUtil.hpp>
 #include <NdbOut.hpp>
-
-int
-NdbSqlUtil::char_compare(const char* s1, unsigned n1,
-                         const char* s2, unsigned n2, bool padded)
-{
-  int c1 = 0;
-  int c2 = 0;
-  unsigned i = 0;
-  while (i < n1 || i < n2) {
-    c1 = i < n1 ? s1[i] : padded ? 0x20 : 0;
-    c2 = i < n2 ? s2[i] : padded ? 0x20 : 0;
-    if (c1 != c2)
-      break;
-    i++;
-  }
-  return c1 - c2;
-}
-
-bool
-NdbSqlUtil::char_like(const char* s1, unsigned n1,
-                      const char* s2, unsigned n2, bool padded)
-{
-  int c1 = 0;
-  int c2 = 0;
-  unsigned i1 = 0;
-  unsigned i2 = 0;
-  while (i1 < n1 || i2 < n2) {
-    c1 = i1 < n1 ? s1[i1] : padded ? 0x20 : 0;
-    c2 = i2 < n2 ? s2[i2] : padded ? 0x20 : 0;
-    if (c2 == '%') {
-      while (i2 + 1 < n2 && s2[i2 + 1] == '%') {
-        i2++;
-      }
-      unsigned m = 0;
-      while (m <= n1 - i1) {
-        if (char_like(s1 + i1 + m, n1 -i1 - m,
-                      s2 + i2 + 1, n2 - i2 - 1, padded))
-        return true;
-        m++;
-      }
-      return false;
-    }
-    if (c2 == '_') {
-      if (c1 == 0)
-        return false;
-    } else {
-      if (c1 != c2)
-        return false;
-    }
-    i1++;
-    i2++;
-  }
-  return i1 == n2 && i2 == n2;
-}
+#include <my_sys.h>
 
 /*
  * Data types.  The entries must be in the numerical order.
@@ -79,127 +26,158 @@ const NdbSqlUtil::Type
 NdbSqlUtil::m_typeList[] = {
   { // 0
     Type::Undefined,
+    NULL,
     NULL
   },
   { // 1
     Type::Tinyint,
-    cmpTinyint
+    cmpTinyint,
+    NULL
   },
   { // 2
     Type::Tinyunsigned,
-    cmpTinyunsigned
+    cmpTinyunsigned,
+    NULL
   },
   { // 3
     Type::Smallint,
-    cmpSmallint
+    cmpSmallint,
+    NULL
   },
   { // 4
     Type::Smallunsigned,
-    cmpSmallunsigned
+    cmpSmallunsigned,
+    NULL
   },
   { // 5
     Type::Mediumint,
-    cmpMediumint
+    cmpMediumint,
+    NULL
   },
   { // 6
     Type::Mediumunsigned,
-    cmpMediumunsigned
+    cmpMediumunsigned,
+    NULL
   },
   { // 7
     Type::Int,
-    cmpInt
+    cmpInt,
+    NULL
   },
   { // 8
     Type::Unsigned,
-    cmpUnsigned
+    cmpUnsigned,
+    NULL
   },
   { // 9
     Type::Bigint,
-    cmpBigint
+    cmpBigint,
+    NULL
   },
   { // 10
     Type::Bigunsigned,
-    cmpBigunsigned
+    cmpBigunsigned,
+    NULL
   },
   { // 11
     Type::Float,
-    cmpFloat
+    cmpFloat,
+    NULL
   },
   { // 12
     Type::Double,
-    cmpDouble
+    cmpDouble,
+    NULL
   },
   { // 13
     Type::Olddecimal,
-    cmpOlddecimal
+    cmpOlddecimal,
+    NULL
   },
   { // 14
     Type::Char,
-    cmpChar
+    cmpChar,
+    likeChar
   },
   { // 15
     Type::Varchar,
-    cmpVarchar
+    cmpVarchar,
+    likeVarchar
   },
   { // 16
     Type::Binary,
-    cmpBinary
+    cmpBinary,
+    NULL
   },
   { // 17
     Type::Varbinary,
-    cmpVarbinary
+    cmpVarbinary,
+    NULL
   },
   { // 18
     Type::Datetime,
-    cmpDatetime
+    cmpDatetime,
+    NULL
   },
   { // 19
     Type::Date,
-    cmpDate
+    cmpDate,
+    NULL
   },
   { // 20
     Type::Blob,
-    NULL  // cmpBlob
+    NULL,
+    NULL
   },
   { // 21
     Type::Text,
-    NULL  // cmpText
+    NULL,
+    NULL
   },
   { // 22
     Type::Bit,
-    NULL  // cmpBit
+    NULL,
+    NULL
   },
   { // 23
     Type::Longvarchar,
-    cmpLongvarchar
+    cmpLongvarchar,
+    likeLongvarchar
   },
   { // 24
     Type::Longvarbinary,
-    cmpLongvarbinary
+    cmpLongvarbinary,
+    NULL
   },
   { // 25
     Type::Time,
-    cmpTime
+    cmpTime,
+    NULL
   },
   { // 26
     Type::Year,
-    cmpYear
+    cmpYear,
+    NULL
   },
   { // 27
     Type::Timestamp,
-    cmpTimestamp
+    cmpTimestamp,
+    NULL
   },
   { // 28
     Type::Olddecimalunsigned,
-    cmpOlddecimalunsigned
+    cmpOlddecimalunsigned,
+    NULL
   },
   { // 29
     Type::Decimal,
-    cmpDecimal
+    cmpDecimal,
+    NULL
   },
   { // 30
     Type::Decimalunsigned,
-    cmpDecimalunsigned
+    cmpDecimalunsigned,
+    NULL
   }
 };
 
@@ -822,6 +800,58 @@ NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const vo
   }
   assert(! full);
   return CmpUnknown;
+}
+
+// like
+
+int
+NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  const char* v1 = (const char*)p1;
+  const char* v2 = (const char*)p2;
+  CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+  int k = (cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, wild_prefix, wild_one, wild_many);
+  return k;
+}
+
+int
+NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  const unsigned lb = 1;
+  if (n1 >= lb && n2 >= lb) {
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    unsigned m1 = *v1;
+    unsigned m2 = *v2;
+    if (lb + m1 <= n1 && lb + m2 <= n2) {
+      const char* w1 = (const char*)v1 + lb;
+      const char* w2 = (const char*)v2 + lb;
+      CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, wild_prefix, wild_one, wild_many);
+      return k;
+    }
+  }
+  return -1;
+}
+
+int
+NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  const unsigned lb = 2;
+  if (n1 >= lb && n2 >= lb) {
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    unsigned m1 = uint2korr(v1);
+    unsigned m2 = uint2korr(v2);
+    if (lb + m1 <= n1 && lb + m2 <= n2) {
+      const char* w1 = (const char*)v1 + lb;
+      const char* w2 = (const char*)v2 + lb;
+      CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, wild_prefix, wild_one, wild_many);
+      return k;
+    }
+  }
+  return -1;
 }
 
 // check charset
