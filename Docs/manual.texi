@@ -37157,7 +37157,7 @@ mysql> INSERT INTO articles VALUES
     -> (0,'MySQL Tutorial', 'DBMS stands for DataBase ...'),
     -> (0,'How To Use MySQL Efficiently', 'After you went through a ...'),
     -> (0,'Optimising MySQL','In this tutorial we will show ...'),
-    -> (0,'1001 MySQL Trick','1. Never run mysqld as root. 2. ...'),
+    -> (0,'1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
     -> (0,'MySQL vs. YourSQL', 'In the following database comparison ...'),
     -> (0,'MySQL Security', 'When configured properly, MySQL ...');
 Query OK, 6 rows affected (0.00 sec)
@@ -37284,7 +37284,7 @@ mysql> SELECT * FROM articles WHERE MATCH (title,body)
 |  1 | MySQL Tutorial               | DBMS stands for DataBase ...        |
 |  2 | How To Use MySQL Efficiently | After you went through a ...        |
 |  3 | Optimising MySQL             | In this tutorial we will show ...   |
-|  4 | 1001 MySQL Trick             | 1. Never run mysqld as root. 2. ... |
+|  4 | 1001 MySQL Tricks            | 1. Never run mysqld as root. 2. ... |
 |  6 | MySQL Security               | When configured properly, MySQL ... |
 +----+------------------------------+-------------------------------------+
 @end example
