@@ -305,7 +305,7 @@ WWW (@uref{http://mysql.tecnoera.com/})
 WWW (@uref{http://mysql.vision.cl/})
 
 @item
-@image{Flags/costarica} Costa Rica [Ogmios Communications] @@
+@image{Flags/costa-rica} Costa Rica [Ogmios Communications] @@
 WWW (@uref{http://mysql.ogmios.co.cr/})
 FTP (@uref{ftp://mysql.ogmios.co.cr/pub/mysql/})
 
@@ -398,11 +398,11 @@ FTP (@uref{ftp://planetmirror.com/pub/mysql/})
 @itemize @bullet
 
 @item
-@image{Flags/south-africa1} South African Republic [Mweb] @@
+@image{Flags/south-africa} South African Republic [Mweb] @@
 WWW (@uref{http://www.mysql.mweb.co.za/})
 
 @item
-@image{Flags/south-africa1} South African Republic [The Internet Solution/Johannesburg] @@
+@image{Flags/south-africa} South African Republic [The Internet Solution/Johannesburg] @@
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
