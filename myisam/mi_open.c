@@ -314,6 +314,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
 	pos->null_bit=0;
+	pos->flag=0;
 	pos++;
       }
       for (i=0 ; i < uniques ; i++)
