@@ -171,7 +171,8 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
 #ifdef HAVE_SMEM
 Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_server_wrote, HANDLE event_server_read,
-                                HANDLE event_client_wrote, HANDLE event_client_read)
+                                HANDLE event_client_wrote, HANDLE event_client_read,
+				HANDLE event_conn_closed)
 {
   Vio *vio;
   DBUG_ENTER("vio_new_win32shared_memory");
@@ -184,6 +185,7 @@ Vio *vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_m
     vio->event_server_read = event_server_read;
     vio->event_client_wrote = event_client_wrote;
     vio->event_client_read = event_client_read;
+    vio->event_conn_closed = event_conn_closed;
     vio->shared_memory_remain = 0;
     vio->shared_memory_pos = handle_map;
     vio->net = net;
