@@ -6150,9 +6150,15 @@ Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.
 @item
 Follow the instructions to install it.
 @item
-Once @strong{BitKeeper} is installed,
-@code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
-may take a while, depending on the speed of your connection.
+Once @strong{BitKeeper} is installed, if you want to clone 3.23 branch,
+@code{bk clone bk://work.mysql.com:7000 mysql}, and
+@code{bk clone bk://work.mysql.com:7001 mysql-4.0} for 4.0 branch
+
+- the initial download
+may take a while, depending on the speed of your connection. If you have the
+most
+recent beta version of @strong{BitKeeper}, replace @code{clone} with
+@code{oclone}.
 @item
 You will need GNU autoconf/automake, libtool, and m4 to do the next stage.
 If you get some strange error during the first stage, check that you really
@@ -6178,7 +6184,7 @@ you @code{./configure} with different values for @code{prefix},
 @code{tcp-port}, and @code{unix-socket-path}.
 @item
 Play hard with your new installation and try to make the new features
-crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
+crash. Start by running @code{make test}. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
 sure you have a full test case for the bug that we can run.
 @item
 If you have gotten to the @code{make} stage and it does not compile,
@@ -6189,7 +6195,9 @@ if you execute @code{aclocal} and get @code{command not found}, or a
 similar problem, do not report it - make sure all the needed tools are
 installed and your @code{PATH} variable is set correctly.
 @item
-After the initial @code{bk clone}, do @code{bk pull} to get the updates.
+After the initial @code{bk clone}, do @code{bk pull} to get the updates. If
+you are using the most recent beta version of BitKeeper, you should use
+@code{bk opull} instead.
 @item
 You can examine change history of the tree with all the diffs with
 @code{bk sccstool}. If you see some funny diffs or code that you have a
