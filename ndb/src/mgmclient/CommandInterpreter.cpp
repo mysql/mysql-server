@@ -266,7 +266,7 @@ static const char* helpText =
 "START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup (default WAIT COMPLETED)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
-"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
+"SHUTDOWN                               Shutdown all processes in cluster\n"
 "CLUSTERLOG ON [<severity>] ...         Enable Cluster logging\n"
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
