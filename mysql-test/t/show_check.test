@@ -65,3 +65,10 @@ create table t1 (
   ) comment = 'it\'s a table' ;
 show create table t1 ;
 drop table t1;
+
+create table t1 (a int not null, unique aa (a));
+show create table t1;
+drop table t1;
+create table t1 (a int not null, primary key (a));
+show create table t1;
+drop table t1;
