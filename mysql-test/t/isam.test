@@ -5,11 +5,13 @@
 create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 
 let $1=100;
+disable_query_log;
 while ($1)
 {
   eval insert into t1 (b) values(repeat(char(65+$1),65540-$1));
   dec $1;
 }
+enable_query_log;
 check table t1;
 repair table t1;
 delete from t1 where (a & 1);
@@ -17,3 +19,4 @@ check table t1;
 repair table t1;
 check table t1;
 drop table t1;
+

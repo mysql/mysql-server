@@ -1,22 +1,33 @@
+select floor(5.5),floor(-5.5);
 floor(5.5)	floor(-5.5)
 5	-6
+select ceiling(5.5),ceiling(-5.5);
 ceiling(5.5)	ceiling(-5.5)
 6	-5
+select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2);
 truncate(52.64,1)	truncate(52.64,2)	truncate(52.64,-1)	truncate(52.64,-2)
 52.6	52.64	50	0
+select round(5.5),round(-5.5);
 round(5.5)	round(-5.5)
 6	-6
+select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
 round(5.64,1)	round(5.64,2)	round(5.64,-1)	round(5.64,-2)
 5.6	5.64	10	0
+select abs(-10), sign(-5), sign(5), sign(0);
 abs(-10)	sign(-5)	sign(5)	sign(0)
 10	-1	1	0
+select log(exp(10)),exp(log(sqrt(10))*2);
 log(exp(10))	exp(log(sqrt(10))*2)
 10.000000	10.000000
+select pow(10,log10(10)),power(2,4);
 pow(10,log10(10))	power(2,4)
 10.000000	16.000000
+select rand(999999),rand();
 rand(999999)	rand()
 0.18435012473199	0.76373626176616
+select pi(),sin(pi()/2),cos(pi()/2),abs(tan(pi())),cot(1),asin(1),acos(0),atan(1);
 PI()	sin(pi()/2)	cos(pi()/2)	abs(tan(pi()))	cot(1)	asin(1)	acos(0)	atan(1)
 3.141593	1.000000	0.000000	0.000000	0.64209262	1.570796	1.570796	0.785398
+select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.2831853071796

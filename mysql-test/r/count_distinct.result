@@ -1,11 +1,46 @@
+drop table if exists t1,t2,t3;
+create table t1 (libname varchar(21) not null, city text, primary key (libname));
+create table t2 (isbn varchar(21) not null, author text, title text, primary key (isbn));
+create table t3 (isbn varchar(21) not null, libname varchar(21) not null, quantity int ,primary key (isbn,libname));
+insert into t2 values ('001','Daffy','A duck''s life');
+insert into t2 values ('002','Bugs','A rabbit\'s life');
+insert into t2 values ('003','Cowboy','Life on the range');
+insert into t2 values ('000','Anonymous','Wanna buy this book?');
+insert into t2 values ('004','Best Seller','One Heckuva book');
+insert into t2 values ('005','EveryoneBuys','This very book');
+insert into t2 values ('006','San Fran','It is a san fran lifestyle');
+insert into t2 values ('007','BerkAuthor','Cool.Berkley.the.book');
+insert into t3 values('000','New York Public Libra','1');
+insert into t3 values('001','New York Public Libra','2');
+insert into t3 values('002','New York Public Libra','3');
+insert into t3 values('003','New York Public Libra','4');
+insert into t3 values('004','New York Public Libra','5');
+insert into t3 values('005','New York Public Libra','6');
+insert into t3 values('006','San Fransisco Public','5');
+insert into t3 values('007','Berkeley Public1','3');
+insert into t3 values('007','Berkeley Public2','3');
+insert into t3 values('001','NYC Lib','8');
+insert into t1 values ('New York Public Libra','New York');
+insert into t1 values ('San Fransisco Public','San Fran');
+insert into t1 values ('Berkeley Public1','Berkeley');
+insert into t1 values ('Berkeley Public2','Berkeley');
+insert into t1 values ('NYC Lib','New York');
+select t2.isbn,city,t1.libname,count(t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city,t1.libname;
 isbn	city	libname	a
 007	Berkeley	Berkeley Public1	1
 007	Berkeley	Berkeley Public2	1
 000	New York	New York Public Libra	6
 001	New York	NYC Lib	1
 006	San Fran	San Fransisco Public	1
+select t2.isbn,city,t1.libname,count(distinct t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city having count(distinct t1.libname) > 1;
 isbn	city	libname	a
 007	Berkeley	Berkeley Public1	2
 000	New York	New York Public Libra	2
+drop table t1, t2, t3;
+create table t1 (f1 int);
+insert into t1 values (1);
+create table t2 (f1 int,f2 int);
+select t1.f1,count(distinct t2.f2),count(distinct 1,NULL) from t1 left join t2 on t1.f1=t2.f1 group by t1.f1;
 f1	count(distinct t2.f2)	count(distinct 1,NULL)
 1	0	0
+drop table t1,t2;

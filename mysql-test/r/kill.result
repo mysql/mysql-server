@@ -1,4 +1,11 @@
+drop table if exists t1;
+create table t1 (kill_id int);
+insert into t1 values(connection_id());
+select ((@id := kill_id) - kill_id) from t1;
 ((@id := kill_id) - kill_id)
 0
+kill @id;
+select 4;
 4
 4
+drop table t1;

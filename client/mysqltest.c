@@ -139,11 +139,13 @@ typedef struct
   int int_val;
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
+  int alloced;
 } VAR;
 
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
 HASH var_hash;
+int disable_query_log=0;
 
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
@@ -165,6 +167,7 @@ Q_DIRTY_CLOSE,      Q_REPLACE,
 Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
+Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -196,6 +199,7 @@ const char *command_names[] = {
   "ping",             "eval",
   "rpl_probe",        "enable_rpl_parse",
   "disable_rpl_parse", "eval_result",
+  "enable_query_log", "disable_query_log",
   0
 };
 
@@ -619,6 +623,18 @@ int var_query_set(VAR* v, const char* p, const char** p_end)
   return 0;
 }
 
+void var_copy(VAR* dest, VAR* src)
+{
+  dest->int_val=src->int_val;
+  dest->int_dirty=src->int_dirty;
+  if (dest->alloced_len < src->alloced_len &&
+      !(dest->str_val=my_realloc(dest->str_val,src->alloced_len,
+				 MYF(MY_WME))))
+    die("Out of memory");
+  dest->str_val_len=src->str_val_len;
+  memcpy(dest->str_val,src->str_val,src->str_val_len);
+}
+
 int eval_expr(VAR* v, const char* p, const char** p_end)
 {
   VAR* vp;
@@ -626,7 +642,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
     {
       if ((vp = var_get(p,p_end,0)))
 	{
-	  memcpy(v, vp, sizeof(*v));
+	  var_copy(v, vp);
 	  return 0;
 	}
     }
@@ -699,6 +715,7 @@ int do_system(struct st_query* q)
       if (system(expr_buf) && q->abort_on_error)
 	die("system command '%s' failed", expr_buf);
     }
+  var_free(&v);
   return 0;
 }
 
@@ -714,6 +731,7 @@ int do_echo(struct st_query* q)
     write(1, v.str_val, v.str_val_len);
   }
   write(1, "\n", 1);
+  var_free(&v);
   return 0;
 }
 
@@ -1190,10 +1208,10 @@ int do_done(struct st_query* q)
     parser.current_line = *--cur_block;
   }
   else
-    {
-      ++parser.current_line;
-      --cur_block;
-    }
+  {
+   ++parser.current_line;
+   --cur_block;
+  }
   return 0;
 }
 
@@ -1202,7 +1220,6 @@ int do_while(struct st_query* q)
   char* p=q->first_argument;
   const char* expr_start, *expr_end;
   VAR v;
-  var_init(&v,0,0,0,0);
   if (cur_block == block_stack_end)
 	die("Nesting too deeply");
   if (!*block_ok)
@@ -1219,6 +1236,7 @@ int do_while(struct st_query* q)
   expr_end = strrchr(expr_start, ')');
   if (!expr_end)
     die("missing ')' in while");
+  var_init(&v,0,0,0,0);
   eval_expr(&v, ++expr_start, &expr_end);
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
@@ -1228,6 +1246,7 @@ int do_while(struct st_query* q)
     }
   else
     *++block_ok = 1;
+  var_free(&v);
   return 0;
 }
 
@@ -1727,6 +1746,11 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   
   if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
     die("At line %u: unable to send query '%s'", start_lineno, query);
+  if ((flags & QUERY_SEND) && !disable_query_log)
+  {
+    dynstr_append_mem(ds,query,query_len);
+    dynstr_append_mem(ds,";\n",2);
+  }
   if(!(flags & QUERY_REAP))
     return 0;
   
@@ -1743,7 +1767,11 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       for (i=0 ; q->expected_errno[i] ; i++)
       {
 	if ((q->expected_errno[i] == mysql_errno(mysql)))
+	{
+	  dynstr_append(ds,mysql_error(mysql));
+	  dynstr_append_mem(ds,"\n",1);
 	  goto end;				/* Ok */
+	}
       }
       if (i)
       {
@@ -1887,6 +1915,7 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
     die("Out of memory");
   
   tmp_var->name = (name) ? (char*)tmp_var + sizeof(*tmp_var) : 0;
+  tmp_var->alloced = (v == 0); 
 
   if(!(tmp_var->str_val = my_malloc(val_alloc_len, MYF(MY_WME))))
     die("Out of memory");
@@ -1905,7 +1934,8 @@ static VAR* var_init(VAR* v, const char* name, int name_len, const char* val,
 static void var_free(void* v)
 {
   my_free(((VAR*) v)->str_val, MYF(MY_WME));
-  my_free((char*) v, MYF(MY_WME));
+  if (((VAR*)v)->alloced)
+   my_free((char*) v, MYF(MY_WME));
 }
 
 
@@ -2008,6 +2038,8 @@ int main(int argc, char** argv)
       case Q_RPL_PROBE: do_rpl_probe(q); break;
       case Q_ENABLE_RPL_PARSE: do_enable_rpl_parse(q); break;
       case Q_DISABLE_RPL_PARSE: do_disable_rpl_parse(q); break;
+      case Q_ENABLE_QUERY_LOG: disable_query_log=0; break;
+      case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
       case Q_INC: do_inc(q); break;

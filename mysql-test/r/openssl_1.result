@@ -1,16 +1,2 @@
+SHOW STATUS LIKE 'SSL%';
 Variable_name	Value
-SSL_CTX_sess_accept	0
-SSL_CTX_sess_accept_good	0
-SSL_CTX_sess_accept_renegotiate	0
-SSL_CTX_sess_cb_hits	0
-SSL_CTX_sess_number	0
-SSL_CTX_get_session_cache_mode	SERVER
-SSL_CTX_sess_get_cache_size	128
-SSL_CTX_get_verify_mode	7
-SSL_CTX_get_verify_depth	4294967295
-SSL_get_verify_mode	0
-SSL_get_verify_depth	0
-SSL_session_reused	0
-SSL_get_version	
-SSL_get_cipher	
-SSL_get_default_timeout	0

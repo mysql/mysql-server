@@ -1,20 +1,61 @@
+create table t1 (a char(16), b date, c datetime);
+insert into t1 SET a='test 2000-01-01', b='2000-01-01', c='2000-01-01';
+select * from t1 where c = '2000-01-01';
 a	b	c
 test 2000-01-01	2000-01-01	2000-01-01 00:00:00
+select * from t1 where b = '2000-01-01';
 a	b	c
 test 2000-01-01	2000-01-01	2000-01-01 00:00:00
+drop table t1;
+drop table if exists t1,t2;
+CREATE TABLE t1 (name char(6),cdate date);
+INSERT INTO t1 VALUES ('name1','1998-01-01');
+INSERT INTO t1 VALUES ('name2','1998-01-01');
+INSERT INTO t1 VALUES ('name1','1998-01-02');
+INSERT INTO t1 VALUES ('name2','1998-01-02');
+CREATE TABLE t2 (cdate date, note char(6));
+INSERT INTO t2 VALUES ('1998-01-01','note01');
+INSERT INTO t2 VALUES ('1998-01-02','note02');
+select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
 name	cdate	note
 name1	1998-01-01	note01
 name2	1998-01-01	note01
+drop table t1,t2;
+CREATE TABLE t1 ( datum DATE );
+INSERT INTO t1 VALUES ( "2000-1-1" );
+INSERT INTO t1 VALUES ( "2000-1-2" );
+INSERT INTO t1 VALUES ( "2000-1-3" );
+INSERT INTO t1 VALUES ( "2000-1-4" );
+INSERT INTO t1 VALUES ( "2000-1-5" );
+SELECT * FROM t1 WHERE datum BETWEEN "2000-1-2" AND "2000-1-4";
 datum
 2000-01-02
 2000-01-03
 2000-01-04
+DROP TABLE t1;
+CREATE TABLE t1 (
+user_id char(10),
+summa int(11),
+rdate date
+);
+INSERT INTO t1 VALUES ('aaa',100,'1998-01-01');
+INSERT INTO t1 VALUES ('aaa',200,'1998-01-03');
+INSERT INTO t1 VALUES ('bbb',50,'1998-01-02');
+INSERT INTO t1 VALUES ('bbb',200,'1998-01-04');
+select max(rdate) as s from t1 where rdate < '1998-01-03' having s> "1998-01-01";
 s
 1998-01-02
+select max(rdate) as s from t1 having s="1998-01-04";
 s
 1998-01-04
+select max(rdate+0) as s from t1 having s="19980104";
 s
 19980104
+drop table t1;
+create table t1 (date date);
+insert into t1 values ("2000-08-10"),("2000-08-11");
+select date_add(date,INTERVAL 1 DAY),date_add(date,INTERVAL 1 SECOND) from t1;
 date_add(date,INTERVAL 1 DAY)	date_add(date,INTERVAL 1 SECOND)
 2000-08-11	2000-08-10 00:00:01
 2000-08-12	2000-08-11 00:00:01
+drop table t1;

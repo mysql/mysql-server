@@ -1,2 +1,24 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(4);
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(5);
+drop table if exists bar;
+create table bar (m int);
+insert into bar values(15);
+drop table if exists choo;
+create table choo (k int);
+insert into choo values(55);
+select foo.n,bar.m,choo.k from foo,bar,choo;
 n	m	k
 4	15	55
+drop table if exists foo,bar,choo;
+drop table if exists foo,bar,choo;

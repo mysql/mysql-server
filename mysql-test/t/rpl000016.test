@@ -75,12 +75,14 @@ connection master;
 let $1=100;
 drop table if exists t3;
 create table t3 (n int);
+disable_query_log;
 while ($1)
 {
 #eval means expand $ expressions
  eval insert into t3 values($1 + 4);
  dec $1;
 }
+enable_query_log;
 show master logs;
 show master status;
 save_master_pos;

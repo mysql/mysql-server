@@ -1,3 +1,16 @@
+drop table if exists t1;
+create table t1 (a int auto_increment , primary key (a));
+insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+update t1 set a=a+10 where a > 34;
+update t1 set a=a+100 where a > 0;
+update t1 set a=a+100 where a=1 and a=2;
+update t1 set a=b+100 where a=1 and a=2;
+Unknown column 'b' in 'field list'
+update t1 set a=b+100 where c=1 and a=2;
+Unknown column 'c' in 'where clause'
+update t1 set d=a+100 where a=1;
+Unknown column 'd' in 'field list'
+select * from t1;
 a
 101
 102
@@ -35,7 +48,57 @@ a
 134
 145
 146
+drop table t1;
+CREATE TABLE t1
+(
+place_id int (10) unsigned NOT NULL,
+shows int(10) unsigned DEFAULT '0' NOT NULL,
+ishows int(10) unsigned DEFAULT '0' NOT NULL,
+ushows int(10) unsigned DEFAULT '0' NOT NULL,
+clicks int(10) unsigned DEFAULT '0' NOT NULL,
+iclicks int(10) unsigned DEFAULT '0' NOT NULL,
+uclicks int(10) unsigned DEFAULT '0' NOT NULL,
+ts timestamp(14),
+PRIMARY KEY (place_id,ts)
+);
+INSERT INTO t1 (place_id,shows,ishows,ushows,clicks,iclicks,uclicks,ts)
+VALUES (1,0,0,0,0,0,0,20000928174434);
+UPDATE t1 SET shows=shows+1,ishows=ishows+1,ushows=ushows+1,clicks=clicks+1,iclicks=iclicks+1,uclicks=uclicks+1 WHERE place_id=1 AND ts>="2000-09-28 00:00:00";
+select place_id,shows from t1;
 place_id	shows
 1	1
+drop table t1;
+CREATE TABLE t1 (
+lfdnr int(10) unsigned NOT NULL default '0',
+ticket int(10) unsigned NOT NULL default '0',
+client varchar(255) NOT NULL default '',
+replyto varchar(255) NOT NULL default '',
+subject varchar(100) NOT NULL default '',
+timestamp int(10) unsigned NOT NULL default '0',
+tstamp timestamp(14) NOT NULL,
+status int(3) NOT NULL default '0',
+type varchar(15) NOT NULL default '',
+assignment int(10) unsigned NOT NULL default '0',
+fupcount int(4) unsigned NOT NULL default '0',
+parent int(10) unsigned NOT NULL default '0',
+activity int(10) unsigned NOT NULL default '0',
+priority tinyint(1) unsigned NOT NULL default '1',
+cc varchar(255) NOT NULL default '',
+bcc varchar(255) NOT NULL default '',
+body text NOT NULL,
+comment text,
+header text,
+PRIMARY KEY  (lfdnr),
+KEY k1 (timestamp),
+KEY k2 (type),
+KEY k3 (parent),
+KEY k4 (assignment),
+KEY ticket (ticket)
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES (773,773,'','','',980257344,20010318180652,0,'Open',10,0,0,0,1,'','','','','');
+alter table t1 change lfdnr lfdnr int(10) unsigned default 0 not null auto_increment;
+update t1 set status=1 where type='Open';
+select status from t1;
 status
 1
+drop table t1;
