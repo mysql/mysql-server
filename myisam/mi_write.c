@@ -838,7 +838,8 @@ int _mi_init_bulk_insert(MI_INFO *info)
     {
       params->info=info;
       params->keynr=i;
-      init_tree(& info->bulk_insert[i], 0,
+      init_tree(& info->bulk_insert[i],
+                myisam_bulk_insert_tree_size / num_keys / 4 + 10,
 		myisam_bulk_insert_tree_size / num_keys, 0,
 		(qsort_cmp2)keys_compare, 0,
 		(tree_element_free) keys_free, (void *)params++);
