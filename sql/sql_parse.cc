@@ -59,7 +59,6 @@ extern "C" int gethostname(char *name, int namelen);
 #endif
 
 static int check_for_max_user_connections(USER_CONN *uc);
-static bool check_mqh(THD *thd);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
@@ -290,16 +289,19 @@ static int check_for_max_user_connections(USER_CONN *uc)
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
   
-  if (max_user_connections && ( max_user_connections <=  (uint) uc->connections))
+  if (max_user_connections &&
+      (max_user_connections <=  (uint) uc->connections))
   {
     net_printf(&(current_thd->net),ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
   uc->connections++; 
-  if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
+  if (uc->user_resources.connections &&
+      uc->conn_per_hour++ >= uc->user_resources.connections)
   {
-    net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_connections",
+    net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user,
+	       "max_connections",
 	       (long) uc->user_resources.connections);
     error=1;
     goto end;
@@ -311,12 +313,8 @@ end:
 
 static void decrease_user_connections(USER_CONN *uc)
 {
-/*  if (!max_user_connections)
-    return;
-*/
-
   DBUG_ENTER("decrease_user_connections");
-  if (!mqh_used && uc->connections && !--uc->connections)
+  if ((uc->connections && !--uc->connections) && !mqh_used)
   {
     /* Last connection for user; Delete it */
     (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -337,21 +335,19 @@ void free_max_user_conn(void)
   Check if maximum queries per hour limit has been reached
   returns 0 if OK.
 
-  In theory we would need a mutex in the USER_CONN structure for this to be 100 %
-  safe, but as the worst scenario is that we would miss counting a couple of
-  queries, this isn't critical.
+  In theory we would need a mutex in the USER_CONN structure for this to
+  be 100 % safe, but as the worst scenario is that we would miss counting
+  a couple of queries, this isn't critical.
 */
 
 char  uc_update_queries[SQLCOM_END];
 
-static bool check_mqh(THD *thd)
+static bool check_mqh(THD *thd, uint check_command)
 {
   bool error=0;
   DBUG_ENTER("check_mqh");
   USER_CONN *uc=thd->user_connect;
   DBUG_ASSERT(uc != 0);
-  uint check_command = thd->lex.sql_command;
-  
 
   if (check_command < (uint) SQLCOM_END)
   {
@@ -378,7 +374,8 @@ static bool check_mqh(THD *thd)
       uc->intime=check_time;
       (void) pthread_mutex_unlock(&LOCK_user_conn);
     }
-    else if (uc->user_resources.questions && ++(uc->questions) > uc->user_resources.questions)
+    else if (uc->user_resources.questions &&
+	     uc->questions++ >= uc->user_resources.questions)
     {
       net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_questions",
 		 (long) uc->user_resources.questions);
@@ -742,7 +739,7 @@ pthread_handler_decl(handle_bootstrap,arg)
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
     thd->query_id=query_id++;
-    if (mqh_used && thd->user_connect && check_mqh(thd))
+    if (mqh_used && thd->user_connect && check_mqh(thd, SQLCOM_END))
     {
       thd->net.error = 0;
       close_thread_tables(thd);			// Free tables
@@ -982,12 +979,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
-    if (mqh_used && thd->user_connect && check_mqh(thd))
-    {
-      error = TRUE;				// Abort client
-      net->error = 0;				// Don't give abort message
-      break;
-    }
     /* thd->query_length is set by mysql_parse() */
     mysql_parse(thd,thd->query,packet_length);
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2360,7 +2351,8 @@ mysql_execute_command(void)
 	  Query_log_event qinfo(thd, thd->query);
 	  mysql_bin_log.write(&qinfo);
 	}
-	if (mqh_used && (lex->mqh.questions || lex->mqh.updates || lex->mqh.connections) && lex->sql_command == SQLCOM_GRANT)
+	if (mqh_used && lex->sql_command == SQLCOM_GRANT &&
+	    (lex->mqh.questions || lex->mqh.updates || lex->mqh.connections))
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
@@ -2741,6 +2733,7 @@ mysql_init_select(LEX *lex)
   select_lex->next = (SELECT_LEX *)NULL; 
 }
 
+
 bool
 mysql_new_select(LEX *lex)
 {
@@ -2759,6 +2752,7 @@ mysql_new_select(LEX *lex)
   return 0;
 }
 
+
 void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command =  SQLCOM_DELETE_MULTI;
@@ -2769,6 +2763,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select->table_list.first=0;
   lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
 }
+
 
 void
 mysql_parse(THD *thd,char *inBuf,uint length)
@@ -2782,7 +2777,8 @@ mysql_parse(THD *thd,char *inBuf,uint length)
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse() && ! thd->fatal_error)
     {
-      if (mqh_used && thd->user_connect && check_mqh(thd))
+      if (mqh_used && thd->user_connect &&
+	  check_mqh(thd, thd->lex.sql_command))
       {
 	thd->net.error = 0;
       }
