@@ -479,6 +479,7 @@ err:
     rli->relay_log_pos = 4;
     strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 	    sizeof(rli->relay_log_name));
+    flush_relay_log_info(rli);
   }
   /*
     No need to free io_buf because we allocated both fname and io_buf in

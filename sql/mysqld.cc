@@ -1377,6 +1377,7 @@ static void init_signals(void)
     sigaction(SIGBUS, &sa, NULL);
 #endif
     sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGFPE, &sa, NULL);
   }
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE

@@ -280,6 +280,8 @@ static SYMBOL symbols[] = {
   { "READ",		SYM(READ_SYM),0,0},
   { "REAL",		SYM(REAL),0,0},
   { "REFERENCES",	SYM(REFERENCES),0,0},
+  { "RELAY_LOG_FILE",   SYM(RELAY_LOG_FILE_SYM),0,0},
+  { "RELAY_LOG_POS",    SYM(RELAY_LOG_POS_SYM),0,0},
   { "RELOAD",		SYM(RELOAD),0,0},
   { "REGEXP",		SYM(REGEXP),0,0},
   { "RENAME",		SYM(RENAME),0,0},
