@@ -3198,8 +3198,8 @@ static void usage(void)
   --safe-mode		Skip some optimize stages (for testing)\n\
   --safe-show-database  Don't show databases for which the user has no\n\
                         privileges\n\
-  --safe-user-create	Don't new users cretaion without privileges to the\n\
-		        mysql.user table\n\
+  --safe-user-create	Don't allow new user creation by the user who has\n\
+                        no write privileges to the mysql.user table\n\
   --skip-concurrent-insert\n\
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
