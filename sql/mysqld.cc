@@ -2200,7 +2200,7 @@ enum options {
                OPT_REPLICATE_DO_DB,      OPT_REPLICATE_IGNORE_DB, 
                OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
-	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK
+	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
 };
 
 static struct option long_options[] = {
@@ -2254,6 +2254,7 @@ static struct option long_options[] = {
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
+  {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
@@ -2854,11 +2855,13 @@ static void get_options(int argc,char **argv)
       default_table_type=DB_TYPE_ISAM;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
+      myisam_recover_type= HA_RECOVER_NONE;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
+      myisam_recover_type= HA_RECOVER_NONE;	// For now
       break;
     case (int) OPT_SKIP_CONCURRENT_INSERT:
       myisam_concurrent_insert=0;
@@ -3020,6 +3023,17 @@ static void get_options(int argc,char **argv)
       berkeley_skip=1;
       break;
 #endif
+    case OPT_MYISAM_RECOVER:
+    {
+      int type;
+      if ((type=find_type(optarg, &myisam_recover_typelib, 2)) <= 0)
+      {
+	fprintf(stderr,"Unknown option to myisam-recover: %s\n",optarg);
+	exit(1);
+      }
+      myisam_recover_type=(myisam_recover_types) (type-1);
+      break;
+    }
     case OPT_MASTER_HOST:
       master_host=optarg;
       break;

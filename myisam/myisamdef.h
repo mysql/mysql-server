@@ -179,7 +179,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     global_changed,			/* If changed since open */
     not_flushed,
     temporary,delay_key_write,
-    concurrent_insert;
+    concurrent_insert,
+    fulltext_index;
   myf write_flag;
   int	rnd;				/* rnd-counter */
   MI_DECODE_TREE *decode_trees;
@@ -294,7 +295,7 @@ struct st_myisam_info {
 			  mi_int2store(x,boh); }
 #define mi_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
 #define mi_mark_crashed(x) (x)->s->state.changed|=STATE_CRASHED
-#define mi_mark_crashed_on_repair(x) (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR
+#define mi_mark_crashed_on_repair(x) { (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR ; (x)->update|= HA_STATE_CHANGED; }
 #define mi_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define mi_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
 

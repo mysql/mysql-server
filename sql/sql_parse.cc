@@ -2387,7 +2387,13 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 
 void add_join_on(TABLE_LIST *b,Item *expr)
 {
-  b->on_expr=expr;
+  if (!b->on_expr)
+    b->on_expr=expr;
+  else
+  {
+    // This only happens if you have both a right and left join
+    b->on_expr=new Item_cond_and(b->on_expr,expr);
+  }
 }
 
 

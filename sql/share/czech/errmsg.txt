@@ -208,3 +208,4 @@
 "S-Bí»ová chyba pøi zápisu na master",-A
 "-B®ádný sloupec nemá vytvoøen fulltextový index",-A
 "Can't execute the given command because you have active locked tables or an active transaction",
+"Unknown system variable '%-.64'",

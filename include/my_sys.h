@@ -62,6 +62,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
 #define MY_COPYTIME	64	/* my_redel() copys time */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
+#define MY_REDEL_MAKE_BACKUP 256
 #define MY_SEEK_NOT_DONE 32	/* my_lock may have to do a seek */
 #define MY_DONT_WAIT	64	/* my_lock() don't wait if can't lock */
 #define MY_ZEROFILL	32	/* my_malloc(), fill array with zero */
@@ -219,7 +220,7 @@ typedef struct st_typelib {	/* Different types saved here */
   const char **type_names;
 } TYPELIB;
 
-enum cache_type {READ_CACHE,WRITE_CACHE,READ_NET,WRITE_NET};
+enum cache_type {READ_CACHE,WRITE_CACHE,READ_FIFO,READ_NET,WRITE_NET};
 enum flush_type { FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED,
 		  FLUSH_FORCE_WRITE};
 
