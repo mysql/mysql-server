@@ -942,7 +942,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     }
     /* Approximate found rows and time to read them */
     s->found_records=s->records=s->table->file->records;
-    s->read_time=(ha_rows) ((s->table->file->data_file_length)/IO_SIZE)+1;
+    s->read_time=(ha_rows) s->table->file->scan_time();
 
     /* Set a max range of how many seeks we can expect when using keys */
     s->worst_seeks= (double) (s->read_time*2);
@@ -1419,18 +1419,18 @@ update_ref_and_keys(DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,uint tables,
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
       if (!use->used_tables)
-	use->table->const_key_parts[use->key]|=
+	use->table->const_key_parts[use->key] |=
 	  (key_part_map) 1 << use->keypart;
       if (use->keypart != FT_KEYPART)
       {
-      if (use->key == prev->key && use->table == prev->table)
-      {
-	if (prev->keypart+1 < use->keypart ||
-	    prev->keypart == use->keypart && found_eq_constant)
-	  continue;				/* remove */
-      }
-      else if (use->keypart != 0)		// First found must be 0
-	continue;
+	if (use->key == prev->key && use->table == prev->table)
+	{
+	  if (prev->keypart+1 < use->keypart ||
+	      prev->keypart == use->keypart && found_eq_constant)
+	    continue;				/* remove */
+	}
+	else if (use->keypart != 0)		// First found must be 0
+	  continue;
       }
 
       *save_pos= *use;
@@ -1532,7 +1532,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	double best_records=DBL_MAX;
 
 	/* Test how we can use keys */
-	rec= s->records/10;			/* Assume 10 records/key */
+	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  /* Assumed records/key */
 	for (keyuse=s->keyuse ; keyuse->table == table ;)
 	{
 	  key_map found_part=0;
@@ -1571,7 +1571,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		if (map == 1)			// Only one table
 		{
 		  TABLE *tmp_table=join->all_tables[tablenr];
-		  if (rec > tmp_table->file->records)
+		  if (rec > tmp_table->file->records && rec > 100)
 		    rec=max(tmp_table->file->records,100);
 		}
 	      }
@@ -1615,12 +1615,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    }
 	    else
 	    {
-	      if (!found_ref)			// If not const key
-	      {
+	      if (!found_ref)
+	      {					// We found a const key
 		if (table->quick_keys & ((key_map) 1 << key))
 		  records= (double) table->quick_rows[key];
 		else
-		  records= (double) s->records; // quick_range couldn't use key!
+		  records= (double) s->records/rec; // quick_range couldn't use key!
 	      }
 	      else
 	      {
@@ -1654,7 +1654,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    ** than a not unique key
 	    ** Set tmp to (previous record count) * (records / combination)
 	    */
-	    if (found_part & 1)
+	    if ((found_part & 1) &&
+		!(table->file->option_flag() & HA_ONLY_WHOLE_INDEX))
 	    {
 	      uint max_key_part=max_part_bit(found_part);
 	      /* Check if quick_range could determinate how many rows we

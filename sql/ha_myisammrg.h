@@ -32,15 +32,19 @@ class ha_myisammrg: public handler
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
-  ulong option_flag() const { return HA_REC_NOT_IN_SEQ+HA_READ_NEXT+
-                                     HA_READ_PREV+HA_READ_RND_SAME+HA_HAVE_KEY_READ_ONLY+
-		                     HA_KEYPOS_TO_RNDPOS+HA_READ_ORDER+
-		                     HA_LASTKEY_ORDER+HA_READ_NOT_EXACT_KEY+
-		                     HA_LONGLONG_KEYS+HA_NULL_KEY+HA_BLOB_KEY; }
+  ulong option_flag() const
+    { return (HA_REC_NOT_IN_SEQ | HA_READ_NEXT | 
+	      HA_READ_PREV | HA_READ_RND_SAME | 
+	      HA_HAVE_KEY_READ_ONLY | 
+	      HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | 
+	      HA_LASTKEY_ORDER | HA_READ_NOT_EXACT_KEY | 
+	      HA_LONGLONG_KEYS | HA_NULL_KEY | HA_BLOB_KEY); }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 1; }
+  uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
+  virtual double scan_time()
+    { return ulonglong2double(data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, int test_if_locked);
   int close(void);

@@ -28,6 +28,8 @@ all:			$(targets) txt_files
 txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
 			../MIRRORS INSTALL-BINARY
 
+CLEAN_FILES:		manual.ps
+
 # The PostScript version is so big that is not included in the
 # standard distribution. It is available for download from the home page.  
 paper: manual_a4.ps manual_letter.ps

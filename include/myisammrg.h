@@ -83,7 +83,8 @@ extern int myrg_rsame(MYRG_INFO *file,byte *record,int inx);
 extern int myrg_update(MYRG_INFO *file,const byte *old,byte *new_rec);
 extern int myrg_status(MYRG_INFO *file,MYMERGE_INFO *x,int flag);
 extern int myrg_lock_database(MYRG_INFO *file,int lock_type);
-extern int myrg_create(const char *name,const char **table_names);
+extern int myrg_create(const char *name,const char **table_names,
+		       my_bool fix_names);
 extern int myrg_extra(MYRG_INFO *file,enum ha_extra_function function);
 extern ha_rows myrg_records_in_range(MYRG_INFO *info,int inx,
 				    const byte *start_key,uint start_key_len,

@@ -16,7 +16,7 @@
 
 #include "mymrgdef.h"
 
-	/*  Read first row through  a specfic key */
+	/*  Read first row according to specific key */
 
 int myrg_rfirst(MYRG_INFO *info, byte *buf, int inx)
 {
@@ -29,17 +29,17 @@ int myrg_rfirst(MYRG_INFO *info, byte *buf, int inx)
 
   for (table=info->open_tables ; table < info->end_table ; table++)
   {
-    err=mi_rfirst(table->table,NULL,inx);
-    info->last_used_table=table;
-
-    if (err == HA_ERR_END_OF_FILE)
-      continue;
-    if (err)
+    if ((err=mi_rfirst(table->table,NULL,inx)))
+    {
+      if (err == HA_ERR_END_OF_FILE)
+	continue;
       return err;
-
+    }
     /* adding to queue */
     queue_insert(&(info->by_key),(byte *)table);
   }
+  /* We have done a read in all tables */
+  info->last_used_table=table;
 
   if (!info->by_key.elements)
     return HA_ERR_END_OF_FILE;

@@ -246,7 +246,7 @@ register char ***argv;
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 3.1 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 3.2 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
 	puts("TCX Datakonsult AB, by Monty, for your professional use\n");
 	if (version)
@@ -325,7 +325,7 @@ static int examine_log(my_string file_name, char **table_names)
 
   init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
   bzero((gptr) com_count,sizeof(com_count));
-  init_tree(&tree,0,sizeof(file_info),(qsort_cmp) file_info_compare,0,
+  init_tree(&tree,0,sizeof(file_info),(qsort_cmp) file_info_compare,1,
 	    (void(*)(void*)) file_info_free);
   VOID(init_key_cache(KEY_CACHE_SIZE,(uint) (10*4*(IO_SIZE+MALLOC_OVERHEAD))));
 

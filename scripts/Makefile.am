@@ -53,12 +53,14 @@ pkgdata_DATA =		make_binary_distribution
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
 			msql2mysql \
+			mysql_config \
 			mysql_fix_privilege_tables \
 			mysql_setpermission \
 			mysql_zap \
 			mysqlaccess \
 			mysql_convert_table_format \
-			mysql_find_rows
+			mysql_find_rows \
+			mysqlhotcopy
 
 SUPERCLEANFILES =	mysqlbug
 

@@ -48,7 +48,7 @@
 					  if database is updated after read) */
 #define HA_REC_NOT_IN_SEQ	64	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
-#define HA_BINARY_KEYS		128	/* Keys must be exact */
+#define HA_ONLY_WHOLE_INDEX	128	/* Can't use part key searches */
 #define HA_RSAME_NO_INDEX	256	/* RSAME can't restore index */
 #define HA_WRONG_ASCII_ORDER	512	/* Can't use sorting through key */
 #define HA_HAVE_KEY_READ_ONLY	1024	/* Can read only keys (no record) */
@@ -128,6 +128,7 @@ typedef struct st_ha_create_information
   ulong raid_chunksize;
   bool if_not_exists;
   ulong used_fields;
+  SQL_LIST merge_list;
 } HA_CREATE_INFO;
 
 

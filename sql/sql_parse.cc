@@ -38,8 +38,9 @@ extern "C" pthread_mutex_t THR_LOCK_keycache;
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-static bool check_table_access(THD *thd,uint want_access,TABLE_LIST *tables);
+static bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
+static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(THD *thd,const char *db,const char *name,
 		      TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
@@ -504,9 +505,9 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if(!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
 
-  if(check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
+  if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
     goto err;
-  if(grant_option && check_grant(thd, SELECT_ACL, table_list))
+  if (grant_option && check_grant(thd, SELECT_ACL, table_list))
     goto err;
 
   thd->free_list = 0;
@@ -1007,10 +1008,12 @@ mysql_execute_command(void)
     break;
 
   case SQLCOM_CREATE_TABLE:
-#ifdef DEMO_VERSION
-    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
-#else
-    if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege))
+    if (!tables->db)
+      tables->db=thd->db;
+    if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege) ||
+	check_merge_table_access(thd, tables->db,
+				 (TABLE_LIST *)
+				 lex->create_info.merge_list.first))
       goto error;				/* purecov: inspected */
     if (grant_option)
     {
@@ -1091,7 +1094,6 @@ mysql_execute_command(void)
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
     res = mysql_create_index(thd, tables, lex->key_list);
-#endif
     break;
 
   case SQLCOM_SLAVE_START:
@@ -1100,7 +1102,6 @@ mysql_execute_command(void)
   case SQLCOM_SLAVE_STOP:
     stop_slave(thd);
     break;
-
 
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -1115,11 +1116,16 @@ mysql_execute_command(void)
 	res=0;
 	break;
       }
+      if (!tables->db)
+	tables->db=thd->db;
       if (!lex->db)
 	lex->db=tables->db;
       if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege) ||
-	  check_access(thd,INSERT_ACL | CREATE_ACL,lex->db,&priv))
-	goto error; /* purecov: inspected */
+	  check_access(thd,INSERT_ACL | CREATE_ACL,lex->db,&priv) ||
+	  check_merge_table_access(thd, tables->db, 
+				   (TABLE_LIST *)
+				   lex->create_info.merge_list.first))
+	goto error;				/* purecov: inspected */
       if (!tables->db)
 	tables->db=thd->db;
       if (grant_option)
@@ -1373,7 +1379,7 @@ mysql_execute_command(void)
     res = mysql_drop_index(thd, tables, lex->drop_list);
     break;
   case SQLCOM_SHOW_DATABASES:
-#if defined(DONT_ALLOW_SHOW_COMMANDS) || defined(DEMO_VERSION)
+#if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     DBUG_VOID_RETURN;
 #else
@@ -1826,6 +1832,22 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
     }
   }
   return FALSE;
+}
+
+
+static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
+{
+  int error=0;
+  if (table_list)
+  {
+    /* Force all tables to use the current database */
+    TABLE_LIST *tmp;
+    for (tmp=table_list; tmp ; tmp=tmp->next)
+      tmp->db=db;
+    error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+			     table_list);
+  }
+  return error;
 }
 
 
@@ -2481,7 +2503,7 @@ static int start_slave(THD* thd , bool net_report)
   if(!thd) thd = current_thd;
   NET* net = &thd->net;
   const char* err = 0;
-  if(check_access(thd, PROCESS_ACL, any_db))
+  if (check_access(thd, PROCESS_ACL, any_db))
     return 1;
   pthread_mutex_lock(&LOCK_slave);
   if(!slave_running)
@@ -2516,7 +2538,7 @@ static int stop_slave(THD* thd, bool net_report )
   NET* net = &thd->net;
   const char* err = 0;
 
-  if(check_access(thd, PROCESS_ACL, any_db))
+  if (check_access(thd, PROCESS_ACL, any_db))
     return 1;
 
   pthread_mutex_lock(&LOCK_slave);
