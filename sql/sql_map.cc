@@ -19,9 +19,8 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include <sys/stat.h>
-
 #include "mysql_priv.h"
+#include <sys/stat.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
