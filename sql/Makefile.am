@@ -91,11 +91,10 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			tztime.cc my_time.c \
 			examples/ha_example.cc examples/ha_archive.cc
+
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
-
-mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql_tztime.cc
-mysql_tzinfo_to_sql_CXXFLAGS =  -DTZINFO2SQL $(AM_CXXFLAGS)
+mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
 mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
@@ -117,13 +116,14 @@ link_sources:
 	@LN_CP_F@ ../sql-common/client.c client.c
 	rm -f my_time.c
 	@LN_CP_F@ ../sql-common/my_time.c my_time.c
+	rm -f mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
 
-mysql_tzinfo_to_sql_tztime.cc:	tztime.cc
-	rm -f $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
-	@LN_CP_F@ $(srcdir)/tztime.cc $(srcdir)/mysql_tzinfo_to_sql_tztime.cc
+mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
+			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
 # Try to get better dependencies for the grammar. Othervise really bad
 # things like different grammars for different pars of MySQL can
