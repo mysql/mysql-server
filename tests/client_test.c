@@ -11082,10 +11082,75 @@ static void test_bug6096()
     free(bind[i].buffer);
   mysql_stmt_close(stmt);
   mysql_free_result(query_result);
+  mysql_free_result(stmt_metadata);
   stmt_text= "drop table t1";
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
 }
+
+
+static void test_bug4172()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[3];
+  const char *stmt_text;
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  int rc;
+  char f[100], d[100], e[100];
+  long f_len, d_len, e_len;
+
+  myheader("test_bug4172");
+
+  mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  mysql_query(mysql, "CREATE TABLE t1 (f float, d double, e decimal(10,4))");
+  mysql_query(mysql, "INSERT INTO t1 VALUES (12345.1234, 123456.123456, "
+                                            "123456.1234)");
+
+  stmt= mysql_stmt_init(mysql);
+  stmt_text= "SELECT f, d, e FROM t1";
+
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= f;
+  bind[0].buffer_length= sizeof(f);
+  bind[0].length= &f_len;
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= d;
+  bind[1].buffer_length= sizeof(d);
+  bind[1].length= &d_len;
+  bind[2].buffer_type= MYSQL_TYPE_STRING;
+  bind[2].buffer= e;
+  bind[2].buffer_length= sizeof(e);
+  bind[2].length= &e_len;
+
+  mysql_stmt_bind_result(stmt, bind);
+
+  mysql_stmt_store_result(stmt);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  myquery(rc);
+  res= mysql_store_result(mysql);
+  row= mysql_fetch_row(res);
+
+  printf("Binary protocol: float=%s, double=%s, decimal(10,4)=%s\n",
+         f, d, e);
+  printf("Text protocol:   float=%s, double=%s, decimal(10,4)=%s\n",
+         row[0], row[1], row[2]);
+
+  DIE_UNLESS(!strcmp(f, row[0]) && !strcmp(d, row[1]) && !strcmp(e, row[2]));
+
+  mysql_free_result(res);
+  mysql_stmt_close(stmt);
+}
+
 
 
 /*
@@ -11404,6 +11469,8 @@ int main(int argc, char **argv)
     test_bug6046();         /* NATURAL JOIN transformation works in PS */
     test_bug6081();         /* test of mysql_create_db()/mysql_rm_db() */
     test_bug6096();         /* max_length for numeric columns */
+    test_bug4172();         /* floating point conversions in libmysql */
+
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
