@@ -1934,4 +1934,38 @@ ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **purged){
   return res;
 }
 
+extern "C"
+int
+ndb_mgm_check_connection(NdbMgmHandle handle){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  SocketOutputStream out(handle->socket);
+  SocketInputStream in(handle->socket, handle->read_timeout);
+  char buf[32];
+
+  if (out.println("check connection"))
+    goto ndb_mgm_check_connection_error;
+
+  if (out.println(""))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("check connection reply\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("result: Ok\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  in.gets(buf, sizeof(buf));
+  if(strcmp("\n", buf))
+    goto ndb_mgm_check_connection_error;
+
+  return 0;
+
+ndb_mgm_check_connection_error:
+  ndb_mgm_disconnect(handle);
+  return -1;
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;

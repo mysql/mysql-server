@@ -244,6 +244,8 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("purge stale sessions", &MgmApiSession::purge_stale_sessions, ""),
 
+  MGM_CMD("check connection", &MgmApiSession::check_connection, ""),
+
   MGM_END()
 };
 
@@ -1450,6 +1452,15 @@ MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
   m_output->println("purge stale sessions reply");
   if (str.length() > 0)
     m_output->println("purged:%s",str.c_str());
+  m_output->println("result: Ok");
+  m_output->println("");
+}
+
+void
+MgmApiSession::check_connection(Parser_t::Context &ctx,
+				const class Properties &args)
+{
+  m_output->println("check connection reply");
   m_output->println("result: Ok");
   m_output->println("");
 }
