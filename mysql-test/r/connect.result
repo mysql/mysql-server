@@ -4,6 +4,7 @@ columns_priv
 db
 func
 host
+proc
 tables_priv
 user
 show tables;
@@ -16,6 +17,7 @@ columns_priv
 db
 func
 host
+proc
 tables_priv
 user
 show tables;
@@ -28,6 +30,7 @@ columns_priv
 db
 func
 host
+proc
 tables_priv
 user
 show tables;
