@@ -3885,7 +3885,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       goto err;
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
-    keyinfo->flags=HA_NOSAME;
+    keyinfo->flags=HA_NOSAME|HA_NULL_ARE_EQUAL;
     keyinfo->key_length=(uint16) reclength;
     keyinfo->name=(char*) "tmp";
     if (null_pack_length)
