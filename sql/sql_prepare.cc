@@ -76,6 +76,14 @@ Long data handling:
 
 #define STMT_QUERY_LOG_LENGTH 8192
 
+#ifdef EMBEDDED_LIBRARY
+#define SETUP_PARAM_FUNCTION(fn_name) \
+static void fn_name(Item_param *param, uchar **pos, ulong data_len)
+#else
+#define SETUP_PARAM_FUNCTION(fn_name) \
+static void fn_name(Item_param *param, uchar **pos)
+#endif
+
 String my_null_string("NULL", 4, default_charset_info);
 
 /*
@@ -189,6 +197,7 @@ static bool send_item_params(PREP_STMT *stmt)
   caller by positing the pointer to param data              
 */
 
+#ifndef EMBEDDED_LIBRARY
 static ulong get_param_length(uchar **packet)
 {
   reg1 uchar *pos= *packet;
@@ -210,6 +219,10 @@ static ulong get_param_length(uchar **packet)
   (*packet)+=9; // Must be 254 when here 
   return (ulong) uint4korr(pos+1);
 }
+#else
+#define get_param_length(A) data_len
+#endif /*!EMBEDDED_LIBRARY*/
+
  /*
   Setup param conversion routines
 
@@ -229,31 +242,31 @@ static ulong get_param_length(uchar **packet)
     
 */
 
-static void setup_param_tiny(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_tiny)
 {
   param->set_int((longlong)(**pos));
   *pos+= 1;
 }
 
-static void setup_param_short(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_short)
 {
   param->set_int((longlong)sint2korr(*pos));
   *pos+= 2;
 }
 
-static void setup_param_int32(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_int32)
 {
   param->set_int((longlong)sint4korr(*pos));
   *pos+= 4;
 }
 
-static void setup_param_int64(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_int64)
 {
   param->set_int((longlong)sint8korr(*pos));
   *pos+= 8;
 }
 
-static void setup_param_float(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_float)
 {
   float data;
   float4get(data,*pos);
@@ -261,7 +274,7 @@ static void setup_param_float(Item_param *param, uchar **pos)
   *pos+= 4;
 }
 
-static void setup_param_double(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_double)
 {
   double data;
   float8get(data,*pos);
@@ -269,7 +282,7 @@ static void setup_param_double(Item_param *param, uchar **pos)
   *pos+= 8;
 }
 
-static void setup_param_time(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_time)
 {
   ulong length;
 
@@ -293,7 +306,7 @@ static void setup_param_time(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_datetime(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_datetime)
 {
   uint length= get_param_length(pos);
  
@@ -323,7 +336,7 @@ static void setup_param_datetime(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_date(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_date)
 {
   ulong length;
  
@@ -345,7 +358,7 @@ static void setup_param_date(Item_param *param, uchar **pos)
   *pos+= length;
 }
 
-static void setup_param_str(Item_param *param, uchar **pos)
+SETUP_PARAM_FUNCTION(setup_param_str)
 {
   ulong len= get_param_length(pos);
   param->set_value((const char *)*pos, len);
