@@ -16,14 +16,8 @@ typedef struct st_master_info
   pthread_mutex_t lock;
   pthread_cond_t cond;
   bool inited;
-  bool virtual_master; // for replay of binlogs from a directory
-  MYSQL_LOG vm_binlog;
-  LOG_INFO vm_linfo;
-  IO_CACHE vm_cache;
-  int vm_fd;
-  Log_event* vm_ev;
   
-  st_master_info():pending(0),fd(-1),inited(0),virtual_master(0),vm_fd(-1)
+  st_master_info():pending(0),fd(-1),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
@@ -34,8 +28,6 @@ typedef struct st_master_info
   {
     pthread_mutex_destroy(&lock);
     pthread_cond_destroy(&cond);
-    if(virtual_master)
-      close_virtual_master();
   }
   inline void inc_pending(ulonglong val)
   {
@@ -59,11 +51,6 @@ typedef struct st_master_info
   }
 
   int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
-  int setup_virtual_master();
-  void close_virtual_master();
-  uint read_event();
-  int open_log();
-  
 } MASTER_INFO;
 
 typedef struct st_table_rule_ent
