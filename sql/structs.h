@@ -71,7 +71,7 @@ typedef struct st_key {
   char	*name;				/* Name of key */
   ulong *rec_per_key;			/* Key part distribution */
   union {
-    uint  bdb_return_if_eq;
+    int  bdb_return_if_eq;
   } handler;
 } KEY;
 

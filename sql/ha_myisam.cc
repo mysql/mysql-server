@@ -238,38 +238,38 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name = (char*)"check";
   param.table_name = table->table_name;
-  param.testflag = check_opt->flags | T_CHECK | T_SILENT;
-  if (check_opt->quick)
-    param.testflag |= T_FAST;
+  param.testflag = check_opt->flags | T_CHECK | T_SILENT | T_MEDIUM;
   
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
   param.using_global_keycache = 1;
 
+  if (!mi_is_crashed(file) &&
+      (((param.testflag & T_CHECK_ONLY_CHANGED) &&
+	!share->state.changed && share->state.open_count == 0) ||
+       ((param.testflag & T_FAST) && share->state.open_count == 0)))
+    return HA_CHECK_ALREADY_CHECKED;
+
   error = chk_size(&param, file);
-  if (!((param.testflag & T_FAST) && share->state.open_count == 1 &&
-	!share->state.changed))
+  if (!error)
+    error |= chk_del(&param, file, param.testflag);
+  if (!error)
+    error = chk_key(&param, file);
+  if (!error)
   {
-    if (!error)
-      error |= chk_del(&param, file, param.testflag);
-    if (!error)
-      error = chk_key(&param, file);
-    if (!error)
+    if (!check_opt->quick &&
+	(share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
     {
-      if (!(param.testflag & T_FAST) ||
-	  (share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
-      {
-	init_io_cache(&param.read_cache, file->dfile,
-		      my_default_record_cache_size, READ_CACHE,
-		      share->pack.header_length, 1, MYF(MY_WME));
-	error |= chk_data_link(&param, file, param.testflag & T_EXTEND);
-	end_io_cache(&(param.read_cache));
-      }
+      init_io_cache(&param.read_cache, file->dfile,
+		    my_default_record_cache_size, READ_CACHE,
+		    share->pack.header_length, 1, MYF(MY_WME));
+      error |= chk_data_link(&param, file, param.testflag & T_EXTEND);
+      end_io_cache(&(param.read_cache));
     }
   }
   if (!error)
   { 
-    if (share->state.changed)
+    if (share->state.changed || (param.testflag & T_STATISTICS))
     {
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
@@ -278,11 +278,14 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 #endif
       share->state.changed=0;
       if (!(table->db_stat & HA_READ_ONLY))
-	error=update_state_info(&param,file,UPDATE_TIME | UPDATE_OPEN_COUNT);
+	error=update_state_info(&param,file,UPDATE_TIME | UPDATE_OPEN_COUNT |
+				UPDATE_STAT);
 #ifndef HAVE_PREAD
       pthread_mutex_unlock(&THR_LOCK_keycache);// QQ; Has to be removed!
 #endif
       pthread_mutex_unlock(&share->intern_lock);
+      info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+	   HA_STATUS_CONST);
     }
   }
   else if (!mi_is_crashed(file))
@@ -379,6 +382,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param)
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
     error = update_state_info(&param, file, UPDATE_TIME|UPDATE_STAT);
+    info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+	 HA_STATUS_CONST);
   }
   else if (!mi_is_crashed(file))
   {

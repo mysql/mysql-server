@@ -1,4 +1,4 @@
-#@PERL@
+#!@PERL@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@
 # $server	Object for current server
 # $limits	Hash reference to limits for benchmark
 
-$benchmark_version="2.8";
+$benchmark_version="2.9";
 use Getopt::Long;
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";

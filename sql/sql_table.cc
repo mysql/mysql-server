@@ -954,6 +954,11 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
       net_store_data(packet, "OK");
       break;
 
+    case HA_CHECK_ALREADY_CHECKED:
+      net_store_data(packet, "status");
+      net_store_data(packet, "Not checked");
+      break;
+
     case HA_CHECK_CORRUPT:
       net_store_data(packet, "status");
       net_store_data(packet, "Corrupt");
