@@ -6434,13 +6434,13 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c Added: 990920
-@c EMAIL: <radek@sopik.cz> (Radek Libovicky)
+@c EMAIL: radek@sopik.cz (Radek Libovicky)
 @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
 @uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
-@c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
+@c EMAIL: feela@ipex.cz (Ondrej Feela Filip)
 @image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
@@ -6648,7 +6648,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
-@c EMAIL: Equipa de suporte do Leirianet <support@leirianet.pt>
+@c EMAIL: support@leirianet.pt (Equipa de suporte do Leirianet)
 @c @image{Flags/portugal} Portugal [lerianet] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
