@@ -34,6 +34,9 @@
 #include <Dbtux.hpp>
 #include <NdbEnv.h>
 
+#ifndef VM_TRACE
+#define NEW_BLOCK(B) new B
+#else
 enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
 static
@@ -60,13 +63,13 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
   
   return tmp;
 }
+#define NEW_BLOCK(B) new(A_VALUE) B
+#endif
 
 void 
 SimBlockList::load(const Configuration & conf){
   noOfBlocks = 16;
   theList = new SimulatedBlock * [noOfBlocks];
-  for(int i = 0; i<noOfBlocks; i++)
-    theList[i] = 0;
   Dbdict* dbdict = 0;
   Dbdih* dbdih = 0;
 
@@ -75,28 +78,28 @@ SimBlockList::load(const Configuration & conf){
     Uint32 dl;
     const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
     if(p && !ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl){
-      fs = new (A_VALUE) VoidFs(conf);
+      fs = NEW_BLOCK(VoidFs)(conf);
     } else { 
-      fs = new (A_VALUE) Ndbfs(conf);
+      fs = NEW_BLOCK(Ndbfs)(conf);
     }
   }
   
-  theList[0]  = new (A_VALUE) Dbacc(conf);
-  theList[1]  = new (A_VALUE) Cmvmi(conf);
+  theList[0]  = NEW_BLOCK(Dbacc)(conf);
+  theList[1]  = NEW_BLOCK(Cmvmi)(conf);
   theList[2]  = fs;
-  theList[3]  = dbdict = new (A_VALUE) Dbdict(conf);
-  theList[4]  = dbdih = new (A_VALUE) Dbdih(conf);
-  theList[5]  = new (A_VALUE) Dblqh(conf);
-  theList[6]  = new (A_VALUE) Dbtc(conf);
-  theList[7]  = new (A_VALUE) Dbtup(conf);
-  theList[8]  = new (A_VALUE) Ndbcntr(conf);
-  theList[9]  = new (A_VALUE) Qmgr(conf);
-  theList[10] = new (A_VALUE) Trix(conf);
-  theList[11] = new (A_VALUE) Backup(conf);
-  theList[12] = new (A_VALUE) DbUtil(conf);
-  theList[13] = new (A_VALUE) Suma(conf);
-  theList[14] = new (A_VALUE) Grep(conf);
-  theList[15] = new (A_VALUE) Dbtux(conf);
+  theList[3]  = dbdict = NEW_BLOCK(Dbdict)(conf);
+  theList[4]  = dbdih = NEW_BLOCK(Dbdih)(conf);
+  theList[5]  = NEW_BLOCK(Dblqh)(conf);
+  theList[6]  = NEW_BLOCK(Dbtc)(conf);
+  theList[7]  = NEW_BLOCK(Dbtup)(conf);
+  theList[8]  = NEW_BLOCK(Ndbcntr)(conf);
+  theList[9]  = NEW_BLOCK(Qmgr)(conf);
+  theList[10] = NEW_BLOCK(Trix)(conf);
+  theList[11] = NEW_BLOCK(Backup)(conf);
+  theList[12] = NEW_BLOCK(DbUtil)(conf);
+  theList[13] = NEW_BLOCK(Suma)(conf);
+  theList[14] = NEW_BLOCK(Grep)(conf);
+  theList[15] = NEW_BLOCK(Dbtux)(conf);
 
   // Metadata common part shared by block instances
   ptrMetaDataCommon = new MetaData::Common(*dbdict, *dbdih);

@@ -283,7 +283,7 @@ public:
     create_time(0), check_time(0), update_time(0),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0), implicit_emptied(0), inited(NONE)
+    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0)
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
