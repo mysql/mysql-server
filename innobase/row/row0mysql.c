@@ -1804,6 +1804,7 @@ row_drop_table_for_mysql(
 	char*	name,		/* in: table name */
 	trx_t*	trx)		/* in: transaction handle */
 {
+	dict_foreign_t*	foreign;
 	dict_table_t*	table;
 	que_thr_t*	thr;
 	que_t*		graph;
@@ -1993,6 +1994,31 @@ row_drop_table_for_mysql(
 	"InnoDB: You can look further help from section 15.1 of\n"
         "InnoDB: http://www.innodb.com/ibman.html\n",
 				 name);
+		goto funct_exit;
+	}
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	
+	if (foreign && trx->check_foreigns) {
+		char*	buf	= dict_foreign_err_buf;
+
+		/* We only allow dropping a referenced table if
+		FOREIGN_KEY_CHECKS is set to 0 */
+
+		err = DB_CANNOT_DROP_CONSTRAINT;
+
+		mutex_enter(&dict_foreign_err_mutex);
+		ut_sprintf_timestamp(buf);
+	
+		sprintf(buf + strlen(buf),
+			"  Cannot drop table %.500s\n", name);
+		sprintf(buf + strlen(buf),
+"because it is referenced by %.500s\n", foreign->foreign_table_name);
+
+		ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+		mutex_exit(&dict_foreign_err_mutex);
+
 		goto funct_exit;
 	}
 

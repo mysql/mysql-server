@@ -63,6 +63,8 @@ static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 static bool create_total_list(THD *thd, LEX *lex,
 			      TABLE_LIST **result, bool skip_first);
+static bool check_one_table_access(THD *thd, ulong want_access,
+				   TABLE_LIST *table, bool no_errors);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -870,11 +872,8 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
 
-  if (check_access(thd, SELECT_ACL, db, &table_list->grant.privilege))
+  if (check_one_table_access(thd, SELECT_ACL, table_list, 0))
     goto err;
-  if (grant_option && check_grant(thd, SELECT_ACL, table_list))
-    goto err;
-
   thd->free_list = 0;
   thd->query_length=(uint) strlen(tbl_name);
   thd->query = tbl_name;
@@ -1102,9 +1101,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       casedn_str(table_list.real_name);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
-    if (check_access(thd,SELECT_ACL,table_list.db,&thd->col_access))
+    if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege))
       break;
-    table_list.grant.privilege=thd->col_access;
     if (grant_option && check_grant(thd,SELECT_ACL,&table_list,2))
       break;
     mysqld_list_fields(thd,&table_list,fields);
@@ -1693,12 +1691,8 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_CREATE_INDEX:
-    if (!tables->db)
-      tables->db=thd->db;
-    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege))
+    if (check_one_table_access(thd, INDEX_ACL, tables, 0))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INDEX_ACL,tables))
-      goto error;
     if (end_active_trans(thd))
       res= -1;
     else
@@ -1753,8 +1747,6 @@ mysql_execute_command(void)
 	res=0;
 	break;
       }
-      if (!tables->db)
-	tables->db=thd->db;
       if (!select_lex->db)
 	select_lex->db=tables->db;
       if (check_access(thd,ALTER_ACL,tables->db,&tables->grant.privilege) ||
@@ -1763,8 +1755,6 @@ mysql_execute_command(void)
 				   (TABLE_LIST *)
 				   lex->create_info.merge_list.first))
 	goto error;				/* purecov: inspected */
-      if (!tables->db)
-	tables->db=thd->db;
       if (grant_option)
       {
 	if (check_grant(thd,ALTER_ACL,tables))
@@ -1909,15 +1899,7 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_UPDATE:
-    TABLE_LIST *table;
     if (check_db_used(thd,tables))
-      goto error;
-    for (table=tables ; table ; table=table->next)
-    {
-      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
-	goto error;
-    }
-    if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
@@ -1926,6 +1908,10 @@ mysql_execute_command(void)
     }
     if (select_lex->table_list.elements == 1)
     {
+      if (check_one_table_access(thd, UPDATE_ACL, tables, 0))
+	goto error; /* purecov: inspected */
+
+
       res= mysql_update(thd,tables,
 			select_lex->item_list,
 			lex->value_list,
@@ -1937,7 +1923,22 @@ mysql_execute_command(void)
     else
     {
       const char *msg= 0;
+      TABLE_LIST *table;
       lex->sql_command= SQLCOM_MULTI_UPDATE;
+
+      /*
+	Ensure that we have UPDATE or SELECT privilege for each table
+	The exact privilege is checked in mysql_multi_update()
+      */
+      for (table= tables ; table ; table= table->next)
+      {
+	TABLE_LIST *save= table->next;
+	table->next= 0;
+	if (check_one_table_access(thd, UPDATE_ACL, table, 1) &&
+	    check_one_table_access(thd, SELECT_ACL, table, 0))
+	    goto error;
+	table->next= save;
+      }
       if (select_lex->order_list.elements)
 	msg="ORDER BY";
       else if (select_lex->select_limit && select_lex->select_limit !=
@@ -1958,21 +1959,14 @@ mysql_execute_command(void)
     }
     break;
   case SQLCOM_INSERT:
-    if (check_access(thd,INSERT_ACL,tables->db,&tables->grant.privilege))
+    if (check_one_table_access(thd, INSERT_ACL, tables, 0))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL,tables))
-      goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       lex->duplicates);
     break;
   case SQLCOM_REPLACE:
-    if (check_access(thd,INSERT_ACL | DELETE_ACL,
-		     tables->db,&tables->grant.privilege))
+    if (check_one_table_access(thd, INSERT_ACL | DELETE_ACL, tables, 0))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL | DELETE_ACL,
-				    tables))
-
-      goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       DUP_REPLACE);
     break;
@@ -1988,9 +1982,7 @@ mysql_execute_command(void)
 			INSERT_ACL : INSERT_ACL | DELETE_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
-      if (check_access(thd, privilege,
-		       tables->db,&tables->grant.privilege) ||
-	  (grant_option && check_grant(thd, privilege, tables)))
+      if (check_one_table_access(thd, privilege, tables, 0))
 	goto error;
       tables->next=save_next;
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
@@ -2035,10 +2027,8 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_TRUNCATE:
-    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
+    if (check_one_table_access(thd, DELETE_ACL, tables, 0))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,DELETE_ACL,tables))
-      goto error;
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
@@ -2052,9 +2042,7 @@ mysql_execute_command(void)
     break;
   case SQLCOM_DELETE:
   {
-    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+    if (check_one_table_access(thd, DELETE_ACL, tables, 0))
       goto error;
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
@@ -2139,8 +2127,8 @@ mysql_execute_command(void)
       DROP / * 40005 TEMPORARY * / TABLE
       that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
       MASTER TO), while the temporary table has already been dropped.
-      To not generate such irrelevant "table does not exist errors", we silently
-      add IF EXISTS if TEMPORARY was used.
+      To not generate such irrelevant "table does not exist errors",
+      we silently add IF EXISTS if TEMPORARY was used.
     */
     if (thd->slave_thread && lex->drop_temporary)
       lex->drop_if_exists= 1;
@@ -2151,12 +2139,8 @@ mysql_execute_command(void)
   }
   break;
   case SQLCOM_DROP_INDEX:
-    if (!tables->db)
-      tables->db=thd->db;
-    if (check_access(thd,INDEX_ACL,tables->db,&tables->grant.privilege))
-      goto error;				/* purecov: inspected */
-    if (grant_option && check_grant(thd,INDEX_ACL,tables))
-      goto error;
+    if (check_one_table_access(thd, INDEX_ACL, tables, 0))
+      goto error; /* purecov: inspected */
     if (end_active_trans(thd))
       res= -1;
     else
@@ -2242,16 +2226,11 @@ mysql_execute_command(void)
 #else
     {
       char *db=tables->db;
-      if (!*db)
-      {
-	send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
-	goto error;				/* purecov: inspected */
-      }
       remove_escape(db);			// Fix escaped '_'
       remove_escape(tables->real_name);
-      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access))
+      if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
+		       &tables->grant.privilege))
 	goto error;				/* purecov: inspected */
-      tables->grant.privilege=thd->col_access;
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2))
 	goto error;
       res= mysqld_show_fields(thd,tables,
@@ -2267,18 +2246,10 @@ mysql_execute_command(void)
 #else
     {
       char *db=tables->db;
-      if (!db)
-      {
-	send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
-	goto error;				/* purecov: inspected */
-      }
       remove_escape(db);			// Fix escaped '_'
       remove_escape(tables->real_name);
-      if (!tables->db)
-	tables->db=thd->db;
-      if (check_access(thd,SELECT_ACL,db,&thd->col_access))
+      if (check_access(thd,SELECT_ACL,db,&tables->grant.privilege))
 	goto error; /* purecov: inspected */
-      tables->grant.privilege=thd->col_access;
       if (grant_option && check_grant(thd,SELECT_ACL,tables,2))
 	goto error;
       res= mysqld_show_keys(thd,tables);
@@ -2306,8 +2277,7 @@ mysql_execute_command(void)
 	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
 	goto error;
       }
-      if (check_access(thd,privilege,tables->db,&tables->grant.privilege) ||
-	  grant_option && check_grant(thd,privilege,tables))
+      if (check_one_table_access(thd, privilege, tables, 0))
 	goto error;
     }
     res=mysql_load(thd, lex->exchange, tables, lex->field_list,
@@ -2802,6 +2772,18 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
 		       test(want_access & EXTRA_ACL), no_errors);
   return FALSE;
+}
+
+
+static bool
+check_one_table_access(THD *thd, ulong want_access, TABLE_LIST *table,
+		       bool no_errors)
+{
+  if (check_access(thd, want_access, table->db, &table->grant.privilege, 0,
+		   no_errors))
+    return 1;
+  return (grant_option && check_grant(thd, want_access, table, 0,
+				      no_errors));
 }
 
 

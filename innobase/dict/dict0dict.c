@@ -52,7 +52,7 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 					hash table fixed size in bytes */
 #define DICT_POOL_PER_VARYING	4	/* buffer pool max size per data
 					dictionary varying size in bytes */
-
+ 
 /**************************************************************************
 Adds a column to the data dictionary hash table. */
 static
@@ -2109,6 +2109,68 @@ dict_accept(
 }
 
 /*************************************************************************
+Scans an id. For the lexical definition of an 'id', see the code below.
+Strips backquotes or double quotes from around the id. */
+static
+char*
+dict_scan_id(
+/*=========*/
+				/* out: scanned to */
+	char*	ptr,		/* in: scanned to */
+	char**	start,		/* out: start of the id; NULL if no id was
+				scannable */
+	ulint*	len,		/* out: length of the id */
+	ibool	accept_also_dot)/* in: TRUE if also a dot can appear in a
+				non-quoted id; in a quoted id it can appear
+				always */
+{
+	char quote	= '\0';
+
+	*start = NULL;
+
+	while (isspace(*ptr)) {
+		ptr++;
+	}
+
+	if (*ptr == '\0') {
+
+		return(ptr);
+	}
+
+	if (*ptr == '`' || *ptr == '"') {
+		quote = *ptr++;
+	}
+	
+	*start = ptr;
+
+	if (quote) {
+		while (*ptr != quote && *ptr != '\0') {
+			ptr++;
+		}
+	} else {
+		while (!isspace(*ptr) && *ptr != '(' && *ptr != ')'
+		       && (accept_also_dot || *ptr != '.')
+		       && *ptr != ',' && *ptr != '\0') {
+
+			ptr++;
+		}
+	}
+
+	*len = (ulint) (ptr - *start);
+	
+	if (quote) {
+		if (*ptr == quote) {
+			ptr++;
+		} else {
+			/* Syntax error */
+			*start = NULL;
+		}
+	}
+
+	return(ptr);
+}
+
+/*************************************************************************
 Tries to scan a column name. */
 static
 char*
@@ -2124,64 +2186,29 @@ dict_scan_col(
 	ulint*		column_name_len)/* out: column name length */
 {
 	dict_col_t*	col;
-	char*		old_ptr;
 	ulint		i;
 	
 	*success = FALSE;
 
-	while (isspace(*ptr)) {
-		ptr++;
+	ptr = dict_scan_id(ptr, column_name, column_name_len, TRUE);
+
+	if (column_name == NULL) {
+
+		return(ptr);	/* Syntax error */
 	}
 
-	if (*ptr == '\0') {
-
-		return(ptr);
-	}
-
-	if (*ptr == '`' || *ptr == '"') {
-	  /*
-	    The identifier is quoted. Search for end quote.
-	    We can't use the general code here as the name may contain
-	    special characters like space.
-	  */
-	  char quote= *ptr++;
-
-	  old_ptr= ptr;
-	  /*
-	    The colum name should always end with 'quote' but we check for
-	    end zero just to be safe if this is called outside of MySQL
-	  */
-	  while (*ptr && *ptr != quote)
-	    ptr++;
-	  *column_name_len = (ulint)(ptr - old_ptr);
-
-	  if (*ptr)				/* Skip end quote */
-	    ptr++;
-	}
-	else
-	{
-	  old_ptr = ptr;
-	
-	  while (!isspace(*ptr) && *ptr != ',' && *ptr != ')'
-		 && *ptr != '\0') {
-		ptr++;
-	  }
-	  *column_name_len = (ulint)(ptr - old_ptr);
-	}
-
-	
 	if (table == NULL) {
 		*success = TRUE;
 		*column = NULL;
-		*column_name = old_ptr;
 	} else {
 	    	for (i = 0; i < dict_table_get_n_cols(table); i++) {
 
 			col = dict_table_get_nth_col(table, i);
 
 			if (ut_strlen(col->name) == *column_name_len
-			    && 0 == ut_cmp_in_lower_case(col->name, old_ptr,
-						*column_name_len)) {
+			    && 0 == ut_cmp_in_lower_case(col->name,
+							*column_name,
+							*column_name_len)) {
 		    		/* Found */
 
 		    		*success = TRUE;
@@ -2211,147 +2238,117 @@ dict_scan_table_name(
 				the referenced table name; must be at least
 				2500 bytes */
 {
-	char*	dot_ptr			= NULL;
-	char*	old_ptr;
+	char*	database_name	= NULL;
+	ulint	database_name_len = 999999999;	/* init to a dummy value to
+						suppress a compiler warning */
+	char*	table_name	= NULL;
+	ulint	table_name_len;
+	char*	scanned_id;
+	ulint	scanned_id_len;
 	ulint	i;
-	char	quote			= 0;
 	
 	*success = FALSE;
 	*table = NULL;
-
-	while (isspace(*ptr)) {
-		ptr++;
-	}
-
-	if (*ptr == '\0') {
-
-		return(ptr);
-	}
-
-	if (*ptr == '`' || *ptr == '"') {
-		quote= *ptr++;
-	}
-
-	old_ptr = ptr;
 	
-	while (*ptr != quote &&
-	       (quote || (!isspace(*ptr) && *ptr != '(')) &&
-	       *ptr != '\0') {
-		if (!quote && *ptr == '.') {
-			dot_ptr = ptr;
+	ptr = dict_scan_id(ptr, &scanned_id, &scanned_id_len, FALSE);	
+
+	if (scanned_id == NULL) {
+		
+		return(ptr);	/* Syntax error */
+	}
+
+	if (*ptr == '.') {
+		/* We scanned the database name; scan also the table name */
+
+		ptr++;
+
+		database_name = scanned_id;
+		database_name_len = scanned_id_len;
+
+		ptr = dict_scan_id(ptr, &table_name, &table_name_len, FALSE);
+
+		if (table_name == NULL) {
+
+			return(ptr);	/* Syntax error */
 		}
+	} else {
+		/* To be able to read table dumps made with InnoDB-4.0.17 or
+		earlier, we must allow the dot separator between the database
+		name and the table name also to appear within a quoted
+		identifier! InnoDB used to print a constraint as:
+			... REFERENCES `databasename.tablename` ...
+		starting from 4.0.18 it is
+			... REFERENCES `databasename`.`tablename` ... */
 
-		ptr++;
-	}
-
-	if (ptr - old_ptr > 2000) {
-		return(old_ptr);
-	}
-	
-	if (dot_ptr == NULL) {
-		/* Copy the database name from 'name' to the start */
-		for (i = 0;; i++) {
-			second_table_name[i] = name[i];
-			if (name[i] == '/') {
-				i++;
-				break;
+		for (i = 0; i < scanned_id_len; i++) {
+			if (scanned_id[i] == '.') {
+				database_name = scanned_id;
+				database_name_len = i;
+				
+				scanned_id = scanned_id + i + 1;
+				scanned_id_len -= i + 1;
 			}
 		}
-#ifdef __WIN__
-		ut_cpy_in_lower_case(second_table_name + i, old_ptr,
-				     				ptr - old_ptr);
-#else
-		if (srv_lower_case_table_names) {
-			ut_cpy_in_lower_case(second_table_name + i, old_ptr,
-				     				ptr - old_ptr);
-		} else {
-			ut_memcpy(second_table_name + i, old_ptr,
-								ptr - old_ptr);
-		}
-#endif
-		second_table_name[i + (ptr - old_ptr)] = '\0';
-	} else {
-#ifdef __WIN__
-		ut_cpy_in_lower_case(second_table_name, old_ptr,
-								ptr - old_ptr);
-#else
-		if (srv_lower_case_table_names) {
-			ut_cpy_in_lower_case(second_table_name, old_ptr,
-				   			ptr - old_ptr);
-		} else {
-			ut_memcpy(second_table_name, old_ptr, ptr - old_ptr);
-		}
-#endif
-		second_table_name[dot_ptr - old_ptr] = '/';
-		second_table_name[ptr - old_ptr] = '\0';
+
+		table_name = scanned_id;
+		table_name_len = scanned_id_len;
 	}
+
+	if (database_name == NULL) {
+		/* Use the database name of the foreign key table */
+
+		database_name = name;
+			
+		i = 0;
+		while (name[i] != '/') {
+			i++;
+		}
+
+		database_name_len = i;
+	}
+
+	if (table_name_len + database_name_len > 2000) {
+
+		return(ptr);	/* Too long name */
+	}
+	
+#ifdef __WIN__
+	ut_cpy_in_lower_case(second_table_name, database_name,
+							database_name_len);
+#else
+	if (srv_lower_case_table_names) {
+		ut_cpy_in_lower_case(second_table_name, database_name,
+							database_name_len);
+	} else {
+		ut_memcpy(second_table_name, database_name,
+							database_name_len);
+	}
+#endif
+	second_table_name[database_name_len] = '/';
+
+#ifdef __WIN__
+	ut_cpy_in_lower_case(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+#else
+	if (srv_lower_case_table_names) {
+		ut_cpy_in_lower_case(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+	} else {
+		ut_memcpy(second_table_name + database_name_len + 1,
+						table_name, table_name_len);
+	}
+#endif
+	second_table_name[database_name_len + 1 + table_name_len] = '\0';
 
 	*success = TRUE;
 
 	*table = dict_table_get_low(second_table_name);
 
-	if (*ptr && *ptr == quote) {
-		ptr++;
-	}
-
 	return(ptr);
 }
 
 /*************************************************************************
-Scans an id. For the lexical definition of an 'id', see the code below.
-Strips backquotes from around the id. */
-static
-char*
-dict_scan_id(
-/*=========*/
-			/* out: scanned to */
-	char*	ptr,	/* in: scanned to */
-	char**	start,	/* out: start of the id; NULL if no id was
-			scannable */
-	ulint*	len)	/* out: length of the id */
-{
-	char quote	= 0;
-
-	*start = NULL;
-
-	while (isspace(*ptr)) {
-		ptr++;
-	}
-
-	if (*ptr == '\0') {
-
-		return(ptr);
-	}
-
-	if (*ptr == '`' || *ptr == '"') {
-		quote = *ptr++;
-	}
-	
-	*start = ptr;
-
-	while (*ptr != quote &&
-	       (!quote || (!isspace(*ptr) && *ptr != ',' && *ptr != '(' &&
-			   *ptr != ')'))
-	       && *ptr != '\0') {
-		ptr++;
-	}
-
-	*len = (ulint) (ptr - *start);
-	
-	if (quote) {
-		if (*ptr == quote) {
-			ptr++;
-		} else {
-			/* Syntax error */
-			*start = NULL;
-		}
-	}
-
-	return(ptr);
-}
-
-/*************************************************************************
-Skips one id. */
+Skips one id. The id is allowed to contain also '.'. */
 static
 char*
 dict_skip_word(
@@ -2366,7 +2363,7 @@ dict_skip_word(
 	
 	*success = FALSE;
 
-	ptr = dict_scan_id(ptr, &start, &len);
+	ptr = dict_scan_id(ptr, &start, &len, TRUE);
 
 	if (start) {
 		*success = TRUE;
@@ -3064,7 +3061,7 @@ loop:
 		goto syntax_error;
 	}
 
-	ptr = dict_scan_id(ptr, &start, &len);
+	ptr = dict_scan_id(ptr, &start, &len, TRUE);
 
 	if (start == NULL) {
 
@@ -3899,6 +3896,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	char*		buf)	/* in: buffer of at least 5000 bytes */
 {
 	char*	buf2	= buf;
+	ulint	cpy_len;
 	ulint	i;
 	
 	buf2 += sprintf(buf2, ",\n  CONSTRAINT `%s` FOREIGN KEY (",
@@ -3918,24 +3916,31 @@ dict_print_info_on_foreign_key_in_create_format(
 
 	if (dict_tables_have_same_db(foreign->foreign_table_name,
 					foreign->referenced_table_name)) {
-		/* Do not print the database name of the referenced
-		table */
+		/* Do not print the database name of the referenced table */
 		buf2 += sprintf(buf2, ") REFERENCES `%.500s` (",
 					dict_remove_db_name(
 					foreign->referenced_table_name));
 	} else {
-		buf2 += sprintf(buf2, ") REFERENCES `%.500s` (",
-					foreign->referenced_table_name);
-		/* Change the '/' in the table name to '.' */
+		buf2 += sprintf(buf2, ") REFERENCES `");
+	
+		/* Look for the '/' in the table name */
 
-		for (i = ut_strlen(buf); i > 0; i--) {
-			if (buf[i] == '/') {
-
-				buf[i] = '.';
-
-				break;
-			}
+		i = 0;
+		while (foreign->referenced_table_name[i] != '/') {
+			i++;
 		}
+		
+		cpy_len = i;
+
+		if (cpy_len > 500) {
+			cpy_len = 500;
+		}
+
+		memcpy(buf2, foreign->referenced_table_name, cpy_len);
+		buf2 += cpy_len;
+
+		buf2 += sprintf(buf2, "`.`%.500s` (",
+				foreign->referenced_table_name + i + 1);
 	}
 	
 	for (i = 0; i < foreign->n_fields; i++) {

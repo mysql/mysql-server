@@ -100,6 +100,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   isam/isamchk$BS isam/pack_isam$BS \
   myisam/myisamchk$BS myisam/myisampack$BS myisam/myisamlog$BS \
+  myisam/myisam_ftdump$BS \
   sql/mysqld$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \

@@ -15,8 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Update of records 
-   Multi-table updates were introduced by Monty and Sinisa <sinisa@mysql.com>
+/*
+  Single table and multi table updates of tables.
+  Multi-table updates were introduced by Sinisa & Monty
 */
 
 #include "mysql_priv.h"
@@ -398,20 +399,33 @@ int mysql_multi_update(THD *thd,
   TABLE_LIST *tl;
   DBUG_ENTER("mysql_multi_update");
 
-  table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
 
   thd->select_limit=HA_POS_ERROR;
+
+  /*
+    Ensure that we have update privilege for all tables and columns in the
+    SET part
+  */
+  for (tl= table_list ; tl ; tl=tl->next)
+  {
+    TABLE *table= tl->table;
+    table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+  }
+
   if (setup_fields(thd, table_list, *fields, 1, 0, 0))
     DBUG_RETURN(-1);
 
   /*
     Count tables and setup timestamp handling
   */
-  for (tl= (TABLE_LIST*) table_list ; tl ; tl=tl->next)
+  for (tl= table_list ; tl ; tl=tl->next)
   {
     TABLE *table= tl->table;
+
+    /* We only need SELECT privilege for columns in the values list */
+    table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
     if (table->timestamp_field)
     {
       table->time_stamp=0;

@@ -491,11 +491,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   {
     if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
@@ -731,9 +726,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         net_store_null(packet);
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
       {
         end=int10_to_str((long) key_part->length, buff,10); /* purecov: inspected */
         net_store_data(packet,convert,buff,(uint) (end-buff)); /* purecov: inspected */
