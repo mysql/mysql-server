@@ -345,6 +345,8 @@ protected:
   TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
 				  LEX *lex, TABLE_LIST *tables_used,
 				  uint8 *tables_type);
+
+  static my_bool ask_handler_allowance(THD *thd, TABLE_LIST *tables_used);
  public:
 
   Query_cache(ulong query_cache_limit = ULONG_MAX,
