@@ -261,7 +261,7 @@ public:
   Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new
   password format, sha1(sha1(password) is so-called hash_stage2 value.
   Length of returned string is always 41 byte. To find out how entire
-  authentification procedure works, see comments in password.c.
+  authentication procedure works, see comments in password.c.
 */
 
 class Item_func_password :public Item_str_func

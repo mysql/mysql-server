@@ -2423,8 +2423,8 @@ create_select:
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
 	    /*
-	      following work only with local list, global list is
-	      created correctly in this case
+              The following work only with the local list, the global list
+              is created correctly in this case
 	    */
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
@@ -2437,8 +2437,8 @@ create_select:
 	  opt_select_from
 	  {
 	    /*
-	      following work only with local list, global list is
-	      created correctly in this case
+              The following work only with the local list, the global list
+              is created correctly in this case
 	    */
 	    Lex->current_select->table_list.push_front(&Lex->save_list);
 	  }
