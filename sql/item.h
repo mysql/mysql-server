@@ -459,6 +459,7 @@ public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  bool alias_name_used; /* true if item was resolved against alias */
   /* 
     Cached value of index for this field in table->field array, used by prep. 
     stmts for speeding up their re-execution. Holds NO_CACHED_FIELD_INDEX 
