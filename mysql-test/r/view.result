@@ -922,13 +922,16 @@ create table mysqltest.v3 (b int);
 grant create view on mysqltest.v3 to mysqltest_1@localhost;
 drop table mysqltest.v3;
 create view mysqltest.v3 as select b from mysqltest.t2;
+grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
+drop view mysqltest.v3;
+create view mysqltest.v3 as select b from mysqltest.t2;
+grant create view, update, insert on mysqltest.v3 to mysqltest_1@localhost;
+drop view mysqltest.v3;
+create view mysqltest.v3 as select b from mysqltest.t2;
 ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
 create table mysqltest.v3 (b int);
-grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
-drop table mysqltest.v3;
-create view mysqltest.v3 as select b from mysqltest.t2;
 grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
-drop view mysqltest.v3;
+drop table mysqltest.v3;
 create view mysqltest.v3 as select b from mysqltest.t2;
 ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v3'
 create view v4 as select b+1 from mysqltest.t2;
@@ -1309,5 +1312,21 @@ a	a	a
 2	3	2
 3	2	3
 3	3	3
+drop view v1;
+drop table t1;
+create table t1 (s1 char);
+create view v1 as select s1 collate latin1_german1_ci as s1 from t1;
+insert into v1 values ('a');
+select * from v1;
+s1
+a
+update v1 set s1='b';
+select * from v1;
+s1
+b
+update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
+select * from v1;
+s1
+c
 drop view v1;
 drop table t1;
