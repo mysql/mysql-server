@@ -1954,4 +1954,12 @@ howmanyvalues	mycount
 2	2
 3	3
 4	4
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
+howmanyvalues	mycount
+1	1
+2	2
+3	3
+4	4
+SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
+ERROR 42S22: Unknown column 'a.avalue' in 'where clause'
 drop table t1;
