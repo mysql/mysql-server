@@ -131,6 +131,7 @@ public:
 
 /* prototypes */
 
+bool hostname_requires_resolving(const char *hostname);
 my_bool  acl_init(THD *thd, bool dont_read_acl_tables);
 void acl_reload(THD *thd);
 void acl_free(bool end=0);
