@@ -1153,7 +1153,6 @@ merge_insert_types:
 
 opt_select_from:
 	opt_limit_clause {}
-	| FROM DUAL_SYM {}
 	| select_from select_lock_type;
 
 udf_func_type:
@@ -2296,17 +2295,19 @@ select_part2:
 
 select_into:
 	opt_limit_clause {}
-	| FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
-                           clause, and DUAL is system table without fields.
-                           Is "SELECT 1 FROM DUAL" any better than
-                           "SELECT 1" ? Hmmm :) */
         | into
 	| select_from
 	| into select_from
 	| select_from into;
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause opt_order_clause opt_limit_clause procedure_clause;
+	  FROM join_table_list where_clause group_clause having_clause
+	       opt_order_clause opt_limit_clause procedure_clause
+        | FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
+                           clause, and DUAL is system table without fields.
+                           Is "SELECT 1 FROM DUAL" any better than
+                           "SELECT 1" ? Hmmm :) */
+	;
 
 select_options:
 	/* empty*/
@@ -4683,8 +4684,8 @@ literal:
 	| TIMESTAMP text_literal { $$ = $2; };
 
 NUM_literal:
-	NUM		{ $$ =	new Item_int($1.str, (longlong) strtol($1.str, NULL, 10),$1.length); }
-	| LONG_NUM	{ $$ =	new Item_int($1.str, (longlong) strtoll($1.str,NULL,10), $1.length); }
+	NUM		{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
+	| LONG_NUM	{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
 	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
@@ -4929,7 +4930,6 @@ keyword:
 	| DIRECTORY_SYM		{}
 	| DISCARD		{}
 	| DO_SYM		{}
-	| DUAL_SYM		{}
 	| DUMPFILE		{}
 	| DUPLICATE_SYM		{}
 	| DYNAMIC_SYM		{}

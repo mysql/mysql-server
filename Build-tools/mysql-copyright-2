@@ -93,7 +93,7 @@ sub add_copyright
   {
     $start_copyright="/* ";
     $line_copyright= "   ";
-    $end_copyright=  " */";
+    $end_copyright=  "*/";
   }
 	elsif ($ARGV =~ /-x86\.s$/)
 	{

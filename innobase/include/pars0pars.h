@@ -74,8 +74,8 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str);	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str);	/* in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
 
@@ -92,7 +92,7 @@ Called by yyparse on error. */
 void
 yyerror(
 /*====*/
-        char*	s);	/* in: error message string */
+	const char*	s);	/* in: error message string */
 /*************************************************************************
 Parses a variable declaration. */
 

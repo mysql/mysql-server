@@ -6750,8 +6750,8 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
   int s_res;
   int t_res;
   
-  slen= cs->cset->lengthsp(cs, s, slen);
-  tlen= cs->cset->lengthsp(cs, t, tlen);
+  slen= cs->cset->lengthsp(cs, (char*) s, slen);
+  tlen= cs->cset->lengthsp(cs, (char*) t, tlen);
   
   my_uca_scanner_init(&sscanner, cs, s, slen);
   my_uca_scanner_init(&tscanner, cs, t, tlen);
@@ -6796,7 +6796,7 @@ static void my_hash_sort_uca(CHARSET_INFO *cs,
   int   s_res;
   my_uca_scanner scanner;
   
-  slen= cs->cset->lengthsp(cs, s, slen);
+  slen= cs->cset->lengthsp(cs, (char*) s, slen);
   my_uca_scanner_init(&scanner, cs, s, slen);
   
   while ((s_res= my_uca_scanner_next(&scanner)) >0)
