@@ -54,7 +54,7 @@ loop: {
       if (ret == NdbSqlUtil::CmpUnknown) {
         jam();
         // read and compare remaining attributes
-        readKeyAttrs(frag, node.getMinMax(i), start1, c_keyAttrs, c_entryKey);
+        readKeyAttrs(frag, node.getMinMax(i), start1, c_entryKey);
         ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }
@@ -99,7 +99,7 @@ loop: {
         jam();
         // read and compare remaining attributes
         unsigned start1 = start;
-        readKeyAttrs(frag, node.getEnt(j), start1, c_keyAttrs, c_entryKey);
+        readKeyAttrs(frag, node.getEnt(j), start1, c_entryKey);
         ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }

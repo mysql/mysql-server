@@ -25,12 +25,12 @@
  * prefix may be partial in which case CmpUnknown may be returned.
  */
 int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned size2)
+Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned maxlen2)
 {
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   // number of words of attribute data left
-  unsigned len2 = size2;
+  unsigned len2 = maxlen2;
   // skip to right position in search key
   data1 += start;
   int ret = 0;

@@ -85,8 +85,8 @@ Dbtux::insertNode(Signal* signal, NodeHandle& node, AccSize acc)
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
   TreeHead& tree = frag.m_tree;
-  memset(tree.getPref(node.m_node, 0), 0xa2, tree.m_prefSize << 2);
-  memset(tree.getPref(node.m_node, 1), 0xa2, tree.m_prefSize << 2);
+  memset(node.getPref(0), 0xa2, tree.m_prefSize << 2);
+  memset(node.getPref(1), 0xa2, tree.m_prefSize << 2);
   TreeEnt* entList = tree.getEntList(node.m_node);
   memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
 #endif
@@ -112,29 +112,16 @@ Dbtux::deleteNode(Signal* signal, NodeHandle& node)
 }
 
 /*
- * Set prefix.
+ * Set prefix.  Copies the number of words that fits.  Includes
+ * attribute headers for now.  XXX use null mask instead
  */
 void
 Dbtux::setNodePref(Signal* signal, NodeHandle& node, unsigned i)
 {
-  Frag& frag = node.m_frag;
-  TreeHead& tree = frag.m_tree;
-  ReadPar readPar;
-  ndbrequire(i <= 1);
-  readPar.m_ent = node.getMinMax(i);
-  readPar.m_first = 0;
-  readPar.m_count = frag.m_numAttrs;
-  // leave in signal data
-  readPar.m_data = 0;
-  // XXX implement max words to read
-  tupReadAttrs(signal, frag, readPar);
-  // copy whatever fits
-  CopyPar copyPar;
-  copyPar.m_items = readPar.m_count;
-  copyPar.m_headers = true;
-  copyPar.m_maxwords = tree.m_prefSize;
-  Data pref = node.getPref(i);
-  copyAttrs(pref, readPar.m_data, copyPar);
+  const Frag& frag = node.m_frag;
+  const TreeHead& tree = frag.m_tree;
+  readKeyAttrs(frag, node.getMinMax(i), 0, c_entryKey);
+  copyAttrs(frag, c_entryKey, node.getPref(i), tree.m_prefSize);
 }
 
 // node operations
