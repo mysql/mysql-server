@@ -132,7 +132,7 @@ Grep::~Grep()
 {
 }
 
-//BLOCK_FUNCTIONS(Grep);
+BLOCK_FUNCTIONS(Grep);
 
 Grep::PSPart::PSPart(Grep * sb) :
   BlockComponent(sb),

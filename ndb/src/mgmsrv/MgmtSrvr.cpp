@@ -2304,7 +2304,7 @@ bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
-			socklen_t *client_addr_len)
+			SOCKET_SIZE_TYPE *client_addr_len)
 {
   Guard g(&f_node_id_mutex);
 #if 0
@@ -2885,4 +2885,6 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 }
 
 template class Vector<SigMatch>;
+#if __SUNPRO_CC != 0x560
 template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);
+#endif

@@ -467,7 +467,7 @@ public:
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr, socklen_t *client_addr_len);
+		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len);
   
   /**
    *
