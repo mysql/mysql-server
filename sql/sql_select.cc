@@ -1087,6 +1087,23 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     {
       DBUG_RETURN(-1);
     }
+    if (thd->possible_loops)
+    {
+      Item *item;
+      while(thd->possible_loops->elements)
+      {
+	item= thd->possible_loops->pop();
+    	if (item->check_loop(thd->check_loops_counter++))
+	{
+	  delete thd->possible_loops;
+	  thd->possible_loops= 0;
+	  my_message(ER_CYCLIC_REFERENCE, ER(ER_CYCLIC_REFERENCE), MYF(0));
+	  return 1;
+	}
+      }
+      delete thd->possible_loops;
+      thd->possible_loops= 0;
+    }
   }
 
   switch (join->optimize()) 
