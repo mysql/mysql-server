@@ -403,14 +403,15 @@ ndb_mgm_disconnect(NdbMgmHandle handle)
 struct ndb_mgm_type_atoi 
 {
   const char * str;
+  const char * alias;
   enum ndb_mgm_node_type value;
 };
 
 static struct ndb_mgm_type_atoi type_values[] = 
 {
-  { "NDB", NDB_MGM_NODE_TYPE_NDB},
-  { "API", NDB_MGM_NODE_TYPE_API },
-  { "MGM", NDB_MGM_NODE_TYPE_MGM }
+  { "NDB", "ndbd", NDB_MGM_NODE_TYPE_NDB},
+  { "API", "mysqld", NDB_MGM_NODE_TYPE_API },
+  { "MGM", "ndb_mgmd", NDB_MGM_NODE_TYPE_MGM }
 };
 
 const int no_of_type_values = (sizeof(type_values) / 
@@ -437,6 +438,20 @@ ndb_mgm_get_node_type_string(enum ndb_mgm_node_type type)
   for(int i = 0; i<no_of_type_values; i++)
     if(type_values[i].value == type)
       return type_values[i].str;
+  return 0;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type, const char** str)
+{
+  for(int i = 0; i<no_of_type_values; i++)
+    if(type_values[i].value == type)
+      {
+	if (str)
+	  *str= type_values[i].str;
+	return type_values[i].alias;
+      }
   return 0;
 }
 
