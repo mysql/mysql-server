@@ -3,29 +3,29 @@ create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=RU/L=orenburg/O=MySQL AB/OU=client/CN=walrus/Email=walrus@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=RU/L=orenburg/O=MySQL AB/OU=client/CN=walrus/Email=walrus@mysql.com" ISSUER "/C=RU/ST=Some-State/L=Orenburg/O=MySQL AB/CN=Walrus/Email=walrus@mysql.com";
+grant select on test.* to ssl_user3@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
 flush privileges;
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user1@localhost' to database 'test'
+ERROR 42000: Access denied for user: 'ssl_user1'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user2@localhost' to database 'test'
+ERROR 42000: Access denied for user: 'ssl_user2'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user3@localhost' to database 'test'
+ERROR 42000: Access denied for user: 'ssl_user3'@'localhost' to database 'test'
 select * from t1;
 f1
 5
 delete from t1;
-ERROR 42000: Access denied for user: 'ssl_user4@localhost' to database 'test'
+ERROR 42000: Access denied for user: 'ssl_user4'@'localhost' to database 'test'
 delete from mysql.user where user='ssl_user%';
 delete from mysql.db where user='ssl_user%';
 flush privileges;

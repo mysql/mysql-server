@@ -38,7 +38,6 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
-extern void yyerror(const char*);
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
@@ -168,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SUPER_SYM
 %token	TRUNCATE_SYM
 %token	UNLOCK_SYM
+%token	UNTIL_SYM 
 %token	UPDATE_SYM
 
 %token	ACTION
@@ -277,6 +277,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MASTER_PORT_SYM
 %token	MASTER_CONNECT_RETRY_SYM
 %token	MASTER_SERVER_ID_SYM
+%token	MASTER_SSL_SYM
+%token	MASTER_SSL_CA_SYM
+%token	MASTER_SSL_CAPATH_SYM
+%token	MASTER_SSL_CERT_SYM
+%token	MASTER_SSL_CIPHER_SYM
+%token	MASTER_SSL_KEY_SYM
 %token	RELAY_LOG_FILE_SYM
 %token	RELAY_LOG_POS_SYM
 %token	MATCH
@@ -295,6 +301,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NEW_SYM
 %token	NCHAR_SYM
 %token	NCHAR_STRING
+%token  NVARCHAR_SYM
 %token	NOT
 %token	NO_SYM
 %token	NULL_SYM
@@ -500,6 +507,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MULTIPOINT
 %token  MULTIPOLYGON
 %token	NOW_SYM
+%token	OLD_PASSWORD
 %token	PASSWORD
 %token	POINTFROMTEXT
 %token	POINT_SYM
@@ -670,8 +678,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize preload flush
 	reset purge begin commit rollback savepoint
-	slave master_def master_defs
-	repair restore backup analyze check start
+	slave master_def master_defs master_file_def
+	repair restore backup analyze check start checksum
 	field_list field_list_item field_spec kill column_def key_def
 	preload_list preload_keys
 	select_item_list select_item values_list no_braces
@@ -729,23 +737,26 @@ verb_clause:
 	| begin
 	| change
 	| check
+	| checksum
 	| commit
 	| create
 	| delete
 	| describe
 	| do
 	| drop
-	| grant
-	| insert
 	| flush
+	| grant
+	| handler
+	| help
+	| insert
+	| kill
 	| load
 	| lock
-	| kill
 	| optimize
 	| preload
 	| purge
 	| rename
-        | repair
+	| repair
 	| replace
 	| reset
 	| restore
@@ -754,15 +765,14 @@ verb_clause:
 	| savepoint
 	| select
 	| set
+	| show
 	| slave
 	| start
-	| show
 	| truncate
-	| handler
 	| unlock
 	| update
 	| use
-	| help;
+        ;
 
 /* help */
 
@@ -807,51 +817,76 @@ master_def:
 	 Lex->mi.password = $3.str;
        }
        |
-       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
-       {
-	 Lex->mi.log_file_name = $3.str;
-       }
-       |
        MASTER_PORT_SYM EQ ULONG_NUM
        {
 	 Lex->mi.port = $3;
-       }
-       |
-       MASTER_LOG_POS_SYM EQ ulonglong_num
-       {
-	 Lex->mi.pos = $3;
-         /*
-            If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
-            instead of causing subsequent errors.
-            We need to do it in this file, because only there we know that
-            MASTER_LOG_POS has been explicitely specified. On the contrary
-            in change_master() (sql_repl.cc) we cannot distinguish between 0
-            (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
-            whereas we want to distinguish (specified 0 means "read the binlog
-            from 0" (4 in fact), unspecified means "don't change the position
-            (keep the preceding value)").
-         */
-         Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
        }
        |
        MASTER_CONNECT_RETRY_SYM EQ ULONG_NUM
        {
 	 Lex->mi.connect_retry = $3;
        }
+       | MASTER_SSL_SYM EQ ULONG_NUM
+         {
+           Lex->mi.ssl= $3 ? 
+               LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+         }
+       | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_ca= $3.str;
+         }
+       | MASTER_SSL_CAPATH_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_capath= $3.str;
+         }
+       | MASTER_SSL_CERT_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_cert= $3.str;
+         }
+       | MASTER_SSL_CIPHER_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_cipher= $3.str;
+         }
+       | MASTER_SSL_KEY_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.ssl_key= $3.str;
+	 }
        |
-       RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
-       {
-	 Lex->mi.relay_log_name = $3.str;
-       }
-       |
-       RELAY_LOG_POS_SYM EQ ULONG_NUM
-       {
-	 Lex->mi.relay_log_pos = $3;
-         /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
-         Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
-       }
+         master_file_def
        ;
 
+master_file_def:
+       MASTER_LOG_FILE_SYM EQ TEXT_STRING_sys
+       {
+	 Lex->mi.log_file_name = $3.str;
+       }
+       | MASTER_LOG_POS_SYM EQ ulonglong_num
+         {
+           Lex->mi.pos = $3;
+           /* 
+              If the user specified a value < BIN_LOG_HEADER_SIZE, adjust it
+              instead of causing subsequent errors. 
+              We need to do it in this file, because only there we know that 
+              MASTER_LOG_POS has been explicitely specified. On the contrary
+              in change_master() (sql_repl.cc) we cannot distinguish between 0
+              (MASTER_LOG_POS explicitely specified as 0) and 0 (unspecified),
+              whereas we want to distinguish (specified 0 means "read the binlog
+              from 0" (4 in fact), unspecified means "don't change the position
+              (keep the preceding value)").
+           */
+           Lex->mi.pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.pos);
+         }
+       | RELAY_LOG_FILE_SYM EQ TEXT_STRING_sys
+         {
+           Lex->mi.relay_log_name = $3.str;
+         }
+       | RELAY_LOG_POS_SYM EQ ULONG_NUM
+         {
+           Lex->mi.relay_log_pos = $3;
+           /* Adjust if < BIN_LOG_HEADER_SIZE (same comment as Lex->mi.pos) */
+           Lex->mi.relay_log_pos = max(BIN_LOG_HEADER_SIZE, Lex->mi.relay_log_pos);
+         }
+       ;
 
 /* create a table */
 
@@ -878,7 +913,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset= thd->variables.character_set_database;
+	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->name=0;
 	}
 	create2
@@ -1099,7 +1134,7 @@ opt_select_from:
 	| select_from select_lock_type;
 
 udf_func_type:
-	/* empty */ 	{ $$ = UDFTYPE_FUNCTION; }
+	/* empty */	{ $$ = UDFTYPE_FUNCTION; }
 	| AGGREGATE_SYM { $$ = UDFTYPE_AGGREGATE; };
 
 udf_type:
@@ -1163,7 +1198,8 @@ field_spec:
 	 {
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	   lex->default_value=lex->comment=0;
+	   lex->default_value=0;
+	   lex->comment=0;
 	   lex->charset=NULL;
 	 }
 	type opt_attribute
@@ -1304,6 +1340,7 @@ varchar:
 
 nvarchar:
 	NATIONAL_SYM VARCHAR {}
+	| NVARCHAR_SYM {}
 	| NCHAR_SYM VARCHAR {}
 	| NATIONAL_SYM CHAR_SYM VARYING {}
 	| NCHAR_SYM VARYING {}
@@ -1374,7 +1411,7 @@ attribute:
 	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
-	| COMMENT_SYM text_literal { Lex->comment= $2; }
+	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -1566,7 +1603,7 @@ opt_ident:
 opt_component:
 	/* empty */	 { $$.str= 0; $$.length= 0; }
 	| '.' ident	 { $$=$2; };
-	
+
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
 	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
@@ -1595,7 +1632,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset= thd->variables.character_set_database;
+	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
@@ -1631,7 +1668,8 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-            lex->default_value=lex->comment=0;
+            lex->default_value=0;
+	    lex->comment=0;
 	    lex->charset= NULL;
             lex->simple_alter=0;
           }
@@ -1714,23 +1752,41 @@ opt_to:
 	| AS		{};
 
 /*
-  The first two deprecate the last two--delete the last two for 4.1 release
+  SLAVE START and SLAVE STOP are deprecated. We keep them for compatibility.
+  To use UNTIL, one must use START SLAVE, not SLAVE START.
 */
 
 slave:
-	START_SYM SLAVE slave_thread_opts
-        {
-	  LEX *lex=Lex;
-          lex->sql_command = SQLCOM_SLAVE_START;
-	  lex->type = 0;
-        }
+	  START_SYM SLAVE slave_thread_opts 
+          {
+	    LEX *lex=Lex;
+            lex->sql_command = SQLCOM_SLAVE_START;
+	    lex->type = 0;
+	    /* We'll use mi structure for UNTIL options */
+	    bzero((char*) &lex->mi, sizeof(lex->mi));
+          }
+          slave_until
+          {}
         | STOP_SYM SLAVE slave_thread_opts
           {
 	    LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_STOP;
 	    lex->type = 0;
           }
-	;
+	| SLAVE START_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+	| SLAVE STOP_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         }
+        ;
+
 
 start:
 	START_SYM TRANSACTION_SYM { Lex->sql_command = SQLCOM_BEGIN;}
@@ -1740,6 +1796,7 @@ start:
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
 	slave_thread_opt_list
+        {}
 	;
 
 slave_thread_opt_list:
@@ -1752,6 +1809,28 @@ slave_thread_opt:
 	| SQL_THREAD	{ Lex->slave_thd_opt|=SLAVE_SQL; }
 	| RELAY_THREAD 	{ Lex->slave_thd_opt|=SLAVE_IO; }
 	;
+
+slave_until:
+	/*empty*/	{}
+	| UNTIL_SYM slave_until_opts
+          {
+            LEX *lex=Lex;
+            if ((lex->mi.log_file_name || lex->mi.pos) &&
+                (lex->mi.relay_log_name || lex->mi.relay_log_pos) ||
+                !((lex->mi.log_file_name && lex->mi.pos) ||
+                  (lex->mi.relay_log_name && lex->mi.relay_log_pos)))
+            {
+               send_error(lex->thd, ER_BAD_SLAVE_UNTIL_COND);
+               YYABORT;
+            }
+
+          }
+	;
+
+slave_until_opts:
+       master_file_def
+       | slave_until_opts ',' master_file_def ;
+
 
 restore:
 	RESTORE_SYM table_or_tables
@@ -1772,6 +1851,22 @@ backup:
         {
 	  Lex->backup_dir = $6.str;
         };
+
+checksum:
+        CHECKSUM_SYM table_or_tables
+	{
+	   LEX *lex=Lex;
+	   lex->sql_command = SQLCOM_CHECKSUM;
+	}
+	table_list opt_checksum_type
+        {}
+	;
+
+opt_checksum_type:
+        /* nothing */  { Lex->check_opt.flags= 0; }
+	| QUICK        { Lex->check_opt.flags= T_QUICK; }
+	| EXTENDED_SYM { Lex->check_opt.flags= T_EXTEND; }
+        ;
 
 repair:
 	REPAIR opt_no_write_to_binlog table_or_tables
@@ -1962,8 +2057,9 @@ select_init:
 	    YYABORT;
 	  }
             /* select in braces, can't contain global parameters */
-            sel->master_unit()->global_parameters=
-               sel->master_unit()->fake_select_lex;
+	    if (sel->master_unit()->fake_select_lex)
+              sel->master_unit()->global_parameters=
+                 sel->master_unit()->fake_select_lex;
           } union_opt;
 
 select_init2:
@@ -2576,9 +2672,13 @@ simple_expr:
 	| NOW_SYM '(' expr ')'
 	  { $$= new Item_func_now_local($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
-	  { $$= new Item_func_password($3); }
-        | PASSWORD '(' expr ',' expr ')'
-          { $$= new Item_func_password($3,$5); }
+	  {
+	    $$= YYTHD->variables.old_passwords ?
+              (Item *) new Item_func_old_password($3) :
+	      (Item *) new Item_func_password($3);
+	  }
+	| OLD_PASSWORD '(' expr ')'
+	  { $$=  new Item_func_old_password($3); }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_point($3,$5); }
  	| POINTFROMTEXT '(' expr ')'
@@ -2960,6 +3060,13 @@ join_table:
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
+	  if (lex->sql_command == SQLCOM_UPDATE &&
+	      &lex->select_lex == lex->current_select->outer_select())
+	  {
+	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    YYABORT;
+	  }
+
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
@@ -3382,7 +3489,7 @@ do:	DO_SYM
 */
 
 drop:
-	DROP opt_temporary TABLE_SYM if_exists table_list opt_restrict
+	DROP opt_temporary table_or_tables if_exists table_list opt_restrict
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DROP_TABLE;
@@ -4380,6 +4487,7 @@ keyword:
 	| BOOL_SYM		{}
 	| BOOLEAN_SYM		{}
 	| BYTE_SYM		{}
+	| BTREE_SYM		{}
 	| CACHE_SYM		{}
 	| CHANGED		{}
 	| CHARSET		{}
@@ -4408,6 +4516,7 @@ keyword:
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}
+	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
 	| EXECUTE_SYM		{}
@@ -4425,6 +4534,7 @@ keyword:
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
+	| HASH_SYM		{}
 	| HEAP_SYM		{}
 	| HELP_SYM		{}
 	| HOSTS_SYM		{}
@@ -4453,6 +4563,12 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MASTER_SSL_SYM	{}
+	| MASTER_SSL_CA_SYM	{}
+	| MASTER_SSL_CAPATH_SYM	{}
+	| MASTER_SSL_CERT_SYM	{}
+	| MASTER_SSL_CIPHER_SYM	{}
+	| MASTER_SSL_KEY_SYM	{}
 	| MAX_CONNECTIONS_PER_HOUR	 {}
 	| MAX_QUERIES_PER_HOUR	{}
 	| MAX_UPDATES_PER_HOUR	{}
@@ -4476,7 +4592,9 @@ keyword:
 	| NEW_SYM		{}
 	| NO_SYM		{}
 	| NONE_SYM		{}
+	| NVARCHAR_SYM		{}
 	| OFFSET_SYM		{}
+	| OLD_PASSWORD		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PARTIAL		{}
@@ -4507,6 +4625,7 @@ keyword:
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
+	| RTREE_SYM		{}
 	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
@@ -4539,10 +4658,12 @@ keyword:
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
+	| UNTIL_SYM		{}
 	| USER			{}
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
+	| WARNINGS		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
 	| YEAR_SYM		{}
@@ -4624,7 +4745,7 @@ option_value:
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
 	  $2= $2 ? $2: global_system_variables.character_set_client;
-	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.character_set_database,$2));
+	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.collation_database,$2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
@@ -4699,15 +4820,15 @@ text_or_password:
 	TEXT_STRING { $$=$1.str;}
 	| PASSWORD '(' TEXT_STRING ')'
 	  {
-	    if (!$3.length)
-	      $$=$3.str;
-	    else
-	    {
-	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	      make_scrambled_password(buff,$3.str,use_old_passwords,
-				      &YYTHD->rand);
-	      $$=buff;
-	    }
+	    $$= $3.length ? YYTHD->variables.old_passwords ?
+	        Item_func_old_password::alloc(YYTHD, $3.str) :
+	        Item_func_password::alloc(YYTHD, $3.str) :
+	      $3.str;
+	  }
+	| OLD_PASSWORD '(' TEXT_STRING ')'
+	  {
+	    $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str) :
+	      $3.str;
 	  }
           ;
 
@@ -4883,7 +5004,7 @@ grant_privilege_list:
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
+	SELECT_SYM	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
 	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
 	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
@@ -5015,14 +5136,24 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
-	     if (buff)
-	     {
-	       make_scrambled_password(buff,$4.str,use_old_passwords,
-				       &YYTHD->rand);
-	       $1->password.str=buff;
-	       $1->password.length=HASH_PASSWORD_LENGTH;
-	     }
+             if (YYTHD->variables.old_passwords)
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
+               if (buff)
+                 make_scrambled_password_323(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+             }
+             else
+             {
+               char *buff= 
+                 (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
+               if (buff)
+                 make_scrambled_password(buff, $4.str);
+               $1->password.str= buff;
+               $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+             }
 	  }
 	}
 	| user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
@@ -5181,7 +5312,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* Empty */ {}
+	/* Empty */ {}
 	|
 	  {
 	    THD *thd= YYTHD;
@@ -5190,9 +5321,12 @@ optional_order_or_limit:
 	    SELECT_LEX *sel= lex->current_select;
 	    SELECT_LEX_UNIT *unit= sel->master_unit();
 	    SELECT_LEX *fake= unit->fake_select_lex;
-	    unit->global_parameters= fake;
-	    fake->no_table_names_allowed= 1;
-	    lex->current_select= fake;
+	    if (fake)
+	    {
+	      unit->global_parameters= fake;
+	      fake->no_table_names_allowed= 1;
+	      lex->current_select= fake;
+	    }
 	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit
@@ -5276,3 +5410,4 @@ subselect_end:
 	  LEX *lex=Lex;
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
+

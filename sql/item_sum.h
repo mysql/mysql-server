@@ -62,10 +62,11 @@ public:
 
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
-  virtual bool reset()=0;
+  inline bool reset() { clear(); return add(); };
+  virtual void clear()= 0;
   virtual bool add()=0;
   virtual void reset_field()=0;
-  virtual void update_field(int offset)=0;
+  virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual const char *func_name() const { return "?"; }
@@ -126,11 +127,11 @@ class Item_sum_sum :public Item_sum_num
   Item_sum_sum(THD *thd, Item_sum_sum &item) 
     :Item_sum_num(thd, item), sum(item.sum) {}
   enum Sumfunctype sum_func () const {return SUM_FUNC;}
-  bool reset();
+  void clear();
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   void no_rows_in_result() {}
   const char *func_name() const { return "sum"; }
   Item *copy_or_same(THD* thd);
@@ -153,13 +154,13 @@ class Item_sum_count :public Item_sum_int
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_FUNC; }
-  bool reset();
+  void clear();
   void no_rows_in_result() { count=0; }
   bool add();
   void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
   longlong val_int();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "count"; }
   Item *copy_or_same(THD* thd);
 };
@@ -227,11 +228,11 @@ class Item_sum_count_distinct :public Item_sum_int
 
   table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
-  bool reset();
+  void clear();
   bool add();
   longlong val_int();
   void reset_field() { return ;}		// Never called
-  void update_field(int offset) { return ; }	// Never called
+  void update_field() { return ; }		// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
   void make_unique();
@@ -271,11 +272,11 @@ class Item_sum_avg :public Item_sum_num
   Item_sum_avg(THD *thd, Item_sum_avg &item)
     :Item_sum_num(thd, item), sum(item.sum), count(item.count) {}
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
-  bool reset();
+  void clear();
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   Item *result_item(Field *field)
   { return new Item_avg_field(this); }
   const char *func_name() const { return "avg"; }
@@ -324,11 +325,11 @@ class Item_sum_variance : public Item_sum_num
     Item_sum_num(thd, item), sum(item.sum), sum_sqr(item.sum_sqr),
     count(item.count) {}
   enum Sumfunctype sum_func () const { return VARIANCE_FUNC; }
-  bool reset();
+  void clear();
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   const char *func_name() const { return "variance"; }
@@ -387,19 +388,18 @@ class Item_sum_hybrid :public Item_sum
   Item_sum_hybrid(THD *thd, Item_sum_hybrid &item):
     Item_sum(thd, item), value(item.value), tmp_value(item.tmp_value),
     sum(item.sum), sum_int(item.sum_int), hybrid_type(item.hybrid_type),
-    cmp_sign(item.cmp_sign), used_table_cache(used_table_cache),
-    cmp_charset(item.cmp_charset) {}
+    hybrid_field_type(item.hybrid_field_type),cmp_sign(item.cmp_sign), 
+    used_table_cache(item.used_table_cache), cmp_charset(item.cmp_charset) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
 
-  bool reset()
+  void clear()
   {
     sum=0.0;
     sum_int=0;
     value.length(0);
     null_value=1;
-    return add();
   }
   double val();
   longlong val_int();
@@ -409,10 +409,10 @@ class Item_sum_hybrid :public Item_sum
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
-  void update_field(int offset);
-  void min_max_update_str_field(int offset);
-  void min_max_update_real_field(int offset);
-  void min_max_update_int_field(int offset);
+  void update_field();
+  void min_max_update_str_field();
+  void min_max_update_real_field();
+  void min_max_update_int_field();
 };
 
 
@@ -453,7 +453,7 @@ class Item_sum_bit :public Item_sum_int
   Item_sum_bit(THD *thd, Item_sum_bit &item):
     Item_sum_int(thd, item), reset_bits(item.reset_bits), bits(item.bits) {}
   enum Sumfunctype sum_func () const {return SUM_BIT_FUNC;}
-  bool reset();
+  void clear();
   longlong val_int();
   void reset_field();
   void fix_length_and_dec()
@@ -467,7 +467,7 @@ class Item_sum_or :public Item_sum_bit
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_or(THD *thd, Item_sum_or &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "bit_or"; }
   Item *copy_or_same(THD* thd);
 };
@@ -479,7 +479,7 @@ class Item_sum_and :public Item_sum_bit
   Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
   Item_sum_and(THD *thd, Item_sum_and &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "bit_and"; }
   Item *copy_or_same(THD* thd);
 };
@@ -511,10 +511,10 @@ public:
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   virtual bool have_field_update(void) const { return 0; }
 
-  bool reset();
+  void clear();
   bool add();
   void reset_field() {};
-  void update_field(int offset_arg) {};
+  void update_field() {};
 };
 
 
@@ -593,9 +593,9 @@ class Item_sum_udf_float :public Item_sum_num
   ~Item_sum_udf_float() {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   double val() { return 0.0; }
-  bool reset() { return 0; }
+  void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 
@@ -610,9 +610,9 @@ public:
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   longlong val_int() { return 0; }
   double val() { return 0; }
-  bool reset() { return 0; }
+  void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 
@@ -630,9 +630,9 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() { maybe_null=1; max_length=0; }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  bool reset() { return 0; }
+  void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 #endif /* HAVE_DLOPEN */
@@ -716,13 +716,13 @@ class Item_func_group_concat : public Item_sum
   const char *func_name() const { return "group_concat"; }
   enum Type type() const { return SUM_FUNC_ITEM; }  
   virtual Item_result result_type () const { return STRING_RESULT; }
-  bool reset();
+  void clear();
   bool add();
   void reset_field();
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   bool setup(THD *thd);
   void make_unique();
-  virtual void update_field(int offset) {};
+  virtual void update_field() {}
   double val()
   {
     String *res;  res=val_str(&str_value);
@@ -735,4 +735,5 @@ class Item_func_group_concat : public Item_sum
   }
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);
+  void no_rows_in_result() {}
 };

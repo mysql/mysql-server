@@ -1,6 +1,8 @@
 /* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
    This file is public domain and comes with NO WARRANTY of any kind */
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NO",
@@ -242,10 +244,10 @@
 "Felaktig FOREIGN KEY-definition för '%-.64s': %s",
 "Nyckelreferensen och tabellreferensen stämmer inte överens",
 "Kardinalitetsfel (fler/färre än %d kolumner)",
-"Subselect returnerade mer än 1 rad",
+"Subquery returnerade mer än 1 rad",
 "Okänd PREPARED STATEMENT id (%ld) var given till %s",
 "Hjälpdatabasen finns inte eller är skadad",
-"Cyklisk referens i subselect",
+"Cyklisk referens i subqueries",
 "Konvertar kolumn '%s' från %s till %s",
 "Referens '%-.64s' stöds inte (%s)",
 "Varje 'derived table' måste ha sitt eget alias",
@@ -261,6 +263,11 @@
 "Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
 "Z_DATA_ERROR: Input data was corrupted for zlib",
 "%d rad(er) kapades av group_concat()",
+"Record count is fewer than the column count at row %ld";
+"Record count is more than the column count at row %ld";
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
+"Data truncated, out of range for column '%s' at row %ld";
+"Data truncated for column '%s' at row %ld"
 "Använder handler %s för tabell '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
 "Can't drop one or more of the requested users"
@@ -269,3 +276,9 @@
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
+"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format"
+"Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL"
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
+"SQL thread is not to be started so UNTIL options are ignored"

@@ -210,6 +210,7 @@ const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", NullS
@@ -217,7 +218,7 @@ const char *sql_mode_names[] =
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
 const char *first_keyword= "first", *binary_keyword= "BINARY";
-const char *localhost= "localhost", *delayed_user= "DELAYED";
+const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
 #define GET_HA_ROWS GET_ULL
 #else
@@ -257,9 +258,10 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
-my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
+my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
+my_bool opt_secure_auth= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -319,6 +321,8 @@ const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
+/* name of additional condition */
+const char *in_additional_cond= "<IN COND>";
 
 FILE *bootstrap_file;
 
@@ -362,15 +366,15 @@ pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
-my_bool master_ssl;
 uint master_port= MYSQL_PORT, master_connect_retry = 60;
 uint report_port= MYSQL_PORT;
 ulong master_retry_count=0;
 char *master_user, *master_password, *master_host, *master_info_file;
-char *relay_log_info_file, *master_ssl_key, *master_ssl_cert;
-char *master_ssl_capath, *master_ssl_cipher, *report_user;
-char *report_password, *report_host;
+char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
+my_bool master_ssl;
+char *master_ssl_key, *master_ssl_cert;
+char *master_ssl_ca, *master_ssl_capath, *master_ssl_cipher;
 
 /* Static variables */
 
@@ -871,8 +875,10 @@ void clean_up(bool print_message)
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
 #endif
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
+#endif
   query_cache_destroy();
   table_cache_free();
   hostname_cache_free();
@@ -1119,7 +1125,14 @@ static void server_init(void)
     IPaddr.sin_family = AF_INET;
     IPaddr.sin_addr.s_addr = my_bind_addr;
     IPaddr.sin_port = (unsigned short) htons((unsigned short) mysqld_port);
+
+#ifndef __WIN__
+    /*
+      We should not use SO_REUSEADDR on windows as this would enable a
+      user to open two mysqld servers with the same TCP/IP port.
+    */
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
+#endif /* __WIN__ */
     if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
 	     sizeof(IPaddr)) < 0)
     {
@@ -1661,6 +1674,7 @@ static void init_signals(void)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 static void start_signal_handler(void)
 {
   int error;
@@ -1823,6 +1837,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   }
   return(0);					/* purecov: deadcode */
 }
+#endif /*!EMBEDDED_LIBRARY*/
 
 static void check_data_home(const char *path)
 {}
@@ -2050,7 +2065,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
 		  max_connections,table_cache_size));
       sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
     }
+    open_files_limit= files;
   }
+#else
+  open_files_limit= 0;		/* Can't set or detect limit */
 #endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   init_errmessage();		/* Read error messages from file */
@@ -2080,11 +2098,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
     }
     default_charset_info= default_collation;
   }
-  global_system_variables.character_set_server= default_charset_info;
-  global_system_variables.character_set_database= default_charset_info;
+  global_system_variables.collation_server= default_charset_info;
+  global_system_variables.collation_database= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
@@ -2217,7 +2235,9 @@ Now disabling --log-slave-updates.");
       opt_error_log= 1;				// Too long file name
     else
     {
+#ifndef EMBEDDED_LIBRARY
       if (freopen(log_error_file, "a+", stdout))
+#endif
 	freopen(log_error_file, "a+", stderr);
     }
   }
@@ -2749,7 +2769,6 @@ static int bootstrap(FILE *file)
 {
   int error= 0;
   DBUG_ENTER("bootstrap");
-#ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
 
   THD *thd= new THD;
   thd->bootstrap=1;
@@ -2761,6 +2780,7 @@ static int bootstrap(FILE *file)
   thread_count++;
 
   bootstrap_file=file;
+#ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
   if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
 		     (void*) thd))
   {
@@ -2775,11 +2795,17 @@ static int bootstrap(FILE *file)
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+#else
+  thd->mysql= 0;
+  handle_bootstrap((void *)thd);
+#endif
+
   error= thd->is_fatal_error;
+#ifndef EMBEDDED_LIBRARY
   net_end(&thd->net);
+#endif
   thd->cleanup();
   delete thd;
-#endif /* EMBEDDED_LIBRARY */
   DBUG_RETURN(error);
 }
 
@@ -2819,12 +2845,6 @@ static void create_new_thread(THD *thd)
   if (thread_count-delayed_insert_threads > max_used_connections)
     max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
-  for (uint i=0; i < 8 ; i++)			// Generate password teststring
-    thd->scramble[i]= (char) (my_rnd(&sql_rand)*94+33);
-  thd->scramble[8]=0;
-  // Back it up as old clients may need it
-  memcpy(thd->old_scramble,thd->scramble,9);
-
 
   thd->real_id=pthread_self();			// Keep purify happy
 
@@ -3103,7 +3123,13 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
       continue;
     }
     if (sock == unix_sock)
-      thd->host=(char*) localhost;
+      thd->host=(char*) my_localhost;
+#ifdef __WIN__
+    /* Set default wait_timeout */
+    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
+    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
+                    sizeof(wait_timeout));
+#endif
     create_new_thread(thd);
   }
 
@@ -3187,7 +3213,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
       continue;
     }
     /* host name is unknown */
-    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
   }
 
@@ -3396,7 +3422,7 @@ errorconn:
       if (!event_client_read) CloseHandle(event_client_read);
       continue;
     }
-    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
     uint4korr(connect_number++);
   }
@@ -3445,7 +3471,7 @@ enum options
   OPT_MASTER_RETRY_COUNT,
   OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
   OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
-  OPT_MASTER_SSL_CIPHER,
+  OPT_MASTER_SSL_CIPHER,       OPT_MASTER_SSL_CA,
   OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
@@ -3535,7 +3561,8 @@ enum options
   OPT_EXPIRE_LOGS_DAYS,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_GROUP_CONCAT_MAX_LEN,
-  OPT_DEFAULT_COLLATION
+  OPT_DEFAULT_COLLATION,
+  OPT_SECURE_AUTH
 };
 
 
@@ -3783,31 +3810,32 @@ thread is in the master's binlogs.",
    (gptr*) &master_info_file, (gptr*) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-ssl", OPT_MASTER_SSL,
-   "Planned to enable the slave to connect to the master using SSL. Does nothing yet.",
+   "Enable the slave to connect to the master using SSL.",
    (gptr*) &master_ssl, (gptr*) &master_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"master-ssl-key", OPT_MASTER_SSL_KEY,
-   "Master SSL keyfile name. Only applies if you have enabled master-ssl. Does \
-nothing yet.",
+   "Master SSL keyfile name. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_key, (gptr*) &master_ssl_key, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
    "Master SSL certificate file name. Only applies if you have enabled \
-master-ssl. Does nothing yet.",
+master-ssl",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+  {"master-ssl-ca", OPT_MASTER_SSL_CA,
+   "Master SSL CA file. Only applies if you have enabled master-ssl.",
+   (gptr*) &master_ssl_ca, (gptr*) &master_ssl_ca, 0, GET_STR, OPT_ARG,
+   0, 0, 0, 0, 0, 0},
   {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
-   "Master SSL CA path. Only applies if you have enabled master-ssl. \
-Does nothing yet.",
+   "Master SSL CA path. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
-   "Master SSL cipher. Only applies if you have enabled master-ssl. \
-Does nothing yet.",
+   "Master SSL cipher. Only applies if you have enabled master-ssl.",
    (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP or FORCE.",
+   "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (gptr*) &locked_in_memory,
@@ -3844,9 +3872,10 @@ Does nothing yet.",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #endif
-  {"old-protocol", 'o', "Use the old (3.20) protocol client/server protocol.",
-   (gptr*) &protocol_version, (gptr*) &protocol_version, 0, GET_UINT, NO_ARG,
-   PROTOCOL_VERSION, 0, 0, 0, 0, 0},
+  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients).",
+   (gptr*) &global_system_variables.old_passwords,
+   (gptr*) &max_system_variables.old_passwords, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"old-rpl-compat", OPT_OLD_RPL_COMPAT,
    "Use old LOAD DATA format in the binary log (don't save data in file).",
    (gptr*) &opt_old_rpl_compat, (gptr*) &opt_old_rpl_compat, 0, GET_BOOL,
@@ -3913,8 +3942,6 @@ relay logs.",
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"old-passwords", OPT_OLD_PASSWORDS, "Use old password encryption method (needed for 4.0 and older clients).",
-   (gptr*) &opt_old_passwords, (gptr*) &opt_old_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
@@ -3924,6 +3951,9 @@ relay logs.",
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
    (gptr*) &opt_safe_user_create, (gptr*) &opt_safe_user_create, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Disallow authentication for accounts that have old (pre-4.1) passwords.",
+   (gptr*) &opt_secure_auth, (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG,
+   my_bool(0), 0, 0, 0, 0, 0},
   {"server-id",	OPT_SERVER_ID,
    "Uniquely identifies the server instance in the community of replication partners.",
    (gptr*) &server_id, (gptr*) &server_id, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
@@ -4196,7 +4226,7 @@ replicating a LOAD DATA INFILE command.",
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
    (gptr*) &max_system_variables.max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 80, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+   REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    (gptr*) &max_binlog_cache_size, (gptr*) &max_binlog_cache_size, 0,
@@ -4452,14 +4482,15 @@ struct show_var_st status_vars[]= {
   {"Bytes_received",           (char*) &bytes_received,         SHOW_LONG},
   {"Bytes_sent",               (char*) &bytes_sent,             SHOW_LONG},
   {"Com_admin_commands",       (char*) &com_other,		SHOW_LONG},
-  {"Com_alter_table",	       (char*) (com_stat+(uint) SQLCOM_ALTER_TABLE),SHOW_LONG},
   {"Com_alter_db",	       (char*) (com_stat+(uint) SQLCOM_ALTER_DB),SHOW_LONG},
+  {"Com_alter_table",	       (char*) (com_stat+(uint) SQLCOM_ALTER_TABLE),SHOW_LONG},
   {"Com_analyze",	       (char*) (com_stat+(uint) SQLCOM_ANALYZE),SHOW_LONG},
   {"Com_backup_table",	       (char*) (com_stat+(uint) SQLCOM_BACKUP_TABLE),SHOW_LONG},
   {"Com_begin",		       (char*) (com_stat+(uint) SQLCOM_BEGIN),SHOW_LONG},
   {"Com_change_db",	       (char*) (com_stat+(uint) SQLCOM_CHANGE_DB),SHOW_LONG},
   {"Com_change_master",	       (char*) (com_stat+(uint) SQLCOM_CHANGE_MASTER),SHOW_LONG},
   {"Com_check",		       (char*) (com_stat+(uint) SQLCOM_CHECK),SHOW_LONG},
+  {"Com_checksum",	       (char*) (com_stat+(uint) SQLCOM_CHECKSUM),SHOW_LONG},
   {"Com_commit",	       (char*) (com_stat+(uint) SQLCOM_COMMIT),SHOW_LONG},
   {"Com_create_db",	       (char*) (com_stat+(uint) SQLCOM_CREATE_DB),SHOW_LONG},
   {"Com_create_function",      (char*) (com_stat+(uint) SQLCOM_CREATE_FUNCTION),SHOW_LONG},
@@ -4472,6 +4503,7 @@ struct show_var_st status_vars[]= {
   {"Com_drop_function",	       (char*) (com_stat+(uint) SQLCOM_DROP_FUNCTION),SHOW_LONG},
   {"Com_drop_index",	       (char*) (com_stat+(uint) SQLCOM_DROP_INDEX),SHOW_LONG},
   {"Com_drop_table",	       (char*) (com_stat+(uint) SQLCOM_DROP_TABLE),SHOW_LONG},
+  {"Com_drop_user",	       (char*) (com_stat+(uint) SQLCOM_DROP_USER),SHOW_LONG},
   {"Com_flush",		       (char*) (com_stat+(uint) SQLCOM_FLUSH),SHOW_LONG},
   {"Com_grant",		       (char*) (com_stat+(uint) SQLCOM_GRANT),SHOW_LONG},
   {"Com_ha_close",	       (char*) (com_stat+(uint) SQLCOM_HA_CLOSE),SHOW_LONG},
@@ -4486,6 +4518,7 @@ struct show_var_st status_vars[]= {
   {"Com_load_master_table",    (char*) (com_stat+(uint) SQLCOM_LOAD_MASTER_TABLE),SHOW_LONG},
   {"Com_lock_tables",	       (char*) (com_stat+(uint) SQLCOM_LOCK_TABLES),SHOW_LONG},
   {"Com_optimize",	       (char*) (com_stat+(uint) SQLCOM_OPTIMIZE),SHOW_LONG},
+  {"Com_preload_keys",	       (char*) (com_stat+(uint) SQLCOM_PRELOAD_KEYS),SHOW_LONG},
   {"Com_purge",		       (char*) (com_stat+(uint) SQLCOM_PURGE),SHOW_LONG},
   {"Com_purge_before_date",    (char*) (com_stat+(uint) SQLCOM_PURGE_BEFORE),SHOW_LONG},
   {"Com_rename_table",	       (char*) (com_stat+(uint) SQLCOM_RENAME_TABLE),SHOW_LONG},
@@ -4495,13 +4528,15 @@ struct show_var_st status_vars[]= {
   {"Com_reset",		       (char*) (com_stat+(uint) SQLCOM_RESET),SHOW_LONG},
   {"Com_restore_table",	       (char*) (com_stat+(uint) SQLCOM_RESTORE_TABLE),SHOW_LONG},
   {"Com_revoke",	       (char*) (com_stat+(uint) SQLCOM_REVOKE),SHOW_LONG},
+  {"Com_revoke_all",	       (char*) (com_stat+(uint) SQLCOM_REVOKE_ALL),SHOW_LONG},
   {"Com_rollback",	       (char*) (com_stat+(uint) SQLCOM_ROLLBACK),SHOW_LONG},
   {"Com_savepoint",	       (char*) (com_stat+(uint) SQLCOM_SAVEPOINT),SHOW_LONG},
   {"Com_select",	       (char*) (com_stat+(uint) SQLCOM_SELECT),SHOW_LONG},
   {"Com_set_option",	       (char*) (com_stat+(uint) SQLCOM_SET_OPTION),SHOW_LONG},
-  {"Com_show_binlog_events",   (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOG_EVENTS),SHOW_LONG},
   {"Com_show_binlogs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOGS),SHOW_LONG},
+  {"Com_show_binlog_events",   (char*) (com_stat+(uint) SQLCOM_SHOW_BINLOG_EVENTS),SHOW_LONG},
   {"Com_show_charsets",	       (char*) (com_stat+(uint) SQLCOM_SHOW_CHARSETS),SHOW_LONG},
+  {"Com_show_collations",      (char*) (com_stat+(uint) SQLCOM_SHOW_COLLATIONS),SHOW_LONG},
   {"Com_show_column_types",    (char*) (com_stat+(uint) SQLCOM_SHOW_COLUMN_TYPES),SHOW_LONG},
   {"Com_show_create_table",    (char*) (com_stat+(uint) SQLCOM_SHOW_CREATE),SHOW_LONG},
   {"Com_show_create_db",       (char*) (com_stat+(uint) SQLCOM_SHOW_CREATE_DB),SHOW_LONG},
@@ -4509,6 +4544,7 @@ struct show_var_st status_vars[]= {
   {"Com_show_errors",	       (char*) (com_stat+(uint) SQLCOM_SHOW_ERRORS),SHOW_LONG},
   {"Com_show_fields",	       (char*) (com_stat+(uint) SQLCOM_SHOW_FIELDS),SHOW_LONG},
   {"Com_show_grants",	       (char*) (com_stat+(uint) SQLCOM_SHOW_GRANTS),SHOW_LONG},
+  {"Com_show_innodb_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_INNODB_STATUS),SHOW_LONG},
   {"Com_show_keys",	       (char*) (com_stat+(uint) SQLCOM_SHOW_KEYS),SHOW_LONG},
   {"Com_show_logs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_LOGS),SHOW_LONG},
   {"Com_show_master_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_MASTER_STAT),SHOW_LONG},
@@ -4519,7 +4555,6 @@ struct show_var_st status_vars[]= {
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
   {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
-  {"Com_show_innodb_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_INNODB_STATUS),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
   {"Com_show_table_types",     (char*) (com_stat+(uint) SQLCOM_SHOW_TABLE_TYPES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
@@ -4708,7 +4743,8 @@ static void mysql_init_variables(void)
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname=0;
-  opt_bootstrap= opt_myisam_log= use_old_passwords= 0;
+  opt_secure_auth= 0;
+  opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
   segfaulted= kill_in_progress= 0;
   cleanup_done= 0;
@@ -4787,8 +4823,9 @@ static void mysql_init_variables(void)
   master_user= (char*) "test";
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
-    relay_log_info_file= (char*) "relay-log.info",
-    master_ssl_key= master_ssl_cert= master_ssl_capath= master_ssl_cipher= 0;
+    relay_log_info_file= (char*) "relay-log.info";
+  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+    master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
 
@@ -4800,17 +4837,18 @@ static void mysql_init_variables(void)
 
 
   /* Set default values for some option variables */
-  global_system_variables.character_set_server= default_charset_info;
-  global_system_variables.character_set_database= default_charset_info;
+  global_system_variables.collation_server= default_charset_info;
+  global_system_variables.collation_database= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
+  global_system_variables.old_passwords= 0;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -4931,9 +4969,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
-    break;
-  case 'o':
-    protocol_version=PROTOCOL_VERSION-1;
     break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
@@ -5157,11 +5192,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (argument && my_isdigit(mysqld_charset, argument[0]))
-    {
-      my_bind_addr = (ulong) inet_addr(argument);
-    }
-    else
+    if (!argument || (my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
       if (argument || argument[0])
@@ -5563,6 +5594,19 @@ static void fix_paths(void)
 }
 
 
+/*
+  set how many open files we want to be able to handle
+
+  SYNOPSIS
+    set_maximum_open_files()  
+    max_file_limit		Files to open
+
+  NOTES
+    The request may not fulfilled becasue of system limitations
+
+  RETURN
+    Files available to open
+*/
 
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit)

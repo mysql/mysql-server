@@ -23,7 +23,8 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
+static void mark_as_dependent(THD *thd,
+			      SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item);
 
 /*****************************************************************************
@@ -489,27 +490,38 @@ String *Item_null::val_str(String *str)
 
 /* Item_param related */
 void Item_param::set_null()
-{ 
-  maybe_null=null_value=1;    
+{
+  DBUG_ENTER("Item_param::set_null");
+  maybe_null= null_value= 1;
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_int(longlong i)
-{  
-  int_value=(longlong)i; 
-  item_type = INT_ITEM;
+{
+  DBUG_ENTER("Item_param::set_int");
+  int_value= (longlong)i;
+  item_type= INT_ITEM;
+  DBUG_PRINT("info", ("integer: %lld", int_value));
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_double(double value)
-{  
+{
+  DBUG_ENTER("Item_param::set_double");
   real_value=value;
-  item_type = REAL_ITEM;
+  item_type= REAL_ITEM;
+  DBUG_PRINT("info", ("double: %lg", real_value));
+  DBUG_VOID_RETURN;
 }
 
 
 void Item_param::set_value(const char *str, uint length)
-{  
-  str_value.set(str,length,default_charset());
-  item_type = STRING_ITEM;
+{
+  DBUG_ENTER("Item_param::set_value");
+  str_value.copy(str,length,default_charset());
+  item_type= STRING_ITEM;
+  DBUG_PRINT("info", ("string: %s", str_value.ptr()));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -751,17 +763,29 @@ bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
 
   SYNOPSIS
     mark_as_dependent()
+    thd - thread handler
     last - select from which current item depend
     current  - current select
     item - item which should be marked
 */
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
+static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
   // store pointer on SELECT_LEX from wich item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
+  if (thd->lex.describe)
+  {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
+	    (item->db_name?item->db_name:""), (item->db_name?".":""),
+	    (item->table_name?item->table_name:""), (item->table_name?".":""),
+	    item->field_name,
+	    current->select_number, last->select_number);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		 ER_WARN_FIELD_RESOLVED, warn_buff);
+  }
 }
 
 
@@ -844,12 +868,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
 
-	mark_as_dependent(last, cursel, rf);
+	mark_as_dependent(thd, last, cursel, rf);
 	return 0;
       }
       else
       {
-	mark_as_dependent(last, cursel, this);
+	mark_as_dependent(thd, last, cursel, this);
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
@@ -903,11 +927,85 @@ void Item::make_field(Send_field *tmp_field)
   init_make_field(tmp_field, field_type());
 }
 
+
+void Item_empty_string::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_VAR_STRING);
+}
+
+
 enum_field_types Item::field_type() const
 {
   return ((result_type() == STRING_RESULT) ? FIELD_TYPE_VAR_STRING :
 	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
 	  FIELD_TYPE_DOUBLE);
+}
+
+Field *Item::tmp_table_field_from_field_type(TABLE *table)
+{
+  switch (field_type()) 
+  {
+  case MYSQL_TYPE_DECIMAL:
+    return new Field_decimal(max_length, maybe_null, name, table,
+			     unsigned_flag);
+  case MYSQL_TYPE_TINY:
+    return new Field_tiny(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_SHORT:
+    return new Field_short(max_length, maybe_null, name, table,
+			   unsigned_flag);
+  case MYSQL_TYPE_LONG:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_FLOAT:
+    return new Field_float(max_length, maybe_null, name, table, decimals);
+  case MYSQL_TYPE_DOUBLE:
+    return new Field_double(max_length, maybe_null, name, table, decimals);
+  case MYSQL_TYPE_NULL:
+    return new Field_null(max_length, name, table, &my_charset_bin);
+#ifdef HAVE_LONG_LONG
+  case MYSQL_TYPE_LONGLONG:
+    return new Field_longlong(max_length, maybe_null, name, table,
+			      unsigned_flag);
+#endif
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_INT24:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_DATE:
+    return new Field_date(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_TIME:
+    return new Field_time(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    return new Field_datetime(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_YEAR:
+    return new Field_year(max_length, maybe_null, name, table);
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+    return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_VAR_STRING:
+    if (max_length > 255)
+      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+    else
+      return new Field_varstring(max_length, maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_STRING:
+    if (max_length > 255)
+      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+    else
+      return new Field_string(max_length, maybe_null, name, table, collation.collation);
+  default:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0;
+  }
 }
 
 /* ARGSUSED */
@@ -1324,7 +1422,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	Item_field* fld;
 	if (!((*reference)= fld= new Item_field(tmp)))
 	  return 1;
-	mark_as_dependent(last, thd->lex.current_select, fld);
+	mark_as_dependent(thd, last, thd->lex.current_select, fld);
 	return 0;
       }
       else
@@ -1335,7 +1433,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 		   "forward reference in item list");
 	  return -1;
 	}
-	mark_as_dependent(last, thd->lex.current_select,
+	mark_as_dependent(thd, last, thd->lex.current_select,
 			  this);
 	ref= last->ref_pointer_array + counter;
       }

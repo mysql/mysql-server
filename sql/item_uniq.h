@@ -41,10 +41,10 @@ public:
     :Item_sum_num(thd, item) {}
   double val() { return 0.0; }  
   enum Sumfunctype sum_func () const {return UNIQUE_USERS_FUNC;}
-  bool reset() { return 0;}
+  void clear() {}
   bool add() { return 0; }
   void reset_field() {}
-  void update_field(int offset) {}
+  void update_field() {}
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
     fixed= 1;

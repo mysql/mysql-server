@@ -18,4 +18,5 @@ extern struct cclass {
 	const char *name;
 	const char *chars;
 	const char *multis;
+	uint  mask;
 } cclasses[];

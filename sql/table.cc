@@ -236,7 +236,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 #ifdef HAVE_CRYPTED_FRM
   else if (*(head+26) == 2)
   {
-    extern SQL_CRYPT *get_crypt_for_frm(void);
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
     crypted=get_crypt_for_frm();
     my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
@@ -459,7 +458,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     if (outparam->timestamp_field == reg_field)
       outparam->timestamp_field_offset=i;
     if (use_hash)
-      (void) hash_insert(&outparam->name_hash,(byte*) *field_ptr); // Will never fail
+      (void) my_hash_insert(&outparam->name_hash,(byte*) *field_ptr); // Will never fail
   }
   *field_ptr=0;					// End marker
 
@@ -1207,17 +1206,14 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH], *to;
+  char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
   field->val_str(&str,&str);
   if (!(length= str.length()))
     return NullS;
-  to= (char*) alloc_root(mem,length+1);
-  memcpy(to, str.ptr(), (uint) length);
-  to[length]=0;
-  return to;
+  return strmake_root(mem, str.ptr(), length);
 }
 
 

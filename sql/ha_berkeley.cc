@@ -304,11 +304,13 @@ void berkeley_cleanup_log_files(void)
   char **names;
   int error;
 
+// by HF. Sometimes it crashes. TODO - find out why
+#ifndef EMBEDDED_LIBRARY
   /* XXX: Probably this should be done somewhere else, and
    * should be tunable by the user. */
   if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
     my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error); /* purecov: inspected */
-
+#endif
   if ((error = db_env->log_archive(db_env, &names, DB_ARCH_ABS)) != 0)
   {
     DBUG_PRINT("error", ("log_archive failed (error %d)", error)); /* purecov: inspected */
@@ -1433,6 +1435,8 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   }
   if (key_len == key_info->key_length)
   {
+    if (find_flag == HA_READ_AFTER_KEY)
+      key_info->handler.bdb_return_if_eq= 1;
     error=read_row(cursor->c_get(cursor, pack_key(&last_key,
 						  active_index,
 						  key_buff,
@@ -1441,6 +1445,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
 				 (find_flag == HA_READ_KEY_EXACT ?
 				  DB_SET : DB_SET_RANGE)),
 		   (char*) buf, active_index, &row, (DBT*) 0, 0);
+    key_info->handler.bdb_return_if_eq= 0;
   }
   else
   {
@@ -2263,7 +2268,7 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
       strmov(share->table_name,table_name);
       share->key_file = key_file;
       share->key_type = key_type;
-      if (hash_insert(&bdb_open_tables, (byte*) share))
+      if (my_hash_insert(&bdb_open_tables, (byte*) share))
       {
 	pthread_mutex_unlock(&bdb_mutex); /* purecov: inspected */
 	my_free((gptr) share,0); /* purecov: inspected */

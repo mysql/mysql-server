@@ -130,7 +130,11 @@ int main(int argc,char *argv[])
       if (subkeys >= 0)
         weight=*(float*)&subkeys;
 
+#ifdef HAVE_SNPRINTF
       snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
+#else
+      sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
+#endif
       my_casedn_str(default_charset_info,buf);
       total++;
       lengths[keylen]++;

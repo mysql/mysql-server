@@ -27,25 +27,6 @@
 #define log_cs	&my_charset_latin1
 
 /*
-  my_b_safe_write()
-*/
-
-inline int my_b_safe_write(IO_CACHE* file, const byte *buf,
-			   int len)
-{
-  /*
-    Sasha: We are not writing this with the ? operator to avoid hitting
-    a possible compiler bug. At least gcc 2.95 cannot deal with 
-    several layers of ternary operators that evaluated comma(,) operator
-    expressions inside - I do have a test case if somebody wants it
-  */
-  if (file->type == SEQ_READ_APPEND)
-    return my_b_append(file, buf,len);
-  return my_b_write(file, buf,len);
-}
-
-
-/*
   pretty_print_str()
 */
 
@@ -239,12 +220,11 @@ const char* Log_event::get_type_str()
 
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
-  :temp_buf(0), exec_time(0), cached_event_len(0), flags(flags_arg), 
-   thd(thd_arg)
+  :log_pos(0), temp_buf(0), exec_time(0), cached_event_len(0),
+   flags(flags_arg), thd(thd_arg)
 {
   server_id=	thd->server_id;
   when=		thd->start_time;
-  log_pos=	thd->log_pos;
   cache_stmt=	(using_trans &&
 		 (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
@@ -331,7 +311,6 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
       handler and MyISAM and STOP SLAVE is issued in the middle of the
       "transaction". START SLAVE will resume at BEGIN while the MyISAM table
       has already been updated.
-      
     */
     if ((thd->options & OPTION_BEGIN) && opt_using_transactions)
       rli->inc_event_relay_log_pos(get_event_len());
@@ -605,6 +584,8 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     ev  = new Query_log_event(buf, event_len, old_format);
     break;
   case LOAD_EVENT:
+    ev = new Create_file_log_event(buf, event_len, old_format);
+    break;
   case NEW_LOAD_EVENT:
     ev = new Load_log_event(buf, event_len, old_format);
     break;
@@ -894,7 +875,6 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error,actual_error= 0;
-  init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db= (char*) rewrite_db(db);
 
   /*
@@ -988,14 +968,14 @@ Default database: '%s'",
     */
   } /* End of if (db_ok(... */
 
-end:
-
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
-  //thd->variables.convert_set = 0;
+#ifdef TO_BE_REMOVED
+  thd->variables.convert_set = 0;
+#endif
   close_thread_tables(thd);      
   free_root(&thd->mem_root,0);
   return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
@@ -1091,15 +1071,6 @@ int Start_log_event::write_data(IO_CACHE* file)
       the use of a bit of memory for a user lock which will not be used
       anymore. If the user lock is later used, the old one will be released. In
       other words, no deadlock problem.
-    - If we have an active transaction at this point, the master died
-      in the middle while writing the transaction to the binary log.
-      In this case we should stop the slave.
-      Guilhem 2003-06: I don't think we should. As the binlog is written before
-      the table changes are committed, rollback has occured on the master; we
-      should rather rollback on the slave and go on. If we don't rollback, and
-      the next query is not BEGIN, then it will be considered as part of the
-      unfinished transaction, and so will be rolled back at next BEGIN, which
-      is a bug.
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
@@ -1113,14 +1084,25 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
        This is 4.x, so a Start_log_event is only at master startup,
        so we are sure the master has restarted and cleared his temp tables.
     */
-
-    /*
-      If the master died before writing the COMMIT to the binlog, rollback;
-      otherwise it does not hurt to rollback.
-    */
-    ha_rollback(thd);
     close_temporary_tables(thd);
     cleanup_load_tmpdir();
+    /*
+      As a transaction NEVER spans on 2 or more binlogs:
+      if we have an active transaction at this point, the master died while
+      writing the transaction to the binary log, i.e. while flushing the binlog
+      cache to the binlog. As the write was started, the transaction had been
+      committed on the master, so we lack of information to replay this
+      transaction on the slave; all we can do is stop with error.
+    */
+    if (thd->options & OPTION_BEGIN)
+    {
+      slave_print_error(rli, 0,
+                        "there is an unfinished transaction in the relay log \
+(could find neither COMMIT nor ROLLBACK in the relay log); it could be that \
+the master died while writing the transaction to its binary log. Now the slave \
+is rolling back the transaction.");
+      return(1);
+    }
     break;
 
     /* 
@@ -1471,6 +1453,13 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 #ifdef MYSQL_CLIENT
 void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 {
+  print(file, short_form, last_db, 0);
+}
+
+
+void Load_log_event::print(FILE* file, bool short_form, char* last_db,
+			   bool commented)
+{
   if (!short_form)
   {
     print_header(file);
@@ -1486,9 +1475,12 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   }
   
   if (db && db[0] && !same_db)
-    fprintf(file, "use %s;\n", db);
+    fprintf(file, "%suse %s;\n", 
+            commented ? "# " : "",
+            db);
 
-  fprintf(file, "LOAD DATA ");
+  fprintf(file, "%sLOAD DATA ",
+          commented ? "# " : "");
   if (check_fname_outside_temp_buf())
     fprintf(file, "LOCAL ");
   fprintf(file, "INFILE '%-*s' ", fname_len, fname);
@@ -1535,8 +1527,8 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
-  if ((int)skip_lines > 0)
-    fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
+  if ((long) skip_lines > 0)
+    fprintf(file, " IGNORE %ld LINES", (long) skip_lines);
 
   if (num_fields)
   {
@@ -1607,12 +1599,23 @@ void Load_log_event::set_fields(List<Item> &field_list)
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
 
+  /*
+    We test replicate_*_db rules. Note that we have already prepared the file
+    to load, even if we are going to ignore and delete it now. So it is
+    possible that we did a lot of disk writes for nothing. In other words, a
+    big LOAD DATA INFILE on the master will still consume a lot of space on
+    the slave (space in the relay log + space of temp files: twice the space
+    of the file to load...) even if it will finally be ignored.
+    TODO: fix this; this can be done by testing rules in
+    Create_file_log_event::exec_event() and then discarding Append_block and
+    al. Another way is do the filtering in the I/O thread (more efficient: no
+    disk writes at all).
+  */
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
@@ -1642,20 +1645,22 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       else if (sql_ex.opt_flags & IGNORE_FLAG)
         handle_dup= DUP_IGNORE;
       else
+      {
         /*
-          Note that when replication is running fine, if it was DUP_ERROR on the 
+	  When replication is running fine, if it was DUP_ERROR on the
           master then we could choose DUP_IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
           then there should be no uniqueness errors on slave, so DUP_IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
-          (because the data on the master and slave happen to be different (user
-          error or bug), we want LOAD DATA to print an error message on the
-          slave to discover the problem.
+          (because the data on the master and slave happen to be different
+	  (user error or bug), we want LOAD DATA to print an error message on
+	  the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
           to DUP_IGNORE.
         */
         handle_dup= DUP_ERROR;
+      }
 
       sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len,log_cs);
@@ -1731,7 +1736,7 @@ Slave: load data infile on table '%s' at log position %s in log \
       err=ER(sql_errno);       
     }
     slave_print_error(rli,sql_errno,"\
-Error '%s' running lOAD DATA INFILE on table '%s'. Default database: '%s'",
+Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 		      err, (char*)table_name, print_slave_db_safe(db));
     free_root(&thd->mem_root,0);
     return 1;
@@ -1762,14 +1767,13 @@ Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Rotate_log_event::pack_info(Protocol *protocol)
 {
-  char *buf, *b_pos;
-  if (!(buf= my_malloc(ident_len + 45, MYF(MY_WME))))
-    return;
-  memcpy(buf, new_log_ident, ident_len);
-  b_pos= strmov(buf + ident_len, ";pos=");
-  b_pos= longlong10_to_str(pos, b_pos, 10);
-  protocol->store(buf, (uint) (b_pos-buf), &my_charset_bin);
-  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  char buf1[256], buf[22];
+  String tmp(buf1, sizeof(buf1), log_cs);
+  tmp.length(0);
+  tmp.append(new_log_ident, ident_len);
+  tmp.append(";pos=");
+  tmp.append(llstr(pos,buf));
+  protocol->store(tmp.ptr(), tmp.length(), &my_charset_bin);
 }
 #endif
 
@@ -1865,16 +1869,31 @@ int Rotate_log_event::write_data(IO_CACHE* file)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char* log_name = rli->group_master_log_name;
   DBUG_ENTER("Rotate_log_event::exec_event");
 
   pthread_mutex_lock(&rli->data_lock);
-  memcpy(log_name, new_log_ident, ident_len+1);
-  rli->group_master_log_pos = pos;
   rli->event_relay_log_pos += get_event_len();
-  rli->group_relay_log_pos = rli->event_relay_log_pos;
-  DBUG_PRINT("info", ("group_master_log_pos: %lu",
-		      (ulong) rli->group_master_log_pos));
+  /*
+    If we are in a transaction: the only normal case is when the I/O thread was
+    copying a big transaction, then it was stopped and restarted: we have this
+    in the relay log:
+    BEGIN
+    ...
+    ROTATE (a fake one)
+    ...
+    COMMIT or ROLLBACK
+    In that case, we don't want to touch the coordinates which correspond to the
+    beginning of the transaction.
+  */
+  if (!(thd->options & OPTION_BEGIN))
+  {
+    memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
+    rli->notify_group_master_log_name_update();
+    rli->group_master_log_pos = pos;
+    rli->group_relay_log_pos = rli->event_relay_log_pos;
+    DBUG_PRINT("info", ("group_master_log_pos: %lu",
+                        (ulong) rli->group_master_log_pos));
+  }
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
   flush_relay_log_info(rli);
@@ -1894,8 +1913,8 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Intvar_log_event::pack_info(Protocol *protocol)
 {
-  char buf[64], *pos;
-  pos= strmov(buf, get_var_type_name());
+  char buf[256], *pos;
+  pos= strmake(buf, get_var_type_name(), sizeof(buf)-23);
   *pos++= '=';
   pos= longlong10_to_str(val, pos, -10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
@@ -2462,8 +2481,8 @@ void Stop_log_event::print(FILE* file, bool short_form, char* last_db)
   Stop_log_event::exec_event()
 
   The master stopped. 
-  We used to clean up all temporary tables but this is useless as, as the master
-  has shut down properly, it has written all DROP TEMPORARY TABLE and DO
+  We used to clean up all temporary tables but this is useless as, as the
+  master has shut down properly, it has written all DROP TEMPORARY TABLE and DO
   RELEASE_LOCK (prepared statements' deletion is TODO).
   We used to clean up slave_load_tmpdir, but this is useless as it has been
   cleared at the end of LOAD DATA INFILE.
@@ -2605,10 +2624,12 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    if (!check_fname_outside_temp_buf())
-      fprintf(file, "#");
-    Load_log_event::print(file, 1, last_db);
-    fprintf(file, "#");
+    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    /* 
+       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+       SHOW BINLOG EVENTS we don't.
+    */
+    fprintf(file, "#"); 
   }
 
   fprintf(file, " file_id: %d  block_len: %d\n", file_id, block_len);
@@ -2641,7 +2662,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
   pos= int10_to_str((long) block_len, pos, 10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
 }
-#endif
+#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
 /*
@@ -2665,7 +2686,7 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   
@@ -2676,7 +2697,9 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if (write_base(&file))
   {
     strmov(p, ".info"); // to have it right in the error message
-    slave_print_error(rli,my_errno, "Could not write to file '%s'", fname_buf);
+    slave_print_error(rli,my_errno,
+		      "Error in Create_file event: could not write to file '%s'",
+		      fname_buf);
     goto err;
   }
   end_io_cache(&file);
@@ -2686,16 +2709,14 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: could not open file '%s'", fname_buf);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname_buf);
+    slave_print_error(rli,my_errno, "Error in Create_file event: write to '%s' failed", fname_buf);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;					// Everything is ok
 
 err:
@@ -2705,7 +2726,7 @@ err:
     my_close(fd, MYF(0));
   return error ? 1 : Log_event::exec_event(rli);
 }
-#endif
+#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
 /**************************************************************************
@@ -2717,11 +2738,12 @@ err:
 */
 
 #ifndef MYSQL_CLIENT  
-Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
+Append_block_log_event::Append_block_log_event(THD* thd_arg, const char* db_arg,
+					       char* block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
   :Log_event(thd_arg,0, using_trans), block(block_arg),
-   block_len(block_len_arg), file_id(thd_arg->file_id)
+   block_len(block_len_arg), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -2787,7 +2809,7 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 			     block_len));
   protocol->store(buf, length, &my_charset_bin);
 }
-#endif
+#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
 /*
@@ -2805,16 +2827,14 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
   memcpy(p, ".data", 6);
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
     goto err;
   }
   if (my_write(fd, (byte*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Write to '%s' failed", fname);
+    slave_print_error(rli,my_errno, "Error in Append_block event: write to '%s' failed", fname);
     goto err;
   }
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error=0;
 
 err:
@@ -2834,8 +2854,9 @@ err:
 */
 
 #ifndef MYSQL_CLIENT
-Delete_file_log_event::Delete_file_log_event(THD *thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans),file_id(thd_arg->file_id)
+Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char* db_arg,
+					     bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -2908,11 +2929,9 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".info", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   return Log_event::exec_event(rli);
 }
-#endif
+#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
 
 /**************************************************************************
@@ -2924,8 +2943,9 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
 */
 
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD *thd_arg, bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
+Execute_load_log_event::Execute_load_log_event(THD *thd_arg, const char* db_arg,
+					       bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id), db(db_arg)
 {
 }
 #endif
@@ -2997,7 +3017,6 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
-  ulong save_options;
   IO_CACHE file;
   Load_log_event* lev = 0;
 
@@ -3006,7 +3025,7 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    slave_print_error(rli,my_errno, "Could not open file '%s'", fname);
+    slave_print_error(rli,my_errno, "Error in Exec_load event: could not open file '%s'", fname);
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
@@ -3014,21 +3033,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 							 (bool)0)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
-    slave_print_error(rli,0, "File '%s' appears corrupted", fname);
+    slave_print_error(rli,0, "Error in Exec_load event: file '%s' appears corrupted", fname);
     goto err;
   }
-  /*
-    We are going to create a Load_log_event to finally load into the table.
-    This event should not go into the binlog: in the binlog we only want the
-    Create_file, Append_blocks and Execute_load. We disable binary logging and
-    restore the thread's options just after finishing the load.
-  */
-  save_options = thd->options;
-  thd->options &= ~ (ulong) (OPTION_BIN_LOG);
+
   lev->thd = thd;
   /*
     lev->exec_event should use rli only for errors
-    i.e. should not advance rli's position
+    i.e. should not advance rli's position.
+    lev->exec_event is the place where the table is loaded (it calls
+    mysql_load()).
   */
   if (lev->exec_event(0,rli,1)) 
   {
@@ -3049,15 +3063,11 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 			tmp, fname);
       my_free(tmp,MYF(0));
     }
-    thd->options= save_options;
     goto err;
   }
-  thd->options = save_options;
   (void) my_delete(fname, MYF(MY_WME));
   memcpy(p, ".data", 6);
   (void) my_delete(fname, MYF(MY_WME));
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
   error = 0;
 
 err:

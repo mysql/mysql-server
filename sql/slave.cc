@@ -238,9 +238,11 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
 
   *errmsg=0;
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
-  pthread_mutex_lock(log_lock);
+  
   if (need_data_lock)
     pthread_mutex_lock(&rli->data_lock);
+  
+  pthread_mutex_lock(log_lock);
   
   /* Close log file and free buffers if it's already open */
   if (rli->cur_log_fd >= 0)
@@ -304,10 +306,12 @@ err:
   if (!relay_log_purge)
     rli->log_space_limit= 0;
   pthread_cond_broadcast(&rli->data_cond);
+  
+  pthread_mutex_unlock(log_lock);
+
   if (need_data_lock)
     pthread_mutex_unlock(&rli->data_lock);
 
-  pthread_mutex_unlock(log_lock);
   DBUG_RETURN ((*errmsg) ? 1 : 0);
 }
 
@@ -786,7 +790,7 @@ int add_table_rule(HASH* h, const char* table_spec)
   e->tbl_name = e->db + (dot - table_spec) + 1;
   e->key_len = len;
   memcpy(e->db, table_spec, len);
-  (void)hash_insert(h, (byte*)e);
+  (void)my_hash_insert(h, (byte*)e);
   return 0;
 }
 
@@ -1505,11 +1509,10 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_ENTER("wait_for_relay_log_space");
 
   pthread_mutex_lock(&rli->log_space_lock);
-  save_proc_info = thd->proc_info;
-  thd->proc_info = "Waiting for relay log space to free";
   save_proc_info= thd->enter_cond(&rli->log_space_cond,
 				  &rli->log_space_lock, 
-				  "Waiting for relay log space to free");
+				  "\
+Waiting for the SQL slave thread to free enough relay log space");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
@@ -1544,6 +1547,7 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   DBUG_RETURN(0);
 }
 
+
 void init_master_info_with_options(MASTER_INFO* mi)
 {
   mi->master_log_name[0] = 0;
@@ -1554,10 +1558,23 @@ void init_master_info_with_options(MASTER_INFO* mi)
   if (master_user)
     strmake(mi->user, master_user, sizeof(mi->user) - 1);
   if (master_password)
-    strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
+    strmake(mi->password, master_password, MAX_PASSWORD_LENGTH);
   mi->port = master_port;
   mi->connect_retry = master_connect_retry;
+  
+  mi->ssl= master_ssl;
+  if (master_ssl_ca)
+    strmake(mi->ssl_ca, master_ssl_ca, sizeof(mi->ssl_ca)-1);
+  if (master_ssl_capath)
+    strmake(mi->ssl_capath, master_ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (master_ssl_cert)
+    strmake(mi->ssl_cert, master_ssl_cert, sizeof(mi->ssl_cert)-1);
+  if (master_ssl_cipher)
+    strmake(mi->ssl_cipher, master_ssl_cipher, sizeof(mi->ssl_cipher)-1);
+  if (master_ssl_key)
+    strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
 }
+
 
 void clear_last_slave_error(RELAY_LOG_INFO* rli)
 {
@@ -1565,6 +1582,24 @@ void clear_last_slave_error(RELAY_LOG_INFO* rli)
   rli->last_slave_error[0]=0;
   rli->last_slave_errno=0;
 }
+
+
+/*
+    Reset UNTIL condition for RELAY_LOG_INFO
+   SYNOPSYS
+    clear_until_condition()
+      rli - RELAY_LOG_INFO structure where UNTIL condition should be reset
+ */
+void clear_until_condition(RELAY_LOG_INFO* rli)
+{
+  rli->until_condition= RELAY_LOG_INFO::UNTIL_NONE;
+  rli->until_log_name[0]= 0;
+  rli->until_log_pos= 0;
+}
+
+
+#define LINES_IN_MASTER_INFO_WITH_SSL 14
+
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
@@ -1643,25 +1678,87 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    int port, connect_retry, master_log_pos;
+    int port, connect_retry, master_log_pos, ssl= 0, lines;
+    char *first_non_digit;
+    
+    /*
+       Starting from 4.1.x master.info has new format. Now its
+       first line contains number of lines in file. By reading this 
+       number we will be always distinguish to which version our 
+       master.info corresponds to. We can't simply count lines in 
+       file since versions before 4.1.x could generate files with more
+       lines than needed.
+       If first line doesn't contain a number or contain number less than 
+       14 then such file is treated like file from pre 4.1.1 version.
+       There is no ambiguity when reading an old master.info, as before 
+       4.1.1, the first line contained the binlog's name, which is either
+       empty or has an extension (contains a '.'), so can't be confused 
+       with an integer.
 
+       So we're just reading first line and trying to figure which version 
+       is this.
+    */
+    
+    /* 
+       The first row is temporarily stored in mi->master_log_name, 
+       if it is line count and not binlog name (new format) it will be 
+       overwritten by the second row later.
+    */
     if (init_strvar_from_file(mi->master_log_name,
 			      sizeof(mi->master_log_name), &mi->file,
-			      "") ||
-	init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
+			      ""))
+      goto errwithmsg;
+    
+    lines= strtoul(mi->master_log_name, &first_non_digit, 10);
+
+    if (mi->master_log_name[0]!='\0' && 
+        *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
+    {                                          // Seems to be new format
+      if (init_strvar_from_file(mi->master_log_name,     
+            sizeof(mi->master_log_name), &mi->file, ""))
+        goto errwithmsg;
+    }
+    else
+      lines= 7;
+    
+    if (init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
 	init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
 			      master_host) ||
 	init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
 			      master_user) || 
-	init_strvar_from_file(mi->password, HASH_PASSWORD_LENGTH+1, &mi->file,
-			      master_password) ||
+        init_strvar_from_file(mi->password, SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                              &mi->file, master_password) ||
 	init_intvar_from_file(&port, &mi->file, master_port) ||
 	init_intvar_from_file(&connect_retry, &mi->file,
 			      master_connect_retry))
-    {
-      sql_print_error("Error reading master configuration");
-      goto err;
-    }
+      goto errwithmsg;
+
+    /* 
+       If file has ssl part use it even if we have server without 
+       SSL support. But these option will be ignored later when 
+       slave will try connect to master, so in this case warning 
+       is printed.
+     */
+    if (lines >= LINES_IN_MASTER_INFO_WITH_SSL && 
+        (init_intvar_from_file(&ssl, &mi->file, master_ssl) ||
+         init_strvar_from_file(mi->ssl_ca, sizeof(mi->ssl_ca), 
+                               &mi->file, master_ssl_ca) ||
+         init_strvar_from_file(mi->ssl_capath, sizeof(mi->ssl_capath), 
+                               &mi->file, master_ssl_capath) ||
+         init_strvar_from_file(mi->ssl_cert, sizeof(mi->ssl_cert),
+                               &mi->file, master_ssl_cert) ||
+         init_strvar_from_file(mi->ssl_cipher, sizeof(mi->ssl_cipher),
+                               &mi->file, master_ssl_cipher) ||
+         init_strvar_from_file(mi->ssl_key, sizeof(mi->ssl_key),
+                              &mi->file, master_ssl_key)))
+      goto errwithmsg;
+#ifndef HAVE_OPENSSL
+    if (ssl)
+      sql_print_error("SSL information in the master info file "
+                      "('%s') are ignored because this MySQL slave was compiled "
+                      "without SSL support.", fname);
+#endif /* HAVE_OPENSSL */
+    
     /*
       This has to be handled here as init_intvar_from_file can't handle
       my_off_t types
@@ -1669,6 +1766,7 @@ file '%s')", fname);
     mi->master_log_pos= (my_off_t) master_log_pos;
     mi->port= (uint) port;
     mi->connect_retry= (uint) connect_retry;
+    mi->ssl= (my_bool) ssl;
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
 			    mi->master_log_name,
@@ -1685,7 +1783,10 @@ file '%s')", fname);
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
-
+  
+errwithmsg:
+  sql_print_error("Error reading master configuration");
+  
 err:
   if (fd >= 0)
   {
@@ -1820,6 +1921,22 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_return_int("Relay_log_space", 10,
 					   MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Until_condition", 6));
+  field_list.push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
+  field_list.push_back(new Item_return_int("Until_Log_pos", 10, 
+                                           MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
+                                             sizeof(mi->ssl_ca)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", 
+                                             sizeof(mi->ssl_capath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", 
+                                             sizeof(mi->ssl_cert)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", 
+                                             sizeof(mi->ssl_cipher)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", 
+                                             sizeof(mi->ssl_key)));
+  
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
@@ -1868,6 +1985,25 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.group_master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
+
+    protocol->store(
+      mi->rli.until_condition==RELAY_LOG_INFO::UNTIL_NONE ? "None": 
+        ( mi->rli.until_condition==RELAY_LOG_INFO::UNTIL_MASTER_POS? "Master":
+          "Relay"), &my_charset_bin);
+    protocol->store(mi->rli.until_log_name, &my_charset_bin);
+    protocol->store((ulonglong) mi->rli.until_log_pos);
+    
+#ifdef HAVE_OPENSSL 
+    protocol->store(mi->ssl? "Yes":"No", &my_charset_bin);
+#else
+    protocol->store(mi->ssl? "Ignored":"No", &my_charset_bin);
+#endif
+    protocol->store(mi->ssl_ca, &my_charset_bin);
+    protocol->store(mi->ssl_capath, &my_charset_bin);
+    protocol->store(mi->ssl_cert, &my_charset_bin);
+    protocol->store(mi->ssl_cipher, &my_charset_bin);
+    protocol->store(mi->ssl_key, &my_charset_bin);
+    
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
   
@@ -1886,11 +2022,22 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
+  /*
+     In certain cases this code may create master.info files that seems 
+     corrupted, because of extra lines filled with garbage in the end 
+     file (this happens if new contents take less space than previous 
+     contents of file). But because of number of lines in the first line 
+     of file we don't care about this garbage.
+  */
+  
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
-	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
+  my_b_printf(file, "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n",
+	      LINES_IN_MASTER_INFO_WITH_SSL,
+              mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
-	      mi->password, mi->port, mi->connect_retry);
+	      mi->password, mi->port, mi->connect_retry,
+              (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
+              mi->ssl_cipher, mi->ssl_key);
   flush_io_cache(file);
   DBUG_RETURN(0);
 }
@@ -1901,11 +2048,11 @@ st_relay_log_info::st_relay_log_info()
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
    ignore_log_space_limit(0), slave_skip_counter(0), abort_pos_wait(0),
    slave_run_id(0), sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0)
+   slave_running(0), until_condition(UNTIL_NONE), until_log_pos(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]= group_master_log_name[0]= 0;
-  last_slave_error[0]=0;
-  
+  last_slave_error[0]=0; until_log_name[0]= 0;
+
   bzero((char*) &info_file, sizeof(info_file));
   bzero((char*) &cache_buf, sizeof(cache_buf));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
@@ -2058,7 +2205,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     
     DBUG_PRINT("info",("Waiting for master update"));
     const char* msg = thd->enter_cond(&data_cond, &data_lock,
-                                      "Waiting for master update");
+                                      "Waiting for the SQL slave thread to \
+advance position");
     /*
       We are going to pthread_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
@@ -2125,7 +2273,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = (((opt_log_slave_updates) ? OPTION_BIN_LOG:0) | OPTION_AUTO_IS_NULL) ;
+  thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
+    OPTION_AUTO_IS_NULL;
+  /* 
+     It's nonsense to constraint the slave threads with max_join_size; if a
+     query succeeded on master, we HAVE to execute it.
+  */
+  thd->variables.max_join_size= HA_POS_ERROR;    
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
@@ -2145,11 +2299,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  if (thd->variables.max_join_size == HA_POS_ERROR)
-    thd->options |= OPTION_BIG_SELECTS;
-
   if (thd_type == SLAVE_THD_SQL)
-    thd->proc_info= "Waiting for the next event in slave queue";
+    thd->proc_info= "Waiting for the next event in relay log";
   else
     thd->proc_info= "Waiting for master update";
   thd->version=refresh_version;
@@ -2303,9 +2454,10 @@ server_errno=%d)",
     return packet_error;
   }
 
-  if (len == 1)
+  /* Check if eof packet */
+  if (len < 8 && mysql->net.read_pos[0] == 254)
   {
-     sql_print_error("Slave: received 0 length packet from server, apparent\
+     sql_print_error("Slave: received end packet from server, apparent\
  master shutdown: %s",
 		     mysql_error(mysql));
      return packet_error;
@@ -2337,13 +2489,126 @@ point. If you are sure that your master is ok, run this query manually on the\
   }
 }
 
+/*
+     Check if condition stated in UNTIL clause of START SLAVE is reached.
+   SYNOPSYS
+     st_relay_log_info::is_until_satisfied()
+   DESCRIPTION
+     Checks if UNTIL condition is reached. Uses caching result of last 
+     comparison of current log file name and target log file name. So cached 
+     value should be invalidated if current log file name changes 
+     (see st_relay_log_info::notify_... functions).
+     
+     This caching is needed to avoid of expensive string comparisons and 
+     strtol() conversions needed for log names comparison. We don't need to
+     compare them each time this function is called, we only need to do this 
+     when current log name changes. If we have UNTIL_MASTER_POS condition we 
+     need to do this only after Rotate_log_event::exec_event() (which is 
+     rare, so caching gives real benifit), and if we have UNTIL_RELAY_POS 
+     condition then we should invalidate cached comarison value after 
+     inc_group_relay_log_pos() which called for each group of events (so we
+     have some benefit if we have something like queries that use 
+     autoincrement or if we have transactions).
+     
+     Should be called ONLY if until_condition != UNTIL_NONE !
+   RETURN VALUE
+     true - condition met or error happened (condition seems to have 
+            bad log file name)
+     false - condition not met
+*/
+
+bool st_relay_log_info::is_until_satisfied()
+{
+  const char *log_name;
+  ulonglong log_pos;
+
+  DBUG_ASSERT(until_condition != UNTIL_NONE);
+  
+  if (until_condition == UNTIL_MASTER_POS)
+  {
+    log_name= group_master_log_name;
+    log_pos= group_master_log_pos;
+  }
+  else
+  { /* until_condition == UNTIL_RELAY_POS */
+    log_name= group_relay_log_name;
+    log_pos= group_relay_log_pos;
+  }
+  
+  if (until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_UNKNOWN)
+  {
+    /* 
+       We have no cached comaprison results so we should compare log names
+       and cache result
+    */
+
+    DBUG_ASSERT(*log_name || log_pos == 0);
+    
+    if (*log_name)
+    {
+      const char *basename= log_name + dirname_length(log_name);
+      
+      const char *q= (const char*)(fn_ext(basename)+1);
+      if (strncmp(basename, until_log_name, (int)(q-basename)) == 0)
+      {
+        /* Now compare extensions. */
+        char *q_end;
+        ulong log_name_extension= strtoul(q, &q_end, 10);
+        if (log_name_extension < until_log_name_extension)
+          until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_LESS;
+        else
+          until_log_names_cmp_result= 
+            (log_name_extension > until_log_name_extension) ? 
+            UNTIL_LOG_NAMES_CMP_GREATER : UNTIL_LOG_NAMES_CMP_EQUAL ;
+      }
+      else  
+      {
+        /* Probably error so we aborting */
+        sql_print_error("Slave SQL thread is stopped because UNTIL "
+                        "condition is bad.");
+        return true;
+      }
+    }
+    else
+      return until_log_pos == 0;
+  }
+    
+  return ((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL && 
+           log_pos >= until_log_pos) ||
+          until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER);
+}
+
 
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
+  /*
+     We acquire this mutex since we need it for all operations except
+     event execution. But we will release it in places where we will 
+     wait for something for example inside of next_event().
+   */
+  pthread_mutex_lock(&rli->data_lock);
+  
+  if (rli->until_condition!=RELAY_LOG_INFO::UNTIL_NONE && 
+      rli->is_until_satisfied()) 
+  {
+    sql_print_error("Slave SQL thread stopped because it reached its"
+                    " UNTIL position");
+    /* 
+      Setting abort_slave flag because we do not want additional message about
+      error in query execution to be printed.
+    */
+    rli->abort_slave= 1;
+    pthread_mutex_unlock(&rli->data_lock);
+    return 1;
+  }
+  
   Log_event * ev = next_event(rli);
+  
   DBUG_ASSERT(rli->sql_thd==thd);
+  
   if (sql_slave_killed(thd,rli))
   {
+    pthread_mutex_unlock(&rli->data_lock);
     delete ev;
     return 1;
   }
@@ -2351,7 +2616,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   {
     int type_code = ev->get_type_code();
     int exec_res;
-    pthread_mutex_lock(&rli->data_lock);
 
     /*
       Skip queries originating from this server or number of
@@ -2380,7 +2644,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       pthread_mutex_unlock(&rli->data_lock);
       delete ev;     
       return 0;					// avoid infinite update loops
-    }
+    } 
     pthread_mutex_unlock(&rli->data_lock);
   
     thd->server_id = ev->server_id; // use the original server id for logging
@@ -2389,7 +2653,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;
-    thd->log_pos = ev->log_pos;
     exec_res = ev->exec_event(rli);
     DBUG_ASSERT(rli->sql_thd==thd);
     delete ev;
@@ -2397,7 +2660,8 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   }
   else
   {
-    sql_print_error("\
+    pthread_mutex_unlock(&rli->data_lock);
+    slave_print_error(rli, 0, "\
 Could not parse relay log event entry. The possible reasons are: the master's \
 binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
 binary log), the slave's relay log is corrupted (you can check this by running \
@@ -2472,7 +2736,7 @@ slave_begin:
   }
   
 
-  thd->proc_info = "connecting to master";
+  thd->proc_info = "Connecting to master";
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
     sql_print_error("Slave I/O thread: connected to master '%s@%s:%d',\
@@ -2519,7 +2783,7 @@ dump");
 	goto err;
       }
 	  
-      thd->proc_info = "Waiting to reconnect after a failed dump request";
+      thd->proc_info= "Waiting to reconnect after a failed binlog dump request";
       end_server(mysql);
       /*
 	First time retry immediately, assuming that we can recover
@@ -2540,7 +2804,7 @@ dump");
 	goto err;
       }
 
-      thd->proc_info = "Reconnecting after a failed dump request";
+      thd->proc_info = "Reconnecting after a failed binlog dump request";
       if (!suppress_warnings)
 	sql_print_error("Slave I/O thread: failed dump request, \
 reconnecting to try again, log '%s' at postion %s", IO_RPL_LOG_NAME,
@@ -2559,7 +2823,13 @@ after reconnect");
     while (!io_slave_killed(thd,mi))
     {
       bool suppress_warnings= 0;    
-      thd->proc_info = "Reading master update";
+      /* 
+         We say "waiting" because read_event() will wait if there's nothing to
+         read. But if there's something to read, it will not wait. The important
+         thing is to not confuse users by saying "reading" whereas we're in fact
+         receiving nothing.
+      */
+      thd->proc_info = "Waiting for master to send event";
       ulong event_len = read_event(mysql, mi, &suppress_warnings);
       if (io_slave_killed(thd,mi))
       {
@@ -2586,7 +2856,7 @@ max_allowed_packet",
 			  mysql_error(mysql));
 	  goto err;
 	}
-	thd->proc_info = "Waiting to reconnect after a failed read";
+	thd->proc_info = "Waiting to reconnect after a failed master event read";
 	end_server(mysql);
 	if (retry_count++)
 	{
@@ -2602,7 +2872,7 @@ max_allowed_packet",
 reconnect after a failed read");
 	  goto err;
 	}
-	thd->proc_info = "Reconnecting after a failed read";
+	thd->proc_info = "Reconnecting after a failed master event read";
 	if (!suppress_warnings)
 	  sql_print_error("Slave I/O thread: Failed reading log event, \
 reconnecting to retry, log '%s' position %s", IO_RPL_LOG_NAME,
@@ -2619,7 +2889,7 @@ reconnect done to recover from failed read");
       } // if (event_len == packet_error)
 	  
       retry_count=0;			// ok event, reset retry counter
-      thd->proc_info = "Queueing event from master";
+      thd->proc_info = "Queueing master event to the relay log";
       if (queue_event(mi,(const char*)mysql->net.read_pos + 1,
 		      event_len))
       {
@@ -2801,7 +3071,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 
   while (!sql_slave_killed(thd,rli))
   {
-    thd->proc_info = "Processing master log event"; 
+    thd->proc_info = "Reading event from the relay log"; 
     DBUG_ASSERT(rli->sql_thd == thd);
     THD_CHECK_SENTRY(thd);
     if (exec_relay_log_event(thd,rli))
@@ -2833,6 +3103,11 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0; 
+  /* 
+     Going out of the transaction. Necessary to mark it, in case the user
+     restarts replication from a non-transactional statement (with CHANGE
+     MASTER).
+  */
   /* Wake up master_pos_wait() */
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
@@ -2908,7 +3183,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     in the loop
   */
   {
-    Append_block_log_event aev(thd,0,0,0);
+    Append_block_log_event aev(thd,0,0,0,0);
   
     for (;;)
     {
@@ -2921,7 +3196,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
-	Execute_load_log_event xev(thd,0);
+	Execute_load_log_event xev(thd,0,0);
 	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
 	{
@@ -3048,6 +3323,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     tmp_buf[event_len]=0; // Create_file constructor wants null-term buffer
     buf = (const char*)tmp_buf;
   }
+  /*
+    This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to
+    send the loaded file, and write it to the relay log in the form of
+    Append_block/Exec_load (the SQL thread needs the data, as that thread is not
+    connected to the master).
+  */
   Log_event *ev = Log_event::read_log_event(buf,event_len, &errmsg,
 					    1 /*old format*/ );
   if (unlikely(!ev))
@@ -3075,6 +3356,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
+    /*
+      Yes it's possible to have CREATE_FILE_EVENT here, even if we're in
+      queue_old_event() which is for 3.23 events which don't comprise
+      CREATE_FILE_EVENT. This is because read_log_event() above has just
+      transformed LOAD_EVENT into CREATE_FILE_EVENT.
+    */
   {
     /* We come here when and only when tmp_buf != 0 */
     DBUG_ASSERT(tmp_buf);
@@ -3273,6 +3560,17 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+ 
+#ifdef HAVE_OPENSSL
+  if (mi->ssl)
+    mysql_ssl_set(mysql, 
+                  mi->ssl_key[0]?mi->ssl_key:0,
+                  mi->ssl_cert[0]?mi->ssl_cert:0, 
+                  mi->ssl_ca[0]?mi->ssl_ca:0,
+                  mi->ssl_capath[0]?mi->ssl_capath:0,
+                  mi->ssl_cipher[0]?mi->ssl_cipher:0);
+#endif
+
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
@@ -3440,17 +3738,18 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
   pthread_mutex_t *log_lock = rli->relay_log.get_log_lock(); 
   const char* errmsg=0;
   THD* thd = rli->sql_thd;
+  
   DBUG_ENTER("next_event");
   DBUG_ASSERT(thd != 0);
 
   /*
     For most operations we need to protect rli members with data_lock,
-    so we will hold it for the most of the loop below
-    However, we will release it whenever it is worth the hassle, 
-    and in the cases when we go into a pthread_cond_wait() with the
-    non-data_lock mutex
+    so we assume calling function acquired this mutex for us and we will
+    hold it for the most of the loop below However, we will release it
+    whenever it is worth the hassle,  and in the cases when we go into a
+    pthread_cond_wait() with the non-data_lock mutex
   */
-  pthread_mutex_lock(&rli->data_lock);
+  safe_mutex_assert_owner(&rli->data_lock);
   
   while (!sql_slave_killed(thd,rli))
   {
@@ -3509,7 +3808,6 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
       DBUG_ASSERT(thd==rli->sql_thd);
       if (hot_log)
 	pthread_mutex_unlock(log_lock);
-      pthread_mutex_unlock(&rli->data_lock);
       DBUG_RETURN(ev);
     }
     DBUG_ASSERT(thd==rli->sql_thd);
@@ -3574,7 +3872,7 @@ Before assert, my_b_tell(cur_log)=%s  rli->event_relay_log_pos=%s",
         pthread_mutex_unlock(&rli->log_space_lock);
         pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !
-        rli->relay_log.wait_for_update(rli->sql_thd);
+        rli->relay_log.wait_for_update(rli->sql_thd, 1);
         // re-acquire data lock since we released it earlier
         pthread_mutex_lock(&rli->data_lock);
 	continue;
@@ -3685,7 +3983,6 @@ event(errno: %d  cur_log->error: %d)",
     errmsg = "slave SQL thread was killed";
 
 err:
-  pthread_mutex_unlock(&rli->data_lock);
   if (errmsg)
     sql_print_error("Error reading relay log event: %s", errmsg);
   DBUG_RETURN(0);

@@ -1,6 +1,9 @@
 /* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
    This file is public domain and comes with NO WARRANTY of any kind */
 /* Updated by Thiago Delgado Pinto - thiagodp@ieg.com.br - 06.07.2002 */
+
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NÃO",
@@ -219,26 +222,26 @@
 "Não pode acrescentar uma restrição de chave estrangeira",
 "Não pode acrescentar uma linha filha: uma restrição de chave estrangeira falhou",
 "Não pode apagar uma linha pai: uma restrição de chave estrangeira falhou",
-"Erro connectando para o master: %-.128s",
+"Erro conectando com o master: %-.128s",
 "Erro rodando consulta no master: %-.128s",
 "Erro quando executando comando %s: %-.128s",
 "Uso errado de %s e %s",
-"Os comandos SELECT usados têm diferentes números de colunas",
-"Não pode executar a consulta porque você tem um conflitante travamento de leitura",
-"Combinação de tabelas transacionais e não transacionais está desativada",
+"Os comandos SELECT usados têm diferente número de colunas",
+"Não posso executar a consulta porque você tem um conflito de travamento de leitura",
+"Mistura de tabelas transacional e não-transacional está desabilitada",
 "Opção '%s' usada duas vezes no comando",
-"Usuário '%-.64s' há excedido o '%s' de recursos (atual valor: %ld)",
-"Acesso negado. Você necessita o privilégio %-.128s para essa operação",
+"Usuário '%-.64s' tem excedido o '%s' recurso (atual valor: %ld)",
+"Acesso negado. Você precisa o privilégio %-.128s para essa operação",
 "Variável '%-.64s' é uma LOCAL variável e não pode ser usada com SET GLOBAL",
-"Variável '%-.64s' é uma GLOBAL variável e deve  ser configurada com SET GLOBAL",
-"Variável '%-.64s' não tem um valor default (padrão)",
+"Variável '%-.64s' é uma GLOBAL variável e deve ser configurada com SET GLOBAL",
+"Variável '%-.64s' não tem um valor padrão",
 "Variável '%-.64s' não pode ser configurada para o valor de '%-.64s'",
-"Tipo de argumento errado para a variável '%-.64s'",
+"Tipo errado de argumento para variável '%-.64s'",
 "Variável '%-.64s' somente pode ser configurada, não lida",
-"Uso/localização errada de '%s'",
+"Errado uso/colocação de '%s'",
 "Esta versão de MySQL não suporta ainda '%s'",
-"Obteve fatal error %d: '%-.128s' a partir do master quando lendo dados do binary log",
-"Slave SQL thread ignored the query because of replicate-*-table rules",
+"Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log",
+"Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela"
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
 "Error de cardinalidade (mais/menos que %d colunas)",
@@ -261,6 +264,11 @@
 "Z_MEM_ERROR: Não suficiente espaço no buffer emissor para zlib (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
 "Z_DATA_ERROR: Dados de entrada está corrupto para zlib",
 "%d linha(s) foi(foram) cortada(s) por group_concat()",
+"Record count is fewer than the column count at row %ld";
+"Record count is more than the column count at row %ld";
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
+"Data truncated, out of range for column '%s' at row %ld";
+"Data truncated for column '%s' at row %ld"
 "Usando engine de armazenamento %s para tabela '%s'",
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",
 "Can't drop one or more of the requested users"
@@ -269,3 +277,9 @@
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
+"Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format"
+"Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL"
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
+"SQL thread is not to be started so UNTIL options are ignored"

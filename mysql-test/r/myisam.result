@@ -285,6 +285,17 @@ insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "Sergei");
+update t1 set b=repeat('a',256);
+update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where i8=1;
+select i1,i2 from t1;
+i1	i2
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop table t1;
 CREATE TABLE `t1` (
 `post_id` mediumint(8) unsigned NOT NULL auto_increment,
@@ -365,8 +376,47 @@ explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1,t2;
+create table t1 (a int not null auto_increment primary key, b varchar(255));
+insert into t1 (b) values (repeat('a',100)),(repeat('b',100)),(repeat('c',100));
+update t1 set b=repeat(left(b,1),200) where a=1;
+delete from t1 where (a & 1)= 0;
+update t1 set b=repeat('e',200) where a=1;
+flush tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+update t1 set b=repeat(left(b,1),255) where a between 1 and 5;
+update t1 set b=repeat(left(b,1),10) where a between 32 and 43;
+update t1 set b=repeat(left(b,1),2) where a between 64 and 66;
+update t1 set b=repeat(left(b,1),65) where a between 67 and 70;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+insert into t1 (b) values (repeat('z',100));
+update t1 set b="test" where left(b,1) > 'n';
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) TYPE=MyISAM;
 ERROR 42000: This version of MySQL doesn't yet support 'RTREE INDEX'
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 't1'
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
+insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
+insert t2 select * from t1;
+checksum table t1, t2, t3 quick;
+Table	Checksum
+test.t1	968604391
+test.t2	NULL
+test.t3	NULL
+checksum table t1, t2, t3;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	NULL
+checksum table t1, t2, t3 extended;
+Table	Checksum
+test.t1	968604391
+test.t2	968604391
+test.t3	NULL
+drop table t1,t2;

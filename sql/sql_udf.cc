@@ -92,10 +92,13 @@ static void init_syms(udf_func *tmp)
   tmp->func_deinit = dlsym(tmp->dlhandle, nm);
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
-    (void)strmov( end, "_reset" );
-    tmp->func_reset = dlsym( tmp->dlhandle, nm );
+    (void)strmov( end, "_clear" );
+    tmp->func_clear = dlsym( tmp->dlhandle, nm );
     (void)strmov( end, "_add" );
     tmp->func_add = dlsym( tmp->dlhandle, nm );
+    /* Give error if _clear and _add doesn't exists */
+    if (!tmp->func_clear || ! tmp->func_add)
+      tmp->func= 0;
   }
 }
 
@@ -342,7 +345,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   tmp->returns = ret;
   tmp->type = type;
   tmp->usage_count=1;
-  if (hash_insert(&udf_hash,(byte*)  tmp))
+  if (my_hash_insert(&udf_hash,(byte*)  tmp))
     return 0;
   using_udf_functions=1;
   return tmp;
@@ -417,7 +420,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   u_d->func=udf->func;
   u_d->func_init=udf->func_init;
   u_d->func_deinit=udf->func_deinit;
-  u_d->func_reset=udf->func_reset;
+  u_d->func_clear=udf->func_clear;
   u_d->func_add=udf->func_add;
 
   /* create entry in mysql/func table */
@@ -429,7 +432,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
 
-  restore_record(table,default_values);		// Get default values for fields
+  restore_record(table,default_values);		// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns);
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);

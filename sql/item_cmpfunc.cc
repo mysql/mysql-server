@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003
+/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -561,6 +561,7 @@ void Item_func_interval::fix_length_and_dec()
   used_tables_cache|= row->used_tables();
   not_null_tables_cache&= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
+  const_item_cache&= row->const_item();
 }
 
 
@@ -714,8 +715,21 @@ Item_func_ifnull::fix_length_and_dec()
     agg_arg_collations(collation, args, arg_count);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
+  
+  cached_field_type= args[0]->field_type();
+  if (cached_field_type != args[1]->field_type())
+    cached_field_type= Item_func::field_type();
 }
 
+enum_field_types Item_func_ifnull::field_type() const 
+{
+  return cached_field_type;
+}
+
+Field *Item_func_ifnull::tmp_table_field(TABLE *table)
+{
+  return tmp_table_field_from_field_type(table);
+}
 
 double
 Item_func_ifnull::val()
@@ -1461,17 +1475,20 @@ void Item_func_in::fix_length_and_dec()
       DBUG_ASSERT(0);
       return;
     }
-    uint j=0;
-    for (uint i=1 ; i < arg_count ; i++)
+    if (array && !(current_thd->is_fatal_error))	// If not EOM
     {
-      array->set(j,args[i]);
-      if (!args[i]->null_value)			// Skip NULL values
-	j++;
-      else
-	have_null= 1;
+      uint j=0;
+      for (uint i=1 ; i < arg_count ; i++)
+      {
+	array->set(j,args[i]);
+	if (!args[i]->null_value)			// Skip NULL values
+	  j++;
+	else
+	  have_null= 1;
+      }
+      if ((array->used_count=j))
+	array->sort();
     }
-    if ((array->used_count=j))
-      array->sort();
   }
   else
   {
@@ -1552,6 +1569,31 @@ longlong Item_func_bit_and::val_int()
   return (longlong) (arg1 & arg2);
 }
 
+Item_cond::Item_cond(THD *thd, Item_cond &item)
+  :Item_bool_func(thd, item),
+   abort_on_null(item.abort_on_null),
+   and_tables_cache(item.and_tables_cache)
+{
+  /*
+    here should be following text:
+
+  List_iterator_fast<Item*> li(item.list);
+  while(Item *it= li++)
+    list.push_back(it);
+
+    but it do not need,
+    because this constructor used only for AND/OR and
+    argument list will be copied by copy_andor_arguments call
+  */
+
+}
+
+void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
+{
+  List_iterator_fast<Item> li(item->list);
+  while(Item *it= li++)
+    list.push_back(it->copy_andor_structure(thd));
+}
 
 bool
 Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
@@ -1570,7 +1612,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error flag is set!
+    return 1;					// Fatal error flag is set!
   while ((item=li++))
   {
     table_map tmp_table_map;

@@ -53,7 +53,11 @@ public:
   bool store(const char *from, CHARSET_INFO *cs);
   String *storage_packet() { return packet; }
   inline void free() { packet->free(); }
+#ifndef EMBEDDED_LIBRARY
   bool write();
+#else
+  virtual bool write();
+#endif
   inline  bool store(uint32 from)
   { return store_long((longlong) from); }
   inline  bool store(longlong from)
@@ -121,6 +125,10 @@ public:
   Protocol_prep(THD *thd) :Protocol(thd) {}
   virtual bool prepare_for_send(List<Item> *item_list);
   virtual void prepare_for_resend();
+#ifdef EMBEDDED_LIBRARY
+  virtual bool write();
+  bool net_store_data(const char *from, uint length);
+#endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);
@@ -164,8 +172,15 @@ void net_printf(THD *thd,uint sql_errno, ...);
 void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd, bool no_flush=0);
+bool send_old_password_request(THD *thd);
 char *net_store_length(char *packet,ulonglong length);
 char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);
 char *net_store_data(char *to,int32 from);
 char *net_store_data(char *to,longlong from);
+
+#ifdef EMBEDDED_LIBRARY
+bool setup_params_data(struct st_prep_stmt *stmt);
+bool setup_params_data_withlog(struct st_prep_stmt *stmt);
+#endif
+

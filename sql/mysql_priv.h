@@ -74,9 +74,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 ****************************************************************************/
 
 #define ACL_CACHE_SIZE		256
-/* Password lengh for 4.1 version previous versions had 16 bytes password hash */
-#define HASH_PASSWORD_LENGTH	45
-#define HASH_OLD_PASSWORD_LENGTH 16
 #define MAX_PASSWORD_LENGTH	32
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
@@ -212,16 +209,17 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_NOT_USED			16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
-#define MODE_POSTGRESQL			128
-#define MODE_ORACLE			256
-#define MODE_MSSQL			512
-#define MODE_DB2			1024
-#define MODE_SAPDB			2048
-#define MODE_NO_KEY_OPTIONS             4096
-#define MODE_NO_TABLE_OPTIONS           8192
-#define MODE_NO_FIELD_OPTIONS          16384
-#define MODE_MYSQL323                  32768
-#define MODE_MYSQL40                   65536
+#define MODE_NO_DIR_IN_CREATE		128
+#define MODE_POSTGRESQL			256
+#define MODE_ORACLE			512
+#define MODE_MSSQL			1024
+#define MODE_DB2			2048
+#define MODE_SAPDB			4096
+#define MODE_NO_KEY_OPTIONS             8192
+#define MODE_NO_TABLE_OPTIONS          16384 
+#define MODE_NO_FIELD_OPTIONS          32768
+#define MODE_MYSQL323                  65536
+#define MODE_MYSQL40                   (MODE_MYSQL323*2)
 #define MODE_ANSI	               (MODE_MYSQL40*2)
 #define MODE_NO_AUTO_VALUE_ON_ZERO     (MODE_ANSI*2)
 
@@ -324,6 +322,15 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
+struct Query_cache_query_flags
+{
+  unsigned int client_long_flag:1;
+  uint character_set_client_num;
+  uint character_set_results_num;
+  uint collation_connection_num;
+  ha_rows limit;
+};
+#define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
 #define query_cache_store_query(A, B) query_cache.store_query(A, B)
 #define query_cache_destroy() query_cache.destroy()
@@ -337,6 +344,7 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #define query_cache_invalidate_by_MyISAM_filename_ref \
   &query_cache_invalidate_by_MyISAM_filename
 #else
+#define QUERY_CACHE_FLAGS_SIZE 0
 #define query_cache_store_query(A, B)
 #define query_cache_destroy()
 #define query_cache_result_size_limit(A)
@@ -395,22 +403,30 @@ bool check_stack_overrun(THD *thd,char *dummy);
 #define check_stack_overrun(A, B) 0
 #endif
 
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
-                          bool *write_to_binlog);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
-bool check_access(THD *thd, ulong access, const char *db=0, ulong *save_priv=0,
-		  bool no_grant=0, bool no_errors=0);
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
+                          bool *write_to_binlog);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
+		  bool no_grant, bool no_errors);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors=0);
+			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
+#else
+#define check_access(thd, access, db, save_priv, no_grant, no_errors) false
+#define  check_table_access(thd, want_access, tables, no_errors) false
+#define check_global_access(thd, want_access) false
+#endif
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
+int mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
+		      HA_CHECK_OPT* check_opt);
 int mysql_check_table(THD* thd, TABLE_LIST* table_list,
 		      HA_CHECK_OPT* check_opt);
 int mysql_repair_table(THD* thd, TABLE_LIST* table_list,
@@ -558,7 +574,8 @@ void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type);
+		enum enum_var_type value_type,
+		pthread_mutex_t *mutex);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_table_types(THD *thd);
@@ -576,6 +593,7 @@ void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 			List<Item> &values, ulong counter);
+void setup_param_functions(Item_param *param, uchar param_type);
 
 /* sql_error.cc */
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
@@ -597,7 +615,8 @@ void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
-		       Item *default_value, Item *comment,
+		       Item *default_value,
+		       LEX_STRING *comment,
 		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
 		       uint uint_geom_type);
 void store_position_for_column(const char *name);
@@ -705,6 +724,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      enum_log_type type, bool read_append,
 	      bool no_auto_events, ulong max_size);
 
+/* mysqld.cc */
+extern void yyerror(const char*);
+
 /*
   External variables
 */
@@ -715,10 +737,10 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
-extern const char *first_keyword, *localhost, *delayed_user, *binary_keyword;
+extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
-extern const char *in_left_expr_name;
+extern const char *in_left_expr_name, *in_additional_cond;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
@@ -747,6 +769,7 @@ extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
+extern ulong slave_net_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
@@ -772,7 +795,7 @@ extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly;
 extern my_bool opt_enable_named_pipe;
-extern my_bool opt_old_passwords, use_old_passwords;
+extern my_bool opt_secure_auth;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 
@@ -784,7 +807,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
-       LOCK_global_system_variables;
+       LOCK_global_system_variables, LOCK_user_conn;
 extern rw_lock_t	LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
@@ -792,7 +815,8 @@ extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern DATE_FORMAT dayord;
-extern String empty_string;
+extern String my_empty_string;
+extern String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern struct show_table_type_st table_type_vars[];
 extern SHOW_COMP_OPTION have_isam;
@@ -801,6 +825,11 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+extern HASH open_cache;
+extern TABLE *unused_tables;
+extern I_List<i_string> binlog_do_db, binlog_ignore_db;
+extern const char* any_db;
+extern struct my_option my_long_options[];
 
 /* optional things, have_* variables */
 
@@ -935,6 +964,14 @@ bool flush_error_log(void);
 void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
 
+/* sql_yacc.cc */
+extern int yyparse(void *thd);
+
+/* frm_crypt.cc */
+#ifdef HAVE_CRYPTED_FRM
+SQL_CRYPT *get_crypt_for_frm(void);
+#endif
+
 /* Some inline functions for more speed */
 
 inline bool add_item_to_list(THD *thd, Item *item)
@@ -964,6 +1001,12 @@ inline void mark_as_null_row(TABLE *table)
   bfill(table->null_flags,table->null_bytes,255);
 }
 
+inline void table_case_convert(char * name, uint length)
+{
+  if (lower_case_table_names)
+    my_casedn(files_charset_info, name, length);
+}
+
 compare_func_creator comp_eq_creator(bool invert);
 compare_func_creator comp_ge_creator(bool invert);
 compare_func_creator comp_gt_creator(bool invert);
@@ -980,6 +1023,7 @@ compare_func_creator comp_ne_creator(bool invert);
     table_list TABLE_LIST structure pointer (owner of TABLE)
     tablenr - table number
 */
+
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;

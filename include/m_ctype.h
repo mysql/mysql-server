@@ -63,6 +63,7 @@ typedef struct unicase_info_st
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
 #define MY_CS_NONTEXT	256    /* if a charset is not sprintf() compatible */
+#define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
 
 #define MY_CHARSET_UNDEFINED 0
 
@@ -74,6 +75,12 @@ typedef struct my_uni_idx_st
   uchar  *tab;
 } MY_UNI_IDX;
 
+typedef struct
+{
+  uint beg;
+  uint end;
+  uint mblen;
+} my_match_t;
 
 enum my_lex_states
 {
@@ -115,12 +122,18 @@ typedef struct my_collation_handler_st
 
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
   
+  uint (*instr)(struct charset_info_st *,
+                const char *big,   uint b_length,
+                const char *small, uint s_length,
+                my_match_t *match, uint nmatch);
+  
   /* Hash calculation */
   void (*hash_sort)(struct charset_info_st *cs, const uchar *key, uint len,
 		    ulong *nr1, ulong *nr2); 
 } MY_COLLATION_HANDLER;
 
-extern MY_COLLATION_HANDLER my_collation_bin_handler;
+extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
+extern MY_COLLATION_HANDLER my_collation_8bit_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 
 
@@ -131,6 +144,7 @@ typedef struct my_charset_handler_st
   int     (*mbcharlen)(struct charset_info_st *, uint);
   uint    (*numchars)(struct charset_info_st *, const char *b, const char *e);
   uint    (*charpos)(struct charset_info_st *, const char *b, const char *e, uint pos);
+  uint    (*lengthsp)(struct charset_info_st *, const char *ptr, uint length);
   
   /* Unicode convertion */
   int (*mb_wc)(struct charset_info_st *cs,my_wc_t *wc,
@@ -240,6 +254,13 @@ extern void my_hash_sort_simple(CHARSET_INFO *cs,
 				const uchar *key, uint len,
 				ulong *nr1, ulong *nr2); 
 
+extern uint my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, uint length);
+
+extern uint my_instr_simple(struct charset_info_st *,
+                            const char *big,   uint b_length,
+                            const char *small, uint s_length,
+                            my_match_t *match, uint nmatch);
+
 
 /* Functions for 8bit */
 extern void my_caseup_str_8bit(CHARSET_INFO *, char *);
@@ -304,6 +325,10 @@ int my_wildcmp_mb(CHARSET_INFO *,
 		  int escape, int w_one, int w_many);
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
+uint my_instr_mb(struct charset_info_st *,
+                 const char *big,   uint b_length,
+                 const char *small, uint s_length,
+                 my_match_t *match, uint nmatch);
 
 
 extern my_bool my_parse_charset_xml(const char *bug, uint len,

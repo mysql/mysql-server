@@ -34,7 +34,6 @@ RPL_STATUS rpl_status=RPL_NULL;
 pthread_mutex_t LOCK_rpl_status;
 pthread_cond_t COND_rpl_status;
 HASH slave_list;
-extern const char* any_db;
 
 const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
 TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",
@@ -154,9 +153,8 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   SLAVE_INFO *si;
   uchar *p= packet, *p_end= packet + packet_length;
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db))
+  if (check_access(thd, REPL_SLAVE_ACL, any_db,0,0,0))
     return 1;
-
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err2;
 
@@ -177,7 +175,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
   pthread_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd,0,0);
-  res= hash_insert(&slave_list, (byte*) si);
+  res= my_hash_insert(&slave_list, (byte*) si);
   pthread_mutex_unlock(&LOCK_slave_list);
   return res;
 
@@ -250,6 +248,18 @@ static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
   /* Impossible */
 }
 
+/* 
+  Before 4.0.15 we had a member of THD called log_pos, it was meant for
+  failsafe replication code in repl_failsafe.cc which is disabled until
+  it is reworked. Event's log_pos used to be preserved through 
+  log-slave-updates to make code in repl_failsafe.cc work (this 
+  function, SHOW NEW MASTER); but on the other side it caused unexpected
+  values in Exec_master_log_pos in A->B->C replication setup, 
+  synchronization problems in master_pos_wait(), ... So we 
+  (Dmitri & Guilhem) removed it.
+  
+  So for now this function is broken. 
+*/
 
 int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
 {
@@ -415,6 +425,9 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   return (Slave_log_event*)ev;
 }
 
+/*
+   This function is broken now. See comment for translate_master().
+ */
 
 int show_new_master(THD* thd)
 {
@@ -525,7 +538,7 @@ HOSTS";
 	goto err;
       }
       si->server_id = server_id;
-      hash_insert(&slave_list, (byte*)si);
+      my_hash_insert(&slave_list, (byte*)si);
     }
     strmake(si->host, row[1], sizeof(si->host)-1);
     si->port = atoi(row[port_ind]);
@@ -670,6 +683,17 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
   }
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+#ifdef HAVE_OPENSSL
+  if (mi->ssl)
+    mysql_ssl_set(mysql, 
+        mi->ssl_key[0]?mi->ssl_key:0,
+        mi->ssl_cert[0]?mi->ssl_cert:0,
+        mi->ssl_ca[0]?mi->ssl_ca:0, 
+        mi->ssl_capath[0]?mi->ssl_capath:0,
+        mi->ssl_cipher[0]?mi->ssl_cipher:0);
+#endif
+    
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
@@ -902,6 +926,12 @@ int load_master_data(THD* thd)
   active_mi->rli.group_master_log_pos = active_mi->master_log_pos;
   strmake(active_mi->rli.group_master_log_name,active_mi->master_log_name,
 	  sizeof(active_mi->rli.group_master_log_name)-1);
+  /*
+     Cancel the previous START SLAVE UNTIL, as the fact to download
+     a new copy logically makes UNTIL irrelevant.
+  */
+  clear_until_condition(&active_mi->rli);
+
   /*
     No need to update rli.event* coordinates, they will be when the slave
     threads start ; only rli.group* coordinates are necessary here.

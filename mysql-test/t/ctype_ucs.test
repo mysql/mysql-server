@@ -1,0 +1,194 @@
+-- source include/have_ucs2.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+SET CHARACTER SET koi8r;
+
+#
+# Check that 0x20 is only trimmed when it is 
+# a part of real SPACE character, not just a part
+# of a multibyte sequence.
+# Note, CYRILLIC LETTER ER is used as an example, which
+# is stored as 0x0420 in UCS2, thus contains 0x20 in the
+# low byte. The second character is THREE-PER-M, U+2004,
+# which contains 0x20 in the high byte.
+#
+
+CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (_koi8r'ò'), (X'2004');
+SELECT hex(word) FROM t1 ORDER BY word;
+DELETE FROM t1;
+
+#
+# Check that real spaces are correctly trimmed.
+#
+
+INSERT INTO t1 VALUES (X'042000200020'), (X'200400200020');
+SELECT hex(word) FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+#
+# Check LPAD/RPAD
+#
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'0421');
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
+SELECT LPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'0421');
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
+SELECT RPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+
+CREATE TABLE t1 SELECT 
+LPAD(_ucs2 X'0420',10,_ucs2 X'0421') l,
+RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+######################################################
+#
+# Test of like
+#
+
+SET NAMES koi8r;
+SET character_set_connection=ucs2;
+
+create table t1 (a varchar(10) character set ucs2, key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+explain select * from t1 where a like 'abc%';
+explain select * from t1 where a like concat('abc','%');
+select * from t1 where a like "abc%";
+select * from t1 where a like concat("abc","%");
+select * from t1 where a like "ABC%";
+select * from t1 where a like "test%";
+select * from t1 where a like "te_t";
+select * from t1 where a like "%a%";
+select * from t1 where a like "%abcd%";
+select * from t1 where a like "%abc\d%";
+drop table t1;
+
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
+INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏÌÄÖ'),('æÙ×ÁÐÒÏÌÄÖ'),('Æù×ÁÐÒÏÌÄÖ'),('ÆÙ÷ÁÐÒÏÌÄÖ');
+INSERT INTO t1 VALUES ('ÆÙ×áÐÒÏÌÄÖ'),('ÆÙ×ÁðÒÏÌÄÖ'),('ÆÙ×ÁÐòÏÌÄÖ'),('ÆÙ×ÁÐÒïÌÄÖ');
+INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏìÄÖ'),('ÆÙ×ÁÐÒÏÌäÖ'),('ÆÙ×ÁÐÒÏÌÄö'),('æù÷áðòïìäö');
+SELECT * FROM t1 WHERE a LIKE '%Æù×Á%';
+SELECT * FROM t1 WHERE a LIKE '%Æù×%';
+SELECT * FROM t1 WHERE a LIKE 'Æù×Á%';
+SELECT * FROM t1 WHERE a LIKE 'Æù×Á%' COLLATE ucs2_bin;
+DROP TABLE t1;
+
+#
+# Bug 1181
+#
+CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
+TYPE=MyISAM CHARACTER SET ucs2 COLLATE ucs2_general_ci;
+INSERT INTO t1 (word) VALUES ("cat");
+SELECT * FROM t1 WHERE word LIKE "c%";
+SELECT * FROM t1 WHERE word LIKE "ca_";
+SELECT * FROM t1 WHERE word LIKE "cat";
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
+DROP TABLE t1;
+
+######################################################
+
+#
+# Bug 1264
+#
+# Description: 
+#
+# When using a ucs2 table in MySQL, 
+# either with ucs2_general_ci or ucs2_bin collation,
+# words are returned in an incorrect order when using ORDER BY
+# on an _indexed_ CHAR or VARCHAR column. They are sorted with
+# the longest word *first* instead of last. I.E. The word "aardvark"
+# is in the results before the word "a".
+#
+# If there is no index for the column, the problem does not occur.
+#
+# Interestingly, if there is no second column, the words are returned
+# in the correct order. 
+#
+# According to EXPLAIN, it looks like when the output includes columns that
+# are not part of the index sorted on, it does a filesort, which fails. 
+# Using a straight index yields correct results.
+
+SET NAMES latin1;
+
+#
+# Two fields, index
+#
+
+CREATE TABLE t1 (
+   word VARCHAR(64),
+   bar INT(11) default 0,
+   PRIMARY KEY (word))
+   TYPE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci ;
+
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+SELECT * FROM t1 ORDER BY word;
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+SELECT word FROM t1 ORDER by word;
+DROP TABLE t1;
+
+#
+# One field, index
+# 
+
+CREATE TABLE t1 (
+   word VARCHAR(64) ,
+   PRIMARY KEY (word))
+   TYPE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci;
+
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY WORD;
+SELECT * FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+
+#
+# Two fields, no index
+#
+
+CREATE TABLE t1 (
+   word TEXT,
+   bar INT(11) AUTO_INCREMENT,
+   PRIMARY KEY (bar))
+   TYPE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci ;
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a" );
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+SELECT * FROM t1 ORDER BY word;
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+SELECT word FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+#
+# END OF Bug 1264 test
+#
+########################################################
+

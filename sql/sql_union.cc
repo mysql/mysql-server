@@ -116,21 +116,20 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
-  SELECT_LEX *select_cursor;
+  SELECT_LEX *select_cursor,*sl;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   if (prepared)
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  found_rows_for_union= test(first_select_in_union()->options
-			     & OPTION_FOUND_ROWS);
+  found_rows_for_union= first_select_in_union()->options & OPTION_FOUND_ROWS;
   TMP_TABLE_PARAM tmp_table_param;
   result= sel_result;
   t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
-  thd->lex.current_select= select_cursor= first_select_in_union();
+  thd->lex.current_select= sl= select_cursor= first_select_in_union();
   /* Global option */
   if (t_and_f)
   {
@@ -188,7 +187,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   union_result->not_describe=1;
   union_result->tmp_table_param=tmp_table_param;
 
-  for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+  for (;sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
 			 sl->options | thd->options | SELECT_NO_UNLOCK,
@@ -198,7 +197,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
       select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR && !sl->braces)
+    if (select_limit_cnt == HA_POS_ERROR || sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
     res= join->prepare(&sl->ref_pointer_array,
@@ -242,7 +241,7 @@ int st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
-  ha_rows add_rows=0;
+  ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !(dependent || uncacheable))
@@ -259,29 +258,52 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
-      ha_rows rows= 0;
+      ha_rows records_at_start= 0;
       thd->lex.current_select= sl;
 
       if (optimized)
 	res= sl->join->reinit();
       else
       {
-	offset_limit_cnt= sl->offset_limit;
-	select_limit_cnt= sl->select_limit+sl->offset_limit;
+	if (sl != global_parameters)
+	{
+	  offset_limit_cnt= sl->offset_limit;
+	  select_limit_cnt= sl->select_limit+sl->offset_limit;
+	}
+	else
+	{
+	  offset_limit_cnt= 0;
+	  /*
+	    We can't use LIMIT at this stage if we are using ORDER BY for the
+	    whole query
+	  */
+	  if (sl->order_list.first)
+	    select_limit_cnt= HA_POS_ERROR;
+	  else
+	    select_limit_cnt= sl->select_limit+sl->offset_limit;
+	}
 	if (select_limit_cnt < sl->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
-	if (select_limit_cnt == HA_POS_ERROR)
+
+	/*
+	  When using braces, SQL_CALC_FOUND_ROWS affects the whole query.
+	  We don't calculate found_rows() per union part
+	*/
+	if (select_limit_cnt == HA_POS_ERROR || sl->braces)
 	  sl->options&= ~OPTION_FOUND_ROWS;
-	else if (found_rows_for_union)
+	else 
 	{
-	  rows= sl->select_limit;
-	  sl->options|= OPTION_FOUND_ROWS;
+	  /*
+	    We are doing an union without braces.  In this case
+	    SQL_CALC_FOUND_ROWS should be done on all sub parts
+	  */
+	  sl->options|= found_rows_for_union;
 	}
-	
-	/* 
-	   As far as union share table space we should reassign table map,
-	   which can be spoiled by 'prepare' of JOIN of other UNION parts
-	   if it use same tables
+	sl->join->select_options=sl->options;
+	/*
+	  As far as union share table space we should reassign table map,
+	  which can be spoiled by 'prepare' of JOIN of other UNION parts
+	  if it use same tables
 	*/
 	uint tablenr=0;
 	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
@@ -303,8 +325,10 @@ int st_select_lex_unit::exec()
       }
       if (!res)
       {
+	records_at_start= table->file->records;
 	sl->join->exec();
 	res= sl->join->error;
+	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
 	{
 	  thd->lex.current_select= lex_select_save;
@@ -316,10 +340,19 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
-      if (found_rows_for_union  && !sl->braces &&
-	  (sl->options & OPTION_FOUND_ROWS))
-	add_rows+= (sl->join->send_records > rows) ?
-	  sl->join->send_records - rows : 0;
+      /* Needed for the following test and for records_at_start in next loop */
+      table->file->info(HA_STATUS_VARIABLE);
+      if (found_rows_for_union & sl->options)
+      {
+	/*
+	  This is a union without braces. Remember the number of rows that
+	  could also have been part of the result set.
+	  We get this from the difference of between total number of possible
+	  rows and actual rows added to the temporary table.
+	*/
+	add_rows+= (ulonglong) (thd->limit_found_rows - (ulonglong)
+			      ((table->file->records -  records_at_start)));
+      }
     }
   }
   optimized= 1;
@@ -332,18 +365,15 @@ int st_select_lex_unit::exec()
     List<Item_func_match> empty_list;
     empty_list.empty();
 
-    if (!thd->is_fatal_error)			// Check if EOM
+    if (!thd->is_fatal_error)				// Check if EOM
     {
       ulong options= thd->options;
       thd->lex.current_select= fake_select_lex;
-      if (select_cursor->braces)
-      {
-	offset_limit_cnt= global_parameters->offset_limit;
-	select_limit_cnt= global_parameters->select_limit +
-	  global_parameters->offset_limit;
-	if (select_limit_cnt < global_parameters->select_limit)
-	  select_limit_cnt= HA_POS_ERROR;		// no limit
-      }
+      offset_limit_cnt= global_parameters->offset_limit;
+      select_limit_cnt= global_parameters->select_limit +
+	global_parameters->offset_limit;
+      if (select_limit_cnt < global_parameters->select_limit)
+	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	options&= ~OPTION_FOUND_ROWS;
       else if (found_rows_for_union && !describe)
@@ -384,12 +414,8 @@ int st_select_lex_unit::exec()
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
 			options | SELECT_NO_UNLOCK,
 			result, this, fake_select_lex, 0);
-      if (found_rows_for_union && !res)
-      {
-	thd->limit_found_rows= table->file->records;
-	if (!select_cursor->braces)
-	  thd->limit_found_rows+= add_rows;
-      }
+      if (!res)
+	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
       /*
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently

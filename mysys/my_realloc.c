@@ -23,40 +23,41 @@
 
 	/* My memory re allocator */
 
-gptr my_realloc(gptr oldpoint, uint Size, myf MyFlags)
+gptr my_realloc(gptr oldpoint, uint size, myf my_flags)
 {
   gptr point;
   DBUG_ENTER("my_realloc");
-  DBUG_PRINT("my",("ptr: %lx  Size: %u  MyFlags: %d",oldpoint, Size, MyFlags));
+  DBUG_PRINT("my",("ptr: %lx  size: %u  my_flags: %d",oldpoint, size,
+		   my_flags));
 
-  if (!oldpoint && (MyFlags & MY_ALLOW_ZERO_PTR))
-    DBUG_RETURN(my_malloc(Size,MyFlags));
+  if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
+    DBUG_RETURN(my_malloc(size,my_flags));
 #ifdef USE_HALLOC
-  if (!(point = malloc(Size)))
+  if (!(point = malloc(size)))
   {
-    if (MyFlags & MY_FREE_ON_ERROR)
-      my_free(oldpoint,MyFlags);
-    if (MyFlags & MY_HOLD_ON_ERROR)
+    if (my_flags & MY_FREE_ON_ERROR)
+      my_free(oldpoint,my_flags);
+    if (my_flags & MY_HOLD_ON_ERROR)
       DBUG_RETURN(oldpoint);
     my_errno=errno;
-    if (MyFlags & MY_FAE+MY_WME)
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),Size);
+    if (my_flags & MY_FAE+MY_WME)
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),size);
   }
   else
   {
-    memcpy(point,oldpoint,Size);
+    memcpy(point,oldpoint,size);
     free(oldpoint);
   }
 #else
-  if ((point = (char*)realloc(oldpoint,Size)) == NULL)
+  if ((point = (char*)realloc(oldpoint,size)) == NULL)
   {
-    if (MyFlags & MY_FREE_ON_ERROR)
+    if (my_flags & MY_FREE_ON_ERROR)
       my_free(oldpoint,MyFLAGS);
-    if (MyFlags & MY_HOLD_ON_ERROR)
+    if (my_flags & MY_HOLD_ON_ERROR)
       DBUG_RETURN(oldpoint);
     my_errno=errno;
-    if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG), Size);
+    if (my_flags & (MY_FAE+MY_WME))
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG), size);
   }
 #endif
   DBUG_PRINT("exit",("ptr: %lx",point));

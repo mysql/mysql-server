@@ -5687,12 +5687,13 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-  my_strnncoll_simple,/* strnncoll  */
+  my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
-  my_like_range_simple,/* like_range */
+  my_like_range_simple, /* like_range */
   my_wildcmp_mb,	/* wildcmp    */
-  my_strcasecmp_mb,
+  my_strcasecmp_mb,     /* instr      */
+  my_instr_mb,
   my_hash_sort_simple,
 };
 
@@ -5702,6 +5703,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_gb2312,
   my_numchars_mb,
   my_charpos_mb,
+  my_lengthsp_8bit,
   my_mb_wc_gb2312,	/* mb_wc      */
   my_wc_mb_gb2312,	/* wc_mb      */
   my_caseup_str_mb,
@@ -5762,7 +5764,7 @@ CHARSET_INFO my_charset_gb2312_bin=
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_mb_bin_handler
 };
 
 #endif

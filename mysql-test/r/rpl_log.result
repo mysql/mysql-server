@@ -12,7 +12,10 @@ create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
 create table t1 (word char(20) not null);
-load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
+select count(*) from t1;
+count(*)
+69
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
@@ -81,18 +84,18 @@ slave-bin.000001	200	Query	1	200	use `test`; insert into t1 values (NULL)
 slave-bin.000001	263	Query	1	263	use `test`; drop table t1
 slave-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)
 slave-bin.000001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
-slave-bin.000001	1065	Exec_load	1	1056	;file_id=1
-slave-bin.000001	1088	Query	1	1079	use `test`; drop table t1
-slave-bin.000001	1136	Query	1	4	use `test`; create table t5 (a int)
-slave-bin.000001	1194	Query	1	62	use `test`; drop table t5
+slave-bin.000001	1065	Exec_load	1	1065	;file_id=1
+slave-bin.000001	1088	Query	1	1088	use `test`; drop table t1
+slave-bin.000001	1136	Query	1	1136	use `test`; create table t5 (a int)
+slave-bin.000001	1194	Query	1	1194	use `test`; drop table t5
 slave-bin.000001	1242	Rotate	2	1242	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000002	4	Query	1	110	use `test`; create table t1 (n int)
-slave-bin.000002	62	Query	1	168	use `test`; insert into t1 values (1)
-slave-bin.000002	122	Query	1	228	use `test`; drop table t1
+slave-bin.000002	4	Query	1	4	use `test`; create table t1 (n int)
+slave-bin.000002	62	Query	1	62	use `test`; insert into t1 values (1)
+slave-bin.000002	122	Query	1	122	use `test`; drop table t1
 show slave status;
-Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	1	master-bin.000002	276	slave-relay-bin.000003	214	master-bin.000002	Yes	Yes							0		0	276	214
+Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key
+127.0.0.1	root	MASTER_PORT	1	master-bin.000002	276	slave-relay-bin.000003	214	master-bin.000002	Yes	Yes							0		0	276	214	None		0	No					
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log

@@ -86,8 +86,10 @@ int mysql_update(THD *thd,
   /* Calculate "table->used_keys" based on the WHERE */
   table->used_keys=table->keys_in_use;
   table->quick_keys=0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+#endif
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
@@ -122,7 +124,9 @@ int mysql_update(THD *thd,
   }
 
   /* Check the fields we are going to modify */
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=want_privilege;
+#endif
   if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
@@ -134,8 +138,10 @@ int mysql_update(THD *thd,
       table->timestamp_field->query_id=timestamp_query_id;
   }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+#endif
   if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex.select_lex);
@@ -418,7 +424,9 @@ int mysql_multi_update(THD *thd,
   TABLE_LIST *tl;
   DBUG_ENTER("mysql_multi_update");
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
+#endif
   if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
   fix_tables_pointers(thd->lex.all_selects_list);
@@ -600,6 +608,7 @@ multi_update::initialize_tables(JOIN *join)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
+    Item_field *If;
     List<Item> temp_fields= *fields_for_table[cnt];
     ORDER     group;
 
@@ -623,7 +632,10 @@ multi_update::initialize_tables(JOIN *join)
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
 			table, &my_charset_bin);
-    if (temp_fields.push_front(new Item_field(((Field *) &offset))))
+    if (!(If=new Item_field(((Field *) &offset))))
+      DBUG_RETURN(1);
+    If->maybe_null=0;
+    if (temp_fields.push_front(If))
       DBUG_RETURN(1);
 
     /* Make an unique key over the first field to avoid duplicated updates */

@@ -62,7 +62,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
     ulong length;
     CHARSET_INFO *cs= (create && create->table_charset) ? 
 		     create->table_charset :
-		     thd->variables.character_set_database;
+		     thd->variables.collation_database;
     length= my_sprintf(buf,(buf, "default-character-set=%s\ndefault-collation=%s\n", cs->csname,cs->name));
 
     /* Error is written by my_write */
@@ -99,7 +99,7 @@ static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   uint nbytes;
 
   bzero((char*) create,sizeof(*create));
-  create->table_charset= global_system_variables.character_set_database;
+  create->table_charset= global_system_variables.collation_database;
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -288,8 +288,8 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   {
     thd->db_charset= (create_info && create_info->table_charset) ?
 		     create_info->table_charset : 
-		     global_system_variables.character_set_database;
-    thd->variables.character_set_database= thd->db_charset;
+		     global_system_variables.collation_database;
+    thd->variables.collation_database= thd->db_charset;
   }
 
   mysql_update_log.write(thd,thd->query, thd->query_length);
@@ -391,6 +391,33 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
 exit:
   start_waiting_global_read_lock(thd);
+  /*
+    If this database was the client's selected database, we silently change the
+    client's selected database to nothing (to have an empty SELECT DATABASE() in
+    the future). For this we free() thd->db and set it to 0. But we don't do
+    free() for the slave thread. Indeed, doing a x_free() on it leads to nasty
+    problems (i.e. long painful debugging) because in this thread, thd->db is
+    the same as data_buf and db of the Query_log_event which is dropping the
+    database. So if you free() thd->db, you're freeing data_buf. You set thd->db
+    to 0 but not data_buf (thd->db and data_buf are two distinct pointers which
+    point to the same place). Then in ~Query_log_event(), we have
+    'if (data_buf) free(data_buf)'
+    data_buf is !=0 so this makes a DOUBLE free().
+    Side effects of this double free() are, randomly (depends on the machine),
+    when the slave is replicating a DROP DATABASE: 
+    - garbage characters in the error message:
+    "Error 'Can't drop database 'test2'; database doesn't exist' on query
+    'h4zI¿'"
+    - segfault
+    - hang in "free(vio)" (yes!) in the I/O or SQL slave threads (so slave
+    server hangs at shutdown etc).
+  */
+  if (thd->db && !strcmp(thd->db, db))
+  {
+    if (!(thd->slave_thread)) /* a slave thread will free it itself */
+      x_free(thd->db);
+    thd->db= 0; 
+  }
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
 
@@ -587,6 +614,7 @@ bool mysql_change_db(THD *thd, const char *name)
     DBUG_RETURN(1);
   }
   DBUG_PRINT("info",("Use database: %s", dbname));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -606,7 +634,7 @@ bool mysql_change_db(THD *thd, const char *name)
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
-
+#endif
   (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
   length=unpack_dirname(path,path);		// Convert if not unix
   if (length && path[length-1] == FN_LIBCHAR)
@@ -621,14 +649,15 @@ bool mysql_change_db(THD *thd, const char *name)
   x_free(thd->db);
   thd->db=dbname;				// THD::~THD will free this
   thd->db_length=db_length;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->db_access=db_access;
-
+#endif
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
   load_db_opt(thd, path, &create);
   thd->db_charset= create.table_charset ?
 		   create.table_charset :
-		   global_system_variables.character_set_database;
-  thd->variables.character_set_database= thd->db_charset;
+		   global_system_variables.collation_database;
+  thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }
 
@@ -651,6 +680,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(1);
   }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
@@ -669,6 +699,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		    dbname);
     DBUG_RETURN(1);
   }
+#endif
 
   (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
   length=unpack_dirname(path,path);		// Convert if not unix
