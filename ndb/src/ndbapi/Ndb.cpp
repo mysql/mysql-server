@@ -992,7 +992,7 @@ Ndb::StartTransactionNodeSelectionData::release(){
 Uint32
 convertEndian(Uint32 Data)
 {
-#ifdef _BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
   Uint32 t1, t2, t3, t4;
   t4 = (Data >> 24) & 255;
   t3 = (Data >> 16) & 255;
