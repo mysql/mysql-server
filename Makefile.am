@@ -22,15 +22,15 @@ AUTOMAKE_OPTIONS =	foreign
 EXTRA_DIST =		INSTALL-SOURCE README COPYING EXCEPTIONS-CLIENT
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common \
-			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ scripts man tests \
+			@thread_dirs@ pstack \
+			@sql_server_dirs@ @sql_client_dirs@ scripts man tests \
 			netware @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 DIST_SUBDIRS =		. include @docs_dirs@ zlib \
 			@readline_topdir@ sql-common \
-			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ scripts @man_dirs@ tests SSL\
+			@thread_dirs@ pstack \
+			@sql_server_dirs@ @sql_client_dirs@ scripts @man_dirs@ tests SSL\
 			BUILD netware os2 @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
