@@ -21,20 +21,10 @@
 #include <ndb_limits.h>
 #include <kernel_types.h>
 
-#ifndef NDB_ASSERT
-#ifdef VM_TRACE
-#define NDB_ASSERT(test, message) { if(!(test)) { printf(message); exit(-1); }}
-#else
-#define NDB_ASSERT(test, message)
-#endif
-#endif
-
-// Useful ASSERT macros...
-#define ASSERT_BOOL(flag, message) NDB_ASSERT( (flag<=1), (message) )
+#define ASSERT_BOOL(flag, message) assert(flag<=1)
 #define ASSERT_RANGE(value, min, max, message) \
- NDB_ASSERT((value) >= (min) && (value) <= (max), (message))
-#define ASSERT_MAX(value, max, message) \
- NDB_ASSERT((value) <= (max), (message))
+ assert((value) >= (min) && (value) <= (max))
+#define ASSERT_MAX(value, max, message) assert((value) <= (max))
 
 #define SECTION(x) STATIC_CONST(x)
 

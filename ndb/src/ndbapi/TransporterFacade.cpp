@@ -162,13 +162,6 @@ setSignalLog(){
 }
 #endif
 
-// These symbols are needed, but not used in the API
-int g_sectionSegmentPool;
-struct ErrorReporter {
-  void handleAssert(const char*, const char*, int);
-};
-void ErrorReporter::handleAssert(const char* message, const char* file, int line) {}
-
 /**
  * The execute function : Handle received signal
  */
@@ -312,6 +305,14 @@ execute(void * callbackObj, SignalHeader * const header,
       abort();
     }
   }
+}
+
+// These symbols are needed, but not used in the API
+void 
+SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
+					   const SegmentedSectionPtr ptr[3],
+					   unsigned i){
+  abort();
 }
 
 void 
