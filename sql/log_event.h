@@ -85,10 +85,10 @@ protected:
 public:
   const char* query;
   const char* db;
-  uint q_len; // if we already know the length of the query string
+  uint32 q_len; // if we already know the length of the query string
   // we pass it here, so we would not have to call strlen()
   // otherwise, set it to 0, in which case, we compute it with strlen()
-  uint db_len;
+  uint32 db_len;
   int thread_id;
 #if !defined(MYSQL_CLIENT)
   THD* thd;
@@ -101,7 +101,7 @@ public:
     time(&end_time);
     exec_time = (ulong) (end_time  - thd->start_time);
     valid_exec_time = 1;
-    db_len = (db) ? (uint) strlen(db) : 0;
+    db_len = (db) ? (uint32) strlen(db) : 0;
   }
 #endif
 
@@ -120,8 +120,8 @@ public:
   int get_data_size()
   {
     return q_len + db_len + 2 +
-      sizeof(uint) // thread_id
-      + sizeof(uint) // exec_time
+      sizeof(uint32) // thread_id
+      + sizeof(uint32) // exec_time
       ;
   }
 
@@ -157,19 +157,19 @@ protected:
   char* data_buf;
 public:
   int thread_id;
-  uint table_name_len;
-  uint db_len;
-  uint fname_len;
-  uint num_fields;
+  uint32 table_name_len;
+  uint32 db_len;
+  uint32 fname_len;
+  uint32 num_fields;
   const char* fields;
   const uchar* field_lens;
-  uint field_block_len;
+  uint32 field_block_len;
   
 
   const char* table_name;
   const char* db;
   const char* fname;
-  uint skip_lines;
+  uint32 skip_lines;
   sql_ex_info sql_ex;
   
 #if !defined(MYSQL_CLIENT)
@@ -189,8 +189,8 @@ public:
     time(&end_time);
     exec_time = (ulong) (end_time  - thd->start_time);
     valid_exec_time = 1;
-    db_len = (db) ? (uint) strlen(db) : 0;
-    table_name_len = (table_name) ? (uint) strlen(table_name) : 0;
+    db_len = (db) ? (uint32) strlen(db) : 0;
+    table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
     fname_len = (fname) ? (uint) strlen(fname) : 0;
     sql_ex.field_term = (*ex->field_term)[0];
     sql_ex.enclosed = (*ex->enclosed)[0];

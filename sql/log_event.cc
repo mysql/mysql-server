@@ -23,9 +23,9 @@
 #endif /* MYSQL_CLIENT */
 
 #define LOG_EVENT_HEADER_LEN 9
-#define QUERY_HEADER_LEN     (sizeof(uint) + sizeof(uint) + sizeof(uchar))
-#define LOAD_HEADER_LEN      (sizeof(uint) + sizeof(uint) + \
-  + sizeof(uint) + 2 + sizeof(uint))
+#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + sizeof(uchar))
+#define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
+  + sizeof(uint32) + 2 + sizeof(uint32))
 #define EVENT_LEN_OFFSET     5
 #define EVENT_TYPE_OFFSET    4
 #define MAX_EVENT_LEN        4*1024*1024 
@@ -71,11 +71,7 @@ int Log_event::write_header(FILE* file)
   int4store(pos, when); // timestamp
   pos += 4;
   *pos++ = get_type_code(); // event type code
-  int4store(pos, get_data_size() +
-	    sizeof(time_t) // timestamp
-	    + sizeof(char)  // event code
-	    + sizeof(uint) // event entry size
-	    );
+  int4store(pos, get_data_size() + LOG_EVENT_HEADER_LEN);
   pos += 4;
   return (my_fwrite(file, (byte*) buf, (uint) (pos - buf),
 		    MYF(MY_NABP | MY_WME)));
