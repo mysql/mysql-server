@@ -468,7 +468,7 @@ static int ull2dec(ulonglong from, decimal *to)
 
   sanity(to);
 
-  for (intg1=1; from > DIG_BASE; intg1++, from/=DIG_BASE);
+  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE);
   if (unlikely(intg1 > to->len))
   {
     intg1=to->len;
@@ -880,20 +880,17 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
       y=x % 10;
       if (y > 5 || (y == 5 && (mode == HALF_UP || (x/10) & 1)))
         x+=10;
-      *buf1=x*powers10[pos]-y;
+      *buf1=powers10[pos]*(x-y);
     }
     else
       *buf1=(*buf1/powers10[pos+1])*powers10[pos+1];
   }
-  if (*buf1 > DIG_BASE)
+  if (*buf1 >= DIG_BASE)
   {
     carry=1;
     *buf1-=DIG_BASE;
-    while (carry && buf1 >= to->buf)
-    {
+    while (carry && --buf1 >= to->buf)
       ADD(*buf1, *buf1, 0, carry);
-      buf1--;
-    }
     if (unlikely(carry))
     {
       /* shifting the number to create space for new digit */
@@ -1407,7 +1404,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
       dlen1=len2;
     }
     guess=(norm_factor*x+norm_factor*y/DIG_BASE)/norm2;
-    if (unlikely(guess > DIG_BASE))
+    if (unlikely(guess >= DIG_BASE))
       guess=DIG_BASE-1;
     if (likely(len2>1))
     {
