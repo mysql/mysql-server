@@ -1671,6 +1671,9 @@ a	b
 1003	duplicate three
 1004	duplicate four
 delete from t1 where a >= 1000 ;
+set @1=1 ;
+set @2=2 ;
+set @100=100 ;
 set @float=1.00;
 set @five='five' ;
 drop table if exists t2;
@@ -1924,7 +1927,7 @@ def					@arg28	253	8192	10	Y	0	31	8
 def					@arg29	253	8192	8	Y	0	31	8
 def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
-def					@arg32	253	8192	6	Y	128	31	63
+def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
@@ -2021,7 +2024,7 @@ def					@arg28	253	8192	10	Y	0	31	8
 def					@arg29	253	8192	8	Y	0	31	8
 def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
-def					@arg32	253	8192	6	Y	128	31	63
+def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
@@ -2109,7 +2112,7 @@ def					@arg28	253	8192	10	Y	0	31	8
 def					@arg29	253	8192	8	Y	0	31	8
 def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
-def					@arg32	253	8192	6	Y	128	31	63
+def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -2199,7 +2202,7 @@ def					@arg28	253	8192	10	Y	0	31	8
 def					@arg29	253	8192	8	Y	0	31	8
 def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
-def					@arg32	253	8192	6	Y	128	31	63
+def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
 1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;

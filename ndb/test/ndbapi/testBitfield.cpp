@@ -8,14 +8,6 @@
 static const char* opt_connect_str= 0;
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
-static struct my_option my_long_options[] =
-{
-  NDB_STD_OPTS("ndb_desc"),
-  { "database", 'd', "Name of database table is in",
-    (gptr*) &_dbname, (gptr*) &_dbname, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
 
 static void print_version()
 {
@@ -29,8 +21,6 @@ static void usage()
     "This program list all properties of table(s) in NDB Cluster.\n"\
     "  ex: desc T1 T2 T4\n";  
   print_version();
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
 }
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -63,13 +53,19 @@ main(int argc, char** argv){
   const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb::setConnectString(opt_connect_str);
+  argc--;
+  argv++;
+  
+  Ndb_cluster_connection con(opt_connect_str);
+  if(con.connect(12, 5, 1))
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  
 
   Ndb* pNdb;
-  pNdb = new Ndb(_dbname);  
+  pNdb = new Ndb(&con, _dbname);  
   pNdb->init();
   while (pNdb->waitUntilReady() != 0);
   int res = NDBT_FAILED;

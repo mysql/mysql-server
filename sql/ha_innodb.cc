@@ -231,6 +231,16 @@ struct show_var_st innodb_status_variables[]= {
   (char*) &export_vars.innodb_pages_read,                 SHOW_LONG},
   {"pages_written",
   (char*) &export_vars.innodb_pages_written,              SHOW_LONG},
+  {"row_lock_waits",
+  (char*) &export_vars.innodb_row_lock_waits,             SHOW_LONG},
+  {"row_lock_current_waits",
+  (char*) &export_vars.innodb_row_lock_current_waits,     SHOW_LONG},
+  {"row_lock_time",
+  (char*) &export_vars.innodb_row_lock_time,              SHOW_LONGLONG},
+  {"row_lock_time_max",
+  (char*) &export_vars.innodb_row_lock_time_max,          SHOW_LONG},
+  {"row_lock_time_avg",
+  (char*) &export_vars.innodb_row_lock_time_avg,          SHOW_LONG},
   {"rows_deleted",
   (char*) &export_vars.innodb_rows_deleted,               SHOW_LONG},
   {"rows_inserted",
@@ -370,15 +380,15 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
- 		/* Since we rolled back the whole transaction, we must
- 		tell it also to MySQL so that MySQL knows to empty the
- 		cached binlog for this transaction */
+		/* Since we rolled back the whole transaction, we must
+		tell it also to MySQL so that MySQL knows to empty the
+		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+		if (thd) {
+			ha_rollback(thd);
+		}
 
-    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
+   		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
  	} else if (error == (int) DB_NO_REFERENCED_ROW) {
 
@@ -4065,11 +4075,9 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
-	if (err == DB_SUCCESS) {
-		DBUG_RETURN(0);
-	}
+	err = convert_error_code_to_mysql(err, NULL);
 
-	DBUG_RETURN(-1);
+	DBUG_RETURN(err);
 }
 
 /*********************************************************************
@@ -5205,19 +5213,6 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
- 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
-
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -5266,9 +5261,18 @@ ha_innobase::external_lock(
 			prebuilt->select_lock_type = LOCK_S;
 		}
 
+		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
+		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
+		an InnoDB table lock if it is released immediately at the end
+		of LOCK TABLES, and InnoDB's table locks in that case cause
+		VERY easily deadlocks. */
+
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+
 			if (thd->in_lock_tables &&
-			    thd->variables.innodb_table_locks) {
+			    thd->variables.innodb_table_locks &&
+			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
+
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt,
 							NULL, LOCK_TABLE_EXP);
@@ -5503,6 +5507,107 @@ innodb_show_status(
 
 	send_eof(thd);
   	DBUG_RETURN(FALSE);
+}
+
+/****************************************************************************
+Implements the SHOW MUTEX STATUS command. . */
+
+bool
+innodb_mutex_show_status(
+/*===============*/
+  THD*  thd)  /* in: the MySQL query thread of the caller */
+{
+  Protocol        *protocol= thd->protocol;
+  List<Item> field_list;
+  mutex_t*  mutex;
+  const char* file_name;
+  ulint   line;
+  ulint   rw_lock_count= 0;
+  ulint   rw_lock_count_spin_loop= 0;
+  ulint   rw_lock_count_spin_rounds= 0;
+  ulint   rw_lock_count_os_wait= 0;
+  ulint   rw_lock_count_os_yield= 0;
+  ulonglong rw_lock_wait_time= 0;
+
+  DBUG_ENTER("innodb_mutex_show_status");
+
+  field_list.push_back(new Item_empty_string("Mutex", FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Module", FN_REFLEN));
+  field_list.push_back(new Item_uint("Count", 21));
+  field_list.push_back(new Item_uint("Spin_waits", 21));
+  field_list.push_back(new Item_uint("Spin_rounds", 21));
+  field_list.push_back(new Item_uint("OS_waits", 21));
+  field_list.push_back(new Item_uint("OS_yields", 21));
+  field_list.push_back(new Item_uint("OS_waits_time", 21));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+    mutex_enter(&mutex_list_mutex);
+#endif
+
+  mutex = UT_LIST_GET_FIRST(mutex_list);
+
+  while ( mutex != NULL )
+  {
+    if (mutex->mutex_type != 1)
+    {
+      if (mutex->count_using > 0)
+      {
+        protocol->prepare_for_resend();
+        protocol->store(mutex->cmutex_name, system_charset_info);
+        protocol->store(mutex->cfile_name, system_charset_info);
+        protocol->store((ulonglong)mutex->count_using);
+        protocol->store((ulonglong)mutex->count_spin_loop);
+        protocol->store((ulonglong)mutex->count_spin_rounds);
+        protocol->store((ulonglong)mutex->count_os_wait);
+        protocol->store((ulonglong)mutex->count_os_yield);
+        protocol->store((ulonglong)mutex->lspent_time/1000);
+
+        if (protocol->write())
+        {
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+          mutex_exit(&mutex_list_mutex);
+#endif
+          DBUG_RETURN(1);
+        }
+      }
+    }
+    else
+    {
+      rw_lock_count += mutex->count_using;
+      rw_lock_count_spin_loop += mutex->count_spin_loop;
+      rw_lock_count_spin_rounds += mutex->count_spin_rounds;
+      rw_lock_count_os_wait += mutex->count_os_wait;
+      rw_lock_count_os_yield += mutex->count_os_yield;
+      rw_lock_wait_time += mutex->lspent_time;
+    }
+
+    mutex = UT_LIST_GET_NEXT(list, mutex);
+  }
+
+  protocol->prepare_for_resend();
+  protocol->store("rw_lock_mutexes", system_charset_info);
+  protocol->store("", system_charset_info);
+  protocol->store((ulonglong)rw_lock_count);
+  protocol->store((ulonglong)rw_lock_count_spin_loop);
+  protocol->store((ulonglong)rw_lock_count_spin_rounds);
+  protocol->store((ulonglong)rw_lock_count_os_wait);
+  protocol->store((ulonglong)rw_lock_count_os_yield);
+  protocol->store((ulonglong)rw_lock_wait_time/1000);
+
+  if (protocol->write())
+  {
+    DBUG_RETURN(1);
+  }
+
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+      mutex_exit(&mutex_list_mutex);
+#endif
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
 }
 
 /****************************************************************************

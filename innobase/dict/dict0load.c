@@ -8,6 +8,7 @@ Created 4/24/1996 Heikki Tuuri
 *******************************************************/
 
 #include "dict0load.h"
+#include "mysql_version.h"
 
 #ifdef UNIV_NONINL
 #include "dict0load.ic"
@@ -206,12 +207,14 @@ loop:
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespaces().
-In a normal startup we just scan the biggest space id, and store it to
-fil_system. */
+
+In a normal startup, we create the tablespace objects for every table in
+InnoDB's data dictionary, if the corresponding .ibd file exists.
+We also scan the biggest space id, and store it to fil_system. */
 
 void
-dict_check_tablespaces_or_store_max_id(
-/*===================================*/
+dict_check_tablespaces_and_store_max_id(
+/*====================================*/
 	ibool	in_crash_recovery)	/* in: are we doing a crash recovery */
 {
 	dict_table_t*	sys_tables;
@@ -280,6 +283,14 @@ loop:
 			
 			fil_space_for_table_exists_in_mem(space_id, name,
 							FALSE, TRUE, TRUE);
+		}
+
+		if (space_id != 0 && !in_crash_recovery) {
+			/* It is a normal database startup: create the space
+			object and check that the .ibd file exists. */
+
+			fil_open_single_table_tablespace(FALSE, space_id,
+									name);
 		}
 
 		mem_free(name);
@@ -766,6 +777,22 @@ dict_load_table(
 		return(NULL);
 	}
 
+#if MYSQL_VERSION_ID < 50003
+	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
+	"compact format" flag. */
+	field = rec_get_nth_field(rec, 7, &len);
+	if (mach_read_from_1(field) & 0x80) {
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+		mem_heap_free(heap);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: table %s is in the new compact format\n"
+			"InnoDB: of MySQL 5.0.3 or later\n", name);
+		return(NULL);
+	}
+#endif /* MYSQL_VERSION_ID < 50300 */
+
 	ut_a(0 == ut_strcmp("SPACE",
 		dict_field_get_col(
 		dict_index_get_nth_field(sys_index, 9))->name));
@@ -780,8 +807,18 @@ dict_load_table(
 			/* Ok; (if we did a crash recovery then the tablespace
 			can already be in the memory cache) */
 		} else {
+			/* In >= 4.1.9, InnoDB scans the data dictionary also
+			at a normal mysqld startup. It is an error if the
+			space object does not exist in memory. */
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: error: space object of table %s,\n"
+"InnoDB: space id %lu did not exist in memory. Retrying an open.\n",
+							name, (ulong)space);
 			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(space, name)) {
+			if (!fil_open_single_table_tablespace(TRUE,
+							space, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 

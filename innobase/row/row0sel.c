@@ -2897,7 +2897,7 @@ row_search_for_mysql(
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
 					DB_END_OF_INDEX, DB_DEADLOCK,
-					DB_LOCK_TABLE_FULL,
+					DB_LOCK_TABLE_FULL, DB_CORRUPTION,
 					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */
@@ -2952,7 +2952,21 @@ row_search_for_mysql(
 	
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-		
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -3791,8 +3805,10 @@ lock_wait_or_error:
 
 	que_thr_stop_for_mysql(thr);
 
+  thr->lock_state= QUE_THR_LOCK_ROW;
 	was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
-	
+  thr->lock_state= QUE_THR_LOCK_NOLOCK;
+
 	if (was_lock_wait) {
 		mtr_start(&mtr);
 

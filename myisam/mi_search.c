@@ -159,10 +159,9 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   DBUG_PRINT("exit",("found key at %lu",(ulong) info->lastpos));
   DBUG_RETURN(0);
+
 err:
   DBUG_PRINT("exit",("Error: %d",my_errno));
-  if (my_errno == HA_ERR_CRASHED)
-    mi_print_error(info, HA_ERR_CRASHED);
   info->lastpos= HA_OFFSET_ERROR;
   info->page_changed=1;
   DBUG_RETURN (-1);
@@ -236,7 +235,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,t_buff);
     if (length == 0 || page > end)
     {
-      mi_print_error(info, HA_ERR_CRASHED);
+      mi_print_error(info->s, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_PRINT("error",("Found wrong key:  length: %u  page: %p  end: %p",
                           length, page, end));
@@ -383,7 +382,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 
     if (page > end)
     {
-      mi_print_error(info, HA_ERR_CRASHED);
+      mi_print_error(info->s, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_PRINT("error",("Found wrong key:  length: %u  page: %p  end: %p",
                           length, page, end));
@@ -752,6 +751,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       {
 	if (length > (uint) keyseg->length)
 	{
+          mi_print_error(keyinfo->share, HA_ERR_CRASHED);
 	  my_errno=HA_ERR_CRASHED;
 	  return 0;				/* Error */
 	}
@@ -767,6 +767,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                        ("Found too long null packed key: %u of %u at %p",
                         length, keyseg->length, *page_pos));
 	    DBUG_DUMP("key",(char*) *page_pos,16);
+            mi_print_error(keyinfo->share, HA_ERR_CRASHED);
 	    my_errno=HA_ERR_CRASHED;
 	    return 0;
 	  }
@@ -823,6 +824,7 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
         DBUG_PRINT("error",("Found too long packed key: %u of %u at %p",
                             length, keyseg->length, *page_pos));
         DBUG_DUMP("key",(char*) *page_pos,16);
+        mi_print_error(keyinfo->share, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         return 0;                               /* Error */
       }
@@ -878,6 +880,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
       DBUG_PRINT("error",("Found too long binary packed key: %u of %u at %p",
                           length, keyinfo->maxlength, *page_pos));
       DBUG_DUMP("key",(char*) *page_pos,16);
+      mi_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       return 0;                                 /* Wrong key */
     }
@@ -939,6 +942,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     if (from_end != page_end)
     {
       DBUG_PRINT("error",("Error when unpacking key"));
+      mi_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       return 0;                                 /* Error */
     }
@@ -973,7 +977,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       *return_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,key);
       if (*return_key_length == 0)
       {
-        mi_print_error(info, HA_ERR_CRASHED);
+        mi_print_error(info->s, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         DBUG_RETURN(0);
       }
@@ -1011,7 +1015,7 @@ static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       *return_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,key);
       if (*return_key_length == 0)
       {
-        mi_print_error(info, HA_ERR_CRASHED);
+        mi_print_error(info->s, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         DBUG_RETURN(1);
       }
@@ -1052,7 +1056,7 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
       if (*return_key_length == 0)
       {
         DBUG_PRINT("error",("Couldn't find last key:  page: %p", page));
-        mi_print_error(info, HA_ERR_CRASHED);
+        mi_print_error(info->s, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         DBUG_RETURN(0);
       }
@@ -1185,11 +1189,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     memcpy(lastkey,key,key_length);
     if (!(info->lastkey_length=(*keyinfo->get_key)(keyinfo,nod_flag,
                                                    &info->int_keypos,lastkey)))
-    {
-      if (my_errno == HA_ERR_CRASHED)
-        mi_print_error(info, HA_ERR_CRASHED);
       DBUG_RETURN(-1);
-    }
   }
   else                                                  /* Previous key */
   {
@@ -1248,9 +1248,9 @@ int _mi_search_first(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   } while ((pos=_mi_kpos(nod_flag,page)) != HA_OFFSET_ERROR);
 
   if (!(info->lastkey_length=(*keyinfo->get_key)(keyinfo,nod_flag,&page,
-                                                 info->lastkey)) &&
-      (my_errno == HA_ERR_CRASHED))
-    mi_print_error(info, HA_ERR_CRASHED);
+                                                 info->lastkey)))
+    DBUG_RETURN(-1);                            /* Crashed */
+
   info->int_keypos=page; info->int_maxpos=info->buff+mi_getint(info->buff)-1;
   info->int_nod_flag=nod_flag;
   info->int_keytree_version=keyinfo->version;

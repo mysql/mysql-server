@@ -30,6 +30,7 @@ static CASE g_ops[] =
 const size_t OP_COUNT = (sizeof(g_ops)/sizeof(g_ops[0]));
 
 static Ndb* g_ndb = 0;
+static Ndb_cluster_connection *g_cluster_connection= 0;
 static CASE* g_cases;
 static HugoOperations* g_hugo_ops;
 
@@ -133,7 +134,13 @@ static int parse_args(int argc, char** argv)
 
 static int connect_ndb()
 {
-  g_ndb = new Ndb("TEST_DB");
+  g_cluster_connection = new Ndb_cluster_connection();
+  if(g_cluster_connection->connect(12, 5, 1) != 0)
+  {
+    return 1;
+  }
+
+  g_ndb = new Ndb(g_cluster_connection, "TEST_DB");
   g_ndb->init();
   if(g_ndb->waitUntilReady(30) == 0){
     int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
@@ -145,8 +152,10 @@ static int connect_ndb()
 static int disconnect_ndb()
 {
   delete g_ndb;
+  delete g_cluster_connection;
   g_ndb = 0;
   g_table = 0;
+  g_cluster_connection= 0;
   return 0;
 }
 

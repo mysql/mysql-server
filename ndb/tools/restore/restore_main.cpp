@@ -36,7 +36,10 @@ static Vector<class BackupConsumer *> g_consumers;
 
 static const char* ga_backupPath = "." DIR_SEPARATOR;
 
-static const char* opt_connect_str= NULL;
+enum ndb_restore_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
 
 /**
  * print and restore flags
@@ -237,6 +240,8 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
+const char * g_connect_string = 0;
+
 int
 main(int argc, char** argv)
 {
@@ -247,7 +252,7 @@ main(int argc, char** argv)
     return -1;
   }
 
-  Ndb::setConnectString(opt_connect_str);
+  g_connect_string = opt_connect_str;
 
   /**
    * we must always load meta data, even if we will only print it to stdout

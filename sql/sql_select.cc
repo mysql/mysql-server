@@ -1543,7 +1543,7 @@ JOIN::exec()
 	  WHERE clause for any tables after the sorted one.
 	*/
 	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[tables];
+	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->tables];
 	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
@@ -3716,8 +3716,12 @@ choose_plan(JOIN *join, table_map join_tables)
     }
   }
 
-  /* Store the cost of this query into a user variable */
-  last_query_cost= join->best_read;
+  /* 
+    Store the cost of this query into a user variable
+    Don't update last_query_cost for 'show status' command
+  */
+  if (join->thd->lex->orig_sql_command != SQLCOM_SHOW_STATUS)
+    last_query_cost= join->best_read;
 
   DBUG_VOID_RETURN;
 }
@@ -9216,7 +9220,7 @@ join_read_system(JOIN_TAB *tab)
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_error(table, error);
-      table->null_row=1;			// This is ok.
+      mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
       return -1;
     }
@@ -9261,7 +9265,7 @@ join_read_const(JOIN_TAB *tab)
     if (error)
     {
       table->status= STATUS_NOT_FOUND;
-      table->null_row=1;
+      mark_as_null_row(tab->table);
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)
 	return report_error(table, error);
@@ -12269,7 +12273,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
+  if (!cond->fixed)
+    cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);

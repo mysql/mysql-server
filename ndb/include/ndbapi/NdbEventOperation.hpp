@@ -38,21 +38,15 @@ class NdbEventOperationImpl;
  * @brief Class of operations for getting change events from database.  
  *
  * An NdbEventOperation object is instantiated by 
- * NdbEventOperation *Ndb::createEventOperation(const char *eventName,
- * int bufferLength)
+ * Ndb::createEventOperation
  *
  * Prior to that an event must have been created in the Database through
- * int NdbDictionary::createEvent(NdbDictionary::Event)
+ * NdbDictionary::createEvent
  * 
- * bufferLength indicates size of circular buffer to store event info as
- * they occur.
- *
- * The instance is removed by Ndb::dropEventOperation(NdbEventOperation*)
+ * The instance is removed by Ndb::dropEventOperation
  *
  * For more info see:
- * ndbapi_example5.cpp
- * Ndb.hpp
- * NdbDictionary.hpp
+ * @ref ndbapi_example5.cpp
  *
  * Known limitations:
  *
@@ -72,17 +66,14 @@ class NdbEventOperationImpl;
  * Today all events INSERT/DELETE/UPDATE and all changed attributes are
  * sent to the API, even if only specific attributes have been specified.
  * These are however hidden from the user and only relevant data is shown
- * after next().  However false exits from pollEvents() may occur and thus
- * the subsequent next() will return zero, since there was no available
- * data. Just do pollEvents() again. Will be fixed in later versions.
+ * after next().
+ * However false exits from Ndb::pollEvents() may occur and thus
+ * the subsequent next() will return zero,
+ * since there was no available data. Just do Ndb::pollEvents() again.
  *
  * Event code does not check table schema version. Make sure to drop events
  * after table is dropped. Will be fixed in later
  * versions.
- *
- * On a replicated system one will receive each event 2 times, one for each
- * replica.  If a node fails events will not be received twice anymore
- * for data in corresponding fragment. Will be optimized in later versions.
  *
  * If a node failure has occured not all events will be recieved
  * anymore. Drop NdbEventOperation and Create again after nodes are up
@@ -93,7 +84,7 @@ class NdbEventOperationImpl;
  *
  * Known bugs:
  *
- * None, except if we can call some of the "isses" above bugs
+ * None, except if we can call some of the "issues" above bugs
  *
  * Useful API programs:
  *
@@ -103,8 +94,10 @@ class NdbEventOperationImpl;
  */
 class NdbEventOperation {
 public:
+  /**
+   * Retrieve current state of the NdbEventOperation object
+   */
   enum State {CREATED,EXECUTING,ERROR};
-
   State getState();
 
   /**
@@ -163,7 +156,7 @@ public:
   /**
    * Retrieves event resultset if available, inserted into the NdbRecAttrs
    * specified in getValue() and getPreValue(). To avoid polling for
-   * a resultset, one can use Ndb::pollEvents(int millisecond_timeout)
+   * a resultset, one can use Ndb::pollEvents
    * which will wait on a mutex until an event occurs or the specified
    * timeout occurs.
    *
@@ -171,6 +164,8 @@ public:
    * of available events. By sending pOverRun one may query for buffer
    * overflow and *pOverRun will indicate the number of events that have
    * overwritten.
+   *
+   * @return number of available events, -1 on failure
    */
   int next(int *pOverRun=0);
 
@@ -182,25 +177,34 @@ public:
 
   /**
    * Query for occured event type.
-   * NdbDictionary::Event::{TE_INSERT,TE_UPDATE,TE_DELETE}
-   * Only valid after next() has returned value >= 0
+   *
+   * @note Only valid after next() has been called and returned value >= 0
+   *
+   * @return type of event
    */
   NdbDictionary::Event::TableEvent getEventType();
 
   /**
+   * Retrieve the GCI of the latest retrieved event
    *
+   * @return GCI number
    */
   Uint32 getGCI();
 
   /**
+   * Retrieve the complete GCI in the cluster (not necessarily
+   * associated with an event)
    *
+   * @return GCI number
    */
   Uint32 getLatestGCI();
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /*
    *
    */
   void print();
+#endif
 
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

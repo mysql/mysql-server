@@ -17,9 +17,10 @@
 /**
    @mainpage                            NDB API Programmers' Guide
 
-   This guide assumes a basic familiarity with MySQL Cluster concepts.
-   Some of the fundamental ones are described in section @ref secConcepts.
-   
+   This guide assumes a basic familiarity with MySQL Cluster concepts found
+   on http://dev.mysql.com/doc/mysql/en/NDBCluster.html .
+   Some of the fundamental ones are also described in section @ref secConcepts.
+
    The <em>NDB API</em> is a MySQL Cluster application interface 
    that implements transactions.
    The NDB API consists of the following fundamental classes:
@@ -34,6 +35,10 @@
    - NdbRecAttr represents an attribute value
    - NdbDictionary represents meta information about tables and attributes.
    - NdbError contains the specification for an error.
+
+   It is also possible to receive "events" on changed data in the database.
+   This is done through the NdbEventOperation class.
+
    There are also some auxiliary classes.
      
    The main structure of an application program is as follows:
@@ -515,7 +520,7 @@
 /**
    @page secConcepts  NDB Cluster Concepts
 
-   The <em>NDB Kernel</em> is the collection of database (DB) nodes
+   The <em>NDB Kernel</em> is the collection of storage nodes
    belonging to an NDB Cluster.
    The application programmer can for most purposes view the
    set of all DB nodes as one entity.
@@ -954,23 +959,6 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
                                       NDB_MAX_SCHEMA_NAME_SIZE + \
                                       NDB_MAX_TAB_NAME_SIZE*2
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-class NdbWaiter {
-public:
-  NdbWaiter();
-  ~NdbWaiter();
-
-  void wait(int waitTime);
-  void nodeFail(Uint32 node);
-  void signal(Uint32 state);
-
-  Uint32 m_node;
-  Uint32 m_state;
-  void * m_mutex;
-  struct NdbCondition * m_condition;  
-};
-#endif
-
 /**
  * @class Ndb 
  * @brief Represents the NDB kernel and is the main class of the NDB API.
@@ -1055,9 +1043,6 @@ public:
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
       const char* aCatalogName = "", const char* aSchemaName = "def");
 
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
-#endif
   ~Ndb();
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1180,7 +1165,7 @@ public:
    * @param eventName
    *        unique identifier of the event
    * @param bufferLength
-   *        buffer size for storing event data
+   *        circular buffer size for storing event data
    *
    * @return Object representing an event, NULL on failure
    */
@@ -1232,39 +1217,6 @@ public:
   NdbTransaction* startTransaction(Uint32        prio = 0, 
 				  const char *  keyData = 0, 
 				  Uint32        keyLen = 0);
-
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  /**
-   * This method is a modification of Ndb::startTransaction, 
-   * in which we use only the first two chars of keyData to 
-   * select transaction coordinator.
-   * This is referred to as a distribution group. 
-   * There are two ways to use the method: 
-   * - In the first, the two characters are used directly as 
-   *   the distribution key, and 
-   * - in the second the distribution is calculated as:
-   *   (10 * (char[0] - 0x30) + (char[1] - 0x30)). 
-   *   Thus, in the second way, the two ASCII digits '78' 
-   *   will provide the distribution key = 78.
-   *
-   * @note Transaction priorities are not yet supported.
-   *
-   * @param aPrio   Priority of the transaction.<br>
-   * 	Priority 0 is the highest priority and is used for short transactions 
-   *      with requirements on low delay.<br>
-   * 	Priority 1 is a medium priority for short transactions.<br>
-   * 	Priority 2 is a medium priority for long transactions.<br>
-   * 	Priority 3 is a low priority for long transactions.
-   * @param keyData is a string of which the two first characters 
-   *        is used to compute which fragement the data is stored in.
-   * @param type is the type of distribution group.<br> 
-   *        0 means direct usage of the two characters, and<br>
-   *        1 means the ASCII digit variant.
-   * @return NdbTransaction, or NULL if it failed.
-   */
-  NdbTransaction* startTransactionDGroup(Uint32 aPrio, 
-					const char * keyData, int type);
-#endif
 
   /**
    * Close a transaction.
@@ -1398,13 +1350,6 @@ public:
    * @return Node id of this application.
    */
   int getNodeId();
-
-  /**
-   * setConnectString
-   *
-   * @param connectString - see MySQL ref manual for format
-   */
-  static void setConnectString(const char * connectString);
 
   bool usingFullyQualifiedNames();
 
@@ -1622,9 +1567,6 @@ private:
 /******************************************************************************
  *	These are the private variables in this class.	
  *****************************************************************************/
-  NdbObjectIdMap*       theNdbObjectIdMap;
-  Ndb_cluster_connection   *m_ndb_cluster_connection;
-
   NdbTransaction**       thePreparedTransactionsArray;
   NdbTransaction**       theSentTransactionsArray;
   NdbTransaction**       theCompletedTransactionsArray;
@@ -1638,8 +1580,6 @@ private:
 
   Uint32                theNextConnectNode;
 
-  NdbWaiter             theWaiter;
-  
   bool fullyQualifiedNames;
 
   // Ndb database name.
@@ -1673,10 +1613,6 @@ private:
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node
   
-  Uint32   theNoOfDBnodes;  // The number of DB nodes  
-  Uint32 * theDBnodes;      // The node number of the DB nodes
-  Uint8    *the_release_ind;// 1 indicates to release all connections to node 
-  
   Uint64               the_last_check_time;
   Uint64               theFirstTransId;
   
@@ -1699,39 +1635,6 @@ private:
     InitConfigError
   } theInitState;
 
-  // Ensure good distribution of connects
-  Uint32		theCurrentConnectIndex;
-  Uint32		theCurrentConnectCounter;
-  
-  /**
-   * Computes fragement id for primary key
-   *
-   * Note that keydata has to be "shaped" as it is being sent in KEYINFO
-   */
-  Uint32 computeFragmentId(const char * keyData, Uint32 keyLen);
-  Uint32 getFragmentId(Uint32 hashValue);
-  
-  /**
-   * Make a guess to which node is the primary for the fragment
-   */
-  Uint32 guessPrimaryNode(Uint32 fragmentId);
-  
-  /**
-   * Structure containing values for guessing primary node
-   */
-  struct StartTransactionNodeSelectionData {
-    StartTransactionNodeSelectionData():
-      fragment2PrimaryNodeMap(0) {};
-    Uint32 kValue;
-    Uint32 hashValueMask;
-    Uint32 hashpointerValue;
-    Uint32 noOfFragments;
-    Uint32 * fragment2PrimaryNodeMap;
-    
-    void init(Uint32 noOfNodes, Uint32 nodeIds[]);
-    void release();
-  } startTransactionNodeSelectionData;
-  
   NdbApiSignal* theCommitAckSignal;
 
 

@@ -242,6 +242,7 @@ int innobase_savepoint(
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
 bool innodb_show_status(THD* thd);
+bool innodb_mutex_show_status(THD* thd);
 void innodb_export_status(void);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,

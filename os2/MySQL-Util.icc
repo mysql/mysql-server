@@ -25,10 +25,8 @@ option ProjectOptions = MySQLOptions
             source type('cpp') dbug
          }
          source type('cpp') heap
-         source type('cpp') merge
          source type('cpp') myisam
          source type('cpp') myisammrg
-         source type('cpp') isam
          source type('cpp') my_sys
          source type('cpp') my_sys_cli
          source type('cpp') my_sys_sql
@@ -89,16 +87,6 @@ option ProjectOptions = MySQLOptions
          source type('cpp') "..\\sql\\gen_lex_hash.cc"
       }
 
-      target "..\\bin\\test\\is_test1.exe"
-      {
-         // target source files
-         source type('cpp') "..\\isam\\test1.c"
-      }
-      target "..\\bin\\test\\is_test2.exe"
-      {
-         // target source files
-         source type('cpp') "..\\isam\\test2.c"
-      }
       target "..\\bin\\test\\mi_test1.exe"
       {
          // target source files

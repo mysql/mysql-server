@@ -1089,6 +1089,8 @@ makebuiltintables(Par par)
 
 // connections
 
+static Ndb_cluster_connection* g_ncc = 0;
+
 struct Con {
   Ndb* m_ndb;
   NdbDictionary::Dictionary* m_dic;
@@ -1140,7 +1142,7 @@ int
 Con::connect()
 {
   assert(m_ndb == 0);
-  m_ndb = new Ndb("TEST_DB");
+  m_ndb = new Ndb(g_ncc, "TEST_DB");
   CHKCON(m_ndb->init() == 0, *this);
   CHKCON(m_ndb->waitUntilReady(30) == 0, *this);
   m_tx = 0, m_op = 0;
@@ -4666,8 +4668,11 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
   }
   {
     Par par(g_opt);
-    if (runtest(par) < 0)
+    g_ncc = new Ndb_cluster_connection();
+    if (g_ncc->connect(30) != 0 || runtest(par) < 0)
       goto failed;
+    delete g_ncc;
+    g_ncc = 0;
   }
 ok:
   return NDBT_ProgramExit(NDBT_OK);
