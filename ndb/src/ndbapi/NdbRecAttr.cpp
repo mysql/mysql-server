@@ -230,7 +230,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
         }
         break;
       default: /* no print functions for the rest, just print type */
-	out << r.getType();
+	out << (int) r.getType();
 	j = r.arraySize();
 	if (j > 1)
 	  out << " " << j << " times";

@@ -154,8 +154,8 @@ static void localRandom48(DRand48Data *buffer, long int *result)
 
 static void shuffleSequence(RandomSequence *seq)
 {
-   int i;
-   int j;
+   unsigned int i;
+   unsigned int j;
    unsigned int tmp;
 
    if( !seq ) return;
@@ -254,7 +254,7 @@ unsigned int getNextRandom(RandomSequence *seq)
 
 void printSequence(RandomSequence *seq, unsigned int numPerRow)
 {
-   int i;
+   unsigned int i;
 
    if( !seq ) return;
 

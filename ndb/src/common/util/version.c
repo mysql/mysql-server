@@ -135,7 +135,7 @@ ndbSearchUpgradeCompatibleTable(Uint32 ownVersion, Uint32 otherVersion,
   int i;
   for (i = 0; table[i].ownVersion != 0 && table[i].otherVersion != 0; i++) {
     if (table[i].ownVersion == ownVersion ||
-	table[i].ownVersion == ~0) {
+	table[i].ownVersion == (Uint32) ~0) {
       switch (table[i].matchType) {
       case UG_Range:
 	if (otherVersion >= table[i].otherVersion){
