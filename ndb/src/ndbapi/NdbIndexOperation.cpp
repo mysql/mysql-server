@@ -54,8 +54,8 @@ NdbIndexOperation::~NdbIndexOperation()
  * Remark:        Initiates operation record after allocation.
  *****************************************************************************/
 int
-NdbIndexOperation::indxInit(NdbIndexImpl * anIndex,
-			    NdbTableImpl * aTable, 
+NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
+			    const NdbTableImpl * aTable, 
 			    NdbConnection* myConnection)
 {
   NdbOperation::init(aTable, myConnection);
@@ -85,6 +85,23 @@ NdbIndexOperation::indxInit(NdbIndexImpl * anIndex,
   return 0;
 }
 
+int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
+{ 
+  switch(lm) {
+  case LM_Read:
+    return readTuple();
+    break;
+  case LM_Exclusive:
+    return readTupleExclusive();
+    break;
+  case LM_CommittedRead:
+    return readTuple();
+    break;
+  default:
+    return -1;
+  };
+}
+
 int NdbIndexOperation::readTuple()
 {
   // First check that index is unique
@@ -103,21 +120,21 @@ int NdbIndexOperation::simpleRead()
 {
   // First check that index is unique
 
-  return NdbOperation::simpleRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::dirtyRead()
 {
   // First check that index is unique
 
-  return NdbOperation::dirtyRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::committedRead()
 {
   // First check that index is unique
 
-  return NdbOperation::committedRead();
+  return NdbOperation::readTuple();
 }
 
 int NdbIndexOperation::updateTuple()
@@ -164,6 +181,7 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tKeyInfoPosition;
   const char* aValue = aValuePassed;
+  Uint32 xfrmData[1024];
   Uint32 tempData[1024];
   
   if ((theStatus == OperationDefined) &&
@@ -224,6 +242,39 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     m_theIndexDefined[i][2] = true;
 
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    {
+      /*************************************************************************
+       *	Check if the pointer of the value passed is aligned on a 4 byte 
+       *      boundary. If so only assign the pointer to the internal variable 
+       *      aValue. If it is not aligned then we start by copying the value to 
+       *      tempData and use this as aValue instead.
+       *************************************************************************/
+      const int attributeSize = sizeInBytes;
+      const int slack = sizeInBytes & 3;
+      if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
+	memcpy(&tempData[0], aValue, attributeSize);
+	aValue = (char*)&tempData[0];
+	if(slack != 0) {
+	  char * tmp = (char*)&tempData[0];
+	  memset(&tmp[attributeSize], 0, (4 - slack));
+	}//if
+      }//if
+    }
+    const char* aValueToWrite = aValue;
+
+    CHARSET_INFO* cs = tAttrInfo->m_cs;
+    if (cs != 0) {
+      // current limitation: strxfrm does not increase length
+      assert(cs->strxfrm_multiply == 1);
+      unsigned n = 
+      (*cs->coll->strnxfrm)(cs,
+                            (uchar*)xfrmData, sizeof(xfrmData),
+                            (const uchar*)aValue, sizeInBytes);
+      while (n < sizeInBytes)
+        ((uchar*)xfrmData)[n++] = 0x20;
+      aValue = (char*)xfrmData;
+    }
+
     Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
     Uint32 totalSizeInWords = (sizeInBytes + 3)/4;// Inc. bits in last word
     Uint32 sizeInWords = sizeInBytes / 4;         // Exc. bits in last word
@@ -261,25 +312,8 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       m_theIndexLen = m_theIndexLen + tAttrLenInWords;
     }//if
 #endif
-
-    /*************************************************************************
-     *	Check if the pointer of the value passed is aligned on a 4 byte 
-     *      boundary. If so only assign the pointer to the internal variable 
-     *      aValue. If it is not aligned then we start by copying the value to 
-     *      tempData and use this as aValue instead.
-     *************************************************************************/
-    const int attributeSize = sizeInBytes;
-    const int slack = sizeInBytes & 3;
     int tDistrKey = tAttrInfo->m_distributionKey;
     int tDistrGroup = tAttrInfo->m_distributionGroup;
-    if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
-      memcpy(&tempData[0], aValue, attributeSize);
-      aValue = (char*)&tempData[0];
-      if(slack != 0) {
-	char * tmp = (char*)&tempData[0];
-	memset(&tmp[attributeSize], 0, (4 - slack));
-      }//if
-    }//if
     OperationType tOpType = theOperationType;
     if ((tDistrKey != 1) && (tDistrGroup != 1)) {
       ;
@@ -314,13 +348,20 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     if ((tOpType == InsertRequest) ||
 	(tOpType == WriteRequest)) {
       if (!tAttrInfo->m_indexOnly){
+        // invalid data can crash kernel
+        if (cs != NULL &&
+            (*cs->cset->well_formed_len)(cs,
+                                         aValueToWrite,
+                                         aValueToWrite + sizeInBytes,
+                                         sizeInBytes) != sizeInBytes)
+          goto equal_error4;
 	Uint32 ahValue;
 	Uint32 sz = totalSizeInWords;
 	AttributeHeader::init(&ahValue, tAttrId, sz);
 	insertATTRINFO( ahValue );
-	insertATTRINFOloop((Uint32*)aValue, sizeInWords);
+	insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
 	if (bitsInLastWord != 0) {
-	  tData = *(Uint32*)(aValue + (sizeInWords << 2));
+	  tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
 	  tData = convertEndian(tData);
 	  tData = tData & ((1 << bitsInLastWord) - 1);
 	  tData = convertEndian(tData);
@@ -411,7 +452,10 @@ int NdbIndexOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 
  equal_error3:
   setErrorCodeAbort(4209);
-
+  return -1;
+ 
+ equal_error4:
+  setErrorCodeAbort(744);
   return -1;
 }
 
@@ -505,7 +549,7 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
 //-------------------------------------------------------------
   Uint8 tReadInd = (theOperationType == ReadRequest);
   Uint8 tSimpleState = tReadInd & tSimpleAlt;
-  theNdbCon->theSimpleState = tSimpleState;
+  //theNdbCon->theSimpleState = tSimpleState;
 
   tcIndxReq->transId1           = tTransId1;
   tcIndxReq->transId2           = tTransId2;
@@ -692,23 +736,10 @@ NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
   theStatus = Finished;
   
   theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
-  //--------------------------------------------------------------------------//
-  // If the transaction this operation belongs to consists only of simple reads
-  // we set the error code on the transaction object. 
-  // If the transaction consists of other types of operations we set 
-  // the error code only on the operation since the simple read is not really 
-  // part of this transaction and we can not decide the status of the whole 
-  // transaction based on this operation.
-  //--------------------------------------------------------------------------//
   Uint32 errorCode = tcIndxRef->errorCode;
-  if (theNdbCon->theSimpleState == 0) {
-    theError.code = errorCode;
-    theNdbCon->setOperationErrorCodeAbort(errorCode);
-    return theNdbCon->OpCompleteFailure();
-  } else {
-    theError.code = errorCode;
-    return theNdbCon->OpCompleteSuccess();
-  }
+  theError.code = errorCode;
+  theNdbCon->setOperationErrorCodeAbort(errorCode);
+  return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
 }//NdbIndexOperation::receiveTCINDXREF()
 
 

@@ -27,6 +27,13 @@
 #include "sql_acl.h"
 #include <m_ctype.h>
 
+void Item_geometry_func::fix_length_and_dec()
+{
+  collation.set(&my_charset_bin);
+  decimals=0;
+  max_length=MAX_BLOB_WIDTH;
+}
+
 
 String *Item_func_geometry_from_text::val_str(String *str)
 {
@@ -44,6 +51,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
   if ((arg_count == 2) && !args[1]->null_value)
     srid= (uint32)args[1]->val_int();
 
+  str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
@@ -51,12 +59,6 @@ String *Item_func_geometry_from_text::val_str(String *str)
   if ((null_value= !Geometry::create_from_wkt(&buffer, &trs, str, 0)))
     return 0;
   return str;
-}
-
-
-void Item_func_geometry_from_text::fix_length_and_dec()
-{
-  max_length=MAX_BLOB_WIDTH;
 }
 
 
@@ -71,6 +73,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   if ((arg_count == 2) && !args[1]->null_value)
     srid= (uint32)args[1]->val_int();
 
+  str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
@@ -81,12 +84,6 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 	str->append(*wkb))))
     return 0;
   return str;
-}
-
-
-void Item_func_geometry_from_wkb::fix_length_and_dec()
-{
-  max_length=MAX_BLOB_WIDTH;
 }
 
 
@@ -138,12 +135,6 @@ String *Item_func_as_wkb::val_str(String *str)
 }
 
 
-void Item_func_as_wkb::fix_length_and_dec()
-{
-  max_length= MAX_BLOB_WIDTH;
-}
-
-
 String *Item_func_geometry_type::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -180,6 +171,7 @@ String *Item_func_envelope::val_str(String *str)
     return 0;
   
   srid= uint4korr(swkb->ptr());
+  str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(SRID_SIZE, 512))
     return 0;
@@ -202,6 +194,7 @@ String *Item_func_centroid::val_str(String *str)
 					 swkb->length() - SRID_SIZE))))
     return 0;
 
+  str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
     return 0;
   str->length(0);
@@ -232,6 +225,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
     return 0;
 
   srid= uint4korr(swkb->ptr());
+  str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
     goto err;
   str->length(0);
@@ -279,6 +273,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
 					  swkb->length() - SRID_SIZE)))))
     return 0;
 
+  str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
     goto err;
   srid= uint4korr(swkb->ptr());
@@ -333,6 +328,7 @@ String *Item_func_point::val_str(String *str)
 		    str->realloc(1 + 4 + SIZEOF_STORED_DOUBLE*2))))
     return 0;
 
+  str->set_charset(&my_charset_bin);
   str->length(0);
   str->q_append((char)Geometry::wkb_ndr);
   str->q_append((uint32)Geometry::wkb_point);
@@ -358,6 +354,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   String arg_value;
   uint i;
 
+  str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(1 + 4 + 4, 512))
     goto err;

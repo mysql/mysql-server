@@ -190,13 +190,13 @@ runOp(HugoOperations & hugoOps,
   return NDBT_FAILED; }
   
   if(strcmp(op, "READ") == 0){
-    C2(hugoOps.pkReadRecord(pNdb, 1, false, 1) == 0);
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);
   } else if(strcmp(op, "READ-EX") == 0){
-    C2(hugoOps.pkReadRecord(pNdb, 1, true, 1) == 0);      
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive) == 0);  
   } else if(strcmp(op, "S-READ") == 0){
-    C2(hugoOps.pkSimpleReadRecord(pNdb, 1, 1) == 0);      
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read) == 0);      
   } else if(strcmp(op, "D-READ") == 0){
-    C2(hugoOps.pkDirtyReadRecord(pNdb, 1, 1) == 0);      
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_CommittedRead) == 0); 
   } else if(strcmp(op, "INSERT") == 0){
     C2(hugoOps.pkInsertRecord(pNdb, 1, 1, value) == 0);      
   } else if(strcmp(op, "UPDATE") == 0){
@@ -364,6 +364,7 @@ runClearTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 main(int argc, const char** argv){
+  ndb_init();
 
   NDBT_TestSuite ts("testOperations");
   for(Uint32 i = 0; i<sizeof(matrix)/sizeof(matrix[0]); i++){

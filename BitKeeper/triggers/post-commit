@@ -21,6 +21,7 @@ then
 
 CHANGESET=`bk -R prs -r+ -h -d':P:::I:' ChangeSet`
 BUG=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Bb][Uu][Gg] *# *\([0-9][0-9]*\).*$/ BUG#\1/p'`
+WL=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Ww][Ll] *# *\([0-9][0-9]*\).*$/ WL#\1/p'`
 
 if [ "$BUG" = "" ]
 then
@@ -37,7 +38,7 @@ fi
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $TO
-Subject: bk commit - $VERSION tree ($CHANGESET)$BUG
+Subject: bk commit - $VERSION tree ($CHANGESET)${BUG}${WL}
 
 EOF
   bk changes -v -r+

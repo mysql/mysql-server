@@ -99,11 +99,12 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
     }
     
     for(Uint32 i = 0; i<len; i += 3){
+      Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
       Uint32 info = * ops++;
-      Uint32 opCount  = ScanTabConf::getRows(info);
-      Uint32 totalLen = ScanTabConf::getLength(info);
+      opCount  = ScanTabConf::getRows(info);
+      totalLen = ScanTabConf::getLength(info);
       
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
@@ -119,12 +120,21 @@ NdbConnection::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
 	}
       }
     }
+    if (conf->requestInfo & ScanTabConf::EndOfData) {
+      if(theScanningOp->m_ordered)
+	theScanningOp->m_api_receivers_count = 0;
+      if(theScanningOp->m_api_receivers_count + 
+	 theScanningOp->m_conf_receivers_count +
+	 theScanningOp->m_sent_receivers_count){
+	abort();
+      }
+    }
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();
 #endif
   }
-
+  
   return -1;
 }

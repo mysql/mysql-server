@@ -157,11 +157,11 @@ public:
 
 protected:
   /** Max length of the date and time header in the log. */
-  static const int MAX_DATE_TIME_HEADER_LENGTH = 64;
+  STATIC_CONST( MAX_DATE_TIME_HEADER_LENGTH = 64 );
   /** Max length of the header the log. */
-  static const int MAX_HEADER_LENGTH = 128;
+  STATIC_CONST( MAX_HEADER_LENGTH = 128 );
   /** Max lenght of footer in the log. */
-  static const int MAX_FOOTER_LENGTH = 128;
+  STATIC_CONST( MAX_FOOTER_LENGTH = 128 );
 
   /**
    * Write the header to the log.

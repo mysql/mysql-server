@@ -88,7 +88,7 @@ RestoreMetaData::~RestoreMetaData(){
   allTables.clear();
 }
 
-const TableS * 
+TableS * 
 RestoreMetaData::getTable(Uint32 tableId) const {
   for(Uint32 i= 0; i < allTables.size(); i++)
     if(allTables[i]->getTableId() == tableId)
@@ -201,6 +201,8 @@ TableS::TableS(NdbTableImpl* tableImpl)
 {
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
+  m_auto_val_id= ~(Uint32)0;
+  m_max_auto_val= 0;
 
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -240,6 +242,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
   debug << "Pushing table " << table->getTableName() << endl;
   debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
+  
   allTables.push_back(table);
 
   return true;
@@ -268,7 +271,7 @@ int TupleS::getNoOfAttributes() const {
   return m_currentTable->getNoOfAttributes();
 };
 
-const TableS * TupleS::getTable() const {
+TableS * TupleS::getTable() const {
   return m_currentTable;
 };
 
@@ -281,7 +284,7 @@ AttributeData * TupleS::getData(int i) const{
 };
 
 bool
-TupleS::prepareRecord(const TableS & tab){
+TupleS::prepareRecord(TableS & tab){
   if (allAttrData) {
     if (getNoOfAttributes() == tab.getNoOfAttributes())
     {
@@ -512,7 +515,7 @@ BackupFile::setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path){
   m_expectedFileHeader.FileType = BackupFormat::CTL_FILE;
 
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d.%d.ctl", backupId, nodeId);  
+  BaseString::snprintf(name, sz, "BACKUP-%d.%d.ctl", backupId, nodeId);  
   setName(path, name);
 }
 
@@ -523,7 +526,7 @@ BackupFile::setDataFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::DATA_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d-%d.%d.Data", 
+  BaseString::snprintf(name, sz, "BACKUP-%d-%d.%d.Data", 
 	   m_expectedFileHeader.BackupId, no, m_nodeId);
   setName(bf.m_path, name);
 }
@@ -535,7 +538,7 @@ BackupFile::setLogFile(const BackupFile & bf, Uint32 no){
   m_expectedFileHeader.FileType = BackupFormat::LOG_FILE;
   
   char name[PATH_MAX]; const Uint32 sz = sizeof(name);
-  snprintf(name, sz, "BACKUP-%d.%d.log", 
+  BaseString::snprintf(name, sz, "BACKUP-%d.%d.log", 
 	   m_expectedFileHeader.BackupId, m_nodeId);
   setName(bf.m_path, name);
 }
@@ -545,15 +548,15 @@ BackupFile::setName(const char * p, const char * n){
   const Uint32 sz = sizeof(m_path);
   if(p != 0 && strlen(p) > 0){
     if(p[strlen(p)-1] == '/'){
-      snprintf(m_path, sz, "%s", p);
+      BaseString::snprintf(m_path, sz, "%s", p);
     } else {
-      snprintf(m_path, sz, "%s%s", p, "/");
+      BaseString::snprintf(m_path, sz, "%s%s", p, "/");
     }
   } else {
     m_path[0] = 0;
   }
 
-  snprintf(m_fileName, sizeof(m_fileName), "%s%s", m_path, n);
+  BaseString::snprintf(m_fileName, sizeof(m_fileName), "%s%s", m_path, n);
   debug << "Filename = " << m_fileName << endl;
 }
 
@@ -683,8 +686,8 @@ RestoreDataIterator::validateFragmentFooter() {
 AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
   : m_column(c)
 {
-  size = c->getSize()*8;
-  arraySize = c->getLength();
+  size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
+  arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
@@ -696,6 +699,9 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
   d->attrId = allAttributesDesc.size();
   allAttributesDesc.push_back(d);
+
+  if (d->m_column->getAutoIncrement())
+    m_auto_val_id= d->attrId;
 
   if(d->m_column->getPrimaryKey() /* && not variable */)
   {
@@ -930,8 +936,9 @@ operator<<(NdbOut& ndbout, const TableS & table){
   for (int j = 0; j < table.getNoOfAttributes(); j++) 
   {
     const AttributeDesc * desc = table[j];
-    ndbout << desc->m_column->getName() << ": " << desc->m_column->getType();
-    ndbout << " key: "  << desc->m_column->getPrimaryKey();
+    ndbout << desc->m_column->getName() << ": "
+	   << (Uint32) desc->m_column->getType();
+    ndbout << " key: "  << (Uint32) desc->m_column->getPrimaryKey();
     ndbout << " array: " << desc->arraySize;
     ndbout << " size: " << desc->size << endl;
   } // for

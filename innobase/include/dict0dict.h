@@ -356,6 +356,7 @@ dict_print_info_on_foreign_keys(
 				a CREATE TABLE, otherwise in the format
 				of SHOW TABLE STATUS */
 	FILE*		file,	/* in: file where to print */
+	trx_t*		trx,	/* in: transaction */
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Outputs info on a foreign key of a table in a format suitable for
@@ -364,6 +365,7 @@ void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
 	FILE*		file,	/* in: file where to print */
+	trx_t*		trx,	/* in: transaction */
 	dict_foreign_t*	foreign);/* in: foreign key constraint */
 /************************************************************************
 Displays the names of the index and the table. */
@@ -371,6 +373,7 @@ void
 dict_index_name_print(
 /*==================*/
 	FILE*			file,	/* in: output stream */
+	trx_t*			trx,	/* in: transaction */
 	const dict_index_t*	index);	/* in: index to print */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
@@ -601,8 +604,10 @@ dict_index_contains_col_or_prefix(
 	dict_index_t*	index,	/* in: index */
 	ulint		n);	/* in: column number */
 /************************************************************************
-Looks for a matching field in an index. The column and the prefix len has
-to be the same. */
+Looks for a matching field in an index. The column has to be the same. The
+column in index must be complete, or must contain a prefix longer than the
+column in index2. That is, we must be able to construct the prefix in index2
+from the prefix in index. */
 
 ulint
 dict_index_get_nth_field_pos(
@@ -885,6 +890,18 @@ dict_tables_have_same_db(
 				dbname '/' tablename */
 	const char*	name2);	/* in: table name in the form
 				dbname '/' tablename */
+
+/*************************************************************************
+Scans from pointer onwards. Stops if is at the start of a copy of
+'string' where characters are compared without case sensitivity. Stops
+also at '\0'. */
+
+const char*
+dict_scan_to(
+/*=========*/
+				/* out: scanned up to this */
+	const char*	ptr,	/* in: scan from */
+	const char*	string);/* in: look for this */
 
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */

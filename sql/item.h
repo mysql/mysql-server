@@ -99,7 +99,8 @@ public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
+  static void operator delete(void *ptr,size_t size) {}
+  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root) {}
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
@@ -219,7 +220,8 @@ public:
     a constant expression
   */
   virtual bool basic_const_item() const { return 0; }
-  virtual Item *new_item() { return 0; }	/* Only for const items */
+  /* cloning of constant items (0 if it is not const) */
+  virtual Item *new_item() { return 0; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
@@ -237,17 +239,29 @@ public:
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
-  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
+  virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
+                              List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; }
+  /*
+    it is "top level" item of WHERE clause and we do not need correct NULL
+    handling
+  */
   virtual void top_level_item() {}
+  /*
+    set field of temporary table for Item which can be switched on temporary
+    table during query processing (groupping and so on)
+  */
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
+  /*
+    set value of aggegate function in case of no rows for groupping were found
+  */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *copy_andor_structure(THD *thd) { return this; }
@@ -271,6 +285,7 @@ public:
   virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
+  virtual Item *set_no_const_sub(byte *arg) { return this; }
   virtual bool replace_equal_field_processor(byte * arg) { return 0; }
   
   virtual Item *this_item() { return this; } /* For SPs mostly. */
@@ -407,6 +422,7 @@ public:
 class st_select_lex;
 class Item_ident :public Item
 {
+protected:
   /* 
     We have to store initial values of db_name, table_name and field_name
     to be able to restore them during cleanup() because they can be 
@@ -416,7 +432,6 @@ class Item_ident :public Item
   const char *orig_db_name;
   const char *orig_table_name;
   const char *orig_field_name;
-  Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
@@ -439,8 +454,6 @@ public:
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
   void cleanup();
-  void register_item_tree_changing(Item **ref)
-    { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
   void print(String *str);
 
@@ -474,13 +487,21 @@ public:
     field(0), result_field(0), item_equal(0), no_const_subst(0),
      have_privileges(0), any_privileges(0)
   { collation.set(DERIVATION_IMPLICIT); }
-  // Constructor need to process subselect with temporary tables (see Item)
+  /*
+    Constructor needed to process subselect with temporary tables (see Item)
+  */
   Item_field(THD *thd, Item_field *item);
   /*
-    Constructor used inside setup_wild(), ensures that field and table
-    names will live as long as Item_field (important in prep. stmt.)
+    Constructor used inside setup_wild(), ensures that field, table,
+    and database names will live as long as Item_field (this is important
+    in prepared statements).
   */
   Item_field(THD *thd, Field *field);
+  /*
+    If this constructor is used, fix_fields() won't work, because
+    db_name, table_name and column_name are unknown. It's necessary to call
+    reset_field() before fix_fields() for all fields created this way.
+  */
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -491,6 +512,7 @@ public:
   longlong val_int_result();
   String *str_result(String* tmp);
   bool send(Protocol *protocol, String *str_arg);
+  void reset_field(Field *f);
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
@@ -515,6 +537,7 @@ public:
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
+  Item *set_no_const_sub(byte *arg);
   bool replace_equal_field_processor(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
@@ -873,8 +896,8 @@ public:
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0,
-  							&my_charset_bin)
+  Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
+    Item_string("",0, cs ? cs : &my_charset_bin)
     { name=(char*) header; max_length=length;}
   void make_field(Send_field *field);
 };
@@ -931,6 +954,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
+  void cleanup();
 };
 
 
@@ -939,20 +963,13 @@ class Item_ref :public Item_ident
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
-  Item **hook_ptr;                       /* These two to restore  */
-  Item *orig_item;                       /* things in 'cleanup()' */
-  Item_ref(Item **hook, Item *original,const char *db_par,
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(db_par, table_name_par, field_name_par), result_field(0),
-     ref(0), hook_ptr(hook), orig_item(original) {}
-  Item_ref(Item **item, Item **hook,
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS, table_name_par, field_name_par), result_field(0),
-    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
-  // Constructor need to process subselect with temporary tables (see Item)
-  Item_ref(THD *thd, Item_ref *item, Item **hook)
-    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
-    hook_ptr(hook), orig_item(hook ? *hook : 0) {}
+  Item_ref(const char *db_par, const char *table_name_par,
+           const char *field_name_par)
+    :Item_ident(db_par, table_name_par, field_name_par), result_field(0), ref(0) {}
+  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
+    :Item_ident(NullS, table_name_par, field_name_par), result_field(0), ref(item) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
@@ -1020,7 +1037,7 @@ protected:
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
 		       const char *table_name_par, const char *field_name_par):
-    Item_ref(item, NULL, table_name_par, field_name_par), owner(master) {}
+    Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);
@@ -1458,5 +1475,5 @@ public:
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
-extern Item *resolve_const_item(Item *item,Item *cmp_item);
+extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);

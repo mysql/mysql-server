@@ -24,7 +24,8 @@ class DihContinueB {
    * Sender(s)/Reciver(s)
    */
   friend class Dbdih;
-  friend bool printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData, Uint32 len);
+  friend bool printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
+				   Uint32 len, Uint16);
 private:
   enum Type {
     ZPACK_TABLE_INTO_PAGES  =  1,

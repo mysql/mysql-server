@@ -42,12 +42,14 @@ public:
     m_tuples = 0;
     m_free_callback = 0;
     m_transactions = 0;
+    m_cache.m_old_table = 0;
   }
   
   virtual ~BackupRestore();
   virtual bool init();
   virtual void release();
   virtual bool table(const TableS &);
+  virtual bool endOfTables();
   virtual void tuple(const TupleS &);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
@@ -57,6 +59,7 @@ public:
   virtual void endOfTuples();
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
+  virtual bool finalize_table(const TableS &);
   void connectToMysql();
   Ndb * m_ndb;
   bool m_restore;
@@ -70,6 +73,20 @@ public:
   TupleS *m_tuples;
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
+
+  /**
+   * m_new_table_ids[X] = Y;
+   *   X - old table id
+   *   Y != 0  - new table
+   */
+  Vector<const NdbDictionary::Table*> m_new_tables;
+  struct {
+    const NdbDictionary::Table* m_old_table;
+    const NdbDictionary::Table* m_new_table;
+  } m_cache;
+  const NdbDictionary::Table* get_table(const NdbDictionary::Table* );
+
+  Vector<const NdbDictionary::Table*> m_indexes;
 };
 
 #endif

@@ -65,6 +65,7 @@ int myCreateEvent(Ndb* myNdb,
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = myCreateNdb();
   NdbDictionary::Dictionary *myDict;
 

@@ -839,7 +839,7 @@ static
 void
 btr_cur_trx_report(
 /*===============*/
-	const trx_t*		trx,	/* in: transaction */
+	trx_t*			trx,	/* in: transaction */
 	const dict_index_t*	index,	/* in: index */
 	const char*		op)	/* in: operation */
 {
@@ -847,7 +847,7 @@ btr_cur_trx_report(
 		ut_dulint_get_high(trx->id),
 		ut_dulint_get_low(trx->id));
 	fputs(op, stderr);
-	dict_index_name_print(stderr, index);
+	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);
 }
 
@@ -899,7 +899,7 @@ btr_cur_optimistic_insert(
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, thr_get_trx(thr), index);
 	}
 	
 	if (btr_cur_print_record_ops && thr) {
@@ -1001,7 +1001,7 @@ calculate_sizes_again:
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
 			dtuple_print(stderr, entry);
 			fputs(" into ", stderr);
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, thr_get_trx(thr), index);
 			fprintf(stderr, "\nInnoDB: max insert size %lu\n",
 				(ulong) max_size);
 			ut_error;

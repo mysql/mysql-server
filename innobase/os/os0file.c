@@ -234,8 +234,9 @@ os_file_get_last_error(
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
 			fprintf(stderr,
-  "InnoDB: See section 13.2 at http://www.innodb.com/ibman.php\n"
-  "InnoDB: about operating system error numbers.\n");
+  "InnoDB: Some operating system error numbers are described at\n"
+  "InnoDB: "
+  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 		}
 	}
 
@@ -280,8 +281,9 @@ os_file_get_last_error(
 			}
 
 			fprintf(stderr,
-  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-  "InnoDB: about operating system error numbers.\n");
+  "InnoDB: Some operating system error numbers are described at\n"
+  "InnoDB: "
+  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 		}
 	}
 
@@ -408,13 +410,10 @@ os_file_handle_error_no_exit(
 /*=========================*/
 				/* out: TRUE if we should retry the
 				operation */
-	os_file_t	file,	/* in: file pointer */
 	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
-
-	UT_NOT_USED(file);
 
 	err = os_file_get_last_error(FALSE);
 	
@@ -622,7 +621,7 @@ os_file_closedir(
 	ret = FindClose(dir);
 
 	if (!ret) {
-	        os_file_handle_error_no_exit(NULL, NULL, "closedir");
+	        os_file_handle_error_no_exit(NULL, "closedir");
 		
 		return(-1);
 	}
@@ -634,7 +633,7 @@ os_file_closedir(
 	ret = closedir(dir);
 
 	if (ret) {
-	        os_file_handle_error_no_exit(0, NULL, "closedir");
+	        os_file_handle_error_no_exit(NULL, "closedir");
 	}
 
 	return(ret);
@@ -703,7 +702,7 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 
 		return(1);
 	} else {
-		os_file_handle_error_no_exit(NULL, dirname,
+		os_file_handle_error_no_exit(dirname,
 						"readdir_next_file");
 		return(-1);
 	}
@@ -735,7 +734,7 @@ next_file:
 	ret = stat(full_path, &statinfo);
 
 	if (ret) {
-		os_file_handle_error_no_exit(0, full_path, "stat");
+		os_file_handle_error_no_exit(full_path, "stat");
 
 		ut_free(full_path);
 
@@ -1324,7 +1323,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error(name, "delete");
+		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
 	}
@@ -1386,7 +1385,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(name, "delete");
+		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
 	}
@@ -1805,7 +1804,7 @@ os_file_pread(
 	os_file_n_pending_preads++;
         os_mutex_exit(os_file_count_mutex);
 
-        n_bytes = pread(file, buf, n, offs);
+        n_bytes = pread(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
@@ -1830,7 +1829,7 @@ os_file_pread(
 		return(ret);
 	}
 	
-	ret = read(file, buf, n);
+	ret = read(file, buf, (ssize_t)n);
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -1880,7 +1879,7 @@ os_file_pwrite(
 	os_file_n_pending_pwrites++;
         os_mutex_exit(os_file_count_mutex);
 
-	ret = pwrite(file, buf, n, offs);
+	ret = pwrite(file, buf, (ssize_t)n, offs);
 
         os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
@@ -1915,7 +1914,7 @@ os_file_pwrite(
 		return(ret);
 	}
 	
-	ret = write(file, buf, n);
+	ret = write(file, buf, (ssize_t)n);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
@@ -2008,6 +2007,11 @@ try_again:
 
 		return(TRUE);
 	}
+
+	fprintf(stderr,
+"InnoDB: Error: tried to read %lu bytes at offset %lu %lu.\n"
+"InnoDB: Was only able to read %ld.\n", (ulong)n, (ulong)offset_high,
+					(ulong)offset, (long)ret);
 #endif	
 #ifdef __WIN__
 error_handling:
@@ -2110,7 +2114,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error_no_exit(file, NULL, "read"); 
+	retry = os_file_handle_error_no_exit(NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -2174,8 +2178,9 @@ retry:
 		fprintf(stderr,
 "  InnoDB: Error: File pointer positioning to file %s failed at\n"
 "InnoDB: offset %lu %lu. Operating system error number %lu.\n"
-"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: what the error number means.\n",
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n",
 			name, (ulong) offset_high, (ulong) offset,
 			(ulong) GetLastError());
 
@@ -2232,8 +2237,9 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: about operating system error numbers.\n");
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2267,8 +2273,9 @@ retry:
 		}
 
 		fprintf(stderr,
-"InnoDB: See also section 13.2 at http://www.innodb.com/ibman.php\n"
-"InnoDB: about operating system error numbers.\n");
+"InnoDB: Some operating system error numbers are described at\n"
+"InnoDB: "
+"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2300,7 +2307,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
@@ -2328,7 +2335,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
@@ -2344,6 +2351,83 @@ os_file_status(
 	}
 
 	*exists = TRUE;
+	
+	return(TRUE);
+#endif
+}
+
+/***********************************************************************
+This function returns information about the specified file */
+
+ibool
+os_file_get_status(
+/*===========*/
+				/* out: TRUE if stat information found */
+	const char*	path,	/* in:  pathname of the file */
+	os_file_stat_t* stat_info) /* information of a file in a directory */
+{
+#ifdef __WIN__
+	int		ret;
+	struct _stat	statinfo;
+	
+	ret = _stat(path, &statinfo);
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+
+		return(FALSE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(path, "stat");
+		
+		return(FALSE);
+	}
+	if (_S_IFDIR & statinfo.st_mode) {
+		stat_info->type = OS_FILE_TYPE_DIR;
+	} else if (_S_IFREG & statinfo.st_mode) {
+	        stat_info->type = OS_FILE_TYPE_FILE;
+	} else {
+	        stat_info->type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	stat_info->ctime = statinfo.st_ctime;
+	stat_info->atime = statinfo.st_atime;
+	stat_info->mtime = statinfo.st_mtime;
+	stat_info->size  = statinfo.st_size;
+	
+	return(TRUE);
+#else
+	int		ret;
+	struct stat	statinfo;
+	
+	ret = stat(path, &statinfo);
+
+	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+		/* file does not exist */
+
+		return(FALSE);
+	} else if (ret) {
+		/* file exists, but stat call failed */
+		
+		os_file_handle_error_no_exit(path, "stat");
+		
+		return(FALSE);
+	}
+	    
+	if (S_ISDIR(statinfo.st_mode)) {
+		stat_info->type = OS_FILE_TYPE_DIR;
+	} else if (S_ISLNK(statinfo.st_mode)) {
+	        stat_info->type = OS_FILE_TYPE_LINK;
+	} else if (S_ISREG(statinfo.st_mode)) {
+	        stat_info->type = OS_FILE_TYPE_FILE;
+	} else {
+	        stat_info->type = OS_FILE_TYPE_UNKNOWN;
+	}
+
+	stat_info->ctime = statinfo.st_ctime;
+	stat_info->atime = statinfo.st_atime;
+	stat_info->mtime = statinfo.st_mtime;
+	stat_info->size  = statinfo.st_size;
 	
 	return(TRUE);
 #endif
@@ -3466,6 +3550,8 @@ restart:
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
+	srv_set_io_thread_op_info(global_segment,
+					"looking for i/o requests (a)");
 	ut_ad(os_aio_validate());
 	ut_ad(segment < array->n_segments);
 
@@ -3483,6 +3569,9 @@ restart:
 	}
 	
 	os_mutex_enter(array->mutex);
+
+	srv_set_io_thread_op_info(global_segment,
+					"looking for i/o requests (b)");
 
 	/* Check if there is a slot for which the i/o has already been
 	done */
@@ -3595,6 +3684,8 @@ consecutive_loop:
 			}
 		}
 	}
+
+	srv_set_io_thread_op_info(global_segment, "consecutive i/o requests");
 
 	/* We have now collected n_consecutive i/o requests in the array;
 	allocate a single buffer which can hold all data, and perform the
@@ -3741,6 +3832,8 @@ slot_io_done:
 	return(ret);
 
 wait_for_io:
+	srv_set_io_thread_op_info(global_segment, "resetting wait event");
+
 	/* We wait here until there again can be i/os in the segment
 	of this thread */
 	
@@ -3832,9 +3925,17 @@ os_aio_print(
 	ulint		i;
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		fprintf(file, "I/O thread %lu state: %s (%s)\n", (ulong) i,
+		fprintf(file, "I/O thread %lu state: %s (%s)", (ulong) i,
 					srv_io_thread_op_info[i],
 					srv_io_thread_function[i]);
+
+#ifndef __WIN__
+        	if (os_aio_segment_wait_events[i]->is_set) {
+			fprintf(file, " ev set");
+		}
+#endif
+			
+		fprintf(file, "\n");
 	}
 
 	fputs("Pending normal aio reads:", file);

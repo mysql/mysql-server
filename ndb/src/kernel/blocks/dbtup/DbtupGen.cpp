@@ -44,16 +44,10 @@ void Dbtup::initData()
   cnoOfLcpRec = ZNO_OF_LCP_REC;
   cnoOfConcurrentOpenOp = ZNO_OF_CONCURRENT_OPEN_OP;
   cnoOfConcurrentWriteOp = ZNO_OF_CONCURRENT_WRITE_OP;
-  cnoOfFragoprec = 2 * NO_OF_FRAG_PER_NODE;
-  cnoOfFragrec = ZNO_OF_FRAGREC;
-  cnoOfOprec = ZNO_OF_OPREC;
-  cnoOfPage = ZNO_OF_PAGE;
+  cnoOfFragoprec = 2 * MAX_FRAG_PER_NODE;
   cnoOfPageRangeRec = ZNO_OF_PAGE_RANGE_REC;
   cnoOfParallellUndoFiles = ZNO_OF_PARALLELL_UNDO_FILES;
   cnoOfRestartInfoRec = ZNO_OF_RESTART_INFO_REC;
-  cnoOfTablerec = ZNO_OF_TABLEREC;
-  cnoOfTabDescrRec = ZNO_OF_TAB_DESCR_REC;
-  cnoOfUndoPage = ZNO_OF_UNDO_PAGE;
   c_maxTriggersPerTable = ZDEFAULT_MAX_NO_TRIGGERS_PER_TABLE;
   c_noOfBuildIndexRec = 32;
 
@@ -83,8 +77,24 @@ Dbtup::Dbtup(const class Configuration & conf)
   c_storedProcPool(),
   c_buildIndexList(c_buildIndexPool)
 {
-
+  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dbtup);
+
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_UNDO_DATA_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  cnoOfUndoPage= (log_page_size / sizeof(UndoPage));
+  Uint32 mega_byte_part= cnoOfUndoPage & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    cnoOfUndoPage+= (16 - mega_byte_part);
+  }
 
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
@@ -628,6 +638,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
   Uint64 pages = (tmp * 2048 + (ZWORDS_ON_PAGE - 1))/ (Uint64)ZWORDS_ON_PAGE;
   cnoOfPage = (Uint32)pages;
+  Uint32 noOfTriggers= 0;
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
   initPageRangeSize(tmp);
@@ -637,10 +648,13 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+					&noOfTriggers));
 
   cnoOfTabDescrRec = (cnoOfTabDescrRec & 0xFFFFFFF0) + 16;
   c_storedProcPool.setSize(noOfStoredProc);
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
+  c_triggerPool.setSize(noOfTriggers);
 
   initRecords();
   czero = 0;
@@ -715,8 +729,6 @@ void Dbtup::initRecords()
 		sizeof(RestartInfoRecord),
 		cnoOfRestartInfoRec);
 
-  // Trigger data
-  c_triggerPool.setSize(cnoOfTablerec*c_maxTriggersPerTable);
   
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
@@ -951,6 +963,7 @@ void Dbtup::initializeFragrecord()
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
     regFragPtr.p->checkpointVersion = RNIL;
     regFragPtr.p->firstusedOprec = RNIL;
+    regFragPtr.p->lastusedOprec = RNIL;
     regFragPtr.p->fragStatus = IDLE;
   }//for
   regFragPtr.i = cnoOfFragrec - 1;
@@ -1049,12 +1062,13 @@ void Dbtup::initializeTablerec()
 void
 Dbtup::initTab(Tablerec* const regTabPtr)
 {
-  for (Uint32 i = 0; i < (2 * NO_OF_FRAG_PER_NODE); i++) {
+  for (Uint32 i = 0; i < (2 * MAX_FRAG_PER_NODE); i++) {
     regTabPtr->fragid[i] = RNIL;
     regTabPtr->fragrec[i] = RNIL;
   }//for
   regTabPtr->readFunctionArray = NULL;
   regTabPtr->updateFunctionArray = NULL;
+  regTabPtr->charsetArray = NULL;
 
   regTabPtr->tabDescriptor = RNIL;
   regTabPtr->attributeGroupDescriptor = RNIL;
@@ -1151,7 +1165,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
     return;
   }//if
   regOperPtr.p->optype = ZREAD;
-  initOpConnection(regOperPtr.p);
+  initOpConnection(regOperPtr.p, 0);
   regOperPtr.p->userpointer = userPtr;
   regOperPtr.p->userblockref = userRef;
   signal->theData[0] = regOperPtr.p->userpointer;
@@ -1160,7 +1174,7 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
   return;
 }//Dbtup::execTUPSEIZEREQ()
 
-#define printFragment(t){ for(Uint32 i = 0; i < (2 * NO_OF_FRAG_PER_NODE);i++){\
+#define printFragment(t){ for(Uint32 i = 0; i < (2 * MAX_FRAG_PER_NODE);i++){\
   ndbout_c("table = %d fragid[%d] = %d fragrec[%d] = %d", \
            t.i, t.p->fragid[i], i, t.p->fragrec[i]); }}
 

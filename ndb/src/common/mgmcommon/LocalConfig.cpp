@@ -18,6 +18,7 @@
 #include <NdbEnv.h>
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
+#include <NdbMem.h>
 
 LocalConfig::LocalConfig(){
   error_line = 0; error_msg[0] = 0;
@@ -39,7 +40,7 @@ LocalConfig::init(const char *connectString,
   
   //1. Check connectString
   if(connectString != 0 && connectString[0] != 0){
-    if(readConnectString(connectString)){
+    if(readConnectString(connectString, "connect string")){
       return true;
     }
     return false;
@@ -58,7 +59,7 @@ LocalConfig::init(const char *connectString,
   char buf[255];  
   if(NdbEnv_GetEnv("NDB_CONNECTSTRING", buf, sizeof(buf)) &&
      strlen(buf) != 0){
-    if(readConnectString(buf)){
+    if(readConnectString(buf, "NDB_CONNECTSTRING")){
       return true;
     }
     return false;
@@ -89,8 +90,8 @@ LocalConfig::init(const char *connectString,
   //7. Check
   {
     char buf[256];
-    snprintf(buf, sizeof(buf), "host=localhost:%u", NDB_BASE_PORT);
-    if(readConnectString(buf))
+    BaseString::snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_BASE_PORT);
+    if(readConnectString(buf, "default connect string"))
       return true;
   }
 
@@ -108,8 +109,10 @@ void LocalConfig::setError(int lineNumber, const char * _msg) {
 }
 
 void LocalConfig::printError() const {
-  ndbout << "Local configuration error"<< endl
-	 << "Line: "<< error_line << ", " << error_msg << endl << endl;
+  ndbout << "Configuration error" << endl;
+  if (error_line)
+    ndbout << "Line: "<< error_line << ", ";
+  ndbout << error_msg << endl << endl;
 }
 
 void LocalConfig::printUsage() const {
@@ -139,7 +142,7 @@ const char *nodeIdTokens[] = {
 const char *hostNameTokens[] = {
   "host://%[^:]:%i",
   "host=%[^:]:%i",
-  "%[^:]:%i",
+  "%[^:^=^ ]:%i",
   "%s %i",
   0
 };
@@ -191,7 +194,7 @@ LocalConfig::parseFileName(const char * buf){
 }
 
 bool
-LocalConfig::parseString(const char * connectString, char *line){
+LocalConfig::parseString(const char * connectString, BaseString &err){
   char * for_strtok;
   char * copy = strdup(connectString);
   NdbAutoPtr<char> tmp_aptr(copy);
@@ -199,9 +202,8 @@ LocalConfig::parseString(const char * connectString, char *line){
   bool b_nodeId = false;
   bool found_other = false;
 
-  for (char *tok = strtok_r(copy,";",&for_strtok); tok != 0;
-       tok = strtok_r(NULL, ";", &for_strtok)) {
-
+  for (char *tok = strtok_r(copy,";,",&for_strtok); tok != 0;
+       tok = strtok_r(NULL, ";,", &for_strtok)) {
     if (tok[0] == '#') continue;
 
     if (!b_nodeId) // only one nodeid definition allowed
@@ -212,15 +214,12 @@ LocalConfig::parseString(const char * connectString, char *line){
     if (found_other = parseFileName(tok))
       continue;
     
-    if (line)
-      snprintf(line, 150, "Unexpected entry: \"%s\"", tok);
+    err.assfmt("Unexpected entry: \"%s\"", tok);
     return false;
   }
 
   if (!found_other) {
-    if (line)
-      snprintf(line, 150, "Missing host/file name extry in \"%s\"", 
-	       connectString);
+    err.appfmt("Missing host/file name extry in \"%s\"", connectString);
     return false;
   }
 
@@ -229,54 +228,60 @@ LocalConfig::parseString(const char * connectString, char *line){
 
 bool LocalConfig::readFile(const char * filename, bool &fopenError)
 {
-  char line[150], line2[150];
-    
+  char line[1024];
+  
   fopenError = false;
-
+  
   FILE * file = fopen(filename, "r");
   if(file == 0){
-    snprintf(line, 150, "Unable to open local config file: %s", filename);
+    BaseString::snprintf(line, sizeof(line),
+	     "Unable to open local config file: %s", filename);
     setError(0, line);
     fopenError = true;
     return false;
   }
 
-  int sz = 1024;
-  char* theString = (char*)malloc(sz);
-  theString[0] = 0;
+  BaseString theString;
 
-  fgets(theString, sz, file);
-  while (fgets(line+1, 100, file)) {
-    line[0] = ';';
-    while (strlen(theString) + strlen(line) >= sz) {
-      sz = sz*2;
-      char *newString = (char*)malloc(sz);
-      strcpy(newString, theString);
-      free(theString);
-      theString = newString;
+  while(fgets(line, sizeof(line), file)){
+    BaseString tmp(line);
+    tmp.trim(" \t\n\r");
+    if(tmp.length() > 0 && tmp.c_str()[0] != '#'){
+      theString.append(tmp);
+      break;
     }
-    strcat(theString, line);
   }
-
-  bool return_value = parseString(theString, line);
+  while (fgets(line, sizeof(line), file)) {
+    BaseString tmp(line);
+    tmp.trim(" \t\n\r");
+    if(tmp.length() > 0 && tmp.c_str()[0] != '#'){
+      theString.append(";");
+      theString.append(tmp);
+    }
+  }
+  
+  BaseString err;
+  bool return_value = parseString(theString.c_str(), err);
 
   if (!return_value) {
-    snprintf(line2, 150, "Reading %s: %s", filename, line);
-    setError(0,line2);
+    BaseString tmp;
+    tmp.assfmt("Reading %s: %s", filename, err.c_str());
+    setError(0, tmp.c_str());
   }
 
-  free(theString);
   fclose(file);
   return return_value;
 }
 
 bool
-LocalConfig::readConnectString(const char * connectString){
-  char line[150], line2[150];
-  bool return_value = parseString(connectString, line);
+LocalConfig::readConnectString(const char * connectString,
+			       const char * info){
+  BaseString err;
+  bool return_value = parseString(connectString, err);
   if (!return_value) {
-    snprintf(line2, 150, "Reading NDB_CONNECTSTRING \"%s\": %s", connectString, line);
-    setError(0,line2);
+    BaseString err2;
+    err2.assfmt("Reading %d \"%s\": %s", info, connectString, err.c_str());
+    setError(0,err2.c_str());
   }
   return return_value;
 }

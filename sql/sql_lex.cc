@@ -124,7 +124,38 @@ void lex_free(void)
 void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
-  lex->thd= thd;
+  lex->unit.init_query();
+  lex->unit.init_select();
+  lex->thd= lex->unit.thd= thd;
+  lex->select_lex.init_query();
+  lex->value_list.empty();
+  lex->param_list.empty();
+  lex->view_list.empty();
+  lex->unit.next= lex->unit.master=
+    lex->unit.link_next= lex->unit.return_to= 0;
+  lex->unit.prev= lex->unit.link_prev= 0;
+  lex->unit.slave= lex->unit.global_parameters= lex->current_select=
+    lex->all_selects_list= &lex->select_lex;
+  lex->select_lex.master= &lex->unit;
+  lex->select_lex.prev= &lex->unit.slave;
+  lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
+  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
+  lex->select_lex.options= 0;
+  lex->select_lex.init_order();
+  lex->select_lex.group_list.empty();
+  lex->describe= 0;
+  lex->derived_tables= FALSE;
+  lex->view_prepare_mode= FALSE;
+  lex->lock_option= TL_READ;
+  lex->found_colon= 0;
+  lex->safe_to_cache_query= 1;
+  lex->time_zone_tables_used= 0;
+  lex->proc_table= lex->query_tables= 0;
+  lex->query_tables_last= &lex->query_tables;
+  lex->variables_used= 0;
+  lex->select_lex.parent_lex= lex;
+  lex->empty_field_list_on_rset= 0;
+  lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
   lex->buf= lex->ptr= buf;
   lex->end_of_query=buf+length;
@@ -533,6 +564,7 @@ int yylex(void *arg, void *yythd)
       /* Fall through */
     case MY_LEX_IDENT_OR_BIN:		// TODO: Add binary string handling
     case MY_LEX_IDENT:
+      uchar *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
@@ -569,11 +601,16 @@ int yylex(void *arg, void *yythd)
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
       length= (uint) (lex->ptr - lex->tok_start)-1;
+      start= lex->ptr;
       if (lex->ignore_space)
       {
-	for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
+        /*
+          If we find a space then this can't be an identifier. We notice this
+          below by checking start != lex->ptr.
+        */
+        for (; state_map[c] == MY_LEX_SKIP ; c= yyGet());
       }
-      if (c == '.' && ident_map[yyPeek()])
+      if (start == lex->ptr && c == '.' && ident_map[yyPeek()])
 	lex->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -1413,6 +1450,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     1 - found
     0 - OK (table did not found)
 */
+
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
@@ -1423,8 +1461,8 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 
 
 /*
-  Find db.table which will be updated in this select and 
-  underlayed ones (except derived tables)
+  Find db.table which will be updated in this select and
+  underlying ones (except derived tables)
 
   SYNOPSIS
     st_select_lex::check_updateable()
@@ -1435,11 +1473,30 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
     1 - found
     0 - OK (table did not found)
 */
+
 bool st_select_lex::check_updateable(char *db, char *table)
 {
   if (find_table_in_local_list(get_table_list(), db, table))
     return 1;
 
+  return check_updateable_in_subqueries(db, table);
+}
+
+/*
+   Find db.table which will be updated in underlying subqueries
+
+   SYNOPSIS
+    st_select_lex::check_updateable_in_subqueries()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+
+bool st_select_lex::check_updateable_in_subqueries(char *db, char *table)
+{
   for (SELECT_LEX_UNIT *un= first_inner_unit();
        un;
        un= un->next_unit())

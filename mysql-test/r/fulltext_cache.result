@@ -21,17 +21,17 @@ INSERT INTO t2 VALUES (5,2,'um copo de Vodka');
 INSERT INTO t2 VALUES (6,2,'um chocolate Snickers');
 INSERT INTO t2 VALUES (7,1,'Bife');
 INSERT INTO t2 VALUES (8,1,'Pizza de Salmao');
-SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi')
+SELECT t1.q, t2.item, t2.id, round(MATCH t2.item AGAINST ('sushi'),8)
 as x FROM t1, t2 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x
-aaaaaaaaa dsaass de	sushi	1	1.92378664016724
-aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
-aaaaaaaaa dsaass de	Feijoada	3	0
-aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
-ssde df s fsda sad er	um copo de Vodka	5	0
-ssde df s fsda sad er	um chocolate Snickers	6	0
-aaaaaaaaa dsaass de	Bife	7	0
-aaaaaaaaa dsaass de	Pizza de Salmao	8	0
+aaaaaaaaa dsaass de	sushi	1	1.92378664
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0.00000000
+aaaaaaaaa dsaass de	Feijoada	3	0.00000000
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0.00000000
+ssde df s fsda sad er	um copo de Vodka	5	0.00000000
+ssde df s fsda sad er	um chocolate Snickers	6	0.00000000
+aaaaaaaaa dsaass de	Bife	7	0.00000000
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0.00000000
 SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi' IN BOOLEAN MODE)
 as x FROM t1, t2 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x
@@ -43,17 +43,17 @@ ssde df s fsda sad er	um copo de Vodka	5	0
 ssde df s fsda sad er	um chocolate Snickers	6	0
 aaaaaaaaa dsaass de	Bife	7	0
 aaaaaaaaa dsaass de	Pizza de Salmao	8	0
-SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi')
+SELECT t1.q, t2.item, t2.id, round(MATCH t2.item AGAINST ('sushi'),8)
 as x FROM t2, t1 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x
-aaaaaaaaa dsaass de	sushi	1	1.92378664016724
-aaaaaaaaa dsaass de	Bolo de Chocolate	2	0
-aaaaaaaaa dsaass de	Feijoada	3	0
-aaaaaaaaa dsaass de	Mousse de Chocolate	4	0
-ssde df s fsda sad er	um copo de Vodka	5	0
-ssde df s fsda sad er	um chocolate Snickers	6	0
-aaaaaaaaa dsaass de	Bife	7	0
-aaaaaaaaa dsaass de	Pizza de Salmao	8	0
+aaaaaaaaa dsaass de	sushi	1	1.92378664
+aaaaaaaaa dsaass de	Bolo de Chocolate	2	0.00000000
+aaaaaaaaa dsaass de	Feijoada	3	0.00000000
+aaaaaaaaa dsaass de	Mousse de Chocolate	4	0.00000000
+ssde df s fsda sad er	um copo de Vodka	5	0.00000000
+ssde df s fsda sad er	um chocolate Snickers	6	0.00000000
+aaaaaaaaa dsaass de	Bife	7	0.00000000
+aaaaaaaaa dsaass de	Pizza de Salmao	8	0.00000000
 SELECT t1.q, t2.item, t2.id, MATCH t2.item AGAINST ('sushi' IN BOOLEAN MODE)
 as x FROM t2, t1 WHERE (t2.id2 = t1.id) ORDER BY x DESC,t2.id;
 q	item	id	x

@@ -647,6 +647,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
   if (mysql->status != MYSQL_STATUS_READY)
   {
+    DBUG_PRINT("error",("state: %d", mysql->status));
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     return 1;
   }
@@ -727,6 +728,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
 static void cli_flush_use_result(MYSQL *mysql)
 {
   /* Clear the current execution status */
+  DBUG_ENTER("cli_flush_use_result");
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
   for (;;)
   {
@@ -744,6 +746,7 @@ static void cli_flush_use_result(MYSQL *mysql)
       break;                            /* End of data */
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -875,12 +878,12 @@ static const char *default_options[]=
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
-			     "options",default_options};
+			     "options",default_options, NULL};
 
 const char *sql_protocol_names_lib[] =
 { "TCP", "SOCKET", "PIPE", "MEMORY", NullS };
 TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
-				sql_protocol_names_lib};
+				sql_protocol_names_lib, NULL};
 
 static int add_init_command(struct st_mysql_options *options, const char *cmd)
 {
@@ -1401,6 +1404,7 @@ mysql_init(MYSQL *mysql)
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
+  strmov(mysql->net.sqlstate, not_error_sqlstate);
   /*
     By default, we are a replication pivot. The caller must reset it
     after we return if this is not the case.
@@ -1614,7 +1618,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       sock=0;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
-      host_info=(char*) ER(CR_SHARED_MEMORY_CONNECTION);
+      sprintf(host_info=buff, ER(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
 #endif /* HAVE_SMEM */
@@ -1678,8 +1682,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       net->vio=vio_new_win32pipe(hPipe);
-      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
-	      unix_socket);
+      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
 #endif
@@ -2239,6 +2242,32 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
+/*
+  Clear connection pointer of every statement: this is necessary
+  to give error on attempt to use a prepared statement of closed
+  connection.
+
+  SYNOPSYS
+    mysql_detach_stmt_list()
+      stmt_list  pointer to mysql->stmts
+*/
+
+void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)))
+{
+#ifdef MYSQL_CLIENT
+  /* Reset connection handle in all prepared statements. */
+  LIST *element= *stmt_list;
+  for (; element; element= element->next)
+  {
+    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    stmt->mysql= 0;
+    /* No need to call list_delete for statement here */
+  }
+  *stmt_list= 0;
+#endif /* MYSQL_CLIENT */
+}
+
+
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -2255,20 +2284,7 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
-#ifdef MYSQL_CLIENT
-    if (mysql->stmts)
-    {
-      /* Reset connection handle in all prepared statements. */
-      LIST *element;
-      for (element= mysql->stmts; element; element= element->next)
-      {
-        MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
-        stmt->mysql= 0;
-        /* No need to call list_delete for statement here */
-      }
-      mysql->stmts= 0;
-    }
-#endif /*MYSQL_CLIENT*/
+    mysql_detach_stmt_list(&mysql->stmts);
 #ifndef TO_BE_DELETED
     /* free/close slave list */
     if (mysql->rpl_pivot)

@@ -178,6 +178,7 @@ tellThreads(ThreadNdb* threadArrayP, const StartType what)
 NDB_COMMAND(flexHammer, "flexHammer", "flexHammer", "flexHammer", 65535)
 //main(int argc, const char** argv)
 {
+  ndb_init();
   ThreadNdb* pThreads = NULL; // Pointer to thread data array
   Ndb* pMyNdb = NULL;	      // Pointer to Ndb object
   int tLoops = 0;
@@ -839,7 +840,7 @@ static int setAttrNames()
   int retVal = 0;
 
   for (i = 0; i < MAXATTR ; i++) {
-    retVal = snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
+    retVal = BaseString::snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
     if (retVal < 0) {
       // Error in conversion
       return(-1);
@@ -858,11 +859,11 @@ static int setTableNames()
 
   for (i = 0; i < MAXTABLES ; i++) {
     if (theStandardTableNameFlag == 0) {
-      retVal = snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 		 NdbTick_CurrentMillisecond()/1000);
     } // if 
     else {
-      retVal = snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
+      retVal = BaseString::snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
     } // else
     if (retVal < 0) {
       // Error in conversion

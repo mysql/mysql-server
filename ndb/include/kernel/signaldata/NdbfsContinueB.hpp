@@ -24,7 +24,8 @@ class NdbfsContinueB {
    * Sender(s)/Reciver(s)
    */
   friend class Ndbfs;
-  friend bool printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData, Uint32 len);
+  friend bool printCONTINUEB_NDBFS(FILE * output, const Uint32 * theData,
+				   Uint32 len, Uint16);
 private:
   enum {
     ZSCAN_MEMORYCHANNEL_10MS_DELAY  =  0,

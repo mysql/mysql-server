@@ -1,5 +1,8 @@
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
@@ -455,6 +458,12 @@ create table t3 (a int, primary key (a));
 delete t1,t3 from t1,t2 where t1.a=t2.a and t2.a=(select t3.a from t3 where t1.a=t3.a);
 ERROR 42S02: Unknown table 't3' in MULTI DELETE
 drop table t1, t2, t3;
+create table t1 (col1 int);
+create table t2 (col1 int);
+update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
+delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+drop table t1,t2;
 set @ttype_save=@@storage_engine;
 set @@storage_engine=innodb;
 create table t1 ( c char(8) not null );
