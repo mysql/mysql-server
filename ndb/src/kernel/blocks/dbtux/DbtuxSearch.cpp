@@ -159,7 +159,7 @@ Dbtux::searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt sear
  *
  * Compares search key to each node min.  A move to right subtree can
  * overshoot target node.  The last such node is saved.  The final node
- * is a half-leaf or leaf.  If search key is less than final node min
+ * is a semi-leaf or leaf.  If search key is less than final node min
  * then the saved node is the g.l.b of the final node and we move back
  * to it.
  */
