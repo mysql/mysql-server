@@ -729,6 +729,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       */
       if (key->type == Key::FULLTEXT)
         column->length=test(f_is_blob(sql_field->pack_flag));
+      else
+        column->length*= sql_field->charset->mbmaxlen;
+
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->table_flags() & HA_BLOB_KEY))
@@ -2099,10 +2102,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       {						// Check if sub key
 	if (cfield->field->type() != FIELD_TYPE_BLOB &&
 	    (cfield->field->pack_length() == key_part_length ||
-	     cfield->length != cfield->pack_length ||
-	     cfield->pack_length <= key_part_length))
+	     cfield->length <= key_part_length / 
+			       key_part->field->charset()->mbmaxlen))
 	  key_part_length=0;			// Use whole field
       }
+      key_part_length /= key_part->field->charset()->mbmaxlen;
       key_parts.push_back(new key_part_spec(cfield->field_name,
 					    key_part_length));
     }
