@@ -24,7 +24,7 @@
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include "ha_innodb.h" // necessary to cut the binlog when crash recovery
 
 #include <my_dir.h>

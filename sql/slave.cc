@@ -22,7 +22,7 @@
 #include <myisam.h>
 #include "slave.h"
 #include "sql_repl.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <thr_alarm.h>
 #include <my_dir.h>

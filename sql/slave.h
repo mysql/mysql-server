@@ -21,13 +21,13 @@
 
 #include "mysql.h"
 #include "my_list.h"
-#include "table_filter.h"
+#include "rpl_filter.h"
 
 #define SLAVE_NET_TIMEOUT  3600
 #define MAX_SLAVE_ERRMSG   1024
 #define MAX_SLAVE_ERROR    2000
 
-extern Table_filter *rpl_filter;
+extern Rpl_filter *rpl_filter;
 
 /*****************************************************************************
 
