@@ -1429,6 +1429,75 @@ static void test_null()
   mysql_stmt_close(stmt);
 }
 
+/*********************************************************
+* Test for NULL as PS parameter (BUG#3367, BUG#3371)     *
+**********************************************************/
+static void test_ps_null_param()
+{
+  MYSQL_STMT *stmt;
+  int        rc;
+  
+  MYSQL_BIND in_bind;
+  my_bool    in_is_null;
+  long int   in_long;
+  
+  MYSQL_BIND out_bind;
+  ulong	     out_length;
+  my_bool    out_is_null;
+  char       out_str_data[20];
+
+  const char *queries[]= {"select ?", "select ?+1", 
+                    "select col1 from test_ps_nulls where col1 <=> ?",
+                    NULL
+                    };
+  const char **cur_query= queries;
+
+  myheader("test_null_ps_param_in_result");
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_ps_nulls");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"CREATE TABLE test_ps_nulls(col1 int)");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"INSERT INTO test_ps_nulls values (1),(null)");
+  myquery(rc);
+
+  in_bind.buffer_type= MYSQL_TYPE_LONG;
+  in_bind.is_null= &in_is_null;
+  in_bind.length= 0;
+  in_bind.buffer= (char*)&in_long;
+  in_is_null= 1;
+  in_long= 1;
+
+  out_bind.buffer_type=FIELD_TYPE_STRING;
+  out_bind.is_null= &out_is_null;
+  out_bind.length= &out_length;
+  out_bind.buffer= out_str_data;
+  out_bind.buffer_length= array_elements(out_str_data); 
+  
+  /* Execute several queries, all returning NULL in result. */
+  for(cur_query= queries; *cur_query; cur_query++)
+  {
+    strmov(query, *cur_query);
+    stmt = mysql_simple_prepare(mysql, query);
+    mystmt_init(stmt);
+    verify_param_count(stmt,1);
+
+    rc = mysql_bind_param(stmt,&in_bind);
+    mystmt(stmt, rc);
+    rc= mysql_bind_result(stmt,&out_bind);
+    mystmt(stmt, rc);
+    rc = mysql_execute(stmt);
+    mystmt(stmt, rc);
+    rc= mysql_fetch(stmt);
+    assert(rc != MYSQL_NO_DATA);
+    assert(out_is_null);
+    rc= mysql_fetch(stmt);
+    assert(rc == MYSQL_NO_DATA);
+    mysql_stmt_close(stmt);
+  }
+}
 
 /********************************************************
 * to test fetch null                                    *
@@ -9152,6 +9221,7 @@ int main(int argc, char **argv)
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
     test_fetch_null();      /* to fetch null data */
+    test_ps_null_param();   /* Fetch value of null parameter */
     test_fetch_date();      /* to fetch date,time and timestamp */
     test_fetch_str();       /* to fetch string to all types */
     test_fetch_long();      /* to fetch long to all types */

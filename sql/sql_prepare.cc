@@ -465,7 +465,7 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
     {
       if (is_param_null(null_array, it - begin))
       {
-        param->maybe_null= param->null_value= 1;
+        param->maybe_null= param->null_value= param->value_is_set= 1;
         res= &my_null_string;
       }
       else
@@ -503,7 +503,7 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
     if (!param->long_data_supplied)
     {
       if (is_param_null(null_array, it - begin))
-        param->maybe_null= param->null_value= 1;
+        param->maybe_null= param->null_value= param->value_is_set= 1;
       else
       {
         param->maybe_null= param->null_value= 0;
