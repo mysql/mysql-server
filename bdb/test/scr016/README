@@ -1,0 +1,37 @@
+# $Id: README,v 1.2 2001/05/31 23:09:10 dda Exp $
+
+Use the scripts testall or testone to run all, or just one of the Java
+tests.  You must be in this directory to run them.  For example,
+
+        $ export LD_LIBRARY_PATH=/usr/local/Berkeley3.3/lib
+	$ ./testone TestAppendRecno
+	$ ./testall
+
+The scripts will use javac and java in your path.  Set environment
+variables $JAVAC and $JAVA to override this.  It will also and honor
+any $CLASSPATH that is already set, prepending ../../../../classes to
+it, which is where the test .class files are put, and where the DB
+.class files can normally be found after a build on Unix and Windows.
+If none of these variables are set, everything will probably work
+with whatever java/javac is in your path.
+
+To run successfully, you will probably need to set $LD_LIBRARY_PATH
+to be the directory containing libdb_java-X.Y.so
+
+As an alternative, use the --prefix=<DIR> option, a la configure
+to set the top of the BerkeleyDB install directory.  This forces
+the proper options to be added to $LD_LIBRARY_PATH.
+For example,
+
+	$ ./testone --prefix=/usr/include/BerkeleyDB TestAppendRecno
+	$ ./testall --prefix=/usr/include/BerkeleyDB
+
+The test framework is pretty simple.  Any <name>.java file in this
+directory that is not mentioned in the 'ignore' file represents a
+test.  If the test is not compiled successfully, the compiler output
+is left in <name>.compileout .  Otherwise, the java program is run in
+a clean subdirectory using as input <name>.testin, or if that doesn't
+exist, /dev/null.  Output and error from the test run are put into
+<name>.out, <name>.err .  If <name>.testout, <name>.testerr exist,
+they are used as reference files and any differences are reported.
+If either of the reference files does not exist, /dev/null is used.

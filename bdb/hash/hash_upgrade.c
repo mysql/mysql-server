@@ -1,13 +1,13 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: hash_upgrade.c,v 11.25 2000/12/14 19:18:32 bostic Exp $";
+static const char revid[] = "$Id: hash_upgrade.c,v 11.32 2002/08/06 05:34:58 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,14 +18,13 @@ static const char revid[] = "$Id: hash_upgrade.c,v 11.25 2000/12/14 19:18:32 bos
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "hash.h"
-#include "db_upgrade.h"
+#include "dbinc/db_page.h"
+#include "dbinc/hash.h"
+#include "dbinc/db_upgrade.h"
 
 /*
  * __ham_30_hashmeta --
- *      Upgrade the database from version 4/5 to version 6.
+ *	Upgrade the database from version 4/5 to version 6.
  *
  * PUBLIC: int __ham_30_hashmeta __P((DB *, char *, u_int8_t *));
  */
@@ -163,10 +162,6 @@ __ham_30_sizefix(dbp, fhp, realname, metabuf)
 			return (ret);
 		if ((ret = __os_write(dbenv, fhp, buf, pagesize, &nw)) != 0)
 			return (ret);
-		if (nw != pagesize) {
-			__db_err(dbenv, "Short write during upgrade");
-			return (EIO);
-		}
 	}
 
 	return (0);
@@ -174,7 +169,7 @@ __ham_30_sizefix(dbp, fhp, realname, metabuf)
 
 /*
  * __ham_31_hashmeta --
- *      Upgrade the database from version 6 to version 7.
+ *	Upgrade the database from version 6 to version 7.
  *
  * PUBLIC: int __ham_31_hashmeta
  * PUBLIC:      __P((DB *, char *, u_int32_t, DB_FH *, PAGE *, int *));
@@ -229,7 +224,7 @@ __ham_31_hashmeta(dbp, real_name, flags, fhp, h, dirtyp)
 
 /*
  * __ham_31_hash --
- *      Upgrade the database hash leaf pages.
+ *	Upgrade the database hash leaf pages.
  *
  * PUBLIC: int __ham_31_hash
  * PUBLIC:      __P((DB *, char *, u_int32_t, DB_FH *, PAGE *, int *));
@@ -252,7 +247,7 @@ __ham_31_hash(dbp, real_name, flags, fhp, h, dirtyp)
 
 	ret = 0;
 	for (indx = 0; indx < NUM_ENT(h); indx += 2) {
-		hk = (HKEYDATA *)H_PAIRDATA(h, indx);
+		hk = (HKEYDATA *)H_PAIRDATA(dbp, h, indx);
 		if (HPAGE_PTYPE(hk) == H_OFFDUP) {
 			memcpy(&pgno, HOFFDUP_PGNO(hk), sizeof(db_pgno_t));
 			tpgno = pgno;

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_upg.c,v 11.20 2000/12/12 17:35:30 bostic Exp $";
+static const char revid[] = "$Id: db_upg.c,v 11.29 2002/03/27 18:59:04 krinsky Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,11 +18,11 @@ static const char revid[] = "$Id: db_upg.c,v 11.20 2000/12/12 17:35:30 bostic Ex
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_swap.h"
-#include "btree.h"
-#include "hash.h"
-#include "qam.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_swap.h"
+#include "dbinc/btree.h"
+#include "dbinc/hash.h"
+#include "dbinc/qam.h"
 
 static int (* const func_31_list[P_PAGETYPE_MAX])
     __P((DB *, char *, u_int32_t, DB_FH *, PAGE *, int *)) = {
@@ -68,7 +68,7 @@ __db_upgrade(dbp, fname, flags)
 
 	/* Get the real backing file name. */
 	if ((ret = __db_appname(dbenv,
-	    DB_APP_DATA, NULL, fname, 0, NULL, &real_name)) != 0)
+	    DB_APP_DATA, fname, 0, NULL, &real_name)) != 0)
 		return (ret);
 
 	/* Open the file. */
@@ -117,6 +117,7 @@ __db_upgrade(dbp, fname, flags)
 				goto err;
 			/* FALLTHROUGH */
 		case 8:
+		case 9:
 			break;
 		default:
 			__db_err(dbenv, "%s: unsupported btree version: %lu",
@@ -173,6 +174,7 @@ __db_upgrade(dbp, fname, flags)
 				goto err;
 			/* FALLTHROUGH */
 		case 7:
+		case 8:
 			break;
 		default:
 			__db_err(dbenv, "%s: unsupported hash version: %lu",
@@ -202,6 +204,7 @@ __db_upgrade(dbp, fname, flags)
 				goto err;
 			/* FALLTHROUGH */
 		case 3:
+		case 4:
 			break;
 		default:
 			__db_err(dbenv, "%s: unsupported queue version: %lu",
@@ -231,9 +234,9 @@ __db_upgrade(dbp, fname, flags)
 
 	ret = __os_fsync(dbenv, &fh);
 
-err:	if ((t_ret = __os_closehandle(&fh)) != 0 && ret == 0)
+err:	if ((t_ret = __os_closehandle(dbenv, &fh)) != 0 && ret == 0)
 		ret = t_ret;
-	__os_freestr(real_name);
+	__os_free(dbenv, real_name);
 
 	/* We're done. */
 	if (dbp->db_feedback != NULL)
@@ -268,7 +271,7 @@ __db_page_pass(dbp, real_name, flags, fl, fhp)
 		return (ret);
 
 	/* Allocate memory for a single page. */
-	if ((ret = __os_malloc(dbenv, dbp->pgsize, NULL, &page)) != 0)
+	if ((ret = __os_malloc(dbenv, dbp->pgsize, &page)) != 0)
 		return (ret);
 
 	/* Walk the file, calling the underlying conversion functions. */
@@ -294,7 +297,7 @@ __db_page_pass(dbp, real_name, flags, fl, fhp)
 		}
 	}
 
-	__os_free(page, dbp->pgsize);
+	__os_free(dbp->dbenv, page);
 	return (ret);
 }
 

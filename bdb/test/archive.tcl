@@ -1,33 +1,14 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: archive.tcl,v 11.14 2000/10/27 13:23:55 sue Exp $
+# $Id: archive.tcl,v 11.20 2002/04/30 19:21:21 sue Exp $
 #
 # Options are:
 # -checkrec <checkpoint frequency"
 # -dir <dbhome directory>
 # -maxfilesize <maxsize of log file>
-# -stat
-proc archive_usage {} {
-	puts "archive -checkrec <checkpt freq> -dir <directory> \
-	    -maxfilesize <max size of log files>"
-}
-proc archive_command { args } {
-	source ./include.tcl
-
-	# Catch a list of files output by db_archive.
-	catch { eval exec $util_path/db_archive $args } output
-
-	if { $is_windows_test == 1 || 1 } {
-		# On Windows, convert all filenames to use forward slashes.
-		regsub -all {[\\]} $output / output
-	}
-
-	# Output the [possibly-transformed] list.
-	return $output
-}
 proc archive { args } {
 	global alphabet
 	source ./include.tcl
@@ -35,17 +16,16 @@ proc archive { args } {
 	# Set defaults
 	set maxbsize [expr 8 * 1024]
 	set maxfile [expr 32 * 1024]
-	set dostat 0
 	set checkrec 500
 	for { set i 0 } { $i < [llength $args] } {incr i} {
 		switch -regexp -- [lindex $args $i] {
 			-c.* { incr i; set checkrec [lindex $args $i] }
 			-d.* { incr i; set testdir [lindex $args $i] }
 			-m.* { incr i; set maxfile [lindex $args $i] }
-			-s.* { set dostat 1 }
 			default {
-				puts -nonewline "FAIL:[timestamp] Usage: "
-				archive_usage
+				puts "FAIL:[timestamp] archive usage"
+	puts "usage: archive -checkrec <checkpt freq> \
+	    -dir <directory> -maxfilesize <max size of log files>"
 				return
 			}
 
@@ -53,15 +33,19 @@ proc archive { args } {
 	}
 
 	# Clean out old log if it existed
+	puts "Archive: Log archive test"
 	puts "Unlinking log: error message OK"
 	env_cleanup $testdir
 
 	# Now run the various functionality tests
 	set eflags "-create -txn -home $testdir \
 	    -log_buffer $maxbsize -log_max $maxfile"
-	set dbenv [eval {berkdb env} $eflags]
+	set dbenv [eval {berkdb_env} $eflags]
 	error_check_bad dbenv $dbenv NULL
 	error_check_good dbenv [is_substr $dbenv env] 1
+
+	set logc [$dbenv log_cursor]
+	error_check_good log_cursor [is_valid_logc $logc $dbenv] TRUE
 
 	# The basic test structure here is that we write a lot of log
 	# records (enough to fill up 100 log files; each log file it
@@ -75,7 +59,7 @@ proc archive { args } {
 	# open data file and CDx is close datafile.
 
 	set baserec "1:$alphabet:2:$alphabet:3:$alphabet:4:$alphabet"
-	puts "Archive.a: Writing log records; checkpoint every $checkrec records"
+	puts "\tArchive.a: Writing log records; checkpoint every $checkrec records"
 	set nrecs $maxfile
 	set rec 0:$baserec
 
@@ -111,7 +95,7 @@ proc archive { args } {
 		if { [expr $i % $checkrec] == 0 } {
 			# Take a checkpoint
 			$dbenv txn_checkpoint
-			set ckp_file [lindex [lindex [$dbenv log_get -last] 0] 0]
+			set ckp_file [lindex [lindex [$logc get -last] 0] 0]
 			catch { archive_command -h $testdir -a } res_log_full
 			if { [string first db_archive $res_log_full] == 0 } {
 				set res_log_full ""
@@ -125,7 +109,7 @@ proc archive { args } {
 			    res_data_full
 			catch { archive_command -h $testdir -s } res_data
 			error_check_good nlogfiles [llength $res_alllog] \
-			    [lindex [lindex [$dbenv log_get -last] 0] 0]
+			    [lindex [lindex [$logc get -last] 0] 0]
 			error_check_good logs_match [llength $res_log_full] \
 			    [llength $res_log]
 			error_check_good data_match [llength $res_data_full] \
@@ -206,21 +190,35 @@ proc archive { args } {
 		}
 	}
 	# Commit any transactions still running.
-	puts "Archive: Commit any transactions still running."
+	puts "\tArchive.b: Commit any transactions still running."
 	foreach t $txnlist {
 		error_check_good txn_commit:$t [$t commit] 0
 	}
 
 	# Close any files that are still open.
-	puts "Archive: Close open files."
+	puts "\tArchive.c: Close open files."
 	foreach d $dblist {
 		error_check_good db_close:$db [$d close] 0
 	}
 
 	# Close and unlink the file
+	error_check_good log_cursor_close [$logc close] 0
 	reset_env $dbenv
+}
 
-	puts "Archive: Complete."
+proc archive_command { args } {
+	source ./include.tcl
+
+	# Catch a list of files output by db_archive.
+	catch { eval exec $util_path/db_archive $args } output
+
+	if { $is_windows_test == 1 || 1 } {
+		# On Windows, convert all filenames to use forward slashes.
+		regsub -all {[\\]} $output / output
+	}
+
+	# Output the [possibly-transformed] list.
+	return $output
 }
 
 proc min { a b } {

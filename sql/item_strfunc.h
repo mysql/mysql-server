@@ -469,7 +469,7 @@ public:
    }
   void fix_length_and_dec() 
   { 
-    str_value.set_charset(my_charset_bin); 
+    set_charset(my_charset_bin); 
     max_length=args[0]->max_length; 
   }
   void print(String *str) { print_op(str); }
@@ -485,7 +485,7 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    str_value.set_charset(my_charset_bin);
+    set_charset(my_charset_bin);
     maybe_null=1; 
     max_length=MAX_BLOB_WIDTH;
   }

@@ -1,7 +1,7 @@
 rm -f $MYSQL_TEST_DIR/var/log/*relay*
 rm -f $MYSQL_TEST_DIR/var/slave-data/relay-log.info
 cat > $MYSQL_TEST_DIR/var/slave-data/master.info <<EOF
-master-bin.001
+master-bin.000001
 4
 127.0.0.1
 replicate

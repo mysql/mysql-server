@@ -528,9 +528,9 @@ class Field_null :public Field_str {
 public:
   Field_null(char *ptr_arg, uint32 len_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, len_arg, null, 1,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
+	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
   enum_field_types type() const { return FIELD_TYPE_NULL;}
   int  store(const char *to, uint length, CHARSET_INFO *cs) { null[0]=1; return 0; }
@@ -544,7 +544,7 @@ public:
   int cmp(const char *a, const char *b) { return 0;}
   void sort_string(char *buff, uint length)  {}
   uint32 pack_length() const { return 0; }
-  void sql_type(String &str) const { str.set("null",4,default_charset_info); }
+  void sql_type(String &str) const { str.set("null",4,my_thd_charset); }
   uint size_of() const { return sizeof(*this); }
 };
 
@@ -615,14 +615,14 @@ class Field_date :public Field_str {
 public:
   Field_date(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
+	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
   Field_date(bool maybe_null_arg, const char *field_name_arg,
-		 struct st_table *table_arg)
+		 struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, default_charset_info) {}
+	       NONE, field_name_arg, table_arg, cs) {}
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -645,9 +645,9 @@ class Field_newdate :public Field_str {
 public:
   Field_newdate(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		enum utype unireg_check_arg, const char *field_name_arg,
-		struct st_table *table_arg)
+		struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
+	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
   enum_field_types type() const { return FIELD_TYPE_DATE;}
   enum_field_types real_type() const { return FIELD_TYPE_NEWDATE; }
@@ -676,14 +676,14 @@ class Field_time :public Field_str {
 public:
   Field_time(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
-	     struct st_table *table_arg)
+	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
+	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
   Field_time(bool maybe_null_arg, const char *field_name_arg,
-		 struct st_table *table_arg)
+		 struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, default_charset_info) {}
+	       NONE, field_name_arg, table_arg, cs) {}
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -708,14 +708,14 @@ class Field_datetime :public Field_str {
 public:
   Field_datetime(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		 enum utype unireg_check_arg, const char *field_name_arg,
-		 struct st_table *table_arg)
+		 struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str(ptr_arg, 19, null_ptr_arg, null_bit_arg,
-	       unireg_check_arg, field_name_arg, table_arg, default_charset_info)
+	       unireg_check_arg, field_name_arg, table_arg, cs)
     {}
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
-		 struct st_table *table_arg)
+		 struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,19, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, default_charset_info) {}
+	       NONE, field_name_arg, table_arg, cs) {}
   enum_field_types type() const { return FIELD_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }

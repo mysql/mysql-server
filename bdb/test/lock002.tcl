@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: lock002.tcl,v 11.10 2000/08/25 14:21:51 sue Exp $
+# $Id: lock002.tcl,v 11.19 2002/04/25 19:30:29 sue Exp $
 #
-# Exercise basic multi-process aspects of lock.
+# TEST	lock002
+# TEST	Exercise basic multi-process aspects of lock.
 proc lock002 { {maxlocks 1000} {conflicts {0 0 0 0 0 1 0 1 1} } } {
 	source ./include.tcl
 
@@ -24,22 +25,25 @@ proc lock002 { {maxlocks 1000} {conflicts {0 0 0 0 0 1 0 1 1} } } {
 # detach from it, etc.
 proc mlock_open { maxl nmodes conflicts } {
 	source ./include.tcl
+	global lock_curid
+	global lock_maxid
 
-	puts "Lock002.a multi-process open/close test"
+	puts "\tLock002.a multi-process open/close test"
 
 	# Open/Create region here.  Then close it and try to open from
 	# other test process.
-	set env_cmd [concat "berkdb env -create -mode 0644 \
+	set env_cmd [concat "berkdb_env -create -mode 0644 \
 	    -lock -lock_max $maxl -lock_conflict" \
 	    [list [list $nmodes $conflicts]] "-home $testdir"]
 	set local_env [eval $env_cmd]
+	$local_env lock_id_set $lock_curid $lock_maxid
 	error_check_good env_open [is_valid_env $local_env] TRUE
 
 	set ret [$local_env close]
 	error_check_good env_close $ret 0
 
 	# Open from other test process
-	set env_cmd "berkdb env -mode 0644 -home $testdir"
+	set env_cmd "berkdb_env -mode 0644 -home $testdir"
 
 	set f1 [open |$tclsh_path r+]
 	puts $f1 "source $test_path/test.tcl"
@@ -58,7 +62,7 @@ proc mlock_open { maxl nmodes conflicts } {
 	error_check_good remote:lock_close $ret 0
 
 	# Try opening for create.  Will succeed because region exists.
-	set env_cmd [concat "berkdb env -create -mode 0644 \
+	set env_cmd [concat "berkdb_env -create -mode 0644 \
 	    -lock -lock_max $maxl -lock_conflict" \
 	    [list [list $nmodes $conflicts]] "-home $testdir"]
 	set local_env [eval $env_cmd]
@@ -76,10 +80,10 @@ proc mlock_open { maxl nmodes conflicts } {
 proc mlock_wait { } {
 	source ./include.tcl
 
-	puts "Lock002.b multi-process get/put wait test"
+	puts "\tLock002.b multi-process get/put wait test"
 
 	# Open region locally
-	set env_cmd "berkdb env -lock -home $testdir"
+	set env_cmd "berkdb_env -lock -home $testdir"
 	set local_env [eval $env_cmd]
 	error_check_good env_open [is_valid_env $local_env] TRUE
 
@@ -95,15 +99,15 @@ proc mlock_wait { } {
 	# remotely.  We hold the locks for several seconds
 	# so that we can use timestamps to figure out if the
 	# other process waited.
-	set locker 1
-	set local_lock [$local_env lock_get write $locker object1]
+	set locker1 [$local_env lock_id]
+	set local_lock [$local_env lock_get write $locker1 object1]
 	error_check_good lock_get [is_valid_lock $local_lock $local_env] TRUE
 
 	# Now request a lock that we expect to hang; generate
 	# timestamps so we can tell if it actually hangs.
-	set locker 2
+	set locker2 [send_cmd $f1 "$remote_env lock_id"]
 	set remote_lock [send_timed_cmd $f1 1 \
-	    "set lock \[$remote_env lock_get write $locker object1\]"]
+	    "set lock \[$remote_env lock_get write $locker2 object1\]"]
 
 	# Now sleep before releasing lock
 	tclsleep 5
@@ -127,8 +131,7 @@ proc mlock_wait { } {
 
 	set ret [send_cmd $f1 "$remote_lock put"]
 
-	set locker 1
-	set local_lock [$local_env lock_get write $locker object1]
+	set local_lock [$local_env lock_get write $locker1 object1]
 	error_check_good lock_get:time \
 	    [expr [expr [timestamp -r] - $start] > 2] 1
 	error_check_good lock_get:local \
@@ -139,6 +142,8 @@ proc mlock_wait { } {
 	error_check_good lock_put:remote $result 0
 
 	# Clean up remote
+	set result [send_cmd $f1 "$remote_env lock_id_free $locker2" ]
+	error_check_good remote_free_id $result 0
 	set ret [send_cmd $f1 "reset_env $remote_env"]
 
 	close $f1
@@ -146,6 +151,7 @@ proc mlock_wait { } {
 	# Now close up locally
 	set ret [$local_lock put]
 	error_check_good lock_put $ret 0
+	error_check_good lock_id_free [$local_env lock_id_free $locker1] 0
 
 	reset_env $local_env
 }

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: qam_verify.c,v 1.17 2000/12/12 17:39:35 bostic Exp $";
+static const char revid[] = "$Id: qam_verify.c,v 1.30 2002/06/26 20:49:27 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -17,10 +17,10 @@ static const char revid[] = "$Id: qam_verify.c,v 1.17 2000/12/12 17:39:35 bostic
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_verify.h"
-#include "qam.h"
-#include "db_ext.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_verify.h"
+#include "dbinc/qam.h"
+#include "dbinc/db_am.h"
 
 /*
  * __qam_vrfy_meta --
@@ -49,7 +49,9 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 	 * something very odd is going on.
 	 */
 	if (!F_ISSET(pip, VRFY_INCOMPLETE))
-		EPRINT((dbp->dbenv, "Queue databases must be one-per-file."));
+		EPRINT((dbp->dbenv,
+		    "Page %lu: queue databases must be one-per-file",
+		    (u_long)pgno));
 
 	/*
 	 * cur_recno/rec_page
@@ -59,8 +61,9 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 	if (vdp->last_pgno > 0 && meta->cur_recno > 0 &&
 	    meta->cur_recno - 1 > meta->rec_page * vdp->last_pgno) {
 		EPRINT((dbp->dbenv,
-	    "Current recno %lu references record past last page number %lu",
-		    meta->cur_recno, vdp->last_pgno));
+    "Page %lu: current recno %lu references record past last page number %lu",
+		    (u_long)pgno,
+		    (u_long)meta->cur_recno, (u_long)vdp->last_pgno));
 		isbad = 1;
 	}
 
@@ -69,10 +72,10 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 	 * return DB_VERIFY_FATAL
 	 */
 	if (ALIGN(meta->re_len + sizeof(QAMDATA) - 1, sizeof(u_int32_t)) *
-	    meta->rec_page + sizeof(QPAGE) > dbp->pgsize) {
+	    meta->rec_page + QPAGE_SZ(dbp) > dbp->pgsize) {
 		EPRINT((dbp->dbenv,
-   "Queue record length %lu impossibly high for page size and records per page",
-		    meta->re_len));
+   "Page %lu: queue record length %lu too high for page size and recs/page",
+		    (u_long)pgno, (u_long)meta->re_len));
 		ret = DB_VERIFY_FATAL;
 		goto err;
 	} else {
@@ -80,7 +83,8 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 		vdp->rec_page = meta->rec_page;
 	}
 
-err:	if ((t_ret = __db_vrfy_putpageinfo(vdp, pip)) != 0 && ret == 0)
+err:	if ((t_ret =
+	    __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0 && ret == 0)
 		ret = t_ret;
 	return (ret == 0 && isbad == 1 ? DB_VERIFY_BAD : ret);
 }
@@ -114,14 +118,15 @@ __qam_vrfy_data(dbp, vdp, h, pgno, flags)
 	 * some gross games to fake it out.
 	 */
 	fakedb.q_internal = &fakeq;
+	fakedb.flags = dbp->flags;
 	fakeq.re_len = vdp->re_len;
 
 	for (i = 0; i < vdp->rec_page; i++) {
 		qp = QAM_GET_RECORD(&fakedb, h, i);
 		if ((u_int8_t *)qp >= (u_int8_t *)h + dbp->pgsize) {
 			EPRINT((dbp->dbenv,
-			    "Queue record %lu extends past end of page %lu",
-			    i, pgno));
+		    "Page %lu: queue record %lu extends past end of page",
+			    (u_long)pgno, (u_long)i));
 			return (DB_VERIFY_BAD);
 		}
 
@@ -129,8 +134,8 @@ __qam_vrfy_data(dbp, vdp, h, pgno, flags)
 		qflags &= !(QAM_VALID | QAM_SET);
 		if (qflags != 0) {
 			EPRINT((dbp->dbenv,
-			    "Queue record %lu on page %lu has bad flags",
-			    i, pgno));
+			    "Page %lu: queue record %lu has bad flags",
+			    (u_long)pgno, (u_long)i));
 			return (DB_VERIFY_BAD);
 		}
 	}
@@ -161,7 +166,8 @@ __qam_vrfy_structure(dbp, vdp, flags)
 
 	if (pip->type != P_QAMMETA) {
 		EPRINT((dbp->dbenv,
-		    "Queue database has no meta page"));
+		    "Page %lu: queue database has no meta page",
+		    (u_long)PGNO_BASE_MD));
 		isbad = 1;
 		goto err;
 	}
@@ -174,21 +180,21 @@ __qam_vrfy_structure(dbp, vdp, flags)
 		if (!LF_ISSET(DB_SALVAGE))
 			__db_vrfy_struct_feedback(dbp, vdp);
 
-		if ((ret = __db_vrfy_putpageinfo(vdp, pip)) != 0 ||
+		if ((ret = __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0 ||
 		    (ret = __db_vrfy_getpageinfo(vdp, i, &pip)) != 0)
 			return (ret);
 		if (!F_ISSET(pip, VRFY_IS_ALLZEROES) &&
 		    pip->type != P_QAMDATA) {
 			EPRINT((dbp->dbenv,
-			    "Queue database page %lu of incorrect type %lu",
-			    i, pip->type));
+		    "Page %lu: queue database page of incorrect type %lu",
+			    (u_long)i, (u_long)pip->type));
 			isbad = 1;
 			goto err;
 		} else if ((ret = __db_vrfy_pgset_inc(vdp->pgset, i)) != 0)
 			goto err;
 	}
 
-err:	if ((ret = __db_vrfy_putpageinfo(vdp, pip)) != 0)
+err:	if ((ret = __db_vrfy_putpageinfo(dbp->dbenv, vdp, pip)) != 0)
 		return (ret);
 	return (isbad == 1 ? DB_VERIFY_BAD : 0);
 }

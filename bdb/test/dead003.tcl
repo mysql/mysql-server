@@ -1,16 +1,18 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: dead003.tcl,v 1.8 2000/08/25 14:21:50 sue Exp $
+# $Id: dead003.tcl,v 1.17 2002/09/05 17:23:05 sandstro Exp $
 #
-# Deadlock Test 3.
-# Test DB_LOCK_OLDEST and DB_LOCK_YOUNGEST
-# Identical to Test 2 except that we create the region with "detect on
-# every wait" with first the "oldest" and then "youngest".
+# TEST	dead003
+# TEST
+# TEST	Same test as dead002, but explicitly specify DB_LOCK_OLDEST and
+# TEST	DB_LOCK_YOUNGEST.  Verify the correct lock was aborted/granted.
 proc dead003 { { procs "2 4 10" } {tests "ring clump" } } {
 	source ./include.tcl
+	global lock_curid
+	global lock_maxid
 
 	set detects { oldest youngest }
 	puts "Dead003: Deadlock detector tests: $detects"
@@ -19,31 +21,34 @@ proc dead003 { { procs "2 4 10" } {tests "ring clump" } } {
 	foreach d $detects {
 		env_cleanup $testdir
 		puts "\tDead003.a: creating environment for $d"
-		set env [berkdb env \
+		set env [berkdb_env \
 		    -create -mode 0644 -home $testdir -lock -lock_detect $d]
 		error_check_good lock_env:open [is_valid_env $env] TRUE
-		error_check_good lock_env:close [$env close] 0
 
 		foreach t $tests {
-			set pidlist ""
 			foreach n $procs {
-				sentinel_init 
+				set pidlist ""
+				sentinel_init
+				set ret [$env lock_id_set \
+				     $lock_curid $lock_maxid]
+				error_check_good lock_id_set $ret 0
 
 				# Fire off the tests
 				puts "\tDead003: $n procs of test $t"
 				for { set i 0 } { $i < $n } { incr i } {
+					set locker [$env lock_id]
 					puts "$tclsh_path\
 					    test_path/ddscript.tcl $testdir \
-					    $t $i $i $n >& \
+					    $t $locker $i $n >& \
 					    $testdir/dead003.log.$i"
 					set p [exec $tclsh_path \
 					    $test_path/wrap.tcl \
 					    ddscript.tcl \
 					    $testdir/dead003.log.$i $testdir \
-					    $t $i $i $n &]
+					    $t $locker $i $n &]
 					lappend pidlist $p
 				}
-				watch_procs 5
+				watch_procs $pidlist 5
 
 				# Now check output
 				set dead 0
@@ -60,7 +65,7 @@ proc dead003 { { procs "2 4 10" } {tests "ring clump" } } {
 					}
 					close $did
 				}
-				dead_check $t $n $dead $clean $other
+				dead_check $t $n 0 $dead $clean $other
 				#
 				# If we get here we know we have the
 				# correct number of dead/clean procs, as
@@ -88,5 +93,6 @@ proc dead003 { { procs "2 4 10" } {tests "ring clump" } } {
 		for { set i 0 } { $i < $n } { incr i } {
 			fileremove -f $testdir/dead003.log.$i
 		}
+		error_check_good lock_env:close [$env close] 0
 	}
 }

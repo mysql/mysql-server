@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: qam_conv.c,v 11.6 2000/11/16 23:40:57 ubell Exp $";
+static const char revid[] = "$Id: qam_conv.c,v 11.14 2002/08/06 06:17:02 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -16,10 +16,9 @@ static const char revid[] = "$Id: qam_conv.c,v 11.6 2000/11/16 23:40:57 ubell Ex
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "qam.h"
-#include "db_swap.h"
-#include "db_am.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_swap.h"
+#include "dbinc/db_am.h"
 
 /*
  * __qam_mswap --
@@ -43,6 +42,8 @@ __qam_mswap(pg)
 	SWAP32(p);		/* re_pad */
 	SWAP32(p);		/* rec_page */
 	SWAP32(p);		/* page_ext */
+	p += 91 * sizeof(u_int32_t); /* unused */
+	SWAP32(p);		/* crypto_magic */
 
 	return (0);
 }
@@ -68,7 +69,7 @@ __qam_pgin_out(dbenv, pg, pp, cookie)
 	COMPQUIET(pg, 0);
 	COMPQUIET(dbenv, NULL);
 	pginfo = (DB_PGINFO *)cookie->data;
-	if (!pginfo->needswap)
+	if (!F_ISSET(pginfo, DB_AM_SWAP))
 		return (0);
 
 	h = pp;

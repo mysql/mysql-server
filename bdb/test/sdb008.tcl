@@ -1,20 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb008.tcl,v 11.14 2000/08/25 14:21:53 sue Exp $
-#
-# Sub DB Test 8 {access method}
-# Use the first 10,000 entries from the dictionary.
-# Use a different or random lorder for each subdb.
-# Insert each with self as key and data; retrieve each.
-# After all are entered, retrieve all; compare output to original.
-# Close file, reopen, do retrieve and re-verify.
-proc subdb008 { method {nentries 10000} args } {
+# $Id: sdb008.tcl,v 11.25 2002/07/11 18:53:46 sandstro Exp $
+# TEST	subdb008
+# TEST	Tests lorder difference errors between subdbs.
+# TEST  Test 3 different scenarios for lorder.
+# TEST  1.  Create/open with specific lorder, 2nd subdb create with
+# TEST      different one, should error.
+# TEST 	2.  Create/open with a default lorder 2nd subdb create with
+# TEST      specified different one, should error.
+# TEST  3.  Create/open with specified lorder, 2nd subdb create with
+# TEST      same specified lorder, should succeed.
+# TEST  (4th combo of using all defaults is a basic test, done elsewhere)
+proc subdb008 { method args } {
 	source ./include.tcl
-	global rand_init
 
+	set db2args [convert_args -btree $args]
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
@@ -22,130 +25,97 @@ proc subdb008 { method {nentries 10000} args } {
 		puts "Subdb008: skipping for method $method"
 		return
 	}
-
-	berkdb srand $rand_init
-
-	puts "Subdb008: $method ($args) subdb lorder tests"
-
-	# Create the database and open the dictionary
-	set testfile $testdir/subdb008.db
-	set t1 $testdir/t1
-	set t2 $testdir/t2
-	set t3 $testdir/t3
-	set t4 $testdir/t4
-	cleanup $testdir NULL
-
-	set txn ""
-	set pflags ""
-	set gflags ""
-
-	if { [is_record_based $method] == 1 } {
-		set checkfunc subdb008_recno.check
+	set txnenv 0
+	set envargs ""
+	set eindex [lsearch -exact $args "-env"]
+	#
+	# If we are using an env, then testfile should just be the db name.
+	# Otherwise it is the test directory and the name.
+	if { $eindex == -1 } {
+		set testfile $testdir/subdb008.db
+		set env NULL
 	} else {
-		set checkfunc subdb008.check
+		set testfile subdb008.db
+		incr eindex
+		set env [lindex $args $eindex]
+		set envargs "-env $env"
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			append db2args " -auto_commit "
+			append envargs " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
-	set nsubdbs 4
-	set lo [list 4321 1234]
-	puts "\tSubdb008.a: put/get loop"
-	# Here is the loop where we put and get each key/data pair
-	for { set i 0 } { $i < $nsubdbs } { incr i } {
-		set subdb sub$i.db
-		if { $i >= [llength $lo]} {
-			set r [berkdb random_int 0 1]
-			set order [lindex $lo $r]
-		} else {
-			set order [lindex $lo $i]
-		}
-		set db [eval {berkdb_open -create -mode 0644} \
-		    $args {-lorder $order $omethod $testfile $subdb}]
-		set did [open $dict]
-		set count 0
-		while { [gets $did str] != -1 && $count < $nentries } {
-			if { [is_record_based $method] == 1 } {
-				global kvals
+	puts "Subdb008: $method ($args) subdb tests with different lorders"
 
-				set gflags "-recno"
-				set key [expr $i * $nentries]
-				set key [expr $key + $count + 1]
-				set kvals($key) [pad_data $method $str]
-			} else {
-				set key $str
-			}
-			set ret [eval {$db put} \
-			    $txn $pflags {$key [chop_data $method $str]}]
-			error_check_good put $ret 0
+	set sub1 "sub1"
+	set sub2 "sub2"
+	cleanup $testdir $env
 
-			set ret [eval {$db get} $gflags {$key}]
-			error_check_good \
-			    get $ret [list [list $key [pad_data $method $str]]]
-			incr count
-		}
-		close $did
-		error_check_good db_close [$db close] 0
+	puts "\tSubdb008.b.0: create subdb with specified lorder"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-lorder 4321 $omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	# Figure out what the default lorder is so that we can
+	# guarantee we create it with a different value later.
+	set is_swap [$db is_byteswapped]
+	if { $is_swap } {
+		set other 4321
+	} else {
+ 		set other 1234
 	}
+	error_check_good dbclose [$db close] 0
 
-	# Now we will get each key from the DB and compare the results
-	# to the original.
-	for { set subdb 0 } { $subdb < $nsubdbs } { incr subdb } {
-		puts "\tSubdb008.b: dump file sub$subdb.db"
-		set db [berkdb_open -unknown $testfile sub$subdb.db]
-		dump_file $db $txn $t1 $checkfunc
-		error_check_good db_close [$db close] 0
+	puts "\tSubdb008.b.1: create 2nd subdb with different lorder"
+	set stat [catch {eval {berkdb_open_noerr -create $omethod} \
+	    $args {-lorder 1234 $testfile $sub2}} ret]
+	error_check_good subdb:lorder $stat 1
+	error_check_good subdb:fail [is_substr $ret \
+	    "Different lorder specified"] 1
 
-		# Now compare the keys to see if they match the dictionary
-		# (or ints)
-		if { [is_record_based $method] == 1 } {
-			set oid [open $t2 w]
-			for {set i 1} {$i <= $nentries} {incr i} {
-				puts $oid [expr $subdb * $nentries + $i]
-			}
-			close $oid
-			file rename -force $t1 $t3
-		} else {
-			set q q
-			filehead $nentries $dict $t3
-			filesort $t3 $t2
-			filesort $t1 $t3
-		}
+	set ret [eval {berkdb dbremove} $envargs {$testfile}]
 
-		error_check_good Subdb008:diff($t3,$t2) \
-		    [filecmp $t3 $t2] 0
+	puts "\tSubdb008.c.0: create subdb with opposite specified lorder"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-lorder 1234 $omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
 
-		puts "\tSubdb008.c: sub$subdb.db: close, open, and dump file"
-		# Now, reopen the file and run the last test again.
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
-		    dump_file_direction "-first" "-next" sub$subdb.db
-		if { [is_record_based $method] != 1 } {
-			filesort $t1 $t3
-		}
+	puts "\tSubdb008.c.1: create 2nd subdb with different lorder"
+	set stat [catch {eval {berkdb_open_noerr -create $omethod} \
+	    $args {-lorder 4321 $testfile $sub2}} ret]
+	error_check_good subdb:lorder $stat 1
+	error_check_good subdb:fail [is_substr $ret \
+	    "Different lorder specified"] 1
 
-		error_check_good Subdb008:diff($t2,$t3) \
-		    [filecmp $t2 $t3] 0
+	set ret [eval {berkdb dbremove} $envargs {$testfile}]
 
-		# Now, reopen the file and run the last test again in the
-		# reverse direction.
-		puts "\tSubdb008.d: sub$subdb.db:\
-		    close, open, and dump file in reverse direction"
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
-		    dump_file_direction "-last" "-prev" sub$subdb.db
+	puts "\tSubdb008.d.0: create subdb with default lorder"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {$omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
 
-		if { [is_record_based $method] != 1 } {
-			filesort $t1 $t3
-		}
+	puts "\tSubdb008.d.1: create 2nd subdb with different lorder"
+	set stat [catch {eval {berkdb_open_noerr -create -btree} \
+	    $db2args {-lorder $other $testfile $sub2}} ret]
+	error_check_good subdb:lorder $stat 1
+	error_check_good subdb:fail [is_substr $ret \
+	    "Different lorder specified"] 1
 
-		error_check_good Subdb008:diff($t3,$t2) \
-		    [filecmp $t3 $t2] 0
-	}
-}
+	set ret [eval {berkdb dbremove} $envargs {$testfile}]
 
-# Check function for Subdb008; keys and data are identical
-proc subdb008.check { key data } {
-	error_check_good "key/data mismatch" $data $key
-}
+	puts "\tSubdb008.e.0: create subdb with specified lorder"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-lorder $other $omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
 
-proc subdb008_recno.check { key data } {
-global dict
-global kvals
-	error_check_good key"$key"_exists [info exists kvals($key)] 1
-	error_check_good "key/data mismatch, key $key" $data $kvals($key)
+	puts "\tSubdb008.e.1: create 2nd subdb with same specified lorder"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-lorder $other $omethod $testfile $sub2}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
+
 }

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: os_fid.c,v 11.7 2000/10/26 14:17:05 bostic Exp $";
+static const char revid[] = "$Id: os_fid.c,v 11.14 2002/08/26 14:37:38 margo Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -26,6 +26,7 @@ static const char revid[] = "$Id: os_fid.c,v 11.7 2000/10/26 14:17:05 bostic Exp
 #endif
 #endif
 
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #endif
@@ -37,7 +38,12 @@ static u_int32_t fid_serial = SERIAL_INIT;
 
 /*
  * __os_fileid --
- *	Return a unique identifier for a file.
+ *	Return a unique identifier for a file.  The structure
+ * of a fileid is: ino(4) dev(4) time(4) pid(4) extra(4).
+ * For real files, which have a backing inode and device, the first
+ * 16 bytes are filled in and the extra bytes are left 0.  For
+ * temporary files, the inode and device fields are left blank and
+ * the extra four bytes are filled in with a random value.
  *
  * PUBLIC: int __os_fileid __P((DB_ENV *, const char *, int, u_int8_t *));
  */
@@ -58,12 +64,14 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	memset(fidp, 0, DB_FILE_ID_LEN);
 
 	/* On POSIX/UNIX, use a dev/inode pair. */
+retry:
 #ifdef HAVE_VXWORKS
-	if (stat((char *)fname, &sb)) {
+	if (stat((char *)fname, &sb) != 0) {
 #else
-	if (stat(fname, &sb)) {
+	if (stat(fname, &sb) != 0) {
 #endif
-		ret = __os_get_errno();
+		if ((ret = __os_get_errno()) == EINTR)
+			goto retry;
 		__db_err(dbenv, "%s: %s", fname, strerror(ret));
 		return (ret);
 	}
@@ -83,7 +91,7 @@ __os_fileid(dbenv, fname, unique_okay, fidp)
 	 * interesting properties in base 2.
 	 */
 	if (fid_serial == SERIAL_INIT)
-		fid_serial = (u_int32_t)getpid();
+		__os_id(&fid_serial);
 	else
 		fid_serial += 100000;
 

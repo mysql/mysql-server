@@ -1,0 +1,22 @@
+#!/bin/sh -
+#
+# $Id: chk.rr,v 1.1 2002/04/19 15:13:05 bostic Exp $
+
+d=../..
+
+t1=__1
+
+# Check for DB_RUNRECOVERY being specified instead of a call to db_panic.
+egrep DB_RUNRECOVERY $d/*/*.c |
+    sed -e '/common\/db_err.c:/d' \
+        -e '/libdb_java\/java_util.c:/d' \
+	-e '/db_dispatch.c:.*if (ret == DB_RUNRECOVERY/d' \
+	-e '/txn.c:.* \* DB_RUNRECOVERY and we need to/d' \
+	-e '/__db_panic(.*, DB_RUNRECOVERY)/d' > $t1
+[ -s $t1 ] && {
+	echo "DB_RUNRECOVERY used; should be a call to db_panic."
+	cat $t1
+	exit 1
+}
+
+exit 0

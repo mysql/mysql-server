@@ -54,6 +54,11 @@
 #define LINE_START_EMPTY	0x8
 #define ESCAPED_EMPTY		0x10
 
+/*****************************************************************************
+
+  old_sql_ex struct
+
+ ****************************************************************************/
 struct old_sql_ex
 {
   char field_term;
@@ -67,6 +72,11 @@ struct old_sql_ex
 
 #define NUM_LOAD_DELIM_STRS 5
 
+/*****************************************************************************
+
+  sql_ex_info struct
+
+ ****************************************************************************/
 struct sql_ex_info
 {
   char* field_term;
@@ -99,13 +109,19 @@ struct sql_ex_info
   }
 };
 
-/*
-  Binary log consists of events. Each event has a fixed length header,
-  followed by possibly variable ( depending on the type of event) length
-  data body. The data body consists of an optional fixed length segment
-  (post-header), and an optional variable length segment. See #defines and
-  comments below for the format specifics
-*/
+/*****************************************************************************
+
+  MySQL Binary Log
+
+  This log consists of events.  Each event has a fixed-length header,
+  possibly followed by a variable length data body.
+
+  The data body consists of an optional fixed length segment (post-header)
+  and  an optional variable length segment.
+
+  See the #defines below for the format specifics.
+
+ ****************************************************************************/
 
 /* event-specific post-header sizes */
 #define LOG_EVENT_HEADER_LEN 19
@@ -221,6 +237,13 @@ class THD;
 
 struct st_relay_log_info;
 
+/*****************************************************************************
+
+  Log_event class
+
+  This is the abstract base class for binary log events.
+
+ ****************************************************************************/
 class Log_event
 {
 public:
@@ -303,6 +326,13 @@ public:
 };
 
 
+/*****************************************************************************
+
+  Query Log Event class
+
+  Logs SQL queries
+
+ ****************************************************************************/
 class Query_log_event: public Log_event
 {
 protected:
@@ -355,6 +385,11 @@ public:
 };
 
 
+/*****************************************************************************
+
+  Slave Log Event class
+
+ ****************************************************************************/
 class Slave_log_event: public Log_event
 {
 protected:
@@ -384,6 +419,12 @@ public:
   int write_data(IO_CACHE* file );
 };
 
+
+/*****************************************************************************
+
+  Load Log Event class
+
+ ****************************************************************************/
 class Load_log_event: public Log_event
 {
 protected:
@@ -446,6 +487,11 @@ public:
 
 extern char server_version[SERVER_VERSION_LENGTH];
 
+/*****************************************************************************
+
+  Start Log Event class
+
+ ****************************************************************************/
 class Start_log_event: public Log_event
 {
 public:
@@ -477,6 +523,13 @@ public:
 };
 
 
+/*****************************************************************************
+
+  Intvar Log Event class
+
+  Logs special variables such as auto_increment values
+
+ ****************************************************************************/
 class Intvar_log_event: public Log_event
 {
 public:
@@ -503,9 +556,11 @@ public:
 };
 
 /*****************************************************************************
- *
- *  Rand log event class
- *
+
+  Rand Log Event class
+
+  Logs random seed used by the next RAND()
+
  ****************************************************************************/
 class Rand_log_event: public Log_event
 {
@@ -531,6 +586,12 @@ class Rand_log_event: public Log_event
   bool is_valid() { return 1; }
 };
 
+
+/*****************************************************************************
+
+  Stop Log Event class
+
+ ****************************************************************************/
 class Stop_log_event: public Log_event
 {
 public:
@@ -551,6 +612,13 @@ public:
 };
 
 
+/*****************************************************************************
+
+  Rotate Log Event class
+
+  This will be depricated when we move to using sequence ids.
+
+ ****************************************************************************/
 class Rotate_log_event: public Log_event
 {
 public:
@@ -585,6 +653,11 @@ public:
 
 /* the classes below are for the new LOAD DATA INFILE logging */
 
+/*****************************************************************************
+
+  Create File Log Event class
+
+ ****************************************************************************/
 class Create_file_log_event: public Load_log_event
 {
 protected:
@@ -641,6 +714,11 @@ public:
 };
 
 
+/*****************************************************************************
+
+  Append Block Log Event class
+
+ ****************************************************************************/
 class Append_block_log_event: public Log_event
 {
 public:
@@ -665,7 +743,11 @@ public:
   int write_data(IO_CACHE* file);
 };
 
+/*****************************************************************************
 
+  Delete File Log Event class
+
+ ****************************************************************************/
 class Delete_file_log_event: public Log_event
 {
 public:
@@ -687,6 +769,11 @@ public:
   int write_data(IO_CACHE* file);
 };
 
+/*****************************************************************************
+
+  Execute Load Log Event class
+
+ ****************************************************************************/
 class Execute_load_log_event: public Log_event
 {
 public:

@@ -1,20 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test061.tcl,v 11.12 2000/10/27 13:23:56 sue Exp $
+# $Id: test061.tcl,v 11.18 2002/02/22 15:26:27 sandstro Exp $
 #
-# Test061: Test of transaction abort and commit for in-memory databases.
-#	a) Put + abort: verify absence of data
-#	b) Put + commit: verify presence of data
-#	c) Overwrite + abort: verify that data is unchanged
-#	d) Overwrite + commit: verify that data has changed
-#	e) Delete + abort: verify that data is still present
-#	f) Delete + commit: verify that data has been deleted
+# TEST	test061
+# TEST	Test of txn abort and commit for in-memory databases.
+# TEST	a) Put + abort: verify absence of data
+# TEST	b) Put + commit: verify presence of data
+# TEST	c) Overwrite + abort: verify that data is unchanged
+# TEST	d) Overwrite + commit: verify that data has changed
+# TEST	e) Delete + abort: verify that data is still present
+# TEST	f) Delete + commit: verify that data has been deleted
 proc test061 { method args } {
 	global alphabet
+	global encrypt
 	global errorCode
+	global passwd
 	source ./include.tcl
 
 	#
@@ -32,6 +35,8 @@ proc test061 { method args } {
 		puts "Test061 skipping for method $method"
 		return
 	}
+	set encargs ""
+	set args [split_encargs $args encargs]
 
 	puts "Test061: Transaction abort and commit test for in-memory data."
 	puts "Test061: $method $args"
@@ -52,12 +57,12 @@ proc test061 { method args } {
 	env_cleanup $testdir
 
 	# create environment
-	set eflags "-create -txn -home $testdir"
-	set dbenv [eval {berkdb env} $eflags]
+	set eflags "-create -txn $encargs -home $testdir"
+	set dbenv [eval {berkdb_env} $eflags]
 	error_check_good dbenv [is_valid_env $dbenv] TRUE
 
 	# db open -- no file specified, in-memory database
-	set flags "-create $args $omethod"
+	set flags "-auto_commit -create $args $omethod"
 	set db [eval {berkdb_open -env} $dbenv $flags]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -202,14 +207,20 @@ proc test061 { method args } {
 	error_check_good env_close [eval {$dbenv close}] 0
 
 	# Now run db_recover and ensure that it runs cleanly.
+	set utilflag ""
+	if { $encrypt != 0 } {
+		set utilflag "-P $passwd"
+	}
 	puts "\tTest061.g: Running db_recover -h"
-	set ret [catch {exec $util_path/db_recover -h $testdir} res]
+	set ret [catch {eval {exec} $util_path/db_recover -h $testdir \
+	    $utilflag} res]
 	if { $ret != 0 } {
 		puts "FAIL: db_recover outputted $res"
 	}
 	error_check_good db_recover $ret 0
 
 	puts "\tTest061.h: Running db_recover -c -h"
-	set ret [catch {exec $util_path/db_recover -c -h $testdir} res]
+	set ret [catch {eval {exec} $util_path/db_recover -c -h $testdir \
+	    $utilflag} res]
 	error_check_good db_recover-c $ret 0
 }

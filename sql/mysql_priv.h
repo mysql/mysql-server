@@ -61,6 +61,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #endif
 #endif
 
+#define my_thd_charset	default_charset_info
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/

@@ -903,7 +903,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element, info->item->decimals);
+  s.set(*element, info->item->decimals, my_thd_charset);
   info->str->append(s);
   info->str->append('\'');
   return 0;
@@ -922,7 +922,7 @@ int collect_longlong(longlong *element,
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element);
+  s.set(*element,default_charset_info);
   info->str->append(s);
   info->str->append('\'');
   return 0;
@@ -941,7 +941,7 @@ int collect_ulonglong(ulonglong *element,
   else
     info->found = 1;
   info->str->append('\'');
-  s.set(*element);
+  s.set(*element,default_charset_info);
   info->str->append(s);
   info->str->append('\'');
   return 0;

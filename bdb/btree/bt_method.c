@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: bt_method.c,v 11.20 2000/11/30 00:58:28 ubell Exp $";
+static const char revid[] = "$Id: bt_method.c,v 11.29 2002/04/21 13:17:04 margo Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -16,9 +16,9 @@ static const char revid[] = "$Id: bt_method.c,v 11.20 2000/11/30 00:58:28 ubell 
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "btree.h"
-#include "qam.h"
+#include "dbinc/db_page.h"
+#include "dbinc/btree.h"
+#include "dbinc/qam.h"
 
 static int __bam_set_bt_compare
 	       __P((DB *, int (*)(DB *, const DBT *, const DBT *)));
@@ -82,7 +82,8 @@ __bam_db_close(dbp)
 {
 	BTREE *t;
 
-	t = dbp->bt_internal;
+	if ((t = dbp->bt_internal) == NULL)
+		return (0);
 						/* Recno */
 	/* Close any backing source file descriptor. */
 	if (t->re_fp != NULL)
@@ -90,9 +91,9 @@ __bam_db_close(dbp)
 
 	/* Free any backing source file name. */
 	if (t->re_source != NULL)
-		__os_freestr(t->re_source);
+		__os_free(dbp->dbenv, t->re_source);
 
-	__os_free(t, sizeof(BTREE));
+	__os_free(dbp->dbenv, t);
 	dbp->bt_internal = NULL;
 
 	return (0);
@@ -127,7 +128,7 @@ __bam_set_flags(dbp, flagsp)
 
 		if (LF_ISSET(DB_DUP | DB_DUPSORT)) {
 			/* DB_DUP/DB_DUPSORT is incompatible with DB_RECNUM. */
-			if (F_ISSET(dbp, DB_BT_RECNUM))
+			if (F_ISSET(dbp, DB_AM_RECNUM))
 				goto incompat;
 
 			if (LF_ISSET(DB_DUPSORT)) {
@@ -145,12 +146,12 @@ __bam_set_flags(dbp, flagsp)
 			if (F_ISSET(dbp, DB_AM_DUP))
 				goto incompat;
 
-			F_SET(dbp, DB_BT_RECNUM);
+			F_SET(dbp, DB_AM_RECNUM);
 			LF_CLR(DB_RECNUM);
 		}
 
 		if (LF_ISSET(DB_REVSPLITOFF)) {
-			F_SET(dbp, DB_BT_REVSPLIT);
+			F_SET(dbp, DB_AM_REVSPLITOFF);
 			LF_CLR(DB_REVSPLITOFF);
 		}
 
@@ -279,12 +280,12 @@ __ram_set_flags(dbp, flagsp)
 		DB_ILLEGAL_METHOD(dbp, DB_OK_RECNO);
 
 		if (LF_ISSET(DB_RENUMBER)) {
-			F_SET(dbp, DB_RE_RENUMBER);
+			F_SET(dbp, DB_AM_RENUMBER);
 			LF_CLR(DB_RENUMBER);
 		}
 
 		if (LF_ISSET(DB_SNAPSHOT)) {
-			F_SET(dbp, DB_RE_SNAPSHOT);
+			F_SET(dbp, DB_AM_SNAPSHOT);
 			LF_CLR(DB_SNAPSHOT);
 		}
 
@@ -310,7 +311,7 @@ __ram_set_re_delim(dbp, re_delim)
 	t = dbp->bt_internal;
 
 	t->re_delim = re_delim;
-	F_SET(dbp, DB_RE_DELIMITER);
+	F_SET(dbp, DB_AM_DELIMITER);
 
 	return (0);
 }
@@ -336,7 +337,7 @@ __ram_set_re_len(dbp, re_len)
 	q = dbp->q_internal;
 	q->re_len = re_len;
 
-	F_SET(dbp, DB_RE_FIXEDLEN);
+	F_SET(dbp, DB_AM_FIXEDLEN);
 
 	return (0);
 }
@@ -362,7 +363,7 @@ __ram_set_re_pad(dbp, re_pad)
 	q = dbp->q_internal;
 	q->re_pad = re_pad;
 
-	F_SET(dbp, DB_RE_PAD);
+	F_SET(dbp, DB_AM_PAD);
 
 	return (0);
 }

@@ -1,54 +1,35 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: TpcbExample.cpp,v 11.14 2000/10/27 20:32:01 dda Exp $
+ * $Id: TpcbExample.cpp,v 11.30 2002/02/13 06:08:34 mjc Exp $
  */
 
-#include "db_config.h"
-
-#ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
-
-#if TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#else
-#if HAVE_SYS_TIME_H
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-#endif
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#endif
+#include <time.h>
 
-#ifdef DB_WIN32
-#include <sys/types.h>
-#include <sys/timeb.h>
-#endif
-
-#include <iostream.h>
-#include <iomanip.h>
+#include <iostream>
+#include <iomanip>
 #include <db_cxx.h>
+
+using std::cout;
+using std::cerr;
 
 typedef enum { ACCOUNT, BRANCH, TELLER } FTYPE;
 
-void errExit(int err, const char *);  // show err as errno and exit
-
-void	  invarg(int, char *);
+static int	  invarg(int, char *);
 u_int32_t random_id(FTYPE, u_int32_t, u_int32_t, u_int32_t);
 u_int32_t random_int(u_int32_t, u_int32_t);
-static void	  usage(void);
+static int	  usage(void);
 
 int verbose;
-char *progname = "TpcbExample";                            // Program name.
+const char *progname = "TpcbExample";                       // Program name.
 
 class TpcbExample : public DbEnv
 {
@@ -58,7 +39,7 @@ public:
 	int txn(Db *, Db *, Db *, Db *,
 		int, int, int);
 	void populateHistory(Db *, int, u_int32_t, u_int32_t, u_int32_t);
-	void populateTable(Db *, u_int32_t, u_int32_t, int, char *);
+	void populateTable(Db *, u_int32_t, u_int32_t, int, const char *);
 
 	// Note: the constructor creates a DbEnv(), which is
 	// not fully initialized until the DbEnv::open() method
@@ -139,7 +120,8 @@ main(int argc, char *argv[])
 	unsigned long seed;
 	int accounts, branches, tellers, history;
 	int iflag, mpool, ntxns, txn_no_sync;
-	char *home, *endarg;
+	const char *home;
+	char *endarg;
 
 	home = "TESTDIR";
 	accounts = branches = history = tellers = 0;
@@ -147,24 +129,24 @@ main(int argc, char *argv[])
 	mpool = ntxns = 0;
 	verbose = 0;
 	iflag = 0;
-	seed = (unsigned long)getpid();
+	seed = (unsigned long)time(NULL);
 
 	for (int i = 1; i < argc; ++i) {
 
 		if (strcmp(argv[i], "-a") == 0) {
 			// Number of account records
 			if ((accounts = atoi(argv[++i])) <= 0)
-				invarg('a', argv[i]);
+				return (invarg('a', argv[i]));
 		}
 		else if (strcmp(argv[i], "-b") == 0) {
 			// Number of branch records
 			if ((branches = atoi(argv[++i])) <= 0)
-				invarg('b', argv[i]);
+				return (invarg('b', argv[i]));
 		}
 		else if (strcmp(argv[i], "-c") == 0) {
 			// Cachesize in bytes
 			if ((mpool = atoi(argv[++i])) <= 0)
-				invarg('c', argv[i]);
+				return (invarg('c', argv[i]));
 		}
 		else if (strcmp(argv[i], "-f") == 0) {
 			// Fast mode: no txn sync.
@@ -181,30 +163,30 @@ main(int argc, char *argv[])
 		else if (strcmp(argv[i], "-n") == 0) {
 			// Number of transactions
 			if ((ntxns = atoi(argv[++i])) <= 0)
-				invarg('n', argv[i]);
+				return (invarg('n', argv[i]));
 		}
 		else if (strcmp(argv[i], "-S") == 0) {
 			// Random number seed.
 			seed = strtoul(argv[++i], &endarg, 0);
 			if (*endarg != '\0')
-				invarg('S', argv[i]);
+				return (invarg('S', argv[i]));
 		}
 		else if (strcmp(argv[i], "-s") == 0) {
 			// Number of history records
 			if ((history = atoi(argv[++i])) <= 0)
-				invarg('s', argv[i]);
+				return (invarg('s', argv[i]));
 		}
 		else if (strcmp(argv[i], "-t") == 0) {
 			// Number of teller records
 			if ((tellers = atoi(argv[++i])) <= 0)
-				invarg('t', argv[i]);
+				return (invarg('t', argv[i]));
 		}
 		else if (strcmp(argv[i], "-v") == 0) {
 			// Verbose option.
 			verbose = 1;
 		}
 		else {
-			usage();
+			return (usage());
 		}
 	}
 
@@ -216,9 +198,9 @@ main(int argc, char *argv[])
 	history = history == 0 ? HISTORY : history;
 
 	if (verbose)
-		cout << (long)accounts << " Accounts "
-		     << (long)branches << " Branches "
-		     << (long)tellers << " Tellers "
+		cout << (long)accounts << " Accounts, "
+		     << (long)branches << " Branches, "
+		     << (long)tellers << " Tellers, "
 		     << (long)history << " History\n";
 
 	try {
@@ -226,43 +208,44 @@ main(int argc, char *argv[])
 		// Must be done in within a try block, unless you
 		// change the error model in the environment options.
 		//
-		TpcbExample app(home, mpool, iflag, txn_no_sync ? DB_TXN_NOSYNC : 0);
+		TpcbExample app(home, mpool, iflag,
+		                txn_no_sync ? DB_TXN_NOSYNC : 0);
 
 		if (iflag) {
 			if (ntxns != 0)
-				usage();
+				return (usage());
 			app.populate(accounts, branches, history, tellers);
 		}
 		else {
 			if (ntxns == 0)
-				usage();
+				return (usage());
 			app.run(ntxns, accounts, branches, tellers);
 		}
 
 		app.close(0);
-		return 0;
+		return (EXIT_SUCCESS);
 	}
 	catch (DbException &dbe) {
 		cerr << "TpcbExample: " << dbe.what() << "\n";
-		return 1;
+		return (EXIT_FAILURE);
 	}
 }
 
-void
+static int
 invarg(int arg, char *str)
 {
 	cerr << "TpcbExample: invalid argument for -"
 	     << (char)arg << ": " << str << "\n";
-	exit(1);
+	return (EXIT_FAILURE);
 }
 
-static void
+static int
 usage()
 {
 	cerr << "usage: TpcbExample [-fiv] [-a accounts] [-b branches]\n"
 	     << "                   [-c cachesize] [-h home] [-n transactions ]\n"
 	     << "                   [-S seed] [-s history] [-t tellers]\n";
-	exit(1);
+	return (EXIT_FAILURE);
 }
 
 TpcbExample::TpcbExample(const char *home, int cachesize,
@@ -274,7 +257,11 @@ TpcbExample::TpcbExample(const char *home, int cachesize,
 	set_error_stream(&cerr);
 	set_errpfx("TpcbExample");
 	(void)set_cachesize(0, cachesize == 0 ?
-			    4 * 1024 * 1024 : (u_int32_t)cachesize, 0);
+	                    4 * 1024 * 1024 : (u_int32_t)cachesize, 0);
+
+	if (flags & (DB_TXN_NOSYNC))
+		set_flags(DB_TXN_NOSYNC, 1);
+	flags &= ~(DB_TXN_NOSYNC);
 
 	local_flags = flags | DB_CREATE | DB_INIT_MPOOL;
 	if (!initializing)
@@ -302,9 +289,10 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 	dbp = new Db(this, 0);
 	dbp->set_h_nelem((unsigned int)accounts);
 
-	if ((err = dbp->open("account", NULL, DB_HASH,
-			     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
-		errExit(err, "Open of account file failed");
+	if ((err = dbp->open(NULL, "account", NULL, DB_HASH,
+	                     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
+		DbException except("Account file create failed", err);
+		throw except;
 	}
 
 	start_anum = idnum;
@@ -312,7 +300,8 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 	idnum += accounts;
 	end_anum = idnum - 1;
 	if ((err = dbp->close(0)) != 0) {
-		errExit(err, "Account file close failed");
+		DbException except("Account file close failed", err);
+		throw except;
 	}
 	delete dbp;
 	if (verbose)
@@ -329,16 +318,18 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 	dbp->set_h_nelem((unsigned int)branches);
 	dbp->set_pagesize(512);
 
-	if ((err = dbp->open("branch", NULL, DB_HASH,
-			     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
-		errExit(err, "Branch file create failed");
+	if ((err = dbp->open(NULL, "branch", NULL, DB_HASH,
+	                     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
+		DbException except("Branch file create failed", err);
+		throw except;
 	}
 	start_bnum = idnum;
 	populateTable(dbp, idnum, balance, branches, "branch");
 	idnum += branches;
 	end_bnum = idnum - 1;
 	if ((err = dbp->close(0)) != 0) {
-		errExit(err, "Close of branch file failed");
+		DbException except("Close of branch file failed", err);
+		throw except;
 	}
 	delete dbp;
 
@@ -355,9 +346,10 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 	dbp->set_h_nelem((unsigned int)tellers);
 	dbp->set_pagesize(512);
 
-	if ((err = dbp->open("teller", NULL, DB_HASH,
-			     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
-		errExit(err, "Teller file create failed");
+	if ((err = dbp->open(NULL, "teller", NULL, DB_HASH,
+	                     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
+		DbException except("Teller file create failed", err);
+		throw except;
 	}
 
 	start_tnum = idnum;
@@ -365,7 +357,8 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 	idnum += tellers;
 	end_tnum = idnum - 1;
 	if ((err = dbp->close(0)) != 0) {
-		errExit(err, "Close of teller file failed");
+		DbException except("Close of teller file failed", err);
+		throw except;
 	}
 	delete dbp;
 	if (verbose)
@@ -374,22 +367,24 @@ TpcbExample::populate(int accounts, int branches, int history, int tellers)
 
 	dbp = new Db(this, 0);
 	dbp->set_re_len(HISTORY_LEN);
-	if ((err = dbp->open("history", NULL, DB_RECNO,
-			     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
-		errExit(err, "Create of history file failed");
+	if ((err = dbp->open(NULL, "history", NULL, DB_RECNO,
+	                     DB_CREATE | DB_TRUNCATE, 0644)) != 0) {
+		DbException except("Create of history file failed", err);
+		throw except;
 	}
 
 	populateHistory(dbp, history, accounts, branches, tellers);
 	if ((err = dbp->close(0)) != 0) {
-		errExit(err, "Close of history file failed");
+		DbException except("Close of history file failed", err);
+		throw except;
 	}
 	delete dbp;
 }
 
 void
 TpcbExample::populateTable(Db *dbp,
-			   u_int32_t start_id, u_int32_t balance,
-			   int nrecs, char *msg)
+                           u_int32_t start_id, u_int32_t balance,
+                           int nrecs, const char *msg)
 {
 	Defrec drec;
 	memset(&drec.pad[0], 1, sizeof(drec.pad));
@@ -405,14 +400,15 @@ TpcbExample::populateTable(Db *dbp,
 		     dbp->put(NULL, &kdbt, &ddbt, DB_NOOVERWRITE)) != 0) {
 			cerr << "Failure initializing " << msg << " file: "
 			     << strerror(err) << "\n";
-			exit(1);
+			DbException except("failure initializing file", err);
+			throw except;
 		}
 	}
 }
 
 void
-TpcbExample::populateHistory(Db *dbp, int nrecs,
-		     u_int32_t accounts, u_int32_t branches, u_int32_t tellers)
+TpcbExample::populateHistory(Db *dbp, int nrecs, u_int32_t accounts,
+                             u_int32_t branches, u_int32_t tellers)
 {
 	Histrec hrec;
 	memset(&hrec.pad[0], 1, sizeof(hrec.pad));
@@ -430,7 +426,9 @@ TpcbExample::populateHistory(Db *dbp, int nrecs,
 		int err;
 		key = (db_recno_t)i;
 		if ((err = dbp->put(NULL, &kdbt, &ddbt, DB_APPEND)) != 0) {
-			errExit(err, "Failure initializing history file");
+			DbException except("failure initializing history file",
+			                   err);
+			throw except;
 		}
 	}
 }
@@ -478,15 +476,6 @@ TpcbExample::run(int n, int accounts, int branches, int tellers)
 	double gtps, itps;
 	int failed, ifailed, ret, txns;
 	time_t starttime, curtime, lasttime;
-#ifndef DB_WIN32
-	pid_t pid;
-
-	pid = getpid();
-#else
-	int pid;
-
-	pid = 0;
-#endif
 
 	//
 	// Open the database files.
@@ -494,20 +483,32 @@ TpcbExample::run(int n, int accounts, int branches, int tellers)
 
 	int err;
 	adb = new Db(this, 0);
-	if ((err = adb->open("account", NULL, DB_UNKNOWN, 0, 0)) != 0)
-		errExit(err, "Open of account file failed");
+	if ((err = adb->open(NULL, "account", NULL, DB_UNKNOWN,
+	                     DB_AUTO_COMMIT, 0)) != 0) {
+		DbException except("Open of account file failed", err);
+		throw except;
+	}
 
 	bdb = new Db(this, 0);
-	if ((err = bdb->open("branch", NULL, DB_UNKNOWN, 0, 0)) != 0)
-		errExit(err, "Open of branch file failed");
+	if ((err = bdb->open(NULL, "branch", NULL, DB_UNKNOWN,
+	                     DB_AUTO_COMMIT, 0)) != 0) {
+		DbException except("Open of branch file failed", err);
+		throw except;
+	}
 
 	tdb = new Db(this, 0);
-	if ((err = tdb->open("teller", NULL, DB_UNKNOWN, 0, 0)) != 0)
-		errExit(err, "Open of teller file failed");
+	if ((err = tdb->open(NULL, "teller", NULL, DB_UNKNOWN,
+	                     DB_AUTO_COMMIT, 0)) != 0) {
+		DbException except("Open of teller file failed", err);
+		throw except;
+	}
 
 	hdb = new Db(this, 0);
-	if ((err = hdb->open("history", NULL, DB_UNKNOWN, 0, 0)) != 0)
-		errExit(err, "Open of history file failed");
+	if ((err = hdb->open(NULL, "history", NULL, DB_UNKNOWN,
+	                     DB_AUTO_COMMIT, 0)) != 0) {
+		DbException except("Open of history file failed", err);
+		throw except;
+	}
 
 	txns = failed = ifailed = 0;
 	starttime = time(NULL);
@@ -527,10 +528,9 @@ TpcbExample::run(int n, int accounts, int branches, int tellers)
 			// We use printf because it provides much simpler
 			// formatting than iostreams.
 			//
-			printf("[%d] %d txns %d failed ", (int)pid,
-			    txns, failed);
+			printf("%d txns %d failed ", txns, failed);
 			printf("%6.2f TPS (gross) %6.2f TPS (interval)\n",
-			   gtps, itps);
+			    gtps, itps);
 			lasttime = curtime;
 			ifailed = 0;
 		}
@@ -550,7 +550,7 @@ TpcbExample::run(int n, int accounts, int branches, int tellers)
 //
 int
 TpcbExample::txn(Db *adb, Db *bdb, Db *tdb, Db *hdb,
-		 int accounts, int branches, int tellers)
+                 int accounts, int branches, int tellers)
 {
 	Dbc *acurs = NULL;
 	Dbc *bcurs = NULL;
@@ -560,7 +560,7 @@ TpcbExample::txn(Db *adb, Db *bdb, Db *tdb, Db *hdb,
 	db_recno_t key;
 	Defrec rec;
 	Histrec hrec;
-	int account, branch, teller;
+	int account, branch, teller, ret;
 
 	Dbt d_dbt;
 	Dbt d_histdbt;
@@ -628,11 +628,12 @@ TpcbExample::txn(Db *adb, Db *bdb, Db *tdb, Db *hdb,
 	if (hdb->put(t, &k_histdbt, &d_histdbt, DB_APPEND) != 0)
 		goto err;
 
-	if (acurs->close() != 0 || bcurs->close() != 0 ||
-	    tcurs->close() != 0)
+	if (acurs->close() != 0 || bcurs->close() != 0 || tcurs->close() != 0)
 		goto err;
 
-	if (t->commit(0) != 0)
+	ret = t->commit(0);
+	t = NULL;
+	if (ret != 0)
 		goto err;
 
 	// END TIMING
@@ -653,14 +654,4 @@ err:
 		     << " B=" << (long)branch
 		     << " T=" << (long)teller << " failed\n";
 	return (-1);
-}
-
-void errExit(int err, const char *s)
-{
-	cerr << progname << ": ";
-	if (s != NULL) {
-		cerr << s << ": ";
-	}
-	cerr << strerror(err) << "\n";
-	exit(1);
 }

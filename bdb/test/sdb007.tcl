@@ -1,19 +1,24 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb007.tcl,v 11.13 2000/12/11 17:24:55 sue Exp $
+# $Id: sdb007.tcl,v 11.20 2002/07/11 18:53:46 sandstro Exp $
 #
-# Sub DB Test 7 {access method}
-# Use the first 10,000 entries from the dictionary spread across each subdb.
-# Use a different page size for every subdb.
-# Insert each with self as key and data; retrieve each.
-# After all are entered, retrieve all; compare output to original.
-# Close file, reopen, do retrieve and re-verify.
-proc subdb007 { method {nentries 10000} args } {
+# TEST	subdb007
+# TEST	Tests page size difference errors between subdbs.
+# TEST  Test 3 different scenarios for page sizes.
+# TEST 	1.  Create/open with a default page size, 2nd subdb create with
+# TEST      specified different one, should error.
+# TEST  2.  Create/open with specific page size, 2nd subdb create with
+# TEST      different one, should error.
+# TEST  3.  Create/open with specified page size, 2nd subdb create with
+# TEST      same specified size, should succeed.
+# TEST  (4th combo of using all defaults is a basic test, done elsewhere)
+proc subdb007 { method args } {
 	source ./include.tcl
 
+	set db2args [convert_args -btree $args]
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
@@ -23,101 +28,105 @@ proc subdb007 { method {nentries 10000} args } {
 	}
 	set pgindex [lsearch -exact $args "-pagesize"]
 	if { $pgindex != -1 } {
-		puts "Subdb007: skipping for specific pagesizes"
+		puts "Subdb007: skipping for specific page sizes"
 		return
 	}
 
-	puts "Subdb007: $method ($args) subdb tests with different pagesizes"
+	puts "Subdb007: $method ($args) subdb tests with different page sizes"
 
-	# Create the database and open the dictionary
-	set testfile $testdir/subdb007.db
-	set t1 $testdir/t1
-	set t2 $testdir/t2
-	set t3 $testdir/t3
-	set t4 $testdir/t4
-	cleanup $testdir NULL
-
-	set txn ""
-	set count 0
-
-	if { [is_record_based $method] == 1 } {
-		set checkfunc subdb007_recno.check
+	set txnenv 0
+	set envargs ""
+	set eindex [lsearch -exact $args "-env"]
+	#
+	# If we are using an env, then testfile should just be the db name.
+	# Otherwise it is the test directory and the name.
+	if { $eindex == -1 } {
+		set testfile $testdir/subdb007.db
+		set env NULL
 	} else {
-		set checkfunc subdb007.check
-	}
-	puts "\tSubdb007.a: create subdbs of different page sizes"
-	set psize {8192 4096 2048 1024 512}
-	set nsubdbs [llength $psize]
-	for { set i 0 } { $i < $nsubdbs } { incr i } {
-		lappend duplist -1
-	}
-	set newent [expr $nentries / $nsubdbs]
-	build_all_subdb $testfile [list $method] $psize $duplist $newent $args
-
-	# Now we will get each key from the DB and compare the results
-	# to the original.
-	for { set subdb 0 } { $subdb < $nsubdbs } { incr subdb } {
-		puts "\tSubdb007.b: dump file sub$subdb.db"
-		set db [berkdb_open -unknown $testfile sub$subdb.db]
-		dump_file $db $txn $t1 $checkfunc
-		error_check_good db_close [$db close] 0
-
-		# Now compare the keys to see if they match the dictionary
-		# (or ints)
-		if { [is_record_based $method] == 1 } {
-			set oid [open $t2 w]
-			for {set i 1} {$i <= $newent} {incr i} {
-				puts $oid [expr $subdb * $newent + $i]
-			}
-			close $oid
-			file rename -force $t1 $t3
-		} else {
-			set beg [expr $subdb * $newent]
-			incr beg
-			set end [expr $beg + $newent - 1]
-			filehead $end $dict $t3 $beg
-			filesort $t3 $t2
-			filesort $t1 $t3
+		set testfile subdb007.db
+		incr eindex
+		set env [lindex $args $eindex]
+		set envargs " -env $env "
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			append envargs " -auto_commit "
+			append db2args " -auto_commit "
 		}
-
-		error_check_good Subdb007:diff($t3,$t2) \
-		    [filecmp $t3 $t2] 0
-
-		puts "\tSubdb007.c: sub$subdb.db: close, open, and dump file"
-		# Now, reopen the file and run the last test again.
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
-		    dump_file_direction "-first" "-next" sub$subdb.db
-		if { [is_record_based $method] != 1 } {
-			filesort $t1 $t3
-		}
-
-		error_check_good Subdb007:diff($t2,$t3) \
-		    [filecmp $t2 $t3] 0
-
-		# Now, reopen the file and run the last test again in the
-		# reverse direction.
-		puts "\tSubdb007.d: sub$subdb.db:\
-		    close, open, and dump file in reverse direction"
-		open_and_dump_subfile $testfile NULL $txn $t1 $checkfunc \
-		    dump_file_direction "-last" "-prev" sub$subdb.db
-
-		if { [is_record_based $method] != 1 } {
-			filesort $t1 $t3
-		}
-
-		error_check_good Subdb007:diff($t3,$t2) \
-		    [filecmp $t3 $t2] 0
+		set testdir [get_home $env]
 	}
-}
+	set sub1 "sub1"
+	set sub2 "sub2"
+	cleanup $testdir $env
+	set txn ""
 
-# Check function for Subdb007; keys and data are identical
-proc subdb007.check { key data } {
-	error_check_good "key/data mismatch" $data $key
-}
+	puts "\tSubdb007.a.0: create subdb with default page size"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {$omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	#
+	# Figure out what the default page size is so that we can
+	# guarantee we create it with a different value.
+	set statret [$db stat]
+	set pgsz 0
+	foreach pair $statret {
+		set fld [lindex $pair 0]
+		if { [string compare $fld {Page size}] == 0 } {
+			set pgsz [lindex $pair 1]
+		}
+	}
+	error_check_good dbclose [$db close] 0
 
-proc subdb007_recno.check { key data } {
-global dict
-global kvals
-	error_check_good key"$key"_exists [info exists kvals($key)] 1
-	error_check_good "key/data mismatch, key $key" $data $kvals($key)
+	if { $pgsz == 512 } {
+		set pgsz2 2048
+	} else {
+		set pgsz2 512
+	}
+
+	puts "\tSubdb007.a.1: create 2nd subdb with specified page size"
+	set stat [catch {eval {berkdb_open_noerr -create -btree} \
+	    $db2args {-pagesize $pgsz2 $testfile $sub2}} ret]
+	error_check_good subdb:pgsz $stat 1
+	error_check_good subdb:fail [is_substr $ret \
+	    "Different pagesize specified"] 1
+
+	set ret [eval {berkdb dbremove} $envargs {$testfile}]
+
+	puts "\tSubdb007.b.0: create subdb with specified page size"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-pagesize $pgsz2 $omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	set statret [$db stat]
+	set newpgsz 0
+	foreach pair $statret {
+		set fld [lindex $pair 0]
+		if { [string compare $fld {Page size}] == 0 } {
+			set newpgsz [lindex $pair 1]
+		}
+	}
+	error_check_good pgsize $pgsz2 $newpgsz
+	error_check_good dbclose [$db close] 0
+
+	puts "\tSubdb007.b.1: create 2nd subdb with different page size"
+	set stat [catch {eval {berkdb_open_noerr -create -btree} \
+	    $db2args {-pagesize $pgsz $testfile $sub2}} ret]
+	error_check_good subdb:pgsz $stat 1
+	error_check_good subdb:fail [is_substr $ret \
+	    "Different pagesize specified"] 1
+
+	set ret [eval {berkdb dbremove} $envargs {$testfile}]
+
+	puts "\tSubdb007.c.0: create subdb with specified page size"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-pagesize $pgsz2 $omethod $testfile $sub1}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
+
+	puts "\tSubdb007.c.1: create 2nd subdb with same specified page size"
+	set db [eval {berkdb_open -create -mode 0644} \
+	    $args {-pagesize $pgsz2 $omethod $testfile $sub2}]
+	error_check_good subdb [is_valid_db $db] TRUE
+	error_check_good dbclose [$db close] 0
+
 }

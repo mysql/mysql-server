@@ -1,28 +1,30 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test068.tcl,v 11.11 2000/08/25 14:21:58 sue Exp $
+# $Id: test068.tcl,v 11.17 2002/06/11 15:34:47 sue Exp $
 #
-# DB Test 68: Test of DB_BEFORE and DB_AFTER and partial puts.
-# Make sure DB_BEFORE and DB_AFTER work properly with partial puts,
-# and check that they return EINVAL if DB_DUPSORT is set or if DB_DUP is not.
+# TEST	test068
+# TEST	Test of DB_BEFORE and DB_AFTER with partial puts.
+# TEST	Make sure DB_BEFORE and DB_AFTER work properly with partial puts, and
+# TEST	check that they return EINVAL if DB_DUPSORT is set or if DB_DUP is not.
 proc test068 { method args } {
 	source ./include.tcl
 	global alphabet
 	global errorCode
 
 	set tnum 68
-	set nkeys 1000
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
 	# Otherwise it is the test directory and the name.
+	set nkeys 1000
 	if { $eindex == -1 } {
 		set testfile $testdir/test0$tnum.db
 		set env NULL
@@ -30,6 +32,12 @@ proc test068 { method args } {
 		set testfile test0$tnum.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			set nkeys 100
+		}
+		set testdir [get_home $env]
 	}
 
 	puts "Test0$tnum:\
@@ -41,6 +49,7 @@ proc test068 { method args } {
 
 	# Create a list of $nkeys words to insert into db.
 	puts "\tTest0$tnum.a: Initialize word list."
+	set txn ""
 	set wordlist {}
 	set count 0
 	set did [open $dict]
@@ -62,14 +71,30 @@ proc test068 { method args } {
 	}
 
 	foreach dupopt $dupoptlist {
+		#
+		# Testdir might be reset in the loop by some proc sourcing
+		# include.tcl.  Reset it to the env's home here, before
+		# cleanup.
+		if { $env != "NULL" } {
+			set testdir [get_home $env]
+		}
 		cleanup $testdir $env
-		set db [eval {berkdb_open_noerr -create -truncate -mode 0644 \
+		set db [eval {berkdb_open_noerr -create -mode 0644 \
 		    $omethod} $args $dupopt {$testfile}]
 		error_check_good db_open [is_valid_db $db] TRUE
 
 		puts "\tTest0$tnum.b ($dupopt): DB initialization: put loop."
 		foreach word $wordlist {
-			error_check_good db_put [$db put $word $word] 0
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set ret [eval {$db put} $txn {$word $word}]
+			error_check_good db_put $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 		}
 
 		puts "\tTest0$tnum.c ($dupopt): get loop."
@@ -82,7 +107,12 @@ proc test068 { method args } {
 			error_check_good get_key [list [list $word $word]] $dbt
 		}
 
-		set dbc [$db cursor]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set dbc [eval {$db cursor} $txn]
 		error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 
 		puts "\tTest0$tnum.d ($dupopt): DBC->put w/ DB_AFTER."
@@ -116,6 +146,10 @@ proc test068 { method args } {
 			puts "\tTest0$tnum ($dupopt): Correct error returns,\
 				skipping further test."
 			# continue with broad foreach
+			error_check_good dbc_close [$dbc close] 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 			error_check_good db_close [$db close] 0
 			continue
 		}
@@ -143,11 +177,19 @@ proc test068 { method args } {
 		}
 
 		error_check_good dbc_close [$dbc close] 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		eval $db sync
 		puts "\tTest0$tnum.g ($dupopt): Verify correctness."
 
-		set dbc [$db cursor]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set dbc [eval {$db cursor} $txn]
 		error_check_good db_cursor [is_valid_cursor $dbc $db] TRUE
 
 		# loop through the whole db beginning to end,
@@ -176,6 +218,9 @@ proc test068 { method args } {
 			incr count
 		}
 		error_check_good dbc_close [$dbc close] 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 		error_check_good db_close [$db close] 0
 	}
 }

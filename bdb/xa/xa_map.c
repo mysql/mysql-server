@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: xa_map.c,v 11.5 2000/11/30 00:58:46 ubell Exp $";
+static const char revid[] = "$Id: xa_map.c,v 11.19 2002/09/03 14:58:27 sue Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,7 +18,7 @@ static const char revid[] = "$Id: xa_map.c,v 11.5 2000/11/30 00:58:46 ubell Exp 
 #endif
 
 #include "db_int.h"
-#include "txn.h"
+#include "dbinc/txn.h"
 
 /*
  * This file contains all the mapping information that we need to support
@@ -72,31 +72,9 @@ __db_xid_to_txn(dbenv, xid, offp)
 	XID *xid;
 	size_t *offp;
 {
-	DB_TXNMGR *mgr;
-	DB_TXNREGION *tmr;
 	struct __txn_detail *td;
 
-	mgr = dbenv->tx_handle;
-	tmr = mgr->reginfo.primary;
-
-	/*
-	 * Search the internal active transaction table to find the
-	 * matching xid.  If this is a performance hit, then we
-	 * can create a hash table, but I doubt it's worth it.
-	 */
-	R_LOCK(dbenv, &mgr->reginfo);
-	for (td = SH_TAILQ_FIRST(&tmr->active_txn, __txn_detail);
-	    td != NULL;
-	    td = SH_TAILQ_NEXT(td, links, __txn_detail))
-		if (memcmp(xid->data, td->xid, XIDDATASIZE) == 0)
-			break;
-	R_UNLOCK(dbenv, &mgr->reginfo);
-
-	if (td == NULL)
-		return (EINVAL);
-
-	*offp = R_OFFSET(&mgr->reginfo, td);
-	return (0);
+	return (__txn_map_gid(dbenv, (u_int8_t *)xid->data, &td, offp));
 }
 
 /*
