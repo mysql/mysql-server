@@ -57,6 +57,7 @@ of the 32-bit x86 assembler in mutex operations. */
 Microsoft Visual C++ */
 
 #if !defined(__GNUC__) && !defined(__WIN__)
+#undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
 #define UNIV_MUST_NOT_INLINE
 #endif
 

@@ -71,7 +71,8 @@ select decode(encode("abcdef","monty"),"monty")="abcdef";
 select quote('\'\"\\test');
 select quote(concat('abc\'', '\\cba'));
 select quote(1/0), quote('\0\Z');
-select length(quote(concat(char(0), "test")));
+select length(quote(concat(char(0),"test")));
+
 #
 # Wrong usage of functions
 #

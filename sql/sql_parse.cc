@@ -74,7 +74,8 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data", "Close stmt"
+  "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Error"					// Last command number
 };
 
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
@@ -211,7 +212,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
                                    cur_priv_version,hint_user);
 
   DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
+	     ("Capabilities: %d  packet_length: %ld  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
 	      thd->host_or_ip, thd->priv_user,
 	      had_password ? "yes": "no",
@@ -516,7 +517,8 @@ check_connections(THD *thd)
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
-      thd->host[strnlen(thd->host, HOSTNAME_LENGTH)]= 0;
+      /* Cut very long hostnames to avoid possible overflows */
+      thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -967,20 +969,22 @@ bool do_command(THD *thd)
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
   {
-     DBUG_PRINT("info",("Got error reading command from socket %s",
-			vio_description(net->vio) ));
-    return TRUE;
-  }
-  else if (!packet_length)
-  {
+    DBUG_PRINT("info",("Got error %d reading command from socket %s",
+		       net->error,
+		       vio_description(net->vio)));
+    /* Check if we can continue without closing the connection */
+    if (net->error != 3)
+      DBUG_RETURN(TRUE);			// We have to close it.
     send_error(thd,net->last_errno,NullS);
-    net->error=0;
+    net->error= 0;
     DBUG_RETURN(FALSE);
   }
   else
   {
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
+    if (command >= COM_END)
+      command= COM_END;				// Wrong command
     DBUG_PRINT("info",("Command on %s = %d (%s)",
 		       vio_description(net->vio), command,
 		       command_name[command]));
@@ -1184,7 +1188,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     mysql_log.write(thd,command,"%s",thd->query);
-    DBUG_PRINT("query",("%s",thd->query));
+    DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),WAIT_PRIOR);
@@ -1381,6 +1385,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
   case COM_DELAYED_INSERT:
+  case COM_END:
   default:
     send_error(thd, ER_UNKNOWN_COM_ERROR);
     break;
@@ -2282,6 +2287,7 @@ mysql_execute_command(THD *thd)
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
     if (&lex->select_lex != lex->all_selects_list)
+    {
       for (TABLE_LIST *t= select_lex->get_table_list();
 	   t; t= t->next)
       {
@@ -2292,6 +2298,7 @@ mysql_execute_command(THD *thd)
 	  break;
 	}
       }
+    }
     fix_tables_pointers(lex->all_selects_list);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))

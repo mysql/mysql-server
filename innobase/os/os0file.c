@@ -2127,7 +2127,7 @@ os_aio_simulated_handle(
 	ulint		offs;
 	ulint		lowest_offset;
 	byte*		combined_buf;
-	byte*		combined_buf2;
+	byte*		combined_buf2= 0;	/* Remove warning */
 	ibool		ret;
 	ulint		n;
 	ulint		i;

@@ -2119,7 +2119,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (key_file[i]->stat(key_file[i], (void*) &stat, 0))
+    if ((key_file[i]->stat)(key_file[i], (void*) &stat, 0))
       goto err; /* purecov: inspected */
     share->rec_per_key[i]= (stat->bt_ndata /
 			    (stat->bt_nkeys ? stat->bt_nkeys : 1));
@@ -2132,7 +2132,7 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
       free(stat);
       stat=0;
     }
-    if (file->stat(file, (void*) &stat, 0))
+    if ((file->stat)(file, (void*) &stat, 0))
       goto err; /* purecov: inspected */
   }
   pthread_mutex_lock(&share->mutex);
