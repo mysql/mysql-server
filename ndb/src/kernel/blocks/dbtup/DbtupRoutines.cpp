@@ -187,6 +187,14 @@ int Dbtup::readAttributes(Page* const pagePtr,
       } else {
         return (Uint32)-1;
       }//if
+    } else if(attributeId == AttributeHeader::FRAGMENT){
+      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, 1);
+      outBuffer[tmpAttrBufIndex+1] = fragptr.p->fragmentId;
+      tOutBufIndex = tmpAttrBufIndex + 2;
+    } else if(attributeId == AttributeHeader::ROW_COUNT){
+      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, 2);
+      readRowcount(operPtr.p->userpointer, outBuffer+tmpAttrBufIndex+1);
+      tOutBufIndex = tmpAttrBufIndex + 3;
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
       return (Uint32)-1;
@@ -195,6 +203,7 @@ int Dbtup::readAttributes(Page* const pagePtr,
   return tOutBufIndex;
 }//Dbtup::readAttributes()
 
+#if 0
 int Dbtup::readAttributesWithoutHeader(Page* const pagePtr,
                                        Uint32  tupHeadOffset,
                                        Uint32* inBuffer,
@@ -247,6 +256,7 @@ int Dbtup::readAttributesWithoutHeader(Page* const pagePtr,
   ndbrequire(attrBufIndex == inBufLen);
   return tOutBufIndex;
 }//Dbtup::readAttributes()
+#endif
 
 bool
 Dbtup::readFixedSizeTHOneWordNotNULL(Uint32* outBuffer,
@@ -893,4 +903,13 @@ Dbtup::updateDynSmallVarSize(Uint32* inBuffer,
   return false;
 }//Dbtup::updateDynSmallVarSize()
 
-
+bool
+Dbtup::readRowcount(Uint32 userPtr, Uint32* outBuffer){
+  Uint32 tmp[sizeof(SignalHeader)+25];
+  Signal * signal = (Signal*)&tmp;
+  signal->theData[0] = userPtr;
+  
+  EXECUTE_DIRECT(DBLQH, GSN_READ_ROWCOUNT_REQ, signal, 1);
+  outBuffer[0] = signal->theData[0];
+  outBuffer[1] = signal->theData[1];
+}
