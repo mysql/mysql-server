@@ -34,7 +34,7 @@ class ha_myisammrg: public handler
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
+    return (HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME | HA_AUTO_PART_KEY |
 	    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 	    HA_NULL_KEY | HA_BLOB_KEY);
   }

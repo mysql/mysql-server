@@ -358,7 +358,7 @@ typedef struct st_sort_info
   MI_CHECK *param;
   enum data_file_type new_data_file_type;
   SORT_KEY_BLOCKS *key_block,*key_block_end;
-  uint kei, total_keys;
+  uint current_key, total_keys;
   my_off_t filelength,dupp,buff_length;
   ha_rows max_records;
   char *buff;

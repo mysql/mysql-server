@@ -3223,7 +3223,7 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param)
 
   old_file=info->dfile;
   info->dfile=info->rec_cache.file;
-  if (sort_info->kei)
+  if (sort_info->current_key)
   {
     key=info->lastkey+info->s->base.max_key_length;
     if ((error=(*info->s->read_rnd)(info,sort_param->record,info->lastpos,0)) &&
@@ -3234,7 +3234,7 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param)
       DBUG_RETURN(1);
     }
 
-    for (i=0 ; i < sort_info->kei ; i++)
+    for (i=0 ; i < sort_info->current_key ; i++)
     {
       uint key_length=_mi_make_key(info,i,key,sort_param->record,info->lastpos);
       if (_mi_ck_delete(info,i,key,key_length))
