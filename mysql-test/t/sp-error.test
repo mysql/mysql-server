@@ -632,6 +632,28 @@ end|
 call bug3294()|
 drop procedure bug3294|
 
+#
+# BUG#6807: Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
+#
+--disable_warnings
+drop procedure if exists bug6807|
+--enable_warnings
+create procedure bug6807()
+begin
+  declare id int;
+
+  set id = connection_id();
+  kill query id;
+  select 'Not reached';
+end|
+
+--error 1317
+call bug6807()|
+--error 1317
+call bug6807()|
+
+drop procedure bug6807|
+
 
 drop table t1|
 
