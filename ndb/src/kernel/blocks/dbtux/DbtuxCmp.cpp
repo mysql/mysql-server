@@ -62,15 +62,15 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
         }
       } else {
         jam();
-        // not NULL < NULL
-        ret = -1;
+        // not NULL > NULL
+        ret = +1;
         break;
       }
     } else {
       if (! entryData.ah().isNULL()) {
         jam();
-        // NULL > not NULL
-        ret = +1;
+        // NULL < not NULL
+        ret = -1;
         break;
       }
     }
@@ -116,15 +116,15 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Tabl
         }
       } else {
         jam();
-        // not NULL < NULL
-        ret = -1;
+        // not NULL > NULL
+        ret = +1;
         break;
       }
     } else {
       if (*entryKey != 0) {
         jam();
-        // NULL > not NULL
-        ret = +1;
+        // NULL < not NULL
+        ret = -1;
         break;
       }
     }
@@ -180,36 +180,41 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
     // get and skip bound type
     type = boundInfo[0];
     boundInfo += 1;
-    ndbrequire(! boundInfo.ah().isNULL());
-    if (! entryData.ah().isNULL()) {
-      jam();
-      // current attribute
-      const unsigned index = boundInfo.ah().getAttributeId();
-      const DescAttr& descAttr = descEnt.m_descAttr[index];
-      const unsigned typeId = descAttr.m_typeId;
-      ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
-      // full data size
-      const unsigned size1 = boundInfo.ah().getDataSize();
-      ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
-      const unsigned size2 = min(size1, len2);
-      len2 -= size2;
-      // compare
-      const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
-      const Uint32* const p2 = &entryData[AttributeHeaderSize];
-      int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
-      // XXX until data format errors are handled
-      ndbrequire(ret != NdbSqlUtil::CmpError);
-      if (ret != 0) {
+    if (! boundInfo.ah().isNULL()) {
+      if (! entryData.ah().isNULL()) {
         jam();
-        return ret;
+        // current attribute
+        const unsigned index = boundInfo.ah().getAttributeId();
+        const DescAttr& descAttr = descEnt.m_descAttr[index];
+        const unsigned typeId = descAttr.m_typeId;
+        ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
+        // full data size
+        const unsigned size1 = boundInfo.ah().getDataSize();
+        ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
+        const unsigned size2 = min(size1, len2);
+        len2 -= size2;
+        // compare
+        const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
+        const Uint32* const p2 = &entryData[AttributeHeaderSize];
+        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
+        // XXX until data format errors are handled
+        ndbrequire(ret != NdbSqlUtil::CmpError);
+        if (ret != 0) {
+          jam();
+          return ret;
+        }
+      } else {
+        jam();
+        // not NULL > NULL
+        return +1;
       }
     } else {
       jam();
-      /*
-       * NULL is bigger than any bound, thus the boundary is always to
-       * the left of NULL.
-       */
-      return -1;
+      if (! entryData.ah().isNULL()) {
+        jam();
+        // NULL < not NULL
+        return -1;
+      }
     }
     boundInfo += AttributeHeaderSize + boundInfo.ah().getDataSize();
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
@@ -258,32 +263,37 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
     // get and skip bound type
     type = boundInfo[0];
     boundInfo += 1;
-    ndbrequire(! boundInfo.ah().isNULL());
-    if (*entryKey != 0) {
-      jam();
-      // current attribute
-      const unsigned index = boundInfo.ah().getAttributeId();
-      const DescAttr& descAttr = descEnt.m_descAttr[index];
-      const unsigned typeId = descAttr.m_typeId;
-      // full data size
-      const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-      // compare
-      const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
-      const Uint32* const p2 = *entryKey;
-      int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
-      // XXX until data format errors are handled
-      ndbrequire(ret != NdbSqlUtil::CmpError);
-      if (ret != 0) {
+    if (! boundInfo.ah().isNULL()) {
+      if (*entryKey != 0) {
         jam();
-        return ret;
+        // current attribute
+        const unsigned index = boundInfo.ah().getAttributeId();
+        const DescAttr& descAttr = descEnt.m_descAttr[index];
+        const unsigned typeId = descAttr.m_typeId;
+        // full data size
+        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
+        // compare
+        const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
+        const Uint32* const p2 = *entryKey;
+        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
+        // XXX until data format errors are handled
+        ndbrequire(ret != NdbSqlUtil::CmpError);
+        if (ret != 0) {
+          jam();
+          return ret;
+        }
+      } else {
+        jam();
+        // not NULL > NULL
+        return +1;
       }
     } else {
       jam();
-      /*
-       * NULL is bigger than any bound, thus the boundary is always to
-       * the left of NULL.
-       */
-      return -1;
+      if (*entryKey != 0) {
+        jam();
+        // NULL < not NULL
+        return -1;
+      }
     }
     boundInfo += AttributeHeaderSize + boundInfo.ah().getDataSize();
     entryKey += 1;

@@ -85,7 +85,7 @@ printhelp()
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
-    << "  -loop N       loop count full suite forever=0 [" << d.m_loop << "]" << endl
+    << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
@@ -101,6 +101,12 @@ printhelp()
   printcases();
   printtables();
 }
+
+// not yet configurable
+static const bool g_store_null_key = true;
+
+// compare NULL like normal value (NULL < not NULL, NULL == NULL)
+static const bool g_compare_null = true;
 
 // log and error macros
 
@@ -306,8 +312,8 @@ Tmr::pct(const Tmr& t1)
 const char*
 Tmr::over(const Tmr& t1)
 {
-  if (0 < t1.m_ms && t1.m_ms < m_ms) {
-    sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+  if (0 < t1.m_ms) {
+    sprintf(m_text, "%d pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -1168,9 +1174,9 @@ Val::cmp(const Val& val2) const
   assert(col.m_type == col2.m_type && col.m_length == col2.m_length);
   if (m_null || val2.m_null) {
     if (! m_null)
-      return -1;
-    if (! val2.m_null)
       return +1;
+    if (! val2.m_null)
+      return -1;
     return 0;
   }
   // verify data formats
@@ -1695,8 +1701,8 @@ int
 BVal::setbnd(Par par) const
 {
   Con& con = par.con();
-  const char* addr = (const char*)dataaddr();
-  assert(! m_null);
+  assert(g_compare_null || ! m_null);
+  const char* addr = ! m_null ? (const char*)dataaddr() : 0;
   const ICol& icol = m_icol;
   CHK(con.setBound(icol.m_num, m_type, addr) == 0);
   return 0;
@@ -1785,7 +1791,8 @@ BSet::calc(Par par)
       if (k + 1 < itab.m_icols)
         bval.m_type = 4;
       // value generation parammeters
-      par.m_pctnull = 0;
+      if (! g_compare_null)
+        par.m_pctnull = 0;
       par.m_pctrange = 50;      // bit higher
       do {
         bval.calc(par, 0);
@@ -1842,18 +1849,20 @@ BSet::filter(const Set& set, Set& set2) const
     if (! set.exist(i))
       continue;
     const Row& row = *set.m_row[i];
-    bool ok1 = false;
-    for (unsigned k = 0; k < itab.m_icols; k++) {
-      const ICol& icol = itab.m_icol[k];
-      const Col& col = icol.m_col;
-      const Val& val = *row.m_val[col.m_num];
-      if (! val.m_null) {
-        ok1 = true;
-        break;
+    if (! g_store_null_key) {
+      bool ok1 = false;
+      for (unsigned k = 0; k < itab.m_icols; k++) {
+        const ICol& icol = itab.m_icol[k];
+        const Col& col = icol.m_col;
+        const Val& val = *row.m_val[col.m_num];
+        if (! val.m_null) {
+          ok1 = true;
+          break;
+        }
       }
+      if (! ok1)
+        continue;
     }
-    if (! ok1)
-      continue;
     bool ok2 = true;
     for (unsigned j = 0; j < m_bvals; j++) {
       const BVal& bval = *m_bval[j];
@@ -2727,13 +2736,13 @@ tpkops(Par par)
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, pkupdatescanread, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
   }
   RUNSTEP(par, pkdelete, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   return 0;
 }
 
@@ -2746,10 +2755,10 @@ tmixedops(Par par)
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
-  RUNSTEP(par, readverify, MT);
+  RUNSTEP(par, readverify, ST);
   for (unsigned i = 0; i < par.m_subloop; i++) {
     RUNSTEP(par, mixedoperations, MT);
-    RUNSTEP(par, readverify, MT);
+    RUNSTEP(par, readverify, ST);
   }
   return 0;
 }
@@ -2832,7 +2841,7 @@ ttimescan(Par par)
   }
   LL1("full scan table - " << t1.time());
   LL1("full scan PK index - " << t2.time());
-  LL1("index time pct - " << t2.pct(t1));
+  LL1("overhead - " << t2.over(t1));
   return 0;
 }
 
@@ -2854,7 +2863,7 @@ ttimepkread(Par par)
   }
   LL1("pk read table - " << t1.time());
   LL1("pk read PK index - " << t2.time());
-  LL1("index time pct - " << t2.pct(t1));
+  LL1("overhead - " << t2.over(t1));
   return 0;
 }
 
