@@ -42,6 +42,44 @@ insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium')
 select max(case col when 1 then val else null end) as color from t1 group by row;
 drop table t1;
 
+SET NAMES latin1;
+
+#
+# CASE and argument types/collations aggregation into result 
+#
+CREATE TABLE t1 SELECT 
+ CASE WHEN 1 THEN _latin1'a' COLLATE latin1_danish_ci ELSE _latin1'a' END AS c1,
+ CASE WHEN 1 THEN _latin1'a' ELSE _latin1'a' COLLATE latin1_danish_ci END AS c2,
+ CASE WHEN 1 THEN 'a' ELSE  1  END AS c3,
+ CASE WHEN 1 THEN  1  ELSE 'a' END AS c4,
+ CASE WHEN 1 THEN 'a' ELSE 1.0 END AS c5,
+ CASE WHEN 1 THEN 1.0 ELSE 'a' END AS c6,
+ CASE WHEN 1 THEN  1  ELSE 1.0 END AS c7,
+ CASE WHEN 1 THEN 1.0 ELSE  1  END AS c8
+;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--error 1265
+SELECT CASE 
+  WHEN 1 
+  THEN _latin1'a' COLLATE latin1_danish_ci 
+  ELSE _latin1'a' COLLATE latin1_swedish_ci
+  END;
+
+--error 1268
+SELECT CASE _latin1'a' COLLATE latin1_general_ci
+  WHEN _latin1'a' COLLATE latin1_danish_ci  THEN 1
+  WHEN _latin1'a' COLLATE latin1_swedish_ci THEN 2
+  END;
+
+SELECT 
+CASE _latin1'a' COLLATE latin1_general_ci  WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' COLLATE latin1_bin         WHEN _latin1'A' THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_swedish_ci THEN '1' ELSE 2 END,
+CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
+;
+
 #
 # COALESCE is a CASE abbrevation:
 #
@@ -52,7 +90,6 @@ drop table t1;
 #
 # Check COALESCE argument types aggregation
 
-SET NAMES latin1;
 --error 1265
 CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
 --error 1265

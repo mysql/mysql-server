@@ -2030,7 +2030,7 @@ CHARSET_INFO my_charset_utf8_bin=
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
-    &my_collation_ci_handler
+    &my_collation_bin_handler
 };
 
 
