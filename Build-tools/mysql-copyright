@@ -97,7 +97,7 @@ sub main
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
     `rm -f $destdir/PUBLIC`;
-    `cp -a $WD/Docs/LICENSE $destdir/`;
+    `cp -p $WD/Docs/LICENSE $destdir/`;
     
     # fix file copyrights
     &fix_usage_copyright();
