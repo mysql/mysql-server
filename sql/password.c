@@ -65,7 +65,7 @@
 #include <sha1.h>
 #include "mysql.h"
 
-/************ MySQL 3.23-4.0 authentification routines: untouched ***********/
+/************ MySQL 3.23-4.0 authentication routines: untouched ***********/
 
 /*
   New (MySQL 3.21+) random generation structure initialization
@@ -280,7 +280,7 @@ void make_password_from_salt_323(char *to, const ulong *salt)
 
 
 /*
-     **************** MySQL 4.1.1 authentification routines *************
+     **************** MySQL 4.1.1 authentication routines *************
 */
 
 /*
