@@ -492,8 +492,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
-   (gptr*) &default_dbug_option,
-   (gptr*) &default_dbug_option, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
