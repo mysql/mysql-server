@@ -66,12 +66,22 @@ row_mysql_store_blob_ref(
 	byte*	dest,		/* in: where to store */
 	ulint	col_len,	/* in: dest buffer size: determines into
 				how many bytes the BLOB length is stored,
-				this may vary from 1 to 4 bytes */
-	byte*	data,		/* in: BLOB data */
-	ulint	len)		/* in: BLOB length */
+				the space for the length may vary from 1
+				to 4 bytes */
+	byte*	data,		/* in: BLOB data; if the value to store
+				is SQL NULL this should be NULL pointer */
+	ulint	len)		/* in: BLOB length; if the value to store
+				is SQL NULL this should be 0; remember
+				also to set the NULL bit in the MySQL record
+				header! */
 {
 	ulint	sum	= 0;
 	ulint	i;
+
+	/* MySQL might assume the field is set to zero except the length and
+	the pointer fields */
+
+	memset(dest, '\0', col_len);
 
 	/* In dest there are 1 - 4 bytes reserved for the BLOB length,
 	and after that 8 bytes reserved for the pointer to the data.
