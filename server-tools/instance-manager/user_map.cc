@@ -129,7 +129,7 @@ int User_map::load(const char *password_file_name)
   if ((file= my_fopen(password_file_name, O_RDONLY | O_BINARY, MYF(0))) == 0)
   {
     /* Probably the password file wasn't specified. Try to leave without it */
-    log_info("can't open password file %s: errno=%d, %s", password_file_name,
+    log_info("[WARNING] can't open password file %s: errno=%d, %s", password_file_name,
               errno, strerror(errno));
     return 0;
   }
