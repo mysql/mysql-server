@@ -3148,8 +3148,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_gb2312,
     ismbhead_gb2312,
     mbcharlen_gb2312,
-    NULL,		 /* mb_wc      */
-    NULL,		 /* wc_mb      */
+    my_mb_wc_gb2312,	/* mb_wc      */
+    my_wc_mb_gb2312,	/* wc_mb      */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -3178,8 +3178,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_gbk,
     ismbhead_gbk,
     mbcharlen_gbk,
-    NULL,       	/* mb_wc      */
-    NULL,       	/* wc_mb      */
+    my_mb_wc_gbk,		/* mb_wc      */
+    my_wc_mb_gbk,		/* wc_mb      */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -3508,8 +3508,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_sjis,
     ismbhead_sjis,
     mbcharlen_sjis,
-    NULL,		/* mb_wc */
-    NULL,		/* wc_mb */
+    my_mb_wc_sjis,	/* mb_wc */
+    my_wc_mb_sjis,	/* wc_mb */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,
