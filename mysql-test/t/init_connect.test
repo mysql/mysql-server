@@ -19,7 +19,7 @@ connect (con3,localhost,user_1,,);
 connection con3;
 select @a;
 connection con0;
-set global init_connect="create table t1(a char(10));\
+set global init_connect="drop table if exists t1; create table t1(a char(10));\
 insert into t1 values ('\0');insert into t1 values('abc')";
 connect (con4,localhost,user_1,,);
 connection con4;
