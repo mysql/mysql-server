@@ -397,8 +397,7 @@ public:
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    return (!item->fixed &&
-            item->fix_fields(thd, tlist, &item) ||
+    return ((!item->fixed && item->fix_fields(thd, tlist, &item)) ||
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }

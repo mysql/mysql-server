@@ -82,6 +82,7 @@ public:
   virtual bool store_short(longlong from)=0;
   virtual bool store_long(longlong from)=0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)=0;
+  virtual bool store_decimal(const my_decimal *)=0;
   virtual bool store(const char *from, uint length, CHARSET_INFO *cs)=0;
   virtual bool store(const char *from, uint length, 
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
@@ -107,6 +108,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
+  virtual bool store_decimal(const my_decimal *);
   virtual bool store(const char *from, uint length, CHARSET_INFO *cs);
   virtual bool store(const char *from, uint length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
@@ -137,6 +139,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
+  virtual bool store_decimal(const my_decimal *);
   virtual bool store(const char *from,uint length, CHARSET_INFO *cs);
   virtual bool store(const char *from, uint length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);

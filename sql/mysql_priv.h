@@ -343,6 +343,8 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
 
+#define STRING_BUFFER_USUAL_SIZE 80
+
 enum enum_parsing_place
 {
   NO_MATTER,
@@ -413,6 +415,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
+#include "my_decimal.h"
 #include "handler.h"
 #include "parse_file.h"
 #include "table.h"
@@ -421,6 +424,7 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
+extern my_decimal decimal_zero;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);

@@ -315,7 +315,9 @@ public:
 };
 
 
-/* This can't be a Item_str_func, because the val() functions are special */
+/*
+  This can't be a Item_str_func, because the val_real() functions are special
+*/
 
 class Item_date :public Item_func
 {
