@@ -9,8 +9,6 @@ USEFORM("db.cpp", dbfrm);
 USELIB("lib\mysqlclient.lib");
 USELIB("lib\myisammrg.lib");
 USELIB("lib\heap.lib");
-USELIB("lib\isam.lib");
-USELIB("lib\merge.lib");
 USELIB("lib\myisam.lib");
 USELIB("lib\mysys.lib");
 USELIB("lib\regex.lib");

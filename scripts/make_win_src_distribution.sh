@@ -238,8 +238,8 @@ copy_dir_dirs() {
 # Input directories to be copied
 #
 
-for i in client dbug extra heap include isam \
-         libmysql libmysqld merge myisam \
+for i in client dbug extra heap include \
+         libmysql libmysqld myisam \
          myisammrg mysys regex sql strings sql-common \
          tools vio zlib
 do
