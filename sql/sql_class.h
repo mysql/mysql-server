@@ -1264,8 +1264,6 @@ public:
   bool send_fields(List<Item> &list, uint flag) { return 0; };
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
-
-  friend class Ttem_subselect;
 };
 
 /* Single value subselect interface class */
