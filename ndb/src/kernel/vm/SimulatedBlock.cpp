@@ -639,7 +639,7 @@ void*
 SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear) 
 {
 
-  void* p = NULL;
+  void * p = NULL;
   size_t size = n*s;
   refresh_watch_dog(); 
   if (size > 0){
@@ -662,8 +662,18 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear)
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
 
-    if(clear)
-      memset(p, 0, size);
+    if(clear){
+      char * ptr = (char*)p;
+      const Uint32 chunk = 128 * 1024;
+      while(size > chunk){
+	refresh_watch_dog(); 
+	memset(ptr, 0, chunk);
+	ptr += chunk;
+	size -= chunk;
+      }
+      refresh_watch_dog(); 
+      memset(ptr, 0, size);
+    }
   }
   return p;
 }
