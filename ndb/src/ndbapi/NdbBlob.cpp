@@ -140,7 +140,6 @@ void
 NdbBlob::init()
 {
   theState = Idle;
-  theBlobTableName[0] = 0;
   theNdb = NULL;
   theNdbCon = NULL;
   theNdbOp = NULL;
@@ -865,7 +864,7 @@ NdbBlob::readParts(char* buf, Uint32 part, Uint32 count)
   DBG("readParts part=" << part << " count=" << count);
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTableName);
+    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
         tOp->readTuple() == -1 ||
         setPartKeyValue(tOp, part + n) == -1 ||
@@ -887,7 +886,7 @@ NdbBlob::insertParts(const char* buf, Uint32 part, Uint32 count)
   DBG("insertParts part=" << part << " count=" << count);
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTableName);
+    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
         tOp->insertTuple() == -1 ||
         setPartKeyValue(tOp, part + n) == -1 ||
@@ -909,7 +908,7 @@ NdbBlob::updateParts(const char* buf, Uint32 part, Uint32 count)
   DBG("updateParts part=" << part << " count=" << count);
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTableName);
+    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
         tOp->updateTuple() == -1 ||
         setPartKeyValue(tOp, part + n) == -1 ||
@@ -931,7 +930,7 @@ NdbBlob::deleteParts(Uint32 part, Uint32 count)
   DBG("deleteParts part=" << part << " count=" << count);
   Uint32 n = 0;
   while (n < count) {
-    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTableName);
+    NdbOperation* tOp = theNdbCon->getNdbOperation(theBlobTable);
     if (tOp == NULL ||
         tOp->deleteTuple() == -1 ||
         setPartKeyValue(tOp, part + n) == -1) {
@@ -1029,12 +1028,11 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
   // sanity check
   assert((NDB_BLOB_HEAD_SIZE << 2) == sizeof(Head));
   assert(theColumn->m_attrSize * theColumn->m_arraySize == sizeof(Head) + theInlineSize);
-  getBlobTableName(theBlobTableName, theTable, theColumn);
   const NdbDictionary::Table* bt;
   const NdbDictionary::Column* bc;
   if (thePartSize > 0) {
     if (theStripeSize == 0 ||
-        (bt = theNdb->theDictionary->getTable(theBlobTableName)) == NULL ||
+        (bt = theColumn->getBlobTable()) == NULL ||
         (bc = bt->getColumn("DATA")) == NULL ||
         bc->getType() != partType ||
         bc->getLength() != (int)thePartSize) {
@@ -1042,6 +1040,7 @@ NdbBlob::atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl*
       return -1;
     }
   }
+  theBlobTable = & NdbTableImpl::getImpl(*bt);
   // buffers
   theKeyBuf.alloc(theTable->m_sizeOfKeysInWords << 2);
   theAccessKeyBuf.alloc(theAccessTable->m_sizeOfKeysInWords << 2);
