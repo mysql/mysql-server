@@ -196,6 +196,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   thd->db_length=0;
   USER_RESOURCES ur;
 
+  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
+    return 1;
   if (!(thd->user = my_strdup(user, MYF(0))))
   {
     send_error(net,ER_OUT_OF_RESOURCES);
@@ -596,8 +598,6 @@ check_connections(THD *thd)
   char *user=   (char*) net->read_pos+5;
   char *passwd= strend(user)+1;
   char *db=0;
-  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
-    return ER_HANDSHAKE_ERROR;
   if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
     db=strend(passwd)+1;
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
