@@ -1,0 +1,4 @@
+a	MATCH  b  AGAINST ('lala lkjh')	
+1	0.67003110026735	
+2	0	
+3	0	
