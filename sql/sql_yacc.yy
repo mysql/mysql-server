@@ -1049,7 +1049,10 @@ create:
 	    lex->col_list.empty();
 	  }
 	| CREATE DATABASE opt_if_not_exists ident
-	  { Lex->create_info.default_table_charset=NULL; }
+	  {
+             Lex->create_info.default_table_charset= NULL;
+             Lex->create_info.used_fields= 0;
+          }
 	  opt_create_database_options
 	  {
 	    LEX *lex=Lex;
@@ -1136,11 +1139,8 @@ create_database_options:
 	| create_database_options create_database_option	{};
 
 create_database_option:
-	  opt_default COLLATE_SYM collation_name_or_default	
-	  { Lex->create_info.default_table_charset=$3; }
-	| opt_default charset charset_name_or_default
-	  { Lex->create_info.default_table_charset=$3; }
-	;
+	default_collation   {}
+	| default_charset   {};
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -1200,20 +1200,48 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default charset opt_equal charset_name_or_default
-	  {
-	    Lex->create_info.default_table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
-	| opt_default COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.default_table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
+	| default_charset
+	| default_collation
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
 	  { Lex->create_info.data_file_name= $4.str; }
 	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+
+default_charset:
+        opt_default charset opt_equal charset_name_or_default
+        {
+          HA_CREATE_INFO *cinfo= &Lex->create_info;
+          if ((cinfo->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+               cinfo->default_table_charset && $4 &&
+               !my_charset_same(cinfo->default_table_charset,$4))
+          {
+            char cs1[32];
+            char cs2[32];
+            my_snprintf(cs1, sizeof(cs1), "CHARACTER SET %s", 
+                        cinfo->default_table_charset->csname);
+            my_snprintf(cs2, sizeof(cs2), "CHARACTER SET %s", $4->csname);
+            net_printf(YYTHD, ER_CONFLICTING_DECLARATIONS, cs1, cs2);
+            YYABORT;
+          }
+	  Lex->create_info.default_table_charset= $4;
+          Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+        };
+
+default_collation:
+        opt_default COLLATE_SYM opt_equal collation_name_or_default
+        {
+          HA_CREATE_INFO *cinfo= &Lex->create_info;
+          if ((cinfo->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+               cinfo->default_table_charset && $4 &&
+               !my_charset_same(cinfo->default_table_charset,$4))
+            {
+              net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+                         $4->name, cinfo->default_table_charset->csname);
+              YYABORT;
+            }
+            Lex->create_info.default_table_charset= $4;
+            Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+        };
 
 storage_engines:
 	ident_or_text
@@ -1824,7 +1852,12 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident opt_create_database_options
+	| ALTER DATABASE ident
+          {
+            Lex->create_info.default_table_charset= NULL;
+            Lex->create_info.used_fields= 0;
+          }
+          opt_create_database_options
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
