@@ -1398,7 +1398,7 @@ create_function_tail:
 	    uint unused1= 0;
 	    int unused2= 0;
 
-	    if (!(new_field= new_create_field(YYTHD, "",
+	    if (!(new_field= new_create_field(YYTHD, (char*) "",
 					      (enum enum_field_types)$8,
 			  		      lex->length, lex->dec, lex->type,
 			  		      (Item *)0, (Item *) 0, &cmt, 0,
