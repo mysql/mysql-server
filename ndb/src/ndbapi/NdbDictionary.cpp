@@ -234,7 +234,7 @@ NdbDictionary::Table::~Table(){
 }
 
 NdbDictionary::Table&
-NdbDictionary::Table::operator=(const NdbDictionary::Table::Table& table)
+NdbDictionary::Table::operator=(const NdbDictionary::Table& table)
 {
   m_impl.assign(table.m_impl);
   
