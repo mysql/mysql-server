@@ -4301,13 +4301,20 @@ int Field_str::store(double nr)
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint length;
   bool use_scientific_notation= TRUE;
-  use_scientific_notation= TRUE;
-  if (field_length < 32 && fabs(nr) < log_10[field_length]-1)
+  /*
+    Check fabs(nr) against longest value that can be stored in field,
+    which depends on whether the value is < 1 or not, and negative or not
+  */
+  double anr= fabs(nr);
+  int neg= (nr < 0.0) ? 1 : 0;
+  if (field_length < 32 &&
+      (anr < 1.0 ? anr > 1/(log_10[max(0,field_length-neg-2)]) /* -2 for "0." */
+                 : anr < log_10[field_length-neg]-1))
     use_scientific_notation= FALSE;
 
   length= (uint) my_sprintf(buff, (buff, "%-.*g",
                                    (use_scientific_notation ?
-                                    max(0, (int)field_length-5) :
+                                    max(0, (int)field_length-neg-5) :
                                     field_length),
                                    nr));
   /*
