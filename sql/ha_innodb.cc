@@ -20,6 +20,9 @@ NOTE: You can only use noninlined InnoDB functions in this file, because we
 have disables the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 4.1:
+  - Remove the flag innodb_active_trans from thd and replace it with a
+    function call innodb_active_trans(thd), which looks at the InnoDB
+    trx struct state field
   - Find out what kind of problems the OS X case-insensitivity causes to
     table and database names; should we 'normalize' the names like we do
     in Windows?
@@ -114,6 +117,9 @@ uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
+my_bool innobase_very_fast_shutdown		= FALSE; /* this can be set to
+							 1 just prior calling
+							 innobase_end() */
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
 my_bool innobase_create_status_file		= FALSE;
@@ -799,6 +805,10 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         trx_assign_read_view(prebuilt->trx);
 
+	/* Set the MySQL flag to mark that there is an active transaction */
+
+	current_thd->transaction.all.innodb_active_trans = 1;
+
         /* We did the necessary inits in this function, no need to repeat them
         in row_search_for_mysql */
 
@@ -1059,6 +1069,15 @@ innobase_end(void)
 #endif
 	if (innodb_inited)
 	{
+	  if (innobase_very_fast_shutdown) {
+	    srv_very_fast_shutdown = TRUE;
+	    fprintf(stderr,
+"InnoDB: MySQL has requested a very fast shutdown without flushing\n"
+"InnoDB: the InnoDB buffer pool to data files. At the next mysqld startup\n"
+"InnoDB: InnoDB will do a crash recovery!\n");
+
+	  }
+
 	  innodb_inited= 0;
 	  if (innobase_shutdown_for_mysql() != DB_SUCCESS)
 	    err= 1;
@@ -1116,6 +1135,48 @@ innobase_commit_low(
 }
 
 /*********************************************************************
+Creates an InnoDB transaction struct for the thd if it does not yet have one.
+Starts a new InnoDB transaction if a transaction is not yet started. And
+assigns a new snapshot for a consistent read if the transaction does not yet
+have one. */
+
+int
+innobase_start_trx_and_assign_read_view(
+/*====================================*/
+			/* out: 0 */
+	THD*	thd)	/* in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+{
+	trx_t*	trx;
+
+  	DBUG_ENTER("innobase_start_trx_and_assign_read_view");
+
+	/* Create a new trx struct for thd, if it does not yet have one */
+
+	trx = check_trx_exists(thd);
+
+	/* This is just to play safe: release a possible FIFO ticket and
+	search latch. Since we will reserve the kernel mutex, we have to
+	release the search system latch first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+	/* If the transaction is not started yet, start it */
+
+	trx_start_if_not_started_noninline(trx);
+
+	/* Assign a read view if the transaction does not have it yet */
+
+	trx_assign_read_view(trx);
+
+	/* Set the MySQL flag to mark that there is an active transaction */
+
+	current_thd->transaction.all.innodb_active_trans = 1;
+
+	DBUG_RETURN(0);
+}
+
+/*********************************************************************
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended. */
 
@@ -1146,8 +1207,10 @@ innobase_commit(
 
 	1. ::external_lock(),
 	2. ::start_stmt(),
-	3. innobase_query_caching_of_table_permitted(), and
+	3. innobase_query_caching_of_table_permitted(),
 	4. innobase_savepoint(),
+	5. ::init_table_handle_for_HANDLER(),
+	6. innobase_start_trx_and_assign_read_view()
 
 	and it is only set to 0 in a commit or a rollback. If it is 0 we know
 	there cannot be resources to be freed and we could return immediately.

@@ -336,3 +336,42 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 -	-	-	-	-	-	-	-	NULL	Impossible WHERE
 drop table t1;
 deallocate prepare stmt;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4);
+set @precision=10000000000;
+select rand(), 
+cast(rand(10)*@precision as unsigned integer),
+cast(rand(a)*@precision as unsigned integer) from t1;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)
+-	6570515219	-
+-	1282061302	-
+-	6698761160	-
+-	9647622201	-
+prepare stmt from
+"select rand(), 
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(a)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
+set @var=1;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	-	4054035371
+-	1282061302	-	8716141803
+-	6698761160	-	1418603212
+-	9647622201	-	944590960
+set @var=2;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	1559528654	6555866465
+-	1282061302	6238114970	1223466192
+-	6698761160	6511989195	6449731873
+-	9647622201	3845601374	8578261098
+set @var=3;
+execute stmt using @var;
+rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(a)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
+-	6570515219	1559528654	9057697559
+-	1282061302	6238114970	3730790581
+-	6698761160	6511989195	1480860534
+-	9647622201	3845601374	6211931236
+drop table t1;
+deallocate prepare stmt;
