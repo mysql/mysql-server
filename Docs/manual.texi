@@ -19999,7 +19999,6 @@ keys that compress very good.
 @example
 DELETE [LOW_PRIORITY] FROM tbl_name
     [WHERE where_definition]
-@c    [ORDER BY ...]
     [LIMIT rows]
 @end example
 
@@ -21345,7 +21344,6 @@ For more information about the efficiency of @code{INSERT} versus
 UPDATE [LOW_PRIORITY] [IGNORE] tbl_name
     SET col_name1=expr1, [col_name2=expr2, ...]
     [WHERE where_definition]
-    [ORDER BY ...]
     [LIMIT #]
 @end example
 
