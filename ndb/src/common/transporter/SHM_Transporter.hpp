@@ -38,7 +38,6 @@ public:
 		  int r_port,
 		  NodeId lNodeId,
 		  NodeId rNodeId, 
-		  bool compression, 
 		  bool checksum, 
 		  bool signalId,
 		  key_t shmKey,
@@ -127,6 +126,7 @@ protected:
 private:
   bool _shmSegCreated;
   bool _attached;
+  bool m_connected;
     
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;

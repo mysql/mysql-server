@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include <TransporterRegistry.hpp>
 #include "TransporterInternalDefinitions.hpp"
@@ -48,9 +49,10 @@
 
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
+  DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   if (m_auth && !m_auth->server_authenticate(sockfd)){
     NDB_CLOSE_SOCKET(sockfd);
-    return 0;
+    DBUG_RETURN(0);
   }
 
   {
@@ -60,27 +62,32 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     char buf[256];
     if (s_input.gets(buf, 256) == 0) {
       NDB_CLOSE_SOCKET(sockfd);
-      return 0;
+      DBUG_PRINT("error", ("Could not get node id from client"));
+      DBUG_RETURN(0);
     }
     if (sscanf(buf, "%d", &nodeId) != 1) {
       NDB_CLOSE_SOCKET(sockfd);
-      return 0;
+      DBUG_PRINT("error", ("Error in node id from client"));
+      DBUG_RETURN(0);
     }
 
     //check that nodeid is valid and that there is an allocated transporter
-    if ( nodeId < 0 || nodeId >= (int) m_transporter_registry->maxTransporters) {
-      NDB_CLOSE_SOCKET(sockfd);
-      return 0;
+    if ( nodeId < 0 || nodeId >= (int)m_transporter_registry->maxTransporters) {
+      NDB_CLOSE_SOCKET(sockfd); 
+      DBUG_PRINT("error", ("Node id out of range from client"));
+      DBUG_RETURN(0);
     }
     if (m_transporter_registry->theTransporters[nodeId] == 0) {
       NDB_CLOSE_SOCKET(sockfd);
-      return 0;
+      DBUG_PRINT("error", ("No transporter for this node id from client"));
+      DBUG_RETURN(0);
     }
     
     //check that the transporter should be connected
     if (m_transporter_registry->performStates[nodeId] != TransporterRegistry::CONNECTING) {
       NDB_CLOSE_SOCKET(sockfd);
-      return 0;
+      DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
+      DBUG_RETURN(0);
     }
 
     Transporter *t= m_transporter_registry->theTransporters[nodeId];
@@ -93,13 +100,13 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     t->connect_server(sockfd);
   }
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
-					 unsigned sizeOfLongSignalMemory)
-{
+					 unsigned sizeOfLongSignalMemory) {
+
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
@@ -149,6 +156,7 @@ TransporterRegistry::~TransporterRegistry() {
   delete[] theTransporters;
   delete[] performStates;
   delete[] ioStates;
+
 #ifdef NDB_OSE_TRANSPORTER
   if(theOSEReceiver != NULL){
     theOSEReceiver->destroyPhantom();
@@ -207,8 +215,6 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
 					    config->port,
 					    localNodeId,
 					    config->remoteNodeId,
-					    config->byteOrder,
-					    config->compression,
 					    config->checksum,
 					    config->signalId);
   if (t == NULL) 
@@ -262,8 +268,6 @@ TransporterRegistry::createTransporter(OSE_TransporterConfiguration *conf) {
 					    conf->localHostName,
 					    conf->remoteNodeId,
 					    conf->remoteHostName,
-					    conf->byteOrder,
-					    conf->compression,
 					    conf->checksum,
 					    conf->signalId);
   if (t == NULL)
@@ -304,15 +308,17 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
  
-  SCI_Transporter * t = new SCI_Transporter(config->sendLimit, 
+  SCI_Transporter * t = new SCI_Transporter(*this,
+                                            config->localHostName,
+                                            config->remoteHostName,
+                                            config->port,
+                                            config->sendLimit, 
 					    config->bufferSize,
 					    config->nLocalAdapters,
 					    config->remoteSciNodeId0,
 					    config->remoteSciNodeId1,
 					    localNodeId,
 					    config->remoteNodeId,
-					    config->byteOrder,
-					    config->compression,
 					    config->checksum,
 					    config->signalId);
   
@@ -355,7 +361,6 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
 					    config->port,
 					    localNodeId,
 					    config->remoteNodeId,
-					    config->compression,
 					    config->checksum,
 					    config->signalId,
 					    config->shmKey,
@@ -853,8 +858,8 @@ TransporterRegistry::performReceive(){
 	if(t->isConnected() && t->checkConnected()){
 	  Uint32 * readPtr, * eodPtr;
 	  t->getReceivePtr(&readPtr, &eodPtr);
-	  readPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(readPtr);
+	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	  t->updateReceivePtr(newPtr);
 	}
       } 
     }
@@ -868,8 +873,8 @@ TransporterRegistry::performReceive(){
 	if(t->isConnected() && t->checkConnected()){
 	  Uint32 * readPtr, * eodPtr;
 	  t->getReceivePtr(&readPtr, &eodPtr);
-	  readPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(readPtr);
+	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	  t->updateReceivePtr(newPtr);
 	}
       } 
     }
@@ -1021,7 +1026,9 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
 static void * 
 run_start_clients_C(void * me)
 {
+  my_thread_init();
   ((TransporterRegistry*) me)->start_clients_thread();
+  my_thread_end();
   NdbThread_Exit(0);
   return me;
 }
@@ -1104,6 +1111,7 @@ TransporterRegistry::update_connections()
 void
 TransporterRegistry::start_clients_thread()
 {
+  DBUG_ENTER("TransporterRegistry::start_clients_thread");
   while (m_run_start_clients_thread) {
     NdbSleep_MilliSleep(100);
     for (int i= 0, n= 0; n < nTransporters && m_run_start_clients_thread; i++){
@@ -1127,6 +1135,7 @@ TransporterRegistry::start_clients_thread()
       }
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 bool
