@@ -3271,13 +3271,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 ha_rows *deleted)
 {
   int error;
-  Copy_field *copy,*copy_end;
+  Copy_field *copy,*copy_end, *next_field;
   ulong found_count,delete_count;
   THD *thd= current_thd;
   uint length;
   SORT_FIELD *sortorder;
   READ_RECORD info;
-  Field *next_field;
   TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
@@ -3298,7 +3297,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   {
     def=it++;
     if (def->field)
+    {
+      if (*ptr == to->next_number_field)
+        next_field= copy_end;
       (copy_end++)->set(*ptr,def->field,0);
+    }
+
   }
 
   found_count=delete_count=0;
@@ -3334,7 +3338,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error= 1;
     goto err;
   }
-  
+
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the
      current query id */
@@ -3343,7 +3347,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (handle_duplicates == DUP_IGNORE ||
       handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  next_field=to->next_number_field;
   thd->row_count= 0;
   while (!(error=info.read_record(&info)))
   {
@@ -3354,10 +3357,14 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     thd->row_count++;
-    if (next_field)
-      next_field->reset();
+    if (to->next_number_field)
+      to->next_number_field->reset();
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
+    {
+      if (copy_ptr == next_field)
+        to->auto_increment_field_not_null= TRUE;
       copy_ptr->do_copy(copy_ptr);
+    }
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
       if ((handle_duplicates != DUP_IGNORE &&
