@@ -30,6 +30,13 @@ Documentation		0
 Host communication		0
 kkkkkkkkkkk lllllllllll		3
 Test Procedures		0
+value	description	COUNT(bug_id)
+BBBBBBBBBBBBB - conversion		2
+BBBBBBBBBBBBB - eeeeeeeee		0
+BBBBBBBBBBBBB - generic		2
+Documentation		0
+Host communication		0
+Test Procedures		0
 1+1	a	count(*)
 2	a	0
 1+1	a	count(*)
