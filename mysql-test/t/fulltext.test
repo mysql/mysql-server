@@ -21,21 +21,25 @@ CREATE TABLE t1 (
   ticket int(11),
   KEY ti (id),
   KEY tit (ticket)
-)/*! type=MyISAM */;
+);
 INSERT INTO t1 VALUES (2,3),(1,2);
 
 CREATE TABLE t2 (
   ticket int(11),
   inhalt text,
   KEY tig (ticket),
-  fulltext index tix (inhalt(1)) /* this line modified by hand */
-)/*! type=MyISAM */;
+  fulltext index tix (inhalt)
+);
 INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 
-select t1.id FROM t2 as ttxt,t1,t1 as ticket2  WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+select t1.id FROM t2 as ttxt,t1,t1 as ticket2
+WHERE ticket2.id = ttxt.ticket AND t1.id = ticket2.ticket and
+match(ttxt.inhalt) against ('foobar');
 
 # In the following query MySQL didn't use the fulltext index
-select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
+select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON
+ticket2.id = ttxt.ticket
+WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
 
 INSERT INTO t1 VALUES (3,3);
 select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ticket WHERE t1.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
@@ -44,22 +48,10 @@ select t1.id FROM t2 as ttxt,t1 INNER JOIN t1 as ticket2 ON ticket2.id = ttxt.ti
 
 show keys from t2;
 show create table t2;
-drop table t1,t2;
 
 # check for bug reported by Stephan Skusa
 
-drop table if exists fulltextTEST;
-CREATE TABLE fulltextTEST (
-   field1 varchar(40) NOT NULL,
-   field2 varchar(20) NOT NULL,
-   field3 varchar(40) NOT NULL,
-   PRIMARY KEY (field1),
-   FULLTEXT idx_fulltext (field1, field2, field3)
-);
+select * from t2 where MATCH inhalt AGAINST (NULL);
 
-INSERT INTO fulltextTEST VALUES ( 'test1', 'test1.1', 'test1.1.1');
-INSERT INTO fulltextTEST VALUES ( 'test2', 'test2.1', 'test2.1.1');
-select *
-from fulltextTEST
-where MATCH (field1,field2,field3) AGAINST (NULL);
-drop table fulltextTEST;
+drop table t1,t2;
+
