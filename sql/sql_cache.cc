@@ -2679,14 +2679,17 @@ my_bool Query_cache::move_by_type(byte **border,
     *border += len;
     *before = new_block;
     /* If result writing complete && we have free space in block */
-    ulong free_space = new_block->length - new_block->used;
+    ulong free_space= new_block->length - new_block->used;
+    free_space-= free_space % ALIGN_SIZE(1);
     if (query->result()->type == Query_cache_block::RESULT &&
 	new_block->length > new_block->used &&
 	*gap + free_space > min_allocation_unit &&
 	new_block->length - free_space > min_allocation_unit)
     {
-      *border -= free_space;
-      *gap += free_space;
+      *border-= free_space;
+      *gap+= free_space;
+      DBUG_PRINT("qcache",
+		 ("rest of result free space added to gap (%lu)", *gap));
       new_block->length -= free_space;
     }
     BLOCK_UNLOCK_WR(query_block);
@@ -2747,7 +2750,7 @@ my_bool Query_cache::join_results(ulong join_limit)
 	  header->length() > join_limit)
       {
 	Query_cache_block *new_result_block =
-	  get_free_block(header->length() +
+	  get_free_block(ALIGN_SIZE(header->length()) +
 			 ALIGN_SIZE(sizeof(Query_cache_block)) +
 			 ALIGN_SIZE(sizeof(Query_cache_result)), 1, 0);
 	if (new_result_block != 0)
