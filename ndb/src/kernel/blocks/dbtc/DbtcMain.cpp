@@ -9403,7 +9403,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }
 
   if(noCompletedOps == 0 && status != 0 && 
-     scanptr.p->scanNextFragId < scanptr.p->scanNoFrag){
+     scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count < scanptr.p->scanNoFrag){
     /**
      * Start on next fragment
      */
@@ -9836,7 +9836,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       queued.next(ptr);
       
       bool done = curr.p->m_scan_frag_conf_status && (left <= (int)booked);
-      if(curr.p->m_scan_frag_conf_status && ((int)booked < left))
+      if(curr.p->m_scan_frag_conf_status)
 	booked++;
       
       * ops++ = curr.p->m_apiPtr;
