@@ -1147,6 +1147,8 @@ static inline int get_slaves_from_master(MYSQL* mysql)
   MYSQL_ROW row;
   int error = 1;
   int has_auth_info;
+  int port_ind;
+  
   if (!mysql->net.vio && !mysql_real_connect(mysql,0,0,0,0,0,0,0))
   {
     expand_error(mysql, CR_PROBE_MASTER_CONNECT);
@@ -1162,8 +1164,14 @@ static inline int get_slaves_from_master(MYSQL* mysql)
 
   switch (mysql_num_fields(res))
   {
-  case 3: has_auth_info = 0; break;
-  case 5: has_auth_info = 1; break;
+  case 5:
+    has_auth_info = 0;
+    port_ind=2;
+    break;
+  case 7:
+    has_auth_info = 1;
+    port_ind=4;
+    break;
   default:
     goto err;
   }
@@ -1175,8 +1183,8 @@ static inline int get_slaves_from_master(MYSQL* mysql)
 
     if (has_auth_info)
     {
-      tmp_user = row[3];
-      tmp_pass = row[4];
+      tmp_user = row[2];
+      tmp_pass = row[3];
     }
     else
     {
@@ -1184,7 +1192,7 @@ static inline int get_slaves_from_master(MYSQL* mysql)
       tmp_pass = mysql->passwd;
     }
 
-    if (!(slave = spawn_init(mysql, row[1], atoi(row[2]),
+    if (!(slave = spawn_init(mysql, row[1], atoi(row[port_ind]),
 			    tmp_user, tmp_pass)))
       goto err;
       

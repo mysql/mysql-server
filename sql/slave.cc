@@ -55,6 +55,8 @@ inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
+static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+			     bool reconnect);
 static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
@@ -615,6 +617,10 @@ int register_slave_on_master(MYSQL* mysql)
 
   int2store(buf, (uint16)report_port);
   packet.append(buf, 2);
+  int4store(buf, rpl_recovery_rank);
+  packet.append(buf, 4);
+  int4store(buf, 0); /* tell the master will fill in master_id */
+  packet.append(buf, 4);
 
   if(mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*)packet.ptr(),
 		       packet.length(), 0))
@@ -868,7 +874,7 @@ command");
 }
 
 
-static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
+static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
   ulong len = packet_error;
   // for convinience lets think we start by
@@ -1017,7 +1023,6 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
   slave_thd = thd = new THD; // note that contructor of THD uses DBUG_ !
-  thd->set_time();
   DBUG_ENTER("handle_slave");
 
   pthread_detach_this_thread();
@@ -1067,6 +1072,7 @@ connected:
   // on with life
   thd->proc_info = "Registering slave on master";
   register_slave_on_master(mysql);
+  update_slave_list(mysql);
   
   while (!slave_killed(thd))
   {
@@ -1117,7 +1123,7 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
       while(!slave_killed(thd))
 	{
 	  thd->proc_info = "Reading master update";
-	  uint event_len = read_event(mysql, &glob_mi);
+	  ulong event_len = read_event(mysql, &glob_mi);
 	  if(slave_killed(thd))
 	    {
 	      sql_print_error("Slave thread killed while reading event");
@@ -1244,30 +1250,7 @@ position %s",
 
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
-  int slave_was_killed;
-#ifndef DBUG_OFF
-  events_till_disconnect = disconnect_slave_event_count;
-#endif  
-  while(!(slave_was_killed = slave_killed(thd)) &&
-	!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
-			  mi->port, 0, 0))
-  {
-    sql_print_error("Slave thread: error connecting to master: %s (%d),\
- retry in %d sec", mc_mysql_error(mysql), errno, mi->connect_retry);
-    safe_sleep(thd, mi->connect_retry);
-  }
-  
-  if(!slave_was_killed)
-    {
-      change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
-      mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
-		  mi->user, mi->host, mi->port);
-#ifdef SIGNAL_WITH_VIO_CLOSE
-      thd->set_active_vio(mysql->net.vio);
-#endif      
-    }
-  
-  return slave_was_killed;
+  return connect_to_master(thd, mysql, mi, 0);
 }
 
 /*
@@ -1275,7 +1258,8 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   master_retry_count times
 */
 
-static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
+			     bool reconnect)
 {
   int slave_was_killed;
   int last_errno= -2;				// impossible error
@@ -1290,12 +1274,15 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
-  while (!(slave_was_killed = slave_killed(thd)) && mc_mysql_reconnect(mysql))
+  while (!(slave_was_killed = slave_killed(thd)) &&
+	 (reconnect ? mc_mysql_reconnect(mysql) :
+	  !mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
+			  mi->port, 0, 0)))
   {
     /* Don't repeat last error */
     if (mc_mysql_errno(mysql) != last_errno)
     {
-      sql_print_error("Slave thread: error re-connecting to master: \
+      sql_print_error("Slave thread: error connecting to master: \
 %s, last_errno=%d, retry in %d sec",
 		      mc_mysql_error(mysql), last_errno=mc_mysql_errno(mysql),
 		      mi->connect_retry);
@@ -1309,18 +1296,26 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
     if (master_retry_count && err_count++ == master_retry_count)
     {
       slave_was_killed=1;
-      change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
+      if (reconnect)
+        change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
       break;
     }
   }
 
   if (!slave_was_killed)
   {
-    sql_print_error("Slave: reconnected to master '%s@%s:%d',\
+    if (reconnect)
+      sql_print_error("Slave: connected to master '%s@%s:%d',\
 replication resumed in log '%s' at position %s", glob_mi.user,
 		    glob_mi.host, glob_mi.port,
 		    RPL_LOG_NAME,
 		    llstr(glob_mi.pos,llbuff));
+    else
+    {
+      change_rpl_status(RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE);
+      mysql_log.write(thd, COM_CONNECT_OUT, "%s@%s:%d",
+		  mi->user, mi->host, mi->port);
+    }
 #ifdef SIGNAL_WITH_VIO_CLOSE
     thd->set_active_vio(mysql->net.vio);
 #endif      
@@ -1328,6 +1323,17 @@ replication resumed in log '%s' at position %s", glob_mi.user,
 
   return slave_was_killed;
 }
+
+/*
+  Try to connect until successful or slave killed or we have retried
+  master_retry_count times
+*/
+
+static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
+{
+  return connect_to_master(thd, mysql, mi, 1);
+}
+
 
 #ifdef __GNUC__
 template class I_List_iterator<i_string>;
