@@ -176,6 +176,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("args", String, Mandatory, "Args(space separated int's)"),
 
   MGM_CMD("start backup", &MgmApiSession::startBackup, ""),
+    MGM_ARG("completed", Int, Optional ,"Wait until completed"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -629,85 +630,30 @@ MgmApiSession::getVersion(Parser<MgmApiSession>::Context &,
   m_output->println("string: %s", NDB_VERSION_STRING);
   m_output->println("");
 }
-#if 0
-
-/*****************************************************************************
- * BACKUP
- *****************************************************************************/
-
-int completed;
-MgmtSrvr::BackupEvent globalEvent;
-
-static void
-completedCallback(const MgmtSrvr::BackupEvent & event){
-
-  ndbout << "WaitCallback" << endl;
-  // Save event in the latestEvent var 
-
-  switch(event.Event){
-  case MgmtSrvr::BackupEvent::BackupCompleted:
-  case MgmtSrvr::BackupEvent::BackupFailedToStart:
-    globalEvent = event;
-    completed = 1;
-    break;
-  }
-}
 
 void
 MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
-			   Properties const &) {
+			   Properties const &args) {
+  DBUG_ENTER("MgmApiSession::startBackup");
   unsigned backupId;
+  Uint32 completed= 2;
   int result;
 
-  MgmtSrvr::BackupCallback prevCallback;
-  prevCallback = m_mgmsrv.setCallback(completedCallback);
-  completed = 0;
-  result = m_mgmsrv.startBackup(backupId);
-  if (result == 0){
+  args.get("completed", &completed);
 
-    // Wait for the callback to call our condition
-    //  waitFor();
-    while (completed == 0)
-      NdbSleep_SecSleep(0);
-  
-    if (globalEvent.Event == MgmtSrvr::BackupEvent::BackupFailedToStart)
-      result = globalEvent.FailedToStart.ErrorCode;
-    else      
-      backupId = globalEvent.Completed.BackupId;    
-  }
-
-  // restore old callback
-  m_mgmsrv.setCallback(prevCallback);
+  result = m_mgmsrv.startBackup(backupId, completed);
 
   m_output->println("start backup reply");
   if(result != 0)
-    m_output->println("result: %s(%d)", get_error_text(result), result);
-  else{
-    m_output->println("result: Ok");
-    m_output->println("id: %d", backupId);
-  }
-  m_output->println("");
-
-}
-#endif
-
-void
-MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
-			   Properties const &) {
-  unsigned backupId;
-  int result;
-
-  result = m_mgmsrv.startBackup(backupId, true);
-
-  m_output->println("start backup reply");
-  if(result != 0)
+  {
     m_output->println("result: %s", get_error_text(result));
+  }
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", backupId);
   }
   m_output->println("");
-
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -804,19 +750,22 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   LogLevel::EventCategory category= 
     (LogLevel::EventCategory)(cat-(int)CFG_MIN_LOGLEVEL);
 
+  m_mgmsrv.m_event_listner.lock();
   if (m_mgmsrv.m_event_listner[0].m_logLevel.setLogLevel(category,level))
   {
     m_output->println(reply);
     m_output->println("result: Invalid category %d", category);
     m_output->println("");
+    m_mgmsrv.m_event_listner.unlock();
     DBUG_VOID_RETURN;
   }
+  m_mgmsrv.m_event_listner.unlock();
 
-  EventSubscribeReq req;
-  req.blockRef = 0;
-  req.noOfEntries = 1;
-  req.theData[0] = (category << 16) | level;
-  m_mgmsrv.m_log_level_requests.push_back(req);
+  {
+    LogLevel ll;
+    ll.setLogLevel(category,level);
+    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+  }
 
   m_output->println(reply);
   m_output->println("result: Ok");
@@ -827,13 +776,13 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
-  Uint32 node = 0, level = 0, category;
+  Uint32 node = 0, level = 0, cat;
   BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
   logLevel.clear();
   args.get("node", &node);
-  args.get("category", &category);
+  args.get("category", &cat);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
@@ -844,12 +793,15 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
     return;
   }
 
-  EventSubscribeReq req;
-  req.blockRef = node;
-  req.noOfEntries = 1;
-  req.theData[0] = (category << 16) | level;
-  m_mgmsrv.m_log_level_requests.push_back(req);
-  
+  LogLevel::EventCategory category= 
+    (LogLevel::EventCategory)(cat-(int)CFG_MIN_LOGLEVEL);
+
+  {
+    LogLevel ll;
+    ll.setLogLevel(category,level);
+    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+  }
+
   m_output->println("set loglevel reply");
   m_output->println("result: Ok");
   m_output->println("");
@@ -1319,24 +1271,22 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
       tmp.set_max(m_clients[i].m_logLevel);
     }
     m_clients.unlock();
-
-    if(!(tmp == m_logLevel)){
-      m_logLevel = tmp;
-      EventSubscribeReq req; 
-      req = tmp;
-      req.blockRef = 0;
-      m_mgmsrv->m_log_level_requests.push_back(req);
-    }
+    update_log_level(tmp);
   }
-    DBUG_VOID_RETURN;
+  DBUG_VOID_RETURN;
 }
 
 void
-Ndb_mgmd_event_service::add_listener(const Event_listener& client){
-  m_clients.push_back(client);
-  LogLevel tmp = m_logLevel;
-  tmp.set_max(client.m_logLevel);
-  
+Ndb_mgmd_event_service::update_max_log_level(const LogLevel &log_level)
+{
+  LogLevel tmp= m_logLevel;
+  tmp.set_max(log_level);
+  update_log_level(tmp);
+}
+
+void
+Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
+{
   if(!(tmp == m_logLevel)){
     m_logLevel = tmp;
     EventSubscribeReq req;
@@ -1347,13 +1297,21 @@ Ndb_mgmd_event_service::add_listener(const Event_listener& client){
 }
 
 void
+Ndb_mgmd_event_service::add_listener(const Event_listener& client){
+  m_clients.push_back(client);
+  update_max_log_level(client.m_logLevel);
+}
+
+void
 Ndb_mgmd_event_service::stop_sessions(){
+  m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
     if(m_clients[i].m_socket >= 0){
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i);
     }
   }
+  m_clients.unlock();
 }
 
 void
