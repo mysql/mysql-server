@@ -138,9 +138,8 @@ int ha_init()
 #ifdef HAVE_INNOBASE_DB
   if (!innobase_skip)
   {
-    int error;
-    if ((error=innobase_init()))
-      return error;
+    if (innobase_init())
+      return -1;
   }
 #endif
   return 0;

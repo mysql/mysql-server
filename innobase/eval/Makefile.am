@@ -22,4 +22,3 @@ libs_LIBRARIES =	libeval.a
 libeval_a_SOURCES =	eval0eval.c eval0proc.c
 
 EXTRA_PROGRAMS =	
-
