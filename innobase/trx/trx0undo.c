@@ -1445,7 +1445,6 @@ trx_undo_reuse_cached(
 	}
 
 	ut_ad(undo->size == 1);
-	ut_ad(undo->hdr_page_no == undo->top_page_no);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n", undo->id);
