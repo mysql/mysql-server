@@ -35,7 +35,7 @@ call foo();
 ERROR 42000: PROCEDURE foo does not exist
 drop procedure if exists foo;
 Warnings:
-Warning	1287	PROCEDURE foo does not exist
+Warning	1288	PROCEDURE foo does not exist
 show create procedure foo;
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -71,7 +71,7 @@ declare y int;
 set x = y;
 end;
 Warnings:
-Warning	1293	Referring to uninitialized variable y
+Warning	1294	Referring to uninitialized variable y
 drop procedure foo;
 create procedure foo()
 begin
