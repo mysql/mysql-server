@@ -2232,7 +2232,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   if (!tmp)					// Zero size means delete
   {
-    if (key_cache == sql_key_cache)
+    if (key_cache == dflt_key_cache)
       goto end;					// Ignore default key cache
 
     if (key_cache->key_cache_inited)		// If initied
@@ -2246,7 +2246,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 					      base_name->length, &list);
       key_cache->in_init= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      error= reassign_keycache_tables(thd, key_cache, sql_key_cache);
+      error= reassign_keycache_tables(thd, key_cache, dflt_key_cache);
       pthread_mutex_lock(&LOCK_global_system_variables);
       key_cache->in_init= 0;
     }
