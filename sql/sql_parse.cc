@@ -2252,6 +2252,7 @@ mysql_execute_command(THD *thd)
       lex->sql_command != SQLCOM_LOCK_TABLES &&
       lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
+    thd->no_warnings_for_error= 1;
     while (1)
     {
       if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
@@ -2331,6 +2332,7 @@ mysql_execute_command(THD *thd)
       }
       break;
     } // while (1)
+    thd->no_warnings_for_error= 0;
   }
 
   /*

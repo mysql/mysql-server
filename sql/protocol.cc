@@ -59,8 +59,8 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   uint length;
   char buff[MYSQL_ERRMSG_SIZE+2], *pos;
 #endif
-  const char *orig_err= err;
   NET *net= &thd->net;
+  bool generate_warning= 1;
   DBUG_ENTER("net_send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
 		      err ? err : net->last_error[0] ?
@@ -79,14 +79,22 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     else
     {
       if ((err=net->last_error)[0])
+      {
 	sql_errno=net->last_errno;
+        generate_warning= 0;            // This warning has already been given
+      }
       else
       {
 	sql_errno=ER_UNKNOWN_ERROR;
 	err=ER(sql_errno);	 /* purecov: inspected */
       }
     }
-    orig_err= err;
+  }
+
+  if (generate_warning)
+  {
+    /* Error that we have not got with my_error() */
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno, err);
   }
 
 #ifdef EMBEDDED_LIBRARY
@@ -125,8 +133,6 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
 #endif  /* EMBEDDED_LIBRARY*/
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, sql_errno,
-	       orig_err ? orig_err : ER(sql_errno));
   thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
 

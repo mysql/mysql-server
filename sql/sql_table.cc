@@ -191,6 +191,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (lock_table_names(thd, tables))
     DBUG_RETURN(1);
 
+  /* Don't give warnings for not found errors, as we already generate notes */
+  thd->no_warnings_for_error= 1;
+
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
@@ -213,7 +216,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
       drop_locked_tables(thd,db,table->table_name);
       if (thd->killed)
+      {
+        thd->no_warnings_for_error= 0;
 	DBUG_RETURN(-1);
+      }
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove form file and isam files */
       strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
@@ -286,6 +292,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   }
 
   unlock_table_names(thd, tables);
+  thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
 
@@ -1955,6 +1962,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               const char *operator_name,
                               thr_lock_type lock_type,
                               bool open_for_modify,
+                              bool no_warnings_for_error,
                               uint extra_open_options,
                               int (*prepare_func)(THD *, TABLE_LIST *,
                                                   HA_CHECK_OPT *),
@@ -1994,7 +2002,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     /* open only one table from local list of command */
     next_global_table= table->next_global;
     table->next_global= 0;
+    thd->no_warnings_for_error= no_warnings_for_error;
     open_and_lock_tables(thd, table);
+    thd->no_warnings_for_error= 0;
     table->next_global= next_global_table;
     /* if view are unsupported */
     if (table->view && !view_operator_func)
@@ -2218,7 +2228,7 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_backup_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				"backup", TL_READ, 0, 0, 0,
+				"backup", TL_READ, 0, 0, 0, 0,
 				&handler::backup, 0));
 }
 
@@ -2227,7 +2237,7 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
-				"restore", TL_WRITE, 1, 0,
+				"restore", TL_WRITE, 1, 1, 0,
 				&prepare_for_restore,
 				&handler::restore, 0));
 }
@@ -2237,7 +2247,9 @@ bool mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"repair", TL_WRITE, 1, HA_OPEN_FOR_REPAIR,
+				"repair", TL_WRITE, 1,
+                                test(check_opt->sql_flags & TT_USEFRM),
+                                HA_OPEN_FOR_REPAIR,
 				&prepare_for_repair,
 				&handler::repair, 0));
 }
@@ -2247,7 +2259,7 @@ bool mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_optimize_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"optimize", TL_WRITE, 1,0,0,
+				"optimize", TL_WRITE, 1,0,0,0,
 				&handler::optimize, 0));
 }
 
@@ -2283,7 +2295,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   pthread_mutex_unlock(&LOCK_global_system_variables);
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
-				"assign_to_keycache", TL_READ_NO_INSERT, 0,
+				"assign_to_keycache", TL_READ_NO_INSERT, 0, 0,
 				0, 0, &handler::assign_to_keycache, 0));
 }
 
@@ -2344,7 +2356,7 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 {
   DBUG_ENTER("mysql_preload_keys");
   DBUG_RETURN(mysql_admin_table(thd, tables, 0,
-				"preload_keys", TL_READ, 0, 0, 0,
+				"preload_keys", TL_READ, 0, 0, 0, 0,
 				&handler::preload_keys, 0));
 }
 
@@ -2510,7 +2522,7 @@ bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"analyze", lock_type, 1,0,0,
+				"analyze", lock_type, 1, 0, 0, 0,
 				&handler::analyze, 0));
 }
 
@@ -2526,7 +2538,7 @@ bool mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"check", lock_type,
-				0, HA_OPEN_FOR_REPAIR, 0,
+				0, HA_OPEN_FOR_REPAIR, 0, 0,
 				&handler::check, &view_checksum));
 }
 

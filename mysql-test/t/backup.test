@@ -10,10 +10,10 @@ set SQL_LOG_BIN=0;
 drop table if exists t1, t2, t3;
 --enable_warnings
 create table t4(n int);
---replace_result "errno: 1" "errno: X" "errno: 2" "errno: X" "errno: 22" "errno: X" "errno: 23" "errno: X"
+--replace_result ": 1" ": X" ": 2" ": X" ": 22" ": X" ": 23" ": X" $MYSQL_TEST_DIR MYSQL_TEST_DIR
 backup table t4 to '../bogus';
 backup table t4 to '../tmp';
---replace_result "errno: 7" "errno: X" "errno: 17" "errno: X"
+--replace_result ": 7" ": X" ": 17" ": X" $MYSQL_TEST_DIR MYSQL_TEST_DIR
 backup table t4 to '../tmp';
 drop table t4;
 restore table t4 from '../tmp';
@@ -23,6 +23,7 @@ create table t1(n int);
 insert into t1 values (23),(45),(67);
 backup table t1 to '../tmp';
 drop table t1;
+--replace_result ": 1" ": X" ": 2" ": X" ": 22" ": X" ": 23" ": X" $MYSQL_TEST_DIR MYSQL_TEST_DIR
 restore table t1 from '../bogus';
 restore table t1 from '../tmp';
 select n from t1;

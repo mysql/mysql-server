@@ -2228,6 +2228,8 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 
     thd->query_error=  1; // needed to catch query errors during replication
 
+    if (!thd->no_warnings_for_error)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     /*
       thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
@@ -2239,8 +2241,6 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
                            (thd->lex->current_select ?
                             thd->lex->current_select->no_error : 0),
                            (int) thd->is_fatal_error));
-
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
     {

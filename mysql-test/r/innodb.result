@@ -1449,18 +1449,18 @@ test.t1	2948697075
 test.t2	NULL
 test.t3	NULL
 test.t4	NULL
-checksum table t1, t2, t3, t4;
+Warnings:
+Error	1146	Table 'test.t4' doesn't exist
+checksum table t1, t2, t3;
 Table	Checksum
 test.t1	2948697075
 test.t2	968604391
 test.t3	968604391
-test.t4	NULL
-checksum table t1, t2, t3, t4 extended;
+checksum table t1, t2, t3 extended;
 Table	Checksum
 test.t1	3092701434
 test.t2	968604391
 test.t3	968604391
-test.t4	NULL
 drop table t1,t2,t3;
 create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
 insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
