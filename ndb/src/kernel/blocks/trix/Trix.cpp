@@ -47,8 +47,7 @@ Trix::Trix(const Configuration & conf) :
   c_masterTrixRef(0),
   c_noNodesFailed(0),
   c_noActiveNodes(0),
-  c_theSubscriptions(c_theSubscriptionRecPool),
-  c_thePages(c_thePagePool)
+  c_theSubscriptions(c_theSubscriptionRecPool)
 {
   BLOCK_CONSTRUCTOR(Trix);
 
@@ -90,7 +89,6 @@ Trix::Trix(const Configuration & conf) :
   // Allocate pool sizes
   c_theAttrOrderBufferPool.setSize(100);
   c_theSubscriptionRecPool.setSize(100);
-  c_thePagePool.setSize(16);
 
   ArrayList<SubscriptionRecord> subscriptions(c_theSubscriptionRecPool);
   SubscriptionRecPtr subptr;

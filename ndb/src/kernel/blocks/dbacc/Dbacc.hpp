@@ -194,7 +194,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTABLESIZE 16
 #define ZTABMAXINDEX 3
 #define ZUNDEFINED_OP 6
-#define ZUNDOPAGESIZE 64
 #define ZUNDOHEADSIZE 7
 #define ZUNLOCKED 1
 #define ZUNDOPAGE_BASE_ADD 2
@@ -894,8 +893,8 @@ struct SrVersionRec {
 /* TABREC                                                                            */
 /* --------------------------------------------------------------------------------- */
 struct Tabrec {
-  Uint32 fragholder[NO_OF_FRAG_PER_NODE];
-  Uint32 fragptrholder[NO_OF_FRAG_PER_NODE];
+  Uint32 fragholder[MAX_FRAG_PER_NODE];
+  Uint32 fragptrholder[MAX_FRAG_PER_NODE];
   Uint32 tabUserPtr;
   BlockReference tabUserRef;
 };
