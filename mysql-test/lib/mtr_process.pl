@@ -4,13 +4,14 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
+use Carp qw(cluck);
 use strict;
 
 use POSIX ":sys_wait_h";
 
 sub mtr_run ($$$$$$);
 sub mtr_spawn ($$$$$$);
-sub mtr_stop_servers ($);
+sub mtr_stop_mysqld_servers ($$);
 sub mtr_kill_leftovers ();
 
 # static in C
@@ -77,13 +78,21 @@ sub spawn_impl ($$$$$$$) {
 
   if ( $::opt_script_debug )
   {
-    print STDERR "-" x 78, "\n";
-    print STDERR "STDIN  $input\n" if $input;
-    print STDERR "STDOUT $output\n" if $output;
-    print STDERR "STDERR $error\n" if $error;
-    print STDERR "DAEMON\n" if !$join;
-    print STDERR "EXEC $path ", join(" ",@$arg_list_t), "\n";
-    print STDERR "-" x 78, "\n";
+    print STDERR "\n";
+    print STDERR "#### ", "-" x 78, "\n";
+    print STDERR "#### ", "STDIN  $input\n" if $input;
+    print STDERR "#### ", "STDOUT $output\n" if $output;
+    print STDERR "#### ", "STDERR $error\n" if $error;
+    if ( $join )
+    {
+      print STDERR "#### ", "run";
+    }
+    else
+    {
+      print STDERR "#### ", "spawn";
+    }
+    print STDERR "$path ", join(" ",@$arg_list_t), "\n";
+    print STDERR "#### ", "-" x 78, "\n";
   }
 
   my $pid= fork();
@@ -101,11 +110,11 @@ sub spawn_impl ($$$$$$$) {
       my $dumped_core= $? & 128;
       if ( $signal_num )
       {
-        die("spawn got signal $signal_num");
+        mtr_error("spawn got signal $signal_num");
       }
       if ( $dumped_core )
       {
-        die("spawn dumped core");
+        mtr_error("spawn dumped core");
       }
       return $exit_value;
     }
@@ -127,22 +136,34 @@ sub spawn_impl ($$$$$$$) {
 
     if ( $output )
     {
-      open(STDOUT,">",$output) or die "Can't redirect STDOUT to \"$output\": $!";
+      if ( ! open(STDOUT,">",$output) )
+      {
+        mtr_error("can't redirect STDOUT to \"$output\": $!");
+      }
     }
     if ( $error )
     {
       if ( $output eq $error )
       {
-        open(STDERR,">&STDOUT") or die "Can't dup STDOUT: $!";
+        if ( ! open(STDERR,">&STDOUT") )
+        {
+          mtr_error("can't dup STDOUT: $!");
+        }
       }
       else
       {
-        open(STDERR,">",$error) or die "Can't redirect STDERR to \"$output\": $!";
+        if ( ! open(STDERR,">",$error) )
+        {
+          mtr_error("can't redirect STDERR to \"$output\": $!");
+        }
       }
     }
     if ( $input )
     {
-      open(STDIN,"<",$input) or die "Can't redirect STDIN to \"$input\": $!";
+      if ( ! open(STDIN,"<",$input) )
+      {
+        mtr_error("can't redirect STDIN to \"$input\": $!");
+      }
     }
     exec($path,@$arg_list_t);
   }
@@ -163,27 +184,25 @@ sub mtr_kill_leftovers () {
 
   for ( my $idx; $idx < 2; $idx++ )
   {
-#    if ( $::master->[$idx]->{'pid'} )
-#    {
-      push(@args,
-           $::master->[$idx]->{'path_mypid'},
-           $::master->[$idx]->{'path_mysock'},
-         );
-#    }
+    push(@args,{
+                pid      => 0,          # We don't know the PID
+                pidfile  => $::master->[$idx]->{'path_mypid'},
+                sockfile => $::master->[$idx]->{'path_mysock'},
+                port     => $::master->[$idx]->{'path_myport'},
+               });
   }
 
   for ( my $idx; $idx < 3; $idx++ )
   {
-#    if ( $::slave->[$idx]->{'pid'} )
-#    {
-      push(@args,
-           $::slave->[$idx]->{'path_mypid'},
-           $::slave->[$idx]->{'path_mysock'},
-         );
-#    }
+    push(@args,{
+                pid       => 0,         # We don't know the PID
+                pidfile   => $::slave->[$idx]->{'path_mypid'},
+                sockfile  => $::slave->[$idx]->{'path_mysock'},
+                port      => $::slave->[$idx]->{'path_myport'},
+               });
   }
 
-  mtr_stop_servers(\@args);
+  mtr_stop_mysqld_servers(\@args, 1);
 
   # We scan the "var/run/" directory for other process id's to kill
   my $rundir= "$::glob_mysql_test_dir/var/run"; # FIXME $path_run_dir or something
@@ -211,17 +230,29 @@ sub mtr_kill_leftovers () {
     }
     closedir(RUNDIR);
 
-    my $retries= 10;                    # 10 seconds
-    do
-    {
-      kill(9, @pids);
-    } while ( $retries-- and  kill(0, @pids) );
+    start_reap_all();
 
-    if ( kill(0, @pids) )
+    if ( $::glob_cygwin_perl )
     {
-      mtr_error("can't kill processes " . join(" ", @pids));
+      # We have no (easy) way of knowing the Cygwin controlling
+      # process, in the PID file we only have the Windows process id.
+      system("kill -f " . join(" ",@pids)); # Hope for the best....
+    }
+    else
+    {
+      my $retries= 10;                    # 10 seconds
+      do
+      {
+        kill(9, @pids);
+      } while ( $retries-- and  kill(0, @pids) );
+
+      if ( kill(0, @pids) )
+      {
+        mtr_error("can't kill processes " . join(" ", @pids));
+      }
     }
 
+    stop_reap_all();
   }
 }
 
@@ -237,185 +268,200 @@ sub mtr_kill_leftovers () {
 # This is not perfect, there could still be other server processes
 # left.
 
-sub mtr_stop_servers ($) {
-  my $spec= shift;
+# Force flag is to be set only for killing mysqld servers this script
+# didn't create in this run, i.e. initial cleanup before we start working.
+# If force flag is set, we try to kill all with mysqladmin, and
+# give up if we have no PIDs.
 
+# FIXME On some operating systems, $srv->{'pid'} and $srv->{'pidfile'}
+#       will not be the same PID. We need to try to kill both I think.
+
+sub mtr_stop_mysqld_servers ($$) {
+  my $spec=  shift;
+  my $force= shift;
+
+  # ----------------------------------------------------------------------
+  # If the process was not started from this file, we got no PID,
+  # we try to find it in the PID file.
+  # ----------------------------------------------------------------------
+
+  my $any_pid= 0;                     # If we have any PIDs
+
+  foreach my $srv ( @$spec )
+  {
+    if ( ! $srv->{'pid'} and -f $srv->{'pidfile'} )
+    {
+      $srv->{'pid'}= mtr_get_pid_from_file($srv->{'pidfile'});
+    }
+    if ( $srv->{'pid'} )
+    {
+      $any_pid= 1;
+    }
+  }
+
+  # If the processes where started from this script, and we know
+  # no PIDs, then we don't have to do anything.
+
+  if ( ! $any_pid and ! $force )
+  {
+    # cluck "This is how we got here!";
+    return;
+  }
+
+  # ----------------------------------------------------------------------
   # First try nice normal shutdown using 'mysqladmin'
+  # ----------------------------------------------------------------------
 
+  start_reap_all();                   # Don't require waitpid() of children
+
+  foreach my $srv ( @$spec )
   {
-    my @args= @$spec;
-    while ( @args )
+    if ( -e $srv->{'sockfile'} or $srv->{'port'} )
     {
-      my $pidfile=  shift @args;        # FIXME not used here....
-      my $sockfile= shift @args;
+      # FIXME wrong log.....
+      # FIXME, stderr.....
+      # Shutdown time must be high as slave may be in reconnect
+      my $args;
 
-      if ( -f $sockfile )
+      mtr_init_args(\$args);
+
+      mtr_add_arg($args, "--no-defaults");
+      mtr_add_arg($args, "-uroot");
+      if ( -e $srv->{'sockfile'} )
       {
-
-        # FIXME wrong log.....
-        # FIXME, stderr.....
-        # Shutdown time must be high as slave may be in reconnect
-        my $opts= 
-          [
-           "--no-defaults",
-           "-uroot",
-           "--socket=$sockfile",
-           "--connect_timeout=5",
-           "--shutdown_timeout=70",
-           "shutdown",
-         ];
-        # We don't wait for termination of mysqladmin
-        mtr_spawn($::exe_mysqladmin, $opts,
-                  "", $::path_manager_log, $::path_manager_log, "");
+        mtr_add_arg($args, "--socket=%s", $srv->{'sockfile'});
       }
+      if ( $srv->{'port'} )
+      {
+        mtr_add_arg($args, "--port=%s", $srv->{'port'});
+      }
+      mtr_add_arg($args, "--connect_timeout=5");
+      mtr_add_arg($args, "--shutdown_timeout=70");
+      mtr_add_arg($args, "shutdown");
+      # We don't wait for termination of mysqladmin
+      mtr_spawn($::exe_mysqladmin, $args,
+                "", $::path_manager_log, $::path_manager_log, "");
     }
   }
 
-  # Wait for them all to remove their socket file
+  # Wait for them all to remove their pid and socket file
 
- SOCKREMOVED:
+ PIDSOCKFILEREMOVED:
   for (my $loop= $::opt_sleep_time_for_delete; $loop; $loop--)
   {
-    my $sockfiles_left= 0;
-    my @args= @$spec;
-    while ( @args )
+    my $pidsockfiles_left= 0;
+    foreach my $srv ( @$spec )
     {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if ( -f $sockfile or -f $pidfile )
+      if ( -e $srv->{'sockfile'} or -f $srv->{'pidfile'} )
       {
-        $sockfiles_left++;              # Could be that pidfile is left
+        $pidsockfiles_left++;          # Could be that pidfile is left
       }
     }
-    if ( ! $sockfiles_left )
+    if ( ! $pidsockfiles_left )
     {
-      last SOCKREMOVED;
+      last PIDSOCKFILEREMOVED;
     }
-    if ( $loop > 1 )
-    {
-      sleep(1);                 # One second
-    }
+    mtr_debug("Sleep for 1 second waiting for pid and socket file removal");
+    sleep(1);                          # One second
   }
 
+  # ----------------------------------------------------------------------
+  # If no known PIDs, we have nothing more to try
+  # ----------------------------------------------------------------------
+
+  if ( ! $any_pid )
+  {
+    stop_reap_all();
+    return;
+  }
+
+  # ----------------------------------------------------------------------
   # We may have killed all that left a socket, but we are not sure we got
-  # them all killed. We now check the PID file, if any
+  # them all killed. If we suspect it lives, try nice kill with SIG_TERM.
+  # Note that for true Win32 processes, kill(0,$pid) will not return 1.
+  # ----------------------------------------------------------------------
 
-  # Try nice kill with SIG_TERM
-
+ SIGNAL:
+  foreach my $sig (15,9)
   {
-    my @args= @$spec;
-    while ( @args )
+    my $process_left= 0;
+    foreach my $srv ( @$spec )
     {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if (-f $pidfile)
+      if ( $srv->{'pid'} and
+           ( -f $srv->{'pidfile'} or kill(0,$srv->{'pid'}) ) )
       {
-        my $pid= mtr_get_pid_from_file($pidfile);
-        mtr_warning("process $pid not cooperating with mysqladmin, " .
-                    "will send TERM signal to process");
-        kill(15,$pid);          # SIG_TERM
+        $process_left++;
+        mtr_warning("process $srv->{'pid'} not cooperating, " .
+                    "will send signal $sig to process");
+        kill($sig,$srv->{'pid'});       # SIG_TERM
+      }
+      if ( ! $process_left )
+      {
+        last SIGNAL;
       }
     }
+    mtr_debug("Sleep for 5 seconds waiting for processes to die");
+    sleep(5);                           # We wait longer than usual
   }
 
-  # Wait for them all to die
-
-  for (my $loop= $::opt_sleep_time_for_delete; $loop; $loop--)
-  {
-    my $pidfiles_left= 0;
-    my @args= @$spec;
-    while ( @args )
-    {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if ( -f $pidfile )
-      {
-        $pidfiles_left++;
-      }
-    }
-    if ( ! $pidfiles_left )
-    {
-      return;
-    }
-    if ( $loop > 1 )
-    {
-      sleep(1);                 # One second
-    }
-  }
-
-  # Try hard kill with SIG_KILL
+  # ----------------------------------------------------------------------
+  # Now, we check if all we can find using kill(0,$pid) are dead,
+  # and just assume the rest are. We cleanup socket and PID files.
+  # ----------------------------------------------------------------------
 
   {
-    my @args= @$spec;
-    while ( @args )
+    my $errors= 0;
+    foreach my $srv ( @$spec )
     {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if (-f $pidfile)
+      if ( $srv->{'pid'} )
       {
-        my $pid= mtr_get_pid_from_file($pidfile);
-        mtr_warning("$pid did not die from TERM signal, ",
-                    "will send KILL signal to process");
-        kill(9,$pid);
-      }
-    }
-  }
-
-  # We check with Perl "kill 0" if process still exists
-
- PIDFILES:
-  for (my $loop= $::opt_sleep_time_for_delete; $loop; $loop--)
-  {
-    my $not_terminated= 0;
-    my @args= @$spec;
-    while ( @args )
-    {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if (-f $pidfile)
-      {
-        my $pid= mtr_get_pid_from_file($pidfile);
-        if ( ! kill(0,$pid) )
+        if ( kill(0,$srv->{'pid'}) )
         {
-          $not_terminated++;
-          mtr_warning("could't kill $pid");
+          # FIXME In Cygwin there seem to be some fast reuse
+          # of PIDs, so dying may not be the right thing to do.
+          $errors++;
+          mtr_warning("can't kill process $srv->{'pid'}");
+        }
+        else
+        {
+          # We managed to kill it at last
+          # FIXME In Cygwin, we will get here even if the process lives.
+
+          # Not needed as we know the process is dead, but to be safe
+          # we unlink and check success in two steps. We first unlink
+          # without checking the error code, and then check if the
+          # file still exists.
+
+          foreach my $file ($srv->{'pidfile'}, $srv->{'sockfile'})
+          {
+            unlink($file);
+            if ( -e $file )
+            {
+              $errors++;
+              mtr_warning("couldn't delete $file");
+            }
+          }
         }
       }
     }
-    if ( ! $not_terminated )
+    if ( $errors )
     {
-      last PIDFILES;
-    }
-    if ( $loop > 1 )
-    {
-      sleep(1);                 # One second
+      # We are in trouble, just die....
+      mtr_error("we could not kill or clean up all processes");
     }
   }
 
-  {
-    my $pidfiles_left= 0;
-    my @args= @$spec;
-    while ( @args )
-    {
-      my $pidfile=  shift @args;
-      my $sockfile= shift @args;
-      if ( -f $pidfile )
-      {
-        if ( ! unlink($pidfile) )
-        {
-          $pidfiles_left++;
-          mtr_warning("could't delete $pidfile");
-        }
-      }
-    }
-    if ( $pidfiles_left )
-    {
-      mtr_error("one or more pid files could not be deleted");
-    }
-  }
+  stop_reap_all();
 
   # FIXME We just assume they are all dead, we don't know....
 }
 
+sub start_reap_all {
+  $SIG{CHLD}= 'IGNORE';                 # FIXME is this enough?
+}
+
+sub stop_reap_all {
+  $SIG{CHLD}= 'DEFAULT';
+}
 
 1;
