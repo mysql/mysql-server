@@ -119,6 +119,7 @@ bdb/include/gen_server_ext.h
 bdb/include/hash_auto.h
 bdb/include/log_auto.h
 bdb/include/qam_auto.h
+bdb/include/rpc_server_ext.h
 bdb/include/txn_auto.h
 bdb/java/src/com/sleepycat/db/DbConstants.java
 bdb/log/log_auto.c
@@ -183,6 +184,7 @@ libmysql_r/acconfig.h
 libmysql_r/conf_to_src
 libmysql_r/my_static.h
 libmysql_r/mysys_priv.h
+libmysqld/backup_dir
 libmysqld/convert.cc
 libmysqld/derror.cc
 libmysqld/errmsg.c
@@ -222,12 +224,14 @@ libmysqld/opt_sum.cc
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/records.cc
+libmysqld/simple-test
 libmysqld/slave.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc
 libmysqld/sql_base.cc
 libmysqld/sql_cache.cc
 libmysqld/sql_class.cc
+libmysqld/sql_command
 libmysqld/sql_crypt.cc
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
@@ -355,6 +359,3 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
-libmysqld/sql_command
-libmysqld/backup_dir
-libmysqld/simple-test
