@@ -544,7 +544,7 @@ int decimal2longlong(decimal *from, longlong *to)
       so we can convert -9223372036854775808 correctly
     */
     x=x*DIG_BASE - *buf++;
-    if (unlikely(y < (LONGLONG_MAX/DIG_BASE) || x > y))
+    if (unlikely(y < (LONGLONG_MIN/DIG_BASE) || x > y))
     {
       *to= from->sign ? y : -y;
       return E_DEC_OVERFLOW;
@@ -920,6 +920,12 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
         (round_digit == 5 && y == 5 && (mode == HALF_UP || (x/10) & 1)))
       x+=10;
     *buf1=powers10[pos]*(x-y);
+  }
+  if (frac0 < 0)
+  {
+    dec1 *end=to->buf+intg0, *buf=buf1+1;
+    while (buf < end)
+      *buf++=0;
   }
   if (*buf1 >= DIG_BASE)
   {
@@ -1647,7 +1653,7 @@ void dump_decimal(decimal *d)
   printf("%09d} */ ", d->buf[i]);
 }
 
-void print_decimal(decimal *d)
+void print_decimal(decimal *d, char *orig)
 {
   char s[100];
   int slen=sizeof(s);
@@ -1655,6 +1661,11 @@ void print_decimal(decimal *d)
   if (full) dump_decimal(d);
   decimal2string(d, s, &slen);
   printf("'%s'", s);
+  if (orig && strcmp(orig, s))
+  {
+    printf("\n^^^^^^^^^^^^^ must've been '%s'\n", orig);
+    exit(1);
+  }
 }
 
 void test_d2s()
@@ -1693,12 +1704,12 @@ void test_d2s()
   dump_decimal(&a); printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 }
 
-void test_s2d(char *s)
+void test_s2d(char *s, char *orig)
 {
   char s1[100];
   sprintf(s1, "'%s'", s);
   printf("len=%2d %-30s => res=%d    ", a.len, s1, string2decimal(s, &a, 0));
-  print_decimal(&a);
+  print_decimal(&a, orig);
   printf("\n");
 }
 
@@ -1715,7 +1726,7 @@ void test_d2f(char *s)
   printf("%-40s => res=%d    %.*g\n", s1, res, a.intg+a.frac, x);
 }
 
-void test_d2b2d(char *str, int p, int s)
+void test_d2b2d(char *str, int p, int s, char *orig)
 {
   char s1[100], buf[100];
   double x;
@@ -1733,7 +1744,7 @@ void test_d2b2d(char *str, int p, int s)
   }
   res=bin2decimal(buf, &a, p, s);
   printf(" => res=%d ", res);
-  print_decimal(&a);
+  print_decimal(&a, orig);
   printf("\n");
 }
 void test_f2d(double from)
@@ -1742,11 +1753,11 @@ void test_f2d(double from)
 
   res=double2decimal(from, &a);
   printf("%-40.*f => res=%d    ", DBL_DIG-2, from, res);
-  print_decimal(&a);
+  print_decimal(&a, 0);
   printf("\n");
 }
 
-void test_ull2d(ulonglong from)
+void test_ull2d(ulonglong from, char *orig)
 {
   char s[100];
   int res;
@@ -1754,11 +1765,11 @@ void test_ull2d(ulonglong from)
   res=ulonglong2decimal(from, &a);
   longlong10_to_str(from,s,10);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&a);
+  print_decimal(&a, orig);
   printf("\n");
 }
 
-void test_ll2d(longlong from)
+void test_ll2d(longlong from, char *orig)
 {
   char s[100];
   int res;
@@ -1766,11 +1777,11 @@ void test_ll2d(longlong from)
   res=longlong2decimal(from, &a);
   longlong10_to_str(from,s,-10);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&a);
+  print_decimal(&a, orig);
   printf("\n");
 }
 
-void test_d2ull(char *s)
+void test_d2ull(char *s, char *orig)
 {
   char s1[100];
   ulonglong x;
@@ -1781,9 +1792,14 @@ void test_d2ull(char *s)
   if (full) dump_decimal(&a);
   longlong10_to_str(x,s1,10);
   printf("%-40s => res=%d    %s\n", s, res, s1);
+  if (orig && strcmp(orig, s1))
+  {
+    printf("\n^^^^^^^^^^^^^ must've been '%s'\n", orig);
+    exit(1);
+  }
 }
 
-void test_d2ll(char *s)
+void test_d2ll(char *s, char *orig)
 {
   char s1[100];
   longlong x;
@@ -1794,9 +1810,14 @@ void test_d2ll(char *s)
   if (full) dump_decimal(&a);
   longlong10_to_str(x,s1,-10);
   printf("%-40s => res=%d    %s\n", s, res, s1);
+  if (orig && strcmp(orig, s1))
+  {
+    printf("\n^^^^^^^^^^^^^ must've been '%s'\n", orig);
+    exit(1);
+  }
 }
 
-void test_da(char *s1, char *s2)
+void test_da(char *s1, char *s2, char *orig)
 {
   char s[100];
   int res;
@@ -1805,11 +1826,11 @@ void test_da(char *s1, char *s2)
   string2decimal(s2, &b, 0);
   res=decimal_add(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&c);
+  print_decimal(&c, orig);
   printf("\n");
 }
 
-void test_ds(char *s1, char *s2)
+void test_ds(char *s1, char *s2, char *orig)
 {
   char s[100];
   int res;
@@ -1818,11 +1839,11 @@ void test_ds(char *s1, char *s2)
   string2decimal(s2, &b, 0);
   res=decimal_sub(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&c);
+  print_decimal(&c, orig);
   printf("\n");
 }
 
-void test_dc(char *s1, char *s2)
+void test_dc(char *s1, char *s2, int orig)
 {
   char s[100];
   int res;
@@ -1831,9 +1852,14 @@ void test_dc(char *s1, char *s2)
   string2decimal(s2, &b, 0);
   res=decimal_cmp(&a, &b);
   printf("%-40s => res=%d\n", s, res);
+  if (orig != res)
+  {
+    printf("\n^^^^^^^^^^^^^ must've been %d\n", orig);
+    exit(1);
+  }
 }
 
-void test_dm(char *s1, char *s2)
+void test_dm(char *s1, char *s2, char *orig)
 {
   char s[100];
   int res;
@@ -1842,11 +1868,11 @@ void test_dm(char *s1, char *s2)
   string2decimal(s2, &b, 0);
   res=decimal_mul(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&c);
+  print_decimal(&c, orig);
   printf("\n");
 }
 
-void test_dv(char *s1, char *s2)
+void test_dv(char *s1, char *s2, char *orig)
 {
   char s[100];
   int res;
@@ -1858,11 +1884,11 @@ void test_dv(char *s1, char *s2)
   if (res == E_DEC_DIV_ZERO)
     printf("E_DEC_DIV_ZERO");
   else
-    print_decimal(&c);
+    print_decimal(&c, orig);
   printf("\n");
 }
 
-void test_md(char *s1, char *s2)
+void test_md(char *s1, char *s2, char *orig)
 {
   char s[100];
   int res;
@@ -1874,13 +1900,13 @@ void test_md(char *s1, char *s2)
   if (res == E_DEC_DIV_ZERO)
     printf("E_DEC_DIV_ZERO");
   else
-    print_decimal(&c);
+    print_decimal(&c, orig);
   printf("\n");
 }
 
 char *round_mode[]={"TRUNCATE", "HALF_EVEN", "HALF_UP", "CEILING", "FLOOR"};
 
-void test_ro(char *s1, int n, decimal_round_mode mode)
+void test_ro(char *s1, int n, decimal_round_mode mode, char *orig)
 {
   char s[100];
   int res;
@@ -1888,7 +1914,7 @@ void test_ro(char *s1, int n, decimal_round_mode mode)
   string2decimal(s1, &a, 0);
   res=decimal_round(&a, &b, n, mode);
   printf("%-40s => res=%d    ", s, res);
-  print_decimal(&b);
+  print_decimal(&b, orig);
   printf("\n");
 }
 
@@ -1905,17 +1931,17 @@ main()
     test_d2s();
 
   printf("==== string2decimal ====\n");
-  test_s2d("12345");
-  test_s2d("12345.");
-  test_s2d("123.45");
-  test_s2d("-123.45");
-  test_s2d(".00012345000098765");
-  test_s2d(".12345000098765");
-  test_s2d("-.000000012345000098765");
-  test_s2d("1234500009876.5");
+  test_s2d("12345", "12345");
+  test_s2d("12345.", "12345");
+  test_s2d("123.45", "123.45");
+  test_s2d("-123.45", "-123.45");
+  test_s2d(".00012345000098765", ".00012345000098765");
+  test_s2d(".12345000098765", ".12345000098765");
+  test_s2d("-.000000012345000098765", "-.000000012345000098765");
+  test_s2d("1234500009876.5", "1234500009876.5");
   a.len=1;
-  test_s2d("123450000098765");
-  test_s2d("123450.000098765");
+  test_s2d("123450000098765", "98765");
+  test_s2d("123450.000098765", "123450");
   a.len=sizeof(buf1)/sizeof(dec1);
 
   printf("==== decimal2double ====\n");
@@ -1933,159 +1959,160 @@ main()
   test_f2d(1234500009876.5);
 
   printf("==== ulonglong2decimal ====\n");
-  test_ull2d(ULL(12345));
-  test_ull2d(ULL(0));
-  test_ull2d(ULL(18446744073709551615));
+  test_ull2d(ULL(12345), "12345");
+  test_ull2d(ULL(0), "0");
+  test_ull2d(ULL(18446744073709551615), "18446744073709551615");
 
   printf("==== decimal2ulonglong ====\n");
-  test_d2ull("12345");
-  test_d2ull("0");
-  test_d2ull("18446744073709551615");
-  test_d2ull("18446744073709551616");
-  test_d2ull("-1");
-  test_d2ull("1.23");
-  test_d2ull("9999999999999999999999999.000");
+  test_d2ull("12345", "12345");
+  test_d2ull("0", "0");
+  test_d2ull("18446744073709551615", "18446744073709551615");
+  test_d2ull("18446744073709551616", "18446744073");
+  test_d2ull("-1", "0");
+  test_d2ull("1.23", "1");
+  test_d2ull("9999999999999999999999999.000", "9999999999999999");
 
   printf("==== longlong2decimal ====\n");
-  test_ll2d(LL(-12345));
-  test_ll2d(LL(-1));
-  test_ll2d(LL(-9223372036854775807));
-  test_ll2d(ULL(9223372036854775808));
+  test_ll2d(LL(-12345), "-12345");
+  test_ll2d(LL(-1), "-1");
+  test_ll2d(LL(-9223372036854775807), "-9223372036854775807");
+  test_ll2d(ULL(9223372036854775808), "-9223372036854775808");
 
   printf("==== decimal2longlong ====\n");
-  test_d2ll("18446744073709551615");
-  test_d2ll("-1");
-  test_d2ll("-1.23");
-  test_d2ll("-9223372036854775807");
-  test_d2ll("-9223372036854775808");
-  test_d2ll("9223372036854775808");
+  test_d2ll("18446744073709551615", "18446744073");
+  test_d2ll("-1", "-1");
+  test_d2ll("-1.23", "-1");
+  test_d2ll("-9223372036854775807", "-9223372036854775807");
+  test_d2ll("-9223372036854775808", "-9223372036854775808");
+  test_d2ll("9223372036854775808", "9223372036854775807");
 
   printf("==== do_add ====\n");
-  test_da(".00012345000098765" ,"123.45");
-  test_da(".1" ,".45");
-  test_da("1234500009876.5" ,".00012345000098765");
-  test_da("9999909999999.5" ,".555");
-  test_da("99999999" ,"1");
-  test_da("989999999" ,"1");
-  test_da("999999999" ,"1");
-  test_da("12345" ,"123.45");
-  test_da("-12345" ,"-123.45");
-  test_ds("-12345" ,"123.45");
-  test_ds("12345" ,"-123.45");
+  test_da(".00012345000098765" ,"123.45", "123.45012345000098765");
+  test_da(".1" ,".45", ".55");
+  test_da("1234500009876.5" ,".00012345000098765", "1234500009876.50012345000098765");
+  test_da("9999909999999.5" ,".555", "9999910000000.055");
+  test_da("99999999" ,"1", "100000000");
+  test_da("989999999" ,"1", "990000000");
+  test_da("999999999" ,"1", "1000000000");
+  test_da("12345" ,"123.45", "12468.45");
+  test_da("-12345" ,"-123.45", "-12468.45");
+  test_ds("-12345" ,"123.45", "-12468.45");
+  test_ds("12345" ,"-123.45", "12468.45");
 
   printf("==== do_sub ====\n");
-  test_ds(".00012345000098765", "123.45");
-  test_ds("1234500009876.5", ".00012345000098765");
-  test_ds("9999900000000.5", ".555");
-  test_ds("1111.5551", "1111.555");
-  test_ds(".555", ".555");
-  test_ds("10000000", "1");
-  test_ds("1000001000", ".1");
-  test_ds("1000000000", ".1");
-  test_ds("12345", "123.45");
-  test_ds("-12345", "-123.45");
-  test_da("-12345", "123.45");
-  test_da("12345", "-123.45");
-  test_ds("123.45", "12345");
-  test_ds("-123.45", "-12345");
-  test_da("123.45", "-12345");
-  test_da("-123.45", "12345");
-  test_da("5", "-6.0");
+  test_ds(".00012345000098765", "123.45","-123.44987654999901235");
+  test_ds("1234500009876.5", ".00012345000098765","1234500009876.49987654999901235");
+  test_ds("9999900000000.5", ".555","9999899999999.945");
+  test_ds("1111.5551", "1111.555",".0001");
+  test_ds(".555", ".555","0");
+  test_ds("10000000", "1","9999999");
+  test_ds("1000001000", ".1","1000000999.9");
+  test_ds("1000000000", ".1","999999999.9");
+  test_ds("12345", "123.45","12221.55");
+  test_ds("-12345", "-123.45","-12221.55");
+  test_da("-12345", "123.45","-12221.55");
+  test_da("12345", "-123.45","12221.55");
+  test_ds("123.45", "12345","-12221.55");
+  test_ds("-123.45", "-12345","12221.55");
+  test_da("123.45", "-12345","-12221.55");
+  test_da("-123.45", "12345","12221.55");
+  test_da("5", "-6.0","-1.0");
 
   printf("==== decimal_mul ====\n");
-  test_dm("12", "10");
-  test_dm("-123.456", "98765.4321");
-  test_dm("-123456000000", "98765432100000");
-  test_dm("123456", "987654321");
-  test_dm("123456", "9876543210");
-  test_dm("123", "0.01");
-  test_dm("123", "0");
+  test_dm("12", "10","120");
+  test_dm("-123.456", "98765.4321","-12193185.1853376");
+  test_dm("-123456000000", "98765432100000","-12193185185337600000000000");
+  test_dm("123456", "987654321","121931851853376");
+  test_dm("123456", "9876543210","1219318518533760");
+  test_dm("123", "0.01","1.23");
+  test_dm("123", "0","0");
 
   printf("==== decimal_div ====\n");
-  test_dv("120", "10");
-  test_dv("123", "0.01");
-  test_dv("120", "100000000000.00000");
-  test_dv("123", "0");
-  test_dv("-12193185.1853376", "98765.4321");
-  test_dv("121931851853376", "987654321");
-  test_dv("0", "987");
-  test_dv("1", "3");
-  test_dv("1.000000000000", "3");
-  test_dv("1", "1");
-  test_dv("0.0123456789012345678912345", "9999999999");
+  test_dv("120", "10","12.000000000");
+  test_dv("123", "0.01","12300.000000000");
+  test_dv("120", "100000000000.00000",".000000001200000000");
+  test_dv("123", "0","");
+  test_dv("-12193185.1853376", "98765.4321","-123.456000000000000000");
+  test_dv("121931851853376", "987654321","123456.000000000");
+  test_dv("0", "987","0");
+  test_dv("1", "3",".333333333");
+  test_dv("1.000000000000", "3",".333333333333333333");
+  test_dv("1", "1","1.000000000");
+  test_dv("0.0123456789012345678912345", "9999999999",".000000000001234567890246913578148141");
 
   printf("==== decimal_mod ====\n");
-  test_md("234","10");
-  test_md("234.567","10.555");
-  test_md("-234.567","10.555");
-  test_md("234.567","-10.555");
+  test_md("234","10","4");
+  test_md("234.567","10.555","2.357");
+  test_md("-234.567","10.555","-2.357");
+  test_md("234.567","-10.555","2.357");
   if (full)
   {
     c.buf[1]=0x3ABECA;
-    test_md("99999999999999999999999999999999999999","3");
+    test_md("99999999999999999999999999999999999999","3","0");
     printf("%X\n", c.buf[1]);
   }
 
   printf("==== decimal2bin/bin2decimal ====\n");
-  test_d2b2d("-10.55", 4, 2);
-  test_d2b2d("0.0123456789012345678912345", 30, 25);
-  test_d2b2d("12345", 5, 0);
-  test_d2b2d("12345", 10, 3);
-  test_d2b2d("123.45", 10, 3);
-  test_d2b2d("-123.45", 20, 10);
-  test_d2b2d(".00012345000098765", 15, 14);
-  test_d2b2d(".00012345000098765", 22, 20);
-  test_d2b2d(".12345000098765", 30, 20);
-  test_d2b2d("-.000000012345000098765", 30, 20);
-  test_d2b2d("1234500009876.5", 30, 5);
-  test_d2b2d("111111111.11", 10, 2);
+  test_d2b2d("-10.55", 4, 2,"-10.55");
+  test_d2b2d("0.0123456789012345678912345", 30, 25,".0123456789012345678912345");
+  test_d2b2d("12345", 5, 0,"12345");
+  test_d2b2d("12345", 10, 3,"12345.000");
+  test_d2b2d("123.45", 10, 3,"123.450");
+  test_d2b2d("-123.45", 20, 10,"-123.4500000000");
+  test_d2b2d(".00012345000098765", 15, 14,".00012345000098");
+  test_d2b2d(".00012345000098765", 22, 20,".00012345000098765000");
+  test_d2b2d(".12345000098765", 30, 20,".12345000098765000000");
+  test_d2b2d("-.000000012345000098765", 30, 20,"-.00000001234500009876");
+  test_d2b2d("1234500009876.5", 30, 5,"1234500009876.50000");
+  test_d2b2d("111111111.11", 10, 2,"11111111.11");
 
   printf("==== decimal_cmp ====\n");
-  test_dc("12","13");
-  test_dc("13","12");
-  test_dc("-10","10");
-  test_dc("10","-10");
-  test_dc("-12","-13");
-  test_dc("0","12");
-  test_dc("-10","0");
-  test_dc("4","4");
+  test_dc("12","13",-1);
+  test_dc("13","12",1);
+  test_dc("-10","10",-1);
+  test_dc("10","-10",1);
+  test_dc("-12","-13",1);
+  test_dc("0","12",-1);
+  test_dc("-10","0",-1);
+  test_dc("4","4",0);
 
   printf("==== decimal_round ====\n");
-  test_ro("5678.123451",-4,TRUNCATE);
-  test_ro("5678.123451",-3,TRUNCATE);
-  test_ro("5678.123451",-2,TRUNCATE);
-  test_ro("5678.123451",-1,TRUNCATE);
-  test_ro("5678.123451",0,TRUNCATE);
-  test_ro("5678.123451",1,TRUNCATE);
-  test_ro("5678.123451",2,TRUNCATE);
-  test_ro("5678.123451",3,TRUNCATE);
-  test_ro("5678.123451",4,TRUNCATE);
-  test_ro("5678.123451",5,TRUNCATE);
-  test_ro("5678.123451",6,TRUNCATE);
-  test_ro("-5678.123451",-4,TRUNCATE);
-  test_ro("99999999999999999999999999999999999999",-31,TRUNCATE);
-  test_ro("15.1",0,HALF_UP);
-  test_ro("15.5",0,HALF_UP);
-  test_ro("15.9",0,HALF_UP);
-  test_ro("-15.1",0,HALF_UP);
-  test_ro("-15.5",0,HALF_UP);
-  test_ro("-15.9",0,HALF_UP);
-  test_ro("15.1",1,HALF_UP);
-  test_ro("-15.1",1,HALF_UP);
-  test_ro("15.17",1,HALF_UP);
-  test_ro("15.4",-1,HALF_UP);
-  test_ro("-15.4",-1,HALF_UP);
-  test_ro("5.4",-1,HALF_UP);
-  test_ro("15.1",0,HALF_EVEN);
-  test_ro("15.5",0,HALF_EVEN);
-  test_ro("14.5",0,HALF_EVEN);
-  test_ro("15.9",0,HALF_EVEN);
-  test_ro("15.1",0,CEILING);
-  test_ro("-15.1",0,CEILING);
-  test_ro("15.1",0,FLOOR);
-  test_ro("-15.1",0,FLOOR);
-  test_ro("999999999999999999999.999", 0, CEILING);
-  test_ro("-999999999999999999999.999", 0, FLOOR);
+  test_ro("5678.123451",-4,TRUNCATE,"0");
+  test_ro("5678.123451",-3,TRUNCATE,"5000");
+  test_ro("5678.123451",-2,TRUNCATE,"5600");
+  test_ro("5678.123451",-1,TRUNCATE,"5670");
+  test_ro("5678.123451",0,TRUNCATE,"5678");
+  test_ro("5678.123451",1,TRUNCATE,"5678.1");
+  test_ro("5678.123451",2,TRUNCATE,"5678.12");
+  test_ro("5678.123451",3,TRUNCATE,"5678.123");
+  test_ro("5678.123451",4,TRUNCATE,"5678.1234");
+  test_ro("5678.123451",5,TRUNCATE,"5678.12345");
+  test_ro("5678.123451",6,TRUNCATE,"5678.123451");
+  test_ro("-5678.123451",-4,TRUNCATE,"0");
+  memset(buf2, 33, sizeof(buf2));
+  test_ro("99999999999999999999999999999999999999",-31,TRUNCATE,"99999990000000000000000000000000000000");
+  test_ro("15.1",0,HALF_UP,"15");
+  test_ro("15.5",0,HALF_UP,"16");
+  test_ro("15.9",0,HALF_UP,"16");
+  test_ro("-15.1",0,HALF_UP,"-15");
+  test_ro("-15.5",0,HALF_UP,"-16");
+  test_ro("-15.9",0,HALF_UP,"-16");
+  test_ro("15.1",1,HALF_UP,"15.1");
+  test_ro("-15.1",1,HALF_UP,"-15.1");
+  test_ro("15.17",1,HALF_UP,"15.2");
+  test_ro("15.4",-1,HALF_UP,"20");
+  test_ro("-15.4",-1,HALF_UP,"-20");
+  test_ro("5.4",-1,HALF_UP,"10");
+  test_ro("15.1",0,HALF_EVEN,"15");
+  test_ro("15.5",0,HALF_EVEN,"16");
+  test_ro("14.5",0,HALF_EVEN,"14");
+  test_ro("15.9",0,HALF_EVEN,"16");
+  test_ro("15.1",0,CEILING,"16");
+  test_ro("-15.1",0,CEILING,"-15");
+  test_ro("15.1",0,FLOOR,"15");
+  test_ro("-15.1",0,FLOOR,"-16");
+  test_ro("999999999999999999999.999", 0, CEILING,"1000000000000000000000");
+  test_ro("-999999999999999999999.999", 0, FLOOR,"-1000000000000000000000");
 
   return 0;
 }
