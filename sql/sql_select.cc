@@ -842,8 +842,7 @@ JOIN::optimize()
     for (uint i_h = const_tables; i_h < tables; i_h++)
     {
       TABLE* table_h = join_tab[i_h].table;
-      if (table_h->db_type == DB_TYPE_INNODB)
-	table_h->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+      table_h->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     }
   }
 #endif
@@ -3266,8 +3265,12 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 				  keyuse,join->const_table_map,
 				  &keyinfo->key_part[i],
 				  (char*) key_buff,maybe_null);
-      /* Remmeber if we are going to use REF_OR_NULL */
-      if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
+      /*
+	Remeber if we are going to use REF_OR_NULL
+	But only if field _really_ can be null i.e. we force JT_REF
+	instead of JT_REF_OR_NULL in case if field can't be null
+      */
+      if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
 	null_ref_key= key_buff;
       key_buff+=keyinfo->key_part[i].store_length;
     }

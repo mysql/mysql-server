@@ -256,6 +256,11 @@ typedef struct st_mysql
   LIST  *stmts;                     /* list of all statements */
   const struct st_mysql_methods *methods;
   void *thd;
+  /*
+    Points to boolean flag in MYSQL_RES  or MYSQL_STMT. We set this flag 
+    from mysql_stmt_close if close had to cancel result set of this object.
+  */
+  my_bool *unbuffered_fetch_owner;
 } MYSQL;
 
 typedef struct st_mysql_res {
@@ -270,6 +275,8 @@ typedef struct st_mysql_res {
   MYSQL_ROW	row;			/* If unbuffered read */
   MYSQL_ROW	current_row;		/* buffer to current row */
   my_bool	eof;			/* Used by mysql_fetch_row */
+  /* mysql_stmt_close() had to cancel this result */
+  my_bool       unbuffered_fetch_cancelled;  
   const struct st_mysql_methods *methods;
 } MYSQL_RES;
 
@@ -479,7 +486,11 @@ my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
 */
 
 /* statement state */
-enum PREP_STMT_STATE { MY_ST_UNKNOWN, MY_ST_PREPARE, MY_ST_EXECUTE };
+enum enum_mysql_stmt_state
+{
+  MYSQL_STMT_INIT_DONE= 1, MYSQL_STMT_PREPARE_DONE, MYSQL_STMT_EXECUTE_DONE,
+  MYSQL_STMT_FETCH_DONE
+};
 
 /* 
   client TIME structure to handle TIME, DATE and TIMESTAMP directly in 
@@ -525,31 +536,34 @@ typedef struct st_mysql_bind
 /* statement handler */
 typedef struct st_mysql_stmt
 {
-  MYSQL		 *mysql;	       /* connection handle */
-  MYSQL_BIND	 *params;	       /* input parameters */
-  MYSQL_RES	 *result;	       /* resultset */
-  MYSQL_BIND	 *bind;	               /* row binding */
-  MYSQL_FIELD	 *fields;	       /* prepare meta info */
+  MEM_ROOT       mem_root;             /* root allocations */
   LIST           list;                 /* list to keep track of all stmts */
-  unsigned char  *current_row;         /* unbuffered row */
-  unsigned char  *last_fetched_buffer; /* last fetched column buffer */
-  char		 *query;	       /* query buffer */
-  MEM_ROOT	 mem_root;	       /* root allocations */
-  my_ulonglong   last_fetched_column;  /* last fetched column */
+  MYSQL          *mysql;               /* connection handle */
+  MYSQL_BIND     *params;              /* input parameters */
+  MYSQL_BIND     *bind;                /* output parameters */
+  MYSQL_FIELD    *fields;              /* result set metadata */
+  MYSQL_RES      *result;              /* cached result set */
   /* copy of mysql->affected_rows after statement execution */
   my_ulonglong   affected_rows;
+  /*
+    mysql_stmt_fetch() calls this function to fetch one row (it's different
+    for buffered, unbuffered and cursor fetch).
+  */
+  int            (*read_row_func)(struct st_mysql_stmt *stmt, 
+                                  unsigned char **row);
   unsigned long	 stmt_id;	       /* Id for prepared statement */
   unsigned int	 last_errno;	       /* error code */
-  unsigned int   param_count;	       /* parameters count */
-  unsigned int   field_count;	       /* fields count */
-  enum PREP_STMT_STATE state;	       /* statement state */
+  unsigned int   param_count;          /* inpute parameters count */
+  unsigned int   field_count;          /* number of columns in result set */
+  enum enum_mysql_stmt_state state;    /* statement state */
   char		 last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   char		 sqlstate[SQLSTATE_LENGTH+1];
-  my_bool        long_alloced;	       /* flag to indicate long alloced */
-  my_bool	 send_types_to_server; /* Types sent to server */
-  my_bool        param_buffers;        /* param bound buffers */
-  my_bool        res_buffers;          /* output bound buffers */
-  my_bool        result_buffered;      /* Results buffered */
+  /* Types of input parameters should be sent to server */
+  my_bool        send_types_to_server;
+  my_bool        bind_param_done;      /* input buffers were supplied */
+  my_bool        bind_result_done;     /* output buffers were supplied */
+  /* mysql_stmt_close() had to cancel this result */
+  my_bool       unbuffered_fetch_cancelled;  
 } MYSQL_STMT;
 
 
@@ -575,7 +589,7 @@ typedef struct st_mysql_methods
   MYSQL_DATA *(*read_binary_rows)(MYSQL_STMT *stmt);
   int (*unbuffered_fetch)(MYSQL *mysql, char **row);
   void (*free_embedded_thd)(MYSQL *mysql);
-  const char *(*read_statistic)(MYSQL *mysql);
+  const char *(*read_statistics)(MYSQL *mysql);
   int (*next_result)(MYSQL *mysql);
   int (*read_change_user_result)(MYSQL *mysql, char *buff, const char *passwd);
 #endif

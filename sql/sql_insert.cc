@@ -236,7 +236,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     Fill in the given fields and dump it to the table file
   */
 
-  info.records=info.deleted=info.copied=0;
+  info.records= info.deleted= info.copied= info.updated= 0;
   info.handle_duplicates=duplic;
   info.update_fields=&update_fields;
   info.update_values=&update_values;
@@ -369,13 +369,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       For the transactional algorithm to work the invalidation must be
       before binlog writing and ha_autocommit_...
     */
-    if (info.copied || info.deleted)
+    if (info.copied || info.deleted || info.updated)
       query_cache_invalidate3(thd, table_list, 1);
 
     transactional_table= table->file->has_transactions();
 
     log_delayed= (transactional_table || table->tmp_table);
-    if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
+    if ((info.copied || info.deleted || info.updated) && 
+	(error <= 0 || !transactional_table))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
@@ -416,7 +417,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     goto abort;
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
-    send_ok(thd,info.copied+info.deleted,id);
+    send_ok(thd,info.copied+info.deleted+info.updated,id);
   else
   {
     char buff[160];
@@ -426,8 +427,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) info.deleted, (ulong) thd->cuted_fields);
-    ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
+	      (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+    ::send_ok(thd,info.copied+info.deleted+info.updated,(ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
@@ -529,7 +530,7 @@ int write_record(TABLE *table,COPY_INFO *info)
           goto err;
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
-        info->deleted++;
+        info->updated++;
         break;
       }
       else /* DUP_REPLACE */
@@ -1474,7 +1475,8 @@ void select_insert::send_error(uint errcode,const char *err)
     error while inserting into a MyISAM table) we must write to the binlog (and
     the error code will make the slave stop).
   */
-  if ((info.copied || info.deleted) && !table->file->has_transactions())
+  if ((info.copied || info.deleted || info.updated) && 
+      !table->file->has_transactions())
   {
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For binary log
@@ -1488,7 +1490,7 @@ void select_insert::send_error(uint errcode,const char *err)
     if (!table->tmp_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;    
   }
-  if (info.copied || info.deleted)
+  if (info.copied || info.deleted || info.updated)
     query_cache_invalidate3(thd, table, 1);
   ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
@@ -1509,7 +1511,7 @@ bool select_insert::send_eof()
     and ha_autocommit_...
   */
 
-  if (info.copied || info.deleted)
+  if (info.copied || info.deleted || info.updated)
   {
     query_cache_invalidate3(thd, table, 1);
     if (!(table->file->has_transactions() || table->tmp_table))
@@ -1543,8 +1545,8 @@ bool select_insert::send_eof()
 	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) info.deleted, (ulong) thd->cuted_fields);
-  ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
+	    (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+  ::send_ok(thd,info.copied+info.deleted+info.updated,last_insert_id,buff);
   DBUG_RETURN(0);
 }
 

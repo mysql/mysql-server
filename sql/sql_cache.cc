@@ -1228,7 +1228,12 @@ void Query_cache::invalidate(char *db)
 	do
 	{
 	  next= curr->next;
-	  if (strcmp(db, (char*)(curr->table()->db())) == 0)
+	  /*
+	    table_alias_charset used here because it depends of
+	    lower_case_table_names variable
+	  */
+	  if (my_strcasecmp(table_alias_charset, db, 
+			    (char*)(curr->table()->db())) == 0)
 	    invalidate_table(curr);
 	  /*
 	    invalidate_table can freed block on which point 'next' (if
@@ -2562,20 +2567,15 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			  tables_used->db, tables_used->table->db_type));
       *tables_type|= tables_used->table->file->table_cache_type();
 
+      /*
+	table_alias_charset used here because it depends of
+	lower_case_table_names variable
+      */
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
 	  (tables_used->db_length == 5 &&
-#ifdef FN_NO_CASE_SENCE
-	   my_strnncoll(system_charset_info, (uchar*)tables_used->db, 6,
-					     (uchar*)"mysql",6) == 0
-#else
-	   tables_used->db[0]=='m' &&
-	   tables_used->db[1]=='y' &&
-	   tables_used->db[2]=='s' &&
-	   tables_used->db[3]=='q' &&
-	   tables_used->db[4]=='l'
-#endif
-	   ))
+	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
+			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
 		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));

@@ -1405,7 +1405,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_EXECUTE:
   {
-    mysql_stmt_execute(thd, packet);
+    mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
   case COM_LONG_DATA:
@@ -2703,8 +2703,8 @@ mysql_execute_command(THD *thd)
       TABLE_LIST *walk;
       for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
       {
-	if (!strcmp(auxi->real_name, walk->alias) &&
-	    !strcmp(walk->db, auxi->db))
+	if (!my_strcasecmp(table_alias_charset, auxi->alias, walk->alias) &&
+	    !my_strcasecmp(table_alias_charset, walk->db, auxi->db))
 	  break;
       }
       if (!walk)

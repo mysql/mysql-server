@@ -35,6 +35,14 @@ select * from t1 where a like 'a\\%' escape '#';
 select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
 drop table t1;
 
+#
+# Bug #2885: like and datetime
+#
+
+create table t1 (a datetime);
+insert into t1 values ('2004-03-11 12:00:21');
+select * from t1 where a like '2004-03-11 12:00:21';
+drop table t1;
 
 #
 # Test like with non-default character set

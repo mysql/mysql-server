@@ -662,8 +662,6 @@ err:
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
   int slave_errno= 0;
-  if (!thd)
-    thd = current_thd;
   int thread_mask;
   DBUG_ENTER("start_slave");
   

@@ -2941,14 +2941,14 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3, $5)); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                           Geometry::wkbGeometryCollection,
-                           Geometry::wkbPoint)); }
+                           Geometry::wkb_geometrycollection,
+                           Geometry::wkb_point)); }
 	| LINESTRING '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbLineString, Geometry::wkbPoint)); }
+                  Geometry::wkb_linestring, Geometry::wkb_point)); }
  	| MULTILINESTRING '(' expr_list ')'
 	  { $$= GEOM_NEW( Item_func_spatial_collection(* $3,
-                   Geometry::wkbMultiLineString, Geometry::wkbLineString)); }
+                   Geometry::wkb_multilinestring, Geometry::wkb_linestring)); }
  	| MLINEFROMTEXT '(' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
 	| MLINEFROMTEXT '(' expr ',' expr ')'
@@ -2963,10 +2963,10 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
 	| MULTIPOINT '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbMultiPoint, Geometry::wkbPoint)); }
+                  Geometry::wkb_multipoint, Geometry::wkb_point)); }
  	| MULTIPOLYGON '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbMultiPolygon, Geometry::wkbPolygon)); }
+                  Geometry::wkb_multipolygon, Geometry::wkb_polygon)); }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= GEOM_NEW(Item_func_point($3,$5)); }
  	| POINTFROMTEXT '(' expr ')'
@@ -2979,7 +2979,7 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
 	| POLYGON '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-	          Geometry::wkbPolygon, Geometry::wkbLineString)); }
+	          Geometry::wkb_polygon, Geometry::wkb_linestring)); }
  	| GEOMCOLLFROMTEXT '(' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
 	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
@@ -3249,8 +3249,13 @@ select_derived:
 	    YYABORT;
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
+	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
 	}
-        select_options select_item_list opt_select_from union_opt
+        select_options select_item_list
+	{
+	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	}
+	opt_select_from union_opt
         ;
 
 opt_outer:
@@ -5034,6 +5039,11 @@ internal_variable_name:
 	}
 	| ident '.' ident
 	  {
+            if (check_reserved_words(&$1))
+            {
+              net_printf(YYTHD, ER_SYNTAX_ERROR);
+              YYABORT;
+            }
 	    sys_var *tmp=find_sys_var($3.str, $3.length);
 	    if (!tmp)
 	      YYABORT;

@@ -842,6 +842,14 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 #endif
 
+#ifndef ULL
+#ifdef HAVE_LONG_LONG
+#define ULL(A) A ## ULL
+#else
+#define ULL(A) A ## UL
+#endif
+#endif
+
 /*
   Defines to make it possible to prioritize register assignments. No
   longer that important with modern compilers.

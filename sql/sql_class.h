@@ -194,6 +194,7 @@ public:
 typedef struct st_copy_info {
   ha_rows records;
   ha_rows deleted;
+  ha_rows updated;
   ha_rows copied;
   ha_rows error_count;
   enum enum_duplicates handle_duplicates;
@@ -657,7 +658,7 @@ public:
     points to a lock object if the lock is present. See item_func.cc and
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
   */
-  ULL		*ull;
+  User_level_lock *ull;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif

@@ -1321,8 +1321,8 @@ bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
   DESCRIPTION
     This is used for UNION & subselect to create a new table list of all used 
     tables.
-    The table_list->table entry in all used tables are set to point
-    to the entries in this list.
+    The table_list->table_list in all tables of global list are set to point
+    to the local SELECT_LEX entries.
 
   RETURN
     0 - OK
@@ -1373,7 +1373,7 @@ create_total_list_n_last_return(THD *thd_arg,
       {
 	TABLE_LIST *cursor;
 	next_table= aux->next;
-	/* Add not used table to the total table list */
+	/* Add to the total table list */
 	if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
 						 sizeof(*aux))))
 	{

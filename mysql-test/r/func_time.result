@@ -506,17 +506,32 @@ last_day('2001-01-01 01:01:01') as f5, last_day(NULL),
 last_day('2001-02-12');
 f1	f2	f3	f4	f5	last_day(NULL)	last_day('2001-02-12')
 2000-02-29	2002-12-31	NULL	2003-04-30	2001-01-31	NULL	2001-02-28
-create table t1 select last_day('2000-02-05') as a;
+create table t1 select last_day('2000-02-05') as a,
+from_days(to_days("960101")) as b;
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	date			0000-00-00	
+b	date	YES		NULL	
 select * from t1;
-a
-2000-02-29
+a	b
+2000-02-29	1996-01-01
 drop table t1;
-select last_day('2000-02-05');
-last_day('2000-02-05')
-2000-02-29
+select last_day('2000-02-05') as a,
+from_days(to_days("960101")) as b;
+a	b
+2000-02-29	1996-01-01
+select date_add(last_day("1997-12-1"), INTERVAL 1 DAY);
+date_add(last_day("1997-12-1"), INTERVAL 1 DAY)
+1998-01-01
+select length(last_day("1997-12-1"));
+length(last_day("1997-12-1"))
+10
+select last_day("1997-12-1")+0;
+last_day("1997-12-1")+0
+19971231
+select last_day("1997-12-1")+0.0;
+last_day("1997-12-1")+0.0
+19971231.0
 select strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0;
 strcmp(date_sub(localtimestamp(), interval 3 hour), utc_timestamp())=0
 1
