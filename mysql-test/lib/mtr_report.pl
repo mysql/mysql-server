@@ -14,6 +14,7 @@ sub mtr_report_test_skipped($);
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
 sub mtr_print_line ();
+sub mtr_print_thick_line ();
 sub mtr_print_header ();
 sub mtr_report (@);
 sub mtr_warning (@);
@@ -214,6 +215,10 @@ sub mtr_print_line () {
   print '-' x 55, "\n";
 }
 
+sub mtr_print_thick_line () {
+  print '=' x 55, "\n";
+}
+
 sub mtr_print_header () {
   print "\n";
   if ( $::opt_timer )
@@ -250,7 +255,7 @@ sub mtr_error (@) {
 sub mtr_debug (@) {
   if ( $::opt_script_debug )
   {
-    print "mysql-test-run: DEBUG: ",join(" ", @_),"\n";
+    print STDERR "####: ",join(" ", @_),"\n";
   }
 }
 

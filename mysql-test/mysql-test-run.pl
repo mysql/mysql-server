@@ -67,6 +67,11 @@
 # is to use the Devel::Trace package found at
 # "http://www.plover.com/~mjd/perl/Trace/" and run this script like
 # "perl -d:Trace mysql-test-run.pl"
+#
+# FIXME Save a PID file from this code as well, to record the process
+#       id we think it has. In Cygwin, a fork creates one Cygwin process,
+#       and then the real Win32 process. Cygwin Perl can only kill Cygwin
+#       processes. And "mysqld --bootstrap ..." doesn't save a PID file.
 
 $Devel::Trace::TRACE= 0;       # Don't trace boring init stuff
 
@@ -147,7 +152,9 @@ our @mysqld_src_dirs=
 
 # Misc global variables
 
-our $glob_win32=                  0;
+our $glob_win32=                  0; # OS and native Win32 executables
+our $glob_win32_perl=             0; # ActiveState Win32 Perl
+our $glob_cygwin_perl=            0; # Cygwin Perl
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
@@ -383,7 +390,9 @@ sub initial_setup () {
 
   $glob_scriptname=  basename($0);
 
-  $glob_win32= ($^O eq "MSWin32");
+  $glob_win32_perl=  ($^O eq "MSWin32");
+  $glob_cygwin_perl= ($^O eq "cygwin");
+  $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
 
   # We require that we are in the "mysql-test" directory
   # to run mysql-test-run
@@ -404,6 +413,12 @@ sub initial_setup () {
 
   # 'basedir' is always parent of "mysql-test" directory
   $glob_mysql_test_dir=  cwd();
+  if ( $glob_cygwin_perl )
+  {
+    # Windows programs like 'mysqld' needs Windows paths
+    $glob_mysql_test_dir= `cygpath -m $glob_mysql_test_dir`;
+    chomp($glob_mysql_test_dir);
+  }
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
 
@@ -991,7 +1006,7 @@ sub collect_test_cases ($) {
 
     if ( -f $master_sh )
     {
-      if ( $glob_win32 )
+      if ( $glob_win32_perl )
       {
         $tinfo->{'skip'}= 1;
       }
@@ -1004,7 +1019,7 @@ sub collect_test_cases ($) {
 
     if ( -f $slave_sh )
     {
-      if ( $glob_win32 )
+      if ( $glob_win32_perl )
       {
         $tinfo->{'skip'}= 1;
       }
@@ -1115,6 +1130,7 @@ sub sleep_until_file_created ($$) {
     {
       return;
     }
+    mtr_debug("Sleep for 1 second waiting for creation of $pidfile");
     sleep(1);
   }
 
@@ -1396,14 +1412,14 @@ sub run_testcase ($) {
   # the preparation.
   # ----------------------------------------------------------------------
 
+  mtr_report_test_name($tinfo);
+
   mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
   do_before_start_master($tname,$tinfo->{'master_sh'});
 
   # ----------------------------------------------------------------------
   # Start masters
   # ----------------------------------------------------------------------
-
-  mtr_report_test_name($tinfo);
 
   if ( ! $glob_use_running_server and ! $glob_use_embedded_server )
   {
@@ -1914,15 +1930,17 @@ sub stop_masters () {
     # the mysqld process from being killed
     if ( $master->[$idx]->{'pid'} )
     {
-      push(@args,
-           $master->[$idx]->{'path_mypid'},
-           $master->[$idx]->{'path_mysock'},
-         );
-      $master->[$idx]->{'pid'}= 0;
+      push(@args,{
+                  pid      => $master->[$idx]->{'pid'},
+                  pidfile  => $master->[$idx]->{'path_mypid'},
+                  sockfile => $master->[$idx]->{'path_mysock'},
+                  port     => $master->[$idx]->{'path_myport'},
+                 });
+      $master->[$idx]->{'pid'}= 0; # Assume we are done with it
     }
   }
 
-  mtr_stop_servers(\@args);
+  mtr_stop_mysqld_servers(\@args, 0);
 }
 
 sub stop_slaves () {
@@ -1934,15 +1952,17 @@ sub stop_slaves () {
   {
     if ( $slave->[$idx]->{'pid'} )
     {
-      push(@args,
-           $slave->[$idx]->{'path_mypid'},
-           $slave->[$idx]->{'path_mysock'},
-         );
-      $slave->[$idx]->{'pid'}= 0;
+      push(@args,{
+                  pid      => $slave->[$idx]->{'pid'},
+                  pidfile  => $slave->[$idx]->{'path_mypid'},
+                  sockfile => $slave->[$idx]->{'path_mysock'},
+                  port     => $slave->[$idx]->{'path_myport'},
+                 });
+      $slave->[$idx]->{'pid'}= 0; # Assume we are done with it
     }
   }
 
-  mtr_stop_servers(\@args);
+  mtr_stop_mysqld_servers(\@args, 0);
 }
 
 
