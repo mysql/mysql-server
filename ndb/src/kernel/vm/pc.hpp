@@ -154,8 +154,8 @@
 * DIH allocates fragments in chunk for fast find of fragment record.
 * These parameters define chunk size and log of chunk size.
 */
-#define NO_OF_FRAGS_PER_CHUNK 8
-#define LOG_NO_OF_FRAGS_PER_CHUNK 3
+#define NO_OF_FRAGS_PER_CHUNK 4
+#define LOG_NO_OF_FRAGS_PER_CHUNK 2
 
 /* ---------------------------------------------------------------- */
 // To avoid synching too big chunks at a time we synch after writing
