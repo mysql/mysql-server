@@ -1762,7 +1762,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   List_iterator<Key> key_it(keys);
   List_iterator<create_field> field_it(create_list);
   List<key_part_spec> key_parts;
-  Disable_binlog *disable_binlog;
 
   KEY *key_info=table->key_info;
   for (uint i=0 ; i < table->keys ; i++,key_info++)
@@ -1925,16 +1924,17 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   else
     create_info->data_file_name=create_info->index_file_name=0;
-  /* We don't log the statement, it will be logged later */
-  disable_binlog= new Disable_binlog(thd);
-  if ((error=mysql_create_table(thd, new_db, tmp_name,
-				create_info,
-				create_list,key_list,1)))
   {
-    delete disable_binlog;
-    DBUG_RETURN(error);
+    /*
+      We don't log the statement, it will be logged later. Using a block so
+      that disable_binlog is deleted when we leave it in either way.
+    */
+    Disable_binlog disable_binlog(thd);
+    if ((error=mysql_create_table(thd, new_db, tmp_name,
+                                  create_info,
+                                  create_list,key_list,1)))
+      DBUG_RETURN(error);
   }
-  delete disable_binlog; // reset binlogging properties for next code lines
   if (table->tmp_table)
     new_table=open_table(thd,new_db,tmp_name,tmp_name,0);
   else

@@ -647,7 +647,7 @@ public:
   so we internally disable it temporarily by creating the Disable_binlog
   object and reset the state by destroying the object (don't forget that! or
   write code so that the object gets automatically destroyed when leaving a
-  function...).
+  block, see example in sql_table.cc).
 */
 class Disable_binlog {
 private:
