@@ -892,13 +892,7 @@ Item *Item_func_case::find_item(String *str)
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
-	/* QQ: COERCIBILITY */
-	if (first_expr_is_binary || (args[i]->charset()->state & MY_CS_BINSORT))
-	{
-	  if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
-	    return args[i+1];
-	}
-	else if (sortcmp(tmp,first_expr_str,tmp->charset())==0)
+	if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
 	  return args[i+1];
       }
       break;
@@ -988,14 +982,62 @@ double Item_func_case::val()
   return res;
 }
 
+static void agg_result_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_store_type(type[0], items[i]->result_type());
+}
+
+static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
+{
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
+}
 
 void Item_func_case::fix_length_and_dec()
 {
+  Item **agg;
+  uint nagg;
+  
+  if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
+    return;
+  
+  // Aggregate all THEN and ELSE expression types
+  // and collations when string result
+  
+  for (nagg= 0 ; nagg < ncases/2 ; nagg++)
+    agg[nagg]= args[nagg*2+1];
+  
+  if (else_expr_num != -1)
+    agg[nagg++]= args[else_expr_num];
+  
+  agg_result_type(&cached_result_type, agg, nagg);
+  if ((cached_result_type == STRING_RESULT) &&
+      agg_arg_collations(collation, agg, nagg))
+    return;
+  
+  
+  //  Aggregate first expression and all THEN expression types
+  //  and collations when string comparison
   if (first_expr_num != -1)
-    first_expr_is_binary= args[first_expr_num]->charset()->state & MY_CS_BINSORT;
+  {
+    agg[0]= args[first_expr_num];
+    for (nagg= 0; nagg < ncases/2 ; nagg++)
+      agg[nagg+1]= args[nagg];
+    nagg++;
+    agg_cmp_type(&cmp_type, agg, nagg);
+    if ((cmp_type == STRING_RESULT) &&
+        agg_arg_collations_for_comparison(cmp_collation, agg, nagg))
+    return;
+  }
+  
   if (!else_expr_num != -1 || args[else_expr_num]->maybe_null)
     maybe_null=1;
-
+  
   max_length=0;
   decimals=0;
   cached_result_type = args[1]->result_type();
