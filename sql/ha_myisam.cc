@@ -544,8 +544,10 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
        (!param.opt_rep_quick ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
-    optimize_done=1;
-    if (mi_test_if_sort_rep(file,file->state->records,0) &&
+    ulonglong key_map= ((param.testflag & T_CREATE_MISSING_KEYS) ? 
+			((ulonglong) 1L << share->base.keys)-1 :
+			share->state.key_map);
+    if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(param.testflag & T_REP_BY_SORT))
     {
       uint testflag=param.testflag;
@@ -646,7 +648,6 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.sort_buffer_length=  myisam_sort_buffer_size;
     param.opt_rep_quick++;			// Don't copy data file
     param.tmpdir=mysql_tmpdir;
-
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
   }

@@ -693,6 +693,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	    (share->state.key_map ||
 	     (rep_quick && !param->keys_in_use && !recreate)) &&
 	    mi_test_if_sort_rep(info, info->state->records,
+				info->s->state.key_map,
 				check_param.force_sort))
 	{
 	  error=mi_repair_by_sort(&check_param,info,fixed_name,rep_quick);
