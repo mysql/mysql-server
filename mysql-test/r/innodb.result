@@ -1630,6 +1630,24 @@ show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
 drop table t1;
+create table t1 (c char(10), index (c,c)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c'
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1)) engine=innodb;
+ERROR 42S21: Duplicate column name 'c1'
+create table t1 (c1 char(10), c2 char(10)) engine=innodb;
+alter table t1 add key (c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c2,c1,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c2,c1);
+ERROR 42S21: Duplicate column name 'c1'
+alter table t1 add key (c1,c1,c2);
+ERROR 42S21: Duplicate column name 'c1'
+drop table t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 insert into t1(x) values (0xfffffffffffffff0),(0xfffffffffffffff1);
 select * from t1;
