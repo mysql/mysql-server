@@ -4,7 +4,7 @@
 TO=dev-public@mysql.com
 FROM=$USER@mysql.com
 INTERNALS=internals@lists.mysql.com
-DOCS=docs@mysql.com
+DOCS=docs-commit@mysql.com
 LIMIT=10000
 
 if [ "$REAL_EMAIL" = "" ]
@@ -58,7 +58,7 @@ EOF
  ) | head -n $LIMIT | /usr/sbin/sendmail -t
 
 #++
-# docs@ mail
+# docs-commit@ mail
 #--
  bk changes -v -r+ | grep -q Docs/manual.texi
  if [ $? == 0 ]
