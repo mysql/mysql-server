@@ -216,7 +216,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
       (void) unpack_filename(path,path);
     }
-    if (drop_temporary || access(path,F_OK))
+    if (drop_temporary || 
+	(access(path,F_OK) && ha_create_table_from_engine(thd,db,alias,true)))
     {
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -1237,8 +1238,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   {
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    if (!create_table_from_handler(db, table_name,
-                                 create_if_not_exists))
+    if (!ha_create_table_from_engine(thd, db, table_name,
+				     create_if_not_exists))
     {
       DBUG_PRINT("info", ("Table already existed in handler"));
 
