@@ -116,6 +116,7 @@ struct st_table {
   my_bool crashed;
   my_bool is_view;
   my_bool no_keyread;
+  my_bool clear_query_id;               /* To reset query_id for tables and cols */
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
