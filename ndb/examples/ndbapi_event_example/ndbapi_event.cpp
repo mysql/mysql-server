@@ -15,7 +15,38 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /**
- * ndbapi_example5.cpp: Using API level events in NDB API
+ *  ndbapi_event.cpp: Using API level events in NDB API
+ *
+ *  Classes and methods used in this example:
+ *
+ *  Ndb_cluster_connection
+ *       connect()
+ *       wait_until_ready()
+ *
+ *  Ndb
+ *       init()
+ *       getDictionary()
+ *       createEventOperation()
+ *       dropEventOperation()
+ *       pollEvents()
+ *
+ *  NdbDictionary
+ *       createEvent()
+ *       dropEvent()
+ *
+ *  NdbDictionary::Event
+ *       setTable()
+ *       addtableEvent()
+ *       addEventColumn()
+ *
+ *  NdbEventOperation
+ *       getValue()
+ *       getPreValue()
+ *       execute()
+ *       next()
+ *       isConsistent()
+ *       getEventType()
+ *
  */
 
 #include <NdbApi.hpp>

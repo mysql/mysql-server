@@ -298,7 +298,7 @@ public:
    *        ExecType::Rollback rollbacks the entire transaction.
    * @param callback       A callback method.  This method gets 
    *                        called when the transaction has been 
-   *                        executed.  See @ref ndbapi_example2.cpp 
+   *                        executed.  See @ref ndbapi_async1.cpp 
    *                        for an example on how to specify and use 
    *                        a callback method.
    * @param anyObject       A void pointer.  This pointer is forwarded to the 
@@ -366,7 +366,13 @@ public:
    *   Once a transaction has been completed successfully
    *     it can be started again wo/ calling closeTransaction/startTransaction
    *
-   *   Note this method also releases completed operations
+   *  @note This method also releases completed operations
+   *
+   *  @note This method does not close open scans, 
+   *        c.f. NdbScanOperation::close()
+   *
+   *  @note This method can only be called _directly_ after commit
+   *        and only if commit is successful
    */
   int restart();
 #endif

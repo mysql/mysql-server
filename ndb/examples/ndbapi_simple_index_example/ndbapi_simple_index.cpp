@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 // 
-//  ndbapi_example4.cpp: Using secondary indexes in NDB API
+//  ndbapi_simple_index.cpp: Using secondary indexes in NDB API
 //
 //  Correct output from this program is:
 //
