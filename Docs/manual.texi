@@ -78,6 +78,7 @@ END-INFO-DIR-ENTRY
 @c Short contents, blank page, long contents.
 @shortcontents
 @page
+@page
 @contents
 
 @c This should be added. The HTML conversion also needs a MySQL version
