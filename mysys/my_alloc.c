@@ -68,7 +68,7 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
  */
 
 void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
-                         uint pre_alloc_size)
+                         uint pre_alloc_size __attribute__((unused)))
 {
   mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
