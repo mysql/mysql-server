@@ -485,6 +485,10 @@ max-time: 2500
 cmd: testBitfield
 args:
 
+max-time: 2500
+cmd: testPartitioning
+args:
+
 #
 #
 # SYSTEM RESTARTS
