@@ -108,7 +108,6 @@ my_bool vio_poll_read(Vio *vio,uint timeout);
 #ifdef	__cplusplus
 }
 #endif
-#endif /* vio_violite_h_ */
 
 #if defined(HAVE_VIO) && !defined(DONT_MAP_VIO)
 #define vio_delete(vio) 			(vio)->viodelete(vio)
@@ -237,3 +236,4 @@ struct st_vio
 #endif /* HAVE_VIO */
 };
 #endif /* EMBEDDED_LIBRARY */
+#endif /* vio_violite_h_ */
