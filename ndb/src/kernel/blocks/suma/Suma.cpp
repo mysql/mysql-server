@@ -3471,10 +3471,10 @@ SumaParticipant::completeSubRemoveReq(Signal* signal, SubscriptionPtr subPtr) {
    */
 #if 0
   ndbout_c("c_subscriptionPool.getSize() %d c_subscriptionPool.getNoOfFree()%d",
-	   c_subscriptionPool.getSize(),c_subscriptionPool.getNoOfFree()+1);
+	   c_subscriptionPool.getSize(),c_subscriptionPool.getNoOfFree());
 #endif
 
-  if(c_subscriptionPool.getSize() == c_subscriptionPool.getNoOfFree()+1) {
+  if(c_subscriptionPool.getSize() == c_subscriptionPool.getNoOfFree()) {
     jam();
 #if 0
     ndbout_c("SUB_REMOVE_REQ:Clearing c_tables");
