@@ -960,6 +960,7 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
   */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
+  thd->net.no_send_error= 0;
   dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
   rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
@@ -1019,6 +1020,7 @@ pthread_handler_decl(handle_one_connection,arg)
     int error;
     NET *net= &thd->net;
     thd->thread_stack= (char*) &thd;
+    net->no_send_error= 0;
 
     if ((error=check_connection(thd)))
     {						// Wrong permissions
@@ -1057,6 +1059,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
+      net->no_send_error= 0;
       if (do_command(thd))
 	break;
     }
@@ -2087,6 +2090,7 @@ mysql_execute_command(THD *thd)
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
+  thd->net.no_send_error= 0;
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
