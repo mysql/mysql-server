@@ -24329,7 +24329,8 @@ MASTER_LOG_SEQ=log_seq AND MASTER_SERVER_ID=server_id} @tab
 This command is used when a slave of a possibly dead/unavailable master
 needs to be switched to replicate off another slave that has been
 replicating the same master. The command will return recalculated
-replication coordinates, and the output can be used in a subsequent
+replication coordinates (the slave's current binary log file
+name and position within that file). The output can be used in a subsequent
 @code{CHANGE MASTER TO} command. Normal users should never need to run
 this command. It is primarily reserved for internal use by the fail-safe
 replication code. We may later change the syntax if we find a more
@@ -26959,7 +26960,7 @@ For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
 column.  You cannot index the entire column.
 
 In MySQL Version 3.23.23 or later, you can also create special
-@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be
 created only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column and partial indexing is not
@@ -28034,7 +28035,7 @@ You should not symlink tables on systems that don't have a fully
 working @code{realpath()} call. (At least Linux and Solaris support
 @code{realpath()})
 
-In MySQL 4.0 symlinks are only fully supported for @code{MyISAM}
+In MySQL 4.0 symlinks are fully supported only for @code{MyISAM}
 tables.  For other table types you will probably get strange problems
 when doing any of the above mentioned commands.
 
@@ -28048,7 +28049,7 @@ and the data/index files.
 
 @item
 You can symlink the index file and the datafile to different directories
-independent of the other.
+independently of the other.
 
 @item
 The symlinking can be done from the operating system (if @code{mysqld} is
@@ -28058,13 +28059,14 @@ in @code{CREATE TABLE}. @xref{CREATE TABLE}.
 @item
 @code{myisamchk} will not replace a symlink with the index/file but
 work directly on the files the symlinks points to. Any temporary files
-will be created in the same directory where the data/index file is.
+will be created in the same directory where the data or index file is
+located.
 
 @item
 When you drop a table that is using symlinks, both the symlink and the
-file the symlink points to is dropped.  This is a good reason to why you
-should @strong{not} run @code{mysqld} as root and not allow persons to have write
-access to the MySQL database directories.
+file the symlink points to are dropped.  This is a good reason to why you
+should @strong{not} run @code{mysqld} as @code{root} or allow
+persons to have write access to the MySQL database directories.
 
 @item
 If you rename a table with @code{ALTER TABLE RENAME} and you don't change
@@ -28091,7 +28093,7 @@ Things that are not yet supported:
 @item
 @code{CREATE TABLE} doesn't report if the table has symbolic links.
 @item
-@code{mysqldump} doesn't include the symbolic links information in the output.
+@code{mysqldump} doesn't include the symbolic link information in the output.
 @item
 @code{BACKUP TABLE} and @code{RESTORE TABLE} don't respect symbolic links.
 @end itemize
@@ -36008,7 +36010,7 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 
 @item
 In MySQL Version 3.23.23 or later, you can also create special
-@strong{FULLTEXT} indexes. They are used for full-text search. Only the
+@code{FULLTEXT} indexes. They are used for full-text search. Only the
 @code{MyISAM} table type supports @code{FULLTEXT} indexes. They can be created
 only from @code{VARCHAR} and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
