@@ -20,12 +20,6 @@
   NDB Cluster
 */
 
-/*
-  TODO 
-  After CREATE DATABASE gör discover på alla tabeller i den databasen
-
-*/
-
 
 #ifdef __GNUC__
 #pragma implementation                          // gcc: Class implementation
@@ -41,7 +35,7 @@
 
 #define USE_DISCOVER_ON_STARTUP
 //#define USE_NDB_POOL
-//#define USE_EXTRA_ORDERED_INDEX
+#define USE_EXTRA_ORDERED_INDEX
 
 // Default value for parallelism
 static const int parallelism= 240;
@@ -1421,7 +1415,11 @@ int ha_ndbcluster::index_read(byte *buf,
     if (key_len < key_info->key_length ||
 	find_flag != HA_READ_KEY_EXACT)
     {
-      error= ordered_index_scan(key, key_len, buf, find_flag);
+      key_range start_key;
+      start_key.key=    key;
+      start_key.length= key_len;
+      start_key.flag=   find_flag;
+      error= ordered_index_scan(&start_key, 0, false, buf);
       break;
     
     }
@@ -1435,7 +1433,11 @@ int ha_ndbcluster::index_read(byte *buf,
     if (key_len < key_info->key_length ||
 	find_flag != HA_READ_KEY_EXACT)
     {
-      error= ordered_index_scan(key, key_len, buf, find_flag);
+      key_range start_key;
+      start_key.key=    key;
+      start_key.length= key_len;
+      start_key.flag=   find_flag;
+      error= ordered_index_scan(&start_key, 0, false, buf);
       break;
     }
 #endif
