@@ -137,7 +137,7 @@ the mysql command line client\n\n");
 -o, --offset=N		Skip the first N entries\n\
 -h, --host=server	Get the binlog from server\n\
 -P, --port=port         Use port to connect to the remote server\n\
--u, --user=username     Connect to the remove server as username\n\
+-u, --user=username     Connect to the remote server as username\n\
 -p, --password=password Password to connect to remote server\n\
 -r, --result-file=file  Direct output to a given file\n\
 -j, --position=N	Start reading the binlog at position N\n\
@@ -467,4 +467,8 @@ int main(int argc, char** argv)
   the server
 */
 
+#ifdef __WIN__
+#include "log_event.cpp"
+#else
 #include "log_event.cc"
+#endif

@@ -167,3 +167,9 @@ a	sec_to_time(sum(time_to_sec(t)))
 a	sec_to_time(sum(time_to_sec(t)))
 1	00:06:15
 1	00:36:30
+a
+4
+3
+a	c
+4	NULL
+3	NULL

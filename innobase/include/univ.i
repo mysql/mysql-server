@@ -9,12 +9,10 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(MYSQL_SERVER)
 #define __WIN__
 
-#ifndef MYSQL_SERVER
 #include <windows.h>
-#endif
 
 /* If you want to check for errors with compiler level -W4,
 comment out the above include of windows.h and let the following defines

@@ -2116,7 +2116,7 @@ mysql_execute_command(void)
        else
 	 res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
 			   lex->sql_command == SQLCOM_REVOKE);
-       if(!res)
+       if (!res)
        {
 	 mysql_update_log.write(thd, thd->query,thd->query_length);
 	 if (mysql_bin_log.is_open())

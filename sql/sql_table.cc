@@ -1128,11 +1128,15 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
-    // Check if name changed
 #ifdef FN_LOWER_CASE
-    if (!strcmp(db,new_db) && !my_strcasecmp(new_name_buff,table_name))
+    if (lower_case_table_names)
+      casedn_str(new_name);
+    if ((lower_case_table_names &&
+	 !my_strcasecmp(new_name_buff,table_name)) ||
+	(!lower_case_table_names &&
+	 !strcmp(new_name_buff,table_name)))
 #else
-    if (!strcmp(db,new_db) && !strcmp(new_name_buff,table_name))
+    if (!strcmp(new_name_buff,table_name))	// Check if name changed
 #endif
       new_name=table_name;			// No. Make later check easier
     else
