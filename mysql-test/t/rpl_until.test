@@ -43,7 +43,7 @@ show slave status;
 
 # try replicate all until second insert to t2;
 start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=710;
-sleep 2;
+sleep 4;
 select * from t2;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --replace_column 1 # 9 # 23 # 33 #

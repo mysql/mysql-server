@@ -387,7 +387,9 @@ libmysqld/field_conv.cc
 libmysqld/filesort.cc
 libmysqld/get_password.c
 libmysqld/gstream.cc
+libmysqld/ha_archive.cc
 libmysqld/ha_berkeley.cc
+libmysqld/ha_example.cc
 libmysqld/ha_heap.cc
 libmysqld/ha_innobase.cc
 libmysqld/ha_innodb.cc
@@ -395,6 +397,7 @@ libmysqld/ha_isam.cc
 libmysqld/ha_isammrg.cc
 libmysqld/ha_myisam.cc
 libmysqld/ha_myisammrg.cc
+libmysqld/ha_tina.cc
 libmysqld/handler.cc
 libmysqld/hash_filo.cc
 libmysqld/hostname.cc

@@ -736,7 +736,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
         if (mysql_bin_log.write(&qinfo))
           error= 1;
       }
@@ -774,7 +774,7 @@ int ha_savepoint(THD *thd, char *savepoint_name)
       innobase_savepoint(thd,savepoint_name,
                          my_b_tell(&thd->transaction.trans_log));
 #endif
-      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }

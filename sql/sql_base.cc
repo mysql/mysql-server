@@ -535,7 +535,7 @@ void close_temporary_tables(THD *thd)
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();
-    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
     /*
       Imagine the thread had created a temp table, then was doing a SELECT, and
       the SELECT was killed. Then it's not clever to mark the statement above as
@@ -1587,7 +1587,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0);
+        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }
