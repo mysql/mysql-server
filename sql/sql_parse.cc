@@ -3559,7 +3559,8 @@ unsent_create_error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_CREATE_USER:
   {
-    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+    if (check_access(thd, INSERT_ACL, "mysql", 0, 1, 1) &&
+        check_global_access(thd,CREATE_USER_ACL))
       break;
     if (!(res= mysql_create_user(thd, lex->users_list)))
     {
@@ -3574,7 +3575,8 @@ unsent_create_error:
   }
   case SQLCOM_DROP_USER:
   {
-    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 1) &&
+        check_global_access(thd,CREATE_USER_ACL))
       break;
     if (!(res= mysql_drop_user(thd, lex->users_list)))
     {
@@ -3589,7 +3591,8 @@ unsent_create_error:
   }
   case SQLCOM_RENAME_USER:
   {
-    if (check_access(thd, GRANT_ACL,"mysql",0,1,0))
+    if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1) &&
+        check_global_access(thd,CREATE_USER_ACL))
       break;
     if (!(res= mysql_rename_user(thd, lex->users_list)))
     {
@@ -3604,7 +3607,8 @@ unsent_create_error:
   }
   case SQLCOM_REVOKE_ALL:
   {
-    if (check_access(thd, GRANT_ACL ,"mysql",0,1,0))
+    if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1) &&
+        check_global_access(thd,CREATE_USER_ACL))
       break;
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
     {
@@ -3629,32 +3633,32 @@ unsent_create_error:
     if (thd->user)				// If not replication
     {
       LEX_USER *user;
+      uint counter;
+
       List_iterator <LEX_USER> user_list(lex->users_list);
-      while ((user=user_list++))
+      while ((user= user_list++))
       {
-	if (user->password.str &&
-	    (strcmp(thd->user, user->user.str) ||
-	     user->host.str &&
-	     my_strcasecmp(system_charset_info,
-			   user->host.str, thd->host_or_ip)))
-	{
-	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 0))
-	    goto error;
-	  break;			// We are allowed to do changes
-	}
-      }
-    }
-    if (specialflag & SPECIAL_NO_RESOLVE)
-    {
-      LEX_USER *user;
-      List_iterator <LEX_USER> user_list(lex->users_list);
-      while ((user=user_list++))
-      {
-	if (hostname_requires_resolving(user->host.str))
-	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			      ER_WARN_HOSTNAME_WONT_WORK,
-			      ER(ER_WARN_HOSTNAME_WONT_WORK),
-			      user->host.str);
+        if (specialflag & SPECIAL_NO_RESOLVE &&
+            hostname_requires_resolving(user->host.str))
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_WARN_HOSTNAME_WONT_WORK,
+                              ER(ER_WARN_HOSTNAME_WONT_WORK),
+                              user->host.str);
+        // Are we trying to change a password of another user
+        DBUG_ASSERT(user->host.str != 0);
+        if (strcmp(thd->user, user->user.str) ||
+            my_strcasecmp(system_charset_info,
+                          user->host.str, thd->host_or_ip))
+        {
+          // TODO: use check_change_password()
+          if (check_acl_user(user, &counter) && user->password.str &&
+              check_access(thd, UPDATE_ACL,"mysql",0,1,1))
+          {
+            my_message(ER_PASSWORD_NOT_ALLOWED,
+                       ER(ER_PASSWORD_NOT_ALLOWED), MYF(0));
+            goto error;
+          }
+        }
       }
     }
     if (first_table)
