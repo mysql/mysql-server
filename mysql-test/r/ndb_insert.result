@@ -432,13 +432,12 @@ INSERT INTO t1 VALUES
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 2005
+rollback;
+begin;
 INSERT INTO t1 VALUES 
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10);
 ERROR 23000: Duplicate entry '10' for key 1
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-2000
 commit;
 ERROR HY000: Got error 4350 'Transaction already aborted' from ndbcluster
 select * from t1 where pk1=1;

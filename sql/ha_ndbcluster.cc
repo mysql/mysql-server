@@ -282,8 +282,8 @@ bool ha_ndbcluster::get_error_message(int error,
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
   DBUG_PRINT("enter", ("error: %d", error));
-  
-  Ndb* ndb = (Ndb*)current_thd->transaction.ndb;
+
+  Ndb *ndb= ((Thd_ndb*)current_thd->transaction.thd_ndb)->ndb;
   if (!ndb)
     DBUG_RETURN(false);
 
@@ -517,7 +517,7 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
 */
 
 int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
-                                 uint fieldnr)
+                                 uint fieldnr, byte* buf)
 {
   DBUG_ENTER("get_ndb_value");
   DBUG_PRINT("enter", ("fieldnr: %d flags: %o", fieldnr,
@@ -525,12 +525,15 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
 
   if (field != NULL)
   {
+    DBUG_ASSERT(buf);
     if (ndb_supported_type(field->type()))
     {
       DBUG_ASSERT(field->ptr != NULL);
       if (! (field->flags & BLOB_FLAG))
-      {
-        m_value[fieldnr].rec= ndb_op->getValue(fieldnr, field->ptr);
+      {	
+	byte *field_buf= buf + (field->ptr - table->record[0]);
+        m_value[fieldnr].rec= ndb_op->getValue(fieldnr, 
+					       field_buf);
         DBUG_RETURN(m_value[fieldnr].rec == NULL);
       }
 
@@ -948,7 +951,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
       ERR_RETURN(trans->getNdbError());
 
     // Read key at the same time, for future reference
-    if (get_ndb_value(op, NULL, no_fields))
+    if (get_ndb_value(op, NULL, no_fields, NULL))
       ERR_RETURN(trans->getNdbError());
   } 
   else 
@@ -965,7 +968,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
     if ((thd->query_id == field->query_id) ||
 	retrieve_all_fields)
     {
-      if (get_ndb_value(op, field, i))
+      if (get_ndb_value(op, field, i, buf))
 	ERR_RETURN(trans->getNdbError());
     }
     else
@@ -1019,7 +1022,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     if (!(field->flags & PRI_KEY_FLAG) &&
 	(thd->query_id != field->query_id))
     {
-      if (get_ndb_value(op, field, i))
+      if (get_ndb_value(op, field, i, new_data))
 	ERR_RETURN(trans->getNdbError());
     }
   }
@@ -1082,7 +1085,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
     if ((thd->query_id == field->query_id) ||
         (field->flags & PRI_KEY_FLAG))
     {
-      if (get_ndb_value(op, field, i))
+      if (get_ndb_value(op, field, i, buf))
         ERR_RETURN(op->getNdbError());
     }
     else
@@ -1481,7 +1484,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 	(field->flags & PRI_KEY_FLAG) || 
 	retrieve_all_fields)
     {      
-      if (get_ndb_value(op, field, i))
+      if (get_ndb_value(op, field, i, buf))
 	ERR_RETURN(op->getNdbError());
     } 
     else 
@@ -1500,7 +1503,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
     if (!tab->getColumn(hidden_no))
       DBUG_RETURN(1);
 #endif
-    if (get_ndb_value(op, NULL, hidden_no))
+    if (get_ndb_value(op, NULL, hidden_no, NULL))
       ERR_RETURN(op->getNdbError());
   }
 
