@@ -1860,8 +1860,8 @@ String *Item_func_conv_charset3::val_str(String *str)
   if (!arg     || args[0]->null_value || 
       !to_cs   || args[1]->null_value || 
       !from_cs || args[2]->null_value ||
-      !(from_charset=find_compiled_charset_by_name(from_cs->ptr())) ||
-      !(to_charset=find_compiled_charset_by_name(to_cs->ptr())))
+      !(from_charset=get_charset_by_name(from_cs->ptr(), MYF(MY_WME))) ||
+      !(to_charset=get_charset_by_name(to_cs->ptr(), MYF(MY_WME))))
   {
     null_value=1;
     return 0;

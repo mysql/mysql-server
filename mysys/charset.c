@@ -237,6 +237,91 @@ static void get_charset_conf_name(uint cs_number, char *buf)
           name_from_csnum(available_charsets, cs_number), ".conf", NullS);
 }
 
+typedef struct {
+	int		nchars;
+	MY_UNI_IDX	uidx;
+} uni_idx;
+
+#define PLANE_SIZE	0x100
+#define PLANE_NUM	0x100
+#define PLANE_NUMBER(x)	(((x)>>8) % PLANE_NUM)
+
+static int pcmp(const void * f, const void * s)
+{
+  const uni_idx *F=(const uni_idx*)f;
+  const uni_idx *S=(const uni_idx*)s;
+  int res;
+
+  if(!(res=((S->nchars)-(F->nchars))))
+    res=((F->uidx.from)-(S->uidx.to));
+  return res;
+}
+
+static my_bool create_fromuni(CHARSET_INFO *cs){
+  uni_idx	idx[PLANE_NUM];
+  int		i,n;
+  
+  /* Clear plane statistics */
+  bzero(idx,sizeof(idx));
+  
+  /* Count number of characters in each plane */
+  for(i=0;i<0x100;i++)
+  {
+    uint16 wc=cs->tab_to_uni[i];
+    int pl= PLANE_NUMBER(wc);
+    
+    if(wc || !i)
+    {
+      if(!idx[pl].nchars)
+      {
+        idx[pl].uidx.from=wc;
+        idx[pl].uidx.to=wc;
+      }else
+      {
+        idx[pl].uidx.from=wc<idx[pl].uidx.from?wc:idx[pl].uidx.from;
+        idx[pl].uidx.to=wc>idx[pl].uidx.to?wc:idx[pl].uidx.to;
+      }
+      idx[pl].nchars++;
+    }
+  }
+  
+  /* Sort planes in descending order */
+  qsort(&idx,PLANE_NUM,sizeof(uni_idx),&pcmp);
+  
+  for(i=0;i<PLANE_NUM;i++)
+  {
+    int ch,numchars;
+    
+    /* Skip empty plane */
+    if(!idx[i].nchars)
+      break;
+    
+    numchars=idx[i].uidx.to-idx[i].uidx.from+1;
+    idx[i].uidx.tab=(unsigned char*)my_once_alloc(numchars*sizeof(*idx[i].uidx.tab),MYF(MY_WME));
+    bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
+    
+    for(ch=1;ch<PLANE_SIZE;ch++)
+    {
+      uint16 wc=cs->tab_to_uni[ch];
+      if(wc>=idx[i].uidx.from && wc<=idx[i].uidx.to && wc)
+      {
+        int ofs=wc-idx[i].uidx.from;
+        idx[i].uidx.tab[ofs]=ch;
+      }
+    }
+  }
+  
+  /* Allocate and fill reverse table for each plane */
+  n=i;
+  cs->tab_from_uni=(MY_UNI_IDX*)my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),MYF(MY_WME));
+  for(i=0;i<n;i++)
+    cs->tab_from_uni[i]=idx[i].uidx;
+  
+  /* Set end-of-list marker */
+  bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
+  return FALSE;
+}
+
 
 static my_bool read_charset_file(uint cs_number, CHARSET_INFO *set,
 				 myf myflags)
@@ -268,6 +353,7 @@ static my_bool read_charset_file(uint cs_number, CHARSET_INFO *set,
     result=TRUE;
 
   my_fclose(fb.f, MYF(0));
+  create_fromuni(set);
   DBUG_RETURN(result);
 }
 
