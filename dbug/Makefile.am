@@ -15,7 +15,7 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-INCLUDES =              @MT_INCLUDES@ -I$(top_srcdir)/include
+INCLUDES =              -I$(top_srcdir)/include
 LDADD =                 libdbug.a ../mysys/libmysys.a ../strings/libmystrings.a
 pkglib_LIBRARIES =      libdbug.a
 noinst_HEADERS =        dbug_long.h
