@@ -342,6 +342,50 @@ static int sort_keys(KEY *a, KEY *b)
 	  0);
 }
 
+/*
+  Check TYPELIB (set or enum) for duplicates
+  
+  SYNOPSIS
+    check_duplicates_in_interval()
+    set_or_name   "SET" or "ENUM" string for warning message
+    name          name of the checked column
+    typelib       list of values for the column
+
+  DESCRIPTION
+    This function prints an warning for each value in list 
+    which has some duplicates on its right
+
+  RETURN VALUES
+    void
+*/
+
+void check_duplicates_in_interval(const char *set_or_name,
+				  const char *name, TYPELIB *typelib)
+{
+  unsigned int old_count= typelib->count;
+  const char **old_type_names= typelib->type_names;
+
+  if (typelib->count <= 1)
+    return;
+
+  old_count= typelib->count;
+  old_type_names= typelib->type_names;
+  const char **cur_value= typelib->type_names;
+  for ( ; typelib->count > 1; cur_value++)
+  {
+    typelib->type_names++;
+    typelib->count--;
+    if (find_type((char*)*cur_value,typelib,1))
+    {
+      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_DUPLICATED_VALUE_IN_TYPE,
+			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
+			  name,*cur_value,set_or_name);
+    }
+  }
+  typelib->count= old_count;
+  typelib->type_names= old_type_names;
+}
 
 /*
   Create a table
@@ -546,6 +590,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::INTERVAL_FIELD;
+      check_duplicates_in_interval("ENUM",sql_field->field_name,
+				   sql_field->interval);
       break;
     case FIELD_TYPE_SET:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -553,6 +599,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::BIT_FIELD;
+      check_duplicates_in_interval("SET",sql_field->field_name,
+				   sql_field->interval);
       break;
     case FIELD_TYPE_DATE:			// Rest of string types
     case FIELD_TYPE_NEWDATE:
