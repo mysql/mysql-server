@@ -186,6 +186,8 @@ enum olap_type
     Base class for st_select_lex (SELECT_LEX) & 
     st_select_lex_unit (SELECT_LEX_UNIT)
 */
+class st_select_lex;
+class st_select_lex_unit;
 class st_select_lex_node {
 protected:
   st_select_lex_node *next, **prev,   /* neighbor list */
@@ -195,23 +197,60 @@ public:
   ulong options;
   enum sub_select_type linkage;
   SQL_LIST order_list;                /* ORDER clause */
+  List<List_item>     expr_list;
+  List<List_item>     when_list;      /* WHEN clause (expression) */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
-  void init_query();
-  void init_select();
+  bool	create_refs;
+  bool dependent;	/* dependent from outer select subselect */
+
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_calloc((uint) size);
+  }
+  static void operator delete(void *ptr,size_t size) {}
+  virtual ~st_select_lex_node() {}
+  inline st_select_lex_node* get_master() { return master; }
+  virtual void init_query();
+  virtual void init_select();
   void include_down(st_select_lex_node *upper);
   void include_neighbour(st_select_lex_node *before);
   void include_global(st_select_lex_node **plink);
   void exclude();
+
+  virtual st_select_lex* select_lex();
+  virtual bool add_item_to_list(Item *item);
+  bool add_order_to_list(Item *item, bool asc);
+  virtual bool add_group_to_list(Item *item, bool asc);
+  virtual bool add_ftfunc_to_list(Item_func_match *func);
+
+  virtual st_select_lex_unit* master_unit()= 0;
+  virtual st_select_lex* outer_select()= 0;
+
+  virtual bool set_braces(bool value);
+  virtual bool inc_in_sum_expr();
+  virtual uint get_in_sum_expr();
+  virtual TABLE_LIST* get_table_list();
+  virtual List<Item>* get_item_list();
+  virtual List<String>* get_use_index();
+  virtual List<String>* get_ignore_index();
+  virtual TABLE_LIST *add_table_to_list(Table_ident *table,
+					LEX_STRING *alias,
+					bool updating,
+					thr_lock_type flags= TL_UNLOCK,
+					List<String> *use_index= 0,
+					List<String> *ignore_index= 0);
+
+  void mark_as_dependent(st_select_lex *last);
 private:
   void fast_exclude();
 };
+typedef class st_select_lex_node SELECT_LEX_NODE;
 
 /* 
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
 struct st_lex;
-class st_select_lex;
 class THD;
 class select_result;
 class JOIN;
@@ -238,14 +277,14 @@ public:
   st_select_lex_node *global_parameters;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
-  bool depended; /* depended from outer select subselect */
   /* not NULL if union used in subselect, point to subselect item */
   Item_subselect *item;
   uint union_option;
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
-  st_select_lex* outer_select() { return (st_select_lex*) master; }
+  st_select_lex_unit* master_unit();
+  st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
 
@@ -270,8 +309,6 @@ public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
   enum olap_type olap;
-  List<List_item>     expr_list;
-  List<List_item>     when_list;                /* WHEN clause */
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
   List<String>        interval_list, use_index, *use_index_ptr,
@@ -286,23 +323,18 @@ public:
   const char *type; /* type of select for EXPLAIN */
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
-  bool	create_refs;
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
-  bool depended;	/* depended from outer select subselect */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
 
   void init_query();
   void init_select();
-  st_select_lex_unit* master_unit() { return (st_select_lex_unit*) master; }
+  st_select_lex_unit* master_unit();
   st_select_lex_unit* first_inner_unit() 
   { 
     return (st_select_lex_unit*) slave; 
   }
-  st_select_lex* outer_select() 
-  { 
-    return (st_select_lex*) master_unit()->outer_select(); 
-  }
+  st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
   st_select_lex*  next_select_in_list() 
   {
@@ -313,6 +345,32 @@ public:
     return &link_next;
   }
 
+  bool set_braces(bool value);
+  bool inc_in_sum_expr();
+  uint get_in_sum_expr();
+
+  st_select_lex* select_lex();
+  bool add_item_to_list(Item *item);
+  bool add_group_to_list(Item *item, bool asc);
+  bool add_ftfunc_to_list(Item_func_match *func);
+
+  TABLE_LIST* get_table_list();
+  List<Item>* get_item_list();
+  List<String>* get_use_index();
+  List<String>* get_ignore_index();
+  TABLE_LIST* add_table_to_list(Table_ident *table,
+				LEX_STRING *alias,
+				bool updating,
+				thr_lock_type flags= TL_UNLOCK,
+				List<String> *use_index= 0,
+				List<String> *ignore_index= 0);
+  inline void init_order()
+  {
+    order_list.elements= 0;
+    order_list.first= 0;
+    order_list.next= (byte**) &order_list.first;
+  }
+  
   friend void mysql_init_query(THD *thd);
 };
 typedef class st_select_lex SELECT_LEX;
@@ -325,9 +383,9 @@ typedef struct st_lex
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
   SELECT_LEX_UNIT unit;                         /* most upper unit */
-  SELECT_LEX select_lex,                        /* first SELECT_LEX */
-    /* current SELECT_LEX in parsing */
-    *select;
+  SELECT_LEX select_lex;                        /* first SELECT_LEX */
+  /* current SELECT_LEX in parsing */
+  SELECT_LEX_NODE *current_select;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
