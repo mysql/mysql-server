@@ -906,7 +906,8 @@ int subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
-  join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
+  join= new JOIN(thd, select_lex->item_list,
+		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
   {
     thd->fatal_error();				//out of memory
@@ -933,7 +934,7 @@ int subselect_single_select_engine::prepare()
 
 int subselect_union_engine::prepare()
 {
-  return unit->prepare(thd, result);
+  return unit->prepare(thd, result, SELECT_NO_UNLOCK);
 }
 
 int subselect_uniquesubquery_engine::prepare()
