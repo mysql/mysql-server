@@ -39,7 +39,7 @@ extern "C" int gethostname(char *name, int namelen);
 #endif
 
 static bool check_table_access(THD *thd,uint want_access,TABLE_LIST *tables);
-static bool check_lock_tables(THD *thd,TABLE_LIST *tables);
+static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_dup(THD *thd,const char *db,const char *name,
 		      TABLE_LIST *tables);
 static void mysql_init_query(THD *thd);
@@ -387,7 +387,6 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    thd->alloc.free=thd->alloc.used=0;
     if (thd->max_join_size == HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
@@ -395,7 +394,7 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->options & OPTION_ANSI_MODE)
       thd->client_capabilities|=CLIENT_IGNORE_SPACE;
 
-    thd->proc_info=0;
+    thd->proc_info=0;				// Remove 'login'
     thd->version=refresh_version;
     thd->set_time();
     while (!net->error && net->vio != 0 && !thd->killed)
@@ -436,7 +435,7 @@ int handle_bootstrap(THD *thd,FILE *file)
 
   if (init_thr_lock() ||
       my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &thd->alloc) ||
+      my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root) ||
       my_pthread_setspecific_ptr(THR_NET,  &thd->net))
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
@@ -450,7 +449,6 @@ int handle_bootstrap(THD *thd,FILE *file)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  thd->alloc.free=thd->alloc.used=0;
   if (thd->max_join_size == (ulong) ~0L)
     thd->options |= OPTION_BIG_SELECTS;
 
@@ -464,9 +462,9 @@ int handle_bootstrap(THD *thd,FILE *file)
     while (length && (isspace(buff[length-1]) || buff[length-1] == ';'))
       length--;
     buff[length]=0;
-    init_sql_alloc(&thd->alloc,8192);
+    init_sql_alloc(&thd->mem_root,8192);
     thd->current_tablenr=0;
-    thd->query= sql_memdup(buff,length+1);
+    thd->query= thd->memdup(buff,length+1);
     thd->query_id=query_id++;
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
@@ -474,7 +472,7 @@ int handle_bootstrap(THD *thd,FILE *file)
     {
       DBUG_RETURN(-1);
     }
-    free_root(&thd->alloc);
+    free_root(&thd->mem_root);
   }
   DBUG_RETURN(0);
 }
@@ -542,7 +540,7 @@ bool do_command(THD *thd)
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
-  init_sql_alloc(&thd->alloc,8192);
+  init_sql_alloc(&thd->mem_root,8192);
   net= &thd->net;
   thd->current_tablenr=0;
 
@@ -642,7 +640,7 @@ bool do_command(THD *thd)
       packet_length--;
     }
     *pos=0;
-    if (!(thd->query= (char*) sql_memdup((gptr) (packet+1),packet_length)))
+    if (!(thd->query= (char*) thd->memdup((gptr) (packet+1),packet_length)))
       break;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -670,8 +668,8 @@ bool do_command(THD *thd)
       break;
     }
     thd->free_list=0;
-    table_list.name=table_list.real_name=sql_strdup(packet+1);
-    thd->query=fields=sql_strdup(strend(packet+1)+1);
+    table_list.name=table_list.real_name=thd->strdup(packet+1);
+    thd->query=fields=thd->strdup(strend(packet+1)+1);
     mysql_log.write(command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
@@ -693,7 +691,7 @@ bool do_command(THD *thd)
 
   case COM_CREATE_DB:
     {
-      char *db=sql_strdup(packet+1);
+      char *db=thd->strdup(packet+1);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(command,packet+1);
@@ -702,7 +700,7 @@ bool do_command(THD *thd)
     }
   case COM_DROP_DB:
     {
-      char *db=sql_strdup(packet+1);
+      char *db=thd->strdup(packet+1);
       if (check_access(thd,DROP_ACL,db,0,1))
 	break;
       mysql_log.write(command,db);
@@ -719,7 +717,7 @@ bool do_command(THD *thd)
       ushort flags;
       pos = uint4korr(packet + 1);
       flags = uint2korr(packet + 5);
-      mysql_binlog_send(thd, sql_strdup(packet + 7), pos, flags);
+      mysql_binlog_send(thd, thd->strdup(packet + 7), pos, flags);
       break;
     }
   case COM_REFRESH:
@@ -746,7 +744,7 @@ bool do_command(THD *thd)
     send_eof(net);				// This is for 'quit request'
     close_connection(net);
     close_thread_tables(thd);			// Free before kill
-    free_root(&thd->alloc);
+    free_root(&thd->mem_root);
     kill_mysql();
     error=TRUE;
     break;
@@ -827,7 +825,7 @@ bool do_command(THD *thd)
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(net_buffer_length);	// Reclaim some memory
-  free_root(&thd->alloc);
+  free_root(&thd->mem_root);
   DBUG_RETURN(error);
 }
 
@@ -945,7 +943,7 @@ mysql_execute_command(void)
     }
   case SQLCOM_SHOW_MASTER_STAT:
     {
-      if(check_access(thd, PROCESS_ACL, any_db))
+      if (check_access(thd, PROCESS_ACL, any_db))
 	goto error;
       res = show_binlog_info(thd);
       break;
@@ -1132,53 +1130,51 @@ mysql_execute_command(void)
       break;
     }
 #endif
+  case SQLCOM_RENAME_TABLE:
+    if (check_db_used(thd,tables) ||
+	check_table_access(thd,ALTER_ACL,tables))
+      goto error;
+    if (mysql_rename_tables(thd,tables))
+      res= -1;
+    break;
   case SQLCOM_SHOW_CREATE:
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    DBUG_VOID_RETURN;
+#else
     {
-      if(! tables->db)
-	tables->db = thd->db;
-      if (!tables->db)
-	{
-	  send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
-	  goto error;				/* purecov: inspected */
-	}
+      if (check_db_used(thd, tables) ||
+	  check_access(thd, SELECT_ACL | EXTRA_ACL, tables->db,
+		       &tables->grant.privilege))
+	goto error;
       res = mysqld_show_create(thd, tables);  
       break;
     }
+#endif
   case SQLCOM_REPAIR:
     {
       if (!tables->db)
         tables->db=thd->db;
-      if (check_access(thd,SELECT_ACL | INSERT_ACL,tables->db,
-		     &tables->grant.privilege))
-         goto error; /* purecov: inspected */
-      if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL,tables))
-        goto error;
+      if (check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
+	goto error; /* purecov: inspected */
       res = mysql_repair_table(thd, tables, &lex->check_opt);
       break;
     }
   case SQLCOM_CHECK:
     {
-      if (!tables->db)
-        tables->db=thd->db;
-      if (check_access(thd,SELECT_ACL,tables->db,
-		     &tables->grant.privilege))
-         goto error; /* purecov: inspected */
-      if (grant_option && check_grant(thd,SELECT_ACL,tables))
-        goto error;
+      if (check_db_used(thd,tables) ||
+	  check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
+	goto error; /* purecov: inspected */
       res = mysql_check_table(thd, tables, &lex->check_opt);
       break;
     }
   case SQLCOM_ANALYZE:
   {
-    if (!tables->db)
-      tables->db=thd->db;
-    if (check_access(thd,SELECT_ACL|INSERT_ACL,tables->db,
-		     &tables->grant.privilege))
+    if (check_db_used(thd,tables) ||
+	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,SELECT_ACL|INSERT_ACL,tables))
-      goto error;
-      res = mysql_analyze_table(thd, tables);
-      break;
+    res = mysql_analyze_table(thd, tables);
+    break;
   }
   case SQLCOM_OPTIMIZE:
   {
@@ -1515,7 +1511,7 @@ mysql_execute_command(void)
       thd->locked_tables=0;			// Will be automaticly closed
       close_thread_tables(thd);
     }
-    if (check_lock_tables(thd,tables))
+    if (check_db_used(thd,tables))
       goto error;
     thd->in_lock_tables=1;
     if (!(res=open_and_lock_tables(thd,tables)))
@@ -1749,7 +1745,7 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
   {
     if ((thd->master_access & want_access) == want_access && thd->db)
       tables->grant.privilege= want_access;
-    else if (tables->db)
+    else if (tables->db && tables->db == thd->db)
     {
       if (found && !grant_option)		// db already checked
 	tables->grant.privilege=found_access;
@@ -1758,6 +1754,7 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
 	if (check_access(thd,want_access,tables->db,&tables->grant.privilege))
 	  return TRUE;				// Access denied
 	found_access=tables->grant.privilege;
+	found=1;
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege))
@@ -1769,7 +1766,7 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables)
 }
 
 
-static bool check_lock_tables(THD *thd,TABLE_LIST *tables)
+static bool check_db_used(THD *thd,TABLE_LIST *tables)
 {
   for (; tables ; tables=tables->next)
   {
@@ -2274,30 +2271,34 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   if (lower_case_table_names)
     casedn_str(table->table.str);
 #endif
-  if (!(ptr = (TABLE_LIST *) sql_calloc(sizeof(TABLE_LIST))))
+  if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   ptr->db= table->db.str;
   ptr->real_name=table->table.str;
   ptr->name=alias_str;
   ptr->lock_type=flags;
   if (use_index)
-    ptr->use_index=(List<String> *) sql_memdup((gptr) use_index,
+    ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));
   if (ignore_index)
-    ptr->ignore_index=(List<String> *) sql_memdup((gptr) ignore_index,
-						  sizeof(*ignore_index));
+    ptr->ignore_index=(List<String> *) thd->memdup((gptr) ignore_index,
+						   sizeof(*ignore_index));
 
   /* check that used name is unique */
   current_db=thd->db ? thd->db : "";
-  for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.table_list.first ; tables ;
-       tables=tables->next)
+
+  if (flags != TL_IGNORE)
   {
-    if (!strcmp(alias_str,tables->name) &&
-	!strcmp(ptr->db ? ptr->db : current_db,
-		tables->db ? tables->db : current_db))
+    for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.table_list.first ; tables ;
+	 tables=tables->next)
     {
-      net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
-      DBUG_RETURN(0);				/* purecov: tested */
+      if (!strcmp(alias_str,tables->name) &&
+	  !strcmp(ptr->db ? ptr->db : current_db,
+		  tables->db ? tables->db : current_db))
+      {
+	net_printf(&thd->net,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
+	DBUG_RETURN(0);				/* purecov: tested */
+      }
     }
   }
   link_in_list(&thd->lex.table_list,(byte*) ptr,(byte**) &ptr->next);

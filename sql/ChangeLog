@@ -1,3 +1,7 @@
+2000-08-21  Michael Widenius  <monty@mysql.com>
+
+* Added RENAME TABLE.
+
 2000-08-20  Michael Widenius  <monty@mysql.com>
 
 * Added memory as inline functions to THD to get them a bit faster

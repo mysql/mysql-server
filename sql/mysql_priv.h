@@ -217,6 +217,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
+bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
@@ -293,6 +294,11 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Alter_column> &alter_list,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates);
+bool mysql_rename_table(enum db_type base,
+			const char *old_db,
+			const char * old_name,
+			const char *new_db,
+			const char * new_name);
 bool close_cached_table(THD *thd,TABLE *table);
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
@@ -316,6 +322,7 @@ bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_old_data_files(THD *thd, TABLE *table, bool abort_locks);
 bool close_data_tables(THD *thd,const char *db, const char *table_name);
 bool wait_for_tables(THD *thd);
+bool table_is_used(TABLE *table);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
@@ -487,6 +494,11 @@ void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
+
+/* Lock based on name */
+int lock_table_name(THD *thd, TABLE_LIST *table_list);
+void unlock_table_name(THD *thd, TABLE_LIST *table_list);
+bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 
 extern int flush_master_info(MASTER_INFO* mi);
 
