@@ -548,8 +548,7 @@ Written in C and C++.  Tested with a broad range of different compilers.
 @item
 Works on many different platforms.  @xref{Which OS}.
 @item
-Uses GNU Automake (1.4), Autoconf (Version 2.52 or newer), and Libtool for
-portability.
+Uses GNU Automake, Autoconf, and Libtool for portability.
 @item
 APIs for C, C++, Eiffel, Java, Perl, PHP, Python, Ruby, and Tcl.
 @xref{Clients}.
