@@ -178,11 +178,8 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->trg_table= NULL;
   lex->proc_list.first= 0;
 
-  extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
-  hash_free(&lex->spfuns);
-  hash_init(&lex->spfuns, system_charset_info, 0, 0, 0,
-	    sp_lex_spfuns_key, 0, 0);
-
+  if (lex->spfuns.records)
+    hash_reset(&lex->spfuns);
 }
 
 void lex_end(LEX *lex)
