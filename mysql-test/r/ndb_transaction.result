@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-drop database if exists test2;
+drop database if exists mysqltest;
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL
@@ -211,8 +211,8 @@ CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL
 ) ENGINE=ndbcluster;
-create database test2;
-use test2;
+create database mysqltest;
+use mysqltest;
 CREATE TABLE t2 (
 a bigint unsigned NOT NULL PRIMARY KEY,
 b int unsigned not null,
@@ -254,4 +254,4 @@ select count(*) from t2;
 count(*)
 0
 drop table test.t1, t2;
-drop database test2;
+drop database mysqltest;

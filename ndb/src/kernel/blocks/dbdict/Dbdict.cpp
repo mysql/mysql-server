@@ -5660,7 +5660,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     signal->getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
     SimplePropertiesSectionReader r0(ssPtr, getSectionSegmentPool());
     r0.reset(); // undo implicit first()
-    if(r0.getWords((Uint32*)tableName, len))
+    if(r0.getWords((Uint32*)tableName, ((len + 3)/4)))
       memcpy(keyRecord.tableName, tableName, len);
     else {
       jam();
