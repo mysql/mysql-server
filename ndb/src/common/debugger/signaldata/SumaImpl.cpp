@@ -40,12 +40,55 @@ printSUB_CREATE_CONF(FILE * output, const Uint32 * theData,
 }
 
 bool
+printSUB_CREATE_REF(FILE * output, const Uint32 * theData, 
+		    Uint32 len, Uint16 receiverBlockNo) {
+  const SubCreateRef * const sig = (SubCreateRef *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  return false;
+}
+
+bool
+printSUB_REMOVE_REQ(FILE * output, const Uint32 * theData, 
+		    Uint32 len, Uint16 receiverBlockNo)
+{
+  const SubRemoveReq * const sig = (SubRemoveReq *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  return false;
+}
+
+bool
+printSUB_REMOVE_CONF(FILE * output, const Uint32 * theData, 
+		     Uint32 len, Uint16 receiverBlockNo)
+{
+  const SubRemoveConf * const sig = (SubRemoveConf *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  return false;
+}
+
+bool
+printSUB_REMOVE_REF(FILE * output, const Uint32 * theData, 
+		    Uint32 len, Uint16 receiverBlockNo)
+{
+  const SubRemoveRef * const sig = (SubRemoveRef *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  fprintf(output, " err: %x\n", sig->err);
+  return false;
+}
+
+bool
 printSUB_START_REQ(FILE * output, const Uint32 * theData, 
 		   Uint32 len, Uint16 receiverBlockNo) {
   const SubStartReq * const sig = (SubStartReq *)theData;
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
-  fprintf(output, " startPart: %x\n", sig->part);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
   return false;
 }
 
@@ -68,6 +111,37 @@ printSUB_START_CONF(FILE * output, const Uint32 * theData,
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " startPart: %x\n", sig->part);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  return false;
+}
+
+bool
+printSUB_STOP_REQ(FILE * output, const Uint32 * theData, 
+		   Uint32 len, Uint16 receiverBlockNo) {
+  const SubStopReq * const sig = (SubStopReq *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  return false;
+}
+
+bool
+printSUB_STOP_REF(FILE * output, const Uint32 * theData, 
+		   Uint32 len, Uint16 receiverBlockNo) {
+  const SubStopRef * const sig = (SubStopRef *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
+  fprintf(output, " subscriberData: %x\n", sig->subscriberData);
+  fprintf(output, " err: %x\n", sig->err);
+  return false;
+}
+
+bool
+printSUB_STOP_CONF(FILE * output, const Uint32 * theData, 
+		    Uint32 len, Uint16 receiverBlockNo) {
+  const SubStopConf * const sig = (SubStopConf *)theData;
+  fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
+  fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " subscriberData: %x\n", sig->subscriberData);
   return false;
 }
