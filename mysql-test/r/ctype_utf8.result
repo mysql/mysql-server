@@ -639,3 +639,8 @@ select * from t1 where str='str';
 str
 str
 drop table t1;
+CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ('test');
+SELECT a FROM t1 WHERE a LIKE '%te';
+a
+DROP TABLE t1;
