@@ -1,0 +1,44 @@
+# test case to make slave thread get ahead by 22 bytes
+
+drop table if exists t1;
+source include/master-slave.inc;
+connection master;
+# first, cause a duplicate key problem on the slave
+create table t1(n int auto_increment primary key);
+save_master_pos;
+connection slave;
+sync_with_master;
+insert into t1 values (2);
+connection master;
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+save_master_pos;
+connection slave;
+sleep 1; # there is no way around this sleep - we have to wait until
+# the slave tries to run the query, fails and aborts slave thread
+delete from t1 where n = 2;
+slave start;
+sync_with_master;
+#now the buggy slave would be confused on the offset but it can replicate
+#in order to make it break, we need to stop/start the slave one more time
+slave stop;
+connection master;
+# to be able to really confuse the slave, we need some non-auto-increment
+# events in the log
+create table t2(n int);
+drop table t2;
+insert into t1 values(NULL);
+save_master_pos;
+connection slave;
+slave start;
+#now the truth comes out - if the slave is buggy, it will never sync because
+#the slave thread is not able to read events
+sync_with_master;
+select * from t1;
+#clean up
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+

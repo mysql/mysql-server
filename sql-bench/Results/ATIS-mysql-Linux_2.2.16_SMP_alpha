@@ -1,20 +1,20 @@
-Testing server 'MySQL 3.23.36' at 2001-03-26  1:22:18
+Testing server 'MySQL 3.23.39' at 2002-09-08 10:26:22
 
 ATIS table test
 
 Creating tables
-Time for create_table (28):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_table (28):  0 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Inserting data
-Time to insert (9768):  4 wallclock secs ( 0.57 usr  0.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to insert (9768):  3 wallclock secs ( 0.51 usr  0.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Retrieving data
-Time for select_simple_join (500):  1 wallclock secs ( 0.58 usr  0.37 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_join (100):  2 wallclock secs ( 0.44 usr  0.33 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_key_prefix_join (100): 11 wallclock secs ( 3.47 usr  2.55 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_distinct (800): 10 wallclock secs ( 1.53 usr  0.98 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_group (2800): 11 wallclock secs ( 1.44 usr  0.65 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_simple_join (500):  2 wallclock secs ( 0.58 usr  0.37 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_join (100):  2 wallclock secs ( 0.48 usr  0.33 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_key_prefix_join (100): 10 wallclock secs ( 3.45 usr  2.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_distinct (800): 11 wallclock secs ( 1.54 usr  0.97 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_group (2800): 11 wallclock secs ( 1.48 usr  0.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Removing tables
-Time to drop_table (28):  0 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Total time: 39 wallclock secs ( 8.05 usr  5.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to drop_table (28):  0 wallclock secs ( 0.00 usr  0.01 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 39 wallclock secs ( 8.05 usr  5.44 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

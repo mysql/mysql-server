@@ -1754,7 +1754,15 @@ mysql_execute_command(void)
       break;
     }
     if (!(res=open_and_lock_tables(thd,(TABLE_LIST *)total->first)))
+		{
+    /* Fix tables--to-be-unioned-from list to point at opened tables */
+			for (SELECT_LEX *sl=&lex->select_lex;sl;sl=sl->next)
+			{
+				for (TABLE_LIST *cursor=(TABLE_LIST *)sl->table_list.first;cursor;cursor=cursor->next)
+					cursor->table= ((TABLE_LIST*) cursor->table)->table;
+			}
       res=mysql_union(thd,lex, select_lex->select_number+1);
+		}
     close_thread_tables(thd);
     break;
   }
@@ -2894,11 +2902,12 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
 {
   SELECT_LEX *sl; const char *current_db=thd->db ? thd->db : "";
+	TABLE_LIST *ptr;
   for (sl=&lex->select_lex;sl;sl=sl->next)
   {
     if ((lex->sql_command == SQLCOM_UNION_SELECT) && (sl->order_list.first != (byte *)NULL) && (sl->next != (st_select_lex  *)NULL))
     {
-      net_printf(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);  // correct error message will come here; only last SELECt can have ORDER BY
+      net_printf(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);  // correct error message will come here; only last SELECT can have ORDER BY
       return -1;
     }
     if (sl->table_list.first == (byte *)NULL) continue;
@@ -2919,7 +2928,15 @@ static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
 	  aux->lock_type= lex->lock_option;
 	  if (!tables->next)
 	    tables->next= (byte**) &tables->first;
-	  link_in_list(tables,(byte*)aux,(byte**) &aux->next);
+		if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+			return 1;
+		ptr->db= aux->db; ptr->real_name=aux->real_name;
+		ptr->name=aux->name;  ptr->lock_type=aux->lock_type;
+		ptr->updating=aux->updating;
+    ptr->use_index=aux->use_index;
+    ptr->ignore_index=aux->use_index;
+    aux->table=(TABLE *)ptr;
+	  link_in_list(tables,(byte*)ptr,(byte**) &ptr->next);
 	}
       }
     }

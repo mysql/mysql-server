@@ -1,12 +1,145 @@
-mysql (3.23.23-1potato.2) unstable; urgency=low
+mysql (3.23.39-1) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 12 May 2001 05:07:35 +0900
+
+mysql (3.23.38-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 12 May 2001 05:07:35 +0900
+
+mysql (3.23.37-1potato.2) unstable; urgency=low
+
+  * new
+  * add mysql-max multi packages.
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 26 Apr 2001 05:07:35 +0900
+
+mysql (3.23.37-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 26 Apr 2001 05:07:35 +0900
+
+mysql (3.23.36-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 29 Mar 2001 05:07:35 +0900
+
+mysql (3.23.35-1potato.1) unstable; urgency=low
+
+  * sql fix patch
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 22 Mar 2001 05:07:35 +0900
+
+mysql (3.23.35-1potato) unstable; urgency=low
+
+  * new
+  * --with-innobase
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat, 17 Mar 2001 05:07:35 +0900
+
+mysql (3.23.34a-1potato) unstable; urgency=low
+
+  * new
+  * --with-innobase
+
+ -- takeshi <takeshi@softagency.co.jp>  Wed, 14 Mar 2001 05:07:35 +0900
+
+mysql (3.23.33-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 13 Feb 2001 05:07:35 +0900
+
+mysql (3.23.32-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Tue, 23 Jan 2001 05:07:35 +0900
+
+mysql (3.23.31-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 19 Jan 2001 05:07:35 +0900
+
+mysql (3.23.30-gamma-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sat,  6 Jan 2001 05:07:35 +0900
+
+mysql (3.23.29a-gamma-1potato.3) unstable; urgency=low
+
+  * server:/usr/sbin/{mysql_config, mysqltest} -> client:/usr/bin/
+  * server:/usr/bin/my_print_defaults -> client:/usr/bin/
+  * /usr/mysql-test -> mysql-bench /var/mysql/mysql-test
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 29 Dec 2000 05:07:35 +0900
+
+mysql (3.23.29a-gamma-1potato.2) unstable; urgency=low
+
+  * /usr/mysql-test -> mysql-bench /var/mysql/mysql-test
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun, 17 Dec 2000 05:07:35 +0900
+
+mysql (3.23.29a-gamma-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun, 17 Dec 2000 05:07:35 +0900
+
+mysql (3.23.28-gamma-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 24 Nov 2000 05:07:35 +0900
+
+mysql (3.23.27-beta-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 28 Oct 2000 05:07:35 +0900
+
+mysql (3.23.26-beta-1potato) unstable; urgency=low
+
+  * new
+
+ -- takeshi <takeshi@softagency.co.jp>  Sun, 22 Oct 2000 05:07:35 +0900
+
+mysql (3.23.25-beta-1potato) unstable; urgency=low
+
+  * new , libmysqlclient10
+  * change debian/control file. remove Provides keyword
+
+ -- takeshi <takeshi@softagency.co.jp>  Fri, 29 Sep 2000 05:07:35 +0900
+
+mysql (3.23.24-1potato.2) unstable; urgency=low
+
+  * fix debian/control file
+  * move patch into debian/patches/
+    if you want to make new patch,
+    write patch file and put it into debian/patches/.
+    debian/rules do patch debian/patches/* automatically.
+  * change debian/rules , debian/move
+  * back mysql_resolveip -> resolveip , mysql_perror -> perror
+
+ -- takeshi <takeshi@softagency.co.jp>  Thr, 14 Sep 2000 05:07:35 +0900
+
+mysql (3.23.24-1potato) unstable; urgency=low
 
   * move patch into debian/patches/
     if you want to make new patch,
     write patch file and put it into debian/patches/.
     debian/rules do patch debian/patches/* automatically.
   * change debian/rules , debian/move
+  * back mysql_resolveip -> resolveip , mysql_perror -> perror
 
- -- takeshi <takeshi@softagency.co.jp>  Tue,  5 Sep 2000 05:07:35 +0900
+ -- takeshi <takeshi@softagency.co.jp>  Sat,  9 Sep 2000 05:07:35 +0900
 
 mysql (3.23.23-1potato) unstable; urgency=low
 
