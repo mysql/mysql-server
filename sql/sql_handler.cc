@@ -109,6 +109,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (cond && cond->fix_fields(thd,tables))
     return -1;
 
+  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
+
   if (keyname)
   {
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
@@ -128,8 +130,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   insert_fields(thd,tables,tables->db,tables->alias,&it);
 
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
-
   select_limit+=offset_limit;
   send_fields(thd,list,1);
 
@@ -138,6 +138,8 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   HANDLER_TABLES_HACK(thd);
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
+
+  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
   for (num_rows=0; num_rows < select_limit; )
   {

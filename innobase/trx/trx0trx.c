@@ -1517,10 +1517,10 @@ trx_print(
 
 #ifdef UNIV_LINUX
         buf += sprintf(buf, ", process no %lu", trx->mysql_process_no);
-#else
+#endif
         buf += sprintf(buf, ", OS thread id %lu",
 		       os_thread_pf(trx->mysql_thread_id));
-#endif
+
 	if (ut_strlen(trx->op_info) > 0) {
 		buf += sprintf(buf, " %s", trx->op_info);
 	}
