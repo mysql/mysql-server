@@ -107,7 +107,6 @@ TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
 					 unsigned sizeOfLongSignalMemory) {
 
-  m_transporter_service= 0;
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
