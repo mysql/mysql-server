@@ -24,12 +24,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-
 #include "mysql_priv.h"
 #include "tzfile.h"
 #include <m_string.h>
 #include <my_dir.h>
-
 
 /*
   Now we don't use abbreviations in server but we will do this in future.
@@ -53,8 +51,8 @@ typedef struct ttinfo
   uint tt_abbrind; // Index of start of abbreviation for this time type.
 #endif
   /* 
-    We don't use tt_ttisstd and tt_ttisgmt members of original elsie-code struct
-    since we don't support POSIX-style TZ descriptions in variables.
+    We don't use tt_ttisstd and tt_ttisgmt members of original elsie-code
+    struct since we don't support POSIX-style TZ descriptions in variables.
   */
 } TRAN_TYPE_INFO;
 
@@ -1337,6 +1335,7 @@ static MEM_ROOT tz_storage;
   tz_storage. So contention is low.
 */
 static pthread_mutex_t tz_LOCK;
+static bool tz_inited= 0;
 
 /*
   This two static variables are inteded for holding info about leap seconds
@@ -1410,7 +1409,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   my_bool return_val= 1;
   int res;
   uint not_used;
-
   DBUG_ENTER("my_tz_init");
 
   /*
@@ -1436,6 +1434,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   }
   init_alloc_root(&tz_storage, 32 * 1024, 0);
   VOID(pthread_mutex_init(&tz_LOCK, MY_MUTEX_INIT_FAST));
+  tz_inited= 1;
 
   /* Add 'SYSTEM' time zone to tz_names hash */
   if (!(tmp_tzname= new (&tz_storage) TZ_NAMES_ENTRY()))
@@ -1591,12 +1590,17 @@ end:
   SYNOPSIS
     my_tz_free()
 */
+
 void my_tz_free()
 {
-  VOID(pthread_mutex_destroy(&tz_LOCK));
-  hash_free(&offset_tzs);
-  hash_free(&tz_names);
-  free_root(&tz_storage, MYF(0));
+  if (tz_inited)
+  {
+    tz_inited= 0;
+    VOID(pthread_mutex_destroy(&tz_LOCK));
+    hash_free(&offset_tzs);
+    hash_free(&tz_names);
+    free_root(&tz_storage, MYF(0));
+  }
 }
 
 

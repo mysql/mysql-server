@@ -578,10 +578,11 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     if ((trans == &thd->transaction.all) && mysql_bin_log.is_open())
     {
       /* 
-         Update the binary log with a BEGIN/ROLLBACK block if we have cached some
-         queries and we updated some non-transactional table. Such cases should
-         be rare (updating a non-transactional table inside a transaction...).
-         Count disk writes to trans_log in any case.
+         Update the binary log with a BEGIN/ROLLBACK block if we have
+         cached some queries and we updated some non-transactional
+         table. Such cases should be rare (updating a
+         non-transactional table inside a transaction...).  Count disk
+         writes to trans_log in any case.
       */
       if (my_b_tell(&thd->transaction.trans_log))
       {
@@ -626,12 +627,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   simply truncate the binlog cache, we lose the part of the binlog cache where
   the update is. If we want to not lose it, we need to write the SAVEPOINT
   command and the ROLLBACK TO SAVEPOINT command to the binlog cache. The latter
-  is easy: it's just write at the end of the binlog cache, but the former should
-  be *inserted* to the place where the user called SAVEPOINT. The solution is
-  that when the user calls SAVEPOINT, we write it to the binlog cache (so no
-  need to later insert it). As transactions are never intermixed in the binary log
-  (i.e. they are serialized), we won't have conflicts with savepoint names when
-  using mysqlbinlog or in the slave SQL thread.
+  is easy: it's just write at the end of the binlog cache, but the former
+  should be *inserted* to the place where the user called SAVEPOINT. The
+  solution is that when the user calls SAVEPOINT, we write it to the binlog
+  cache (so no need to later insert it). As transactions are never intermixed
+  in the binary log (i.e. they are serialized), we won't have conflicts with
+  savepoint names when using mysqlbinlog or in the slave SQL thread.
   Then when ROLLBACK TO SAVEPOINT is called, if we updated some
   non-transactional table, we don't truncate the binlog cache but instead write
   ROLLBACK TO SAVEPOINT to it; otherwise we truncate the binlog cache (which
