@@ -39,7 +39,7 @@
    It is also possible to receive "events" triggered when data in the database in changed.
    This is done through the NdbEventOperation class.
 
-   There are also some auxiliary classes.
+   There are also some auxiliary classes, which are listed in the @ref hierarchy.
      
    The main structure of an application program is as follows:
    -# Construct and connect to a cluster using the Ndb_cluster_connection
