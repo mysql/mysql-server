@@ -206,7 +206,7 @@
 "Could not create slave thread, check system resources",
 "User %-.64s has already more than 'max_user_connections' active connections",
 "You may only use constant expressions with SET",
-"Lock wait timeout exceeded",
+"Lock wait timeout exceeded; Try restarting transaction",
 "The total number of locks exceeds the lock table size",
 "Update locks cannot be acquired during a READ UNCOMMITTED transaction",
 "DROP DATABASE not allowed while thread is holding global read lock",
@@ -214,3 +214,4 @@
 "Wrong arguments to %s",
 "%-.32s@%-.64s is not allowed to create new users",
 "Incorrect table definition; All MERGE tables must be in the same database",
+"Deadlock found when trying to get lock; Try restarting transaction",
