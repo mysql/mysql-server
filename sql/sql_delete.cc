@@ -52,7 +52,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
-  if (setup_conds(thd,table_list,&conds))
+  if (setup_conds(thd,table_list,&conds) || setup_ftfuncs(thd))
     DBUG_RETURN(-1);
 
   /* Test if the user wants to delete all rows */
@@ -130,6 +130,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
+  init_ftfuncs(thd,1);
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
   {

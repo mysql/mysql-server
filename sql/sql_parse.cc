@@ -1718,7 +1718,7 @@ mysql_execute_command(void)
 				 table_count)) && ! thd->fatal_error)
     {
       res=mysql_select(thd,tables,select_lex->item_list,
-		       select_lex->where,select_lex->ftfunc_list,
+		       select_lex->where,
 		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
 		       (ORDER *)NULL,
 		       select_lex->options | thd->options |
