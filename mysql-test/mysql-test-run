@@ -25,12 +25,18 @@ TOT_TEST=0
 USERT=0
 SYST=0
 REALT=0
+MY_TMP_DIR=$CWD/var/tmp
 TIMEFILE="$CWD/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
-GCOV_ERR=/tmp/mysqld-gcov.err  
+GCOV_MASTER_MSG=/tmp/mysqld-master-gcov.out #gcov output
+GCOV_MASTER_ERR=/tmp/mysqld-master-gcov.err  
+GCOV_SLAVE_MSG=/tmp/mysqld-slave-gcov.out #gcov output
+GCOV_SLAVE_ERR=/tmp/mysqld-slave-gcov.err  
+GCOV_SLAVE_SRC=/tmp/mysqld-slave-src/
+
+[ -d $MY_TMP_DIR ]  || mkdir -p $MY_TMP_DIR
 
 [ -z $COLUMNS ] && COLUMNS=80
 E=`expr $COLUMNS - 8`
@@ -45,12 +51,20 @@ done
 #++
 # mysqld Environment Parameters
 #--
-MYPORT=9306
-MYDDIR="$CWD/var/lib"
-MYSOCK="$CWD/var/tmp/mysql.sock"
-MYPID="$CWD/var/run/mysqld.pid"
-MYLOG="$CWD/var/log/mysqld.log"
-MYERR="$CWD/var/log/mysqld.err"
+MYRUN_DIR=var/run
+MASTER_MYPORT=9306
+MASTER_MYDDIR="$CWD/var/lib"
+MASTER_MYSOCK="$CWD/var/tmp/mysql.sock"
+MASTER_MYPID="$CWD/var/run/mysqld.pid"
+MASTER_MYLOG="$CWD/var/log/mysqld.log"
+MASTER_MYERR="$CWD/var/log/mysqld.err"
+
+SLAVE_MYPORT=9307
+SLAVE_MYDDIR="$CWD/var/slave-data"
+SLAVE_MYSOCK="$CWD/var/tmp/mysql-slave.sock"
+SLAVE_MYPID="$CWD/var/run/mysqld-slave.pid"
+SLAVE_MYLOG="$CWD/var/log/mysqld-slave.log"
+SLAVE_MYERR="$CWD/var/log/mysqld-slave.err"
 
 #++
 # Program Definitions
@@ -70,7 +84,7 @@ XARGS=`which xargs`
 MYSQLD="$BASEDIR/sql/mysqld"
 MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
-MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
+MYSQL_TEST="$MYSQL_TEST --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
 
 [ "$1" = "-gcov" ] && DO_GCOV=1
@@ -165,52 +179,97 @@ report_stats () {
 }
 
 mysql_install_db () {
-    `$INSTALL_DB`
+    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
+     $SLAVE_MYERR $MASTER_MYERR
+    [ -d $MYRUN_DIR ] || mkdir -p $MYRUN_DIR 
+    $INSTALL_DB
     if [ $? != 0 ]; then
-	error "Could not install test DBs"
+	error "Could not install master test DBs"
+	exit 1
+    fi
+    $INSTALL_DB -slave
+    if [ $? != 0 ]; then
+	error "Could not install slave test DBs"
 	exit 1
     fi
     return 0
 }
 
-gcov_clean () {
+gcov_prepare () {
     $FIND $BASEDIR -name \*.gcov \
     -or -name \*.da | $XARGS $RM
+    $RM -rf $GCOV_SLAVE_SRC
+    for d in $MYSQLD_SRC_DIRS; do
+	cd $BASEDIR/$d
+        mkdir -p $GCOV_SLAVE_SRC/$d  
+	for f in *.h *.cc *.c; do
+	  cp $f $GCOV_SLAVE_SRC/$d
+	done
+	cd $CWD
+   done    
 }
 
 gcov_collect () {
     $ECHO "Collecting source coverage info..."
-    [ -f $GCOV_MSG ] && $RM $GCOV_MSG
-    [ -f $GCOV_ERR ] && $RM $GCOV_ERR
+    [ -f $GCOV_MASTER_MSG ] && $RM $GCOV_MASTER_MSG
+    [ -f $GCOV_MASTER_ERR ] && $RM $GCOV_MASTER_ERR
+    [ -f $GCOV_SLAVE_MSG ] && $RM $GCOV_SLAVE_MSG
+    [ -f $GCOV_SLAVE_ERR ] && $RM $GCOV_SLAVE_ERR
     for d in $MYSQLD_SRC_DIRS; do
 	cd $BASEDIR/$d
 	for f in *.h *.cc *.c; do
-	    $GCOV $f 2>>$GCOV_ERR  >>$GCOV_MSG
+	    $GCOV $f 2>>$GCOV_MASTER_ERR  >>$GCOV_MASTER_MSG
+	done
+	cd $CWD
+	cd $GCOV_SLAVE_SRC/$d
+	for f in *.h *.cc *.c; do
+	    $GCOV $f 2>>$GCOV_SLAVE_ERR  >>$GCOV_SLAVE_MSG
 	done
 	cd $CWD
     done
 
-    $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
+    $ECHO "gcov master info in $GCOV_MASTER_MSG, errors in $GCOV_MASTER_ERR"
+    $ECHO "gcov slave info in $GCOV_SLAVE_MSG, errors in $GCOV_SLAVE_ERR"
 }
 
 mysql_start () {
 
     cd $BASEDIR # for gcov
-    $MYSQLD --no-defaults \
-            --skip-networking \
+    #start master
+    $MYSQLD --no-defaults --log-bin \
+    	    --server-id=1 \
             --basedir=$CWD \
-            --datadir=$MYDDIR \
-	    --pid-file=$MYPID \
-	    --socket=$MYSOCK \
-            --log=$MYLOG \
-            --language=english >> $MYERR 2>&1 &
+	    --port=$MASTER_MYPORT \
+	    --core-file \
+            --datadir=$MASTER_MYDDIR \
+	    --pid-file=$MASTER_MYPID \
+	    --socket=$MASTER_MYSOCK \
+            --log=$MASTER_MYLOG \
+	    --language=english  >> $MASTER_MYERR 2>&1 &
+    #allow master to get setteled so slave can connect right away without error
+    sleep 1
+    #start slave
+    $MYSQLD --no-defaults --server-id=2 \
+	    --master-user=root \
+	    --master-connect-retry=5 \
+	    --master-host=127.0.0.1 \
+	    --master-port=$MASTER_MYPORT \
+	    --core-file \
+            --basedir=$CWD \
+            --datadir=$SLAVE_MYDDIR \
+	    --pid-file=$SLAVE_MYPID \
+	    --port=$SLAVE_MYPORT \
+	    --socket=$SLAVE_MYSOCK \
+            --log=$SLAVE_MYLOG \
+            --language=english  >> $SLAVE_MYERR 2>&1 &
     cd $CWD
     return 1
 }
 
 mysql_stop () {
 
-    `$MYSQLADMIN --socket=$MYSOCK -u root shutdown`
+    $MYSQLADMIN --socket=$MASTER_MYSOCK -u root shutdown
+    $MYSQLADMIN --socket=$SLAVE_MYSOCK -u root shutdown
 
     return 1
 }
@@ -230,13 +289,14 @@ mysql_restart () {
 
 mysql_loadstd () {
 
-    sleep 2
+    #sleep 2
     return 1
 }
 
 [ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
 
-[ "$DO_GCOV" ] && gcov_clean # clean up stale gcov files if running with gcov
+[ "$DO_GCOV" ] && gcov_prepare 
+
 
 mysql_install_db
 
@@ -289,6 +349,9 @@ do
 	total_inc
 
     if [ $res != 0 ]; then
+        $ECHO "failed output"
+	$CAT $TIMEFILE
+	$ECHO
 	$ECHO
 	$SETCOLOR_NORMAL && $ECHO -n "Restarting mysqld	$DASHBLANK"
 	mysql_restart

@@ -1053,6 +1053,8 @@ static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
 static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  mi->pending = 0; // if we lost connection after reading a state set event
+  // we will be re-reading it, so pending needs to be cleared
   while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
   {
     sql_print_error(

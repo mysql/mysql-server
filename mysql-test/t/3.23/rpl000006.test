@@ -1,0 +1,12 @@
+source t/include/master-slave.inc;
+connection master;
+set SQL_LOG_BIN=0;
+set timestamp=200006;
+drop table if exists foo;
+create table foo(t timestamp not null,a char(1));
+insert into foo ( a) values ('F');
+@r/3.23/rpl000006.result select unix_timestamp(t) from foo;
+connection slave;
+drop table if exists foo;
+load table foo from master;
+@r/3.23/rpl000006.result select unix_timestamp(t) from foo;
