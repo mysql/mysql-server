@@ -14285,31 +14285,27 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 @menu
 * Configuring MySQL::           
-* Installing many servers::     
 * Privilege system::            
 * User Account Management::     
 * Disaster Prevention::         
 * Database Administration::     
-* KILL::                        
 * Localization::                
 * Server-Side Scripts::         
 * Client-Side Scripts::         
-* perror::                      
-* Batch Commands::              
 * Log Files::                   
-* Log file maintenance::        
 * Replication::                 
-* Replication HOWTO::           
 @end menu
 
 
-@node Configuring MySQL, Installing many servers, MySQL Database Administration, MySQL Database Administration
+@node Configuring MySQL, Privilege system, MySQL Database Administration, MySQL Database Administration
 @section Configuring MySQL
 
 
 @menu
 * Command-line options::        
 * Option files::                
+* Installing many servers::     
+* Multiple servers::            
 @end menu
 
 @node Command-line options, Option files, Configuring MySQL, Configuring MySQL
@@ -14575,7 +14571,7 @@ Print out warnings like @code{Aborted connection...} to the @code{.err} file.
 @end table
 
 
-@node Option files,  , Command-line options, Configuring MySQL
+@node Option files, Installing many servers, Command-line options, Configuring MySQL
 @subsection my.cnf Option Files
 
 @cindex default options
@@ -14747,8 +14743,8 @@ shell> my_print_defaults client mysql
 The above output contains all options for the groups 'client' and 'mysql'.
 
 
-@node Installing many servers, Privilege system, Configuring MySQL, MySQL Database Administration
-@appendixsec Installing Many Servers on the Same Machine
+@node Installing many servers, Multiple servers, Option files, Configuring MySQL
+@subsection Installing Many Servers on the Same Machine
 
 @cindex post-install, many servers
 @cindex Installing many servers
@@ -14826,7 +14822,7 @@ argument to @code{safe_mysqld}.
 * Multiple servers::            
 @end menu
 
-@node Multiple servers,  , Installing many servers, Installing many servers
+@node Multiple servers,  , Installing many servers, Configuring MySQL
 @subsection Running Multiple MySQL Servers on the Same Machine
 
 @cindex multiple servers
@@ -14954,7 +14950,7 @@ home directory. @xref{Option files}.
 @end itemize
 
 
-@node Privilege system, User Account Management, Installing many servers, MySQL Database Administration
+@node Privilege system, User Account Management, Configuring MySQL, MySQL Database Administration
 @section General Security Issues and the MySQL Access Privilege System
 
 @cindex system, security
@@ -18798,7 +18794,7 @@ If a table has been compressed with @code{myisampack}, @code{myisamchk
 information and a description of what it means.
 
 
-@node Database Administration, KILL, Disaster Prevention, MySQL Database Administration
+@node Database Administration, Localization, Disaster Prevention, MySQL Database Administration
 @section Database Administration Language Reference
 
 
@@ -18806,6 +18802,8 @@ information and a description of what it means.
 * OPTIMIZE TABLE::              
 * ANALYZE TABLE::               
 * FLUSH::                       
+* KILL::                        
+* SHOW::                        
 @end menu
 
 @node OPTIMIZE TABLE, ANALYZE TABLE, Database Administration, Database Administration
@@ -18890,7 +18888,7 @@ If the table hasn't changed since the last @code{ANALYZE TABLE} command,
 the table will not be analyzed again.
 
 
-@node FLUSH,  , ANALYZE TABLE, Database Administration
+@node FLUSH, KILL, ANALYZE TABLE, Database Administration
 @subsection @code{FLUSH} Syntax
 
 @findex FLUSH
@@ -18949,8 +18947,8 @@ replication. @xref{Replication SQL}.
 
 
 
-@node KILL, Localization, Database Administration, MySQL Database Administration
-@section @code{KILL} Syntax
+@node KILL, SHOW, FLUSH, Database Administration
+@subsection @code{KILL} Syntax
 
 @findex KILL
 
@@ -19008,7 +19006,7 @@ write is aborted with an disk full error message.
 * SHOW::                        
 @end menu
 
-@node SHOW,  , KILL, KILL
+@node SHOW,  , KILL, Database Administration
 @subsection @code{SHOW} Syntax
 
 @c FIX more index hits needed
@@ -19959,7 +19957,7 @@ Create Table: CREATE TABLE t (
 @ref{SET OPTION, , @code{SET OPTION SQL_QUOTE_SHOW_CREATE}}.
 
 
-@node Localization, Server-Side Scripts, KILL, MySQL Database Administration
+@node Localization, Server-Side Scripts, Database Administration, MySQL Database Administration
 @section MySQL Localization and International Usage
 
 @menu
@@ -21217,7 +21215,7 @@ binaries includes:
 @end multitable
 
 
-@node Client-Side Scripts, perror, Server-Side Scripts, MySQL Database Administration
+@node Client-Side Scripts, Log Files, Server-Side Scripts, MySQL Database Administration
 @section MySQL Client-Side Scripts and Utilities
 
 @menu
@@ -21228,6 +21226,8 @@ binaries includes:
 * mysqlhotcopy::                
 * mysqlimport::                 
 * mysqlshow::                   
+* perror::                      
+* Batch Commands::              
 @end menu
 
 
@@ -22205,7 +22205,7 @@ $ mysql -e 'SELECT * FROM imptest' test
 @end example
 
 
-@node mysqlshow,  , mysqlimport, Client-Side Scripts
+@node mysqlshow, perror, mysqlimport, Client-Side Scripts
 @subsection Showing Databases, Tables, and Columns
 
 @cindex databases, displaying
@@ -22248,8 +22248,8 @@ adding an extra @code{%} last on the command line (as a separate
 argument).
 
 
-@node perror, Batch Commands, Client-Side Scripts, MySQL Database Administration
-@section perror, Explaining Error Codes
+@node perror, Batch Commands, mysqlshow, Client-Side Scripts
+@subsection perror, Explaining Error Codes
 
 @cindex error messages, displaying
 @cindex perror
@@ -22272,8 +22272,8 @@ code, or an MyISAM/ISAM table handler error code. The error messages
 are mostly system dependent.
 
 
-@node Batch Commands, Log Files, perror, MySQL Database Administration
-@section How to Run SQL Commands from a Text File
+@node Batch Commands,  , perror, Client-Side Scripts
+@subsection How to Run SQL Commands from a Text File
 
 @c FIX add the 'source' command
 
@@ -22303,7 +22303,7 @@ shell> mysql < text_file
 @xref{Client-Side Scripts}.
 
 
-@node Log Files, Log file maintenance, Batch Commands, MySQL Database Administration
+@node Log Files, Replication, Client-Side Scripts, MySQL Database Administration
 @section The MySQL Log Files
 
 @cindex Log files
@@ -22330,6 +22330,7 @@ switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 * Update log::                  
 * Binary log::                  
 * Slow query log::              
+* Log file maintenance::        
 @end menu
 
 
@@ -22528,7 +22529,7 @@ This is to ensure that you can recreate an exact copy of your tables by
 applying the log on a backup.
 
 
-@node Slow query log,  , Binary log, Log Files
+@node Slow query log, Log file maintenance, Binary log, Log Files
 @subsection The Slow Query Log
 
 @cindex slow query log
@@ -22557,8 +22558,8 @@ You are using @code{--log-long-format} then also queries that are not
 using indexes are printed. @xref{Command-line options}.
 
 
-@node Log file maintenance, Replication, Log Files, MySQL Database Administration
-@section Log File Maintenance
+@node Log file maintenance,  , Slow query log, Log Files
+@subsection Log File Maintenance
 
 @cindex files, log
 @cindex maintaining, log files
@@ -22611,7 +22612,7 @@ shell> mysqladmin flush-logs
 and then take a backup and remove @file{mysql.old}.
 
 
-@node Replication, Replication HOWTO, Log file maintenance, MySQL Database Administration
+@node Replication,  , Log Files, MySQL Database Administration
 @section Replication in MySQL
 
 @cindex replication
@@ -22622,6 +22623,12 @@ and then take a backup and remove @file{mysql.old}.
 @menu
 * Replication Intro::           
 * Replication Implementation::  
+* Replication HOWTO::           
+* Replication Features::        
+* Replication Options::         
+* Replication SQL::             
+* Replication FAQ::             
+* Replication Problems::        
 @end menu
 
 This chapter describes the various replication features in @strong{MySQL}.
@@ -22662,7 +22669,7 @@ the system by doing a backup on a slave instead of doing it on the
 master. @xref{Backup}.
 
 
-@node Replication Implementation,  , Replication Intro, Replication
+@node Replication Implementation, Replication HOWTO, Replication Intro, Replication
 @subsection Replication Implementation Overview
 
 @cindex master-slave setup
@@ -22700,8 +22707,8 @@ any given time.
 The next section explains the master/slave setup process in more detail.
 
 
-@node Replication HOWTO,  , Replication, MySQL Database Administration
-@section How To Set Up Replication
+@node Replication HOWTO, Replication Features, Replication Implementation, Replication
+@subsection How To Set Up Replication
 
 Below is a quick description of how to set up complete replication on
 your current @strong{MySQL} server. It assumes you want to replicate all
@@ -22835,7 +22842,7 @@ it is preferred that you use @code{CHANGE MASTER TO} command.
 * Replication Problems::        
 @end menu
 
-@node Replication Features, Replication Options, Replication HOWTO, Replication HOWTO
+@node Replication Features, Replication Options, Replication HOWTO, Replication
 @subsection Replication Features and Known Problems
 
 @cindex options, replication
@@ -22976,7 +22983,7 @@ to get rid of old logs while the slave is running.
 @end itemize
 
 
-@node Replication Options, Replication SQL, Replication Features, Replication HOWTO
+@node Replication Options, Replication SQL, Replication Features, Replication
 @subsection Replication Options in my.cnf
 
 If you are using replication, we recommend you to use @strong{MySQL} Version
@@ -23132,7 +23139,7 @@ the read.
 @end multitable
 
 
-@node Replication SQL, Replication FAQ, Replication Options, Replication HOWTO
+@node Replication SQL, Replication FAQ, Replication Options, Replication
 @subsection SQL Commands Related to Replication
 
 @cindex SQL commands, replication
@@ -23239,7 +23246,7 @@ last log on the list), backup all the logs you are about to delete
 @end multitable
 
 
-@node Replication FAQ, Replication Problems, Replication SQL, Replication HOWTO
+@node Replication FAQ, Replication Problems, Replication SQL, Replication
 @subsection Replication FAQ
 
 @cindex @code{Binlog_Dump}
@@ -23493,7 +23500,7 @@ system into @strong{MySQL}, but until it is ready, you will have to
 create your own monitoring tools.
 
 
-@node Replication Problems,  , Replication FAQ, Replication HOWTO
+@node Replication Problems,  , Replication FAQ, Replication
 @subsection Troubleshooting Replication
 
 If you have followed the instructions, and your replication setup is not
