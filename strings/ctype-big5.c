@@ -6287,6 +6287,43 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
+
+/*
+  Returns a well formed length of a BIG5 string.
+  CP950 and HKSCS additional characters are also accepted.
+*/
+static
+uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
+                             const char *b, const char *e, uint pos)
+{
+  const char *b0= b;
+  const char *emb= e - 1; /* Last possible end of an MB character */
+  while (pos && b < e)
+  {
+    /*
+      Cast to int8 for extra safety. "char" can be unsigned
+      by default on some platforms.
+    */
+    if (((int8)b[0]) >= 0)
+    {
+      /* Single byte ascii character */
+      b++;
+    }
+    else  if ((b < emb) && isbig5code((uchar)*b, (uchar)b[1]))
+    {
+      /* Double byte character */
+      b+= 2;
+    }
+    else
+    {
+      /* Wrong byte sequence */
+      break;
+    }
+  }
+  return b - b0;
+}
+
+
 static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 {
   NULL,			/* init */
@@ -6308,7 +6345,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   mbcharlen_big5,
   my_numchars_mb,
   my_charpos_mb,
-  my_well_formed_len_mb,
+  my_well_formed_len_big5,
   my_lengthsp_8bit,
   my_numcells_8bit,
   my_mb_wc_big5,	/* mb_wc       */
