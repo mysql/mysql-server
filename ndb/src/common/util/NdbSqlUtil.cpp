@@ -582,7 +582,7 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
         cs->cset != 0 &&
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   case Type::Varchar:
@@ -618,7 +618,7 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
         cs->coll->strnncollsp != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   case Type::Varchar:
@@ -633,7 +633,7 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
         cs->coll->strnncollsp != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   default:

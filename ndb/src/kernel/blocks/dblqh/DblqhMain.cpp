@@ -912,6 +912,10 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 /* *********************************************************> */
 /*  LQHFRAGREQ: Create new fragments for a table. Sender DICT */
 /* *********************************************************> */
+
+// this unbelievable mess could be replaced by one signal to LQH
+// and execute direct to local DICT to get everything at once
+
 void Dblqh::execLQHFRAGREQ(Signal* signal) 
 {
   jamEntry();
@@ -1049,6 +1053,11 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   addfragptr.p->lh3DistrBits = tlhstar;
   addfragptr.p->tableType = tableType;
   addfragptr.p->primaryTableId = primaryTableId;
+  //
+  addfragptr.p->tup1Connectptr = RNIL;
+  addfragptr.p->tup2Connectptr = RNIL;
+  addfragptr.p->tux1Connectptr = RNIL;
+  addfragptr.p->tux2Connectptr = RNIL;
 
   if (DictTabInfo::isTable(tableType) ||
       DictTabInfo::isHashIndex(tableType)) {
@@ -1329,15 +1338,21 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
 {
   jamEntry();
   addfragptr.i = signal->theData[0];
+  // implies that operation was released on the other side
+  const bool lastAttr = signal->theData[1];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
   switch (addfragptr.p->addfragStatus) {
   case AddFragRecord::TUP_ATTR_WAIT1:
     jam();
+    if (lastAttr)
+      addfragptr.p->tup1Connectptr = RNIL;
     addfragptr.p->addfragStatus = AddFragRecord::TUP_ATTR_WAIT2;
     sendAddAttrReq(signal);
     break;
   case AddFragRecord::TUP_ATTR_WAIT2:
     jam();
+    if (lastAttr)
+      addfragptr.p->tup2Connectptr = RNIL;
     if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
       addfragptr.p->addfragStatus = AddFragRecord::TUX_ATTR_WAIT1;
       sendAddAttrReq(signal);
@@ -1347,11 +1362,15 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
     break;
   case AddFragRecord::TUX_ATTR_WAIT1:
     jam();
+    if (lastAttr)
+      addfragptr.p->tux1Connectptr = RNIL;
     addfragptr.p->addfragStatus = AddFragRecord::TUX_ATTR_WAIT2;
     sendAddAttrReq(signal);
     break;
   case AddFragRecord::TUX_ATTR_WAIT2:
     jam();
+    if (lastAttr)
+      addfragptr.p->tux2Connectptr = RNIL;
     goto done_with_attr;
     break;
   done_with_attr:
@@ -1455,6 +1474,7 @@ Dblqh::sendAddAttrReq(Signal* signal)
       jam();
       TupAddAttrConf* tupconf = (TupAddAttrConf*)signal->getDataPtrSend();
       tupconf->userPtr = addfragptr.i;
+      tupconf->lastAttr = false;
       sendSignal(reference(), GSN_TUP_ADD_ATTCONF,
           signal, TupAddAttrConf::SignalLength, JBB);
       return;
@@ -1485,6 +1505,7 @@ Dblqh::sendAddAttrReq(Signal* signal)
       jam();
       TuxAddAttrConf* tuxconf = (TuxAddAttrConf*)signal->getDataPtrSend();
       tuxconf->userPtr = addfragptr.i;
+      tuxconf->lastAttr = false;
       sendSignal(reference(), GSN_TUX_ADD_ATTRCONF,
           signal, TuxAddAttrConf::SignalLength, JBB);
       return;
@@ -1549,6 +1570,40 @@ void Dblqh::fragrefLab(Signal* signal,
   return;
 }//Dblqh::fragrefLab()
 
+/*
+ * Abort on-going ops.
+ */
+void Dblqh::abortAddFragOps(Signal* signal)
+{
+  fragptr.i = addfragptr.p->fragmentPtr;
+  ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
+  signal->theData[0] = (Uint32)-1;
+  if (addfragptr.p->tup1Connectptr != RNIL) {
+    jam();
+    signal->theData[1] = addfragptr.p->tup1Connectptr;
+    sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ, signal, 2, JBB);
+    addfragptr.p->tup1Connectptr = RNIL;
+  }
+  if (addfragptr.p->tup2Connectptr != RNIL) {
+    jam();
+    signal->theData[1] = addfragptr.p->tup2Connectptr;
+    sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ, signal, 2, JBB);
+    addfragptr.p->tup2Connectptr = RNIL;
+  }
+  if (addfragptr.p->tux1Connectptr != RNIL) {
+    jam();
+    signal->theData[1] = addfragptr.p->tux1Connectptr;
+    sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ, signal, 2, JBB);
+    addfragptr.p->tux1Connectptr = RNIL;
+  }
+  if (addfragptr.p->tux2Connectptr != RNIL) {
+    jam();
+    signal->theData[1] = addfragptr.p->tux2Connectptr;
+    sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ, signal, 2, JBB);
+    addfragptr.p->tux2Connectptr = RNIL;
+  }
+}
+
 /* ************>> */
 /*  ACCFRAGREF  > */
 /* ************>> */
@@ -1582,6 +1637,27 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
   fragptr.i = addfragptr.p->fragmentPtr;
   ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
   addfragptr.p->addfragErrorCode = terrorCode;
+
+  // no operation to release, just add some jams
+  switch (addfragptr.p->addfragStatus) {
+  case AddFragRecord::WAIT_TWO_TUP:
+    jam();
+    break;
+  case AddFragRecord::WAIT_ONE_TUP:
+    jam();
+    break;
+  case AddFragRecord::WAIT_TWO_TUX:
+    jam();
+    break;
+  case AddFragRecord::WAIT_ONE_TUX:
+    jam();
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+  abortAddFragOps(signal);
+
   const Uint32 ref = addfragptr.p->dictBlockref;
   const Uint32 senderData = addfragptr.p->dictConnectptr;
   const Uint32 errorCode = addfragptr.p->addfragErrorCode;
@@ -1605,11 +1681,38 @@ void Dblqh::execTUXFRAGREF(Signal* signal)
 void Dblqh::execTUP_ADD_ATTRREF(Signal* signal) 
 {
   jamEntry();
-
   addfragptr.i = signal->theData[0];
   ptrCheckGuard(addfragptr, caddfragrecFileSize, addFragRecord);
   terrorCode = signal->theData[1];
   addfragptr.p->addfragErrorCode = terrorCode;
+
+  // operation was released on the other side
+  switch (addfragptr.p->addfragStatus) {
+  case AddFragRecord::TUP_ATTR_WAIT1:
+    jam();
+    ndbrequire(addfragptr.p->tup1Connectptr != RNIL);
+    addfragptr.p->tup1Connectptr = RNIL;
+    break;
+  case AddFragRecord::TUP_ATTR_WAIT2:
+    jam();
+    ndbrequire(addfragptr.p->tup2Connectptr != RNIL);
+    addfragptr.p->tup2Connectptr = RNIL;
+    break;
+  case AddFragRecord::TUX_ATTR_WAIT1:
+    jam();
+    ndbrequire(addfragptr.p->tux1Connectptr != RNIL);
+    addfragptr.p->tux1Connectptr = RNIL;
+    break;
+  case AddFragRecord::TUX_ATTR_WAIT2:
+    jam();
+    ndbrequire(addfragptr.p->tux2Connectptr != RNIL);
+    addfragptr.p->tux2Connectptr = RNIL;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+  abortAddFragOps(signal);
   
   const Uint32 Ref = addfragptr.p->dictBlockref;
   const Uint32 senderData = addfragptr.p->dictConnectptr;

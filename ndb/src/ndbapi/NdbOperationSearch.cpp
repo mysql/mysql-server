@@ -142,7 +142,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     CHARSET_INFO* cs = tAttrInfo->m_cs;
     if (cs != 0) {
       // current limitation: strxfrm does not increase length
-      assert(cs->strxfrm_multiply == 1);
+      assert(cs->strxfrm_multiply <= 1);
       unsigned n =
       (*cs->coll->strnxfrm)(cs,
                             (uchar*)xfrmData, sizeof(xfrmData),

@@ -575,6 +575,7 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
+  void abortAddFragOp(Signal* signal);
   void dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData);
 
   /*
@@ -684,6 +685,7 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const ScanOp&);
   friend class NdbOut& operator<<(NdbOut&, const Index&);
   friend class NdbOut& operator<<(NdbOut&, const Frag&);
+  friend class NdbOut& operator<<(NdbOut&, const FragOp&);
   friend class NdbOut& operator<<(NdbOut&, const NodeHandle&);
   FILE* debugFile;
   NdbOut debugOut;
