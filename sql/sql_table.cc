@@ -394,6 +394,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
+    if (check_column_name(sql_field->field_name))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
+      DBUG_RETURN(-1);
+    }
     while ((dup_field=it2++) != sql_field)
     {
       if (my_strcasecmp(sql_field->field_name, dup_field->field_name) == 0)
@@ -830,12 +835,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   while ((item=it++))
   {
     create_field *cr_field;
-    if (strlen(item->name) > NAME_LEN ||
-	check_column_name(item->name))
-    {
-      my_error(ER_WRONG_COLUMN_NAME,MYF(0),item->name);
-      DBUG_RETURN(0);
-    }
     Field *field;
     if (item->type() == Item::FUNC_ITEM)
       field=item->tmp_table_field(&tmp_table);
