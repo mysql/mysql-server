@@ -242,6 +242,13 @@ public:
 };
 
 
+class Item_num: public Item
+{
+public:
+  virtual void neg()= 0;
+};
+
+
 class st_select_lex;
 class Item_ident :public Item
 {
@@ -398,10 +405,10 @@ public:
   void print(String *str) { str->append('?'); }
 };
 
-class Item_int :public Item
+class Item_int :public Item_num
 {
 public:
-  const longlong value;
+  longlong value;
   Item_int(int32 i,uint length=11) :value((longlong) i)
     { max_length=length; fixed= 1; }
 #ifdef HAVE_LONG_LONG
@@ -425,12 +432,16 @@ public:
   Item *new_item() { return new Item_int(name,value,max_length); }
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() { fixed= 1; }
-  void print(String *strclass Item_uint :public Item_int
+  void print(String *str);
+  void neg() { value= -value; }
+};
+
+
+class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) 
-    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) 
+    Item_int(str_arg, (longlong) strtoull(str_arg, (char**) 0,10), length) 
     { unsigned_flag= 1; }
   Item_uint(uint32 i) :Item_int((longlong) i, 10) 
     { unsigned_flag= 1; }
@@ -443,10 +454,10 @@ public:
 };
 
 
-class Item_real :public Item
+class Item_real :public Item_num
 {
 public:
-  const double value;
+  double value;
   // Item_real() :value(0) {}
   Item_real(const char *str_arg,uint length) :value(my_atof(str_arg))
   {
@@ -474,6 +485,7 @@ public:
   String *val_str(String*);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
+  void neg() { value= -value; }
 };
 
 
