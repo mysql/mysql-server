@@ -2951,8 +2951,6 @@ static void create_new_thread(THD *thd)
     DBUG_VOID_RETURN;
   }
   pthread_mutex_lock(&LOCK_thread_count);
-  if (thread_count-delayed_insert_threads > max_used_connections)
-    max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
 
   thd->real_id=pthread_self();			// Keep purify happy
@@ -2981,6 +2979,8 @@ static void create_new_thread(THD *thd)
       thread_count++;
       thread_created++;
       threads.append(thd);
+      if (thread_count-delayed_insert_threads > max_used_connections)
+        max_used_connections=thread_count-delayed_insert_threads;
       DBUG_PRINT("info",(("creating thread %d"), thd->thread_id));
       thd->connect_time = time(NULL);
       if ((error=pthread_create(&thd->real_id,&connection_attrib,

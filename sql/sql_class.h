@@ -528,7 +528,7 @@ public:
 
   void set_n_backup_item_arena(Statement *set, Statement *backup);
   void restore_backup_item_arena(Statement *set, Statement *backup);
-  void Statement::set_item_arena(Statement *set);
+  void set_item_arena(Statement *set);
 };
 
 

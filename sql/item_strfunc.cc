@@ -2554,7 +2554,7 @@ String *Item_func_compress::val_str(String *str)
    size of the destination buffer, which must be at least 0.1% larger than
    sourceLen plus 12 bytes.
 
-   Proportion 120/100 founded by Sinica with help of procedure
+   Proportion 120/100 founded by Sinisa with help of procedure
    compress(compress(compress(...)))
    I.e. zlib give number 'at least'..
   */

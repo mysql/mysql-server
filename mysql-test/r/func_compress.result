@@ -65,6 +65,6 @@ NULL
 50000
 NULL
 Warnings:
-Error	1259	ZLIB: Input data was corrupted for zlib
+Error	1259	ZLIB: Input data corrupted
 Error	1256	Too big size of uncompressed data. The maximum size is 1048576. (probably, length of uncompressed data was corrupted)
 drop table t1;
