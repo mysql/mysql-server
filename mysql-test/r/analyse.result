@@ -14,4 +14,4 @@ drop table t1,t2;
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED								No tables used
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
