@@ -84,7 +84,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SCAN_NEXTREQ                28
 #define GSN_SCAN_TABCONF                29
-#define GSN_SCAN_TABINFO                30
+// 30 unused
 #define GSN_SCAN_TABREF                 31
 #define GSN_SCAN_TABREQ                 32
 #define GSN_KEYINFO20                   33

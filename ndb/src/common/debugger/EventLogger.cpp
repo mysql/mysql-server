@@ -135,7 +135,7 @@ EventLogger::defEventLogMatrixSize = sizeof(EventLogger::defEventLogMatrix)/
  */
 const EventLogger::EventCategoryName EventLogger::eventCategoryNames[] = {
   { LogLevel::llStartUp,     "STARTUP"     },
-  { LogLevel::llStatistic,   "STATISTIC"   },
+  { LogLevel::llStatistic,   "STATISTICS"  },
   { LogLevel::llCheckpoint,  "CHECKPOINT"  },
   { LogLevel::llNodeRestart, "NODERESTART" },
   { LogLevel::llConnection,  "CONNECTION"  },

@@ -728,10 +728,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }
       goto InvalidSignal;
     }
-  case GSN_SCAN_TABINFO: 
-    {
-      goto InvalidSignal;
-    }
   case GSN_KEYINFO20: {
     tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
