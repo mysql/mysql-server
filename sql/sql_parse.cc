@@ -48,7 +48,6 @@
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
-char *memdup_mysql(struct st_mysql *mysql, const char*data, int length);
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
@@ -1420,8 +1419,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
 #else
-      thd->query_rest= (char*)memdup_mysql(thd->mysql, packet, length);
-      thd->query_rest_length= length;
+      /*
+	'packet' can point inside the query_rest's buffer
+	so we have to do memmove here
+       */
+      if (thd->query_rest.length() > length)
+      {
+	memmove(thd->query_rest.c_ptr(), packet, length);
+	thd->query_rest.length(length);
+      }
+      else
+	thd->query_rest.copy(length);
       break;
 #endif /*EMBEDDED_LIBRARY*/
     }
