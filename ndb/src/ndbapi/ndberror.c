@@ -259,6 +259,7 @@ ErrorBundle ErrorCodes[] = {
    * Application error
    */
   { 823,  AE, "Too much attrinfo from application in tuple manager" },
+  { 831,  AE, "Too many nullable/bitfields in table definition" },
   { 876,  AE, "876" },
   { 877,  AE, "877" },
   { 878,  AE, "878" },
@@ -270,7 +271,7 @@ ErrorBundle ErrorCodes[] = {
   { 897,  AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
   { 4256, AE, "Must call Ndb::init() before this function" },
   { 4257, AE, "Tried to read too much - too many getValue calls" },
-
+  
   /** 
    * Scan application errors
    */
