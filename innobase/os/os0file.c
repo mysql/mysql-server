@@ -387,15 +387,17 @@ os_file_lock(
 /*=========*/
 				/* out: 0 on success */
 	int		fd,	/* in: file descriptor */
-	const char*	name)	/* in: file name */
+	const char*	name,	/* in: file name */
+        uint lock_type)         /* in: lock_type */
 {
 	struct flock lk;
-	lk.l_type = F_WRLCK;
+	lk.l_type = lock_type;
 	lk.l_whence = SEEK_SET;
 	lk.l_start = lk.l_len = 0;
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 		fprintf(stderr,
-			"InnoDB: Unable to lock %s", name);
+			"InnoDB: Unable to lock %s with lock %d, error: %d",
+                        name, lock_type, errno);
 		perror (": fcntl");
 		close(fd);
 		return(-1);
@@ -862,7 +864,7 @@ try_again:
 			goto try_again;
 		}
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name)) {
+	} else if (os_file_lock(file, name, F_WRLCK)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -971,7 +973,7 @@ os_file_create_simple_no_error_handling(
 	if (file == -1) {
 		*success = FALSE;
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name)) {
+	} else if (os_file_lock(file, name, F_WRLCK)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -1182,7 +1184,7 @@ try_again:
 			goto try_again;
 		}
 #ifdef USE_FILE_LOCK
-	} else if (os_file_lock(file, name)) {
+	} else if (os_file_lock(file, name, F_WRLCK)) {
 		*success = FALSE;
 		file = -1;
 #endif
@@ -1383,6 +1385,9 @@ os_file_close(
 #else
 	int	ret;
 
+#ifdef USE_FILE_LOCK
+        (void) os_file_lock(file, "unknown", F_UNLCK);
+#endif
 	ret = close(file);
 
 	if (ret == -1) {
@@ -1419,6 +1424,9 @@ os_file_close_no_error_handling(
 #else
 	int	ret;
 
+#ifdef USE_FILE_LOCK
+        (void) os_file_lock(file, "unknown", F_UNLCK);
+#endif
 	ret = close(file);
 
 	if (ret == -1) {
