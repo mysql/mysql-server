@@ -49456,6 +49456,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed a bug in optimiser when a range specified makes index grouping impossible 
+@item
 Fixed a rare bug when fulltext index is present and no tables are used
 @item
 Added privileges @code{CREATE TEMPORARY TABLES}, @code{LOCK TABLES},
