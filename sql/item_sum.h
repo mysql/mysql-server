@@ -88,7 +88,7 @@ public:
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual const char *func_name() const { return "?"; }
   virtual Item *result_item(Field *field)
-  { return new Item_field(field);}
+    { return new Item_field(field, 1);}
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -114,7 +114,8 @@ public:
   Item_sum_num(List<Item> &list) :Item_sum(list) {}
   Item_sum_num(THD *thd, Item_sum_num *item) :Item_sum(thd, item) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
-  longlong val_int() { return (longlong) val(); } /* Real as default */
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return (longlong) val(); } /* Real as default */
   String *val_str(String*str);
   void reset_field();
 };
@@ -126,7 +127,7 @@ public:
   Item_sum_int(Item *item_par) :Item_sum_num(item_par) {}
   Item_sum_int(List<Item> &list) :Item_sum_num(list) {}
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
-  double val() { return (double) val_int(); }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
@@ -270,7 +271,7 @@ public:
   Item_avg_field(Item_sum_avg *item);
   enum Type type() const { return FIELD_AVG_ITEM; }
   double val();
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { /* can't be fix_fields()ed */ return (longlong) val(); }
   bool is_null() { (void) val_int(); return null_value; }
   String *val_str(String*);
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -310,7 +311,7 @@ public:
   Item_variance_field(Item_sum_variance *item);
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val();
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { /* can't be fix_fields()ed */ return (longlong) val(); }
   String *val_str(String*);
   bool is_null() { (void) val_int(); return null_value; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -555,7 +556,8 @@ class Item_sum_udf_float :public Item_udf_sum
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_udf_sum(thd, item) {}
-  longlong val_int() { return (longlong) Item_sum_udf_float::val(); }
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return (longlong) Item_sum_udf_float::val(); }
   double val();
   String *val_str(String*str);
   void fix_length_and_dec() { fix_num_length_and_dec(); }
@@ -572,7 +574,8 @@ public:
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_udf_sum(thd, item) {}
   longlong val_int();
-  double val() { return (double) Item_sum_udf_int::val_int(); }
+  double val()
+    { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=21; }
@@ -617,7 +620,7 @@ class Item_sum_udf_float :public Item_sum_num
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  double val() { return 0.0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0.0; }
   void clear() {}
   bool add() { return 0; }  
   void update_field() {}
@@ -632,8 +635,8 @@ public:
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  longlong val_int() { return 0; }
-  double val() { return 0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return 0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0; }
   void clear() {}
   bool add() { return 0; }  
   void update_field() {}
@@ -647,9 +650,10 @@ public:
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str *item)
     :Item_sum_num(thd, item) {}
-  String *val_str(String *) { null_value=1; return 0; }
-  double val() { null_value=1; return 0.0; }
-  longlong val_int() { null_value=1; return 0; }
+  String *val_str(String *)
+    { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
+  double val() { DBUG_ASSERT(fixed == 1); null_value=1; return 0.0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() { maybe_null=1; max_length=0; }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

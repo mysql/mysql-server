@@ -113,7 +113,7 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 	if (arg->type() == Item::FIELD_ITEM)
 	  ((Item_field*) arg)->field= result_field_tmp++;
 	else
-	  sum_item->args[i]= new Item_field(result_field_tmp++);
+	  sum_item->args[i]= new Item_field(result_field_tmp++, 1);
       }
     }
   }
@@ -137,6 +137,7 @@ bool Item_sum::walk (Item_processor processor, byte *argument)
 String *
 Item_sum_num::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double nr=val();
   if (null_value)
     return 0;
@@ -148,6 +149,7 @@ Item_sum_num::val_str(String *str)
 String *
 Item_sum_int::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong nr= val_int();
   if (null_value)
     return 0;
@@ -267,6 +269,7 @@ bool Item_sum_sum::add()
 
 double Item_sum_sum::val()
 {
+  DBUG_ASSERT(fixed == 1);
   return sum;
 }
 
@@ -298,6 +301,7 @@ bool Item_sum_count::add()
 
 longlong Item_sum_count::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   return (longlong) count;
 }
 
@@ -330,6 +334,7 @@ bool Item_sum_avg::add()
 
 double Item_sum_avg::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if (!count)
   {
     null_value=1;
@@ -346,6 +351,7 @@ double Item_sum_avg::val()
 
 double Item_sum_std::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double tmp= Item_sum_variance::val();
   return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
@@ -386,6 +392,7 @@ bool Item_sum_variance::add()
 
 double Item_sum_variance::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if (!count)
   {
     null_value=1;
@@ -441,6 +448,7 @@ void Item_sum_variance::update_field()
 
 double Item_sum_hybrid::val()
 {
+  DBUG_ASSERT(fixed == 1);
   int err;
   if (null_value)
     return 0.0;
@@ -466,6 +474,7 @@ double Item_sum_hybrid::val()
 
 longlong Item_sum_hybrid::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
   if (hybrid_type == INT_RESULT)
@@ -477,6 +486,7 @@ longlong Item_sum_hybrid::val_int()
 String *
 Item_sum_hybrid::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
   switch (hybrid_type) {
@@ -611,6 +621,7 @@ bool Item_sum_max::add()
 
 longlong Item_sum_bit::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   return (longlong) bits;
 }
 
@@ -944,6 +955,7 @@ Item_avg_field::Item_avg_field(Item_sum_avg *item)
 
 double Item_avg_field::val()
 {
+  // fix_fields() never calls for this Item
   double nr;
   longlong count;
   float8get(nr,field->ptr);
@@ -961,6 +973,7 @@ double Item_avg_field::val()
 
 String *Item_avg_field::val_str(String *str)
 {
+  // fix_fields() never calls for this Item
   double nr=Item_avg_field::val();
   if (null_value)
     return 0;
@@ -975,6 +988,7 @@ Item_std_field::Item_std_field(Item_sum_std *item)
 
 double Item_std_field::val()
 {
+  // fix_fields() never calls for this Item
   double tmp= Item_variance_field::val();
   return tmp <= 0.0 ? 0.0 : sqrt(tmp);
 }
@@ -990,6 +1004,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item)
 
 double Item_variance_field::val()
 {
+  // fix_fields() never calls for this Item
   double sum,sum_sqr;
   longlong count;
   float8get(sum,field->ptr);
@@ -1009,6 +1024,7 @@ double Item_variance_field::val()
 
 String *Item_variance_field::val_str(String *str)
 {
+  // fix_fields() never calls for this Item
   double nr=val();
   if (null_value)
     return 0;
@@ -1356,6 +1372,7 @@ bool Item_sum_count_distinct::add()
 
 longlong Item_sum_count_distinct::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (!table)					// Empty query
     return LL(0);
   if (use_tree)
@@ -1402,6 +1419,7 @@ Item *Item_sum_udf_float::copy_or_same(THD* thd)
 
 double Item_sum_udf_float::val()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
@@ -1410,6 +1428,7 @@ double Item_sum_udf_float::val()
 
 String *Item_sum_udf_float::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
@@ -1426,6 +1445,7 @@ Item *Item_sum_udf_int::copy_or_same(THD* thd)
 
 longlong Item_sum_udf_int::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_int::val_int");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
@@ -1435,6 +1455,7 @@ longlong Item_sum_udf_int::val_int()
 
 String *Item_sum_udf_int::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong nr=val_int();
   if (null_value)
     return 0;
@@ -1462,6 +1483,7 @@ Item *Item_sum_udf_str::copy_or_same(THD* thd)
 
 String *Item_sum_udf_str::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_str::str");
   String *res=udf.val_str(str,&str_value);
   null_value = !res;
@@ -1966,6 +1988,7 @@ void Item_func_group_concat::make_unique()
 
 String* Item_func_group_concat::val_str(String* str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
   if (tree_mode)

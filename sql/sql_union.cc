@@ -229,7 +229,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Field **field;
       for (field= table->field; *field; field++)
       {
-	Item_field *item= new Item_field(*field);
+	Item_field *item= new Item_field(*field, 1);
 	if (item_list.push_back(item))
 	  DBUG_RETURN(-1);
 #ifndef DBUG_OFF

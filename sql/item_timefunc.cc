@@ -672,6 +672,7 @@ bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
 
 longlong Item_func_period_add::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulong period=(ulong) args[0]->val_int();
   int months=(int) args[1]->val_int();
 
@@ -686,6 +687,7 @@ longlong Item_func_period_add::val_int()
 
 longlong Item_func_period_diff::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulong period1=(ulong) args[0]->val_int();
   ulong period2=(ulong) args[1]->val_int();
 
@@ -699,6 +701,7 @@ longlong Item_func_period_diff::val_int()
 
 longlong Item_func_to_days::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
@@ -707,6 +710,7 @@ longlong Item_func_to_days::val_int()
 
 longlong Item_func_dayofyear::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (get_arg0_date(&ltime,0))
     return 0;
@@ -716,6 +720,7 @@ longlong Item_func_dayofyear::val_int()
 
 longlong Item_func_dayofmonth::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_date(&ltime,1);
   return (longlong) ltime.day;
@@ -723,6 +728,7 @@ longlong Item_func_dayofmonth::val_int()
 
 longlong Item_func_month::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_date(&ltime,1);
   return (longlong) ltime.month;
@@ -731,6 +737,7 @@ longlong Item_func_month::val_int()
 
 String* Item_func_monthname::val_str(String* str)
 {
+  DBUG_ASSERT(fixed == 1);
   const char *month_name;
   uint   month=(uint) Item_func_month::val_int();
 
@@ -750,6 +757,7 @@ String* Item_func_monthname::val_str(String* str)
 
 longlong Item_func_quarter::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_date(&ltime,1);
   return (longlong) ((ltime.month+2)/3);
@@ -757,6 +765,7 @@ longlong Item_func_quarter::val_int()
 
 longlong Item_func_hour::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_time(&ltime);
   return ltime.hour;
@@ -764,6 +773,7 @@ longlong Item_func_hour::val_int()
 
 longlong Item_func_minute::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_time(&ltime);
   return ltime.minute;
@@ -772,6 +782,7 @@ longlong Item_func_minute::val_int()
 
 longlong Item_func_second::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_time(&ltime);
   return ltime.second;
@@ -817,6 +828,7 @@ uint week_mode(uint mode)
 
 longlong Item_func_week::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint year;
   TIME ltime;
   if (get_arg0_date(&ltime,0))
@@ -829,6 +841,7 @@ longlong Item_func_week::val_int()
 
 longlong Item_func_yearweek::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   uint year,week;
   TIME ltime;
   if (get_arg0_date(&ltime,0))
@@ -844,6 +857,7 @@ longlong Item_func_yearweek::val_int()
 
 longlong Item_func_weekday::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   ulong tmp_value=(ulong) args[0]->val_int();
   if ((null_value=(args[0]->null_value || !tmp_value)))
     return 0; /* purecov: inspected */
@@ -854,6 +868,7 @@ longlong Item_func_weekday::val_int()
 
 String* Item_func_dayname::val_str(String* str)
 {
+  DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
   const char *name;
 
@@ -868,6 +883,7 @@ String* Item_func_dayname::val_str(String* str)
 
 longlong Item_func_year::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   (void) get_arg0_date(&ltime,1);
   return (longlong) ltime.year;
@@ -876,6 +892,7 @@ longlong Item_func_year::val_int()
 
 longlong Item_func_unix_timestamp::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
     return (longlong) current_thd->query_start();
   if (args[0]->type() == FIELD_ITEM)
@@ -895,6 +912,7 @@ longlong Item_func_unix_timestamp::val_int()
 
 longlong Item_func_time_to_sec::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   longlong seconds;
   (void) get_arg0_time(&ltime);
@@ -1056,6 +1074,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
 
 String *Item_date::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return (String *) 0;
@@ -1082,6 +1101,7 @@ int Item_date::save_in_field(Field *field, bool no_conversions)
 
 longlong Item_date::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return 0;
@@ -1127,6 +1147,7 @@ void Item_func_curdate::fix_length_and_dec()
 
 String *Item_func_curdate::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (str->alloc(11))
   {
     null_value= 1;
@@ -1165,7 +1186,8 @@ void Item_func_curdate_utc::store_now_in_tm(time_t now, struct tm *now_tm)
 
 
 String *Item_func_curtime::val_str(String *str)
-{ 
+{
+  DBUG_ASSERT(fixed == 1);
   str_value.set(buff, buff_length, &my_charset_bin);
   return &str_value;
 }
@@ -1215,6 +1237,7 @@ void Item_func_curtime_utc::store_now_in_tm(time_t now, struct tm *now_tm)
 
 String *Item_func_now::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str_value.set(buff,buff_length, &my_charset_bin);
   return &str_value;
 }
@@ -1290,6 +1313,7 @@ void Item_func_now_utc::store_now_in_tm(time_t now, struct tm *now_tm)
 
 String *Item_func_sec_to_time::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong seconds=(longlong) args[0]->val_int();
   uint sec;
   TIME ltime;
@@ -1320,6 +1344,7 @@ String *Item_func_sec_to_time::val_str(String *str)
 
 longlong Item_func_sec_to_time::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong seconds=args[0]->val_int();
   longlong sign=1;
   if ((null_value=args[0]->null_value))
@@ -1428,6 +1453,7 @@ uint Item_func_date_format::format_length(const String *format)
 
 String *Item_func_date_format::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *format;
   TIME l_time;
   uint size;
@@ -1477,6 +1503,7 @@ null_date:
 
 String *Item_func_from_unixtime::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   struct tm tm_tmp,*start;
   time_t tmp=(time_t) args[0]->val_int();
   TIME ltime;
@@ -1509,6 +1536,7 @@ null_date:
 
 longlong Item_func_from_unixtime::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   time_t tmp=(time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
@@ -1685,6 +1713,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
 
 String *Item_date_add_interval::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   enum date_time_format_types format;
 
@@ -1708,6 +1737,7 @@ String *Item_date_add_interval::val_str(String *str)
 
 longlong Item_date_add_interval::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   longlong date;
   if (Item_date_add_interval::get_date(&ltime,0))
@@ -1777,6 +1807,7 @@ void Item_extract::fix_length_and_dec()
 
 longlong Item_extract::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   long neg;
   if (date_value)
@@ -1888,6 +1919,7 @@ void Item_char_typecast::print(String *str)
 
 String *Item_char_typecast::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   String *res, *res1;
   uint32 length;
 
@@ -1944,6 +1976,7 @@ void Item_char_typecast::fix_length_and_dec()
 
 String *Item_datetime_typecast::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (!get_arg0_date(&ltime,1) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
@@ -1965,6 +1998,7 @@ bool Item_time_typecast::get_time(TIME *ltime)
 
 String *Item_time_typecast::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
 
   if (!get_arg0_time(&ltime) &&
@@ -1987,6 +2021,7 @@ bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 
 String *Item_date_typecast::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
 
   if (!get_arg0_date(&ltime,1) && !str->alloc(11))
@@ -2007,6 +2042,7 @@ String *Item_date_typecast::val_str(String *str)
 
 String *Item_func_makedate::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME l_time;
   long daynr=  (long) args[1]->val_int();
   long yearnr= (long) args[0]->val_int();
@@ -2072,6 +2108,7 @@ void Item_func_add_time::fix_length_and_dec()
 
 String *Item_func_add_time::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME l_time1, l_time2, l_time3;
   bool is_time= 0;
   long microseconds, seconds, days= 0;
@@ -2193,6 +2230,7 @@ void Item_func_add_time::print(String *str)
 
 String *Item_func_timediff::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   longlong seconds;
   long microseconds;
   long days;
@@ -2263,6 +2301,7 @@ null_date:
 
 String *Item_func_maketime::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
 
   long hour=   (long) args[0]->val_int();
@@ -2301,6 +2340,7 @@ String *Item_func_maketime::val_str(String *str)
 
 longlong Item_func_microsecond::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
   if (!get_arg0_time(&ltime))
     return ltime.second_part;
@@ -2310,6 +2350,7 @@ longlong Item_func_microsecond::val_int()
 
 String *Item_func_get_format::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   const char *format_name;
   KNOWN_DATE_TIME_FORMAT *format;
   String *val= args[0]->val_str(str);
@@ -2499,6 +2540,7 @@ null_date:
 
 String *Item_func_str_to_date::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   TIME ltime;
 
   if (Item_func_str_to_date::get_date(&ltime, TIME_FUZZY_DATE))

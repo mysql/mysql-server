@@ -2279,7 +2279,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
-	Item_field *item= new Item_field(field);
+	Item_field *item= new Item_field(field, 0);
 	if (!found++)
 	  (void) it->replace(item);		// Replace '*'
 	else
@@ -2376,12 +2376,12 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 			     t1->field[i]->field_name,
 			     t2->field[j]->field_name))
 	  {
-	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i]),
-					       new Item_field(t2->field[j]));
+	    // fix_fields() call will be made for tmp by cond_and->fix_fields
+	    Item_func_eq *tmp=new Item_func_eq(new Item_field(t1->field[i], 1),
+					       new Item_field(t2->field[j],
+							      1));
 	    if (!tmp)
 	      DBUG_RETURN(1);
-	    tmp->fix_length_and_dec();	// Update cmp_type
-	    tmp->const_item_cache=0;
 	    /* Mark field used for table cache */
 	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
 	    cond_and->list.push_back(tmp);
@@ -2391,8 +2391,11 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	  }
 	}
       }
-      cond_and->used_tables_cache= t1->map | t2->map;
+      //cond_and->used_tables_cache= t1->map | t2->map;
       thd->lex->current_select->cond_count+= cond_and->list.elements;
+      if (cond_and->fix_fields(thd, tables, (Item**)&cond_and) ||
+	  cond_and->check_cols(1))
+	DBUG_RETURN(1);
       if (!table->outer_join)			// Not left join
       {
 	if (!(*conds=and_conds(*conds, cond_and)))

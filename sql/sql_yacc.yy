@@ -4342,6 +4342,11 @@ purge_option:
 	    YYABORT;
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
+	  /*
+	    it is OK olny emulate fix_fieds, because we need only
+            value of constant
+	  */
+	  tmp->Item::fix_fields(0,0,0);
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
 	  Lex->purge_time= (ulong) tmp->val_int();
 	}
@@ -4476,7 +4481,13 @@ text_string:
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
-	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    /*
+	      it is OK olny emulate fix_fieds, because we need only
+              value of constant
+	    */
+	    $$= tmp ?
+	      tmp->Item::fix_fields(0,0,0), tmp->val_str((String*) 0) :
+	      (String*) 0;
 	  }
 	;
 
@@ -4506,7 +4517,11 @@ param_marker:
 signed_literal:
 	literal		{ $$ = $1; }
 	| '+' NUM_literal { $$ = $2; }
-	| '-' NUM_literal { $$ = new Item_func_neg($2); }
+	| '-' NUM_literal
+	  {
+	    /* $2 it's Item_int -> we can get value without fix_fields call */
+	    $$= new Item_int(-$2->val_int(), $2->max_length+1);
+	  }
 	;
 
 
@@ -4519,7 +4534,13 @@ literal:
 	| UNDERSCORE_CHARSET HEX_NUM
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
-	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    /*
+	      it is OK olny emulate fix_fieds, because we need only
+              value of constant
+	    */
+	    String *str= tmp ?
+	      tmp->Item::fix_fields(0,0,0), tmp->val_str((String*) 0) :
+	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,
 				Lex->charset);

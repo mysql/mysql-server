@@ -995,9 +995,9 @@ inline Item *and_conds(Item *a,Item *b)
 {
   if (!b) return a;
   if (!a) return b;
-  Item *cond=new Item_cond_and(a,b);
+  Item *cond= new Item_cond_and(a,b);
   if (cond)
-    cond->update_used_tables();
+    cond->fix_fields(current_thd, 0, &cond);
   return cond;
 }
 

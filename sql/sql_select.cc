@@ -1425,9 +1425,14 @@ JOIN::exec()
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
 	else					// This should never happen
+	{
 	  if (!(curr_table->select->cond=
-		new Item_cond_and(curr_table->select->cond, sort_table_cond)))
+		new Item_cond_and(curr_table->select->cond,
+				  sort_table_cond)) ||
+	      curr_table->select->cond->fix_fields(thd, tables_list,
+						   &curr_table->select->cond))
 	    DBUG_VOID_RETURN;
+	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
@@ -5003,7 +5008,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+	  ((Item_sum*) item)->args[i]= new Item_field(new_field, 1);
 	}
       }
     }
@@ -6750,7 +6755,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 
 
 static COND *
-make_cond_for_table(COND *cond,table_map tables,table_map used_table)
+make_cond_for_table(COND *cond, table_map tables, table_map used_table)
 {
   if (used_table && !(cond->used_tables() & used_table))
     return (COND*) 0;				// Already checked
@@ -6776,8 +6781,8 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
       case 1:
 	return new_cond->argument_list()->head();
       default:
-	new_cond->used_tables_cache=((Item_cond*) cond)->used_tables_cache &
-	  tables;
+	if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
+	  return (COND*) 0;
 	return new_cond;
       }
     }
@@ -6795,7 +6800,8 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      new_cond->used_tables_cache=((Item_cond_or*) cond)->used_tables_cache;
+      if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
+	return (COND*) 0;
       new_cond->top_level_item();
       return new_cond;
     }
@@ -7299,8 +7305,10 @@ static bool fix_having(JOIN *join, Item **having)
     if (!table->select->cond)
       table->select->cond=sort_table_cond;
     else					// This should never happen
-      if (!(table->select->cond=new Item_cond_and(table->select->cond,
-						  sort_table_cond)))
+      if (!(table->select->cond= new Item_cond_and(table->select->cond,
+						   sort_table_cond)) ||
+	  table->select->cond->fix_fields(join->thd, join->tanles_list,
+					  &table->select->cond))
 	return 1;
     table->select_cond=table->select->cond;
     table->select_cond->top_level_item();
@@ -8578,7 +8586,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
 	  item_field= ((Item_sum*) item)->result_item(field);
 	else
-	  item_field= (Item*) new Item_field(field);
+	  item_field= (Item*) new Item_field(field, 1);
 	if (!item_field)
 	  return TRUE;				// Fatal error
 	item_field->name= item->name;		/*lint -e613 */
@@ -8753,7 +8761,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
 			      fieldnr-1];
     Item *value=join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field),value));
+    cond->add(new Item_func_equal(new Item_field(field, 1), value));
   }
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
