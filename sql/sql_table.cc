@@ -404,7 +404,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_USING_OTHER_HANDLER,
 			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_table_typelib.type_names[new_db_type],
+			ha_get_table_type(new_db_type),
 			table_name);
   }
   db_options=create_info->table_options;
@@ -2016,7 +2016,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_USING_OTHER_HANDLER,
 			ER(ER_WARN_USING_OTHER_HANDLER),
-			ha_table_typelib.type_names[new_db_type],
+			ha_get_table_type(new_db_type),
 			new_name);
   }
   if (create_info->row_type == ROW_TYPE_NOT_USED)
