@@ -1514,7 +1514,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 			conds, og_num, order, group, having, proc_param,
 			select_lex, unit, tables_and_fields_initied))
       {
-	DBUG_RETURN(-1);
+	goto err;
       }
     }
     join->select_options= select_options;
@@ -1529,15 +1529,12 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 		      conds, og_num, order, group, having, proc_param,
 		      select_lex, unit, tables_and_fields_initied))
     {
-      DBUG_RETURN(-1);
+      goto err;
     }
   }
 
   if ((err= join->optimize()))
   {
-    if (err == -1)
-      DBUG_RETURN(join->error);
-    DBUG_ASSERT(err == 1);
     goto err;					// 1
   }
 
