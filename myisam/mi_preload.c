@@ -88,7 +88,8 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
         if (mi_test_if_nod(buff))
         {
           if (key_cache_insert(*share->keycache,
-                               share->kfile, pos, (byte*) buff, block_length))
+                               share->kfile, pos, DFLT_INIT_HITS, 
+                              (byte*) buff, block_length))
 	    goto err;
 	}
         pos+= block_length;
@@ -99,7 +100,8 @@ int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves)
     else
     {
       if (key_cache_insert(*share->keycache,
-                           share->kfile, pos, (byte*) buff, length))
+                           share->kfile, pos, DFLT_INIT_HITS,
+                           (byte*) buff, length))
 	goto err;
       pos+= length;
     }

@@ -59,8 +59,10 @@
 #include "ha_innodb.h"
 #endif
 
-ulong dflt_key_buff_size;
+ulonglong dflt_key_buff_size;
 uint dflt_key_cache_block_size;
+uint dflt_key_cache_division_limit;
+uint dflt_key_cache_age_threshold;
 
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
@@ -141,6 +143,10 @@ sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
 sys_var_key_buffer_size	sys_key_buffer_size("key_buffer_size");
 sys_var_key_cache_block_size  sys_key_cache_block_size("key_cache_block_size");
+sys_var_key_cache_division_limit
+  sys_key_cache_division_limit("key_cache_division_limit");
+sys_var_key_cache_age_threshold
+  sys_key_cache_age_threshold("key_cache_age_threshold");
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -395,6 +401,8 @@ sys_var *sys_variables[]=
   &sys_join_buffer_size,
   &sys_key_buffer_size,
   &sys_key_cache_block_size,
+  &sys_key_cache_division_limit,
+  &sys_key_cache_age_threshold,
   &sys_last_insert_id,
   &sys_local_infile,
   &sys_log_binlog,
@@ -553,6 +561,10 @@ struct show_var_st init_vars[]= {
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {sys_key_cache_block_size.name,   (char*) &sys_key_cache_block_size,
+                                                         	    SHOW_SYS},
+  {sys_key_cache_division_limit.name,   (char*) &sys_key_cache_division_limit,
+                                                         	    SHOW_SYS},
+  {sys_key_cache_age_threshold.name,   (char*) &sys_key_cache_age_threshold,
                                                          	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
@@ -1421,7 +1433,7 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
 
 static LEX_STRING default_key_cache_base= {(char *) DEFAULT_KEY_CACHE_NAME, 7};
 
-static KEY_CACHE_VAR zero_key_cache= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static KEY_CACHE_VAR zero_key_cache= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
 {
@@ -1443,7 +1455,7 @@ byte *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
     key_cache= &zero_key_cache;
   return (byte*) key_cache + offset ;
 }
-  
+    
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   int rc;
@@ -1504,6 +1516,48 @@ bool sys_var_key_cache_block_size::update(THD *thd, set_var *var)
   if (key_cache->cache)
     /* Do not build a new key cache here */ 
     return (bool) (ha_resize_key_cache(key_cache));
+  return 0;
+}
+
+bool sys_var_key_cache_division_limit::update(THD *thd, set_var *var)
+{
+  ulong tmp= var->value->val_int();
+
+  if (!base_name.length)
+    base_name= default_key_cache_base;
+  KEY_CACHE_VAR *key_cache= get_key_cache(&base_name);
+                            
+  if (!key_cache && !(key_cache= create_key_cache(base_name.str,
+				                  base_name.length)))
+    return 1;
+ 
+  key_cache->division_limit=
+    (ulong) getopt_ull_limit_value(tmp, option_limits);
+
+  if (key_cache->cache)
+    /* Do not build a new key cache here */ 
+    return (bool) (ha_change_key_cache_param(key_cache));
+  return 0;
+}
+
+bool sys_var_key_cache_age_threshold::update(THD *thd, set_var *var)
+{
+  ulong tmp= var->value->val_int();
+
+  if (!base_name.length)
+    base_name= default_key_cache_base;
+  KEY_CACHE_VAR *key_cache= get_key_cache(&base_name);
+                            
+  if (!key_cache && !(key_cache= create_key_cache(base_name.str,
+				                  base_name.length)))
+    return 1;
+ 
+  key_cache->division_limit=
+    (ulong) getopt_ull_limit_value(tmp, option_limits);
+
+  if (key_cache->cache)
+    /* Do not build a new key cache here */ 
+    return (bool) (ha_change_key_cache_param(key_cache));
   return 0;
 }
 

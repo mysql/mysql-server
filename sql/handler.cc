@@ -1009,8 +1009,17 @@ int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
 {
   if (key_cache->cache)
   {
-    return !resize_key_cache(&key_cache->cache, 
+    return !resize_key_cache(&key_cache->cache, key_cache->block_size,
                            key_cache->buff_size);
+  }
+  return 0;
+}
+
+int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache)
+{
+  if (key_cache->cache)
+  {
+    change_key_cache_param(key_cache->cache);
   }
   return 0;
 }

@@ -548,11 +548,12 @@ extern int _mi_search_next(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 extern int _mi_search_first(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
 extern int _mi_search_last(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
 extern uchar *_mi_fetch_keypage(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t page,
-				uchar *buff,int return_buffer);
+				int level,uchar *buff,int return_buffer);
 extern int _mi_write_keypage(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t page,
-			     uchar *buff);
-extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos);
-extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo);
+			     int level, uchar *buff);
+extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos,
+                      int level);
+extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo,int level);
 extern uint _mi_make_key(MI_INFO *info,uint keynr,uchar *key,
 			 const byte *record,my_off_t filepos);
 extern uint _mi_pack_key(MI_INFO *info,uint keynr,uchar *key,uchar *old,

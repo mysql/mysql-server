@@ -389,6 +389,7 @@ int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 int ha_key_cache(KEY_CACHE_VAR *key_cache);
 int ha_resize_key_cache(KEY_CACHE_VAR *key_cache);
+int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache);
 int ha_end_key_cache(KEY_CACHE_VAR *key_cache);
 int ha_start_stmt(THD *thd); 
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
