@@ -844,6 +844,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!field)					// If field is not checked
   {
     TABLE_LIST *where= 0;
+    bool upward_lookup= 0;
     Field *tmp= (Field *)not_found_field;
     if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
 	not_found_field)
@@ -873,6 +874,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     sl;
 	     sl= (prev_unit= sl->master_unit())->outer_select())
 	{
+	  upward_lookup= 1;
 	  table_list= (last= sl)->get_table_list();
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
@@ -917,8 +919,17 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	return 1;
       else if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
-	// call to return error code
-	find_field_in_tables(thd, this, tables, &where, 1);
+	if (upward_lookup)
+	{
+	  // We can't say exactly what absend table or field
+	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+			  full_name(), thd->where);
+	}
+	else
+	{
+	  // Call to report error
+	  find_field_in_tables(thd, this, tables, &where, 1);
+	}
 	return -1;
       }
       else if (refer != (Item **)not_found_item)
@@ -1429,6 +1440,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
+    bool upward_lookup= 0;
     SELECT_LEX_UNIT *prev_unit= thd->lex.current_select->master_unit();
     SELECT_LEX *sl= prev_unit->outer_select();
     /*
@@ -1447,6 +1459,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 				  REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
+      upward_lookup= 1;
       Field *tmp= (Field*) not_found_field;
       /*
 	We can't find table field in table list of current select,
@@ -1505,11 +1518,20 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	return -1;
       else if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
-	// Call to report error
-	find_item_in_list(this,
-			  *(thd->lex.current_select->get_item_list()),
-			  &counter,
-			  REPORT_ALL_ERRORS);
+	if (upward_lookup)
+	{
+	  // We can't say exactly what absend (table or field)
+	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+			  full_name(), thd->where);
+	}
+	else
+	{
+	  // Call to report error
+	  find_item_in_list(this,
+			    *(thd->lex.current_select->get_item_list()),
+			    &counter,
+			    REPORT_ALL_ERRORS);
+	}
         ref= 0;
 	return 1;
       }

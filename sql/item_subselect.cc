@@ -170,7 +170,7 @@ void Item_subselect::update_used_tables()
   if (!engine->uncacheable())
   {
     // did all used tables become ststic?
-    if ((used_tables_cache & ~engine->upper_select_const_tables()))
+    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
       const_item_cache= 1;
   }
 }
@@ -542,7 +542,6 @@ String *Item_in_subselect::val_str(String *str)
 
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
-					    Item *left_expr,
 					    compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
@@ -617,7 +616,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex.current_select, *up;
     thd->lex.current_select= up= current->return_after_parsing();
-    if (left_expr->fix_fields(thd, up->get_table_list(), 0))
+    if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
       thd->lex.current_select= current;
       DBUG_RETURN(RES_ERROR);
@@ -652,10 +651,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   Item *item;
 
   item= (Item*) select_lex->item_list.head();
@@ -746,8 +745,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 }
 
 Item_subselect::trans_res
-Item_in_subselect::row_value_transformer(JOIN *join,
-					 Item *left_expr)
+Item_in_subselect::row_value_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
@@ -777,13 +775,12 @@ Item_in_subselect::row_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
-
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
   uint n= left_expr->cols();
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   select_lex->setup_ref_array(thd,
 			      select_lex->order_list.elements +
 			      select_lex->group_list.elements);
@@ -832,9 +829,9 @@ Item_in_subselect::select_transformer(JOIN *join)
 {
   transformed= 1;
   if (left_expr->cols() == 1)
-    return single_value_transformer(join, left_expr,
+    return single_value_transformer(join,
 				    &Item_bool_func2::eq_creator);
-  return row_value_transformer(join, left_expr);
+  return row_value_transformer(join);
 }
 
 
@@ -857,7 +854,7 @@ Item_allany_subselect::select_transformer(JOIN *join)
   transformed= 1;
   if (upper_not)
     upper_not->show= 1;
-  return single_value_transformer(join, left_expr, func);
+  return single_value_transformer(join, func);
 }
 
 

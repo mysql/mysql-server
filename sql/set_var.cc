@@ -2279,7 +2279,11 @@ int set_var::update(THD *thd)
 
 int set_var_user::check(THD *thd)
 {
-  return (user_var_item->fix_fields(thd,0, (Item**) 0) ||
+  /*
+    Item_func_set_user_var can't substitute something else on its place =>
+    0 can be passed as last argument
+  */
+  return (user_var_item->fix_fields(thd, 0, (Item**) 0) ||
 	  user_var_item->check()) ? -1 : 0;
 }
 
