@@ -727,6 +727,23 @@ public:
   Time_zone **get_tz_ptr(THD *thd, enum_var_type type);
 };
 
+
+class sys_var_max_user_conn : public sys_var_thd
+{
+public:
+  sys_var_max_user_conn(const char *name_arg):
+    sys_var_thd(name_arg) {}
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+  bool check_default(enum_var_type type)
+  {
+    return type != OPT_GLOBAL || !option_limits;
+  }
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE type() { return SHOW_LONG; }
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
