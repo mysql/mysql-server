@@ -37,7 +37,9 @@ void unireg_init(ulong options)
 #ifdef USE_MY_ATOF
   init_my_atof();			/* use our atof */
 #endif
+#ifndef EMBEDDED_LIBRARY
   my_abort_hook=unireg_abort;		/* Abort with close of databases */
+#endif
 
   VOID(strmov(reg_ext,".frm"));
   for (i=0 ; i < 6 ; i++)		// YYMMDDHHMMSS
