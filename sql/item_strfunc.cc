@@ -2790,8 +2790,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	if (len < WKB_HEADER_SIZE)
 	  goto ret;
 
-	data+=WKB_HEADER_SIZE;
-	len-=WKB_HEADER_SIZE;
+	data-=WKB_HEADER_SIZE;
+	len+=WKB_HEADER_SIZE;
 	if (str->reserve(len,512))
 	  goto ret;
 	str->q_append(data,len);
