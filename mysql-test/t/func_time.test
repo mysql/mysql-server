@@ -12,6 +12,8 @@ select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 select sec_to_time(time_to_sec('-838:59:59'));
 select now()-curdate()*1000000-curtime();
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
+select strcmp(localtime(),concat(current_date()," ",current_time()));
+select strcmp(localtimestamp(),concat(current_date()," ",current_time()));
 select date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w");
 select date_format("1997-01-02", concat("%M %W %D ","%Y %y %m %d %h %i %s %w"));
 select dayofmonth("1997-01-02"),dayofmonth(19970323);
