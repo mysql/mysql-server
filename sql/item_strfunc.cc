@@ -1928,7 +1928,7 @@ String *Item_func_conv_charset::val_str(String *str)
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
   
-  dmaxlen=arg->length()*(to->mbmaxlen?to->mbmaxlen:1)+1;
+  dmaxlen=arg->length()*to->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
@@ -1970,7 +1970,7 @@ outp:
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
+  max_length = args[0]->max_length*conv_charset->mbmaxlen;
   set_charset(conv_charset);
 }
 
@@ -2002,7 +2002,7 @@ String *Item_func_conv_charset3::val_str(String *str)
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
   
-  dmaxlen=arg->length()*(to_charset->mbmaxlen?to_charset->mbmaxlen:1)+1;
+  dmaxlen=arg->length()*to_charset->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;

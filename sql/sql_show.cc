@@ -1424,7 +1424,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,convert,cs[0]->name);
       net_store_data(&packet2,(uint32) cs[0]->number);
       net_store_data(&packet2,(uint32) cs[0]->strxfrm_multiply);
-      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen ? cs[0]->mbmaxlen : 1));
+      net_store_data(&packet2,(uint32) (cs[0]->mbmaxlen));
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
          goto err;

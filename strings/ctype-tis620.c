@@ -702,7 +702,7 @@ CHARSET_INFO my_charset_tis620 =
     my_strnncoll_tis620,
     my_strnxfrm_tis620,
     my_like_range_tis620,
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */

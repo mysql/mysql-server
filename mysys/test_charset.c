@@ -46,7 +46,7 @@ static void _print_csinfo(CHARSET_INFO *cs)
          cs->strnxfrm,
          cs->like_range);
   printf("multi-byte: %3s (%d, %p, %p, %p)\n",
-         cs->mbmaxlen ? "yes" : "no",
+         cs->mbmaxlen > 1 ? "yes" : "no",
          cs->mbmaxlen,
          cs->ismbchar,
          cs->ismbhead,
