@@ -3746,17 +3746,41 @@ simple_ident:
 	}
 	| ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $1.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$1.str,$3.str) : (Item*) new Item_ref(NullS,$1.str,$3.str);
 	}
 	| '.' ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $2.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field(NullS,$2.str,$4.str) : (Item*) new Item_ref(NullS,$2.str,$4.str);
 	}
 	| ident '.' ident '.' ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  THD *thd= YYTHD;
+	  LEX *lex= &thd->lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (sel->no_table_names_allowed)
+	  {
+	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
+			    ER(ER_TABLENAME_NOT_ALLOWED_HERE),
+			    MYF(0), $3.str, thd->where);
+	  }
 	  $$ = !sel->create_refs || sel->get_in_sum_expr() > 0 ? (Item*) new Item_field((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str) : (Item*) new Item_ref((YYTHD->client_capabilities & CLIENT_NO_SCHEMA ? NullS :$1.str),$3.str,$5.str);
 	};
 
@@ -4541,7 +4565,8 @@ optional_order_or_limit:
       	/* Empty */ {}
 	|
 	  {
-	    LEX *lex=Lex;
+	    THD *thd= YYTHD;
+	    LEX *lex= &thd->lex;
 	    if (!lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
@@ -4553,8 +4578,15 @@ optional_order_or_limit:
 	    lex->current_select= sel->master_unit();
 	    lex->current_select->select_limit=
 	      lex->thd->variables.select_limit;
+	    lex->current_select->no_table_names_allowed= 1;
+	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit
+          {
+	    THD *thd= YYTHD;
+	    thd->lex.current_select->no_table_names_allowed= 0;
+	    thd->where= "";
+          }
 	;
 
 order_or_limit:
