@@ -74,12 +74,12 @@ public:
   void open(const char *log_name,enum_log_type log_type,
 	    const char *new_name=0);
   void new_file(void);
-  void write(THD *thd, enum enum_server_command command,const char *format,...);
-  void write(THD *thd, const char *query, uint query_length,
+  bool write(THD *thd, enum enum_server_command command,const char *format,...);
+  bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
-  void write(Query_log_event* event_info); // binary log write
-  void write(Load_log_event* event_info);
-
+  bool write(Query_log_event* event_info); // binary log write
+  bool write(Load_log_event* event_info);
+  bool write(IO_CACHE *cache);
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);

@@ -102,6 +102,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & PROCESS_ACL));
+  bool using_transactions;
   uint value_count;
   uint save_time_stamp;
   ulong counter = 1;
@@ -254,18 +255,21 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       thd->insert_id(id);			// For update log
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
-    if (info.copied || info.deleted)
+    using_transactions=table->file->has_transactions();
+    if ((info.copied || info.deleted) && (error == 0 || !using_transactions))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
-	mysql_bin_log.write(&qinfo);
+	Query_log_event qinfo(thd, thd->query, using_transactions);
+	if (mysql_bin_log.write(&qinfo) && using_transactions)
+	  error=1;
       }
-      if (!table->file->has_transactions())
+      if (!using_transactions)
 	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
-    error=ha_autocommit_or_rollback(thd,error);
+    if (using_transactions)
+      error=ha_autocommit_or_rollback(thd,error);
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
@@ -1265,7 +1269,8 @@ bool select_insert::send_eof()
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
+      Query_log_event qinfo(thd, thd->query,
+			    table->file->has_transactions());
       mysql_bin_log.write(&qinfo);
     }
     return 0;

@@ -33,12 +33,13 @@ set-variable	= thread_stack=64K
 set-variable	= table_cache=4
 set-variable	= sort_buffer=64K
 set-variable	= net_buffer_length=2K
+server-id	= 1
 
 # Uncomment the following if you are NOT using BDB tables
 #skip-bdb
 
 # Uncomment the following if you want to log updates
-#log-update
+#log-bin
 
 [mysqldump]
 quick

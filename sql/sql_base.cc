@@ -454,15 +454,15 @@ void close_temporary_tables(THD *thd)
     next=table->next;
     close_temporary(table);
   }
-  if(query && mysql_bin_log.is_open())
-    {
-      uint save_query_len = thd->query_length;
-      *--p = 0;
-      thd->query_length = (uint)(p-query);
-      Query_log_event qinfo(thd, query);
-      mysql_bin_log.write(&qinfo);
-      thd->query_length = save_query_len;
-    }
+  if (query && mysql_bin_log.is_open())
+  {
+    uint save_query_len = thd->query_length;
+    *--p = 0;
+    thd->query_length = (uint)(p-query);
+    Query_log_event qinfo(thd, query);
+    mysql_bin_log.write(&qinfo);
+    thd->query_length = save_query_len;
+  }
   thd->temporary_tables=0;
 }
 

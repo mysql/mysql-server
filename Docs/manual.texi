@@ -712,7 +712,7 @@ Solving some common problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::
+* Binary log::			The binary log
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -9117,6 +9117,32 @@ bin\mysqld-nt --remove                # remove MySQL as a service
 By invoking @code{mysqld} directly.
 @end itemize
 
+When the @code{mysqld} daemon starts up, it changes directory to the
+data directory.  This is where it expects to write log files and the pid
+(process ID) file, and where it expects to find databases.
+
+The data directory location is hardwired in when the distribution is
+compiled.  However, if @code{mysqld} expects to find the data directory
+somewhere other than where it really is on your system, it will not work
+properly.  If you have problems with incorrect paths, you can find out
+what options @code{mysqld} allows and what the default path settings are by
+invoking @code{mysqld} with the @code{--help} option.  You can override the
+defaults by specifying the correct pathnames as command-line arguments to
+@code{mysqld}.  (These options can be used with @code{safe_mysqld} as well.)
+
+Normally you should need to tell @code{mysqld} only the base directory under
+which @strong{MySQL} is installed.  You can do this with the @code{--basedir}
+option.  You can also use @code{--help} to check the effect of changing path
+options (note that @code{--help} @emph{must} be the final option of the
+@code{mysqld} command).  For example:
+
+@example
+shell> EXECDIR/mysqld --basedir=/usr/local --help
+@end example
+
+Once you determine the path settings you want, start the server without
+the @code{--help} option.
+
 Whichever method you use to start the server, if it fails to start up
 correctly, check the log file to see if you can find out why.  Log files
 are located in the data directory (typically
@@ -9145,32 +9171,6 @@ recover your databases.  To be able to continue, you should move away
 the old Berkeley DB log file from the database directory to some other
 place, where you can later examine these.  The log files are named
 @file{log.0000000001}, where the number will increase over time.
-
-When the @code{mysqld} daemon starts up, it changes directory to the
-data directory.  This is where it expects to write log files and the pid
-(process ID) file, and where it expects to find databases.
-
-The data directory location is hardwired in when the distribution is
-compiled.  However, if @code{mysqld} expects to find the data directory
-somewhere other than where it really is on your system, it will not work
-properly.  If you have problems with incorrect paths, you can find out
-what options @code{mysqld} allows and what the default path settings are by
-invoking @code{mysqld} with the @code{--help} option.  You can override the
-defaults by specifying the correct pathnames as command-line arguments to
-@code{mysqld}.  (These options can be used with @code{safe_mysqld} as well.)
-
-Normally you should need to tell @code{mysqld} only the base directory under
-which @strong{MySQL} is installed.  You can do this with the @code{--basedir}
-option.  You can also use @code{--help} to check the effect of changing path
-options (note that @code{--help} @emph{must} be the final option of the
-@code{mysqld} command).  For example:
-
-@example
-shell> EXECDIR/mysqld --basedir=/usr/local --help
-@end example
-
-Once you determine the path settings you want, start the server without
-the @code{--help} option.
 
 If you get the following error, it means that some other program (or another
 @code{mysqld} server) is already using the TCP/IP port or socket
@@ -9221,6 +9221,10 @@ C:\mysql\bin\mysqld --standalone --debug
 This will not run in the background and it should also write a trace in
 @file{\mysqld.trace}, which may help you determine the source of your
 problems. @xref{Windows}.
+
+If you are using BDB (Berkeley DB) tables, you should familiarize
+yourself with the different BDB specific startup options. @xref{BDB start}.
+
 
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and Stopping MySQL Automatically
@@ -9746,6 +9750,10 @@ The following lists tell what you have to watch out for when upgrading to
 Version 3.23:
 
 @itemize @bullet
+@item
+If you do a @code{DROP DATABASE} on a symbolic linked database, both the
+link and the original database is deleted.  (This didn't happen in 3.22
+because configure didn't detect the @code{readlink} system call).
 @item
 @code{OPTIMIZE TABLE} now only works for @strong{MyISAM} tables.
 For other table types, you can use @code{ALTER TABLE} to optimize the table.
@@ -17464,7 +17472,9 @@ DROP DATABASE [IF EXISTS] db_name
 @end example
 
 @code{DROP DATABASE} drops all tables in the database and deletes the
-database.  @strong{Be VERY careful with this command!}
+database.  If you do a @code{DROP DATABASE} on a symbolic linked
+database, both the link and the original database is deleted. @strong{Be
+VERY careful with this command!}
 
 @code{DROP DATABASE} returns the number of files that were removed from
 the database directory.  Normally, this is three times the number of
@@ -18261,10 +18271,13 @@ Deleted records are maintained in a linked list and subsequent @code{INSERT}
 operations reuse old record positions. You can use @code{OPTIMIZE TABLE} to
 reclaim the unused space and to defragment the data file.
 
-For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM}
-tables.  You can get optimize table to work on other table types by
-starting @code{mysqld} with @code{--skip-new} or @code{--safe-mode}, but in
-this case @code{OPTIMIZE TABLE} is just mapped to @code{ALTER TABLE}.
+For the moment @code{OPTIMIZE TABLE} only works on @strong{MyISAM} and
+@code{BDB} tables. For @code{BDB} tables, @code{OPTIMIZE TABLE} is
+currently mapped to @code{ANALYZE TABLE}. @xref{ANALYZE TABLE}.
+
+You can get optimize table to work on other table types by starting
+@code{mysqld} with @code{--skip-new} or @code{--safe-mode}, but in this
+case @code{OPTIMIZE TABLE} is just mapped to @code{ALTER TABLE}.
 
 @code{OPTIMIZE TABLE} works the following way:
 @itemize @bullet
@@ -18277,7 +18290,7 @@ If the statistics are not up to date (and the repair couldn't be done
 by sorting the index), update them.
 @end itemize
 
-@code{OPTIMIZE TABLE} is equvialent of running
+@code{OPTIMIZE TABLE} for @code{MyISAM} tables is equvialent of running
 @code{myisamchk --quick --check-changed-tables --sort-index --analyze}
 on the table.
 
@@ -18294,11 +18307,12 @@ CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 option = QUICK | FAST | EXTEND | CHANGED
 @end example
 
-@code{CHECK TABLE} only works on @code{MyISAM} tables and is the same thing
-as running @code{myisamchk -m table_name} on the table.
+@code{CHECK TABLE} only works on @code{MyISAM} and @code{BDB} tables. On
+@code{MyISAM} tables it's the same thing as running @code{myisamchk -m
+table_name} on the table.
 
-Check the table(s) for errors and update the key statistics for the table.
-The command returns a table with the following columns:
+Checks the table(s) for errors. For @code{MyISAM} tables the key statistics
+is updated. The command returns a table with the following columns:
 
 @multitable @columnfractions .35 .65
 @item @strong{Column} @tab @strong{Value}
@@ -18324,6 +18338,9 @@ The different check types stand for the following:
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
+
+Note that for BDB tables the different check options doesn't affect the
+check in any way!
 
 You can combine check options as in:
 
@@ -18423,7 +18440,9 @@ ANALYZE TABLE tbl_name[,tbl_name...]
 @end example
 
 Analyze and store the key distribution for the table.  During the
-analyze the table is locked with a read lock.
+analyze the table is locked with a read lock.  This works on
+@code{MyISAM} and @code{BDB} tables.
+
 This is equivalent to running @code{myisamchk -a} on the table.
 
 @strong{MySQL} uses the stored key distribution to decide in which order
@@ -20108,16 +20127,15 @@ If @code{key_reads} is big, then your @code{key_cache} is probably too
 small.  The cache hit rate can be calculated with
 @code{key_reads}/@code{key_read_requests}.
 @item
-If @code{Handler_read_rnd} is big, then you probably have a lot of queries
-that require @strong{MySQL} to scan whole tables or you have joins that don't use
-keys properly.
+If @code{Handler_read_rnd} is big, then you probably have a lot of
+queries that require @strong{MySQL} to scan whole tables or you have
+joins that don't use keys properly.
 @item
 If @code{Created_tmp_tables} or @code{Sort_merge_passes} are high then
 your @code{mysqld} @code{sort_buffer} variables is probably too small.
 @item
 @code{Created_tmp_files} doesn't count the files needed to handle temporary
 tables.
-@item
 @end itemize
 
 @node SHOW VARIABLES, SHOW PROCESSLIST, SHOW STATUS, SHOW
@@ -20143,6 +20161,7 @@ differ somewhat:
 | bdb_home                | /usr/local/mysql/data/          |
 | bdb_logdir              |                                 |
 | bdb_tmpdir              | /tmp/                           |
+| binlog_cache_size       | 32768                           |
 | character_set           | latin1                          |
 | character_sets          | latin1                          |
 | connect_timeout         | 5                               |
@@ -20239,7 +20258,7 @@ cache.
 @item @code{bdb_home}
 The value of the @code{--bdb-home} option.
 
-@item @code{bdb_lock_max}
+@item @code{bdb_max_lock}
 The maximum number of locks (1000 by default) you can have active on a
 BDB table. You should increase this if you get errors of type @code{bdb:
 Lock table is out of available locks} or @code{Got error 12 from ...}
@@ -20249,8 +20268,16 @@ a lot of rows to calculate the query.
 @item @code{bdb_logdir}
 The value of the @code{--bdb-logdir} option.
 
+@item @code{bdb_shared_data}
+Is @code{ON} if you are using @code{--bdb-shared-data}.
+
 @item @code{bdb_tmpdir}
 The value of the @code{--bdb-tmpdir} option.
+
+@item @code{binlog_cache_size}.  The size of the cache to hold the SQL
+statements for the binary log during a transaction.  If you often use
+big, multi-statement transactions you can increase this to get more
+performance. @xref{COMMIT}.
 
 @item @code{character_set}
 The default character set.
@@ -20389,6 +20416,11 @@ bytes when needed.  This value by default is small, to catch big (possibly
 wrong) packets.  You must increase this value if you are using big
 @code{BLOB} columns. It should be as big as the biggest @code{BLOB} you want
 to use.
+
+@item @code{max_binlog_cache_size}.  If a multi-statement transaction
+requires more than this amount of memory, one will get the error
+"Multi-statement transaction required more than 'max_binlog_cache_size'
+bytes of storage".
 
 @item @code{max_connections}
 The number of simultaneous clients allowed. Increasing this value increases
@@ -21013,6 +21045,21 @@ If you do a @code{ROLLBACK} when you have updated a non-transactional
 table you will get an error (@code{ER_WARNING_NOT_COMPLETE_ROLLBACK}) as
 a warning.  All transactional safe tables will be restored but any
 non-transactional table will not change.
+
+If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you
+should use the @strong{MySQL} binary log for backups instead of the
+old update log;  The transaction is stored in the binary log
+in one chunk, during @code{COMMIT}, the to ensure and @code{ROLLBACK}:ed
+transactions are not stored. @xref{Binary log}.
+
+The following commands automaticly ends an transaction (as if you had done
+a @code{COMMIT} before executing the command):
+
+@multitable @columnfractions .33 .33 .33
+@item @code{ALTER TABLE} @tab @code{BEGIN} @tab @code{CREATE INDEX}
+@item @code{DROP DATABASE} @tab @code{DROP TABLE} @tab @code{RENAME TABLE}
+@item @code{TRUNCATE} 
+@end multitable
 
 @findex LOCK TABLES
 @findex UNLOCK TABLES
@@ -22511,11 +22558,12 @@ BDB tables:
 @item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
 @item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
 @item @code{--bdb-logdir=directory} @tab Berkeley DB log file directory.
-@item @code{--bdb-nosync} @tab Don't synchronously flush logs.
+@item @code{--bdb-no-sync} @tab Don't synchronously flush logs.
 @item @code{--bdb-recover} @tab Start Berkeley DB in recover mode.
+@item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initializing Berkeley DB)
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
 @item @code{--skip-bdb} @tab Don't use berkeley db.
-@item @code{-O bdb_lock_max=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
+@item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
 
 If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
@@ -22526,12 +22574,16 @@ Normally you should start mysqld with @code{--bdb-recover} if you intend
 to use BDB tables.  This may, however, give you problems when you try to
 start mysqld if the BDB log files are corrupted. @xref{Starting server}.
 
-With @code{bdb_lock_max} you can specify the maximum number of locks
+With @code{bdb_max_lock} you can specify the maximum number of locks
 (1000 by default) you can have active on a BDB table. You should
 increase this if you get errors of type @code{bdb: Lock table is out of
 available locks} or @code{Got error 12 from ...}  when you have do long
 transactions or when @code{mysqld} has to examine a lot of rows to
 calculate the query.
+
+You may also want to change @code{binlog_cache_size} and
+@code{max_binlog_cache_size} if you are using big multi-line transactions.
+@xref{COMMIT}.
 
 @node BDB characteristic, BDB TODO, BDB start, BDB
 @subsection Some characteristic of @code{BDB} tables:
@@ -22578,6 +22630,10 @@ tables. In other words, the key information will take a little more
 space in @code{BDB} tables compared to MyISAM tables which don't use
 @code{PACK_KEYS=0}.
 @item
+There is often holes in the BDB table to allow you to insert new rows
+between different keys.  This makes BDB tables somewhat larger than
+MyISAM tables.
+@item
 @strong{MySQL} performs a checkpoint each time a new Berkeley DB log
 file is started, and removes any log files that are not needed for
 current transactions.  One can also run @code{FLUSH LOGS} at any time
@@ -22585,6 +22641,17 @@ to checkpoint the Berkeley DB tables.
 
 For disaster recovery, one should use table backups plus MySQL's binary
 log. @xref{Backup}.
+@item
+The optimizer needs to know an approximation of the number of rows in
+the table.  @strong{MySQL} solves this by counting inserts and
+maintaining this in a separate segment in each BDB table.  If you don't
+do a lot of @code{DELETE} or @code{ROLLBACK}:s this number should be
+accurate enough for the @strong{MySQL} optimizer, but as @strong{MySQL}
+only store the number on close, it may be wrong if @strong{MySQL} dies
+unexpectedly. It should not be fatal even if this number is not 100 %
+correct.  One can update the number of rows by executing @code{ANALYZE
+TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
+TABLE}.
 @end itemize
 
 @node BDB TODO, BDB errors, BDB characteristic, BDB
@@ -25367,7 +25434,8 @@ server-id=<some unique number between 1 and 2^32-1>
 @end example
 
 @code{server-id} must be different for each server participating in
-replication.
+replication.  If you don't specify a server-id, it will be set to
+1 if you have not defined @code{master-host}, else it will be set to 2.
 
 @item Restart the slave(s).
 
@@ -26341,6 +26409,7 @@ like this:
 Possible variables for option --set-variable (-O) are:
 back_log              current value: 5
 bdb_cache_size        current value: 1048540
+binlog_cache_size     current_value: 32768
 connect_timeout       current value: 5
 delayed_insert_timeout  current value: 300
 delayed_insert_limit  current value: 100
@@ -26352,6 +26421,7 @@ key_buffer_size       current value: 1048540
 lower_case_table_names  current value: 0
 long_query_time       current value: 10
 max_allowed_packet    current value: 1048576
+max_binlog_cache_size current_value: 4294967295
 max_connections       current value: 100
 max_connect_errors    current value: 10
 max_delayed_threads   current value: 20
@@ -33323,7 +33393,8 @@ and the crash.
 @node Binary log, Slow query log, Update log, Common problems
 @section The Binary Log
 
-In the future we expect the binary log to replace the update log!
+In the future the binary log will replace the update log, so we
+recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
@@ -33368,6 +33439,20 @@ direct from a remote mysql server!
 
 @code{mysqlbinlog --help} will give you more information of how to use
 this program!
+
+If you are using @code{BEGIN} or @code{SET AUTO_COMMIT=0}, you must use
+the @strong{MySQL} binary log for backups instead of the old update log.
+
+All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
+a transactional table (like BDB tables) is cached until a @code{COMMIT}.
+Any updates to a not transactional table is stored in the binary log at
+once.  Every thread will on start allocate a buffer of
+@code{binlog_cache_size} to buffer queries.  If a query is bigger than
+this, the thread will open a temporary file to handle the bigger cache.
+The temporary file will be deleted when the thread ends.
+
+The @code{max_binlog_cache_size} can be used to restrict the total size used
+to cache a multi-transaction query.
 
 @cindex slow query log
 @cindex files, slow query log
@@ -39274,6 +39359,27 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
+@item
+Changed the default server-id to 1 for masters and 2 for slaves
+to make it easier to use the binary log.
+@item
+Added @code{CHECK}, @code{ANALYZE} and @code{OPTIMIZE} of BDB tables.
+@item
+Store in BDB tables the number of rows; This helps to optimize queries
+when we need an approximation of the number of row.
+@item
+Made @code{DROP TABLE}, @code{RENAME TABLE}, @code{CREATE INDEX} and
+@code{DROP INDEX} are now transaction endpoints.
+@item
+Added option @code{--bdb-shared-data} to @code{mysqld}.
+@item
+Added variables @code{binlog_cache_size} and @code{max_binlog_cache_size} to
+@code{mysqld}.
+@item
+If you do a @code{DROP DATABASE} on a symbolic linked database, both
+the link and the original database is deleted.
 @item
 Fixed that @code{DROP DATABASE} works on OS/2.
 @item

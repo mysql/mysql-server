@@ -207,3 +207,4 @@
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",-A
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",-A
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
+"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',

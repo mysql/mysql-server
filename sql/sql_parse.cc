@@ -172,7 +172,7 @@ check_connections(THD *thd)
 			vio_description(net->vio)));
   if (!thd->host)                           // If TCP/IP connection
   {
-    char ip[17];
+    char ip[30];
 
     if (vio_peer_addr(net->vio,ip))
       return (ER_BAD_HOST_ERROR);
@@ -718,7 +718,7 @@ bool do_command(THD *thd)
   case COM_DROP_DB:
     {
       char *db=thd->strdup(packet+1);
-      if (check_access(thd,DROP_ACL,db,0,1))
+      if (check_access(thd,DROP_ACL,db,0,1) || end_active_trans(thd))
 	break;
       mysql_log.write(thd,command,db);
       mysql_rm_db(thd,db,0);
@@ -1136,7 +1136,10 @@ mysql_execute_command(void)
       goto error; /* purecov: inspected */
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
-    res = mysql_create_index(thd, tables, lex->key_list);
+    if (end_active_trans(thd))
+      res= -1;
+    else
+      res = mysql_create_index(thd, tables, lex->key_list);
     break;
 
   case SQLCOM_SLAVE_START:
@@ -1224,7 +1227,9 @@ mysql_execute_command(void)
 	  goto error;
       }
     }
-    if (mysql_rename_tables(thd,tables))
+    if (end_active_trans(thd))
+      res= -1;
+    else if (mysql_rename_tables(thd,tables))
       res= -1;
     break;
   }
@@ -1428,7 +1433,10 @@ mysql_execute_command(void)
     {
       if (check_table_access(thd,DROP_ACL,tables))
 	goto error;				/* purecov: inspected */
-      res = mysql_rm_table(thd,tables,lex->drop_if_exists);
+      if (end_active_trans(thd))
+	res= -1;
+      else
+	res = mysql_rm_table(thd,tables,lex->drop_if_exists);
     }
     break;
   case SQLCOM_DROP_INDEX:
@@ -1438,7 +1446,10 @@ mysql_execute_command(void)
       goto error;				/* purecov: inspected */
     if (grant_option && check_grant(thd,INDEX_ACL,tables))
       goto error;
-    res = mysql_drop_index(thd, tables, lex->drop_list);
+    if (end_active_trans(thd))
+      res= -1;
+    else
+      res = mysql_drop_index(thd, tables, lex->drop_list);
     break;
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -1643,7 +1654,8 @@ mysql_execute_command(void)
     }
   case SQLCOM_DROP_DB:
     {
-      if (check_access(thd,DROP_ACL,lex->name,0,1))
+      if (check_access(thd,DROP_ACL,lex->name,0,1) ||
+	  end_active_trans(thd))
 	break;
       mysql_rm_db(thd,lex->name,lex->drop_if_exists);
       break;

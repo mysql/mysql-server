@@ -201,3 +201,4 @@
 "Таблица '%-.64s' помечена как испорченная и должна быть исправлена",
 "Таблица '%-.64s' помечена как испорченная и последняя попытка исправления (автоматическая?) не удалась",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
+"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
