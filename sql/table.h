@@ -47,6 +47,13 @@ typedef struct st_grant_info
 
 enum tmp_table_type {NO_TMP_TABLE=0, TMP_TABLE=1, TRANSACTIONAL_TMP_TABLE=2};
 
+enum frm_type_enum
+{
+  FRMTYPE_ERROR= 0,
+  FRMTYPE_TABLE,
+  FRMTYPE_VIEW
+};
+
 typedef struct st_filesort_info
 {
   IO_CACHE *io_cache;           /* If sorted through filebyte                */
@@ -241,6 +248,8 @@ typedef struct st_table_list
   bool          setup_is_done;          /* setup_tables() is done */
   /* do view contain auto_increment field */
   bool          contain_auto_increment;
+  /* FRMTYPE_ERROR if any type is acceptable */
+  enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
 
   void calc_md5(char *buffer);
