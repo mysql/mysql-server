@@ -5464,7 +5464,7 @@ Finish the install process.
 @subsubsection Preparing the Windows MySQL Environment
 
 Starting with MySQL 3.23.38, the Windows distribution includes
-both the normal and the @strong{MySQL-Max} server binaries.
+both the normal and the MySQL-Max server binaries.
 Here is a list of the different MySQL servers you can use:
 
 @multitable @columnfractions .20 .80
@@ -5836,8 +5836,8 @@ The extended MySQL binary distribution is marked with the
 @code{-max} suffix and is configured with the same options as
 @code{mysqld-max}. @xref{mysqld-max, , @code{mysqld-max}}.
 
-If you want to use the @code{MySQL-Max} RPM, you must first
-install the standard @code{MySQL} RPM.
+If you want to use the MySQL-Max RPM, you must first
+install the standard MySQL RPM.
 
 @item
 If you want to configure @code{mysqld} with some extra features that are
@@ -17616,6 +17616,7 @@ The script @code{mysqlhotcopy} does use this method.
 
 @item
 @cindex log files, names
+@cindex @code{mysqlbinlog}
 Stop @code{mysqld} if it's running, then start it with the
 @code{--log-update[=file_name]} option.  @xref{Update log}. The update
 log file(s) provide you with the information you need to replicate
@@ -21741,7 +21742,7 @@ feature. It just installs the @code{mysqld-max} executable and
 @code{safe_mysqld} will automatically use this executable when
 @code{safe_mysqld} is restarted.
 
-The following table shows which table types our standard @strong{MySQL-Max}
+The following table shows which table types our standard MySQL-Max
 binaries includes:
 
 @multitable @columnfractions .15 .10 .10
@@ -23402,12 +23403,13 @@ files until you are sure that no slave will ever need to use them.
 One way to do this is to do @code{mysqladmin flush-logs} once a day and then
 remove any logs that are more than 3 days old.
 
+@cindex @code{mysqlbinlog}
 You can examine the binary log file with the @code{mysqlbinlog} command.
 For example, you can update a MySQL server from the binary log
 as follows:
 
 @example
-mysqlbinlog log-file | mysql -h server_name
+shell> mysqlbinlog log-file | mysql -h server_name
 @end example
 
 You can also use the @code{mysqlbinlog} program to read the binary log
