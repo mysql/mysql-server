@@ -117,6 +117,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
           keyname,tables->name);
       return -1;
     }
+    table->file->index_init(keyno);
   }
 
   List<Item> list;
@@ -127,7 +128,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   insert_fields(thd,tables,tables->db,tables->name,&it);
 
-  table->file->index_init(keyno);
+  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
   select_limit+=offset_limit;
   send_fields(thd,list,1);
