@@ -52,6 +52,34 @@ public:
   const char *func_name() const { return "md5"; }
 };
 
+class Item_func_sha :public Item_str_func
+{
+public:
+  Item_func_sha(Item *a) :Item_str_func(a) {}  
+  String *val_str(String *);    
+  void fix_length_and_dec();      
+  const char *func_name() const { return "sha"; }	
+};
+
+class Item_func_aes_encrypt :public Item_str_func
+{
+public:
+  Item_func_aes_encrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "aes_encrypt"; }
+};
+
+class Item_func_aes_decrypt :public Item_str_func	
+{
+public:
+  Item_func_aes_decrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "aes_decrypt"; }
+};
+
+
 class Item_func_concat :public Item_str_func
 {
   String tmp_value;
