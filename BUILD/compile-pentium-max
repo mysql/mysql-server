@@ -14,6 +14,6 @@ extra_configs="$pentium_configs"
 # fail
 extra_configs="$extra_configs --with-innodb --with-berkeley-db \
 	--with-embedded-server --enable-thread-safe-client \
-	--with-openssl --with-vio --with-raid --without-ndbcluster"
+	--with-openssl --with-vio --with-raid --with-ndbcluster"
 
 . "$path/FINISH.sh"

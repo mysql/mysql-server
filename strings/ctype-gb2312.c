@@ -5739,9 +5739,10 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -5765,9 +5766,10 @@ CHARSET_INFO my_charset_gb2312_bin=
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */

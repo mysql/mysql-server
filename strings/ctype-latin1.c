@@ -418,6 +418,7 @@ CHARSET_INFO my_charset_latin1=
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     cs_to_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -700,6 +701,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
+  NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
@@ -727,6 +729,7 @@ CHARSET_INFO my_charset_latin1_bin=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
+  NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */

@@ -2931,7 +2931,6 @@ AC_SUBST([ndb_bin_am_ldflags])
 AC_SUBST([ndb_opt_test_subdirs])
 AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
-   ndb/docs/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/portlib/Makefile dnl
