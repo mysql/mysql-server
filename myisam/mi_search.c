@@ -842,7 +842,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     {
       int i_1= (int) *((signed char*) a);
       int i_2= (int) *((signed char*) b);
-      if (piks && (flag = CMP(i_1,i_2)))
+      if (piks && (flag = CMP_NUM(i_1,i_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a= end;
       b++;
@@ -851,7 +851,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_SHORT_INT:
       s_1= mi_sint2korr(a);
       s_2= mi_sint2korr(b);
-      if (piks && (flag = CMP(s_1,s_2)))
+      if (piks && (flag = CMP_NUM(s_1,s_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 2; /* sizeof(short int); */
@@ -861,7 +861,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
         uint16 us_1,us_2;
         us_1= mi_sint2korr(a);
         us_2= mi_sint2korr(b);
-        if (piks && (flag = CMP(us_1,us_2)))
+        if (piks && (flag = CMP_NUM(us_1,us_2)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a=  end;
         b+=2; /* sizeof(short int); */
@@ -870,7 +870,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_LONG_INT:
       l_1= mi_sint4korr(a);
       l_2= mi_sint4korr(b);
-      if (piks && (flag = CMP(l_1,l_2)))
+      if (piks && (flag = CMP_NUM(l_1,l_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 4; /* sizeof(long int); */
@@ -878,7 +878,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_ULONG_INT:
       u_1= mi_sint4korr(a);
       u_2= mi_sint4korr(b);
-      if (piks && (flag = CMP(u_1,u_2)))
+      if (piks && (flag = CMP_NUM(u_1,u_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 4; /* sizeof(long int); */
@@ -886,7 +886,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_INT24:
       l_1=mi_sint3korr(a);
       l_2=mi_sint3korr(b);
-      if (piks && (flag = CMP(l_1,l_2)))
+      if (piks && (flag = CMP_NUM(l_1,l_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 3;
@@ -894,7 +894,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_UINT24:
       l_1=mi_uint3korr(a);
       l_2=mi_uint3korr(b);
-      if (piks && (flag = CMP(l_1,l_2)))
+      if (piks && (flag = CMP_NUM(l_1,l_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 3;
@@ -902,7 +902,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_FLOAT:
       mi_float4get(f_1,a);
       mi_float4get(f_2,b);
-      if (piks && (flag = CMP(f_1,f_2)))
+      if (piks && (flag = CMP_NUM(f_1,f_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 4; /* sizeof(float); */
@@ -910,7 +910,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_DOUBLE:
       mi_float8get(d_1,a);
       mi_float8get(d_2,b);
-      if (piks && (flag = CMP(d_1,d_2)))
+      if (piks && (flag = CMP_NUM(d_1,d_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 8;  /* sizeof(double); */
@@ -985,7 +985,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
       longlong ll_a,ll_b;
       ll_a= mi_sint8korr(a);
       ll_b= mi_sint8korr(b);
-      if (piks && (flag = CMP(ll_a,ll_b)))
+      if (piks && (flag = CMP_NUM(ll_a,ll_b)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 8;
@@ -996,7 +996,7 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
       ulonglong ll_a,ll_b;
       ll_a= mi_uint8korr(a);
       ll_b= mi_uint8korr(b);
-      if (piks && (flag = CMP(ll_a,ll_b)))
+      if (piks && (flag = CMP_NUM(ll_a,ll_b)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
       b+= 8;

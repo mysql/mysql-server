@@ -205,7 +205,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   if(!dlist)
     goto err2;
 
-  dlist->please=& _ft_vft_nlq;
+  dlist->please= (struct _ft_vft *) & _ft_vft_nlq;
   dlist->ndocs=aio.dtree.elements_in_tree;
   dlist->curdoc=-1;
   dlist->info=aio.info;

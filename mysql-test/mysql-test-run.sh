@@ -367,7 +367,7 @@ GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err
 GPROF_DIR=$MYSQL_TMP_DIR/gprof
 GPROF_MASTER=$GPROF_DIR/master.gprof
 GPROF_SLAVE=$GPROF_DIR/slave.gprof
-TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
+TIMEFILE="$MYSQL_TEST_DIR/var/log/mysqltest-time"
 SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 XTERM=`which xterm`
 
@@ -545,8 +545,7 @@ abort_if_failed()
 start_manager()
 {
  if [ $USE_MANAGER = 0 ] ; then
-  echo "Manager disabled, skipping manager start. Tests requiring manager will\
- be skipped"
+  echo "Manager disabled, skipping manager start."
   return
  fi
  $ECHO "Starting MySQL Manager"

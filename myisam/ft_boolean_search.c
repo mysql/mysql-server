@@ -87,9 +87,9 @@ typedef struct st_ft_info {
 int FTB_WORD_cmp(void *v, byte *a, byte *b)
 {
   /* ORDER BY docid, ndepth DESC */
-  int i=CMP(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
+  int i=CMP_NUM(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
   if (!i)
-    i=CMP(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
+    i=CMP_NUM(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
   return i;
 }
 
@@ -182,7 +182,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 
   if (!(ftb=(FTB *)my_malloc(sizeof(FTB), MYF(MY_WME))))
     return 0;
-  ftb->please=& _ft_vft_boolean;
+  ftb->please= (struct _ft_vft *) & _ft_vft_boolean;
   ftb->ok=1;
   ftb->info=info;
   ftb->keynr=keynr;
