@@ -323,7 +323,7 @@ pthread_handler_decl(handle_one_connection,arg)
 {
   THD *thd=(THD*) arg;
   uint launch_time  =
-    (thd->thr_create_time = time(NULL)) - thd->connect_time;
+    (uint) ((thd->thr_create_time = time(NULL)) - thd->connect_time);
   if (launch_time >= slow_launch_time)
     statistic_increment(slow_launch_threads,&LOCK_status );
 

@@ -1269,7 +1269,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       host=LOCAL_HOST;
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
-    if ((sock = socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+    /* _WIN64 ;  Assume that the (int) range is enough for socket() */
+    if ((sock = (int) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
       sprintf(net->last_error,ER(net->last_errno),ERRNO);

@@ -272,7 +272,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,my_string name)
     pa->max_length=PS_MALLOC-MALLOC_OVERHEAD;
     pa->array_allocs=1;
   }
-  length=strlen(name)+1;
+  length=(uint) strlen(name)+1;
   if (pa->length+length >= pa->max_length)
   {
     if (!(new_pos= (byte*) my_realloc((gptr) pa->str,
@@ -415,7 +415,7 @@ REPLACE *init_replace(my_string *from, my_string *to,uint count,
       DBUG_RETURN(0);
     }
     states+=len+1;
-    result_len+=strlen(to[i])+1;
+    result_len+=(uint) strlen(to[i])+1;
     if (len > max_length)
       max_length=len;
   }
@@ -1021,7 +1021,7 @@ FILE *in,*out;
 	end_of_line++;
       if (end_of_line == buffer+bufbytes)
       {
-	retain=end_of_line - start_of_line;
+	retain= (int) (end_of_line - start_of_line);
 	break;				/* No end of line, read more */
       }
       save_char=end_of_line[0];

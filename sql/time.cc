@@ -113,7 +113,7 @@ long my_gmt_sec(TIME *t)
   if ((my_time_zone >=0 ? my_time_zone: -my_time_zone) > 3600L*12)
     my_time_zone=0;			/* Wrong date */
   pthread_mutex_unlock(&LOCK_timezone);
-  return tmp;
+  return (long) tmp;
 } /* my_gmt_sec */
 
 

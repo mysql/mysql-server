@@ -51,7 +51,7 @@ static int find_uniq_filename(char *name)
   length=dirname_part(buff,name);
   char *start=name+length,*end=strend(start);
   *end='.';
-  length=end-start+1;
+  length= (uint) (end-start+1);
 
   if (!(dir_info = my_dir(buff,MYF(MY_DONT_SORT))))
   {						// This shouldn't happen

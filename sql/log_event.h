@@ -99,7 +99,7 @@ public:
   {
     time_t end_time;
     time(&end_time);
-    exec_time = end_time  - thd->start_time;
+    exec_time = (ulong) (end_time  - thd->start_time);
     valid_exec_time = 1;
     db_len = (db) ? (uint) strlen(db) : 0;
   }
@@ -187,7 +187,7 @@ public:
   {
     time_t end_time;
     time(&end_time);
-    exec_time = end_time  - thd->start_time;
+    exec_time = (ulong) (end_time  - thd->start_time);
     valid_exec_time = 1;
     db_len = (db) ? (uint) strlen(db) : 0;
     table_name_len = (table_name) ? (uint) strlen(table_name) : 0;
