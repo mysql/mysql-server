@@ -236,7 +236,7 @@ int my_strnncoll_big5(const uchar * s1, int len1, const uchar * s2, int len2)
   return (int) (len1-len2);
 }
 
-int my_strnxfrm_big5(uchar * dest, uchar * src, int len, int srclen)
+int my_strnxfrm_big5(uchar * dest, const uchar * src, int len, int srclen)
 {
   uint16 e;
   /*uchar *d = dest; XXX: unused*/
@@ -276,7 +276,7 @@ int my_strcoll_big5(const uchar * s1, const uchar * s2)
   return 0;
 }
 
-int my_strxfrm_big5(uchar * dest, uchar * src, int len)
+int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 {
   uint16 e;
   uchar *d = dest;

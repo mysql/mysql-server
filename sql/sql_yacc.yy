@@ -121,6 +121,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	KILL_SYM
 %token	LOAD
 %token	LOCK_SYM
+%token	LOCKS_SYM
 %token	UNLOCK_SYM
 
 %token	ACTION
@@ -2560,6 +2561,7 @@ keyword:
 	| INNOBASE_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
+	| LOCKS_SYM		{}
 	| LOGS_SYM		{}
 	| MAX_ROWS		{}
 	| MASTER_SYM		{}

@@ -101,7 +101,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   mysys_var=0;
   net.vio=0;
   ull=0;
-  system_thread=0;
+  system_thread=cleanup_done=0;
 #ifdef	__WIN__
   real_id = 0;
 #endif
@@ -149,15 +149,11 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #endif
 }
 
-THD::~THD()
+/* Do operations that may take a long time */
+
+void THD::cleanup(void)
 {
-  DBUG_ENTER("~THD()");
-  /* Close connection */
-  if (net.vio)
-  {
-    vio_delete(net.vio);
-    net_end(&net); 
-  }
+  DBUG_ENTER("THD::cleanup");
   ha_rollback(this);
   if (locked_tables)
   {
@@ -172,6 +168,21 @@ THD::~THD()
     ha_close_connection(this);
   }
 #endif
+  cleanup_done=1;
+  DBUG_VOID_RETURN;
+}
+
+THD::~THD()
+{
+  DBUG_ENTER("~THD()");
+  /* Close connection */
+  if (net.vio)
+  {
+    vio_delete(net.vio);
+    net_end(&net); 
+  }
+  if (!cleanup_done)
+    cleanup();
   if (global_read_lock)
   {
     pthread_mutex_lock(&LOCK_open);

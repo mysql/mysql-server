@@ -20,9 +20,9 @@
 
 #include "mymrgdef.h"
 
-int myrg_lock_database(info,lock_type)
-MYRG_INFO *info;
-int lock_type;
+int myrg_lock_database(
+MYRG_INFO *info,
+int lock_type)
 {
   int error,new_error;
   MYRG_TABLE *file;

@@ -1,0 +1,2335 @@
+31 Run Specifications: Version 1.1
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+39 E:\rd\mysql\vacpp-3.23.40\bin\mysql.exe
+1
+0
+0
+5 Local
+0
+44 E:\rd\mysql\vacpp-3.23.40\bin\mysqladmin.exe
+1
+0
+0
+5 Local
+0
+43 E:\rd\mysql\vacpp-3.23.40\bin\mysqldump.exe
+1
+0
+0
+5 Local
+0
+43 E:\rd\mysql\vacpp-3.23.40\bin\mysqlshow.exe
+1
+0
+0
+5 Local
+0
+45 E:\rd\mysql\vacpp-3.23.40\bin\mysqlimport.exe
+1
+0
+0
+5 Local
+0
+43 E:\rd\mysql\vacpp-3.23.40\bin\mysqltest.exe
+1
+0
+0
+5 Local
+0

@@ -28,7 +28,9 @@
 #include <my_bitmap.h>
 #include <violite.h>
 
+#ifdef __EMX__
 #undef write  // remove pthread.h macro definition for EMX
+#endif
 
 typedef ulong table_map;		/* Used for table bits in join */
 typedef ulong key_map;			/* Used for finding keys */
@@ -110,7 +112,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define FLUSH_TIME		0		/* Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		// errors before disabling host
 
-#ifdef	__WIN__
+#if defined(__WIN__) || defined(OS2)
 #define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME
 #define FLUSH_TIME	1800			/* Flush every half hour */

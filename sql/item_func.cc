@@ -1489,8 +1489,14 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_cond=  &ull->cond;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
+#ifdef HAVE_TIMESPEC_TS_SEC
+  abstime.ts_sec=time((time_t*) 0)+(time_t) timeout;
+  abstime.ts_nsec=0;
+#else
   abstime.tv_sec=time((time_t*) 0)+(time_t) timeout;
   abstime.tv_nsec=0;
+#endif
+
   while ((error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
 	 != ETIME && error != ETIMEDOUT && ull->locked)
   {

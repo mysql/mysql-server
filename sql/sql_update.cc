@@ -259,6 +259,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
 	}
       }
     }
+    else
+      table->file->unlock_row();
   }
   end_read_record(&info);
   thd->proc_info="end";

@@ -4,8 +4,8 @@
 
 #include <global.h>
 
-int factorial (value)
-register int value;
+int factorial (
+register int value)
 {
     DBUG_ENTER ("factorial");
     DBUG_PRINT ("find", ("find %d factorial", value));

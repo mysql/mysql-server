@@ -388,6 +388,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       }
       make_sortkey(param,sort_keys[idx++],ref_pos);
     }
+    else
+      file->unlock_row();
   }
   (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
   file->rnd_end();

@@ -1,0 +1,134 @@
+// disable code inlining when building static libs
+InlineCode = "no"
+
+// include common options
+include "MySQL-Opt.icc"
+include "MySQL-Source.icc"
+
+option ProjectOptions = MySQLOptions
+                        , link(defaultlibsname, "common.lib")
+                        , link(defaultlibsname, "myisam.lib")
+                        , link(defaultlibsname, "isam.lib")
+                        , link(defaultlibsname, "mysql.lib")
+{
+
+      target "..\\bin\\myisamchk.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         source type('cpp') "..\\myisam\\myisamchk.c"
+      }
+
+      target "..\\bin\\myisamlog.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+
+         // target source files
+         source type('cpp') "..\\myisam\\myisamlog.c"
+      }
+
+      target "..\\bin\\myisampack.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         // target source files
+         source type('cpp') "..\\myisam\\myisampack.c"
+      }
+
+      target "..\\bin\\test\\is_test1.exe"
+      {
+         // target source files
+         source type('cpp') "..\\isam\\test1.c"
+      }
+      target "..\\bin\\test\\is_test2.exe"
+      {
+         // target source files
+         source type('cpp') "..\\isam\\test2.c"
+      }
+      target "..\\bin\\test\\mi_test1.exe"
+      {
+         // target source files
+         source type('cpp') "..\\myisam\\mi_test1.c"
+      }
+      target "..\\bin\\test\\mi_test2.exe"
+      {
+         // target source files
+         source type('cpp') "..\\myisam\\mi_test2.c"
+      }
+      target "..\\bin\\test\\ft_eval.exe"
+      {
+         // target source files
+         source type('cpp') "..\\myisam\\ft_eval.c"
+      }
+      target "..\\bin\\test\\ft_test1.exe"
+      {
+         // target source files
+         source type('cpp') "..\\myisam\\ft_test1.c"
+      }
+
+      //target "..\\bin\\test\\testhash.exe"
+      {
+         // target source files
+         //source type('cpp') "..\\mysys\\testhash.c"
+      }
+
+      target "..\\bin\\test\\test_charset.exe"
+      {
+         // target source files
+         source type('cpp') "..\\mysys\\test_charset.c"
+      }
+
+      target "..\\bin\\test\\hp_test1.exe"
+      {
+         // target source files
+         source type('cpp') "..\\heap\\hp_test1.c"
+      }
+      target "..\\bin\\test\\hp_test2.exe"
+      {
+         // target source files
+         source type('cpp') "..\\heap\\hp_test2.c"
+      }
+
+      option define( "MAIN", "")
+      {
+         target "..\\bin\\test\\thr_lock.exe"
+         {
+            // target source files
+            source type('cpp') "..\\mysys\\thr_lock.c"
+         }
+      }
+
+      target "..\\bin\\test\\insert_test.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         source type('cpp') "..\\client\\insert_test.c"
+      }
+      target "..\\bin\\test\\select_test.exe"
+      {
+         source type('cpp') "..\\client\\select_test.c"
+      }
+      target "..\\bin\\test\\thread_test.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         source type('cpp') "..\\client\\thread_test.c"
+      }
+
+}

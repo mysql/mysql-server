@@ -43,14 +43,14 @@
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
+#elif defined(OS2)
+#include <config-os2.h>
 #else
 #include <my_config.h>
-#endif
-#if defined(__cplusplus)
-#if defined(inline)
+#if defined(__cplusplus) && defined(inline)
 #undef inline				/* fix configure problem */
 #endif
-#endif /* _cplusplus */
+#endif /* _WIN32... */
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(HAVE_LINUXTHREADS)
@@ -76,7 +76,7 @@
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
 #endif
 
-#if defined(THREAD) && !defined(__WIN__)
+#if defined(THREAD) && !defined(__WIN__) && !defined(OS2)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -220,7 +220,9 @@
 #define POSIX_MISTAKE 1		/* regexp: Fix stupid spec error */
 #define USE_REGEX 1		/* We want the use the regex library */
 /* Do not define for ultra sparcs */
+#ifndef OS2
 #define USE_BMOVE512 1		/* Use this unless the system bmove is faster */
+#endif
 
 /* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
 #ifdef I_AM_PARANOID
@@ -470,7 +472,11 @@ extern double		my_atof(const char*);
 #endif
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
+#ifdef OS2
+#define closesocket(A)	soclose(A)
+#else
 #define closesocket(A)	close(A)
+#endif
 #ifndef ulonglong2double
 #define ulonglong2double(A) ((double) (A))
 #define my_off_t2double(A)  ((double) (A))
@@ -559,9 +565,13 @@ typedef long		my_ptrdiff_t;
 #ifndef NEAR
 #define NEAR				/* Who needs segments ? */
 #define FAR				/* On a good machine */
+#ifndef HUGE_PTR
 #define HUGE_PTR
 #endif
-#ifndef STDCALL
+#endif
+#if defined(__IBMC__) || defined(__IBMCPP__)
+#define STDCALL _System _Export
+#elif !defined( STDCALL)
 #define STDCALL
 #endif
 
@@ -629,8 +639,18 @@ typedef ulonglong my_off_t;
 typedef unsigned long my_off_t;
 #endif
 #define MY_FILEPOS_ERROR	(~(my_off_t) 0)
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
 typedef off_t os_off_t;
+#endif
+
+#if defined(__WIN__)
+#define socket_errno WSAGetLastError()
+#elif defined(OS2)
+#define socket_errno sock_errno()
+#define closesocket(A)	soclose(A)
+#else
+#define socket_errno errno
+#define closesocket(A) close(A)
 #endif
 
 typedef uint8		int7;	/* Most effective integer 0 <= x <= 127 */

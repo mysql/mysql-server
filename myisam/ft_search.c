@@ -211,7 +211,7 @@ err:
 
 int ft_read_next(FT_DOCLIST *handler, char *record)
 {
-  MI_INFO *info=handler->info;
+  MI_INFO *info= (MI_INFO *) handler->info;
 
   if (++handler->curdoc >= handler->ndocs)
   {

@@ -458,7 +458,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       /* Check that there isn't a row with auto_increment = 0 in the table */
       mi_extra(info,HA_EXTRA_KEYREAD);
       bzero(info->lastkey,keyinfo->seg->length);
-      if (!mi_rkey(info, info->rec_buff, key, info->lastkey,
+      if (!mi_rkey(info, info->rec_buff, key, (const byte*) info->lastkey,
 		   keyinfo->seg->length, HA_READ_KEY_EXACT))
       {
 	/* Don't count this as a real warning, as myisamchk can't correct it */
@@ -2075,7 +2075,7 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
-  (void) _mi_make_key(info,sort_info->key,key,sort_info->record,
+  (void) _mi_make_key(info,sort_info->key,(uchar*)key,sort_info->record,
                       sort_info->filepos);
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */

@@ -35,7 +35,7 @@
 #include <pwd.h>
 #endif /* HAVE_PWD_H */
 #else /* ! HAVE_GETPASS */
-#ifndef __WIN__
+#if !defined( __WIN__) && !defined(OS2)
 #include <sys/ioctl.h>
 #ifdef HAVE_TERMIOS_H				/* For tty-password */
 #include	<termios.h>
@@ -62,9 +62,8 @@
 #define getpass(A) getpassphrase(A)
 #endif
 
-#ifdef __WIN__
-/* were just going to fake it here and get input from
-   the keyboard */
+#if defined( __WIN__) || defined(OS2)
+/* were just going to fake it here and get input from the keyboard */
 
 char *get_tty_password(char *opt_message)
 {

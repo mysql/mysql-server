@@ -53,13 +53,11 @@ static char record[300],record2[300],key[100],key2[100],
 
 		/* Test program */
 
-int main(argc,argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
   uint i;
   int j,n1,n2,n3,error,k;
-  uint write_count,update,dupp_keys,delete,start,length,blob_pos,
+  uint write_count,update,dupp_keys,opt_delete,start,length,blob_pos,
        reclength,ant;
   ulong lastpos,range_records,records;
   N_INFO *file;
@@ -138,7 +136,7 @@ char *argv[];
   else
     recinfo[6].base.type= FIELD_LAST;
 
-  write_count=update=dupp_keys=delete=0;
+  write_count=update=dupp_keys=opt_delete=0;
   blob_buffer=0;
 
   for (i=999 ; i>0 ; i--) key1[i]=0;
@@ -232,7 +230,7 @@ char *argv[];
 	printf("error: %d; can't delete record: \"%s\"\n", my_errno,read_record);
 	goto err;
       }
-      delete++;
+      opt_delete++;
       key1[atoi(read_record+keyinfo[0].seg[0].base.start)]--;
       key3[atoi(read_record+keyinfo[2].seg[0].base.start)]=0;
     }
@@ -346,9 +344,9 @@ char *argv[];
   }
   while (nisam_rnext(file,read_record3,0) == 0 && ant < write_count+10)
     ant++;
-  if (ant != write_count - delete)
+  if (ant != write_count - opt_delete)
   {
-    printf("next: I found: %d records of %d\n",ant,write_count - delete);
+    printf("next: I found: %d records of %d\n",ant,write_count - opt_delete);
     goto end;
   }
   if (nisam_rlast(file,read_record2,0) ||
@@ -362,7 +360,7 @@ char *argv[];
   ant=1;
   while (nisam_rprev(file,read_record3,0) == 0 && ant < write_count+10)
     ant++;
-  if (ant != write_count - delete)
+  if (ant != write_count - opt_delete)
   {
     printf("prev: I found: %d records of %d\n",ant,write_count);
     goto end;
@@ -414,7 +412,7 @@ char *argv[];
     if (nisam_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
     if (nisam_rnext(file,read_record3,0)) goto err;
     if (nisam_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     while (nisam_rnext(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -431,7 +429,7 @@ char *argv[];
     if (nisam_rprev(file,read_record3,0)) goto err;
     if (nisam_rprev(file,read_record3,0)) goto err;
     if (nisam_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     while (nisam_rprev(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -447,7 +445,7 @@ char *argv[];
     DBUG_PRINT("progpos",("first - delete - next -> last"));
     if (nisam_rkey(file,read_record3,0,key,0,HA_READ_KEY_EXACT)) goto err;
     if (nisam_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=1;
     if (nisam_rnext(file,read_record,0))
       goto err;					/* Skall finnas poster */
@@ -463,7 +461,7 @@ char *argv[];
     DBUG_PRINT("progpos",("last - delete - prev -> first"));
     if (nisam_rprev(file,read_record3,0)) goto err;
     if (nisam_delete(file,read_record3)) goto err;
-    delete++;
+    opt_delete++;
     ant=0;
     while (nisam_rprev(file,read_record3,0) == 0 &&
 	   bcmp(read_record3+start,key,length) == 0) ant++;
@@ -555,11 +553,11 @@ char *argv[];
 
   printf("- nisam_info\n");
   nisam_info(file,&info,0);
-  if (info.records != write_count-delete || info.deleted > delete + update
+  if (info.records != write_count-opt_delete || info.deleted > opt_delete + update
       || info.keys != keys)
   {
     puts("Wrong info from nisam_info");
-    printf("Got: records: %ld  delete: %ld  i_keys: %d\n",
+    printf("Got: records: %ld  opt_delete: %ld  i_keys: %d\n",
 	   info.records,info.deleted,info.keys);
   }
   if (verbose)
@@ -591,10 +589,10 @@ char *argv[];
   while ((error=nisam_rrnd(file,record,NI_POS_ERROR)) >= 0 &&
 	 ant < write_count + 10)
 	ant+= error ? 0 : 1;
-  if (ant != write_count-delete)
+  if (ant != write_count-opt_delete)
   {
     printf("rrnd with cache: I can only find: %d records of %d\n",
-	   ant,write_count-delete);
+	   ant,write_count-opt_delete);
     goto end;
   }
   if (nisam_extra(file,HA_EXTRA_NO_CACHE))
@@ -648,14 +646,14 @@ char *argv[];
 	printf("can't delete record: %s\n",read_record);
 	goto err;
       }
-      delete++;
+      opt_delete++;
     }
   }
   if (my_errno != HA_ERR_END_OF_FILE && my_errno != HA_ERR_RECORD_DELETED)
     printf("error: %d from nisam_rrnd\n",my_errno);
-  if (write_count != delete)
+  if (write_count != opt_delete)
   {
-    printf("Deleted only %d of %d records\n",write_count,delete);
+    printf("Deleted only %d of %d records\n",write_count,opt_delete);
     goto err;
   }
 end:
@@ -663,7 +661,7 @@ end:
     goto err;
   nisam_panic(HA_PANIC_CLOSE);			/* Should close log */
   printf("\nFollowing test have been made:\n");
-  printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,delete);
+  printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,opt_delete);
   if (rec_pointer_size)
     printf("Record pointer size: %d\n",rec_pointer_size);
   if (key_cacheing)
@@ -692,9 +690,7 @@ err:
 	/* l{ser optioner */
 	/* OBS! intierar endast DEBUG - ingen debuggning h{r ! */
 
-static void get_options(argc,argv)
-int argc;
-char *argv[];
+static void get_options( int argc, char *argv[])
 {
   char *pos,*progname;
   DEBUGGER_OFF;
@@ -785,8 +781,7 @@ char *argv[];
 
 	/* Ge ett randomv{rde inom ett intervall 0 <=x <= n */
 
-static uint rnd(max_value)
-uint max_value;
+static uint rnd( uint max_value)
 {
   return (uint) ((rand() & 32767)/32767.0*max_value);
 } /* rnd */
@@ -794,9 +789,7 @@ uint max_value;
 
 	/* G|r en record av skiftande length */
 
-static void fix_length(rec,length)
-byte *rec;
-uint length;
+static void fix_length( byte *rec, uint length)
 {
   bmove(rec+STANDAR_LENGTH,
 	"0123456789012345678901234567890123456789012345678901234567890",
@@ -807,8 +800,7 @@ uint length;
 
 	/* Put maybe a blob in record */
 
-static void put_blob_in_record(blob_pos,blob_buffer)
-char *blob_pos,**blob_buffer;
+static void put_blob_in_record(char *blob_pos, char **blob_buffer)
 {
   ulong i,length;
   if (use_blob)
@@ -836,10 +828,7 @@ char *blob_pos,**blob_buffer;
 }
 
 
-static void copy_key(info,inx,rec,key_buff)
-N_INFO *info;
-uint inx;
-uchar *rec,*key_buff;
+static void copy_key( N_INFO *info, uint inx, uchar *rec, uchar *key_buff)
 {
   N_KEYSEG *keyseg;
 

@@ -1,0 +1,87 @@
+// disable code inlining when building static libs
+InlineCode = "no"
+
+// include common options
+include "MySQL-Opt.icc"
+include "MySQL-Source.icc"
+
+option ProjectOptions = MySQLOptions
+                        //, link(defaultlibsname, "readline.lib")
+{
+
+   option file(genobject, "..\\OBJ\\ZLIB\\")
+   {
+      target "..\\bin\\mysql.dll"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         // target source files
+         source zlib
+         if debug_build  {
+            source type('cpp') dbug
+         }
+         source type('cpp') my_sys
+         source type('cpp') my_sys_cli
+         source type('cpp') strings
+         source type('cpp') mysqlclientlib
+      }
+   }
+
+   option file(genobject, "..\\OBJ\\READLINE\\")
+   {
+      target "..\\bin\\mysql.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         //source readline
+         source type('cpp') "..\\client\\mysql.cc"
+      }
+   }
+
+      target "..\\bin\\mysqladmin.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source type('cpp') "..\\client\\mysqladmin.c"
+      }
+
+      target "..\\bin\\mysqldump.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch
+         }
+         // target source files
+         source type('cpp') "..\\client\\mysqldump.c"
+      }
+
+      target "..\\bin\\mysqlshow.exe"
+      {
+         // target source files
+         source type('cpp') "..\\client\\mysqlshow.c"
+      }
+
+      target "..\\bin\\mysqlimport.exe"
+      {
+         // target source files
+         source type('cpp') "..\\client\\mysqlimport.c"
+      }
+
+      target "..\\bin\\mysqltest.exe"
+      {
+         source type('cpp') "..\\client\\mysqltest.c"
+      }
+
+}

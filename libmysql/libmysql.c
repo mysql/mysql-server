@@ -77,8 +77,7 @@ my_string	mysql_unix_port=0;
 #include <errno.h>
 #define ERRNO errno
 #define SOCKET_ERROR -1
-#define closesocket(A) close(A)
-#endif
+#endif /* __WIN__ */
 
 static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
@@ -121,7 +120,7 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
 		    uint timeout)
 {
-#if defined(__WIN__)
+#if defined(__WIN__) || defined(OS2)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
@@ -490,7 +489,7 @@ struct passwd *getpwuid(uid_t);
 char* getlogin(void);
 #endif
 
-#if !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__)
+#if !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
 static void read_user_name(char *name)
 {
   DBUG_ENTER("read_user_name");

@@ -29,6 +29,7 @@ extern const char *client_errors[];	/* Error messages */
 
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
+#undef ER
 #define ER(X) client_errors[(X)-CR_MIN_ERROR]
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */
 
