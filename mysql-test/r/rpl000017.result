@@ -1,2 +1,10 @@
+reset master;
+grant file on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
+slave start;
+drop table if exists t1;
+create table t1(n int);
+insert into t1 values(24);
+select * from t1;
 n
 24
+drop table t1;

@@ -1,2 +1,21 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(4);
+use test;
+drop table if exists foo;
+create table foo (s char(20));
+load data infile '../../std_data/words.dat' into table foo;
+insert into foo values('five');
+drop table if exists bar;
+create table bar (m int);
+insert into bar values(15);
+select foo.n,bar.m from foo,bar;
 n	m
 4	15
+drop table if exists bar,foo;

@@ -1,4 +1,6 @@
+select database(),user();
 database()	user()
 test	root@localhost
+select version()>="3.23.29";
 version()>="3.23.29"
 1

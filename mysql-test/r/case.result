@@ -1,42 +1,65 @@
+drop table if exists t1;
+select CASE "b" when "a" then 1 when "b" then 2 END;
 CASE "b" when "a" then 1 when "b" then 2 END
 2
+select CASE "c" when "a" then 1 when "b" then 2 END;
 CASE "c" when "a" then 1 when "b" then 2 END
 NULL
+select CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END;
 CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END
 3
+select CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END;
 CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END
 ok
+select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
 CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END
 ok
+select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
 CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end
 a
+select CASE when 1=0 then "true" else "false" END;
 CASE when 1=0 then "true" else "false" END
 false
+select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
 CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END
 one
+select CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END;
 CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END
 two
+select (CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0;
 (CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0
 2
+select (CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0;
 (CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0
 2.00
+select case 1/0 when "a" then "true" else "false" END;
 case 1/0 when "a" then "true" else "false" END
 false
+select case 1/0 when "a" then "true" END;
 case 1/0 when "a" then "true" END
 NULL
+select (case 1/0 when "a" then "true" END) | 0;
 (case 1/0 when "a" then "true" END) | 0
 NULL
+select (case 1/0 when "a" then "true" END) + 0.0;
 (case 1/0 when "a" then "true" END) + 0.0
 NULL
+select case when 1>0 then "TRUE" else "FALSE" END;
 case when 1>0 then "TRUE" else "FALSE" END
 TRUE
+select case when 1<0 then "TRUE" else "FALSE" END;
 case when 1<0 then "TRUE" else "FALSE" END
 FALSE
+create table t1 (a int);
+insert into t1 values(1),(2),(3),(4);
+select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 fcase	count(*)
 0	2
 2	1
 3	1
+select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 fcase	count(*)
 nothing	2
 one	1
 two	1
+drop table t1;

@@ -173,6 +173,7 @@ static uint tokenize_args(char* arg_start,char** arg_end);
 static void init_arg_array(char* arg_str,char** args,uint arg_count);
 static int hex_val(char c);
 static int open_and_dup(int fd,char* path);
+static void update_req_len(struct manager_exec* e);
 
 typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 
@@ -219,6 +220,7 @@ struct manager_exec
   MYSQL mysql;
   char* data_buf;
   int req_len;
+  int start_wait_timeout;
   int stderr_path_size,stdout_path_size,data_buf_size;
   int num_args;
 };
@@ -244,6 +246,7 @@ HANDLE_DECL(stop_exec);
 HANDLE_DECL(set_exec_con);
 HANDLE_DECL(set_exec_stdout);
 HANDLE_DECL(set_exec_stderr);
+HANDLE_DECL(query);
 HANDLE_NOARG_DECL(show_exec);
 
 struct manager_cmd commands[] =
@@ -262,6 +265,7 @@ struct manager_cmd commands[] =
    handle_set_exec_stdout,15},
   {"set_exec_stderr", "Set stderr path for executable entry",
    handle_set_exec_stderr,15},
+  {"query","Run query against MySQL server",handle_query,5},
   {"show_exec","Show defined executable entries",handle_show_exec,9},
   {"help", "Print this message", handle_help,4},
   {0,0,0,0}
@@ -460,7 +464,7 @@ HANDLE_DECL(set_exec_con)
       else
 	e->con_sock[0]=0;
     }
-    else
+    else if(num_args > 4)
     {
       pthread_mutex_unlock(&lock_exec_hash);
       error="Too many arguments";
@@ -563,7 +567,7 @@ HANDLE_DECL(start_exec)
   if ((error=e->error))
     goto err;
   pthread_mutex_lock(&e->lock);
-  t.tv_sec=time(0)+atoi(args_start+ident_len+1);
+  t.tv_sec=time(0)+(e->start_wait_timeout=atoi(args_start+ident_len+1));
   t.tv_nsec=0;
   if (!e->pid)
     pthread_cond_timedwait(&e->cond,&e->lock,&t);
@@ -642,6 +646,89 @@ err:
   return 1;
 }
 
+HANDLE_DECL(query)
+{
+  const char* error=0;
+  struct manager_exec* e;
+  MYSQL_RES* res=0;
+  MYSQL_ROW row;
+  MYSQL_FIELD* fields;
+  int num_fields,i,ident_len;
+  char* ident,*query;
+  query=ident=args_start;
+  while (!isspace(*query))
+    query++;
+  if (query == ident)
+  {
+    error="Missing server identifier";
+    goto err;
+  }
+  ident_len=(int)(query-ident);
+  while (query<args_end && isspace(*query))
+    query++;
+  if (query == args_end)
+  {
+    error="Missing query";
+    goto err;
+  }
+  pthread_mutex_lock(&lock_exec_hash);
+  if (!(e=(struct manager_exec*)hash_search(&exec_hash,ident,
+					    ident_len)))
+  {
+    pthread_mutex_unlock(&lock_exec_hash);
+    error="Exec definition entry does not exist";
+    goto err;
+  }
+  pthread_mutex_unlock(&lock_exec_hash);
+  pthread_mutex_lock(&e->lock);
+  if (!e->pid)
+  {
+    error="Process is not running";
+    pthread_mutex_unlock(&e->lock);
+    goto err;
+  }
+  
+  if (mysql_query(&e->mysql,query))
+  {
+    error=mysql_error(&e->mysql);
+    pthread_mutex_unlock(&e->lock);
+    goto err;
+  }
+  if ((res=mysql_store_result(&e->mysql)))
+  {
+    char buf[MAX_CLIENT_MSG_LEN],*p,*buf_end;
+    fields=mysql_fetch_fields(res);
+    num_fields=mysql_num_fields(res);
+    p=buf;
+    buf_end=buf+sizeof(buf);
+    for (i=0;i<num_fields && p<buf_end-2;i++)
+    {
+      p=arg_strmov(p,fields[i].name,buf_end-p-2);
+      *p++='\t';
+    }
+    *p=0;
+    client_msg_pre(thd->vio,MANAGER_OK,buf);
+    
+    while ((row=mysql_fetch_row(res)))
+    {
+      p=buf;
+      for (i=0;i<num_fields && p<buf_end-2;i++)
+      {
+	p=arg_strmov(p,row[i],buf_end-p-2);
+	*p++='\t';
+      }
+      *p=0;
+      client_msg_pre(thd->vio,MANAGER_OK,buf);
+    }
+  }
+  pthread_mutex_unlock(&e->lock);
+  client_msg(thd->vio,MANAGER_OK,"End");
+  return 0;
+err:
+  client_msg(thd->vio,MANAGER_CLIENT_ERR,error);
+  return 1;
+}
+
 HANDLE_DECL(def_exec)
 {
   struct manager_exec* e=0,*old_e;
@@ -660,9 +747,14 @@ HANDLE_DECL(def_exec)
   if ((old_e=(struct manager_exec*)hash_search(&exec_hash,(byte*)e->ident,
 					       e->ident_len)))
   {
-    pthread_mutex_unlock(&lock_exec_hash);
-    error="Exec definition already exists";
-    goto err;
+    strnmov(e->stdout_path,old_e->stdout_path,sizeof(e->stdout_path));
+    strnmov(e->stderr_path,old_e->stderr_path,sizeof(e->stderr_path));
+    strnmov(e->con_user,old_e->con_user,sizeof(e->con_user));
+    strnmov(e->con_host,old_e->con_host,sizeof(e->con_host));
+    strnmov(e->con_sock,old_e->con_sock,sizeof(e->con_sock));
+    e->con_port=old_e->con_port;
+    update_req_len(e);
+    hash_delete(&exec_hash,(byte*)old_e);
   }
   hash_insert(&exec_hash,(byte*)e);
   pthread_mutex_unlock(&lock_exec_hash);
@@ -712,7 +804,12 @@ static struct manager_exec* manager_exec_by_pid(pid_t pid)
 static void manager_exec_connect(struct manager_exec* e)
 {
   int i;
-  for (i=0;i<manager_connect_retries;i++)
+  int connect_retries;
+  
+  if (!(connect_retries=e->start_wait_timeout))
+    connect_retries=manager_connect_retries;
+  
+  for (i=0;i<connect_retries;i++)
   {
     if (mysql_real_connect(&e->mysql,e->con_host,e->con_user,e->con_pass,0,
 			   e->con_port,e->con_sock,0))
@@ -1426,6 +1523,12 @@ static uint tokenize_args(char* arg_start,char** arg_end)
   return arg_count;
 }
 
+static void update_req_len(struct manager_exec* e)
+{
+  e->req_len=e->data_buf_size+
+    (e->stdout_path_size=strlen(e->stdout_path)+1)+
+    (e->stderr_path_size=strlen(e->stderr_path)+1);
+ }
 
 static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
 {

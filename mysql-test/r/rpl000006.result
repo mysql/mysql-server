@@ -1,6 +1,30 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+set SQL_LOG_BIN=0,timestamp=200006;
+drop table if exists t1;
+create table t1(t timestamp not null,a char(1));
+insert into t1 ( a) values ('F');
+select unix_timestamp(t) from t1;
 unix_timestamp(t)
 200006
+drop table if exists t1;
+load table t1 from master;
+select unix_timestamp(t) from t1;
 unix_timestamp(t)
 200006
+set SQL_LOG_BIN=1,timestamp=default;
+drop table t1;
+set SQL_LOG_BIN=0;
+CREATE TABLE t1 (
+a int not null
+) TYPE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
+INSERT INTO t1 VALUES (1);
+load table t1 from master;
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+drop table t1;

@@ -1,3 +1,21 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop table if exists t1,t2;
+create table t2(n int);
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (NULL),(NULL);
+truncate table t1;
+insert into t1 values (4),(NULL);
+slave stop;
+slave start;
+insert into t1 values (NULL),(NULL);
+flush logs;
+truncate table t1;
+insert into t1 values (10),(NULL),(NULL),(NULL),(NULL),(NULL);
+select * from t1;
 n
 10
 11
@@ -5,3 +23,4 @@ n
 13
 14
 15
+drop table t1,t2;

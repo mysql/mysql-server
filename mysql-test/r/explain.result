@@ -1,15 +1,30 @@
+drop table if exists t1;
+create table t1 (id int not null, str char(10), unique(str));
+insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
+select * from t1 where str is null;
 id	str
 1	NULL
 2	NULL
+select * from t1 where str="foo";
 id	str
 3	foo
+explain select * from t1 where str is null;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ref	str	str	11	const	1	where used
+explain select * from t1 where str="foo";
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	const	str	str	11	const	1	
+explain select * from t1 ignore key (str) where str="foo";
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	str	NULL	NULL	NULL	4	where used
+explain select * from t1 use key (str,str) where str="foo";
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	const	str	str	11	const	1	
+explain select * from t1 use key (str,str,foo) where str="foo";
+Key column 'foo' doesn't exist in table
+explain select * from t1 ignore key (str,str,foo) where str="foo";
+Key column 'foo' doesn't exist in table
+drop table t1;
+explain select 1;
 Comment
 No tables used

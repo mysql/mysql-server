@@ -1,3 +1,7 @@
+drop table if exists t1;
+create table t1 (a int not null auto_increment, b int not null, primary key(a));
+insert into t1 (b) values (2),(3),(5),(5),(5),(6),(7),(9);
+select SQL_CALC_FOUND_ROWS * from t1;
 a	b
 1	2
 2	3
@@ -7,25 +11,37 @@ a	b
 6	6
 7	7
 8	9
+select found_rows();
 FOUND_ROWS()
 8
+select SQL_CALC_FOUND_ROWS * from t1 limit 1;
 a	b
 1	2
+select found_rows();
 FOUND_ROWS()
 8
+select SQL_CALC_FOUND_ROWS * from t1 order by b desc limit 1;
 a	b
 8	9
+select found_rows();
 FOUND_ROWS()
 8
+select SQL_CALC_FOUND_ROWS distinct b from t1 limit 1;
 b
 2
+select found_rows();
 FOUND_ROWS()
 6
+select SQL_CALC_FOUND_ROWS b,count(*) as c from t1 group by b order by c desc limit 1;
 b	c
 5	3
+select found_rows();
 FOUND_ROWS()
 6
+select SQL_CALC_FOUND_ROWS * from t1 left join t1 as t2 on (t1.b=t2.a) limit 2,1;
 a	b	a	b
 3	5	5	5
+select found_rows();
 FOUND_ROWS()
 8
+drop table t1;

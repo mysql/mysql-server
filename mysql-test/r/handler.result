@@ -1,60 +1,99 @@
+drop table if exists t1;
+create table t1 (a int, b char(10), key a(a), key b(a,b));
+insert into t1 values
+(17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
+(14,"aaa"),(15,"bbb"),(16,"ccc"),(16,"xxx"),
+(20,"ggg"),(21,"hhh"),(22,"iii");
+handler t1 open as t2;
+handler t2 read a first;
 a	b
 14	aaa
+handler t2 read a next;
 a	b
 15	bbb
+handler t2 read a next;
 a	b
 16	ccc
+handler t2 read a prev;
 a	b
 15	bbb
+handler t2 read a last;
 a	b
 22	iii
+handler t2 read a prev;
 a	b
 21	hhh
+handler t2 read a prev;
 a	b
 20	ggg
+handler t2 read a first;
 a	b
 14	aaa
+handler t2 read a prev;
 a	b
+handler t2 read a last;
 a	b
 22	iii
+handler t2 read a prev;
 a	b
 21	hhh
+handler t2 read a next;
 a	b
 22	iii
+handler t2 read a next;
 a	b
+handler t2 read a=(15);
 a	b
 15	bbb
+handler t2 read a=(16);
 a	b
 16	ccc
+handler t2 read a=(19,"fff");
+Too many key parts specified. Max 1 parts allowed
+handler t2 read b=(19,"fff");
 a	b
 19	fff
+handler t2 read b=(19,"yyy");
 a	b
 19	yyy
+handler t2 read b=(19);
 a	b
 19	fff
+handler t1 read a last;
+Unknown table 't1' in HANDLER
+handler t2 read a=(11);
 a	b
+handler t2 read a>=(11);
 a	b
 14	aaa
+handler t2 read a=(18);
 a	b
 18	eee
+handler t2 read a>=(18);
 a	b
 18	eee
+handler t2 read a>(18);
 a	b
 19	fff
+handler t2 read a<=(18);
 a	b
 18	eee
+handler t2 read a<(18);
 a	b
 17	ddd
+handler t2 read a first limit 5;
 a	b
 14	aaa
 15	bbb
 16	ccc
 16	xxx
 17	ddd
+handler t2 read a next  limit 3;
 a	b
 18	eee
 19	fff
 19	yyy
+handler t2 read a prev  limit 10;
 a	b
 19	fff
 18	eee
@@ -63,25 +102,37 @@ a	b
 16	ccc
 15	bbb
 14	aaa
+handler t2 read a>=(16) limit 4;
 a	b
 16	ccc
 16	xxx
 17	ddd
 18	eee
+handler t2 read a>=(16) limit 2,2;
 a	b
 17	ddd
 18	eee
+handler t2 read a last  limit 3;
 a	b
 22	iii
 21	hhh
 20	ggg
+handler t2 read a=(19);
 a	b
 19	fff
+handler t2 read a=(19) where b="yyy";
 a	b
 19	yyy
+handler t2 read first;
 a	b
 17	ddd
+handler t2 read next;
 a	b
 18	eee
+handler t2 read next;
 a	b
 19	fff
+handler t2 read last;
+You have an error in your SQL syntax near '' at line 1
+handler t2 close;
+drop table if exists t1;

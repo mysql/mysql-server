@@ -1,16 +1,39 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
 master-bin.001	79		
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	1	master-bin.001	79	Yes			0		0	1
+change master to master_log_pos=73;
+slave stop;
+change master to master_log_pos=73;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	1	master-bin.001	73	No			0		0	1
+slave start;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	1	master-bin.001	73	Yes			0		0	1
+change master to master_log_pos=173;
+show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Log_File	Pos	Slave_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Last_log_seq
 127.0.0.1	root	9999	1	master-bin.001	173	Yes			0		0	1
+show master status;
 File	Position	Binlog_do_db	Binlog_ignore_db
 master-bin.001	79		
+create table if not exists foo(n int);
+drop table if exists foo;
+create table foo (n int);
+insert into foo values (1),(2),(3);
+change master to master_log_pos=79;
+select * from foo;
 n
 1
 2
 3
+drop table foo;

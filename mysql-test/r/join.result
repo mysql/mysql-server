@@ -1,22 +1,93 @@
+drop table if exists t1,t2;
+create table t1 (id int primary key);
+create table t2 (id int);
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+insert into t2 values (107);
+insert into t2 values (75);
+select t1.id, t2.id from t1, t2 where t2.id = t1.id;
 id	id
 107	107
 75	75
+select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
 id	count(t2.id)
 75	1
 107	1
+select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 id	count(t2.id)
 75	1
 107	1
+drop table t1,t2;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+token varchar(100) DEFAULT '' NOT NULL,
+count int(11) DEFAULT '0' NOT NULL,
+qty int(11),
+phone char(1) DEFAULT '' NOT NULL,
+timestamp datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+PRIMARY KEY (id),
+KEY token (token(15)),
+KEY timestamp (timestamp),
+UNIQUE token_2 (token(75),count,phone)
+);
+INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
+INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
+INSERT INTO t1 VALUES (18,'346d1cb63c89285b2351f0ca4de40eda',3,13200,'b','1999-12-23 11:58:04');
+INSERT INTO t1 VALUES (17,'ca6ddeb689e1b48a04146b1b5b6f936a',4,15000,'b','1999-12-23 11:36:53');
+INSERT INTO t1 VALUES (16,'ca6ddeb689e1b48a04146b1b5b6f936a',3,13200,'b','1999-12-23 11:36:53');
+INSERT INTO t1 VALUES (26,'a71250b7ed780f6ef3185bfffe027983',5,1500,'b','1999-12-27 09:44:24');
+INSERT INTO t1 VALUES (24,'4d75906f3c37ecff478a1eb56637aa09',3,5400,'y','1999-12-23 17:29:12');
+INSERT INTO t1 VALUES (25,'4d75906f3c37ecff478a1eb56637aa09',4,6500,'y','1999-12-23 17:29:12');
+INSERT INTO t1 VALUES (27,'a71250b7ed780f6ef3185bfffe027983',3,6200,'b','1999-12-27 09:44:24');
+INSERT INTO t1 VALUES (28,'a71250b7ed780f6ef3185bfffe027983',3,5400,'y','1999-12-27 09:44:36');
+INSERT INTO t1 VALUES (29,'a71250b7ed780f6ef3185bfffe027983',4,17700,'b','1999-12-27 09:45:05');
+CREATE TABLE t2 (
+id int(11) NOT NULL auto_increment,
+category int(11) DEFAULT '0' NOT NULL,
+county int(11) DEFAULT '0' NOT NULL,
+state int(11) DEFAULT '0' NOT NULL,
+phones int(11) DEFAULT '0' NOT NULL,
+nophones int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (id),
+KEY category (category,county,state)
+);
+INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
+INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
+INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
+select a.id, b.category as catid, b.state as stateid, b.county as
+countyid from t1 a, t2 b where (a.token =
+'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 id	catid	stateid	countyid
 27	2	12	11
 28	2	12	11
 29	2	12	25
 26	1	6	37
+select a.id, b.category as catid, b.state as stateid, b.county as
+countyid from t1 a, t2 b where (a.token =
+'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id) order by a.id;
 id	catid	stateid	countyid
 26	1	6	37
 27	2	12	11
 28	2	12	11
 29	2	12	25
+drop table t1, t2;
+create table t1 (a int primary key);
+insert into t1 values(1),(2);
+select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a);
 a
 1
 2
+select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
+Too many tables. MySQL can only use 31 tables in a join
+drop table t1;

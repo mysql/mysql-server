@@ -169,9 +169,11 @@ int main(int argc, char** argv)
 	manager->last_errno);
   for (;!feof(fp);)
   {
-    char buf[1024];
+    char buf[4096];
     if (!fgets(buf,sizeof(buf),fp))
       break;
+    if (!quiet)
+      fprintf(fp_out,"<<%s",buf);
     if (mysql_manager_command(manager,buf,strlen(buf)))
       die("Error in command: %s(%d)",manager->last_error,manager->last_errno);
     while (!manager->eof)
@@ -179,7 +181,8 @@ int main(int argc, char** argv)
       if (mysql_manager_fetch_line(manager,buf,sizeof(buf)))
 	die("Error fetching result line: %s(%d)", manager->last_error,
 	    manager->last_errno);
-      fprintf(fp_out,"%s\n",buf);
+      if (!quiet)
+        fprintf(fp_out,">>%s\n",buf);
     }
   }
   mysql_manager_close(manager);

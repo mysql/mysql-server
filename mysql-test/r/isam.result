@@ -1,10 +1,18 @@
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+repair table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+delete from t1 where (a & 1);
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+repair table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;

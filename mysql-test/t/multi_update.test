@@ -9,6 +9,7 @@ drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
+disable_query_log;
 let $1 = 10000;
 while ($1)
  {
@@ -27,7 +28,7 @@ while ($1)
    }
   dec $1;
  }
-
+enable_query_log;
 delete t1.*, t2.*, t3.*  from t1,t2,t3 where t1.id1 = t2.id2 and t2.id2 = t3.id3  and t1.id1 > 9500;
 
 check table t1, t2, t3;

@@ -1,38 +1,61 @@
+select 0=0,1>0,1>=1,1<0,1<=0,1!=0,strcmp("abc","abcd"),strcmp("b","a"),strcmp("a","a") ;
 0=0	1>0	1>=1	1<0	1<=0	1!=0	strcmp("abc","abcd")	strcmp("b","a")	strcmp("a","a")
 1	1	1	0	0	1	-1	1	0
+select "a"<"b","a"<="b","b">="a","b">"a","a"="A","a"<>"b";
 "a"<"b"	"a"<="b"	"b">="a"	"b">"a"	"a"="A"	"a"<>"b"
 1	1	1	1	1	1
+select "a "="A", "A "="a", "a  " <= "A b";
 "a "="A"	"A "="a"	"a  " <= "A b"
 1	1	1
+select "abc" like "a%", "abc" not like "%d%", "a%" like "a\%","abc%" like "a%\%","abcd" like "a%b_%d", "a" like "%%a","abcde" like "a%_e","abc" like "abc%";
 "abc" like "a%"	"abc" not like "%d%"	"a%" like "a\%"	"abc%" like "a%\%"	"abcd" like "a%b_%d"	"a" like "%%a"	"abcde" like "a%_e"	"abc" like "abc%"
 1	1	1	1	1	1	1	1
+select "a" like "%%b","a" like "%%ab","ab" like "a\%", "ab" like "_", "ab" like "ab_", "abc" like "%_d", "abc" like "abc%d";
 "a" like "%%b"	"a" like "%%ab"	"ab" like "a\%"	"ab" like "_"	"ab" like "ab_"	"abc" like "%_d"	"abc" like "abc%d"
 0	0	0	0	0	0	0
+select '?' like '|%', '?' like '|%' ESCAPE '|', '%' like '|%', '%' like '|%' ESCAPE '|', '%' like '%';
 '?' like '|%'	'?' like '|%' ESCAPE '|'	'%' like '|%'	'%' like '|%' ESCAPE '|'	'%' like '%'
 0	0	0	1	1
+select 'abc' like '%c','abcabc' like '%c',  "ab" like "", "ab" like "a", "ab" like "ab";
 'abc' like '%c'	'abcabc' like '%c'	"ab" like ""	"ab" like "a"	"ab" like "ab"
 1	1	0	0	1
+select "Det här är svenska" regexp "h[[:alpha:]]+r", "aba" regexp "^(a|b)*$";
 "Det här är svenska" regexp "h[[:alpha:]]+r"	"aba" regexp "^(a|b)*$"
 1	1
+select "aba" regexp concat("^","a");
 "aba" regexp concat("^","a")
 1
+select !0,NOT 0=1,!(0=0),1 AND 1,1 && 0,0 OR 1,1 || NULL, 1=1 or 1=1 and 1=0;
 !0	NOT 0=1	!(0=0)	1 AND 1	1 && 0	0 OR 1	1 || NULL	1=1 or 1=1 and 1=0
 1	1	0	1	0	1	1	1
+select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0 ;
 IF(0,"ERROR","this")	IF(1,"is","ERROR")	IF(NULL,"ERROR","a")	IF(1,2,3)|0	IF(1,2.0,3.0)+0
 this	is	a	2	2.0
+select 2 between 1 and 3, "monty" between "max" and "my",2=2 and "monty" between "max" and "my" and 3=3;
 2 between 1 and 3	"monty" between "max" and "my"	2=2 and "monty" between "max" and "my" and 3=3
 1	1	1
+select 'b' between 'a' and 'c', 'B' between 'a' and 'c';
 'b' between 'a' and 'c'	'B' between 'a' and 'c'
 1	1
+select 2 in (3,2,5,9,5,1),"monty" in ("david","monty","allan"), 1.2 in (1.4,1.2,1.0);
 2 in (3,2,5,9,5,1)	"monty" in ("david","monty","allan")	1.2 in (1.4,1.2,1.0)
 1	1	1
+select -1.49 or -1.49,0.6 or 0.6;
 -1.49 or -1.49	0.6 or 0.6
 1	1
+select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
 0	1
+select 1 and 2 between 2 and 10, 2 between 2 and 10 and 1;
 1 and 2 between 2 and 10	2 between 2 and 10 and 1
 1	1
+select 1 and 0 or 2, 2 or 1 and 0;
 1 and 0 or 2	2 or 1 and 0
 1	1
+drop table if exists t1;
+create table t1 (num  double(12,2));
+insert into t1 values (144.54);
+select sum(if(num is null,0.00,num)) from t1;
 sum(if(num is null,0.00,num))
 144.54
+drop table t1;

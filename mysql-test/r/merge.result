@@ -1,3 +1,10 @@
+drop table if exists t1,t2,t3;
+create table t1 (a int not null primary key auto_increment, message char(20));
+create table t2 (a int not null primary key auto_increment, message char(20));
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
+INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
+create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(t1,t2);
+select * from t3;
 a	b
 1	Testing
 2	table
@@ -5,6 +12,7 @@ a	b
 1	Testing
 2	table
 3	t2
+select * from t3 order by a desc;
 a	b
 3	t1
 3	t2
@@ -12,13 +20,30 @@ a	b
 2	table
 1	Testing
 1	Testing
+drop table t3;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+create table t3 (a int not null, b char(20), key(a)) type=MERGE UNION=(test.t1,test.t2);
+explain select * from t3 where a < 10;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t3	range	a	a	4	NULL	10	where used
+explain select * from t3 where a > 10 and a < 20;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t3	range	a	a	4	NULL	10	where used
+select * from t3 where a = 10;
 a	b
 10	Testing
 10	Testing
+select * from t3 where a < 10;
 a	b
 1	Testing
 1	Testing
@@ -38,6 +63,7 @@ a	b
 8	table
 9	t2
 9	t2
+select * from t3 where a > 10 and a < 20;
 a	b
 11	table
 11	table
@@ -57,8 +83,10 @@ a	b
 18	t2
 19	Testing
 19	Testing
+explain select a from t3 order by a desc limit 10;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t3	index	NULL	a	4	NULL	1131	Using index
+select a from t3 order by a desc limit 10;
 a
 699
 698
@@ -70,6 +98,7 @@ a
 692
 691
 690
+select a from t3 order by a desc limit 300,10;
 a
 416
 415
@@ -81,12 +110,29 @@ a
 412
 412
 411
+show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL default '0',
   `b` char(20) default NULL,
   KEY `a` (`a`)
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
+create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
+select * from t4;
+Can't open file: 't4.MRG'. (errno: 143)
+create table t5 (a int not null, b char(10), key(a)) type=MERGE UNION=(test.t1,test_2.t2);
+Incorrect table definition; All MERGE tables must be in the same database
+drop table if exists t5,t4,t3,t1,t2;
+create table t1 (c char(10)) type=myisam;
+create table t2 (c char(10)) type=myisam;
+create table t3 (c char(10)) union=(t1,t2) type=merge;
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+select * from t3;
 c
 test1
 test1
@@ -94,6 +140,7 @@ test1
 test2
 test2
 test2
+select * from t3;
 c
 test1
 test1
@@ -101,32 +148,71 @@ test1
 test2
 test2
 test2
+delete from t3 where 1=1;
+select * from t3;
 c
+select * from t1;
 c
+drop table t3,t2,t1;
+CREATE TABLE t1 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t2 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+TYPE=MERGE UNION=(t1,t2);
+SELECT * from t3;
 incr	othr
+INSERT INTO t1 VALUES ( 1,10),( 3,53),( 5,21),( 7,12),( 9,17);
+INSERT INTO t2 VALUES ( 2,24),( 4,33),( 6,41),( 8,26),( 0,32);
+INSERT INTO t1 VALUES (11,20),(13,43),(15,11),(17,22),(19,37);
+INSERT INTO t2 VALUES (12,25),(14,31),(16,42),(18,27),(10,30);
+SELECT * from t3 where incr in (1,2,3,4) order by othr;
 incr	othr
 1	10
 2	24
 4	33
 3	53
+alter table t3 UNION=(t1);
+select count(*) from t3;
 count(*)
 10
+alter table t3 UNION=(t1,t2);
+select count(*) from t3;
 count(*)
 20
+alter table t3 TYPE=MYISAM;
+select count(*) from t3;
 count(*)
 20
+drop table t3;
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+TYPE=MERGE UNION=(t1,t2);
+show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL default '0',
   `othr` int(11) NOT NULL default '0',
   PRIMARY KEY  (`incr`)
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
+alter table t3 drop primary key;
+show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL default '0',
   `othr` int(11) NOT NULL default '0'
 ) TYPE=MRG_MyISAM UNION=(t1,t2)
+drop table t3,t2,t1;
+create table t1 (a int not null) type=merge;
+select * from t1;
 a
+drop table t1;
+drop table if exists t3, t2, t1;
+create table t1 (a int not null, b int not null, key(a,b));
+create table t2 (a int not null, b int not null, key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) TYPE=MERGE UNION=(t1,t2);
+insert into t1 values (1,2),(2,1),(0,0),(4,4),(5,5),(6,6);
+insert into t2 values (1,1),(2,2),(0,0),(4,4),(5,5),(6,6);
+flush tables;
+select * from t3 where a=1 order by b limit 2;
 a	b
 1	1
 1	2
+drop table t3,t1,t2;

@@ -1,3 +1,12 @@
+drop table if exists t1;
+create table t1 (a char (20) not null, b int not null auto_increment, index (a,b),index(b));
+insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
+insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
+insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
+insert into t1 (a) values ('s'),('ss'),('ß'),('ßb'),('ssa'),('ssc'),('ßa');
+insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
+insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É');
+select a,b from t1 order by a,b;
 a	b
 a	35
 ac	2
@@ -38,6 +47,7 @@ ueb	12
 üc	7
 uf	13
 uü	29
+select a,b from t1 order by upper(a),b;
 a	b
 a	35
 ac	2
@@ -78,6 +88,7 @@ ueb	12
 üc	7
 uf	13
 uü	29
+select a from t1 order by a desc;
 a
 uü
 uf
@@ -118,15 +129,19 @@ ae
 ad
 ac
 a
+check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+select * from t1 where a like "ö%";
 a	b
 ö	14
 Öa	16
 Öc	19
 öo	30
+select * from t1 where a like binary "%É%";
 a	b
 É	39
+select * from t1 where a like "%Á%";
 a	b
 a	35
 ac	2
@@ -138,6 +153,7 @@ aeb	6
 Öa	16
 ssa	25
 ßa	27
+select * from t1 where a like "%U%";
 a	b
 u	36
 uc	8
@@ -146,30 +162,46 @@ ue	9
 ueb	12
 uf	13
 uü	29
+select * from t1 where a like "%ss%";
 a	b
 ss	22
 ssa	25
 ssc	26
+drop table t1;
+select strcmp('ä','ae'),strcmp('ae','ä'),strcmp('aeq','äq'),strcmp('äq','aeq');
 strcmp('ä','ae')	strcmp('ae','ä')	strcmp('aeq','äq')	strcmp('äq','aeq')
 0	0	0	0
+select strcmp('ss','ß'),strcmp('ß','ss'),strcmp('ßs','sss'),strcmp('ßq','ssq');
 strcmp('ss','ß')	strcmp('ß','ss')	strcmp('ßs','sss')	strcmp('ßq','ssq')
 0	0	0	0
+select strcmp('ä','af'),strcmp('a','ä'),strcmp('ää','aeq'),strcmp('ää','aeaeq');
 strcmp('ä','af')	strcmp('a','ä')	strcmp('ää','aeq')	strcmp('ää','aeaeq')
 -1	-1	-1	-1
+select strcmp('ss','ßa'),strcmp('ß','ssa'),strcmp('sßa','sssb'),strcmp('s','ß');
 strcmp('ss','ßa')	strcmp('ß','ssa')	strcmp('sßa','sssb')	strcmp('s','ß')
 -1	-1	-1	-1
+select strcmp('ö','oö'),strcmp('Ü','uü'),strcmp('ö','oeb');
 strcmp('ö','oö')	strcmp('Ü','uü')	strcmp('ö','oeb')
 -1	-1	-1
+select strcmp('af','ä'),strcmp('ä','a'),strcmp('aeq','ää'),strcmp('aeaeq','ää');
 strcmp('af','ä')	strcmp('ä','a')	strcmp('aeq','ää')	strcmp('aeaeq','ää')
 1	1	1	1
+select strcmp('ßa','ss'),strcmp('ssa','ß'),strcmp('sssb','sßa'),strcmp('ß','s');
 strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 1	1	1	1
+select strcmp('u','öa'),strcmp('u','ö');
 strcmp('u','öa')	strcmp('u','ö')
 1	1
+create table t1 (a varchar(10), key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+select * from t1 where a like "abc%";
 a
 abc
 abcd
+select * from t1 where a like "test%";
 a
 test
+select * from t1 where a like "te_t";
 a
 test
+drop table t1;
