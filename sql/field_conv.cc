@@ -112,33 +112,50 @@ static void do_outer_field_to_null_str(Copy_field *copy)
 bool
 set_field_to_null(Field *field)
 {
-  if (field->maybe_null())
+  if (field->real_maybe_null())
   {
     field->set_null();
     field->reset();
+    return 0;
   }
-  else
-  {
-    if (field->type() == FIELD_TYPE_TIMESTAMP)
-    {
-      ((Field_timestamp*) field)->set_time();
-      return 0;					// Ok to set time to NULL
-    }
-    field->reset();
-    if (field == field->table->next_number_field)
-      return 0;					// field is set in handler.cc
-    if (current_thd->count_cuted_fields)
-    {
-      current_thd->cuted_fields++;		// Increment error counter
-      return 0;
-    }
-    if (!current_thd->no_errors)
-      my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
-		      field->field_name);
-    return 1;
-  }
-  return 0;
+  return 1;
 }
+
+
+bool
+set_field_to_null_with_conversions(Field *field)
+{
+  if (field->real_maybe_null())
+  {
+    field->set_null();
+    field->reset();
+    return 0;
+  }
+
+  /*
+    Check if this is a special type, which will get a special walue
+    when set to NULL
+  */
+  if (field->type() == FIELD_TYPE_TIMESTAMP)
+  {
+    ((Field_timestamp*) field)->set_time();
+    return 0;					// Ok to set time to NULL
+  }
+  field->reset();
+  if (field == field->table->next_number_field)
+    return 0;					// field is set in handler.cc
+  if (current_thd->count_cuted_fields)
+  {
+    current_thd->cuted_fields++;		// Increment error counter
+    return 0;
+  }
+  if (!current_thd->no_errors)
+    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
+		    field->field_name);
+  return 1;
+}
+
+
 
 
 static void do_skip(Copy_field *copy __attribute__((unused)))

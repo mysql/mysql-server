@@ -55,6 +55,8 @@ public:
   virtual bool save_in_field(Field *field);
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
+  virtual bool save_safe_in_field(Field *field)
+    { return save_in_field(field); }
   virtual bool send(String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
@@ -144,6 +146,7 @@ public:
   String *val_str(String *str);
   void make_field(Send_field *field);
   bool save_in_field(Field *field);
+  bool save_safe_in_field(Field *field);
   enum Item_result result_type () const
   { return STRING_RESULT; }
   bool send(String *str);
