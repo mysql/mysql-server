@@ -309,6 +309,7 @@ void set_param_double(Item_param *param, uchar **pos, ulong len)
   *pos+= 8;
 }
 
+#ifndef EMBEDDED_LIBRARY
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
   ulong length;
@@ -385,6 +386,62 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
   }
   *pos+= length;
 }
+
+#else/*!EMBEDDED_LIBRARY*/
+void set_param_time(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+    
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.hour=   to->hour;
+  tm.minute= to->minute;
+  tm.second= to->second;
+
+  tm.year= tm.month= 0;
+  tm.neg= to->neg;
+
+  param->set_time(&tm, TIMESTAMP_TIME);
+}
+
+void set_param_datetime(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.hour=   to->hour;
+  tm.minute= to->minute;
+  tm.second= to->second;
+  tm.year=   to->year;
+  tm.month=  to->month;
+  tm.neg=    0;
+
+  param->set_time(&tm, TIMESTAMP_DATETIME);
+}
+
+void set_param_date(Item_param *param, uchar **pos, ulong len)
+{
+  TIME  tm;
+  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
+    
+  tm.second_part= to->second_part;
+
+  tm.day=    to->day;
+  tm.year=   to->year;
+  tm.month=  to->month;
+  tm.neg=    0;
+  tm.hour= tm.minute= tm.second= 0;
+  tm.second_part= 0;
+  tm.neg= 0;
+
+  param->set_time(&tm, TIMESTAMP_DATE);
+}
+#endif /*!EMBEDDED_LIBRARY*/
 
 void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
@@ -568,6 +625,7 @@ static bool emb_insert_params(Prepared_statement *stmt)
   {
     Item_param *param= *it;
     setup_one_conversion_function(param, client_param->buffer_type);
+    param->unsigned_flag= client_param->is_unsigned;
     if (!param->long_data_supplied)
     {
       if (*client_param->is_null)
