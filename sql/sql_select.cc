@@ -272,6 +272,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   count_field_types(&join.tmp_table_param,all_fields,0);
   join.const_tables=0;
   join.having=0;
+  join.do_send_rows = 1;
   join.group= group != 0;
 
 #ifdef RESTRICTED_GROUP
@@ -354,7 +355,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       result->send_fields(fields,1);
       if (!having || having->val_int())
       {
-	if (result->send_data(fields))
+	if (join.do_send_rows && result->send_data(fields))
 	{
 	  result->send_error(0,NullS);		/* purecov: inspected */
 	  error=1;
@@ -429,7 +430,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       select_distinct=0;
   }
   else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (order || thd->select_limit == HA_POS_ERROR))
+	   (order || thd->select_limit == HA_POS_ERROR ||
+	    (join.select_options & OPTION_FOUND_ROWS)))
   {
     if ((group=create_distinct_group(order,fields)))
     {
@@ -528,7 +530,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	(join.const_tables == join.tables ||
 	 test_if_skip_sort_order(&join.join_tab[join.const_tables], order,
 				 (having || group ||
-				  join.const_tables != join.tables - 1) ?
+				  join.const_tables != join.tables - 1 ||
+				  (join.select_options & OPTION_FOUND_ROWS)) ?
 				 HA_POS_ERROR : thd->select_limit)))
       order=0;
     select_describe(&join,need_tmp,
@@ -565,7 +568,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 			    group : (ORDER*) 0),
 			   group ? 0 : select_distinct,
 			   group && simple_group,
-			   order == 0,
+			   order == 0 &&
+			   !(join.select_options & OPTION_FOUND_ROWS),
 			   join.select_options)))
       goto err;					/* purecov: inspected */
 
@@ -776,7 +780,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
 			  (having || group ||
-			   join.const_tables != join.tables - 1) ?
+			   join.const_tables != join.tables - 1 ||
+			   (join.select_options & OPTION_FOUND_ROWS)) ?
 			  HA_POS_ERROR : thd->select_limit))
       goto err; /* purecov: inspected */
   }
@@ -785,6 +790,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   error=do_select(&join,&fields,NULL,procedure);
 
 err:
+  thd->limit_found_rows = join.send_records;
   thd->proc_info="end";
   join.lock=0;					// It's faster to unlock later
   join_free(&join);
@@ -2207,6 +2213,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->sum_funcs=0;
   join->send_records=(ha_rows) 0;
   join->group=0;
+  join->do_send_rows = 1;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -2307,15 +2314,19 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  */
 
 	  if ((tab->keys & ~ tab->const_keys && i > 0) ||
-	      tab->const_keys && i == join->const_tables &&
-	      join->thd->select_limit < join->best_positions[i].records_read)
+	      (tab->const_keys && i == join->const_tables &&
+	       join->thd->select_limit < join->best_positions[i].records_read &&
+	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
-				       join->thd->select_limit) < 0)
+				       (join->select_options &
+					OPTION_FOUND_ROWS ?
+					HA_POS_ERROR :
+					join->thd->select_limit)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
 	    sel->cond=orig_cond;
 	  }
@@ -4594,14 +4605,23 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     int error;
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(0);				// Didn't match having
+    error=0;
     if (join->procedure)
       error=join->procedure->send_row(*join->fields);
-    else
+    else if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
-    if (++join->send_records >= join->thd->select_limit)
+    if (++join->send_records >= join->thd->select_limit && join->do_send_rows)
+    {
+      if (join->select_options & OPTION_FOUND_ROWS)
+      {
+	join->do_send_rows=0;
+	join->thd->select_limit = HA_POS_ERROR;
+	DBUG_RETURN(0);
+      }
       DBUG_RETURN(-3);				// Abort nicely
+    }
   }
   else
   {
@@ -4632,9 +4652,10 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	int error;
 	if (join->procedure)
 	{
+	  error=0;
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else
+ 	  else if (join->do_send_rows)
 	    error=join->procedure->send_row(*join->fields) ? 1 : 0;
 	  if (end_of_records && join->procedure->end_of_records())
 	    error= 1;				// Fatal error
@@ -4652,8 +4673,14 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
 	  DBUG_RETURN(0);
-	if (!error && ++join->send_records >= join->thd->select_limit)
-	  DBUG_RETURN(-3);			/* Abort nicely */
+	if (!error && ++join->send_records >= join->thd->select_limit &&
+	    join->do_send_rows)
+	{
+	  if (!(join->select_options & OPTION_FOUND_ROWS))
+	    DBUG_RETURN(-3);				// Abort nicely
+	  join->do_send_rows=0;
+	  join->thd->select_limit = HA_POS_ERROR;
+        }
       }
     }
     else
@@ -4724,8 +4751,15 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (create_myisam_from_heap(table, &join->tmp_table_param, error,1))
 	  DBUG_RETURN(1);			// Not a table_is_full error
 	table->uniques=0;			// To ensure rows are the same
-	if (++join->send_records >= join->tmp_table_param.end_write_records)
-	  DBUG_RETURN(-3);
+	if (++join->send_records >= join->tmp_table_param.end_write_records &
+	    join->do_send_rows)
+	{
+	  if (!(join->select_options & OPTION_FOUND_ROWS))
+	    DBUG_RETURN(-3);
+	  join->do_send_rows=0;
+	  join->thd->select_limit = HA_POS_ERROR;
+	  DBUG_RETURN(0);
+	}
       }
     }
   }

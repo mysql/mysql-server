@@ -160,7 +160,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
   uint key_length;
-  uint cmp;
+  int cmp;
 
   if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, keybuf, oldrec)))
     goto err0;
@@ -187,7 +187,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
     switch (cmp) {
     case -1:
       key_length=_ft_make_key(info,keynr,keybuf,old_word,pos);
-      if (error=_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length))
+      if ((error=_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length)))
         goto err2;
       old_word++;
       break;
@@ -197,7 +197,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
       break;
     case 1:
       key_length=_ft_make_key(info,keynr,keybuf,new_word,pos);
-      if (error=_mi_ck_write(info,keynr,(uchar*) keybuf,key_length))
+      if ((error=_mi_ck_write(info,keynr,(uchar*) keybuf,key_length)))
         goto err2;
       new_word++;
       break;

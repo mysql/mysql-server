@@ -263,7 +263,7 @@ public:
   Vio* active_vio;
   pthread_mutex_t active_vio_lock;
 #endif  
-  ulonglong  next_insert_id,last_insert_id,current_insert_id;
+  ulonglong  next_insert_id,last_insert_id,current_insert_id, limit_found_rows;
   ha_rows select_limit,offset_limit,default_select_limit,cuted_fields,
           max_join_size,sent_row_count;
   table_map	used_tables;
@@ -353,6 +353,10 @@ public:
     }
     return last_insert_id;
   }
+  inline ulonglong found_rows(void)
+  {
+    return limit_found_rows;
+  }                                                                         
   inline bool active_transaction()
   {
 #ifdef USING_TRANSACTIONS    

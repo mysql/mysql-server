@@ -90,8 +90,9 @@ static double _nwghts[11]={
  -3.796875000000000};
 static double *nwghts=_nwghts+5; // nwghts[i] = -0.5*1.5**i
 
-int do_boolean(ALL_IN_ONE *aio, uint nested,
-                int yesno, int plusminus, bool pmsign)
+int do_boolean(ALL_IN_ONE *aio, uint nested __attribute__((unused)),
+	       int yesno __attribute__((unused)),
+	       int plusminus, bool pmsign)
 {
   int r, res;
   uint keylen, wno;
@@ -106,7 +107,7 @@ int do_boolean(ALL_IN_ONE *aio, uint nested,
 
   param.prev=' ';
 
-  for(wno=1; res=ft_get_word(&aio->start,aio->end,&w,&param); wno++)
+  for(wno=1; (res=ft_get_word(&aio->start,aio->end,&w,&param)); wno++)
   {
     r=plusminus+param.plusminus;
     if (param.pmsign^pmsign)
