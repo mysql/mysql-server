@@ -2940,7 +2940,7 @@ fseg_free_step(
 	freed yet */
 
 	ut_a(descr);
-	ut_anp(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
+	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
 					% FSP_EXTENT_SIZE, mtr) == FALSE);
 	inode = fseg_inode_get(header, mtr);
 

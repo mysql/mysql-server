@@ -603,7 +603,7 @@ mem_pool_validate(
 		}
 	}
 
-	ut_anp(free + pool->reserved == pool->size
+	ut_a(free + pool->reserved == pool->size
 					- (pool->size % MEM_AREA_MIN_SIZE));
 	mutex_exit(&(pool->mutex));
 

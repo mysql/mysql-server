@@ -632,7 +632,7 @@ fil_space_create(
 	/* Spaces with an odd id number are reserved to replicate spaces
 	used in log debugging */
 	
-	ut_anp((purpose == FIL_LOG) || (id % 2 == 0));
+	ut_a((purpose == FIL_LOG) || (id % 2 == 0));
 #endif
 	mutex_enter(&(system->mutex));
 
@@ -1230,8 +1230,8 @@ loop:
 
 	/* Do aio */
 
-	ut_anp(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_anp((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
