@@ -2373,10 +2373,33 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       TABLE *natural_join_table= 0;
 
       thd->used_tables|=table->map;
-      if (!table->outer_join &&
-          tables->natural_join &&
-          !tables->natural_join->table->outer_join)
-        natural_join_table= tables->natural_join->table;
+      TABLE_LIST *embedded= tables;
+      TABLE_LIST *last= embedded;
+      TABLE_LIST *embedding;
+      
+      while ((embedding= embedded->embedding) &&
+              embedding->join_list->elements != 1)
+      {
+        TABLE_LIST *next;
+        List_iterator_fast<TABLE_LIST> it(embedding->nested_join->join_list);
+        last= it++;
+        while ((next= it++))
+          last= next;
+        if (last != tables)
+          break;
+        embedded= embedding;
+      } 
+ 
+      if (tables == last && 
+          !embedded->outer_join &&
+          embedded->natural_join &&
+          !embedded->natural_join->outer_join)
+      {
+        embedding= embedded->natural_join;
+        while (embedding->nested_join)
+          embedding= embedding->nested_join->join_list.head();
+        natural_join_table= embedding->table;
+      }       
 
       while ((field = *ptr++))
       {
@@ -2533,7 +2556,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         select_lex->cond_count+= cond_and->list.elements;
 
         // to prevent natural join processing during PS re-execution
-          table->natural_join= 0;
+        embedding->natural_join= 0;
 
         COND *on_expr= cond_and;
         on_expr->fix_fields(thd, 0, &on_expr);

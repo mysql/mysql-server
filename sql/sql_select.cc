@@ -92,7 +92,7 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    SELECT_LEX_UNIT *unit);
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
-static COND *optimize_cond(THD *thd, COND *conds,
+static COND *optimize_cond(JOIN *join, COND *conds,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
 static COND *remove_eq_conds(THD *thd, COND *cond, 
@@ -570,10 +570,7 @@ JOIN::optimize()
   }
 #endif
 
-  /* Convert all outer joins to inner joins if possible */
-  conds= simplify_joins(this, join_list, conds, TRUE);
-
-  conds= optimize_cond(thd, conds,&cond_value);   
+  conds= optimize_cond(this, conds,&cond_value);   
   if (thd->net.report_error)
   {
     error= 1;
@@ -3025,7 +3022,7 @@ best_access_path(JOIN      *join,
     {
       /* Estimate cost of reading table. */
       tmp= s->table->file->scan_time();
-      if (s->on_expr)                         // Can't use join cache
+      if (s->table->map & join->outer_join)     // Can't use join cache
       {
         /*
           For each record we have to:
@@ -3172,12 +3169,16 @@ join_tab_cmp(const void* ptr1, const void* ptr2)
 {
   JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
   JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
+
+  if (jt1->dependent & jt2->table->map)
+    return 1;
+  if (jt2->dependent & jt1->table->map)
+    return -1;  
   if (jt1->found_records > jt2->found_records)
     return 1;
-  else if (jt1->found_records < jt2->found_records)
-    return -1;
-  else
-    return 0;
+  if (jt1->found_records < jt2->found_records)
+    return -1; 
+  return jt1 > jt2 ? 1 : (jt1 < jt2 ? -1 : 0);
 }
 
 
@@ -4465,6 +4466,8 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
+  if (!tmp)
+    tmp->quick_fix_field();
   return tmp;
 }
 
@@ -4788,11 +4791,14 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    */ 
             tmp= new Item_func_trig_cond(tmp, 
                                          &first_inner_tab->not_null_compl);
+            if (tmp)
+              tmp->quick_fix_field();
 	    /* Add the predicate to other pushed down predicates */
             cond_tab->select_cond= !cond_tab->select_cond ? tmp :
 	                          new Item_cond_and(cond_tab->select_cond,tmp);
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
+            cond_tab->select_cond->quick_fix_field();
           }              
         }
         first_inner_tab= first_inner_tab->first_upper;       
@@ -5827,17 +5833,42 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
 }
       
 static COND *
-optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
+optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
 {
   DBUG_ENTER("optimize_cond");
+
+  THD *thd= join->thd;
+  SELECT_LEX *select= thd->lex->current_select;
+  if (select->first_cond_optimization)
+  {
+    Item_arena *arena= select->first_cond_optimization ?
+                        thd->current_arena : 0;
+    Item_arena backup;
+    if (arena)
+      thd->set_n_backup_item_arena(arena, &backup);
+
+    if (conds)
+    {
+      DBUG_EXECUTE("where",print_where(conds,"original"););
+      /* eliminate NOT operators */
+      conds= eliminate_not_funcs(thd, conds);
+    }
+
+    /* Convert all outer joins to inner joins if possible */
+    conds= simplify_joins(join, join->join_list, conds, TRUE);
+
+    select->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
+    select->first_cond_optimization= 0;
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
+  }
+
   if (!conds)
   {
     *cond_value= Item::COND_TRUE;
     DBUG_RETURN(conds);
   }
-  DBUG_EXECUTE("where",print_where(conds,"original"););
-  /* eliminate NOT operators */
-  conds= eliminate_not_funcs(thd, conds);
+
   DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
   /* change field = field to field = const for each found field = const */
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
