@@ -14917,7 +14917,7 @@ that is based on the function of the same name in the MySQL C API.
 @item
 Users of MySQL C API:
 @itemize @bullet
-@item Check out the @code{mysql_escape_string()} API call.
+@item Check out the @code{mysql_real_escape_string()} API call.
 @end itemize
 @item
 Users of MySQL++:
@@ -27782,7 +27782,7 @@ A tab character.
 @findex (Control-Z) \z
 @item \z
 ASCII(26) (Control-Z).  This character can be encoded to allow you to
-go around the problem that ASCII(26) stands for END-OF-FILE on Windows.
+work around the problem that ASCII(26) stands for END-OF-FILE on Windows.
 (ASCII(26) will cause problems if you try to use
 @code{mysql database < filename}.)
 
@@ -27855,8 +27855,9 @@ lines |
 
 @cindex quoting binary data
 
-If you want to insert binary data into a @code{BLOB} column, the following
-characters must be represented by escape sequences:
+If you want to insert binary data into a string column (such as a
+@code{BLOB}), the following characters must be represented by escape
+sequences:
 @table @code
 @item NUL
 ASCII 0. You should represent this by @samp{\0} (a backslash and an ASCII @samp{0} character).
@@ -27870,10 +27871,10 @@ ASCII 34, double quote.  Represent this by @samp{\"}.
 
 @cindex quoting
 @cindex @code{BLOB}, inserting binary data
-@findex mysql_escape_string()
+@findex mysql_real_escape_string()
 @findex DBI->quote
 If you write C code, you can use the C API function
-@code{mysql_escape_string()} to escape characters for the @code{INSERT}
+@code{mysql_real_escape_string()} to escape characters for the @code{INSERT}
 statement.  @xref{C API function overview}.  In Perl, you can use the
 @code{quote} method of the @code{DBI} package to convert special
 characters to the proper escape sequences.  @xref{Perl DBI Class, , Perl
@@ -27881,6 +27882,11 @@ characters to the proper escape sequences.  @xref{Perl DBI Class, , Perl
 
 You should use an escape function on any string that might contain any of the
 special characters listed above!
+
+Alternatively, many MySQL APIs provide some sort of placeholder capability
+that allows you to insert special markers into a query string, and then bind
+data values to them when you issue the query.  In this case, the API takes
+case of escaping special characters in the values for you automatically.
 
 
 @node Number syntax, Hexadecimal values, String syntax, Literals
@@ -27921,7 +27927,7 @@ as the equivalent floating-point number.
 
 @tindex hexadecimal values
 
-MySQL supports hexadecimal values.  In number context these act
+MySQL supports hexadecimal values.  In numeric context these act
 like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
@@ -27934,9 +27940,9 @@ mysql> select 0x5061756c;
          -> Paul
 @end example
 
-The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
-syntax is based on ODBC.
-Hexadecimal strings are often used by ODBC to give values for BLOB columns.
+The @code{x'hexstring'} syntax (new in 4.0) is based on ANSI SQL and the
+@code{0x} syntax is based on ODBC.  Hexadecimal strings are often used by
+ODBC to supply values for @code{BLOB} columns.
 You can convert a string or a number to hexadecimal with the @code{HEX()}
 function.
 
@@ -27992,7 +27998,7 @@ Note that if the identifier is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
 
 @example
-SELECT * from `select` where `select`.id > 100;
+mysql> SELECT * from `select` where `select`.id > 100;
 @end example
 
 In previous versions of MySQL, the name rules are as follows:
@@ -28007,8 +28013,8 @@ to @code{mysqld}.
 
 @item
 A name may start with any character that is legal in a name.  In particular,
-a name may start with a number (this differs from many other database
-systems!).  However, a name cannot consist @emph{only} of numbers.
+a name may start with a digit (this differs from many other database
+systems!).  However, a name cannot consist @emph{only} of digits.
 
 @item
 You cannot use the @samp{.} character in names because it is used to extend the
@@ -28065,8 +28071,10 @@ programs prefix table names with a @samp{.} character.
 In MySQL, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
 underlying operating system determines the case sensitivity of database and
-table names.  This means database and table names are case sensitive in Unix
-and case insensitive in Windows. @xref{Extensions to ANSI}.
+table names.  This means database and table names are case insensitive in
+Windows, and case sensitive in most varieties of Unix (Mac OS X being an
+exception).
+@xref{Extensions to ANSI}.
 
 @strong{NOTE:} Although database and table names are case insensitive for
 Windows, you should not refer to a given database or table using different
@@ -28077,7 +28085,7 @@ refers to a table both as @code{my_table} and as @code{MY_TABLE}:
 mysql> SELECT * FROM my_table WHERE MY_TABLE.col=1;
 @end example
 
-Column names are case insensitive in all cases.
+Column names and column aliases are case insensitive in all cases.
 
 Aliases on tables are case sensitive.  The following query would not work
 because it refers to the alias both as @code{a} and as @code{A}:
@@ -28087,9 +28095,7 @@ mysql> SELECT col_name FROM tbl_name AS a
     ->                 WHERE a.col_name = 1 OR A.col_name = 2;
 @end example
 
-Aliases on columns are case insensitive.
-
-If you have a problem remembering the used cases for a table names,
+If you have trouble remembering the lettercase for database and table names,
 adopt a consistent convention, such as always creating databases and
 tables using lowercase names.
 
@@ -28129,8 +28135,10 @@ SET @@variable= @{ integer expression | real expression | string expression @}
 [,@@variable= ...].
 @end example
 
-You can also set a variable in an expression with the @code{@@variable:=expr}
-syntax:
+You can also assign a value to a variable in statements other than @code{SET}.
+However, in this case the assignment operator is @code{:=} rather than
+@code{=}, because @code{=} is reserved for comparisons in non-@code{SET}
+statements:
 
 @example
 select @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
@@ -28141,16 +28149,13 @@ select @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 +----------------------+------+------+------+
 @end example
 
-(We had to use the @code{:=} syntax here, because @code{=} was reserved for
-comparisons.)
-
 User variables may be used where expressions are allowed.  Note that
-this does not currently include use in contexts where a number is explicitly
+this does not currently include contexts where a number is explicitly
 required, such as in the @code{LIMIT} clause of a @code{SELECT} statement,
 or the @code{IGNORE number LINES} clause of a @code{LOAD DATA} statement.
 
-@strong{NOTE:}  In a @code{SELECT} statement, each expression is only
-evaluated when it's sent to the client.  This means that in the @code{HAVING},
+@strong{NOTE:}  In a @code{SELECT} statement, each expression is evaluated
+only when it's sent to the client.  This means that in the @code{HAVING},
 @code{GROUP BY}, or @code{ORDER BY} clause, you can't refer to an expression
 that involves variables that are set in the @code{SELECT} part. For example,
 the following statement will NOT work as expected:
@@ -28185,8 +28190,8 @@ multiple-line comment
 1;
 @end example
 
-Note that the @code{--} comment style requires you to have at least one space
-after the @code{--}!
+Note that the @code{--} (double-dash) comment style requires you to have at
+least one space after the second dash!
 
 Although the server understands the comment syntax just described,
 there are some limitations on the way that the @code{mysql} client
@@ -28210,8 +28215,8 @@ These limitations apply both when you run @code{mysql} interactively
 and when you put commands in a file and tell @code{mysql} to read its
 input from that file with @code{mysql < some-file}.
 
-MySQL only supports the @samp{--} ANSI SQL comment style if it is
-followed by a space. @xref{ANSI diff comments}.
+MySQL supports the @samp{--} ANSI SQL comment style only if the second dash
+is followed by a space. @xref{ANSI diff comments}.
 
 
 @node Reserved words,  , Comments, Language Structure
@@ -28224,12 +28229,12 @@ A common problem stems from trying to create a table with column names that
 use the names of datatypes or functions built into MySQL, such as
 @code{TIMESTAMP} or @code{GROUP}.  You're allowed to do it (for example,
 @code{ABS} is an allowed column name), but whitespace is not allowed between
-a function name and the @samp{(} when using functions whose names are also
-column names.
+a function name and the immediately following @samp{(} when using functions
+whose names are also column names.
 
 The following words are explicitly reserved in MySQL. Most of
 them are forbidden by ANSI SQL92 as column and/or table names
-(for example, @code{group}).
+(for example, @code{GROUP}).
 A few are reserved because MySQL needs them and is
 (currently) using a @code{yacc} parser:
 
@@ -28440,12 +28445,12 @@ A large integer. The signed range is @code{-9223372036854775808} to
 @code{9223372036854775807}. The unsigned range is @code{0} to
 @code{18446744073709551615}.
 
-Some things you should be aware about @code{BIGINT} columns:
+Some things you should be aware of with respect to @code{BIGINT} columns:
 
 @itemize @bullet
 @item
 @cindex rounding errors
-As all arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
+All arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
 values, so you shouldn't use unsigned big integers larger than
 @code{9223372036854775807} (63 bits) except with bit functions! If you
 do that, some of the last digits in the result may be wrong because of
@@ -28458,17 +28463,17 @@ Use integers to store big unsigned values in a @code{BIGINT} column.
 @item
 In @code{MIN(big_int_column)} and @code{MAX(big_int_column)}.
 @item
-When using operators (@code{+}, @code{-}, @code{*} etc) where
+When using operators (@code{+}, @code{-}, @code{*}, etc.) where
 both operands are integers.
 @end itemize
 
 @item
 You can always store an exact integer value in a @code{BIGINT} column by
-storing it as a string, as there is in this case there will be no
-intermediate double representation.
+storing it as a string.  In this case, MySQL will perform a string-to-number
+conversion that involves no intermediate double representation.
 @item
 @samp{-}, @samp{+}, and @samp{*} will use @code{BIGINT} arithmetic when
-both arguments are @code{INTEGER} values!  This means that if you
+both arguments are integer values!  This means that if you
 multiply two big integers (or results from functions that return
 integers) you may get unexpected results when the result is larger than
 @code{9223372036854775807}.
@@ -28504,7 +28509,7 @@ This syntax is provided for ODBC compatibility.
 A small (single-precision) floating-point number. Cannot be unsigned.
 Allowable values are @code{@w{-3.402823466E+38}} to
 @code{@w{-1.175494351E-38}}, @code{0}, and @code{@w{1.175494351E-38}} to
-@code{3.402823466E+38}.  The M is the display width and D is the
+@code{3.402823466E+38}.  The @code{M} is the display width and @code{D} is the
 number of decimals.  @code{FLOAT} without an argument or with an argument of
 <= 24 stands for a single-precision floating-point number.
 
@@ -28515,10 +28520,10 @@ number of decimals.  @code{FLOAT} without an argument or with an argument of
 A normal-size (double-precision) floating-point number. Cannot be
 unsigned. Allowable values are @code{@w{-1.7976931348623157E+308}} to
 @code{@w{-2.2250738585072014E-308}}, @code{0}, and
-@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The M
-is the display width and D is the number of decimals.  @code{DOUBLE}
-without an argument or @code{FLOAT(X)} where 25 <= X <= 53 stands for a
-double-precision floating-point number.
+@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The
+@code{M} is the display width and @code{D} is the number of decimals.
+@code{DOUBLE} without an argument or @code{FLOAT(X)} where 25 <= @code{X}
+<= 53 stands for a double-precision floating-point number.
 
 @tindex DOUBLE PRECISION
 @tindex REAL
@@ -28533,17 +28538,18 @@ These are synonyms for @code{DOUBLE}.
 An unpacked floating-point number.  Cannot be unsigned.  Behaves like a
 @code{CHAR} column: ``unpacked'' means the number is stored as a string,
 using one character for each digit of the value.  The decimal point and,
-for negative numbers, the @samp{-} sign, are not counted in M (but space
-for these are reserved). If @code{D} is 0, values will have no decimal
+for negative numbers, the @samp{-} sign, are not counted in @code{M} (but
+space for these is reserved). If @code{D} is 0, values will have no decimal
 point or fractional part.  The maximum range of @code{DECIMAL} values is
 the same as for @code{DOUBLE}, but the actual range for a given
 @code{DECIMAL} column may be constrained by the choice of @code{M} and
 @code{D}.
 
-If @code{D} is left out it's set to 0. If @code{M} is left out it's set to 10.
+If @code{D} is omitted, the default is 0.  If @code{M} is omitted, the
+default is 10.
 
-Note that in MySQL Version 3.22 the @code{M} argument had to
-includes the space needed for the sign and the decimal point.
+Prior to MySQL Version 3.23, the @code{M} argument must include the space
+needed for the sign and the decimal point.
 
 @tindex NUMERIC
 @item NUMERIC(M,D) [ZEROFILL]
@@ -28582,14 +28588,14 @@ recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
 
-A @code{TIMESTAMP} is always stored in 4 bytes.  The @code{M} argument only
-affects how the @code{TIMESTAMP} column is displayed.
+The @code{M} argument affects only how a @code{TIMESTAMP} column is displayed;
+its values always are stored using 4 bytes each.
 
-Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
-be numbers while other @code{TIMESTAMP(X)} columns are reported to be
+Note that @code{TIMESTAMP(M)} columns where @code{M} is 8 or 14 are reported to
+be numbers while other @code{TIMESTAMP(M)} columns are reported to be
 strings.  This is just to ensure that one can reliably dump and restore
 the table with these types!
-@xref{DATETIME}.
+@xref{DATETIME, , @code{DATETIME}}.
 
 @tindex TIME
 @item TIME
@@ -28597,7 +28603,7 @@ the table with these types!
 A time.  The range is @code{'-838:59:59'} to @code{'838:59:59'}.
 MySQL displays @code{TIME} values in @code{'HH:MM:SS'} format, but
 allows you to assign values to @code{TIME} columns using either strings or
-numbers. @xref{TIME}.
+numbers. @xref{TIME, , @code{TIME}}.
 
 @tindex YEAR
 @item YEAR[(2|4)]
@@ -28607,7 +28613,7 @@ are @code{1901} to @code{2155}, @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  MySQL displays
 @code{YEAR} values in @code{YYYY} format, but allows you to assign values to
 @code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
-new in MySQL Version 3.22.) @xref{YEAR}.
+unavailable prior to MySQL Version 3.22.) @xref{YEAR, , @code{YEAR}}.
 
 @tindex NATIONAL CHAR
 @tindex NCHAR
@@ -28616,14 +28622,15 @@ new in MySQL Version 3.22.) @xref{YEAR}.
 @item [NATIONAL] CHAR(M) [BINARY]
 
 A fixed-length string that is always right-padded with spaces to the
-specified length when stored. The range of @code{M} is 1 to 255 characters.
+specified length when stored. The range of @code{M} is 0 to 255 characters
+(1 to 255 prior to MySQL Version 3.23).
 Trailing spaces are removed when the value is retrieved. @code{CHAR} values
 are sorted and compared in case-insensitive fashion according to the
 default character set unless the @code{BINARY} keyword is given.
 
-@code{NATIONAL CHAR} (short form @code{NCHAR}) is the ANSI SQL way to
-define that a CHAR column should use the default CHARACTER set.  This is
-the default in MySQL.
+@code{NATIONAL CHAR} (or its equivalent short form, @code{NCHAR}) is the
+ANSI SQL way to define that a @code{CHAR} column should use the default
+CHARACTER set.  This is the default in MySQL.
 
 @code{CHAR} is a shorthand for @code{CHARACTER}.
 
@@ -28632,8 +28639,8 @@ MySQL allows you to create a column of type
 some old applications that depend on the existence of a column but that do not
 actually use the value.  This is also quite nice when you need a
 column that only can take 2 values: A @code{CHAR(0)}, that is not defined
-as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
-@code{NULL} or @code{""}. @xref{CHAR}.
+as @code{NOT NULL}, will occupy only one bit and can take only 2 values:
+@code{NULL} or @code{""}. @xref{CHAR, , @code{CHAR}}.
 
 @tindex BOOL
 @tindex BIT
@@ -51236,7 +51243,7 @@ Fixed problem with optimiser that could sometimes use incorrect keys.
 Fixed that @code{GRANT/REVOKE ALL PRIVILEGES} doesn't affect
 @code{GRANT OPTION}.
 @item
-Removed extra @code{)} from the output of @code{SHOW GRANTS}.
+Removed extra @samp{)} from the output of @code{SHOW GRANTS}.
 @item
 Fixed problem when storing numbers in timestamps.
 @item
