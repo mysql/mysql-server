@@ -2264,7 +2264,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
- man/Makefile os2/Makefile \
+ man/Makefile os2/Makefile os2/include/Makefile os2/include/sys/Makefile \
  readline/Makefile libmysql_r/Makefile libmysql/Makefile client/Makefile \
  sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
