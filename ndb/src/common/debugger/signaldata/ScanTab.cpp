@@ -100,25 +100,6 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
 }
 
 bool
-printSCANTABINFO(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
-  const ScanTabInfo * const sig = (ScanTabInfo *) theData;
-  
-  fprintf(output, " apiConnectPtr: H\'%.8x\n", 
-	  sig->apiConnectPtr);
-
-  fprintf(output, " Operation(s):\n");
-  for(int i = 0; i<16; i++){
-    fprintf(output, " [%.2u]ix=%d l=%.2d,", 
-	    i, sig->getIdx(sig->operLenAndIdx[i]), sig->getLen(sig->operLenAndIdx[i]));
-    if (((i+1) % 4) == 0)
-      fprintf(output, "\n");
-  }
-
-  return false;
-}
-
-bool
 printSCANTABREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
   
   const ScanTabRef * const sig = (ScanTabRef *) theData;
