@@ -488,6 +488,15 @@ end:
 
 static struct my_option my_long_options[] =
 {
+  /*
+    mysqlbinlog needs charsets knowledge, to be able to convert a charset
+    number found in binlog to a charset name (to be able to print things
+    like this:
+    SET @`a`:=_cp850 0x4DFC6C6C6572 COLLATE `cp850_general_ci`;
+  */
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},

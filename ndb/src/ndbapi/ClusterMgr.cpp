@@ -54,7 +54,6 @@ runClusterMgr_C(void * me)
 #ifdef NDB_OSE
   NdbSleep_MilliSleep(50);
 #endif
-  NdbThread_Exit(0); 
   return NULL;
 }
 
@@ -563,10 +562,7 @@ extern "C"
 void*
 runArbitMgr_C(void* me)
 {
-  my_thread_init();
   ((ArbitMgr*) me)->threadMain();
-  my_thread_end();
-  NdbThread_Exit(0); 
   return NULL;
 }
 
