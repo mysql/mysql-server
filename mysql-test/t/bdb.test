@@ -815,3 +815,17 @@ insert into t2 select * from t1;
 
 delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 drop table t1,t2;
+
+#
+# Test index only read (Bug #2509)
+#
+create table t1 (a char(10), key(a), b int not null, key(b)) engine=bdb;
+insert into t1 values ('a',1),('A',2);
+explain select a from t1;
+select a from t1;
+explain select b from t1;
+select b from t1;
+alter table t1 modify a char(10) binary;
+explain select a from t1;
+select a from t1;
+drop table t1;
