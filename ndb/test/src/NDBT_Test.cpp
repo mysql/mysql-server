@@ -481,10 +481,7 @@ extern "C"
 void *
 runStep_C(void * s)
 {
-  my_thread_init();
   runStep(s);
-  my_thread_end();
-  NdbThread_Exit(0);
   return NULL;
 }
 
