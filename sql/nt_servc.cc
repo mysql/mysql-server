@@ -5,6 +5,7 @@
  -------------------------------------------------------------------------- */
 #include <windows.h>
 #include <process.h>
+#include <stdio.h>
 #include "nt_servc.h"
 
 
@@ -100,40 +101,59 @@ long NTService::Init(LPCSTR szInternName,void *ServiceThread)
 	1  Can't open the Service manager
 	2  Failed to create service
  -------------------------------------------------------------------------- */
-BOOL NTService::Install(LPCSTR szInternName,LPCSTR szDisplayName,
+BOOL NTService::Install(int startType, LPCSTR szInternName,LPCSTR szDisplayName,
 		       LPCSTR szFullPath, LPCSTR szAccountName,LPCSTR szPassword)
 {
   SC_HANDLE newService, scm;
 
-  nError=0;
+  if (!SeekStatus(szInternName,1))
+   return FALSE;
+
+  char szFilePath[_MAX_PATH];
+  GetModuleFileName(NULL, szFilePath, sizeof(szFilePath));
+
 
   // open a connection to the SCM
   scm = OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE);
-  if(scm)  // Install the new service
-  {  newService = CreateService(
-	scm,
-	szInternName,
-	szDisplayName,
-	dwDesiredAccess,	//default: SERVICE_ALL_ACCESS
-	dwServiceType,		//default: SERVICE_WIN32_OWN_PROCESS
-	dwStartType,		//default: SERVICE_AUTOSTART
-	dwErrorControl,		//default: SERVICE_ERROR_NORMAL
-	szFullPath,		//exec full path
-	szLoadOrderGroup,	//default: NULL
-	lpdwTagID,		//default: NULL
-	szDependencies,		//default: NULL
-	szAccountName,		//default: NULL
-	szPassword);		//default: NULL
 
-     if (newService) CloseServiceHandle(newService);  // clean up
-     else	     nError=2;
-
-     // clean up
-     CloseServiceHandle(scm);
+  if (!scm)
+  {
+    printf("Failed to install the service\n"
+	   "Problems to open the SCM");
+    CloseServiceHandle(scm);
+    return FALSE;
   }
-  else nError=1;
+  else  // Install the new service
+  {  newService = CreateService(
+     scm,
+     szInternName,
+     szDisplayName,
+     dwDesiredAccess,	//default: SERVICE_ALL_ACCESS
+     dwServiceType,		//default: SERVICE_WIN32_OWN_PROCESS
+     (startType == 1 ? SERVICE_AUTO_START : SERVICE_DEMAND_START),		//default: SERVICE_AUTOSTART
+     dwErrorControl,		//default: SERVICE_ERROR_NORMAL
+     szFullPath,		//exec full path
+     szLoadOrderGroup,	//default: NULL
+     lpdwTagID,		//default: NULL
+     szDependencies,		//default: NULL
+     szAccountName,		//default: NULL
+     szPassword);		//default: NULL
 
-  return (!nError);
+     if (!newService)
+     {
+       printf("Failed to install the service.\n"
+	      "Problems to create the service.");
+      CloseServiceHandle(scm);
+      CloseServiceHandle(newService);
+      return FALSE;
+     }
+     else
+      printf("Service successfully installed.\n");
+   }
+   CloseServiceHandle(scm);
+   CloseServiceHandle(newService);
+   return TRUE;
+
 }
 /* ------------------------------------------------------------------------
   Remove() - Removes  the service
@@ -148,30 +168,50 @@ BOOL NTService::Remove(LPCSTR szInternName)
 
   SC_HANDLE service, scm;
 
+  if (!SeekStatus(szInternName,0))
+   return FALSE;
+
   nError=0;
 
   // open a connection to the SCM
   scm = OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE);
 
-  if (scm)
+  if (!scm)
+  {
+    printf("Failed to remove the service\n"
+	   "Problems to open the SCM");
+    CloseServiceHandle(scm);
+    return FALSE;
+  }
+  else
   {
     //open the service
     service = OpenService(scm,szInternName, DELETE );
     if(service)
     {
-      if(!DeleteService(service)) nError=3;
-      CloseServiceHandle(service);
+      if(!DeleteService(service))
+      {
+        printf("Failed to remove the service\n");
+        CloseServiceHandle(service);
+	CloseServiceHandle(scm);
+	return FALSE;
+      }
+      else
+        printf("Service successfully removed.\n");
     }
     else
     {
-     //MessageBox(NULL,"Can't find the service","Remove Error",MB_OK|MB_ICONHAND);
-       nError=2;
+      printf("Failed to remove the service\n");
+      printf("Problems to open the service\n");
+      CloseServiceHandle(service);
+      CloseServiceHandle(scm);
+      return FALSE;
     }
-    CloseServiceHandle(scm);
   }
-  else nError=1;
 
-  return (!nError);
+  CloseServiceHandle(service);
+  CloseServiceHandle(scm);
+  return TRUE;
 }
 
 /* ------------------------------------------------------------------------
@@ -398,4 +438,103 @@ void NTService::Exit(DWORD error)
 
 }
 
+/* ------------------------------------------------------------------------
+
+ -------------------------------------------------------------------------- */
+BOOL NTService::SeekStatus(LPCSTR szInternName, int OperationType)
+{
+  SC_HANDLE service, scm;
+  LPQUERY_SERVICE_CONFIG ConfigBuf;
+  DWORD dwSize;
+
+  SERVICE_STATUS ss;
+  DWORD dwState = 0xFFFFFFFF;
+  int k;
+  // open a connection to the SCM
+  scm = OpenSCManager(0, 0,SC_MANAGER_CREATE_SERVICE);
+
+  if (!scm) /* problems with the SCM */
+  {
+    printf("There is a problem with the Service Control Manager!\n");
+    CloseServiceHandle(scm);
+    return FALSE;
+  }
+
+  if (OperationType == 1) /* an install operation */
+  {
+    service = OpenService(scm,szInternName, SERVICE_ALL_ACCESS );
+    if(service)
+    {
+      ConfigBuf = (LPQUERY_SERVICE_CONFIG) LocalAlloc(LPTR, 4096);
+      printf("The service already exists!\n");
+      if ( QueryServiceConfig(service,ConfigBuf,4096,&dwSize) )
+      {
+        printf("The current server installed: %s\n", ConfigBuf->lpBinaryPathName);
+      }
+      LocalFree(ConfigBuf);
+      CloseServiceHandle(scm);
+      CloseServiceHandle(service);
+      return FALSE;
+     }
+     else
+     {
+       CloseServiceHandle(scm);
+       CloseServiceHandle(service);
+       return TRUE;
+     }
+  }
+  else /* a remove operation */
+  {
+    service = OpenService(scm,szInternName, SERVICE_ALL_ACCESS );
+    if(!service)
+    {
+      printf("The service doesn't exists!\n");
+      CloseServiceHandle(scm);
+      CloseServiceHandle(service);
+      return FALSE;
+    }
+
+    memset(&ss, 0, sizeof(ss));
+    k = QueryServiceStatus(service,&ss);
+    if (k)
+    {
+      dwState = ss.dwCurrentState;
+      if (dwState == SERVICE_RUNNING )
+      {
+        printf("Failed to remove the service:\n");
+        printf("The service is running!\n"
+               "Stop the server and try again.");
+        CloseServiceHandle(service);
+        CloseServiceHandle(scm);
+        return FALSE;
+      }
+      else if (dwState == SERVICE_STOP_PENDING)
+      {
+        printf("Failed to remove the service:\n");
+        printf("The service is in stop pending state!\n"
+               "Wait 30 seconds and try again.\n"
+               "If this condition persist, reboot the machine\n"
+	       "and try again");
+        CloseServiceHandle(service);
+        CloseServiceHandle(scm);
+        return FALSE;
+      }
+      else
+      {
+        CloseServiceHandle(scm);
+	CloseServiceHandle(service);
+	return TRUE;
+      }
+   }
+   else
+   {
+     CloseServiceHandle(scm);
+     CloseServiceHandle(service);
+   }
+ }
+
+  return FALSE;
+
+
+}
 /* ------------------------- the end -------------------------------------- */
