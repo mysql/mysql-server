@@ -15,13 +15,14 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
- mini MySQL client to be included into the server to do server to server
- commincation by Sasha Pachev
+  mini MySQL client to be included into the server to do server to server
+  commincation by Sasha Pachev
 
- Note: all file-global symbols must begin with mc_ , even the static ones, just
- in case we decide to make them external at some point
- */
+  Note: all file-global symbols must begin with mc_ , even the static
+  ones, just in case we decide to make them external at some point
+*/
 
+#include <global.h>
 #define DONT_USE_RAID
 #if defined(__WIN__)
 #include <winsock.h>
@@ -40,7 +41,6 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #define thr_got_alarm(A) 0
 #endif
 
-#include <global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -597,6 +597,11 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
     thr_alarm_init(&alarmed);
+    /*
+      We don't have to check status for thr_alarm as it's not fatal if
+      we didn't manage to set an alarm. (In this case the socket call
+      will just block for a while).
+    */
     thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
     sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
     thr_end_alarm(&alarmed);
