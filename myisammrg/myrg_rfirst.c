@@ -27,7 +27,7 @@ int myrg_rfirst(MYRG_INFO *info, byte *buf, int inx)
   if (_myrg_init_queue(info,inx,HA_READ_KEY_OR_NEXT))
     return my_errno;
 
-  for (table=info->open_tables ; table < info->end_table ; table++)
+  for (table=info->open_tables ; table != info->end_table ; table++)
   {
     if ((err=mi_rfirst(table->table,NULL,inx)))
     {

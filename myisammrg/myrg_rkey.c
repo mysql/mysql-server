@@ -49,7 +49,7 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
   if (_myrg_init_queue(info,inx,search_flag))
     return my_errno;
 
-  for (table=info->open_tables ; table < info->end_table ; table++)
+  for (table=info->open_tables ; table != info->end_table ; table++)
   {
     mi=table->table;
 

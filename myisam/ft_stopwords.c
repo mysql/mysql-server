@@ -72,6 +72,7 @@ void ft_free_stopwords()
   if (stopwords3)
   {
     delete_tree(stopwords3); /* purecov: inspected */    
+    my_free((char*) stopwords3,MYF(0));
     stopwords3=0;
   }
 }

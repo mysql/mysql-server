@@ -19,13 +19,16 @@
 ** Simulation of posix threads calls for WIN95 and NT
 *****************************************************************************/
 
+/* SAFE_MUTEX will not work until the thread structure is up to date */
+#undef SAFE_MUTEX
+
 #include "mysys_priv.h"
 #if defined(THREAD) && defined(__WIN__)
 #include <m_string.h>
 #undef getpid
 #include <process.h>
 
-extern pthread_mutex_t THR_LOCK_thread;
+static pthread_mutex_t THR_LOCK_thread;
 
 struct pthread_map
 {
@@ -33,6 +36,11 @@ struct pthread_map
   pthread_handler func;
   void *param;
 };
+
+void win_pthread_init(void)
+{
+  pthread_mutex_init(&THR_LOCK_thread,NULL);
+}
 
 /*
 ** We have tried to use '_beginthreadex' instead of '_beginthread' here

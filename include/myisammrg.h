@@ -59,7 +59,7 @@ typedef struct st_myrg_info
   ulonglong records;			/* records in tables */
   ulonglong del;			/* Removed records */
   ulonglong data_file_length;
-  uint	 tables,options,reclength;
+  uint	 tables,options,reclength,keys;
   my_bool cache_in_use;
   LIST	open_list;
   QUEUE     by_key;

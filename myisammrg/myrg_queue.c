@@ -34,21 +34,24 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
   int error=0;
   QUEUE *q= &(info->by_key);
 
-  if (!is_queue_inited(q))
+  if (inx < (int) info->keys)
   {
-    if (init_queue(q,info->tables, 0,
-                   (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
-                   queue_key_cmp,
-                   info->open_tables->table->s->keyinfo[inx].seg))
-      error=my_errno;
-  }
-  else
-  {
-    if (reinit_queue(q,info->tables, 0,
-                     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
-                     queue_key_cmp,
-                     info->open_tables->table->s->keyinfo[inx].seg))
-      error=my_errno;
+    if (!is_queue_inited(q))
+    {
+      if (init_queue(q,info->tables, 0,
+		     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
+		     queue_key_cmp,
+		     info->open_tables->table->s->keyinfo[inx].seg))
+	error=my_errno;
+    }
+    else
+    {
+      if (reinit_queue(q,info->tables, 0,
+		       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
+		       queue_key_cmp,
+		       info->open_tables->table->s->keyinfo[inx].seg))
+	error=my_errno;
+    }
   }
   return error;
 }
