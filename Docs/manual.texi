@@ -14186,7 +14186,10 @@ Set the default character set.  @xref{Character sets}.
 @item --default-table-type=type
 Set the default table type for tables.  @xref{Table types}.
 
-@item --delay-key-write-for-all-tables
+@item --delay-key-write[= OFF | ON | ALL]
+How MyISAM @code{DELAYED KEYS} should be used. @xref{Server parameters}.
+
+@item --delay-key-write-for-all-tables;  In MySQL 4.0.3 you should use --delay-key-write=ALL instead.
 Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
 
@@ -14321,7 +14324,7 @@ correct it to stay within a given range and also adjusts the value a
 little to fix for the used algorithm.
 
 @item --safe-mode
-Skip some optimise stages.  Implies @code{--skip-delay-key-write}.
+Skip some optimise stages.
 
 @item --safe-show-database
 With this option, the @code{SHOW DATABASES} command returns only those
@@ -14340,8 +14343,8 @@ Turn off the ability to select and insert at the same time on @code{MyISAM}
 tables. (This is only to be used if you think you have found a bug in this
 feature.)
 
-@item --skip-delay-key-write
-Ignore the @code{delay_key_write} option for all tables.
+@item --skip-delay-key-write; In MySQL 4.0.3 you should use --delay-key-write=OFF instead.
+Ignore the @code{DELAY_KEY_WRITE} option for all tables.
 @xref{Server parameters}.
 
 @item --skip-grant-tables
@@ -14370,8 +14373,7 @@ Don't listen for TCP/IP connections at all.  All interaction with
 recommended for systems where only local requests are allowed.  @xref{DNS}.
 
 @item --skip-new
-Don't use new, possible wrong routines.  Implies @code{--skip-delay-key-write}.
-This will also set default table type to @code{ISAM}.  @xref{ISAM}.
+Don't use new, possible wrong routines.
 
 @item --skip-symlink
 Don't delete or rename files that a symlinked file in the data directory
@@ -19848,16 +19850,20 @@ packet before responding with @code{Bad handshake}.
 The value of the @code{--datadir} option.
 
 @item @code{delay_key_write}
-If enabled (is on by default), MySQL will honor the
-@code{DELAY_KEY_WRITE} option for @code{CREATE TABLE}.  This means that the
-key buffer for tables with this option will not get flushed on every
-index update, but only when a table is closed.  This will speed up
-writes on keys a lot, but you should add automatic checking of all tables
-with @code{myisamchk --fast --force} if you use this.  Note that if you
-start @code{mysqld} with the @code{--delay-key-write-for-all-tables}
-option this means that all tables will be treated as if they were
-created with the @code{delay_key_write} option.  You can clear this flag
-by starting @code{mysqld} with @code{--skip-new} or @code{--safe-mode}.
+Option for MyISAM tables. Can have one of the following values:
+
+@multitable @columnfractions .30 .70
+@item OFF @tab All CREATE TABLE ... DELAYED_KEY_WRITES are ignored.
+@item ON  @tab (default)  MySQL will honor the @code{DELAY_KEY_WRITE} option
+for @code{CREATE TABLE}.
+@item ALL @tab All new opened tables are treated as if they were created with the @code{DELAY_KEY_WRITE} option.
+@end multitable
+
+If @code{DELAY_KEY_WRITE} is enabled this means that the key buffer for
+tables with this option will not get flushed on every index update, but
+only when a table is closed.  This will speed up writes on keys a lot,
+but you should add automatic checking of all tables with @code{myisamchk
+--fast --force} if you use this.
 
 @item @code{delayed_insert_limit}
 After inserting @code{delayed_insert_limit} rows, the @code{INSERT
@@ -19961,7 +19967,7 @@ status} and examine the variables @code{Key_read_requests},
 The @code{Key_write/Key_write_requests} is usually near 1 if you are
 using mostly updates/deletes but may be much smaller if you tend to
 do updates that affect many at the same time or if you are
-using @code{delay_key_write}. @xref{SHOW, , @code{SHOW}}.
+using @code{DELAY_KEY_WRITE}. @xref{SHOW, , @code{SHOW}}.
 
 To get even more speed when writing many rows at the same time, use
 @code{LOCK TABLES}.  @xref{LOCK TABLES, , @code{LOCK TABLES}}.
@@ -24477,7 +24483,7 @@ offset by network delays.
 writes to it, and configure as many slaves as you have the money and
 rackspace for, distributing the reads among the master and the slaves.
 You can also start the slaves with @code{--skip-bdb},
-@code{--low-priority-updates} and @code{--delay-key-write-for-all-tables}
+@code{--low-priority-updates} and @code{--delay-key-write=ALL}
 to get speed improvements for the slave.  In this case the slave will
 use non-transactional @code{MyISAM} tables instead of @code{BDB} tables
 to get more speed.
@@ -28630,7 +28636,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item concurrent_insert @tab bool @tab GLOBAL
 @item connect_timeout @tab num @tab GLOBAL
 @item convert_character_set @tab string @tab SESSION
-@item delay_key_write @tab bool @tab GLOBAL
+@item delay_key_write @tab OFF | ON | ALL @tab GLOBAL
 @item delayed_insert_limit @tab num @tab GLOBAL
 @item delayed_insert_timeout @tab num @tab GLOBAL
 @item delayed_queue_size @tab num @tab GLOBAL
@@ -28717,6 +28723,7 @@ Here is a description of some of the variables:
 @item identity @tab Alias for last_insert_id (Sybase compatiblity)
 @item sql_low_priority_updates @tab Alias for low_priority_updates
 @item sql_max_join_size @tab Alias for max_join_size
+@item delay_key_write_for_all_tables @tab If this and delay_key_write is set then all new MyISAM tables that are opened will use delayed key writes.
 @item version @tab Alias for VERSION() (Sybase (?) compatability)
 @end multitable
 
@@ -37704,7 +37711,7 @@ The following options to @code{mysqld} can be used to change the behaviour of
 @item @strong{Option} @tab @strong{Description}
 @item @code{--myisam-recover=#} @tab Automatic recovery of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
-@item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
+@item @code{--delay-key-write=ALL} @tab Don't flush key buffers between writes for any MyISAM table
 @item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{Note} that this parameter is given in megabytes before 4.0.3 and in bytes starting from this version.
 @item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.  @strong{Note} that this parameter is given in megabytes before 4.0.3 and in bytes starting from this version.
 @item @code{-O bulk_insert_buffer_size=#} @tab Size of tree cache used in bulk insert optimisation. @strong{Note} that this is a limit @strong{per thread}!
@@ -50253,6 +50260,9 @@ each individual 4.0.x release.
 Added @code{QUOTE()} function that performs SQL quoting to produce values
 that can be used as data values in queries.
 @item
+Changed variable @code{DELAY_KEY_WRITE} to an enum to allow one set
+@code{DELAY_KEY_WRITE} for all tables without taking down the server.
+@item
 Changed behavior of @code{IF(condition,column,NULL)} so that it returns
 the value of the column type.
 @item
@@ -50844,6 +50854,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.53::                Changes in release 3.23.53
 * News-3.23.52::                Changes in release 3.23.52
 * News-3.23.51::                Changes in release 3.23.51 (31 May 2002)
 * News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
@@ -50900,8 +50911,15 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0 (05 Aug 1999: Alpha)
 @end menu
 
-@node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
+@node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.53
+
+@itemize @bullet
+@end itemize
+
+@node News-3.23.52, News-3.23.51, News-3.23.53, News-3.23.x
 @appendixsubsec Changes in release 3.23.52
+
 @itemize @bullet
 @item
 Fixed problem with @code{UNSIGNED BIGINT} on AIX.
