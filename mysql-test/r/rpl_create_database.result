@@ -1,0 +1,83 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP DATABASE IF EXISTS mysqltest_prometheus;
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+DROP DATABASE IF EXISTS mysqltest_bob;
+DROP DATABASE IF EXISTS mysqltest_bob;
+CREATE DATABASE mysqltest_prometheus;
+CREATE DATABASE mysqltest_sisyfos;
+CREATE DATABASE mysqltest_bob;
+USE mysqltest_sisyfos;
+CREATE TABLE t1 (b int);
+INSERT INTO t1 VALUES(1);
+USE mysqltest_bob;
+CREATE TABLE t2 (b int);
+INSERT INTO t2 VALUES(2);
+ALTER DATABASE mysqltest_sisyfos CHARACTER SET latin1;
+USE mysqltest_sisyfos;
+ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
+SHOW DATABASES;
+Database
+mysql
+mysqltest_bob
+mysqltest_prometheus
+mysqltest_sisyfos
+test
+SHOW DATABASES;
+Database
+mysql
+mysqltest_prometheus
+mysqltest_sisyfos
+test
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+USE mysqltest_prometheus;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+CREATE DATABASE mysqltest_sisyfos;
+USE mysqltest_sisyfos;
+CREATE TABLE t2 (a INT);
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	4	Start	1	4	Server ver: 4.1.8-debug-log, Binlog ver: 3
+master-bin.000001	79	Query	1	79	DROP DATABASE IF EXISTS mysqltest_prometheus
+master-bin.000001	174	Query	1	174	DROP DATABASE IF EXISTS mysqltest_sisyfos
+master-bin.000001	263	Query	1	263	CREATE DATABASE mysqltest_prometheus
+master-bin.000001	350	Query	1	350	CREATE DATABASE mysqltest_sisyfos
+master-bin.000001	431	Query	1	431	use `mysqltest_sisyfos`; CREATE TABLE t1 (b int)
+master-bin.000001	502	Query	1	502	use `mysqltest_sisyfos`; INSERT INTO t1 VALUES(1)
+master-bin.000001	574	Query	1	574	ALTER DATABASE mysqltest_sisyfos CHARACTER SET latin1
+master-bin.000001	675	Query	1	675	DROP DATABASE IF EXISTS mysqltest_sisyfos
+master-bin.000001	764	Query	1	764	use `mysqltest_prometheus`; CREATE TABLE t1 (a INT)
+master-bin.000001	838	Query	1	838	use `mysqltest_prometheus`; INSERT INTO t1 VALUES (1)
+master-bin.000001	914	Query	1	914	CREATE DATABASE mysqltest_sisyfos
+master-bin.000001	995	Query	1	995	use `mysqltest_sisyfos`; CREATE TABLE t2 (a INT)
+SHOW DATABASES;
+Database
+mysql
+mysqltest_bob
+mysqltest_prometheus
+mysqltest_sisyfos
+test
+SHOW DATABASES;
+Database
+mysql
+mysqltest_prometheus
+mysqltest_sisyfos
+test
+SHOW CREATE TABLE mysqltest_prometheus.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE mysqltest_sisyfos.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP DATABASE IF EXISTS mysqltest_prometheus;
+DROP DATABASE IF EXISTS mysqltest_sisyfos;
+DROP DATABASE IF EXISTS mysqltest_bob;
