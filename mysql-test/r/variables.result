@@ -436,3 +436,19 @@ SELECT @@global.session.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+set @tstlw = @@log_warnings;
+show global variables like 'log_warnings';
+Variable_name	Value
+log_warnings	1
+set global log_warnings = 0;
+show global variables like 'log_warnings';
+Variable_name	Value
+log_warnings	0
+set global log_warnings = 42;
+show global variables like 'log_warnings';
+Variable_name	Value
+log_warnings	42
+set global log_warnings = @tstlw;
+show global variables like 'log_warnings';
+Variable_name	Value
+log_warnings	1

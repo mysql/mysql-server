@@ -50,6 +50,7 @@ __RCSID("$NetBSD: search.c,v 1.14 2002/11/20 16:50:08 christos Exp $");
  */
 #include <stdlib.h>
 #if defined(REGEX)
+#include <sys/types.h>
 #include <regex.h>
 #elif defined(REGEXP)
 #include <regexp.h>

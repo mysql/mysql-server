@@ -221,6 +221,12 @@ while ($1)
 }
 enable_query_log;
 
+delete from t2 where a > 5;
+select x1.a, x1.b from t2 x1, t2 x2 where x1.b = x2.b order by x1.a;
+select a, b FROM t2 outer_table where
+a = (select a from t2 where b = outer_table.b ) order by a;
+
+
 delete from t2;
 delete from t3;
 delete from t4;

@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.5";
+const char *VER= "14.6";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -84,7 +84,6 @@ extern "C" {
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #elif !defined(__NETWARE__)
-#undef __P // readline-4.2 declares own __P
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
@@ -608,7 +607,7 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Be more silent. Print results with a tab as separator, each row on new line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_SMEM
-  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -793,6 +792,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
 	start[1]=0 ;
+      tty_password= 0;
     }
     else
       tty_password= 1;
@@ -859,7 +859,7 @@ static int get_options(int argc, char **argv)
   opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
     exit(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
@@ -1670,15 +1670,15 @@ static int com_server_help(String *buffer __attribute__((unused)),
       if (num_fields == 2)
       {
 	put_info("Many help items for your request exist", INFO_INFO);
-	put_info("For more specific request please type 'help <item>' where item is one of next", INFO_INFO);
+	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of next", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
 	last_char= '_';
       }
       else if ((cur= mysql_fetch_row(result)))
       {
-	tee_fprintf(PAGER, "You asked help about help category: \"%s\"\n", cur[0]);
-	put_info("For a more information type 'help <item>' where item is one of the following", INFO_INFO);
+	tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n", cur[0]);
+	put_info("For more information, type 'help <item>', where item is one of the following", INFO_INFO);
 	num_name= 1;
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
@@ -1692,7 +1692,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      put_info("Please try to run 'help contents' for list of all accessible topics\n", INFO_INFO);
+      put_info("Please try to run 'help contents' for a list of all accessible topics\n", INFO_INFO);
     }
   }
 
@@ -1711,9 +1711,9 @@ com_help(String *buffer __attribute__((unused)),
   if (help_arg)
     return com_server_help(buffer,line,help_arg+1);
 
-  put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
-  put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
-  put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+  put_info("\nFor the complete MySQL Manual online, visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
+  put_info("For info on technical support from MySQL developers, visit:\n   http://www.mysql.com/support\n", INFO_INFO);
+  put_info("For info on MySQL books, utilities, consultants, etc., visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
@@ -2020,21 +2020,27 @@ print_table_data(MYSQL_RES *result)
 
   while ((cur= mysql_fetch_row(result)))
   {
+    ulong *lengths= mysql_fetch_lengths(result);
     (void) tee_fputs("|", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
       const char *str= cur[off] ? cur[off] : "NULL";
       field= mysql_fetch_field(result);
-      uint length= field->max_length;
-      if (length > MAX_COLUMN_LENGTH)
+      uint maxlength= field->max_length;
+      if (maxlength > MAX_COLUMN_LENGTH)
       {
 	tee_fputs(str, PAGER);
 	tee_fputs(" |", PAGER);
       }
       else
-      tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
-		  length, str);
+      {
+        uint currlength= (uint) lengths[off];
+        uint numcells= charset_info->cset->numcells(charset_info, 
+                                                    str, str + currlength);
+        tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
+                    maxlength + currlength - numcells, str);
+      }
     }
     (void) tee_fputs("\n", PAGER);
   }

@@ -75,13 +75,16 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 }
 
 
-bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
+                                   bool allow_superset_conversion)
 {
   uint i;
+  c.nagg= 0;
+  c.strong= 0;
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation))
+    if (c.aggregate(av[i]->collation, allow_superset_conversion))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
@@ -92,9 +95,10 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
 
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
-						  Item **av, uint count)
+						  Item **av, uint count,
+                                                  bool allow_superset_conv)
 {
-  if (agg_arg_collations(c, av, count))
+  if (agg_arg_collations(c, av, count, allow_superset_conv))
     return TRUE;
 
   if (c.derivation == DERIVATION_NONE)
@@ -1435,30 +1439,43 @@ longlong Item_func_find_in_set::val_int()
   int diff;
   if ((diff=buffer->length() - find->length()) >= 0)
   {
-    const char *f_pos=find->ptr();
-    const char *f_end=f_pos+find->length();
-    const char *str=buffer->ptr();
-    const char *end=str+diff+1;
-    const char *real_end=str+buffer->length();
-    uint position=1;
-    do
+    my_wc_t wc;
+    CHARSET_INFO *cs= cmp_collation.collation;
+    const char *str_begin= buffer->ptr();
+    const char *str_end= buffer->ptr();
+    const char *real_end= str_end+buffer->length();
+    const uchar *find_str= (const uchar *) find->ptr();
+    uint find_str_len= find->length();
+    int position= 0;
+    while (1)
     {
-      const char *pos= f_pos;
-      while (pos != f_end)
+      int symbol_len;
+      if ((symbol_len= cs->cset->mb_wc(cs, &wc, (uchar*) str_end, 
+                                       (uchar*) real_end)) > 0)
       {
-	if (my_toupper(cmp_collation.collation,*str) != 
-	    my_toupper(cmp_collation.collation,*pos))
-	  goto not_found;
-	str++;
-	pos++;
+        const char *substr_end= str_end + symbol_len;
+        bool is_last_item= (substr_end == real_end);
+        if (wc == (my_wc_t) separator || is_last_item)
+        {
+          position++;
+          if (is_last_item)
+            str_end= substr_end;
+          if (!my_strnncoll(cs, (const uchar *) str_begin,
+                            str_end - str_begin,
+                            find_str, find_str_len))
+            return (longlong) position;
+          else
+            str_begin= substr_end;
+        }
+        str_end= substr_end;
       }
-      if (str == real_end || str[0] == separator)
-	return (longlong) position;
-  not_found:
-      while (str < end && str[0] != separator)
-	str++;
-      position++;
-    } while (++str <= end);
+      else if (str_end - str_begin == 0 && 
+               find_str_len == 0 && 
+               wc == (my_wc_t) separator)
+        return (longlong) ++position;
+      else
+        return (longlong) 0;
+    }
   }
   return 0;
 }

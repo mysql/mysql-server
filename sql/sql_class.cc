@@ -708,6 +708,12 @@ void select_result::send_error(uint errcode,const char *err)
   ::send_error(thd, errcode, err);
 }
 
+
+void select_result::cleanup()
+{
+  /* do nothing */
+}
+
 static String default_line_term("\n",default_charset_info);
 static String default_escaped("\\",default_charset_info);
 static String default_field_term("\t",default_charset_info);
@@ -810,6 +816,32 @@ void select_to_file::send_error(uint errcode,const char *err)
     (void) my_delete(path,MYF(0));		// Delete file on error
     file= -1;
   }
+}
+
+
+bool select_to_file::send_eof()
+{
+  int error= test(end_io_cache(&cache));
+  if (my_close(file,MYF(MY_WME)))
+    error= 1;
+  if (!error)
+    ::send_ok(thd,row_count);
+  file= -1;
+  return error;
+}
+
+
+void select_to_file::cleanup()
+{
+  /* In case of error send_eof() may be not called: close the file here. */
+  if (file >= 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    file= -1;
+  }
+  path[0]= '\0';
+  row_count= 0;
 }
 
 
@@ -1064,18 +1096,6 @@ err:
 }
 
 
-bool select_export::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
-}
-
-
 /***************************************************************************
 ** Dump  of select to a binary file
 ***************************************************************************/
@@ -1126,18 +1146,6 @@ bool select_dump::send_data(List<Item> &items)
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
-}
-
-
-bool select_dump::send_eof()
-{
-  int error=test(end_io_cache(&cache));
-  if (my_close(file,MYF(MY_WME)))
-    error=1;
-  if (!error)
-    ::send_ok(thd,row_count);
-  file= -1;
-  return error;
 }
 
 
@@ -1307,9 +1315,16 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+void select_dumpvar::cleanup()
+{
+  vars.empty();
+  row_count=0;
+}
+
+
 Item_arena::Item_arena(THD* thd)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   init_sql_alloc(&mem_root,
                  thd->variables.query_alloc_block_size,
@@ -1321,7 +1336,7 @@ Item_arena::Item_arena(THD* thd)
 
 Item_arena::Item_arena()
   :free_list(0),
-  state((int)CONVENTIONAL_EXECUTION)
+  state(CONVENTIONAL_EXECUTION)
 {
   clear_alloc_root(&mem_root);
 }
@@ -1329,7 +1344,7 @@ Item_arena::Item_arena()
 
 Item_arena::Item_arena(bool init_mem_root)
   :free_list(0),
-  state((int)INITIALIZED)
+  state(INITIALIZED)
 {
   if (init_mem_root)
     clear_alloc_root(&mem_root);
@@ -1411,6 +1426,21 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
 }
 
 
+void Statement::end_statement()
+{
+  /* Cleanup SQL processing state to resuse this statement in next query. */
+  lex_end(lex);
+  delete lex->result;
+  lex->result= 0;
+  free_items(free_list);
+  free_list= 0;
+  /*
+    Don't free mem_root, as mem_root is freed in the end of dispatch_command
+    (once for any command).
+  */
+}
+
+
 void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   backup->set_item_arena(this);
@@ -1474,7 +1504,7 @@ Statement_map::Statement_map() :
   hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
-  hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
+  hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
             (hash_get_key) get_stmt_name_hash_key,
             NULL,MYF(0));
 }

@@ -205,4 +205,55 @@ a	b	c
 select * from t1 where b<=5 and c=0 or b<=5 and c=2;
 a	b	c
 19	4	0
+select count(*) from t1 where b = 0;
+count(*)
+0
+select count(*) from t1 where b = 1;
+count(*)
+1
+drop table t1;
+CREATE TABLE t1 (
+a int unsigned NOT NULL PRIMARY KEY,
+b int unsigned,
+c int unsigned,
+KEY bc(b,c)
+) engine = ndb;
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 use index (bc) where b IS NULL;
+a	b	c
+3	NULL	NULL
+2	NULL	2
+select * from t1 use index (bc)order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (bc) order by a;
+a	b	c
+1	1	1
+2	NULL	2
+3	NULL	NULL
+4	4	NULL
+select * from t1 use index (PRIMARY) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL order by a;
+a	b	c
+2	NULL	2
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
+a	b	c
+3	NULL	NULL
+select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
+a	b	c
+2	NULL	2
+select * from t1 use index (bc) where b < 4 order by a;
+a	b	c
+1	1	1
+select * from t1 use index (bc) where b IS NOT NULL order by a;
+a	b	c
+1	1	1
+4	4	NULL
 drop table t1;

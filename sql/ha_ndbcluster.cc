@@ -144,6 +144,7 @@ static int ndb_to_mysql_error(const NdbError *err)
 
 int ha_ndbcluster::ndb_err(NdbConnection *trans)
 {
+  int res;
   const NdbError err= trans->getNdbError();
   if (!err.code)
     return 0;			// Don't log things to DBUG log if no error
@@ -161,7 +162,13 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   default:
     break;
   }
-  DBUG_RETURN(ndb_to_mysql_error(&err));
+  res= ndb_to_mysql_error(&err);
+  DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
+		      err.code, res));
+  if (res == HA_ERR_FOUND_DUPP_KEY)
+    dupkey= table->primary_key;
+  
+  DBUG_RETURN(res);
 }
 
 
@@ -1075,11 +1082,13 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 			      const key_range *key,
 			      int bound)
 {
-  uint i, tot_len;
+  uint key_len, key_store_len, tot_len, key_tot_len;
   byte *key_ptr;
   KEY* key_info= table->key_info + active_index;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
+  Field* field;
+  bool key_nullable, key_null;
 
   DBUG_ENTER("set_bounds");
   DBUG_PRINT("enter", ("bound: %d", bound));
@@ -1089,29 +1098,37 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
   // Set bounds using key data
   tot_len= 0;
-  key_ptr= (byte *) key->key;    
+  key_ptr= (byte *) key->key;
+  key_tot_len= key->length;
   for (; key_part != end; key_part++)
   {
-    Field* field= key_part->field;
-    uint32 field_len=  field->pack_length();
-    tot_len+= field_len;
+    field= key_part->field;
+    key_len=  key_part->length;
+    key_store_len=  key_part->store_length;
+    key_nullable= (bool) key_part->null_bit;
+    key_null= (field->maybe_null() && *key_ptr);
+    tot_len+= key_store_len;
 
     const char* bounds[]= {"LE", "LT", "GE", "GT", "EQ"};
     DBUG_ASSERT(bound >= 0 && bound <= 4);    
-    DBUG_PRINT("info", ("Set Bound%s on %s", 
+    DBUG_PRINT("info", ("Set Bound%s on %s %s %s %s", 
 			bounds[bound],
-			field->field_name));
-    DBUG_DUMP("key", (char*)key_ptr, field_len);
+			field->field_name,
+			key_nullable ? "NULLABLE" : "",
+			key_null ? "NULL":""));
+    DBUG_PRINT("info", ("Total length %ds", tot_len));
+    
+    DBUG_DUMP("key", (char*) key_ptr, key_store_len);
     
     if (op->setBound(field->field_name,
 		     bound, 
-		     field->is_null() ? 0 : key_ptr,
-		     field->is_null() ? 0 : field_len) != 0)
+		     key_null ? 0 : (key_nullable ? key_ptr + 1 : key_ptr),
+		     key_null ? 0 : key_len) != 0)
       ERR_RETURN(op->getNdbError());
     
-    key_ptr+= field_len;
-    
-    if (tot_len >= key->length)
+    key_ptr+= key_store_len;
+
+    if (tot_len >= key_tot_len)
       break;
 
     /*
@@ -2013,10 +2030,12 @@ int ha_ndbcluster::rnd_init(bool scan)
   DBUG_ENTER("rnd_init");
   DBUG_PRINT("enter", ("scan: %d", scan));
   // Check if scan is to be restarted
-  if (cursor && scan)
+  if (cursor)
+  {
+    if (!scan)
+      DBUG_RETURN(1);
     cursor->restart();    
-  else
-    DBUG_RETURN(1);
+  }
   index_init(table->primary_key);
   DBUG_RETURN(0);
 }
@@ -2155,7 +2174,10 @@ void ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_VARIABLE)
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
   if (flag & HA_STATUS_ERRKEY)
+  {
     DBUG_PRINT("info", ("HA_STATUS_ERRKEY"));
+    errkey= dupkey;
+  }
   if (flag & HA_STATUS_AUTO)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
   DBUG_VOID_RETURN;
@@ -2609,7 +2631,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
     const NdbOperation *error_op= trans->getNdbErrorOperation();
     ERR_PRINT(err);     
     res= ndb_to_mysql_error(&err);
-    if (res != -1)
+    if (res != -1) 
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);    
@@ -3102,7 +3124,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ndb(NULL),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
-		//HA_NULL_IN_KEY |
+		HA_NULL_IN_KEY |
                 HA_NOT_EXACT_COUNT |
                 HA_NO_PREFIX_CHAR_KEYS),
   m_use_write(false),
@@ -3114,7 +3136,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   ops_pending(0),
   skip_auto_increment(true),
   blobs_buffer(0),
-  blobs_buffer_size(0)
+  blobs_buffer_size(0),
+  dupkey((uint) -1)
 { 
   int i;
   

@@ -1967,8 +1967,6 @@ mysql_execute_command(THD *thd)
 	else
 	  thd->send_explain_fields(result);
 	res= mysql_explain_union(thd, &thd->lex->unit, result);
-	MYSQL_LOCK *save_lock= thd->lock;
-	thd->lock= (MYSQL_LOCK *)0;
 	if (lex->describe & DESCRIBE_EXTENDED)
 	{
 	  char buff[1024];
@@ -1980,20 +1978,19 @@ mysql_execute_command(THD *thd)
 		       ER_YES, str.ptr());
 	}
 	result->send_eof();
-	thd->lock= save_lock;
+        delete result;
       }
       else
       {
-	if (!result)
+	if (!result && !(result= new select_send()))
 	{
-	  if (!(result=new select_send()))
-	  {
-	    res= -1;
-	    break;
-	  }
+	  res= -1;
+	  break;
 	}
 	query_cache_store_query(thd, tables);
-	res=handle_select(thd, lex, result);
+	res= handle_select(thd, lex, result);
+        if (result != lex->result)
+          delete result;
       }
     }
     break;
@@ -2708,23 +2705,24 @@ unsent_create_error:
     }
 
 
-    if (!(res=open_and_lock_tables(thd, tables)))
+    if (!(res= open_and_lock_tables(thd, tables)) &&
+        (result= new select_insert(tables->table, &lex->field_list,
+                                   lex->duplicates)))
     {
-      if ((result=new select_insert(tables->table,&lex->field_list,
-				    lex->duplicates)))
-	/* Skip first table, which is the table we are inserting in */
-	lex->select_lex.table_list.first= (byte*) first_local_table->next;
-        /*
-          insert/replace from SELECT give its SELECT_LEX for SELECT,
-          and item_list belong to SELECT
-        */
-	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-	res=handle_select(thd,lex,result);
-	/* revert changes for SP */
-	lex->select_lex.table_list.first= (byte*) first_local_table;
-	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+      /* Skip first table, which is the table we are inserting in */
+      lex->select_lex.table_list.first= (byte*) first_local_table->next;
+      /*
+        insert/replace from SELECT give its SELECT_LEX for SELECT,
+        and item_list belong to SELECT
+      */
+      lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+      res= handle_select(thd, lex, result);
+      /* revert changes for SP */
+      lex->select_lex.table_list.first= (byte*) first_local_table;
+      lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+      delete result;
       if (thd->net.report_error)
-	res= -1;
+        res= -1;
     }
     else
       res= -1;
@@ -2742,7 +2740,7 @@ unsent_create_error:
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION,NullS);
       goto error;
     }
-    res=mysql_truncate(thd,tables);
+    res=mysql_truncate(thd, tables, 0);
     break;
   case SQLCOM_DELETE:
   {
@@ -3904,8 +3902,8 @@ mysql_init_select(LEX *lex)
   select_lex->select_limit= HA_POS_ERROR;
   if (select_lex == &lex->select_lex)
   {
+    DBUG_ASSERT(lex->result == 0);
     lex->exchange= 0;
-    lex->result= 0;
     lex->proc_list.first= 0;
   }
 }
@@ -4047,9 +4045,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       query_cache_abort(&thd->net);
     }
     thd->proc_info="freeing items";
-    free_items(thd->free_list);  /* Free strings used by items */
-    thd->free_list= 0;
-    lex_end(lex);
+    thd->end_statement();
   }
   DBUG_VOID_RETURN;
 }
@@ -4074,10 +4070,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                /* Ignore question */
-  free_items(thd->free_list);  /* Free strings used by items */
-  thd->free_list= 0;
-  lex_end(lex);
-
+  thd->end_statement();
   return error;
 }
 #endif
@@ -5407,4 +5400,40 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
 	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
 	      1 : 0);
+}
+
+
+/*
+  negate given expression
+
+  SYNOPSIS
+    negate_expression()
+    thd  therad handler
+    expr expression for negation
+
+  RETURN
+    negated expression
+*/
+
+Item *negate_expression(THD *thd, Item *expr)
+{
+  Item *negated;
+  if (expr->type() == Item::FUNC_ITEM &&
+      ((Item_func *) expr)->functype() == Item_func::NOT_FUNC)
+  {
+    /* it is NOT(NOT( ... )) */
+    Item *arg= ((Item_func *) expr)->arguments()[0];
+    enum_parsing_place place= thd->lex->current_select->parsing_place;
+    if (arg->is_bool_func() || place == IN_WHERE || place == IN_HAVING)
+      return arg;
+    /*
+      if it is not boolean function then we have to emulate value of
+      not(not(a)), it will be a != 0
+    */
+    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+  }
+
+  if ((negated= expr->neg_transformer(thd)) != 0)
+    return negated;
+  return new Item_func_not(expr);
 }

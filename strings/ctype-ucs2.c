@@ -1423,6 +1423,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_charpos_ucs2,
     my_well_formed_len_ucs2,
     my_lengthsp_ucs2,
+    my_numcells_mb,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
     my_caseup_str_ucs2,

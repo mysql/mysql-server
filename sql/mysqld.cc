@@ -762,7 +762,7 @@ void kill_mysql(void)
     abort_loop=1;
     if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
 			   (void*) 0))
-      sql_print_error("Error: Can't create thread to kill server");
+      sql_print_error("Can't create thread to kill server");
   }
 #endif
   DBUG_VOID_RETURN;
@@ -791,7 +791,7 @@ static void __cdecl kill_server(int sig_ptr)
   abort_loop=1;					// This should be set
   signal(sig,SIG_IGN);
   if (sig == MYSQL_KILL_SIGNAL || sig == 0)
-    sql_print_error(ER(ER_NORMAL_SHUTDOWN),my_progname);
+    sql_print_information(ER(ER_NORMAL_SHUTDOWN),my_progname);
   else
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
@@ -806,7 +806,7 @@ static void __cdecl kill_server(int sig_ptr)
 #ifdef __NETWARE__
   pthread_join(select_thread, NULL);		// wait for main thread
 #endif /* __NETWARE__ */
-  
+
   pthread_exit(0);				/* purecov: deadcode */
 
 #endif /* EMBEDDED_LIBRARY */
@@ -834,7 +834,7 @@ extern "C" sig_handler print_signal_warning(int sig)
   if (!DBUG_IN_USE)
   {
     if (global_system_variables.log_warnings)
-      sql_print_error("Warning: Got signal %d from thread %d",
+      sql_print_warning("Got signal %d from thread %d",
 		      sig,my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
@@ -961,7 +961,7 @@ void clean_up(bool print_message)
 #endif
 
   if (print_message && errmesg)
-    sql_print_error(ER(ER_SHUTDOWN_COMPLETE),my_progname);
+    sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
 #if !defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1062,8 +1062,8 @@ static void set_user(const char *user)
       struct passwd *user_info= getpwnam(user);
       if ((!user_info || user_id != user_info->pw_uid) &&
 	  global_system_variables.log_warnings)
-	fprintf(stderr,
-		"Warning: One can only use the --user switch if running as root\n");
+        sql_print_warning(
+                    "One can only use the --user switch if running as root\n");
     }
     return;
   }
@@ -1183,7 +1183,7 @@ static void server_init(void)
     if (listen(ip_sock,(int) back_log) < 0)
     {
       sql_perror("Can't start server: listen() on TCP/IP port");
-      sql_print_error("Error:  listen() on TCP/IP failed with error %d",
+      sql_print_error("listen() on TCP/IP failed with error %d",
 		      socket_errno);
       unireg_abort(1);
     }
@@ -1278,7 +1278,7 @@ static void server_init(void)
     (void) chmod(mysqld_unix_port,S_IFSOCK);	/* Fix solaris 2.6 bug */
 #endif
     if (listen(unix_sock,(int) back_log) < 0)
-      sql_print_error("Warning:  listen() on Unix socket failed with error %d",
+      sql_print_warning("listen() on Unix socket failed with error %d",
 		      socket_errno);
   }
 #endif
@@ -1870,7 +1870,7 @@ static void init_signals(void)
     struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl) && global_system_variables.log_warnings)
-      sql_print_error("Warning: setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
+      sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
   (void) sigemptyset(&set);
@@ -2024,7 +2024,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
     case SIGQUIT:
     case SIGKILL:
 #ifdef EXTRA_DEBUG
-      sql_print_error("Got signal %d to shutdown mysqld",sig);
+      sql_print_information("Got signal %d to shutdown mysqld",sig);
 #endif
       DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
       if (!abort_loop)
@@ -2036,7 +2036,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 	  my_pthread_attr_setprio(&connection_attrib,INTERRUPT_PRIOR);
 	if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
 			   (void*) sig))
-	  sql_print_error("Error: Can't create thread to kill server");
+	  sql_print_error("Can't create thread to kill server");
 #else
 	kill_server((void*) sig);	// MIT THREAD has a alarm thread
 #endif
@@ -2060,7 +2060,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #endif
     default:
 #ifdef EXTRA_DEBUG
-      sql_print_error("Warning: Got signal: %d  error: %d",sig,error); /* purecov: tested */
+      sql_print_warning("Got signal: %d  error: %d",sig,error); /* purecov: tested */
 #endif
       break;					/* purecov: tested */
     }
@@ -2339,11 +2339,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
 	if (global_system_variables.log_warnings)
-	  sql_print_error("Warning: Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+	  sql_print_warning("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 			files, max_connections, table_cache_size);
       }
       else if (global_system_variables.log_warnings)
-	sql_print_error("Warning: Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
+	sql_print_warning("Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
   }
@@ -2523,8 +2523,8 @@ static int init_server_components()
   }
   else if (opt_log_slave_updates)
   {
-      sql_print_error("\
-Warning: you need to use --log-bin to make --log-slave-updates work. \
+      sql_print_warning("\
+you need to use --log-bin to make --log-slave-updates work. \
 Now disabling --log-slave-updates.");
   }
 
@@ -2532,7 +2532,7 @@ Now disabling --log-slave-updates.");
   if (opt_log_slave_updates && replicate_same_server_id)
   {
     sql_print_error("\
-Error: using --replicate-same-server-id in conjunction with \
+using --replicate-same-server-id in conjunction with \
 --log-slave-updates is impossible, it would lead to infinite loops in this \
 server.");
     unireg_abort(1);
@@ -2561,12 +2561,12 @@ server.");
   if (opt_innodb_safe_binlog)
   {
     if (have_innodb != SHOW_OPTION_YES)
-      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+      sql_print_warning("--innodb-safe-binlog is meaningful only if "
                       "the InnoDB storage engine is enabled in the server.");
 #ifdef HAVE_INNOBASE_DB
     if (innobase_flush_log_at_trx_commit != 1)
     {
-      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+      sql_print_warning("--innodb-safe-binlog is meaningful only if "
                       "innodb_flush_log_at_trx_commit is 1; now setting it "
                       "to 1.");
       innobase_flush_log_at_trx_commit= 1;
@@ -2578,14 +2578,14 @@ server.");
         good (especially "littlesync", and on Windows... see
         srv/srv0start.c).
       */
-      sql_print_error("Warning: --innodb-safe-binlog requires that "
+      sql_print_warning("--innodb-safe-binlog requires that "
                       "the innodb_flush_method actually synchronizes the "
                       "InnoDB log to disk; it is your responsibility "
                       "to verify that the method you chose does it.");
     }
     if (sync_binlog_period != 1)
     {
-      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+      sql_print_warning("--innodb-safe-binlog is meaningful only if "
                       "the global sync_binlog variable is 1; now setting it "
                       "to 1.");
       sync_binlog_period= 1;
@@ -2624,7 +2624,7 @@ server.");
     if (mlockall(MCL_CURRENT))
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+	sql_print_warning("Failed to lock memory. Errno: %d\n",errno);
       locked_in_memory= 0;
     }
   }
@@ -2650,7 +2650,7 @@ static void create_maintenance_thread()
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
-      sql_print_error("Warning: Can't create thread to manage maintenance");
+      sql_print_warning("Can't create thread to manage maintenance");
   }
 }
 
@@ -2662,7 +2662,7 @@ static void create_shutdown_thread()
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-    sql_print_error("Warning: Can't create thread to handle shutdown requests");
+    sql_print_warning("Can't create thread to handle shutdown requests");
 
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
@@ -2671,7 +2671,7 @@ static void create_shutdown_thread()
   pthread_cond_init(&eventShutdown, NULL);
   pthread_t hThread;
   if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-    sql_print_error("Warning: Can't create thread to handle shutdown requests");
+    sql_print_warning("Can't create thread to handle shutdown requests");
 #endif
 #endif // EMBEDDED_LIBRARY 
 }
@@ -2687,7 +2687,7 @@ static void handle_connections_methods()
       (!have_tcpip || opt_disable_networking) &&
       !opt_enable_shared_memory)
   {
-    sql_print_error("TCP/IP,--shared-memory or --named-pipe should be configured on NT OS");
+    sql_print_error("TCP/IP, --shared-memory, or --named-pipe should be configured on NT OS");
     unireg_abort(1);				// Will not return
   }
 #endif
@@ -2702,7 +2702,7 @@ static void handle_connections_methods()
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_namedpipes, 0))
     {
-      sql_print_error("Warning: Can't create thread to handle named pipes");
+      sql_print_warning("Can't create thread to handle named pipes");
       handler_count--;
     }
   }
@@ -2713,7 +2713,7 @@ static void handle_connections_methods()
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_sockets, 0))
     {
-      sql_print_error("Warning: Can't create thread to handle TCP/IP");
+      sql_print_warning("Can't create thread to handle TCP/IP");
       handler_count--;
     }
   }
@@ -2724,7 +2724,7 @@ static void handle_connections_methods()
     if (pthread_create(&hThread,&connection_attrib,
 		       handle_connections_shared_memory, 0))
     {
-      sql_print_error("Warning: Can't create thread to handle shared memory");
+      sql_print_warning("Can't create thread to handle shared memory");
       handler_count--;
     }
   }
@@ -2784,7 +2784,7 @@ int main(int argc, char **argv)
     if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
+	sql_print_warning("Asked for %ld thread stack, but got %ld",
 			thread_stack, stack_size);
       thread_stack= stack_size;
     }
@@ -2807,8 +2807,8 @@ int main(int argc, char **argv)
     if (lower_case_table_names_used)
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("\
-Warning: You have forced lower_case_table_names to 0 through a command-line \
+	sql_print_warning("\
+You have forced lower_case_table_names to 0 through a command-line \
 option, even though your file system '%s' is case insensitive.  This means \
 that you can corrupt a MyISAM table by accessing it with different cases. \
 You should consider changing lower_case_table_names to 1 or 2",
@@ -2817,7 +2817,7 @@ You should consider changing lower_case_table_names to 1 or 2",
     else
     {
       if (global_system_variables.log_warnings)
-	sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+	sql_print_warning("Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
       lower_case_table_names= 2;
     }
   }
@@ -2850,14 +2850,14 @@ You should consider changing lower_case_table_names to 1 or 2",
 #ifdef EXTRA_DEBUG
     switch (server_id) {
     case 1:
-      sql_print_error("\
-Warning: You have enabled the binary log, but you haven't set server-id to \
+      sql_print_warning("\
+You have enabled the binary log, but you haven't set server-id to \
 a non-zero value: we force server id to 1; updates will be logged to the \
 binary log, but connections from slaves will not be accepted.");
       break;
     case 2:
-      sql_print_error("\
-Warning: You should set server-id to a non-0 value if master_host is set; \
+      sql_print_warning("\
+You should set server-id to a non-0 value if master_host is set; \
 we force server id to 2, but this MySQL server will not act as a slave.");
       break;
     }
@@ -3197,7 +3197,7 @@ static int bootstrap(FILE *file)
   if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
 		     (void*) thd))
   {
-    sql_print_error("Warning: Can't create thread to handle bootstrap");
+    sql_print_warning("Can't create thread to handle bootstrap");
     DBUG_RETURN(-1);
   }
   /* Wait for thread to die */
@@ -4241,7 +4241,7 @@ Disable with --skip-isam.",
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-warnings", 'W', "Log some non-critical warnings to the error log file. Use this option twice or --log-warnings=2 if you also want 'Aborted connections' warnings.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, ~0L,
    0, 0, 0},
   {"low-priority-updates", OPT_LOW_PRIORITY_UPDATES,
    "INSERT/DELETE/UPDATE has lower priority than selects.",
@@ -4551,7 +4551,7 @@ replicating a LOAD DATA INFILE command.",
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"warnings", 'W', "Deprecated; use --log-warnings instead.",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, ~0L,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -5606,7 +5606,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!mysqld_user || !strcmp(mysqld_user, argument))
       mysqld_user= argument;
     else
-      fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
+      sql_print_warning("Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
@@ -6078,7 +6078,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   return 0;
 }
-
+	/* Initiates DEBUG - but no debugging here ! */
 
 extern "C" gptr *
 mysql_getopt_value(const char *keyname, uint key_length,
@@ -6108,6 +6108,13 @@ mysql_getopt_value(const char *keyname, uint key_length,
  return option->value;
 }
 
+void option_error_reporter( enum loglevel level, const char *format, ... )
+{
+  va_list args;
+  va_start( args, format );
+  vprint_msg_to_log( level, format, args );
+  va_end( args );
+}
 
 static void get_options(int argc,char **argv)
 {
@@ -6116,7 +6123,7 @@ static void get_options(int argc,char **argv)
   my_getopt_register_get_addr(mysql_getopt_value);
   strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)) != 0)
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, option_error_reporter)))
     exit(ho_error);
   if (argc > 0)
   {
@@ -6384,7 +6391,7 @@ static int test_if_case_insensitive(const char *dir_name)
   (void) my_delete(buff2, MYF(0));
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
-    sql_print_error("Warning: Can't create test file %s", buff);
+    sql_print_warning("Can't create test file %s", buff);
     DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));

@@ -251,9 +251,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       global_system_variables.old_passwords= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      sql_print_error("mysql.user table is not updated to new password format; "
-                      "Disabling new password usage until "
-                      "mysql_fix_privilege_tables is run");
+      sql_print_warning("mysql.user table is not updated to new password format; "
+                        "Disabling new password usage until "
+                        "mysql_fix_privilege_tables is run");
     }
     thd->variables.old_passwords= 1;
   }
@@ -551,21 +551,19 @@ static ulong get_sort(uint count,...)
     uint chars= 0;
     uint wild_pos= 0;           /* first wildcard position */
 
-    if (start= str)
+    if ((start= str))
     {
       for (; *str ; str++)
       {
 	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
         {
-          wild_pos= str - start + 1;
+          wild_pos= (uint) (str - start) + 1;
           break;
         }
-	else
-	  chars++;
+        chars= 128;                             // Marker that chars existed
       }
     }
-    sort= (sort << 8) + (wild_pos ? (wild_pos > 127 ? 127 : wild_pos) : 
-                                    (chars ? 128 : 0));
+    sort= (sort << 8) + (wild_pos ? min(wild_pos, 127) : chars);
   }
   va_end(args);
   return sort;

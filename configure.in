@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.4-gamma)
+AM_INIT_AUTOMAKE(mysql, 4.1.5-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -972,8 +972,8 @@ MAX_CXX_OPTIMIZE="-O3"
 # workaround for Sun Forte/x86 see BUG#4681
 case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
   *solaris*-i?86-no)
-    CFLAGS="$CFLAGS -DBIG_FILES"
-    CXXFLAGS="$CXXFLAGS -DBIG_FILES"
+    CFLAGS="$CFLAGS -DBIG_TABLES"
+    CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
   *) ;;
 esac
@@ -1865,6 +1865,7 @@ MYSQL_HAVE_TIOCGWINSZ
 MYSQL_HAVE_FIONREAD
 MYSQL_HAVE_TIOCSTAT
 MYSQL_STRUCT_DIRENT_D_INO
+MYSQL_STRUCT_DIRENT_D_NAMLEN
 MYSQL_TYPE_SIGHANDLER
 if test "$with_named_curses" = "no"
 then
@@ -2402,7 +2403,7 @@ dnl you must also create strings/ctype-$charset_name.c
 AC_DIVERT_PUSH(0)
 
 define(CHARSETS_AVAILABLE0,binary)
-define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
+define(CHARSETS_AVAILABLE1,armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
 define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk geostd8)
 define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
 define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)

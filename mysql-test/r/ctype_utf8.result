@@ -1,5 +1,4 @@
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2;
 set names utf8;
 select left(_utf8 0xD0B0D0B1D0B2,1);
 left(_utf8 0xD0B0D0B1D0B2,1)
@@ -412,6 +411,36 @@ select c as c_a from t1 where c='б';
 c_a
 б
 drop table t1;
+create table t1 (
+c char(10) character set utf8,
+unique key a (c(1))
+) engine=bdb;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'aa' for key 1
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
 create table t1 (c varchar(30) character set utf8 collate utf8_bin, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
@@ -541,6 +570,36 @@ c_a
 б
 drop table t1;
 create table t1 (
+c char(10) character set utf8 collate utf8_bin,
+unique key a (c(1))
+) engine=bdb;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+insert into t1 values ('aa');
+ERROR 23000: Duplicate entry 'aa' for key 1
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values ('б');
+insert into t1 values ('бб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'б�' for key 1
+select c as c_all from t1 order by c;
+c_all
+a
+b
+c
+d
+e
+f
+б
+select c as c_a from t1 where c='a';
+c_a
+a
+select c as c_a from t1 where c='б';
+c_a
+б
+drop table t1;
+create table t1 (
 str varchar(255) character set utf8 not null,
 key str  (str(2))
 ) engine=myisam;
@@ -564,6 +623,16 @@ create table t1 (
 str varchar(255) character set utf8 not null,
 key str using hash (str(2))
 ) engine=heap;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8 not null,
+key str (str(2))
+) engine=bdb;
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';

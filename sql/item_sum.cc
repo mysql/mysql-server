@@ -1945,12 +1945,11 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  uint i;			/* for loop variable */ 
   DBUG_ASSERT(fixed == 0);
 
   if (save_args_for_prepared_statement(thd))
     return 1;
-
-  uint i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)
   {
@@ -1971,7 +1970,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
     if (i < arg_count_field)
-      maybe_null |= args[i]->maybe_null;
+      maybe_null|= args[i]->maybe_null;
   }
 
   result_field= 0;
@@ -2048,7 +2047,8 @@ bool Item_func_group_concat::setup(THD *thd)
     of a record instead of a pointer of one. 
   */
   if (!(table=create_tmp_table(thd, tmp_table_param, all_fields, 
-			       (ORDER*) 0, 0, TRUE,select_lex->options | thd->options,
+			       (ORDER*) 0, 0, TRUE,
+                               select_lex->options | thd->options,
 			       HA_POS_ERROR,(char *) "")))
     DBUG_RETURN(1);
   table->file->extra(HA_EXTRA_NO_ROWS);
@@ -2157,7 +2157,7 @@ void Item_func_group_concat::print(String *str)
       (*order[i]->item)->print(str);
     }
   }
-  str->append(" seperator \'", 12);
+  str->append(" separator \'", 12);
   str->append(*separator);
   str->append("\')", 2);
 }

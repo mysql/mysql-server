@@ -154,7 +154,7 @@ enum options_mc {
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE,
+  OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH
 };
 
@@ -696,7 +696,7 @@ static void get_options(register int *argc,register char ***argv)
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option, NULL)))
     exit(ho_error);
 
   /* If using repair, then update checksum if one uses --update-state */
