@@ -278,6 +278,12 @@
 /* mysql client protocoll version */
 #undef PROTOCOL_VERSION
 
+/* ndb version */
+#undef NDB_VERSION_MAJOR
+#undef NDB_VERSION_MINOR
+#undef NDB_VERSION_BUILD
+#undef NDB_VERSION_STATUS
+
 /* Define if qsort returns void */
 #undef QSORT_TYPE_IS_VOID
 
