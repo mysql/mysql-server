@@ -74,6 +74,8 @@ subdirectory of 'mysql'. */
 
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
+
+#define UNIV_DEBUG_FILE_ACCESSES
 */
 #define UNIV_LIGHT_MEM_DEBUG
 
