@@ -135,6 +135,13 @@ double my_ulonglong2double(unsigned long long A);
 #define __LONG_MAX__ 2147483647
 #endif
 
+/* Fix problem when linking c++ programs with gcc 3.x */
+#ifdef DEFINE_CXA_PURE_VIRTUAL
+#define FIX_GCC_LINKING_PROBLEM extern "C" { int __cxa_pure_virtual() {return 0;} }
+#else
+#define FIX_GCC_LINKING_PROBLEM
+#endif
+
 /* egcs 1.1.2 has a problem with memcpy on Alpha */
 #if defined(__GNUC__) && defined(__alpha__) && ! (__GNUC__ > 2 || (__GNUC__ == 2 &&  __GNUC_MINOR__ >= 95))
 #define BAD_MEMCPY
@@ -270,7 +277,7 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
-/* Define som useful general macros */
+/* Define some useful general macros */
 #if defined(__cplusplus) && defined(__GNUC__)
 #define max(a, b)	((a) >? (b))
 #define min(a, b)	((a) <? (b))
@@ -296,7 +303,7 @@ typedef unsigned short ushort;
 #define rint(A) floor((A)+0.5)
 #endif
 
-/* Define som general constants */
+/* Define some general constants */
 #ifndef TRUE
 #define TRUE		(1)	/* Logical true */
 #define FALSE		(0)	/* Logical false */
@@ -316,9 +323,11 @@ typedef unsigned short ushort;
 
 /* From old s-system.h */
 
-/* Support macros for non ansi & other old compilers. Since such
-   things are no longer supported we do nothing. We keep then since
-   some of our code may still be needed to upgrade old customers. */
+/*
+  Support macros for non ansi & other old compilers. Since such
+  things are no longer supported we do nothing. We keep then since
+  some of our code may still be needed to upgrade old customers.
+*/
 #define _VARARGS(X) X
 #define _STATIC_VARARGS(X) X
 #define _PC(X)	X
@@ -440,12 +449,16 @@ typedef SOCKET_SIZE_TYPE size_socket;
 /* #define FN_NO_CASE_SENCE   */
 /* #define FN_UPPER_CASE TRUE */
 
-/* Io buffer size; Must be a power of 2 and a multiple of 512. May be
-   smaller what the disk page size. This influences the speed of the
-   isam btree library. eg to big to slow. */
+/*
+  Io buffer size; Must be a power of 2 and a multiple of 512. May be
+  smaller what the disk page size. This influences the speed of the
+  isam btree library. eg to big to slow.
+*/
 #define IO_SIZE			4096
-/* How much overhead does malloc have. The code often allocates
-   something like 1024-MALLOC_OVERHEAD bytes */
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
 #ifdef SAFEMALLOC
 #define MALLOC_OVERHEAD (8+24+4)
 #else
@@ -563,8 +576,10 @@ extern double		my_atof(const char*);
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 
-/* Max size that must be added to a so that we know Size to make
-   adressable obj. */
+/*
+  Max size that must be added to a so that we know Size to make
+  adressable obj.
+*/
 typedef long		my_ptrdiff_t;
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
@@ -635,8 +650,10 @@ typedef long		longlong;
 #endif
 
 #ifdef USE_RAID
-/* The following is done with a if to not get problems with pre-processors
-   with late define evaluation */
+/*
+  The following is done with a if to not get problems with pre-processors
+  with late define evaluation
+*/
 #if SIZEOF_OFF_T == 4
 #define SYSTEM_SIZEOF_OFF_T 4
 #else
@@ -700,8 +717,10 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #define INT32(v)	(int32) (v)
 #define MYF(v)		(myf) (v)
 
-/* Defines to make it possible to prioritize register assignments. No
-   longer needed with moder compilers */
+/*
+  Defines to make it possible to prioritize register assignments. No
+  longer that important with modern compilers.
+*/
 #ifndef USING_X
 #define reg1 register
 #define reg2 register
@@ -902,9 +921,11 @@ typedef union {
 
 #endif /* sint2korr */
 
-/* Define-funktions for reading and storing in machine format from/to
-   short/long to/from some place in memory V should be a (not
-   register) variable, M is a pointer to byte */
+/*
+  Define-funktions for reading and storing in machine format from/to
+  short/long to/from some place in memory V should be a (not
+  register) variable, M is a pointer to byte
+*/
 
 #ifdef WORDS_BIGENDIAN
 
