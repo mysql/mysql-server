@@ -324,8 +324,9 @@ int handle_options(int *argc, char ***argv,
       }
       else  /* must be short option */
       {
-	for (optend= cur_arg; *optend; optend++, opt_found= 0)
+	for (optend= cur_arg; *optend; optend++)
 	{
+	  opt_found= 0;
 	  for (optp= longopts; optp->id; optp++)
 	  {
 	    if (optp->id == (int) (uchar) *optend)
@@ -379,7 +380,7 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (my_getopt_print_errors)
 	      fprintf(stderr,
-		      "%s: unknown option '-%c'\n", progname, *cur_arg);
+		      "%s: unknown option '-%c'\n", progname, *optend);
 	    return EXIT_UNKNOWN_OPTION;
 	  }
 	}
