@@ -20,6 +20,7 @@
 #include "sp_defs.h"
 #include "rt_index.h"
 #include <m_ctype.h>
+#include <assert.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
