@@ -253,7 +253,7 @@ float ft_nlq_find_relevance(FT_INFO *handler, my_off_t docid,
   int a,b,c;
   FT_DOC  *docs=handler->doc;
 
-  // Assuming docs[] is sorted by dpos...
+  /* Assuming docs[] is sorted by dpos... */
 
   for (a=0, b=handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
   {

@@ -36,7 +36,7 @@ static double _wghts[11]={
   3.375000000000000,
   5.062500000000000,
   7.593750000000000};
-static double *wghts=_wghts+5; // wghts[i] = 1.5**i
+static double *wghts=_wghts+5; /* wghts[i] = 1.5**i */
 
 static double _nwghts[11]={
  -0.065843621399177,
@@ -50,7 +50,7 @@ static double _nwghts[11]={
  -1.687500000000000,
  -2.531250000000000,
  -3.796875000000000};
-static double *nwghts=_nwghts+5; // nwghts[i] = -0.5*1.5**i
+static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr {
@@ -114,20 +114,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
     byte  r=param.plusminus;
     float weight=(param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
     switch (res) {
-      case FTB_LBR:
-        ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
-        ftbe->yesno=param.yesno;
-        ftbe->weight=weight;
-        ftbe->up=up;
-        ftbe->ythresh=0;
-        ftbe->docid=HA_POS_ERROR;
-        if (ftbe->yesno > 0) up->ythresh++;
-        _ftb_parse_query(ftb, start, end, ftbe, depth+1,
-                         (param.yesno<0 ? depth+1 : ndepth));
-        break;
-      case FTB_RBR:
-        return;
-      case 1:
+      case 1: /* word found */
         ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
             sizeof(FTB_WORD) + (param.trunc ? MI_MAX_KEY_BUFF : w.len+extra));
         ftbw->len=w.len+1;
@@ -142,6 +129,19 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (ftbw->yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
         break;
+      case 2: /* left bracket */
+        ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
+        ftbe->yesno=param.yesno;
+        ftbe->weight=weight;
+        ftbe->up=up;
+        ftbe->ythresh=0;
+        ftbe->docid=HA_POS_ERROR;
+        if (ftbe->yesno > 0) up->ythresh++;
+        _ftb_parse_query(ftb, start, end, ftbe, depth+1,
+                         (param.yesno<0 ? depth+1 : ndepth));
+        break;
+      case 3: /* right bracket */
+        return;
     }
   }
   return;

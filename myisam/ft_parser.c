@@ -33,9 +33,6 @@ typedef struct st_ft_docstat {
   double max, nsum, nsum2;
 #endif /* EVAL_RUN */
 
-//  MI_INFO *info;
-//  uint keynr;
-//  byte *keybuf;
 } FT_DOCSTAT;
 
 static int FT_WORD_cmp(void* cmp_arg, FT_WORD *w1, FT_WORD *w2)
@@ -63,9 +60,7 @@ static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 
 /* transforms tree of words into the array, applying normalization */
 
-FT_WORD * ft_linearize(//MI_INFO *info, uint keynr,
-    //byte *keybuf,
-    TREE *wtree)
+FT_WORD * ft_linearize(TREE *wtree)
 {
   FT_WORD *wlist,*p;
   FT_DOCSTAT docstat;
@@ -74,9 +69,6 @@ FT_WORD * ft_linearize(//MI_INFO *info, uint keynr,
   if ((wlist=(FT_WORD *) my_malloc(sizeof(FT_WORD)*
 				   (1+wtree->elements_in_tree),MYF(0))))
   {
-//    docstat.info=info;
-//    docstat.keynr=keynr;
-//    docstat.keybuf=keybuf;
     docstat.list=wlist;
     docstat.uniq=wtree->elements_in_tree;
 #ifdef EVAL_RUN
@@ -122,12 +114,20 @@ FT_WORD * ft_linearize(//MI_INFO *info, uint keynr,
 #endif
 #define word_char(X)		(true_word_char(X) || misc_word_char(X))
 
+
+/* returns:
+ * 0 - eof
+ * 1 - word found
+ * 2 - left bracket
+ * 3 - right bracket
+ */
 byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
 {
   byte *doc=*start;
   int mwc;
 
-  param->yesno=param->plusminus=param->pmsign=0;
+  param->yesno=(FTB_YES==' ')?1:0;
+  param->plusminus=param->pmsign=0;
 
   while (doc<end)
   {
@@ -138,18 +138,16 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
       {
         /* param->prev=' '; */
         *start=doc+1;
-        return *doc;
+        return (*doc == FTB_RBR)+2;
       }
       if (param->prev == ' ')
       {
-        switch (*doc) {
-        case FTB_YES: param->yesno=+1; continue;
-        case FTB_NO:  param->yesno=-1; continue;
-        case FTB_INC: param->plusminus++; continue;
-        case FTB_DEC: param->plusminus--; continue;
-        case FTB_NEG: param->pmsign=!param->pmsign; continue;
-        default: break;
-        }
+        if (*doc == FTB_YES ) { param->yesno=+1;    continue; } else
+        if (*doc == FTB_EGAL) { param->yesno= 0;    continue; } else
+        if (*doc == FTB_NO  ) { param->yesno=-1;    continue; } else
+        if (*doc == FTB_INC ) { param->plusminus++; continue; } else
+        if (*doc == FTB_DEC ) { param->plusminus--; continue; } else
+        if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
       }
       param->prev=*doc;
       param->yesno=param->plusminus=param->pmsign=0;
@@ -162,7 +160,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
       else if (!misc_word_char(*doc) || mwc++)
         break;
 
-    param->prev='A'; // be sure *prev is true_word_char
+    param->prev='A'; /* be sure *prev is true_word_char */
     word->len= (uint)(doc-word->pos) - mwc;
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
