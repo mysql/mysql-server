@@ -163,15 +163,8 @@ typedef struct st_table_list
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index, *ignore_index; 
-  /*
-    Usually hold reference on opened table, but may hold reference
-    to node of complete list of tables used in UNION & subselect.
-  */
-  union
-  {
-    TABLE          *table;      /* opened table */
-    st_table_list  *table_list; /* pointer to node of list of all tables */
-  };
+  TABLE          *table;      /* opened table */
+  st_table_list  *table_list; /* pointer to node of list of all tables */
   class st_select_lex_unit *derived;	/* SELECT_LEX_UNIT of derived table */
  GRANT_INFO	grant;
   thr_lock_type lock_type;

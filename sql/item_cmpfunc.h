@@ -91,9 +91,8 @@ protected:
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, (Item *)b), cache(0) {}
-  // used by row in transformer
-  bool preallocate_row();
   bool fix_fields(THD *, struct st_table_list *, Item **);
+  bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
   bool is_null();
   /*
     Item_in_optimizer item is special boolean function. On value request 
@@ -103,7 +102,7 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
-  
+  const char *func_name() const { return "IN_OPTIMIZER"; }
   Item_cache **get_cache() { return &cache; }
 };
 
