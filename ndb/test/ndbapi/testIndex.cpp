@@ -1145,20 +1145,18 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   pTrans = pNdb->startTransaction();
   NdbScanOperation * sOp;
   NdbOperation * uOp;
-  NdbResultSet * rs;
   int eof;
   if(!pTrans) goto done;
   sOp = pTrans->getNdbScanOperation(pTab->getName());
   if(!sOp) goto done;
-  rs = sOp->readTuples(NdbScanOperation::LM_Exclusive);
-  if(!rs) goto done;
+  if(sOp->readTuples(NdbScanOperation::LM_Exclusive)) goto done;
   if(pTrans->execute(NoCommit) == -1) goto done;
-  while((eof = rs->nextResult(true)) == 0){
+  while((eof = sOp->nextResult(true)) == 0){
     do {
-      NdbOperation * uOp = rs->updateTuple();
+      NdbOperation * uOp = sOp->updateCurrentTuple();
       if(uOp == 0) goto done;
       uOp->setValue(colId, 0);
-    } while((eof = rs->nextResult(false)) == 0);
+    } while((eof = sOp->nextResult(false)) == 0);
     eof = pTrans->execute(Commit);
     if(eof == -1) goto done;
   }

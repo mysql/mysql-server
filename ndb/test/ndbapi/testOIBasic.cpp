@@ -679,14 +679,13 @@ struct Con {
   NdbOperation* m_op;
   NdbScanOperation* m_scanop;
   NdbIndexScanOperation* m_indexscanop;
-  NdbResultSet* m_resultset;
   enum ScanMode { ScanNo = 0, Committed, Latest, Exclusive };
   ScanMode m_scanmode;
   enum ErrType { ErrNone = 0, ErrDeadlock, ErrOther };
   ErrType m_errtype;
   Con() :
     m_ndb(0), m_dic(0), m_tx(0), m_op(0),
-    m_scanop(0), m_indexscanop(0), m_resultset(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
+    m_scanop(0), m_indexscanop(0), m_scanmode(ScanNo), m_errtype(ErrNone) {}
   ~Con() {
     if (m_tx != 0)
       closeTransaction();
@@ -836,7 +835,7 @@ Con::openScanRead(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
   NdbOperation::LockMode lm = NdbOperation::LM_Read;
-  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
+  CHKCON(m_scanop->readTuples(lm, scanbat, scanpar) == 0, *this);
   return 0;
 }
 
@@ -845,7 +844,7 @@ Con::openScanExclusive(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
   NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
-  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
+  CHKCON(m_scanop->readTuples(lm, scanbat, scanpar) == 0, *this);
   return 0;
 }
 
@@ -860,8 +859,8 @@ int
 Con::nextScanResult(bool fetchAllowed)
 {
   int ret;
-  assert(m_resultset != 0);
-  CHKCON((ret = m_resultset->nextResult(fetchAllowed)) != -1, *this);
+  assert(m_scanop != 0);
+  CHKCON((ret = m_scanop->nextResult(fetchAllowed)) != -1, *this);
   assert(ret == 0 || ret == 1 || (! fetchAllowed && ret == 2));
   return ret;
 }
@@ -886,7 +885,7 @@ int
 Con::updateScanTuple(Con& con2)
 {
   assert(con2.m_tx != 0);
-  CHKCON((con2.m_op = m_resultset->updateTuple(con2.m_tx)) != 0, *this);
+  CHKCON((con2.m_op = m_scanop->updateCurrentTuple(con2.m_tx)) != 0, *this);
   return 0;
 }
 
@@ -894,16 +893,16 @@ int
 Con::deleteScanTuple(Con& con2)
 {
   assert(con2.m_tx != 0);
-  CHKCON(m_resultset->deleteTuple(con2.m_tx) == 0, *this);
+  CHKCON(m_scanop->deleteCurrentTuple(con2.m_tx) == 0, *this);
   return 0;
 }
 
 void
 Con::closeScan()
 {
-  assert(m_resultset != 0);
-  m_resultset->close();
-  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
+  assert(m_scanop != 0);
+  m_scanop->close();
+  m_scanop = 0, m_indexscanop = 0;
 
 }
 
@@ -913,7 +912,7 @@ Con::closeTransaction()
   assert(m_ndb != 0 && m_tx != 0);
   m_ndb->closeTransaction(m_tx);
   m_tx = 0, m_op = 0;
-  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
+  m_scanop = 0, m_indexscanop = 0;
 }
 
 void

@@ -999,8 +999,7 @@ int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     
-    NdbResultSet* rs = pOp->readTuples();
-    if( rs == 0 ) {
+    if( pOp->readTuples() ) {
       ERR(pCon->getNdbError());
       return NDBT_FAILED;
     }
@@ -1028,7 +1027,7 @@ int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
 
     int res;
     int row = 0;
-    while(row < record && (res = rs->nextResult()) == 0) {
+    while(row < record && (res = pOp->nextResult()) == 0) {
       if(calc.verifyRowValues(&tmpRow) != 0){
 	abort();
 	return NDBT_FAILED;
@@ -1041,14 +1040,14 @@ int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     g_info << " restarting" << endl;
-    if((res = rs->restart()) != 0){
+    if((res = pOp->restart()) != 0){
       ERR(pCon->getNdbError());
       abort();
       return NDBT_FAILED;
     }      
 
     row = 0;
-    while((res = rs->nextResult()) == 0) {
+    while((res = pOp->nextResult()) == 0) {
       if(calc.verifyRowValues(&tmpRow) != 0){
 	abort();
 	return NDBT_FAILED;

@@ -91,7 +91,6 @@ struct Thr {
   NdbConnection* m_con;
   NdbScanOperation* m_scanop;
   NdbIndexScanOperation* m_indexscanop;
-  NdbResultSet* m_rs;
   //
   Thr(int no);
   ~Thr();
@@ -136,7 +135,6 @@ Thr::Thr(int no)
   m_con = 0;
   m_scanop = 0;
   m_indexscanop = 0;
-  m_rs = 0;
 }
 
 Thr::~Thr()
@@ -374,7 +372,7 @@ wl1822_tx2_scanXY(Thr& thr)
     CHN(con, (scanop = thr.m_scanop = indexscanop = thr.m_indexscanop = con->getNdbIndexScanOperation(g_opt.m_xname, g_opt.m_tname)) != 0);
     DBG("tx2 scan exclusive " << g_opt.m_xname);
   }
-  CHN(scanop, (rs = thr.m_rs = scanop->readTuplesExclusive(16)) != 0);
+  CHN(scanop, scanop->readTuplesExclusive(16) == 0);
   CHN(scanop, scanop->getValue("A", (char*)&wl1822_bufA) != 0);
   CHN(scanop, scanop->getValue("B", (char*)&wl1822_bufB) != 0);
   CHN(con, con->execute(NoCommit) == 0);
@@ -383,7 +381,7 @@ wl1822_tx2_scanXY(Thr& thr)
     DBG("before row " << row);
     int ret;
     wl1822_bufA = wl1822_bufB = ~0;
-    CHN(con, (ret = rs->nextResult(true)) == 0);
+    CHN(con, (ret = scanop->nextResult(true)) == 0);
     DBG("got row " << row << " a=" << wl1822_bufA << " b=" << wl1822_bufB);
     CHK(wl1822_bufA == wl1822_valA[wl1822_r2k[row]]);
     CHK(wl1822_bufB == wl1822_valB[wl1822_r2k[row]]);
@@ -419,14 +417,13 @@ wl1822_tx2_scanZ_close(Thr& thr)
   Ndb* ndb = thr.m_ndb;
   NdbConnection* con = thr.m_con;
   NdbScanOperation* scanop = thr.m_scanop;
-  NdbResultSet* rs = thr.m_rs;
-  assert(ndb != 0 && con != 0 && scanop != 0 && rs != 0);
+  assert(ndb != 0 && con != 0 && scanop != 0);
   unsigned row = 2;
   while (true) {
     DBG("before row " << row);
     int ret;
     wl1822_bufA = wl1822_bufB = ~0;
-    CHN(con, (ret = rs->nextResult(true)) == 0 || ret == 1);
+    CHN(con, (ret = scanop->nextResult(true)) == 0 || ret == 1);
     if (ret == 1)
       break;
     DBG("got row " << row << " a=" << wl1822_bufA << " b=" << wl1822_bufB);

@@ -198,7 +198,6 @@ run_scan(){
   NdbScanOperation * pOp = 0;
   NdbIndexScanOperation * pIOp = 0;
   NdbConnection * pTrans = 0;
-  NdbResultSet * rs = 0;
   int check = 0;
 
   for(int i = 0; i<iter; i++){
@@ -230,13 +229,13 @@ run_scan(){
     if(g_paramters[P_ACCESS].value == 0){
       pOp = pTrans->getNdbScanOperation(g_tablename);
       assert(pOp);
-      rs = pOp->readTuples(lm, bat, par);
+      pOp->readTuples(lm, bat, par);
     } else {
       if(g_paramters[P_RESET].value == 0 || pIOp == 0)
       {
 	pOp= pIOp= pTrans->getNdbIndexScanOperation(g_indexname, g_tablename);
 	bool ord = g_paramters[P_ACCESS].value == 2;
-	rs = pIOp->readTuples(lm, bat, par, ord);
+	pIOp->readTuples(lm, bat, par, ord);
       }
       else
       {
@@ -270,7 +269,7 @@ run_scan(){
 	{
 	  int row = rand() % tot;
 	  pIOp->setBound((Uint32)0, NdbIndexScanOperation::BoundEQ, &row);
-	  pIOp->end_of_bound();
+	  pIOp->end_of_bound(i);
 	}
 	if(g_paramters[P_RESET].value == 2)
 	  goto execute;
@@ -279,7 +278,6 @@ run_scan(){
       }
     }
     assert(pOp);
-    assert(rs);
     
     switch(g_paramters[P_FILT].value){
     case 0: // All
@@ -323,10 +321,10 @@ execute:
     check = pTrans->execute(NoCommit);
     assert(check == 0);
     int fetch = g_paramters[P_FETCH].value;
-    while((check = rs->nextResult(true)) == 0){
+    while((check = pOp->nextResult(true)) == 0){
       do {
 	rows++;
-      } while(!fetch && ((check = rs->nextResult(false)) == 0));
+      } while(!fetch && ((check = pOp->nextResult(false)) == 0));
       if(check == -1){
         err(pTrans->getNdbError());
         return -1;

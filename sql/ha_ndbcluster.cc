@@ -278,7 +278,7 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
   Thd_ndb *thd_ndb= (Thd_ndb *)thd->transaction.thd_ndb;
   if (info->last_count != thd_ndb->count)
   {
-    info->last_count = thd_ndb->count;
+    info->last_count= thd_ndb->count;
     info->no_uncommitted_rows_count= 0;
     info->records= ~(ha_rows)0;
     DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
@@ -1221,31 +1221,13 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   DBUG_RETURN(0);
 }
 
-/*
-  Get the next record of a started scan. Try to fetch
-  it locally from NdbApi cached records if possible, 
-  otherwise ask NDB for more.
-
-  NOTE
-  If this is a update/delete make sure to not contact 
-  NDB before any pending ops have been sent to NDB.
-
-*/
-
-inline int ha_ndbcluster::next_result(byte *buf)
-{  
+inline int ha_ndbcluster::fetch_next()
+{
+  DBUG_ENTER("fetch_next");
   int check;
   NdbConnection *trans= m_active_trans;
-  NdbResultSet *cursor= m_active_cursor; 
-  DBUG_ENTER("next_result");
-
-  if (!cursor)
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-    
-  /* 
-     If this an update or delete, call nextResult with false
-     to process any records already cached in NdbApi
-  */
+  NdbScanOperation *cursor= m_active_cursor; 
+  
   bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
   do {
     DBUG_PRINT("info", ("Call nextResult, contact_ndb: %d", contact_ndb));
@@ -1259,21 +1241,16 @@ inline int ha_ndbcluster::next_result(byte *buf)
       m_ops_pending= 0;
       m_blobs_pending= FALSE;
     }
-    check= cursor->nextResult(contact_ndb, m_force_send);
-    if (check == 0)
+    
+    if ((check= cursor->nextResult(contact_ndb, m_force_send)) == 0)
     {
-      // One more record found
-      DBUG_PRINT("info", ("One more record found"));    
-
-      unpack_record(buf);
-      table->status= 0;
       DBUG_RETURN(0);
     } 
     else if (check == 1 || check == 2)
     {
       // 1: No more records
       // 2: No more cached records
-
+      
       /*
 	Before fetching more rows and releasing lock(s),
 	all pending update or delete operations should 
@@ -1282,33 +1259,63 @@ inline int ha_ndbcluster::next_result(byte *buf)
       DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
       if (m_ops_pending)
       {
-	//	if (current_thd->transaction.on)
 	if (m_transaction_on)
 	{
 	  if (execute_no_commit(this,trans) != 0)
-	    DBUG_RETURN(ndb_err(trans));
+	    return -1;
 	}
 	else
 	{
 	  if  (execute_commit(this,trans) != 0)
-	    DBUG_RETURN(ndb_err(trans));
+	    return -1;
 	  int res= trans->restart();
 	  DBUG_ASSERT(res == 0);
 	}
 	m_ops_pending= 0;
       }
-      
       contact_ndb= (check == 2);
     }
   } while (check == 2);
-    
-  table->status= STATUS_NOT_FOUND;
-  if (check == -1)
-    DBUG_RETURN(ndb_err(trans));
+  
+  DBUG_RETURN(1);
+}
 
-  // No more records
-  DBUG_PRINT("info", ("No more records"));
-  DBUG_RETURN(HA_ERR_END_OF_FILE);
+/*
+  Get the next record of a started scan. Try to fetch
+  it locally from NdbApi cached records if possible, 
+  otherwise ask NDB for more.
+
+  NOTE
+  If this is a update/delete make sure to not contact 
+  NDB before any pending ops have been sent to NDB.
+
+*/
+
+inline int ha_ndbcluster::next_result(byte *buf)
+{  
+  int res;
+  DBUG_ENTER("next_result");
+    
+  if((res= fetch_next()) == 0)
+  {
+    DBUG_PRINT("info", ("One more record found"));    
+    
+    unpack_record(buf);
+    table->status= 0;
+    DBUG_RETURN(0);
+  }
+  else if(res == 1)
+  {
+    // No more records
+    table->status= STATUS_NOT_FOUND;
+    
+    DBUG_PRINT("info", ("No more records"));
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  else
+  {
+    DBUG_RETURN(ndb_err(m_active_trans));
+  }
 }
 
 /*
@@ -1365,7 +1372,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     for (j= 0; j <= 1; j++)
     {
-      struct part_st &p = part[j];
+      struct part_st &p= part[j];
       p.key= NULL;
       p.bound_type= -1;
       if (tot_len < key_tot_len[j])
@@ -1445,7 +1452,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 
     for (j= 0; j <= 1; j++)
     {
-      struct part_st &p = part[j];
+      struct part_st &p= part[j];
       // Set bound if not done with this key
       if (p.key != NULL)
       {
@@ -1524,7 +1531,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   int res;
   bool restart;
   NdbConnection *trans= m_active_trans;
-  NdbResultSet *cursor;
   NdbIndexScanOperation *op;
 
   DBUG_ENTER("ordered_index_scan");
@@ -1542,12 +1548,12 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
 					      m_index[active_index].index, 
 					      (const NDBTAB *) m_table)) ||
-	!(cursor= op->readTuples(lm, 0, parallelism, sorted)))
+	op->readTuples(lm, 0, parallelism, sorted))
       ERR_RETURN(trans->getNdbError());
-    m_active_cursor= cursor;
+    m_active_cursor= op;
   } else {
     restart= true;
-    op= (NdbIndexScanOperation*)m_active_cursor->getOperation();
+    op= (NdbIndexScanOperation*)m_active_cursor;
     
     DBUG_ASSERT(op->getSorted() == sorted);
     DBUG_ASSERT(op->getLockMode() == 
@@ -1555,14 +1561,14 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if(op->reset_bounds(m_force_send))
       DBUG_RETURN(ndb_err(m_active_trans));
   }
-
+  
   {
     const key_range *keys[2]= { start_key, end_key };
     res= set_bounds(op, keys);
     if (res)
       DBUG_RETURN(res);
   }
-
+  
   if (!restart && (res= define_read_attrs(buf, op)))
   {
     DBUG_RETURN(res);
@@ -1594,7 +1600,6 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 {  
   int res;
   NdbConnection *trans= m_active_trans;
-  NdbResultSet *cursor;
   NdbScanOperation *op;
 
   DBUG_ENTER("filtered_scan");
@@ -1607,9 +1612,9 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   if (!(op= trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
-      !(cursor= op->readTuples(lm, 0, parallelism)))
+      op->readTuples(lm, 0, parallelism))
     ERR_RETURN(trans->getNdbError());
-  m_active_cursor= cursor;
+  m_active_cursor= op;
   
   {
     // Start scan filter
@@ -1673,7 +1678,6 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 {
   uint i;
   int res;
-  NdbResultSet *cursor;
   NdbScanOperation *op;
   NdbConnection *trans= m_active_trans;
 
@@ -1683,9 +1687,9 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   if (!(op=trans->getNdbScanOperation((const NDBTAB *) m_table)) ||
-      !(cursor= op->readTuples(lm, 0, parallelism)))
+      op->readTuples(lm, 0, parallelism))
     ERR_RETURN(trans->getNdbError());
-  m_active_cursor= cursor;
+  m_active_cursor= op;
   
   if((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
@@ -1871,7 +1875,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
 {
   THD *thd= current_thd;
   NdbConnection *trans= m_active_trans;
-  NdbResultSet* cursor= m_active_cursor;
+  NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   uint i;
   DBUG_ENTER("update_row");
@@ -1926,7 +1930,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
       the active record in cursor
     */
     DBUG_PRINT("info", ("Calling updateTuple on cursor"));
-    if (!(op= cursor->updateTuple()))
+    if (!(op= cursor->updateCurrentTuple()))
       ERR_RETURN(trans->getNdbError());
     m_ops_pending++;
     if (uses_blob_value(FALSE))
@@ -1989,7 +1993,7 @@ int ha_ndbcluster::delete_row(const byte *record)
 {
   THD *thd= current_thd;
   NdbConnection *trans= m_active_trans;
-  NdbResultSet* cursor= m_active_cursor;
+  NdbScanOperation* cursor= m_active_cursor;
   NdbOperation *op;
   DBUG_ENTER("delete_row");
 
@@ -2005,7 +2009,7 @@ int ha_ndbcluster::delete_row(const byte *record)
       the active record in cursor
     */
     DBUG_PRINT("info", ("Calling deleteTuple on cursor"));
-    if (cursor->deleteTuple() != 0)
+    if (cursor->deleteCurrentTuple() != 0)
       ERR_RETURN(trans->getNdbError());     
     m_ops_pending++;
 
@@ -2073,7 +2077,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
   NdbValue *value= m_value;
   DBUG_ENTER("unpack_record");
 
-  end = table->field + table->fields;
+  end= table->field + table->fields;
   
   // Set null flag(s)
   bzero(buf, table->null_bytes);
@@ -2303,7 +2307,7 @@ int
 check_null_in_key(const KEY* key_info, const byte *key, uint key_len)
 {
   KEY_PART_INFO *curr_part, *end_part;
-  const byte* end_ptr = key + key_len;
+  const byte* end_ptr= key + key_len;
   curr_part= key_info->key_part;
   end_part= curr_part + key_info->key_parts;
   
@@ -2327,8 +2331,8 @@ int ha_ndbcluster::index_read(byte *buf,
                        active_index, key_len, find_flag));
 
   int error;
-  ndb_index_type type = get_index_type(active_index);
-  const KEY* key_info = table->key_info+active_index;
+  ndb_index_type type= get_index_type(active_index);
+  const KEY* key_info= table->key_info+active_index;
   switch (type){
   case PRIMARY_KEY_ORDERED_INDEX:
   case PRIMARY_KEY_INDEX:
@@ -2367,9 +2371,9 @@ int ha_ndbcluster::index_read(byte *buf,
   }
   
   key_range start_key;
-  start_key.key = key;
-  start_key.length = key_len;
-  start_key.flag = find_flag;
+  start_key.key= key;
+  start_key.length= key_len;
+  start_key.flag= find_flag;
   error= ordered_index_scan(&start_key, 0, TRUE, buf);  
   DBUG_RETURN(error == HA_ERR_END_OF_FILE ? HA_ERR_KEY_NOT_FOUND : error);
 }
@@ -2425,7 +2429,7 @@ int ha_ndbcluster::index_last(byte *buf)
   statistic_increment(current_thd->status_var.ha_read_last_count,&LOCK_status);
   int res;
   if((res= ordered_index_scan(0, 0, TRUE, buf)) == 0){
-    NdbResultSet *cursor= m_active_cursor; 
+    NdbScanOperation *cursor= m_active_cursor; 
     while((res= cursor->nextResult(TRUE, m_force_send)) == 0);
     if(res == 1){
       unpack_record(buf);
@@ -2508,7 +2512,7 @@ int ha_ndbcluster::read_range_next()
 
 int ha_ndbcluster::rnd_init(bool scan)
 {
-  NdbResultSet *cursor= m_active_cursor;
+  NdbScanOperation *cursor= m_active_cursor;
   DBUG_ENTER("rnd_init");
   DBUG_PRINT("enter", ("scan: %d", scan));
   // Check if scan is to be restarted
@@ -2525,7 +2529,7 @@ int ha_ndbcluster::rnd_init(bool scan)
 
 int ha_ndbcluster::close_scan()
 {
-  NdbResultSet *cursor= m_active_cursor;
+  NdbScanOperation *cursor= m_active_cursor;
   NdbConnection *trans= m_active_trans;
   DBUG_ENTER("close_scan");
 
@@ -3528,12 +3532,12 @@ int ha_ndbcluster::create(const char *name,
     case MYSQL_TYPE_MEDIUM_BLOB:   
     case MYSQL_TYPE_LONG_BLOB: 
     {
-      NdbDictionary::Column * col = tab.getColumn(i);
-      int size = pk_length + (col->getPartSize()+3)/4 + 7;
+      NdbDictionary::Column * col= tab.getColumn(i);
+      int size= pk_length + (col->getPartSize()+3)/4 + 7;
       if(size > NDB_MAX_TUPLE_SIZE_IN_WORDS && 
 	 (pk_length+7) < NDB_MAX_TUPLE_SIZE_IN_WORDS)
       {
-	size = NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
+	size= NDB_MAX_TUPLE_SIZE_IN_WORDS - pk_length - 7;
 	col->setPartSize(4*size);
       }
       /**
@@ -4696,8 +4700,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (pOp == NULL)
       break;
     
-    NdbResultSet* rs= pOp->readTuples(NdbOperation::LM_CommittedRead); 
-    if (rs == 0)
+    if (pOp->readTuples(NdbOperation::LM_CommittedRead))
       break;
     
     int check= pOp->interpret_exit_last_row();
@@ -4714,7 +4717,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     
     Uint64 sum_rows= 0;
     Uint64 sum_commits= 0;
-    while((check= rs->nextResult(TRUE, TRUE)) == 0)
+    while((check= pOp->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
       sum_commits+= commits;
@@ -4723,7 +4726,7 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (check == -1)
       break;
 
-    rs->close(TRUE);
+    pOp->close(TRUE);
 
     ndb->closeTransaction(pTrans);
     if(row_count)
@@ -4777,8 +4780,8 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   int res;
   uint i;
   KEY* key_info= table->key_info + active_index;
-  NDB_INDEX_TYPE index_type = get_index_type(active_index);
-  ulong reclength = table->reclength;
+  NDB_INDEX_TYPE index_type= get_index_type(active_index);
+  ulong reclength= table->reclength;
   NdbOperation* op;
 
   if (uses_blob_value(m_retrieve_all_fields))
@@ -4877,14 +4880,14 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
       if (scanOp == 0)
       {
 	if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) &&
-	    (m_active_cursor= scanOp->readTuples(lm, 0, 
-						 parallelism, sorted, true))&&
+	    !scanOp->readTuples(lm, 0, parallelism, sorted, true) &&
 	    !define_read_attrs(curr, scanOp))
 	  curr += reclength;
 	else
-	  ERR_RETURN(scanOp ? 
-		     scanOp->getNdbError() : 
+	  ERR_RETURN(scanOp ? scanOp->getNdbError() : 
 		     m_active_trans->getNdbError());
+	m_multi_cursor= scanOp;
+	m_multi_range_cursor_result_ptr= curr;
       }
       const key_range *keys[2]= { &ranges[i].start_key, &ranges[i].end_key };
       if ((res= set_bounds(scanOp, keys, i)))
@@ -4931,64 +4934,60 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
   {
     DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
   }
-
+  
   int res;
+  int range_no;
   ulong reclength= table->reclength;
   const NdbOperation* op= m_current_multi_operation;
   for(;multi_range_curr < m_multi_range_defined_count; multi_range_curr++)
   {
-    if(multi_ranges[multi_range_curr].range_flag & UNIQUE_RANGE)
+    if (multi_ranges[multi_range_curr].range_flag & UNIQUE_RANGE)
     {
-      if(op->getNdbError().code == 0)
+      if (op->getNdbError().code == 0)
 	goto found_next;
       
       op= m_active_trans->getNextCompletedOperation(op);
       m_multi_range_result_ptr += reclength;
+      continue;
     } 
-    else if(m_active_cursor)
+    else if (m_multi_cursor && !multi_range_sorted)
     {
-      int check;
-      bool contact_ndb= m_lock.type < TL_WRITE_ALLOW_WRITE;
-      do {
-	check= m_active_cursor->nextResult(contact_ndb, m_force_send);
-	if (check == 0)
-	  goto found;
-	else if (check == 1 || check == 2)
-	{
-	  // 1: No more records
-	  // 2: No more cached records
-	  
-	  /*
-	    Before fetching more rows and releasing lock(s),
-	    all pending update or delete operations should 
-	    be sent to NDB
-	  */
-	  DBUG_PRINT("info", ("ops_pending: %d", m_ops_pending));    
-	  if (m_ops_pending)
-	  {
-	    //	if (current_thd->transaction.on)
-	    if (m_transaction_on)
-	    {
-	      if (execute_no_commit(this, m_active_trans) != 0)
-		DBUG_RETURN(ndb_err(m_active_trans));
-	    }
-	    else
-	    {
-	      if (execute_commit(this, m_active_trans) != 0)
-		DBUG_RETURN(ndb_err(m_active_trans));
-	      int res= m_active_trans->restart();
-	      DBUG_ASSERT(res == 0);
-	    }
-	    m_ops_pending= 0;
-	  }
-	  contact_ndb= (check == 2);
-	}
-      } while (check == 2);
+      if ((res= fetch_next() == 0))
+      {
+	range_no= m_multi_cursor->get_range_no();
+	goto found;
+      } 
+      else
+      {
+	goto close_scan;
+      }
+    }
+    else if (multi_range_sorted)
+    {
+      DBUG_ASSERT(m_multi_cursor);
+      if (m_active_cursor && (res= fetch_next()))
+	goto close_scan;
       
-      m_multi_range_result_ptr += reclength;
-      
-      m_active_cursor->close();
-      m_active_cursor= 0;
+      range_no= m_multi_cursor->get_range_no();
+      if (range_no == multi_range_curr)
+      {
+        // return current row
+	goto found;
+      }
+      else if (range_no > multi_range_curr)
+      {
+	// wait with current row
+	m_active_cursor= 0;
+	continue;
+      }
+      else 
+      {
+	// First fetch from cursor
+	DBUG_ASSERT(range_no == -1);
+	m_multi_cursor->nextResult(true);
+	multi_range_curr--; // Will be increased in for-loop
+	continue;
+      }
     }
     else /** m_active_cursor == 0 */
     {
@@ -4996,8 +4995,24 @@ ha_ndbcluster::read_multi_range_next(key_multi_range ** multi_range_found_p)
        * Corresponds to range 5 in example in read_multi_range_first
        */
       (void)1;
+      continue;
     }
-  }  
+    
+    DBUG_ASSERT(false); // Should only get here via goto's
+close_scan:
+    if (res == 1)
+    {
+      m_multi_range_result_ptr += reclength;
+      
+      m_active_cursor->close();
+      m_active_cursor= m_multi_cursor= 0;
+      continue;
+    } 
+    else 
+    {
+      DBUG_RETURN(ndb_err(m_active_trans));
+    }
+  }
   
   if (multi_range_curr == multi_range_count)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -5016,15 +5031,14 @@ found:
   /**
    * Found a record belonging to a scan
    */
-  Uint32 range_no = ((NdbIndexScanOperation*)m_active_cursor->getOperation())
-    ->get_range_no();
+  m_active_cursor= m_multi_cursor;
   * multi_range_found_p= multi_ranges + range_no;
-  memcpy(table->record[0], m_multi_range_result_ptr, reclength);
-  setup_recattr(m_active_cursor->getOperation()->getFirstRecAttr());
+  memcpy(table->record[0], m_multi_range_cursor_result_ptr, reclength);
+  setup_recattr(m_active_cursor->getFirstRecAttr());
   unpack_record(table->record[0]);
   table->status= 0;     
   DBUG_RETURN(0);
-
+  
 found_next:
   /**
    * Found a record belonging to a pk/index op,
@@ -5050,15 +5064,15 @@ ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
   Field **field, **end;
   NdbValue *value= m_value;
   
-  end = table->field + table->fields;
+  end= table->field + table->fields;
   
   for (field= table->field; field < end; field++, value++)
   {
     if ((* value).ptr)
     {
       DBUG_ASSERT(curr != 0);
-      (* value).rec = curr;
-      curr = curr->next();
+      (* value).rec= curr;
+      curr= curr->next();
     }
   }
   
