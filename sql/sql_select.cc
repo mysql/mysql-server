@@ -9376,7 +9376,7 @@ void st_select_lex::print(THD *thd, String *str)
 	str->append(table->db);
 	str->append('.');
 	str->append(table->real_name);
-	if (strcmp(table->real_name, table->alias))
+	if (my_strcasecmp(table_alias_charset, table->real_name, table->alias))
 	{
 	  str->append(' ');
 	  str->append(table->alias);
