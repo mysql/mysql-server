@@ -100,7 +100,7 @@ typedef struct st_lex_master_info
 } LEX_MASTER_INFO;
 
 
-enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE};
+enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE, NOT_A_SELECT};
 
 /* The state of the lex parsing for selects */
 
@@ -118,7 +118,7 @@ typedef struct st_select_lex {
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
   uint in_sum_expr, sort_default;
-  bool	create_refs;
+  bool	create_refs, braces;
   st_select_lex *next;
 } SELECT_LEX;
 

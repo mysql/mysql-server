@@ -27,7 +27,7 @@
 
 int mysql_union(THD *thd, LEX *lex,select_result *result)
 {
-  SELECT_LEX *sl, *last_sl;
+  SELECT_LEX *sl, *last_sl, lex_sl;
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
@@ -38,13 +38,21 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   DBUG_ENTER("mysql_union");
 
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-  for (sl=&lex->select_lex; sl; sl=sl->next)
+  for (sl=&lex->select_lex; sl && sl->linkage != NOT_A_SELECT; sl=sl->next)
   {
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
 	 cursor=cursor->next)
       cursor->table= ((TABLE_LIST*) cursor->table)->table;
   }
+
+  if (sl)
+  {
+    lex_sl=*sl;
+    sl=(SELECT_LEX *)NULL;
+  }
+  else
+    lex_sl.linkage=UNSPECIFIED_TYPE;
 
   /* Find last select part as it's here ORDER BY and GROUP BY is stored */
   for (last_sl= &lex->select_lex;
@@ -60,7 +68,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       sl->item_list,
 		       sl->where,
 		       sl->ftfunc_list,
-		       (ORDER*) 0,
+		       (sl->braces) ? (ORDER*) 0 : (ORDER *) sl->order_list.first,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
@@ -71,7 +79,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     DBUG_RETURN(0);
   }
 
-  order = (ORDER *) last_sl->order_list.first;
+  order = (lex_sl.linkage == UNSPECIFIED_TYPE) ? (ORDER *) last_sl->order_list.first : (ORDER *) lex_sl.order_list.first;
+
   {
     Item *item;
     List_iterator<Item> it(lex->select_lex.item_list);
@@ -118,7 +127,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     sl->item_list,
 		     sl->where,
 		     sl->ftfunc_list,
-		     (ORDER*) 0,
+		     (sl->braces) ? (ORDER*) 0 : (ORDER *)sl->order_list.first,
 		     (ORDER*) sl->group_list.first,
 		     sl->having,
 		     (ORDER*) NULL,
@@ -149,10 +158,21 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       (void) it.replace(new Item_field(*field));
     }
     if (!thd->fatal_error)			// Check if EOM
+    {
+      if (lex_sl.linkage == NOT_A_SELECT && ( lex_sl.select_limit || lex_sl.offset_limit))
+      {
+	thd->offset_limit=lex_sl.offset_limit;
+	thd->select_limit=lex_sl.select_limit+lex_sl.offset_limit;
+	if (thd->select_limit < lex_sl.select_limit)
+	  thd->select_limit= HA_POS_ERROR;		// no limit
+	if (thd->select_limit == HA_POS_ERROR)
+	  thd->options&= ~OPTION_FOUND_ROWS;
+      }
       res=mysql_select(thd,&result_table_list,
 		       item_list, NULL, ftfunc_list, order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
+    }
   }
 
 exit:
