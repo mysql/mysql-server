@@ -506,10 +506,15 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /*
-    Is query with this table cachable (have sense only for ASKTRANSACT
-    tables)
-  */
+  /* ask handler about permission to cache table during query registration */
+  virtual my_bool cached_table_registration(THD *thd, char *table_key,
+                                            uint key_length,
+                                            qc_engine_callback *engine_callback,
+                                            ulonglong *engine_data)
+  {
+    *engine_callback= 0;
+    return 1;
+  }
 };
 
 	/* Some extern variables used with handlers */
@@ -528,8 +533,6 @@ extern TYPELIB tx_isolation_typelib;
                                  T != DB_TYPE_BERKELEY_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
-bool ha_caching_allowed(THD* thd, char* table_key,
-                        uint key_length, uint8 cache_type);
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
