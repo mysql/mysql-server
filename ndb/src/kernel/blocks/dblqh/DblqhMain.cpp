@@ -13642,14 +13642,22 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
        *  ALSO SEND START_FRAGCONF TO DIH AND SET THE STATE TO ACTIVE ON THE
        *  FRAGMENT.
        * ------------------------------------------------------------------- */
+      Uint32 next = fragptr.p->nextFrag;
       if (prevFragptr.i != RNIL) {
         jam();
         ptrCheckGuard(prevFragptr, cfragrecFileSize, fragrecord);
-        prevFragptr.p->nextFrag = fragptr.p->nextFrag;
+        prevFragptr.p->nextFrag = next;
       } else {
         jam();
-        cfirstCompletedFragSr = fragptr.p->nextFrag;
+        cfirstCompletedFragSr = next;
       }//if
+
+      /**
+       * Put fragment on list which has completed REDO log
+       */
+      fragptr.p->nextFrag = c_redo_log_complete_frags;
+      c_redo_log_complete_frags = fragptr.i;
+      
       fragptr.p->fragStatus = Fragrecord::FSACTIVE;
       fragptr.p->logFlag = Fragrecord::STATE_TRUE;
       signal->theData[0] = fragptr.p->srUserptr;
@@ -13661,7 +13669,7 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
        *  THIS IS PERFORMED BY KEEPING PREV_FRAGPTR AS PREV_FRAGPTR BUT MOVING
        *  FRAGPTR TO THE NEXT FRAGMENT IN THE LIST.
        * ------------------------------------------------------------------- */
-      fragptr.i = fragptr.p->nextFrag;
+      fragptr.i = next;
     }//if
     signal->theData[0] = fragptr.i;
     signal->theData[1] = prevFragptr.i;
@@ -15267,6 +15275,20 @@ void Dblqh::srFourthComp(Signal* signal)
     conf->startingNodeId = getOwnNodeId();
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 	       StartRecConf::SignalLength, JBB);
+
+    if(cstartType == NodeState::ST_SYSTEM_RESTART){
+      fragptr.i = c_redo_log_complete_frags;
+      ndbout_c("All fragment complete - ");
+      while(fragptr.i != RNIL){
+	ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
+	signal->theData[0] = fragptr.p->tabRef;
+	signal->theData[1] = fragptr.p->fragId;
+	sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+	ndbout_c("table: %d fragment: %d", 
+		 fragptr.p->tabRef, fragptr.p->fragId);
+	fragptr.i = fragptr.p->nextFrag;
+      }
+    }
   } else {
     ndbrequire(false);
   }//if

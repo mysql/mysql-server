@@ -65,6 +65,7 @@ void Dblqh::initData()
   cLqhTimeOutCount = 0;
   cLqhTimeOutCheckCount = 0;
   cbookedAccOps = 0;
+  c_redo_log_complete_frags = RNIL;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

@@ -599,7 +599,6 @@ void Dbacc::ndbrestart1Lab(Signal* signal)
   for (Uint32 tmp = 0; tmp < ZMAX_UNDO_VERSION; tmp++) {
     csrVersList[tmp] = RNIL;
   }//for
-  c_no_fragment_allocated = 0;
   return;
 }//Dbacc::ndbrestart1Lab()
 
@@ -1361,8 +1360,6 @@ void Dbacc::releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr)
 
 void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr) 
 {
-  ndbrequire(c_no_fragment_allocated > 0);
-  c_no_fragment_allocated--;
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
   initFragGeneral(regFragPtr);
@@ -2342,13 +2339,14 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
       if (fragrecptr.p->slack > fragrecptr.p->slackCheck) {           /* TIME FOR JOIN BUCKETS PROCESS */
         if (fragrecptr.p->expandCounter > 0) {
-          if (fragrecptr.p->expandFlag == 0) {
+	  if (fragrecptr.p->expandFlag < 2) {
             jam();
-            fragrecptr.p->expandFlag = 1;
             signal->theData[0] = fragrecptr.i;
             signal->theData[1] = fragrecptr.p->p;
             signal->theData[2] = fragrecptr.p->maxp;
-            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 3, JBB);
+	    signal->theData[3] = fragrecptr.p->expandFlag;
+            fragrecptr.p->expandFlag = 2;
+            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
           }//if
         }//if
       }//if
@@ -2362,7 +2360,7 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
     if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { /* IT MEANS THAT IF SLACK < ZERO */
       if (fragrecptr.p->expandFlag == 0) {
         jam();
-        fragrecptr.p->expandFlag = 1;
+        fragrecptr.p->expandFlag = 2;
         signal->theData[0] = fragrecptr.i;
         signal->theData[1] = fragrecptr.p->p;
         signal->theData[2] = fragrecptr.p->maxp;
@@ -6334,9 +6332,16 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
 
 void Dbacc::execEXPANDCHECK2(Signal* signal) 
 {
+  jamEntry();
+
+  if(refToBlock(signal->getSendersBlockRef()) == DBLQH){
+    jam();
+    reenable_expand_after_redo_log_exection_complete(signal);
+    return;
+  }
+
   DirectoryarrayPtr newDirptr;
 
-  jamEntry();
   fragrecptr.i = signal->theData[0];
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   Uint32 tmp = 1;
@@ -6353,7 +6358,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     return;
   }//if
   if (cfirstfreepage == RNIL) {
-    if ((cfreepage + c_no_fragment_allocated) >= cpagesize) {
+    if (cfreepage + 10 >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
       /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
@@ -6394,6 +6399,10 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
+
+  ndbout_c("Expanding tab: %d frag: %d", 
+	   fragrecptr.p->myTableId, fragrecptr.p->myfid);
+
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE PAGE, THE PAGE INDEX AND THE PAGE DIRECTORY*/
   /*       OF THE NEW BUCKET WHICH SHALL RECEIVE THE ELEMENT WHICH HAVE A 1 IN*/
@@ -6447,6 +6456,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   } else {
     ptrCheckGuard(expPageptr, cpagesize, page8);
   }//if
+
   fragrecptr.p->expReceivePageptr = expPageptr.i;
   fragrecptr.p->expReceiveIndex = texpReceivedBucket & ((1 << fragrecptr.p->k) - 1);
   /*--------------------------------------------------------------------------*/
@@ -6497,7 +6507,7 @@ void Dbacc::endofexpLab(Signal* signal)
     /*       IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT FROM HERE  */
     /*       WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT.                            */
     /* --------------------------------------------------------------------------------- */
-    fragrecptr.p->expandFlag = 1;
+    fragrecptr.p->expandFlag = 2;
     signal->theData[0] = fragrecptr.i;
     signal->theData[1] = fragrecptr.p->p;
     signal->theData[2] = fragrecptr.p->maxp;
@@ -6505,6 +6515,46 @@ void Dbacc::endofexpLab(Signal* signal)
   }//if
   return;
 }//Dbacc::endofexpLab()
+
+void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
+
+  tabptr.i = signal->theData[0];
+  Uint32 fragId = signal->theData[1];
+
+  ptrCheckGuard(tabptr, ctablesize, tabrec);
+  ndbrequire(getrootfragmentrec(signal, rootfragrecptr, fragId));
+  
+  ndbout_c("reenable expand check for table %d fragment: %d", 
+	   tabptr.i, fragId);
+  
+  for (Uint32 i = 0; i < 2; i++) {
+    fragrecptr.i = rootfragrecptr.p->fragmentptr[i];
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    switch(fragrecptr.p->expandFlag){
+    case 0:
+      /**
+       * Hmm... this means that it's alreay has been reenabled...
+       */
+      //ndbassert(false);
+      continue;
+    case 1:
+      /**
+       * Nothing is going on start expand check
+       */
+    case 2:
+      /**
+       * A shrink is running, do expand check anyway
+       *  (to reset expandFlag)
+       */
+      fragrecptr.p->expandFlag = 2; 
+      signal->theData[0] = fragrecptr.i;
+      signal->theData[1] = fragrecptr.p->p;
+      signal->theData[2] = fragrecptr.p->maxp;
+      sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+      break;
+    }
+  }
+}
 
 void Dbacc::execDEBUG_SIG(Signal* signal) 
 {
@@ -6901,9 +6951,10 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   jamEntry();
   fragrecptr.i = signal->theData[0];
+  Uint32 oldFlag = signal->theData[3];
+  fragrecptr.p->expandFlag = oldFlag;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = 0;
   if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
     jam();
     /* TIME FOR JOIN BUCKETS PROCESS */
@@ -6938,7 +6989,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     }//if
   }//if
   if (cfirstfreepage == RNIL) {
-    if (cfreepage + c_no_fragment_allocated >= cpagesize) {
+    if (cfreepage >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
       /* WE HAVE TO STOP THE SHRINK PROCESS SINCE THERE ARE NO FREE   */
@@ -6984,6 +7035,10 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     jam();
     fragrecptr.p->p--;
   }//if
+
+  ndbout_c("Shrinking tab: %d frag: %d", 
+	   fragrecptr.p->myTableId, fragrecptr.p->myfid);
+  
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
@@ -7176,10 +7231,11 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 	/*       SHRINKING BELOW 2^K - 1 (NOW 63). THIS WAS A BUG THAT  */
 	/*       WAS REMOVED 2000-05-12.                                */
 	/*--------------------------------------------------------------*/
-        fragrecptr.p->expandFlag = 1;
         signal->theData[0] = fragrecptr.i;
         signal->theData[1] = fragrecptr.p->p;
         signal->theData[2] = fragrecptr.p->maxp;
+        signal->theData[3] = fragrecptr.p->expandFlag;
+        fragrecptr.p->expandFlag = 2;
         sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 3, JBB);
       }//if
     }//if
@@ -9196,7 +9252,15 @@ void Dbacc::initFragAdd(Signal* signal,
   ndbrequire(req->kValue == 6);
   regFragPtr.p->k = req->kValue;	/* TK_SIZE = 6 IN THIS VERSION */
   regFragPtr.p->expandCounter = 0;
-  regFragPtr.p->expandFlag = 0;
+
+  /**
+   * Only allow shrink during SR
+   *   - to make sure we don't run out of pages during REDO log execution
+   *
+   * Is later restored to 0 by LQH at end of REDO log execution
+   */
+  regFragPtr.p->expandFlag = (getNodeState().getSystemRestartInProgress()?1:0);
+  
   regFragPtr.p->p = 0;
   regFragPtr.p->maxp = (1 << req->kValue) - 1;
   regFragPtr.p->minloadfactor = minLoadFactor;
@@ -12775,7 +12839,6 @@ void Dbacc::seizeDirrange(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::seizeFragrec(Signal* signal) 
 {
-  c_no_fragment_allocated++;
   fragrecptr.i = cfirstfreefrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   cfirstfreefrag = fragrecptr.p->nextfreefrag;
