@@ -42,9 +42,10 @@ alter table t1 type=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
 drop table t1;
 
-create table t1 (x int not null, y int not null, key x  using BTREE (x), unique y  using BTREE (y))
+create table t1 (x int not null, y int not null, key x  using BTREE (x,y), unique y  using BTREE (y))
 type=heap;
 insert into t1 values (1,1),(2,2),(1,3),(2,4),(2,5),(2,6);
+explain select * from t1 where x=1;
 select * from t1 where x=1;
 select * from t1,t1 as t2 where t1.x=t2.y;
 explain select * from t1,t1 as t2 where t1.x=t2.y;
