@@ -5649,7 +5649,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c START_OF_MIRROR_LISTING
 
-@c Mirrors list is created by PHP script from database (tfr@mysql.com)
+@c Mirrors list is created by PHP script (that really needs to be documented!) from database (tfr@mysql.com)
 @include mirrors.texi
 
 @c END_OF_MIRROR_LISTING
@@ -37055,10 +37055,6 @@ data file @file{ibdata1} to the @code{datadir} of MySQL.
 But to get good performance you MUST explicitly set the InnoDB parameters
 listed below in examples.
 
-The default value for @code{innodb_data_home_dir} is the @code{datadir}
-of MySQL. If you do not specify @code{innodb_data_home_dir}, then
-you cannot use absolute paths in @code{innodb_data_file_path}.
-
 Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
 hard disk. Below is an example of possible configuration parameters in
 @file{my.cnf} for InnoDB:
@@ -37094,16 +37090,20 @@ set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
+Note that @strong{InnoDB does not create directories:
+you have to create them yourself.}
+Check also that the MySQL server
+has the @strong{rights to create files in the directories} you specify.
+
 Note that data files must be < 2G in
 some file systems! The total size of data files has
 to be >= 10 MB. The combined size of log files MUST be < 4G
 in 32-bit computers.
 
-@strong{InnoDB does not create directories:
-you have to create them yourself.}
-Check also that the MySQL server
-has the rights to create files in the directories you specify.
- 
+The default value for @code{innodb_data_home_dir} is the @code{datadir}
+of MySQL. If you do not specify @code{innodb_data_home_dir}, then
+you cannot use absolute paths in @code{innodb_data_file_path}.
+
 When you the first time create an InnoDB database, it
 is best that you start the MySQL server from the command
 prompt. Then InnoDB will print the information about the
@@ -37114,6 +37114,43 @@ For example, in Windows you can start @file{mysqld-max.exe} with:
 @example
 your-path-to-mysqld>mysqld-max --standalone --console
 @end example
+
+@strong{Where to put my.cnf or my.ini in Windows?}
+The rules for Windows are the following:
+
+@itemize @bullet
+@item Only one of @file{my.cnf} or @file{my.ini} should be created.
+@item The @file{my.cnf} file should be placed in the root
+directory of the drive @file{C:}.
+@item The @file{my.ini} file should be placed in the WINDIR directory, e.g,
+@file{C:\WINDOWS} or @file{C:\WINNT}. You can use the @code{SET}
+command of MS-DOS to print the value of WINDIR.
+@item If your PC uses a boot loader where the @file{C:} drive
+is not the boot drive, then your only option is to use the @file{my.ini} file.
+@end itemize
+
+@strong{Where to specify options in Unix?}
+On Unix @file{mysqld} reads options from the following files, if they exist,
+in the following order: 
+
+@itemize @bullet
+@item @file{/etc/my.cnf}  Global options.  
+@item @file{COMPILATION_DATADIR/my.cnf}  Server-specific options.  
+@item @file{defaults-extra-file}  The file specified with
+@code{--defaults-extra-file=...}.
+@item @file{~/.my.cnf} User-specific options.
+@end itemize
+
+@code{COMPILATION_DATADIR} is the MySQL data directory which was
+specified as a @code{./configure} option when @file{mysqld}
+was compiled
+(typically @file{/usr/local/mysql/data} for a
+binary installation or @file{/usr/local/var} 
+for a source installation).
+
+If you are not sure from where @file{mysqld} reads its @file{my.cnf}
+or @file{my.ini}, you can give the path as a command-line option:
+@code{--defaults-file=your_path_to_my_cnf}.
 
 Suppose you have a Linux computer with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
@@ -37131,7 +37168,9 @@ innodb_data_home_dir = /
 #                                            hold your data and indexes
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
 #                                            Set buffer pool size to 50 - 80 %
-#                                            of your computer's memory
+#                                            of your computer's memory, but
+#                                            make sure on Linux x86 the total
+#                                            memory usage is < 2 GB
 set-variable = innodb_buffer_pool_size=350M
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
@@ -37165,6 +37204,19 @@ formed by the data files from bottom up. In some cases it will
 improve the performance of the database if all data is not placed
 on the same physical disk. Putting log files on a different disk from
 data is very often beneficial for performance.
+
+@strong{Warning:} on Linux x86 you must be careful you
+@strong{do not set memory usage
+too high}. glibc will allow the process heap to grow over thread stacks,
+which will crash your server. Make sure
+@example
+innodb_buffer_pool_size + key_buffer +
+max_connections * (sort_buffer + record_buffer) + max_connections * 1 MB
+@end example
+is significantly smaller than 2 GB. Each thread will use a stack
+(often 1 MB) and in the worst case also
+@code{sort_buffer + record_buff}
+additional memory.
 
 The meanings of the configuration parameters are the following:
 
@@ -37321,6 +37373,22 @@ mysqld: ready for connections
 
 @node Error creating InnoDB,  , InnoDB init, InnoDB init
 @subsubsection If Something Goes Wrong in Database Creation
+
+If InnoDB prints an operating system error in a file operation,
+usually the problem is one of the following:
+
+@itemize @bullet
+@item You did not create InnoDB data or log directories.
+@item @file{mysqld} does not have the rights to create files in those
+directories.
+@item @file{mysqld} does not read the right @file{my.cnf} or @file{my.ini}
+file, and consequently does not see the options you specified.
+@item The disk is full or a disk quota is exceeded.
+@item You have created a subdirectory whose name is equal to a data file
+you specified.
+@item There is a syntax error in @code{innodb_data_home_dir}
+or @code{innodb_data_file_path}.
+@end itemize
 
 If something goes wrong in an InnoDB database creation, you should
 delete all files created by InnoDB. This means all data files, all log
