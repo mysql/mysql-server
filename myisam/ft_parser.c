@@ -206,7 +206,7 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
   return 0;
 }
 
-TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
+int ft_parse(TREE *wtree, byte *doc, int doclen)
 {
   byte   *end=doc+doclen;
   FT_WORD w;
@@ -221,10 +221,10 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
     if (!tree_insert(wtree, &w, 0))
       goto err;
   }
-  return wtree;
+  return 0;
 
 err:
   delete_tree(wtree);
-  return NULL;
+  return 1;
 }
 

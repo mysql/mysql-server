@@ -2004,6 +2004,9 @@ void Item_func_match::init_search(bool no_order)
     return;
   }
 
+  if (key == NO_SUCH_KEY)
+    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
+
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
   String tmp2(tmp1,sizeof(tmp1));
@@ -2015,7 +2018,8 @@ void Item_func_match::init_search(bool no_order)
     tmp2.set("",0);
   }
 
-  ft_handler_init(ft_tmp->ptr(), ft_tmp->length(), join_key && !no_order);
+  ft_handler=table->file->ft_init_ext(mode, key,
+      ft_tmp->ptr(), ft_tmp->length(), join_key && !no_order);
 
   if (join_key)
   {
@@ -2032,12 +2036,11 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   maybe_null=1;
   join_key=0;
 
-  /* Serg:
-     I'd rather say now that const_item is assumed in quite a bit of
-     places, so it would be difficult to remove;  If it would ever to be
-     removed, this should include modifications to find_best and auto_close
-     as complement to auto_init code above.
-  */
+  /* const_item is assumed in quite a bit of places, so it would be difficult
+     to remove;  If it would ever to be removed, this should include
+     modifications to find_best and auto_close as complement to auto_init code
+     above.
+   */
   if (Item_func::fix_fields(thd,tlist) || !const_item())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
@@ -2051,21 +2054,20 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);
     if (item->type() != Item::FIELD_ITEM || !item->used_tables())
-    {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
-      return 1;
-    }
+      key=NO_SUCH_KEY;
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
   if (count_bits(used_tables_cache) != 1)
+      key=NO_SUCH_KEY;
+  const_item_cache=0;
+  table=((Item_field *)fields.head())->field->table;
+  record=table->record[0];
+  if (key == NO_SUCH_KEY && mode != FT_BOOL)
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
   }
-  const_item_cache=0;
-  table=((Item_field *)fields.head())->field->table;
-  record=table->record[0];
   return 0;
 }
 
@@ -2074,6 +2076,10 @@ bool Item_func_match::fix_index()
   List_iterator_fast<Item> li(fields);
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, key;
+  uint max_cnt=0, mkeys=0;
+
+  if (this->key == NO_SUCH_KEY)
+    return 0;
 
   for (key=0 ; key<table->keys ; key++)
   {
@@ -2087,11 +2093,7 @@ bool Item_func_match::fix_index()
   }
 
   if (!fts)
-  {
-    my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
-                 ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
-    return 1;
-  }
+    goto err;
 
   while ((item=(Item_field*)(li++)))
   {
@@ -2108,7 +2110,6 @@ bool Item_func_match::fix_index()
     }
   }
 
-  uint max_cnt=0, mkeys=0;
   for (key=0 ; key<fts ; key++)
   {
     if (ft_cnt[key] > max_cnt)
@@ -2139,6 +2140,12 @@ bool Item_func_match::fix_index()
     return 0;
   }
 
+err:
+  if (mode == FT_BOOL)
+  {
+    this->key=NO_SUCH_KEY;
+    return 0;
+  }
   my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
                ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
   return 1;
@@ -2174,60 +2181,17 @@ double Item_func_match::val()
     join_key=0;
   }
 
-  my_off_t docid=table->file->row_position();
-
-  if ((null_value=(docid==HA_OFFSET_ERROR)))
-    return 0.0;
-  else
-    return ft_handler->please->find_relevance(ft_handler, docid, record);
-}
-
-#if 0
-double Item_func_match_nl::val()
-{
-  if (ft_handler==NULL)
-    init_search(1);
-
-  if ((null_value= (ft_handler==NULL)))
-    return 0.0;
-
-  if (join_key)
+  if (key == NO_SUCH_KEY)
   {
-    if (table->file->ft_handler)
-      return ft_handler->please->get_relevance(ft_handler);
-
-    join_key=0;
+    String *a=concat->val_str(&value);
+    if (null_value=(a==0))
+      return 0;
+    return ft_handler->please->find_relevance(ft_handler,
+        (byte *)a->ptr(), a->length());
   }
-
-  my_off_t docid=table->file->row_position();
-
-  if ((null_value=(docid==HA_OFFSET_ERROR)))
-    return 0.0;
   else
-    return ft_handler->please->find_relevance(ft_handler, docid, record);
+    return ft_handler->please->find_relevance(ft_handler, record, 0);
 }
-
-double Item_func_match_bool::val()
-{
-  if (ft_handler==NULL)
-    init_search(1);
-
-  if ((null_value= (ft_handler==NULL)))
-    return 0.0;
-
-  if (join_key)
-  {
-    if (table->file->ft_handler)
-      return ft_handler->please->get_relevance(ft_handler);
-
-    join_key=0;
-  }
-
-  return ft_handler->please->find_relevance(ft_handler, docid, record);
-  //null_value=1;
-  //return -1.0;
-}
-#endif
 
 /***************************************************************************
   System variables

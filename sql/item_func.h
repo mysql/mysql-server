@@ -862,15 +862,18 @@ class Item_func_match :public Item_real_func
 {
 public:
   List<Item> fields;
+  Item *concat;
+  String value;
   TABLE *table;
-  uint key;
+  uint key, mode;
   bool join_key;
   Item_func_match *master;
   FT_INFO * ft_handler;
   byte *record;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-       fields(a), table(0), join_key(0), master(0), ft_handler(0) {}
+       fields(a), table(0), join_key(0), master(0), ft_handler(0),
+       key(0), concat(0) {}
   ~Item_func_match()
   {
     if (!master && ft_handler)
@@ -880,8 +883,8 @@ public:
       if(join_key)
 	table->file->ft_handler=0;
     }
+    if (concat) delete concat;
   }
-  virtual int ft_handler_init(const byte *key, uint keylen, bool presort) =0;
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
   bool fix_fields(THD *thd,struct st_table_list *tlist);
@@ -896,26 +899,16 @@ public:
 class Item_func_match_nl :public Item_func_match
 {
 public:
-  Item_func_match_nl(List<Item> &a, Item *b): Item_func_match(a,b) {}
+  Item_func_match_nl(List<Item> &a, Item *b):
+      Item_func_match(a,b) { mode=FT_NL; }
   const char *func_name() const { return "match_nl"; }
-//  double val();
-  int ft_handler_init(const byte *query, uint querylen, bool presort)
-   {
-     ft_handler=table->file->ft_init_ext(FT_NL,key, query, querylen, presort);
-     return 0;
-   }
 };
 
 class Item_func_match_bool :public Item_func_match
 {
 public:
-  Item_func_match_bool(List<Item> &a, Item *b): Item_func_match(a,b) {}
+  Item_func_match_bool(List<Item> &a, Item *b):
+     Item_func_match(a,b) { mode=FT_BOOL; }
   const char *func_name() const { return "match_bool"; }
-//  double val();
-  int ft_handler_init(const byte *query, uint querylen, bool presort)
-   {
-     ft_handler=table->file->ft_init_ext(FT_BOOL,key, query, querylen, presort);
-     return 0;
-   }
 };
 

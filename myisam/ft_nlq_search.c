@@ -169,7 +169,7 @@ static int FT_DOC_cmp(FT_DOC *a, FT_DOC *b)
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
                                  uint query_len, my_bool presort)
 {
-  TREE	     *wtree, allocated_wtree;
+  TREE	     allocated_wtree, *wtree=&allocated_wtree;
   ALL_IN_ONE  aio;
   FT_DOC     *dptr;
   FT_INFO    *dlist=NULL;
@@ -193,7 +193,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL, NULL);
 
-  if(!(wtree=ft_parse(&allocated_wtree,query,query_len)))
+  if(ft_parse(&allocated_wtree,query,query_len))
     goto err;
 
   if(tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
@@ -247,11 +247,15 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
   return my_errno;
 }
 
-float ft_nlq_find_relevance(FT_INFO *handler, my_off_t docid,
-    byte *record __attribute__((unused)))
+float ft_nlq_find_relevance(FT_INFO *handler,
+    byte *record __attribute__((unused)), uint length __attribute__((unused)))
 {
   int a,b,c;
   FT_DOC  *docs=handler->doc;
+  my_off_t docid=handler->info->lastpos;
+
+  if (docid == HA_POS_ERROR)
+    return -5.0;
 
   /* Assuming docs[] is sorted by dpos... */
 

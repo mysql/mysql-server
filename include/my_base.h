@@ -226,6 +226,7 @@ enum ha_base_keytype {
 	/* Other constants */
 
 #define HA_NAMELEN 64			/* Max length of saved filename */
+#define NO_SUCH_KEY ((uint)~0)          /* used as a key no. */
 
 	/* Intern constants in databases */
 
