@@ -7266,7 +7266,7 @@ machine.
 @end itemize
 
 It is recomended you use MIT-pthreads on FreeBSD 2.x and native threads on
-Versions 3 and up. It is possible to run with with native threads on some late
+Versions 3 and up. It is possible to run with  native threads on some late
 2.2.x versions but you may encounter problems shutting down mysqld.
 
 Be sure to have your name resolver setup correct. Otherwise you may
@@ -12511,7 +12511,7 @@ has a @code{Host} value @code{'localhost'} that is more specific than
 @code{'%'}, it is used in preference to the new entry when connecting from
 @code{localhost}!  The correct procedure is to insert a second entry with
 @code{Host}=@code{'localhost'} and @code{User}=@code{'some_user'}, or to
-remove the entry with with @code{Host}=@code{'localhost'} and
+remove the entry with @code{Host}=@code{'localhost'} and
 @code{User}=@code{''}.
 
 @item
@@ -25779,7 +25779,7 @@ are using @code{--skip-locking}
 @end menu
 
 @node Compile and link options, Disk issues, System, System
-@subsection How compiling and linking affects the speed of MySQL
+@subsection How Compiling and Linking Affects the Spexed of MySQL
 
 Most of the following tests are done on Linux with the
 @strong{MySQL} benchmarks, but they should give some indication for
@@ -25800,13 +25800,13 @@ configuring @strong{MySQL} to avoid inclusion of the @code{libstdc++}
 library (it is not needed). Note that with some versions of @code{pgcc},
 the resulting code will only run on true Pentium processors, even if you
 use the compiler option that you want the resulting code to be working on
-all x586 type processors (Like AMD).
+all x586 type processors (like AMD).
 
 By just using a better compiler and/or better compiler options you can
 get a 10-30 % speed increase in your application.  This is particularly
 important if you compile the SQL server yourself!
 
-We have tested both the Cygnus CodeFusion and Fujitsu compilers but
+We have tested both the Cygnus CodeFusion and Fujitsu compilers, but
 when we tested them, neither was sufficiently bug free to allow
 @strong{MySQL} to be compiled with optimizations on.
 
@@ -25830,7 +25830,7 @@ library. It is only the server that is critical for performance.
 @item
 If you connect using TCP/IP rather than Unix sockets, the result is 7.5%
 slower on the same computer. (If you are connection to @code{localhost},
-@strong{MySQL} will by default use sockets).
+@strong{MySQL} will, by default, use sockets).
 
 @item
 On a Sun SPARCstation 10, @code{gcc} 2.7.3 is 13% faster than Sun Pro C++ 4.2.
@@ -25852,11 +25852,11 @@ statically to get it faster and more portable.
 @cindex disk issues
 @cindex performance, disk issues
 @node Disk issues, Server parameters, Compile and link options, System
-@subsection Disk issues
+@subsection Disk Issues
 
 @itemize @bullet
 @item
-As mentioned before disks seeks are a big performance bottleneck. This
+As mentioned before, disks seeks are a big performance bottleneck. This
 problems gets more and more apparent when the data starts to grow so
 large that effective caching becomes impossible. For large databases,
 where you access data more or less randomly, you can be sure that you
@@ -25864,7 +25864,7 @@ will need at least one disk seek to read and a couple of disk seeks to
 write things. To minimize this problem, use disks with low seek times.
 @item
 Increase the number of available disk spindles (and thereby reduce
-the seek overhead) by either symlink files to different disks or stripe
+the seek overhead) by either symlink files to different disks or striping
 the disks.
 @table @strong
 @item Using symbolic links
@@ -25875,28 +25875,28 @@ other things). @xref{Symbolic links}.
 @cindex striping, defined
 @item Striping
 Striping means that you have many disks and put the first block on the
-first disk, the second block on the second disk, and the Nth on the (Nth
-mod number_of_disks) disk, and so on. This means if your normal data
+first disk, the second block on the second disk, and the Nth on the 
+(N mod number_of_disks) disk, and so on. This means if your normal data
 size is less than the stripe size (or perfectly aligned) you will get
-much better performance. Note that striping if very dependent on the OS
+much better performance. Note that striping is very dependent on the OS
 and stripe-size. So benchmark your application with different
 stripe-sizes. @xref{Benchmarks}.
 
 Note that the speed difference for striping is @strong{very} dependent
 on the parameters. Depending on how you set the striping parameters and
-number of disks you may get difference in orders of magnitude. Note that
+number of disks you may get a difference in orders of magnitude. Note that
 you have to choose to optimize for random or sequential access.
 @end table
 @item
 For reliability you may want to use RAID 0+1 (striping + mirroring), but
 in this case you will need 2*N drives to hold N drives of data. This is
 probably the best option if you have the money for it!  You may, however,
-also have to invest in some volume management software to handle it
+also have to invest in some volume-management software to handle it
 efficiently.
 @item
-A good option is to have semi-important data (that can be re-generated)
-on RAID 0 disk while store really important data (like host information
-and logs) on a RAID 0+1 or RAID N disks. RAID N can be a problem if you
+A good option is to have semi-important data (that can be regenerated)
+on RAID 0 disk while storing really important data (like host information
+and logs) on a RAID 0+1 or RAID N disk. RAID N can be a problem if you
 have many writes because of the time to update the parity bits.
 @item
 You may also set the parameters for the file system that the database
@@ -25905,7 +25905,7 @@ option. That makes it skip the updating of the last access time in the
 inode and by this will avoid some disk seeks.
 @item
 On Linux, you can get much more performance (up to 100 % under load is
-not uncommon) by using hdpram to configure your disks interface!  The
+not uncommon) by using hdpram to configure your disk's interface!  The
 following should be quite good hdparm options for @strong{MySQL} (and
 probably many other applications):
 @example
@@ -25919,10 +25919,10 @@ throughly after using @code{hdparm}!  Please consult the @code{hdparm}
 man page for more information!  If @code{hdparm} is not used wisely,
 filesystem corruption may result.  Backup everything before experimenting!
 @item
-On many OS system you can mount the disks with the 'async' flag to set the file
+On many operating systems you can mount the disks with the 'async' flag to set the file
 system to be updated asynchronously.  If your computer is reasonable stable,
 this should give you more performance without sacrificing too much reliability.
-(This flag is on by default on Linux).
+(This flag is on by default on Linux.)
 @item
 If you don't need to know when a file was last accessed (which is not
 really useful on a databasa server), you can mount your file systems
@@ -25938,14 +25938,14 @@ with the noatime flag.
 @cindex databases, symbolic links
 @cindex tables, symbolic links
 @node Symbolic links,  , Disk issues, Disk issues
-@subsubsection Using symbolic links for databases and tables
+@subsubsection Using Symbolic Links for Databases and Tables
 
 You can move tables and databases from the database directory to other
 locations and replace them with symbolic links to the new locations.
 You might want to do this, for example, to move a database to a file
 system with more free space.
 
-If @strong{MySQL} notices that a table is a symbolically-linked, it will
+If @strong{MySQL} notices that a table is symbolically linked, it will
 resolve the symlink and use the table it points to instead. This works
 on all systems that support the @code{realpath()} call (at least Linux
 and Solaris support @code{realpath()})!  On systems that don't support
@@ -25981,7 +25981,7 @@ to
 if (1)
 @end example
 
-On windows you can use internal symbolic links to directories by compiling
+On Windows you can use internal symbolic links to directories by compiling
 @strong{MySQL} with @code{-DUSE_SYMDIR}. This allows you to put different
 databases on different disks. @xref{Windows symbolic links}.
 
@@ -25990,7 +25990,7 @@ databases on different disks. @xref{Windows symbolic links}.
 @cindex buffer sizes, @code{mysqld} server
 @cindex startup parameters
 @node Server parameters, Table cache, Disk issues, System
-@subsection Tuning server parameters
+@subsection Tuning Server Parameters
 
 You can get the default buffer sizes used by the @code{mysqld} server
 with this command:
@@ -26059,7 +26059,7 @@ You can also see some statistics from a running server by issuing the command
 
 @strong{MySQL} uses algorithms that are very scalable, so you can usually
 run with very little memory. If you, however, give @strong{MySQL} more
-memory you will normally also get better performance.
+memory, you will normally also get better performance.
 
 When tuning a @strong{MySQL} server, the two most important variables to use
 are @code{key_buffer_size} and @code{table_cache}.  You should first feel
@@ -26097,7 +26097,7 @@ shell> safe_mysqld -O key_buffer=512k -O sort_buffer=16k \
 
 When you have installed @strong{MySQL}, the @file{Docs} directory will
 contain some different @code{my.cnf} example files, @file{my-huge.cnf},
-@file{my-large.cnf},@file{my-medium.cnf} and@file{my-small.cnf}, you can
+@file{my-large.cnf}, @file{my-medium.cnf}, and @file{my-small.cnf}, you can
 use as a base to optimize your system.
 
 If there are very many connections, ``swapping problems'' may occur unless
@@ -26125,9 +26125,9 @@ output.
 @cindex table cache
 @findex table_cache
 @node Table cache, Creating many tables, Server parameters, System
-@subsection How MySQL opens and closes tables
+@subsection How MySQL Opens and Closes Tables
 
-@code{table_cache}, @code{max_connections} and @code{max_tmp_tables}
+@code{table_cache}, @code{max_connections}, and @code{max_tmp_tables}
 affect the maximum number of files the server keeps open.  If you
 increase one or both of these values, you may run up against a limit
 imposed by your operating system on the per-process number of open file
@@ -26141,7 +26141,7 @@ at least @code{200 * n}, where @code{n} is the maximum number of tables
 in a join.
 
 The cache of open tables can grow to a maximum of @code{table_cache}
-(default 64; this can be changed with with the @code{-O table_cache=#}
+(default 64; this can be changed with the @code{-O table_cache=#}
 option to @code{mysqld}).  A table is never closed, except when the
 cache is full and another thread tries to open a table or if you use
 @code{mysqladmin refresh} or @code{mysqladmin flush-tables}.
@@ -26173,14 +26173,14 @@ among all threads.
 
 You can check if your table cache is too small by checking the mysqld
 variable @code{opened_tables}.  If this is quite big, even if you
-haven't done alot of @code{FLUSH TABLES}, you should increase your table
+haven't done a lot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS}.
 
 @cindex tables, too many
 @node Creating many tables, Open tables, Table cache, System
-@subsection Drawbacks of creating large numbers of tables in the same database
+@subsection Drawbacks to Creating Large Numbers of Tables in the Same Database
 
-If you have many files in a directory, open, close and create operations will
+If you have many files in a directory, open, close, and create operations will
 be slow.  If you execute @code{SELECT} statements on many different tables,
 there will be a little overhead when the table cache is full, because for
 every table that has to be opened, another must be closed. You can reduce
@@ -26189,7 +26189,7 @@ this overhead by making the table cache larger.
 @cindex tables, open
 @cindex open tables
 @node Open tables, Memory use, Creating many tables, System
-@subsection Why so many open tables?
+@subsection Why So Many Open tables?
 
 When you run @code{mysqladmin status}, you'll see something like this:
 
@@ -26208,11 +26208,11 @@ between all threads.
 
 @cindex memory use
 @node Memory use, Internal locking, Open tables, System
-@subsection How MySQL uses memory
+@subsection How MySQL Uses Memory
 
 The list below indicates some of the ways that the @code{mysqld} server
 uses memory.  Where applicable, the name of the server variable relevant
-to the memory use is given.
+to the memory use is given:
 
 @itemize @bullet
 @item
@@ -26221,8 +26221,8 @@ threads; Other buffers used by the server are allocated as
 needed. @xref{Server parameters}.
 
 @item
-Each connection uses some thread specific space; A stack (default 64K,
-variable @code{thread_stack}) a connection buffer (variable
+Each connection uses some thread-specific space: A stack (default 64K,
+variable @code{thread_stack}), a connection buffer (variable
 @code{net_buffer_length}), and a result buffer (variable
 @code{net_buffer_length}). The connection buffer and result buffer are
 dynamically enlarged up to @code{max_allowed_packet} when needed.  When
@@ -26234,21 +26234,21 @@ All threads share the same base memory.
 @item
 Only the compressed ISAM / MyISAM tables are memory mapped.  This is
 because the 32-bit memory space of 4GB is not large enough for most
-big tables. When systems with a 64-bit address-space become more
-common we may add general support for memory-mapping.
+big tables. When systems with a 64-bit address space become more
+common we may add general support for memory mapping.
 
 @item
 Each request doing a sequential scan over a table allocates a read buffer
 (variable @code{record_buffer}).
 
 @item
-All joins are done in one pass and most joins can be done without even
+All joins are done in one pass, and most joins can be done without even
 using a temporary table. Most temporary tables are memory-based (HEAP)
 tables.  Temporary tables with a big record length (calculated as the
 sum of all column lengths) or that contain @code{BLOB} columns are
 stored on disk.
 
-One problem in @strong{MySQL} versions before 3.23.2 is that if a HEAP table
+One problem in @strong{MySQL} versions before Version 3.23.2 is that if a HEAP table
 exceeds the size of @code{tmp_table_size}, you get the error @code{The
 table tbl_name is full}. In newer versions this is handled by
 automatically changing the in-memory (HEAP) table to a disk-based
