@@ -566,7 +566,7 @@ int ha_ndbcluster::build_index_list0()
       if (!(name= my_malloc(name_len, MYF(MY_WME))))
 	DBUG_RETURN(2);
       strxnmov(name, name_len, index_name, unique_suffix, NullS);
-      m_index[i].unique_name = name;
+      m_index[i].unique_name= name;
       DBUG_PRINT("info", ("Created unique index name: %s for index %d",
 			  name, i));
     }
@@ -588,13 +588,13 @@ int ha_ndbcluster::build_index_list1()
     {
       const NDBINDEX *index= dict->getIndex(get_index_name(i), m_tabname);
       if (!index) DBUG_RETURN(1);
-      m_index[i].index = (void *) index;
+      m_index[i].index= (void *) index;
     }
     if (m_index[i].unique_name)
     {
       const NDBINDEX *index= dict->getIndex(m_index[i].unique_name, m_tabname);
       if (!index) DBUG_RETURN(1);
-      m_index[i].unique_index = (void *) index;
+      m_index[i].unique_index= (void *) index;
     }      
     DBUG_PRINT("info", ("Added handle to index %s", get_index_name(i)));
   }
