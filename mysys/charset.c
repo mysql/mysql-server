@@ -553,7 +553,10 @@ uint get_charset_number(const char *charset_name)
   
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
-    if ( cs[0] && cs[0]->name && !strcasecmp(cs[0]->name, charset_name))
+    if ( cs[0] && cs[0]->name && 
+         (!strcasecmp(cs[0]->name, charset_name) ||
+          (!strcasecmp(cs[0]->csname, charset_name) && 
+           (cs[0]->state & MY_CS_PRIMARY))))
       return cs[0]->number;
   }  
   return 0;   /* this mimics find_type() */

@@ -19,7 +19,7 @@
 #include "m_ctype.h"
 
 
-static my_wc_t latin1_uni[256]={
+static uint16 latin1_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -177,19 +177,19 @@ int my_wc_mb_latin1(CHARSET_INFO *cs __attribute__((unused)),
 
 CHARSET_INFO my_charset_latin1 =
 {
-    8,0,0,		/* number    */
-    MY_CS_COMPILED,	/* state     */
-    "latin1",		/* cs name    */
-    "latin1",		/* name      */
-    "",			/* comment   */
+    8,0,0,				/* number    */
+    MY_CS_COMPILED | MY_CS_PRIMARY,	/* state     */
+    "latin1",				/* cs name    */
+    "latin1",				/* name      */
+    "",					/* comment   */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
-    NULL,		/* tab_to_uni   */
+    latin1_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "","",
-    2,			/* strxfrm_multiply */
+    0,			/* strxfrm_multiply */
     my_strnncoll_simple,
     my_strnncollsp_simple,
     my_strnxfrm_simple,
@@ -207,7 +207,7 @@ CHARSET_INFO my_charset_latin1 =
     my_casedn_str_8bit,
     my_caseup_8bit,
     my_casedn_8bit,
-    NULL,		/* tosort    */
+    my_tosort_8bit,	/* tosort    */
     my_strcasecmp_8bit,
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
@@ -224,3 +224,261 @@ CHARSET_INFO my_charset_latin1 =
     my_strntod_8bit,
     my_scan_8bit
 };
+
+
+
+
+/*
+ * This file is the latin1 character set with German sorting
+ *
+ * The modern sort order is used, where:
+ *
+ * 'ä'  ->  "ae"
+ * 'ö'  ->  "oe"
+ * 'ü'  ->  "ue"
+ * 'ß'  ->  "ss"
+ */
+
+
+/*
+ * This is a simple latin1 mapping table, which maps all accented
+ * characters to their non-accented equivalents.  Note: in this
+ * table, 'ä' is mapped to 'A', 'ÿ' is mapped to 'Y', etc. - all
+ * accented characters except the following are treated the same way.
+ * Ü, ü, Ö, ö, Ä, ä
+ */
+
+static uchar sort_order_latin1_de[] = {
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+   16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+   96, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
+   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,123,124,125,126,127,
+  128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,
+  144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,
+  160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,
+  176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,
+   65, 65, 65, 65,196, 65, 92, 67, 69, 69, 69, 69, 73, 73, 73, 73,
+   68, 78, 79, 79, 79, 79,214,215,216, 85, 85, 85,220, 89,222,223,
+   65, 65, 65, 65,196, 65, 92, 67, 69, 69, 69, 69, 73, 73, 73, 73,
+   68, 78, 79, 79, 79, 79,214,247,216, 85, 85, 85,220, 89,222, 89
+};
+
+#define L1_AE 196
+#define L1_ae 228
+#define L1_OE 214
+#define L1_oe 246
+#define L1_UE 220
+#define L1_ue 252
+#define L1_ss 223
+
+
+/*
+  Some notes about the following comparison rules:
+  By definition, my_strnncoll_latin_de must works exactly as if had called
+  my_strnxfrm_latin_de() on both strings and compared the result strings.
+
+  This means that:
+  Ä must also matches ÁE and Aè, because my_strxn_frm_latin_de() will convert
+  both to AE.
+
+  The other option would be to not do any accent removal in
+  sort_order_latin_de[] at all
+*/
+
+
+#define CHECK_S1_COMBO(ch1, ch2, str1, str1_end, res_if_str1_smaller, str2, fst, snd, accent)   \
+  /* Invariant: ch1 == fst == sort_order_latin1_de[accent] && ch1 != ch2 */ \
+  if (ch2 != accent)							\
+  {									\
+    ch1= fst;								\
+    goto normal;							\
+  }									\
+  if (str1 == str1_end)							\
+    return res_if_str1_smaller;						\
+  {									\
+     int diff = (int) sort_order_latin1_de[*str1] - snd;		\
+     if (diff)								\
+        return diff*(-(res_if_str1_smaller));				\
+      /* They are equal (e.g., "Ae" == 'ä') */				\
+     str1++;								\
+  }
+
+
+static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+                           const uchar * s1, uint len1,
+                           const uchar * s2, uint len2)
+{
+  const uchar *e1 = s1 + len1;
+  const uchar *e2 = s2 + len2;
+
+  while (s1 < e1 && s2 < e2)
+  {
+    /*
+      Because sort_order_latin1_de doesn't convert 'Ä', Ü or ß we
+      can use it here.
+    */
+    uchar c1 = sort_order_latin1_de[*s1++];
+    uchar c2 = sort_order_latin1_de[*s2++];
+    if (c1 != c2)
+    {
+      switch (c1) {
+      case 'A':
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'A', 'E', L1_AE);
+	break;
+      case 'O':
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'O', 'E', L1_OE);
+	break;
+      case 'U':
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'U', 'E', L1_UE);
+	break;
+      case 'S':
+	CHECK_S1_COMBO(c1, c2, s1, e1, -1, s2, 'S', 'S', L1_ss);
+	break;
+      case L1_AE:
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'A', 'E', 'A');
+	break;
+      case L1_OE:
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'O', 'E', 'O');
+	break;
+      case L1_UE:
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'U', 'E', 'U');
+	break;
+      case L1_ss:
+	CHECK_S1_COMBO(c1, c2, s2, e2, 1, s1, 'S', 'S', 'S');
+	break;
+      default:
+	/*
+	  Handle the case where 'c2' is a special character
+	  If this is true, we know that c1 can't match this character.
+	*/
+    normal:
+	switch (c2) {
+	case L1_AE:
+	  return  (int) c1 - (int) 'A';
+	case L1_OE:
+	  return  (int) c1 - (int) 'O';
+	case L1_UE:
+	  return  (int) c1 - (int) 'U';
+	case L1_ss:
+	  return  (int) c1 - (int) 'S';
+	default:
+	{
+	  int diff= (int) c1 - (int) c2;
+	  if (diff)
+	    return diff;
+	}
+	break;
+	}
+      }
+    }
+  }
+  /* A simple test of string lengths won't work -- we test to see
+   * which string ran out first */
+  return s1 < e1 ? 1 : s2 < e2 ? -1 : 0;
+}
+
+static
+int my_strnncollsp_latin1_de(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_latin1_de(cs,s,slen,t,tlen);
+}
+
+
+static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+                          uchar * dest, uint len,
+                          const uchar * src, uint srclen)
+{
+  const uchar *dest_orig = dest;
+  const uchar *de = dest + len;
+  const uchar *se = src + srclen;
+  while (src < se && dest < de)
+  {
+    uchar chr=sort_order_latin1_de[*src];
+    switch (chr) {
+    case L1_AE:
+      *dest++ = 'A';
+      if (dest < de)
+	*dest++ = 'E';
+      break;
+    case L1_OE:
+      *dest++ = 'O';
+      if (dest < de)
+	*dest++ = 'E';
+      break;
+    case L1_UE:
+      *dest++ = 'U';
+      if (dest < de)
+	*dest++ = 'E';
+      break;
+    case L1_ss:
+      *dest++ = 'S';
+      if (dest < de)
+	*dest++ = 'S';
+      break;
+    default:
+      *dest++= chr;
+      break;
+    }
+    ++src;
+  }
+  return dest - dest_orig;
+}
+
+CHARSET_INFO my_charset_latin1_de =
+{
+    31,0,0,				/* number    */
+    MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
+    "latin1",				/* cs name    */
+    "latin1_german2_ci",		/* name      */
+    "",					/* comment   */
+    ctype_latin1,
+    to_lower_latin1,
+    to_upper_latin1,
+    sort_order_latin1_de,
+    latin1_uni,				/* tab_to_uni   */
+    NULL,				/* tab_from_uni */
+    "","",
+    2,					/* strxfrm_multiply */
+    my_strnncoll_latin1_de,
+    my_strnncollsp_latin1_de,
+    my_strnxfrm_latin1_de,
+    my_like_range_simple,
+    my_wildcmp_8bit,			/* wildcmp   */
+    1,					/* mbmaxlen  */
+    NULL,				/* ismbchar  */
+    NULL,				/* ismbhead  */
+    NULL,				/* mbcharlen */
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_mb_wc_latin1,			/* mb_wc     */
+    my_wc_mb_latin1,			/* wc_mb     */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    NULL,				/* tosort    */
+    my_strcasecmp_8bit,
+    my_strncasecmp_8bit,
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
+    0,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_scan_8bit
+};
+

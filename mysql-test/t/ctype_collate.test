@@ -58,8 +58,8 @@ INSERT INTO t1 (latin1_f) VALUES (_latin1'z');
 
 SELECT latin1_f FROM t1 ORDER BY latin1_f;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_de;
-SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_ci_as;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_german2_ci;
+SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE latin1_bin;
 --error 1251
 SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r;
@@ -67,20 +67,20 @@ SELECT latin1_f FROM t1 ORDER BY latin1_f COLLATE koi8r;
 --SELECT latin1_f COLLATE koi8r FROM t1 ;
 
 -- AS + ORDER BY
-SELECT latin1_f COLLATE latin1       AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-SELECT latin1_f COLLATE latin1_de    AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-SELECT latin1_f COLLATE latin1_ci_as AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
-SELECT latin1_f COLLATE latin1_bin   AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1            AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_german2_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_general_ci AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE latin1_bin        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 --error 1251
-SELECT latin1_f COLLATE koi8r        AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
+SELECT latin1_f COLLATE koi8r             AS latin1_f_as FROM t1 ORDER BY latin1_f_as;
 
 
 -- GROUP BY
 
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_de;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_ci_as;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
+SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 --error 1251
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r;
@@ -88,29 +88,29 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r;
 
 --  DISTINCT
 
-SELECT DISTINCT latin1_f                      FROM t1;
-SELECT DISTINCT latin1_f COLLATE latin1       FROM t1;
-SELECT DISTINCT latin1_f COLLATE latin1_de    FROM t1;
-SELECT DISTINCT latin1_f COLLATE latin1_ci_as FROM t1;
-SELECT DISTINCT latin1_f COLLATE latin1_bin   FROM t1;
+SELECT DISTINCT latin1_f                           FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1            FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
+SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
 --error 1251
-SELECT DISTINCT latin1_f COLLATE koi8r        FROM t1;
+SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 
 
 -- Aggregates
---SELECT MAX(k COLLATE latin1_de)
+--SELECT MAX(k COLLATE latin1_german2_ci)
 --FROM t1
 
 
 -- WHERE
 --SELECT *
 --FROM t1 
---WHERE (_latin1'Mu"ller' COLLATE latin1_de) = k 
+--WHERE (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k 
 
 --HAVING
 --SELECT *
 --FROM t1 
---HAVING (_latin1'Mu"ller' COLLATE latin1_de) = k 
+--HAVING (_latin1'Mu"ller' COLLATE latin1_german2_ci) = k 
 
 
 #
