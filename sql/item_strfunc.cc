@@ -2241,7 +2241,7 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-int inline hexchar_to_int(char c)
+inline int hexchar_to_int(char c)
 {
   if (c <= '9' && c >= '0')
     return c-'0';
@@ -2731,7 +2731,7 @@ String *Item_func_uuid::val_str(String *str)
         randominit() here
       */
       randominit(&uuid_rand, tmp + (ulong)current_thd, tmp + query_id);
-      for (i=0; i < sizeof(mac); i++)
+      for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
     }
     s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;

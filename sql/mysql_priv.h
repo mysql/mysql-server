@@ -64,14 +64,6 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
-#ifndef LL
-#ifdef HAVE_LONG_LONG
-#define LL(A) A ## LL
-#else
-#define LL(A) A ## L
-#endif
-#endif
-
 extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
@@ -621,7 +613,7 @@ int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
 void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_execute(THD *thd, char *packet);
+void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
@@ -799,6 +791,7 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
 extern double log_10[32];
+extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
 extern ulong created_tmp_tables, created_tmp_disk_tables, bytes_sent;
@@ -958,6 +951,8 @@ timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
+void make_truncated_value_warning(THD *thd, const char *str_val,
+				  uint str_length, timestamp_type time_type);
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);

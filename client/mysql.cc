@@ -619,10 +619,10 @@ static struct my_option my_long_options[] =
    (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.",
-   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"verbose", 'v', "Write more. (-v -v -v gives the table output format).", 0,
    0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
