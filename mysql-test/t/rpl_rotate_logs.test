@@ -174,6 +174,9 @@ while ($1)
 --enable_query_log
 commit;
 drop table t1;
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
 show binlog events in 'master-bin.000001';
+--replace_result $VERSION VERSION
 show binlog events in 'master-bin.000002';
 
