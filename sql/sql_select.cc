@@ -2173,7 +2173,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       join->positions[idx].table= s;
       if (!best_key && idx == join->const_tables &&
 	  s->table == join->sort_by_table &&
-	  join->thd->select_limit >= records)
+	  join->unit->select_limit_cnt >= records)
 	join->sort_by_table= (TABLE*) 1;	// Must use temporary table
 
      /*
