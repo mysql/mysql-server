@@ -2256,8 +2256,8 @@ convert_search_mode_to_innobase(
 		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
 		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
 	        case HA_READ_PREFIX_LAST:       return(PAGE_CUR_LE);
-		  /* In MySQL HA_READ_PREFIX and HA_READ_PREFIX_LAST always
-		  use a complete-field-prefix of a kay value as the search
+		  /* In MySQL-4.0 HA_READ_PREFIX and HA_READ_PREFIX_LAST always
+		  pass a complete-field-prefix of a key value as the search
 		  tuple. I.e., it is not allowed that the last field would
 		  just contain n first bytes of the full field value.
 		  MySQL uses a 'padding' trick to convert LIKE 'abc%'
