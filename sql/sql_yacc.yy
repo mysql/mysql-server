@@ -78,7 +78,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval;
-  datetime_format_types datetime_format_type;
+  timestamp_type date_time_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
 }
@@ -246,6 +246,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	HIGH_PRIORITY
 %token	HOSTS_SYM
 %token	IDENT
+%token	IDENT_QUOTED
 %token	IGNORE_SYM
 %token	IMPORT
 %token	INDEX
@@ -584,8 +585,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %right	BINARY COLLATE_SYM
 
 %type <lex_str>
-	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text
+	IDENT IDENT_QUOTED TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
+	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component
 
@@ -648,7 +649,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
 	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
-%type <datetime_format_type> datetime_format_type;
+%type <date_time_type> date_time_type;
 %type <interval> interval
 
 %type <db_type> table_types
@@ -2631,7 +2632,7 @@ simple_expr:
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
                        Geometry::wkbPoint); }
-	| GET_FORMAT '(' datetime_format_type  ',' expr ')'
+	| GET_FORMAT '(' date_time_type  ',' expr ')'
 	  { $$= new Item_func_get_format($3, $5); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
@@ -3254,10 +3255,10 @@ interval:
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
-datetime_format_type:
-	DATE_SYM		{$$=DATE_FORMAT_TYPE;}
-	| TIME_SYM		{$$=TIME_FORMAT_TYPE;}
-	| DATETIME		{$$=DATETIME_FORMAT_TYPE;};
+date_time_type:
+	DATE_SYM		{$$=TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=TIMESTAMP_TIME;}
+	| DATETIME		{$$=TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */
@@ -4479,15 +4480,16 @@ table_ident:
    /* For Delphi */;
 
 IDENT_sys:
-	IDENT
-	{
-	  THD *thd= YYTHD;
-	  if (thd->charset_is_system_charset)
-	    $$= $1;
-	  else
-	    thd->convert_string(&$$, system_charset_info,
-				$1.str, $1.length, thd->charset());
-	}
+	IDENT { $$= $1; }
+	| IDENT_QUOTED
+	  {
+	    THD *thd= YYTHD;
+	    if (thd->charset_is_system_charset)
+	      $$= $1;
+	    else
+	      thd->convert_string(&$$, system_charset_info,
+				  $1.str, $1.length, thd->charset());
+	  }
 	;
 
 TEXT_STRING_sys:

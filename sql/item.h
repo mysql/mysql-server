@@ -114,14 +114,6 @@ public:
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
 
-
-  /*
-    thd is current_thd value. Like some other Item's fields it
-    will be a problem for using one Item in different threads
-    (as stored procedures may want to do in the future)
-  */
-  THD *thd;
-  
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*
@@ -132,7 +124,7 @@ public:
      top AND/OR ctructure of WHERE clause to protect it of
      optimisation changes in prepared statements
   */
-  Item(THD *c_thd, Item &item);
+  Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
@@ -185,9 +177,9 @@ public:
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
-  virtual bool get_date(TIME *ltime,bool fuzzydate);
+  virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
-  virtual bool get_date_result(TIME *ltime,bool fuzzydate)
+  virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; }
   virtual void top_level_item() {}
@@ -286,8 +278,8 @@ public:
   }
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(TIME *ltime,bool fuzzydate);
-  bool get_date_result(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime,uint fuzzydate);
+  bool get_date_result(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
@@ -469,6 +461,13 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
+    /*
+      We have to have a different max_length than 'length' here to
+      ensure that we get the right length if we do use the item
+      to create a new table. In this case max_length must be the maximum
+      number of chars for a string of this type because we in create_field::
+      divide the max_length with mbmaxlen).
+    */
     max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
@@ -623,7 +622,7 @@ public:
     (void) (*ref)->val_int_result();
     return (*ref)->null_value;
   }
-  bool get_date(TIME *ltime,bool fuzzydate)
+  bool get_date(TIME *ltime,uint fuzzydate)
   {
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
@@ -658,7 +657,7 @@ public:
   double val();
   longlong val_int();
   String* val_str(String* s);
-  bool get_date(TIME *ltime, bool fuzzydate);
+  bool get_date(TIME *ltime, uint fuzzydate);
   void print(String *str);
 };
 

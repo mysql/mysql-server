@@ -46,8 +46,10 @@ Item::Item():
   collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
-  thd= current_thd;
-  next= thd->free_list;			// Put in free list
+
+  /* Put item in free list so that we can free all items at end */
+  THD *thd= current_thd;
+  next= thd->free_list;
   thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
@@ -69,7 +71,7 @@ Item::Item():
   Used for duplicating lists in processing queries with temporary
   tables
 */
-Item::Item(THD *c_thd, Item &item):
+Item::Item(THD *thd, Item &item):
   str_value(item.str_value),
   name(item.name),
   max_length(item.max_length),
@@ -82,8 +84,7 @@ Item::Item(THD *c_thd, Item &item):
   fixed(item.fixed),
   collation(item.collation)
 {
-  next=c_thd->free_list;			// Put in free list
-  thd= c_thd;
+  next= thd->free_list;				// Put in free list
   thd->free_list= this;
 }
 
@@ -183,13 +184,13 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
   As a extra convenience the time structure is reset on error!
  */
 
-bool Item::get_date(TIME *ltime,bool fuzzydate)
+bool Item::get_date(TIME *ltime,uint fuzzydate)
 {
   char buff[40];
   String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate, thd) <= 
-      WRONG_TIMESTAMP_FULL)
+      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <= 
+      TIMESTAMP_DATETIME_ERROR)
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -207,7 +208,7 @@ bool Item::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time(res->ptr(),res->length(),ltime, thd))
+      str_to_time(res->ptr(),res->length(),ltime))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -360,7 +361,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(TIME *ltime,bool fuzzydate)
+bool Item_field::get_date(TIME *ltime,uint fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -370,7 +371,7 @@ bool Item_field::get_date(TIME *ltime,bool fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(TIME *ltime,bool fuzzydate)
+bool Item_field::get_date_result(TIME *ltime,uint fuzzydate)
 {
   if ((null_value=result_field->is_null()) ||
       result_field->get_date(ltime,fuzzydate))
@@ -692,28 +693,25 @@ String *Item_param::query_val_str(String* str)
     }
     else
     {
-      DATETIME_FORMAT *tmp_format= 0;
-      bool is_time_only= 0;
+      char buff[40];
+      String tmp(buff,sizeof(buff), &my_charset_bin);
       
       switch (ltime.time_type)  {
-        case TIMESTAMP_NONE:
-        case WRONG_TIMESTAMP_FULL:
-          break;
-        case TIMESTAMP_DATE:
-	  tmp_format= &t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format;
-          break;
-        case TIMESTAMP_FULL:
-	  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
-          break;
-        case TIMESTAMP_TIME:
-        {
-	  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
-	  is_time_only= 1;
-          break;
-        }	
+      case TIMESTAMP_NONE:
+      case TIMESTAMP_DATETIME_ERROR:
+	tmp.length(0);				// Should never happen
+	break;
+      case TIMESTAMP_DATE:
+	make_date((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
+      case TIMESTAMP_DATETIME:
+	make_datetime((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
+      case TIMESTAMP_TIME:
+	make_time((DATE_TIME_FORMAT*) 0, &ltime, &tmp);
+	break;
       }
-      make_datetime(str, &ltime, is_time_only, 0,
-		    tmp_format->format, tmp_format->format_length, 0);
+      str->append(tmp);
     }
     str->append('\'');
   }
@@ -769,7 +767,7 @@ String* Item_ref_null_helper::val_str(String* s)
   owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
-bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
+bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
@@ -989,6 +987,7 @@ enum_field_types Item::field_type() const
 	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
 	  FIELD_TYPE_DOUBLE);
 }
+
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table)
 {
@@ -1366,7 +1365,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_TIMESTAMP:
   {
     TIME tm;
-    get_date(&tm, 1);
+    get_date(&tm, TIME_FUZZY_DATE);
     if (!null_value)
     {
       if (type == MYSQL_TYPE_DATE)

@@ -63,7 +63,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
 			item_row.cc item_geofunc.cc \
-			field.cc key.cc sql_class.cc sql_list.cc \
+			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc protocol.cc sql_state.c \
 			lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \

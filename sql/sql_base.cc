@@ -2210,7 +2210,8 @@ void get_key_map_from_key_list(key_map *map, TABLE *table,
   map->clear_all();
   while ((name=it++))
   {
-    if ((pos=find_type(name->c_ptr(), &table->keynames, 1+2)) <= 0)
+    if ((pos= find_type(&table->keynames, name->ptr(), name->length(), 1)) <=
+	0)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
 	       table->real_name);
