@@ -21,6 +21,7 @@
 
 Dbtux::Dbtux(const Configuration& conf) :
   SimulatedBlock(DBTUX, conf),
+  c_tup(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -123,6 +124,8 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP);
+    ndbrequire(c_tup != 0);
     break;
   case 3:
     jam();
@@ -180,7 +183,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   c_scanBoundPool.setSize(nScanBoundWords);
   /*
    * Index id is physical array index.  We seize and initialize all
-   * index records now.  This assumes ArrayPool is an array.
+   * index records now.
    */
   IndexPtr indexPtr;
   while (1) {

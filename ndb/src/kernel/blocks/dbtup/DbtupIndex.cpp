@@ -179,6 +179,64 @@ Dbtup::execTUP_QUERY_TH(Signal* signal)
   return;
 }
 
+int
+Dbtup::tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  terrorCode = 0;
+  if (! allocTh(fragPtr.p, tablePtr.p, NORMAL_PAGE, signal, pageOffset, pagePtr)) {
+    jam();
+    ndbrequire(terrorCode != 0);
+    return terrorCode;
+  }
+  pageId = pagePtr.i;
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
+  return 0;
+}
+
+void
+Dbtup::tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  ndbrequire(node == &pagePtr.p->pageWord[pageOffset] + attrDataOffset);
+  freeTh(fragPtr.p, tablePtr.p, signal, pagePtr.p, pageOffset);
+}
+
+void
+Dbtup::tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node)
+{
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  Uint32 attrDescIndex = tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDataOffset = AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
+  node = &pagePtr.p->pageWord[pageOffset] + attrDataOffset;
+}
+
 void
 Dbtup::execTUP_STORE_TH(Signal* signal)
 {
