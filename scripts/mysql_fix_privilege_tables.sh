@@ -4,7 +4,7 @@ root_password="$1"
 host="localhost"
 user="root"
 
-if test -z $1 ; then
+if test -z "$1" ; then
   cmd="@bindir@/mysql -f --user=$user --host=$host mysql"
 else
   root_password="$1"

@@ -17,6 +17,7 @@
 ## Process this file with automake to create Makefile.in
 
 bin_SCRIPTS =		@server_scripts@ \
+			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
@@ -35,6 +36,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqld_multi
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
+			make_win_src_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
@@ -64,6 +66,7 @@ pkgdata_DATA =		make_binary_distribution
 # failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
+			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \

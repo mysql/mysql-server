@@ -233,10 +233,10 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else if (length % 8)		// This holds true for passwords
+    else if (length % 8 || length > 16)
     {
       sql_print_error(
-		      "Found invalid password for user: '%s@%s'; Ignoring user",
+		      "Found invalid password for user: '%s'@'%s'; Ignoring user",
 		      user.user ? user.user : "",
 		      user.host.hostname ? user.host.hostname : ""); /* purecov: tested */
       continue;					/* purecov: tested */
@@ -1233,6 +1233,24 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   bzero((char*) &tables,sizeof(tables));
   tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.  It's ok to leave 'updating' set after tables_ok.
+    */
+    tables.updating= 1;
+    /* Thanks to bzero, tables.next==0 */
+    if (!tables_ok(0, &tables))
+      DBUG_RETURN(0);
+  }
+#endif
+
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host));
@@ -2113,8 +2131,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.
+    */
+    tables[0].updating= tables[1].updating= tables[2].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))
@@ -2285,8 +2311,16 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(0);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.
+    */
+    tables[0].updating= tables[1].updating= 1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(0);
+  }
 #endif
 
   if (open_and_lock_tables(thd,tables))

@@ -382,13 +382,15 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-char* rewrite_db(char* db);
-char* print_slave_db_safe(char* db);
+const char *rewrite_db(const char* db);
+const char *print_slave_db_safe(const char* db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 
 void end_slave(); /* clean up */
+void init_master_info_with_options(MASTER_INFO* mi);
+void clear_last_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file);
