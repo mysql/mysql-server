@@ -13,7 +13,9 @@ mgmtsrvr_SOURCES = \
 	MgmtSrvrConfig.cpp \
 	CommandInterpreter.cpp
 
-INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi -I$(top_srcdir)/ndb/src/common/mgmcommon
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/ndbapi \
+               -I$(top_srcdir)/ndb/src/mgmapi \
+               -I$(top_srcdir)/ndb/src/common/mgmcommon
 
 LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la \
 	    $(top_srcdir)/ndb/src/common/editline/libeditline.a \
