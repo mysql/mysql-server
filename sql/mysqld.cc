@@ -4907,6 +4907,7 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
    SHOW_KEY_CACHE_LONG},
+  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
@@ -4973,7 +4974,6 @@ struct show_var_st status_vars[]= {
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_running",          (char*) &thread_running,         SHOW_INT_CONST},
   {"Uptime",                   (char*) 0,                       SHOW_STARTTIME},
-  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {NullS, NullS, SHOW_LONG}
 };
 
