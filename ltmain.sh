@@ -809,6 +809,7 @@ compiler."
       ;;
     esac
     compile_command="$nonopt"
+    UW7_compile_command="$nonopt"
     finalize_command="$nonopt"
 
     compile_rpath=

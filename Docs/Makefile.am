@@ -115,8 +115,8 @@ manual_letter.ps:	manual.texi include.texi
 dist-hook:
 	BD=`cd $(top_srcdir); pwd`; \
 	if test ! -d $(distdir)/Flags; then mkdir -p $(distdir)/Flags; fi; \
-	cp -p $(srcdir)/Flags/*.gif $(srcdir)/Flags/*.eps $(srcdir)/Flags/*.txt \
-		$(distdir)/Flags;
+	$(INSTALL_DATA) $(srcdir)/Flags/*.gif $(srcdir)/Flags/*.eps \
+		$(srcdir)/Flags/*.txt $(distdir)/Flags;
 	echo "PostScript and PDF versions suitable for printing" \
 		> $(distdir)/manual.ps
 	echo "are available from http://www.mysql.com/Manual/" \
