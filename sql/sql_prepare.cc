@@ -1386,23 +1386,34 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
 
 
 /*
-  Send the prepare query results back to client
+  Perform semantic analysis of the parsed tree and send a response packet
+  to the client.
+
   SYNOPSIS
-  send_prepare_results()
-    stmt prepared statement
+    check_prepared_statement()
+      stmt  prepared statement
+
+  DESCRIPTION
+    This function
+    - opens all tables and checks access rights
+    - validates semantics of statement columns and SQL functions
+      by calling fix_fields.
+
   RETURN VALUE
     0   success
     1   error, sent to client
 */
-static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
-{   
+
+static int check_prepared_statement(Prepared_statement *stmt,
+                                    bool text_protocol)
+{
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
-  DBUG_ENTER("send_prepare_results");
+  DBUG_ENTER("check_prepared_statement");
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
@@ -1644,8 +1655,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   error= yyparse((void *)thd) || thd->is_fatal_error ||
          thd->net.report_error || init_param_array(stmt);
   /*
-    While doing context analysis of the query (in send_prepare_results) we
-    allocate a lot of additional memory: for open tables, JOINs, derived
+    While doing context analysis of the query (in check_prepared_statement)
+    we allocate a lot of additional memory: for open tables, JOINs, derived
     tables, etc.  Let's save a snapshot of current parse tree to the
     statement and restore original THD. In cases when some tree
     transformation can be reused on execute, we set again thd->mem_root from
@@ -1654,7 +1665,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   thd->restore_backup_item_arena(stmt, &thd->stmt_backup);
 
   if (!error)
-    error= send_prepare_results(stmt, test(name));
+    error= check_prepared_statement(stmt, test(name));
 
   /* restore to WAIT_PRIOR: QUERY_PRIOR is set inside alloc_query */
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1681,7 +1692,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     stmt= NULL;
     if (thd->net.report_error)
       send_error(thd);
-    /* otherwise the error is sent inside yyparse/send_prepare_results */
+    /* otherwise the error is sent inside yyparse/check_preapred_statement */
   }
   else
   {
