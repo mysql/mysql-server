@@ -1,9 +1,8 @@
 noinst_LTLIBRARIES = libmgmsrvcommon.la
 
 libmgmsrvcommon_la_SOURCES = \
-	LocalConfig.cpp \
 	ConfigRetriever.cpp \
-	IPCConfig.cpp NdbConfig.c
+	IPCConfig.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi -I$(top_srcdir)/ndb/src/mgmsrv
 
