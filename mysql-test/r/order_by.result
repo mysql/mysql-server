@@ -723,3 +723,16 @@ col2	col	col
 2	2	2
 1	3	3
 drop table t1, t2;
+create table t1 (a char(25));
+insert into t1 set a = repeat('x', 20);
+insert into t1 set a = concat(repeat('x', 19), 'z');
+insert into t1 set a = concat(repeat('x', 19), 'ab');
+insert into t1 set a = concat(repeat('x', 19), 'aa');
+set max_sort_length=20;
+select a from t1 order by a;
+a
+xxxxxxxxxxxxxxxxxxxab
+xxxxxxxxxxxxxxxxxxxaa
+xxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxz
+drop table t1;
