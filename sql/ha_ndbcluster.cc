@@ -2401,7 +2401,7 @@ int ha_ndbcluster::end_bulk_insert()
                         rows_inserted, bulk_insert_rows)); 
     bulk_insert_not_flushed= false;
     if (trans->execute(NoCommit) != 0)
-      error= ndb_err(trans);
+      my_errno= error= ndb_err(trans);
   }
 
   rows_inserted= 0;
