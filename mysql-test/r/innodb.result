@@ -920,12 +920,6 @@ create table t1 (t int not null default 1, key (t)) type=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 t	int(11)		MUL	1	
-handler t1 open t1;
-Table handler for 't1' doesn't have this option
-handler t1 read t first;
-Unknown table 't1' in HANDLER
-handler t1 close;
-Unknown table 't1' in HANDLER
 drop table t1;
 CREATE TABLE t1 (
 number bigint(20) NOT NULL default '0',
