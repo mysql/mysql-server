@@ -2612,6 +2612,10 @@ M2D, a @strong{MySQL} Administration client for Windows.  M2D supports
 administration of @strong{MySQL} databases, creation of new databases and 
 tables, editing, and more.
 
+@item @uref{http://dlabs.4t2.com}
+Dexter, a small server written in Perl which can be used as a proxy server for
+@strong{MySQL} or as a database extender.
+
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}
 Mascon is a powerful Win32 GUI for administering MySQL databases.
 

@@ -1,0 +1,30 @@
+Testing server 'PostgreSQL version 7.1.2' at 2001-06-12  1:39:45
+
+Testing the speed of connecting to the server and sending of data
+All tests are done 10000 times
+
+Testing connection/disconnect
+Time to connect (10000): 141 wallclock secs ( 7.82 usr  1.62 sys +  0.00 cusr  0.00 csys =  9.44 CPU)
+
+Test connect/simple select/disconnect
+Time for connect+select_simple (10000): 154 wallclock secs (10.43 usr  2.60 sys +  0.00 cusr  0.00 csys = 13.03 CPU)
+
+Test simple select
+Time for select_simple (10000):  5 wallclock secs ( 2.59 usr  0.54 sys +  0.00 cusr  0.00 csys =  3.13 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select_1_row (10000): 192 wallclock secs (10.79 usr  2.47 sys +  0.00 cusr  0.00 csys = 13.26 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (10000):  6 wallclock secs ( 2.56 usr  0.45 sys +  0.00 cusr  0.00 csys =  3.01 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (10000):  6 wallclock secs ( 2.68 usr  0.45 sys +  0.00 cusr  0.00 csys =  3.13 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (10000):  8 wallclock secs ( 2.73 usr  0.39 sys +  0.00 cusr  0.00 csys =  3.12 CPU)
+
+Testing retrieval of big records (65000 bytes)
+Time to select_big_str (10000): 35 wallclock secs (10.82 usr  5.73 sys +  0.00 cusr  0.00 csys = 16.55 CPU)
+
+Total time: 547 wallclock secs (50.45 usr 14.25 sys +  0.00 cusr  0.00 csys = 64.70 CPU)

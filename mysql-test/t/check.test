@@ -15,4 +15,4 @@ connection con2;
 insert into t1 values (200000);
 connection con1;
 reap;
-
+drop table t1;
