@@ -2440,23 +2440,7 @@ int Field_float::store(double nr)
 
 int Field_float::store(longlong nr)
 {
-  int error= 0;
-  float j= (float) nr;
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    j=0;
-    error= 1;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float4store(ptr,j);
-  }
-  else
-#endif
-    memcpy_fixed(ptr,(byte*) &j,sizeof(j));
-  return error;
+  return store((double)nr);
 }
 
 
@@ -2738,23 +2722,7 @@ int Field_double::store(double nr)
 
 int Field_double::store(longlong nr)
 {
-  double j= (double) nr;
-  int error= 0;
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    error= 1;
-    j=0;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float8store(ptr,j);
-  }
-  else
-#endif
-    doublestore(ptr,j);
-  return error;
+  return store((double)nr);
 }
 
 
