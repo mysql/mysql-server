@@ -1041,8 +1041,8 @@ EOF
 
 mysql_start ()
 {
-# We should not start the deamon here as we don't know the argumens
-# for the test.  Better to let the test start the deamon
+# We should not start the daemon here as we don't know the argumens
+# for the test.  Better to let the test start the daemon
 
 #  $ECHO "Starting MySQL daemon"
 #  start_master
@@ -1364,7 +1364,7 @@ then
   mysql_install_db
   start_manager
 
-# Do not automagically start deamons if we are in gdb or running only one test
+# Do not automagically start daemons if we are in gdb or running only one test
 # case
   if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
   then
