@@ -476,6 +476,7 @@ typedef struct st_mysql_stmt
   my_bool	send_types_to_server;	/* to indicate types supply to server */
   my_bool       param_buffers;          /* to indicate the param bound buffers */
   my_bool       res_buffers;            /* to indicate the output bound buffers */
+  my_bool       result_buffered;        /* to indicate the results buffered */
 } MYSQL_STMT;
 
 
@@ -502,6 +503,7 @@ int STDCALL mysql_multi_query(MYSQL *mysql,const char *query,
 MYSQL_RES *STDCALL mysql_next_result(MYSQL *mysql);
 MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
 
 
 /* new status messages */
