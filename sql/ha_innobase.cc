@@ -3130,6 +3130,22 @@ ha_innobase::info(
 					rec_per_key = 1;
 				}
 			
+				/* Since the MySQL optimizer is often too
+				pessimistic in the assumption that a table
+				does not fit in the buffer pool, we
+				increase the attractiveness of indexes
+				by assuming the selectivity of any prefix
+				of an index is 1 / 100 or better.
+				(Actually, we should look at the table
+				size, and if the table is smaller than
+				the buffer pool, we should uniformly
+				increase the attractiveness of indexes,
+				regardless of the estimated selectivity.) */
+
+			        if (rec_per_key > records / 100) {
+				        rec_per_key = records / 100;
+				}
+
 				table->key_info[i].rec_per_key[j]
 								= rec_per_key;
 			}
