@@ -4721,11 +4721,11 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
      * blobs can't be batched currently
      */
     m_disable_multi_read= true;
-    return handler::read_multi_range_first(found_range_p, 
-					   ranges, 
-					   range_count,
-					   sorted, 
-					   buffer);
+    DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
+						ranges, 
+						range_count,
+						sorted, 
+						buffer));
   }
 
   switch(index_type){
@@ -4747,21 +4747,21 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
        * Mark that we using hander:: implementation
        */
       m_disable_multi_read= true;
-      return handler::read_multi_range_first(found_range_p, 
-					     ranges, 
-					     range_count,
-					     sorted, 
-					     buffer);
+      DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
+						  ranges, 
+						  range_count,
+						  sorted, 
+						  buffer));
     }
     break;
   default:
   case ORDERED_INDEX:
     m_disable_multi_read= true;
-    return handler::read_multi_range_first(found_range_p, 
-					   ranges, 
-					   range_count,
-					   sorted, 
-					   buffer);
+    DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
+						ranges, 
+						range_count,
+						sorted, 
+						buffer));
   }
   
   m_disable_multi_read= false;
@@ -4827,7 +4827,7 @@ ha_ndbcluster::read_multi_range_first(key_multi_range **found_range_p,
   {
     multi_range_curr= 0;
     m_multi_range_result_ptr= buffer->buffer;
-    return read_multi_range_next();
+    DBUG_RETURN(read_multi_range_next());
   }
   ERR_RETURN(m_active_trans->getNdbError());
 }
