@@ -50265,7 +50265,8 @@ Fixed bug in @code{DROP DATABASE} with symlinked directory.
 Fixed optimisation problem with @code{DATETIME} and value outside
 @code{DATETIME} range.
 @item
-Removed BDB documentation.
+Removed Sleepycat's BDB doc files from the source tree, as they're not
+needed (MySQL covers BDB in its own documentation).
 @item
 Fixed MIT-pthreads to compile with @code{glibc} 2.2 (needed for
 @code{make dist}).
