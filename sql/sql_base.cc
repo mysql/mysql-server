@@ -2198,7 +2198,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
   
-  thd->lex.current_select->cond_count= 0;
+  thd->lex->current_select->cond_count= 0;
   if (*conds)
   {
     thd->where="where clause";
@@ -2217,7 +2217,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       if (table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
 	DBUG_RETURN(1);
-      thd->lex.current_select->cond_count++;
+      thd->lex->current_select->cond_count++;
 
       /*
 	If it's a normal join or a LEFT JOIN which can be optimized away
@@ -2269,7 +2269,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	}
       }
       cond_and->used_tables_cache= t1->map | t2->map;
-      thd->lex.current_select->cond_count+=cond_and->list.elements;
+      thd->lex->current_select->cond_count+= cond_and->list.elements;
       if (!table->outer_join)			// Not left join
       {
 	if (!(*conds=and_conds(*conds, cond_and)))

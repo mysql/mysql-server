@@ -57,7 +57,7 @@ Item_sum::Item_sum(THD *thd, Item_sum &item):
 
 void Item_sum::mark_as_sum_func()
 {
-  current_thd->lex.current_select->with_sum_func= 1;
+  current_thd->lex->current_select->with_sum_func= 1;
   with_sum_func= 1;
 }
 
@@ -1120,7 +1120,7 @@ void Item_sum_count_distinct::make_unique()
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= thd->lex.current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select;
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
     
@@ -1802,7 +1802,7 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   DBUG_ENTER("Item_func_group_concat::setup");
   List<Item> list;
-  SELECT_LEX *select_lex= thd->lex.current_select;
+  SELECT_LEX *select_lex= thd->lex->current_select;
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     DBUG_RETURN(1);

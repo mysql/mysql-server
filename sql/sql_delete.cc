@@ -27,7 +27,7 @@
 #include "ha_innodb.h"
 #include "sql_select.h"
 
-int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
+int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
                  ha_rows limit, ulong options)
 {
   int		error;
@@ -38,18 +38,18 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   bool		transactional_table, log_delayed, safe_update, const_cond; 
   ha_rows	deleted;
   TABLE_LIST    *delete_table_list= (TABLE_LIST*) 
-    thd->lex.select_lex.table_list.first;
+    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_delete");
 
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
   if (setup_conds(thd, delete_table_list, &conds) || 
-      setup_ftfuncs(&thd->lex.select_lex))
+      setup_ftfuncs(&thd->lex->select_lex))
     DBUG_RETURN(-1);
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
@@ -66,8 +66,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     DBUG_RETURN(1);
   }
 
-  if (thd->lex.duplicates == DUP_IGNORE)
-    thd->lex.select_lex.no_error= 1;
+  if (thd->lex->duplicates == DUP_IGNORE)
+    thd->lex->select_lex.no_error= 1;
 
   /* Test if the user wants to delete all rows */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
@@ -96,7 +96,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -108,7 +108,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     if (safe_update && !using_limit)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -116,7 +116,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
-  if (order)
+  if (order && order->elements)
   {
     uint         length;
     SORT_FIELD  *sortorder;
@@ -130,17 +130,16 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-      if (thd->lex.select_lex.setup_ref_array(thd, 0) ||
-	  setup_order(thd, thd->lex.select_lex.ref_pointer_array, &tables, 
-		      fields, all_fields, order) ||
-	  !(sortorder=make_unireg_sortorder(order, &length)) ||
+      if (thd->lex->select_lex.setup_ref_array(thd, order->elements) ||
+		      fields, all_fields, (ORDER*) order->first) ||
+	  !(sortorder=make_unireg_sortorder((ORDER*) order->first, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
 					   select, HA_POS_ERROR,
 					   &examined_rows))
 	  == HA_POS_ERROR)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(-1);			// This will force out message
     }
     /*
@@ -153,7 +152,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
-  init_ftfuncs(thd, &thd->lex.select_lex, 1);
+  init_ftfuncs(thd, &thd->lex->select_lex, 1);
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
@@ -233,7 +232,7 @@ cleanup:
     thd->lock=0;
   }
   delete select;
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0 || thd->net.report_error)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else
@@ -323,7 +322,7 @@ multi_delete::initialize_tables(JOIN *join)
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }
-  init_ftfuncs(thd, thd->lex.current_select, 1);
+  init_ftfuncs(thd, thd->lex->current_select, 1);
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
@@ -613,7 +612,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       /* Probably InnoDB table */
       table_list->lock_type= TL_WRITE;
-      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (ORDER*) 0,
+      DBUG_RETURN(mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
 			       HA_POS_ERROR, 0));
     }
     if (lock_and_wait_for_table_name(thd, table_list))

@@ -1275,12 +1275,12 @@ static void server_init(void)
 void yyerror(const char *s)
 {
   THD *thd=current_thd;
-  char *yytext=(char*) thd->lex.tok_start;
+  char *yytext= (char*) thd->lex->tok_start;
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
   net_printf(thd,ER_PARSE_ERROR, s, yytext ? (char*) yytext : "",
-	     thd->lex.yylineno);
+	     thd->lex->yylineno);
 }
 
 
@@ -1878,11 +1878,11 @@ extern "C" int my_message_sql(uint error, const char *str,
   if ((thd= current_thd))
   {
     /*
-      thd->lex.current_select == 0 if lex structure is not inited
+      thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
-    if (thd->lex.current_select &&
-	thd->lex.current_select->no_error && !thd->is_fatal_error)
+    if (thd->lex->current_select &&
+	thd->lex->current_select->no_error && !thd->is_fatal_error)
     {
       DBUG_PRINT("error", ("above error converted to warning"));
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);

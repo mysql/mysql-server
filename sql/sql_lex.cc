@@ -115,7 +115,7 @@ void lex_free(void)
 
 LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
-  LEX *lex= &thd->lex;
+  LEX *lex= thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
@@ -433,7 +433,7 @@ int yylex(void *arg, void *yythd)
   int	tokval, result_state;
   uint length;
   enum my_lex_states state;
-  LEX	*lex= &(((THD *)yythd)->lex);
+  LEX	*lex= ((THD *)yythd)->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= ((THD *) yythd)->charset();
   uchar *state_map= cs->state_map;

@@ -89,6 +89,7 @@ THD::THD():user_time(0), is_fatal_error(0),
 	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
+  lex= &main_lex;
   host_or_ip= "connecting host";
   locked=killed=some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
@@ -103,7 +104,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   used_tables=0;
   cuted_fields= sent_row_count= current_stmt_id= 0L;
   // Must be reset to handle error with THD's created for init of mysqld
-  lex.current_select= 0;
+  lex->current_select= 0;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
@@ -1186,7 +1187,7 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     ls= gl++;
     Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
+    xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,&item);
     xx->fix_length_and_dec();
     vars.push_back(xx);
   }
