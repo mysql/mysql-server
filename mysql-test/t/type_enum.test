@@ -72,3 +72,31 @@ CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
 INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
 SELECT * FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #6379: ENUM values are incorrectly converted
+#
+# Check latin1 -> utf8 conversion
+#
+CREATE TABLE t1 (
+  a ENUM('ä','ö','ü') character set utf8 default 'ü'
+);
+show create table t1;
+insert into t1 values ('ä'), ('ö'), ('ü');
+select a from t1 order by a;
+drop table t1;
+
+#
+# Now check utf8 -> latin1 conversion
+# This test emulates loading a script generated with mysqldump
+#
+set names utf8;
+CREATE TABLE t1 (
+  a ENUM('Ã¤','Ã¶','Ã¼') character set latin1 default 'Ã¼'
+);
+insert into t1 values ('Ã¤'),('Ã¶'),('Ã¼');
+# Now check what has been loaded
+set names latin1;
+show create table t1;
+select a from t1 order by a;
+drop table t1;
