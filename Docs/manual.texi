@@ -523,7 +523,7 @@ still a mystery, even for us.
 @cindex features of MySQL
 
 The following list describes some of the important characteristics
-of MySQL:
+of MySQL. @xref{MySQL 4.0 In A Nutshell}.
 
 @c This list is too technical and should be divided into one feature
 @c list comparable to commercial competition and a very technical on
@@ -1657,16 +1657,16 @@ for mission-critical, heavy load database systems.
 Other new features target the users of embedded databases.
 
 @menu
-* 4.0 NutShell Stepwise Rollout::  Stepwise Rollout
-* 4.0 Nutshell Ready for Immediate Development Use::  Ready for Immediate Development Use
-* 4.0 Nutshell Embedded MySQL::  Embedded MySQL
-* 4.0 Nutshell Other features::  Other Features Available From MySQL 4.0.0
-* 4.0 Nutshell Future features::  Future MySQL 4.0 Features
-* 4.0 Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
+* Nutshell Stepwise Rollout::   Stepwise Rollout
+* Nutshell Ready for Immediate Development Use::  Ready for Immediate Development Use
+* Nutshell Embedded MySQL::     Embedded MySQL
+* Nutshell Other features::     Other Features Available From MySQL 4.0.0
+* Nutshell Future features::    Future MySQL 4.0 Features
+* Nutshell 4.1 development release::  MySQL 4.1, The Following Development Release
 @end menu
 
 
-@node 4.0 NutShell Stepwise Rollout, 4.0 Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
+@node Nutshell Stepwise Rollout, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell, MySQL 4.0 In A Nutshell
 @subsection Stepwise Rollout
 
 The rollout of MySQL 4.0 will come in several steps, with
@@ -1678,7 +1678,7 @@ be added in MySQL 4.1, which is targeted for alpha release
 in December/January.
 
 
-@node 4.0 Nutshell Ready for Immediate Development Use, 4.0 Nutshell Embedded MySQL, 4.0 NutShell Stepwise Rollout, MySQL 4.0 In A Nutshell
+@node Nutshell Ready for Immediate Development Use, Nutshell Embedded MySQL, Nutshell Stepwise Rollout, MySQL 4.0 In A Nutshell
 @subsection Ready for Immediate Development Use
 
 Users are not recommended to switch their production systems
@@ -1692,7 +1692,7 @@ reach stable state before the deployment of user applications
 now under development.
 
 
-@node 4.0 Nutshell Embedded MySQL, 4.0 Nutshell Other features, 4.0 Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell
+@node Nutshell Embedded MySQL, Nutshell Other features, Nutshell Ready for Immediate Development Use, MySQL 4.0 In A Nutshell
 @subsection Embedded MySQL
 
 @code{libmysqld} makes MySQL suitable for a vastly expanded realm of
@@ -1711,7 +1711,7 @@ The embedded MySQL library uses the same interface as the normal
 client library, so it is convenient and easy to use.
 
 
-@node 4.0 Nutshell Other features, 4.0 Nutshell Future features, 4.0 Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
+@node Nutshell Other features, Nutshell Future features, Nutshell Embedded MySQL, MySQL 4.0 In A Nutshell
 @subsection Other Features Available From MySQL 4.0.0
 
 @itemize @bullet
@@ -1766,7 +1766,7 @@ possible to know how many rows a query would have returned without a
 @end itemize
 
 
-@node 4.0 Nutshell Future features, 4.0 Nutshell 4.1 development release, 4.0 Nutshell Other features, MySQL 4.0 In A Nutshell
+@node Nutshell Future features, Nutshell 4.1 development release, Nutshell Other features, MySQL 4.0 In A Nutshell
 @subsection Future MySQL 4.0 Features
 
 For the upcoming MySQL 4.0 releases (4.0.1, 4.0.2 and onwards), expect
@@ -1805,7 +1805,7 @@ in the client.
 @end itemize
 
 
-@node 4.0 Nutshell 4.1 development release,  , 4.0 Nutshell Future features, MySQL 4.0 In A Nutshell
+@node Nutshell 4.1 development release,  , Nutshell Future features, MySQL 4.0 In A Nutshell
 @subsection MySQL 4.1, The Following Development Release
 
 Internally, through a new .frm file format for table definitions,
@@ -5639,7 +5639,7 @@ this without sacrifying the speed or compromise the code.
 We have now shifted development to MySQL Version 4.0.  Most of the basic
 things we want to have in 4.0 is already done.  The target is to quickly
 implement the rest of the following features and then shift development
-to MySQL 4.1.
+to MySQL 4.1. @xref{MySQL 4.0 In A Nutshell}.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
@@ -12096,7 +12096,7 @@ that defines @code{HAVE_READDIR_R}.  You may have to remove the
 @code{HAVE_TERM_H} line as well.
 
 SGI recommends that you install all of the patches on this page as a set:
-http://support.sgi.com/surfzone/patches/patchset/6.2_indigo.rps.html
+@uref{http://support.sgi.com/surfzone/patches/patchset/6.2_indigo.rps.html}
 
 At the very minimum, you should install the latest kernel rollup, the
 latest @code{rld} rollup, and the latest @code{libc} rollup.
@@ -16287,7 +16287,7 @@ new users with those privileges that the user has right to grant, you should
 give the user the following privilege:
 
 @example
-GRANT INSERT(user) on mysql.user to 'user'@'hostname';
+GRANT INSERT(user) on mysql.user to 'user'@@'hostname';
 @end example
 
 This will ensure that the user can't change any privilege columns directly,
@@ -17351,7 +17351,7 @@ hostname is an IP, even if you try to connect with a hostname:
 
 @example
 shell> mysqladmin -u root -pxxxx -h some-hostname ver
-Access denied for user: 'root@' (Using password: YES)
+Access denied for user: 'root@@' (Using password: YES)
 @end example
 
 This means that MySQL got some error when trying to resolve the
@@ -43237,7 +43237,7 @@ none.
 @tindex @code{mysql_store_result()}
 
 @menu
-* NULL mysql_store_result::     Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+* NULL mysql_store_result::     Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL}?
 * Query results::               What Results Can I Get From a Query?
 * Getting unique ID::           How Can I Get the Unique ID for the Last Inserted Row?
 * C API linking problems::      Problems Linking with the C API
@@ -43245,7 +43245,7 @@ none.
 
 
 @node NULL mysql_store_result, Query results, C API problems, C API problems
-@subsubsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
+@subsubsection Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL}?
 
 It is possible for @code{mysql_store_result()} to return @code{NULL}
 following a successful call to @code{mysql_query()}.  When this happens, it
@@ -45140,7 +45140,7 @@ described in this manual. @xref{Asking questions}.
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
-* Cannot initialize character set::  @code{Can@'t initialize character set xxx} error.
+* Cannot initialize character set::  @code{Can't initialize character set xxx} error
 * Not enough file handles::     File Not Found
 @end menu
 
@@ -45643,7 +45643,7 @@ You can check which tables you have in the current database with
 
 
 @node Cannot initialize character set, Not enough file handles, Cannot find table, Common errors
-@appendixsubsec @code{Can@'t initialize character set xxx} error.
+@appendixsubsec @code{Can't initialize character set xxx} error
 
 @cindex multibyte character sets
 
@@ -48306,7 +48306,7 @@ and the @code{readline} library (for the @code{mysql} client).
 For a really great editor/environment used by almost everybody at
 TcX/MySQL AB/detron.
 @item Patrick Lynch
-For helping us acquire @code{http://www.mysql.com/}.
+For helping us acquire @uref{http://www.mysql.com/}.
 @item Fred Lindberg
 For setting up qmail to handle the MySQL mailing list and for the
 incredible help we got in managing the MySQL mailing lists.
@@ -54320,7 +54320,7 @@ problems that may be unique to your environment.
 @xref{Operating System Specific Notes}.
 
 @menu
-* Compiling for debugging::     Compiling MYSQL for debugging.
+* Compiling for debugging::     Compiling MYSQL for debugging
 * Making trace files::          Creating trace files
 * Using gdb on mysqld::         Debugging mysqld under gdb
 * Using stack trace::           Using a stack trace
@@ -54330,7 +54330,7 @@ problems that may be unique to your environment.
 
 
 @node Compiling for debugging, Making trace files, Debugging server, Debugging server
-@appendixsubsec Compiling MYSQL for debugging.
+@appendixsubsec Compiling MYSQL for debugging
 
 If you have some very specific problem, you can always try to debug
 MySQL.  To do this you must configure MySQL with the
