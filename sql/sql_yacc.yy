@@ -86,6 +86,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token NEXT_SYM
 %token PREV_SYM
 
+%token	DIV_SYM
 %token	EQ
 %token	EQUAL_SYM
 %token	GE
@@ -94,6 +95,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LT
 %token	NE
 %token	IS
+%token	MOD_SYM
 %token	SHIFT_LEFT
 %token	SHIFT_RIGHT
 %token  SET_VAR
@@ -115,6 +117,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CROSS
 %token  CUBE_SYM
 %token	DELETE_SYM
+%token	DUAL_SYM
 %token	DO_SYM
 %token	DROP
 %token	EVENTS_SYM
@@ -200,6 +203,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ESCAPE_SYM
 %token	EXISTS
 %token	EXTENDED_SYM
+%token	FALSE_SYM
 %token	FILE_SYM
 %token	FIRST_SYM
 %token	FIXED_SYM
@@ -334,6 +338,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TO_SYM
 %token	TRAILING
 %token	TRANSACTION_SYM
+%token	TRUE_SYM
 %token	TYPE_SYM
 %token  TYPES_SYM
 %token	FUNC_ARG0
@@ -519,7 +524,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	'&'
 %left	SHIFT_LEFT SHIFT_RIGHT
 %left	'-' '+'
-%left	'*' '/' '%'
+%left	'*' '/' '%' DIV_SYM MOD_SYM
 %left	NEG '~'
 %left   XOR
 %left   '^'
@@ -542,7 +547,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_ident references
 
 %type <simple_string>
-	remember_name remember_end opt_len opt_ident opt_db text_or_password
+	remember_name remember_end opt_ident opt_db text_or_password
 	opt_escape
 
 %type <string>
@@ -642,12 +647,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
 	precision union_option opt_on_delete_item subselect_start opt_and
-	subselect_end select_var_list select_var_list_init help
+	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
-	',' '!' '{' '}' '&' '|' AND OR OR_OR_CONCAT BETWEEN_SYM CASE_SYM THEN_SYM WHEN_SYM
+	',' '!' '{' '}' '&' '|' AND OR OR_OR_CONCAT BETWEEN_SYM CASE_SYM
+	THEN_SYM WHEN_SYM DIV_SYM MOD_SYM
 %%
 
 
@@ -1039,7 +1045,7 @@ field_spec:
 	};
 
 type:
-	int_type opt_len field_options	{ Lex->length=$2; $$=$1; }
+	int_type opt_len field_options	{ $$=$1; }
 	| real_type opt_precision field_options { $$=$1; }
 	| FLOAT_SYM float_options field_options { $$=FIELD_TYPE_FLOAT; }
 	| BIT_SYM opt_len		{ Lex->length=(char*) "1";
@@ -1058,7 +1064,7 @@ type:
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
-	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; Lex->length=$2; }
+	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
@@ -1073,7 +1079,7 @@ type:
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
-	| BLOB_SYM			{ Lex->charset=my_charset_bin;
+	| BLOB_SYM opt_len		{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
@@ -1085,12 +1091,14 @@ type:
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
-	| TEXT_SYM opt_binary		{ $$=FIELD_TYPE_BLOB; }
+	| TEXT_SYM opt_len opt_binary	{ $$=FIELD_TYPE_BLOB; }
 	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| NUMERIC_SYM float_options field_options
+					{ $$=FIELD_TYPE_DECIMAL;}
+	| FIXED_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
 	  {
@@ -1104,9 +1112,7 @@ type:
 	    lex->interval=typelib(lex->interval_list);
 	    $$=FIELD_TYPE_SET;
 	  }
-	| LONG_SYM			{ $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONG_SYM BINARY		{ Lex->charset=my_charset_bin;
-					  $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	;
 
 char:
@@ -1160,8 +1166,8 @@ field_option:
 	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; };
 
 opt_len:
-	/* empty */	{ $$=(char*) 0; }	/* use default length */
-	| '(' NUM ')'	{ $$=$2.str; };
+	/* empty */	{ Lex->length=(char*) 0; } /* use default length */
+	| '(' NUM ')'	{ Lex->length= $2.str; };
 
 opt_precision:
 	/* empty */	{}
@@ -1629,6 +1635,7 @@ select_part2:
 select_into:
 	limit_clause {}
 	| select_from
+	| FROM DUAL_SYM
         | opt_into
 	| opt_into select_from
 	| select_from opt_into;
@@ -1772,6 +1779,8 @@ expr_expr:
 	| expr '-' expr		{ $$= new Item_func_minus($1,$3); }
 	| expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| expr '/' expr		{ $$= new Item_func_div($1,$3); }
+	| expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
+	| expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
 	| expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
         | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }	
 	| expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
@@ -1812,10 +1821,12 @@ no_in_expr:
 	| no_in_expr '-' expr		{ $$= new Item_func_minus($1,$3); }
 	| no_in_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| no_in_expr '/' expr		{ $$= new Item_func_div($1,$3); }
+	| no_in_expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
 	| no_in_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
         | no_in_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| no_in_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_in_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
+	| no_in_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
 	| no_in_expr '+' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| no_in_expr '-' INTERVAL_SYM expr interval
@@ -1854,10 +1865,12 @@ no_and_expr:
 	| no_and_expr '-' expr		{ $$= new Item_func_minus($1,$3); }
 	| no_and_expr '*' expr		{ $$= new Item_func_mul($1,$3); }
 	| no_and_expr '/' expr		{ $$= new Item_func_div($1,$3); }
+	| no_and_expr DIV_SYM expr	{ $$= new Item_func_int_div($1,$3); }
 	| no_and_expr '|' expr		{ $$= new Item_func_bit_or($1,$3); }
         | no_and_expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| no_and_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_and_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
+	| no_and_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
 	| no_and_expr '+' INTERVAL_SYM expr interval
 	  { $$= new Item_date_add_interval($1,$4,$5,0); }
 	| no_and_expr '-' INTERVAL_SYM expr interval
@@ -1975,6 +1988,8 @@ simple_expr:
 		{ $$= new Item_func_export_set($3, $5, $7, $9); }
 	| EXPORT_SET '(' expr ',' expr ',' expr ',' expr ',' expr ')'
 		{ $$= new Item_func_export_set($3, $5, $7, $9, $11); }
+	| FALSE_SYM
+	  { $$= new Item_int((char*) "FALSE",0,1); }
 	| FORMAT_SYM '(' expr ',' NUM ')'
 	  { $$= new Item_func_format($3,atoi($5.str)); }
 	| FROM_UNIXTIME '(' expr ')'
@@ -2041,6 +2056,8 @@ simple_expr:
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MINUTE_SYM '(' expr ')'
 	  { $$= new Item_func_minute($3); }
+	| MOD_SYM '(' expr ',' expr ')'
+	  { $$ = new Item_func_mod( $3, $5); }
 	| MONTH_SYM '(' expr ')'
 	  { $$= new Item_func_month($3); }
  	| MULTILINESTRING '(' expr_list ')'
@@ -2120,6 +2137,8 @@ simple_expr:
 	  { $$= new Item_func_trim($5,$3); }
 	| TRUNCATE_SYM '(' expr ',' expr ')'
 	  { $$= new Item_func_round($3,$5,1); }
+	| TRUE_SYM
+	  { $$= new Item_int((char*) "TRUE",1,1); }
 	| UDA_CHAR_SUM '(' udf_expr_list ')'
 	  {
 	    if ($3 != NULL)
@@ -3533,6 +3552,7 @@ keyword:
 	| DIRECTORY_SYM		{}
 	| DO_SYM		{}
 	| DUMPFILE		{}
+	| DUAL_SYM		{}
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}

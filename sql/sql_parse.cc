@@ -3026,6 +3026,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   THD	*thd=current_thd;
   LEX  *lex= &thd->lex;
   uint allowed_type_modifier=0;
+  char warn_buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("add_field_to_list");
 
   if (strlen(field_name) > NAME_LEN)
@@ -3117,8 +3118,6 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     if (!length) new_field->length=20;
     allowed_type_modifier= AUTO_INCREMENT_FLAG;
     break;
-  case FIELD_TYPE_STRING:
-  case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
   case FIELD_TYPE_GEOMETRY:
     break;
@@ -3129,10 +3128,35 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     if (new_field->decimals)
       new_field->length++;
     break;
+  case FIELD_TYPE_STRING:
+  case FIELD_TYPE_VAR_STRING:
+    if (new_field->length < MAX_FIELD_WIDTH || default_value)
+      break;
+    /* Convert long CHAR() and VARCHAR columns to TEXT or BLOB */
+    new_field->sql_type= FIELD_TYPE_BLOB;
+    sprintf(warn_buff, ER(ER_AUTO_CONVERT), field_name, "CHAR",
+	    (cs == my_charset_bin) ? "BLOB" : "TEXT");
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_AUTO_CONVERT,
+		 warn_buff);
+    /* fall through */
   case FIELD_TYPE_BLOB:
   case FIELD_TYPE_TINY_BLOB:
   case FIELD_TYPE_LONG_BLOB:
   case FIELD_TYPE_MEDIUM_BLOB:
+    if (new_field->length)
+    {
+      /* The user has given a length to the blob column */
+      if (new_field->length < 256)
+	type= FIELD_TYPE_TINY_BLOB;
+      if (new_field->length < 65536)
+	type= FIELD_TYPE_BLOB;
+      else if (new_field->length < 256L*256L*256L)
+	type= FIELD_TYPE_MEDIUM_BLOB;
+      else
+	type= FIELD_TYPE_LONG_BLOB;
+      new_field->length= 0;
+    }
+    new_field->sql_type= type;
     if (default_value)				// Allow empty as default value
     {
       String str,*res;

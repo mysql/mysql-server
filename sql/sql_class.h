@@ -486,7 +486,7 @@ public:
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
-  ulong	     query_id, version, options, thread_id, col_access;
+  ulong	     query_id, warn_id, version, options, thread_id, col_access;
   ulong      current_stmt_id;
   long	     dbug_thread_id;
   pthread_t  real_id;
