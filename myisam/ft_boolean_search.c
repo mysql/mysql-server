@@ -262,8 +262,14 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       else
         reset_tree(& ftb->no_dupes);
     }
-    r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
-                              SEARCH_FIND | SEARCH_BIGGER, keyroot);
+    for (
+         r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
+                      SEARCH_FIND | SEARCH_BIGGER, keyroot) ;
+         !r && info->lastpos >= info->state->data_file_length;
+         r=_mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
+                           SEARCH_BIGGER, keyroot)
+        );
+
     if (!r)
     {
       r=_mi_compare_text(ftb->charset,
@@ -488,8 +494,13 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       _ftb_climb_the_tree(ftb, ftbw, 0);
 
       /* update queue */
-      r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
-                   SEARCH_BIGGER , keyroot);
+      for (
+          r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
+                       SEARCH_BIGGER, keyroot) ;
+           !r && info->lastpos >= info->state->data_file_length ;
+           r=_mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
+                             SEARCH_BIGGER, keyroot)
+          );
       if (!r)
       {
         r=_mi_compare_text(ftb->charset,
