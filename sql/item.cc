@@ -46,6 +46,12 @@ Item::Item():
   loop_id= 0;
 }
 
+Item_ref_in_optimizer::Item_ref_in_optimizer(Item_in_optimizer *master,
+					     char *table_name_par,
+					     char *field_name_par):
+  Item_ref(master->args, table_name_par, field_name_par), owner(master) {}
+
+
 bool Item::check_loop(uint id)
 {
   DBUG_ENTER("Item::check_loop");
@@ -436,6 +442,20 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
+double Item_ref_in_optimizer::val()
+{
+  return owner->get_cache();
+}
+longlong Item_ref_in_optimizer::val_int()
+{
+  return owner->get_cache_int();
+}
+String* Item_ref_in_optimizer::val_str(String* s)
+{
+  return owner->get_cache_str(s);
+}
+
+
 /*
   Functions to convert item to field (for send_fields)
 */
@@ -511,10 +531,31 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
       res= item->fix_fields(thd, list, &item);
   else
     thd->fatal_error= 1; // no item given => out of memory
-  *ref= item;
   DBUG_RETURN(res);
 }
 
+double Item_ref_null_helper::val()
+{
+  double tmp= (*ref)->val_result();
+  owner->was_null|= null_value= (*ref)->null_value;
+  return tmp;
+}
+longlong Item_ref_null_helper::val_int()
+{
+  longlong tmp= (*ref)->val_int_result();
+  owner->was_null|= null_value= (*ref)->null_value;
+  return tmp;
+}
+String* Item_ref_null_helper::val_str(String* s)
+{
+  String* tmp= (*ref)->str_result(s);
+  owner->was_null|= null_value= (*ref)->null_value;
+  return tmp;
+}
+bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
+{  
+  return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
+}
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
@@ -686,7 +727,7 @@ void Item_avg_field::make_field(Send_field *tmp_field)
   init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
 }
 
-void Item_std_field::make_field(Send_field *tmp_field)
+void Item_variance_field::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_DOUBLE);
 }

@@ -80,6 +80,21 @@ this is a REAL test
 select soundex(''),soundex('he'),soundex('hello all folks');
 soundex('')	soundex('he')	soundex('hello all folks')
 	H000	H4142
+select 'mood' sounds like 'mud';
+'mood' sounds like 'mud'
+1
+select 'Glazgo' sounds like 'Liverpool';
+'Glazgo' sounds like 'Liverpool'
+0
+select null sounds like 'null';
+null sounds like 'null'
+NULL
+select 'null' sounds like null;
+'null' sounds like null
+NULL
+select null sounds like null;
+null sounds like null
+NULL
 select md5('hello');
 md5('hello')
 5d41402abc4b2a76b9719d911017c592
