@@ -153,6 +153,7 @@ struct ind_node_struct{
 	/*----------------------*/
 	/* Local storage for this graph node */
 	ulint		state;	/* node execution state */
+	ulint		page_no;/* root page number of the index */
 	dict_table_t*	table;	/* table which owns the index */
 	dtuple_t*	ind_row;/* index definition row built */
 	ulint		field_no;/* next field definition to insert */

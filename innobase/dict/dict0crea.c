@@ -544,9 +544,7 @@ dict_build_index_def_step(
 	table in the same tablespace */
 
 	index->space = table->space;
-
-	index->page_no = FIL_NULL;
-	
+	node->page_no = FIL_NULL;
 	row = dict_create_sys_indexes_tuple(index, node->heap);
 	node->ind_row = row;
 
@@ -624,18 +622,18 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	index->page_no = btr_create(index->type, index->space, index->id,
+	node->page_no = btr_create(index->type, index->space, index->id,
 							table->comp, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 					index->space, index->page_no); */
 
 	page_rec_write_index_page_no(btr_pcur_get_rec(&pcur),
 					DICT_SYS_INDEXES_PAGE_NO_FIELD,
-					index->page_no, &mtr);
+					node->page_no, &mtr);
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (index->page_no == FIL_NULL) {
+	if (node->page_no == FIL_NULL) {
 
 		return(DB_OUT_OF_FILE_SPACE);
 	}
@@ -793,7 +791,7 @@ dict_truncate_index_tree(
 
 	root_page_no = btr_create(type, space, index_id, comp, mtr);
 	if (index) {
-		index->page_no = root_page_no;
+		index->tree->page = root_page_no;
 	}
 
 	page_rec_write_index_page_no(rec,
@@ -857,6 +855,7 @@ ind_create_graph_create(
 	node->index = index;
 
 	node->state = INDEX_BUILD_INDEX_DEF;
+	node->page_no = FIL_NULL;
 	node->heap = mem_heap_create(256);
 
 	node->ind_def = ins_node_create(INS_DIRECT,
@@ -1076,7 +1075,8 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		success = dict_index_add_to_cache(node->table, node->index);
+		success = dict_index_add_to_cache(node->table, node->index,
+				node->page_no);
 
 		ut_a(success);
 
