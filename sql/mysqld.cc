@@ -336,7 +336,6 @@ ulong max_connections,max_used_connections,
       max_connect_errors;
 uint  max_user_connections= 0;
 ulong thread_id=1L,current_pid;
-my_bool timed_mutexes= 0;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
