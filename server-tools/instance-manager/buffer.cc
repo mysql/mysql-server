@@ -40,7 +40,7 @@
 
   RETURN
     0 - ok
-    1 - The buffer came to 16Mb barrier
+    1 - got an error in reserve()
 */
 
 int Buffer::append(uint position, const char *string, uint len_arg)
@@ -71,7 +71,7 @@ int Buffer::append(uint position, const char *string, uint len_arg)
 
   RETURN
     0 - ok
-    1 - The buffer came to 16Mb barrier
+    1 - realloc error or we have come to the 16Mb barrier
 */
 
 int Buffer::reserve(uint position, uint len_arg)
@@ -92,6 +92,18 @@ int Buffer::reserve(uint position, uint len_arg)
   return 0;
 
 err:
+  error= 1;
   return 1;
 }
 
+
+int Buffer::get_size()
+{
+  return buffer_size;
+}
+
+
+int Buffer::is_error()
+{
+  return error;
+}

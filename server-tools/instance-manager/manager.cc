@@ -90,7 +90,6 @@ void manager(const Options &options)
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGTERM);
-  sigaddset(&mask, SIGCHLD);
   sigaddset(&mask, SIGPIPE);
   sigaddset(&mask, SIGHUP);
   /*
@@ -128,7 +127,7 @@ void manager(const Options &options)
     int rc;
 
     /*
-       NOTE: Guardian should be shutdowned first. Only then all other threads
+       NOTE: Guardian should be shutdown first. Only then all other threads
        need to be stopped. This should be done, as guardian is responsible for
        shutting down the instances, and this is a long operation.
     */
@@ -160,12 +159,8 @@ void manager(const Options &options)
      more then 10 alarms at the same time.
   */
   init_thr_alarm(10);
-  /*
-    Now we can init the list of guarded instances. We have to do it after
-    alarm structures initialization as we have to use net_* functions while
-    making the list. And they in their turn need alarms for timeout suppport.
-  */
-  guardian_thread.start();
+  /* init list of guarded instances */
+  guardian_thread.init();
   /*
     After the list of guarded instances have been initialized,
     Guardian should start them.
@@ -182,18 +177,12 @@ void manager(const Options &options)
       case THR_SERVER_ALARM:
         process_alarm(signo);
       break;
-      case SIGCHLD:
-        wait(NULL);
-        /* wake threads waiting for an instance to shutdown */
-        pthread_cond_broadcast(&instance_map.pid_cond.COND_pid);
-        /* wake guardian */
-        pthread_cond_signal(&guardian_thread.COND_guardian);
-      break;
       default:
-        if (!guardian_thread.is_stopped)
+      {
+        if (!guardian_thread.is_stopped())
         {
-          guardian_thread.request_stop_instances();
-          guardian_thread.shutdown();
+          bool stop_instances= true;
+          guardian_thread.request_shutdown(stop_instances);
           pthread_cond_signal(&guardian_thread.COND_guardian);
         }
         else
@@ -201,6 +190,7 @@ void manager(const Options &options)
           thread_registry.deliver_shutdown();
           shutdown_complete= TRUE;
         }
+      }
       break;
     }
   }

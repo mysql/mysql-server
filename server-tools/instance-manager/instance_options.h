@@ -39,7 +39,7 @@ public:
   Instance_options() :
     mysqld_socket(0), mysqld_datadir(0), mysqld_bind_address(0),
     mysqld_pid_file(0), mysqld_port(0), mysqld_path(0), nonguarded(0),
-    filled_default_options(0)
+    shutdown_delay(0), filled_default_options(0)
   {}
   ~Instance_options();
   /* fills in argv */
@@ -60,6 +60,7 @@ public:
   enum { MAX_PATH_LEN= 512 };
   enum { MAX_NUMBER_OF_DEFAULT_OPTIONS= 2 };
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
+  char pid_file_with_path[MAX_PATH_LEN];
   char **argv;
   /* We need the some options, so we store them as a separate pointers */
   const char *mysqld_socket;
@@ -72,11 +73,12 @@ public:
   const char *mysqld_path;
   const char *nonguarded;
   const char *shutdown_delay;
+  /* this value is computed and cashed here */
   DYNAMIC_ARRAY options_array;
 private:
   int add_to_argv(const char *option);
-  int get_default_option(char *result, const char *option_name,
-                           size_t result_len);
+  int get_default_option(char *result, size_t result_len,
+                         const char *option_name);
 private:
   uint filled_default_options;
   MEM_ROOT alloc;
