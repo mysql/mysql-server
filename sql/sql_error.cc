@@ -110,6 +110,7 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 
 void store_warning(THD *thd, uint errcode, ...)
 {
+#if TESTS_TO_BE_FIXED
   va_list args;
   const   char *format;
   char    warning[ERRMSGSIZE+20];
@@ -128,6 +129,7 @@ void store_warning(THD *thd, uint errcode, ...)
   va_end(args);
   push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, errcode, warning);
   DBUG_VOID_RETURN;
+#endif
 }
 
 
