@@ -388,7 +388,7 @@ static ulong get_access(TABLE *form, uint fieldnr)
 {
   ulong access_bits=0,bit;
   char buff[2];
-  String res(buff,sizeof(buff),default_charset_info);
+  String res(buff,sizeof(buff),my_charset_latin1);
   Field **pos;
 
   for (pos=form->field+fieldnr, bit=1;
@@ -397,7 +397,7 @@ static ulong get_access(TABLE *form, uint fieldnr)
        pos++ , bit<<=1)
   {
     (*pos)->val_str(&res,&res);
-    if (my_toupper(system_charset_info, res[0]) == 'Y')
+    if (my_toupper(my_charset_latin1, res[0]) == 'Y')
       access_bits|= bit;
   }
   return access_bits;
@@ -697,7 +697,7 @@ static void acl_update_user(const char *user, const char *host,
     {
       if (!acl_user->host.hostname && !host[0] ||
 	  acl_user->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname))
+	  !my_strcasecmp(my_charset_latin1, host, acl_user->host.hostname))
       {
 	acl_user->access=privileges;
 	if (mqh->bits & 1)
@@ -792,7 +792,7 @@ static void acl_update_db(const char *user, const char *host, const char *db,
     {
       if (!acl_db->host.hostname && !host[0] ||
 	  acl_db->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_db->host.hostname))
+	  !my_strcasecmp(my_charset_latin1, host, acl_db->host.hostname))
       {
 	if (!acl_db->db && !db[0] ||
 	    acl_db->db && !strcmp(db,acl_db->db))
@@ -856,7 +856,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
   end=strmov((tmp_db=strmov(key+sizeof(struct in_addr),user)+1),db);
   if (lower_case_table_names)
   {
-    my_casedn_str(system_charset_info, tmp_db);
+    my_casedn_str(my_charset_latin1, tmp_db);
     db=tmp_db;
   }
   key_length=(uint) (end-key);
@@ -974,7 +974,7 @@ static void init_check_host(void)
   DBUG_ENTER("init_check_host");
   VOID(my_init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
-  VOID(hash_init(&acl_check_hosts,system_charset_info,acl_users.elements,0,0,
+  VOID(hash_init(&acl_check_hosts,my_charset_latin1,acl_users.elements,0,0,
 		 (hash_get_key) check_get_key,0,HASH_CASE_INSENSITIVE));
   if (!allow_all_hosts)
   {
@@ -990,7 +990,7 @@ static void init_check_host(void)
 	{					// Check if host already exists
 	  acl_host_and_ip *acl=dynamic_element(&acl_wild_hosts,j,
 					       acl_host_and_ip *);
-	  if (!my_strcasecmp(system_charset_info,
+	  if (!my_strcasecmp(my_charset_latin1,
                              acl_user->host.hostname, acl->hostname))
 	    break;				// already stored
 	}
@@ -1069,7 +1069,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(system_charset_info, host, thd->host_or_ip)))
+       my_strcasecmp(my_charset_latin1, host, thd->host_or_ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       return(1);
@@ -1233,7 +1233,7 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
     return (tmp & host->ip_mask) == host->ip;
   }
   return (!host->hostname ||
-	  (hostname && !wild_case_compare(system_charset_info,
+	  (hostname && !wild_case_compare(my_charset_latin1,
                                           hostname,host->hostname)) ||
 	  (ip && !wild_compare(ip,host->hostname)));
 }
@@ -1257,8 +1257,8 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   tables.db=(char*) "mysql";
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
-  table->field[0]->store(host,(uint) strlen(host), system_charset_info);
-  table->field[1]->store(user,(uint) strlen(user), system_charset_info);
+  table->field[0]->store(host,(uint) strlen(host), my_charset_latin1);
+  table->field[1]->store(user,(uint) strlen(user), my_charset_latin1);
 
   if (table->file->index_read_idx(table->record[0],0,
 				  (byte*) table->field[0]->ptr,0,
@@ -1268,7 +1268,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,1);
-  table->field[2]->store(new_password,(uint) strlen(new_password), system_charset_info);
+  table->field[2]->store(new_password,(uint) strlen(new_password), my_charset_latin1);
   if ((error=table->file->update_row(table->record[1],table->record[0])))
   {
     table->file->print_error(error,MYF(0));	/* purecov: deadcode */
@@ -1335,8 +1335,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     password=combo.password.str;
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+  table->field[1]->store(combo.user.str,combo.user.length, my_charset_latin1);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],
 			      (byte*) table->field[0]->ptr,0,
@@ -1357,16 +1357,16 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
     old_row_exists = 0;
     restore_record(table,2);	// cp empty row from record[2]
-    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-    table->field[1]->store(combo.user.str,combo.user.length, system_charset_info);
-    table->field[2]->store(password,(uint) strlen(password), system_charset_info);
+    table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+    table->field[1]->store(combo.user.str,combo.user.length, my_charset_latin1);
+    table->field[2]->store(password,(uint) strlen(password), my_charset_latin1);
   }
   else
   {
     old_row_exists = 1;
     store_record(table,1);			// Save copy for update
     if (combo.password.str)			// If password given
-      table->field[2]->store(password,(uint) strlen(password), system_charset_info);
+      table->field[2]->store(password,(uint) strlen(password), my_charset_latin1);
   }
 
   /* Update table columns with new privileges */
@@ -1379,7 +1379,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
        tmp_field++, priv <<= 1)
   {
     if (priv & rights)				 // set requested privileges
-      (*tmp_field)->store(&what, 1, system_charset_info);
+      (*tmp_field)->store(&what, 1, my_charset_latin1);
   }
   rights=get_access(table,3);
   DBUG_PRINT("info",("table->fields: %d",table->fields));
@@ -1388,39 +1388,39 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     /* We write down SSL related ACL stuff */
     switch (thd->lex.ssl_type) {
     case SSL_TYPE_ANY:
-      table->field[24]->store("ANY",3, system_charset_info);
-      table->field[25]->store("", 0, system_charset_info);
-      table->field[26]->store("", 0, system_charset_info);
-      table->field[27]->store("", 0, system_charset_info);
+      table->field[24]->store("ANY",3, my_charset_latin1);
+      table->field[25]->store("", 0, my_charset_latin1);
+      table->field[26]->store("", 0, my_charset_latin1);
+      table->field[27]->store("", 0, my_charset_latin1);
       break;
     case SSL_TYPE_X509:
-      table->field[24]->store("X509",4, system_charset_info);
-      table->field[25]->store("", 0, system_charset_info);
-      table->field[26]->store("", 0, system_charset_info);
-      table->field[27]->store("", 0, system_charset_info);
+      table->field[24]->store("X509",4, my_charset_latin1);
+      table->field[25]->store("", 0, my_charset_latin1);
+      table->field[26]->store("", 0, my_charset_latin1);
+      table->field[27]->store("", 0, my_charset_latin1);
       break;
     case SSL_TYPE_SPECIFIED:
-      table->field[24]->store("SPECIFIED",9, system_charset_info);
-      table->field[25]->store("", 0, system_charset_info);
-      table->field[26]->store("", 0, system_charset_info);
-      table->field[27]->store("", 0, system_charset_info);
+      table->field[24]->store("SPECIFIED",9, my_charset_latin1);
+      table->field[25]->store("", 0, my_charset_latin1);
+      table->field[26]->store("", 0, my_charset_latin1);
+      table->field[27]->store("", 0, my_charset_latin1);
       if (thd->lex.ssl_cipher)
 	table->field[25]->store(thd->lex.ssl_cipher,
-				strlen(thd->lex.ssl_cipher), system_charset_info);
+				strlen(thd->lex.ssl_cipher), my_charset_latin1);
       if (thd->lex.x509_issuer)
 	table->field[26]->store(thd->lex.x509_issuer,
-				strlen(thd->lex.x509_issuer), system_charset_info);
+				strlen(thd->lex.x509_issuer), my_charset_latin1);
       if (thd->lex.x509_subject)
 	table->field[27]->store(thd->lex.x509_subject,
-				strlen(thd->lex.x509_subject), system_charset_info);
+				strlen(thd->lex.x509_subject), my_charset_latin1);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
       break;
     case SSL_TYPE_NONE:
-      table->field[24]->store("", 0, system_charset_info);
-      table->field[25]->store("", 0, system_charset_info);
-      table->field[26]->store("", 0, system_charset_info);
-      table->field[27]->store("", 0, system_charset_info);
+      table->field[24]->store("", 0, my_charset_latin1);
+      table->field[25]->store("", 0, my_charset_latin1);
+      table->field[26]->store("", 0, my_charset_latin1);
+      table->field[27]->store("", 0, my_charset_latin1);
       break;
     }
 
@@ -1509,9 +1509,9 @@ static int replace_db_table(TABLE *table, const char *db,
     DBUG_RETURN(-1);
   }
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+  table->field[1]->store(db,(uint) strlen(db), my_charset_latin1);
+  table->field[2]->store(combo.user.str,combo.user.length, my_charset_latin1);
   table->file->index_init(0);
   if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,0,
 	      HA_READ_KEY_EXACT))
@@ -1524,9 +1524,9 @@ static int replace_db_table(TABLE *table, const char *db,
     }
     old_row_exists = 0;
     restore_record(table,2);			// cp empty row from record[2]
-    table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-    table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-    table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
+    table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+    table->field[1]->store(db,(uint) strlen(db), my_charset_latin1);
+    table->field[2]->store(combo.user.str,combo.user.length, my_charset_latin1);
   }
   else
   {
@@ -1538,7 +1538,7 @@ static int replace_db_table(TABLE *table, const char *db,
   for (i= 3, priv= 1; i < table->fields; i++, priv <<= 1)
   {
     if (priv & store_rights)			// do it if priv is chosen
-      table->field [i]->store(&what,1, system_charset_info);// set requested privileges
+      table->field [i]->store(&what,1, my_charset_latin1);// set requested privileges
   }
   rights=get_access(table,3);
   rights=fix_rights_for_db(rights);
@@ -1619,13 +1619,13 @@ public:
     tname= strdup_root(&memex,t);
     if (lower_case_table_names)
     {
-      my_casedn_str(system_charset_info, db);
-      my_casedn_str(system_charset_info, tname);
+      my_casedn_str(my_charset_latin1, db);
+      my_casedn_str(my_charset_latin1, tname);
     }
     key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
-    (void) hash_init(&hash_columns,system_charset_info,
+    (void) hash_init(&hash_columns,my_charset_latin1,
 		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
   }
@@ -1648,8 +1648,8 @@ public:
     }
     if (lower_case_table_names)
     {
-      my_casedn_str(system_charset_info, db);
-      my_casedn_str(system_charset_info, tname);
+      my_casedn_str(my_charset_latin1, db);
+      my_casedn_str(my_charset_latin1, tname);
     }
     key_length = ((uint) strlen(db) + (uint) strlen(user) +
 		  (uint) strlen(tname) + 3);
@@ -1660,22 +1660,22 @@ public:
     privs = fix_rights_for_table(privs);
     cols =  fix_rights_for_column(cols);
 
-    (void) hash_init(&hash_columns,system_charset_info,
+    (void) hash_init(&hash_columns,my_charset_latin1,
 		     0,0,0, (hash_get_key) get_key_column,0,
 		     HASH_CASE_INSENSITIVE);
     if (cols)
     {
       int key_len;
-      col_privs->field[0]->store(host,(uint) strlen(host), system_charset_info);
-      col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
-      col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
-      col_privs->field[3]->store(tname,(uint) strlen(tname), system_charset_info);
+      col_privs->field[0]->store(host,(uint) strlen(host), my_charset_latin1);
+      col_privs->field[1]->store(db,(uint) strlen(db), my_charset_latin1);
+      col_privs->field[2]->store(user,(uint) strlen(user), my_charset_latin1);
+      col_privs->field[3]->store(tname,(uint) strlen(tname), my_charset_latin1);
       key_len=(col_privs->field[0]->pack_length()+
 	       col_privs->field[1]->pack_length()+
 	       col_privs->field[2]->pack_length()+
 	       col_privs->field[3]->pack_length());
       key_copy(key,col_privs,0,key_len);
-      col_privs->field[4]->store("",0, system_charset_info);
+      col_privs->field[4]->store("",0, my_charset_latin1);
       col_privs->file->index_init(0);
       if (col_privs->file->index_read(col_privs->record[0],
 				      (byte*) col_privs->field[0]->ptr,
@@ -1741,15 +1741,15 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     if (exact)
     {
       if ((host &&
-	   !my_strcasecmp(system_charset_info, host, grant_table->host)) ||
+	   !my_strcasecmp(my_charset_latin1, host, grant_table->host)) ||
 	  (ip && !strcmp(ip,grant_table->host)))
 	return grant_table;
     }
     else
     {
-      if ((host && !wild_case_compare(system_charset_info,
+      if ((host && !wild_case_compare(my_charset_latin1,
                                       host,grant_table->host)) ||
-	  (ip && !wild_case_compare(system_charset_info,
+	  (ip && !wild_case_compare(my_charset_latin1,
                                     ip,grant_table->host)))
 	found=grant_table;					// Host ok
     }
@@ -1777,10 +1777,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
   byte key[MAX_KEY_LENGTH];
   DBUG_ENTER("replace_column_table");
 
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+  table->field[1]->store(db,(uint) strlen(db), my_charset_latin1);
+  table->field[2]->store(combo.user.str,combo.user.length, my_charset_latin1);
+  table->field[3]->store(table_name,(uint) strlen(table_name), my_charset_latin1);
   key_length=(table->field[0]->pack_length()+ table->field[1]->pack_length()+
 	      table->field[2]->pack_length()+ table->field[3]->pack_length());
   key_copy(key,table,0,key_length);
@@ -1797,7 +1797,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
     ulong privileges = xx->rights;
     bool old_row_exists=0;
     key_restore(table,key,0,key_length);
-    table->field[4]->store(xx->column.ptr(),xx->column.length(),system_charset_info);
+    table->field[4]->store(xx->column.ptr(),xx->column.length(),my_charset_latin1);
 
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
 				0, HA_READ_KEY_EXACT))
@@ -1813,7 +1813,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       old_row_exists = 0;
       restore_record(table,2);				// Get empty record
       key_restore(table,key,0,key_length);
-      table->field[4]->store(xx->column.ptr(),xx->column.length(), system_charset_info);
+      table->field[4]->store(xx->column.ptr(),xx->column.length(), my_charset_latin1);
     }
     else
     {
@@ -1885,7 +1885,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
       {
 	GRANT_COLUMN *grant_column = NULL;
 	char  colum_name_buf[HOSTNAME_LENGTH+1];
-	String column_name(colum_name_buf,sizeof(colum_name_buf),system_charset_info);
+	String column_name(colum_name_buf,sizeof(colum_name_buf),my_charset_latin1);
 
 	privileges&= ~rights;
 	table->field[6]->store((longlong)
@@ -1955,10 +1955,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   restore_record(table,2);			// Get empty record
-  table->field[0]->store(combo.host.str,combo.host.length, system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
-  table->field[2]->store(combo.user.str,combo.user.length, system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name), system_charset_info);
+  table->field[0]->store(combo.host.str,combo.host.length, my_charset_latin1);
+  table->field[1]->store(db,(uint) strlen(db), my_charset_latin1);
+  table->field[2]->store(combo.user.str,combo.user.length, my_charset_latin1);
+  table->field[3]->store(table_name,(uint) strlen(table_name), my_charset_latin1);
   store_record(table,1);			// store at pos 1
 
   if (table->file->index_read_idx(table->record[0],0,
@@ -2003,7 +2003,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
+  table->field[4]->store(grantor,(uint) strlen(grantor), my_charset_latin1);
   table->field[6]->store((longlong) store_table_rights);
   table->field[7]->store((longlong) store_col_rights);
   rights=fix_rights_for_table(store_table_rights);
@@ -2263,7 +2263,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   if (lower_case_table_names && db)
   {
     strmov(tmp_db,db);
-    my_casedn_str(system_charset_info, tmp_db);
+    my_casedn_str(my_charset_latin1, tmp_db);
     db=tmp_db;
   }
 
@@ -2352,7 +2352,7 @@ my_bool grant_init(THD *org_thd)
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
-  (void) hash_init(&hash_tables,system_charset_info,
+  (void) hash_init(&hash_tables,my_charset_latin1,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex,1024,0);
@@ -2681,9 +2681,9 @@ bool check_grant_db(THD *thd,const char *db)
     GRANT_TABLE *grant_table = (GRANT_TABLE*) hash_element(&hash_tables,idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-	(thd->host && !wild_case_compare(system_charset_info,
+	(thd->host && !wild_case_compare(my_charset_latin1,
                                          thd->host,grant_table->host) ||
-	 (thd->ip && !wild_case_compare(system_charset_info,
+	 (thd->ip && !wild_case_compare(my_charset_latin1,
                                         thd->ip,grant_table->host))))
     {
       error=0;					// Found match
@@ -2805,7 +2805,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (!(host=acl_user->host.hostname))
       host="%";
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	!my_strcasecmp(my_charset_latin1, lex_user->host.str, host))
       break;
   }
   if (counter == acl_users.elements)
@@ -2815,7 +2815,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     DBUG_RETURN(-1);
   }
 
-  Item_string *field=new Item_string("",0,system_charset_info);
+  Item_string *field=new Item_string("",0,my_charset_latin1);
   List<Item> field_list;
   field->name=buff;
   field->max_length=1024;
@@ -2833,7 +2833,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       acl_user->ssl_type != SSL_TYPE_NONE)
   {
     want_access=acl_user->access;
-    String global(buff,sizeof(buff),system_charset_info);
+    String global(buff,sizeof(buff),my_charset_latin1);
     global.length(0);
     global.append("GRANT ",6);
 
@@ -2952,12 +2952,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	!my_strcasecmp(my_charset_latin1, lex_user->host.str, host))
     {
       want_access=acl_db->access;
       if (want_access)
       {
-	String db(buff,sizeof(buff),system_charset_info);
+	String db(buff,sizeof(buff),my_charset_latin1);
 	db.length(0);
 	db.append("GRANT ",6);
 
@@ -3011,12 +3011,12 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       host="";
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+	!my_strcasecmp(my_charset_latin1, lex_user->host.str, host))
     {
       want_access=grant_table->privs;
       if ((want_access | grant_table->cols) != 0)
       {
-	String global(buff,sizeof(buff),system_charset_info);
+	String global(buff,sizeof(buff),my_charset_latin1);
 	global.length(0);
 	global.append("GRANT ",6);
 

@@ -1072,7 +1072,7 @@ bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
 uint find_enum(TYPELIB *typelib,const char *x, uint length);
 ulonglong find_set(TYPELIB *typelib,const char *x, uint length);
-bool test_if_int(const char *str,int length);
+bool test_if_int(const char *str,int length,CHARSET_INFO *cs);
 
 /*
   The following are for the interface with the .frm file
