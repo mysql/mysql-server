@@ -6764,26 +6764,16 @@ install}.
 @item
 Remember to use GNU @code{make} when making @strong{MySQL}.
 @item
-On OSR 5.0.5, you should use the following configure line:
-@example
-shell> CC="gcc -DSCO" CXX="gcc -DSCO" ./configure
-@end example
-The @code{-DSCO} is needed to help configure detect some thread
-functions properly.  If you forget @code{-DSCO}, you will get the following
-error message while compiling:
-@example
-my_pthread.c: In function `my_pthread_mutex_init':
-my_pthread.c:374: `pthread_mutexattr_default' undeclared (first use this function)
-@end example
-@item
 If you don't start @code{safe_mysqld} as root, you probably will get only the
 default 110 open files per process.  @code{mysqld} will write a note about this
 in the log file.
 @item
 With SCO 3.2V5.0.5, you should use FSU Pthreads version 3.5c or newer.
+You should also use gcc 2.95.2 or newer !
+
 The following @code{configure} command should work:
 @example
-shell> CC="gcc -belf" ./configure --prefix=/usr/local/mysql --disable-shared
+shell> ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 @item
 With SCO 3.2V4.2, you should use FSU Pthreads version 3.5c or newer.
@@ -6827,17 +6817,19 @@ In FSU Pthreads, the following system calls are pthreads-aware: @code{read()},
 If you want to install DBI on SCO, you have to edit the @file{Makefiles} in
 DBI-xxx and each subdirectory:
 
+Note that the following assumes gcc 2.95.2 or newer!
+
 @example
 OLD:                                  NEW:
-CC = cc                               CC = gcc -belf
+CC = cc                               CC = gcc
 CCCDLFLAGS = -KPIC -W1,-Bexport       CCCDLFLAGS = -fpic
 CCDLFLAGS = -wl,-Bexport              CCDLFLAGS =
 
-LD = ld                               LD = gcc -belf -G -fpic
+LD = ld                               LD = gcc -G -fpic
 LDDLFLAGS = -G -L/usr/local/lib       LDDLFLAGS = -L/usr/local/lib
 LDFLAGS = -belf -L/usr/local/lib      LDFLAGS = -L/usr/local/lib
 
-LD = ld                               LD = gcc -belf -G -fpic
+LD = ld                               LD = gcc -G -fpic
 OPTIMISE = -Od         		      OPTIMISE = -O1
 
 OLD:
@@ -8749,6 +8741,10 @@ The following lists tell what you have to watch out for when upgrading to 3.23:
 (-G). This may cause incompatibility problems in some cases, for example
 in SQL scripts that use named commands without a semicolon, etc. !
 Long format commands still work from the first line.
+@item
+If you are using the @code{german} character sort order, you must repair
+all your tables with @code{isamchk -r}, as we have made some changes in
+the sort order!
 @item The default return type of @code{IF} will now depend on both arguments
 and not only the first argument.
 @item @code{AUTO_INCREMENT} will not work with negative numbers.
@@ -18570,7 +18566,8 @@ The status variables listed above have the following meaning:
 @item @code{Bytes_received} @tab Number of bytes received from the client
 @item @code{Bytes_sent} @tab Number of bytes received from the client
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
-@item @code{Created_tmp_tables} @tab Number of implicit temporary tables that have been created while executing statements.
+@item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk that have been created while executing statements.
+@item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory that have been created while executing statements.
 @item @code{Delayed_insert_threads} @tab Number of delayed insert handler threads in use.
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
@@ -35807,6 +35804,8 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.24, News-3.23.23, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.24
 @itemize @bullet
+@item
+Added mysqld variable @code{created_tmp_disk_tables}.
 @item
 To make it possibly to reliable dump and restore tables with
 @code{TIMESTAMP(X)} columns, @code{MySQL} now reports columns with X

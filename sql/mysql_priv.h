@@ -428,7 +428,8 @@ extern char mysql_data_home[2],server_version[50],max_sort_char,
 extern my_string mysql_unix_port,mysql_tmpdir;
 extern const char *first_keyword, *localhost;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
-	     created_tmp_tables, aborted_threads,aborted_connects,
+	     created_tmp_tables, created_tmp_disk_tables,
+	     aborted_threads,aborted_connects,
 	     delayed_insert_timeout,
 	     delayed_insert_limit, delayed_queue_size,
 	     delayed_insert_threads, delayed_insert_writes,

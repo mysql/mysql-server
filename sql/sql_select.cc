@@ -3161,7 +3161,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		      (int) distinct, (int) save_sum_fields,
 		      (int) allow_distinct_limit,test(group)));
 
-  created_tmp_tables++;				// Global, but should be safe
+  statistic_increment(created_tmp_tables, &LOCK_status);
   sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
 	  thd->thread_id, thd->tmp_table++);
   if (group)
@@ -3681,6 +3681,7 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   save_proc_info=thd->proc_info;
   thd->proc_info="converting HEAP to MyISAM";
 
+  statistic_increment(created_tmp_disk_tables, &LOCK_status);
   if (create_myisam_tmp_table(&new_table,param,
 			      thd->lex.options | thd->options))
     goto err2;
@@ -3849,13 +3850,13 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       return error; /* purecov: inspected */
     return sub_select(join,join_tab,end_of_records);
   }
+  if (join->thd->killed)		// If aborted by user
+  {
+    my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
+    return -2;				 /* purecov: inspected */
+  }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
   {
-    if (join->thd->killed)
-    {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0)); /* purecov: inspected */
-      return -2;				// Aborted by user /* purecov: inspected */
-    }
     if (!store_record_in_cache(&join_tab->cache))
       return 0;					// There is more room in cache
     return flush_cached_records(join,join_tab,FALSE);
