@@ -1152,8 +1152,7 @@ dnl echo "DBG_GEM1: gemini='$gemini'"
       gemini_libs="\
  ../gemini/api/libapi.a\
  ../gemini/db/libdb.a\
- ../gemini/dbut/libdbut.a\
- ../gemini/vst/libvst.a"
+ ../gemini/dbut/libdbut.a"
       AC_MSG_RESULT([Using Gemini DB])
       ;;
   esac
