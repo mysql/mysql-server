@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* 
- *  ndbapi_example1.cpp: Using synchronous transactions in NDB API
+ *  ndbapi_simple.cpp: Using synchronous transactions in NDB API
  *
  *  Correct output from this program is:
  *
