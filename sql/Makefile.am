@@ -20,7 +20,9 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-INCLUDES =		@MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include \
+INCLUDES =		@MT_INCLUDES@ \
+			@bdb_includes@ @innobase_includes@ \
+			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
 			-I$(srcdir) -I../include -I.. -I.
 WRAPLIBS=		@WRAPLIBS@
@@ -37,7 +39,9 @@ LDADD =			../isam/libnisam.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
 			../strings/libmystrings.a
-mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ @bdb_libs@ $(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS)
+mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
+			@bdb_libs@ @innobase_libs@ \
+			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS)
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h mysql_priv.h \

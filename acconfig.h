@@ -78,6 +78,9 @@
 /* Define if int8, int16 and int32 types exist */
 #undef HAVE_INT_8_16_32
 
+/* Using Innobase DB */
+#undef HAVE_INNOBASE_DB
+
 /* Define if we have GNU readline */
 #undef HAVE_LIBREADLINE
 
