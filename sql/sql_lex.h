@@ -283,8 +283,9 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr,size_t size) {}
-  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root) {}
+  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root)
+  { TRASH(ptr, size); }
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
@@ -820,7 +821,8 @@ struct st_lex_local: public st_lex
   {
     return (void*) alloc_root(mem_root, (uint) size);
   }
-  static void operator delete(void *ptr,size_t size) {}
+  static void operator delete(void *ptr,size_t size)
+  { TRASH(ptr, size); }
 };
 
 void lex_init(void);
