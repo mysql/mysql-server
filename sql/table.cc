@@ -1603,6 +1603,16 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
       thd->restore_backup_item_arena(arena, &backup);
   }
 
+  /* full text function moving to current select */
+  if (view->select_lex.ftfunc_list->elements)
+  {
+    Item_func_match *ifm;
+    List_iterator_fast<Item_func_match>
+      li(*(view->select_lex.ftfunc_list));
+    while ((ifm= li++))
+      current_select_save->ftfunc_list->push_front(ifm);
+  }
+
 ok:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
