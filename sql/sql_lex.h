@@ -220,12 +220,6 @@ protected:
     *master, *slave,                  /* vertical links */
     *link_next, **link_prev;          /* list of whole SELECT_LEX */
 public:
-  enum enum_parsing_place
-  {
-    NO_MATTER,
-    IN_HAVING,
-    SELECT_LIST
-  };
 
   ulong options;
   /*
@@ -639,7 +633,7 @@ typedef struct st_lex
     list of those tables after they are opened.
   */
   TABLE_LIST *time_zone_tables_used;
-  st_lex() {}
+  st_lex();
   inline void uncacheable(uint8 cause)
   {
     safe_to_cache_query= 0;

@@ -418,6 +418,65 @@ struct system_variables
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
+class Item_arena
+{
+public:
+  /*
+    List of items created in the parser for this query. Every item puts
+    itself to the list on creation (see Item::Item() for details))
+  */
+  Item *free_list;
+  MEM_ROOT mem_root;
+  enum 
+  {
+    INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
+    ERROR= -1
+  };
+  
+  int state;
+
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
+  };
+
+  Item_arena(THD *thd);
+  Item_arena();
+  Item_arena(bool init_mem_root);
+  virtual Type type() const;
+  virtual ~Item_arena();
+
+  inline bool is_stmt_prepare() const { return state < (int)PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == (int)PREPARED; }
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
+  }
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
+  { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
+
+  void set_n_backup_item_arena(Item_arena *set, Item_arena *backup);
+  void restore_backup_item_arena(Item_arena *set, Item_arena *backup);
+  void set_item_arena(Item_arena *set);
+};
+
+
 /*
   State of a single command executed against this connection.
   One connection can contain a lot of simultaneously running statements,
@@ -432,7 +491,7 @@ void free_tmp_table(THD *thd, TABLE *entry);
   be used explicitly.
 */
 
-class Statement
+class Statement: public Item_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -474,20 +533,8 @@ public:
   */
   char *query;
   uint32 query_length;                          // current query length
-  /*
-    List of items created in the parser for this query. Every item puts
-    itself to the list on creation (see Item::Item() for details))
-  */
-  Item *free_list;
-  MEM_ROOT mem_root;
 
 public:
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT,
-    PREPARED_STATEMENT
-  };
 
   /*
     This constructor is called when statement is a subobject of THD:
@@ -500,34 +547,16 @@ public:
 
   /* Assign execution context (note: not all members) of given stmt to self */
   void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
 
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
-  inline gptr calloc(unsigned int size)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
-      bzero((char*) ptr,size);
-    return ptr;
-  }
-  inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
-  inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
-  inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
-
-  void set_n_backup_item_arena(Statement *set, Statement *backup);
-  void restore_backup_item_arena(Statement *set, Statement *backup);
-  void set_item_arena(Statement *set);
+  /*
+    Cleanup statement parse state (parse tree, lex) after execution of
+    a non-prepared SQL statement.
+  */
+  void end_statement();
 };
 
 
@@ -760,9 +789,9 @@ public:
   Vio* active_vio;
 #endif
   /*
-    Current prepared Statement if there one, or 0
+    Current prepared Item_arena if there one, or 0
   */
-  Statement *current_statement;
+  Item_arena *current_arena;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -812,7 +841,7 @@ public:
   ulong      row_count;  // Row counter, mainly for errors and warnings
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table;
+  uint	     current_tablenr,tmp_table,global_read_lock;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -831,7 +860,7 @@ public:
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     time_zone_used;
-  bool	     in_lock_tables,global_read_lock;
+  bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
@@ -983,33 +1012,6 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
-
-  inline void allocate_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_statement!=0);
-    /*
-      We do not want to have in PS memory all that junk,
-      which will be created by preparation => substitute memory
-      from original thread pool.
-
-      We know that PS memory pool is now copied to THD, we move it back
-      to allow some code use it.
-    */
-    current_statement->set_item_arena(this);
-    init_sql_alloc(&mem_root,
-		   variables.query_alloc_block_size,
-		   variables.query_prealloc_size);
-    free_list= 0;
-  }
-  inline void free_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_statement!=0);
-    cleanup_items(current_statement->free_list);
-    free_items(free_list);
-    close_thread_tables(this); // to close derived tables
-    free_root(&mem_root, MYF(0));
-    set_item_arena(current_statement);
-  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */
@@ -1037,10 +1039,13 @@ public:
   ~Disable_binlog();
 };
 
+
 /*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+  XXX: We never call destructor for objects of this class.
 */
+
 class sql_exchange :public Sql_alloc
 {
 public:
@@ -1050,7 +1055,6 @@ public:
   bool dumpfile;
   ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
-  ~sql_exchange() {}
 };
 
 #include "log_event.h"
@@ -1081,6 +1085,11 @@ public:
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
+  /*
+    Cleanup instance of this class for next execution of a prepared
+    statement/stored procedure.
+  */
+  virtual void cleanup();
 };
 
 
@@ -1107,6 +1116,8 @@ public:
   ~select_to_file();
   bool send_fields(List<Item> &list, uint flag) { return 0; }
   void send_error(uint errcode,const char *err);
+  bool send_eof();
+  void cleanup();
 };
 
 
@@ -1119,7 +1130,6 @@ public:
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1128,7 +1138,6 @@ public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1153,6 +1162,8 @@ class select_insert :public select_result {
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  /* not implemented: select_insert is never re-used in prepared statements */
+  void cleanup();
 };
 
 
@@ -1453,4 +1464,5 @@ public:
   bool send_fields(List<Item> &list, uint flag) {return 0;}
   bool send_data(List<Item> &items);
   bool send_eof();
+  void cleanup();
 };

@@ -80,7 +80,7 @@ class TupKeyConf {
   friend bool printTUPKEYCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 5 );
 
 private:
 
@@ -88,11 +88,10 @@ private:
    * DATA VARIABLES
    */
   Uint32 userPtr;
-  Uint32 pageId;
-  Uint32 pageIndex;
   Uint32 readLength;
   Uint32 writeLength;
   Uint32 noFiredTriggers;
+  Uint32 lastRow;
 };
 
 class TupKeyRef {

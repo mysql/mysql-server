@@ -2508,6 +2508,21 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
   }//if
 }//Dblqh::updatePackedList()
 
+void
+Dblqh::execREAD_ROWCOUNTREQ(Signal* signal){
+  jamEntry();
+  TcConnectionrecPtr regTcPtr;
+  regTcPtr.i = signal->theData[0];
+  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+  
+  FragrecordPtr regFragptr;
+  regFragptr.i = regTcPtr.p->fragmentptr;
+  ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
+
+  signal->theData[0] = regFragptr.p->accFragptr[regTcPtr.p->localFragptr];
+  EXECUTE_DIRECT(DBACC, GSN_READ_ROWCOUNT_REQ, signal, 1);
+}
+
 /* ************>> */
 /*  TUPKEYCONF  > */
 /* ************>> */
@@ -7016,6 +7031,14 @@ void Dblqh::continueScanNextReqLab(Signal* signal)
     return;
   }//if
   
+  if(scanptr.p->m_last_row){
+    jam();
+    scanptr.p->scanCompletedStatus = ZTRUE;
+    scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    sendScanFragConf(signal, ZFALSE);
+    return;
+  }
+
   // Update timer on tcConnectRecord
   tcConnectptr.p->tcTimer = cLqhTimeOutCount;
 
@@ -8075,13 +8098,10 @@ bool Dblqh::keyinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
  * ------------------------------------------------------------------------- */
 void Dblqh::scanTupkeyConfLab(Signal* signal) 
 {
-  UintR tdata3;
-  UintR tdata4;
-  UintR tdata5;
+  const TupKeyConf * conf = (TupKeyConf *)signal->getDataPtr();
+  UintR tdata4 = conf->readLength;
+  UintR tdata5 = conf->lastRow;
 
-  tdata3 = signal->theData[2];
-  tdata4 = signal->theData[3];
-  tdata5 = signal->theData[4];
   tcConnectptr.p->transactionState = TcConnectionrec::SCAN_STATE_USED;
   scanptr.i = tcConnectptr.p->tcScanRec;
   releaseActiveFrag(signal);
@@ -8112,7 +8132,8 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   ndbrequire(scanptr.p->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
   scanptr.p->m_curr_batch_size_bytes+= tdata4;
   scanptr.p->m_curr_batch_size_rows++;
-  if (scanptr.p->check_scan_batch_completed()){
+  scanptr.p->m_last_row = conf->lastRow;
+  if (scanptr.p->check_scan_batch_completed() | conf->lastRow){
     if (scanptr.p->scanLockHold == ZTRUE) {
       jam();
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
@@ -8426,6 +8447,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanTcWaiting = ZTRUE;
   scanptr.p->scanNumber = ~0;
   scanptr.p->scanApiOpPtr = scanFragReq->clientOpPtr;
+  scanptr.p->m_last_row = 0;
 
   if (max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)){
     jam();

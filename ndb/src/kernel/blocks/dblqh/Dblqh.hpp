@@ -585,6 +585,7 @@ public:
     Uint8 rangeScan;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
+    Uint8 m_last_row;
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -2107,7 +2108,8 @@ private:
   void execSTART_EXEC_SR(Signal* signal);
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
-
+  void execREAD_ROWCOUNTREQ(Signal* signal);
+  
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_COM_BLOCK(Signal* signal);
   void execACC_COM_UNBLOCK(Signal* signal);
