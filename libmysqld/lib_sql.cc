@@ -72,8 +72,10 @@ get_mysql_real_data_home(){ return mysql_real_data_home;};
 bool lib_dispatch_command(enum enum_server_command command, NET *net,
 			  const char *arg, ulong length)
 {
-  net_new_transaction(&((THD *)net->vio->dest_thd)->net);
-  return dispatch_command(command, (THD *)net->vio->dest_thd, (char *)arg, length + 1);
+  THD *thd=(THD *) net->vio->dest_thd;
+  thd->store_globals();				// Fix if more than one connect
+  net_new_transaction(&thd->net);
+  return dispatch_command(command, thd, (char *) arg, length + 1);
 }
 
 
@@ -116,7 +118,7 @@ void start_embedded_conn1(NET * net)
   thd->net.vio = v;
   if (thd->store_globals())
   {
-    printf("store_globals failed.\n");
+    fprintf(stderr,"store_globals failed.\n");
     return;
   }
 
