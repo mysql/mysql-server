@@ -3069,6 +3069,10 @@ void Item_ref::set_properties()
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
   collation.set((*ref)->collation);
+  /*
+    We have to remember if we refer to a sum function, to ensure that
+    split_sum_func() doesn't try to change the reference.
+  */
   with_sum_func= (*ref)->with_sum_func;
   if ((*ref)->type() == FIELD_ITEM)
     alias_name_used= ((Item_ident *) (*ref))->alias_name_used;
