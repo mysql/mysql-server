@@ -16,7 +16,7 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-AUTOMAKE_OPTIONS =              nostdinc
+#AUTOMAKE_OPTIONS =              nostdinc
 INCLUDES =			-I$(top_srcdir)/include $(openssl_includes)
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
