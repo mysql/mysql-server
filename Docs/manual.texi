@@ -10773,7 +10773,7 @@ connection, however the encryption algorithm is not very strong, and
 with some effort a clever attacker can crack the password if he is able
 to sniff the traffic between the client and the server. If the 
 connection between the client and the server goes through an untrusted
-network, you should use an @strong(SSH} tunnel to encrypt the 
+network, you should use an @strong{SSH} tunnel to encrypt the 
 communication.
 
 All other information is transferred as text that can be read by anyone
