@@ -64,3 +64,6 @@ find_in_set('a',binary 'A,B,C')
 select find_in_set(binary 'a', 'A,B,C');
 find_in_set(binary 'a', 'A,B,C')
 0
+select find_in_set('1','3,1,');
+find_in_set('1','3,1,')
+2
