@@ -1923,7 +1923,9 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
-  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  realpath rename rint rwlock_init setupterm \
+  shmget shmat shmdt shmctl \
+  sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
 
@@ -3078,10 +3080,19 @@ fi
 AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
-if test X"$have_ndb_shm" = Xyes
+if test "$ac_cv_func_shmget" = "yes" &&
+   test "$ac_cv_func_shmat" = "yes" &&
+   test "$ac_cv_func_shmdt" = "yes" &&
+   test "$ac_cv_func_shmctl" = "yes"
 then
-  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+   AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
+             [Including Ndb Cluster DB shared memory transporter])
+   AC_MSG_RESULT([Including ndb shared memory transporter])
+   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+else
+   AC_MSG_RESULT([Not including ndb shared memory transporter])
 fi
+
 if test X"$have_ndb_sci" = Xyes
 then
   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
