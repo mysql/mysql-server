@@ -13,11 +13,9 @@ Created 10/21/1995 Heikki Tuuri
 
 #ifdef __WIN__
 
-#if (defined(__NT__) || defined(__WIN2000__))
-
+/* We define always WIN_ASYNC_IO, and check at run-time whether
+   the OS actually supports it: Win 95 does not, NT does. */
 #define WIN_ASYNC_IO
-
-#endif
 
 #define UNIV_NON_BUFFERED_IO
 
