@@ -28,9 +28,6 @@
 #include <ndb_version.h>
 #include <version.h>
 
-#define VERSION_3X 3
-
-
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
 const int AttrNameLenC = 256;
@@ -150,11 +147,8 @@ class TableS {
 		  const bool nullable,
 		  const KeyType key);
 
-#ifndef restore_old_types
 public:
   class NdbDictionary::Table* m_dictTable;
-#endif
-public:
   TableS (const char * name){
     snprintf(tableName, sizeof(tableName), name);
     m_noOfNullable = m_nullBitmaskSize = 0;
@@ -244,8 +238,7 @@ class RestoreMetaData : public BackupFile {
 
   myVector<TableS *> allTables;
   bool readMetaFileHeader();
-  bool readMetaTableDesc(const char * catalog, 
-			 const char * schema);
+  bool readMetaTableDesc();
 		
   bool readGCPEntry();
   Uint32 readMetaTableList();
@@ -253,17 +246,14 @@ class RestoreMetaData : public BackupFile {
   Uint32 m_startGCP;
   Uint32 m_stopGCP;
   
-  bool parseTableDescriptor(const Uint32 * data, Uint32 len,
-			    const char * catalog,
-			    const char * schema);
+  bool parseTableDescriptor(const Uint32 * data, Uint32 len);
 
 public:
 
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
   ~RestoreMetaData();
   
-  int loadContent(const char * catalog, 
-		  const char * schema);
+  int loadContent();
 		  
 		
   
