@@ -426,6 +426,11 @@ Item *create_func_ucase(Item* a)
   return new Item_func_ucase(a);
 }
 
+Item *create_func_unhex(Item* a)
+{
+  return new Item_func_unhex(a);
+}
+
 Item *create_func_uuid(void)
 {
   return new Item_func_uuid();
@@ -460,6 +465,7 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len,
 {
   Item *res;
   LINT_INIT(res);
+
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;

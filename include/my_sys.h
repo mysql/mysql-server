@@ -714,6 +714,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
+#define clear_alloc_root(A) bzero((void *) (A), sizeof(MEM_ROOT))
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
@@ -739,6 +740,7 @@ extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
+ulonglong my_getsystime(void);
 my_bool my_gethwaddr(uchar *to);
 
 /* character sets */

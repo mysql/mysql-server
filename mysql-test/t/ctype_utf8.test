@@ -105,3 +105,22 @@ drop table t1;
 #
 --error 1071
 create table t1 (a text character set utf8, primary key(a(360)));
+
+
+#
+# Bug 2959
+# UTF8 charset breaks joins with mixed column/string constant
+#
+CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ( 'test' );
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = 'test' and b.a = 'test';
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a and a.a = 'test';
+DROP TABLE t1;
+
+create table t1 (a char(255) character set utf8);
+insert into t1 values('b'),('b');
+select * from t1 where a = 'b';
+select * from t1 where a = 'b' and a = 'b';
+select * from t1 where a = 'b' and a != 'b';
+drop table t1;
