@@ -18,6 +18,11 @@
 
 #include <File.hpp>
 
+// alt use PATH_MAX
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 1024
+#endif
+
 //
 // PUBLIC
 //
