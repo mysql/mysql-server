@@ -5972,9 +5972,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
               if ((field->result_type() == STRING_RESULT) &&
                   !context->expecting_collation(item->collation.collation))
               {
-                DBUG_PRINT("info", ("Found non-matching collations %s and %s",  
-                                    item->collation.collation->name, 
-                                    context->collation->name));
+                DBUG_PRINT("info", ("Found non-matching collation %s",  
+                                    item->collation.collation->name)); 
                 context->supported= FALSE;                
               }
             }
@@ -6169,9 +6168,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 // Check that string result have correct collation
                 if (!context->expecting_collation(item->collation.collation))
                 {
-                  DBUG_PRINT("info", ("Found non-matching collations %s and %s",  
-                                      item->collation.collation->name,
-                                      context->collation->name));
+                  DBUG_PRINT("info", ("Found non-matching collation %s",  
+                                      item->collation.collation->name));
                   context->supported= FALSE;
                 }
               }
@@ -6291,9 +6289,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             // Check that we are comparing with a field with same collation
             if (!context->expecting_collation(item->collation.collation))
             {
-              DBUG_PRINT("info", ("Found non-matching collations %s and %s",  
-                                  item->collation.collation->name, 
-                                  context->collation->name));
+              DBUG_PRINT("info", ("Found non-matching collation %s",  
+                                  item->collation.collation->name));
               context->supported= FALSE;
             }
           }
