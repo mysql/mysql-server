@@ -226,13 +226,23 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     thd_arg->lex->current_select= lex_select_save;
     {
+      Statement *stmt= thd->current_statement;
+      Statement backup;
+      if (stmt)
+	thd->set_n_backup_item_arena(stmt, &backup);
       Field **field;
       for (field= table->field; *field; field++)
       {
 	Item_field *item= new Item_field(*field);
 	if (!item || item_list.push_back(item))
+	{
+	  if (stmt)
+	    thd->restore_backup_item_arena(stmt, &backup);
 	  DBUG_RETURN(-1);
+	}
       }
+      if (stmt)
+	thd->restore_backup_item_arena(stmt, &backup);
     }
   }
   else
@@ -431,7 +441,7 @@ int st_select_lex_unit::cleanup()
   {
     DBUG_RETURN(0);
   }
-  cleaned= 0;
+  cleaned= 1;
 
   if (union_result)
   {
@@ -465,16 +475,19 @@ void st_select_lex_unit::reinit_exec_mechanism()
 {
   prepared= optimized= executed= 0;
 #ifndef DBUG_OFF
-  List_iterator_fast<Item> it(item_list);
-  Item_field *field;
-  while ((field= (Item_field *)it++))
+  if (first_select()->next_select())
   {
-    /*
-      we can't cleanup here, because it broke link to temporary table field,
-      but have to drop fixed flag to allow next fix_field of this field
-      during re-executing
-    */
-    field->fixed= 0;
+    List_iterator_fast<Item> it(item_list);
+    Item *field;
+    while ((field= it++))
+    {
+      /*
+	we can't cleanup here, because it broke link to temporary table field,
+	but have to drop fixed flag to allow next fix_field of this field
+	during re-executing
+      */
+      field->fixed= 0;
+    }
   }
 #endif
 }
