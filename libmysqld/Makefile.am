@@ -45,7 +45,8 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_uniq.cc key.cc lock.cc log.cc log_event.cc \
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
-	opt_sum.cc procedure.cc records.cc slave.cc sql_acl.cc \
+	opt_sum.cc procedure.cc records.cc sql_acl.cc \
+	repl_failsafe.cc slave.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_insert.cc sql_lex.cc \
 	sql_list.cc sql_manager.cc sql_map.cc sql_parse.cc \

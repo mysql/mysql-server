@@ -3532,11 +3532,17 @@ an application when you delete records from a table that has a foreign key.
 In practice this is as quick (in some cases quicker) and much more portable
 than using foreign keys.
 
+In MySQL 4.0 you can use multi-table delete to delete rows from many
+tables with one command. @xref{DELETE}.
+
 In the near future we will extend the @code{FOREIGN KEY} implementation so
 that at least the information will be saved in the table specification file
 and may be retrieved by @code{mysqldump} and ODBC. At a later stage we will
 implement the foreign key constraints for application that can't easily be
 coded to avoid them.
+
+MySQL 3.23.44 and forwards, InnoDB tables supports checking of foreign
+key constraints. @xref{InnoDB}.
 
 @menu
 * Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
