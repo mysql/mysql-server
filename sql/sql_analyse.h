@@ -99,8 +99,6 @@ int collect_string(String *element, element_count count,
 
 int sortcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b);
-int stringcmp2(void* cmp_arg __attribute__((unused)),
-	     const String *a,const String *b);
 
 class field_str :public field_info
 {
@@ -117,8 +115,7 @@ public:
     max_arg("",default_charset_info), sum(0),
     must_be_blob(0), was_zero_fill(0),
     was_maybe_zerofill(0), can_be_still_num(1)
-    { init_tree(&tree, 0, 0, sizeof(String), a->binary() ?
-		(qsort_cmp2) stringcmp2 : (qsort_cmp2) sortcmp2,
+    { init_tree(&tree, 0, 0, sizeof(String), (qsort_cmp2) sortcmp2,
 		0, (tree_element_free) free_string, NULL); };
 
   void	 add();

@@ -44,12 +44,6 @@ int sortcmp2(void* cmp_arg __attribute__((unused)),
   return sortcmp(a,b,a->charset());
 }
 
-int stringcmp2(void* cmp_arg __attribute__((unused)),
-	     const String *a,const String *b)
-{
-  return sortcmp(a,b,&my_charset_bin);
-}
-
 int compare_double2(void* cmp_arg __attribute__((unused)),
 		    const double *s, const double *t)
 {
