@@ -899,8 +899,8 @@ void
 srv_create_utility_threads(void)
 /*============================*/
 {
-	os_thread_t	thread;
-	os_thread_id_t	thr_id;
+/*      os_thread_t	thread;
+ 	os_thread_id_t	thr_id; */
 	ulint		i;
 
 	mutex_enter(&kernel_mutex);
@@ -911,9 +911,9 @@ srv_create_utility_threads(void)
 	mutex_exit(&kernel_mutex);
 
 	for (i = 0; i < 1; i++) {
-		thread = os_thread_create(srv_recovery_thread, NULL, &thr_id);
+	  /* thread = os_thread_create(srv_recovery_thread, NULL, &thr_id); */
 
-		ut_a(thread);
+	  /* ut_a(thread); */
 	}
 
 /*	thread = os_thread_create(srv_purge_thread, NULL, &thr_id);
@@ -978,15 +978,15 @@ void
 srv_create_com_threads(void)
 /*========================*/
 {
-	os_thread_t	thread;
-	os_thread_id_t	thr_id;
+  /*	os_thread_t	thread;
+	os_thread_id_t	thr_id; */
 	ulint		i;
 
 	srv_n_threads[SRV_COM] = srv_n_com_threads;
 
 	for (i = 0; i < srv_n_com_threads; i++) {
-		thread = os_thread_create(srv_com_thread, NULL, &thr_id);
-		ut_a(thread);
+	  /* thread = os_thread_create(srv_com_thread, NULL, &thr_id); */
+	  /* ut_a(thread); */
 	}
 }
 
@@ -1042,16 +1042,16 @@ void
 srv_create_worker_threads(void)
 /*===========================*/
 {
-	os_thread_t	thread;
-	os_thread_id_t	thr_id;
+/*	os_thread_t	thread;
+	os_thread_id_t	thr_id; */
 	ulint		i;
 
 	srv_n_threads[SRV_WORKER] = srv_n_worker_threads;
 	srv_n_threads_active[SRV_WORKER] = srv_n_worker_threads;
 
 	for (i = 0; i < srv_n_worker_threads; i++) {
-		thread = os_thread_create(srv_worker_thread, NULL, &thr_id);
-		ut_a(thread);
+	  /* thread = os_thread_create(srv_worker_thread, NULL, &thr_id); */
+	  /* ut_a(thread); */
 	}
 }
 
