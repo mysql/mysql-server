@@ -66,6 +66,7 @@ Long data handling:
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sql_select.h" // for JOIN
 #include <assert.h> // for DEBUG_ASSERT()
 #include <m_ctype.h>  // for isspace()
 
@@ -402,7 +403,7 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
     DBUG_RETURN(1);
 
   if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0) || 
-      setup_conds(thd,table_list,&conds))      
+      setup_conds(thd,table_list,&conds) || thd->net.report_error)      
     DBUG_RETURN(1);
 
   /* 
@@ -426,39 +427,41 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
                                                            
   And send column list fields info back to client. 
 */
-
 static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
-				     List<Item> &fields, List<Item> &values,
-				     COND *conds, ORDER *order, ORDER *group,
-				     Item *having)
+                                     List<Item> &fields, COND *conds, 
+                                     ORDER *order, ORDER *group,
+                                     Item *having, ORDER *proc,
+                                     ulong select_options, 
+                                     SELECT_LEX_UNIT *unit,
+                                     SELECT_LEX *select_lex)
 {
-  bool hidden_group_fields;
   THD *thd= stmt->thd;
-  List<Item>  all_fields(fields);
+  LEX *lex= &thd->lex;
+  select_result *result= thd->lex.result;
   DBUG_ENTER("mysql_test_select_fields");
 
+  if ((&lex->select_lex != lex->all_selects_list &&
+       lex->unit.create_total_list(thd, lex, &tables)))
+   DBUG_RETURN(1);
+    
   if (open_and_lock_tables(thd, tables))
     DBUG_RETURN(1);
   
-  thd->used_tables=0;	// Updated by setup_fields
-  if (setup_tables(tables) ||
-      setup_fields(thd,tables,fields,1,&all_fields,1) ||
-      setup_conds(thd,tables,&conds) ||
-      setup_order(thd,tables,fields,all_fields,order) ||
-      setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields))
-    DBUG_RETURN(1);
+  fix_tables_pointers(thd->lex.all_selects_list);
 
-  if (having)
+  if (!result && !(result= new select_send()))
   {
-    thd->where="having clause";
-    thd->allow_sum_func=1;
-    if (having->check_cols(1) || having->fix_fields(thd, tables, &having)
-	|| thd->fatal_error)
-      DBUG_RETURN(1);				
-    if (having->with_sum_func)
-      having->split_sum_func(all_fields);
+    delete select_lex->having;
+    delete select_lex->where;
+    send_error(thd, ER_OUT_OF_RESOURCES);
+    DBUG_RETURN(1);
   }
-  if (setup_ftfuncs(&thd->lex.select_lex)) 
+
+  JOIN *join= new JOIN(thd, fields, select_options, result);
+  thd->used_tables= 0;	// Updated by setup_fields  
+
+  if (join->prepare(tables, conds, order, group, having, proc, 
+                    select_lex, unit, 0))
     DBUG_RETURN(1);
 
   /* 
@@ -466,11 +469,13 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
      sending any info on where clause.
   */
   if (send_prep_stmt(stmt, fields.elements) ||
-      thd->protocol_simple.send_fields(&fields,0) ||
+      thd->protocol_simple.send_fields(&fields, 0) ||
       send_item_params(stmt))
     DBUG_RETURN(1);
+  join->cleanup(thd);
   DBUG_RETURN(0);  
 }
+
 
 /*
   Send the prepare query results back to client              
@@ -514,10 +519,15 @@ static bool send_prepare_results(PREP_STMT *stmt)
     break;
 
   case SQLCOM_SELECT:
-    if (mysql_test_select_fields(stmt, tables, select_lex->item_list,
-				 lex->value_list, select_lex->where,
-				 (ORDER*) select_lex->order_list.first,
-				 (ORDER*) select_lex->group_list.first, select_lex->having))
+    if (mysql_test_select_fields(stmt, tables, 
+                                 select_lex->item_list,
+                                 select_lex->where,
+                                 (ORDER*) select_lex->order_list.first,
+                                 (ORDER*) select_lex->group_list.first, 
+                                 select_lex->having,
+                                 (ORDER*)lex->proc_list.first,
+                                 select_lex->options | thd->options,
+                                 &(lex->unit), select_lex))
       goto abort;
     break;
 
@@ -678,6 +688,10 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
+  if (my_pthread_setspecific_ptr(THR_THD, stmt->thd) ||
+      my_pthread_setspecific_ptr(THR_MALLOC, &stmt->thd->mem_root))
+    DBUG_VOID_RETURN;
+
   init_stmt_execute(stmt);
 
   if (stmt->param_count && setup_params_data(stmt))
@@ -692,13 +706,17 @@ void mysql_stmt_execute(THD *thd, char *packet)
     mysql_delete(), mysql_update() and mysql_select() to not to 
     have re-check on setup_* and other things ..
   */  
-  stmt->thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
-  mysql_execute_command(stmt->thd);
-  stmt->thd->protocol= &thd->protocol_simple;		// Use normal protocol
+  THD *cur_thd= stmt->thd;
+  cur_thd->protocol= &cur_thd->protocol_prep;		// Switch to binary protocol
+  mysql_execute_command(cur_thd);
+  cur_thd->protocol= &cur_thd->protocol_simple;	// Use normal protocol
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
-  
+
+  my_pthread_setspecific_ptr(THR_THD, thd);
+  my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
+
   DBUG_VOID_RETURN;
 }
 
