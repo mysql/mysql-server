@@ -977,7 +977,8 @@ void st_select_lex::init_query()
   join= 0;
   where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
-  insert_select= having_fix_field= 0;
+  having_fix_field= 0;
+  resolve_mode= NOMATTER_MODE;
   cond_count= with_wild= 0;
   ref_pointer_array= 0;
 }
@@ -1006,7 +1007,7 @@ void st_select_lex::init_select()
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
-  select_items= 0;
+  select_n_having_items= 0;
   with_sum_func= 0;
   parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
