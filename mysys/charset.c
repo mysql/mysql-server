@@ -406,12 +406,21 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 }
 
 
-static void init_state_maps(CHARSET_INFO *cs)
+static my_bool init_state_maps(CHARSET_INFO *cs)
 {
   uint i;
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  uchar *state_map;
+  uchar *ident_map;
 
+  if (!(cs->state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+    return 1;
+    
+  if (!(cs->ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+    return 1;
+
+  state_map= cs->state_map;
+  ident_map= cs->ident_map;
+  
   /* Fill state_map with states to get a faster parser */
   for (i=0; i < 256 ; i++)
   {
@@ -458,6 +467,7 @@ static void init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
   state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) MY_LEX_IDENT_OR_BIN;
   state_map[(uchar)'n']= state_map[(uchar)'N']= (uchar) MY_LEX_IDENT_OR_NCHAR;
+  return 0;
 }
 
 
@@ -582,7 +592,8 @@ static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 					     MY_CS_CTYPE_TABLE_SIZE,
 					     MYF(MY_WME))))
       goto err;
-    init_state_maps(to);
+    if (init_state_maps(to))
+      goto err;
   }
   if (from->to_lower)
     if (!(to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
@@ -601,6 +612,8 @@ static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 						  MY_CS_SORT_ORDER_TABLE_SIZE,
 						  MYF(MY_WME))))
       goto err;
+
+    
     set_max_sort_char(to);
   }
   if (from->tab_to_uni)
@@ -1108,7 +1121,8 @@ static my_bool init_available_charsets(myf myflags)
       {
         set_max_sort_char(*cs);
         if (cs[0]->ctype)
-          init_state_maps(*cs);
+          if (init_state_maps(*cs))
+            *cs= NULL;
       }
     }
     
