@@ -542,3 +542,4 @@ hardcopy.0
 scripts/make_sharedlib_distribution
 sql/udf_example.so
 man/*.1
+myisam/myisam_ftdump
