@@ -164,13 +164,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
       for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	   cursor;
 	   cursor=cursor->next)
-      {
-        if (cursor->do_redirect)                        // False if CUBE/ROLLUP
-        {
-	  cursor->do_redirect=false;
-	  cursor->table= ((TABLE_LIST*) cursor->table)->table;
-	}
-      }
+	cursor->table= ((TABLE_LIST*) cursor->table)->table;
     }
   }
 
@@ -226,7 +220,7 @@ int
 JOIN::prepare(TABLE_LIST *tables_init,
 	      COND *conds_init, ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
-	      ORDER *proc_param_init, SELECT_LEX *select_lex,
+	      ORDER *proc_param_init, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("JOIN::prepare");
@@ -237,7 +231,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
   having= having_init;
   proc_param= proc_param_init;
   tables_list= tables_init;
-  select->join= this;
+  select_lex= select;
+  select_lex->join= this;
   union_part= (unit->first_select()->next_select() != 0);
   
   /* Check that all tables, fields, conds and order are ok */
@@ -679,16 +674,16 @@ JOIN::exec()
       result->send_fields(fields_list,1);
       if (!having || having->val_int())
       {
-      if (do_send_rows && result->send_data(fields_list))
-      {
-        result->send_error(0,NullS);          /* purecov: inspected */
-        error=1;
+	if (do_send_rows && result->send_data(fields_list))
+	{
+	  result->send_error(0,NullS);          /* purecov: inspected */
+	  error=1;
+	}
+	else
+	  error=(int) result->send_eof();
       }
       else
-        error=(int) result->send_eof();
-      }
-      else
-      error=(int) result->send_eof();
+	error=(int) result->send_eof();
     }
     delete procedure;
     DBUG_VOID_RETURN;
@@ -696,6 +691,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
+    error=0;
     (void) return_zero_rows(this, result, tables_list, fields_list,
 			    tmp_table_param.sum_func_count != 0 &&
 			    !group_list,
@@ -739,7 +735,7 @@ JOIN::exec()
     thd->proc_info="Creating tmp table";
 
     tmp_table_param.hidden_field_count= (all_fields.elements-
-					 fields.elements);
+					 fields_list.elements);
     if (!(exec_tmp_table =
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
 			   ((!simple_group && !procedure &&
@@ -996,6 +992,8 @@ JOIN::exec()
 int
 JOIN::cleanup(THD *thd)
 {
+  DBUG_ENTER("JOIN::cleanup");
+
   lock=0;                                     // It's faster to unlock later
   join_free(this);
   if (exec_tmp_table)
@@ -1006,6 +1004,7 @@ JOIN::cleanup(THD *thd)
   for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
        unit != 0;
        unit= unit->next_unit())
+  {
     for (SELECT_LEX *sl= unit->first_select();
 	 sl != 0;
 	 sl= sl->next_select())
@@ -1018,7 +1017,8 @@ JOIN::cleanup(THD *thd)
 	sl->join= 0;
       }
     }
-  return error;
+  }
+  DBUG_RETURN(error);
 }
 
 int
@@ -1044,7 +1044,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     goto err;
   }
 
-  if(join->global_optimize())
+  if (join->global_optimize())
     goto err;
 
   join->exec();
@@ -7276,7 +7276,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
 	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name)));
+					    strlen(key_info->name),
+					    system_charset_info));
 	item_list.push_back(new Item_int((int32) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
@@ -7416,5 +7417,5 @@ static void describe_info(JOIN *join, const char *info)
   packet->length(0);
   net_store_data(packet,info);
   if (!my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-    send_eof(&thd->net);
+    send_eof(thd);
 }

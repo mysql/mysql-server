@@ -89,21 +89,21 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+      net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
     pc->max_tree_elements = (uint) (*param->item)->val_int();
     param = param->next;
     if (param->next)  // no third parameter possible
     {
-      net_printf(&thd->net, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
+      net_printf(thd, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+      net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
       DBUG_RETURN(0);
     }
     pc->max_treemem = (uint) (*param->item)->val_int();
@@ -111,7 +111,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
-    net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+    net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
     DBUG_RETURN(0);
   }
   // if only one parameter was given, it will be the value of max_tree_elements
@@ -387,8 +387,7 @@ void field_real::add()
 
   if ((decs = decimals()) == NOT_FIXED_DEC)
   {
-    sprintf(buff, "%g", num);
-    length = (uint) strlen(buff);
+    length= my_sprintf(buff, (buff, "%g", num));
     if (rint(num) != num)
       max_notzero_dec_len = 1;
   }
@@ -397,11 +396,11 @@ void field_real::add()
 #ifdef HAVE_SNPRINTF
     buff[sizeof(buff)-1]=0;			// Safety
     snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
+    length = (uint) strlen(buff);
 #else
-    sprintf(buff, "%-.*f", (int) decs, num);
+    length= my_sprintf(buff, (buff, "%-.*f", (int) decs, num));
 #endif
 
-    length = (uint) strlen(buff);
 
     // We never need to check further than this
     end = buff + length - 1 - decs + max_notzero_dec_len;

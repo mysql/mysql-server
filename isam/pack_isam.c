@@ -687,7 +687,8 @@ static HUFF_COUNTS *init_huff_count(N_INFO *info,my_off_t records)
 	  (type == FIELD_NORMAL ||
 	   type == FIELD_SKIP_ZERO))
 	count[i].max_zero_fill= count[i].field_length;
-      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0,NULL,NULL);
+      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0,
+		NULL, NULL);
       if (records)
 	count[i].tree_pos=count[i].tree_buff =
 	  my_malloc(count[i].field_length > 1 ? tree_buff_length : 2,

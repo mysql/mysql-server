@@ -82,7 +82,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
   if (error)
     DBUG_RETURN(-1);
-  send_ok(&thd->net);
+  send_ok(thd);
   DBUG_RETURN(0);
 }
 
@@ -305,8 +305,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
 
-
-  for(field_no=0; (sql_field=it++) ; field_no++)
+  for (field_no=0; (sql_field=it++) ; field_no++)
   {
     /* Don't pack keys in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
@@ -317,28 +316,35 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
-    for(dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
+
+    /* Check if we have used the same field name before */
+    for (dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
     {
       if (my_strcasecmp(system_charset_info,
                         sql_field->field_name,
                         dup_field->field_name) == 0)
       {
-        if (field_no<select_field_pos || dup_no>=select_field_pos)
+	/*
+	  If this was a CREATE ... SELECT statement, accept a field
+	  redefinition if we are changing a field in the SELECT part
+	*/
+        if (field_no < select_field_pos || dup_no >= select_field_pos)
         {
           my_error(ER_DUP_FIELDNAME,MYF(0),sql_field->field_name);
           DBUG_RETURN(-1);
         }
         else
         {
-            sql_field->length=dup_field->length;
-            sql_field->decimals=dup_field->decimals;
-            sql_field->flags=dup_field->flags;
-            sql_field->pack_length=dup_field->pack_length;
-            sql_field->unireg_check=dup_field->unireg_check;
-            sql_field->sql_type=dup_field->sql_type;
-            it2.remove();
-            select_field_pos--;
-            break;
+	  /* Field redefined */
+	  sql_field->length=		dup_field->length;
+	  sql_field->decimals=		dup_field->decimals;
+	  sql_field->flags=		dup_field->flags;
+	  sql_field->pack_length=	dup_field->pack_length;
+	  sql_field->unireg_check=	dup_field->unireg_check;
+	  sql_field->sql_type=		dup_field->sql_type;
+	  it2.remove();			// Remove first (create) definition
+	  select_field_pos--;
+	  break;
         }
       }
     }
@@ -749,7 +755,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   create_info->create_statement = thd->query;
   create_info->table_options=db_options;
-  if (rea_create_table(path, create_info, fields, key_count,
+  if (rea_create_table(thd, path, create_info, fields, key_count,
 		       key_info_buffer))
   {
     /* my_error(ER_CANT_CREATE_TABLE,MYF(0),table_name,my_errno); */
@@ -825,7 +831,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   TABLE tmp_table;		// Used during 'create_field()'
   TABLE *table;
   tmp_table.table_name=0;
-  uint select_field_count=0;
+  uint select_field_count= items->elements;
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -859,7 +865,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 					   (Field*) 0))))
       DBUG_RETURN(0);
     extra_fields->push_back(cr_field);
-    select_field_count++;
   }
   /* create and lock table */
   /* QQ: This should be done atomic ! */
@@ -1271,7 +1276,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       goto err;
   }
 
-  send_eof(&thd->net);
+  send_eof(thd);
   DBUG_RETURN(0);
  err:
   close_thread_tables(thd);			// Shouldn't be needed
@@ -1476,7 +1481,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
-      send_ok(&thd->net);
+      send_ok(thd);
     }
     DBUG_RETURN(error);
   }
@@ -1994,7 +1999,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),
 	  (ulong) deleted, thd->cuted_fields);
-  send_ok(&thd->net,copied+deleted,0L,tmp_name);
+  send_ok(thd,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(0);
 

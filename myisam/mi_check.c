@@ -1771,7 +1771,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   File new_file;
   MI_SORT_PARAM sort_param;
   MYISAM_SHARE *share=info->s;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   ulong   *rec_per_key_part;
   char llbuff[22];
   SORT_INFO sort_info;
@@ -2136,7 +2136,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   MI_SORT_PARAM *sort_param=0;
   MYISAM_SHARE *share=info->s;
   ulong   *rec_per_key_part;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   char llbuff[22];
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
@@ -3080,7 +3080,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
   {
     sort_info->dupp++;
     sort_info->info->lastpos=get_record_for_key(sort_info->info,
-						sort_parm->keyinfo,
+						sort_param->keyinfo,
 						(uchar*) a);
     mi_check_print_warning(param,
 			   "Duplicate key for record at %10s against record at %10s",

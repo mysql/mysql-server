@@ -311,7 +311,7 @@ static int eval_result = 0;
 void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
 int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
-int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
+my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 
 #define MAX_SERVER_ARGS 20
@@ -1073,7 +1073,7 @@ int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 }
 
 
-int do_sleep(struct st_query* q)
+int do_sleep(struct st_query* q, my_bool real_sleep)
 {
   char *p=q->first_argument;
   struct timeval t;
@@ -2055,6 +2055,36 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   dynstr_append_mem(ds, val, len);
 }
 
+/*
+  Append all results to the dynamic string separated with '\t'
+*/
+
+static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
+{
+  MYSQL_ROW row;
+  int num_fields= mysql_num_fields(res);
+  unsigned long *lengths;
+  while ((row = mysql_fetch_row(res)))
+  {
+    int i;
+    lengths = mysql_fetch_lengths(res);
+    for (i = 0; i < num_fields; i++)
+    {
+      const char *val= row[i];
+      ulonglong len= lengths[i];
+      if (!val)
+      {
+	val = "NULL";
+	len = 4;
+      }
+      if (i)
+	dynstr_append_mem(ds, "\t", 1);
+      replace_dynstr_append_mem(ds, val, len);
+    }
+    dynstr_append_mem(ds, "\n", 1);
+  }
+}
+
 
 /*
 * flags control the phased/stages of query execution to be performed
@@ -2065,12 +2095,7 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res = 0;
-  MYSQL_FIELD* fields;
-  MYSQL_ROW row;
-  int num_fields,i, error = 0;
-  unsigned long* lengths;
-  char* val;
-  int len;
+  int i, error = 0;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
@@ -2178,45 +2203,37 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     goto end;
   }
 
-  if (!res)
-    goto end;
-
-  if (!disable_result_log)
+  if (!disable_result_log && res)
   {
-    fields =  mysql_fetch_fields(res);
-    num_fields =	mysql_num_fields(res);
+    int num_fields= mysql_num_fields(res);
+    MYSQL_FIELD *fields= mysql_fetch_fields(res);
     for (i = 0; i < num_fields; i++)
     {
       if (i)
 	dynstr_append_mem(ds, "\t", 1);
       dynstr_append(ds, fields[i].name);
     }
-
     dynstr_append_mem(ds, "\n", 1);
-
-    while ((row = mysql_fetch_row(res)))
-    {
-      lengths = mysql_fetch_lengths(res);
-      for (i = 0; i < num_fields; i++)
-      {
-	val = (char*)row[i];
-	len = lengths[i];
-
-	if (!val)
-	{
-	  val = (char*)"NULL";
-	  len = 4;
-	}
-
-	if (i)
-	  dynstr_append_mem(ds, "\t", 1);
-	replace_dynstr_append_mem(ds, val, len);
-      }
-      dynstr_append_mem(ds, "\n", 1);
-    }
-    if (glob_replace)
-      free_replace();
+    append_result(ds, res);
   }
+
+  /* Add all warnings to the result */
+  if (!disable_result_log && mysql_warning_count(mysql))
+  {
+    MYSQL_RES *warn_res= mysql_warnings(mysql);
+    if (!warn_res)
+      verbose_msg("Warning count is %d but didn't get any warnings\n",
+		  mysql_warning_count(mysql));
+    else
+    {
+      dynstr_append_mem(ds, "Warnings:\n", 10);
+      append_result(ds, warn_res);
+      mysql_free_result(warn_res);
+    }
+  }
+  if (glob_replace)
+    free_replace();
+
   if (record)
   {
     if (!q->record_file[0] && !result_file)

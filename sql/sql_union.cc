@@ -242,7 +242,7 @@ bool select_union::flush()
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {
     table->file->print_error(error,MYF(0));
-    ::send_error(&thd->net);
+    ::send_error(thd);
     return 1;
   }
   return 0;

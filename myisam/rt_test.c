@@ -32,7 +32,7 @@ static void print_record(char * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
 
 
-int main(int argc,char *argv[])
+int main(int argc __attribute__((unused)),char *argv[])
 {
   MY_INIT(argv[0]);
   exit(run_test("rt_test"));
@@ -63,7 +63,6 @@ int run_test(const char *filename)
   int row_count=0;
   char record[MAX_REC_LENGTH];
   char read_record[MAX_REC_LENGTH];
-  int upd=10;
   ha_rows hrows;
   
   
@@ -343,7 +342,10 @@ static int read_with_pos (MI_INFO * file,int silent)
 }
 
 
-static void bprint_record(char * record, my_off_t offs,const char * tail)
+#ifdef NOT_USED
+static void bprint_record(char * record,
+			  my_off_t offs __attribute__((unused)),
+			  const char * tail)
 {
   int i;
   char * pos;
@@ -356,8 +358,12 @@ static void bprint_record(char * record, my_off_t offs,const char * tail)
   }
   printf("%s",tail);
 }
+#endif
 
-static void print_record(char * record, my_off_t offs,const char * tail)
+
+static void print_record(char * record,
+			 my_off_t offs __attribute__((unused)),
+			 const char * tail)
 {
   int i;
   char * pos;

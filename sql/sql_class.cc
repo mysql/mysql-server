@@ -77,14 +77,15 @@ static void free_var(user_var_entry *entry)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
+THD::THD():user_time(0), fatal_error(0),
+	   last_insert_id_used(0),
 	   insert_id_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0)
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
-    query_start_used=safe_to_cache_query=0;
+    query_start_used=safe_to_cache_query=prepare_command=0;
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
   pthread_mutex_unlock(&LOCK_global_system_variables);
@@ -96,7 +97,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  cuted_fields=sent_row_count=0L;
+  cuted_fields= sent_row_count= current_stmt_id= 0L;
   start_time=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
@@ -142,10 +143,21 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   bzero((char*) &mem_root,sizeof(mem_root));
   bzero((char*) &transaction.mem_root,sizeof(transaction.mem_root));
   bzero((char*) &con_root,sizeof(con_root));
+  bzero((char*) &warn_root,sizeof(warn_root));
+  init_alloc_root(&warn_root, 1024, 0);
+  bzero((char*) warn_count, sizeof(warn_count));
+  warn_list.empty();
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
+
+  /* Prepared statements */
+  last_prepared_stmt= 0;
+  init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
+	    (qsort_cmp2) compare_prep_stmt, 1,
+	    (tree_element_free) free_prep_stmt, 0);
+
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
@@ -222,7 +234,9 @@ THD::~THD()
   safeFree(ip);
   free_root(&mem_root,MYF(0));
   free_root(&con_root,MYF(0));
+  free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
+  delete_tree(&prepared_statements);
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
@@ -272,8 +286,7 @@ void THD::awake(bool prepare_to_die)
 bool THD::store_globals()
 {
   return (my_pthread_setspecific_ptr(THR_THD,  this) ||
-	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
-	  my_pthread_setspecific_ptr(THR_NET,  &net));
+	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root));
 }
 
 
@@ -424,7 +437,7 @@ bool select_send::send_eof()
   {
     mysql_unlock_tables(thd, thd->lock); thd->lock=0;
   }
-  ::send_eof(&thd->net);
+  ::send_eof(thd);
   return 0;
 }
 
@@ -649,7 +662,7 @@ err:
 
 void select_export::send_error(uint errcode,const char *err)
 {
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   file= -1;
@@ -662,9 +675,9 @@ bool select_export::send_eof()
   if (my_close(file,MYF(MY_WME)))
     error=1;
   if (error)
-    ::send_error(&thd->net);
+    ::send_error(thd);
   else
-    ::send_ok(&thd->net,row_count);
+    ::send_ok(thd,row_count);
   file= -1;
   return error;
 }
@@ -761,7 +774,7 @@ err:
 
 void select_dump::send_error(uint errcode,const char *err)
 {
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
   (void) end_io_cache(&cache);
   (void) my_close(file,MYF(0));
   (void) my_delete(path,MYF(0));		// Delete file on error
@@ -774,9 +787,9 @@ bool select_dump::send_eof()
   if (my_close(file,MYF(MY_WME)))
     error=1;
   if (error)
-    ::send_error(&thd->net);
+    ::send_error(thd);
   else
-    ::send_ok(&thd->net,row_count);
+    ::send_ok(thd,row_count);
   file= -1;
   return error;
 }

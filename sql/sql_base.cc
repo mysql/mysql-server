@@ -224,7 +224,7 @@ send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
   char buff[80];
   String tmp((char*) buff,sizeof(buff),default_charset_info);
   String *res,*packet= &thd->packet;
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("send_convert_fields");
 
   while ((item=it++))
   {
@@ -286,10 +286,10 @@ send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  return 0;
+  DBUG_RETURN(0);
 
 err:
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -406,7 +406,8 @@ send_non_convert_fields(THD *thd,List<Item> &list,uint flag)
 bool
 send_fields(THD *thd, List<Item> &list, uint flag)
 {
-  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+  char buff[9];			// Big enough for store_length
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->variables.convert_set;
   DBUG_ENTER("send_fields");
 
   if (thd->fatal_error)		// We have got an error
@@ -414,7 +415,7 @@ send_fields(THD *thd, List<Item> &list, uint flag)
 
   if (flag & 1)
   {				// Packet with number of elements
-    char *pos=net_store_length(buff,(uint) list.elements);
+    char *pos=net_store_length(buff, (uint) list.elements);
     (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
   }
 
@@ -430,11 +431,11 @@ send_fields(THD *thd, List<Item> &list, uint flag)
   else if (send_non_convert_fields(thd, list, flag))
     goto err;
   
-  send_eof(&thd->net);
-  return 0;
+  send_eof(thd);
+  DBUG_RETURN(0);
 
 err:
-  send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
+  send_error(thd,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 

@@ -1,7 +1,21 @@
+/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 #ifndef _spatial_h
 #define _spatial_h
-
-#include "gstream.h"
 
 const uint POINT_DATA_SIZE = 8+8; 
 const uint WKB_HEADER_SIZE = 1+4;
@@ -30,7 +44,8 @@ struct MBR
     ymax=-DBL_MAX;
   }
 
-  MBR(const double &_xmin, const double &_ymin, const double &_xmax, const double &_ymax)
+  MBR(const double &_xmin, const double &_ymin,
+      const double &_xmax, const double &_ymax)
   {
     xmin=_xmin;
     ymin=_ymin;
@@ -52,7 +67,8 @@ struct MBR
   double ymax;
   
   void add_xy(double x, double y)
-  { /* Not using "else" for proper one point MBR calculation */
+  {
+    /* Not using "else" for proper one point MBR calculation */
     if (x<xmin)
     {
       xmin=x;
@@ -72,10 +88,11 @@ struct MBR
   }
 
   void add_xy(const char *px, const char *py)
-  { /* Not using "else" for proper one point MBR calculation */
+  {
     double x, y;
     float8get(x, px);
     float8get(y, py);
+    /* Not using "else" for proper one point MBR calculation */
     if (x<xmin)
     {
       xmin=x;
@@ -116,12 +133,14 @@ struct MBR
 
   int equals(const MBR *mbr)
   {
-    return (mbr->xmin==xmin)&&(mbr->ymin==ymin)&&(mbr->xmax==xmax)&&(mbr->ymax==ymax);
+    return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
+	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
   }
 
   int disjoint(const MBR *mbr)
   {
-    return (mbr->xmin>xmax)||(mbr->ymin>ymax)||(mbr->xmax<xmin)||(mbr->ymax<ymin);
+    return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
+	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
   }
 
   int intersects(const MBR *mbr)
@@ -131,24 +150,24 @@ struct MBR
 
   int touches(const MBR *mbr)
   {
-    return (((mbr->xmin==xmax) || (mbr->xmax==xmin)) && 
-            ((mbr->ymin>=ymin) && (mbr->ymin<=ymax) || 
-                (mbr->ymax>=ymin) && (mbr->ymax<=ymax))) ||
-           (((mbr->ymin==ymax) || (mbr->ymax==ymin)) &&
-            ((mbr->xmin>=xmin) && (mbr->xmin<=xmax) ||
-                  (mbr->xmax>=xmin)&&(mbr->xmax<=xmax)));
+    return ((((mbr->xmin == xmax) || (mbr->xmax == xmin)) && 
+	     ((mbr->ymin >= ymin) && (mbr->ymin <= ymax) || 
+	      (mbr->ymax >= ymin) && (mbr->ymax <= ymax))) ||
+	    (((mbr->ymin == ymax) || (mbr->ymax == ymin)) &&
+	     ((mbr->xmin >= xmin) && (mbr->xmin <= xmax) ||
+	      (mbr->xmax >= xmin) && (mbr->xmax <= xmax))));
   }
 
   int within(const MBR *mbr)
   {
-    return (mbr->xmin<=xmin) && (mbr->ymin<=ymin) &&
-              (mbr->xmax>=xmax) && (mbr->ymax>=ymax);
+    return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
+	    (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
   }
 
   int contains(const MBR *mbr)
   {
-    return (mbr->xmin>=xmin) && (mbr->ymin>=ymin) &&
-                (mbr->xmax<=xmax) && (mbr->ymax<=ymax);
+    return ((mbr->xmin >= xmin) && (mbr->ymin >= ymin) &&
+	    (mbr->xmax <= xmax) && (mbr->ymax <= ymax));
   }
 
   bool inner_point(double x, double y) const
@@ -245,45 +264,46 @@ public:
   size_t get_data_size() const { return (this->*m_vmt->get_data_size)(); }
   
   int init_from_text(GTextReadStream *trs, String *wkb) 
-      { return (this->*m_vmt->init_from_text)(trs, wkb); }
+  { return (this->*m_vmt->init_from_text)(trs, wkb); }
 
   int get_data_as_text(String *txt) const
-    { return (this->*m_vmt->get_data_as_text)(txt); }
+  { return (this->*m_vmt->get_data_as_text)(txt); }
 
   int get_mbr(MBR *mbr) const { return (this->*m_vmt->get_mbr)(mbr); }
   int dimension(uint32 *dim) const
-     { return (this->*m_vmt->dimension)(dim); }
+  { return (this->*m_vmt->dimension)(dim); }
 
   int get_x(double *x) const { return (this->*m_vmt->get_x)(x); }
   int get_y(double *y) const { return (this->*m_vmt->get_y)(y); }
   int length(double *len) const  { return (this->*m_vmt->length)(len); }
   int area(double *ar) const  { return (this->*m_vmt->area)(ar); }
 
-  int is_closed(int *closed) const  { return (this->*m_vmt->is_closed)(closed); }
+  int is_closed(int *closed) const
+  { return (this->*m_vmt->is_closed)(closed); }
 
   int num_interior_ring(uint32 *n_int_rings) const 
-          { return (this->*m_vmt->num_interior_ring)(n_int_rings); }
+  { return (this->*m_vmt->num_interior_ring)(n_int_rings); }
   int num_points(uint32 *n_points) const
-          { return (this->*m_vmt->num_points)(n_points); }
+  { return (this->*m_vmt->num_points)(n_points); }
 
   int num_geometries(uint32 *num) const
-          { return (this->*m_vmt->num_geometries)(num); }
+  { return (this->*m_vmt->num_geometries)(num); }
 
   int start_point(String *point) const
-          { return (this->*m_vmt->start_point)(point); }
+  { return (this->*m_vmt->start_point)(point); }
   int end_point(String *point) const
-          { return (this->*m_vmt->end_point)(point); }
+  { return (this->*m_vmt->end_point)(point); }
   int exterior_ring(String *ring) const
-          { return (this->*m_vmt->exterior_ring)(ring); }
+  { return (this->*m_vmt->exterior_ring)(ring); }
   int centroid(String *point) const
-          { return (this->*m_vmt->centroid)(point); }
+  { return (this->*m_vmt->centroid)(point); }
 
   int point_n(uint32 num, String *result) const
-          { return (this->*m_vmt->point_n)(num, result); }
+  { return (this->*m_vmt->point_n)(num, result); }
   int interior_ring_n(uint32 num, String *result) const
-          { return (this->*m_vmt->interior_ring_n)(num, result); }
+  { return (this->*m_vmt->interior_ring_n)(num, result); }
   int geometry_n(uint32 num, String *result) const
-          { return (this->*m_vmt->geometry_n)(num, result); }
+  { return (this->*m_vmt->geometry_n)(num, result); }
 
 public:
   int create_from_wkb(const char *data, uint32 data_len);
@@ -301,11 +321,11 @@ public:
 
   int as_wkt(String *wkt) const
   {
-    if(wkt->reserve(strlen(get_class_info()->m_name) + 2, 512))
+    if (wkt->reserve(strlen(get_class_info()->m_name) + 2, 512))
       return 1;
     wkt->qs_append(get_class_info()->m_name);
     wkt->qs_append('(');
-    if(get_data_as_text(wkt))
+    if (get_data_as_text(wkt))
       return 1;
     wkt->qs_append(')');
     return 0;
@@ -330,35 +350,37 @@ protected:
 
   bool no_data(const char *cur_data, uint32 data_amount) const
   {
-    return cur_data + data_amount > m_data_end;
+    return (cur_data + data_amount > m_data_end);
   }
 
   const char *m_data;
   const char *m_data_end;
 };
 
+#define SIZEOF_STORED_DOUBLE 8
+
 /***************************** Point *******************************/
  
 class GPoint: public Geometry
 {
 public:
-   size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
-   int get_mbr(MBR *mbr) const;
+  size_t get_data_size() const;
+  int init_from_text(GTextReadStream *trs, String *wkb);
+  int get_data_as_text(String *txt) const;
+  int get_mbr(MBR *mbr) const;
   
   int get_xy(double *x, double *y) const
   {
     const char *data = m_data;
-    if(no_data(data, sizeof(double)) * 2) return 1;
+    if (no_data(data, SIZEOF_STORED_DOUBLE * 2)) return 1;
     float8get(*x, data);
-    float8get(*y, data + sizeof(double));
+    float8get(*y, data + SIZEOF_STORED_DOUBLE);
     return 0;
   }
 
   int get_x(double *x) const
   {
-    if(no_data(m_data, sizeof(double))) return 1;
+    if (no_data(m_data, SIZEOF_STORED_DOUBLE)) return 1;
     float8get(*x, m_data);
     return 0;
   }
@@ -366,8 +388,8 @@ public:
   int get_y(double *y) const
   {
     const char *data = m_data;
-    if(no_data(data, sizeof(double)) * 2) return 1;
-    float8get(*y, data + sizeof(double));
+    if (no_data(data, SIZEOF_STORED_DOUBLE * 2)) return 1;
+    float8get(*y, data + SIZEOF_STORED_DOUBLE);
     return 0;
   }
 
@@ -399,11 +421,11 @@ public:
 class GPolygon: public Geometry
 {
 public:
-   size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
-   int get_mbr(MBR *mbr) const;
-  
+  size_t get_data_size() const;
+  int init_from_text(GTextReadStream *trs, String *wkb);
+  int get_data_as_text(String *txt) const;
+  int get_mbr(MBR *mbr) const;
+
   int area(double *ar) const;
   int exterior_ring(String *result) const;
   int num_interior_ring(uint32 *n_int_rings) const;
@@ -431,11 +453,11 @@ public:
 class GMultiLineString: public Geometry
 {
 public:
-   size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
-   int get_mbr(MBR *mbr) const;
-  
+  size_t get_data_size() const;
+  int init_from_text(GTextReadStream *trs, String *wkb);
+  int get_data_as_text(String *txt) const;
+  int get_mbr(MBR *mbr) const;
+
   int length(double *len) const;
   int is_closed(int *closed) const;
   int dimension(uint32 *dim) const { *dim = 1; return 0; }
@@ -446,10 +468,10 @@ public:
 class GMultiPolygon: public Geometry
 {
 public:
-   size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
-   int get_mbr(MBR *mbr) const;
+  size_t get_data_size() const;
+  int init_from_text(GTextReadStream *trs, String *wkb);
+  int get_data_as_text(String *txt) const;
+  int get_mbr(MBR *mbr) const;
 
   int area(double *ar) const;
   int centroid(String *result) const;
@@ -462,14 +484,13 @@ public:
 class GGeometryCollection: public Geometry
 {
 public:
-   size_t get_data_size() const;
-   int init_from_text(GTextReadStream *trs, String *wkb);
-   int get_data_as_text(String *txt) const;
-   int get_mbr(MBR *mbr) const;
+  size_t get_data_size() const;
+  int init_from_text(GTextReadStream *trs, String *wkb);
+  int get_data_as_text(String *txt) const;
+  int get_mbr(MBR *mbr) const;
 
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
-
   int dimension(uint32 *dim) const;
 };
 

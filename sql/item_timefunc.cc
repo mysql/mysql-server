@@ -477,11 +477,10 @@ void Item_func_curtime::fix_length_and_dec()
   value=(longlong) ((ulong) ((uint) start->tm_hour)*10000L+
 		    (ulong) (((uint) start->tm_min)*100L+
 			     (uint) start->tm_sec));
-  sprintf(buff,"%02d:%02d:%02d",
-	  (int) start->tm_hour,
-	  (int) start->tm_min,
-	  (int) start->tm_sec);
-  buff_length=(uint) strlen(buff);
+  buff_length= my_sprintf(buff, (buff,"%02d:%02d:%02d",
+				 (int) start->tm_hour,
+				 (int) start->tm_min,
+				 (int) start->tm_sec));
 }
 
 void Item_func_now::fix_length_and_dec()
@@ -497,14 +496,13 @@ void Item_func_now::fix_length_and_dec()
 	 (longlong) ((ulong) ((uint) start->tm_hour)*10000L+
 		     (ulong) (((uint) start->tm_min)*100L+
 			    (uint) start->tm_sec)));
-  sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
-	  ((int) (start->tm_year+1900)) % 10000,
-	  (int) start->tm_mon+1,
-	  (int) start->tm_mday,
-	  (int) start->tm_hour,
-	  (int) start->tm_min,
-	  (int) start->tm_sec);
-  buff_length=(uint) strlen(buff);
+  buff_length= (uint) my_sprintf(buff, (buff,"%04d-%02d-%02d %02d:%02d:%02d",
+					((int) (start->tm_year+1900)) % 10000,
+					(int) start->tm_mon+1,
+					(int) start->tm_mday,
+					(int) start->tm_hour,
+					(int) start->tm_min,
+					(int) start->tm_sec));
   /* For getdate */
   ltime.year=	start->tm_year+1900;
   ltime.month=	start->tm_mon+1;
@@ -538,6 +536,7 @@ String *Item_func_sec_to_time::val_str(String *str)
   char buff[23];
   const char *sign="";
   longlong seconds=(longlong) args[0]->val_int();
+  ulong length;
   if ((null_value=args[0]->null_value))
     return (String*) 0;
   if (seconds < 0)
@@ -546,9 +545,9 @@ String *Item_func_sec_to_time::val_str(String *str)
     sign= "-";
   }
   uint sec= (uint) ((ulonglong) seconds % 3600);
-  sprintf(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
-	  sec/60, sec % 60);
-  str->copy(buff,(uint) strlen(buff));
+  length= my_sprintf(buff,(buff,"%s%02lu:%02u:%02u",sign,(long) (seconds/3600),
+			   sec/60, sec % 60));
+  str->copy(buff, length);
   return str;
 }
 
@@ -658,6 +657,7 @@ String *Item_func_date_format::val_str(String *str)
   TIME l_time;
   char intbuff[15];
   uint size,weekday;
+  ulong length;
 
   if (!date_or_time)
   {
@@ -750,40 +750,39 @@ String *Item_func_date_format::val_str(String *str)
 	  null_value=1;
 	  return 0;
 	}
-	sprintf(intbuff,"%d",l_time.day);
-	str->append(intbuff);
+	length= my_sprintf(intbuff, (intbuff,"%d",l_time.day));
+	str->append(intbuff, length);
 	if (l_time.day >= 10 &&  l_time.day <= 19)
 	  str->append("th");
 	else
 	{
-	  switch (l_time.day %10)
-	  {
+	  switch (l_time.day %10) {
 	  case 1:
-	    str->append("st");
+	    str->append("st",2);
 	    break;
 	  case 2:
-	    str->append("nd");
+	    str->append("nd",2);
 	    break;
 	  case 3:
-	    str->append("rd");
+	    str->append("rd",2);
 	    break;
 	  default:
-	    str->append("th");
+	    str->append("th",2);
 	    break;
 	  }
 	}
 	break;
       case 'Y':
 	sprintf(intbuff,"%04d",l_time.year);
-	str->append(intbuff);
+	str->append(intbuff,4);
 	break;
       case 'y':
 	sprintf(intbuff,"%02d",l_time.year%100);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'm':
 	sprintf(intbuff,"%02d",l_time.month);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'c':
 	sprintf(intbuff,"%d",l_time.month);
@@ -791,7 +790,7 @@ String *Item_func_date_format::val_str(String *str)
 	break;
       case 'd':
 	sprintf(intbuff,"%02d",l_time.day);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'e':
 	sprintf(intbuff,"%d",l_time.day);
@@ -799,16 +798,16 @@ String *Item_func_date_format::val_str(String *str)
 	break;
       case 'H':
 	sprintf(intbuff,"%02d",l_time.hour);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'h':
       case 'I':
 	sprintf(intbuff,"%02d", (l_time.hour+11)%12+1);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'i':					/* minutes */
 	sprintf(intbuff,"%02d",l_time.minute);
-	str->append(intbuff);
+	str->append(intbuff,2);
 	break;
       case 'j':
 	if (date_or_time)
@@ -819,7 +818,7 @@ String *Item_func_date_format::val_str(String *str)
 	sprintf(intbuff,"%03d",
 		(int) (calc_daynr(l_time.year,l_time.month,l_time.day) -
 		       calc_daynr(l_time.year,1,1)) + 1);
-	str->append(intbuff);
+	str->append(intbuff,3);
 	break;
       case 'k':
 	sprintf(intbuff,"%d",l_time.hour);
@@ -830,7 +829,7 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(intbuff);
 	break;
       case 'p':
-	str->append(l_time.hour < 12 ? "AM" : "PM");
+	str->append(l_time.hour < 12 ? "AM" : "PM",2);
 	break;
       case 'r':
 	sprintf(intbuff,(l_time.hour < 12) ? "%02d:%02d:%02d AM" :
@@ -844,7 +843,8 @@ String *Item_func_date_format::val_str(String *str)
 	str->append(intbuff);
 	break;
       case 'T':
-	sprintf(intbuff,"%02d:%02d:%02d",l_time.hour,l_time.minute,l_time.second);
+	sprintf(intbuff,"%02d:%02d:%02d", l_time.hour, l_time.minute,
+		l_time.second);
 	str->append(intbuff);
 	break;
       case 'U':
@@ -852,7 +852,7 @@ String *Item_func_date_format::val_str(String *str)
       {
 	uint year;
 	sprintf(intbuff,"%02d",calc_week(&l_time, 0, (*ptr) == 'U', &year));
-	str->append(intbuff);
+	str->append(intbuff,2);
       }
       break;
       case 'v':
@@ -860,7 +860,7 @@ String *Item_func_date_format::val_str(String *str)
       {
 	uint year;
 	sprintf(intbuff,"%02d",calc_week(&l_time, 1, (*ptr) == 'V', &year));
-	str->append(intbuff);
+	str->append(intbuff,2);
       }
       break;
       case 'x':
@@ -869,13 +869,13 @@ String *Item_func_date_format::val_str(String *str)
 	uint year;
 	(void) calc_week(&l_time, 1, (*ptr) == 'X', &year);
 	sprintf(intbuff,"%04d",year);
-	str->append(intbuff);
+	str->append(intbuff,4);
       }
       break;
       case 'w':
 	weekday=calc_weekday(calc_daynr(l_time.year,l_time.month,l_time.day),1);
-	sprintf(intbuff,"%01d",weekday);
-	str->append(intbuff);
+	sprintf(intbuff,"%d",weekday);
+	str->append(intbuff,1);
 	break;
       default:
 	str->append(*ptr);

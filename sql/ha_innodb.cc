@@ -3557,7 +3557,7 @@ innodb_show_status(
 
 	ut_free(buf);
 
-  	send_eof(&thd->net);
+  	send_eof(thd);
 
   	DBUG_RETURN(0);
 }

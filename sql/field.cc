@@ -314,6 +314,7 @@ void Field::store_time(TIME *ltime,timestamp_type type)
     store(buff,(uint) length, default_charset_info);
     break;
   }
+  }
 }
 
 
@@ -476,7 +477,7 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
     from++;
   frac_digits_from= from;
   /* Read digits at the right of '.' */
-  for (;from!=end && my_isdigit(system_charset_info, (*from); from++) ;
+  for (;from!=end && my_isdigit(system_charset_info, *from); from++) ;
   frac_digits_end=from;
   // Some exponentiation symbol ?
   if (from != end && (*from == 'e' || *from == 'E'))
@@ -505,7 +506,8 @@ int Field_decimal::store(const char *from, uint len, CHARSET_INFO *cs)
 
   if (current_thd->count_cuted_fields)
   {
-    for (;from != end && isspace(*from); from++) ;   // Read end spaces
+    // Skip end spaces
+    for (;from != end && my_isspace(system_charset_info, *from); from++) ;
     if (from != end)                     // If still something left, warn
     {
       current_thd->cuted_fields++; 
@@ -736,10 +738,10 @@ int Field_decimal::store(double nr)
 #ifdef HAVE_SNPRINTF_
   buff[sizeof(buff)-1]=0;			// Safety
   snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
-#else
-  sprintf(buff,"%.*f",dec,nr);
-#endif
   length=(uint) strlen(buff);
+#else
+  length=(uint) my_sprintf(buff,(buff,"%.*f",dec,nr));
+#endif
 
   if (length > field_length)
   {
@@ -2207,10 +2209,10 @@ String *Field_float::val_str(String *val_buffer,
 #ifdef HAVE_SNPRINTF
     to[to_length-1]=0;			// Safety
     snprintf(to,to_length-1,"%.*f",dec,nr);
-#else
-    sprintf(to,"%.*f",dec,nr);
-#endif
     to=strend(to);
+#else
+    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+#endif
 #endif
   }
 #ifdef HAVE_FCONVERT
@@ -2468,10 +2470,10 @@ String *Field_double::val_str(String *val_buffer,
 #ifdef HAVE_SNPRINTF
     to[to_length-1]=0;			// Safety
     snprintf(to,to_length-1,"%.*f",dec,nr);
-#else
-    sprintf(to,"%.*f",dec,nr);
-#endif
     to=strend(to);
+#else
+    to+= my_sprintf(to,(to,"%.*f",dec,nr));
+#endif
 #endif
   }
 #ifdef HAVE_FCONVERT
@@ -2886,8 +2888,10 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_timestamp::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"timestamp(%d)",(int) field_length);
-  res.length((uint) strlen(res.ptr()));
+  ulong length= my_sprintf((char*) res.ptr(),
+			   ((char*) res.ptr(),"timestamp(%d)",
+			    (int) field_length));
+  res.length(length);
 }
 
 
@@ -3026,10 +3030,11 @@ String *Field_time::val_str(String *val_buffer,
     tmp= -tmp;
     sign= "-";
   }
-  sprintf((char*) val_buffer->ptr(),"%s%02d:%02d:%02d",
-	  sign,(int) (tmp/10000), (int) (tmp/100 % 100),
-	  (int) (tmp % 100));
-  val_buffer->length((uint) strlen(val_buffer->ptr()));
+  long length= my_sprintf((char*) val_buffer->ptr(),
+			  ((char*) val_buffer->ptr(),"%s%02d:%02d:%02d",
+			   sign,(int) (tmp/10000), (int) (tmp/100 % 100),
+			   (int) (tmp % 100)));
+  val_buffer->length(length);
   return val_buffer;
 }
 
@@ -3158,8 +3163,9 @@ String *Field_year::val_str(String *val_buffer,
 
 void Field_year::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"year(%d)",(int) field_length);
-  res.length((uint) strlen(res.ptr()));
+  ulong length=my_sprintf((char*) res.ptr(),
+			  ((char*) res.ptr(),"year(%d)",(int) field_length));
+  res.length(length);
 }
 
 
@@ -3852,12 +3858,14 @@ void Field_string::sort_string(char *to,uint length)
 
 void Field_string::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"%s(%d)",
-	  field_length > 3 &&
-	  (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
-	  "varchar" : "char",
-	  (int) field_length);
-  res.length((uint) strlen(res.ptr()));
+  ulong length= my_sprintf((char*) res.ptr(),
+			   ((char*) res.ptr(), "%s(%d)",
+			    (field_length > 3 &&
+			     (table->db_options_in_use &
+			      HA_OPTION_PACK_RECORD) ?
+			     "varchar" : "char"),
+			    (int) field_length));
+  res.length((uint) length);
   if (binary_flag)
     res.append(" binary");
   else
@@ -4060,8 +4068,10 @@ void Field_varstring::sort_string(char *to,uint length)
 
 void Field_varstring::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"varchar(%d)",(int) field_length);
-  res.length((uint) strlen(res.ptr()));
+  ulong length= my_sprintf((char*) res.ptr(),
+			   ((char*) res.ptr(),"varchar(%u)",
+			    field_length));
+  res.length((uint) length);
   if (binary_flag)
     res.append(" binary");
   else

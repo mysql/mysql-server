@@ -197,7 +197,7 @@
 "Okänd system variabel '%-.64s'",
 "Tabell '%-.64s' är crashad och bör repareras med REPAIR TABLE",
 "Tabell '%-.64s' är crashad och senast (automatiska?) reparation misslyckades",
-"Warning:  Några icke transaktionella tabeller kunde inte återställas vid ROLLBACK",
+"Några icke transaktionella tabeller kunde inte återställas vid ROLLBACK",
 "Transaktionen krävde mera än 'max_binlog_cache_size' minne. Utöka denna mysqld variabel och försök på nytt",
 "Denna operation kan inte göras under replikering; Gör SLAVE STOP först",
 "Denna operation kan endast göras under replikering; Konfigurera slaven och gör SLAVE START",

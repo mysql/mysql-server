@@ -40,6 +40,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "errmsg.h"
+#include <assert.h>
 
 #if defined( OS2) && defined(MYSQL_SERVER)
 #undef  ER
@@ -124,7 +125,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   if (!host || !strcmp(host,LOCAL_HOST))
     host=LOCAL_HOST_NAMEDPIPE;
 
-  sprintf( szPipeName, "\\\\%s\\pipe\\%s", host, unix_socket);
+  sprintf(szPipeName, "\\\\%s\\pipe\\%s", host, unix_socket);
   DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s",
 		     host, unix_socket));
 
@@ -456,15 +457,14 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
   if (!arg)
     arg="";
 
-  if (net_write_command(net,(uchar) command,arg,
-			length ? length :(uint) strlen(arg)))
+  if (net_write_command(net, (uchar) command, NullS, 0, arg, length))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",
+			socket_errno));
     mc_end_server(mysql);
     if (mc_mysql_reconnect(mysql))
       goto end;
-    if (net_write_command(net,(uchar) command,arg,
-			  length ? length :(uint) strlen(arg)))
+    if (net_write_command(net,(uchar) command, NullS, 0, arg, length))
     {
       net->last_errno=CR_SERVER_GONE_ERROR;
       strmov(net->last_error,ER(net->last_errno));
@@ -1027,17 +1027,18 @@ get_info:
   DBUG_RETURN(0);
 }
 
-int  mc_mysql_query(MYSQL *mysql, const char *query, uint length)
+
+int mc_mysql_query(MYSQL *mysql, const char *query, uint length)
 {
-  DBUG_ENTER("mysql_real_query");
+  DBUG_ENTER("mc_mysql_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
   DBUG_PRINT("query",("Query = \"%s\"",query));
-  if (!length)
-    length = strlen(query);
+  DBUG_ASSERT(length == strlen(query));
   if (mc_simple_command(mysql,COM_QUERY,query,length,1))
     DBUG_RETURN(-1);
   DBUG_RETURN(mc_mysql_read_query_result(mysql));
 }
+
 
 static int mc_send_file_to_server(MYSQL *mysql, const char *filename)
 {

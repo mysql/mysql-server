@@ -1036,6 +1036,7 @@ public:
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
+  CHARSET_INFO *charset;
   Field *field;				// For alter table
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table

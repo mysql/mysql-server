@@ -2394,8 +2394,6 @@ null:
 General functions for spatial objects
 ********************************************************/
 
-#include "gstream.h"
-
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry geom;
@@ -2715,7 +2713,7 @@ String *Item_func_spatial_collection::val_str(String *str)
     }
   }
 
-  if (str->length() > max_allowed_packet)
+  if (str->length() > current_thd->variables.max_allowed_packet)
     goto ret;
 
   null_value = 0;

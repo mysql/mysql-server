@@ -292,30 +292,42 @@ public:
   i_string_pair():key(0),val(0) { }
   i_string_pair(char* key_arg, char* val_arg) : key(key_arg),val(val_arg) {}
 };
-#define MYSQL_DEFAULT_ERROR_COUNT 500
 
-class mysql_st_error
+
+class MYSQL_ERROR: public Sql_alloc
 {
 public:
+  enum enum_warning_level
+  { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
+
   uint code;
-  char msg[MYSQL_ERRMSG_SIZE+1];
-  char query[NAME_LEN+1]; 
+  enum_warning_level level;
+  char *msg;
   
-  static void *operator new(size_t size)
+  MYSQL_ERROR(uint code_arg, enum_warning_level level_arg,
+	      const char *msg_arg)
+    :code(code_arg), level(level_arg)
   {
-    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
-  }
-  static void operator delete(void* ptr_arg, size_t size)
-  {
-    my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
-  }
-  mysql_st_error(uint ecode, const char *emsg, const char *equery)
-  {
-    code = ecode;
-    strmov(msg, emsg); 
-    strnmov(query, equery ? equery : "", NAME_LEN);    
+    msg=sql_strdup(msg_arg);
   }
 };
+
+
+/* This is a struct as it's allocated in tree_insert */
+
+typedef struct st_prep_stmt
+{
+  THD *thd;
+  Item_param *param;
+  Item *free_list;
+  MEM_ROOT mem_root;
+  ulong stmt_id;
+  uint param_count;
+  uint last_errno;
+  char last_error[MYSQL_ERRMSG_SIZE];
+  bool error_in_prepare, long_data_used;
+} PREP_STMT;
+
 
 class delayed_insert;
 
@@ -332,27 +344,27 @@ struct system_variables
   ulong join_buff_size;
   ulong long_query_time;
   ulong max_allowed_packet;
-  ulong max_heap_table_size;
-  ulong max_sort_length;
-  ulong max_join_size;
-  ulong max_tmp_tables;
   ulong max_error_count;
-  ulong max_warning_count;
+  ulong max_heap_table_size;
+  ulong max_join_size;
+  ulong max_prep_stmt_count;
+  ulong max_sort_length;
+  ulong max_tmp_tables;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
+  ulong net_retry_count;
   ulong net_wait_timeout;
   ulong net_write_timeout;
-  ulong net_retry_count;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
   ulong select_limit;
   ulong sortbuff_size;
+  ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
-  ulong table_type;
 
   my_bool log_warnings;
   my_bool low_priority_updates; 
@@ -372,7 +384,9 @@ public:
   LEX	  lex;				// parse tree descriptor
   MEM_ROOT mem_root;			// 1 command-life memory pool
   MEM_ROOT con_root;                    // connection-life memory
+  MEM_ROOT warn_root;			// For warnings and errors
   HASH    user_vars;			// hash for user variables
+  TREE	  prepared_statements;
   String  packet;			// dynamic buffer for network I/O
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
@@ -408,7 +422,6 @@ public:
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
-  
   /*
     open_tables - list of regular tables in use by this thread
     temporary_tables - list of temp tables in use by this thread
@@ -417,9 +430,10 @@ public:
   */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
   // TODO: document the variables below
-  MYSQL_LOCK *lock;				/* Current locks */
-  MYSQL_LOCK *locked_tables;			/* Tables locked with LOCK */
-  ULL	  *ull;
+  MYSQL_LOCK	*lock;				/* Current locks */
+  MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
+  ULL		*ull;
+  PREP_STMT	*last_prepared_stmt;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif  
@@ -466,8 +480,11 @@ public:
   table_map  used_tables;
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
+  List	     <MYSQL_ERROR> warn_list;  
+  uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
+  uint	     total_warn_count, old_total_warn_count;
   ulong	     query_id, version, options, thread_id, col_access;
-  ulong      param_count,current_param_number;  
+  ulong      current_stmt_id;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count;
@@ -480,16 +497,15 @@ public:
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
-  bool	     no_errors, allow_sum_func, password, fatal_error;
+  bool	     no_errors, allow_sum_func, password;
+  bool	     fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
   bool       prepare_command;  
-  Error<mysql_st_error> err_list;  
-  Error<mysql_st_error> warn_list; 
-  Item_param *current_param;     
+  Item_param *params;			// Pointer to array of params
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -638,7 +654,7 @@ public:
 
 class JOIN;
 
-void send_error(NET *net,uint sql_errno=0, const char *err=0);
+void send_error(THD *thd, uint sql_errno=0, const char *err=0);
 
 class select_result :public Sql_alloc {
 protected:
@@ -657,7 +673,7 @@ public:
   virtual void initialize_tables (JOIN *join=0) {}
   virtual void send_error(uint errcode,const char *err)
   {
-    ::send_error(&thd->net,errcode,err);
+    ::send_error(thd,errcode,err);
   }
   virtual bool send_eof()=0;
   virtual void abort() {}

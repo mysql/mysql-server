@@ -43,7 +43,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     table_list->db=thd->db;
   if ((thd->options & OPTION_SAFE_UPDATES) && !conds)
   {
-    send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+    send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
     DBUG_RETURN(1);
   }
 
@@ -83,7 +83,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
       !limit)
   {
     delete select;
-    send_ok(&thd->net,0L);
+    send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
 
@@ -94,7 +94,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;
-      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
   }
@@ -188,10 +188,10 @@ cleanup:
   }
   delete select;
   if (error >= 0)				// Fatal error
-    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN: 0);
+    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else
   {
-    send_ok(&thd->net,deleted);
+    send_ok(thd,deleted);
     DBUG_PRINT("info",("%d records deleted",deleted));
   }
   DBUG_RETURN(0);
@@ -354,7 +354,7 @@ void multi_delete::send_error(uint errcode,const char *err)
   DBUG_ENTER("multi_delete::send_error");
 
   /* First send error what ever it is ... */
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
 
   /* If nothing deleted return */
   if (!deleted)
@@ -456,7 +456,7 @@ bool multi_delete::send_eof()
   thd->proc_info="end";
   if (error)
   {
-    ::send_error(&thd->net);
+    ::send_error(thd);
     return 1;
   }
 
@@ -483,7 +483,7 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  ::send_ok(&thd->net,deleted);
+  ::send_ok(thd,deleted);
   return 0;
 }
 
@@ -580,7 +580,7 @@ end:
 	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
-      send_ok(&thd->net);		// This should return record count
+      send_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);

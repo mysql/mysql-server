@@ -104,8 +104,8 @@ EXPORTS
 	mysql_rpl_probe
 	mysql_set_master
 	mysql_add_slave
-
-	
+	mysql_warning_count
+	mysql_warnings
 	
 	
 	

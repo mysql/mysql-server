@@ -186,7 +186,7 @@ err:
   my_message(ER_UNKNOWN_ERROR, "Wrong parameters to function register_slave",
 	     MYF(0));
 err2:
-  send_error(&thd->net);
+  send_error(thd);
   return 1;
 }
 
@@ -425,10 +425,10 @@ int show_new_master(THD* thd)
   if (translate_master(thd, lex_mi, errmsg))
   {
     if (errmsg[0])
-      net_printf(&thd->net, ER_ERROR_WHEN_EXECUTING_COMMAND,
+      net_printf(thd, ER_ERROR_WHEN_EXECUTING_COMMAND,
 		 "SHOW NEW MASTER", errmsg);
     else
-      send_error(&thd->net, 0);
+      send_error(thd, 0);
 
     DBUG_RETURN(1);
   }
@@ -444,7 +444,7 @@ int show_new_master(THD* thd)
     net_store_data(packet, (longlong)lex_mi->pos);
     if (my_net_write(&thd->net, packet->ptr(), packet->length()))
       DBUG_RETURN(-1);
-    send_eof(&thd->net);
+    send_eof(thd);
     DBUG_RETURN(0);
   }
 }
@@ -459,7 +459,7 @@ int update_slave_list(MYSQL* mysql)
   int port_ind;
   DBUG_ENTER("update_slave_list");
 
-  if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",0) ||
+  if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",16) ||
       !(res = mc_mysql_store_result(mysql)))
   {
     error = "Query error";
@@ -623,7 +623,7 @@ int show_slave_hosts(THD* thd)
     }
   }
   pthread_mutex_unlock(&LOCK_slave_list);
-  send_eof(net);
+  send_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -709,7 +709,7 @@ int load_master_data(THD* thd)
       (error=terminate_slave_threads(active_mi,restart_thread_mask,
 				     1 /*skip lock*/)))
   {
-    send_error(&thd->net,error);
+    send_error(thd,error);
     unlock_slave_threads(active_mi);
     UNLOCK_ACTIVE_MI;
     return 1;
@@ -717,7 +717,7 @@ int load_master_data(THD* thd)
   
   if (connect_to_master(thd, &mysql, active_mi))
   {
-    net_printf(&thd->net, error= ER_CONNECT_TO_MASTER,
+    net_printf(thd, error= ER_CONNECT_TO_MASTER,
 	       mc_mysql_error(&mysql));
     goto err;
   }
@@ -727,10 +727,10 @@ int load_master_data(THD* thd)
     MYSQL_RES *db_res, **table_res, **table_res_end, **cur_table_res;
     uint num_dbs;
 
-    if (mc_mysql_query(&mysql, "show databases", 0) ||
+    if (mc_mysql_query(&mysql, "SHOW DATABASES", 14) ||
 	!(db_res = mc_mysql_store_result(&mysql)))
     {
-      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+      net_printf(thd, error = ER_QUERY_ON_MASTER,
 		 mc_mysql_error(&mysql));
       goto err;
     }
@@ -744,7 +744,7 @@ int load_master_data(THD* thd)
 
     if (!(table_res = (MYSQL_RES**)thd->alloc(num_dbs * sizeof(MYSQL_RES*))))
     {
-      net_printf(&thd->net, error = ER_OUTOFMEMORY);
+      net_printf(thd, error = ER_OUTOFMEMORY);
       goto err;
     }
 
@@ -754,11 +754,11 @@ int load_master_data(THD* thd)
       we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
       can to minimize the lock time.
     */
-    if (mc_mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK", 0) ||
-	mc_mysql_query(&mysql, "SHOW MASTER STATUS",0) ||
+    if (mc_mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK", 27) ||
+	mc_mysql_query(&mysql, "SHOW MASTER STATUS",18) ||
 	!(master_status_res = mc_mysql_store_result(&mysql)))
     {
-      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+      net_printf(thd, error = ER_QUERY_ON_MASTER,
 		 mc_mysql_error(&mysql));
       goto err;
     }
@@ -798,16 +798,16 @@ int load_master_data(THD* thd)
       if (mysql_rm_db(thd, db, 1,1) ||
 	  mysql_create_db(thd, db, 0, 1))
       {
-	send_error(&thd->net, 0, 0);
+	send_error(thd, 0, 0);
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
       }
 
       if (mc_mysql_select_db(&mysql, db) ||
-	  mc_mysql_query(&mysql, "show tables", 0) ||
+	  mc_mysql_query(&mysql, "SHOW TABLES", 11) ||
 	  !(*cur_table_res = mc_mysql_store_result(&mysql)))
       {
-	net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+	net_printf(thd, error = ER_QUERY_ON_MASTER,
 		   mc_mysql_error(&mysql));
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
@@ -848,9 +848,9 @@ int load_master_data(THD* thd)
       mc_mysql_free_result(master_status_res);
     }
 
-    if (mc_mysql_query(&mysql, "UNLOCK TABLES", 0))
+    if (mc_mysql_query(&mysql, "UNLOCK TABLES", 13))
     {
-      net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
+      net_printf(thd, error = ER_QUERY_ON_MASTER,
 		 mc_mysql_error(&mysql));
       goto err;
     }
@@ -860,7 +860,7 @@ int load_master_data(THD* thd)
 		       0 /* not only reset, but also reinit */,
 		       &errmsg))
   {
-    send_error(&thd->net, 0, "Failed purging old relay logs");
+    send_error(thd, 0, "Failed purging old relay logs");
     unlock_slave_threads(active_mi);
     UNLOCK_ACTIVE_MI;
     return 1;
@@ -888,7 +888,7 @@ err:
 
   mc_mysql_close(&mysql); // safe to call since we always do mc_mysql_init()
   if (!error)
-    send_ok(&thd->net);
+    send_ok(thd);
 
   return error;
 }

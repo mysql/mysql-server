@@ -46,7 +46,7 @@ static bool make_empty_rec(int file, enum db_type table_type,
 			   uint reclength,uint null_fields);
 
 
-int rea_create_table(my_string file_name,
+int rea_create_table(THD *thd, my_string file_name,
 		     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_fields,
 		     uint keys, KEY *key_info)
@@ -67,13 +67,12 @@ int rea_create_table(my_string file_name,
   if (pack_header(forminfo, create_info->db_type,create_fields,info_length,
 		  screens, create_info->table_options, db_file))
   {
-    NET *net=my_pthread_getspecific_ptr(NET*,THR_NET);
     my_free((gptr) screen_buff,MYF(0));
-    if (net->last_errno != ER_TOO_MANY_FIELDS)
+    if (thd->net.last_errno != ER_TOO_MANY_FIELDS)
       DBUG_RETURN(1);
 
     // Try again without UNIREG screens (to get more columns)
-    net->last_error[0]=0;
+    thd->net.last_error[0]=0;
     if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,1)))
       DBUG_RETURN(1);
     if (pack_header(forminfo, create_info->db_type, create_fields,info_length,

@@ -29,8 +29,8 @@ public:
     :Item_real_func(list) {}
   double val() { return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
+
 
 class Item_sum_unique_users :public Item_sum_num
 {

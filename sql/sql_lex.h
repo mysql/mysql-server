@@ -238,7 +238,8 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
   SELECT_LEX - store information of parsed SELECT_LEX statment
 */
 class JOIN;
-class st_select_lex: public st_select_lex_node {
+class st_select_lex: public st_select_lex_node
+{
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
@@ -342,6 +343,7 @@ typedef struct st_lex
   enum enum_var_type option_type;
   uint grant, grant_tot_col, which_columns, union_option;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
+  uint param_count;
   bool drop_primary, drop_if_exists, local_file, olap;
   bool in_comment, ignore_space, verbose, simple_alter;
   bool derived_tables;
