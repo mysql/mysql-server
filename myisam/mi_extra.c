@@ -241,6 +241,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
 	error=my_errno;
       info->lock_type = F_UNLCK;
     }
+    if (share->kfile >= 0)
+      _mi_decrement_open_count(info);
     if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
       error=my_errno;
     {
