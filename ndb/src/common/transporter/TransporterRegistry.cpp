@@ -1189,12 +1189,14 @@ TransporterRegistry::start_clients_thread()
       const NodeId nodeId = t->getRemoteNodeId();
       switch(performStates[nodeId]){
       case CONNECTING:
-	if(!t->isConnected() && !t->isServer) {
+	if(!t->isConnected() && !t->isServer
+	   && theTransporterTypes[nodeId] == tt_TCP_TRANSPORTER) {
 	  if(t->get_r_port() <= 0) {		// Port is dynamic
-	    Uint32 server_port=0;
+	    Uint32 server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
 	    int res;
-	    res=ndb_mgm_get_connection_int_parameter(m_mgm_handle,
+
+	    res= ndb_mgm_get_connection_int_parameter(m_mgm_handle,
 						     t->getRemoteNodeId(),
 						     t->getLocalNodeId(),
 						     CFG_CONNECTION_SERVER_PORT,
@@ -1206,9 +1208,10 @@ TransporterRegistry::start_clients_thread()
 	    if(res>=0)
 	      t->set_r_port(server_port);
 	    else
-	      ndbout_c("Failed to get dynamic port to connect to.");
+	      ndbout_c("Failed to get dynamic port to connect to: %d", res);
 	  }
-	  if(t->get_r_port()>0)
+	  if(theTransporterTypes[nodeId] != tt_TCP_TRANSPORTER
+	     || t->get_r_port() > 0)
 	    t->connect_client();
 	  else
 	    NdbSleep_MilliSleep(400);

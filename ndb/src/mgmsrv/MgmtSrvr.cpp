@@ -2883,6 +2883,12 @@ MgmtSrvr::getConnectionDbParameter(int node1,
   DBUG_RETURN(1);
 }
 
+int MgmtSrvr::set_connect_string(const char *str)
+{
+  return ndb_mgm_set_connectstring(m_config_retriever->get_mgmHandle(),str);
+}
+
+
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
 template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch**, NdbApiSignal**, unsigned);
