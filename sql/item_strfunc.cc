@@ -1748,7 +1748,8 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
   else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
   {
     uint el= fields.elements;
-    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name,item);
+    ref_pointer_array[el]=item;
+    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
     fields.push_front(item);
     ref_pointer_array[el]= item;
     thd->change_item_tree(&item, new_item);
