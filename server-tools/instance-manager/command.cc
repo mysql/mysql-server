@@ -20,16 +20,6 @@
 
 #include "command.h"
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <mysql_com.h>
-#include <mysqld_error.h>
-
-#include "log.h"
-#include "protocol.h"
-#include "instance_map.h"
 
 Command::Command(Command_factory *factory_arg)
   :factory(factory_arg)

@@ -105,9 +105,9 @@ void store_to_string(Buffer *buf, const char *string, uint *position)
   uint string_len;
 
   string_len= strlen(string);
-  buf->check_and_add(*position, 2);
+  buf->reserve(*position, 2);
   currpos= net_store_length(buf->buffer + *position, string_len);
-  buf->put_to_buffer(currpos, string, string_len);
+  buf->append(currpos, string, string_len);
   *position= *position + string_len + (currpos - buf->buffer - *position);
 }
 
@@ -147,7 +147,7 @@ int send_fields(struct st_net *net, LIST *fields)
     store_to_string(&send_buff, (char *) "", &position); /* table name alias */
     store_to_string(&send_buff, field->name, &position); /* column name */
     store_to_string(&send_buff, field->name, &position); /* column name alias */
-    send_buff.check_and_add(position, 12);
+    send_buff.reserve(position, 12);
     send_buff.buffer[position++]= 12;
     int2store(send_buff.buffer + position, 1); /* charsetnr */
     int4store(send_buff.buffer + position + 2, field->length); /* field length */

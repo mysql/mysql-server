@@ -49,8 +49,8 @@ int Instance::start()
          exit(0); /* parent goes bye-bye */
        else
        {
-        execv(options.mysqld_path, options.argv);
-        exit(1);
+         execv(options.mysqld_path, options.argv);
+         exit(1);
        }
     case -1:
       return ER_CANNOT_START_INSTANCE;
