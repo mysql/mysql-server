@@ -238,7 +238,7 @@ Linux notes (all Linux versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::                  IA64 Linux notes
 
 BSD/OS notes
 
@@ -275,7 +275,7 @@ Is there anything special to do when upgrading/downgrading MySQL?
 How standards-compatible is MySQL?
 
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
+* Ansi mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -650,10 +650,10 @@ Some common errors when using MySQL
 
 Solving some common problems with MySQL
 
-* Log Replication::             Database replication with  update log
+* Log Replication::             Database replication with update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Slow query log::              
+* Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
 MySQL client tools and APIs
@@ -6172,7 +6172,7 @@ until you have installed @code{glibc} 2.0.7-19 from source!
 You can check which version of @code{glibc} you have with @code{rpm -q glibc}.
 
 Another reason for the above error is if you try to use more threads
-than your Linux kernel is configured for.  In this case you should rise
+than your Linux kernel is configured for.  In this case you should raise
 the limits in @file{include/linux/tasks.h} and recompile your kernel!
 
 @node Linux-SPARC, Linux-Alpha, Linux-RedHat51, Linux
@@ -8384,8 +8384,8 @@ Log connections and queries to file
 Log all ISAM/MyISAM changes to file (only used when debugging ISAM/MyISAM).
 
 @item --log-slow-queries[=file]
-Log all queries that has taken more than @code{long_query_time} to execute
-to file. @xref{Slow query log}.
+Log all queries that have taken more than @code{long_query_time} seconds to
+execute to file. @xref{Slow query log}.
 
 @item --log-update[=file]
 Log updates to @code{file.#} where @code{#} is a unique number if not given.
@@ -8952,7 +8952,7 @@ information.
 
 @menu
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Ansi mode::                   Runnning @strong{MySQL} in ANSI mode
+* Ansi mode::                   Running @strong{MySQL} in ANSI mode
 * Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
 * Missing functions::           Functionality missing from @strong{MySQL}
 * Standards::                   What standards does @strong{MySQL} follow?
@@ -9202,7 +9202,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @end itemize
 
 @node Ansi mode, Differences from ANSI, Extensions to ANSI, Compatibility
-@section Runnning MySQL in ANSI mode
+@section Running MySQL in ANSI mode
 
 If you start mysqld with the @code{--ansi} option, the following behaviour
 of @strong{MySQL} changes.
@@ -11954,8 +11954,8 @@ with @code{`} (@code{"} will also work to quote identifiers if you run
 in ANSI mode).
 
 @multitable @columnfractions .15 .7 .78
-@item @strong{Identifier} @tab @strong{max length} @tab @strong{Allowed characters}
-@item Database @tab 64 @tab Any character that is allowed in a directory name execpt @code{/}.
+@item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
+@item Database @tab 64 @tab Any character that is allowed in a directory name except @code{/}.
 @item Table @tab 64 @tab Any character that is allowed in file name, except @code{/} or @code{.}
 @item Column @tab 64 @tab All characters
 @item Alias @tab 255 @tab All characters
@@ -18559,7 +18559,7 @@ have..
 @item @code{Open_streams} @tab Number of streams that are open (used mainly for logging)
 @item @code{Opened_tables} @tab Number of tables that have been opened.
 @item @code{Questions} @tab Number of queries sent to the server.
-@item @code{Slow_launch_threads} @tab Number of threads that has taken more than @code{slow_launch_time} to connect.
+@item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}. @xref{Slow query log}.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
@@ -25304,7 +25304,7 @@ our systems.
 
 We are also experimenting with Intel-Linux to be able to get more CPU
 power cheaper. Now that we have the binary portable database format (new
-in 3.32) we will start to use this for some parts of the application.
+in 3.23) we will start to use this for some parts of the application.
 
 Our initial feelings are that Linux will perform much better on low to
 medium load but Solaris will perform better when you start to get a
@@ -25573,9 +25573,6 @@ Debug log. Default is 'd:t:o,/tmp/mysql.trace'
 Database to use;  This is mainly useful in the @code{my.cnf} file.
 @item
 --default-character-set=...    Set the default character set.
-@item
--G, --enable-named-commands 
-Named commands are enabled. Opposite to -g.
 @item -e, --execute=...
 Execute command and quit. (Output like with --batch)
 @item -E, --vertical
@@ -25583,12 +25580,15 @@ Print the output of a query (rows) vertically. Without this option you
 can also force this output by ending your statements with @code{\G}.
 @item -f, --force
 Continue even if we get an SQL error.
-@item
--g, --no-named-commands
+@item -g, --no-named-commands
 Named commands are disabled. Use \* form only, or use named commands
 only in the beginning of a line ending with a semicolon (;) Since
 version 10.9 the client now starts with this option ENABLED by default!
-Disable with '-G'. Long format commands still work from the first line.
+With the -g option, long format commands will still work from the first 
+line, however.
+@item -G, --enable-named-commands
+Named commands are @strong{enabled}.  Long format commands are allowed as
+well as shortened \* commands.
 @item -i, --ignore-space
 Ignore space after function names.
 @item -h, --host=...
@@ -27502,8 +27502,8 @@ The above command does the following:
 @itemize @bullet
 @item
 If standard logging (@code{--log}) or slow query logging
-@code{--log-slow-queries} is used, closes and reopens the log file.
-(@file{mysql.log} and @file{mysql-slow.log} as default).
+(@code{--log-slow-queries}) is used, closes and reopens the log file.
+(@file{mysql.log} and @file{`hostname`-slow.log} as default).
 @item
 If update logging (@code{--log-update}) is used, closes the update log and
 opens a new log file with a higher sequence number.
@@ -29965,7 +29965,7 @@ Drop or rename @code{old_table}
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Slow query log::              
+* Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
 
@@ -30131,9 +30131,9 @@ and the crash.
 
 When started with the @code{--log-slow-queries[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that took
-more than @code{long_query_time} to execute.  data. If no file name is
+more than @code{long_query_time} to execute. If no file name is
 given, it defaults to the name of the host machine suffixed with
-@code{-slow.log}. If file name is given, but it doesn't contain a path
+@code{-slow.log}. If a file name is given, but doesn't contain a path,
 the file is written in the data directory.
 
 The slow query log can be used to find queries that takes a long time to
@@ -30674,7 +30674,7 @@ expects a counted string.  If the string contains binary data (which may
 include null bytes), you must use @code{mysql_real_query()}.
 
 For each non-@code{SELECT} query (e.g., @code{INSERT}, @code{UPDATE},
-@code{DELETE}), you can found out how many rows were affected (changed)
+@code{DELETE}), you can find out how many rows were affected (changed)
 by calling @code{mysql_affected_rows()}.
 
 For @code{SELECT} queries, you retrieve the selected rows as a result set.
@@ -30733,7 +30733,7 @@ was a @code{SELECT} and you can read the rows.  If the result set call
 fails, call @code{mysql_field_count()} to determine whether or not a
 result was actually to be expected.  If @code{mysql_field_count()}
 returns zero, the query returned no data (indicating that it was an
-@code{INSERT}, @code{UPDATE}, @code{DELETE}, etc.), and thus not
+@code{INSERT}, @code{UPDATE}, @code{DELETE}, etc.), and was not
 expected to return rows.  If @code{mysql_field_count()} is non-zero, the
 query should have returned rows, but didn't.  This indicates that the
 query was a @code{SELECT} that failed.  See the description for
@@ -35702,7 +35702,7 @@ though, so 3.23 is not released as a stable version yet.
 @itemize @bullet
 @item
 Added option @code{--core-file} to @code{mysqld} to get a core file on
-Linux if mysqld dies on the SIGSEGV signal
+Linux if mysqld dies on the SIGSEGV signal.
 @item
 @strong{MySQL} client 'mysql' now starts with option --no-named-commands
 (-g) by default. This option can be disabled with --enable-named-commands
@@ -40342,8 +40342,8 @@ old threads.  You can avoid this problem by starting @code{mysqld} with
 @code{-O thread_cache_size= 'max_connections +1'}.  In most cases just
 using @code{-O thread_cache_size= 5'} will help a lot!
 
-If you want to get a core dump on Linux if mysqld dies with a SIGSEGV signal,
-you can start mysqld with the @code{--core-file} option.
+If you want to get a core dump on Linux if @code{mysqld} dies with a 
+SIGSEGV signal, you can start mysqld with the @code{--core-file} option.
 
 If you are using gdb 4.17.x or above on Linux, you should install a
 @file{.gdb} file, with the following information, in your current
@@ -40409,7 +40409,7 @@ mysqld are using indexes properly. @xref{EXPLAIN, , @code{EXPLAIN}}. You
 should also test complicated queries that didn't complete within the
 @code{mysql} command line tool.
 
-You can find the queries that takes a long time to run by starting
+You can find the queries that take a long time to execute by starting
 @code{mysqld} with @code{--log-slow-queries}. @xref{Slow query log}. 
 
 If you find the text @code{mysqld restarted} in the error log file
@@ -40543,7 +40543,7 @@ The currently recognized flag characters are:
 @multitable @columnfractions .1 .9
 @item d	@tab Enable output from DBUG_<N> macros for for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. A empty list of keywords implies output for all macros.
 @item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. I.E.  @code{-#D,20} is delay two seconds.
-@item f	tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
+@item f	@tab Limit debugging and/or tracing, and profiling to the list of named functions.  Note that a null list will disable all functions.	The appropriate "d" or "t" flags must still be given, this flag only limits their actions if they are enabled.
 @item F	@tab Identify the source file name for each line of debug or trace output.
 @item i	@tab Identify the process with the pid or thread id for each line of debug or trace output.
 @item g	@tab Enable profiling.  Create a file called 'dbugmon.out' containing information that can be used to profile the program.  May be followed by a list of keywords that select profiling only for the functions in that list.  A null list implies that all functions are considered.
