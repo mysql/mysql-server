@@ -35540,7 +35540,7 @@ The different table types are:
 
 @multitable @columnfractions .25 .70
 @item @strong{Table type} @tab @strong{Description}
-@item BDB or Berkeley_db @tab Transaction-safe tables with page locking. @xref{BDB}.
+@item BDB or BerkeleyDB @tab Transaction-safe tables with page locking. @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
 @item InnoDB @tab Transaction-safe tables with row locking. @xref{InnoDB}.
@@ -37065,7 +37065,7 @@ only one block needs to be allocated.
 
 @cindex table types, choosing
 @cindex @code{BDB} table type
-@cindex @code{Berkeley_db} table type
+@cindex @code{BerkeleyDB} table type
 @cindex @code{HEAP} table type
 @cindex @code{ISAM} table type
 @cindex @code{InnoDB} table type
@@ -37144,7 +37144,7 @@ of both worlds.
 * ISAM::                        @code{ISAM} tables
 * HEAP::                        @code{HEAP} tables
 * InnoDB::                      @code{InnoDB} tables
-* BDB::                         @code{BDB} or @code{Berkeley_db} tables
+* BDB::                         @code{BDB} or @code{BerkeleyDB} tables
 @end menu
 
 
@@ -39922,7 +39922,7 @@ Finland
 
 
 @node BDB,  , InnoDB, Table types
-@section @code{BDB} or @code{Berkeley_DB} Tables
+@section @code{BDB} or @code{BerkeleyDB} Tables
 
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
