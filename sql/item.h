@@ -19,7 +19,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-struct st_table_list;
+class CONVERT;
 void item_init(void);			/* Init item functions */
 
 class Item {
@@ -60,6 +60,10 @@ public:
   virtual int save_safe_in_field(Field *field)
     { return save_in_field(field); }
   virtual bool send(THD *thd, String *str);
+#ifdef EMBEDDED_LIBRARY
+  virtual bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
+			     char **result, ulong *length);
+#endif
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
   virtual enum Type type() const =0;
@@ -191,6 +195,10 @@ public:
   {
     return result_field->send(thd,str_arg);
   }
+#ifdef EMBEDDED_LIBRARY
+  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
+		     char **result, ulong *length);
+#endif
   void make_field(Send_field *field);
   bool fix_fields(THD *, struct st_table_list *, Item **);
   int  save_in_field(Field *field);
@@ -223,6 +231,10 @@ public:
   enum Item_result result_type () const
   { return STRING_RESULT; }
   bool send(THD *thd, String *str);
+#ifdef EMBEDDED_LIBRARY
+  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
+		     char **result, ulong *length);
+#endif
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -487,6 +499,11 @@ public:
     return (null_value=(*ref)->get_date(ltime,fuzzydate));
   }
   bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
+#ifdef EMBEDDED_LIBRARY
+  bool embedded_send(const CONVERT *convert, CHARSET_INFO *charset, MEM_ROOT *alloc, 
+		     char **result, ulong *length)
+    { return (*ref)->embedded_send(convert, charset, alloc, result, length); }
+#endif
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
   int  save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
