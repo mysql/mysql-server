@@ -1,3 +1,4 @@
+reset master;
 use test;
 drop table if exists t1;
 drop table if exists t2;
@@ -1457,7 +1458,6 @@ show keys from t1;
 show master status;
 show open tables like 'foo';
 show privileges;
-show processlist;
 show slave hosts;
 show slave status;
 show status like 'foo';
@@ -1513,8 +1513,6 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	test	Query	0	query end	call bug4902()
 Server_id	Host	Port	Rpl_recovery_rank	Master_id
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
@@ -1569,8 +1567,6 @@ Shutdown	Server Admin	To shut down the server
 Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
 Update	Tables	To update existing rows
 Usage	Server Admin	No privileges - allow connect only
-Id	User	Host	db	Command	Time	State	Info
-1	root	localhost	test	Query	0	query end	call bug4902()
 Server_id	Host	Port	Rpl_recovery_rank	Master_id
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
 Variable_name	Value
@@ -1578,6 +1574,17 @@ Tables_in_test (foo)	table_type
 Variable_name	Value
 Level	Code	Message
 drop procedure bug4902|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	0	NULL	call bug4902_2()
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	0	NULL	call bug4902_2()
+drop procedure bug4902_2|
 drop table if exists t3|
 create procedure bug4904()
 begin
