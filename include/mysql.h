@@ -15,8 +15,6 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-/* defines for the libmysql library */
-
 #ifndef _mysql_h
 #define _mysql_h
 
@@ -222,6 +220,20 @@ typedef struct st_mysql_res {
   my_bool	eof;			/* Used my mysql_fetch_row */
 } MYSQL_RES;
 
+
+/* Set up and bring down the server; to ensure that applications will
+ * work when linked against either the standard client library or the
+ * embedded server library, these functions should be called. */
+void mysql_server_init(int argc, char **argv, const char **groups);
+void mysql_server_end();
+
+/* Set up and bring down a thread; these function should be called
+ * for each thread in an application which opens at least one MySQL
+ * connection.  All uses of the connection(s) should be between these
+ * function calls. */
+my_bool mysql_thread_init();
+void mysql_thread_end();
+
 /* Functions to get information from the MYSQL and MYSQL_RES structures */
 /* Should definitely be used if one uses shared libraries */
 
@@ -359,14 +371,12 @@ unsigned int	STDCALL mysql_thread_safe(void);
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
-#ifndef USE_OLD_FUNCTIONS
+#ifdef USE_OLD_FUNCTIONS
 MYSQL *		STDCALL mysql_connect(MYSQL *mysql, const char *host,
 				      const char *user, const char *passwd);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 #endif
-
-/* new api functions */
 
 #define HAVE_MYSQL_REAL_CONNECT
 
