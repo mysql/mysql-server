@@ -4,6 +4,7 @@
 TO=dev-public@mysql.com
 FROM=$USER@mysql.com
 INTERNALS=internals@lists.mysql.com
+DOCS=docs@mysql.com
 LIMIT=10000
 
 if [ "$REAL_EMAIL" = "" ]
@@ -17,10 +18,14 @@ BK_STATUS=$BK_STATUS$BK_COMMIT
 
 if [ "$BK_STATUS" = OK ]
 then 
+
+#++
+# dev-public@
+#--
  echo "Commit successful, notifying developers at $TO"
  (
    cat <<EOF
-List-ID: <bk.mysql>
+List-ID: <bk.mysql-4.0>
 From: $FROM
 To: $TO
 Subject: bk commit - 4.0 tree
@@ -29,10 +34,14 @@ EOF
   bk changes -v -r+
   bk cset -r+ -d
  ) | head -n $LIMIT | /usr/sbin/sendmail -t
+
+#++
+# internals@ mail
+#--
  echo "Notifying internals list at $INTERNALS"
  (
    cat <<EOF
-List-ID: <bk.mysql>
+List-ID: <bk.mysql-4.0>
 From: $FROM
 To: $INTERNALS
 Subject: bk commit into 4.0 tree
@@ -47,6 +56,27 @@ EOF
   bk changes -v -r+
   bk cset -r+ -d
  ) | head -n $LIMIT | /usr/sbin/sendmail -t
+
+#++
+# docs@ mail
+#--
+ bk changes -v -r+ | grep -q Docs/manual.texi
+ if [ $? == 0 ]
+ then
+  echo "Notifying docs list at $DOCS"
+  (
+    cat <<EOF
+List-ID: <bk.mysql-4.0>
+From: $FROM
+To: $DOCS
+Subject: bk commit - 4.0 tree (Manual)
+
+EOF
+  bk changes -v -r+
+  bk cset -r+ -d
+ ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ fi
+
 else
  echo "commit failed because '$BK_STATUS', sorry life is hard..." 
 fi
