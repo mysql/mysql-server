@@ -373,7 +373,8 @@ opt_calc_index_goodness(
 		}
 	}
 
-	if (index->type & DICT_CLUSTERED) {
+	/* We have to test for goodness here, as last_op may note be set */
+	if (goodness && index->type & DICT_CLUSTERED) {
 
 		goodness++;
 	}
