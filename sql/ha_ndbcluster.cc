@@ -3025,7 +3025,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
-    m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
+#ifdef HAVE_QUERY_CACHE
+    m_query_cache_type= thd->variables.ndb_query_cache_type;
+#endif
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
       (NdbConnection*)thd->transaction.all.ndb_tid:
@@ -3751,8 +3753,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE)
-{ 
+  m_query_cache_type(0)
+{
   int i;
   
   DBUG_ENTER("ha_ndbcluster");
@@ -4455,10 +4457,17 @@ const char* ha_ndbcluster::index_type(uint key_number)
 }
 uint8 ha_ndbcluster::table_cache_type()
 {
-  if (m_use_local_query_cache)
-    return HA_CACHE_TBL_TRANSACT;
-  else
+  switch (m_query_cache_type)
+  {
+  case 0:
     return HA_CACHE_TBL_NOCACHE;
+  case 1:
+    return HA_CACHE_TBL_ASKTRANSACT;
+  case 2:
+    return HA_CACHE_TBL_TRANSACT;
+  default:
+    return HA_CACHE_TBL_NOCACHE;
+  }
 }
 
 /*
