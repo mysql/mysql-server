@@ -644,7 +644,7 @@ void del_tree(char *dir)
       if (lstat(entry->d_name, &st) == -1)
       {
         /* FIXME error */
-        return;
+        return;  
       }
       if (S_ISDIR(st.st_mode))
 #else
@@ -800,7 +800,15 @@ int removef(const char *format, ...)
 #ifndef STRUCT_DIRENT_HAS_D_TYPE
     struct stat st;
 
-    if (lstat(entry->d_name, &st) == -1 && !fnmatch(p, entry->d_name,0))
+    /* create long name */
+    snprintf(temp, FN_REFLEN, "%s/%s", path, entry->d_name);
+
+    if (lstat(temp, &st) == -1)
+    {
+      return 1;  /* Error couldn't lstat file */
+    }
+
+    if (!S_ISDIR(st.st_mode) && !fnmatch(p, entry->d_name,0))
 #else
     if (!S_ISDIR(entry->d_type) && !fnmatch(p, entry->d_name,0))
 #endif

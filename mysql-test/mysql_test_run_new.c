@@ -1021,14 +1021,6 @@ void run_test(char *test)
     char err_file[FN_REFLEN];
     int err;
     arg_list_t al;
-#ifdef __WIN__
-    /* Clean test database */
-    removef("%s/test/*.*", master_dir);
-    removef("%s/test/*.*", slave_dir);
-    removef("%s/mysqltest/*.*", master_dir);
-    removef("%s/mysqltest/*.*", slave_dir);
-
-#endif
     /* skip slave? */
     flag= skip_slave;
     skip_slave= (strncmp(test, "rpl", 3) != 0);
@@ -1393,7 +1385,11 @@ void setup(char *file __attribute__((unused)))
   snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
 
   /* setup files */
+#ifdef _DEBUG 
+  snprintf(mysqld_file, FN_REFLEN, "%s/mysqld-debug.exe", bin_dir);
+#else
   snprintf(mysqld_file, FN_REFLEN, "%s/mysqld.exe", bin_dir);
+#endif
   snprintf(mysqltest_file, FN_REFLEN, "%s/mysqltest.exe", bin_dir);
   snprintf(mysqladmin_file, FN_REFLEN, "%s/mysqladmin.exe", bin_dir);
 #else
@@ -1494,6 +1490,13 @@ void setup(char *file __attribute__((unused)))
   snprintf(file_path, FN_REFLEN*2,
            "CLIENT_BINDIR=%s", bin_dir);
   _putenv(file_path);
+
+  snprintf(file_path, FN_REFLEN*2,
+             "MYSQL_CLIENT_TEST=%s/tests/mysql_client_test --no-defaults --testcase "
+	     "--user=root --port=%u --silent", 
+	     base_dir, master_port);
+  _putenv(file_path);
+
 #else
   {
     static char env_MYSQL_TEST_DIR[FN_REFLEN*2];
@@ -1506,6 +1509,7 @@ void setup(char *file __attribute__((unused)))
     static char env_MYSQL_FIX_SYSTEM_TABLES[FN_REFLEN*2];
     static char env_NDB_TOOLS_DIR[FN_REFLEN*2];
     static char env_CLIENT_BINDIR[FN_REFLEN*2];
+    static char env_MYSQL_CLIENT_TEST[FN_REFLEN*2];
     
     snprintf(env_MYSQL_TEST_DIR,FN_REFLEN*2,
              "MYSQL_TEST_DIR=%s",mysql_test_dir);
@@ -1552,6 +1556,13 @@ void setup(char *file __attribute__((unused)))
     snprintf(env_CLIENT_BINDIR, FN_REFLEN*2,
              "CLIENT_BINDIR=%s", bin_dir);
     putenv(env_CLIENT_BINDIR);
+
+    snprintf(env_MYSQL_CLIENT_TEST, FN_REFLEN*2,
+             "MYSQL_CLIENT_TEST=%s/tests/mysql_client_test --no-defaults --testcase "
+	     "--user=root --socket=%s --port=%u --silent", 
+	     base_dir, master_socket, master_port);
+    putenv(env_MYSQL_CLIENT_TEST);
+    
   }
   
 #endif
@@ -1592,8 +1603,13 @@ int main(int argc, char **argv)
   char **testes= 0;
   int name_index;
   int index;
+  char var_dir[FN_REFLEN];
   /* setup */
   setup(argv[0]);
+  
+  /* delete all file in var */
+  snprintf(var_dir,FN_REFLEN,"%s/var",mysql_test_dir);
+  del_tree(var_dir);
 
   /*
     The --ignore option is comma saperated list of test cases to skip and
@@ -1633,7 +1649,7 @@ int main(int argc, char **argv)
 
   /* install test databases */
   mysql_install_db();
-
+  
   mlog("Starting Tests...\n");
 
   mlog("\n");
