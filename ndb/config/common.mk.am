@@ -1,0 +1,17 @@
+
+INCLUDES = $(INCLUDES_LOC)
+LDADD = $(top_srcdir)/ndb/src/common/portlib/gcc.cpp $(LDADD_LOC)
+DEFS = @DEFS@ @NDB_DEFS@
+# ndb cannot be compiled with -fno-implicit-templaces
+NDB_CXXFLAGS=-fimplicit-templates
+##use AM_CXXFLAGS for other flags
+
+#noinst_SCRIPTS = ndb_local_bin
+ndb_local_bin: $(PROGRAMS)
+	set -x; \
+	for f in $(PROGRAMS); do \
+	  g=lib/`basename $$f`; \
+	  rm -f $$g; \
+	  @LN_CP_F@ $$f; \
+	done; \
+	touch $@;

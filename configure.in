@@ -1615,15 +1615,19 @@ then
   # Medium debug.
   CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
   CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+  #NDB_DEFS="-DNDB_RELEASE -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+  NDB_DEFS="-DNDB_DEBUG -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
 elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
   CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
   CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  NDB_DEFS="-DNDB_DEBUG -DUSE_EMULATED_JAM -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
 else
   # Optimized version. No debug
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
+  NDB_DEFS="-DNDB_RELEASE -DUSE_EMULATED_JAM -DNDEBUG"
 fi
 
 # Force static compilation to avoid linking problems/get more speed
@@ -2763,15 +2767,6 @@ EOF
       exit 1
     fi
     sql_server_dirs="$sql_server_dirs ndb"
-    echo "CONFIGURING FOR NDB CLUSTER" 
-    case $with_debug in
-    no) flag="-R" ;;
-    *)  flag="-D" ;;
-    esac
-    flag="$flag --VERSION=$VERSION --PACKAGE=$PACKAGE"
-    (cd ndb && ./configure $flag) \
-    || AC_MSG_ERROR([could not configure NDB Cluster])
-    echo "END OF NDB CLUSTER CONFIGURATION"
   fi
   #
   # END of configuration for optional table handlers
@@ -2834,14 +2829,122 @@ case $SYSTEM_TYPE in
     MAKE_BINARY_DISTRIBUTION_OPTIONS=
     ;;
 esac
+
 if test X"$have_ndbcluster" = Xyes
 then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
+
+  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
 fi
+
+  NDB_UTIL_INCLUDES="-I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
+        -I\$(top_srcdir)/ndb/include/util \
+        -I\$(top_srcdir)/ndb/include/portlib \
+        -I\$(top_srcdir)/ndb/include/logger"
+  NDB_KERNEL_INCLUDES="\
+        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
+        -I\$(top_srcdir)/ndb/src/kernel/vm \
+        -I\$(top_srcdir)/ndb/src/kernel/error \
+	-I\$(top_srcdir)/ndb/src/kernel \
+	-I\$(top_srcdir)/ndb/include/kernel \
+	-I\$(top_srcdir)/ndb/include/transporter \
+	-I\$(top_srcdir)/ndb/include/debugger \
+	-I\$(top_srcdir)/ndb/include/mgmcommon \
+        -I\$(top_srcdir)/ndb/include/ndbapi \
+        -I\$(top_srcdir)/ndb/include/util \
+	-I\$(top_srcdir)/ndb/include/portlib \
+	-I\$(top_srcdir)/ndb/include/logger"
+  NDB_NDBAPI_INCLUDES="\
+        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
+	-I\$(top_srcdir)/ndb/include/kernel \
+	-I\$(top_srcdir)/ndb/include/transporter \
+	-I\$(top_srcdir)/ndb/include/debugger \
+	-I\$(top_srcdir)/ndb/include/mgmcommon \
+        -I\$(top_srcdir)/ndb/include/ndbapi \
+        -I\$(top_srcdir)/ndb/include/util \
+	-I\$(top_srcdir)/ndb/include/portlib \
+	-I\$(top_srcdir)/ndb/include/logger"
+  NDB_NDBAPITEST_INCLUDES="\
+        -I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
+        -I\$(top_srcdir)/ndb/include/ndbapi \
+        -I\$(top_srcdir)/ndb/include/util \
+	-I\$(top_srcdir)/ndb/include/portlib \
+	-I\$(top_srcdir)/ndb/test/include \
+	-I\$(top_srcdir)/ndb/include/mgmapi"
+  NDB_NDBAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/ndbapi"
+  NDB_MGMAPICLIENT_INCLUDES="-I\$(top_srcdir)/ndb/include/mgmapi"
+
+  AC_SUBST(NDB_DEFS)
+  AC_SUBST(NDB_UTIL_INCLUDES)
+
+  AC_SUBST(NDB_UTIL_INCLUDES)
+  AC_SUBST(NDB_KERNEL_INCLUDES)
+  AC_SUBST(NDB_NDBAPI_INCLUDES)
+  AC_SUBST(NDB_NDBAPITEST_INCLUDES)
+  AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
+  AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
+
+  #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
+  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
+  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"
+  #NDB_TYPE_KERNEL="include \$(top_srcdir)/ndb/config/type_kernel.mk.am"
+  #NDB_TYPE_UTIL="include \$(top_srcdir)/ndb/config/type_util.mk.am"
+  #AC_SUBST(NDB_TYPE_COMMON)
+  #AC_SUBST(NDB_TYPE_NDBAPI)
+  #AC_SUBST(NDB_TYPE_NDBAPITEST)
+  #AC_SUBST(NDB_TYPE_KERNEL)
+  #AC_SUBST(NDB_TYPE_UTIL)
+
+  define(NDB_MAKEFILES, [ dnl
+   ndb/Makefile ndb/include/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/tools/Makefile dnl
+   ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/src/common/util/Makefile dnl
+   ndb/src/common/logger/Makefile dnl
+   ndb/src/common/transporter/Makefile dnl
+   ndb/src/common/mgmcommon/Makefile dnl
+   ndb/src/common/editline/Makefile dnl
+   ndb/src/kernel/Makefile dnl
+   ndb/src/kernel/error/Makefile dnl
+   ndb/src/kernel/blocks/Makefile dnl
+   ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   ndb/src/kernel/blocks/dbacc/Makefile dnl
+   ndb/src/kernel/blocks/dbdict/Makefile dnl
+   ndb/src/kernel/blocks/dbdih/Makefile dnl
+   ndb/src/kernel/blocks/dblqh/Makefile dnl
+   ndb/src/kernel/blocks/dbtc/Makefile dnl
+   ndb/src/kernel/blocks/dbtup/Makefile dnl
+   ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   ndb/src/kernel/blocks/qmgr/Makefile dnl
+   ndb/src/kernel/blocks/trix/Makefile dnl
+   ndb/src/kernel/blocks/backup/Makefile dnl
+   ndb/src/kernel/blocks/backup/restore/Makefile dnl
+   ndb/src/kernel/blocks/dbutil/Makefile dnl
+   ndb/src/kernel/blocks/suma/Makefile dnl
+   ndb/src/kernel/blocks/grep/Makefile dnl
+   ndb/src/kernel/blocks/dbtux/Makefile dnl
+   ndb/src/kernel/vm/Makefile dnl
+   ndb/src/kernel/ndb-main/Makefile dnl
+   ndb/src/mgmapi/Makefile dnl
+   ndb/src/ndbapi/Makefile dnl
+   ndb/src/mgmsrv/Makefile dnl
+   ndb/src/mgmclient/Makefile dnl
+   ndb/src/cw/Makefile dnl
+   ndb/src/cw/cpcd/Makefile dnl
+   ndb/test/Makefile dnl
+   ndb/test/src/Makefile dnl
+   ndb/test/ndbapi/Makefile dnl
+   ndb/test/ndbapi/bank/Makefile dnl
+   ndb/test/tools/Makefile dnl
+   ndb/test/run-test/Makefile dnl
+   ])
+
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
+ NDB_MAKEFILES dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
  bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
