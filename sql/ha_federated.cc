@@ -586,6 +586,103 @@ uint ha_federated::convert_row_to_internal_format(byte *record, MYSQL_ROW row)
   DBUG_RETURN(0);
 }
 
+bool ha_federated::create_where_from_key(
+  String *to,
+  KEY *key_info,
+  const byte *key, 
+  uint key_length
+  )
+{
+  uint second_loop= 0;
+  KEY_PART_INFO *key_part;
+
+  DBUG_ENTER("ha_federated::create_where_from_key");
+  for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
+  {
+    Field *field= key_part->field;
+    uint length= key_part->length;
+
+    if (second_loop++ && to->append(" AND ",5))
+      DBUG_RETURN(1);
+    if (to->append('`') || to->append(field->field_name) ||
+        to->append("` ",2))
+      DBUG_RETURN(1);                                 // Out of memory
+
+    if (key_part->null_bit)
+    {
+      if (*key++)
+      {
+        if (to->append("IS NULL",7))
+          DBUG_RETURN(1);
+        key_length-= key_part->store_length;
+        key+= key_part->store_length-1;
+        continue;
+      }
+      key_length--;
+    }
+    if (to->append('='))
+      DBUG_RETURN(1);
+    if (key_part->type == HA_KEYTYPE_BIT)
+    {
+      /* This is can be threated as a hex string */
+      Field_bit *field= (Field_bit *) (key_part->field);
+      char buff[64+2], *ptr;
+      byte *end= key + length;
+
+      buff[0]='0';
+      buff[1]='x';
+      for (ptr= buff+2 ; key < end ; key++)
+      {
+        uint tmp= (uint) (uchar) *key;
+        *ptr++=_dig_vec_upper[tmp >> 4];
+        *ptr++=_dig_vec_upper[tmp & 15];
+      }
+      if (to->append(buff, (uint) (ptr-buff)))
+        DBUG_RETURN(1);
+      key_length-= length;
+      continue;
+    }
+    if (key_part->key_part_flag & HA_BLOB_PART)
+    {
+      uint blob_length= uint2korr(key);
+      key+= HA_KEY_BLOB_LENGTH;
+      key_length-= HA_KEY_BLOB_LENGTH;
+      if (append_escaped(to, key, blob_length))
+        DBUG_RETURN(1);
+      length= key_part->length;
+    }
+    else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
+    {
+      key_length-= HA_KEY_BLOB_LENGTH;
+      length= key_part->length;
+      key+= HA_KEY_BLOB_LENGTH;
+      if (append_escaped(to, key, length))
+        DBUG_RETURN(1);
+    }
+    else
+    {
+      //bool need_quotes= field->needs_quotes();
+      bool needs_quotes= type_quote(field->type());
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff, sizeof(buff), field->charset()), *res;
+
+      if (needs_quotes && to->append('='))
+        DBUG_RETURN(1);
+      res= field->val_str(&str, (char *)(key));
+      if (field->result_type() == STRING_RESULT)
+      {
+        if (append_escaped(to, res->ptr(), res->length()))
+          DBUG_RETURN(1);
+      }
+      else if (to->append(res->ptr(), res->length()))
+        DBUG_RETURN(1);
+      if (needs_quotes && to->append('='))
+        DBUG_RETURN(1);
+    }
+    key+= length;
+    key_length-= length;
+  }
+}
 /* 
   SYNOPSIS
     quote_data()
@@ -612,13 +709,13 @@ void ha_federated::quote_data(String *unquoted_string, Field *field )
 
   int quote_flag;
   DBUG_ENTER("ha_federated::quote_data");
+  DBUG_PRINT("ha_federated::quote_data",
+    ("unescaped %s", unquoted_string->c_ptr_quick()));
   // this is the same call that mysql_real_escape_string() calls
-  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string, 
+  escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
     unquoted_string->c_ptr_quick(), unquoted_string->length());
 
-  DBUG_PRINT("ha_federated::quote_data",
-    ("escape_string_for_mysql unescaped %s escaped %s",
-     unquoted_string->c_ptr_quick(), escaped_string));
+  DBUG_PRINT("ha_federated::quote_data",("escaped %s",escaped_string));
 
   if (field->is_null())
   {
@@ -629,6 +726,9 @@ void ha_federated::quote_data(String *unquoted_string, Field *field )
   }
 
   quote_flag= type_quote(field->type());
+
+  DBUG_PRINT("ha_federated::quote_data",
+      ("quote flag %d type %d", quote_flag, field->type()));
 
   if (quote_flag == 0)
   {
@@ -1067,9 +1167,10 @@ int ha_federated::write_row(byte * buf)
       // append commas between both fields and fieldnames
       insert_string.append(',');
       values_string.append(',');
-    DBUG_PRINT("ha_federated::write_row", 
-               ("insert_string %s values_string %s insert_field_value_string %s", 
-                insert_string.c_ptr_quick(), values_string.c_ptr_quick(), insert_field_value_string.c_ptr_quick()));
+      DBUG_PRINT("ha_federated::write_row", 
+         ("insert_string %s values_string %s insert_field_value_string %s", 
+         insert_string.c_ptr_quick(), values_string.c_ptr_quick(),
+         insert_field_value_string.c_ptr_quick()));
 
     }
   }
@@ -1365,30 +1466,55 @@ int ha_federated::index_read_idx(byte * buf, uint index, const byte * key,
                                __attribute__((unused)))
 {
   char index_value[IO_SIZE];
+  char key_value[IO_SIZE];
+  char test_value[IO_SIZE];
   String index_string(index_value, sizeof(index_value), &my_charset_bin);
+  String test_string(test_value, sizeof(test_value), &my_charset_bin);
   index_string.length(0);
+  test_string.length(0);
+  uint keylen;
 
   char sql_query_buffer[IO_SIZE];
+  String tmp_string;
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   sql_query.length(0);
 
   DBUG_ENTER("ha_federated::index_read_idx");
   statistic_increment(table->in_use->status_var.ha_read_key_count,&LOCK_status);
 
-  index_string.length(0);
-  sql_query.length(0);
-
   sql_query.append(share->select_query);
   sql_query.append(" WHERE ");
   sql_query.append(table->key_info[index].key_part->field->field_name);
   sql_query.append(" = ");
 
-  table->key_info[index].key_part->field->val_str(&index_string, (char *)(key));
+  if (table->key_info[index].key_part->field->type() == MYSQL_TYPE_VARCHAR) 
+  {
+    //keylen= uint2korr(key);
+    keylen= key[0];
+    create_where_from_key(&tmp_string, &table->key_info[index], key, keylen);
+    memcpy(key_value, key + HA_KEY_BLOB_LENGTH, keylen);
+    key_value[keylen]= 0;
+    DBUG_PRINT("ha_federated::index_read_idx",
+      ("key_value %s len %d", key_value, keylen));
+    index_string.append(key_value);
+  }
+  else
+  {
+    //table->key_info[index].key_part->field->val_str(&index_string, (char
+    //*)(key));
+    index_string.append((char *)(key));
+  }
+  DBUG_PRINT("ha_federated::index_read_idx",
+    ("current key %d key value %s index_string value %s length %d", index, (char *)(key),index_string.c_ptr_quick(),
+     index_string.length()));
+
+  //table->key_info[index].key_part->field->val_str(&index_string);
   quote_data(&index_string, table->key_info[index].key_part->field);
   sql_query.append(index_string);
 
   DBUG_PRINT("ha_federated::index_read_idx",
-             ("sql_query %s", sql_query.c_ptr_quick()));
+    ("current position %d sql_query %s", current_position, 
+     sql_query.c_ptr_quick()));
 
   if (mysql_real_query(mysql, sql_query.c_ptr_quick(), sql_query.length()))
   {
@@ -1539,7 +1665,7 @@ int ha_federated::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,&LOCK_status);
-  memcpy(current_position, pos, sizeof(MYSQL_ROW_OFFSET)); // pos is not aligned
+  memcpy_fixed(&current_position, pos, sizeof(MYSQL_ROW_OFFSET)); // pos is not aligned
   result->current_row= 0;
   result->data_cursor= current_position;
   DBUG_RETURN(rnd_next(buf));

@@ -75,6 +75,7 @@ private:
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
   uint type_quote(int type); 
   void quote_data(String *string1, Field *field);
+  bool ha_federated::create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
