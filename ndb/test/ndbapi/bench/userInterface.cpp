@@ -134,7 +134,6 @@ userDbCommit(UserHandle *uh){
 extern "C" {
 #endif
 extern int useTableLogging;
-extern int useIndexTables;
 #ifdef	__cplusplus
 }
 #endif
@@ -377,7 +376,7 @@ create_table_subscriber(Ndb * pNdb){
       String, 
       MMBased,
       NotNullAttribute,
-      (useIndexTables ? IndexStorageAttribute : NormalStorageAttribute),
+      NormalStorageAttribute,
       0,
       1,
       16);
