@@ -795,7 +795,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   {
     if ((ref= find_item_in_list(this, thd->lex.select->item_list,
 				REPORT_EXCEPT_NOT_FOUND)) ==
-	not_found_item)
+	(Item **)not_found_item)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -812,14 +812,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	   sl= sl->outer_select())
 	if((ref= find_item_in_list(this, (last= sl)->item_list,
 				   REPORT_EXCEPT_NOT_FOUND)) !=
-	   not_found_item)
+	   (Item **)not_found_item)
 	  break;
 
       if (!ref)
       {
 	return 1;
       }
-      else if (ref == not_found_item)
+      else if (ref == (Item **)not_found_item)
       {
 	// Call to report error
 	find_item_in_list(this, thd->lex.select->item_list, REPORT_ALL_ERRORS);
