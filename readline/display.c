@@ -70,7 +70,7 @@ static void insert_some_chars PARAMS((char *, int, int));
 static void cr PARAMS((void));
 
 #if defined (HANDLE_MULTIBYTE)
-static int _rl_col_width PARAMS((char *, int, int));
+static int _rl_col_width PARAMS((const char *, int, int));
 static int *_rl_wrapped_line;
 #else
 #  define _rl_col_width(l, s, e)	(((e) <= (s)) ? 0 : (e) - (s))
@@ -2118,7 +2118,7 @@ _rl_current_display_line ()
    scan from the beginning of the string to take the state into account. */
 static int
 _rl_col_width (str, start, end)
-     char *str;
+     const char *str;
      int start, end;
 {
   wchar_t wc;

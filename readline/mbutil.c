@@ -196,7 +196,7 @@ _rl_find_prev_mbchar_internal (string, seed, find_non_zero)
    if it couldn't parse a complete  multibyte character.  */
 int
 _rl_get_char_len (src, ps)
-     char *src;
+     const char *src;
      mbstate_t *ps;
 {
   size_t tmp;
@@ -251,7 +251,7 @@ _rl_compare_chars (buf1, pos1, ps1, buf2, pos2, ps2)
    it returns -1 */
 int
 _rl_adjust_point(string, point, ps)
-     char *string;
+     const char *string;
      int point;
      mbstate_t *ps;
 {
