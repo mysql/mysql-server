@@ -382,6 +382,7 @@ fi
 %attr(755, root, root) /usr/bin/safe_mysqld
 %attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
+%attr(755, root, root) /usr/bin/mysqldumpslow
 
 %attr(644, root, root) /usr/info/mysql.info*
 
