@@ -1647,11 +1647,11 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  
+
   if (agg_arg_collations(collation, args+1, arg_count-1))
     return;
 
-  for (uint i=1 ; i < arg_count ; i++)
+  for (uint i= 1 ; i < arg_count ; i++)
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
