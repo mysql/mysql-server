@@ -796,3 +796,5 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   
   return 0;
 }
+
+template class Vector<HugoOperations::RsPair>;

@@ -2836,13 +2836,16 @@ com_status(String *buffer __attribute__((unused)),
     MYSQL_RES *result;
     LINT_INIT(result);
     tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
-    if (!mysql_query(&mysql,"select DATABASE(),USER()") &&
+    if (!mysql_query(&mysql,"select DATABASE(), USER() limit 1") &&
 	(result=mysql_use_result(&mysql)))
     {
       MYSQL_ROW cur=mysql_fetch_row(result);
-      tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
-      tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
-      (void) mysql_fetch_row(result);		// Read eof
+      if (cur)
+      {
+        tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
+        tee_fprintf(stdout, "Current user:\t\t%s\n", cur[1]);
+      }
+      mysql_free_result(result);
     }
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio && mysql.net.vio->ssl_arg &&

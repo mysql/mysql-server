@@ -382,3 +382,5 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
 
   m_cpcd.m_processes.unlock();
 }
+
+template class Vector<ParserRow<CPCDAPISession> const*>;

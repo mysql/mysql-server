@@ -176,7 +176,7 @@ public:
   /**
    * Trim string from <i>delim</i>
    */
-  static char* trim(char * src, const char * delim = " \t");
+  static char* trim(char * src, const char * delim);
 private:
   char* m_chr;
   unsigned m_len;

@@ -2835,7 +2835,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
     
     p_type++;
     if(iter.get(param, &val_64) == 0){
-      val_64 = atoll(value);
+      val_64 = strtoll(value, 0, 10);
       break;
     }
     p_type++;
@@ -2883,3 +2883,6 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
   msg.assign("Success");
   return 0;
 }
+
+template class Vector<SigMatch>;
+template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);

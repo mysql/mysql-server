@@ -60,7 +60,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
-                        tztime.h examples/ha_example.h examples/ha_archive.h
+                        tztime.h examples/ha_example.h examples/ha_archive.h \
+			examples/ha_tina.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -91,7 +92,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			tztime.cc my_time.c \
-			examples/ha_example.cc examples/ha_archive.cc
+			examples/ha_example.cc examples/ha_archive.cc \
+			examples/ha_tina.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
@@ -151,8 +153,8 @@ sql_lex.o:	lex_hash.h
 udf_example.so:	udf_example.cc
 		$(CXXCOMPILE) -shared -o $@ $<
 
-#distclean:
-#		rm -f lex_hash.h
+distclean:
+		rm -f lex_hash.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -1414,12 +1414,24 @@ public:
    *
    * @return tuple id or 0 on error
    */
-  Uint64 getAutoIncrementValue(const char* aTableName, Uint32 cacheSize = 1);
-  bool setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase = false);
-  Uint64 getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize = 1000 );
-  Uint64 getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize = 1000 );
-  bool setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase = false);
-  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase = false);
+  Uint64 getAutoIncrementValue(const char* aTableName, 
+			       Uint32 cacheSize = 1);
+  Uint64 getAutoIncrementValue(NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1);
+  Uint64 readAutoIncrementValue(const char* aTableName);
+  Uint64 readAutoIncrementValue(NdbDictionary::Table * aTable);
+  bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
+			     bool increase = false);
+  bool setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, 
+			     bool increase = false);
+  Uint64 getTupleIdFromNdb(const char* aTableName, 
+			   Uint32 cacheSize = 1000);
+  Uint64 getTupleIdFromNdb(Uint32 aTableId, 
+			   Uint32 cacheSize = 1000);
+  Uint64 readTupleIdFromNdb(Uint32 aTableId);
+  bool setTupleIdInNdb(const char* aTableName, Uint64 val, 
+		       bool increase);
+  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase);
   Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
 #endif
 

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <string.h>
+#include <ndb_global.h>
 #include <ctype.h>
 
 #include <uucode.h>
@@ -1271,3 +1271,7 @@ MgmApiSession::setParameter(Parser_t::Context &,
   m_output->println("result: %d", ret);
   m_output->println("");
 }
+
+template class MutexVector<int>;
+template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<unsigned short>;

@@ -1933,6 +1933,12 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+            if (check_table_name($3->table.str,$3->table.length) ||
+                $3->db.str && check_db_name($3->db.str))
+            {
+              net_printf(lex->thd,ER_WRONG_TABLE_NAME,$3->table.str);
+              YYABORT;
+            }
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
@@ -3533,12 +3539,15 @@ interval:
 	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
-	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
+	| YEAR_SYM		{ $$=INTERVAL_YEAR; }
+        ;
 
 date_time_type:
-	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
-	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
+          DATE_SYM              {$$=MYSQL_TIMESTAMP_DATE;}
+        | TIME_SYM              {$$=MYSQL_TIMESTAMP_TIME;}
+        | DATETIME              {$$=MYSQL_TIMESTAMP_DATETIME;}
+        | TIMESTAMP             {$$=MYSQL_TIMESTAMP_DATETIME;}
+        ;
 
 table_alias:
 	/* empty */

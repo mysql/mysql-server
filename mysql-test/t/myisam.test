@@ -502,3 +502,12 @@ alter table t1 disable keys;
 show keys from t1;
 drop table t1,t2;
 
+#
+# index search for NULL in blob. Bug #4816
+#
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
+insert into t1 values (null,''), (null,'');
+explain select count(*) from t1 where a is null;
+select count(*) from t1 where a is null;
+drop table t1;
+

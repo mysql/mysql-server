@@ -59,9 +59,15 @@ concat("-",a,"-",b,"-")
 -hello-hello-
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
+-hello-hello-
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 concat("-",a,"-",b,"-")
+-hello-hello-
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
+select concat("-",a,"-",b,"-") from t1;
+concat("-",a,"-",b,"-")
+-hello-hello-
+-hello2-hello2-
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
 -hello-hello-

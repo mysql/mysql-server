@@ -1,5 +1,9 @@
 %define mysql_version		@VERSION@
-%define release			0
+%ifarch i386
+%define release 0
+%else
+%define release 0.glibc23
+%endif
 %define mysqld_user		mysql
 %define server_suffix -standard
 
@@ -77,9 +81,8 @@ The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
-This package includes the MySQL server binary (statically linked,
-compiled with InnoDB support) as well as related utilities to run
-and administrate a MySQL server.
+This package includes the MySQL server binary (incl. InnoDB) as well
+as related utilities to run and administrate a MySQL server.
 
 If you want to access and work with the database, you have to install
 package "MySQL-client" as well!
@@ -189,9 +192,6 @@ client/server version.
 %setup -n mysql-%{mysql_version}
 
 %build
-# The all-static flag is to make the RPM work on different
-# distributions. This version tries to put shared mysqlclient libraries
-# in a separate package.
 
 BuildMySQL() {
 # The --enable-assembler simply does nothing on systems that does not
@@ -284,7 +284,18 @@ mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
 
 # Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql
+install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+
+# Include libgcc.a in the devel subpackage (BUG 4921)
+if [ "$CC" = gcc ]
+then
+  libgcc=`$CC --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define have_libgcc 1
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+  fi
+fi
 
 # Save libraries
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
@@ -295,15 +306,17 @@ mv Docs/manual.ps Docs/manual.ps.save
 make clean
 mv Docs/manual.ps.save Docs/manual.ps
 
-# RPM:s destroys Makefile.in files, so we generate them here
-# aclocal; autoheader; aclocal; automake; autoconf
-# (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
-
-# Now build the statically linked 4.0 binary (which includes InnoDB)
+#
+# Only link statically on our i386 build host (which has a specially
+# patched static glibc installed) - ia64 and x86_64 run glibc-2.3 (unpatched)
+# so don't link statically there
+#
 BuildMySQL "--disable-shared \
+%ifarch i386
 		--with-mysqld-ldflags='-all-static' \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
+%endif
 		--with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-berkeley-db \
@@ -448,7 +461,7 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING README
+%doc COPYING README 
 %doc Docs/manual.{html,ps,texi,txt}
 %doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
@@ -535,6 +548,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
+%doc EXCEPTIONS-CLIENT
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -543,6 +557,9 @@ fi
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
 %{_libdir}/mysql/libmerge.a
+%if %{have_libgcc}
+%{_libdir}/mysql/libmygcc.a
+%endif
 %{_libdir}/mysql/libmyisam.a
 %{_libdir}/mysql/libmyisammrg.a
 %{_libdir}/mysql/libmysqlclient.a
@@ -579,6 +596,20 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Fri Aug 20 2004 Lenz Grimmer <lenz@mysql.com>
+
+- do not link statically on IA64/AMD64 as these systems do not have
+  a patched glibc installed
+
+* Tue Aug 10 2004 Lenz Grimmer <lenz@mysql.com>
+
+- Added libmygcc.a to the devel subpackage (required to link applications
+  against the the embedded server libmysqld.a) (BUG 4921)
+
+* Mon Aug 09 2004 Lenz Grimmer <lenz@mysql.com>
+
+- Added EXCEPTIONS-CLIENT to the "devel" package
+
 * Thu Jul 29 2004 Lenz Grimmer <lenz@mysql.com>
 
 - disabled OpenSSL in the Max binaries again (the RPM packages were the
