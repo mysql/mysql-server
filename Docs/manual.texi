@@ -148,7 +148,8 @@ version see the relevant distribution.
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 
-@detailmenu --- The Detailed Node Listing ---
+@detailmenu
+ --- The Detailed Node Listing ---
 
 General Information About MySQL
 
@@ -592,7 +593,7 @@ Speed of queries that access or update data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
-* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
+* safe_mysqld::                 
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -947,6 +948,7 @@ Changes in release 3.19.x
 
 MySQL and the future (The TODO)
 
+* TODO MySQL 4.0::              
 * TODO future::                 Things that must done in the very near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
@@ -42925,6 +42927,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 @appendix MySQL and the future (The TODO)
 
 @menu
+* TODO MySQL 4.0::              Things that should be in 4.0
 * TODO future::                 Things that must done in the very near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
@@ -42934,16 +42937,66 @@ Everything in this list is in the order it will be done.  If you want to
 affect the priority order, please register a license or support us and
 tell us what you want to have done more quickly. @xref{Licensing and Support}.
 
-@node TODO future, TODO sometime, TODO, TODO
+@node TODO MySQL 4.0, TODO future, TODO, TODO
+@appendixsec Things that should be in 4.0
+
+We plan to make @strong{MySQL} 4.0 a 'quick' release where we only add
+some new stuff to enable others to help us with developing new features
+into 4.1.  The @strong{MySQL} 4.0 version should only take us about a
+month to make after which we want to stabilize it and start working on
+4.1.  4.0 should have the following new features:
+
+@itemize @bullet
+@item
+New table definition file format (@code{.frm} files) This will enable us
+to not run out of bits when adding more table options.  One will still
+be able to use the old .frm file format with 4.0;  All new created tables
+will however use the new format.
+
+The new file format will enable us to add new column types, more options
+for keys and @code{FOREIGN KEYS}.
+@item
+@code{mysqld} as a library.  This will have the same interface as the
+standard MySQL client (with an extra function to just set up startup
+parameters) but will be faster (no TCP/IP or socket overhead), smaller
+and much easer to use from embedded products.
+
+One will be able to define at link time if one wants to use the
+client/server model or a stand-alone application just by defining which
+library to link with.
+
+The @code{mysqld} will support all standard @strong{MySQL} features and
+one can use it in a threaded client to run different queries in each
+thread.
+@item
+Online backup with very low performance penalty.  The online backup will
+make it easy to add a new replication slave without taking down the
+master.
+@item
+@code{DELETE FROM table_name} will return the number of deleted rows. For
+fast execution one should use @code{TRUNCATE table_name}.
+@item
+Multi table deletes (cascading deletes) and multi table updates.
+@item
+Better replication.
+@item
+More functions for full text search.
+@item
+Character set casts and syntax for handling multiple character sets.
+@item
+Allow users to change startup options without taking down the server.
+@item
+Help for all commands from the client.
+@item
+Secure connections (with SSL).
+@end itemize
+
+@node TODO future, TODO sometime, TODO MySQL 4.0, TODO
 @appendixsec Things that must done in the real near future
 
 @itemize @bullet
 @item
 Fail safe replication.
-@item
-Optimize, test and document transactions safe tables (BDB tables)
-@item
-Allow users to change startup options.
 @item
 Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
 @item

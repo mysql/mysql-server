@@ -238,7 +238,7 @@ public:
   const char *where;
   char* last_nx_table; // last non-existent table, we need this for replication
   char* last_nx_db; // database of the last nx table
-  time_t  start_time,time_after_lock;
+  time_t  start_time,time_after_lock,user_time;
   time_t  connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
@@ -266,7 +266,7 @@ public:
   char	     scramble[9];
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used,user_time;
+  bool	     query_start_used,last_insert_id_used,insert_id_used;
   bool	     volatile killed,bootstrap;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error;
@@ -278,9 +278,9 @@ public:
   ~THD();
   bool store_globals();
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (!user_time) time_after_lock=time(&start_time); }
-  inline void	end_time()    { if(!user_time) time(&start_time); }
-  inline void	set_time(time_t t) { time_after_lock=start_time=t; user_time=1; }
+  inline void	set_time()    { if (user_time) start_time=time_after_lock=user_time; else time_after_lock=time(&start_time); }
+  inline void	end_time()    { time(&start_time); }
+  inline void	set_time(time_t t) { time_after_lock=start_time=user_time=t; }
   inline void	lock_time()   { time(&time_after_lock); }
   inline void	insert_id(ulonglong id)
   { last_insert_id=id; insert_id_used=1; }
