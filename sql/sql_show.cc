@@ -1414,6 +1414,71 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Status functions
 *****************************************************************************/
 
+static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
+{
+  char flags[4];
+  protocol->prepare_for_resend();
+  protocol->store(cs->csname, system_charset_info);
+  protocol->store(cs->name, system_charset_info);
+  protocol->store_short((longlong) cs->number);
+  flags[0]='\0';
+  if (cs->state & MY_CS_PRIMARY)
+    strcat(flags,"def");
+  protocol->store(flags, system_charset_info);
+  protocol->store_short((longlong) cs->strxfrm_multiply);
+  return protocol->write();
+}
+
+int mysqld_show_collations(THD *thd, const char *wild)
+{
+  char buff[8192];
+  String packet2(buff,sizeof(buff),thd->charset());
+  List<Item> field_list;
+  CHARSET_INFO **cs;
+  Protocol *protocol= thd->protocol;
+  char flags[64];
+
+  DBUG_ENTER("mysqld_show_charsets");
+
+  field_list.push_back(new Item_empty_string("Charset",30));
+  field_list.push_back(new Item_empty_string("Collation",30));
+  field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
+  field_list.push_back(new Item_empty_string("Flags",30));
+  field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_SHORT));
+
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(1);
+
+  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
+  {
+    CHARSET_INFO **cl;
+    for ( cl= all_charsets; cl < all_charsets+255 ;cl ++)
+    {
+      if (!cs[0] || !cl[0] || !my_charset_same(cs[0],cl[0]) || !(cs[0]->state & MY_CS_PRIMARY))
+	continue;
+      if (cs[0] && !(wild && wild[0] &&
+	  wild_case_compare(system_charset_info,cl[0]->name,wild)))
+      {
+        if (write_collation(protocol, cl[0]))
+	  goto err;
+      }
+    }
+  }
+  send_eof(thd); 
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
+static bool write_charset(Protocol *protocol, CHARSET_INFO *cs)
+{
+  protocol->prepare_for_resend();
+  protocol->store(cs->csname, system_charset_info);
+  protocol->store(cs->name, system_charset_info);
+  protocol->store_short((longlong) cs->mbmaxlen);
+  return protocol->write();
+}
+
 int mysqld_show_charsets(THD *thd, const char *wild)
 {
   char buff[8192];
@@ -1425,32 +1490,19 @@ int mysqld_show_charsets(THD *thd, const char *wild)
 
   DBUG_ENTER("mysqld_show_charsets");
 
-  field_list.push_back(new Item_empty_string("CS_Name",30));
-  field_list.push_back(new Item_empty_string("COL_Name",30));
-  field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("Flags",30));
-  field_list.push_back(new Item_return_int("strx_maxlen",3, FIELD_TYPE_TINY));
-  field_list.push_back(new Item_return_int("mb_maxlen",3, FIELD_TYPE_TINY));
+  field_list.push_back(new Item_empty_string("Charset",30));
+  field_list.push_back(new Item_empty_string("Default collation",60));
+  field_list.push_back(new Item_return_int("Maxlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
 
-  for (cs=all_charsets ; cs < all_charsets+255 ; cs++ )
+  for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
   {
-    if (cs[0] && !(wild && wild[0] &&
-	  wild_case_compare(system_charset_info,cs[0]->name,wild)))
+    if (cs[0] && (cs[0]->state & MY_CS_PRIMARY) && !(wild && wild[0] &&
+       wild_case_compare(system_charset_info,cs[0]->name,wild)))
     {
-      protocol->prepare_for_resend();
-      protocol->store(cs[0]->csname, system_charset_info);
-      protocol->store(cs[0]->name, system_charset_info);
-      protocol->store_short((longlong) cs[0]->number);
-      flags[0]='\0';
-      if (cs[0]->state & MY_CS_PRIMARY)
-        strcat(flags,"pri");
-      protocol->store(flags, system_charset_info);
-      protocol->store_tiny((longlong) cs[0]->strxfrm_multiply);
-      protocol->store_tiny((longlong) cs[0]->mbmaxlen);
-      if (protocol->write())
+      if (write_charset(protocol, cs[0]))
 	goto err;
     }
   }

@@ -2566,6 +2566,9 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_CHARSETS:
     res= mysqld_show_charsets(thd,(lex->wild ? lex->wild->ptr() : NullS));
     break;
+  case SQLCOM_SHOW_COLLATIONS:
+    res= mysqld_show_collations(thd,(lex->wild ? lex->wild->ptr() : NullS));
+    break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */

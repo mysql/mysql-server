@@ -646,13 +646,13 @@ int main(int argc, char *argv[])
 	  (long) range_records > (long) records*14/10+2)
       {
 	printf("mi_records_range for key: %d returned %ld; Should be about %ld\n",
-	       i, range_records, records);
+	       i, (long) range_records, (long) records);
 	goto end;
       }
       if (verbose && records)
       {
 	printf("mi_records_range returned %ld;  Exact is %ld  (diff: %4.2g %%)\n",
-	       range_records,records,
+	       (long) range_records, (long) records,
 	       labs((long) range_records-(long) records)*100.0/records);
 
       }
@@ -667,7 +667,7 @@ int main(int argc, char *argv[])
   {
     puts("Wrong info from mi_info");
     printf("Got: records: %ld  delete: %ld  i_keys: %d\n",
-	   info.records,info.deleted,info.keys);
+	   (long) info.records, (long) info.deleted,info.keys);
   }
   if (verbose)
   {
@@ -822,8 +822,8 @@ w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	   _my_blocks_used,_my_cache_w_requests, _my_cache_write,
-	   _my_cache_r_requests,_my_cache_read);
+	   my_blocks_used, my_cache_w_requests, my_cache_write,
+	   my_cache_r_requests, my_cache_read);
   }
   end_key_cache();
   if (blob_buffer)
