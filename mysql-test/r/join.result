@@ -7,3 +7,16 @@ id	count(t2.id)
 id	count(t2.id)
 75	1
 107	1
+id	catid	stateid	countyid
+27	2	12	11
+28	2	12	11
+29	2	12	25
+26	1	6	37
+id	catid	stateid	countyid
+26	1	6	37
+27	2	12	11
+28	2	12	11
+29	2	12	25
+a
+1
+2
