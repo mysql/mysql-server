@@ -599,7 +599,7 @@ mysqld_show_logs(THD *thd)
     DBUG_RETURN(1);
 
 #ifdef HAVE_BERKELEY_DB
-  if (berkeley_show_logs(thd))
+  if (!berkeley_skip && berkeley_show_logs(thd))
     DBUG_RETURN(-1);
 #endif
 

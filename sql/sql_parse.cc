@@ -554,7 +554,7 @@ pthread_handler_decl(handle_one_connection,arg)
     free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0)
     {
-      if (!thd->killed && ! opt_warnings)
+      if (!thd->killed && opt_warnings)
       sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
 		      thd->thread_id,(thd->db ? thd->db : "unconnected"),
 		      thd->user ? thd->user : "unauthenticated",
