@@ -159,7 +159,7 @@ if ($opt_stage <= 1)
   {
     $opt_config_options.= " --with-innodb"
   }
-  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$opt_version_suffix\" --enable-thread-safe-client $opt_config_options","Thank you for choosing MySQL");
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
