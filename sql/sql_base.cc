@@ -582,6 +582,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
       if ((!strcmp(table->db, db_name) &&
            !strcmp(table->real_name, table_name)) ||
           (table->view &&
+           table->table->table_cache_key &&    // it is not temporary table
            !my_strcasecmp(table_alias_charset,
                           table->table->table_cache_key, db_name) &&
            !my_strcasecmp(table_alias_charset,
@@ -626,6 +627,9 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
   TABLE_LIST *res;
   const char *d_name= table->db, *t_name= table->real_name;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  /* temporary table is always unique */
+  if (table->table && table->table->tmp_table != NO_TMP_TABLE)
+    return 0;
   if (table->view)
   {
     /* it is view and table opened */
@@ -642,11 +646,6 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
     {
       d_name= table->table->table_cache_key;
       t_name= table->table->table_name;
-    }
-    if (d_name == 0)
-    {
-      /* it's temporary table => always unique */
-      return 0;
     }
   }
 
