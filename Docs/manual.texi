@@ -50641,23 +50641,23 @@ Added file mutexes to make @code{pwrite()} safe on Windows.
 
 @itemize @bullet
 @item
-Added @code{mysqld} variable @code{created_tmp_disk_tables}.
+Added @code{created_tmp_disk_tables} variable to @code{mysqld}.
 @item
 To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, MySQL now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
 Changed sort order for latin1 as it was before MySQL Version 3.23.23.
-Any table with @code{CHAR} columns that may have characters with ASCII
-values greater than 128 that was created or modified with 3.23.22 must
-be repaired!
+Any table that was created or modified with 3.23.22 must be repaired if it has
+@code{CHAR} columns that may contain characters with ASCII values greater than
+128!
 @item
 Fixed small memory leak introduced from 3.23.22 when creating a
 temporary table.
 @item
-Fixed problem with BDB tables and reading on a unique (not primary) key.
+Fixed problem with @code{BDB} tables and reading on a unique (not primary) key.
 @item
-Restored the win1251 character set (it's now only marked deprecated).
+Restored the @code{win1251} character set (it's now only marked deprecated).
 @end itemize
 
 
@@ -50669,7 +50669,7 @@ Restored the win1251 character set (it's now only marked deprecated).
 Changed sort order for 'German';  All tables created with 'German' sortorder
 must be repaired with @code{REPAIR TABLE} or @code{myisamchk} before use!
 @item
-Added option @code{--core-file} to @code{mysqld} to get a core file on
+Added @code{--core-file} option to @code{mysqld} to get a core file on
 Linux if @code{mysqld} dies on the SIGSEGV signal.
 @item
 MySQL client @code{mysql} now starts with option
@@ -50692,7 +50692,7 @@ Fixed non-fatal @code{free()} bug in @code{mysqlimport}.
 Fixed bug in @code{MyISAM} index handling of
 @code{DECIMAL}/@code{NUMERIC} keys.
 @item
-Fixed a bug in concurrent insert in @code{MyISAM} tables; In some contexts,
+Fixed a bug in concurrent insert in @code{MyISAM} tables.  In some contexts,
 usage of @code{MIN(key_part)} or @code{MAX(key_part)} returned an empty set.
 @item
 Updated @code{mysqlhotcopy} to use the new @code{FLUSH TABLES table_list}
@@ -50702,11 +50702,11 @@ Changed behavior of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded
 (@code{-lmysqlclient_r}) libraries are built.  Users who linked
 against a threaded @code{-lmysqlclient} will need to link against
-@code{libmysqlclient_r} now.
+@code{-lmysqlclient_r} now.
 @item
 Added atomic @code{RENAME TABLE} command.
 @item
-Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ...)}.
+Don't count @code{NULL} values in @code{COUNT(DISTINCT ...)}.
 @item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
 @code{INSERT ... SELECT ...} on empty tables to create non-unique indexes
@@ -50727,19 +50727,20 @@ Fixed a lock in our thr_rwlock code, which could make selects that run
 at the same time as concurrent inserts crash. This only affects systems
 that don't have the @code{pthread_rwlock_rdlock} code.
 @item
-When deleting rows with a non-unique key in a HEAP table, all rows weren't
-always deleted.
+When deleting rows with a non-unique key in a @code{HEAP} table, all rows
+weren't always deleted.
 @item
-Fixed bug in range optimiser for HEAP tables for searches on a part index.
+Fixed bug in range optimiser for @code{HEAP} tables for searches on a part
+index.
 @item
-Fixed that @code{SELECT} on part keys works with BDB tables.
+Fixed @code{SELECT} on part keys to work with @code{BDB} tables.
 @item
-Fixed @code{INSERT INTO bdb_table ... SELECT} to work with BDB tables.
+Fixed @code{INSERT INTO bdb_table ... SELECT} to work with @code{BDB} tables.
 @item
 @code{CHECK TABLE} now updates key statistics for the table.
 @item
 @code{ANALYZE TABLE} will now only update tables that have been changed
-since thee last @code{ANALYZE}. Note that this is a new feature and tables
+since the last @code{ANALYZE}. Note that this is a new feature and tables
 will not be marked to be analysed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
 to update the key distribution.
@@ -50747,7 +50748,7 @@ to update the key distribution.
 Fixed some minor privilege problems with @code{CHECK}, @code{ANALYZE},
 @code{REPAIR} and @code{SHOW CREATE} commands.
 @item
-Added @code{CHANGE MASTER TO} command.
+Added @code{CHANGE MASTER TO} statement.
 @item
 Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
 @code{CHECK TABLES}.
@@ -50767,7 +50768,7 @@ More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
 Full-text search via the @code{MATCH()} function and @code{FULLTEXT} index type
-(for MyISAM files).  This makes @code{FULLTEXT} a reserved word.
+(for @code{MyISAM} files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
 
@@ -50783,7 +50784,7 @@ Fixed that @code{MASTER} and @code{COLLECTION} are not reserved words.
 @item
 The log generated by @code{--slow-query-log} didn't contain the whole queries.
 @item
-Fixed that open transactions in BDB tables are rolled back if the
+Fixed that open transactions in @code{BDB} tables are rolled back if the
 connection is closed unexpectedly.
 @item
 Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
@@ -50797,8 +50798,8 @@ Optimised functions that manipulate the hours/minutes/seconds.
 Fixed bug when comparing the result of @code{DATE_ADD()}/@code{DATE_SUB()}
 against a number.
 @item
-Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added option
-@code{-C, --check-only-changed} to @code{myisamchk}.
+Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added
+@code{-C, --check-only-changed} option to @code{myisamchk}.
 @item
 Added @code{ANALYZE table_name} to update key statistics for tables.
 @item
@@ -50820,10 +50821,10 @@ Added @code{SHOW MASTER STATUS} and @code{SHOW SLAVE STATUS}.
 
 @itemize @bullet
 @item
-Added @code{mysql_character_set_name(MYSQL *mysql)} function to the
+Added @code{mysql_character_set_name()} function to the
 MySQL C API.
 @item
-Made the update log @code{ASCII 0} safe.
+Made the update log ASCII 0 safe.
 @item
 Added the @code{mysql_config} script.
 @item
@@ -50832,25 +50833,25 @@ partly indexed.
 @item
 One would get a core dump if the log file was not readable by the MySQL user.
 @item
-Changed @code{mysqladmin} to use the @code{CREATE DATABASE}/@code{DROP
-DATABASE} commands instead of the old deprecated API calls.
+Changed @code{mysqladmin} to use @code{CREATE DATABASE} and @code{DROP
+DATABASE} statements instead of the old deprecated API calls.
 @item
 Fixed @code{chown} warning in @code{safe_mysqld}.
 @item
 Fixed a bug in @code{ORDER BY} that was introduced in 3.23.19.
 @item
 Only optimise the @code{DELETE FROM tbl_name} to do a drop+create of
-the table if we are in @code{AUTOCOMMIT} mode (needed for BDB tables).
+the table if we are in @code{AUTOCOMMIT} mode (needed for @code{BDB} tables).
 @item
 Added extra checks to avoid index corruption when the @code{ISAM}/@code{MyISAM}
-index files gets full during an @code{INSERT}/@code{UPDATE}.
+index files get full during an @code{INSERT}/@code{UPDATE}.
 @item
 @code{myisamchk} didn't correctly update row checksum when used with
-@code{-ro} (this only gave an warning in subsequent runs).
+@code{-ro} (this only gave a warning in subsequent runs).
 @item
 Fixed bug in @code{REPAIR TABLE} so that it works with tables without indexes.
 @item
-Fixed buffer overrun in @code{DROP DATABASE}
+Fixed buffer overrun in @code{DROP DATABASE}.
 @item
 @code{LOAD TABLE FROM MASTER} is sufficiently bug-free to announce it as
 a feature.
