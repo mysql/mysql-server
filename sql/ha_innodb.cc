@@ -2019,10 +2019,10 @@ build_template(
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS && 
                     ((prebuilt->read_just_key && !index_contains_field) ||
-		    (!(fetch_all_in_key && index_contains_field)
-		     !(fetch_primary_key_cols &&
-		     dict_table_col_in_clustered_key(index->table, i) &&
-		     thd->query_id != field->query_id))) {
+		     (!(fetch_all_in_key && index_contains_field) &&
+		      !(fetch_primary_key_cols &&
+			dict_table_col_in_clustered_key(index->table, i)) &&
+		      thd->query_id != field->query_id))) {
 
 			/* This field is not needed in the query, skip it */
 

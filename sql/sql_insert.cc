@@ -1351,7 +1351,7 @@ bool delayed_insert::handle_inserts(void)
       on this table until all entries has been processed
     */
     if (group_count++ >= max_rows && (row= rows.head()) &&
-	(!(row->log_query & DELAYED_LOG_BIN && using_bin_log) ||
+	(!(row->log_query & using_bin_log) ||
 	 row->query))
     {
       group_count=0;
