@@ -254,7 +254,11 @@ CREATE TABLE IF NOT EXISTS proc (
   type              enum('FUNCTION','PROCEDURE') NOT NULL,
   specific_name     char(64) DEFAULT '' NOT NULL,
   language          enum('SQL') DEFAULT 'SQL' NOT NULL,
-  sql_data_access   enum('CONTAINS_SQL') DEFAULT 'CONTAINS_SQL' NOT NULL,
+  sql_data_access   enum('CONTAINS_SQL',
+			 'NO_SQL',
+			 'READS_SQL_DATA',
+			 'MODIFIES_SQL_DATA'
+		    ) DEFAULT 'CONTAINS_SQL' NOT NULL,
   is_deterministic  enum('YES','NO') DEFAULT 'NO' NOT NULL,
   security_type     enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL,
   param_list        blob DEFAULT '' NOT NULL,
@@ -289,6 +293,12 @@ CREATE TABLE IF NOT EXISTS proc (
   PRIMARY KEY (db,name,type)
 ) comment='Stored Procedures';
 
-# Correct the name fields to not binary
+# Correct the name fields to not binary, and expand sql_data_access
 ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
-                 MODIFY specific_name char(64) DEFAULT '' NOT NULL;
+                 MODIFY specific_name char(64) DEFAULT '' NOT NULL,
+		 MODIFY sql_data_access
+			enum('CONTAINS_SQL',
+			     'NO_SQL',
+			     'READS_SQL_DATA',
+			     'MODIFIES_SQL_DATA'
+			    ) DEFAULT 'CONTAINS_SQL' NOT NULL;

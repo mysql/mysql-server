@@ -225,6 +225,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONDITION_SYM
 %token	CONNECTION_SYM
 %token	CONSTRAINT
+%token  CONTAINS_SYM
 %token  CONTINUE_SYM
 %token	CONVERT_SYM
 %token  CURRENT_USER
@@ -368,6 +369,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	RAID_CHUNKS
 %token	RAID_CHUNKSIZE
 %token	READ_SYM
+%token	READS_SYM
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
@@ -560,6 +562,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
 %token	MODE_SYM
+%token	MODIFIES_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
 %token	MLINEFROMTEXT
@@ -1378,8 +1381,20 @@ sp_c_chistics:
 
 /* Characteristics for both create and alter */
 sp_chistic:
-	  COMMENT_SYM TEXT_STRING_sys { Lex->sp_chistics.comment= $2; }
-	| sp_suid { }
+	  COMMENT_SYM TEXT_STRING_sys
+	  { Lex->sp_chistics.comment= $2; }
+	| LANGUAGE_SYM SQL_SYM
+	  { /* Just parse it, we only have one language for now. */ }
+	| NO_SYM SQL_SYM
+	  { Lex->sp_chistics.daccess= SP_NO_SQL; }
+	| CONTAINS_SYM SQL_SYM
+	  { Lex->sp_chistics.daccess= SP_CONTAINS_SQL; }
+	| READS_SYM SQL_SYM DATA_SYM
+	  { Lex->sp_chistics.daccess= SP_READS_SQL_DATA; }
+	| MODIFIES_SYM SQL_SYM DATA_SYM
+	  { Lex->sp_chistics.daccess= SP_MODIFIES_SQL_DATA; }
+	| sp_suid
+	  { }
 	;
 
 /* Alter characteristics */
@@ -1391,7 +1406,6 @@ sp_a_chistic:
 /* Create characteristics */
 sp_c_chistic:
 	  sp_chistic            { }
-	| LANGUAGE_SYM SQL_SYM  { }
 	| DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
 	| NOT DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
 	;
@@ -1399,11 +1413,11 @@ sp_c_chistic:
 sp_suid:
 	  SQL_SYM SECURITY_SYM DEFINER_SYM
 	  {
-	    Lex->sp_chistics.suid= IS_SUID;
+	    Lex->sp_chistics.suid= SP_IS_SUID;
 	  }
 	| SQL_SYM SECURITY_SYM INVOKER_SYM
 	  {
-	    Lex->sp_chistics.suid= IS_NOT_SUID;
+	    Lex->sp_chistics.suid= SP_IS_NOT_SUID;
 	  }
 	;
 
@@ -4237,6 +4251,8 @@ simple_expr:
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
+	| CONTAINS_SYM '(' expr ',' expr ')'
+	  { $$= create_func_contains($3, $5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
 	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
@@ -6780,6 +6796,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONTAINS_SYM          {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
