@@ -36837,6 +36837,19 @@ some file systems! The total size of data files has
 to be >= 10 MB.
 InnoDB does not create directories:
 you have to create them yourself.
+Check that the MySQL server
+has the rights to create files in the directories you specify.
+ 
+When you the first time create an InnoDB database, it
+is best that you start the MySQL server from the command
+prompt. Then InnoDB will print the information about the
+database creation to the screen, and you see what is
+happening. See below in section 3 what the printout
+should look like.
+For example, in Windows you can start @file{mysqld-max.exe} with:
+@example
+your-path-to-mysqld>mysqld-max --standalone --console
+@end example
 
 Suppose you have a Linux computer with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
