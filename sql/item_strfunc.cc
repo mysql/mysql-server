@@ -1637,7 +1637,7 @@ String *Item_func_char::val_str(String *str)
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
 #ifdef USE_MB
-      if (use_mb(default_charset_info))
+      if (use_mb(charset()))
       {
         if (num&0xFF000000L) {
            str->append((char)(num>>24));

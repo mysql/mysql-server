@@ -75,7 +75,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   uchar **sort_keys;
   IO_CACHE tempfile, buffpek_pointers, *selected_records_file, *outfile; 
   SORTPARAM param;
-  CHARSET_INFO *charset=table->table_charset;
+  CHARSET_INFO *charset=my_charset_bin;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length););
 #ifdef SKIP_DBUG_IN_FILESORT
@@ -85,8 +85,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   // BAR TODO: this is not absolutely correct, but OK for now
   for(i=0;i<table->fields;i++)
     if (!table->field[i]->binary())
-      charset=((Field_str*)(table->field[i]))->charset();
-  charset=charset?charset:default_charset_info;
+      charset=table->field[i]->charset();
   // /BAR TODO
 
   outfile= table->io_cache;
@@ -930,7 +929,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 #ifdef USE_STRCOLL
 	if (!sortorder->field->binary())
 	{
-	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	  CHARSET_INFO *cs=sortorder->field->charset();
 	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}

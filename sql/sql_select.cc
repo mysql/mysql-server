@@ -4231,9 +4231,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     {
       Field *field=keyinfo->key_part[i].field;
       seg->flag=     0;
-      seg->language= field->binary() ? MY_CHARSET_CURRENT : 
-				     ((Field_str*)field)->charset()->number;
-
+      seg->language= field->charset()->number;
       seg->length=   keyinfo->key_part[i].length;
       seg->start=    keyinfo->key_part[i].offset;
       if (field->flags & BLOB_FLAG)
