@@ -124,6 +124,13 @@ begin
 
   set ld = null, li = null, lf = null, ls = null;
   insert into t3 values (ld, li, lf, ls);
+
+  insert into t3 (i, f, s) values ((ld is null), 1,    "ld is null"),
+                                  ((li is null), 1,    "li is null"),
+				  ((li = 0),     null, "li = 0"),
+				  ((lf is null), 1,    "lf is null"),
+				  ((lf = 0),     null, "lf = 0"),
+				  ((ls is null), 1,    "ls is null");
 end|
 
 call nullset()|

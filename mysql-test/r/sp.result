@@ -85,11 +85,23 @@ declare lf double;
 declare ls varchar(32);
 set ld = null, li = null, lf = null, ls = null;
 insert into t3 values (ld, li, lf, ls);
+insert into t3 (i, f, s) values ((ld is null), 1,    "ld is null"),
+((li is null), 1,    "li is null"),
+((li = 0),     null, "li = 0"),
+((lf is null), 1,    "lf is null"),
+((lf = 0),     null, "lf = 0"),
+((ls is null), 1,    "ls is null");
 end;
 call nullset();
 select * from t3;
 d	i	f	s
 NULL	NULL	NULL	NULL
+NULL	1	1	ld is null
+NULL	1	1	li is null
+NULL	NULL	NULL	li = 0
+NULL	1	1	lf is null
+NULL	NULL	NULL	lf = 0
+NULL	1	1	ls is null
 drop table t3;
 drop procedure nullset;
 create procedure mixset(x char(16), y int)

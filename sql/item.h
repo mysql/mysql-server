@@ -256,17 +256,34 @@ public:
 
   inline double val()
   {
-    return this_item()->val();
+    Item *it= this_item();
+    double ret= it->val();
+    Item::null_value= it->null_value;
+    return ret;
   }
 
   inline longlong val_int()
   {
-    return this_item()->val_int();
+    Item *it= this_item();
+    longlong ret= it->val_int();
+    Item::null_value= it->null_value;
+    return ret;
   }
 
   inline String *val_str(String *sp)
   {
-    return this_item()->val_str(sp);
+    Item *it= this_item();
+    String *ret= it->val_str(sp);
+    Item::null_value= it->null_value;
+    return ret;
+  }
+
+  inline bool is_null()
+  {
+    Item *it= this_item();
+    bool ret= it->is_null();
+    Item::null_value= it->null_value;
+    return ret;
   }
 
   inline void make_field(Send_field *field)
