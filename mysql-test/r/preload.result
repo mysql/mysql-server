@@ -74,15 +74,15 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	0
-Key_reads	0
+Key_read_requests	581
+Key_reads	581
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	217
-Key_reads	45
+Key_read_requests	798
+Key_reads	581
 flush tables;
 flush status;
 show status like "key_read%";
@@ -98,15 +98,15 @@ Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	0
-Key_reads	0
+Key_read_requests	10
+Key_reads	10
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	217
-Key_reads	45
+Key_read_requests	227
+Key_reads	52
 flush tables;
 flush status;
 show status like "key_read%";
@@ -123,8 +123,8 @@ test.t1	preload_keys	status	OK
 test.t2	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	0
-Key_reads	0
+Key_read_requests	587
+Key_reads	587
 select count(*) from t1 where b = 'test1';
 count(*)
 4181
@@ -133,8 +133,8 @@ count(*)
 2584
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	351
-Key_reads	73
+Key_read_requests	938
+Key_reads	613
 flush tables;
 flush status;
 show status like "key_read%";
@@ -147,8 +147,8 @@ test.t3	preload_keys	error	Table 'test.t3' doesn't exist
 test.t2	preload_keys	status	OK
 show status like "key_read%";
 Variable_name	Value
-Key_read_requests	0
-Key_reads	0
+Key_read_requests	355
+Key_reads	355
 flush tables;
 flush status;
 show status like "key_read%";
