@@ -333,3 +333,5 @@ innobase/autom4te.cache/requests
 innobase/autom4te.cache/traces.0
 innobase/stamp-h1
 stamp-h1
+configure.lineno
+innobase/configure.lineno
