@@ -81,17 +81,21 @@ typedef struct st_ft_info {
   MI_INFO  *info;
   uint       keynr;
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE, SCAN } state;
+  uint       with_scan;
   FTB_EXPR  *root;
   QUEUE      queue;
   MEM_ROOT   mem_root;
 } FTB;
 
-int FTB_WORD_cmp(void *v __attribute__((unused)), byte *a, byte *b)
+int FTB_WORD_cmp(void *v __attribute__((unused)), FTB_WORD *a, FTB_WORD *b)
 {
   /* ORDER BY docid, ndepth DESC */
-  int i=CMP_NUM(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
+  int i=CMP_NUM(a->docid, b->docid);
   if (!i)
-    i=CMP_NUM(((FTB_WORD *)b)->ndepth,((FTB_WORD *)a)->ndepth);
+    i=CMP_NUM(b->ndepth,a->ndepth);
+  if (!i)
+    i=_mi_compare_text(default_charset_info, b->word+1,b->len-1,
+                                             a->word+1,a->len-1,0);
   return i;
 }
 
@@ -130,6 +134,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw->word[0]=w.len;
         if (ftbw->yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
+        ftb->with_scan|=ftbw->trunc;
         break;
       case 2: /* left bracket */
         ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
@@ -207,6 +212,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->state=UNINITIALIZED;
   ftb->info=info;
   ftb->keynr=keynr;
+  ftb->with_scan=0;
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
 
@@ -215,7 +221,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
    */
   res=ftb->queue.max_elements=query_len/(ft_min_word_len+1);
   ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
-  reinit_queue(& ftb->queue, res, 0, 0, FTB_WORD_cmp, ftb);
+  reinit_queue(& ftb->queue, res, 0, 0, (int (*)(void*,byte*,byte*))FTB_WORD_cmp, ftb);
   ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
   ftbe->weight=1;
   ftbe->yesno=ftbe->nos=1;
