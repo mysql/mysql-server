@@ -22,6 +22,7 @@
 #include <myisam.h>
 #include "slave.h"
 #include "sql_repl.h"
+#include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
@@ -35,11 +36,7 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
 MASTER_INFO *active_mi;
-HASH replicate_do_table, replicate_ignore_table;
-DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
-bool do_table_inited = 0, ignore_table_inited = 0;
-bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
-bool table_rules_on= 0, replicate_same_server_id;
+bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /*
@@ -190,20 +187,6 @@ int init_slave()
 err:
   pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_RETURN(1);
-}
-
-
-static void free_table_ent(TABLE_RULE_ENT* e)
-{
-  my_free((gptr) e, MYF(0));
-}
-
-
-static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
-			   my_bool not_used __attribute__((unused)))
-{
-  *len = e->key_len;
-  return (byte*)e->db;
 }
 
 
@@ -808,228 +791,6 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 }
 
 
-void init_table_rule_hash(HASH* h, bool* h_inited)
-{
-  hash_init(h, system_charset_info,TABLE_RULE_HASH_SIZE,0,0,
-	    (hash_get_key) get_table_key,
-	    (hash_free_key) free_table_ent, 0);
-  *h_inited = 1;
-}
-
-
-void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
-{
-  my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
-		     TABLE_RULE_ARR_SIZE);
-  *a_inited = 1;
-}
-
-
-static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
-{
-  uint i;
-  const char* key_end = key + len;
-  
-  for (i = 0; i < a->elements; i++)
-    {
-      TABLE_RULE_ENT* e ;
-      get_dynamic(a, (gptr)&e, i);
-      if (!my_wildcmp(system_charset_info, key, key_end, 
-                            (const char*)e->db,
-			    (const char*)(e->db + e->key_len),
-			    '\\',wild_one,wild_many))
-	return e;
-    }
-  
-  return 0;
-}
-
-
-/*
-  Checks whether tables match some (wild_)do_table and (wild_)ignore_table
-  rules (for replication)
-
-  SYNOPSIS
-    tables_ok()
-    thd             thread (SQL slave thread normally)
-    tables          list of tables to check
-
-  NOTES
-    Note that changing the order of the tables in the list can lead to
-    different results. Note also the order of precedence of the do/ignore 
-    rules (see code below). For that reason, users should not set conflicting 
-    rules because they may get unpredicted results (precedence order is
-    explained in the manual).
-    If no table of the list is marked "updating" (so far this can only happen
-    if the statement is a multi-delete (SQLCOM_DELETE_MULTI) and the "tables"
-    is the tables in the FROM): then we always return 0, because there is no
-    reason we play this statement on this slave if it updates nothing. In the
-    case of SQLCOM_DELETE_MULTI, there will be a second call to tables_ok(),
-    with tables having "updating==TRUE" (those after the DELETE), so this
-    second call will make the decision (because
-    all_tables_not_ok() = !tables_ok(1st_list) && !tables_ok(2nd_list)).
-
-    Thought which arose from a question of a big customer "I want to include
-    all tables like "abc.%" except the "%.EFG"". This can't be done now. If we
-    supported Perl regexps we could do it with this pattern: /^abc\.(?!EFG)/
-    (I could not find an equivalent in the regex library MySQL uses).
-
-  RETURN VALUES
-    0           should not be logged/replicated
-    1           should be logged/replicated                  
-*/
-
-bool tables_ok(THD* thd, TABLE_LIST* tables)
-{
-  bool some_tables_updating= 0;
-  DBUG_ENTER("tables_ok");
-
-  for (; tables; tables= tables->next_global)
-  {
-    char hash_key[2*NAME_LEN+2];
-    char *end;
-    uint len;
-
-    if (!tables->updating) 
-      continue;
-    some_tables_updating= 1;
-    end= strmov(hash_key, tables->db ? tables->db : thd->db);
-    *end++= '.';
-    len= (uint) (strmov(end, tables->table_name) - hash_key);
-    if (do_table_inited) // if there are any do's
-    {
-      if (hash_search(&replicate_do_table, (byte*) hash_key, len))
-	DBUG_RETURN(1);
-    }
-    if (ignore_table_inited) // if there are any ignores
-    {
-      if (hash_search(&replicate_ignore_table, (byte*) hash_key, len))
-	DBUG_RETURN(0); 
-    }
-    if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
-					  hash_key, len))
-      DBUG_RETURN(1);
-    if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
-					      hash_key, len))
-      DBUG_RETURN(0);
-  }
-
-  /*
-    If no table was to be updated, ignore statement (no reason we play it on
-    slave, slave is supposed to replicate _changes_ only).
-    If no explicit rule found and there was a do list, do not replicate.
-    If there was no do list, go ahead
-  */
-  DBUG_RETURN(some_tables_updating &&
-              !do_table_inited && !wild_do_table_inited);
-}
-
-
-/*
-  Checks whether a db matches wild_do_table and wild_ignore_table
-  rules (for replication)
-
-  SYNOPSIS
-    db_ok_with_wild_table()
-    db		name of the db to check.
-		Is tested with check_db_name() before calling this function.
-
-  NOTES
-    Here is the reason for this function.
-    We advise users who want to exclude a database 'db1' safely to do it
-    with replicate_wild_ignore_table='db1.%' instead of binlog_ignore_db or
-    replicate_ignore_db because the two lasts only check for the selected db,
-    which won't work in that case:
-    USE db2;
-    UPDATE db1.t SET ... #this will be replicated and should not
-    whereas replicate_wild_ignore_table will work in all cases.
-    With replicate_wild_ignore_table, we only check tables. When
-    one does 'DROP DATABASE db1', tables are not involved and the
-    statement will be replicated, while users could expect it would not (as it
-    rougly means 'DROP db1.first_table, DROP db1.second_table...').
-    In other words, we want to interpret 'db1.%' as "everything touching db1".
-    That is why we want to match 'db1' against 'db1.%' wild table rules.
-
-  RETURN VALUES
-    0           should not be logged/replicated
-    1           should be logged/replicated
- */
-
-int db_ok_with_wild_table(const char *db)
-{
-  char hash_key[NAME_LEN+2];
-  char *end;
-  int len;
-  end= strmov(hash_key, db);
-  *end++= '.';
-  len= end - hash_key ;
-  if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
-                                        hash_key, len))
-    return 1;
-  if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
-                                            hash_key, len))
-    return 0;
-  
-  /*
-    If no explicit rule found and there was a do list, do not replicate.
-    If there was no do list, go ahead
-  */
-  return !wild_do_table_inited;
-}
-
-
-int add_table_rule(HASH* h, const char* table_spec)
-{
-  const char* dot = strchr(table_spec, '.');
-  if (!dot) return 1;
-  // len is always > 0 because we know the there exists a '.'
-  uint len = (uint)strlen(table_spec);
-  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
-						 + len, MYF(MY_WME));
-  if (!e) return 1;
-  e->db = (char*)e + sizeof(TABLE_RULE_ENT);
-  e->tbl_name = e->db + (dot - table_spec) + 1;
-  e->key_len = len;
-  memcpy(e->db, table_spec, len);
-  (void)my_hash_insert(h, (byte*)e);
-  return 0;
-}
-
-
-/*
-  Add table expression with wildcards to dynamic array
-*/
-
-int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
-{
-  const char* dot = strchr(table_spec, '.');
-  if (!dot) return 1;
-  uint len = (uint)strlen(table_spec);
-  TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
-						 + len, MYF(MY_WME));
-  if (!e) return 1;
-  e->db = (char*)e + sizeof(TABLE_RULE_ENT);
-  e->tbl_name = e->db + (dot - table_spec) + 1;
-  e->key_len = len;
-  memcpy(e->db, table_spec, len);
-  insert_dynamic(a, (gptr)&e);
-  return 0;
-}
-
-
-static void free_string_array(DYNAMIC_ARRAY *a)
-{
-  uint i;
-  for (i = 0; i < a->elements; i++)
-    {
-      char* p;
-      get_dynamic(a, (gptr) &p, i);
-      my_free(p, MYF(MY_WME));
-    }
-  delete_dynamic(a);
-}
-
-
 #ifdef NOT_USED_YET
 static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 {
@@ -1065,14 +826,6 @@ void end_slave()
     */
     terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
     end_master_info(active_mi);
-    if (do_table_inited)
-      hash_free(&replicate_do_table);
-    if (ignore_table_inited)
-      hash_free(&replicate_ignore_table);
-    if (wild_do_table_inited)
-      free_string_array(&replicate_wild_do_table);
-    if (wild_ignore_table_inited)
-      free_string_array(&replicate_wild_ignore_table);
     delete active_mi;
     active_mi= 0;
   }
@@ -1152,24 +905,6 @@ bool net_request_file(NET* net, const char* fname)
 }
 
 
-const char *rewrite_db(const char* db, uint32 *new_len)
-{
-  if (replicate_rewrite_db.is_empty() || !db)
-    return db;
-  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
-  i_string_pair* tmp;
-
-  while ((tmp=it++))
-  {
-    if (!strcmp(tmp->key, db))
-    {
-      *new_len= (uint32)strlen(tmp->val);
-      return tmp->val;
-    }
-  }
-  return db;
-}
-
 /*
   From other comments and tests in code, it looks like
   sometimes Query_log_event and Load_log_event can have db == 0
@@ -1180,60 +915,6 @@ const char *rewrite_db(const char* db, uint32 *new_len)
 const char *print_slave_db_safe(const char* db)
 {
   return (db ? db : "");
-}
-
-/*
-  Checks whether a db matches some do_db and ignore_db rules
-  (for logging or replication)
-
-  SYNOPSIS
-    db_ok()
-    db              name of the db to check
-    do_list         either binlog_do_db or replicate_do_db
-    ignore_list     either binlog_ignore_db or replicate_ignore_db
-
-  RETURN VALUES
-    0           should not be logged/replicated
-    1           should be logged/replicated                  
-*/
-
-int db_ok(const char* db, I_List<i_string> &do_list,
-	  I_List<i_string> &ignore_list )
-{
-  if (do_list.is_empty() && ignore_list.is_empty())
-    return 1; // ok to replicate if the user puts no constraints
-
-  /*
-    If the user has specified restrictions on which databases to replicate
-    and db was not selected, do not replicate.
-  */
-  if (!db)
-    return 0;
-
-  if (!do_list.is_empty()) // if the do's are not empty
-  {
-    I_List_iterator<i_string> it(do_list);
-    i_string* tmp;
-
-    while ((tmp=it++))
-    {
-      if (!strcmp(tmp->ptr, db))
-	return 1; // match
-    }
-    return 0;
-  }
-  else // there are some elements in the don't, otherwise we cannot get here
-  {
-    I_List_iterator<i_string> it(ignore_list);
-    i_string* tmp;
-
-    while ((tmp=it++))
-    {
-      if (!strcmp(tmp->ptr, db))
-	return 0; // match
-    }
-    return 1;
-  }
 }
 
 
@@ -2245,48 +1926,6 @@ int register_slave_on_master(MYSQL* mysql)
 }
 
 
-/*
-  Builds a String from a HASH of TABLE_RULE_ENT. Cannot be used for any other 
-  hash, as it assumes that the hash entries are TABLE_RULE_ENT.
-
-  SYNOPSIS
-    table_rule_ent_hash_to_str()
-    s               pointer to the String to fill
-    h               pointer to the HASH to read
-
-  RETURN VALUES
-    none
-*/
-
-void table_rule_ent_hash_to_str(String* s, HASH* h)
-{
-  s->length(0);
-  for (uint i=0 ; i < h->records ; i++)
-  {
-    TABLE_RULE_ENT* e= (TABLE_RULE_ENT*) hash_element(h, i);
-    if (s->length())
-      s->append(',');
-    s->append(e->db,e->key_len);
-  }
-}
-
-/*
-  Mostly the same thing as above
-*/
-
-void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a)
-{
-  s->length(0);
-  for (uint i=0 ; i < a->elements ; i++)
-  {
-    TABLE_RULE_ENT* e;
-    get_dynamic(a, (gptr)&e, i);
-    if (s->length())
-      s->append(',');
-    s->append(e->db,e->key_len);
-  }
-}
-
 bool show_master_info(THD* thd, MASTER_INFO* mi)
 {
   // TODO: fix this for multi-master
@@ -2381,23 +2020,18 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->rli.group_master_log_name, &my_charset_bin);
     protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
-    protocol->store(&replicate_do_db);
-    protocol->store(&replicate_ignore_db);
-    /*
-      We can't directly use some protocol->store for 
-      replicate_*_table,
-      as Protocol doesn't know the TABLE_RULE_ENT struct.
-      We first build Strings and then pass them to protocol->store.
-    */
+    protocol->store(rpl_filter->get_do_db());
+    protocol->store(rpl_filter->get_ignore_db());
+
     char buf[256];
     String tmp(buf, sizeof(buf), &my_charset_bin);
-    table_rule_ent_hash_to_str(&tmp, &replicate_do_table);
+    rpl_filter->get_do_table(&tmp);
     protocol->store(&tmp);
-    table_rule_ent_hash_to_str(&tmp, &replicate_ignore_table);
+    rpl_filter->get_ignore_table(&tmp);
     protocol->store(&tmp);
-    table_rule_ent_dynamic_array_to_str(&tmp, &replicate_wild_do_table);
+    rpl_filter->get_wild_do_table(&tmp);
     protocol->store(&tmp);
-    table_rule_ent_dynamic_array_to_str(&tmp, &replicate_wild_ignore_table);
+    rpl_filter->get_wild_ignore_table(&tmp);
     protocol->store(&tmp);
 
     protocol->store((uint32) mi->rli.last_slave_errno);
@@ -3845,10 +3479,8 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
 
   if (unlikely(!cev->is_valid()))
     DBUG_RETURN(1);
-  /*
-    TODO: fix to honor table rules, not only db rules
-  */
-  if (!db_ok(cev->db, replicate_do_db, replicate_ignore_db))
+
+  if (!rpl_filter->db_ok(cev->db))
   {
     skip_load_data_infile(net);
     DBUG_RETURN(0);

@@ -16,6 +16,7 @@
 
 #include "mysql_priv.h"
 #include "sql_repl.h"
+#include "rpl_filter.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
 #include <myisam.h>
@@ -167,10 +168,12 @@ static bool begin_trans(THD *thd)
 #ifdef HAVE_REPLICATION
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
-  return (table_rules_on && tables && !tables_ok(thd,tables) &&
+  return (rpl_filter->is_on() && tables && 
+	  !rpl_filter->tables_ok(thd->db, tables) &&
           ((thd->lex->sql_command != SQLCOM_DELETE_MULTI) ||
-           !tables_ok(thd,
-		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
+           !rpl_filter->tables_ok(thd->db,
+				  (TABLE_LIST *)
+				  thd->lex->auxilliary_table_list.first)));
 }
 #endif
 
@@ -3441,9 +3444,9 @@ unsent_create_error:
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread &&
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+    if (thd->slave_thread && 
+	(!rpl_filter->db_ok(lex->name) ||
+	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
@@ -3471,8 +3474,8 @@ unsent_create_error:
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+	(!rpl_filter->db_ok(lex->name) ||
+	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
@@ -3511,8 +3514,8 @@ unsent_create_error:
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread &&
-	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(db)))
+	(!rpl_filter->db_ok(lex->name) ||
+	 !rpl_filter->db_ok_with_wild_table(lex->name)))
     {
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       break;
