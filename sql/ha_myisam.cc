@@ -1013,16 +1013,29 @@ bool ha_myisam::check_and_repair(THD *thd)
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
     check_opt.flags|=T_QUICK;
   sql_print_error("Warning: Checking table:   '%s'",table->path);
-  if ((marked_crashed=mi_is_crashed(file)) || check(thd, &check_opt))
+  if ((marked_crashed=mi_is_crashed(file)))
   {
-    sql_print_error("Warning: Recovering table: '%s'",table->path);
-    check_opt.flags=
-      ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
-       (marked_crashed                             ? 0 : T_QUICK) |
-       (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR) |
-       T_AUTO_REPAIR);
-    if (repair(thd, &check_opt))
-      error=1;
+    char *old_query= thd->query;
+    uint old_query_length= thd->query_length;
+    pthread_mutex_lock(&LOCK_thread_count);
+    thd->query= table->real_name;
+    thd->query_length= strlen(table->real_name);
+    pthread_mutex_unlock(&LOCK_thread_count);
+    if (check(thd, &check_opt))
+    {
+      sql_print_error("Warning: Recovering table: '%s'",table->path);
+      check_opt.flags=
+        ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
+         (marked_crashed                             ? 0 : T_QUICK) |
+         (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR) |
+         T_AUTO_REPAIR);
+      if (repair(thd, &check_opt))
+        error=1;
+    }
+    pthread_mutex_lock(&LOCK_thread_count);
+    thd->query= old_query;
+    thd->query_length= old_query_length;
+    pthread_mutex_unlock(&LOCK_thread_count);
   }
   DBUG_RETURN(error);
 }
