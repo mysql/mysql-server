@@ -81,6 +81,11 @@ sub usage {
     die @_, $OPTIONS;
 }
 
+# reading ~/.my.cnf
+my @defops = `@bindir@/my_print_defaults client mysqlhotcopy`;
+chop @defops;
+splice @ARGV, 0, 0, @defops;
+
 my %opt = (
     user	=> scalar getpwuid($>),
     noindices	=> 0,
