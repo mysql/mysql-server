@@ -38,6 +38,9 @@ parse_arguments() {
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+                # Note that this will be passed to mysqld so that it runs
+                # as 'user' (crucial e.g. if log-bin=/some_other_path/
+                # where a chown of datadir won't help)
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;;
       --rpm) in_rpm=1 ;;
@@ -332,7 +335,8 @@ fi
 
 echo "Installing all prepared tables"
 if eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
-         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" << END_OF_DATA
+         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb \
+         --user=$user $args" << END_OF_DATA
 use mysql;
 $c_d
 $i_d
