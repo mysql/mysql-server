@@ -137,6 +137,10 @@ set GLOBAL storage_engine=DEFAULT;
 set character_set_client=UNKNOWN_CHARACTER_SET;
 --error 1273
 set collation_connection=UNKNOWN_COLLATION;
+--error 1231
+set character_set_client=NULL;
+--error 1231
+set collation_connection=NULL;
 --error 1228
 set global autocommit=1;
 --error 1238
