@@ -6509,7 +6509,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: darrinw@nixc.net (Darrin Walton)
 @image{Flags/usa} USA [NIXC/Vienna, VA] @
 @uref{http://mysql.nixc.net/, WWW}
-@uref{ftp://www.nixc.net/pub/mysql/, FTP}
+@uref{ftp://mysql.nixc.net/pub/mysql/, FTP}
 
 @end itemize
 
