@@ -70,10 +70,15 @@ class ha_berkeley: public handler
 		 DBT *packed_record, DBT *prim_key);
   int remove_keys(DB_TXN *trans,const byte *record, DBT *new_record,
 		  DBT *prim_key, key_map keys, int result);
+  int restore_keys(DB_TXN *trans, key_map changed_keys, uint primary_key,
+		   const byte *old_row, DBT *old_key,
+		   const byte *new_row, DBT *new_key,
+		   ulong thd_options);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
   int update_primary_key(DB_TXN *trans, bool primary_key_changed,
-			 const byte * old_row, const byte * new_row,
-			 DBT *prim_key);
+			 const byte * old_row, DBT *old_key,
+			 const byte * new_row, DBT *prim_key,
+			 ulong thd_options, bool local_using_ignore);
   int read_row(int error, char *buf, uint keynr, DBT *row, DBT *key, bool);
   DBT *get_pos(DBT *to, byte *pos);
 
