@@ -2393,10 +2393,11 @@ can only start with 255 if it's an error packet.
 @section 4.1 prepared statement init packet
 
 This is the return packet when one sends a query with the COM_PREPARE
-command.
+command (packet length is always '9').
 
 @multitable @columnfractions .10 .90
 @item Size @tab Comment
+@item 1    @tab 0 ; Marker for OK packet
 @item 4	   @tab Statement handler id
 @item 2	   @tab Number of columns in result set
 @item 2	   @tab Number of parameters in query

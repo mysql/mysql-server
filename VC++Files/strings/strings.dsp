@@ -140,10 +140,6 @@ SOURCE=".\ctype-latin1.c"
 # End Source File
 # Begin Source File
 
-SOURCE=".\ctype-latin1_de.c"
-# End Source File
-# Begin Source File
-
 SOURCE=".\ctype-mb.c"
 # End Source File
 # Begin Source File
