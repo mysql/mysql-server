@@ -292,7 +292,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.4 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -380,7 +380,6 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!)");
 
   print_defaults("my", load_default_groups);
-  putchar('\n');
   my_print_variables(my_long_options);
 }
 

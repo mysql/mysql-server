@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.20"
+#define MTEST_VERSION "1.21"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1873,7 +1873,7 @@ void usage()
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
-  printf("  --no-defaults       Don't read default options from any options file.\n\n");
+  printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
 
