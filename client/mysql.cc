@@ -2452,9 +2452,11 @@ char *get_arg(char *line, my_bool get_next_arg)
       ptr++;
     if (*ptr == '\\') // short command was used
       ptr+= 2;
-    while (!my_isspace(system_charset_info, *ptr)) // skip command
+    while (*ptr &&!my_isspace(system_charset_info, *ptr)) // skip command
       ptr++;
   }
+  if (!*ptr)
+    return NullS;
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
   if (*ptr == '\'' || *ptr == '\"' || *ptr == '`')
