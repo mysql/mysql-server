@@ -528,7 +528,7 @@ contributors, see @ref{Credits}.
 
 
 @node Manual conventions, History, Manual-info, MySQL and MySQL AB
-@subsection Conventions Used in This Manual
+@subsubsection Conventions Used in This Manual
 
 This manual uses certain typographical conventions:
 
