@@ -1203,8 +1203,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
 				  (byte*) table->field[0]->ptr,0,
 				  HA_READ_KEY_EXACT))
   {
-    my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-                   MYF(0),user,host);
+    my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,1);
@@ -1446,8 +1445,7 @@ static int replace_db_table(TABLE *table, const char *db,
   // is there such a user in user table in memory ????
   if (!initialized || !find_acl_user(combo.host.str,combo.user.str))
   {
-    my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),MYF(0),
-                   combo.user.str,combo.host.str);
+    my_error(ER_PASSWORD_NO_MATCH,MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -1890,8 +1888,6 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   if (!find_acl_user(combo.host.str,combo.user.str))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));	/* purecov: deadcode */
-    my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),MYF(0),
-                   combo.user.str,combo.host.str);
     DBUG_RETURN(-1);				/* purecov: deadcode */
   }
 
