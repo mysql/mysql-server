@@ -924,7 +924,7 @@ sync_array_print_long_waits(void)
                 }
 
                 if (cell->wait_object != NULL
-		    && difftime(time(NULL), cell->reservation_time) > 420) {
+		    && difftime(time(NULL), cell->reservation_time) > 600) {
 
 		    	fprintf(stderr,
 "InnoDB: Error: semaphore wait has lasted > 600 seconds\n"
