@@ -43873,9 +43873,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This make it
-possible to know how many rows a query would have returned if one hadn't
-used @code{LIMIT}.
+Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
+possible to know how many rows a query would have returned
+without a @code{LIMIT} clause.
 @item
 Changed output format of @code{SHOW OPEN TABLES}.
 @item
@@ -43981,7 +43981,7 @@ together with a group functions and a @code{WHERE} that didn't match any rows.
 @item
 New program @code{mysqlcheck}.
 @item
-Added database name to output for admin commands like @code{CHECK},
+Added database name to output for administrative commands like @code{CHECK},
 @code{REPAIR}, @code{OPTIMIZE}.
 @item
 Lots of portability fixes for InnoDB.
@@ -43992,7 +43992,7 @@ will use index on @code{key_part1} instead of @code{filesort}.
 @item
 Fixed bug when doing
 @code{LOCK TABLE to_table WRITE,...; INSERT INTO to_table... SELECT ...}
-when to_table was empty.
+when @code{to_table} was empty.
 @item
 Fixed bug with @code{LOCK TABLE} and BDB tables.
 @end itemize
@@ -44018,35 +44018,35 @@ Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
 Slave thread will now be started even if @code{master-host} is not set, as
 long as @code{server-id} is set and valid @code{master.info} is present
 @item
-Partial updates ( terminated with kill) are now logged with a special error
+Partial updates (terminated with kill) are now logged with a special error
 code to the binary log. Slave will refuse to execute them if the error code
 indicates the update was terminated abnormally, and will have to be recovered
 with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual sanity
-check/correction of data integrity
+check/correction of data integrity.
 @item
 Fixed bug that erroneously logged a drop of internal temporary table
-on thread termination to the binary log - bug affected replication
+on thread termination to the binary log - bug affected replication.
 @item
 Fixed a bug in @code{REGEXP()} on 64-bit machines.
 @item
 @code{UPDATE} and @code{DELETE} with @code{WHERE unique_key_part IS NULL}
 didn't update/delete all rows.
 @item
-Disabled @code{INSERT DELAYED} for tables that supports transactions.
+Disabled @code{INSERT DELAYED} for tables that support transactions.
 @item
 Fixed bug when using date functions on @code{TEXT}/@code{BLOB} column
 with wrong date format.
 @item
-UDF's now also works on windows. (Patch by Ralph Mason)
+UDFs now also work on Windows. (Patch by Ralph Mason)
 @item
 Fixed bug in @code{ALTER TABLE} and @code{LOAD DATA INFILE} that disabled
-key-sorting. These command should now be faster in most cases.
+key-sorting. These commands should now be faster in most cases.
 @item
 Fixed performance bug where reopened tables (tables that had been
 waiting for @code{FLUSH} or @code{REPAIR}) would not use indexes for the
 next query.
 @item
-Fixed problem with @code{ALTER TABLE} to Innobase tables on Freebsd.
+Fixed problem with @code{ALTER TABLE} to Innobase tables on FreeBSD.
 @item
 Added @code{mysqld} variables @code{myisam_max_sort_file_size} and
 @code{myisam_max_extra_sort_file_size}.
@@ -44065,8 +44065,9 @@ Added @code{--skip-safemalloc} option to @code{mysqld}.
 @appendixsubsec Changes in release 3.23.36
 @itemize @bullet
 @item
-Fixed a bug that allowed you to use database names with @code{.}.  This
-fixes a serious security issue when @code{mysqld} is run as root.
+Fixed a bug that allowed you to use database names containing a @samp{.}
+character.  This fixes a serious security issue when @code{mysqld} is run
+as root.
 @item
 Fixed bug when thread creation failed (could happen when doing a LOT
 of connections in a short time).
