@@ -3731,9 +3731,9 @@ Better command line argument handling.
 @item
 New key cache, which will give better performance when using many threads.
 @item
-New table definition file format (@code{.frm} files) This will enable us
+New table definition file format (@file{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
-be able to use the old @code{.frm} file format with 4.0.  All newly created
+be able to use the old @file{.frm} file format with 4.0.  All newly created
 tables will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
@@ -3785,7 +3785,7 @@ derived tables for the duration of the query.
 @item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
-the @code{.MYD} file.
+the @file{.MYD} file.
 @item
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
@@ -8321,8 +8321,8 @@ MySQL with the @code{CXXFLAGS=-DLIKE_CMP_TOUPPER} flag.
 
 @item
 When you check/repair tables you should use @code{CHECK TABLE}
-or @code{myisamchk} for @code{MyISAM} tables (@code{.MYI}) and
-@code{isamchk} for ISAM (@code{.ISM}) tables.
+or @code{myisamchk} for @code{MyISAM} tables (@file{.MYI}) and
+@code{isamchk} for ISAM (@file{.ISM}) tables.
 
 @item
 If you want your @code{mysqldump} files to be compatible between
@@ -8470,8 +8470,8 @@ There are some new reserved words. The most notable are @code{DATE},
 
 @cindex upgrading, different architecture
 
-If you are using MySQL Version 3.23, you can copy the @code{.frm},
-@code{.MYI}, and @code{.MYD} files between different architectures that
+If you are using MySQL Version 3.23, you can copy the @file{.frm},
+@file{.MYI}, and @file{.MYD} files between different architectures that
 support the same floating-point format.  (MySQL takes care of any
 byte swapping issues.)
 
@@ -14361,7 +14361,7 @@ This option is @emph{mandatory} when starting @code{mysqld} as root.
 Output version information and exit.
 
 @item -W, --warnings
-Print out warnings like @code{Aborted connection...} to the @code{.err} file.
+Print out warnings like @code{Aborted connection...} to the @file{.err} file.
 @xref{Communication errors}.
 @end table
 
@@ -17521,8 +17521,8 @@ BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 
 Make a copy of all the table files to the backup directory that are the
 minimum needed to restore it. Currenlty only works for @code{MyISAM}
-tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
-@code{.MYD} (data) files. The index file can be rebuilt from those two.
+tables. For @code{MyISAM} table, copies @file{.frm} (definition)  and
+@file{.MYD} (data) files. The index file can be rebuilt from those two.
 
 Before using this command, please see @ref{Backup}.
 
@@ -17725,9 +17725,9 @@ better than sorting on fixed-length keys if you have long @code{char()}
 keys that compress very good.
 
 As of MySQL 4.0.2 there is @code{USE_FRM} mode for @code{REPAIR}.
-Use it if @code{.MYI} file is missing or its header is corrupted.
+Use it if @file{.MYI} file is missing or its header is corrupted.
 In this mode MySQL will recreate the table, using information from
-@code{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
+@file{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
 
 @node Table maintenance, Maintenance regimen, REPAIR TABLE, Disaster Prevention
 @subsection Using @code{myisamchk} for Table Maintenance and Crash Recovery
@@ -17736,9 +17736,9 @@ Starting with MySQL Version 3.23.13, you can check MyISAM
 tables with the @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can
 repair tables with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
-To check/repair MyISAM tables (@code{.MYI} and @code{.MYD}) you should
+To check/repair MyISAM tables (@file{.MYI} and @file{.MYD}) you should
 use the @code{myisamchk} utility. To check/repair ISAM tables
-(@code{.ISM} and @code{.ISD}) you should use the @code{isamchk}
+(@file{.ISM} and @file{.ISD}) you should use the @code{isamchk}
 utility. @xref{Table types}.
 
 In the following text we will talk about @code{myisamchk}, but everything
@@ -18236,8 +18236,8 @@ print some informational statistics, too.
 @cindex repairing, tables
 
 In the following section we only talk about using @code{myisamchk} on
-@code{MyISAM} tables (extensions @code{.MYI} and @code{.MYD}).  If you
-are using @code{ISAM} tables (extensions @code{.ISM} and @code{.ISD}),
+@code{MyISAM} tables (extensions @file{.MYI} and @file{.MYD}).  If you
+are using @code{ISAM} tables (extensions @file{.ISM} and @file{.ISD}),
 you should use @code{isamchk} instead.
 
 Starting with MySQL Version 3.23.14, you can repair MyISAM
@@ -18735,10 +18735,10 @@ bytes. Most tables manage with 2 bytes, but this is calculated
 automatically by MySQL. It is always a block address.
 
 @item Max datafile length
-How long the table's data file (@code{.MYD} file) can become, in bytes.
+How long the table's data file (@file{.MYD} file) can become, in bytes.
 
 @item Max keyfile length
-How long the table's key file (@code{.MYI} file) can become, in bytes.
+How long the table's key file (@file{.MYI} file) can become, in bytes.
 
 @item Recordlength
 How much space each record takes, in bytes.
@@ -22470,7 +22470,7 @@ Overrides option --databases (-B).
 Creates a @code{table_name.sql} file, that contains the SQL CREATE commands,
 and a @code{table_name.txt} file, that contains the data, for each give table.
 @strong{NOTE}: This only works if @code{mysqldump} is run on the same
-machine as the @code{mysqld} daemon.  The format of the @code{.txt} file
+machine as the @code{mysqld} daemon.  The format of the @file{.txt} file
 is made according to the @code{--fields-xxx} and @code{--lines--xxx} options.
 @item -u user_name, --user=user_name
 The MySQL user name to use when connecting to the server. The
@@ -23518,7 +23518,7 @@ Note that the log format has changed in Version 3.23.26 so that
 pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
-terminate, and a message will appear in the @code{.err} file. You should
+terminate, and a message will appear in the @file{.err} file. You should
 then connect to the slave manually, fix the cause of the error (for
 example, non-existent table), and then run @code{SLAVE START} sql
 command (available starting in Version 3.23.16). In Version 3.23.15, you
@@ -35026,7 +35026,7 @@ The options work for all table types, if not otherwise indicated:
 @item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table.
 @item @code{MIN_ROWS} @tab Minimum number of rows you plan to store in the table.
 @item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM). Setting this to 0 will disable all packing of keys. Setting this to @code{DEFAULT} (MySQL 4.0) will tell the table handler to only pack long @code{CHAR}/@code{VARCHAR} columns.
-@item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
+@item @code{PASSWORD} @tab Encrypt the @file{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
 @item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently this option only works with MyISAM tables, which supports the @code{DYNAMIC} and @code{FIXED} row formats. @xref{MyISAM table formats}.
 @end multitable
@@ -36510,7 +36510,7 @@ or @code{BDB}), depending on how you compile it.
 
 When you create a new table, you can tell MySQL which table
 type it should use for the table.  MySQL will always create a
-@code{.frm} file to hold the table and column definitions.  Depending on
+@file{.frm} file to hold the table and column definitions.  Depending on
 the table type, the index and data will be stored in other files.
 
 Note that to use @code{InnoDB} tables you have to use at least
@@ -36583,8 +36583,8 @@ of both worlds.
 @code{MyISAM} is the default table type in MySQL Version 3.23. It's
 based on the @code{ISAM} code and has a lot of useful extensions.
 
-The index is stored in a file with the @code{.MYI} (MYIndex) extension,
-and the data is stored in a file with the @code{.MYD} (MYData) extension.
+The index is stored in a file with the @file{.MYI} (MYIndex) extension,
+and the data is stored in a file with the @file{.MYD} (MYData) extension.
 You can check/repair @code{MyISAM} tables with the @code{myisamchk}
 utility. @xref{Crash recovery}. You can compress @code{MyISAM} tables with
 @code{myisampack} to take up much less space. @xref{myisampack}.
@@ -37018,7 +37018,7 @@ case of this.  @xref{Reproduceable test case}.
 @node MyISAM table close,  , Corrupted MyISAM tables, MyISAM table problems
 @subsubsection Clients is using or hasn't closed the table properly
 
-Each @code{MyISAM} @code{.MYI} file has in the header a counter that can
+Each @code{MyISAM} @file{.MYI} file has in the header a counter that can
 be used to check if a table has been closed properly.
 
 If you get the following warning from @code{CHECK TABLE} or @code{myisamchk}:
@@ -37099,9 +37099,9 @@ columns are packed differently, doesn't have exactly the same columns or
 have the keys in different order.  Some of the tables can however be
 compressed with @code{myisampack}.  @xref{myisampack}.
 
-When you create a @code{MERGE} table, you will get a @code{.frm} table
-definition file and a @code{.MRG} table list file.  The @code{.MRG} just
-contains a list of the index files (@code{.MYI} files) that should
+When you create a @code{MERGE} table, you will get a @file{.frm} table
+definition file and a @file{.MRG} table list file.  The @file{.MRG} just
+contains a list of the index files (@file{.MYI} files) that should
 be used as one.  All used tables must be in the same database as the
 @code{MERGE} table itself.
 
@@ -37201,7 +37201,7 @@ Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
 table.
 
-Note that you can also manipulate the @code{.MRG} file directly from
+Note that you can also manipulate the @file{.MRG} file directly from
 the outside of the MySQL server:
 
 @example
@@ -37234,7 +37234,7 @@ To remap a @code{MERGE} table you can do one of the following:
 @item
 Use @code{ALTER TABLE table_name UNION(...)}
 @item
-Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
+Change the @file{.MRG} file and issue a @code{FLUSH TABLE} on the
 @code{MERGE} table and all underlying tables to force the handler to
 read the new definition file.
 @end itemize
@@ -37293,8 +37293,8 @@ dropping the table.  We will fix this at the same time we introduce
 You can also use the deprecated @code{ISAM} table type. This will disappear
 rather soon (probably in MySQL 4.1) because @code{MyISAM} is a better
 implementation of the same thing. @code{ISAM} uses a @code{B-tree} index. The
-index is stored in a file with the @code{.ISM} extension, and the data
-is stored in a file with the @code{.ISD} extension.  You can
+index is stored in a file with the @file{.ISM} extension, and the data
+is stored in a file with the @file{.ISD} extension.  You can
 check/repair @code{ISAM} tables with the @code{isamchk} utility. @xref{Crash
 recovery}.
 
@@ -46655,7 +46655,7 @@ can restore it with the following procedure:
 @enumerate
 @item
 Take down the @code{mysqld} server by sending a @code{kill} (not @code{kill
--9}) to the @code{mysqld} server.  The pid is stored in a @code{.pid}
+-9}) to the @code{mysqld} server.  The pid is stored in a @file{.pid}
 file, which is normally in the MySQL database directory:
 
 @example
@@ -49494,7 +49494,7 @@ hanging on @code{upgrading locks} without any apparent reasons.
 @item
 Fixed problem with @code{myisampack} and @code{BLOB}.
 @item
-Fixes problem when one edited @code{.MRG} tables by hand.
+Fixes problem when one edited @file{.MRG} tables by hand.
 (Patch from Benjamin Pflugmann).
 @item
 Enforce that all tables in a @code{MERGE} table come from the same
