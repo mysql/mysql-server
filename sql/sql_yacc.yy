@@ -142,7 +142,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FLUSH_SYM
 %token  HELP_SYM
 %token	INSERT
-%token	IO_THREAD
+%token	RELAY_THREAD
 %token	KILL_SYM
 %token	LOAD
 %token	LOCKS_SYM
@@ -587,7 +587,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
-        UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_db
+        UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING
         SP_FUNC ident_or_spfunc
 
@@ -671,6 +671,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_collate
 	charset_name
 	charset_name_or_default
+	old_or_new_charset_name
+	old_or_new_charset_name_or_default
 	collation_name
 	collation_name_or_default
 
@@ -1894,6 +1896,24 @@ charset_name_or_default:
 	charset_name { $$=$1;   }
 	| DEFAULT    { $$=NULL; } ;
 
+
+old_or_new_charset_name:
+	ident_or_text
+	{
+	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))) &&
+	      !($$=get_old_charset_by_name($1.str)))
+	  {
+	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    YYABORT;
+	  }
+	}
+	| BINARY { $$= &my_charset_bin; }
+	;
+
+old_or_new_charset_name_or_default:
+	old_or_new_charset_name { $$=$1;   }
+	| DEFAULT    { $$=NULL; } ;
+
 collation_name:
 	ident_or_text
 	{
@@ -1906,7 +1926,7 @@ collation_name:
 
 opt_collate:
 	/* empty */	{ $$=NULL; }
-	| COLLATE_SYM collation_name { $$=$2; }
+	| COLLATE_SYM collation_name_or_default { $$=$2; }
 	;
 
 collation_name_or_default:
@@ -2230,7 +2250,7 @@ slave_thread_opt_list:
 slave_thread_opt:
 	/*empty*/	{}
 	| SQL_THREAD	{ Lex->slave_thd_opt|=SLAVE_SQL; }
-	| IO_THREAD   	{ Lex->slave_thd_opt|=SLAVE_IO; }
+	| RELAY_THREAD 	{ Lex->slave_thd_opt|=SLAVE_IO; }
 	;
 
 restore:
@@ -2709,7 +2729,7 @@ simple_expr:
  	| simple_expr COLLATE_SYM ident_or_text %prec NEG
 	  { 
 	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
-					    YYTHD->variables.thd_charset));
+					    YYTHD->charset()));
 	  }
 	| literal
 	| param_marker
@@ -2823,9 +2843,9 @@ simple_expr:
 	    Lex->uncacheable();;
 	  }
 	| ENCRYPT '(' expr ',' expr ')'   { $$= new Item_func_encrypt($3,$5); }
-	| DECODE_SYM '(' expr ',' TEXT_STRING_db ')'
+	| DECODE_SYM '(' expr ',' TEXT_STRING_literal ')'
 	  { $$= new Item_func_decode($3,$5.str); }
-	| ENCODE_SYM '(' expr ',' TEXT_STRING_db ')'
+	| ENCODE_SYM '(' expr ',' TEXT_STRING_literal ')'
 	 { $$= new Item_func_encode($3,$5.str); }
 	| DES_DECRYPT_SYM '(' expr ')'
         { $$= new Item_func_des_decrypt($3); }
@@ -3140,7 +3160,7 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new String(" ",1,default_charset_info); }
+    /* empty */        { $$ = new String(",",1,default_charset_info); }
     |SEPARATOR_SYM text_string  { $$ = $2; };
    
 
@@ -3462,7 +3482,7 @@ having_clause:
 	;
 
 opt_escape:
-	ESCAPE_SYM TEXT_STRING_db	{ $$= $2.str; }
+	ESCAPE_SYM TEXT_STRING_literal	{ $$= $2.str; }
 	| /* empty */			{ $$= (char*) "\\"; };
 
 
@@ -4000,8 +4020,8 @@ update:
 	UPDATE_SYM
 	{
 	  LEX *lex= Lex;
+	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
-          lex->select_lex.init_order();
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list where_clause opt_order_clause delete_limit_clause
@@ -4009,7 +4029,7 @@ update:
 	  LEX *lex= Lex;
 	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
-            lex->sql_command=SQLCOM_UPDATE_MULTI;
+            lex->sql_command= SQLCOM_UPDATE_MULTI;
 	}
 	;
 
@@ -4507,24 +4527,22 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING_db
+	TEXT_STRING_literal
 	{
 	  THD *thd= YYTHD;
-	  CHARSET_INFO *cs= my_charset_same(thd->charset(),thd->db_charset) ?
-			    thd->charset() : thd->db_charset;
-	  $$ = new Item_string($1.str,$1.length,cs);
+	  $$ = new Item_string($1.str,$1.length,thd->variables.literal_collation);
 	}
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
 	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
-	| text_literal TEXT_STRING_db
+	| text_literal TEXT_STRING_literal
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
 
 text_string:
-	TEXT_STRING_db
-	{ $$=  new String($1.str,$1.length,YYTHD->db_charset); }
+	TEXT_STRING_literal
+	{ $$=  new String($1.str,$1.length,YYTHD->variables.literal_collation); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -4707,18 +4725,18 @@ TEXT_STRING_sys:
 	}
 	;
 
-TEXT_STRING_db:
+TEXT_STRING_literal:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),thd->db_charset))
+	  if (my_charset_same(thd->charset(),thd->variables.literal_collation))
 	  {
 	    $$=$1;
 	  }
 	  else
 	  {
 	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),thd->db_charset);
+	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.literal_collation);
 	    $$.str= thd->strmake(ident.ptr(),ident.length());
 	    $$.length= ident.length();
 	  }
@@ -4835,7 +4853,7 @@ keyword:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
-	| IO_THREAD		{}
+	| RELAY_THREAD		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LINESTRING		{}
@@ -5003,67 +5021,32 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| charset set_expr_or_default
+	| charset old_or_new_charset_name_or_default opt_collate
 	{
 	  THD *thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  if (!$2)
+	  LEX *lex= Lex;
+	  $2= $2 ? $2: global_system_variables.client_collation;
+	  $3= $3 ? $3 : $2;
+	  if (!my_charset_same($2,$3))
 	  {
-	    CHARSET_INFO *cl= thd->db_charset;
-	    $2= new Item_string(cl->name, strlen(cl->name), &my_charset_latin1);
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+			 $3->name,$2->csname);
+	      YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      $2));
+	  lex->var_list.push_back(new set_var_client_collation($3,thd->db_charset,$3));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
-	  THD* thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  CHARSET_INFO *cs= $2 ? $2 : thd->db_charset;
-	  CHARSET_INFO *cl= $3 ? $3 : cs;
-
-	  if (!my_charset_same(cs,cl))
+	  LEX *lex= Lex;
+	  $2= $2 ? $2 : global_system_variables.client_collation;
+	  $3= $3 ? $3 : $2;
+	  if (!my_charset_same($2,$3))
 	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
-		         cl->name,cs->csname);
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+			 $3->name,$2->csname);
 	      YYABORT;
 	  }
-	  Item_string *csname= new Item_string(cl->name, 
-					       strlen(cl->name), 
-					       &my_charset_latin1);
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      csname));
-	}
-	| COLLATION_SYM collation_name_or_default
-	{
-	  THD* thd= YYTHD;
-	  LEX *lex= &thd->lex;
-	  system_variables *vars= &thd->variables;
-	  CHARSET_INFO *cs= vars->thd_charset;
-	  CHARSET_INFO *cl= $2;
-
-	  if (!cl)
-	  {
-	    if (!(cl=get_charset_by_csname(cs->csname,MY_CS_PRIMARY,MYF(0))))
-	    {
-	      net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"DEFAULT");
-	      YYABORT;
-	    }
-	  }
-	  else if (!my_charset_same(cs,cl))
-	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH, 
-		         cl->name,cs->csname);
-	      YYABORT;
-	  }
-	  Item_string *csname= new Item_string(cl->name, 
-					       strlen(cl->name), 
-					       &my_charset_latin1);
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("client_collation"),
-					      csname));
+	  lex->var_list.push_back(new set_var_client_collation($3,$3,$3));
 	}
 	| PASSWORD equal text_or_password
 	  {

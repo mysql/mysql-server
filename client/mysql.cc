@@ -40,6 +40,10 @@
 #include <signal.h>
 #include <violite.h>
 
+#if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
+#include <locale.h>
+#endif
+
 const char *VER= "13.5";
 
 /* Don't try to make a nice table if the data is too big */
@@ -1114,6 +1118,9 @@ static void initialize_readline (char *name)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
 #elif defined(USE_LIBEDIT_INTERFACE)
+#ifdef HAVE_LOCALE_H
+  setlocale(LC_ALL,""); /* so as libedit use isprint */
+#endif
   rl_attempted_completion_function= (CPPFunction*)&new_mysql_completion;
   rl_completion_entry_function= (CPFunction*)&no_completion;
 #else

@@ -217,7 +217,7 @@ static SYMBOL symbols[] = {
   { "INT4",		SYM(INT_SYM),0,0},
   { "INT8",		SYM(BIGINT),0,0},
   { "INTO",		SYM(INTO),0,0},
-  { "IO_THREAD",        SYM(IO_THREAD),0,0},
+  { "IO_THREAD",        SYM(RELAY_THREAD),0,0},
   { "IF",		SYM(IF),0,0},
   { "IS",		SYM(IS),0,0},
   { "ISOLATION",	SYM(ISOLATION),0,0},
@@ -325,6 +325,7 @@ static SYMBOL symbols[] = {
   { "REFERENCES",	SYM(REFERENCES),0,0},
   { "RELAY_LOG_FILE",   SYM(RELAY_LOG_FILE_SYM),0,0},
   { "RELAY_LOG_POS",    SYM(RELAY_LOG_POS_SYM),0,0},
+  { "RELAY_THREAD",     SYM(RELAY_THREAD),0,0},
   { "RELOAD",		SYM(RELOAD),0,0},
   { "REGEXP",		SYM(REGEXP),0,0},
   { "RENAME",		SYM(RENAME),0,0},
@@ -465,6 +466,9 @@ static SYMBOL sql_functions[] = {
   { "CHARACTER_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "COALESCE",		SYM(COALESCE),0,0},
   { "COERCIBILITY",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_coercibility)},
+#ifdef HAVE_COMPRESS
+  { "COMPRESS",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_compress)},
+#endif
   { "CONCAT",		SYM(CONCAT),0,0},
   { "CONCAT_WS",	SYM(CONCAT_WS),0,0},
   { "CONNECTION_ID",	SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_connection_id)},
@@ -640,6 +644,10 @@ static SYMBOL sql_functions[] = {
   { "TOUCHES",		SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_touches)},
   { "TRIM",		SYM(TRIM),0,0},
   { "UCASE",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
+#ifdef HAVE_COMPRESS
+  { "UNCOMPRESS",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompress)},
+  { "UNCOMPRESSED_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompressed_length)},
+#endif
   { "UNIQUE_USERS",	SYM(UNIQUE_USERS),0,0},
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP),0,0},
   { "UPPER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},

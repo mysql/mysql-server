@@ -91,11 +91,7 @@ show variables like 'net_buffer_length';
 set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 
-set GLOBAL character set cp1251_koi8;
-show global variables like "client_collation";
 set character set cp1251_koi8;
-show variables like "client_collation";
-set global character set default, session character set default;
 show variables like "client_collation";
 select @@timestamp>0;
 
@@ -124,10 +120,6 @@ set SESSION query_cache_size=10000;
 set GLOBAL table_type=DEFAULT;
 --error 1115
 set client_collation=UNKNOWN_CHARACTER_SET;
---error 1115
-set character set unknown;
---error 1232
-set character set 0;
 --error 1228
 set global autocommit=1;
 --error 1228

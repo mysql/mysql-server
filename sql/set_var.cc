@@ -111,8 +111,6 @@ sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
-sys_var_thd_bool	sys_convert_result_charset("convert_result_charset",
-						   &SV::convert_result_charset);
 sys_var_enum		sys_delay_key_write("delay_key_write",
 					    &delay_key_write_options,
 					    &delay_key_write_typelib,
@@ -134,6 +132,7 @@ sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
 					    &keybuff_size,
 					    fix_key_buffer_size);
+sys_var_literal_collation sys_literal_collation("literal_collation");
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -202,6 +201,7 @@ sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
+sys_var_result_collation sys_result_collation("result_collation");
 sys_var_long_ptr	sys_rpl_recovery_rank("rpl_recovery_rank",
 					      &rpl_recovery_rank);
 sys_var_long_ptr	sys_query_cache_size("query_cache_size",
@@ -347,7 +347,6 @@ sys_var *sys_variables[]=
   &sys_client_collation,
   &sys_concurrent_insert,
   &sys_connect_timeout,
-  &sys_convert_result_charset,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -364,6 +363,7 @@ sys_var *sys_variables[]=
   &sys_interactive_timeout,
   &sys_join_buffer_size,
   &sys_key_buffer_size,
+  &sys_literal_collation,
   &sys_last_insert_id,
   &sys_local_infile,
   &sys_log_binlog,
@@ -407,6 +407,7 @@ sys_var *sys_variables[]=
   &sys_rand_seed2,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
+  &sys_result_collation,
   &sys_rpl_recovery_rank,
   &sys_safe_updates,
   &sys_select_limit,
@@ -458,7 +459,6 @@ struct show_var_st init_vars[]= {
   {sys_client_collation.name, (char*) &sys_client_collation,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
-  {sys_convert_result_charset.name, (char*) &sys_convert_result_charset, SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
@@ -475,6 +475,7 @@ struct show_var_st init_vars[]= {
   {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
+  {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -508,6 +509,7 @@ struct show_var_st init_vars[]= {
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {sys_literal_collation.name,(char*) &sys_literal_collation,	    SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
@@ -561,6 +563,7 @@ struct show_var_st init_vars[]= {
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
+  {sys_result_collation.name, (char*) &sys_result_collation,	    SHOW_SYS},
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
@@ -1156,7 +1159,8 @@ byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type)
 }
 
 
-typedef struct old_names_map_st {
+typedef struct old_names_map_st
+{
   const char *old_name;
   const char *new_name;
 } my_old_conv;
@@ -1176,7 +1180,7 @@ static my_old_conv old_conv[]=
 	{	NULL			,	NULL		}
 };
 
-static CHARSET_INFO *get_old_charset_by_name(const char *name)
+CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *c;
  
@@ -1188,19 +1192,11 @@ static CHARSET_INFO *get_old_charset_by_name(const char *name)
   return NULL;
 }
 
-bool sys_var_client_collation::check(THD *thd, set_var *var)
+bool sys_var_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
   char buff[80];
   String str(buff,sizeof(buff), system_charset_info), *res;
-
-  if (!var->value)					// Default value
-  {
-    var->save_result.charset= (var->type != OPT_GLOBAL ?
-			       global_system_variables.thd_charset
-			       : thd->db_charset);
-    return 0;
-  }
 
   if (!(res=var->value->val_str(&str)))
     res= &empty_string;
@@ -1218,26 +1214,106 @@ bool sys_var_client_collation::check(THD *thd, set_var *var)
 bool sys_var_client_collation::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
-    global_system_variables.thd_charset= var->save_result.charset;
+    global_system_variables.client_collation= var->save_result.charset;
   else
   {
-    thd->variables.thd_charset= var->save_result.charset;
+    thd->variables.client_collation= var->save_result.charset;
     thd->protocol_simple.init(thd);
     thd->protocol_prep.init(thd);
   }
   return 0;
 }
 
-
 byte *sys_var_client_collation::value_ptr(THD *thd, enum_var_type type)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
-		  global_system_variables.thd_charset :
-		  thd->variables.thd_charset);
+		  global_system_variables.client_collation :
+		  thd->variables.client_collation);
   return cs ? (byte*) cs->name : (byte*) "";
 }
 
+void sys_var_client_collation::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.client_collation= default_charset_info;
+ else
+ {
+   thd->variables.client_collation= global_system_variables.client_collation;
+ }
+}
 
+
+bool sys_var_literal_collation::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.literal_collation= var->save_result.charset;
+  else
+    thd->variables.literal_collation= var->save_result.charset;
+  return 0;
+}
+
+byte *sys_var_literal_collation::value_ptr(THD *thd, enum_var_type type)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.literal_collation :
+		  thd->variables.literal_collation);
+  return cs ? (byte*) cs->name : (byte*) "";
+}
+
+void sys_var_literal_collation::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.literal_collation= default_charset_info;
+ else
+   thd->variables.literal_collation= global_system_variables.literal_collation;
+}
+
+bool sys_var_result_collation::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.result_collation= var->save_result.charset;
+  else
+    thd->variables.result_collation= var->save_result.charset;
+  return 0;
+}
+
+byte *sys_var_result_collation::value_ptr(THD *thd, enum_var_type type)
+{
+  CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
+		  global_system_variables.result_collation :
+		  thd->variables.result_collation);
+  return cs ? (byte*) cs->name : (byte*) "";
+}
+
+void sys_var_result_collation::set_default(THD *thd, enum_var_type type)
+{
+ if (type == OPT_GLOBAL)
+   global_system_variables.result_collation= default_charset_info;
+ else
+   thd->variables.result_collation= global_system_variables.result_collation;
+}
+
+
+/*****************************************************************************
+  Functions to handle SET NAMES and SET CHARACTER SET
+*****************************************************************************/
+
+int set_var_client_collation::check(THD *thd)
+{
+  return 0;
+}
+
+int set_var_client_collation::update(THD *thd)
+{
+  thd->variables.client_collation=  client_collation;
+  thd->variables.literal_collation= literal_collation;
+  thd->variables.result_collation=  result_collation;
+  thd->protocol_simple.init(thd);
+  thd->protocol_prep.init(thd);
+  return 0;
+}
+
+/****************************************************************************/
 
 bool sys_var_timestamp::update(THD *thd,  set_var *var)
 {
@@ -1680,6 +1756,10 @@ int set_var_password::update(THD *thd)
   return (change_password(thd, user->host.str, user->user.str, password) ?
 	  1 : 0);
 }
+
+
+
+
 
 /****************************************************************************
   Used templates
