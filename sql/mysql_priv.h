@@ -405,8 +405,7 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 COND *conds, uint og_num, ORDER *order, ORDER *group,
 		 Item *having, ORDER *proc_param, ulong select_type, 
 		 select_result *result, SELECT_LEX_UNIT *unit, 
-		 SELECT_LEX *select_lex, bool fake_select_lex,
-		 bool tables_and_fields_initied);
+		 SELECT_LEX *select_lex,  bool tables_and_fields_initied);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 void fix_tables_pointers(SELECT_LEX *select_lex);
 void fix_tables_pointers(SELECT_LEX_UNIT *select_lex);

@@ -182,7 +182,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
-		      result, &(lex->unit), &(lex->select_lex), 0, 0);
+		      result, &(lex->unit), &(lex->select_lex), 0);
   if (res && result)
     result->abort();
 
@@ -268,7 +268,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit,
-	      bool fake_select_lex, bool tables_and_fields_initied)
+	      bool tables_and_fields_initied)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -279,8 +279,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
-  if (!fake_select_lex)
-    select_lex->join= this;
+  select_lex->join= this;
   union_part= (unit->first_select()->next_select() != 0);
 
   /* Check that all tables, fields, conds and order are ok */
@@ -1261,7 +1260,6 @@ int
 JOIN::cleanup(THD *thd)
 {
   DBUG_ENTER("JOIN::cleanup");
-
   select_lex->join= 0;
 
   if (tmp_join)
@@ -1292,15 +1290,14 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex, bool fake_select_lex,
-	     bool tables_and_fields_initied)
+	     SELECT_LEX *select_lex,  bool tables_and_fields_initied)
 {
   int err;
   bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
   JOIN *join;
-  if (!fake_select_lex && select_lex->join != 0)
+  if (select_lex->join != 0)
   {
     //here is EXPLAIN of subselect or derived table
     join= select_lex->join;
@@ -1320,8 +1317,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit, fake_select_lex,
-		      tables_and_fields_initied))
+		      select_lex, unit, tables_and_fields_initied))
     {
       DBUG_RETURN(-1);
     }
@@ -1350,7 +1346,7 @@ err:
     thd->limit_found_rows= curr_join->send_records;
     thd->examined_row_count= curr_join->examined_rows;
     thd->proc_info="end";
-    err= (fake_select_lex ? curr_join->error : join->cleanup(thd));
+    err= join->cleanup(thd);
     if (thd->net.report_error)
       err= -1;
     delete join;
@@ -7086,15 +7082,16 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 		   TABLE_LIST *tables,ORDER *order, List<Item> &fields,
 		   List<Item> &all_fields)
 {
-  if ((*order->item)->type() == Item::INT_ITEM)
+  Item *itemptr=*order->item;
+  if (itemptr->type() == Item::INT_ITEM)
   {						/* Order by position */
     Item *item=0;
 
-    uint count= (uint) ((Item_int*) (*order->item))->value;
+    uint count= (uint) ((Item_int*)itemptr)->value;
     if (count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0),(*order->item)->full_name(),
+		      MYF(0),itemptr->full_name(),
 	       thd->where);
       return 1;
     }
@@ -7103,8 +7100,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     return 0;
   }
   uint counter;
-  Item **item= find_item_in_list(*order->item, fields, &counter,
-				 IGNORE_ERRORS);
+  Item **item= find_item_in_list(itemptr, fields, &counter, IGNORE_ERRORS);
   if (item)
   {
     order->item= ref_pointer_array + counter;
@@ -8097,7 +8093,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->having,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex, 0, 0);
+			result, unit, select_lex, 0);
   DBUG_RETURN(res);
 }
 

@@ -311,6 +311,11 @@ public:
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
   st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex* first_select_in_union() 
+  { 
+    return (slave && slave->linkage == GLOBAL_OPTIONS_TYPE) ?
+      (st_select_lex*) slave->next : (st_select_lex*) slave;
+  }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
   void exclude_level();
 
@@ -404,6 +409,13 @@ public:
   }
   
   friend void mysql_init_query(THD *thd);
+  void make_empty_select(st_select_lex *last_select)
+  {
+    select_number=INT_MAX;
+    init_query();
+    init_select();
+    include_neighbour(last_select);
+  }
 };
 typedef class st_select_lex SELECT_LEX;
 
