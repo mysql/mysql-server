@@ -1,3 +1,0 @@
-ccc -DHAVE_CONFIG_H -I. -I. -I.. -I./../include -I../include -DDBUG_OFF -fast -O3 -fomit-frame-pointer -c _cache.c _dbug.c _dynrec.c _key.c _locking.c _packrec.c _page.c _search.c _statrec.c changed.c close.c create.c delete.c extra.c info.c log.c open.c panic.c range.c rfirst.c rkey.c rlast.c rnext.c rprev.c rrnd.c rsame.c rsamepos.c static.c update.c write.c
-rm libnisam.a
-ar -cr libnisam.a _cache.o

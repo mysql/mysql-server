@@ -102,7 +102,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       key+=char_length;
       continue;
     }
-    if (keyseg->flag & HA_VAR_LENGTH)
+    if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint tmp_length=uint2korr(pos);
       pos+=2;					/* Skip VARCHAR length */
@@ -216,7 +216,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       if (!(*key++= (char) 1-*old++))			/* Copy null marker */
       {
 	k_length-=length;
-        if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+        if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
           k_length-=2;                                  /* Skip length */
 	continue;					/* Found NULL */
       }
@@ -244,7 +244,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       key+= char_length;
       continue;
     }
-    else if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+    else if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
     {
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length=uint2korr(pos);
@@ -356,7 +356,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       continue;
     }
 
-    if (keyseg->flag & HA_VAR_LENGTH)
+    if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint length;
       get_key_length(length,key);
@@ -364,7 +364,10 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       if (length > keyseg->length || key+length > key_end)
 	goto err;
 #endif
-      memcpy(record+keyseg->start,(byte*) key, length);
+      /* Store key length */
+      int2store(record+keyseg->start, length);
+      /* And key data */
+      memcpy(record+keyseg->start+2,(byte*) key, length);
       key+= length;
     }
     else if (keyseg->flag & HA_BLOB_PART)

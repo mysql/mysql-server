@@ -172,9 +172,9 @@ static double _mi_search_pos(register MI_INFO *info,
     if (flag == MI_FOUND_WRONG_KEY)
       DBUG_RETURN(-1);				/* error */
     /*
-    ** Didn't found match. keypos points at next (bigger) key
-    *  Try to find a smaller, better matching key.
-    ** Matches keynr + [0-1]
+      Didn't found match. keypos points at next (bigger) key
+      Try to find a smaller, better matching key.
+      Matches keynr + [0-1]
     */
     if (flag > 0 && ! nod_flag)
       offset= 1.0;
@@ -185,8 +185,8 @@ static double _mi_search_pos(register MI_INFO *info,
   else
   {
     /*
-    ** Found match. Keypos points at the start of the found key
-    ** Matches keynr+1
+      Found match. Keypos points at the start of the found key
+      Matches keynr+1
     */
     offset=1.0;					/* Matches keynr+1 */
     if ((nextflag & SEARCH_FIND) && nod_flag &&
@@ -194,8 +194,8 @@ static double _mi_search_pos(register MI_INFO *info,
 	 key_len != USE_WHOLE_KEY))
     {
       /*
-      ** There may be identical keys in the tree. Try to match on of those.
-      ** Matches keynr + [0-1]
+        There may be identical keys in the tree. Try to match on of those.
+        Matches keynr + [0-1]
       */
       if ((offset=_mi_search_pos(info,keyinfo,key,key_len,SEARCH_FIND,
 				 _mi_kpos(nod_flag,keypos))) < 0)

@@ -112,7 +112,7 @@ def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	1	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
 def	test	t9	t9	c20	c20	254	1	1	Y	0	0	8
-def	test	t9	t9	c21	c21	253	10	10	Y	0	0	8
+def	test	t9	t9	c21	c21	254	10	10	Y	0	0	8
 def	test	t9	t9	c22	c22	253	30	30	Y	0	0	8
 def	test	t9	t9	c23	c23	252	255	8	Y	144	0	63
 def	test	t9	t9	c24	c24	252	255	8	Y	16	0	8
@@ -1700,11 +1700,11 @@ t5	CREATE TABLE `t5` (
   `param04` longtext,
   `const05` binary(3) NOT NULL default '',
   `param05` longblob,
-  `const06` varchar(10) NOT NULL default '',
+  `const06` char(10) NOT NULL default '',
   `param06` longtext,
   `const07` date default NULL,
   `param07` longblob,
-  `const08` varchar(19) NOT NULL default '',
+  `const08` char(19) NOT NULL default '',
   `param08` longtext,
   `const09` datetime default NULL,
   `param09` longblob,
@@ -1730,11 +1730,11 @@ def	test	t5	t5	const04	const04	254	3	3	N	1	0	8
 def	test	t5	t5	param04	param04	252	16777215	3	Y	16	0	8
 def	test	t5	t5	const05	const05	254	3	3	N	129	0	63
 def	test	t5	t5	param05	param05	252	16777215	3	Y	144	0	63
-def	test	t5	t5	const06	const06	253	10	10	N	1	0	8
+def	test	t5	t5	const06	const06	254	10	10	N	1	0	8
 def	test	t5	t5	param06	param06	252	16777215	10	Y	16	0	8
 def	test	t5	t5	const07	const07	10	10	10	Y	128	0	63
 def	test	t5	t5	param07	param07	252	16777215	10	Y	144	0	63
-def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
+def	test	t5	t5	const08	const08	254	19	19	N	1	0	8
 def	test	t5	t5	param08	param08	252	16777215	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	16777215	19	Y	144	0	63
@@ -3121,7 +3121,7 @@ def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	1	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
 def	test	t9	t9	c20	c20	254	1	1	Y	0	0	8
-def	test	t9	t9	c21	c21	253	10	10	Y	0	0	8
+def	test	t9	t9	c21	c21	254	10	10	Y	0	0	8
 def	test	t9	t9	c22	c22	253	30	30	Y	0	0	8
 def	test	t9	t9	c23	c23	252	255	8	Y	144	0	63
 def	test	t9	t9	c24	c24	252	255	8	Y	16	0	8
@@ -4709,11 +4709,11 @@ t5	CREATE TABLE `t5` (
   `param04` longtext,
   `const05` binary(3) NOT NULL default '',
   `param05` longblob,
-  `const06` varchar(10) NOT NULL default '',
+  `const06` char(10) NOT NULL default '',
   `param06` longtext,
   `const07` date default NULL,
   `param07` longblob,
-  `const08` varchar(19) NOT NULL default '',
+  `const08` char(19) NOT NULL default '',
   `param08` longtext,
   `const09` datetime default NULL,
   `param09` longblob,
@@ -4739,11 +4739,11 @@ def	test	t5	t5	const04	const04	254	3	3	N	1	0	8
 def	test	t5	t5	param04	param04	252	16777215	3	Y	16	0	8
 def	test	t5	t5	const05	const05	254	3	3	N	129	0	63
 def	test	t5	t5	param05	param05	252	16777215	3	Y	144	0	63
-def	test	t5	t5	const06	const06	253	10	10	N	1	0	8
+def	test	t5	t5	const06	const06	254	10	10	N	1	0	8
 def	test	t5	t5	param06	param06	252	16777215	10	Y	16	0	8
 def	test	t5	t5	const07	const07	10	10	10	Y	128	0	63
 def	test	t5	t5	param07	param07	252	16777215	10	Y	144	0	63
-def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
+def	test	t5	t5	const08	const08	254	19	19	N	1	0	8
 def	test	t5	t5	param08	param08	252	16777215	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	16777215	19	Y	144	0	63

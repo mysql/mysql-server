@@ -939,3 +939,12 @@ alter table t1 add b int;
 select * from t1;
 drop table t1;
 
+
+#
+# Test varchar
+#
+
+let $default=`select @@storage_engine`;
+set storage_engine=bdb;
+source include/varchar.inc;
+eval set storage_engine=$default;
