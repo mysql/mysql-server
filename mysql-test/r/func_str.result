@@ -270,6 +270,24 @@ latin2_general_ci	3
 select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
 collation(concat_ws(_latin2'a',_latin2'b'))	coercibility(concat_ws(_latin2'a',_latin2'b'))
 latin2_general_ci	3
+select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
+collation(trim(_latin2' a '))	coercibility(trim(_latin2' a '))
+latin2_general_ci	3
+select collation(ltrim(_latin2' a ')), coercibility(ltrim(_latin2' a '));
+collation(ltrim(_latin2' a '))	coercibility(ltrim(_latin2' a '))
+latin2_general_ci	3
+select collation(rtrim(_latin2' a ')), coercibility(rtrim(_latin2' a '));
+collation(rtrim(_latin2' a '))	coercibility(rtrim(_latin2' a '))
+latin2_general_ci	3
+select collation(trim(LEADING _latin2' ' FROM _latin2'a')), coercibility(trim(LEADING _latin2'a' FROM _latin2'a'));
+collation(trim(LEADING _latin2' ' FROM _latin2'a'))	coercibility(trim(LEADING _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
+select collation(trim(TRAILING _latin2' ' FROM _latin2'a')), coercibility(trim(TRAILING _latin2'a' FROM _latin2'a'));
+collation(trim(TRAILING _latin2' ' FROM _latin2'a'))	coercibility(trim(TRAILING _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
+select collation(trim(BOTH _latin2' ' FROM _latin2'a')), coercibility(trim(BOTH _latin2'a' FROM _latin2'a'));
+collation(trim(BOTH _latin2' ' FROM _latin2'a'))	coercibility(trim(BOTH _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
 create table t1 
 select
 left(_latin2'a',1),
@@ -278,7 +296,14 @@ lcase(_latin2'a'),
 ucase(_latin2'a'),
 substring(_latin2'a',1,1),
 concat(_latin2'a',_latin2'b'),
-concat_ws(_latin2'a',_latin2'b');
+concat_ws(_latin2'a',_latin2'b'),
+trim(_latin2' a '),
+ltrim(_latin2' a '),
+rtrim(_latin2' a '),
+trim(LEADING _latin2' ' FROM _latin2' a '),
+trim(TRAILING _latin2' ' FROM _latin2' a '),
+trim(BOTH _latin2' ' FROM _latin2' a ')
+;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -288,6 +313,12 @@ t1	CREATE TABLE `t1` (
   `ucase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
   `substring(_latin2'a',1,1)` char(1) character set latin2 NOT NULL default '',
   `concat(_latin2'a',_latin2'b')` char(2) character set latin2 NOT NULL default '',
-  `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default ''
+  `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default '',
+  `trim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `ltrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `rtrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(LEADING _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(TRAILING _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(BOTH _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;

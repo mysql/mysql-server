@@ -220,35 +220,37 @@ public:
 };
 
 
-class Item_func_ltrim :public Item_str_func
+class Item_func_trim :public Item_str_func
 {
+protected:
   String tmp_value;
+  String remove;
 public:
-  Item_func_ltrim(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_trim(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_trim(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= args[0]->max_length; }
+  void fix_length_and_dec();
+  const char *func_name() const { return "trim"; }
+};
+
+
+class Item_func_ltrim :public Item_func_trim
+{
+public:
+  Item_func_ltrim(Item *a,Item *b) :Item_func_trim(a,b) {}
+  Item_func_ltrim(Item *a) :Item_func_trim(a) {}
+  String *val_str(String *);
   const char *func_name() const { return "ltrim"; }
 };
 
 
-class Item_func_rtrim :public Item_str_func
+class Item_func_rtrim :public Item_func_trim
 {
-  String tmp_value;
 public:
-  Item_func_rtrim(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_rtrim(Item *a,Item *b) :Item_func_trim(a,b) {}
+  Item_func_rtrim(Item *a) :Item_func_trim(a) {}
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "rtrim"; }
-};
-
-class Item_func_trim :public Item_str_func
-{
-  String tmp_value;
-public:
-  Item_func_trim(Item *a,Item *b) :Item_str_func(a,b) {}
-  String *val_str(String *);
-  void fix_length_and_dec() { max_length= args[0]->max_length; }
-  const char *func_name() const { return "trim"; }
 };
 
 
