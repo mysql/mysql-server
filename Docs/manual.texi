@@ -3972,7 +3972,6 @@ the entire query but can refer to the stored procedure. This provides better
 performance because the query has to be parsed only once, and less information
 needs to be sent between the server and the client. You can also raise the
 conceptual level by having libraries of functions in the server.
-Unfortunately, stored procedures are not very standardised yet.
 
 A trigger is a stored procedure that is invoked when a particular event
 occurs.  For example, you can install a stored procedure that is triggered
@@ -5987,9 +5986,9 @@ Add use of @code{zlib()} for @code{gzip}-ed files to @code{LOAD DATA INFILE}.
 @item
 Fix sorting and grouping of @code{BLOB} columns (partly solved now).
 @item
-Stored procedures.
+Stored procedures. Triggers are also being looked at.
 @item
-Add a simple (atomic) update language that
+A simple (atomic) update language that
 can be used to write loops and such in the MySQL server.
 @item
 Change to use semaphores when counting threads.  One should first implement
