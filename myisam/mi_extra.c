@@ -219,9 +219,17 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     }
     if (share->state.key_map)
     {
-      share->state.key_map=0;
-      info->state->key_file_length=share->state.state.key_file_length=
-	share->base.keystart;
+      MI_KEYDEF *key=share->keyinfo;
+      uint i;
+      for (i=0 ; i < share->base.keys ; i++,key++)
+      {
+        if (!(key->flag & HA_NOSAME) && info->s->base.auto_key != i+1)
+        {
+          share->state.key_map&= ~ ((ulonglong) 1 << i);
+          info->update|= HA_STATE_CHANGED;
+        }
+      }
+
       if (!share->changed)
       {
 	share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
