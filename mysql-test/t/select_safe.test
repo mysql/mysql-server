@@ -12,7 +12,7 @@ delete from t1 where a=1;
 insert into t1 values(1,"test"),(2,"test2");
 SELECT SQL_BUFFER_RESULT * from t1;
 update t1 set b="a" where a=1;
-select 1 from t1,t1 as t2,t1 as t3,t1 as t4;
+select 1 from t1,t1 as t2,t1 as t3;
 
 # The following should give errors:
 --error 1175
@@ -36,18 +36,30 @@ delete from t1 where a+0=1 limit 2;
 
 # Test SQL_BIG_SELECTS
 
+alter table t1 add key b (b);
 SET MAX_JOIN_SIZE=2;
 SELECT @@MAX_JOIN_SIZE, @@SQL_BIG_SELECTS;
 insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
 --error 1104
-SELECT * from t1;
+SELECT * from t1 order by a;
 SET SQL_BIG_SELECTS=1;
-SELECT * from t1;
+SELECT * from t1 order by a;
 SET MAX_JOIN_SIZE=2;
 --error 1104
 SELECT * from t1;
 SET MAX_JOIN_SIZE=DEFAULT;
 SELECT * from t1;
+
+#
+# Test MAX_SEEKS_FOR_KEY
+#
+SELECT @@MAX_SEEKS_FOR_KEY;
+analyze table t1;
+insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a");
+explain select * from t1,t1 as t2 where t1.b=t2.b;
+set MAX_SEEKS_FOR_KEY=1;
+explain select * from t1,t1 as t2 where t1.b=t2.b;
+SET MAX_SEEKS_FOR_KEY=DEFAULT;
 
 drop table t1;
 

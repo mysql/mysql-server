@@ -310,6 +310,7 @@ struct system_variables
   ulong tx_isolation;
   ulong table_type;
   ulong default_week_format;
+  ulong max_seeks_for_key;
 
   my_bool log_warnings;
   my_bool low_priority_updates;
@@ -781,11 +782,12 @@ class Unique :public Sql_alloc
   TREE tree;
   byte *record_pointers;
   bool flush();
+  uint size;
 
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
-	 uint size, ulong max_in_memory_size_arg);
+	 uint size_arg, ulong max_in_memory_size_arg);
   ~Unique();
   inline bool unique_add(gptr ptr)
   {
@@ -800,26 +802,27 @@ public:
   friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
 
- class multi_delete : public select_result {
-   TABLE_LIST *delete_tables, *table_being_deleted;
-   Unique  **tempfiles;
-   THD *thd;
-   ha_rows deleted;
-   uint num_of_tables;
-   int error;
-   bool do_delete, transactional_tables, log_delayed, normal_tables;
- public:
-   multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
-   ~multi_delete();
-   int prepare(List<Item> &list);
-   bool send_fields(List<Item> &list,
+class multi_delete : public select_result
+{
+  TABLE_LIST *delete_tables, *table_being_deleted;
+  Unique  **tempfiles;
+  THD *thd;
+  ha_rows deleted;
+  uint num_of_tables;
+  int error;
+  bool do_delete, transactional_tables, log_delayed, normal_tables;
+public:
+  multi_delete(THD *thd, TABLE_LIST *dt, uint num_of_tables);
+  ~multi_delete();
+  int prepare(List<Item> &list);
+  bool send_fields(List<Item> &list,
  		   uint flag) { return 0; }
-   bool send_data(List<Item> &items);
-   bool initialize_tables (JOIN *join);
-   void send_error(uint errcode,const char *err);
-   int  do_deletes (bool from_send_error);
-   bool send_eof();
- };
+  bool send_data(List<Item> &items);
+  bool initialize_tables (JOIN *join);
+  void send_error(uint errcode,const char *err);
+  int  do_deletes (bool from_send_error);
+  bool send_eof();
+};
 
 class multi_update : public select_result
 {
