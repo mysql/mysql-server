@@ -4752,7 +4752,7 @@ code, we are better able to coordinate new features and releases.
 
 @cindex PostgreSQL vs. MySQL, features
 
-On the crash-me page
+On the @code{crash-me} page
 (@uref{http://www.mysql.com/information/crash-me.php})
 you can find a list of those database constructs and limits that
 one can detect automatically with a program.  Note, however, that a lot of
@@ -4814,7 +4814,7 @@ MySQL replication has been thoroughly tested, and is used by sites like:
 
 @item
 Included in the MySQL distribution are two different testing suites,
-@file{mysql-test-run} and crash-me
+@file{mysql-test-run} and @code{crash-me}
 (@uref{http://www.mysql.com/information/crash-me.php}), as well
 as a benchmark suite.  The test system is actively updated with code to
 test each new feature and almost all reproduceable bugs that have come to
@@ -24892,7 +24892,7 @@ application that is fast with many databases it becomes even harder!
 To make a complex application portable you need to choose a number of
 SQL servers that it should work with.
 
-You can use the MySQL crash-me program/web-page
+You can use the MySQL @code{crash-me} program/web-page
 @uref{http://www.mysql.com/information/crash-me.php} to find functions,
 types, and limits you can use with a selection of database
 servers. Crash-me now tests far from everything possible, but it
@@ -24901,7 +24901,7 @@ is still comprehensive with about 450 things tested.
 For example, you shouldn't have column names longer than 18 characters
 if you want to be able to use Informix or DB2.
 
-Both the MySQL benchmarks and crash-me programs are very
+Both the MySQL benchmarks and @code{crash-me} programs are very
 database-independent.  By taking a look at how we have handled this, you
 can get a feeling for what you have to do to write your application
 database-independent.  The benchmarks themselves can be found in the
@@ -25102,7 +25102,7 @@ How big a query can be
 How big a @code{VARCHAR} column can be
 @end itemize
 
-We can find the result from crash-me on a lot of different databases at
+We can find the result from @code{crash-me} on a lot of different databases at
 @uref{http://www.mysql.com/information/crash-me.php}.
 
 
@@ -48968,7 +48968,7 @@ also Unireg, a curses-based application tool with many utilities.
 Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI}, and
 @code{DB2mysql}.
 @item
-Most of crash-me and the foundation for the MySQL benchmarks.
+Most of @code{crash-me} and the foundation for the MySQL benchmarks.
 @end itemize
 
 @item David Axmark
@@ -49020,7 +49020,7 @@ Multi-row @code{INSERT}
 @item
 @code{mysqldump} -e option
 @item
-@code{LOAD DATA INFILE LOCAL}
+@code{LOAD DATA LOCAL INFILE}
 @item
 @code{SQL_CALC_FOUND_ROWS} @code{SELECT} option
 @item
@@ -49046,14 +49046,14 @@ Maintainer of @code{MySQL++}.
 @item
 Our security expert.
 @item
-Vio interface (the foundation for the encrypted client/server protocol).
+VIO interface (the foundation for the encrypted client/server protocol).
 @item
 MySQL Filesystem (a way to use MySQL databases as files
 and directories).
 @item
-The CASE expression.
+The @code{CASE} expression.
 @item
-The MD5() and COALESCE() functions.
+The @code{MD5()} and @code{COALESCE()} functions.
 @item
 @code{RAID} support for @code{MyISAM} tables.
 @end itemize
@@ -49978,10 +49978,10 @@ not yet 100% confident in this code.
 @itemize @bullet
 @item
 Fixed possible problem in replication when doing @code{DROP DATABASE} on a
-database with InnoDB tables.
+database with @code{InnoDB} tables.
 @item
-Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
-@code{INSERT DELAYED IGNORE}.
+Fixed @code{mysql_info()} to return 0 for the 'Duplicates' value for
+@code{INSERT DELAYED IGNORE} statements.
 @end itemize
 
 @node News-3.23.51, News-3.23.50, News-3.23.52, News-3.23.x
@@ -49989,46 +49989,47 @@ Fixed that @code{mysql_info()} returns 0 for 'Duplicates' when using
 
 @itemize @bullet
 @item
-Remove end space from @code{enum} values. (This fixed a problem with
-@code{SHOW CREATE TABLE}).
+Remove end space from @code{ENUM} values. (This fixed a problem with
+@code{SHOW CREATE TABLE}.)
 @item
 Fixed bug in @code{CONCAT_WS()} that cut the result.
 @item
-Changed name of variables @code{Com_show_master_stat} to
+Changed name of server variables @code{Com_show_master_stat} to
 @code{Com_show_master_status} and @code{Com_show_slave_stat} to
 @code{Com_show_slave_status}.
 @item
 Changed handling of @code{gethostbyname()} to make the client library
-threadsafe even if @code{gethostbyname_r} doesn't exists.
+thread-safe even if @code{gethostbyname_r} doesn't exist.
 @item
 Fixed core-dump problem when giving a wrong password string to @code{GRANT}.
 @item
 Fixed bug in @code{DROP DATABASE} with symlinked directory.
 @item
-Fixed optimization problem with @code{DATETIME} and value outside
+Fixed optimisation problem with @code{DATETIME} and value outside
 @code{DATETIME} range.
 @item
 Removed BDB documentation.
 @item
-Fixed mit-pthreads to compile with glibc 2.2 (needed for @code{make dist}).
+Fixed MIT-pthreads to compile with @code{glibc} 2.2 (needed for
+@code{make dist}).
 @item
 Fixed the @code{FLOAT(X+1,X)} is not converted to @code{FLOAT(X+2,X)}.
 (This also affected @code{DECIMAL}, @code{DOUBLE} and @code{REAL} types)
 @item
-Fixed the result from @code{IF()} is case in-sensitive if the 2 and
-third arguments are case-sensitive.
+Fixed the result from @code{IF()} is case in-sensitive if the second and
+third arguments are case sensitive.
 @item
-Fixed core dump problem on OSF in @code{gethostbyname_r}.
+Fixed core dump problem on OSF/1 in @code{gethostbyname_r}.
 @item
-Fixed that underflowed decimal fields is not zero filled.
+Fixed that underflowed decimal fields are not zero filled.
 @item
 If we get an overflow when inserting @code{'+11111'} for
-@code{decimal(5,0) unsigned} columns, we will just drop the sign.
+@code{DECIMAL(5,0) UNSIGNED} columns, we will just drop the sign.
 @item
-Fixed optimization bug with @code{ISNULL(expression_which_cannot_be_null)} and
+Fixed optimisation bug with @code{ISNULL(expression_which_cannot_be_null)} and
 @code{ISNULL(constant_expression)}.
 @item
-Fixed host lookup bug in the glibc library that we used with the 3.23.50
+Fixed host lookup bug in the @code{glibc} library that we used with the 3.23.50
 Linux-x86 binaries.
 @end itemize
 
