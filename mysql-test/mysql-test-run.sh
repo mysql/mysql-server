@@ -24,10 +24,10 @@ PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
 
 which ()
 {
-  DIRS=`echo $PATH | tr ":" " "`
+  IFS="${IFS=   }"; save_ifs="$IFS"; IFS=':'
   for file
   do
-    for dir in $DIRS
+    for dir in $PATH
     do
       if test -f $dir/$file
       then
@@ -38,6 +38,7 @@ which ()
     echo "which: no $file in ($PATH)"
     exit 1
   done
+  IFS="$save_ifs"
 }
 
 
