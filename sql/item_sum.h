@@ -66,7 +66,7 @@ public:
   virtual void clear()= 0;
   virtual bool add()=0;
   virtual void reset_field()=0;
-  virtual void update_field(int offset)=0;
+  virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual const char *func_name() const { return "?"; }
@@ -129,7 +129,7 @@ class Item_sum_sum :public Item_sum_num
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   void no_rows_in_result() {}
   const char *func_name() const { return "sum"; }
   Item *copy_or_same(THD* thd);
@@ -158,7 +158,7 @@ class Item_sum_count :public Item_sum_int
   void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
   longlong val_int();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "count"; }
   Item *copy_or_same(THD* thd);
 };
@@ -230,7 +230,7 @@ class Item_sum_count_distinct :public Item_sum_int
   bool add();
   longlong val_int();
   void reset_field() { return ;}		// Never called
-  void update_field(int offset) { return ; }	// Never called
+  void update_field() { return ; }		// Never called
   const char *func_name() const { return "count_distinct"; }
   bool setup(THD *thd);
   void make_unique();
@@ -274,7 +274,7 @@ class Item_sum_avg :public Item_sum_num
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   Item *result_item(Field *field)
   { return new Item_avg_field(this); }
   const char *func_name() const { return "avg"; }
@@ -327,7 +327,7 @@ class Item_sum_variance : public Item_sum_num
   bool add();
   double val();
   void reset_field();
-  void update_field(int offset);
+  void update_field();
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
   const char *func_name() const { return "variance"; }
@@ -407,10 +407,10 @@ class Item_sum_hybrid :public Item_sum
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }
-  void update_field(int offset);
-  void min_max_update_str_field(int offset);
-  void min_max_update_real_field(int offset);
-  void min_max_update_int_field(int offset);
+  void update_field();
+  void min_max_update_str_field();
+  void min_max_update_real_field();
+  void min_max_update_int_field();
 };
 
 
@@ -465,7 +465,7 @@ class Item_sum_or :public Item_sum_bit
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_or(THD *thd, Item_sum_or &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "bit_or"; }
   Item *copy_or_same(THD* thd);
 };
@@ -477,7 +477,7 @@ class Item_sum_and :public Item_sum_bit
   Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
   Item_sum_and(THD *thd, Item_sum_and &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field(int offset);
+  void update_field();
   const char *func_name() const { return "bit_and"; }
   Item *copy_or_same(THD* thd);
 };
@@ -512,7 +512,7 @@ public:
   void clear();
   bool add();
   void reset_field() {};
-  void update_field(int offset_arg) {};
+  void update_field() {};
 };
 
 
@@ -593,7 +593,7 @@ class Item_sum_udf_float :public Item_sum_num
   double val() { return 0.0; }
   void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 
@@ -610,7 +610,7 @@ public:
   double val() { return 0; }
   void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 
@@ -630,7 +630,7 @@ public:
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
   void clear() {}
   bool add() { return 0; }  
-  void update_field(int offset) {}
+  void update_field() {}
 };
 
 #endif /* HAVE_DLOPEN */
@@ -720,7 +720,7 @@ class Item_func_group_concat : public Item_sum
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   bool setup(THD *thd);
   void make_unique();
-  virtual void update_field(int offset) {};
+  virtual void update_field() {}
   double val()
   {
     String *res;  res=val_str(&str_value);

@@ -36,6 +36,10 @@
 extern int h_errno;
 #endif
 
+#ifndef HAVE_IN_ADDR_T
+#define in_addr_t u_long
+#endif
+
 
 static my_bool silent;
 
@@ -91,8 +95,6 @@ static int get_options(int *argc,char ***argv)
 {
   int ho_error;
 
-  /*  load_defaults("my",load_default_groups,argc,argv); */
-
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
@@ -109,7 +111,7 @@ static int get_options(int *argc,char ***argv)
 int main(int argc, char **argv)
 {
   struct hostent *hpaddr;
-  u_long taddr;
+  in_addr_t taddr;
   char *ip,**q;
   int error=0;
 

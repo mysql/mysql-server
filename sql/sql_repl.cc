@@ -545,7 +545,7 @@ Increase max_allowed_packet on master";
 	  if (!thd->killed)
 	  {
 	    /* Note that the following call unlocks lock_log */
-	    mysql_bin_log.wait_for_update(thd);
+	    mysql_bin_log.wait_for_update(thd, 0);
 	  }
 	  else
 	    pthread_mutex_unlock(log_lock);
@@ -560,7 +560,7 @@ Increase max_allowed_packet on master";
 
 	if (read_packet)
 	{
-	  thd->proc_info = "sending update to slave";
+	  thd->proc_info = "Sending binlog event to slave";
 	  if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
 	  {
 	    errmsg = "Failed on my_net_write()";
@@ -597,7 +597,7 @@ Increase max_allowed_packet on master";
     {
       bool loop_breaker = 0;
       // need this to break out of the for loop from switch
-      thd->proc_info = "switching to next log";
+      thd->proc_info = "Finished reading one binlog; switching to next binlog";
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case LOG_INFO_EOF:
 	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
@@ -636,14 +636,14 @@ end:
   (void)my_close(file, MYF(MY_WME));
 
   send_eof(thd);
-  thd->proc_info = "waiting to finalize termination";
+  thd->proc_info = "Waiting to finalize termination";
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 
 err:
-  thd->proc_info = "waiting to finalize termination";
+  thd->proc_info = "Waiting to finalize termination";
   end_io_cache(&log);
   /*
     Exclude  iteration through thread list
@@ -663,7 +663,7 @@ err:
 
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
-  int slave_errno;
+  int slave_errno= 0;
   if (!thd)
     thd = current_thd;
   int thread_mask;
@@ -687,21 +687,88 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
-      slave_errno = start_slave_threads(0 /*no mutex */,
+    {
+      /* 
+         If we will start SQL thread we will care about UNTIL options 
+         If not and they are specified we will ignore them and warn user 
+         about this fact.
+      */
+      if (thread_mask & SLAVE_SQL)
+      {
+        pthread_mutex_lock(&mi->rli.data_lock);
+
+        if (thd->lex.mi.pos)
+        {
+          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
+          mi->rli.until_log_pos= thd->lex.mi.pos;
+          /* 
+             We don't check thd->lex.mi.log_file_name for NULL here 
+             since it is checked in sql_yacc.yy
+          */
+          strmake(mi->rli.until_log_name, thd->lex.mi.log_file_name,
+              sizeof(mi->rli.until_log_name)-1);
+        } 
+        else if (thd->lex.mi.relay_log_pos)
+        {
+          mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
+          mi->rli.until_log_pos= thd->lex.mi.relay_log_pos;
+          strmake(mi->rli.until_log_name, thd->lex.mi.relay_log_name,
+              sizeof(mi->rli.until_log_name)-1);
+        }
+        else
+          clear_until_condition(&mi->rli);
+
+        if (mi->rli.until_condition != RELAY_LOG_INFO::UNTIL_NONE)
+        {
+          /* Preparing members for effective until condition checking */
+          const char *p= fn_ext(mi->rli.until_log_name);
+          char *p_end;
+          if (*p)
+          {
+            //p points to '.'
+            mi->rli.until_log_name_extension= strtoul(++p,&p_end, 10);
+            /*
+              p_end points to the first invalid character. If it equals
+              to p, no digits were found, error. If it contains '\0' it
+              means  conversion went ok.
+            */ 
+            if(p_end==p || *p_end)
+              slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+          }
+          else
+            slave_errno=ER_BAD_SLAVE_UNTIL_COND;
+          
+          /* mark the cached result of the UNTIL comparison as "undefined" */
+          mi->rli.until_log_names_cmp_result= 
+            RELAY_LOG_INFO::UNTIL_LOG_NAMES_CMP_UNKNOWN;
+
+          /* Issuing warning then started without --skip-slave-start */
+          if (!opt_skip_slave_start)
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_MISSING_SKIP_SLAVE, 
+                         ER(ER_MISSING_SKIP_SLAVE));
+        }
+        
+        pthread_mutex_unlock(&mi->rli.data_lock);
+      }
+      else if (thd->lex.mi.pos || thd->lex.mi.relay_log_pos)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
+            ER(ER_UNTIL_COND_IGNORED));
+        
+      
+      if(!slave_errno)
+        slave_errno = start_slave_threads(0 /*no mutex */,
 					1 /* wait for start */,
 					mi,
 					master_info_file,relay_log_info_file,
 					thread_mask);
+    }
     else
       slave_errno = ER_BAD_SLAVE;
   }
   else
-  {
     //no error if all threads are already started, only a warning
-    slave_errno= 0;
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
-  }
   
   unlock_slave_threads(mi);
   
@@ -814,6 +881,8 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
   */
   init_master_info_with_options(mi);
   clear_last_slave_error(&mi->rli);
+  clear_until_condition(&mi->rli);
+  
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
   // and delete these two files
@@ -903,7 +972,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
     DBUG_RETURN(1);
   }
 
-  thd->proc_info = "changing master";
+  thd->proc_info = "Changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
@@ -988,7 +1057,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
-    thd->proc_info="purging old relay logs";
+    thd->proc_info="Purging old relay logs";
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
 			 &errmsg))
@@ -1027,6 +1096,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the error, for a clean start. */
   clear_last_slave_error(&mi->rli);
+  clear_until_condition(&mi->rli);
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -1277,7 +1347,7 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, buffer, block_len,
+    Append_block_log_event a(lf_info->thd, lf_info->db, buffer, block_len,
 			     lf_info->log_delayed);
     mysql_bin_log.write(&a);
   }

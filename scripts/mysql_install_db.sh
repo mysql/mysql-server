@@ -33,6 +33,7 @@ parse_arguments() {
       --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --ldata=*|--datadir=*) ldata=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;;
       --rpm) in_rpm=1 ;;
       --windows) windows=1 ;;
@@ -138,13 +139,8 @@ then
   fi
 fi
 
-# Try to determine the fully qualified domain name (FQDN)
-HOSTNAME="@HOSTNAME@"
-if $HOSTNAME -f > /dev/null 2>&1 ; then
-	hostname=`$HOSTNAME -f`
-else
-	hostname=`$HOSTNAME`
-fi
+# Try to determine the hostname
+hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
 if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a $force -eq 0
@@ -169,6 +165,12 @@ then
     echo "This means that you should use IP addresses instead of hostnames"
     echo "when specifying MySQL privileges !"
   fi
+fi
+
+if test "$ip_only" -eq 1
+then
+  ip=`echo "$resolved" | awk '/ /{print $6}'`
+  hostname=$ip
 fi
 
 # Create database directories mysql & test

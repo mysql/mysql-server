@@ -1596,6 +1596,13 @@ dict_index_build_internal_clust(
 				break;
 			}
 
+			if (dict_index_get_nth_field(new_index, i)->prefix_len
+			    > 0) {
+				new_index->trx_id_offset = 0;
+
+				break;
+			}
+
 			new_index->trx_id_offset += fixed_size;
 		}
 

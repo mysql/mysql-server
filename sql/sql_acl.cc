@@ -532,13 +532,13 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 
 /*
-    Seek ACL entry for a user, check password, SSL cypher, and if
-    everything is OK, update THD user data and USER_RESOURCES struct.
+  Seek ACL entry for a user, check password, SSL cypher, and if
+  everything is OK, update THD user data and USER_RESOURCES struct.
 
- IMPLEMENTATION
-    This function does not check if the user has any sensible privileges:
-    only user's existence and  validity is checked.
-    Note, that entire operation is protected by acl_cache_lock.
+  IMPLEMENTATION
+   This function does not check if the user has any sensible privileges:
+   only user's existence and  validity is checked.
+   Note, that entire operation is protected by acl_cache_lock.
 
   SYNOPSIS
     acl_getroot()
@@ -555,7 +555,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
                 SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
     'thd' and 'mqh' are updated on success; other params are IN.
   
- RETURN VALUE
+  RETURN VALUE
     0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
        updated
     1  user not found or authentification failure
@@ -566,6 +566,9 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
                 const char *passwd, uint passwd_len)
 {
+  ulong user_access= NO_ACCESS;
+  int res= 1;
+  ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot");
 
   if (!initialized)
@@ -576,11 +579,9 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     thd->priv_user= (char *) "";                // privileges for
     *thd->priv_host= '\0';                      // the user are unknown
     thd->master_access= ~NO_ACCESS;             // everything is allowed
-    bzero(mqh, sizeof(*mqh));
+    bzero((char*) mqh, sizeof(*mqh));
     DBUG_RETURN(0);
   }
-
-  int res= 1;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
@@ -590,32 +591,31 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     but acl_user->user is empty
   */
 
-  ACL_USER *acl_user= 0;
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
-    ACL_USER *user_i = dynamic_element(&acl_users,i,ACL_USER*);
-    if (!user_i->user || !strcmp(thd->user, user_i->user))
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    if (!acl_user_tmp->user || !strcmp(thd->user, acl_user_tmp->user))
     {
-      if (compare_hostname(&user_i->host, thd->host, thd->ip))
+      if (compare_hostname(&acl_user_tmp->host, thd->host, thd->ip))
       {
         /* check password: it should be empty or valid */
-        if (passwd_len == user_i->salt_len)
+        if (passwd_len == acl_user_tmp->salt_len)
         {
-          if (user_i->salt_len == 0 ||
-              user_i->salt_len == SCRAMBLE_LENGTH &&
-              check_scramble(passwd, thd->scramble, user_i->salt) == 0 ||
+          if (acl_user_tmp->salt_len == 0 ||
+              acl_user_tmp->salt_len == SCRAMBLE_LENGTH &&
+              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) == 0 ||
               check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) user_i->salt) == 0)
+                                 (ulong *) acl_user_tmp->salt) == 0)
           {
-            acl_user= user_i;
+            acl_user= acl_user_tmp;
             res= 0;
           }
         }
         else if (passwd_len == SCRAMBLE_LENGTH &&
-                 user_i->salt_len == SCRAMBLE_LENGTH_323)
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH_323)
           res= -1;
         else if (passwd_len == SCRAMBLE_LENGTH_323 &&
-                 user_i->salt_len == SCRAMBLE_LENGTH)
+                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH)
           res= 2;
         /* linear search complete: */
         break;
@@ -630,8 +630,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-    thd->master_access= NO_ACCESS;
     Vio *vio=thd->net.vio;
+#ifdef HAVE_OPENSSL
+    SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
+
     /*
       At this point we know that user is allowed to connect
       from given host by given username/password pair. Now
@@ -640,55 +643,55 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     */
     switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-    case SSL_TYPE_NONE: /* SSL is not required to connect */
-      thd->master_access= acl_user->access;
+    case SSL_TYPE_NONE:				// SSL is not required
+      user_access= acl_user->access;
       break;
 #ifdef HAVE_OPENSSL
-    case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
+    case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
-        thd->master_access= acl_user->access;
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_X509: /* Client should have any valid certificate. */
       /*
-        Connections with non-valid certificates are dropped already
-        in sslaccept() anyway, so we do not check validity here.
-        
-        We need to check for absence of SSL because without SSL
-        we should reject connection.
+	Connections with non-valid certificates are dropped already
+	in sslaccept() anyway, so we do not check validity here.
+
+	We need to check for absence of SSL because without SSL
+	we should reject connection.
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
-	  SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
-	  SSL_get_peer_certificate(vio->ssl_))
-        thd->master_access= acl_user->access;
+	  SSL_get_verify_result(ssl) == X509_V_OK &&
+	  SSL_get_peer_certificate(ssl))
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /*
-        We do not check for absence of SSL because without SSL it does
-        not pass all checks here anyway.
-        If cipher name is specified, we compare it to actual cipher in
-        use.
+	We do not check for absence of SSL because without SSL it does
+	not pass all checks here anyway.
+	If cipher name is specified, we compare it to actual cipher in
+	use.
       */
       if (vio_type(vio) != VIO_TYPE_SSL ||
-	  SSL_get_verify_result(vio->ssl_) != X509_V_OK)
+	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
       if (acl_user->ssl_cipher)
       {
 	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-			   acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-	  thd->master_access= acl_user->access;
+			   acl_user->ssl_cipher,SSL_get_cipher(ssl)));
+	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
+	  user_access= acl_user->access;
 	else
 	{
 	  if (global_system_variables.log_warnings)
 	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
 			    acl_user->ssl_cipher,
-			    SSL_get_cipher(vio->ssl_));
+			    SSL_get_cipher(ssl));
 	  break;
 	}
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+      X509* cert=SSL_get_peer_certificate(ssl);
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
@@ -701,11 +704,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         {
           if (global_system_variables.log_warnings)
             sql_print_error("X509 issuer mismatch: should be '%s' "
-                "but is '%s'", acl_user->x509_issuer, ptr);
+			    "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
           break;
         }
-        thd->master_access= acl_user->access;
+        user_access= acl_user->access;
         free(ptr);
       }
       DBUG_PRINT("info",("checkpoint 4"));
@@ -722,7 +725,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
                             acl_user->x509_subject, ptr);
         }
         else
-          thd->master_access= acl_user->access;
+          user_access= acl_user->access;
         free(ptr);
       }
       break;
@@ -735,6 +738,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       break;
 #endif /* HAVE_OPENSSL */
     }
+    thd->master_access= user_access;
     thd->priv_user= acl_user->user ? thd->user : (char *) "";
     *mqh= acl_user->user_resource;
 
@@ -1686,6 +1690,7 @@ class GRANT_TABLE :public Sql_alloc
 public:
   char *host,*db,*user,*tname, *hash_key;
   ulong privs, cols;
+  ulong sort;
   uint key_length;
   HASH hash_columns;
   GRANT_TABLE (const char *h, const char *d,const char *u, const char *t,
@@ -1695,6 +1700,7 @@ public:
     host = strdup_root(&memex,h);
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
+    sort=  get_sort(3,host,db,user);
     tname= strdup_root(&memex,t);
     if (lower_case_table_names)
     {
@@ -1717,7 +1723,8 @@ public:
     user =  get_field(&memex,form->field[2]);
     if (!user)
       user=(char*) "";
-    tname = get_field(&memex,form->field[3]);
+    sort=  get_sort(3,host,db,user);
+    tname= get_field(&memex,form->field[3]);
     if (!host || !db || !tname)
     {
       /* Wrong table row; Ignore it */
@@ -1826,10 +1833,11 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     }
     else
     {
-      if ((host && !wild_case_compare(&my_charset_latin1,
-                                      host,grant_table->host)) ||
-	  (ip && !wild_case_compare(&my_charset_latin1,
-                                    ip,grant_table->host)))
+      if (((host && !wild_case_compare(&my_charset_latin1,
+				       host,grant_table->host)) ||
+	   (ip && !wild_case_compare(&my_charset_latin1,
+				     ip,grant_table->host))) &&
+          (!found || found->sort < grant_table->sort))
 	found=grant_table;					// Host ok
     }
   }
@@ -3086,7 +3094,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     protocol->store(global.ptr(),global.length(),global.charset());
     if (protocol->write())
     {
-      error=-1;
+      error= -1;
       goto end;
     }
   }
@@ -3144,7 +3152,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	protocol->store(db.ptr(),db.length(),db.charset());
 	if (protocol->write())
 	{
-	  error=-1;
+	  error= -1;
 	  goto end;
 	}
       }
@@ -3170,15 +3178,19 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       if ((table_access | grant_table->cols) != 0)
       {
 	String global(buff,sizeof(buff),&my_charset_latin1);
+	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+
 	global.length(0);
 	global.append("GRANT ",6);
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
+	else if (!test_access)
+ 	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;
-	  ulong j,test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
+	  ulong j;
 
 	  for (counter= 0, j= SELECT_ACL; j <= TABLE_ACLS; counter++, j<<= 1)
 	  {
@@ -3345,7 +3357,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 }
 
 ACL_USER *check_acl_user(LEX_USER *user_name,
-			 uint *acl_user_idx)
+			 uint *acl_acl_userdx)
 {
   ACL_USER *acl_user= 0;
   uint counter;
@@ -3365,14 +3377,14 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
   if (counter == acl_users.elements)
     return 0;
 
-  *acl_user_idx= counter;
+  *acl_acl_userdx= counter;
   return acl_user;
 }
 
 
 int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
-  uint counter, user_id;
+  uint counter, acl_userd;
   int result;
   ACL_USER *acl_user;
   ACL_DB *acl_db;
@@ -3392,7 +3404,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   {
     if (!(acl_user= check_acl_user(user_name, &counter)))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; No such user",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3400,13 +3412,13 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if ((acl_user->access & ~0))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Global privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
       continue;
     }
-    user_id= counter;
+    acl_userd= counter;
 
     for (counter= 0 ; counter < acl_dbs.elements ; counter++)
     {
@@ -3423,7 +3435,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != acl_dbs.elements)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Database privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3446,7 +3458,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != column_priv_hash.records)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s';  Table privileges exists",
 		      user_name->user.str,
 		      user_name->host.str);
       result= -1;
@@ -3472,7 +3484,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 	tables[0].table->file->index_end();
 	DBUG_RETURN(-1);
       }
-      delete_dynamic_element(&acl_users, user_id);
+      delete_dynamic_element(&acl_users, acl_userd);
     }
     tables[0].table->file->index_end();
   }

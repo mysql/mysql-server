@@ -797,9 +797,14 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   }
 
+  if (store_create_info(thd, table, &buffer))
+    DBUG_RETURN(-1);
+
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Table",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Create Table", MAX_BLOB_WIDTH));
+  // 1024 is for not to confuse old clients
+  field_list.push_back(new Item_empty_string("Create Table",
+					     max(buffer.length(),1024)));
 
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
@@ -1023,11 +1028,38 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   }
 }
 
+
+/* Append directory name (if exists) to CREATE INFO */
+
+static void append_directory(THD *thd, String *packet, const char *dir_type,
+			     const char *filename)
+{
+  uint length;
+  if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+  {
+    length= dirname_length(filename);
+    packet->append(' ');
+    packet->append(dir_type);
+    packet->append(" DIRECTORY='", 12);
+    packet->append(filename, length);
+    packet->append('\'');
+  }
+}
+
+
 #define LIST_PROCESS_HOST_LEN 64
 
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
+  List<Item> field_list;
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
+  String type(tmp, sizeof(tmp),&my_charset_bin);
+  Field **ptr,*field;
+  uint primary_key;
+  KEY *key_info;
+  handler *file= table->file;
+  HA_CREATE_INFO create_info;
   my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
 							  MODE_ORACLE |
 							  MODE_MSSQL |
@@ -1043,9 +1075,6 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   restore_record(table,default_values); // Get empty record
 
-  List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH];
-  String type(tmp, sizeof(tmp),&my_charset_bin);
   if (table->tmp_table)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
@@ -1053,13 +1082,14 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   append_identifier(thd,packet, table->real_name, strlen(table->real_name));
   packet->append(" (\n", 3);
 
-  Field **ptr,*field;
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
+    bool has_default;
+    uint flags = field->flags;
+
     if (ptr != table->field)
       packet->append(",\n", 2);
 
-    uint flags = field->flags;
     packet->append("  ", 2);
     append_identifier(thd,packet,field->field_name, strlen(field->field_name));
     packet->append(' ');
@@ -1096,9 +1126,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
-    bool has_default = (field->type() != FIELD_TYPE_BLOB &&
-			field->type() != FIELD_TYPE_TIMESTAMP &&
-			field->unireg_check != Field::NEXT_NUMBER);
+    has_default= (field->type() != FIELD_TYPE_BLOB &&
+		  field->type() != FIELD_TYPE_TIMESTAMP &&
+		  field->unireg_check != Field::NEXT_NUMBER);
 
     if (has_default)
     {
@@ -1128,9 +1158,11 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
   }
 
-  KEY *key_info=table->key_info;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
-  uint primary_key = table->primary_key;
+  key_info= table->key_info;
+  file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
+  bzero((char*) &create_info, sizeof(create_info));
+  file->update_create_info(&create_info);
+  primary_key= table->primary_key;
 
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
@@ -1181,7 +1213,6 @@ store_create_info(THD *thd, TABLE *table, String *packet)
            table->field[key_part->fieldnr-1]->key_length() &&
            !(key_info->flags & HA_FULLTEXT)))
       {
-        char buff[64];
         buff[0] = '(';
         char* end=int10_to_str((long) key_part->length, buff + 1,10);
         *end++ = ')';
@@ -1195,10 +1226,8 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     Get possible foreign key definitions stored in InnoDB and append them
     to the CREATE TABLE statement
   */
-  handler *file = table->file;
-  char* for_str= file->get_foreign_key_create_info();
 
-  if (for_str)
+  if ((for_str= file->get_foreign_key_create_info()))
   {
     packet->append(for_str, strlen(for_str));
     file->free_foreign_key_create_info(for_str);
@@ -1209,8 +1238,6 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   {
     packet->append(" TYPE=", 6);
     packet->append(file->table_type());
-    char buff[128];
-    char* p;
     
     if (table->table_charset &&
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
@@ -1228,21 +1255,22 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (table->min_rows)
     {
       packet->append(" MIN_ROWS=");
-      p = longlong10_to_str(table->min_rows, buff, 10);
-      packet->append(buff, (uint) (p - buff));
+      end= longlong10_to_str(table->min_rows, buff, 10);
+      packet->append(buff, (uint) (end- buff));
     }
 
     if (table->max_rows)
     {
       packet->append(" MAX_ROWS=");
-      p = longlong10_to_str(table->max_rows, buff, 10);
-      packet->append(buff, (uint) (p - buff));
+      end= longlong10_to_str(table->max_rows, buff, 10);
+      packet->append(buff, (uint) (end - buff));
     }
+
     if (table->avg_row_length)
     {
       packet->append(" AVG_ROW_LENGTH=");
-      p=longlong10_to_str(table->avg_row_length, buff,10);
-      packet->append(buff, (uint) (p - buff));
+      end= longlong10_to_str(table->avg_row_length, buff,10);
+      packet->append(buff, (uint) (end - buff));
     }
 
     if (table->db_create_options & HA_OPTION_PACK_KEYS)
@@ -1266,12 +1294,15 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
     if (file->raid_type)
     {
-      char buff[100];
-      sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-	      my_raid_type(file->raid_type), file->raid_chunks,
-	      file->raid_chunksize/RAID_BLOCK_SIZE);
-      packet->append(buff);
+      uint length;
+      length= my_snprintf(buff,sizeof(buff),
+			  " RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
+			  my_raid_type(file->raid_type), file->raid_chunks,
+			  file->raid_chunksize/RAID_BLOCK_SIZE);
+      packet->append(buff, length);
     }
+    append_directory(thd, packet, "DATA",  create_info.data_file_name);
+    append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
   DBUG_RETURN(0);
 }
@@ -1528,7 +1559,8 @@ err:
   
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type)
+		enum enum_var_type value_type,
+		pthread_mutex_t *mutex)
 {
   char buff[1024];
   List<Item> field_list;
@@ -1542,8 +1574,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
     DBUG_RETURN(1); /* purecov: inspected */
   null_lex_str.str= 0;				// For sys_var->value_ptr()
 
-  /* pthread_mutex_lock(&THR_LOCK_keycache); */
-  pthread_mutex_lock(&LOCK_status);
+  pthread_mutex_lock(mutex);
   for (; variables->name; variables++)
   {
     if (!(wild && wild[0] && wild_case_compare(system_charset_info,
@@ -1631,83 +1662,83 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_SSL_CTX_SESS_ACCEPT:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_accept(ssl_acceptor_fd->
-						      ssl_context_)),
+						      ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_accept_good(ssl_acceptor_fd->
-							   ssl_context_)),
+							   ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_GOOD:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_connect_good(ssl_acceptor_fd->
-							    ssl_context_)),
+							    ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context_)),
+				  SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd-> ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CB_HITS:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_cb_hits(ssl_acceptor_fd->
-						       ssl_context_)),
+						       ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_HITS:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_hits(ssl_acceptor_fd->
-						    ssl_context_)),
+						    ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_CACHE_FULL:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_cache_full(ssl_acceptor_fd->
-							  ssl_context_)),
+							  ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_MISSES:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
 				  SSL_CTX_sess_misses(ssl_acceptor_fd->
-						      ssl_context_)),
+						      ssl_context)),
 			  buff, 10);
         break;
       case SHOW_SSL_CTX_SESS_TIMEOUTS:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context)),
 			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_NUMBER:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context)),
 			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_CONNECT:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context)),
 			  buff,10);
         break;
       case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context)),
 				  buff,10);
         break;
       case SHOW_SSL_CTX_GET_VERIFY_MODE:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context)),
 			  buff,10);
         break;
       case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
 	end= int10_to_str((long) (!ssl_acceptor_fd ? 0 :
-				  SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_)),
+				  SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context)),
 			  buff,10);
         break;
       case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
@@ -1717,7 +1748,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	  end= pos+4;
 	  break;
 	}
-	switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
+	switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context))
 	{
           case SSL_SESS_CACHE_OFF:
             pos= "OFF";
@@ -1745,40 +1776,50 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
 	/* First group - functions relying on SSL */
       case SHOW_SSL_GET_VERSION:
-	pos= thd->net.vio->ssl_ ? SSL_get_version(thd->net.vio->ssl_) : "";
+	pos= (thd->net.vio->ssl_arg ?
+	      SSL_get_version((SSL*) thd->net.vio->ssl_arg) : "");
 	end= strend(pos);
         break;
       case SHOW_SSL_SESSION_REUSED:
-	end= int10_to_str((long) (thd->net.vio->ssl_ ?
-				  SSL_session_reused(thd->net.vio->ssl_):
-				  0), buff, 10);
+	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+				  SSL_session_reused((SSL*) thd->net.vio->
+						     ssl_arg) :
+				  0),
+			  buff, 10);
         break;
       case SHOW_SSL_GET_DEFAULT_TIMEOUT:
-	end= int10_to_str((long) (thd->net.vio->ssl_ ?
-				  SSL_get_default_timeout(thd->net.vio->ssl_):
-				  0), buff, 10);
+	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+				  SSL_get_default_timeout((SSL*) thd->net.vio->
+							  ssl_arg) :
+				  0),
+			  buff, 10);
         break;
       case SHOW_SSL_GET_VERIFY_MODE:
-	end= int10_to_str((long) (thd->net.vio->ssl_ ?
-				  SSL_get_verify_mode(thd->net.vio->ssl_):
-				  0), buff, 10);
+	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+				  SSL_get_verify_mode((SSL*) thd->net.vio->
+						      ssl_arg):
+				  0),
+			  buff, 10);
         break;
       case SHOW_SSL_GET_VERIFY_DEPTH:
-	end= int10_to_str((long) (thd->net.vio->ssl_ ?
-				  SSL_get_verify_depth(thd->net.vio->ssl_):
-				  0), buff, 10);
+	end= int10_to_str((long) (thd->net.vio->ssl_arg ?
+				  SSL_get_verify_depth((SSL*) thd->net.vio->
+						       ssl_arg):
+				  0),
+			  buff, 10);
         break;
       case SHOW_SSL_GET_CIPHER:
-	pos= thd->net.vio->ssl_ ? SSL_get_cipher(thd->net.vio->ssl_) : "";
+	pos= (thd->net.vio->ssl_arg ?
+	      SSL_get_cipher((SSL*) thd->net.vio->ssl_arg) : "" );
 	end= strend(pos);
 	break;
       case SHOW_SSL_GET_CIPHER_LIST:
-	if (thd->net.vio->ssl_)
+	if (thd->net.vio->ssl_arg)
 	{
 	  char *to= buff;
 	  for (int i=0 ; i++ ;)
 	  {
-	    const char *p= SSL_get_cipher_list(thd->net.vio->ssl_,i);
+	    const char *p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i);
 	    if (p == NULL) 
 	      break;
 	    to= strmov(to, p);
@@ -1802,14 +1843,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         goto err;                               /* purecov: inspected */
     }
   }
-  pthread_mutex_unlock(&LOCK_status);
-  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
+  pthread_mutex_unlock(mutex);
   send_eof(thd);
   DBUG_RETURN(0);
 
  err:
-  pthread_mutex_unlock(&LOCK_status);
-  /* pthread_mutex_unlock(&THR_LOCK_keycache); */
+  pthread_mutex_unlock(mutex);
   DBUG_RETURN(1);
 }
 

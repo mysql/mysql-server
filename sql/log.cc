@@ -270,7 +270,8 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	an extension for the binary log files.
 	In this case we write a standard header to it.
       */
-      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, BIN_LOG_HEADER_SIZE))
+      if (my_b_safe_write(&log_file, (byte*) BINLOG_MAGIC,
+			  BIN_LOG_HEADER_SIZE))
         goto err;
       bytes_written += BIN_LOG_HEADER_SIZE;
       write_file_name_to_index_file=1;
@@ -704,6 +705,7 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli, bool included)
     rli->group_relay_log_pos = BIN_LOG_HEADER_SIZE;
     strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
             sizeof(rli->group_relay_log_name)-1);
+    rli->notify_group_relay_log_name_update();
   }
 
   /* Store where we are in the new file for the execution thread */
@@ -1175,14 +1177,24 @@ bool MYSQL_LOG::write(Log_event* event_info)
   */
   if (is_open())
   {
-    const char *local_db = event_info->get_db();
+    const char *local_db= event_info->get_db();
+    IO_CACHE *file= &log_file;
 #ifdef USING_TRANSACTIONS    
-    IO_CACHE *file = ((event_info->get_cache_stmt()) ?
-		      &thd->transaction.trans_log :
-		      &log_file);
-#else
-    IO_CACHE *file = &log_file;
-#endif    
+    /*
+      Should we write to the binlog cache or to the binlog on disk?
+      Write to the binlog cache if:
+      - it is already not empty (meaning we're in a transaction; note that the
+     present event could be about a non-transactional table, but still we need
+     to write to the binlog cache in that case to handle updates to mixed
+     trans/non-trans table types the best possible in binlogging)
+      - or if the event asks for it (cache_stmt == true).
+    */
+    if (opt_using_transactions &&
+	(event_info->get_cache_stmt() ||
+	 (thd && my_b_tell(&thd->transaction.trans_log))))
+      file= &thd->transaction.trans_log;
+#endif
+    DBUG_PRINT("info",("event type=%d",event_info->get_type_code()));
 #ifdef HAVE_REPLICATION
     /* 
        In the future we need to add to the following if tests like
@@ -1401,6 +1413,13 @@ uint MYSQL_LOG::next_file_id()
 /*
   Write a cached log entry to the binary log
 
+  SYNOPSIS
+    write()
+    thd 		
+    cache		The cache to copy to the binlog
+    commit_or_rollback  If true, will write "COMMIT" in the end, if false will
+                        write "ROLLBACK".
+
   NOTE
     - We only come here if there is something in the cache.
     - The thing in the cache is always a complete transaction
@@ -1408,10 +1427,13 @@ uint MYSQL_LOG::next_file_id()
 
   IMPLEMENTATION
     - To support transaction over replication, we wrap the transaction
-      with BEGIN/COMMIT in the binary log.
+      with BEGIN/COMMIT or BEGIN/ROLLBACK in the binary log.
+      We want to write a BEGIN/ROLLBACK block when a non-transactional table was
+      updated in a transaction which was rolled back. This is to ensure that the
+      same updates are run on the slave.
 */
 
-bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
+bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
 {
   VOID(pthread_mutex_lock(&LOCK_log));
   DBUG_ENTER("MYSQL_LOG::write(cache");
@@ -1465,7 +1487,10 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     */
 
     {
-      Query_log_event qinfo(thd, "COMMIT", 6, TRUE);
+      Query_log_event qinfo(thd, 
+                            commit_or_rollback ? "COMMIT" : "ROLLBACK",
+                            commit_or_rollback ? 6        : 8, 
+                            TRUE);
       qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file))
 	goto err;
@@ -1642,6 +1667,9 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   SYNOPSIS
     wait_for_update()
     thd			Thread variable
+    master_or_slave     If 0, the caller is the Binlog_dump thread from master;
+                        if 1, the caller is the SQL thread from the slave. This
+                        influences only thd->proc_info.
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
@@ -1653,11 +1681,15 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     If you don't do it this way, you will get a deadlock in THD::awake()
 */
 
-void MYSQL_LOG:: wait_for_update(THD* thd)
+void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
 {
   safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
-					"Slave: waiting for binlog update");
+                                        master_or_slave ?
+                                        "Has read all relay log; waiting for \
+the I/O slave thread to update it" : 
+                                        "Has sent all binlog to slave; \
+waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
   pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);

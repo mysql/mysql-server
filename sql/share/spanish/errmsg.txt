@@ -223,23 +223,23 @@
 "Error de coneccion a master: %-128s",
 "Error executando el query en master: %-128%",
 "Error de %s: %-128%",
-"Wrong usage of %s and %s",
-"The used SELECT statements have a different number of columns",
-"Can't execute the query because you have a conflicting read lock",
-"Mixing of transactional and non-transactional tables is disabled",
-"Option '%s' used twice in statement",
-"User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
-"Access denied. You need the %-.128s privilege for this operation",
-"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
-"Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
-"Variable '%-.64s' doesn't have a default value",
-"Variable '%-.64s' can't be set to the value of '%-.64s'",
-"Wrong argument type to variable '%-.64s'",
-"Variable '%-.64s' can only be set, not read",
-"Wrong usage/placement of '%s'",
-"This version of MySQL doesn't yet support '%s'",
-"Got fatal error %d: '%-.128s' from master when reading data from binary log",
-"Slave SQL thread ignored the query because of replicate-*-table rules",
+"Equivocado uso de %s y  %s",
+"El comando SELECT usado tiene diferente número de columnas",
+"No puedo ejecutar el query  porque usted tiene conflicto de traba de lectura",
+"Mezla de transancional y no-transancional tablas está deshabilitada",
+"Opción '%s' usada dos veces en el comando",
+"Usuario '%-.64s' ha excedido el recurso '%s' (actual valor: %ld)",
+"Acceso negado. Usted necesita el privilegio %-.128s para esta operación",
+"Variable '%-.64s' es una LOCAL variable y no puede ser usada con SET GLOBAL",
+"Variable '%-.64s' es una GLOBAL variable y no puede ser configurada con SET GLOBAL",
+"Variable '%-.64s' no tiene un valor patrón",
+"Variable '%-.64s' no puede ser configurada para el valor de '%-.64s'",
+"Tipo de argumento equivocado para variable '%-.64s'",
+"Variable '%-.64s' solamente puede ser configurada, no leída",
+"Equivocado uso/colocación de '%s'",
+"Esta versión de MySQL no soporta todavia '%s'",
+"Recibió fatal error %d: '%-.128s' del master cuando leyendo datos del binary log",
+"Slave SQL thread ignorado el query debido a las reglas de replicación-*-tabla"
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Cardinality error (more/less than %d columns)",
@@ -262,6 +262,11 @@
 "Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
 "Z_DATA_ERROR: Input data was corrupted for zlib",
 "%d line(s) was(were) cut by group_concat()",
+"Record count is fewer than the column count at row %ld";
+"Record count is more than the column count at row %ld";
+"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
+"Data truncated, out of range for column '%s' at row %ld";
+"Data truncated for column '%s' at row %ld"
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
 "Can't drop one or more of the requested users"
@@ -273,3 +278,6 @@
 "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
 "Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format"
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL"
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
+"SQL thread is not to be started so UNTIL options are ignored"

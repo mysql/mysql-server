@@ -26,8 +26,6 @@
 static int fake_argc= 1;
 static char *fake_argv[]= {(char *)"", 0};
 static const char *fake_groups[] = { "server", "embedded", 0 };
-static char org_my_init_done;
-char server_inited;
 
 #if defined (__WIN__)
 #include "../sql/mysqld.cpp"
@@ -40,6 +38,9 @@ C_MODE_START
 #undef ER
 #include "errmsg.h"
 #include <sql_common.h>
+
+static my_bool  org_my_init_done;
+my_bool         server_inited;
 
 static int check_connections1(THD * thd);
 static int check_connections2(THD * thd);

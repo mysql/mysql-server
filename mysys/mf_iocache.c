@@ -988,6 +988,20 @@ end:
 }
 
 
+int my_b_safe_write(IO_CACHE *info, const byte *Buffer, uint Count)
+{
+  /*
+    Sasha: We are not writing this with the ? operator to avoid hitting
+    a possible compiler bug. At least gcc 2.95 cannot deal with 
+    several layers of ternary operators that evaluated comma(,) operator
+    expressions inside - I do have a test case if somebody wants it
+  */
+  if (info->type == SEQ_READ_APPEND)
+    return my_b_append(info, Buffer, Count);
+  return my_b_write(info, Buffer, Count);
+}
+
+
 /*
   Write a block to disk where part of the data may be inside the record
   buffer.  As all write calls to the data goes through the cache,

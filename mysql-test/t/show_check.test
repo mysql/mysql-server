@@ -120,6 +120,13 @@ insert into t1 (type_timestamp) values ("2003-02-07 10:00:01");
 select * from t1;
 drop table t1;
 
+#
+# Check metadata
+#
+create table t1 (a int not null);
+create table t2 select max(a) from t1;
+show columns from t2;
+drop table t1,t2;
 
 # Check auto conversions of types
 

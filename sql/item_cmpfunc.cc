@@ -545,6 +545,7 @@ void Item_func_interval::fix_length_and_dec()
   used_tables_cache|= row->used_tables();
   not_null_tables_cache&= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
+  const_item_cache&= row->const_item();
 }
 
 
@@ -1458,17 +1459,20 @@ void Item_func_in::fix_length_and_dec()
       DBUG_ASSERT(0);
       return;
     }
-    uint j=0;
-    for (uint i=1 ; i < arg_count ; i++)
+    if (array && !(current_thd->is_fatal_error))	// If not EOM
     {
-      array->set(j,args[i]);
-      if (!args[i]->null_value)			// Skip NULL values
-	j++;
-      else
-	have_null= 1;
+      uint j=0;
+      for (uint i=1 ; i < arg_count ; i++)
+      {
+	array->set(j,args[i]);
+	if (!args[i]->null_value)			// Skip NULL values
+	  j++;
+	else
+	  have_null= 1;
+      }
+      if ((array->used_count=j))
+	array->sort();
     }
-    if ((array->used_count=j))
-      array->sort();
   }
   else
   {
@@ -1592,7 +1596,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error flag is set!
+    return 1;					// Fatal error flag is set!
   while ((item=li++))
   {
     table_map tmp_table_map;
