@@ -64,7 +64,13 @@ a	t
 18	18
 19	19
 20	20
+explain select count(*) from t1 as tt1, (select * from t1) as tt2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE								Select tables optimized away
 drop table if exists  t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
 1
+select * from (select 1 as a) b  left join (select 2 as a) c using(a);
+a	a
+1	NULL
