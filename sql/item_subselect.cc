@@ -543,7 +543,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     
       if (item->fix_fields(thd, join->tables_list, &item))
       {
-	DBUG_RETURN(ERROR);
+	DBUG_RETURN(RES_ERROR);
       }
       subs= new Item_singlerow_subselect(thd, select_lex);
     }
@@ -562,11 +562,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (left_expr->fix_fields(thd, up->get_table_list(), 0))
     {
       thd->lex.current_select= current;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
     substitution= (*func)(left_expr, subs);
-    DBUG_RETURN(OK);
+    DBUG_RETURN(RES_OK);
   }
 
   if (!substitution)
