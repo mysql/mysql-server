@@ -117,7 +117,7 @@ class ha_ndbcluster: public handler
   int read_multi_range_first(key_multi_range **found_range_p,
 			     key_multi_range *ranges, uint range_count,
 			     bool sorted, handler_buffer *buffer);
-  int read_multi_range_next(void);
+  int read_multi_range_next(key_multi_range **found_range_p);
 
   bool get_error_message(int error, String *buf);
   void info(uint);
@@ -256,6 +256,7 @@ class ha_ndbcluster: public handler
 
   bool m_disable_multi_read;
   byte* m_multi_range_result_ptr;
+  uint m_multi_range_defined_count;
   const NdbOperation* m_current_multi_operation;
   
   void set_rec_per_key();
