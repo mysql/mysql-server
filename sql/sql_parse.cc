@@ -2663,15 +2663,30 @@ mysql_execute_command(THD *thd)
       table_count++;
       /* All tables in aux_tables must be found in FROM PART */
       TABLE_LIST *walk;
-      for (walk=(TABLE_LIST*) tables ; walk ; walk=walk->next)
+      for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
       {
-	if (!strcmp(auxi->real_name,walk->real_name) &&
+	if ((!strcmp(auxi->real_name,walk->real_name) ||
+	     !strcmp(auxi->real_name,walk->alias)) &&
 	    !strcmp(walk->db,auxi->db))
 	  break;
       }
       if (!walk)
       {
-	net_printf(thd,ER_NONUNIQ_TABLE,auxi->real_name);
+	if (lex->derived_tables)
+	{
+	  // are we trying to delete derived table?
+	  for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
+	  {
+	    if (!strcmp(auxi->real_name,walk->alias) &&
+		walk->derived)
+	    {
+	      net_printf(thd, ER_NON_UPDATABLE_TABLE,
+			 auxi->real_name, "DELETE");
+	      goto error;
+	    }
+	  }
+	}
+	net_printf(thd, ER_NONUNIQ_TABLE, auxi->real_name);
 	goto error;
       }
       walk->lock_type= auxi->lock_type;
