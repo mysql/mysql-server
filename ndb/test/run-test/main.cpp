@@ -614,11 +614,22 @@ wait_ndb(atrt_config& config, int goal){
     /**
      * 1) retreive current state
      */
-    state = ndb_mgm_get_status(handle);
-    if(state == 0){
-      g_logger.critical("Unable to poll db state");
-      return false;
-    }
+    state = 0;
+    do {
+      state = ndb_mgm_get_status(handle);
+      if(state == 0){
+	const int err = ndb_mgm_get_latest_error(handle);
+	g_logger.error("Unable to poll db state: %d %s %s",
+		       ndb_mgm_get_latest_error(handle),
+		       ndb_mgm_get_latest_error_msg(handle),
+		       ndb_mgm_get_latest_error_desc(handle));
+	if(err == NDB_MGM_SERVER_NOT_CONNECTED && connect_ndb_mgm(config)){
+	  g_logger.error("Reconnected...");
+	  continue;
+	}
+	return false;
+      }
+    } while(state == 0);
     NdbAutoPtr<void> tmp(state);
     
     min2 = goal;
