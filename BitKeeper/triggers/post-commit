@@ -27,6 +27,7 @@ then
 fi
 
 CHANGESET=`bk -R prs -r+ -h -d':P:::I:' ChangeSet`
+CSETKEY=`bk -R prs -r+ -h -d':KEY:' ChangeSet`
 BUG=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Bb][Uu][Gg] *# *\([0-9][0-9]*\).*$/\1/p'`
 
 if [ "$BUG" = "" ]
@@ -51,6 +52,7 @@ List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $TO
 Subject: bk commit - $VERSION tree ($CHANGESET)$BS
+X-CSetKey: <$CSETKEY>
 $BH
 EOF
   bk changes -v -r+
@@ -67,6 +69,7 @@ List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $INTERNALS
 Subject: bk commit into $VERSION tree ($CHANGESET)$BS
+X-CSetKey: <$CSETKEY>
 $BH
 Below is the list of changes that have just been committed into a local
 $VERSION repository of $USER. When $USER does a push these changes will
