@@ -32,8 +32,6 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbScanFilter.hpp>
 
-//#define USE_NDB_POOL
-
 // Default value for parallelism
 static const int parallelism= 240;
 
@@ -124,6 +122,8 @@ static const err_code_mapping err_map[]=
   { 826, HA_ERR_RECORD_FILE_FULL },
   { 827, HA_ERR_RECORD_FILE_FULL },
   { 832, HA_ERR_RECORD_FILE_FULL },
+
+  { 0, 1 },
 
   { -1, -1 }
 };
@@ -3536,13 +3536,7 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
   Thd_ndb *thd_ndb;
   DBUG_ENTER("seize_thd_ndb");
 
-#ifdef USE_NDB_POOL
-  // Seize from pool
-  ndb= Ndb::seize();
-  xxxxxxxxxxxxxx error
-#else
   thd_ndb= new Thd_ndb();
-#endif
   thd_ndb->ndb->getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
   if (thd_ndb->ndb->init(max_transactions) != 0)
   {
@@ -3563,55 +3557,44 @@ Thd_ndb* ha_ndbcluster::seize_thd_ndb()
 void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 {
   DBUG_ENTER("release_thd_ndb");
-#ifdef USE_NDB_POOL
-  // Release to  pool
-  Ndb::release(ndb);
-  xxxxxxxxxxxx error
-#else
   delete thd_ndb;
-#endif
   DBUG_VOID_RETURN;
 }
 
 
 /*
-  If this thread already has a Ndb object allocated
+  If this thread already has a Thd_ndb object allocated
   in current THD, reuse it. Otherwise
-  seize a Ndb object, assign it to current THD and use it.
- 
-  Having a Ndb object also means that a connection to 
-  NDB cluster has been opened.
+  seize a Thd_ndb object, assign it to current THD and use it.
  
 */
 
 Ndb* check_ndb_in_thd(THD* thd)
 {
   DBUG_ENTER("check_ndb_in_thd");
-  THD *thd= current_thd;
   Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
   
   if (!thd_ndb)
   {
-    thd_ndb= seize_thd_ndb();
-    if (!thd_ndb)
+    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
       DBUG_RETURN(NULL);
     thd->transaction.thd_ndb= thd_ndb;
   }
-  DBUG_RETURN(ndb);
+  DBUG_RETURN(thd_ndb->ndb);
 }
+
 
 int ha_ndbcluster::check_ndb_connection()
 {
   THD* thd= current_thd;
-  Ndb* ndb;
   DBUG_ENTER("check_ndb_connection");
   
-  if (!(ndb= check_ndb_in_thd(thd)))
+  if (!(m_ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  m_ndb= thd_ndb->ndb;
   m_ndb->setDatabaseName(m_dbname);
   DBUG_RETURN(0);
 }
+
 
 void ndbcluster_close_connection(THD *thd)
 {
@@ -3638,7 +3621,6 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   const NDBTAB* tab;
   Ndb* ndb;
   DBUG_ENTER("ndbcluster_discover");
-  ndb.getDictionary()->set_local_table_data_size(sizeof(Ndb_table_local_info));
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -3646,6 +3628,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
   ndb->setDatabaseName(db);
 
   NDBDICT* dict= ndb->getDictionary();
+  dict->set_local_table_data_size(sizeof(Ndb_table_local_info));
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {    
@@ -3701,6 +3684,7 @@ int ndbcluster_table_exists(THD* thd, const char *db, const char *name)
   ndb->setDatabaseName(db);
 
   NDBDICT* dict= ndb->getDictionary();
+  dict->set_local_table_data_size(sizeof(Ndb_table_local_info));
   dict->invalidateTable(name);
   if (!(tab= dict->getTable(name)))
   {    
@@ -3821,9 +3805,6 @@ bool ndbcluster_end()
   if (!ndbcluster_inited)
     DBUG_RETURN(0);
   hash_free(&ndbcluster_open_tables);
-#ifdef USE_NDB_POOL
-  ndb_pool_release();
-#endif
   pthread_mutex_destroy(&ndbcluster_mutex);
   ndbcluster_inited= 0;
   DBUG_RETURN(0);
