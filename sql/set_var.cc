@@ -3033,8 +3033,8 @@ int set_var_password::check(THD *thd)
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str, password) ?
-         1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str,
+                               password, strlen(password)) ? 1 : 0;
 #else
   return 0;
 #endif
