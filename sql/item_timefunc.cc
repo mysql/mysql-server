@@ -1286,12 +1286,13 @@ void Item_func_date_format::fix_length_and_dec()
   if (args[1]->type() == STRING_ITEM)
   {						// Optimize the normal case
     fixed_length=1;
-    max_length=format_length(((Item_string*) args[1])->const_string());
+    max_length= format_length(((Item_string*) args[1])->const_string())*
+		collation.collation->mbmaxlen;
   }
   else
   {
     fixed_length=0;
-    max_length=args[1]->max_length*10;
+    max_length=args[1]->max_length*10*collation.collation->mbmaxlen;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
   maybe_null=1;					// If wrong date

@@ -347,6 +347,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
