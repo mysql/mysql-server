@@ -19,8 +19,7 @@ grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
 disconnect user1;
-connect (root,localhost,root,,);
-connection root;
+connection default;
 show grants for mysqltest_1@localhost;
 show grants for mysqltest_2@localhost;
 --error 1141
