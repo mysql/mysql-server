@@ -234,6 +234,9 @@ while test $# -gt 0; do
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT $1"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $1"
       ;;
+    --strace-client )
+      STRACE_CLIENT=1
+      ;;        
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
        --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
@@ -299,6 +302,10 @@ if [ x$SOURCE_DIST = x1 ] ; then
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
+ if [ -n "$STRACE_CLIENT" ]; then
+  MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
+ fi
+ 
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"

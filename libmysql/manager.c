@@ -91,6 +91,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   uint32 ip_addr;
   char msg_buf[MAX_MYSQL_MANAGER_MSG];
   int msg_len;
+  Vio* vio;
 
   if (!host)
     host="localhost";
@@ -105,13 +106,14 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     strmov(con->last_error,"Cannot create socket");
     goto err;
   }
-  if (!(con->vio=vio_new(sock,VIO_TYPE_TCPIP,FALSE)))
+  if (!(vio=vio_new(sock,VIO_TYPE_TCPIP,FALSE)))
   {
     con->last_errno=ENOMEM;
     strmov(con->last_error,"Cannot create network I/O object");
     goto err;
   }
-  vio_blocking(con->vio,TRUE);
+  vio_blocking(vio,TRUE);
+  my_net_init(&con->net,vio);
   bzero((char*) &sock_addr,sizeof(sock_addr));
   sock_addr.sin_family = AF_INET;
   if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
@@ -155,7 +157,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     goto err;
   }
   /* read the greating */
-  if (vio_read(con->vio,msg_buf,MAX_MYSQL_MANAGER_MSG)<=0)
+  if (my_net_read(&con->net) == packet_error)
   {
     con->last_errno=errno;
     strmov(con->last_error,"Read error on socket");
@@ -163,19 +165,19 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   }
   sprintf(msg_buf,"%-.16s %-.16s\n",user,passwd);
   msg_len=strlen(msg_buf);
-  if (vio_write(con->vio,msg_buf,msg_len)!=msg_len)
+  if (my_net_write(&con->net,msg_buf,msg_len) || net_flush(&con->net))
   {
-    con->last_errno=errno;
+    con->last_errno=con->net.last_errno;
     strmov(con->last_error,"Write error on socket");
     goto err;
   }
-  if (vio_read(con->vio,msg_buf,MAX_MYSQL_MANAGER_MSG)<=0)
+  if (my_net_read(&con->net) == packet_error)
   {
     con->last_errno=errno;
     strmov(con->last_error,"Read error on socket");
     goto err;
   }
-  if ((con->cmd_status=atoi(msg_buf)) != MANAGER_OK)
+  if ((con->cmd_status=atoi(con->net.read_pos)) != MANAGER_OK)
   {
     strmov(con->last_error,"Access denied");
     goto err;
@@ -210,11 +212,7 @@ void            STDCALL mysql_manager_close(MYSQL_MANAGER* con)
      allocated in my_multimalloc() along with con->host, freeing
      con->hosts frees the whole block
   */
-  if (con->vio)
-  {
-    vio_delete(con->vio);
-    con->vio=0;
-  }
+  net_end(&con->net);
   if (con->free_me)
     my_free((gptr)con,MYF(0));
 }
@@ -224,7 +222,7 @@ int STDCALL mysql_manager_command(MYSQL_MANAGER* con,const char* cmd,
 {
   if (!cmd_len)
     cmd_len=strlen(cmd);
-  if (vio_write(con->vio,(char*)cmd,cmd_len) != cmd_len)
+  if (my_net_write(&con->net,(char*)cmd,cmd_len) || net_flush(&con->net))
   {
     con->last_errno=errno;
     strmov(con->last_error,"Write error on socket");
@@ -238,9 +236,9 @@ int  STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
 						 int res_buf_size)
 {
   char* res_buf_end=res_buf+res_buf_size;
-  char* net_buf_pos=con->net_buf_pos, *net_buf_end=con->net_data_end;
+  char* net_buf=con->net.read_pos, *net_buf_end;
   int res_buf_shift=RES_BUF_SHIFT;
-  int done=0;
+  uint num_bytes;
   
   if (res_buf_size<RES_BUF_SHIFT)
   {
@@ -249,50 +247,26 @@ int  STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con, char* res_buf,
     return 1;
   }
   
-  for (;;)
+  if ((num_bytes=my_net_read(&con->net)) == packet_error)
   {
-    for (;net_buf_pos<net_buf_end && res_buf<res_buf_end;
-	 net_buf_pos++,res_buf++)
-    {
-      char c=*net_buf_pos;
-      if (c == '\r')
-	c=*++net_buf_pos;
-      if (c == '\n')
-      {
-	*res_buf=0;
-	net_buf_pos++;
-	done=1;
-	break;
-      }
-      else
-	*res_buf=*net_buf_pos;
-    }
-    if (done || res_buf==res_buf_end)
-      break;
-      
-    if (net_buf_pos == net_buf_end && res_buf<res_buf_end)
-    {
-      int num_bytes;
-      if ((num_bytes=vio_read(con->vio,con->net_buf,con->net_buf_size))<=0)
-      {
-	con->last_errno=errno;
-	strmov(con->last_error,"socket read failed");
-	return 1;
-      }
-      net_buf_pos=con->net_buf;
-      net_buf_end=net_buf_pos+num_bytes;
-    }
+    con->last_errno=errno;
+    strmov(con->last_error,"socket read failed");
+    return 1;
   }
-  con->net_buf_pos=net_buf_pos;
-  con->net_data_end=net_buf_end;
-  res_buf=res_buf_end-res_buf_size;
-  if ((con->eof=(res_buf[3]==' ')))
+
+  net_buf_end=net_buf+num_bytes;
+  
+  if ((con->eof=(net_buf[3]==' ')))
     res_buf_shift--;
-  res_buf_end-=res_buf_shift;
-  for (;res_buf<res_buf_end;res_buf++)
+  net_buf+=res_buf_shift;
+  res_buf_end[-1]=0;
+  for (;net_buf<net_buf_end && res_buf < res_buf_end;res_buf++,net_buf++)
   {
-    if(!(*res_buf=res_buf[res_buf_shift]))
+    if((*res_buf=*net_buf) == '\r')
+    {
+      *res_buf=0;
       break;
+    }
   }
   return 0;
 }
