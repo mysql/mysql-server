@@ -237,9 +237,12 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
   if (updated)
   {
-    mysql_update_log.write(thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd,thd->query,thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
   }
   if (ha_autocommit_or_rollback(thd, error >= 0))
     error=1;

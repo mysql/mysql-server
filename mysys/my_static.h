@@ -52,8 +52,6 @@ extern char	NEAR curr_dir[FN_REFLEN],NEAR home_dir_buff[FN_REFLEN];
 extern volatile int _my_signals;
 extern struct st_remember _my_sig_remember[MAX_SIGNALS];
 
-extern my_bool	key_cache_inited;
-
 extern const char *soundex_map;
 
 extern USED_MEM* my_once_root_block;

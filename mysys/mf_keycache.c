@@ -85,7 +85,7 @@ int init_key_cache(ulong use_mem,
 
   if (key_cache_inited && _my_disk_blocks > 0)
   {
-    DBUG_PRINT("warning",("key cache allready in use")); /* purecov: inspected */
+    DBUG_PRINT("warning",("key cache already in use")); /* purecov: inspected */
     DBUG_RETURN(0); /* purecov: inspected */
   }
   if (! key_cache_inited)
@@ -161,6 +161,7 @@ void end_key_cache(void)
       _my_disk_blocks= -1;
     }
   }
+  key_cache_inited=0;
   DBUG_PRINT("status",
 	     ("used: %d  changed: %d  w_requests: %ld  writes: %ld  r_requests: %ld  reads: %ld",
 	      _my_blocks_used,_my_blocks_changed,_my_cache_w_requests,

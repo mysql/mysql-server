@@ -5917,12 +5917,12 @@ The solution to this is to do one of the following steps:
 
 @itemize @bullet
 @item
+Configure with @code{CFLAGS=-DHAVE_CURSES_H CXXFLAGS=-DHAVE_CURSES_H ./configure}
+@item
 Edit @file{/usr/include/widec.h} as indicted above and rerun configure
 @item
 Remove the @code{#define HAVE_TERM} line from @file{config.h} file and
 run @code{make} again.
-@item
-Configure with @code{CFLAGS=-DHAVE_CURSES CXXFLAGS=-DHAVE_CURSES ./configure}
 @end itemize
 
 If you get a problem that your linker can't find @code{-lz} when linking
@@ -5950,9 +5950,9 @@ experience problems with core dumps under load, you should use the
 following @code{configure} command:
 
 @example
-shell> CC=gcc CFLAGS="-O6 -fomit-frame-pointer" \
+shell> CC=gcc CFLAGS="-O6 -fomit-frame-pointer -DHAVE_CURSES_H" \
        CXX=gcc \
-       CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" \
+       CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
        ./configure --prefix=/usr/local/mysql
 @end example
 
@@ -8557,6 +8557,11 @@ LOW_PRIORITY ...} to lower the priority of only one query, or by
 priority in one thread.
 @xref{Table locking}.
 
+@item --memlock
+Lock the @code{mysqld} process in memory.  This works only if your system
+supports the @code{mlockall()} system call.  This may help if you have
+a problem where the opearting system is causing @code{mysqld} to swap on disk.
+
 @item --pid-file=path
 Path to pid file used by @code{safe_mysqld}.
 
@@ -8596,6 +8601,11 @@ hostnames. The option is turned off by default in @strong{MySQL} 3.21
 because sometimes it takes a long time to perform backward resolutions.
 @strong{MySQL} 3.22 caches hostnames (unless @code{--skip-host-cache} is
 used) and has this option enabled by default.
+
+@item --skip-concurrent-insert
+Turn of that one can insert and select at the same time on @code{MyISAM}
+tables. (This is only to be used if you think you have found a bug
+in this feature).
 
 @item --skip-delay-key-write
 Ignore the @code{delay_key_write} option for all tables.
@@ -10210,13 +10220,14 @@ The following @code{mysqld} options affect networking security:
 
 @table @code
 @item --secure
-IP numbers returned by the @code{gethostbyname()} system call are checked to
-make sure they resolve back to the original hostname. This makes it harder
-for someone on the outside to get access by pretending to be another host.  This
-option also adds some sanity checks of hostnames.  The option is turned off
-by default in @strong{MySQL} 3.21 because sometimes it takes a long time to
-perform backward resolutions.  @strong{MySQL} 3.22 caches hostnames and has
-this option enabled by default.
+IP numbers returned by the @code{gethostbyname()} system call are
+checked to make sure they resolve back to the original hostname. This
+makes it harder for someone on the outside to get access by pretending
+to be another host.  This option also adds some sanity checks of
+hostnames.  The option is turned off by default in @strong{MySQL} 3.21
+because sometimes it takes a long time to perform backward resolutions.
+@strong{MySQL} 3.22 caches hostnames and has this option enabled by
+default.
 
 @item --skip-grant-tables
 This option causes the server not to use the privilege system at all. This
@@ -17952,6 +17963,10 @@ Using @code{LOCAL} will be a bit slower than letting the server access the
 files directly, because the contents of the file must travel from the client
 host to the server host.  On the other hand, you do not need the
 @strong{file} privilege to load local files.
+
+Note that you can't read from a FIFO with @code{LOAD DATA INFILE}; If
+you need to read from a FIFO (for example the output from gunzip), use
+@code{LOAD DATA LOCAL INFILE} instead.
 
 @cindex @code{mysqlimport}
 You can also load data files by using the @code{mysqlimport} utility; it
@@ -35513,12 +35528,13 @@ only on Linux.
 You can always find the latest version
 @uref{http://www.trash.net/~ffischer/admin/index.html, here}.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker092.zip,MySQL-Maker 092}.
-Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
-you to create, change and delete databases and tables.
-You can change field - structure and add, change and delete data in
-these tables directly without ODBC-driver.
-@uref{http://62.26.183.157/presult/support/su_sweiche_download.html, MySQL Maker homepage}
+@c Link temporary removed on request because of a bug in the current version
+@c @item @uref{http://www.mysql.com/Downloads/Win32/MySQL-Maker092.zip,MySQL-Maker 092}.
+@c Shareware @strong{MySQL} client for windows. It's WYSIWYG tool which allows
+@c you to create, change and delete databases and tables.
+@c You can change field - structure and add, change and delete data in
+@c these tables directly without ODBC-driver.
+@c @uref{http://62.26.183.157/presult/support/su_sweiche_download.html, MySQL Maker homepage}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqlwinadmn.zip, mysqlwinadmn.zip}
 Windows GUI (binary only) to administrate a database, by David B. Mansel,
@@ -35653,9 +35669,9 @@ programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
 SQL/HTML is an HTML database manager for @strong{MySQL} using @code{DBI} 1.06.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.21 (stable version)}
+@item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.0.21.tar.gz, UdmSearch 3.0.22 (stable version)}
 @item @uref{http://www.mysql.com/Downloads/Contrib/udmsearch-3.1.3.tar.gz, UdmSearch 3.1.3 (development version)}
-@item @uref{http://mysearch.udm.net, UdmSearch home page}
+@item @uref{http://search.mnoGo.ru, UdmSearch home page}
 A SQL-based search engine for Internet. By
 Alexander I. Barkov @email{bar@@izhcom.ru}.
 
@@ -36290,6 +36306,19 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.25, News-3.23.24, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
+@item
+Fixed a core dump bug when doing @code{FLUSH MASTER} when one didn't give
+a filename argument to @code{--log-bin}
+@item
+Added missing ha_berkeley.x files to the MySQL windows source distribution.
+@item
+Fixed some mutex bugs in the log code that could cause thread blocks if new
+log files couldn't be created.
+@item
+Added lock time and number of selected processed rows to slow query log.
+@item
+Added @code{--memlock} option to mysqld to lock mysqld in memory on
+systems with the @code{mlockall()} call (like in Solaris).
 @item
 @code{HEAP} tables didn't use keys properly. (Bug from 3.23.23)
 @item
@@ -40543,6 +40572,8 @@ Subqueries. @code{select id from t where grp in (select grp from g where u > 100
 @item
 Add range checking to @code{MERGE} tables.
 @item
+@code{SHOW OPEN TABLES}
+@item
 Port of @strong{MySQL} to BeOS.
 @item
 Add a temporary key buffer cache during @code{insert/delete/update} so that we
@@ -40802,17 +40833,11 @@ Negative @code{LIMIT} to retrieve data from the end.
 @item
 Alarm around client connect/read/write functions.
 @item
-Make a @code{mysqld} version which isn't multithreaded (3-5 days).
-@item
 Please note the changes to @code{safe_mysqld}: according to FSSTND (which
 Debian tries to follow) PID files should go into @file{/var/run/<progname>.pid}
 and log files into @file{/var/log}. It would be nice if you could put the
 "DATADIR" in the first declaration of "pidfile" and "log", so the
 placement of these files can be changed with a single statement.
-@item
-Better dynamic record layout to avoid fragmentation.
-@item
-@code{UPDATE SET blob=read_blob_from_file('my_gif') where id=1;}
 @item
 Allow a client to request logging.
 @item

@@ -246,9 +246,12 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       id=table->next_number_field->val_int();	// Return auto_increment value
     if (info.copied || info.deleted)
     {
-      mysql_update_log.write(thd->query, thd->query_length);
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query);
+	mysql_bin_log.write(&qinfo);
+      }
     }
     error=ha_autocommit_or_rollback(thd,error);
     if (thd->lock)
@@ -1085,9 +1088,12 @@ bool delayed_insert::handle_inserts(void)
     }
     if (row->query && row->log_query)
     {
-      mysql_update_log.write(row->query, row->query_length);
-      Query_log_event qinfo(&thd, row->query);
-      mysql_bin_log.write(&qinfo);
+      mysql_update_log.write(&thd,row->query, row->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(&thd, row->query);
+	mysql_bin_log.write(&qinfo);
+      }
     }
     if (table->blob_fields)
       free_delayed_insert_blobs(table);
@@ -1245,9 +1251,12 @@ bool select_insert::send_eof()
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
     ::send_ok(&thd->net,info.copied,last_insert_id,buff);
-    mysql_update_log.write(thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query);
-    mysql_bin_log.write(&qinfo);
+    mysql_update_log.write(thd,thd->query,thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
     return 0;
   }
 }
