@@ -545,15 +545,13 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   int error;
   DBUG_ENTER("mysql_truncate");
 
+  bzero((char*) &create_info,sizeof(create_info));
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table_ptr=find_temporary_table(thd,table_list->db,
 						       table_list->real_name)))
   {
     TABLE *table= *table_ptr;
-    HA_CREATE_INFO create_info;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    bzero((char*) &create_info,sizeof(create_info));
-    create_info.auto_increment_value= table->file->auto_increment_value;
     db_type table_type=table->db_type;
 
     strmov(path,table->path);
@@ -596,7 +594,6 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(-1);
   }
 
-  bzero((char*) &create_info,sizeof(create_info));
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
   query_cache_invalidate3(thd, table_list, 0); 
