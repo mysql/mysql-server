@@ -69,6 +69,7 @@ public:
   void make_field(Send_field *field);
   void print(String *str);
   void fix_num_length_and_dec();
+  void no_rows_in_result() { reset(); }
   virtual bool setup(THD *thd) {return 0;}
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -135,6 +136,7 @@ class Item_sum_count :public Item_sum_int
   bool const_item() const { return !used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_FUNC; }
   void reset();
+  void no_rows_in_result() { count=0; }
   bool add();
   void make_const(longlong count_arg) { count=count_arg; used_table_cache=0; }
   longlong val_int();
