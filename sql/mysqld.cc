@@ -251,7 +251,7 @@ extern int init_master_info(MASTER_INFO* mi);
 // and are treated as aliases for each other
 
 static bool kill_in_progress=FALSE;
-static struct rand_struct sql_rand;
+struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 static int cleanup_done;
 static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
@@ -2323,15 +2323,7 @@ static void create_new_thread(THD *thd)
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
     thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
-  /* 
-     We need good random number initialization for new thread
-     Just coping global one will not work 
-  */
-  {
-    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
-    randominit(&(thd->rand), tmp + (ulong) start_time,
-	       tmp + (ulong) thread_id);
-  }
+
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
