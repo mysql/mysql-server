@@ -106,7 +106,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   byte *record;
   byte	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
-  bool print_error;
+  bool print_error, ignore_not_found_rows;
 } READ_RECORD;
 
 enum timestamp_type { TIMESTAMP_NONE, TIMESTAMP_DATE, TIMESTAMP_FULL,
