@@ -89,6 +89,7 @@ public:
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
   inline bool get_const_item_cache() { return const_item_cache; }
+  Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   void print(String *str);
   bool change_engine(subselect_engine *eng)
