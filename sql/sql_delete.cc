@@ -37,14 +37,18 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   bool 		using_limit=limit != HA_POS_ERROR;
   bool		transactional_table, log_delayed, safe_update, const_cond; 
   ha_rows	deleted;
+  TABLE_LIST    *delete_table_list= (TABLE_LIST*) 
+    thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_delete");
 
-  if (!(table = open_ltable(thd, table_list, table_list->lock_type)))
+  if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
+  fix_tables_pointers(&thd->lex.select_lex);
+  table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
-  if (setup_conds(thd,table_list,&conds) || 
+  if (setup_conds(thd, delete_table_list, &conds) || 
       setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);
 

@@ -215,3 +215,14 @@ update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
 drop table t1, t2;
 
+#delete with subselects
+drop table if exists t1, t2;
+create table t1 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t1 values (0, 10),(1, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t1;
+select * from t1 where b = (select b from t2 where t1.a = t2.a);
+delete from t1 where b = (select b from t2 where t1.a = t2.a);
+select * from t1;
+drop table t1, t2;
