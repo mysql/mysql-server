@@ -5508,11 +5508,11 @@ simple_ident:
 	  { /* We're compiling a stored procedure and found a variable */
 	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
 	    {
-	      net_printf(YYTHD, ER_SP_UNINIT_VAR, $1.str);
-	      YYABORT;
+	      push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+	                          ER_SP_UNINIT_VAR, ER(ER_SP_UNINIT_VAR),
+				  $1.str);
 	    }
-	    else
-	      $$ = (Item*) new Item_splocal($1, spv->offset);
+	    $$ = (Item*) new Item_splocal($1, spv->offset);
 	  }
 	  else
 	  {
