@@ -87,6 +87,27 @@ typedef union ndb_item_value {
   NDB_ITEM_FIELD_VALUE *field_value;
 } NDB_ITEM_VALUE;
 
+struct negated_function_mapping
+{
+  Item_func::Functype pos_fun;
+  Item_func::Functype neg_fun;
+};
+
+static const negated_function_mapping neg_map[]= 
+{
+  {Item_func::EQ_FUNC, Item_func::NE_FUNC},
+  {Item_func::NE_FUNC, Item_func::EQ_FUNC},
+  {Item_func::LT_FUNC, Item_func::GE_FUNC},
+  {Item_func::LE_FUNC, Item_func::GT_FUNC},
+  {Item_func::GT_FUNC, Item_func::LE_FUNC},
+  {Item_func::GE_FUNC, Item_func::LT_FUNC},
+  {Item_func::LIKE_FUNC, Item_func::NOTLIKE_FUNC},
+  {Item_func::NOTLIKE_FUNC, Item_func::LIKE_FUNC},
+  {Item_func::ISNULL_FUNC, Item_func::ISNOTNULL_FUNC},
+  {Item_func::ISNOTNULL_FUNC, Item_func::ISNULL_FUNC},
+  {Item_func::UNKNOWN_FUNC, Item_func::NOT_FUNC}
+};
+  
 /*
   This class is used for serialization of the Item tree for
   condition pushdown. It is stored in a linked list implemented
@@ -141,6 +162,10 @@ class Ndb_item {
   uint32 pack_length() 
   { 
     switch(type) {
+    case(NDB_VALUE):
+      if(qualification.value_type == Item::STRING_ITEM)
+        return value.item->str_value.length();
+      break;
     case(NDB_FIELD):
       return value.field_value->field->pack_length(); 
     default:
@@ -149,9 +174,27 @@ class Ndb_item {
     
     return 0;
   };
+
   Field * get_field() { return value.field_value->field; };
+
   int get_field_no() { return value.field_value->column_no; };
-  char* get_val() { return value.field_value->field->ptr; };
+
+  const char* get_val() 
+  {  
+    switch(type) {
+    case(NDB_VALUE):
+      if(qualification.value_type == Item::STRING_ITEM)
+        return value.item->str_value.ptr();
+      break;
+    case(NDB_FIELD):
+      return value.field_value->field->ptr; 
+    default:
+      break;
+    }
+    
+    return NULL;
+  };
+
   void save_in_field(Ndb_item *field_item)
   {
     Field *field = field_item->value.field_value->field;
@@ -159,7 +202,17 @@ class Ndb_item {
 
     if (item && field)
       ((Item *)item)->save_in_field(field, false);
-  }
+  };
+
+  static Item_func::Functype negate(Item_func::Functype fun)
+  {
+    uint i;
+    for (i=0; 
+         fun != neg_map[i].pos_fun &&
+           neg_map[i].pos_fun != Item_func::UNKNOWN_FUNC;
+         i++);
+    return  neg_map[i].neg_fun;
+  };
 
   NDB_ITEM_TYPE type;
   NDB_ITEM_QUALIFICATION qualification;
@@ -478,9 +531,11 @@ private:
   void cond_clear();
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond);
   int build_scan_filter_predicate(Ndb_cond* &cond, 
-                                  NdbScanFilter* filter);
+                                  NdbScanFilter* filter,
+                                  bool negated= false);
   int build_scan_filter_group(Ndb_cond* &cond, 
-                              NdbScanFilter* filter);
+                              NdbScanFilter* filter,
+                              bool negated= false);
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
   int generate_scan_filter(Ndb_cond_stack* cond_stack, 
                            NdbScanOperation* op);
