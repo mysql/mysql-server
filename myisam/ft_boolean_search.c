@@ -204,7 +204,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 {
   int r;
   uint off;
-  int subkeys;
+  int subkeys=1;
   my_bool can_go_down;
   MI_INFO *info=ftb->info;
 
@@ -279,22 +279,19 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 
   /* matching key found */
   memcpy(ftbw->word+ftbw->off, info->lastkey, info->lastkey_length);
-  if (!ftbw->off && (init_search || (ftbw->flags & FTB_FLAG_TRUNC)))
+  /* going down ? */
+  if (subkeys<0)
   {
-    /* going down ? */
-    if (subkeys<0)
-    {
-      /*
-	yep, going down, to the second-level tree
-	TODO here: subkey-based optimization
-      */
-      ftbw->off=off;
-      ftbw->key_root=info->lastpos;
-      ftbw->keyinfo=& info->s->ft2_keyinfo;
-      r=_mi_search_first(info, ftbw->keyinfo, ftbw->key_root);
-      DBUG_ASSERT(r==0);  /* found something */
-      memcpy(ftbw->word+off, info->lastkey, info->lastkey_length);
-    }
+    /*
+      yep, going down, to the second-level tree
+      TODO here: subkey-based optimization
+    */
+    ftbw->off=off;
+    ftbw->key_root=info->lastpos;
+    ftbw->keyinfo=& info->s->ft2_keyinfo;
+    r=_mi_search_first(info, ftbw->keyinfo, ftbw->key_root);
+    DBUG_ASSERT(r==0);  /* found something */
+    memcpy(ftbw->word+off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0]=info->lastpos;
   return 0;
