@@ -68,7 +68,7 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
+    return 1;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -1170,7 +1170,7 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
   if (thd)
   {
     if (check_stack_overrun(thd,buff))
-      return 0;					// Fatal error flag is set!
+      DBUG_RETURN(1);				// Fatal error flag is set!
   }
   else
     thd=current_thd;				// In WHERE / const clause
