@@ -84,6 +84,7 @@
 #undef HAVE_CHARSET_euckr
 #undef HAVE_CHARSET_gb2312
 #undef HAVE_CHARSET_gbk
+#undef HAVE_CHARSET_geostd8
 #undef HAVE_CHARSET_greek
 #undef HAVE_CHARSET_hebrew
 #undef HAVE_CHARSET_hp8
