@@ -276,3 +276,13 @@ select @@session.key_buffer_size;
 set global myisam_max_sort_file_size=4294967296;
 --replace_result 4294967296 MAX_FILE_SIZE 2146435072 MAX_FILE_SIZE
 show global variables like 'myisam_max_sort_file_size';
+
+# BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
+set @tstlw = @@log_warnings;
+show global variables like 'log_warnings';
+set global log_warnings = 0;
+show global variables like 'log_warnings';
+set global log_warnings = 42;
+show global variables like 'log_warnings';
+set global log_warnings = @tstlw;
+show global variables like 'log_warnings';
