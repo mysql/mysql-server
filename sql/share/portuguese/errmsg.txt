@@ -202,7 +202,7 @@
 "Esta operação não pode ser realizada com um 'slave' em execução. Execute SLAVE STOP primeiro",
 "Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute SLAVE START",
 "O servidor não está configurado como 'slave'. Acerte o arquivo de configuração ou use CHANGE MASTER TO",
-"Não pode inicializar a estrutura de informação do 'master'. Verifique as permissões em 'master.info'",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema",
 "Usuário '%-.64s' já possui mais que o valor máximo de conexões (max_user_connections) ativas",
 "Você pode usar apenas expressões constantes com SET",

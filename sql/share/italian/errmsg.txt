@@ -202,7 +202,7 @@
 "Questa operazione non puo' essere eseguita con un database 'slave' che gira, lanciare prima SLAVE STOP",
 "Questa operaione richiede un database 'slave', configurarlo ed eseguire SLAVE START",
 "Il server non e' configurato come 'slave', correggere il file di configurazione cambiando CHANGE MASTER TO",
-"Impossibile inizializzare la struttura 'master info', controllare i permessi sul file master.info",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Impossibile creare il thread 'slave', controllare le risorse di sistema",
 "L'utente %-.64s ha gia' piu' di 'max_user_connections' connessioni attive",
 "Si possono usare solo espressioni costanti con SET",
