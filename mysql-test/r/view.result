@@ -1547,3 +1547,14 @@ s1
 3
 drop view v1;
 drop table t1;
+create table t1 (s1 tinyint);
+create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
+create view v1 as select * from t1 where s1 <> 127 with check option;
+insert into v1 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from v1;
+s1
+select * from t1;
+s1
+drop view v1;
+drop table t1;
