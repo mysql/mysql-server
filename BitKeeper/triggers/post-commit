@@ -1,0 +1,14 @@
+#!/bin/sh
+
+           shift
+           REPO=`bk gethost`:`pwd`
+           TO=dev@mysql.com
+           if [ -f BitKeeper/etc/pushed -a "$BK_COMMIT" = OK ]
+           then (
+                echo ${USER}@"$@"
+                echo ""
+                bk changes - < BitKeeper/etc/pushed
+                ) | mail -s "Outgoing from $REPO" $TO
+           else
+                echo ${USER}@"$@"| mail -s "Outgoing from $REPO = $BK_OUTGOING" $TO
+           fi
