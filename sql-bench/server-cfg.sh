@@ -33,10 +33,10 @@
 
 sub get_server
 {
-  my ($name,$host,$database,$odbc,$machine)=@_;
+  my ($name,$host,$database,$odbc,$machine,$socket)=@_;
   my ($server);
   if ($name =~ /mysql/i)
-  { $server=new db_MySQL($host, $database, $machine); }
+  { $server=new db_MySQL($host, $database, $machine, $socket); }
   elsif ($name =~ /pg/i)
   { $server= new db_Pg($host,$database); }
   elsif ($name =~ /msql/i)
@@ -106,13 +106,14 @@ package db_MySQL;
 
 sub new
 {
-  my ($type,$host,$database,$machine)= @_;
+  my ($type,$host,$database,$machine,$socket)= @_;
   my $self= {};
   my %limits;
   bless $self;
 
   $self->{'cmp_name'}		= "mysql";
-  $self->{'data_source'}	= "DBI:mysql:$database:$host";
+  $self->{'data_source'}	= "DBI:mysql:database=$database;host=$host";
+  $self->{'data_source'} .= ";mysql_socket=$socket" if($socket);
   $self->{'limits'}		= \%limits;
   $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
