@@ -369,7 +369,7 @@ The MySQL Access Privilege System
 * Request access::              Access control, stage 2: Request verification
 * Privilege changes::           When privilege changes take effect
 * Default privileges::          Setting up the initial @strong{MySQL} privileges
-* Adding users::                Adding new user privileges to @strong{MySQL}
+* Adding users::                Adding new users to @strong{MySQL}
 * Passwords::                   How to set up passwords
 * Access denied::               Causes of @code{Access denied} errors
 
@@ -9253,6 +9253,20 @@ should create the file @file{C:\mysql\data\foo.sym} that contains the
 text @code{D:\data\foo}.  After that, all tables created in the database
 @code{foo} will be created in @file{D:\data\foo}.
 
+Note that because of the speed penalty you get when opening every table,
+we have not enabled this by default even if you have compiled
+@strong{MySQL} with support for this. To enable symlinks you should put
+in your @code{my.cnf} or @code{my.ini} file the following entry:
+
+@example
+[mysqld]
+use-symbolic-links
+@end example
+
+In @strong{MySQL} 4.0 we will enable symlinks by default. Then you
+should instead use the @code{skip-symlink} option if you want to
+disable this.
+
 @cindex compiling, on Windows
 @cindex Windows, compiling on
 @node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
@@ -11943,7 +11957,7 @@ system.  This section describes how it works.
 * Request access::              Access control, stage 2: Request verification
 * Privilege changes::           When privilege changes take effect
 * Default privileges::          Setting up the initial @strong{MySQL} privileges
-* Adding users::                Adding new user privileges to @strong{MySQL}
+* Adding users::                Adding new users to @strong{MySQL}
 * Passwords::                   How to set up passwords
 * Access denied::               Causes of @code{Access denied} errors
 @end menu
@@ -12314,7 +12328,6 @@ DATA INFILE} and administrative operations.
 @cindex user names, and passwords
 @cindex passwords, for users
 
-
 There are several distinctions between the way user names and passwords are
 used by @strong{MySQL} and the way they are used by Unix or Windows:
 
@@ -12347,6 +12360,42 @@ functions}.  Note that even if the password is stored 'scrambled', and
 knowing your 'scrambled' password is enough to be able to connect to
 the @strong{MySQL} server!
 @end itemize
+
+@strong{MySQL} users and they privileges are normally created with the
+@code{GRANT} command. @xref{GRANT}.
+
+When you login to a @strong{MySQL} server with a command line client you
+should specify the password with @code{--password=your-password}.
+@xref{Connecting}.
+
+@example
+mysql --user=monty --password=guess database_name
+@end example
+
+If you want the client to prompt for a password, you should use
+@code{--password} without any argument
+
+@example
+mysql --user=monty --password database_name
+@end example
+
+or the short form:
+
+@example
+mysql -u monty -p database_name
+@end example
+
+Note that in the last example the password is @strong{NOT} 'database_name'.
+
+If you want to use the -p option to supply a password you should do like this:
+
+@example
+mysql -u monty -pguess database_name
+@end example
+
+On some system the library call that @strong{MySQL} uses to prompt for a
+password will automaticly cut the password to 8 characters. Internally
+@strong{MySQL} doesn't have any limit for the length of the password.
 
 @node Connecting, Password security, User names, Privilege system
 @section Connecting to the MySQL Server
@@ -13407,12 +13456,15 @@ running @code{mysql_install_db}.
 @findex GRANT statement
 @findex statements, GRANT
 @node Adding users, Passwords, Default privileges, Privilege system
-@section Adding New User Privileges to MySQL
+@section Adding New Users to MySQL
 
 You can add users two different ways: by using @code{GRANT} statements
 or by manipulating the @strong{MySQL} grant tables directly.  The
 preferred method is to use @code{GRANT} statements, because they are
-more concise and less error-prone.
+more concise and less error-prone. @xref{GRANT}.
+
+There is also a lot of contributed programs like @code{phpmyadmin} that
+can be used to create and administrate users. @xref{Contrib}.
 
 The examples below show how to use the @code{mysql} client to set up new
 users.  These examples assume that privileges are set up according to the
@@ -13522,6 +13574,11 @@ mysql> GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP
            TO custom@@'%'
            IDENTIFIED BY 'stupid';
 @end example
+
+The reason that we do to grant statements for the user 'custom' is that
+we want the give the user access to @strong{MySQL} both from the local
+machine with Unix sockets and from the remote machine 'whitehouse.gov'
+over TCP/IP.
 
 To set up the user's privileges by modifying the grant tables directly,
 run these commands (note the @code{FLUSH PRIVILEGES} at the end):
@@ -23022,8 +23079,9 @@ REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
 @code{GRANT} is implemented in @strong{MySQL} Version 3.22.11 or later. For
 earlier @strong{MySQL} versions, the @code{GRANT} statement does nothing.
 
-The @code{GRANT} and @code{REVOKE} commands allow system administrators to
-grant and revoke rights to @strong{MySQL} users at four privilege levels:
+The @code{GRANT} and @code{REVOKE} commands allow system administrators
+to create users and grant and revoke rights to @strong{MySQL} users at
+four privilege levels:
 
 @table @strong
 @item Global level
@@ -23043,6 +23101,7 @@ Column privileges apply to single columns in a given table. These privileges are
 stored in the @code{mysql.columns_priv} table.
 @end table
 
+If you give a grant for a users that doesn't exists, that user is created.
 For examples of how @code{GRANT} works, see @ref{Adding users}.
 
 For the @code{GRANT} and @code{REVOKE} statements, @code{priv_type} may be

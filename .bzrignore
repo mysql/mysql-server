@@ -283,3 +283,4 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+sql-bench/gif/*
