@@ -25,7 +25,8 @@ int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 #ifdef USE_STRCOLL
   if (use_strcoll(charset_info))
   {
-    /* QQ: This needs to work with part keys at some point */
+    if (part_key && b_length < a_length)
+      a_length=b_length;
     return my_strnncoll(charset_info, a, a_length, b, b_length);
   }
   else
