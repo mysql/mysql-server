@@ -45,81 +45,29 @@ public:
    * Copy operator
    */
   LogLevel & operator= (const LogLevel &);
-  
-  static const Uint32 MIN_LOGLEVEL_ID = CFG_LOGLEVEL_STARTUP;
-  
+
   enum EventCategory {
-    /**
-     * Events during all kind of startups
-     */
-    llStartUp = CFG_LOGLEVEL_STARTUP - MIN_LOGLEVEL_ID,
-    
-    /**
-     * Events during shutdown
-     */
-    llShutdown = CFG_LOGLEVEL_SHUTDOWN - MIN_LOGLEVEL_ID,
-
-    /**
-     * Transaction statistics
-     *   Job level
-     *   TCP/IP speed
-     */
-    llStatistic = CFG_LOGLEVEL_STATISTICS - MIN_LOGLEVEL_ID,
-    
-    /**
-     * Checkpoints
-     */
-    llCheckpoint = CFG_LOGLEVEL_CHECKPOINT - MIN_LOGLEVEL_ID,
-    
-    /**
-     * Events during node restart
-     */
-    llNodeRestart = CFG_LOGLEVEL_NODERESTART - MIN_LOGLEVEL_ID,
-
-    /**
-     * Events related to connection / communication
-     */
-    llConnection = CFG_LOGLEVEL_CONNECTION - MIN_LOGLEVEL_ID,
-
-    /**
-     * Assorted event w.r.t unexpected happenings
-     */
-    llError = CFG_LOGLEVEL_ERROR - MIN_LOGLEVEL_ID,
-
-    /**
-     * Assorted event w.r.t warning
-     */
-    llWarning = CFG_LOGLEVEL_WARNING - MIN_LOGLEVEL_ID,
-
-    /**
-     * Assorted event w.r.t information
-     */
-    llInfo = CFG_LOGLEVEL_INFO - MIN_LOGLEVEL_ID,
-
-    /**
-     * Events related to global replication
-     */
-    llGrep = CFG_LOGLEVEL_GREP - MIN_LOGLEVEL_ID
+    llStartUp = CFG_LOGLEVEL_STARTUP - CFG_MIN_LOGLEVEL,
+    llShutdown = CFG_LOGLEVEL_SHUTDOWN - CFG_MIN_LOGLEVEL,
+    llStatistic = CFG_LOGLEVEL_STATISTICS - CFG_MIN_LOGLEVEL,
+    llCheckpoint = CFG_LOGLEVEL_CHECKPOINT - CFG_MIN_LOGLEVEL,
+    llNodeRestart = CFG_LOGLEVEL_NODERESTART - CFG_MIN_LOGLEVEL,
+    llConnection = CFG_LOGLEVEL_CONNECTION - CFG_MIN_LOGLEVEL,
+    llInfo = CFG_LOGLEVEL_INFO - CFG_MIN_LOGLEVEL,
+    llWarning = CFG_LOGLEVEL_WARNING - CFG_MIN_LOGLEVEL,
+    llError = CFG_LOGLEVEL_ERROR - CFG_MIN_LOGLEVEL,
+    llGrep = CFG_LOGLEVEL_GREP - CFG_MIN_LOGLEVEL,
+    llDebug = CFG_LOGLEVEL_DEBUG - CFG_MIN_LOGLEVEL,
   };
-
-  struct LogLevelCategoryName {
-    const char* name;
-  };
-
-  /**
-   * Log/event level category names. Remember to update the names whenever
-   * a new category is added.
-   */
-  static const LogLevelCategoryName LOGLEVEL_CATEGORY_NAME[];
 
   /**
    * No of categories
    */
-#define _LOGLEVEL_CATEGORIES 10
+#define _LOGLEVEL_CATEGORIES (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1);
   static const Uint32 LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES;
-
+  
   void clear();
-
+  
   /**
    * Note level is valid as 0-15
    */

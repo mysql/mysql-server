@@ -52,7 +52,7 @@ static const char* helpTexts[] = {
   "{<id>|ALL} CLUSTERLOG {<category>=<level>}+ Set log level for cluster log",
   "QUIT                                        Quit management server",
 };
-static const int noOfHelpTexts = sizeof(helpTexts)/sizeof(const char*);
+static const unsigned noOfHelpTexts = sizeof(helpTexts)/sizeof(const char*);
 
 static const char* helpTextShow =
 "SHOW prints NDB Cluster information\n\n"
@@ -389,14 +389,14 @@ void CommandInterpreter::executeHelp(char* parameters) {
 	   << endl;
 
     ndbout << "<category> = ";
-    for(i = 0; i<EventLoggerBase::noOfEventCategoryNames; i++){
-      ndbout << EventLoggerBase::eventCategoryNames[i].name;
-      if (i < EventLoggerBase::noOfEventCategoryNames - 1) {
+    for(i = 0; i<CFG_MIN_LOGLEVEL; i++){
+      ndbout << ndb_mgm_get_event_category_string((ndb_mgm_event_category)i);
+      if (i < CFG_MIN_LOGLEVEL - 1) {
 	ndbout << " | ";
       }
     }
     ndbout << endl;
-
+    
     ndbout << "<level>    = " << "0 - 15"
 	   << endl;
     

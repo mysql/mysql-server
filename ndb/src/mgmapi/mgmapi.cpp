@@ -954,13 +954,51 @@ struct ndb_mgm_event_categories
 {
   const char* name;
   enum ndb_mgm_event_category category;
+} categories[] = {
+  { "STARTUP", NDB_MGM_EVENT_CATEGORY_STARTUP },
+  { "SHUTDOWN", NDB_MGM_EVENT_CATEGORY_SHUTDOWN },
+  { "STATISTICS", NDB_MGM_EVENT_CATEGORY_STATISTIC },
+  { "NODERESTART", NDB_MGM_EVENT_CATEGORY_NODE_RESTART },
+  { "CONNECTION", NDB_MGM_EVENT_CATEGORY_CONNECTION },
+  { "CHECKPOINT", NDB_MGM_EVENT_CATEGORY_CHECKPOINT },
+  { "DEBUG", NDB_MGM_EVENT_CATEGORY_DEBUG },
+  { "INFO", NDB_MGM_EVENT_CATEGORY_INFO },
+  { "ERROR", NDB_MGM_EVENT_CATEGORY_ERROR },
+  { "GREP", NDB_MGM_EVENT_CATEGORY_GREP },
+  { 0, NDB_MGM_ILLEGAL_EVENT_CATEGORY }
 };
+
+extern "C"
+ndb_mgm_event_category
+ndb_mgm_match_event_category(const char * status)
+{
+  if(status == 0)
+    return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+  
+  for(int i = 0; categories[i].name !=0 ; i++)
+    if(strcmp(status, categories[i].name) == 0)
+      return categories[i].category;
+
+  return NDB_MGM_ILLEGAL_EVENT_CATEGORY;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_event_category_string(enum ndb_mgm_event_category status)
+{
+  int i;
+  for(i = 0; categories[i].name != 0; i++)
+    if(categories[i].category == status)
+      return categories[i].name;
+  
+  return 0;
+}
 
 extern "C"
 int 
 ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
-				/*enum ndb_mgm_event_category*/ 
-				char * category, int level,
+				enum ndb_mgm_event_category cat,
+				int level,
 				struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, 
@@ -975,14 +1013,14 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 
   Properties args;
   args.put("node", nodeId);
-  args.put("category", category);
+  args.put("category", cat);
   args.put("level", level);
-
+  
   const Properties *reply;
   reply = ndb_mgm_call(handle, clusterlog_reply, 
 		       "set cluster loglevel", &args);
   CHECK_REPLY(reply, -1);
-
+  
   BaseString result;
   reply->get("result", result);
   if(strcmp(result.c_str(), "Ok") != 0) {
@@ -997,8 +1035,8 @@ ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle, int nodeId,
 extern "C"
 int 
 ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
-			  /*enum ndb_mgm_event_category category*/
-			  char * category, int level,
+			  enum ndb_mgm_event_category category,
+			  int level,
 			  struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_set_loglevel_node");

@@ -254,19 +254,34 @@ extern "C" {
    *   Log categories
    */
   enum ndb_mgm_event_category {
-    NDB_MGM_EVENT_CATEGORY_STARTUP,         ///< Events during all kinds 
-                                            ///< of startups
-    NDB_MGM_EVENT_CATEGORY_SHUTDOWN,        ///< Events during shutdown
-    NDB_MGM_EVENT_CATEGORY_STATISTIC,       ///< Transaction statistics
-                                            ///< (Job level, TCP/IP speed)
-    NDB_MGM_EVENT_CATEGORY_CHECKPOINT,      ///< Checkpoints
-    NDB_MGM_EVENT_CATEGORY_NODE_RESTART,    ///< Events during node restart
-    NDB_MGM_EVENT_CATEGORY_CONNECTION,      ///< Events related to connection 
-                                            ///< and communication
-    NDB_MGM_EVENT_CATEGORY_ERROR            ///< Assorted event w.r.t. 
-                                            ///< unexpected happenings
-  };
+    NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,     ///< Invalid
+    /**
+     * Events during all kinds of startups
+     */
+    NDB_MGM_EVENT_CATEGORY_STARTUP = CFG_LOGLEVEL_STARTUP,
+    
+    /**
+     * Events during shutdown
+     */
+    NDB_MGM_EVENT_CATEGORY_SHUTDOWN = CFG_LOGLEVEL_SHUTDOWN,
 
+    /**
+     * Transaction statistics (Job level, TCP/IP speed)
+     */
+    NDB_MGM_EVENT_CATEGORY_STATISTIC = CFG_LOGLEVEL_STATISTICS,
+    NDB_MGM_EVENT_CATEGORY_CHECKPOINT = CFG_LOGLEVEL_CHECKPOINT,
+    NDB_MGM_EVENT_CATEGORY_NODE_RESTART = CFG_LOGLEVEL_NODERESTART,
+    NDB_MGM_EVENT_CATEGORY_CONNECTION = CFG_LOGLEVEL_CONNECTION,
+    NDB_MGM_EVENT_CATEGORY_DEBUG = CFG_LOGLEVEL_DEBUG,
+    NDB_MGM_EVENT_CATEGORY_INFO = CFG_LOGLEVEL_INFO,
+    NDB_MGM_EVENT_CATEGORY_WARNING = CFG_LOGLEVEL_WARNING,
+    NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
+    NDB_MGM_EVENT_CATEGORY_GREP = CFG_LOGLEVEL_GREP,
+    
+    NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
+    NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
+  };
+  
   /***************************************************************************/
   /** 
    * @name Functions: Error Handling
@@ -401,6 +416,9 @@ extern "C" {
    * @return                NULL if invalid id.
    */
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
+
+  ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
+  const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 
   /** @} *********************************************************************/
   /** 
@@ -562,8 +580,7 @@ extern "C" {
    */
   int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle,
 				      int nodeId,
-				      /*enum ndb_mgm_event_category category*/
-				      char *  category,
+				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
 
@@ -579,8 +596,7 @@ extern "C" {
    */
   int ndb_mgm_set_loglevel_node(NdbMgmHandle handle,
 				int nodeId,
-				/*enum ndb_mgm_event_category category*/
-				char * category,
+				enum ndb_mgm_event_category category,
 				int level,
 				struct ndb_mgm_reply* reply);
 

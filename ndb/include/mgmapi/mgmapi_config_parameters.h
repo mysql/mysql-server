@@ -1,7 +1,6 @@
 #ifndef MGMAPI_CONFIG_PARAMTERS_H
 #define MGMAPI_CONFIG_PARAMTERS_H
 
-
 #define CFG_SYS_NAME                  3
 #define CFG_SYS_PRIMARY_MGM_NODE      1
 #define CFG_SYS_CONFIG_GENERATION     2
@@ -64,16 +63,6 @@
 #define CFG_DB_BACKUP_LOG_BUFFER_MEM      135
 #define CFG_DB_BACKUP_WRITE_SIZE          136
 
-#define CFG_LOGLEVEL_STARTUP          137
-#define CFG_LOGLEVEL_SHUTDOWN         138
-#define CFG_LOGLEVEL_STATISTICS       139
-#define CFG_LOGLEVEL_CHECKPOINT       140
-#define CFG_LOGLEVEL_NODERESTART      141
-#define CFG_LOGLEVEL_CONNECTION       142
-#define CFG_LOGLEVEL_INFO             143
-#define CFG_LOGLEVEL_WARNING          144
-#define CFG_LOGLEVEL_ERROR            145
-#define CFG_LOGLEVEL_GREP             146
 #define CFG_LOG_DESTINATION           147
 
 #define CFG_DB_DISCLESS               148
@@ -94,6 +83,20 @@
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
+
+#define CFG_MIN_LOGLEVEL          250
+#define CFG_LOGLEVEL_STARTUP      250
+#define CFG_LOGLEVEL_SHUTDOWN     251
+#define CFG_LOGLEVEL_STATISTICS   252
+#define CFG_LOGLEVEL_CHECKPOINT   253
+#define CFG_LOGLEVEL_NODERESTART  254
+#define CFG_LOGLEVEL_CONNECTION   255
+#define CFG_LOGLEVEL_INFO         256
+#define CFG_LOGLEVEL_WARNING      257
+#define CFG_LOGLEVEL_ERROR        258
+#define CFG_LOGLEVEL_GREP         259
+#define CFG_LOGLEVEL_DEBUG        260
+#define CFG_MAX_LOGLEVEL          260
 
 #define CFG_MGM_PORT                  300
 

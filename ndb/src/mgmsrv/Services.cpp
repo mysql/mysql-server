@@ -763,25 +763,17 @@ MgmApiSession::bye(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 				  Properties const &args) {
-  Uint32 node, level;
-  BaseString categoryName, errorString;
+  Uint32 node, level, category;
+  BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
   args.get("node", &node);
-  args.get("category", categoryName);
+  args.get("category", &category);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
   if(level > 15) {
     errorString.assign("Invalied loglevel");
-    goto error;
-  }
-
-  categoryName.ndb_toupper();
- 
-  LogLevel::EventCategory category;
-  if(!EventLogger::matchEventCategory(categoryName.c_str(), &category)) {
-    errorString.assign("Unknown category");
     goto error;
   }
 
@@ -791,12 +783,12 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   req.theCategories[0] = category;
   req.theLevels[0] = level;
   m_mgmsrv.m_log_level_requests.push_back(req);
-
+  
   m_output->println("set cluster loglevel reply");
   m_output->println("result: Ok");
   m_output->println("");
   return;
- error:
+error:
   m_output->println("set cluster loglevel reply");
   m_output->println("result: %s", errorString.c_str());
   m_output->println("");
@@ -805,26 +797,18 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
-  Uint32 node = 0, level = 0;
-  BaseString categoryName, errorString;
+  Uint32 node = 0, level = 0, category;
+  BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
   logLevel.clear();
   args.get("node", &node);
-  args.get("category", categoryName);
+  args.get("category", &category);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
   if(level > 15) {
     errorString.assign("Invalied loglevel");
-    goto error;
-  }
-
-  categoryName.ndb_toupper();
- 
-  LogLevel::EventCategory category;
-  if(!EventLogger::matchEventCategory(categoryName.c_str(), &category)) {
-    errorString.assign("Unknown category");
     goto error;
   }
 
@@ -1259,7 +1243,7 @@ NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
 {
   out << "[LogLevel: ";
-  for(size_t i = 0; i<_LOGLEVEL_CATEGORIES; i++)
+  for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
     out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
   out << "]";
 }
@@ -1390,24 +1374,26 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
       result = -1;
       goto done;
     }
-    
-    spec[0].trim();
-    spec[0].ndb_toupper();
-    
-    LogLevel::EventCategory category;
-    if(!EventLogger::matchEventCategory(spec[0].c_str(), &category)) {
-      msg.appfmt("Unknown category: >%s<", spec[0].c_str());
-      result = -1;
-      goto done;
-    }
 
+    spec[0].trim().ndb_toupper();
+    int category = ndb_mgm_match_event_category(spec[0].c_str());
+    if(category == NDB_MGM_ILLEGAL_EVENT_CATEGORY){
+      category = atoi(spec[0].c_str());
+      if(category < NDB_MGM_MIN_EVENT_CATEGORY ||
+	 category > NDB_MGM_MAX_EVENT_CATEGORY){
+	msg.appfmt("Unknown category: >%s<", spec[0].c_str());
+	result = -1;
+	goto done;
+      }
+    }
+    
     int level = atoi(spec[1].c_str());
     if(level < 0 || level > 15){
       msg.appfmt("Invalid level: >%s<", spec[1].c_str());
       result = -1;
       goto done;
     }
-    le.m_logLevel.setLogLevel(category, level);
+    le.m_logLevel.setLogLevel((LogLevel::EventCategory)category, level);
   }
   
   if(list.size() == 0){
