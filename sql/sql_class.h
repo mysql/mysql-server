@@ -594,6 +594,12 @@ public:
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
 
+  /* 
+    statement_name -> (Statement*) map of statements prepared using SQL syntax.
+    Hash element is SQL_PREP_STMT_ENTRY.
+  */
+  HASH    sql_prepared_stmts;
+
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
   /*
@@ -1269,6 +1275,14 @@ class user_var_entry
   DTCollation collation;
 };
 
+class Prepared_statement;
+/* Needed by THD::sql_prepared_stmts */
+typedef struct st_sql_prep_stmt_entry
+{
+ public:
+  LEX_STRING name;
+  Prepared_statement *stmt;
+}SQL_PREP_STMT_ENTRY;
 
 /* Class for unique (removing of duplicates) */
 
