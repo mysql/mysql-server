@@ -1078,8 +1078,9 @@ in_string::in_string(uint elements,qsort_cmp cmp_func)
 
 in_string::~in_string()
 {
-  for (uint i=0 ; i < count ; i++)
-    ((String*) base)[i].free();
+  if (base)
+    for (uint i=0 ; i < count ; i++)
+      ((String*) base)[i].free();
 }
 
 void in_string::set(uint pos,Item *item)
@@ -1100,12 +1101,20 @@ byte *in_string::get_value(Item *item)
 
 in_row::in_row(uint elements, Item * item)
 {
-  DBUG_ENTER("in_row::in_row");
-  base= (char*) new cmp_item_row[elements];
+  base= (char*) new cmp_item_row[count= elements];
   size= sizeof(cmp_item_row);
   compare= (qsort_cmp) cmp_row;
   tmp.store_value(item);
-  DBUG_VOID_RETURN;
+}
+
+in_row::~in_row()
+{
+  if (base)
+  {
+    cmp_item_row *arr= (cmp_item_row *) base;
+    for (uint i=0 ; i < count ; i++)
+      arr[i].~cmp_item_row();
+  }
 }
 
 byte *in_row::get_value(Item *item)
