@@ -10,7 +10,7 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 drop table t1;
 commit;
 set autocommit=1;
@@ -24,7 +24,7 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 drop table t1;
 commit;
 create table t1 (a int not null) type=innodb;
@@ -97,7 +97,7 @@ Qcache_hits	0
 commit;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	3
 drop table if exists t1;
 CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY  (id)) TYPE=InnoDB;
 select count(*) from t1;

@@ -115,18 +115,21 @@ struct Query_cache_query
   Query_cache_block *res;
   NET *wri;
   ulong len;
+  uint8 tbls_type;
 
   inline void init_n_lock();
   void unlock_n_destroy();
   inline ulonglong found_rows()		   { return limit_found_rows; }
-  inline void found_rows(ulonglong rows)   { limit_found_rows = rows; }
+  inline void found_rows(ulonglong rows)   { limit_found_rows= rows; }
   inline Query_cache_block *result()	   { return res; }
-  inline void result(Query_cache_block *p) { res=p; }
+  inline void result(Query_cache_block *p) { res= p; }
   inline NET *writer()			   { return wri; }
-  inline void writer(NET *p)		   { wri=p; }
+  inline void writer(NET *p)		   { wri= p; }
+  inline uint8 tables_type()               { return tbls_type; }
+  inline void tables_type(uint8 type)      { tbls_type= type; }
   inline ulong length()			   { return len; }
-  inline ulong add(ulong packet_len)	   { return(len += packet_len); }
-  inline void length(ulong length)	   { len = length; }
+  inline ulong add(ulong packet_len)	   { return(len+= packet_len); }
+  inline void length(ulong length)	   { len= length; }
   inline gptr query()
   {
     return (gptr)(((byte*)this)+
@@ -144,10 +147,16 @@ struct Query_cache_query
 struct Query_cache_table
 {
   char *tbl;
+  uint key_len;
+  uint8 table_type;
 
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
-  inline void table(char *table)	     { tbl = table; }
+  inline void table(char *table)	     { tbl= table; }
+  inline uint key_length()                   { return key_len; }
+  inline void key_length(uint len)           { key_len= len; }
+  inline uint8 type()                        { return table_type; }
+  inline void type(uint8 t)                  { table_type= t; }
   inline gptr data()
   {
     return (gptr)(((byte*)this)+
@@ -276,7 +285,7 @@ protected:
 			      TABLE_COUNTER_TYPE tables);
   my_bool insert_table(uint key_len, char *key,
 		       Query_cache_block_table *node,
-		       uint32 db_length);
+		       uint32 db_length, uint8 cache_type);
   void unlink_table(Query_cache_block_table *node);
   Query_cache_block *get_free_block (ulong len, my_bool not_less,
 				      ulong min);
@@ -334,7 +343,8 @@ protected:
     (query without tables not cached)
   */
   TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
-				  LEX *lex, TABLE_LIST *tables_used);
+				  LEX *lex, TABLE_LIST *tables_used,
+				  uint8 *tables_type);
  public:
 
   Query_cache(ulong query_cache_limit = ULONG_MAX,
