@@ -2193,16 +2193,17 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   Guard g(&f_node_id_mutex);
   int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
-  if (theFacade && theFacade->theClusterMgr) {
-    for(Uint32 i = 0; i < MAX_NODES; i++)
-      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
-	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
-	if (node.connected)
-	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
-      } else if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
-	no_mgm++;
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB &&
+	theFacade && theFacade->theClusterMgr) {
+      const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+      if (node.connected) {
+	connected_nodes.bitOR(node.m_state.m_connected_nodes);
+      }
+    } else if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
+      no_mgm++;
   }
-
   bool found_matching_id= false;
   bool found_matching_type= false;
   bool found_free_node= false;
@@ -2274,7 +2275,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (config_hostname == 0) {
       error_string.appfmt("Ambiguity for node id %d.\n"
 			  "Suggest specifying node id in connectstring,\n"
-			  "or specifying unique host names in config file,\n",
+			  "or specifying unique host names in config file,\n"
 			  "or specifying just one mgmt server in config file.",
 			  tmp);
       DBUG_RETURN(false);
@@ -2795,15 +2796,15 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
     switch(p_type){
     case 0:
       res = i2.set(param, val_32);
-      ndbout_c("Updateing node %d param: %d to %d",  node, param, val_32);
+      ndbout_c("Updating node %d param: %d to %d",  node, param, val_32);
       break;
     case 1:
       res = i2.set(param, val_64);
-      ndbout_c("Updateing node %d param: %d to %Ld",  node, param, val_32);
+      ndbout_c("Updating node %d param: %d to %Ld",  node, param, val_32);
       break;
     case 2:
       res = i2.set(param, val_char);
-      ndbout_c("Updateing node %d param: %d to %s",  node, param, val_char);
+      ndbout_c("Updating node %d param: %d to %s",  node, param, val_char);
       break;
     default:
       abort();
