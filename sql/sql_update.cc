@@ -521,10 +521,10 @@ multi_update::initialize_tables(JOIN *join)
     if (tab->table->map & tables_to_update_from)
     {
        We are going to update from this table 
-      walk->table=tab->table;
-      walk=walk->next;
-      if (tab == join->join_tab)
-	tab->table->no_keyread=1;
+       TABLE *tbl=walk->table=tab->table;
+       Don't use KEYREAD optimization on this table 
+       tbl->no_keyread=1;
+       walk=walk->next;
     }
   }
 */
