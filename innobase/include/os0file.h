@@ -144,7 +144,7 @@ struct os_file_stat_struct{
        ib_longlong	size;			/* file size */
 };
 
-#ifdef __WIN___
+#ifdef __WIN__
 typedef HANDLE  os_file_dir_t;	/* directory stream */
 #else
 typedef DIR*	os_file_dir_t;	/* directory stream */
