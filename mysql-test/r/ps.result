@@ -21,7 +21,7 @@ a	b
 2	two
 3	three
 deallocate prepare no_such_statement;
-ERROR HY000: Undefined prepared statement
+ERROR HY000: Unknown prepared statement handler (no_such_statement) given to DEALLOCATE PREPARE
 execute stmt1;
 ERROR HY000: Wrong arguments to mysql_execute
 prepare stmt2 from 'prepare nested_stmt from "select 1"';
@@ -98,4 +98,18 @@ set @arg00=NULL ;
 prepare stmt1 from 'select 1 FROM t2 where a=?' ;
 execute stmt1 using @arg00 ;
 1
+prepare stmt1 from @nosuchvar;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+set @ivar= 1234;
+prepare stmt1 from @ivar;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1234' at line 1
+set @fvar= 123.4567;
+prepare stmt1 from @fvar;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+?
+1234
 drop table t1,t2;

@@ -135,7 +135,8 @@ find_prepared_statement(THD *thd, ulong id, const char *where,
 
   if (stmt == 0 || stmt->type() != Statement::PREPARED_STATEMENT)
   {
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), id, where);
+    char llbuf[22];
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), 22, llstr(id, llbuf), where);
     if (se == SEND_ERROR)
       send_error(thd);
     return 0;
@@ -392,7 +393,7 @@ void set_param_date(Item_param *param, uchar **pos, ulong len)
 void set_param_str(Item_param *param, uchar **pos, ulong len)
 {
   ulong length= get_param_length(pos, len);
-  param->set_value((const char *)*pos, length);
+  param->set_value((const char *)*pos, length, Item::default_charset());
   *pos+= length;
 }
 
@@ -1376,7 +1377,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol?0:send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
 error:
   if (res < 0)
     send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
@@ -1417,25 +1418,31 @@ static bool init_param_array(Prepared_statement *stmt)
 
 
 /*
+  Given a query string with parameter markers, create a Prepared Statement
+  from it and send PS info back to the client.
+  
   SYNOPSIS
     mysql_stmt_prepare()
-      packet         Prepared query 
-      packet_length  query length, with ignored trailing NULL or quote char.
+      packet         query to be prepared 
+      packet_length  query string length, including ignored trailing NULL or 
+                     quote char.
       name           NULL or statement name. For unnamed statements binary PS
-                     protocol is used, for named statmenents text protocol is 
+                     protocol is used, for named statements text protocol is 
                      used.
+  RETURN 
+    0      OK, statement prepared successfully
+    other  Error
+  
+  NOTES
+    This function parses the query and sends the total number of parameters 
+    and resultset metadata information back to client (if any), without 
+    executing the query i.e. without any log/disk writes. This allows the 
+    queries to be re-executed without re-parsing during execute. 
 
-  Parse the query and send the total number of parameters 
-  and resultset metadata information back to client (if any), 
-  without executing the query i.e. without any log/disk 
-  writes. This will allow the queries to be re-executed 
-  without re-parsing during execute. 
-
-  If parameter markers are found in the query, then store 
-  the information using Item_param along with maintaining a
-  list in lex->param_array, so that a fast and direct
-  retrieval can be made without going through all field
-  items.
+    If parameter markers are found in the query, then store the information
+    using Item_param along with maintaining a list in lex->param_array, so 
+    that a fast and direct retrieval can be made without going through all 
+    field items.
    
 */
 
@@ -1672,13 +1679,14 @@ set_params_data_err:
 void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
 {
   Prepared_statement *stmt;
-  DBUG_ENTER("mysql_stmt_execute");
+  DBUG_ENTER("mysql_sql_stmt_execute");
     
   if (!(stmt= (Prepared_statement*)thd->stmt_map.find_by_name(stmt_name)))
   {
-      send_error(thd, ER_UNKNOWN_STMT_HANDLER, 
-                 "Undefined prepared statement");
-      DBUG_VOID_RETURN;
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_name->length,
+             stmt_name->str, "EXECUTE");
+    send_error(thd);
+    DBUG_VOID_RETURN;
   }
 
   if (stmt->param_count != thd->lex->prepared_stmt_params.elements)

@@ -248,7 +248,7 @@ character-set=koi8r
 "Key reference and table reference doesn't match",
 "Операнд должен содержать %d колонок",
 "Подзапрос возвращает более одной записи",
-"Unknown prepared statement handler (%ld) given to %s",
+"Unknown prepared statement handler (%.*s) given to %s",
 "Help database is corrupt or does not exist",
 "Циклическая ссылка на подзапрос",
 "Преобразование поля '%s' из %s в %s",
