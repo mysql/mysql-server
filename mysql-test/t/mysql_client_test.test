@@ -1,0 +1,3 @@
+# We run with different binaries for normal and --embedded-server
+--disable_result_log
+--exec $MYSQL_CLIENT_TEST
