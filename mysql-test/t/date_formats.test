@@ -2,9 +2,9 @@
 # Test of date format functions
 #
 
---disable-warnings
+--disable_warnings
 drop table if exists t1;
---enable-warnings
+--enable_warnings
 
 SHOW GLOBAL VARIABLES LIKE "%_format%";
 SHOW SESSION VARIABLES LIKE "%_format%";

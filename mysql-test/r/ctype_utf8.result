@@ -73,7 +73,7 @@ create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` char(10) character set utf8 default NULL
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` char(10) binary default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
@@ -87,3 +87,4 @@ Warning	1264	Data truncated for column 's1' at row 1
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 s1	hex(s1)	char_length(s1)	octet_length(s1)
 Á	D0B0	1	2
+drop table t1;
