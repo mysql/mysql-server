@@ -288,6 +288,7 @@ public:
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    NotMaster = 702,
     TriggerNameTooLong = 4236,
     TooManyTriggers = 4237,
     TriggerNotFound = 4238,
