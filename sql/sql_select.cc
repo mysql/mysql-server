@@ -5716,6 +5716,9 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
 static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
+  if (!table->reginfo.join_tab)
+    return (Item*) 0;             // field from outer non-select (UPDATE,...)
+
   uint ref_parts=table->reginfo.join_tab->ref.key_parts;
   if (ref_parts)
   {

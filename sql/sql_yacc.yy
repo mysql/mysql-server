@@ -798,7 +798,10 @@ create:
 			 			 ($2 &
 						  HA_LEX_CREATE_TMP_TABLE ?
 						  &tmp_table_alias :
-						  (LEX_STRING*) 0),1))
+						  (LEX_STRING*) 0),1,
+						 ((using_update_log)?
+						  TL_READ_NO_INSERT:
+						  TL_READ)))
 	    YYABORT;
 	  lex->create_list.empty();
 	  lex->key_list.empty();
@@ -1646,8 +1649,9 @@ select_init:
 select_part2:
 	{
 	  LEX *lex=Lex;
-	  lex->lock_option=TL_READ;
-	   mysql_init_select(lex);
+	  if (lex->current_select == &lex->select_lex)
+	    lex->lock_option= TL_READ; /* Only for global SELECT */
+	  mysql_init_select(lex);
 	}
 	select_options select_item_list select_into select_lock_type;
 
@@ -1704,17 +1708,14 @@ select_lock_type:
 	| FOR_SYM UPDATE_SYM
 	  {
 	    LEX *lex=Lex;
-	    if (check_simple_select())
-	      YYABORT;	
-	    lex->lock_option= TL_WRITE;
+	    lex->current_select->set_lock_for_tables(TL_WRITE);
 	    lex->safe_to_cache_query=0;
 	  }
 	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  {
 	    LEX *lex=Lex;
-	    if (check_simple_select())
-	      YYABORT;	
-	    lex->lock_option= TL_READ_WITH_SHARED_LOCKS;
+	    lex->current_select->
+	      set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
 	    lex->safe_to_cache_query=0;
 	  }
 	;
@@ -2394,8 +2395,9 @@ join_table:
 	}
         table_ident opt_table_alias opt_key_definition
 	{
-	  SELECT_LEX_NODE *sel=Select;
-	  if (!($$= sel->add_table_to_list($2, $3, 0, TL_UNLOCK,
+	  LEX *lex= Lex;
+	  SELECT_LEX_NODE *sel= lex->current_select;
+	  if (!($$= sel->add_table_to_list($2, $3, 0, lex->lock_option,
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
@@ -2408,7 +2410,8 @@ join_table:
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
-                add_table_to_list(new Table_ident(unit), $5, 0, TL_UNLOCK)))
+                add_table_to_list(new Table_ident(unit), $5, 0,
+				  lex->lock_option)))
 	    YYABORT;
 	};
 
