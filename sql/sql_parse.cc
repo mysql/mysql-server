@@ -729,6 +729,10 @@ pthread_handler_decl(handle_one_connection,arg)
       send_error(net,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
+    else if (thd->killed)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
+    }
     
 end_thread:
     close_connection(net);
@@ -905,7 +909,10 @@ bool do_command(THD *thd)
 		       vio_description(net->vio)));
     /* Check if we can continue without closing the connection */
     if (net->error != 3)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
+    }
     send_error(net,net->last_errno,NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
