@@ -23,8 +23,16 @@
 #include <m_string.h>
 #include <errno.h>
 #include <my_getopt.h>
+#ifdef HAVE_NDBCLUSTER_DB
+#include "../ndb/src/ndbapi/ndberror.c"
+#endif
 
 static my_bool verbose, print_all_codes;
+
+#ifdef HAVE_NDBCLUSTER_DB
+static my_bool ndb_code;
+static char ndb_string[1024];
+#endif
 
 static struct my_option my_long_options[] =
 {
@@ -32,6 +40,10 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"ndb", 0, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
+   (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
 #ifdef HAVE_SYS_ERRLIST
   {"all", 'a', "Print all the error messages and the number.",
    (gptr*) &print_all_codes, (gptr*) &print_all_codes, 0, GET_BOOL, NO_ARG,
@@ -199,7 +211,17 @@ int main(int argc,char *argv[])
     {
       found=0;
       code=atoi(*argv);
-      msg = strerror(code);
+#ifdef HAVE_NDBCLUSTER_DB
+      if (ndb_code)
+      {
+	if (ndb_error_string(code, ndb_string, 1024) < 0)
+	  msg= 0;
+	else
+	  msg= ndb_string;
+      }
+      else 
+#endif
+	msg = strerror(code);
       if (msg)
       {
 	found=1;
