@@ -90,6 +90,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0',
   PRIMARY KEY  (`a`)
 ) TYPE=MyISAM
-Open_tables_in_test	Comment
-Open_tables_in_test	Comment
-t1	cached=1, in_use=0
+Database	Table	In_use	Name_locked
+Database	Table	In_use	Name_locked
+test	t1	0	0

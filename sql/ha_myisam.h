@@ -37,17 +37,19 @@ extern ulong myisam_recover_options;
 class ha_myisam: public handler
 {
   MI_INFO *file;
-  uint    int_option_flag,enable_activate_all_index;
+  uint    int_option_flag;
   char    *data_file_name, *index_file_name;
+  bool enable_activate_all_index;
   int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
-  ha_myisam(TABLE *table): handler(table), file(0),enable_activate_all_index(1),
+  ha_myisam(TABLE *table): handler(table), file(0),
     int_option_flag(HA_READ_NEXT | HA_READ_PREV | HA_READ_RND_SAME |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |  HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
 		    HA_LONGLONG_KEYS |  HA_NULL_KEY |
-		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY)
+		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
+    enable_activate_all_index(1)
   {}
   ~ha_myisam() {}
   const char *table_type() const { return "MyISAM"; }
