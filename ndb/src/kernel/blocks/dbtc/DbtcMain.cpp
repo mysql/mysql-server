@@ -6793,13 +6793,13 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
   for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++) {
     jam();
     ptrAss(scanptr, scanRecord);
+    bool found = false;
     if (scanptr.p->scanState != ScanRecord::IDLE){
       jam();
       ScanFragRecPtr ptr;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       ScanFragList comp(c_scan_frag_pool, scanptr.p->m_completed_scan_frags);
-
-      bool found = false;
+      
       for(run.first(ptr); !ptr.isNull(); ){
 	jam();
 	ScanFragRecPtr curr = ptr;
@@ -6815,12 +6815,12 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	  found = true;
 	}
       }
-      if(found){
-	jam();
-	scanError(signal, scanptr, ZSCAN_LQH_ERROR);	  
-      }
     }
-    
+    if(found){
+      jam();
+      scanError(signal, scanptr, ZSCAN_LQH_ERROR);	  
+    }
+
     // Send CONTINUEB to continue later
     signal->theData[0] = TcContinueB::ZCHECK_SCAN_ACTIVE_FAILED_LQH;
     signal->theData[1] = scanptr.i + 1; // Check next scanptr
