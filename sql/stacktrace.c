@@ -43,7 +43,7 @@ void safe_print_str(const char* name, const char* val, int max_len)
 }
 
 #ifdef HAVE_LINUXTHREADS
-#define SIGRETURN_FRAME_COUNT  1
+#define SIGRETURN_FRAME_COUNT  2
 
 #if defined(__alpha__) && defined(__GNUC__)
 /*
@@ -111,7 +111,7 @@ terribly wrong...\n");
   }
 #endif
 #if defined(__alpha__) && defined(__GNUC__) 
-  __asm __volatile__ ("mov $15,%0"
+  __asm __volatile__ ("mov $30,%0"
 		      :"=r"(fp)
 		      :"r"(fp));
   if (!fp)
