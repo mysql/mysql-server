@@ -139,6 +139,8 @@ public:
   */
   String str_value;
   my_string name;			/* Name from select */
+  /* Original item name (if it was renamed)*/
+  my_string orig_name;
   Item *next;
   uint32 max_length;
   uint name_length;                     /* Length of name */
@@ -166,6 +168,7 @@ public:
     name=0;
   }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
+  void rename(char *new_name);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
@@ -467,6 +470,7 @@ public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  bool alias_name_used; /* true if item was resolved against alias */
   /* 
     Cached value of index for this field in table->field array, used by prep. 
     stmts for speeding up their re-execution. Holds NO_CACHED_FIELD_INDEX 

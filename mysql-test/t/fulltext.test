@@ -308,3 +308,16 @@ REPAIR TABLE t1;
 select count(*) from t1;
 drop table t1;
 
+#
+# bug#6784
+# mi_flush_bulk_insert (on dup key error in mi_write)
+# was mangling info->dupp_key_pos
+#
+
+create table t1 (a int primary key, b text, fulltext(b));
+create table t2 (a int, b text);
+insert t1 values (1, "aaaa"), (2, "bbbb");
+insert t2 values (10, "aaaa"), (2, "cccc");
+replace t1 select * from t2;
+drop table t1, t2;
+

@@ -19,7 +19,6 @@
 #define CLUSTER_CONNECTION_HPP
 
 class TransporterFacade;
-class LocalConfig;
 class ConfigRetriever;
 class NdbThread;
 
@@ -38,7 +37,6 @@ private:
   void connect_thread();
   char *m_connect_string;
   TransporterFacade *m_facade;
-  LocalConfig *m_local_config;
   ConfigRetriever *m_config_retriever;
   NdbThread *m_connect_thread;
   int (*m_connect_callback)(void);
