@@ -193,7 +193,7 @@ int quick_rm_table(enum db_type base,const char *db,
 }
 
 /*****************************************************************************
- * Create at table.
+ * Create a table.
  * If one creates a temporary table, this is automaticly opened
  ****************************************************************************/
 

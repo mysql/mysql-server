@@ -111,14 +111,14 @@ typedef struct st_isam_mrg {
   uint	ref_length;
   uint	max_blob_length;
   my_off_t records;
-} MRG_INFO;
+} PACK_MRG_INFO;
 
 
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
 static MI_INFO *open_isam_file(char *name,int mode);
-static bool open_isam_files(MRG_INFO *mrg,char **names,uint count);
-static int compress(MRG_INFO *file,char *join_name);
+static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
+static int compress(PACK_MRG_INFO *file,char *join_name);
 static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records);
 static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
@@ -126,7 +126,7 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint fields);
 static int compare_tree(void* cmp_arg __attribute__((unused)),
 			const uchar *s,const uchar *t);
-static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
+static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts,uint trees,
 			 my_off_t records);
 static int test_space_compress(HUFF_COUNTS *huff_counts,my_off_t records,
@@ -144,7 +144,7 @@ static int make_huff_decode_table(HUFF_TREE *huff_tree,uint trees);
 static void make_traverse_code_tree(HUFF_TREE *huff_tree,
 				    HUFF_ELEMENT *element,uint size,
 				    ulong code);
-static int write_header(MRG_INFO *isam_file, uint header_length,uint trees,
+static int write_header(PACK_MRG_INFO *isam_file, uint header_length,uint trees,
 			my_off_t tot_elements,my_off_t filelength);
 static void write_field_info(HUFF_COUNTS *counts, uint fields,uint trees);
 static my_off_t write_huff_tree(HUFF_TREE *huff_tree,uint trees);
@@ -152,7 +152,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree,
 				       HUFF_ELEMENT *element,
 				       uint *offset);
 static uint max_bit(uint value);
-static int compress_isam_file(MRG_INFO *file,HUFF_COUNTS *huff_counts);
+static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
 static void init_file_buffer(File file,pbool read_buffer);
@@ -160,13 +160,13 @@ static int flush_buffer(ulong neaded_length);
 static void end_file_buffer(void);
 static void write_bits(ulong value,uint bits);
 static void flush_bits(void);
-static int save_state(MI_INFO *isam_file,MRG_INFO *mrg,my_off_t new_length,
+static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
 		      ha_checksum crc);
-static int save_state_mrg(File file,MRG_INFO *isam_file,my_off_t new_length,
+static int save_state_mrg(File file,PACK_MRG_INFO *isam_file,my_off_t new_length,
 			  ha_checksum crc);
-static int mrg_close(MRG_INFO *mrg);
-static int mrg_rrnd(MRG_INFO *info,byte *buf);
-static void mrg_reset(MRG_INFO *mrg);
+static int mrg_close(PACK_MRG_INFO *mrg);
+static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf);
+static void mrg_reset(PACK_MRG_INFO *mrg);
 
 
 static int backup=0,error_on_write=0,test_only=0,verbose=0,silent=0,
@@ -187,7 +187,7 @@ static const char *load_default_groups[]= { "myisampack",0 };
 int main(int argc, char **argv)
 {
   int error,ok;
-  MRG_INFO merge;
+  PACK_MRG_INFO merge;
   char **default_argv;
   MY_INIT(argv[0]);
 
@@ -252,7 +252,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.10 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.11 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -404,7 +404,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
 }
 
 
-static bool open_isam_files(MRG_INFO *mrg,char **names,uint count)
+static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
 {
   uint i,j;
   mrg->count=0;
@@ -446,7 +446,7 @@ static bool open_isam_files(MRG_INFO *mrg,char **names,uint count)
 }
 
 
-static int compress(MRG_INFO *mrg,char *result_table)
+static int compress(PACK_MRG_INFO *mrg,char *result_table)
 {
   int error;
   File new_file,join_isam_file;
@@ -722,7 +722,7 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
 
 	/* Read through old file and gather some statistics */
 
-static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
+static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 {
   int error;
   uint length;
@@ -985,7 +985,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
 	    huff_counts->end_space[huff_counts->field_length]+=
 	      huff_counts->empty_fields;
 	}
-	else
+	if (huff_counts->tot_pre_space)
 	{
 	  huff_counts->tot_pre_space+=length;
 	  huff_counts->max_pre_space=huff_counts->field_length;
@@ -1464,7 +1464,7 @@ static void make_traverse_code_tree(HUFF_TREE *huff_tree,
 
 	/* Write header to new packed data file */
 
-static int write_header(MRG_INFO *mrg,uint head_length,uint trees,
+static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 			my_off_t tot_elements,my_off_t filelength)
 {
   byte *buff=file_buffer.pos;
@@ -1642,7 +1642,7 @@ static uint max_bit(register uint value)
 }
 
 
-static int compress_isam_file(MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
+static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 {
   int error;
   uint i,max_calc_length,pack_ref_length,min_record_length,max_record_length,
@@ -2028,7 +2028,7 @@ static void flush_bits (void)
 ** functions to handle the joined files
 ****************************************************************************/
 
-static int save_state(MI_INFO *isam_file,MRG_INFO *mrg,my_off_t new_length,
+static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
 		      ha_checksum crc)
 {
   MYISAM_SHARE *share=isam_file->s;
@@ -2063,7 +2063,7 @@ static int save_state(MI_INFO *isam_file,MRG_INFO *mrg,my_off_t new_length,
 }
 
 
-static int save_state_mrg(File file,MRG_INFO *mrg,my_off_t new_length,
+static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
 			  ha_checksum crc)
 {
   MI_STATE_INFO state;
@@ -2093,7 +2093,7 @@ static int save_state_mrg(File file,MRG_INFO *mrg,my_off_t new_length,
 
 /* reset for mrg_rrnd */
 
-static void mrg_reset(MRG_INFO *mrg)
+static void mrg_reset(PACK_MRG_INFO *mrg)
 {
   if (mrg->current)
   {
@@ -2102,7 +2102,7 @@ static void mrg_reset(MRG_INFO *mrg)
   }
 }
 
-static int mrg_rrnd(MRG_INFO *info,byte *buf)
+static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
 {
   int error;
   MI_INFO *isam_info;
@@ -2141,7 +2141,7 @@ static int mrg_rrnd(MRG_INFO *info,byte *buf)
 }
 
 
-static int mrg_close(MRG_INFO *mrg)
+static int mrg_close(PACK_MRG_INFO *mrg)
 {
   uint i;
   int error=0;

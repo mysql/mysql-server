@@ -86,7 +86,8 @@ static void init_signals(void)
 inline bool end_active_trans(THD *thd)
 {
   int error=0;
-  if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))
+  if (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
+		      OPTION_TABLE_LOCK))
   {
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
@@ -1931,7 +1932,11 @@ mysql_execute_command(void)
     {
       thd->lock=thd->locked_tables;
       thd->locked_tables=0;			// Will be automaticly closed
+    }
+    if (thd->options & OPTION_TABLE_LOCK)
+    {
       end_active_trans(thd);
+      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
     }
     if (thd->global_read_lock)
       unlock_global_read_lock(thd);
@@ -1949,12 +1954,15 @@ mysql_execute_command(void)
     if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL,tables))
       goto error;
     thd->in_lock_tables=1;
+    thd->options|= OPTION_TABLE_LOCK;
     if (!(res=open_and_lock_tables(thd,tables)))
     {
       thd->locked_tables=thd->lock;
       thd->lock=0;
       send_ok(&thd->net);
     }
+    else
+      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
     thd->in_lock_tables=0;
     break;
   case SQLCOM_CREATE_DB:

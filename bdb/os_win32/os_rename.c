@@ -47,7 +47,7 @@ __os_rename(dbenv, old, new)
 		 */
 		if (MoveFileEx(old, new, MOVEFILE_REPLACE_EXISTING) != TRUE)
 			ret = __os_win32_errno();
-		if (ret == ENOENT && MoveFile(old, new) == TRUE)
+		if ((ret == ENOENT || ret == EIO) && MoveFile(old, new) == TRUE)
 			ret = 0;
 	}
 	if (ret != 0)

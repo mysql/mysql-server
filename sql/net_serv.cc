@@ -344,7 +344,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
+#if !defined(__WIN__)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
@@ -439,7 +439,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #endif /* EXTRA_DEBUG */
       }
 #if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-      if (vio_errno(net->vio) == EINTR)
+      if (vio_errno(net->vio) == SOCKET_EINTR)
       {
 	DBUG_PRINT("warning",("Interrupted write. Retrying..."));
 	continue;
