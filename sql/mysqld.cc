@@ -1382,8 +1382,10 @@ static void init_signals(void)
 }
 
 static void start_signal_handler(void)
-{
-}
+{}
+
+static void check_data_home(const char *path)
+{}
 
 #elif defined(__NETWARE__)
 
@@ -1500,12 +1502,10 @@ static void init_signals(void)
 }
 
 static void start_signal_handler(void)
-{
-}
+{}
 
 static void check_data_home(const char *path)
-{
-}
+{}
 
 #else /* if ! __WIN__ && ! __EMX__ */
 
@@ -1830,8 +1830,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 }
 
 static void check_data_home(const char *path)
-{
-}
+{}
 
 #endif	/* __WIN__*/
 

@@ -40,11 +40,28 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
-/*****************************************************************************
-** Remove all possbile tables and give a compact errormessage for all
-** wrong tables.
-** This will wait for all users to free the table before dropping it
-*****************************************************************************/
+/*
+ delete (drop) tables.
+
+  SYNOPSIS
+   mysql_rm_table()
+   thd			Thread handle
+   tables		List of tables to delete
+   if_exists		If 1, don't give error if one table doesn't exists
+
+  NOTES
+    Will delete all tables that can be deleted and give a compact error
+    messages for tables that could not be deleted.
+    If a table is in use, we will wait for all users to free the table
+    before dropping it
+
+    Wait if global_read_lock (FLUSH TABLES WITH READ LOCK) is set.
+
+  RETURN
+    0		ok.  In this case ok packet is sent to user
+    -1		Error  (Error message given but not sent to user)
+
+*/
 
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 {
@@ -89,6 +106,26 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   DBUG_RETURN(0);
 }
 
+
+/*
+ delete (drop) tables.
+
+  SYNOPSIS
+   mysql_rm_table_part2_with_lock()
+   thd			Thread handle
+   tables		List of tables to delete
+   if_exists		If 1, don't give error if one table doesn't exists
+   dont_log_query	Don't write query to log files
+
+ NOTES
+   Works like documented in mysql_rm_table(), but don't check
+   global_read_lock and don't send_ok packet to server.
+
+ RETURN
+  0	ok
+  1	error
+*/
+
 int mysql_rm_table_part2_with_lock(THD *thd,
 				   TABLE_LIST *tables, bool if_exists,
 				   bool dont_log_query)
@@ -109,6 +146,7 @@ int mysql_rm_table_part2_with_lock(THD *thd,
   pthread_mutex_unlock(&thd->mysys_var->mutex);
   return error;
 }
+
 
 /*
   TODO:
