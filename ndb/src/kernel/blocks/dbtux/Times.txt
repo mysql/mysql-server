@@ -129,4 +129,7 @@ optim 17        mc02/a  35 ms   52 ms    49 pct
 
 [ allow slack (2) in interior nodes - almost no effect?? ]
 
+wl-1942         mc02/a  35 ms   52 ms    49 pct
+                mc02/b  42 ms   75 ms    76 pct
+
 vim: set et:

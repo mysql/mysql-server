@@ -716,7 +716,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
 
 /*
  * Move to next entry.  The scan is already linked to some node.  When
- * we leave, if any entry was found, it will be linked to a possibly
+ * we leave, if an entry was found, it will be linked to a possibly
  * different node.  The scan has a position, and a direction which tells
  * from where we came to this position.  This is one of:
  *
@@ -725,6 +725,9 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
  * 2 - up from root (the scan ends)
  * 3 - left to right within node (at end proceed to right child)
  * 4 - down from parent (proceed to left child)
+ *
+ * If an entry was found, scan direction is 3.  Therefore tree
+ * re-organizations need not worry about scan direction.
  */
 void
 Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
@@ -739,9 +742,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   if (scan.m_state == ScanOp::Locked) {
     jam();
     // version of a tuple locked by us cannot disappear (assert only)
-#ifdef dbtux_wl_1942_is_done
     ndbassert(false);
-#endif
     AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
     lockReq->returnCode = RNIL;
     lockReq->requestInfo = AccLockReq::Unlock;
@@ -864,6 +865,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_scanPos = pos;
   // relink
   if (scan.m_state == ScanOp::Current) {
+    ndbrequire(pos.m_match == true && pos.m_dir == 3);
     ndbrequire(pos.m_loc == node.m_loc);
     if (origNode.m_loc != node.m_loc) {
       jam();
