@@ -2397,7 +2397,7 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
  * Backup
  ***************************************************************************/
 int
-MgmtSrvr::startBackup(Uint32& backupId, bool waitCompleted)
+MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 {
   bool next;
   NodeId nodeId = 0;
@@ -2419,11 +2419,16 @@ MgmtSrvr::startBackup(Uint32& backupId, bool waitCompleted)
   req->backupDataLen = 0;
 
   int result;
-  if (waitCompleted) {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_COMPLETED, signal, true);
+  if (waitCompleted == 2) {
+    result = sendRecSignal(nodeId, WAIT_BACKUP_COMPLETED,
+			   signal, true, 30*60*1000 /*30 secs*/);
+  }
+  else if (waitCompleted == 1) {
+    result = sendRecSignal(nodeId, WAIT_BACKUP_STARTED,
+			   signal, true, 5*60*1000 /*5 mins*/);
   }
   else {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_STARTED, signal, true);
+    result = sendRecSignal(nodeId, NO_WAIT, signal, true);
   }
   if (result == -1) {
     return SEND_OR_RECEIVE_FAILED;
@@ -2502,18 +2507,31 @@ MgmtSrvr::abortBackup(Uint32 backupId)
 void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
+  DBUG_ENTER("MgmtSrvr::backupCallback");
   m_lastBackupEvent = event;
   switch(event.Event){
   case BackupEvent::BackupFailedToStart:
+    DBUG_PRINT("info",("BackupEvent::BackupFailedToStart"));
+    theWaitState = NO_WAIT;
+    break;
   case BackupEvent::BackupAborted:
+    DBUG_PRINT("info",("BackupEvent::BackupAborted"));
+    theWaitState = NO_WAIT;
+    break;
   case BackupEvent::BackupCompleted:
+    DBUG_PRINT("info",("BackupEvent::BackupCompleted"));
     theWaitState = NO_WAIT;
     break;
   case BackupEvent::BackupStarted:
     if(theWaitState == WAIT_BACKUP_STARTED)
+    {
+      DBUG_PRINT("info",("BackupEvent::BackupStarted NO_WAIT"));
       theWaitState = NO_WAIT;
+    } else {
+      DBUG_PRINT("info",("BackupEvent::BackupStarted"));
+    }
   }
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
