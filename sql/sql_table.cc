@@ -2656,9 +2656,9 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
           while (!t->file->rnd_next(t->record[0]))
           {
             ha_checksum row_crc= 0;
-            if (t->record[0] != t->field[0]->ptr)
+            if (t->record[0] != (byte*) t->field[0]->ptr)
               row_crc= my_checksum(row_crc, t->record[0],
-				   t->field[0]->ptr - t->record[0]);
+				   ((byte*) t->field[0]->ptr) - t->record[0]);
 
             for (uint i= 0; i < t->fields; i++ )
             {
@@ -2667,10 +2667,11 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
               {
                 String tmp;
                 f->val_str(&tmp,&tmp);
-                row_crc= my_checksum(row_crc, tmp.ptr(), tmp.length());
+                row_crc= my_checksum(row_crc, (byte*) tmp.ptr(), tmp.length());
               }
               else
-                row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                row_crc= my_checksum(row_crc, (byte*) f->ptr,
+				     f->pack_length());
             }
 
             crc+= row_crc;

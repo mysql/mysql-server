@@ -3098,7 +3098,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;
