@@ -141,7 +141,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
   int                  retryAttempt = 0;
   const int            retryMax = 100;
   int                  check;
-  NdbConnection	       *pTrans;
+  NdbTransaction       *pTrans;
   NdbScanOperation	       *pOp;
 
   while (true){
