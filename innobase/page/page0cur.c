@@ -59,7 +59,7 @@ page_cur_try_search_shortcut(
 #endif
 	ibool		success		= FALSE;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -231,7 +231,7 @@ page_cur_search_with_match(
 	ulint	dbg_matched_bytes;
 #endif
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -520,8 +520,8 @@ page_cur_insert_rec_write_log(
 
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		cur_offs_[100];
-		ulint		ins_offs_[100];
+		ulint		cur_offs_[REC_OFFS_NORMAL_SIZE];
+		ulint		ins_offs_[REC_OFFS_NORMAL_SIZE];
 
 		ulint*		cur_offs;
 		ulint*		ins_offs;
@@ -677,7 +677,7 @@ page_cur_parse_insert_rec(
 	ulint	info_and_status_bits = 0; /* remove warning */
 	page_cur_t cursor;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -1086,7 +1086,7 @@ page_copy_rec_list_end_to_created_page(
 	ulint	log_data_len;
 	ibool		comp		= page_is_comp(page);
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 	
@@ -1276,7 +1276,7 @@ page_cur_parse_delete_rec(
 
 	if (page) {
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_t*		rec		= page + offset;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 

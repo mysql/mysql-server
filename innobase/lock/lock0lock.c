@@ -4094,7 +4094,7 @@ lock_rec_print(
 	ulint		i;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -4593,7 +4593,7 @@ lock_rec_validate_page(
 	ulint	i;
 	mtr_t	mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -4843,7 +4843,7 @@ lock_rec_insert_check_and_lock(
 #ifdef UNIV_DEBUG
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -4992,7 +4992,7 @@ lock_sec_rec_modify_check_and_lock(
 #ifdef UNIV_DEBUG
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100];
+		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
@@ -5166,7 +5166,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100];
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
