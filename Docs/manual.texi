@@ -33523,7 +33523,7 @@ The different table types are:
 @item ISAM @tab The original table handler. @xref{ISAM}.
 @item InnoDB @tab Transaction-safe tables with row locking. @xref{InnoDB}.
 @item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
-@item MRG_MERGE @tab An alias for MERGE tables
+@item MRG_MyISAM @tab An alias for MERGE tables
 @item MyISAM @tab The new binary portable table handler that is replacing ISAM. @xref{MyISAM}.
 @end multitable
 @xref{Table types}.
