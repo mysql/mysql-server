@@ -5653,26 +5653,12 @@ see @ref{Windows}.
 Check the MySQL homepage (@uref{http://www.mysql.com/}) for
 information about the current version and for downloading instructions.
 
-Our main download mirror is located at:
+Our main mirror is located at @uref{http://mirrors.sunsite.dk/mysql/}.
 
-@uref{http://mirrors.sunsite.dk/mysql/}
-
-If you are interested in becoming a MySQL mirror site, you may
-anonymously rsync with: @code{rsync://sunsite.dk/mysql/}.  Please
-send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
-added to the following list.
-
-If you have problems downloading from our main site, try using one of the
-following mirrors.
-
-Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
-
-@c START_OF_MIRROR_LISTING
-
-@c Mirrors list is created by PHP script (that really needs to be documented!) from database (tfr@mysql.com)
-@include mirrors.texi
-
-@c END_OF_MIRROR_LISTING
+For a complete upto-date list of MySQL web/download mirrors, see
+@uref{http://www.mysql.com/downloads/mirrors.html}.
+There you will also find information about becoming a MySQL mirror
+site and how to report a bad or out-of-date mirror.
 
 
 @node Which OS, Which version, Getting MySQL, General Installation Issues
