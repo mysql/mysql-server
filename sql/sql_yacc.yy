@@ -1910,7 +1910,12 @@ opt_ignore_leaves:
 
 
 select:
-	select_init { Lex->sql_command=SQLCOM_SELECT; };
+	select_init
+	{
+	  LEX *lex= Lex;
+	  lex->sql_command= SQLCOM_SELECT;
+	  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	};
 
 /* Need select_init2 for subselects. */
 select_init:
@@ -3401,7 +3406,7 @@ insert:
 	  lex->sql_command = SQLCOM_INSERT;
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-	  lex->select_lex.insert_select= 1;
+	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	} insert_lock_option
 	opt_ignore insert2
 	{
@@ -3417,7 +3422,7 @@ replace:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
-	  lex->select_lex.insert_select= 1;
+	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	}
 	replace_lock_option insert2
 	{
@@ -3486,7 +3491,7 @@ insert_values:
 	      it is not simple select => table list will be
               preprocessed before passing to handle_select
 	    */
-	    lex->select_lex.insert_select= 0;
+	    lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
 	    lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
 	  }
 	  select_options select_item_list

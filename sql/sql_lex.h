@@ -364,14 +364,27 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+
   /* 
-     TRUE for primary st_select_lex structure of simple INSERT/REPLACE
+     SELECT for SELECT command st_select_lex. Used to privent scaning
+     item_list of non-SELECT st_select_lex (no sense find to finding
+     reference in it (all should be in tables, it is dangerouse due
+     to order of fix_fields calling for non-SELECTs commands (item list
+     can be not fix_fieldsd)). This value will be assigned for
+     primary select (sql_yac.yy) and for any subquery and
+     UNION SELECT (sql_parse.cc mysql_new_select())
+
+
+     INSERT for primary st_select_lex structure of simple INSERT/REPLACE
      (used for name resolution, see Item_fiels & Item_ref fix_fields,
      FALSE for INSERT/REPLACE ... SELECT, because it's
      st_select_lex->table_list will be preprocessed (first table removed)
      before passing to handle_select)
+
+     NOMATTER for other
   */
-  bool insert_select;
+  enum {NOMATTER_MODE, SELECT_MODE, INSERT_MODE} resolve_mode;
+
 
   void init_query();
   void init_select();
