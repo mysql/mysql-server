@@ -119,8 +119,19 @@ SocketServer::setup(SocketServer::Service * service,
     NDB_CLOSE_SOCKET(sock);
     DBUG_RETURN(false);
   }
-  socklen_t sock_len = sizeof(servaddr);
-  getsockname(sock,(struct sockaddr*)&servaddr,&sock_len);
+
+  /* Get the port we bound to */
+  SOCKET_SIZE_TYPE sock_len = sizeof(servaddr);
+  if(getsockname(sock,(struct sockaddr*)&servaddr,&sock_len)<0) {
+    char msg[100];
+    if(!strerror_r(errno,msg,sizeof(msg)))
+      strcpy(msg,"Unknown");
+    ndbout_c("An error occurred while trying to find out what"
+	     " port we bound to. Error: %s",msg);
+    NDB_CLOSE_SOCKET(sock);
+    DBUG_RETURN(false);
+  }
+
   DBUG_PRINT("info",("bound to %u",ntohs(servaddr.sin_port)));
   if (listen(sock, m_maxSessions) == -1){
     DBUG_PRINT("error",("listen() - %d - %s",
