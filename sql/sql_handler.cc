@@ -43,7 +43,8 @@
   thd->open_tables=thd->handler_tables; \
   thd->handler_tables=tmp; }
 
-static TABLE **find_table_ptr_by_name(THD *thd, char *db, char *table_name);
+static TABLE **find_table_ptr_by_name(THD *thd, const char *db, 
+				      const char *table_name);
 
 int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
@@ -231,14 +232,15 @@ err:
 /* Note: this function differs from find_locked_table() because we're looking
    here for alias, not real table name 
  */
-static TABLE **find_table_ptr_by_name(THD *thd, char *db, char *table_name)
+static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
+				      const char *table_name)
 {
   int dblen;
   TABLE **ptr;
   
-  if (!db || ! *db) db=thd->db;
-  if (!db || ! *db) db="";
-  dblen=strlen(db);  
+  if (!db || ! *db)
+    db= thd->db ? thd->db : "";
+  dblen=strlen(db)+1;  
   ptr=&(thd->handler_tables);
   
   for (TABLE *table=*ptr; table ; table=*ptr)

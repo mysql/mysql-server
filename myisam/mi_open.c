@@ -777,14 +777,17 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
 {
   char	buff[MI_STATE_INFO_SIZE + MI_STATE_EXTRA_SIZE];
 
-  if (pRead)
+  if (!myisam_single_user)
   {
-    if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
+    if (pRead)
+    {
+      if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
+	return (MY_FILE_ERROR);
+    }
+    else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
       return (MY_FILE_ERROR);
+    mi_state_info_read(buff, state);
   }
-  else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
-    return (MY_FILE_ERROR);
-  mi_state_info_read(buff, state);
   return 0;
 }
 

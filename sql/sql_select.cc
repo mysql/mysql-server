@@ -69,7 +69,7 @@ static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    uint options);
+				    ulong options);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
@@ -3317,7 +3317,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
-		 bool allow_distinct_limit, uint select_options)
+		 bool allow_distinct_limit, ulong select_options)
 {
   TABLE *table;
   uint	i,field_count,reclength,null_count,null_pack_length,
@@ -3759,7 +3759,7 @@ static bool open_tmp_table(TABLE *table)
 
 
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    uint options)
+				    ulong options)
 {
   int error;
   MI_KEYDEF keydef;
@@ -3926,6 +3926,12 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
     goto err1;
   table->file->index_end();
   table->file->rnd_init();
+  if (table->no_rows)
+  {
+    new_table.file->extra(HA_EXTRA_NO_ROWS);
+    new_table.no_rows=1;
+  }
+
   /* copy all old rows */
   while (!table->file->rnd_next(new_table.record[1]))
   {

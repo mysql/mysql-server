@@ -205,7 +205,7 @@ make_tempname (filename)
       strcpy (tmpname, filename);
       strcat (tmpname, "/");
       strcat (tmpname, template);
-      mktemp (tmpname);
+      mkstemp (tmpname);
       *slash = c;
     }
   else
