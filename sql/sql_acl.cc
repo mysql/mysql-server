@@ -1115,7 +1115,8 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 {
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES); /* purecov: inspected */
+    net_printf(thd,ER_OPTION_PREVENTS_STATEMENT,
+             "--skip-grant-tables"); /* purecov: inspected */
     return(1);                             /* purecov: inspected */
   }
   if (!thd->slave_thread &&
@@ -1433,13 +1434,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (!create_user)
     {
       if (what == 'N')
-	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-			MYF(0),combo.user.str,combo.host.str);
+	my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       else
-	my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
-			ER(ER_NO_PERMISSION_TO_CREATE_USER),
-			MYF(0),thd->user,
-			thd->host_or_ip);
+	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+                 thd->user, thd->host_or_ip);
       error= -1;
       goto end;
     }
@@ -1593,7 +1591,7 @@ static int replace_db_table(TABLE *table, const char *db,
 
   if (!initialized)
   {
-    my_error(ER_SKIP_GRANT_TABLES, MYF(0));
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
 
@@ -1613,8 +1611,7 @@ static int replace_db_table(TABLE *table, const char *db,
   {
     if (what == 'N')
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),MYF(0),
-		      combo.user.str,combo.host.str);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       goto abort;
     }
     old_row_exists = 0;
@@ -1903,9 +1900,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			combo.user.str, combo.host.str,table_name); /* purecov: inspected */
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 combo.user.str, combo.host.str, table_name); /* purecov: inspected */
 	result= -1; /* purecov: inspected */
 	continue; /* purecov: inspected */
       }
@@ -2071,10 +2067,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     */
     if (revoke_grant)
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-		      ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-		      combo.user.str,combo.host.str,
-		      table_name);		/* purecov: deadcode */
+      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+               combo.user.str, combo.host.str,
+               table_name);		/* purecov: deadcode */
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
     old_row_exists = 0;
@@ -2174,8 +2169,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);	/* purecov: inspected */
-    DBUG_RETURN(1);				/* purecov: inspected */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");	/* purecov: inspected */
+    DBUG_RETURN(-1);				/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
   {
@@ -2196,8 +2192,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       if (!find_field_in_table(thd,table,column->column.ptr(),
 			       column->column.length(),0,0))
       {
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			column->column.c_ptr(), table_list->alias);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                 column->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(-1);
       }
       column_priv|= column->rights;
@@ -2212,7 +2208,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     fn_format(buf,buf,"","",4+16+32);
     if (access(buf,F_OK))
     {
-      my_error(ER_NO_SUCH_TABLE,MYF(0),table_list->db, table_list->alias);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
       DBUG_RETURN(-1);
     }
   }
@@ -2291,9 +2287,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			Str->user.str, Str->host.str, table_list->real_name);
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 Str->user.str, Str->host.str, table_list->real_name);
 	result= -1;
 	continue;
       }
@@ -2384,7 +2379,8 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    my_error(ER_SKIP_GRANT_TABLES, MYF(0));	/* purecov: tested */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");	/* purecov: tested */
     DBUG_RETURN(-1);				/* purecov: tested */
   }
 
@@ -2463,8 +2459,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       }
       else
       {
-	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
-			"DB GRANT","GLOBAL PRIVILEGES");
+	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
     }
@@ -2990,8 +2985,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   LINT_INIT(acl_user);
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);
-    DBUG_RETURN(1);
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(-1);
   }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
@@ -3014,8 +3009,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
   if (counter == acl_users.elements)
   {
-    my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-		    MYF(0),lex_user->user.str,lex_user->host.str);
+    my_error(ER_NONEXISTING_GRANT, MYF(0),
+             lex_user->user.str, lex_user->host.str);
     DBUG_RETURN(-1);
   }
 
@@ -3343,7 +3338,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);
+    net_printf(thd,ER_OPTION_PREVENTS_STATEMENT, "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
 
