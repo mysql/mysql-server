@@ -1323,22 +1323,26 @@ mysql_query(MYSQL *mysql, const char *query)
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
 
+int STDCALL
+mysql_send_query(MYSQL* mysql, const char* query, uint length)
+{
+  return simple_command(mysql, COM_QUERY, query, length, 1);
+}
+
 
 int STDCALL
-mysql_real_query(MYSQL *mysql, const char *query, uint length)
+mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
-  DBUG_ENTER("mysql_real_query");
-  DBUG_PRINT("enter",("handle: %lx",mysql));
-  DBUG_PRINT("query",("Query = \"%s\"",query));
+  uint length;
+  DBUG_ENTER("mysql_read_query_result");
 
-  if (simple_command(mysql,COM_QUERY,query,length,1) ||
-      (length=net_safe_read(mysql)) == packet_error)
+  if ((length=net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(-1);
   free_old_query(mysql);			/* Free old result */
- get_info:
+get_info:
   pos=(uchar*) mysql->net.read_pos;
   if ((field_count= net_field_length(&pos)) == 0)
   {
@@ -1373,6 +1377,17 @@ mysql_real_query(MYSQL *mysql, const char *query, uint length)
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(0);
+}
+
+int STDCALL
+mysql_real_query(MYSQL *mysql, const char *query, uint length)
+{
+  DBUG_ENTER("mysql_real_query");
+  DBUG_PRINT("enter",("handle: %lx",mysql));
+  DBUG_PRINT("query",("Query = \"%s\"",query));
+  if (mysql_send_query(mysql, query, length))
+    DBUG_RETURN(-1);
+  DBUG_RETURN(mysql_read_query_result(mysql));
 }
 
 
