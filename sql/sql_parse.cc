@@ -1895,7 +1895,7 @@ mysql_execute_command(THD *thd)
   {
     if (check_db_used(thd, tables) ||
         check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege))
-      goto error; 
+      goto error;
     res = mysql_assign_to_keycache(thd, tables);
     break;
   }
