@@ -83,7 +83,8 @@ bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   }
   int res= engine->prepare();
-  fix_length_and_dec();
+  if (!res)
+    fix_length_and_dec();
   return res;
 }
 

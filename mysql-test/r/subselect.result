@@ -131,6 +131,8 @@ patient_uq	clinic_uq
 1	1
 1	2
 2	2
+select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
+Column: 'a' in field list is ambiguous
 drop table if exists t1,t2,t3;
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
@@ -159,4 +161,4 @@ INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
 Subselect returns more than 1 record
-drop table if exists inscrit;
+drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
