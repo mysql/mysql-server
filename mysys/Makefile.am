@@ -49,9 +49,9 @@ EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_fn removed 980815 since it not upp to date test_dir
-noinst_PROGRAMS =	testhash test_charset @THREAD_LPROGRAMS@
+noinst_PROGRAMS =	test_charset @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
-testhash_DEPENDENCIES=	$(LIBRARIES)
+# testhash_DEPENDENCIES=	$(LIBRARIES)
 test_charset_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
@@ -81,17 +81,17 @@ FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 #
 
 test_thr_alarm: thr_alarm.c $(LIBRARIES)
-	$(CP) -f $(srcdir)/thr_alarm.c ./test_thr_alarm.c
+	$(CP) $(srcdir)/thr_alarm.c ./test_thr_alarm.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_thr_alarm.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_thr_alarm.*
 
 test_thr_lock: thr_lock.c $(LIBRARIES)
-	$(CP) -f $(srcdir)/thr_lock.c test_thr_lock.c
+	$(CP) $(srcdir)/thr_lock.c test_thr_lock.c
 	$(LINK) $(FLAGS) -DMAIN  ./test_thr_lock.c $(LDADD) $(LIBS)
 	$(RM) -f ./test_thr_lock.*
 
 test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
-	$(CP) -f $(srcdir)/my_vsnprintf.c test_vsnprintf.c
+	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
 	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
 	$(RM) -f test_vsnprintf.*
 
@@ -102,7 +102,7 @@ test_charset: test_charset.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_charset.c $(LDADD) $(LIBS)
 
 testhash: testhash.c $(LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
+	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
