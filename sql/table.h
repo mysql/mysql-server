@@ -254,6 +254,7 @@ typedef struct st_schema_table
                         TABLE *table, bool res, const char *base_name,
                         const char *file_name);
   int idx_field1, idx_field2; 
+  bool hidden;
 } ST_SCHEMA_TABLE;
 
 

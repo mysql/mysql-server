@@ -5280,7 +5280,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                      information_schema_name.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->real_name);
-    if (!schema_table)
+    if (!schema_table ||
+        (schema_table->hidden && 
+         lex->orig_sql_command == SQLCOM_END))  // not a 'show' command
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->real_name, information_schema_name.str);
