@@ -1002,11 +1002,13 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-int
+struct ErrorCodes { int error_id; bool crash;};
+ErrorCodes
 NF_codes[] = {
-  6003
-  ,6004
-  //,6005
+  {6003, true},
+  {6004, true},
+  //,6005, true,
+  {7173, false}
 };
 
 int
@@ -1042,7 +1044,9 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
     for(int i = 0; i<sz; i++){
       int rand = myRandom48(restarter.getNumDbNodes());
       int nodeId = restarter.getRandomNotMasterNodeId(rand);
-      int error = NF_codes[i];
+      struct ErrorCodes err_struct = NF_codes[i];
+      int error = err_struct.error_id;
+      bool crash = err_struct.crash;
       
       g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
       
@@ -1057,31 +1061,33 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
       CHECK2(dict->createTable(* pTab) == 0,
 	     "failed to create table");
 
-      CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
+      if (crash) {
+        CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
 	    "waitNodesNoStart failed");
 
-      if(myRandom48(100) > 50){
-	CHECK2(restarter.startNodes(&nodeId, 1) == 0,
+        if(myRandom48(100) > 50){
+  	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
 	       "failed to start node");
           
-	CHECK2(restarter.waitClusterStarted() == 0,
+	  CHECK2(restarter.waitClusterStarted() == 0,
 	       "waitClusterStarted failed");
 
-	CHECK2(dict->dropTable(pTab->getName()) == 0,
+  	  CHECK2(dict->dropTable(pTab->getName()) == 0,
 	       "drop table failed");
-      } else {
-	CHECK2(dict->dropTable(pTab->getName()) == 0,
+        } else {
+	  CHECK2(dict->dropTable(pTab->getName()) == 0,
 	       "drop table failed");
 	
-	CHECK2(restarter.startNodes(&nodeId, 1) == 0,
+	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
 	       "failed to start node");
           
-	CHECK2(restarter.waitClusterStarted() == 0,
+	  CHECK2(restarter.waitClusterStarted() == 0,
 	       "waitClusterStarted failed");
-      }
+        }
       
-      CHECK2(restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
+        CHECK2(restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
 	     "Failed to set LCP to min value");
+      }
     }
   }
  end:  
