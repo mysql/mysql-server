@@ -10443,7 +10443,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         HA_POS_ERROR : tab->join->unit->select_limit_cnt) <= 0)
             DBUG_RETURN(0);
 	}
-	ref_key= new_ref_key;
+        ref_key= new_ref_key;
       }
     }
     /* Check if we get the rows in requested sorted order by using the key */
