@@ -3242,7 +3242,7 @@ open_new_frm(const char *path, const char *alias,
     {
       if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
       {
-        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASIC TABLE");
+        my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
         goto err;
       }
       if (mysql_make_view(parser, table_desc))
