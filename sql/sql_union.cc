@@ -76,6 +76,12 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     for (sl= &lex->select_lex; sl; sl=sl->next)
     {
       lex->select=sl;
+      thd->offset_limit=sl->offset_limit;
+      thd->select_limit=sl->select_limit+sl->offset_limit;
+      if (thd->select_limit < sl->select_limit)
+	thd->select_limit= HA_POS_ERROR;		// no limit
+      if (thd->select_limit == HA_POS_ERROR)
+	sl->options&= ~OPTION_FOUND_ROWS;
       res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
 		       sl->item_list,
 		       sl->where,
