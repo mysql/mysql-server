@@ -188,6 +188,7 @@ CHARSET_INFO my_charset_latin1 =
     sort_order_latin1,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     2,			/* strxfrm_multiply */
     my_strnncoll_simple,
     my_strnncollsp_simple,

@@ -64,7 +64,7 @@ enum enum_sql_command {
   SQLCOM_ROLLBACK, SQLCOM_COMMIT, SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
-  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
+  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
@@ -75,19 +75,6 @@ enum enum_sql_command {
 
   /* This should be the last !!! */
   SQLCOM_END
-};
-
-enum lex_states
-{
-  STATE_START, STATE_CHAR, STATE_IDENT, STATE_IDENT_SEP, STATE_IDENT_START,
-  STATE_FOUND_IDENT, STATE_SIGNED_NUMBER, STATE_REAL, STATE_HEX_NUMBER,
-  STATE_CMP_OP, STATE_LONG_CMP_OP, STATE_STRING, STATE_COMMENT, STATE_END,
-  STATE_OPERATOR_OR_IDENT, STATE_NUMBER_IDENT, STATE_INT_OR_REAL,
-  STATE_REAL_OR_POINT, STATE_BOOL, STATE_EOL, STATE_ESCAPE, STATE_LONG_COMMENT,
-  STATE_END_LONG_COMMENT, STATE_COLON, STATE_SET_VAR, STATE_USER_END,
-  STATE_HOSTNAME, STATE_SKIP, STATE_USER_VARIABLE_DELIMITER, STATE_SYSTEM_VAR,
-  STATE_IDENT_OR_KEYWORD, STATE_IDENT_OR_HEX, STATE_IDENT_OR_BIN,
-  STAT_STRING_OR_DELIMITER
 };
 
 
@@ -436,6 +423,7 @@ typedef struct st_lex
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
+  time_t purge_time;                            /* For PURGE MASTER LOGS BEFORE */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   char* found_colon;                            /* For multi queries - next query */
   enum SSL_type ssl_type;			/* defined in violite.h */
@@ -473,7 +461,7 @@ typedef struct st_lex
   ulong thread_id,type;
   enum_sql_command sql_command;
   thr_lock_type lock_option;
-  enum lex_states next_state;
+  enum my_lex_states next_state;
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
@@ -500,11 +488,13 @@ typedef struct st_lex
       but we should merk all subselects as uncacheable from current till
       most upper
     */
-    for (SELECT_LEX_NODE *sl= current_select;
-	 sl != &select_lex;
-	 sl= sl->outer_select())
+    SELECT_LEX_NODE *sl;
+    SELECT_LEX_UNIT *un;
+    for (sl= current_select, un= sl->master_unit();
+	 un != &unit;
+	 sl= sl->outer_select(), un= sl->master_unit())
     {
-      sl->uncacheable = sl->master_unit()->uncacheable= 1;
+      sl->uncacheable = un->uncacheable= 1;
     }
   }
 } LEX;

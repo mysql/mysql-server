@@ -144,3 +144,5 @@ explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
 --error 1054
 (select 1) union (select 2) order by 0;
+
+SELECT @a:=1 UNION SELECT @a:=@a+1;
