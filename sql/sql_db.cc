@@ -182,6 +182,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
       strxmov(newpath,path,"/",file->name,NullS);
+      unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("New subdir found: %s", newpath));
@@ -199,6 +200,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
       continue;
     }
     strxmov(filePath,path,"/",file->name,NullS);
+    unpack_filename(filePath,filePath);
     if (my_delete(filePath,MYF(MY_WME)))
     {
       net_printf(&thd->net,ER_DB_DROP_DELETE,filePath,my_error);
@@ -223,6 +225,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
   if (!found_other_files)
   {
 #ifdef HAVE_READLINK
+    char tmp_path[FN_REFLEN];
+    path=unpack_filename(tmp_path,path);
     int linkcount = readlink(path,filePath,sizeof(filePath)-1);
     if (linkcount > 0)			// If the path was a symbolic link
     {
@@ -238,6 +242,10 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
       path=filePath;
     }
 #endif
+    /* Remove last FN_LIBCHAR to not cause a probelm on OS/2 */
+    char *pos=strend(path);
+    if (pos > path && pos[-1] == FN_LIBCHAR)
+      *--pos=0;
     /* Don't give errors if we can't delete 'RAID' directory */
     if (rmdir(path) < 0 && !level)
     {

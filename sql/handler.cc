@@ -174,6 +174,14 @@ int ha_panic(enum ha_panic_function flag)
 } /* ha_panic */
 
 
+void ha_close_connection(THD* thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (!innobase_skip)
+    innobase_close_connection(THD* thd);
+#endif
+}
+
 /*
   This is used to commit or rollback a single statement depending
   on the value of error
