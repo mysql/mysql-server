@@ -3423,7 +3423,7 @@ struct my_option my_long_options[] =
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"new", 'n', "Use very new possible 'unsafe' functions",
+  {"new", 'n', "Use some 4.1 features and syntax (4.1 compatibility mode)",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
