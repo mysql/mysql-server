@@ -893,6 +893,21 @@ avg	0	4.4
 delete from t1|
 delete from t2|
 drop procedure bug1874|
+create procedure bug2260()
+begin
+declare v1 int;
+declare continue handler for not found set @x2 = 1;
+declare c1 cursor for select data from t1;
+open c1;
+fetch c1 into v1;
+set @x2 = 2;
+close c1;
+end|
+call bug2260()|
+select @x2|
+@x2
+2
+drop procedure bug2260|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

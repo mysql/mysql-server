@@ -72,15 +72,15 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::warning:
-      if (sqlstate[0] == '0' && sqlstate[0] == '1')
+      if (sqlstate[0] == '0' && sqlstate[1] == '1')
 	found= 1;
       break;
     case sp_cond_type_t::notfound:
-      if (sqlstate[0] == '0' && sqlstate[0] == '2')
+      if (sqlstate[0] == '0' && sqlstate[1] == '2')
 	found= 1;
       break;
     case sp_cond_type_t::exception:
-      if (sqlstate[0] != '0' || sqlstate[0] > '2')
+      if (sqlstate[0] != '0' || sqlstate[1] > '2')
 	found= 1;
       break;
     }
