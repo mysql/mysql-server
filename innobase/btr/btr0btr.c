@@ -116,7 +116,7 @@ btr_page_insert_fits(
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */
-static
+
 page_t*
 btr_root_get(
 /*=========*/
