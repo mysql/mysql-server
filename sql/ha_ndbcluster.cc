@@ -4231,7 +4231,7 @@ bool ndbcluster_init()
        new Ndb_cluster_connection(ndbcluster_connectstring)) == 0)
   {
     DBUG_PRINT("error",("Ndb_cluster_connection(%s)",ndbcluster_connectstring));
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
 
   // Create a Ndb object to open the connection  to NDB
@@ -4240,25 +4240,33 @@ bool ndbcluster_init()
   if (g_ndb->init() != 0)
   {
     ERR_PRINT (g_ndb->getNdbError());
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
 
-  if ((res= g_ndb_cluster_connection->connect(1)) == 0)
+  if ((res= g_ndb_cluster_connection->connect(0,0,0)) == 0)
   {
+    DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
+		       g_ndb_cluster_connection->get_connected_host(),
+		       g_ndb_cluster_connection->get_connected_port()));
     g_ndb->waitUntilReady(10);
   } 
   else if(res == 1)
   {
     if (g_ndb_cluster_connection->start_connect_thread()) {
       DBUG_PRINT("error", ("g_ndb_cluster_connection->start_connect_thread()"));
-      DBUG_RETURN(TRUE);
+      goto ndbcluster_init_error;
+    }
+    {
+      char buf[1024];
+      DBUG_PRINT("info",("NDBCLUSTER storage engine not started, will connect using %s",
+			 g_ndb_cluster_connection->get_connectstring(buf,sizeof(buf))));
     }
   }
   else
   {
     DBUG_ASSERT(res == -1);
     DBUG_PRINT("error", ("permanent error"));
-    DBUG_RETURN(TRUE);
+    goto ndbcluster_init_error;
   }
   
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
@@ -4268,9 +4276,12 @@ bool ndbcluster_init()
   ndbcluster_inited= 1;
 #ifdef USE_DISCOVER_ON_STARTUP
   if (ndb_discover_tables() != 0)
-    DBUG_RETURN(TRUE);    
+    goto ndbcluster_init_error;    
 #endif
   DBUG_RETURN(FALSE);
+ ndbcluster_init_error:
+  ndbcluster_end();
+  DBUG_RETURN(TRUE);
 }
 
 
