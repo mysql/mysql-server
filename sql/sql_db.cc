@@ -320,10 +320,17 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
       {
 	if (!strncmp(buf,"default-character-set", (pos-buf)))
 	{
+          /*
+             Try character set name, and if it fails 
+             try collation name, probably it's an old
+             4.1.0 db.opt file, which didn't have
+             separate default-character-set and
+             default-collation commands.
+          */
 	  if (!(create->default_table_charset=
-		get_charset_by_csname(pos+1, 
-				      MY_CS_PRIMARY,
-				      MYF(0))))
+		get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
+              !(create->default_table_charset=
+                get_charset_by_name(pos+1, MYF(0))))
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);

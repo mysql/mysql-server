@@ -1452,7 +1452,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     alterTable(&tSignal, ptr)
     : createTable(&tSignal, ptr);
 
-  if (haveAutoIncrement) {
+  if (!alter && haveAutoIncrement) {
     //    if (!ndb.setAutoIncrementValue(impl.m_internalName.c_str(), autoIncrementValue)) {
     if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(), autoIncrementValue)) {
       m_error.code = 4336;

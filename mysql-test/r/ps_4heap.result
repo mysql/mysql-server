@@ -871,7 +871,7 @@ def	test	t_many_col_types	t_many_col_types	c11	c11	0	9	6	Y	32768	4	63
 def	test	t_many_col_types	t_many_col_types	c12	c12	0	10	6	Y	32768	4	63
 def	test	t_many_col_types	t_many_col_types	c13	c13	10	10	10	Y	128	0	63
 def	test	t_many_col_types	t_many_col_types	c14	c14	12	19	19	Y	128	0	63
-def	test	t_many_col_types	t_many_col_types	c15	c15	7	19	19	N	1217	0	63
+def	test	t_many_col_types	t_many_col_types	c15	c15	7	19	19	N	1249	0	63
 def	test	t_many_col_types	t_many_col_types	c16	c16	11	8	8	Y	128	0	63
 def	test	t_many_col_types	t_many_col_types	c17	c17	13	4	4	Y	32864	0	63
 def	test	t_many_col_types	t_many_col_types	c18	c18	1	1	1	Y	32768	0	63

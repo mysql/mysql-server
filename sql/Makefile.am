@@ -19,7 +19,7 @@
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
-INCLUDES =		@MT_INCLUDES@ \
+INCLUDES =		@MT_INCLUDES@ @ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 			-I$(srcdir) $(openssl_includes)
@@ -30,14 +30,15 @@ noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
-			../myisam/libmyisam.a \
-			../myisammrg/libmyisammrg.a \
-			../heap/libheap.a \
-			../vio/libvio.a \
-			../mysys/libmysys.a \
-			../dbug/libdbug.a \
-			../regex/libregex.a \
-			../strings/libmystrings.a 
+			@ZLIB_LIBS@ \
+			$(top_builddir)/myisam/libmyisam.a \
+			$(top_builddir)/myisammrg/libmyisammrg.a \
+			$(top_builddir)/heap/libheap.a \
+			$(top_builddir)/vio/libvio.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/regex/libregex.a \
+			$(top_builddir)/strings/libmystrings.a 
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
@@ -95,7 +96,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
-mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
+mysql_tzinfo_to_sql_LDADD =  @MYSQLD_EXTRA_LDFLAGS@ $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \

@@ -1450,9 +1450,11 @@ then
   then
     echo "Starting ndbcluster"
     ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    export NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
+    NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
+    export NDB_CONNECTSTRING
   else
-    export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    export NDB_CONNECTSTRING
     echo "Using ndbcluster at $NDB_CONNECTSTRING"
   fi
   fi

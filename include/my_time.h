@@ -41,6 +41,13 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
 bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
                  int *was_cut);
 
+long calc_daynr(uint year,uint month,uint day);
+
+void init_time(void);
+
+my_time_t 
+my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap);
+
 C_MODE_END
 
 #endif /* _my_time_h_ */
