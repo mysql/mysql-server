@@ -2363,7 +2363,10 @@ mysql_execute_command(THD *thd)
       lex->sql_command != SQLCOM_LOCK_TABLES &&
       lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
-    if (process_nested_sp(thd, lex, &locked_tables))
+    thd->no_warnings_for_error= 1;
+    res= process_nested_sp(thd, lex, &locked_tables);
+    thd->no_warnings_for_error= 0;
+    if (res)
       DBUG_RETURN(TRUE);
   }
 
@@ -3819,9 +3822,9 @@ unsent_create_error:
   }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   case SQLCOM_RESET:
-    /* 
-       RESET commands are never written to the binary log, so we have to
-       initialize this variable because RESET shares the same code as FLUSH
+    /*
+      RESET commands are never written to the binary log, so we have to
+      initialize this variable because RESET shares the same code as FLUSH
     */
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
@@ -4180,8 +4183,9 @@ unsent_create_error:
 	thd->row_count_func= 0;
 	res= sp->execute_procedure(thd, &lex->value_list);
 
-	/* If warnings have been cleared, we have to clear total_warn_count
-	 * too, otherwise the clients get confused.
+	/*
+          If warnings have been cleared, we have to clear total_warn_count
+          too, otherwise the clients get confused.
 	 */
 	if (thd->warn_list.is_empty())
 	  thd->total_warn_count= 0;
