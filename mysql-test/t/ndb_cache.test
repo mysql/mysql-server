@@ -1,31 +1,49 @@
 -- source include/have_query_cache.inc
 -- source include/have_ndb.inc
-
+set GLOBAL ndb_query_cache_type=on;
+# following line have to be removed when ndb_query_cache_type will made
+# global only
+set ndb_query_cache_type=on;
 set GLOBAL query_cache_size=1355776;
 reset query cache;
 flush status;
 
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1;
 --enable_warnings
 
 CREATE TABLE t1 (a int) ENGINE=ndbcluster;
-CREATE TABLE t2 (a int);
-
+insert into t1 value (2);
 select * from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
-select * from t2;
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
+connect (con1,localhost,root,,);
+connection con1;
+use test;
+set autocommit=0;
+update t1 set a=3;
+connect (con2,localhost,root,,);
+connection con2;
 select * from t1;
-select * from t2;
+select * from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
+connection con1;
+select * from t1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+commit;
+connection con2;
+select * from t1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+drop table t1;
 
-drop table t1, t2;
 
 SET GLOBAL query_cache_size=0;
