@@ -63,12 +63,14 @@ void Item_subselect::init(st_select_lex *select_lex,
       => we do not copy old_engine here
     */
     engine= unit->item->engine;
+    parsing_place= unit->item->parsing_place;
     unit->item->engine= 0;
     unit->item= this;
     engine->change_item(this, result);
   }
   else
   {
+    parsing_place= unit->outer_select()->parsing_place;
     if (select_lex->next_select())
       engine= new subselect_union_engine(unit, result, this);
     else
@@ -76,7 +78,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   }
   {
     SELECT_LEX *upper= unit->outer_select();
-    if (upper->parsing_place == SELECT_LEX_NODE::IN_HAVING)
+    if (upper->parsing_place == IN_HAVING)
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
