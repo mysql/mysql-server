@@ -86,6 +86,7 @@ public:
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();
+  unsigned node_id();
 #endif
 
 private:

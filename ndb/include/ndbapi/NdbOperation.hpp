@@ -709,6 +709,11 @@ public:
    */
   const char* getTableName() const;
 
+  /**
+   * Get table object for this operation
+   */
+  const NdbDictionary::Table * getTable() const;
+
   /** @} *********************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL

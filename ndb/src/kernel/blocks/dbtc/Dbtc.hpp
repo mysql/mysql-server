@@ -1177,7 +1177,7 @@ public:
     Uint32 nextScan;
 
     // Length of expected attribute information
-    Uint32 scanAiLength;
+    union { Uint32 scanAiLength; Uint32 m_booked_fragments_count; };
 
     Uint32 scanKeyLen;
 
