@@ -289,6 +289,14 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
     return 1;
   cache->setup(args[0]);
+  if (cache->cols() == 1)
+    cache->set_used_tables(RAND_TABLE_BIT);
+  else
+  {
+    uint n= cache->cols();
+    for (uint i= 0; i < n; i++)
+      ((Item_cache *)cache->el(i))->set_used_tables(RAND_TABLE_BIT);
+  }
   if (args[1]->fix_fields(thd, tables, args))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
