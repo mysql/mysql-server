@@ -485,43 +485,45 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
     }
 
-    if ((sql_field->sql_type == FIELD_TYPE_SET ||
-         sql_field->sql_type == FIELD_TYPE_ENUM) && !sql_field->interval)
+    if (sql_field->sql_type == FIELD_TYPE_SET ||
+        sql_field->sql_type == FIELD_TYPE_ENUM)
     {
       uint32 dummy;
       CHARSET_INFO *cs= sql_field->charset;
-      TYPELIB *interval;
+      TYPELIB *interval= sql_field->interval;
 
       /*
         Create typelib from interval_list, and if necessary
         convert strings from client character set to the
         column character set.
       */
-
-      interval= sql_field->interval= typelib(sql_field->interval_list);
-      List_iterator<String> it(sql_field->interval_list);
-      String conv, *tmp;
-      for (uint i= 0; (tmp= it++); i++)
+      if (!interval)
       {
-        if (String::needs_conversion(tmp->length(), tmp->charset(), cs, &dummy))
+        interval= sql_field->interval= typelib(sql_field->interval_list);
+        List_iterator<String> it(sql_field->interval_list);
+        String conv, *tmp;
+        for (uint i= 0; (tmp= it++); i++)
         {
-          uint cnv_errs;
-          conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-          char *buf= (char*) sql_alloc(conv.length()+1);
-          memcpy(buf, conv.ptr(), conv.length());
-          buf[conv.length()]= '\0';
-          interval->type_names[i]= buf;
-          interval->type_lengths[i]= conv.length();
+          if (String::needs_conversion(tmp->length(), tmp->charset(),
+                                       cs, &dummy))
+          {
+            uint cnv_errs;
+            conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+            char *buf= (char*) sql_alloc(conv.length()+1);
+            memcpy(buf, conv.ptr(), conv.length());
+            buf[conv.length()]= '\0';
+            interval->type_names[i]= buf;
+            interval->type_lengths[i]= conv.length();
+          }
+
+          // Strip trailing spaces.
+          uint lengthsp= cs->cset->lengthsp(cs, interval->type_names[i],
+                                            interval->type_lengths[i]);
+          interval->type_lengths[i]= lengthsp;
+          ((uchar *)interval->type_names[i])[lengthsp]= '\0';
         }
-
-        // Strip trailing spaces.
-        uint lengthsp= cs->cset->lengthsp(cs, interval->type_names[i],
-                                              interval->type_lengths[i]);
-        interval->type_lengths[i]= lengthsp;
-        ((uchar *)interval->type_names[i])[lengthsp]= '\0';
+        sql_field->interval_list.empty(); // Don't need interval_list anymore
       }
-      sql_field->interval_list.empty(); // Don't need interval_list anymore
-
 
       /*
         Convert the default value from client character
