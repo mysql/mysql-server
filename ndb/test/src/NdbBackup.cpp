@@ -69,28 +69,19 @@ NdbBackup::getBackupDataDirForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  LocalConfig lc;
-  if (!lc.init(0,0)) {
-    abort();
-  }
-  ConfigRetriever cr(lc, 0, NODE_TYPE_API);
-  ndb_mgm_configuration * p = 0;
+  ndb_mgm_configuration *p;
+  if (connect())
+    return NULL;
 
-  BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
-  NdbMgmHandle handle = ndb_mgm_create_handle();
-  if(handle == 0 || ndb_mgm_connect(handle, tmp.c_str()) != 0 ||
-     (p = ndb_mgm_get_configuration(handle, 0)) == 0){
-    
-    const char * s = 0;
-    if(p == 0 && handle != 0){
-      s = ndb_mgm_get_latest_error_msg(handle);
-      if(s == 0)
-	s = "No error given!";
+  if ((p = ndb_mgm_get_configuration(handle, 0)) == 0)
+  {
+    const char * s= ndb_mgm_get_latest_error_msg(handle);
+    if(s == 0)
+      s = "No error given!";
       
-      ndbout << "Could not fetch configuration" << endl;
-      ndbout << s << endl;
-      return NULL;
-    }
+    ndbout << "Could not fetch configuration" << endl;
+    ndbout << s << endl;
+    return NULL;
   }
   
   /**
@@ -155,13 +146,14 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
   
-  BaseString::snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
+  BaseString::snprintf(buf, 255, "%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
 #if 1
 	   "",
 #else
 	   "valgrind --leak-check=yes -v "
 #endif
-	   addr.c_str(),
+	   ndb_mgm_get_connected_host(handle),
+	   ndb_mgm_get_connected_port(handle),
 	   _node_id, 
 	   _backup_id,
 	   _restore_data?"-r":"",
