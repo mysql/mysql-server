@@ -3776,12 +3776,12 @@ UK [PLiG/UK] @
 @c @uref{http://sunsite.org.uk/packages/mysql/, WWW}
 @c @uref{ftp://sunsite.org.uk/packages/mysql/, FTP}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c sander@paco.net (Alexander Ivanov)
-@c @image{Flags/ukraine} Ukraine [PACO] @
-@c @uref{http://mysql.paco.net.ua, WWW}
-@c @uref{ftp://mysql.paco.net.ua/, FTP}
+@c @image{Flags/ukraine}
+Ukraine [PACO] @
+@uref{http://mysql.paco.net.ua, WWW}
+@uref{ftp://mysql.paco.net.ua/, FTP}
 
 @end itemize
 
