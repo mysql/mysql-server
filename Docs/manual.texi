@@ -32160,17 +32160,58 @@ mysql> SELECT EXP(2);
 mysql> SELECT EXP(-2);
         -> 0.135335
 @end example
+
+@findex LN()
+@item LN(X)
+Returns the natural logarithm of @code{X}:
+@example
+mysql> SELECT LN(2);
+        -> 0.693147
+mysql> SELECT LN(-2);
+        -> NULL
+@end example
+
+This function was added in MySQL version 4.0.3.
+It is synonymous with @code{LOG(X)} in MySQL.
+
 @findex LOG()
 @item LOG(X)
-Returns the natural logarithm of @code{X}:
+@itemx LOG(B,X)
+If called with one parameter, this function returns the natural logarithm
+of @code{X}:
 @example
 mysql> SELECT LOG(2);
         -> 0.693147
 mysql> SELECT LOG(-2);
         -> NULL
 @end example
-If you want the log of a number @code{X} to some arbitrary base @code{B}, use
-the formula @code{LOG(X)/LOG(B)}.
+
+If called with two parameters, this function returns the logarithm of
+@code{X} for an arbitary base @code{B}:
+@example
+mysql> SELECT LOG(2,65536);
+        -> 16.000000
+mysql> SELECT LOG(1,100);
+        -> NULL
+@end example
+
+The arbitrary base option was added in MySQL version 4.0.3.
+@code{LOG(B,X)} is equivalent to @code{LOG(X)/LOG(B)}.
+
+@findex LOG2()
+@item LOG2(X)
+Returns the base-2 logarithm of @code{X}:
+@example
+mysql> SELECT LOG2(65536);
+        -> 16.000000
+mysql> SELECT LOG2(-100);
+        -> NULL
+@end example
+
+@code{LOG2()} is useful for finding out how many bits a number would
+require for storage.
+This function was added in MySQL version 4.0.3.
+In earlier versions, you can use @code{LOG(X)/LOG(2)} instead.
 
 @findex LOG10()
 @item LOG10(X)
@@ -50020,6 +50061,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @node News-4.0.3, News-4.0.2, News-4.0.x, News-4.0.x
 @appendixsubsec Changes in release 4.0.3
+
 @itemize @bullet
 @item
 Allow @code{DEFAULT} with @code{INSERT} statement.
@@ -50056,7 +50098,18 @@ Fixed a bug that made the pager option in the @code{mysql} client
 non-functional.
 @item
 Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
+@item
+Extended @code{LOG()} function to accept an optional arbitrary base
+parameter.
+@xref{Mathematical functions}.
+@item
+Added @code{LOG2()} function (useful for finding out how many bits
+a number would require for storage).
+@item
+Added @code{LN()} natural logarithm function for compatibility with
+other databases. It is synonymous with @code{LOG(X)}.
 @end itemize
+
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
 @appendixsubsec Changes in release 4.0.2 (01 July 2002)
