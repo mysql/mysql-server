@@ -1894,24 +1894,30 @@ mysql_execute_command(THD *thd)
       send_error(thd,ER_WRONG_VALUE_COUNT);
       DBUG_VOID_RETURN;
     }
-    if (select_lex->table_list.elements == 1)
+    res= mysql_update(thd,tables,
+                      select_lex->item_list,
+                      lex->value_list,
+                      select_lex->where,
+                      (ORDER *) select_lex->order_list.first,
+                      select_lex->select_limit,
+                      lex->duplicates);
+    break;
+  case SQLCOM_UPDATE_MULTI:
+    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+      goto error;
+    if (grant_option && check_grant(thd,UPDATE_ACL,tables))
+      goto error;
+    if (select_lex->item_list.elements != lex->value_list.elements)
     {
-      res= mysql_update(thd,tables,
-			select_lex->item_list,
-			lex->value_list,
-			select_lex->where,
-			(ORDER *) select_lex->order_list.first,
-			select_lex->select_limit,
-			lex->duplicates);
+      send_error(thd,ER_WRONG_VALUE_COUNT);
+      DBUG_VOID_RETURN;
     }
-    else
     {
       multi_update  *result;
       uint table_count;
       TABLE_LIST *auxi;
       const char *msg=0;
 
-      lex->sql_command=SQLCOM_UPDATE_MULTI;
       for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
 	table_count++;
 
