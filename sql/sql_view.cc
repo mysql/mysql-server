@@ -491,17 +491,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     /* TODO: change here when we will support UNIONs */
     for (TABLE_LIST *tbl= (TABLE_LIST *)lex->select_lex.table_list.first;
-         tbl;
-         tbl= tbl->next_local)
+	 tbl;
+	 tbl= tbl->next_local)
     {
       if (tbl->view && !tbl->updatable_view)
       {
-        view->updatable_view= 0;
-        break;
+	view->updatable_view= 0;
+	break;
+      }
+      for (TABLE_LIST *up= tbl; up; up= up->embedding)
+      {
+	if (up->outer_join)
+	{
+	  view->updatable_view= 0;
+	  goto loop_out;
+	}
       }
     }
   }
-
+loop_out:
   /*
     Check that table of main select do not used in subqueries.
 
@@ -567,6 +575,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   SELECT_LEX *end;
   THD *thd= current_thd;
   LEX *old_lex= thd->lex, *lex;
+  SELECT_LEX *view_select;
   int res= 0;
 
   /*
@@ -609,7 +618,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
   lex_start(thd, (uchar*)table->query.str, table->query.length);
-  lex->select_lex.select_number= ++thd->select_number;
+  view_select= &lex->select_lex;
+  view_select->select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;
   {
     ulong options= thd->options;
@@ -652,6 +662,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
                            table);
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
+    TABLE_LIST *tbl;
 
     if (lex->spfuns.records)
     {
@@ -710,7 +721,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     old_lex->safe_to_cache_query= (old_lex->safe_to_cache_query &&
 				   lex->safe_to_cache_query);
     /* move SQL_CACHE to whole query */
-    if (lex->select_lex.options & OPTION_TO_QUERY_CACHE)
+    if (view_select->options & OPTION_TO_QUERY_CACHE)
       old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
 
     /*
@@ -747,9 +758,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
-      /*
-        TODO: support multi tables substitutions
-      */
       /* lex should contain at least one table */
       DBUG_ASSERT(view_tables != 0);
 
@@ -759,20 +767,48 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       table->effective_with_check= table->with_check;
 
       table->ancestor= view_tables;
-      /*
-        next table should include SELECT_LEX under this table SELECT_LEX
 
-        TODO: here should be loop for multi tables substitution
-      */
+      /* next table should include SELECT_LEX under this table SELECT_LEX */
       table->ancestor->select_lex= table->select_lex;
+
       /*
-        move lock type (TODO: should we issue error in case of TMPTABLE
-        algorithm and non-read locking)?
+        Process upper level tables of view. As far as we do noy suport union
+        here we can go through local tables of view most upper SELECT
       */
-      view_tables->lock_type= table->lock_type;
+      for(tbl= (TABLE_LIST*)view_select->table_list.first;
+          tbl;
+          tbl= tbl->next_local)
+      {
+        /*
+          move lock type (TODO: should we issue error in case of TMPTABLE
+          algorithm and non-read locking)?
+        */
+        tbl->lock_type= table->lock_type;
+      }
+
+      /* multi table view */
+      if (view_tables->next_local)
+      {
+        /* make nested join structure for view tables */
+        NESTED_JOIN *nested_join;
+        if (!(nested_join= table->nested_join=
+              (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
+          goto err;
+        nested_join->join_list= view_select->top_join_list;
+
+        /* re-nest tables of VIEW */
+        {
+          List_iterator_fast<TABLE_LIST> ti(nested_join->join_list);
+          while(tbl= ti++)
+          {
+            tbl->join_list= &nested_join->join_list;
+            tbl->embedding= table;
+          }
+        }
+      }
 
       /* Store WHERE clause for post-processing in setup_ancestor */
-      table->where= lex->select_lex.where;
+      table->where= view_select->where;
 
       /*
         Add subqueries units to SELECT in which we merging current view.
@@ -799,13 +835,13 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
-    lex->select_lex.linkage= DERIVED_TABLE_TYPE;
+    view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
 
     /* SELECT tree link */
     lex->unit.include_down(table->select_lex);
-    lex->unit.slave= &lex->select_lex; // fix include_down initialisation
+    lex->unit.slave= view_select; // fix include_down initialisation
 
     table->derived= &lex->unit;
   }
@@ -816,7 +852,7 @@ ok:
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   /* global SELECT list linking */
-  end= &lex->select_lex;	// primary SELECT_LEX is always last
+  end= view_select;	// primary SELECT_LEX is always last
   end->link_next= old_lex->all_selects_list;
   old_lex->all_selects_list->link_prev= &end->link_next;
   old_lex->all_selects_list= lex->all_selects_list;
@@ -953,24 +989,26 @@ frm_type_enum mysql_frm_type(char *path)
 bool check_key_in_view(THD *thd, TABLE_LIST *view)
 {
   TABLE *table;
-  Item **trans;
+  Field_translator *trans;
   KEY *key_info, *key_info_end;
   uint i, elements_in_view;
   DBUG_ENTER("check_key_in_view");
 
   /*
-    we do not support updatable UNIONs in VIW, so we can check just limit of
+    we do not support updatable UNIONs in VIEW, so we can check just limit of
     LEX::select_lex
   */
-  if (!view->view || thd->lex->sql_command == SQLCOM_INSERT ||
+  if ((!view->view && !view->belong_to_view) || thd->lex->sql_command == SQLCOM_INSERT ||
       thd->lex->select_lex.select_limit == HA_POS_ERROR)
     DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
   table= view->table;
+  if (view->belong_to_view)
+    view= view->belong_to_view;
   trans= view->field_translation;
   key_info_end= (key_info= table->key_info)+ table->keys;
 
   elements_in_view= view->view->select_lex.item_list.elements;
-  DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
+  DBUG_ASSERT(table != 0 && view->field_translation != 0);
 
   /* Loop over all keys to see if a unique-not-null key is used */
   for (;key_info != key_info_end ; key_info++)
@@ -987,7 +1025,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         for (k= 0; k < elements_in_view; k++)
         {
           Item_field *field;
-          if ((field= trans[k]->filed_for_view_update()) &&
+          if ((field= trans[k].item->filed_for_view_update()) &&
               field->field == key_part->field)
             break;
         }
@@ -1008,7 +1046,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       for (i= 0; i < elements_in_view; i++)
       {
         Item_field *field;
-        if ((field= trans[i]->filed_for_view_update()) &&
+        if ((field= trans[i].item->filed_for_view_update()) &&
             field->field == *field_ptr)
           break;
       }
@@ -1042,22 +1080,31 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     insert_view_fields()
     list      list for insertion
     view      view for processing
+
+  RETURN
+    0  - OK
+    -1 - error (is not sent to cliet)
 */
 
-void insert_view_fields(List<Item> *list, TABLE_LIST *view)
+int insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   uint elements_in_view= view->view->select_lex.item_list.elements;
-  Item **trans;
+  Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   for (uint i= 0; i < elements_in_view; i++)
   {
     Item_field *fld;
-    if ((fld= trans[i]->filed_for_view_update()))
+    if ((fld= trans[i].item->filed_for_view_update()))
       list->push_back(fld);
+    else
+    {
+      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), view->alias, "INSERT");
+      DBUG_RETURN(-1);
+    }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }

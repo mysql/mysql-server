@@ -43,7 +43,14 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 
   if ((error= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(error);
-  table= table_list->table;
+  if (!(table= table_list->table))
+  {
+    DBUG_ASSERT(table_list->view &&
+		table_list->ancestor && table_list->ancestor->next_local);
+    my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+	     table_list->view_db.str, table_list->view_name.str);
+    DBUG_RETURN(-1);
+  }
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
@@ -284,8 +291,8 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
-  if (setup_tables(thd, table_list, conds) ||
-      setup_conds(thd, table_list, conds) ||
+  if (setup_tables(thd, table_list, conds, &select_lex->leaf_tables, 0) ||
+      setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(-1);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
@@ -341,7 +348,8 @@ int mysql_multi_delete_prepare(THD *thd)
 
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
-  if (setup_tables(thd, lex->query_tables, &lex->select_lex.where))
+  if (setup_tables(thd, lex->query_tables, &lex->select_lex.where,
+                   &lex->select_lex.leaf_tables, 0))
     DBUG_RETURN(-1);
 
   /* Fix tables-to-be-deleted-from list to point at opened tables */
