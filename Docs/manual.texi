@@ -14243,7 +14243,7 @@ attempt to repair it.
 
 The following options affects how the repair works.
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .15 .7
 @item @strong{Option} @tab @strong{Description}
 @item DEFAULT  @tab The same as not giving any option to
                     @code{--myisam-recover}.
@@ -14399,7 +14399,7 @@ server and for clients from option files.
 MySQL reads default options from the following files on Unix:
 
 @tindex .my.cnf file
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .35 .45
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{/etc/my.cnf} @tab Global options
 @item @code{DATADIR/my.cnf} @tab Server-specific options
@@ -14417,7 +14417,7 @@ before it processes any command-line arguments.)
 
 MySQL reads default options from the following files on Windows:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .35 .45
 @item @strong{Filename} @tab @strong{Purpose}
 @item @code{windows-system-directory\my.ini} @tab Global options
 @item @code{C:\my.cnf} @tab Global options
@@ -14524,7 +14524,7 @@ large systems.  You can copy @file{my-xxxx.cnf} to your home directory
 All MySQL clients that support option files support the
 following options:
 
-@multitable @columnfractions .40 .60
+@multitable @columnfractions .45 .65
 @item @strong{Option} @tab @strong{Description}
 @item --no-defaults @tab Don't read any option files.
 @item --print-defaults @tab Print the program name and all options that it will get.
@@ -15249,7 +15249,7 @@ The server uses the @code{user}, @code{db}, and @code{host} tables in the
 @code{mysql} database at both stages of access control.  The fields in these
 grant tables are shown below:
 
-@multitable @columnfractions .2 .25 .25 .25
+@multitable @columnfractions .20 .20 .20 .20
 @item @strong{Table name}       @tab @code{user}        @tab @code{db}          @tab @code{host}
 
 @item @strong{Scope fields}     @tab @code{Host}        @tab @code{Host}        @tab @code{Host}
@@ -15277,7 +15277,7 @@ may, if the request involves tables, additionally consult the
 @code{tables_priv} and @code{columns_priv} tables.  The fields in these
 tables are shown below:
 
-@multitable @columnfractions .2 .25 .25
+@multitable @columnfractions .20 .20 .20
 @item @strong{Table name}   @tab @code{tables_priv} @tab @code{columns_priv}
 
 @item @strong{Scope fields} @tab @code{Host}        @tab @code{Host}
@@ -15322,7 +15322,7 @@ The rules used to do this are described in @ref{Request access}.
 Scope fields are strings, declared as shown below; the default value for
 each is the empty string:
 
-@multitable @columnfractions .15 .15 .7
+@multitable @columnfractions .15 .15 .6
 @item @strong{Field name} @tab @strong{Type}     @tab @strong{Notes}
 @item @code{Host}         @tab @code{CHAR(60)}   @tab
 @item @code{User}         @tab @code{CHAR(16)}   @tab
@@ -15340,7 +15340,7 @@ value of @code{'N'} or @code{'Y'}, and the default value is @code{'N'}.
 In the @code{tables_priv} and @code{columns_priv} tables, the privilege
 fields are declared as @code{SET} fields:
 
-@multitable @columnfractions .2 .2 .6
+@multitable @columnfractions .15 .15 .50
 @item @strong{Table name}
  @tab @strong{Field name}
  @tab @strong{Possible set elements}
@@ -15435,7 +15435,7 @@ MySQL are shown below, along with the table column name associated
 with each privilege in the grant tables and the context in which the
 privilege applies:
 
-@multitable @columnfractions .15 .25 .6
+@multitable @columnfractions .15 .20 .30
 @item @strong{Privilege}   @tab @strong{Column}      @tab @strong{Context}
 @item @strong{select}      @tab @code{Select_priv}   @tab tables
 @item @strong{insert}      @tab @code{Insert_priv}   @tab tables
@@ -15492,7 +15492,7 @@ performed using the @code{mysqladmin} program.  The table below shows which
 @code{mysqladmin} commands each administrative privilege allows you to
 execute:
 
-@multitable @columnfractions .15 .85
+@multitable @columnfractions .15 .75
 @item @strong{Privilege}  @tab @strong{Commands permitted to privilege holders}
 @item @strong{reload}     @tab @code{reload}, @code{refresh},
 @code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and
@@ -15755,7 +15755,7 @@ The examples below show how various combinations of @code{Host} and
 @code{User} values in @code{user} table entries apply to incoming
 connections:
 
-@multitable @columnfractions .25 .15 .60
+@multitable @columnfractions .35 .15 .50
 @item @code{Host} @strong{value} @tab @code{User} @strong{value} @tab @strong{Connections matched by entry}
 @item @code{'thomas.loc.gov'} @tab @code{'fred'} @tab @code{fred}, connecting from @code{thomas.loc.gov}
 @item @code{'thomas.loc.gov'} @tab @code{''} @tab Any user, connecting from @code{thomas.loc.gov}
@@ -17552,7 +17552,7 @@ lock for each table in the group.
 
 The command returns a table with the following columns:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
 @item Op @tab Always ``backup''
@@ -17583,7 +17583,7 @@ more keys you have, the longer it is going to take. Just as
 
 The command returns a table with the following columns:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
 @item Op @tab Always ``restore''
@@ -17612,7 +17612,7 @@ If you don't specify any option @code{MEDIUM} is used.
 Checks the table(s) for errors. For @code{MyISAM} tables the key statistics
 is updated. The command returns a table with the following columns:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
 @item Table    @tab Table name.
 @item Op       @tab Always ``check''.
@@ -17629,7 +17629,7 @@ told MySQL that there wasn't any need to check the table.
 
 The different check types stand for the following:
 
-@multitable @columnfractions .20 .80
+@multitable @columnfractions .15 .85
 @item @strong{Type} @tab @strong{Meaning}
 @item @code{QUICK} @tab Don't scan the rows to check for wrong links.
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
@@ -17720,7 +17720,7 @@ try to find the reason for this! @xref{Crashing}. @xref{MyISAM table problems}.
 @code{REPAIR TABLE} repairs a possible corrupted table. The command returns a
 table with the following columns:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
 @item Op @tab Always ``repair''
@@ -17895,7 +17895,7 @@ Display a help message and exit.
 @item -O var=option, --set-variable var=option
 Set the value of a variable.  The possible variables and their default values
 for myisamchk can be examined with @code{myisamchk --help}:
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .10
 @item @strong{Variable} @tab @strong{Value}
 @item key_buffer_size @tab 523264
 @item read_buffer_size @tab 262136
@@ -18184,7 +18184,7 @@ When performing crash recovery, it is important to understand that each table
 @code{tbl_name} in a database corresponds to three files in the database
 directory:
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .20 .30
 @item @strong{File} @tab @strong{Purpose}
 @item @file{tbl_name.frm} @tab Table definition (form) file
 @item @file{tbl_name.MYD} @tab Data file
@@ -18960,7 +18960,7 @@ constant.
 
 The command returns a table with the following columns:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .40
 @item @strong{Column} @tab @strong{Value}
 @item Table @tab Table name
 @item Op @tab Always ``analyze''
@@ -18994,7 +18994,7 @@ the @strong{RELOAD} privilege.
 
 @code{flush_option} can be any of the following:
 
-@multitable @columnfractions .15 .85
+@multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{HOSTS}  @tab Empties the host cache tables.  You should flush the
@@ -19048,7 +19048,7 @@ FLUSH flush_option [,flush_option]
 The @code{RESET} command is used to clear things. It also acts as an stronger
 version of the @code{FLUSH} command.  @xref{FLUSH}.
 
-@multitable @columnfractions .15 .85
+@multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{MASTER}
@@ -19220,7 +19220,7 @@ or @code{mysqlshow -k db_name tbl_name}.
 resembles the @code{SQLStatistics} call in ODBC. The following columns
 are returned:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .15 .55
 @item @strong{Column}            @tab @strong{Meaning}
 @item @code{Table}               @tab Name of the table.
 @item @code{Non_unique}          @tab 0 if the index can't contain duplicates.
@@ -19238,7 +19238,7 @@ are returned:
 @item @code{Sub_part}            @tab Number of indexed characters if the
                                       column is only partly indexed.
                                       @code{NULL} if the entire key is indexed.
-@item @code{Null}		 $tab Contains 'YES' if the column may contain @code{NULL}.
+@item @code{Null}		 @tab Contains 'YES' if the column may contain @code{NULL}.
 @item @code{Index_type}		 @tab Index method used.
 @item @code{Comment}             @tab Various remarks.  For now, it tells
 in MySQL < 4.0.2 whether index is @code{FULLTEXT} or not.
@@ -19265,7 +19265,7 @@ STATUS}, but provides a lot of information about each table. You can
 also get this list using the @code{mysqlshow --status db_name} command.
 The following columns are returned:
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .20 .65
 @item @strong{Column} @tab @strong{Meaning}
 @item @code{Name} @tab Name of the table.
 @item @code{Type} @tab Type of table. @xref{Table types}.
@@ -19360,7 +19360,7 @@ below, though the format and numbers probably differ:
 @cindex variables, status
 The status variables listed above have the following meaning:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .30 .70
 @item @strong{Variable} @tab @strong{Meaning}
 @item @code{Aborted_clients} @tab Number of connections aborted because the client died without closing the connection properly. @xref{Communication errors}.
 @item @code{Aborted_connects} @tab Number of tries to connect to the MySQL server that failed. @xref{Communication errors}.
@@ -19540,7 +19540,7 @@ differ somewhat:
 | protocol_version             | 10                        |
 | record_buffer                | 131072                    |
 | query_buffer_size            | 0                         |
-| query_cache_limit            | 1048576		   |
+| query_cache_limit            | 1048576                   |
 | query_cache_size             | 16768060                  |
 | query_cache_startup_type     | 1                         |
 | safe_show_database           | OFF                       |
@@ -19952,7 +19952,7 @@ If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
-@multitable @columnfractions .1 .2 .7
+@multitable @columnfractions .10 .15 .70
 @item @strong{Value} @tab @strong{Alias} @tab @strong{Comment}
 @item 0 @tab OFF @tab Don't cache or retrieve results.
 @item 1 @tab ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
@@ -20665,7 +20665,7 @@ All MySQL clients that communicate with the server using the
 @tindex environment variable, @code{MYSQL_PWD}
 @tindex @code{MYSQL_DEBUG} environment variable
 @tindex environment variable, @code{MYSQL_DEBUG}
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .25 .55
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
 @item @code{MYSQL_TCP_PORT}  @tab The default TCP/IP port
@@ -21480,7 +21480,7 @@ If you want to unpack a packed table, you can do this with the
 @code{mysqld-max} is the MySQL server (@code{mysqld}) configured with
 the following configure options:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .30 .45
 @item @strong{Option} @tab @strong{Comment}
 @item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
 @item --with-innodb @tab Support for InnoDB tables.
@@ -21516,8 +21516,8 @@ mysql> show variables like "have_%";
 
 The meaning of the values are:
 
-@multitable @columnfractions .3 .7
-@item @strong{Value} @tab @strong{Meaning}.
+@multitable @columnfractions .15 .85
+@item @strong{Value} @tab @strong{Meaning}
 @item @code{YES} @tab The option is activated and usable.
 @item @code{NO} @tab MySQL is not compiled with support for this option.
 @item @code{DISABLED} @tab The xxxx option is disabled because one started @code{mysqld} with @code{--skip-xxxx} or because one didn't start @code{mysqld} with all needed options to enable the option.  In this case the @code{hostname.err} file should contain a reason for why the option is disabled.
@@ -21545,7 +21545,7 @@ feature. It just installs the @code{mysqld-max} executable and
 The following table shows which table types our standard @strong{MySQL-Max}
 binaries includes:
 
-@multitable @columnfractions .4 .3 .3
+@multitable @columnfractions .15 .10 .10
 @item @strong{System} @tab @strong{BDB} @tab @strong{InnoDB}
 @item AIX 4.3 @tab N @tab Y
 @item HP-UX 11.0 @tab N @tab Y
@@ -21594,7 +21594,7 @@ All MySQL clients that communicate with the server using the
 @tindex environment variable, @code{MYSQL_PWD}
 @tindex @code{MYSQL_DEBUG} environment variable
 @tindex environment variable, @code{MYSQL_DEBUG}
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .25 .55
 @item @strong{Name} @tab @strong{Description}
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}
 @item @code{MYSQL_TCP_PORT}  @tab The default TCP/IP port
@@ -21920,7 +21920,7 @@ You can also set the following variables with @code{-O} or
 @cindex @code{net_buffer_length}
 @cindex @code{select_limit}
 @cindex @code{max_join_size}
-@multitable @columnfractions .3 .2 .5
+@multitable @columnfractions .25 .10 .65
 @item @strong{Variable Name} @tab @strong{Default} @tab @strong{Description}
 @item connect_timeout    @tab 0         @tab Number of seconds before timeout connection.
 @item max_allowed_packet @tab 16777216  @tab Max packetlength to send/receive from to server
@@ -22205,7 +22205,7 @@ Memory in use: 1092K  Max memory used: 1116K
 The @code{mysqladmin status} command result has the following columns:
 
 @cindex uptime
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .65
 @item @strong{Column} @tab @strong{Description}
 @item Uptime @tab Number of seconds the MySQL server has been up.
 @cindex threads
@@ -22892,7 +22892,7 @@ shell> mysql < text_file
 MySQL has several different log files that can help you find
 out what's going on inside @code{mysqld}:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .80
 @item @strong{Log file} @tab @strong{Description}
 @item The error log @tab Problems encountering starting, running or stopping @code{mysqld}.
 @item The isam log @tab Logs all changes to the ISAM tables. Used only for debugging the isam code.
@@ -23056,7 +23056,7 @@ command. @xref{RESET}.
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
 
-@multitable @columnfractions .4 .6
+@multitable @columnfractions .35 .65
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{binlog-do-db=database_name} @tab
@@ -23650,7 +23650,7 @@ Example: @code{server-id=3}
 
 The following table has the options you can use for the @strong{MASTER}:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .35 .65
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{log-bin=filename} @tab
@@ -23696,7 +23696,7 @@ Example: @code{binlog-ignore-db=accounting}
 
 The following table has the options you can use for the @strong{SLAVE}:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .35 .65
 @item @strong{Option} @tab @strong{Description}
 
 @item @code{master-host=host} @tab
@@ -23897,7 +23897,7 @@ the read.
 Replication can be controlled through the SQL interface. Below is the
 summary of commands:
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .40 .60
 @item @strong{Command} @tab @strong{Description}
 
 @item @code{SLAVE START}
@@ -24777,7 +24777,7 @@ multi-threaded tests to the benchmark suite.
 
 For example, (run on the same NT 4.0 machine):
 
-@multitable @columnfractions .6 .2 .2
+@multitable @columnfractions .35 .10 .10
 @item @strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
 @item mysql             @tab 367          @tab 249
 @item mysql_odbc	@tab 464          @tab
@@ -24789,7 +24789,7 @@ For example, (run on the same NT 4.0 machine):
 @item sybase_odbc	@tab 17614        @tab
 @end multitable
 
-@multitable @columnfractions .6 .2 .2
+@multitable @columnfractions .35 .10 .10
 @item @strong{Inserting (350768) rows} @tab @strong{Seconds} @tab @strong{Seconds}
 @item mysql		@tab 381          @tab 206
 @item mysql_odbc	@tab 619          @tab
@@ -25166,7 +25166,7 @@ For this example, assume that:
 @item
 The columns being compared have been declared as follows:
 
-@multitable @columnfractions .1 .2 .7
+@multitable @columnfractions .10 .15 .15
 @item @strong{Table} @tab @strong{Column} @tab @strong{Column type}
 @item @code{tt}      @tab @code{ActualPC}      @tab @code{CHAR(10)}
 @item @code{tt}      @tab @code{AssignedPC}    @tab @code{CHAR(10)}
@@ -25178,7 +25178,7 @@ The columns being compared have been declared as follows:
 @item
 The tables have the indexes shown below:
 
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .10 .30
 @item @strong{Table} @tab @strong{Index}
 @item @code{tt}      @tab @code{ActualPC}
 @item @code{tt}      @tab @code{AssignedPC}
@@ -26921,44 +26921,44 @@ like this:
 
 @example
 Possible variables for option --set-variable (-O) are:
-back_log              current value: 5
-bdb_cache_size        current value: 1048540
-binlog_cache_size     current_value: 32768
-connect_timeout       current value: 5
-delayed_insert_timeout  current value: 300
-delayed_insert_limit  current value: 100
-delayed_queue_size    current value: 1000
-flush_time            current value: 0
-interactive_timeout   current value: 28800
-join_buffer_size      current value: 131072
-key_buffer_size       current value: 1048540
-lower_case_table_names  current value: 0
-long_query_time       current value: 10
-max_allowed_packet    current value: 1048576
-max_binlog_cache_size current_value: 4294967295
-max_connections       current value: 100
-max_connect_errors    current value: 10
-max_delayed_threads   current value: 20
-max_heap_table_size   current value: 16777216
-max_join_size         current value: 4294967295
-max_sort_length       current value: 1024
-max_tmp_tables        current value: 32
-max_write_lock_count  current value: 4294967295
+back_log                 current value: 5
+bdb_cache_size           current value: 1048540
+binlog_cache_size        current value: 32768
+connect_timeout          current value: 5
+delayed_insert_timeout   current value: 300
+delayed_insert_limit     current value: 100
+delayed_queue_size       current value: 1000
+flush_time               current value: 0
+interactive_timeout      current value: 28800
+join_buffer_size         current value: 131072
+key_buffer_size          current value: 1048540
+lower_case_table_names   current value: 0
+long_query_time          current value: 10
+max_allowed_packet       current value: 1048576
+max_binlog_cache_size    current value: 4294967295
+max_connections          current value: 100
+max_connect_errors       current value: 10
+max_delayed_threads      current value: 20
+max_heap_table_size      current value: 16777216
+max_join_size            current value: 4294967295
+max_sort_length          current value: 1024
+max_tmp_tables           current value: 32
+max_write_lock_count     current value: 4294967295
 myisam_sort_buffer_size  current value: 8388608
-net_buffer_length     current value: 16384
-net_retry_count       current value: 10
-net_read_timeout      current value: 30
-net_write_timeout     current value: 60
-query_buffer_size     current value: 0
-record_buffer         current value: 131072
-record_rnd_buffer     current value: 131072
-slow_launch_time      current value: 2
-sort_buffer           current value: 2097116
-table_cache           current value: 64
-thread_concurrency    current value: 10
-tmp_table_size        current value: 1048576
-thread_stack          current value: 131072
-wait_timeout          current value: 28800
+net_buffer_length        current value: 16384
+net_retry_count          current value: 10
+net_read_timeout         current value: 30
+net_write_timeout        current value: 60
+query_buffer_size        current value: 0
+record_buffer            current value: 131072
+record_rnd_buffer        current value: 131072
+slow_launch_time         current value: 2
+sort_buffer              current value: 2097116
+table_cache              current value: 64
+thread_concurrency       current value: 10
+tmp_table_size           current value: 1048576
+thread_stack             current value: 131072
+wait_timeout             current value: 28800
 @end example
 
 If there is a @code{mysqld} server currently running, you can see what
@@ -27389,7 +27389,7 @@ You can set a default value for this variable by starting @code{mysqld} with
 @item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
 @item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
 Set query cache setting for this thread.
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .70
 @item @strong{Option} @tab @strong{Description}
 @item 0 or OFF @tab Don't cache or retrieve results.
 @item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
@@ -28002,7 +28002,7 @@ introduced quoting of identifiers (database, table, and column names)
 with @samp{`}. @samp{"} will also work to quote identifiers if you run
 in ANSI mode. @xref{ANSI mode}.
 
-@multitable @columnfractions .15 .15 .70
+@multitable @columnfractions .15 .15 .65
 @item @strong{Identifier} @tab @strong{Max length} @tab @strong{Allowed characters}
 @item Database @tab 64 @tab Any character that is allowed in a directory name except @samp{/} or @samp{.}.
 @item Table @tab 64 @tab Any character that is allowed in a file name, except @samp{/} or @samp{.}.
@@ -28046,7 +28046,7 @@ expression @code{1e + 1} or as the number @code{1e+1}.
 
 In MySQL you can refer to a column using any of the following forms:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .30 .70
 @item @strong{Column reference} @tab @strong{Meaning}
 @item @code{col_name} @tab Column @code{col_name}
 from whichever table used in the query contains a column of that name.
@@ -28948,7 +28948,7 @@ section), it converts the value to the ``zero'' value for that type.
 the appropriate endpoint of the @code{TIME} range.)  The table below
 shows the format of the ``zero'' value for each type:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .15 .55
 @item @strong{Column type} @tab @strong{``Zero'' value}
 @item @code{DATETIME}      @tab @code{'0000-00-00 00:00:00'}
 @item @code{DATE}          @tab @code{'0000-00-00'}
@@ -29085,7 +29085,7 @@ values depends on the display size, as illustrated by the table below.  The
 `full' @code{TIMESTAMP} format is 14 digits, but @code{TIMESTAMP} columns may
 be created with shorter display sizes:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .25
 @item @strong{Column type}  @tab @strong{Display format}
 @item @code{TIMESTAMP(14)}  @tab @code{YYYYMMDDHHMMSS}
 @item @code{TIMESTAMP(12)}  @tab @code{YYMMDDHHMMSS}
@@ -29437,7 +29437,7 @@ and @code{VARCHAR(4)} columns:
 @c Need to use @(space) to make sure second column values retain spacing
 @c in output for table below.
 
-@multitable @columnfractions .2 .15 .2 .2 .25
+@multitable @columnfractions .15 .15 .20 .15 .20
 @item @strong{Value}  @tab @code{CHAR(4)}     @tab @strong{Storage required} @tab @code{VARCHAR(4)} @tab @strong{Storage required}
 @item @code{''}       @tab @code{'@ @ @ @ '} @tab 4 bytes @tab @code{''} @tab 1 byte
 @item @code{'ab'}     @tab @code{'ab@ @ '}   @tab 4 bytes @tab @code{'ab'} @tab 3 bytes
@@ -29603,7 +29603,7 @@ The index of the @code{NULL} value is @code{NULL}.
 For example, a column specified as @code{ENUM("one", "two", "three")} can
 have any of the values shown below.  The index of each value is also shown:
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .10 .10
 @item @strong{Value} @tab @strong{Index}
 @item @code{NULL}    @tab @code{NULL}
 @item @code{""}      @tab 0
@@ -29684,7 +29684,7 @@ set members in the column value.  Suppose a column is specified as
 @code{SET("a","b","c","d")}.  Then the members have the following bit
 values:
 
-@multitable @columnfractions .2 .2 .6
+@multitable @columnfractions .15 .20 .20
 @item @code{SET} @strong{member} @tab @strong{Decimal value} @tab @strong{Binary value}
 @item @code{a} @tab @code{1} @tab @code{0001}
 @item @code{b} @tab @code{2} @tab @code{0010}
@@ -29767,7 +29767,7 @@ vendors, MySQL maps column types as shown in the table below.  These
 mappings make it easier to move table definitions from other database engines
 to MySQL:
 
-@multitable @columnfractions .4 .6
+@multitable @columnfractions .25 .30
 @item @strong{Other vendor type}        @tab @strong{MySQL type}
 @item @code{BINARY(NUM)}		@tab @code{CHAR(NUM) BINARY}
 @item @code{CHAR VARYING(NUM)}		@tab @code{VARCHAR(NUM)}
@@ -29804,7 +29804,7 @@ MySQL are listed below by category.
 
 @subsubheading Storage requirements for numeric types
 
-@multitable @columnfractions .5 .5
+@multitable @columnfractions .35 .65
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{TINYINT}       @tab 1 byte
 @item @code{SMALLINT}      @tab 2 bytes
@@ -29828,7 +29828,7 @@ MySQL are listed below by category.
 
 @subsubheading Storage requirements for date and time types
 
-@multitable @columnfractions .5 .5
+@multitable @columnfractions .35 .65
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{DATE}          @tab 3 bytes
 @item @code{DATETIME}      @tab 8 bytes
@@ -29839,7 +29839,7 @@ MySQL are listed below by category.
 
 @subsubheading Storage requirements for string types
 
-@multitable @columnfractions .5 .5
+@multitable @columnfractions .35 .65
 @item @strong{Column type} @tab @strong{Storage required}
 @item @code{CHAR(M)} @tab @code{M} bytes, @code{1 <= M <= 255}
 @item @code{VARCHAR(M)} @tab @code{L}+1 bytes, where @code{L <= M} and
@@ -30415,7 +30415,7 @@ The default return type of @code{IF()} (which may matter when it is
 stored into a temporary table) is calculated in MySQL Version
 3.23 as follows:
 
-@multitable @columnfractions .55 .45
+@multitable @columnfractions .45 .15
 @item @strong{Expression} @tab @strong{Return value}
 @item expr2 or expr3 returns string @tab string
 @item expr2 or expr3 returns a floating-point value @tab floating-point
@@ -31059,7 +31059,7 @@ SQL simple regular expression comparison. Returns @code{1} (TRUE) or @code{0}
 (FALSE).  With @code{LIKE} you can use the following two wild-card characters
 in the pattern:
 
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .10 .60
 @item @strong{Char} @tab @strong{Description}
 @item @code{%} @tab Matches any number of characters, even zero characters
 @item @code{_} @tab Matches exactly one character
@@ -31076,7 +31076,7 @@ To test for literal instances of a wild-card character, precede the character
 with the escape character.  If you don't specify the @code{ESCAPE} character,
 @samp{\} is assumed:
 
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .10 .60
 @item @strong{String} @tab @strong{Description}
 @item @code{\%} @tab Matches one @code{%} character
 @item @code{\_} @tab Matches one @code{_} character
@@ -31934,7 +31934,7 @@ interval from the date.
 The following table shows how the @code{type} and @code{expr} arguments
 are related:
 
-@multitable @columnfractions .5 .5
+@multitable @columnfractions .25 .40
 @item @code{type} @strong{value} @tab @strong{Expected} @code{expr} @strong{format}
 @item @code{SECOND}        @tab @code{SECONDS}
 @item @code{MINUTE}        @tab @code{MINUTES}
@@ -32069,7 +32069,7 @@ the days that were lost when the calendar was changed.
 @item DATE_FORMAT(date,format)
 Formats the @code{date} value according to the @code{format} string. The
 following specifiers may be used in the @code{format} string:
-@multitable @columnfractions .1 .6
+@multitable @columnfractions .10 .65
 @item @strong{Specifier} @tab @strong{Description}
 @item @code{%M} @tab Month name (@code{January}..@code{December})
 @item @code{%W} @tab Weekday name (@code{Sunday}..@code{Saturday})
@@ -32552,7 +32552,7 @@ SSL support. @xref{Secure connections}.
 
 The encryption key to use is chosen the following way:
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .20 .65
 @item @strong{Argument} @tab @strong{Description}
 @item Only one argument @tab
 The first key from @code{des-key-file} is used.
@@ -33902,7 +33902,7 @@ thread (with @code{KILL thread_id}), or someone executes @code{FLUSH TABLES}.
 The following status variables provide information about @code{INSERT
 DELAYED} commands:
 
-@multitable @columnfractions .35 .65
+@multitable @columnfractions .30 .50
 @item @strong{Variable} @tab @strong{Meaning}
 @item @code{Delayed_insert_threads} @tab Number of handler threads
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}
@@ -34724,7 +34724,7 @@ tables, because normally each table corresponds to a @file{.MYD} file, a
 The @code{DROP DATABASE} command removes from the given database
 directory all files with the following extensions:
 
-@multitable @columnfractions .25 .25 .25 .25
+@multitable @columnfractions .10 .10 .10 .10
 @item @strong{Ext} @tab @strong{Ext} @tab @strong{Ext} @tab @strong{Ext}
 @item .BAK  @tab .DAT  @tab .HSH  @tab .ISD
 @item .ISM  @tab .ISM  @tab .MRG  @tab .MYD
@@ -34853,7 +34853,7 @@ identical.
 Each table @code{tbl_name} is represented by some files in the database
 directory. In the case of MyISAM-type tables you will get:
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .20 .30
 @item @strong{File} @tab @strong{Purpose}
 @item @code{tbl_name.frm} @tab Table definition (form) file
 @item @code{tbl_name.MYD} @tab Data file
@@ -35055,7 +35055,7 @@ implemented in MySQL Version 3.23 and above.
 
 The different table types are:
 
-@multitable @columnfractions .20 .80
+@multitable @columnfractions .25 .75
 @item @strong{Table type} @tab @strong{Description}
 @item BDB or Berkeley_db @tab Transaction-safe tables with page locking. @xref{BDB}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
@@ -35077,7 +35077,7 @@ The other table options are used to optimise the behavior of the
 table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
 
-@multitable @columnfractions .20 .80
+@multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
 @item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM).
 @item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for large tables with variable size records.
@@ -35832,7 +35832,7 @@ rolled back are not stored.  @xref{Binary log}.
 The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
-@multitable @columnfractions .33 .33 .33
+@multitable @columnfractions .20 .20 .20
 @item @strong{Command}      @tab @strong{Command}   @tab @strong{Command}
 @item @code{ALTER TABLE}    @tab @code{BEGIN}       @tab @code{CREATE INDEX}
 @item @code{DROP DATABASE}  @tab @code{DROP TABLE}  @tab @code{RENAME TABLE}
@@ -36410,7 +36410,7 @@ Transactional @code{InnoDB} tables that have been changed will be invalidated
 when a @code{COMMIT} is performed.
 
 A query cannot be cached if it contains one of the functions:
-@multitable @columnfractions .25 .25 .25 .25
+@multitable @columnfractions .25 .30 .25 .35
 @item @strong{Function} @tab @strong{Function}
  @tab @strong{Function} @tab @strong{Function}
 @item @code{User Defined Functions} @tab @code{CONNECTION_ID}
@@ -36458,7 +36458,7 @@ If this is 0, the query cache is disabled (default).
 
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .10 .75
 @item @strong{Option} @tab @strong{Description}
 @item 0 @tab (OFF, don't cache or retrieve results)
 @item 1 @tab (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries)
@@ -36473,7 +36473,7 @@ changed from the default. The syntax is as follows:
 @code{SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND}
 @code{SQL_QUERY_CACHE_TYPE = 0   | 1  | 2}
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .70
 @item @strong{Option} @tab @strong{Description}
 @item 0 or OFF @tab Don't cache or retrieve results.
 @item 1 or ON @tab Cache all results except @code{SELECT SQL_NO_CACHE ...} queries.
@@ -36493,7 +36493,7 @@ specified in a @code{SELECT} query:
 @findex SQL_CACHE
 @findex SQL_NO_CACHE
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .80
 @item @strong{Option} @tab @strong{Description}
 @item @code{SQL_CACHE}
  @tab If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND}, allow the query to be cached.
@@ -36517,7 +36517,7 @@ query cache.
 
 You can monitor query cache performance in @code{SHOW STATUS}:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .30 .50
 @item @strong{Variable} @tab @strong{Description}
 @item @code{Qcache_queries_in_cache}
  @tab Number of queries registered in the cache.
@@ -39482,7 +39482,7 @@ the changes).
 The following options to @code{mysqld} can be used to change the behavior of
 BDB tables:
 
-@multitable @columnfractions .30 .70
+@multitable @columnfractions .25 .55
 @item @strong{Option} @tab @strong{Description}
 @item @code{--bdb-home=directory} @tab  Base directory for BDB tables. This should be the same directory you use for --datadir.
 @item @code{--bdb-lock-detect=#} @tab  Berkeley lock detect. One of (DEFAULT, OLDEST, RANDOM, or YOUNGEST).
@@ -39833,7 +39833,7 @@ Installation instructions for MySQL Perl support are given in
 @noindent
 @strong{Portable DBI Methods}
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .25 .60
 @item @strong{Method} @tab @strong{Description}
 @item @code{connect} @tab Establishes a connection to a database server.
 @item @code{disconnect} @tab Disconnects from the database server.
@@ -39857,7 +39857,7 @@ Installation instructions for MySQL Perl support are given in
 @noindent
 @strong{MySQL-specific Methods}
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .25 .60
 @item @strong{Method} @tab @strong{Description}
 @item @code{insertid} @tab The latest @code{AUTO_INCREMENT} value.
 @item @code{is_blob} @tab Which columns are @code{BLOB} values.
@@ -40503,7 +40503,7 @@ the @code{[Servername]} section of an @code{ODBC.INI} file or
 through  the @code{InConnectionString} argument in the
 @code{SQLDriverConnect()} call.
 
-@multitable @columnfractions .2 .2 .6
+@multitable @columnfractions .15 .25 .65
 @item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
 @item user @tab ODBC (on Windows) @tab The username used to connect to MySQL.
 @item server @tab localhost @tab The hostname of the MySQL server.
@@ -40521,7 +40521,7 @@ toggling the different options on the connection screen but one can also
 set this in the opton argument. The following options are listed in the
 same order as they appear in the @strong{MyODBC} connect screen:
 
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .10 .90
 @item @strong{Bit} @tab @strong{Description}
 @item 1 @tab The client can't handle that @strong{MyODBC} returns the real width of a column.
 @item 2 @tab  The client can't handle that MySQL returns the true value of affected rows.  If this flag is set then MySQL returns 'found rows' instead.  One must have MySQL 3.21.14 or newer to get this to work.
@@ -41116,7 +41116,7 @@ only if you use @code{mysql_list_fields()}.
 The type of the field.
 The @code{type} value may be one of the following:
 
-@multitable @columnfractions .3 .55
+@multitable @columnfractions .30 .50
 @item @strong{Type value}                @tab @strong{Type description}
 @item @code{FIELD_TYPE_TINY}            @tab @code{TINYINT} field
 @item @code{FIELD_TYPE_SHORT}           @tab @code{SMALLINT} field
@@ -41162,7 +41162,7 @@ value of this variable is zero.
 Different bit-flags for the field.  The @code{flags} value may have zero
 or more of the following bits set:
 
-@multitable @columnfractions .3 .55
+@multitable @columnfractions .30 .45
 @item @strong{Flag value}         @tab @strong{Flag description}
 @item @code{NOT_NULL_FLAG}       @tab Field can't be @code{NULL}
 @item @code{PRI_KEY_FLAG}        @tab Field is part of a primary key
@@ -41196,7 +41196,7 @@ if (field->flags & NOT_NULL_FLAG)
 You may use the following convenience macros to determine the boolean
 status of the @code{flags} value:
 
-@multitable @columnfractions .3 .5
+@multitable @columnfractions .25 .50
 @item @strong{Flag status} @tab @strong{Description}
 @item @code{IS_NOT_NULL(flags)} @tab True if this field is defined as @code{NOT NULL}
 @item @code{IS_PRI_KEY(flags)}  @tab True if this field is a primary key
@@ -41218,7 +41218,7 @@ The functions available in the C API are listed below and are described in
 greater detail in the next section.
 @xref{C API functions}.
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .30 .70
 @item @strong{Function} @tab @strong{Description}
 
 @item @strong{mysql_affected_rows()} @tab
@@ -42955,7 +42955,7 @@ argument is the value for the option. If the option is an integer, then
 
 Possible options values:
 
-@multitable @columnfractions .25 .25 .5
+@multitable @columnfractions .40 .25 .35
 @item @strong{Option} @tab @strong{Argument type} @tab @strong{Function}
 @item @code{MYSQL_OPT_CONNECT_TIMEOUT} @tab @code{unsigned int *} @tab Connect timeout in seconds.
 @item @code{MYSQL_OPT_COMPRESS} @tab Not used @tab Use the compressed client/server protocol.
@@ -42971,7 +42971,7 @@ Note that the group @code{client} is always read if you use
 
 The specified group in the option file may contain the following options:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .20 .60
 @item @strong{Option} @tab @strong{Description}
 @item @code{connect-timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
 @item @code{compress} @tab Use the compressed client/server protocol.
@@ -43162,7 +43162,7 @@ parameter determines the type of the connection.
 The value of @code{client_flag} is usually 0, but can be set to a combination
 of the following flags in very special circumstances:
 
-@multitable @columnfractions .25 .7
+@multitable @columnfractions .30 .70
 @item @strong{Flag name}       @tab @strong{Flag description}
 @item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
@@ -44167,7 +44167,7 @@ client/server version.  To change an old threaded application to use the
 embedded library, you normally only have to add calls to the following
 functions:
 
-@multitable @columnfractions .25 .7
+@multitable @columnfractions .25 .65
 @item @strong{Function} @tab @strong{When to call}
 @item @code{mysql_server_init()} @tab Should be called before any other other MySQL function is called, preferably early in the @code{main()} function.
 @item @code{mysql_server_end()} @tab Should be called before your program exits.
@@ -44994,7 +44994,7 @@ The main function.  This is where the function result is computed.
 The correspondence between the SQL type and return type of your C/C++
 function is shown below:
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .15 .15
 @item @strong{SQL type} @tab @strong{C/C++ type}
 @item @code{STRING}     @tab @code{char *}
 @item @code{INTEGER}    @tab @code{long long}
@@ -45837,7 +45837,7 @@ to do an automatic reconnection.
 You normally can get the following error codes in this case
 (which one you get is OS-dependent):
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .35 .60
 @item @strong{Error code} @tab @strong{Description}
 @item @code{CR_SERVER_GONE_ERROR} @tab The client couldn't send a question to the
 server.
@@ -55703,7 +55703,7 @@ flag[,modifier,modifier,...,modifier]
 
 The currently recognised flag characters are:
 
-@multitable @columnfractions .1 .9
+@multitable @columnfractions .05 .95
 @item @strong{Flag} @tab @strong{Description}
 @item d	@tab Enable output from DBUG_<N> macros for the current state. May be followed by a list of keywords which selects output only for the DBUG macros with that keyword. An empty list of keywords implies output for all macros.
 @item D	@tab Delay after each debugger output line. The argument is the number of tenths of seconds to delay, subject to machine capabilities. That is, @code{-#D,20} is delay two seconds.
@@ -56063,7 +56063,7 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 @tindex USER environment variable
 @tindex Environment variable, USER
 
-@multitable @columnfractions .2 .8
+@multitable @columnfractions .25 .70
 @item @strong{Variable} @tab @strong{Description}
 @item @code{CCX}  @tab Set this to your C++ compiler when running configure.
 @item @code{CC}  @tab Set this to your C compiler when running configure.
@@ -56242,7 +56242,7 @@ Within a bracket expression, the name of a character class enclosed in
 @code{[:} and @code{:]} stands for the list of all characters belonging
 to that class. Standard character class names are:
 
-@multitable @columnfractions .33 .33 .33
+@multitable @columnfractions .10 .10 .10
 @item @strong{Name} @tab @strong{Name} @tab @strong{Name}
 @item alnum @tab digit @tab punct
 @item alpha @tab graph @tab space
