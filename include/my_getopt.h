@@ -45,3 +45,8 @@ struct my_option
   my_bool    opt_is_var;                /* If true, the option is a variable */
 };
 
+extern int handle_options (int *argc, char ***argv, 
+			   const struct my_option *longopts, 
+			   my_bool (*get_one_option)(int,
+						     const struct my_option *,
+						     char *));

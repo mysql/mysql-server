@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 create table t1 (id int primary key);
 create table t2 (id int);
 insert into t1 values (75);
@@ -116,3 +116,73 @@ SELECT * from t1 WHERE t1.d IS NULL;
 d
 0000-00-00
 DROP TABLE t1,t2;
+CREATE TABLE t1 (
+Document_ID varchar(50) NOT NULL default '',
+Contractor_ID varchar(6) NOT NULL default '',
+Language_ID char(3) NOT NULL default '',
+Expiration_Date datetime default NULL,
+Publishing_Date datetime default NULL,
+Title text,
+Column_ID varchar(50) NOT NULL default '',
+PRIMARY KEY  (Language_ID,Document_ID,Contractor_ID)
+);
+INSERT INTO t1 VALUES ('xep80','1','ger','2001-12-31 20:00:00','2001-11-12 10:58:00','Kartenbestellung - jetzt auch online','anle'),('','999998','',NULL,NULL,NULL,'');
+CREATE TABLE t2 (
+Contractor_ID char(6) NOT NULL default '',
+Language_ID char(3) NOT NULL default '',
+Document_ID char(50) NOT NULL default '',
+CanRead char(1) default NULL,
+Customer_ID int(11) NOT NULL default '0',
+PRIMARY KEY  (Contractor_ID,Language_ID,Document_ID,Customer_ID)
+);
+INSERT INTO t2 VALUES ('5','ger','xep80','1',999999),('1','ger','xep80','1',999999);
+CREATE TABLE t3 (
+Language_ID char(3) NOT NULL default '',
+Column_ID char(50) NOT NULL default '',
+Contractor_ID char(6) NOT NULL default '',
+CanRead char(1) default NULL,
+Active char(1) default NULL,
+PRIMARY KEY  (Language_ID,Column_ID,Contractor_ID)
+);
+INSERT INTO t3 VALUES ('ger','home','1','1','1'),('ger','Test','1','0','0'),('ger','derclu','1','0','0'),('ger','clubne','1','0','0'),('ger','philos','1','0','0'),('ger','clubko','1','0','0'),('ger','clubim','1','1','1'),('ger','progra','1','0','0'),('ger','progvo','1','0','0'),('ger','progsp','1','0','0'),('ger','progau','1','0','0'),('ger','progku','1','0','0'),('ger','progss','1','0','0'),('ger','nachl','1','0','0'),('ger','mitgli','1','0','0'),('ger','mitsu','1','0','0'),('ger','mitbus','1','0','0'),('ger','ergmar','1','1','1'),('ger','home','4','1','1'),('ger','derclu','4','1','1'),('ger','clubne','4','0','0'),('ger','philos','4','1','1'),('ger','clubko','4','1','1'),('ger','clubim','4','1','1'),('ger','progra','4','1','1'),('ger','progvo','4','1','1'),('ger','progsp','4','1','1'),('ger','progau','4','0','0'),('ger','progku','4','1','1'),('ger','progss','4','1','1'),('ger','nachl','4','1','1'),('ger','mitgli','4','0','0'),('ger','mitsu','4','0','0'),('ger','mitbus','4','0','0'),('ger','ergmar','4','1','1'),('ger','progra2','1','0','0'),('ger','archiv','4','1','1'),('ger','anmeld','4','1','1'),('ger','thema','4','1','1'),('ger','edito','4','1','1'),('ger','madis','4','1','1'),('ger','enma','4','1','1'),('ger','madis','1','1','1'),('ger','enma','1','1','1'),('ger','vorsch','4','0','0'),('ger','veranst','4','0','0'),('ger','anle','4','1','1'),('ger','redak','4','1','1'),('ger','nele','4','1','1'),('ger','aukt','4','1','1'),('ger','callcenter','4','1','1'),('ger','anle','1','0','0');
+delete from t1 where Contractor_ID='999998';
+insert into t1 (Contractor_ID) Values ('999998');
+SELECT DISTINCT COUNT(t1.Title) FROM t1,
+t2, t3 WHERE 
+t1.Document_ID='xep80' AND t1.Contractor_ID='1' AND 
+t1.Language_ID='ger' AND '2001-12-21 23:14:24' >= 
+Publishing_Date AND '2001-12-21 23:14:24' <= Expiration_Date AND 
+t1.Document_ID = t2.Document_ID AND 
+t1.Language_ID = t2.Language_ID AND 
+t1.Contractor_ID = t2.Contractor_ID AND ( 
+t2.Customer_ID = '4'  OR 
+t2.Customer_ID = '999999'  OR 
+t2.Customer_ID = '1' )AND t2.CanRead 
+= '1'  AND t1.Column_ID=t3.Column_ID AND 
+t1.Language_ID=t3.Language_ID AND ( 
+t3.Contractor_ID = '4'  OR 
+t3.Contractor_ID = '999999'  OR 
+t3.Contractor_ID = '1') AND 
+t3.CanRead='1' AND t3.Active='1';
+COUNT(t1.Title)
+1
+SELECT DISTINCT COUNT(t1.Title) FROM t1,
+t2, t3 WHERE 
+t1.Document_ID='xep80' AND t1.Contractor_ID='1' AND 
+t1.Language_ID='ger' AND '2001-12-21 23:14:24' >= 
+Publishing_Date AND '2001-12-21 23:14:24' <= Expiration_Date AND 
+t1.Document_ID = t2.Document_ID AND 
+t1.Language_ID = t2.Language_ID AND 
+t1.Contractor_ID = t2.Contractor_ID AND ( 
+t2.Customer_ID = '4'  OR 
+t2.Customer_ID = '999999'  OR 
+t2.Customer_ID = '1' )AND t2.CanRead 
+= '1'  AND t1.Column_ID=t3.Column_ID AND 
+t1.Language_ID=t3.Language_ID AND ( 
+t3.Contractor_ID = '4'  OR 
+t3.Contractor_ID = '999999'  OR 
+t3.Contractor_ID = '1') AND 
+t3.CanRead='1' AND t3.Active='1';
+COUNT(t1.Title)
+1
+drop table t1,t2,t3;

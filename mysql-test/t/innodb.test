@@ -532,9 +532,10 @@ drop database mysqltest;
 show tables from mysqltest;
 
 #
-# Test truncate table
+# Test truncate table with and without auto_commit
 #
 
+set autocommit=0;
 create table t1 (a int not null) type= innodb;
 insert into t1 values(1),(2);
 --error 1192
@@ -546,6 +547,18 @@ insert into t1 values(1),(2);
 delete from t1;
 select * from t1;
 commit;
+drop table t1;
+set autocommit=1;
+
+create table t1 (a int not null) type= innodb;
+insert into t1 values(1),(2);
+truncate table t1;
+insert into t1 values(1),(2);
+select * from t1;
+truncate table t1;
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
 drop table t1;
 
 #

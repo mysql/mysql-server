@@ -94,6 +94,7 @@ void load_defaults(const char *conf_file, const char **groups,
     res[0]= **argv;				/* Copy program name */
     for (i=2 ; i < (uint) *argc ; i++)
       res[i-1]=argv[0][i];
+    res[i-1]=0;					/* End pointer */
     (*argc)--;
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
