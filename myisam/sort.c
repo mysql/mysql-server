@@ -701,7 +701,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, byte *,byte*)) info->key_cmp,
-                 (void*) info->sort_info))
+                 (void*) info))
     DBUG_RETURN(1); /* purecov: inspected */
 
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
