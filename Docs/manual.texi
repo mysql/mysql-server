@@ -5700,17 +5700,17 @@ AIX 4.x with native threads.  @xref{IBM-AIX}.
 @item
 Amiga.
 @item
-BSDI 2.x with the included MIT-pthreads package.  @xref{BSDI}.
+BSDI 2.x with the MIT-pthreads package.  @xref{BSDI}.
 @item
 BSDI 3.0, 3.1 and 4.x with native threads.  @xref{BSDI}.
 @item
 DEC Unix 4.x with native threads.  @xref{Alpha-DEC-UNIX}.
 @item
-FreeBSD 2.x with the included MIT-pthreads package.  @xref{FreeBSD}.
+FreeBSD 2.x with the MIT-pthreads package.  @xref{FreeBSD}.
 @item
 FreeBSD 3.x and 4.x with native threads.  @xref{FreeBSD}.
 @item
-HP-UX 10.20 with the DCE threads or the included MIT-pthreads package.
+HP-UX 10.20 with the DCE threads or the MIT-pthreads package.
 @xref{HP-UX 10.20}.
 @item
 HP-UX 11.x with the native threads.  @xref{HP-UX 11.x}.
@@ -5721,7 +5721,7 @@ Mac OS X Server.  @xref{Mac OS X}.
 @item
 NetBSD 1.3/1.4 Intel and NetBSD 1.3 Alpha (Requires GNU make).  @xref{NetBSD}.
 @item
-OpenBSD > 2.5 with native threads. OpenBSD < 2.5 with the included
+OpenBSD > 2.5 with native threads. OpenBSD < 2.5 with the
 MIT-pthreads package.  @xref{OpenBSD}.
 @item
 OS/2 Warp 3, FixPack 29 and OS/2 Warp 4, FixPack 4.  @xref{OS/2}.
@@ -5730,7 +5730,7 @@ SGI Irix 6.x with native threads.  @xref{SGI-Irix}.
 @item
 Solaris 2.5 and above with native threads on SPARC and x86.  @xref{Solaris}.
 @item
-SunOS 4.x with the included MIT-pthreads package.  @xref{Solaris}.
+SunOS 4.x with the MIT-pthreads package.  @xref{Solaris}.
 @item
 Caldera (SCO) OpenServer with a recent port of the FSU Pthreads package. 
 @xref{Caldera}.
@@ -7331,8 +7331,9 @@ during the part of the configuration process that deals with the server
 code.  If you have configured the distribution using @code{--without-server}
 to build only the client code, clients will not know whether
 MIT-pthreads is being used and will use Unix socket connections by default.
-Because Unix sockets do not work under MIT-pthreads, this means you will need
-to use @code{-h} or @code{--host} when you run client programs.
+Because Unix sockets do not work under MIT-pthreads on some platforms, this
+means you will need to use @code{-h} or @code{--host} when you run client
+programs.
 
 @item
 When MySQL is compiled using MIT-pthreads, system locking is
@@ -15158,9 +15159,10 @@ tables must be IP numbers or @code{localhost}.
 
 @item --skip-networking
 Don't allow TCP/IP connections over the network.  All connections to
-@code{mysqld} must be made via Unix sockets. This option is unsuitable for
-systems that use MIT-pthreads, because the MIT-pthreads package doesn't
-support Unix sockets.
+@code{mysqld} must be made via Unix sockets.
+This option is unsuitable when using a MySQL version prior to 3.23.27 with
+the MIT-pthreads package, because Unix sockets were not supported by
+MIT-pthreads at that time.
 
 @item --skip-show-database
 Don't allow @code{SHOW DATABASES} command, unless the user has the
@@ -16192,9 +16194,10 @@ password} command.
 @code{localhost} is a synonym for your local hostname, and is also the
 default host to which clients try to connect if you specify no host
 explicitly.  However, connections to @code{localhost} do not work if you are
-running on a system that uses MIT-pthreads (@code{localhost} connections are
-made using Unix sockets, which are not supported by MIT-pthreads).  To avoid
-this problem on such systems, you should use the @code{--host} option to name
+using a MySQL version prior to 3.23.27 that uses MIT-pthreads
+(@code{localhost} connections are made using Unix sockets, which were not
+supported by MIT-pthreads at that time).  To avoid this problem on such
+systems, you should use the @code{--host} option to name
 the server host explicitly.  This will make a TCP/IP connection to the
 @code{mysqld} server.  In this case, you must have your real hostname in
 @code{user} table entries on the server host.  (This is true even if you are
@@ -46526,7 +46529,7 @@ error might occur:
 You are running on a system that uses MIT-pthreads.
 If you are running on a system that doesn't have native threads,
 @code{mysqld} uses the MIT-pthreads package.  @xref{Which OS}.  However,
-all MIT-pthreads versions doesn't support Unix sockets. On a system
+not all MIT-pthreads versions support Unix sockets. On a system
 without sockets support you must always specify the hostname explicitly
 when connecting to the server. Try using this command to check the
 connection to the server:
