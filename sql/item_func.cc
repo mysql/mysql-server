@@ -1742,7 +1742,7 @@ public:
     pthread_cond_init(&cond,NULL);
     if (key)
     {
-      if (hash_insert(&hash_user_locks,(byte*) this))
+      if (my_hash_insert(&hash_user_locks,(byte*) this))
       {
 	my_free((gptr) key,MYF(0));
 	key=0;
@@ -2103,7 +2103,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
-    if (hash_insert(hash,(byte*) entry))
+    if (my_hash_insert(hash,(byte*) entry))
     {
       my_free((char*) entry,MYF(0));
       return 0;

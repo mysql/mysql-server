@@ -1925,7 +1925,7 @@ void set_var_init()
   {
     (*var)->name_length= strlen((*var)->name);
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
-    hash_insert(&system_variable_hash, (byte*) *var);
+    my_hash_insert(&system_variable_hash, (byte*) *var);
   }
   /*
     Special cases

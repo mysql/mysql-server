@@ -7196,7 +7196,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) hash_insert(&hash, key_pos-key_length);
+      (void) my_hash_insert(&hash, key_pos-key_length);
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
