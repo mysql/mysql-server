@@ -21,15 +21,13 @@
 #include "sql_acl.h"
 #include "slave.h"
 #include "sql_repl.h"
+#include "repl_failsafe.h"
 #include "stacktrace.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innobase.h"
-#endif
-#ifdef HAVE_GEMINI_DB
-#include "ha_gemini.h"
 #endif
 #include "ha_myisam.h"
 #include <nisam.h>
@@ -183,11 +181,6 @@ SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_berkeley_db=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_GEMINI_DB
-SHOW_COMP_OPTION have_gemini=SHOW_OPTION_YES;
-#else
-SHOW_COMP_OPTION have_gemini=SHOW_OPTION_NO;
-#endif
 #ifdef HAVE_INNOBASE_DB
 SHOW_COMP_OPTION have_innodb=SHOW_OPTION_YES;
 #else
@@ -332,9 +325,8 @@ const char *sql_mode_str="OFF";
 const char *default_tx_isolation_name;
 enum_tx_isolation default_tx_isolation=ISO_READ_COMMITTED;
 
-#ifdef HAVE_GEMINI_DB
-const char *gemini_recovery_options_str="FULL";
-#endif
+uint rpl_recovery_rank=0;
+
 my_string mysql_unix_port=NULL, mysql_tmpdir=NULL, allocated_mysql_tmpdir=NULL;
 ulong my_bind_addr;			/* the address we bind to */
 DATE_FORMAT dayord;
@@ -1238,9 +1230,6 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if(!(test_flags & TEST_NO_STACKTRACE))
   {
-#ifdef HAVE_GEMINI_DB
-    utrace();
-#endif
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -1696,6 +1685,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
@@ -1704,6 +1694,7 @@ int main(int argc, char **argv)
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
   (void) pthread_cond_init(&COND_slave_start, NULL);
+  (void) pthread_cond_init(&COND_rpl_status, NULL);
   init_signals();
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
@@ -2598,17 +2589,16 @@ enum options {
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
                OPT_INNODB_FLUSH_METHOD, 
                OPT_SAFE_SHOW_DB,
-	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
+	       OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
-	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
-               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
 	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
 	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
                OPT_DO_PSTACK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE
+               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
+	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE
 };
 
 static struct option long_options[] = {
@@ -2644,11 +2634,7 @@ static struct option long_options[] = {
   {"enable-pstack",         no_argument,       0, (int) OPT_DO_PSTACK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
-#ifdef HAVE_GEMINI_DB
-  {"gemini-flush-log-at-commit",no_argument,   0, (int) OPT_GEMINI_FLUSH_LOG},
-  {"gemini-recovery",	    required_argument, 0, (int) OPT_GEMINI_RECOVER},
-  {"gemini-unbuffered-io",  no_argument,       0, (int) OPT_GEMINI_UNBUFFERED_IO},
-#endif
+  {"init-rpl-role",         required_argument, 0, (int) OPT_INIT_RPL_ROLE},
   /* We must always support this option to make scripts like mysqltest easier
      to do */
   {"innodb_data_file_path", required_argument, 0,
@@ -2733,6 +2719,7 @@ static struct option long_options[] = {
   {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
+  {"rpl-recovery-rank",     required_argument, 0, (int) OPT_RPL_RECOVERY_RANK},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
@@ -2742,7 +2729,6 @@ static struct option long_options[] = {
      (int) OPT_SHOW_SLAVE_AUTH_INFO},
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
   {"skip-innodb",           no_argument,       0, (int) OPT_INNODB_SKIP},
-  {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
   {"skip-grant-tables",     no_argument,       0, (int) OPT_SKIP_GRANT},
@@ -2810,22 +2796,6 @@ CHANGEABLE_VAR changeable_vars[] = {
       HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1 },
   { "ft_max_word_len_for_sort",(long*) &ft_max_word_len_for_sort,
       20, 4, HA_FT_MAXLEN, 0, 1 },
-#ifdef HAVE_GEMINI_DB
-  { "gemini_buffer_cache",     (long*) &gemini_buffer_cache,
-      128 * 8192, 16, LONG_MAX, 0, 1 },
-  { "gemini_connection_limit", (long*) &gemini_connection_limit,
-      100, 10, LONG_MAX, 0, 1 },
-  { "gemini_io_threads",       (long*) &gemini_io_threads,
-      2, 0, 256, 0, 1 },
-  { "gemini_log_cluster_size", (long*) &gemini_log_cluster_size,
-      256 * 1024, 16 * 1024, LONG_MAX, 0, 1 },
-  { "gemini_lock_table_size",  (long*) &gemini_locktablesize,
-      4096, 1024, LONG_MAX, 0, 1 },
-  { "gemini_lock_wait_timeout",(long*) &gemini_lock_wait_timeout,
-      10, 1, LONG_MAX, 0, 1 },
-  { "gemini_spin_retries",     (long*) &gemini_spin_retries,
-      1, 0, LONG_MAX, 0, 1 },
-#endif
 #ifdef HAVE_INNOBASE_DB
   {"innodb_mirrored_log_groups",
    (long*) &innobase_mirrored_log_groups, 1, 1, 10, 0, 1},
@@ -2961,18 +2931,7 @@ struct show_var_st init_vars[]= {
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
-#ifdef HAVE_GEMINI_DB
-  {"gemini_buffer_cache",     (char*) &gemini_buffer_cache,         SHOW_LONG},
-  {"gemini_connection_limit", (char*) &gemini_connection_limit,     SHOW_LONG},
-  {"gemini_io_threads",       (char*) &gemini_io_threads,           SHOW_LONG},
-  {"gemini_log_cluster_size", (char*) &gemini_log_cluster_size,     SHOW_LONG}, 
-  {"gemini_lock_table_size",  (char*) &gemini_locktablesize,        SHOW_LONG}, 
-  {"gemini_lock_wait_timeout",(char*) &gemini_lock_wait_timeout,    SHOW_LONG}, 
-  {"gemini_recovery_options", (char*) &gemini_recovery_options_str, SHOW_CHAR_PTR},
-  {"gemini_spin_retries",     (char*) &gemini_spin_retries,         SHOW_LONG},
-#endif
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
-  {"have_gemini",	      (char*) &have_gemini,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -3032,6 +2991,7 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
+  {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
@@ -3096,6 +3056,8 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
+  {"Rpl_status",               (char*) 0,
+   SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
   {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
   {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
@@ -3288,16 +3250,6 @@ static void usage(void)
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
 ");
 #endif /* HAVE_BERKELEY_DB */
-#ifdef HAVE_GEMINI_DB
-  puts("\
-  --gemini-recovery=mode  Set Crash Recovery operating mode\n\
-                          (FULL, NONE, FORCE - default FULL)\n\
-  --gemini-flush-log-at-commit\n\
-                          Every commit forces a write to the reovery log\n\
-  --gemini-unbuffered-io  Use unbuffered i/o\n\
-  --skip-gemini		  Don't use gemini (will save memory)\n\
-");
-#endif
 #ifdef HAVE_INNOBASE_DB
   puts("\
   --innodb_data_home_dir=dir   The common part for Innodb table spaces\n\
@@ -3452,6 +3404,9 @@ static void get_options(int argc,char **argv)
       safemalloc_mem_limit = atoi(optarg);
 #endif      
       break;
+    case OPT_RPL_RECOVERY_RANK:
+      rpl_recovery_rank=atoi(optarg);
+      break;
     case OPT_SLAVE_LOAD_TMPDIR:
       slave_load_tmpdir = my_strdup(optarg, MYF(MY_FAE));
       break;
@@ -3540,6 +3495,17 @@ static void get_options(int argc,char **argv)
       opt_log_slave_updates = 1;
       break;
 
+    case (int) OPT_INIT_RPL_ROLE:
+    {
+      int role;
+      if ((role=find_type(optarg, &rpl_role_typelib, 2)) <= 0)
+      {
+	fprintf(stderr, "Unknown replication role: %s\n", optarg);
+	exit(1);
+      }
+      rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
+      break;
+    }
     case (int)OPT_REPLICATE_IGNORE_DB:
       {
 	i_string *db = new i_string(optarg);
@@ -3869,27 +3835,6 @@ static void get_options(int argc,char **argv)
 #ifdef HAVE_BERKELEY_DB
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
-#endif
-      break;
-    case OPT_GEMINI_SKIP:
-#ifdef HAVE_GEMINI_DB
-      gemini_skip=1;
-      have_gemini=SHOW_OPTION_DISABLED;  
-      break;
-    case OPT_GEMINI_RECOVER:
-      gemini_recovery_options_str=optarg;
-      if ((gemini_recovery_options=
-	   find_bit_type(optarg, &gemini_recovery_typelib)) == ~(ulong) 0)
-      {
-        fprintf(stderr, "Unknown option to gemini-recovery: %s\n",optarg);
-        exit(1);
-      }
-      break;
-    case OPT_GEMINI_FLUSH_LOG:
-      gemini_options |= GEMOPT_FLUSH_LOG;
-      break;
-    case OPT_GEMINI_UNBUFFERED_IO:
-      gemini_options |= GEMOPT_UNBUFFERED_IO;
 #endif
       break;
     case OPT_INNODB_SKIP:
@@ -4438,68 +4383,6 @@ static int get_service_parameters()
     {
       SET_CHANGEABLE_VARVAL( "thread_concurrency" );
     }
-#ifdef HAVE_GEMINI_DB
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiLazyCommit")) == 0 )
-    {
-      CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      if ( *lpdwValue )
-	gemini_options |= GEMOPT_FLUSH_LOG;
-      else
-	gemini_options &= ~GEMOPT_FLUSH_LOG;
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiFullRecovery")) == 0 )
-    {
-      CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      if ( *lpdwValue )
-	gemini_options &= ~GEMOPT_NO_CRASH_PROTECTION;
-      else
-	gemini_options |= GEMOPT_NO_CRASH_PROTECTION;
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiNoRecovery")) == 0 )
-    {
-      CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      if ( *lpdwValue )
-	gemini_options |= GEMOPT_NO_CRASH_PROTECTION;
-      else
-	gemini_options &= ~GEMOPT_NO_CRASH_PROTECTION;
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiUnbufferedIO")) == 0 )
-    {
-      CHECK_KEY_TYPE( REG_DWORD, szKeyValueName );
-      if ( *lpdwValue )
-	gemini_options |= GEMOPT_UNBUFFERED_IO;
-      else
-	gemini_options &= ~GEMOPT_UNBUFFERED_IO;
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiLockTableSize")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_lock_table_size" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiBufferCache")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_buffer_cache" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiSpinRetries")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_spin_retries" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiIoThreads")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_io_threads" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiConnectionLimit")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_connection_limit" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiLogClusterSize")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_log_cluster_size" );
-    }
-    else if ( lstrcmp(szKeyValueName, TEXT("GeminiLockWaitTimeout")) == 0 )
-    {
-      SET_CHANGEABLE_VARVAL( "gemini_lock_wait_timeout" );
-    }
-#endif
     else
     {
       TCHAR szErrorMsg [ 512 ];

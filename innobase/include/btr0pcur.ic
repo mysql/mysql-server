@@ -19,8 +19,8 @@ btr_pcur_get_rel_pos(
 	ut_ad(cursor);
 	ut_ad(cursor->old_rec);
 	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
-	ut_ad((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
-			|| (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
+	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
+			|| cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	return(cursor->rel_pos);
 }

@@ -598,6 +598,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   thd->proc_info="creating table";
 
+  create_info->create_statement = thd->query;
   create_info->table_options=db_options;
   if (rea_create_table(path, create_info, fields, key_count,
 		       key_info_buffer))
@@ -1192,12 +1193,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
         if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
 	  error= -1;
       }
-      if (!error && (error=ha_commit_rename(thd)))
-      {
-        my_error(ER_GET_ERRNO,MYF(0),error);
-        error=1;
-      }
-
       VOID(pthread_cond_broadcast(&COND_refresh));
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
@@ -1704,7 +1699,6 @@ end_temporary:
   DBUG_RETURN(0);
 
  err:
-  (void) ha_commit_rename(thd);	// Just for safety
   DBUG_RETURN(-1);
 }
 

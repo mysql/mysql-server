@@ -7362,7 +7362,7 @@ static void *yy_flex_alloc( size )
 unsigned int size;
 #endif
 	{
-	return (void *) malloc( size );
+	return (void *) mem_alloc( size );
 	}
 
 #ifdef YY_USE_PROTOS
@@ -7373,7 +7373,7 @@ void *ptr;
 unsigned int size;
 #endif
 	{
-	return (void *) realloc( ptr, size );
+	return (void *) mem_realloc( ptr, size );
 	}
 
 #ifdef YY_USE_PROTOS
@@ -7383,6 +7383,6 @@ static void yy_flex_free( ptr )
 void *ptr;
 #endif
 	{
-	free( ptr );
+	mem_free( ptr );
 	}
 

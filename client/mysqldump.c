@@ -1150,9 +1150,9 @@ static void dumpTable(uint numFields, char *table)
     }
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
-    mysql_free_result(res);
     if (opt_autocommit)
       fprintf(md_result_file, "commit;\n");
+    mysql_free_result(res);
   }
 } /* dumpTable */
 

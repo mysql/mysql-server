@@ -93,7 +93,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  gemini_spin_retries=0;
   cuted_fields=sent_row_count=0L;
   start_time=(time_t) 0;
   current_linfo =  0;
@@ -109,9 +108,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   system_thread=cleanup_done=0;
 #ifdef	__WIN__
   real_id = 0;
-#endif
-#ifdef HAVE_GEMINI_DB
-  bzero((char *)&gemini, sizeof(gemini));
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;

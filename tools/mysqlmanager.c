@@ -21,27 +21,25 @@
  **/
 
 #include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <my_pthread.h>
 #include <mysql.h>
 #include <mysql_version.h>
-#include <m_ctype.h>
-#include <my_config.h>
-#include <my_dir.h>
-#include <hash.h>
 #include <mysqld_error.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <my_sys.h>
+#include <my_dir.h>
+#include <m_string.h>
+#include <m_ctype.h>
+#include <hash.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <errno.h>
 #include <violite.h>
-#include <my_pthread.h>
 #include <md5.h>
+#include <signal.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #define MANAGER_VERSION "1.0"
 #define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
@@ -299,9 +297,8 @@ static int authenticate(struct manager_thd* thd);
 static char* read_line(struct manager_thd* thd); /* returns pointer to end of
 						 line
 					      */
-static pthread_handler_decl(process_connection,arg);
-static pthread_handler_decl(process_launcher_messages,
-			    __attribute__((unused)) arg);
+static pthread_handler_decl(process_connection, arg);
+static pthread_handler_decl(process_launcher_messages, arg);
 static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 
 #ifdef DO_STACKTRACE
@@ -1026,7 +1023,8 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   pthread_mutex_unlock(&lock_log);
 }
 
-#define LOG_MSG_FUNC(type,TYPE) inline static void type  \
+/* No 'inline' here becasue functions with ... can't do that portable */
+#define LOG_MSG_FUNC(type,TYPE) static void type  \
  (const char* fmt,...) { \
   va_list args; \
   va_start(args,fmt); \
@@ -1040,7 +1038,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-inline void log_debug(char* __attribute__((unused)) fmt,...) {}
+void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_launcher_messages,
@@ -1065,7 +1063,7 @@ static pthread_handler_decl(process_launcher_messages,
       char* ident=buf+1;
       int ident_len=strlen(ident);
       memcpy(&pid,ident+ident_len+1,sizeof(pid));
-      log_debug("process message - ident=%s,ident_len=%d,pid=%d",ident,
+      log_debug("process message - ident=%s  ident_len=%d  pid=%d",ident,
 		ident_len,pid);
       pthread_mutex_lock(&lock_exec_hash);
       log_debug("hash has %d records",exec_hash.records);
@@ -1369,6 +1367,12 @@ static int run_server_loop()
   int client_sock;
   uint len;
   Vio* vio;
+  pthread_attr_t thr_attr;
+  (void) pthread_attr_init(&thr_attr);
+#if !defined(HAVE_DEC_3_2_THREADS)
+  pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+  (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+#endif
 
   for (;!shutdown_requested;)
   {
@@ -1414,7 +1418,7 @@ static int run_server_loop()
       manager_thd_free(thd);
       continue;
     }
-    else if (pthread_create(&th,0,process_connection,(void*)thd))
+    else if (pthread_create(&th,&thr_attr,process_connection,(void*)thd))
     {
       client_msg(vio,MANAGER_INTERNAL_ERR,"Could not create thread, errno=%d",
 		 errno);
@@ -1422,6 +1426,7 @@ static int run_server_loop()
       continue;
     }
   }
+  (void) pthread_attr_destroy(&thr_attr);
   return 0;
 }
 
@@ -1545,10 +1550,11 @@ static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
     tmp->error="Too few arguments";
     return tmp;
   }
-  tmp->data_buf=(char*)tmp+sizeof(*tmp);
+  /* We have to allocate 'args' first as this must be alligned */
+  tmp->args=(char**)(tmp +1);
+  tmp->data_buf= (char*) (tmp->args + num_args);
   memcpy(tmp->data_buf,arg_start,arg_len);
   tmp->data_buf_size=arg_len;
-  tmp->args=(char**)(tmp->data_buf+arg_len);
   tmp->num_args=num_args; 
   tmp->ident=tmp->data_buf;
   tmp->ident_len=strlen(tmp->ident);
@@ -1660,13 +1666,20 @@ static void init_user_hash()
 
 static void init_globals()
 {
+  pthread_attr_t thr_attr;
   if (hash_init(&exec_hash,1024,0,0,get_exec_key,manager_exec_free,MYF(0)))
     die("Exec hash initialization failed");
   if (!one_thread)
   {
+    (void) pthread_attr_init(&thr_attr);
+#if !defined(HAVE_DEC_3_2_THREADS)
+    pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+    (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+#endif
     fork_launcher();
-    if (pthread_create(&launch_msg_th,0,process_launcher_messages,0))
+    if (pthread_create(&launch_msg_th,&thr_attr,process_launcher_messages,0))
       die("Could not start launcher message handler thread");
+    /* (void) pthread_attr_destroy(&thr_attr); */
   }
   init_user_hash();
   loop_th=pthread_self();

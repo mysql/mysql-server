@@ -124,17 +124,6 @@ dtype_get_pad_char(
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
 	dtype_t*	type);	/* in: typeumn */
-/*************************************************************************
-Transforms the character code so that it is ordered appropriately
-for the language. */
-UNIV_INLINE
-ulint
-dtype_collate(
-/*==========*/
-				/* out: padding character */
-	dtype_t*	type,	/* in: type */
-	ulint		code);	/* in: character code stored in database
-				record */
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE

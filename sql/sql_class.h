@@ -262,9 +262,6 @@ public:
     THD_TRANS stmt;			/* Trans for current statement */
     uint bdb_lock_count;
   } transaction;
-#ifdef HAVE_GEMINI_DB
-  struct st_gemini gemini;
-#endif
   Item	     *free_list, *handler_items;
   CONVERT    *convert_set;
   Field      *dupp_field;
@@ -280,7 +277,6 @@ public:
           max_join_size, sent_row_count, examined_row_count;
   table_map	used_tables;
   ulong query_id,version, inactive_timeout,options,thread_id;
-  ulong      gemini_spin_retries;
   long  dbug_thread_id;
   pthread_t  real_id;
   uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
@@ -374,12 +370,10 @@ public:
   {
 #ifdef USING_TRANSACTIONS    
     return (transaction.all.bdb_tid != 0 ||
-	    transaction.all.innodb_active_trans != 0 || 
-	    transaction.all.gemini_tid != 0);
+	    transaction.all.innodb_active_trans != 0);
 #else
     return 0;
 #endif
-    
   }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)

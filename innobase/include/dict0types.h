@@ -16,6 +16,7 @@ typedef struct dict_index_struct	dict_index_t;
 typedef struct dict_tree_struct		dict_tree_t;
 typedef struct dict_table_struct	dict_table_t;
 typedef struct dict_proc_struct		dict_proc_t;
+typedef struct dict_foreign_struct	dict_foreign_t;
 
 /* A cluster object is a table object with the type field set to
 DICT_CLUSTERED */

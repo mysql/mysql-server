@@ -120,23 +120,6 @@ dtype_get_pad_char(
 	return(ULINT_UNDEFINED);
 }
 
-/*************************************************************************
-Transforms the character code so that it is ordered appropriately for the
-language. */
-UNIV_INLINE
-ulint
-dtype_collate(
-/*==========*/
-				/* out: collation order position */
-	dtype_t*	type,	/* in: type */
-	ulint		code)	/* in: character code stored in database
-				record */
-{
-	ut_ad((type->mtype == DATA_CHAR) || (type->mtype == DATA_VARCHAR));
-
-	return(toupper(code));
-}
-
 /**************************************************************************
 Stores to a type the information which determines its alphabetical
 ordering. */
@@ -198,6 +181,10 @@ dtype_get_fixed_size(
 
 	case DATA_SYS: 	if (type->prtype == DATA_ROW_ID) {
 				return(DATA_ROW_ID_LEN);
+			} else if (type->prtype == DATA_TRX_ID) {
+				return(DATA_TRX_ID_LEN);
+			} else if (type->prtype == DATA_ROLL_PTR) {
+				return(DATA_ROLL_PTR_LEN);
 			} else {
 				return(0);
 			}

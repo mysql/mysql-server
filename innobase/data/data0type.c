@@ -28,7 +28,6 @@ dtype_validate(
 	ut_a((type->mtype >= DATA_VARCHAR) && (type->mtype <= DATA_MYSQL));
 	
 	if (type->mtype == DATA_SYS) {
-		ut_a(type->prtype >= DATA_ROW_ID);
 		ut_a(type->prtype <= DATA_MIX_ID);
 	}
 
@@ -45,11 +44,10 @@ dtype_print(
 {
 	ulint	mtype;
 	ulint	prtype;
-
+	ulint	len;
+	
 	ut_a(type);
 
-	printf("DATA TYPE: ");
-	
 	mtype = type->mtype;
 	prtype = type->prtype;
 	if (mtype == DATA_VARCHAR) {
@@ -65,8 +63,10 @@ dtype_print(
 	} else if (mtype == DATA_SYS) {
 		printf("DATA_SYS");
 	} else {
-		printf("unknown type %lu", mtype);
+		printf("type %lu", mtype);
 	}
+
+	len = type->len;
 	
 	if ((type->mtype == DATA_SYS)
 	   || (type->mtype == DATA_VARCHAR)
@@ -74,8 +74,13 @@ dtype_print(
 		printf(" ");
 		if (prtype == DATA_ROW_ID) {
 			printf("DATA_ROW_ID");
+			len = DATA_ROW_ID_LEN;
 		} else if (prtype == DATA_ROLL_PTR) {
 			printf("DATA_ROLL_PTR");
+			len = DATA_ROLL_PTR_LEN;
+		} else if (prtype == DATA_TRX_ID) {
+			printf("DATA_TRX_ID");
+			len = DATA_TRX_ID_LEN;
 		} else if (prtype == DATA_MIX_ID) {
 			printf("DATA_MIX_ID");
 		} else if (prtype == DATA_ENGLISH) {
@@ -83,9 +88,9 @@ dtype_print(
 		} else if (prtype == DATA_FINNISH) {
 			printf("DATA_FINNISH");
 		} else {
-			printf("unknown prtype %lu", mtype);
+			printf("prtype %lu", mtype);
 		}
 	}
 
-	printf("; len %lu prec %lu\n", type->len, type->prec);
+	printf(" len %lu prec %lu", len, type->prec);
 }

@@ -14,6 +14,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "sync0rw.h"
 #include "os0sync.h"
+#include "srv0srv.h"
 
 /*
 			WAIT ARRAY
@@ -64,6 +65,8 @@ struct sync_cell_struct {
 	ibool		event_set;	/* TRUE if the event is set */
         os_event_t 	event;   	/* operating system event
                                         semaphore handle */
+	time_t		reservation_time;/* time when the thread reserved
+					the wait cell */
 };
 
 /* NOTE: It is allowed for a thread to wait
@@ -321,16 +324,12 @@ sync_array_reserve_cell(
         sync_array_t*	arr,	/* in: wait array */
         void*   	object, /* in: pointer to the object to wait for */
         ulint		type,	/* in: lock request type */
-	#ifdef UNIV_SYNC_DEBUG
-        char*		file,	/* in: in debug version file where
-        			requested */
-        ulint		line,	/* in: in the debug version line where
-        			requested */
-	#endif
+        char*		file,	/* in: file where requested */
+        ulint		line,	/* in: line where requested */
         ulint*   	index)  /* out: index of the reserved cell */
 {
-        ulint           i;
         sync_cell_t*   	cell;
+        ulint           i;
         
         ut_a(object);
         ut_a(index);
@@ -350,18 +349,15 @@ sync_array_reserve_cell(
                         	sync_cell_event_reset(cell);
 			}
 
+			cell->reservation_time = time(NULL);
+			cell->thread = os_thread_get_curr_id();
+
 			cell->wait_object = object;
 			cell->request_type = type;
-			cell->thread = os_thread_get_curr_id();
 			cell->waiting = FALSE;
 			
-			#ifdef UNIV_SYNC_DEBUG
 			cell->file = file;
 			cell->line = line;
-			#else
-			cell->file = "NOT KNOWN";
-			cell->line = 0;
-			#endif
 			
 			arr->n_reserved++;
 
@@ -436,6 +432,7 @@ static
 void
 sync_array_cell_print(
 /*==================*/
+	FILE*		file,	/* in: file where to print */
 	sync_cell_t*	cell)	/* in: sync cell */
 {
 	mutex_t*	mutex;
@@ -445,53 +442,63 @@ sync_array_cell_print(
 
 	type = cell->request_type;
 
+	fprintf(file,
+"--Thread %lu has waited at %s line %lu for %.2f seconds the semaphore:\n",
+			(ulint)cell->thread, cell->file, cell->line,
+			difftime(time(NULL), cell->reservation_time));
+
 	if (type == SYNC_MUTEX) {
-		str = "MUTEX ENTER";
 		mutex = (mutex_t*)cell->wait_object;
 
-		printf("Mutex created in file %s line %lu",
-				mutex->cfile_name, mutex->cline);
+		fprintf(file,
+		"Mutex at %lx created file %s line %lu, lock var %lu\n",
+			(ulint)mutex, mutex->cfile_name, mutex->cline,
+							mutex->lock_word);
+		fprintf(file,
+		"Last time reserved in file %s line %lu, waiters flag %lu\n",
+			mutex->file_name, mutex->line, mutex->waiters);
+
 	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
 
 		if (type == RW_LOCK_EX) {
-			str = "X-LOCK";
+			fprintf(file, "X-lock on");
 		} else {
-			str = "S_LOCK";
+			fprintf(file, "S-lock on");
 		}
 
 		rwlock = (rw_lock_t*)cell->wait_object;
 
-		printf("Rw-latch created in file %s line %lu",
-				rwlock->cfile_name, rwlock->cline);
+		fprintf(file, " RW-latch at %lx created in file %s line %lu\n",
+			(ulint)rwlock, rwlock->cfile_name, rwlock->cline);
 		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
-			printf(" writer reserved with %lu", rwlock->writer);
+			fprintf(file,
+			"a writer (thread id %lu) has reserved it in mode",
+					(ulint)rwlock->writer_thread);
+			if (rwlock->writer == RW_LOCK_EX) {
+				fprintf(file, " exclusive\n");
+			} else {
+				fprintf(file, " wait exclusive\n");
+ 			}
 		}
 		
-		if (rwlock->writer == RW_LOCK_EX) {
-			printf(" reserv. thread id %lu",
-				(ulint)rwlock->writer_thread);
-		}
-
-		if (rwlock->reader_count > 0) {
-			printf(" readers %lu", rwlock->reader_count);
-		}	
+		fprintf(file, "number of readers %lu, waiters flag %lu\n",
+				rwlock->reader_count, rwlock->waiters);
+	
+		fprintf(file, "Last time read locked in file %s line %lu\n",
+			rwlock->last_s_file_name, rwlock->last_s_line);
+		fprintf(file, "Last time write locked in file %s line %lu\n",
+			rwlock->last_x_file_name, rwlock->last_x_line);
 	} else {
 		ut_error;
 	}
 
-	printf(" at addr %lx waited for by thread %lu op. %s file %s line %lu ",
-				(ulint)cell->wait_object,
-				(ulint)cell->thread,
-				str, cell->file, cell->line);
         if (!cell->waiting) {
-          	printf("WAIT ENDED ");
+          	fprintf(file, "wait has ended\n");
 	}
 
         if (cell->event_set) {
-             	printf("EVENT SET");
+             	fprintf(file, "wait is ending\n");
 	}
-
-	printf("\n");
 }
 
 /**********************************************************************
@@ -620,14 +627,15 @@ sync_array_detect_deadlock(
 			released the mutex: in this case no deadlock
 			can occur, as the wait array cannot contain
 			a thread with ID_UNDEFINED value. */
+
 			ret = sync_array_deadlock_step(arr, start, thread, 0,
-							depth);
+								depth);
 			if (ret) {
 				printf(
 			"Mutex %lx owned by thread %lu file %s line %lu\n",
 					(ulint)mutex, mutex->thread_id,
 					mutex->file_name, mutex->line);
-				sync_array_cell_print(cell);
+				sync_array_cell_print(stdout, cell);
 				return(TRUE);
 			}
 		}
@@ -636,11 +644,11 @@ sync_array_detect_deadlock(
 
 	} else if (cell->request_type == RW_LOCK_EX) {
 
-	   lock = cell->wait_object;
+	    lock = cell->wait_object;
 
-	   debug = UT_LIST_GET_FIRST(lock->debug_list);
+	    debug = UT_LIST_GET_FIRST(lock->debug_list);
 
-	   while (debug != NULL) {
+	    while (debug != NULL) {
 
 		thread = debug->thread_id;
 
@@ -661,23 +669,23 @@ sync_array_detect_deadlock(
 			if (ret) {
 				printf("rw-lock %lx ", (ulint) lock);
 				rw_lock_debug_print(debug);
-				sync_array_cell_print(cell);
+				sync_array_cell_print(stdout, cell);
 
 				return(TRUE);
 			}
 		}
 
 		debug = UT_LIST_GET_NEXT(list, debug);
-	   }
+	    }
 
-	   return(FALSE);
+	    return(FALSE);
 
 	} else if (cell->request_type == RW_LOCK_SHARED) {
 
-	   lock = cell->wait_object;
-	   debug = UT_LIST_GET_FIRST(lock->debug_list);
+	    lock = cell->wait_object;
+	    debug = UT_LIST_GET_FIRST(lock->debug_list);
 
-	   while (debug != NULL) {
+	    while (debug != NULL) {
 
 		thread = debug->thread_id;
 
@@ -694,16 +702,16 @@ sync_array_detect_deadlock(
 			if (ret) {
 				printf("rw-lock %lx ", (ulint) lock);
 				rw_lock_debug_print(debug);
-				sync_array_cell_print(cell);
+				sync_array_cell_print(stdout, cell);
 
 				return(TRUE);
 			}
 		}
 
 		debug = UT_LIST_GET_NEXT(list, debug);
-	   }
+	    }
 
-	   return(FALSE);
+	    return(FALSE);
 
 	} else {
 		ut_error;
@@ -711,6 +719,55 @@ sync_array_detect_deadlock(
 
 	return(TRUE); 	/* Execution never reaches this line: for compiler
 			fooling only */
+}
+
+/**********************************************************************
+Determines if we can wake up the thread waiting for a sempahore. */
+static
+ibool
+sync_arr_cell_can_wake_up(
+/*======================*/
+	sync_cell_t*	cell)	/* in: cell to search */
+{
+	mutex_t*	mutex;
+	rw_lock_t*	lock;
+	
+	if (cell->request_type == SYNC_MUTEX) {
+
+		mutex = cell->wait_object;
+
+		if (mutex_get_lock_word(mutex) == 0) {
+
+			return(TRUE);
+		}
+
+	} else if (cell->request_type == RW_LOCK_EX) {
+
+	    	lock = cell->wait_object;
+
+	    	if (rw_lock_get_reader_count(lock) == 0
+		    && rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+
+			return(TRUE);
+		}
+
+	    	if (rw_lock_get_reader_count(lock) == 0
+		    && rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
+		    && lock->writer_thread == cell->thread) {
+
+			return(TRUE);
+		}
+
+	} else if (cell->request_type == RW_LOCK_SHARED) {
+	    	lock = cell->wait_object;
+
+		if (rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+		
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
 }
 
 /**********************************************************************
@@ -740,9 +797,8 @@ sync_array_free_cell(
 }
 
 /**************************************************************************
-Looks for the cells in the wait array which refer
-to the wait object specified,
-and sets their corresponding events to the signaled state. In this
+Looks for the cells in the wait array which refer to the wait object
+specified, and sets their corresponding events to the signaled state. In this
 way releases the threads waiting for the object to contend for the object.
 It is possible that no such cell is found, in which case does nothing. */
 
@@ -783,6 +839,88 @@ sync_array_signal_object(
 }
 
 /**************************************************************************
+If the wakeup algorithm does not work perfectly at semaphore relases,
+this function will do the waking (see the comment in mutex_exit). This
+function should be called about every 1 second in the server. */
+
+void
+sync_arr_wake_threads_if_sema_free(void)
+/*====================================*/
+{
+	sync_array_t*	arr 	= sync_primary_wait_array;
+        sync_cell_t*   	cell;
+        ulint           count;
+        ulint           i;
+
+        sync_array_enter(arr);
+
+	i = 0;
+	count = 0;
+
+        while (count < arr->n_reserved) {
+
+        	cell = sync_array_get_nth_cell(arr, i);
+
+                if (cell->wait_object != NULL) {
+
+                        count++;
+
+                        if (sync_arr_cell_can_wake_up(cell)) {
+
+                        	sync_cell_event_set(cell);
+                        }
+                }
+
+                i++;
+        }
+
+        sync_array_exit(arr);
+}
+
+/**************************************************************************
+Prints warnings of long semaphore waits to stderr. Currently > 120 sec. */
+
+void
+sync_array_print_long_waits(void)
+/*=============================*/
+{
+        sync_cell_t*   	cell;
+        ibool		old_val;
+	ibool		noticed = FALSE;
+	ulint           i;
+
+        for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
+
+        	cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
+
+                if (cell->wait_object != NULL
+		    && difftime(time(NULL), cell->reservation_time) > 120) {
+
+		    	fprintf(stderr,
+				"InnoDB: Warning: a long semaphore wait:\n");
+			sync_array_cell_print(stderr, cell);
+
+			noticed = TRUE;
+                }
+       	}
+
+	if (noticed) {
+		fprintf(stderr,
+"InnoDB: ###### Starts InnoDB Monitor for 30 secs to print diagnostic info:\n");
+        	old_val = srv_print_innodb_monitor;
+
+        	srv_print_innodb_monitor = TRUE;
+		os_event_set(srv_lock_timeout_thread_event);
+
+        	os_thread_sleep(30000000);
+
+        	srv_print_innodb_monitor = old_val;
+		fprintf(stderr,
+"InnoDB: ###### Diagnostic info printed to the standard output\n");
+	}
+}
+
+/**************************************************************************
 Prints info of the wait array. */
 static
 void
@@ -795,9 +933,8 @@ sync_array_output_info(
         ulint           count;
 	ulint           i;
 
-	printf("-----------------------------------------------------\n");
-	printf("SYNC ARRAY INFO: reservation count %ld, signal count %ld\n",
-					arr->res_count, arr->sg_count);
+	printf("OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
+						arr->res_count, arr->sg_count);
 	i = 0;
 	count = 0;
 
@@ -807,7 +944,7 @@ sync_array_output_info(
 
                 if (cell->wait_object != NULL) {
                         count++;
-			sync_array_cell_print(cell);
+			sync_array_cell_print(stdout, cell);
                 }
 
                 i++;

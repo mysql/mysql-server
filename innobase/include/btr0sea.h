@@ -262,6 +262,12 @@ index */
 
 #define BTR_SEARCH_ON_HASH_LIMIT	3
 
+/* We do this many searches before trying to keep the search latch over calls
+from MySQL. If we notice someone waiting for the latch, we again set this
+much timeout. This is to reduce contention. */
+
+#define BTR_SEA_TIMEOUT			10000
+
 #ifndef UNIV_NONINL
 #include "btr0sea.ic"
 #endif

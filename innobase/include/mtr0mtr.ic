@@ -217,20 +217,14 @@ void
 mtr_s_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line number */
-#endif
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ut_ad(mtr);
 	ut_ad(lock);
 
-	rw_lock_s_lock_func(lock
-		#ifdef UNIV_SYNC_DEBUG
-				,0, file, line
-		#endif
-			    );
+	rw_lock_s_lock_func(lock, 0, file, line);
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_S_LOCK);
 }
@@ -242,20 +236,14 @@ void
 mtr_x_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line number */
-#endif
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ut_ad(mtr);
 	ut_ad(lock);
 
-	rw_lock_x_lock_func(lock, 0
-		#ifdef UNIV_SYNC_DEBUG
-				, file, line
-		#endif
-			    );
+	rw_lock_x_lock_func(lock, 0, file, line);
 
 	mtr_memo_push(mtr, lock, MTR_MEMO_X_LOCK);
 }

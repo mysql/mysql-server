@@ -76,7 +76,7 @@ pool, and after that its locks will grow into the buffer pool. */
 #define MEM_AREA_FREE	1
 
 /* The smallest memory area total size */
-#define MEM_AREA_MIN_SIZE	(2 * sizeof(struct mem_area_struct))
+#define MEM_AREA_MIN_SIZE	(2 * MEM_AREA_EXTRA_SIZE)
 
 /* Data structure for a memory pool. The space is allocated using the buddy
 algorithm, where free list i contains areas of size 2 to power i. */
@@ -556,7 +556,7 @@ Returns the amount of reserved memory. */
 ulint
 mem_pool_get_reserved(
 /*==================*/
-				/* out: reserved mmeory in bytes */
+				/* out: reserved memory in bytes */
 	mem_pool_t*	pool)	/* in: memory pool */
 {
 	ulint	reserved;

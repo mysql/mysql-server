@@ -255,6 +255,7 @@ libmysqld/opt_sum.cc
 libmysqld/password.c
 libmysqld/procedure.cc
 libmysqld/records.cc
+libmysqld/repl_failsafe.cc
 libmysqld/simple-test
 libmysqld/slave.cc
 libmysqld/sql_acl.cc

@@ -109,7 +109,10 @@ trx_create(
 	UT_LIST_INIT(trx->trx_locks);
 
 	trx->has_search_latch = FALSE;
+	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 
+	trx->auto_inc_lock = NULL;
+	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
 
@@ -193,6 +196,7 @@ trx_free(
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
 	ut_a(!trx->has_search_latch);
+	ut_a(!trx->auto_inc_lock);
 
 	if (trx->lock_heap) {
 		mem_heap_free(trx->lock_heap);

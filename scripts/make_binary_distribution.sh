@@ -66,9 +66,12 @@ for i in extra/comp_err extra/replace extra/perror extra/resolveip \
   myisam/myisampack sql/mysqld sql/mysqlbinlog \
   client/mysql sql/mysqld client/mysqlshow client/mysqlcheck \
   client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
+  client/mysqlmanagerc client/mysqlmanager-pwgen tools/mysqlmanager \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
   client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest \
-  client/.libs/mysqlcheck
+  client/.libs/mysqlcheck \
+  client/.libs/mysqlmanagerc client/libs/mysqlmanager-pwgen \
+  tools/.libs/mysqlmanager
 do
   if [ -f $i ]
   then
@@ -88,7 +91,7 @@ do
   fi
 done
 
-for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* libmysqld/libmysqld.a libmysqld/libmysqld.a
+for i in libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* libmysqld/libmysqld.a
 do
   if [ -f $i ]
   then

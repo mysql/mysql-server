@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
+#include "repl_failsafe.h"
 #include <my_dir.h>
 
 #ifdef HAVE_BERKELEY_DB
@@ -1164,6 +1165,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       case SHOW_QUESTION:
         net_store_data(&packet2,(uint32) thd->query_id);
         break;
+      case SHOW_RPL_STATUS:
+	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
+	break;
       case SHOW_OPENTABLES:
         net_store_data(&packet2,(uint32) cached_tables());
         break;

@@ -120,7 +120,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD));
-  DBUG_PRINT("general",
+  DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_packet_length,
 	      thd->host_or_ip, thd->priv_user,
@@ -323,7 +323,7 @@ check_connections(THD *thd)
   */
   DBUG_PRINT("info", (("check_connections called by thread %d"),
 	     thd->thread_id));
-  DBUG_PRINT("general",("New connection received on %s",
+  DBUG_PRINT("info",("New connection received on %s",
 			vio_description(net->vio)));
   if (!thd->host)                           // If TCP/IP connection
   {
@@ -347,15 +347,15 @@ check_connections(THD *thd)
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
-    DBUG_PRINT("general",("Host: %s  ip: %s",
-			  thd->host ? thd->host : "unknown host",
-			  thd->ip ? thd->ip : "unknown ip"));
+    DBUG_PRINT("info",("Host: %s  ip: %s",
+		       thd->host ? thd->host : "unknown host",
+		       thd->ip ? thd->ip : "unknown ip"));
     if (acl_check_host(thd->host,thd->ip))
       return(ER_HOST_NOT_PRIVILEGED);
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("general",("Host: %s",thd->host));
+    DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip=thd->host;
     thd->ip=0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
@@ -731,17 +731,17 @@ bool do_command(THD *thd)
   net_new_transaction(net);
   if ((packet_length=my_net_read(net)) == packet_error)
   {
-     DBUG_PRINT("general",("Got error reading command from socket %s",
-				vio_description(net->vio) ));
+     DBUG_PRINT("info",("Got error reading command from socket %s",
+			vio_description(net->vio) ));
     return TRUE;
   }
   else
   {
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
-    DBUG_PRINT("general",("Command on %s = %d (%s)",
-			  vio_description(net->vio), command,
-			  command_name[command]));
+    DBUG_PRINT("info",("Command on %s = %d (%s)",
+		       vio_description(net->vio), command,
+		       command_name[command]));
   }
   net->timeout=old_timeout;			// Timeout for writing
   DBUG_RETURN(dispatch_command(command,thd, packet+1, packet_length));
@@ -1897,11 +1897,6 @@ mysql_execute_command(void)
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
     thd->default_select_limit=select_lex->select_limit;
     thd->tx_isolation=lex->tx_isolation;
-    if (thd->gemini_spin_retries != lex->gemini_spin_retries)
-    {
-      thd->gemini_spin_retries= lex->gemini_spin_retries;
-      ha_set_spin_retries(thd->gemini_spin_retries);
-    }
     DBUG_PRINT("info",("options: %ld  limit: %ld",
 		       thd->options,(long) thd->default_select_limit));
 

@@ -64,24 +64,15 @@ mutex_free(
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
-#ifdef UNIV_SYNC_DEBUG
 #define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
-#else
-#define mutex_enter(M)    mutex_enter_func(M)
-#endif
 /******************************************************************
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
-#ifdef UNIV_SYNC_DEBUG
-#define mutex_enter_fast(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
-#else
-#define mutex_enter_fast(M)    mutex_enter_func(M)
-#endif
-
-#define mutex_enter_fast_func	mutex_enter_func;
+#define mutex_enter_fast(M)    	mutex_enter_func((M), IB__FILE__, __LINE__)
+#define mutex_enter_fast_func  	mutex_enter_func;
 /**********************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Locks a mutex for the current thread. If the mutex is reserved
@@ -91,12 +82,9 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex	/* in: pointer to mutex */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where locked */
-	ulint		line	/* in: line where locked */
-	#endif
-	);
+	mutex_t*	mutex,		/* in: pointer to mutex */
+	char*		file_name, 	/* in: file name where locked */
+	ulint		line);		/* in: line where locked */
 /************************************************************************
 Tries to lock the mutex for the current thread. If the lock is not acquired
 immediately, returns with return value 1. */
@@ -104,8 +92,11 @@ immediately, returns with return value 1. */
 ulint
 mutex_enter_nowait(
 /*===============*/
-				/* out: 0 if succeed, 1 if not */
-	mutex_t*	mutex);	/* in: pointer to mutex */
+					/* out: 0 if succeed, 1 if not */
+	mutex_t*	mutex,		/* in: pointer to mutex */
+	char*	   	file_name, 	/* in: file name where mutex
+					requested */
+	ulint	   	line);		/* in: line where requested */
 /**********************************************************************
 Unlocks a mutex owned by the current thread. */
 UNIV_INLINE
@@ -373,6 +364,7 @@ Memory pool mutex */
 #define	SYNC_LEVEL_NONE		2000	/* default: level not defined */
 #define SYNC_DICT		1000
 #define SYNC_DICT_AUTOINC_MUTEX	999
+#define	SYNC_FOREIGN_KEY_CHECK	998
 #define	SYNC_PURGE_IS_RUNNING	997
 #define SYNC_DICT_HEADER	995
 #define SYNC_IBUF_HEADER	914
@@ -418,6 +410,7 @@ Memory pool mutex */
 #define	SYNC_BUF_BLOCK		149
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
+#define SYNC_THR_LOCAL		133
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130
 
@@ -428,8 +421,6 @@ Memory pool mutex */
 #define RW_LOCK_SHARED		352
 #define RW_LOCK_WAIT_EX		353
 #define SYNC_MUTEX		354
-
-#define MUTEX_CNAME_LEN	8
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
@@ -457,8 +448,7 @@ struct mutex_struct {
 				locked */
 	ulint	level;		/* Debug version: level in the global latching
 				order; default SYNC_LEVEL_NONE */
-	char	cfile_name[MUTEX_CNAME_LEN];
-				/* File name where mutex created */
+	char*	cfile_name;	/* File name where mutex created */
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
 };

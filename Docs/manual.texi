@@ -3532,11 +3532,17 @@ an application when you delete records from a table that has a foreign key.
 In practice this is as quick (in some cases quicker) and much more portable
 than using foreign keys.
 
+In MySQL 4.0 you can use multi-table delete to delete rows from many
+tables with one command. @xref{DELETE}.
+
 In the near future we will extend the @code{FOREIGN KEY} implementation so
 that at least the information will be saved in the table specification file
 and may be retrieved by @code{mysqldump} and ODBC. At a later stage we will
 implement the foreign key constraints for application that can't easily be
 coded to avoid them.
+
+MySQL 3.23.44 and forwards, InnoDB tables supports checking of foreign
+key constraints. @xref{InnoDB}.
 
 @menu
 * Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
@@ -4033,8 +4039,13 @@ If the date is totally wrong, MySQL will store the special
 0000-00-00 date value in the column.
 
 @item
-If you set an @code{enum} to an unsupported value, it will be set to
+If you set an @code{ENUM} column to an unsupported value, it will be set to
 the error value 'empty string', with numeric value 0.
+
+@item
+If you set an @code{SET} column to an unsupported value, the value will
+be ignored. @xref{Bugs}.
+
 @end itemize
 
 @item
@@ -4933,6 +4944,18 @@ Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
 
 @item
 One can speed up PostgreSQL by coding things as stored procedures.
+
+@item
+For geographical data, R-TREES makes PostgreSQL better than MySQL.
+
+@item
+The PostgreSQL optimizer can do some optimization that the current MySQL
+optimizer can't do.  Most notable is doing joins when you don't have the
+proper keys in place and doing a join where you are using different keys
+combined with OR.  The MySQL benchmark suite at
+@uref{http://www.mysql.com/information/benchmarks.html} shows you what
+kind of constructs you should watch out for when using different
+databases.
 
 @item
 PostgreSQL has a bigger team of developers that contribute to the server.
@@ -7606,6 +7629,10 @@ warnings about @file{mysql.cc}.  (If @code{make} stops, try @code{make -k}
 to tell it to continue with the rest of the build even if errors occur.)
 
 @item
+If you want to get a embedded MySQL library (@code{libmysqld.a}) you should
+use the @code{--with-embedded-server} option.
+
+@item
 If you don't want your log files and database directories located under
 @file{/usr/local/var}, use a @code{configure} command, something like one
 of these:
@@ -7621,7 +7648,8 @@ installed under @file{/usr/local/mysql} rather than the default of
 @file{/usr/local}.  The second command preserves the default installation
 prefix, but overrides the default location for database directories
 (normally @file{/usr/local/var}) and changes it to
-@code{/usr/local/mysql/data}.
+@code{/usr/local/mysql/data}.  After you have compiled MySQL, you can
+change these options with option files. @xref{Option files}.
 
 @cindex changing socket location
 @cindex socket location, changing
@@ -24201,17 +24229,11 @@ for most systems, but one should be aware of it.
 @cindex design, limitations
 @cindex limitations, design
 
-Because MySQL uses extremely fast table locking (multiple readers /
-single writers) the biggest remaining problem is a mix of a steady stream of
-inserts and slow selects on the same table.
-
-We believe that for a huge number of systems the extremely fast
-performance in other cases make this choice a win. This case is usually
-also possible to solve by having multiple copies of the table, but it
-takes more effort and hardware.
-
-We are also working on some extensions to solve this problem for some
-common application niches.
+When using the MyISAM table handler, MySQL uses extremely fast table
+locking (multiple readers / single writers). The biggest problem with
+this table type is a if you have a mix of a steady stream of updates and
+slow selects on the same table.  If this is a problem with some tables,
+you can use another table type for these. @xref{Table types}.
 
 MySQL can work with both transactional and not transactional tables.  To
 be able to work smoothly with not transactional tables (which can't
@@ -29147,6 +29169,9 @@ specified at table creation time.  For example, if a column is specified as
 @code{SET("a","b","c","d")}, then @code{"a,d"}, @code{"d,a"}, and
 @code{"d,a,a,d,d"} will all appear as @code{"a,d"} when retrieved.
 
+If you set a @code{SET} column to an unsupported value, the value will
+be ignored.
+
 @code{SET} values are sorted numerically.  @code{NULL} values sort before
 non-@code{NULL} @code{SET} values.
 
@@ -33791,8 +33816,10 @@ column in a table, the default value is the current date and time.
 @xref{Date and time types}.
 
 @item
-For string types other than @code{ENUM}, the default value is the empty string.
-For @code{ENUM}, the default is the first enumeration value.
+For string types other than @code{ENUM}, the default value is the empty
+string.  For @code{ENUM}, the default is the first enumeration value (if
+you haven't explicitely specified another default value with the
+@code{DEFAULT} directive).
 @end itemize
 
 Default values must be constants. This means, for example, that you cannot
@@ -42350,6 +42377,9 @@ library. @xref{mysql_server_init}.
 @node libmysqld compiling, libmysqld restrictions, libmysqld overview, libmysqld
 @subsubsection Compiling Programs with @code{libmysqld}
 
+To get a @code{libmysqld} library you should configure MySQL with the
+@code{--with-embedded-server} option.
+
 When you link your program with @code{libmysqld}, you must also include
 the system specific @code{pthread} libraries and some libraries that
 @code{mysqld} uses.  You can get the full list of libraries by executing
@@ -47360,6 +47390,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
+@item
+Removed all Gemini hooks from MySQL.
 @item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and

@@ -4086,60 +4086,6 @@ const char *Field_blob::unpack(char *to, const char *from)
   return from+length;
 }
 
-
-#ifdef HAVE_GEMINI_DB
-/* Blobs in Gemini tables are stored separately from the rows which contain
-** them (except for tiny blobs, which are stored in the row).  For all other
-** blob types (blob, mediumblob, longblob), the row contains the length of 
-** the blob data and a blob id.  These methods (pack_id, get_id, and 
-** unpack_id) handle packing and unpacking blob fields in Gemini rows.
-*/
-char *Field_blob::pack_id(char *to, const char *from, ulonglong id, uint max_length)
-{
-  char *save=ptr;
-  ptr=(char*) from;
-  ulong length=get_length();                    // Length of from string
-  if (length > max_length)
-  {
-    ptr=to;
-    length=max_length;
-    store_length(length);                       // Store max length
-    ptr=(char*) from;
-  }
-  else
-    memcpy(to,from,packlength);                 // Copy length
-  if (length)
-  {
-    int8store(to+packlength, id);
-  }
-  ptr=save;                                     // Restore org row pointer
-  return to+packlength+sizeof(id);
-}
-
-
-ulonglong Field_blob::get_id(const char *from)
-{
-  ulonglong id = 0;
-  ulong length=get_length(from);
-  if (length)
-    id=uint8korr(from+packlength);
-  return id;
-}
-
-
-const char *Field_blob::unpack_id(char *to, const char *from, const char *bdata)
-{
-  memcpy(to,from,packlength);
-  ulong length=get_length(from);
-  from+=packlength;
-  if (length)
-    memcpy_fixed(to+packlength, &bdata, sizeof(bdata));
-  else
-    bzero(to+packlength,sizeof(bdata));
-  return from+sizeof(ulonglong);
-}
-#endif  /* HAVE_GEMINI_DB */
-
 /* Keys for blobs are like keys on varchars */
 
 int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)

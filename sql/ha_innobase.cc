@@ -161,7 +161,23 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_DEADLOCK) {
 
-    		return(1000000);
+    		return(HA_ERR_LOCK_DEADLOCK);
+
+ 	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
+
+    		return(1000001);
+
+ 	} else if (error == (int) DB_NO_REFERENCED_ROW) {
+
+    		return(1000010);
+
+ 	} else if (error == (int) DB_ROW_IS_REFERENCED) {
+
+    		return(1000011);
+
+ 	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
+
+    		return(1000012);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
@@ -178,7 +194,6 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_TOO_BIG_RECORD) {
 
     		return(HA_ERR_TO_BIG_ROW);
-
     	} else {
     		dbug_assert(0);
 
@@ -220,7 +235,7 @@ innobase_mysql_print_thd(
   	}
 
   	if (thd->query) {
-    		printf(" %-.100s", thd->query);
+    		printf("\n%-.100s", thd->query);
   	}  
 
   	printf("\n");
@@ -526,8 +541,23 @@ innobase_init(void)
 {
 	int		err;
 	bool		ret;
+	char 	        current_lib[2], *default_path;
 
   	DBUG_ENTER("innobase_init");
+
+	/*
+	  When using the embedded server, the datadirectory is not
+	  in the current directory.
+	*/
+	if (!mysql_embedded)
+	  default_path=mysql_real_data_home;
+	else
+	{
+	  /* It's better to use current lib, to keep path's short */
+	  current_lib[0]=FN_CURLIB;
+	  current_lib[1]=FN_LIBCHAR;
+	  default_path=current_lib;
+	}
 
 	if (specialflag & SPECIAL_NO_PRIOR) {
 	        srv_set_thread_priorities = FALSE;
@@ -544,10 +574,10 @@ innobase_init(void)
 						   MYF(MY_WME));
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
-			 mysql_real_data_home);
+			 default_path);
 	srv_logs_home = (char*) "";
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
-			 mysql_real_data_home);
+			 default_path);
 
 	ret = innobase_parse_data_file_paths_and_sizes();
 
@@ -557,7 +587,7 @@ innobase_init(void)
 	}
 
 	if (!innobase_log_group_home_dir)
-	  innobase_log_group_home_dir= mysql_real_data_home;
+	  innobase_log_group_home_dir= default_path;
 	ret = innobase_parse_log_group_home_dirs();
 
 	if (ret == FALSE) {
@@ -586,6 +616,15 @@ innobase_init(void)
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+	if (strcmp(default_charset_info->name, "latin1") == 0) {
+		/* Store the character ordering table to InnoDB.
+		For non-latin1 charsets we use the MySQL comparison
+		functions, and consequently we do not need to know
+		the ordering internally in InnoDB. */
+		
+		memcpy(srv_latin1_ordering,
+				default_charset_info->sort_order, 256);
+	}
 
 	err = innobase_start_or_create_for_mysql();
 
@@ -636,7 +675,7 @@ innobase_flush_logs(void)
 
   	DBUG_ENTER("innobase_flush_logs");
 
-	log_make_checkpoint_at(ut_dulint_max, TRUE);
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
   	DBUG_RETURN(result);
 }
@@ -869,10 +908,10 @@ ha_innobase::open(
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
 	  fprintf(stderr,
-"Cannot find table %s from the internal data dictionary\n"
-"of InnoDB though the .frm file for the table exists. Maybe you have deleted\n"
-"and created again an InnoDB database but forgotten to delete the\n"
-"corresponding .frm files of old InnoDB tables?\n",
+"InnoDB: Cannot find table %s from the internal data dictionary\n"
+"InnoDB: of InnoDB though the .frm file for the table exists. Maybe you\n"
+"InnoDB: have deleted and recreated InnoDB data files but have forgotten\n"
+"InnoDB: to delete the corresponding .frm files of InnoDB tables?\n",
 		  norm_name);
 
 	        free_share(share);
@@ -1392,8 +1431,36 @@ ha_innobase::write_row(
 			current value and the value supplied by the user, if
 			the auto_inc counter is already initialized
 			for the table */
+
+			/* We have to use the transactional lock mechanism
+			on the auto-inc counter of the table to ensure
+			that replication and roll-forward of the binlog
+			exactly imitates also the given auto-inc values.
+			The lock is released at each SQL statement's
+			end. */
+
+			error = row_lock_table_autoinc_for_mysql(prebuilt);
+
+			if (error != DB_SUCCESS) {
+			
+				error = convert_error_code_to_mysql(error);
+				goto func_exit;
+			}	
+			
 			dict_table_autoinc_update(prebuilt->table, auto_inc);
 		} else {
+			if (!prebuilt->trx->auto_inc_lock) {
+
+				error = row_lock_table_autoinc_for_mysql(
+								prebuilt);
+				if (error != DB_SUCCESS) {
+			
+					error = convert_error_code_to_mysql(
+								error);
+					goto func_exit;
+				}
+			}	
+
 			auto_inc = dict_table_autoinc_get(prebuilt->table);
 
 			/* If auto_inc is now != 0 the autoinc counter
@@ -1451,7 +1518,7 @@ ha_innobase::write_row(
 
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
-
+func_exit:
 	innobase_active_small();
 
   	DBUG_RETURN(error);
@@ -1728,7 +1795,7 @@ ha_innobase::index_init(
 }
 
 /**********************************************************************
-?????????????????????????????????? */
+Currently does nothing. */
 
 int
 ha_innobase::index_end(void)
@@ -2290,6 +2357,15 @@ ha_innobase::external_lock(
 		    		trx_search_latch_release_if_reserved(trx);
 		  	}
 
+		  	if (trx->auto_inc_lock) {
+		  	
+		  		/* If we had reserved the auto-inc lock for
+				some table in this SQL statement, we release
+				it now */
+		  	
+				row_unlock_table_autoinc_for_mysql(trx);
+			}
+
 		  	if (!(thd->options
 				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
 		    		innobase_commit(thd, trx);
@@ -2452,7 +2528,9 @@ ha_innobase::create(
 	const char*	name,		/* in: table name */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
-	HA_CREATE_INFO*	create_info)	/* in: ??????? */
+	HA_CREATE_INFO*	create_info)	/* in: more information of the
+					created table, contains also the
+					create statement string */
 {
 	int		error;
 	dict_table_t*	innobase_table;
@@ -2543,6 +2621,19 @@ ha_innobase::create(
       		}
   	}
 
+	error = row_table_add_foreign_constraints(trx,
+				create_info->create_statement, norm_name);
+
+	error = convert_error_code_to_mysql(error);
+
+	if (error) {
+		trx_commit_for_mysql(trx);
+
+  		trx_free_for_mysql(trx);
+
+		DBUG_RETURN(error);
+	}
+
   	trx_commit_for_mysql(trx);
 
 	innobase_table = dict_table_get(norm_name, NULL);
@@ -2563,8 +2654,8 @@ ha_innobase::create(
 Drops a table from an InnoDB database. Before calling this function,
 MySQL calls innobase_commit to commit the transaction of the current user.
 Then the current user cannot have locks set on the table. Drop table
-operation inside InnoDB will wait sleeping in a loop until no other
-user has locks on the table. */
+operation inside InnoDB will remove all locks any user has on the table
+inside InnoDB. */
 
 int
 ha_innobase::delete_table(
@@ -2604,6 +2695,53 @@ ha_innobase::delete_table(
 	error = convert_error_code_to_mysql(error);
 
 	DBUG_RETURN(error);
+}
+
+/*********************************************************************
+Removes all tables in the named database inside InnoDB. */
+
+int
+innobase_drop_database(
+/*===================*/
+			/* out: error number */
+	char*	path)	/* in: database path; inside InnoDB the name
+			of the last directory in the path is used as
+			the database name: for example, in 'mysql/data/test'
+			the database name is 'test' */
+{
+	ulint	len		= 0;
+	trx_t*	trx;
+	char*	ptr;
+	int	error;
+	char	namebuf[10000];
+	
+	ptr = strend(path) - 2;
+	
+	while (ptr >= path && *ptr != '\\' && *ptr != '/') {
+		ptr--;
+		len++;
+	}
+
+	ptr++;
+
+	memcpy(namebuf, ptr, len);
+	namebuf[len] = '/';
+	namebuf[len + 1] = '\0';
+	
+	trx = trx_allocate_for_mysql();
+
+  	error = row_drop_database_for_mysql(namebuf, trx);
+
+	/* Tell the InnoDB server that there might be work for
+	utility threads: */
+
+	srv_active_wake_master_thread();
+
+  	trx_free_for_mysql(trx);
+
+	error = convert_error_code_to_mysql(error);
+
+	return(error);
 }
 
 /*************************************************************************
@@ -2742,12 +2880,13 @@ improve the algorithm of filesort.cc. */
 ha_rows
 ha_innobase::estimate_number_of_rows(void)
 /*======================================*/
-			/* out: upper bound of rows, currently 32-bit int
-			or uint */
+			/* out: upper bound of rows */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	dict_table_t*	ib_table;
-
+	dict_index_t*	index;
+	ulonglong	estimate;
+	ulonglong	data_file_length;
+	
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info =
 				(char*) "estimating upper bound of table size";
@@ -2755,21 +2894,21 @@ ha_innobase::estimate_number_of_rows(void)
 
  	DBUG_ENTER("info");
 
- 	ib_table = prebuilt->table;
+ 	dict_update_statistics(prebuilt->table);
+
+	index = dict_table_get_first_index_noninline(prebuilt->table);
  	
- 	dict_update_statistics(ib_table);
+	data_file_length = ((ulonglong) index->stat_n_leaf_pages)
+    							* UNIV_PAGE_SIZE;
+	/* Calculate a minimum length for a clustered index record */
 
-	data_file_length = ((ulonglong)
-				ib_table->stat_clustered_index_size)
-    					* UNIV_PAGE_SIZE;
-
-	/* The minimum clustered index record size is 20 bytes */
-
+	estimate = data_file_length / dict_index_calc_min_rec_len(index);
+	
 	if (prebuilt->trx) {
 		prebuilt->trx->op_info = (char*) "";
 	}
-   	
-	return((ha_rows) (1000 + data_file_length / 20));
+
+	return((ha_rows) estimate);
 }
 
 /*************************************************************************
@@ -2784,10 +2923,10 @@ ha_innobase::scan_time()
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	/* In the following formula we assume that scanning 5 pages
+	/* In the following formula we assume that scanning 10 pages
 	takes the same time as a disk seek: */
 
-	return((double) (1 + prebuilt->table->stat_clustered_index_size / 5));
+	return((double) (prebuilt->table->stat_clustered_index_size / 10));
 }
 
 /*************************************************************************
@@ -2802,8 +2941,9 @@ ha_innobase::info(
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
-	uint		rec_per_key;
-	uint		i;
+	ulong		rec_per_key;
+	ulong		j;
+	ulong		i;
 
  	DBUG_ENTER("info");
 
@@ -2821,7 +2961,7 @@ ha_innobase::info(
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
-    		records = ib_table->stat_n_rows;
+    		records = (ha_rows)ib_table->stat_n_rows;
     		deleted = 0;
     		data_file_length = ((ulonglong)
 				ib_table->stat_clustered_index_size)
@@ -2847,16 +2987,24 @@ ha_innobase::info(
 		}
 
 		for (i = 0; i < table->keys; i++) {
-			if (index->stat_n_diff_key_vals == 0) {
-				rec_per_key = records;
-			} else {
-				rec_per_key = records /
-					index->stat_n_diff_key_vals;
-			}
+			for (j = 0; j < table->key_info[i].key_parts; j++) {
 
-			table->key_info[i].rec_per_key[
-				table->key_info[i].key_parts - 1]
-					= rec_per_key;
+				if (index->stat_n_diff_key_vals[j + 1] == 0) {
+
+					rec_per_key = records;
+				} else {
+					rec_per_key = (ulong)(records /
+   				         index->stat_n_diff_key_vals[j + 1]);
+				}
+
+				if (rec_per_key == 0) {
+					rec_per_key = 1;
+				}
+			
+				table->key_info[i].rec_per_key[j]
+								= rec_per_key;
+			}
+			
 			index = dict_table_get_next_index_noninline(index);
 		}
 	}

@@ -138,6 +138,38 @@ dict_table_rename_in_cache(
 	dict_table_t*	table,		/* in: table */
 	char*		new_name);	/* in: new name */
 /**************************************************************************
+Adds a foreign key constraint object to the dictionary cache. May free
+the object if there already is an object with the same identifier in.
+At least one of foreign table or referenced table must already be in
+the dictionary cache! */
+
+ulint
+dict_foreign_add_to_cache(
+/*======================*/
+					/* out: DB_SUCCESS or error code */
+	dict_foreign_t*	foreign);	/* in, own: foreign key constraint */
+/*************************************************************************
+Scans a table create SQL string and adds to the data dictionary
+the foreign key constraints declared in the string. This function
+should be called after the indexes for a table have been created.
+Each foreign key constraint must be accompanied with indexes in
+bot participating tables. The indexes are allowed to contain more
+fields than mentioned in the constraint. */
+
+ulint
+dict_create_foreign_constraints(
+/*============================*/
+				/* out: error code or DB_SUCCESS */
+	trx_t*	trx,		/* in: transaction */
+	char*	sql_string,	/* in: table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name */
+	char*	name);		/* in: table full name in the normalized form
+				database_name/table_name */
+/**************************************************************************
 Returns a table object and memoryfixes it. NOTE! This is a high-level
 function to be used mainly from outside the 'dict' directory. Inside this
 directory dict_table_get_low is usually the appropriate function. */
@@ -174,6 +206,14 @@ dict_table_release(
 /*===============*/
 	dict_table_t*	table);	/* in: table to be released */
 /**************************************************************************
+Checks if a table is in the dictionary cache. */
+UNIV_INLINE
+dict_table_t*
+dict_table_check_if_in_cache_low(
+/*==============================*/
+				/* out: table, NULL if not found */
+	char*	table_name);	/* in: table name */
+/**************************************************************************
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function. */
 UNIV_INLINE
@@ -206,6 +246,13 @@ Prints a table definition. */
 void
 dict_table_print(
 /*=============*/
+	dict_table_t*	table);	/* in: table */
+/**************************************************************************
+Prints a table data. */
+
+void
+dict_table_print_low(
+/*=================*/
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
 Prints a table data when we know the table name. */
@@ -318,6 +365,16 @@ dict_table_copy_types(
 /*==================*/
 	dtuple_t*	tuple,	/* in: data tuple */
 	dict_table_t*	table);	/* in: index */
+/**************************************************************************
+Looks for an index with the given id. NOTE that we do not reserve
+the dictionary mutex: this function is for emergency purposes like
+printing info of a corrupt database page! */
+
+dict_index_t*
+dict_index_find_on_id_low(
+/*======================*/
+			/* out: index or NULL if not found from cache */
+	dulint	id);	/* in: index id */
 /**************************************************************************
 Adds an index to dictionary cache. */
 
@@ -640,6 +697,23 @@ dict_tree_get_space_reserve(
 				reserved for updates */
 	dict_tree_t*	tree);	/* in: a tree */
 /*************************************************************************
+Calculates the minimum record length in an index. */
+
+ulint
+dict_index_calc_min_rec_len(
+/*========================*/
+	dict_index_t*	index);	/* in: index */
+/*************************************************************************
+Calculates new estimates for table and index statistics. The statistics
+are used in query optimization. */
+
+void
+dict_update_statistics_low(
+/*=======================*/
+	dict_table_t*	table,		/* in: table */
+	ibool		has_dict_mutex);/* in: TRUE if the caller has the
+					dictionary mutex */	
+/*************************************************************************
 Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
 
@@ -661,7 +735,8 @@ dict_mutex_exit_for_mysql(void);
 /*===========================*/
 
 
-extern dict_sys_t*		dict_sys;	/* the dictionary system */
+extern dict_sys_t*	dict_sys;	/* the dictionary system */
+extern rw_lock_t	dict_foreign_key_check_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{

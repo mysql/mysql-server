@@ -19,7 +19,7 @@ if ($opt_innodb || $opt_bdb)
 
 chomp($host=`hostname`);
 $full_host_name=$host;
-info("Compiling MySQL$version_suffix at $host$suffix, stage: $opt_stage\n");
+info("Compiling MySQL$version_suffix at $host, stage: $opt_stage\n");
 $connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
 $host=$1 . $opt_suffix;
@@ -65,10 +65,11 @@ $sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
 $sur= $opt_sur ? "/my/local/bin/sur" : "";
 delete $ENV{'MYSQL_PWD'};	# Reset possibly password
 delete $ENV{'MY_BASEDIR_VERSION'};
-$ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread;
+$ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread*2;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
+$manager_port=$mysql_tcp_port+1;
 
 if (-x "$host/bin/mysqladmin")
 {
@@ -78,6 +79,7 @@ if (-x "$host/bin/mysqladmin")
   log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
   log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
 }
+kill_all("mysqlmanager");
 
 if ($opt_stage == 0)
 {
@@ -110,7 +112,7 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
 
   # Fix file times; This is needed because the time for files may be
   # in the future
-  system("touch timestamp; find $var -newer timestamp -print | xargs touch; rm -f timestamp");
+  system("touch timestamp; find . -newer timestamp -print | xargs touch; rm -f timestamp");
   sleep(2);
   # Ensure that files we don't want to rebuild are newer than other files
   foreach $name ("configure",
@@ -151,7 +153,7 @@ if ($opt_stage <= 1)
   {
     $opt_config_options.= " --with-innodb"
   }
-  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$version_suffix\" $opt_config_options","Thank you for choosing MySQL");
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$version_suffix\" --enable-thread-safe-client $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -207,13 +209,13 @@ if ($opt_stage <= 4 && !$opt_no_test)
 $tar_file =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
-$ENV{"LD_LIBRARY_PATH"}= "$testdir/lib:" . $ENV{"LD_LIBRARY_PATH"};
+$ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --sleep=10", "tests were successful");
+  check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --sleep=10", "tests were successful");
 }
 
 # Start the server if we are going to run any of the benchmarks
@@ -235,7 +237,7 @@ if (!$opt_no_test)
   {
     $extra.=" --innodb_data_file_path=ibdata1:100M";
   }
-  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-l\ocking $extra >> $log 2>&1 &");
+  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking $extra >> $log 2>&1 &");
   sleep(2);
 }
 
@@ -315,7 +317,7 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.2
+$0  version 1.4
 
 $0 takes the following options:
 
@@ -329,7 +331,7 @@ Compile with support for Innodb tables
 Compile with support for Berkeley DB tables
 
 --user 'user_name'
-Mail 'user_name'\@analytikerna.se if something went wrong.
+Mail 'user_name'\@mysql.com if something went wrong.
 If user is empty then no mail is sent.
 
 --distribution 'distribution_file'
@@ -527,4 +529,45 @@ sub rm_all
       system("rm -f $dir") && abort("Can't remove file $dir");
     }
   }
+}
+
+sub kill_all
+{
+  my ($pattern) = @_;
+  my ($USER,$BSD,$LINUX,$pscmd, $user, $pid);
+  $user=$ENV{'USER'};
+  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4";
+  $LINUX = $^O eq 'linux';
+  $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
+
+  open(PS, "$pscmd|") || die "can't run $pscmd: $!";
+
+  # Catch any errors with eval.  A bad pattern, for instance.
+ process:
+  while ($cand = <PS>)
+  {
+    chop($cand);
+    ($pid_user, $pid) = split(' ', $cand);
+    next if $pid == $$;
+    next process if (! ($cand =~ $pattern) || $pid_user ne $user);
+    print LOG "Killing $_\n";
+    &killpid($pid);
+  }
+}
+
+sub killpid
+{
+  local($pid) = @_;
+  kill 15, $pid;
+  for (1..5)
+  {
+    sleep 2;
+    return if kill(0, $pid) == 0;
+  }
+  kill 9, $pid;
+  for (1..5) {
+    sleep 2;
+    return if kill(0, $pid) == 0;
+  }
+  print LOG "$pid will not die!\n";
 }

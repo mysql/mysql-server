@@ -35,9 +35,6 @@
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innobase.h"
 #endif
-#ifdef HAVE_GEMINI_DB
-#include "ha_gemini.h"
-#endif
 #include <myisampack.h>
 #include <errno.h>
 
@@ -81,10 +78,6 @@ enum db_type ha_checktype(enum db_type database_type)
   case DB_TYPE_INNODB:
     return(innodb_skip ? DB_TYPE_MYISAM : database_type);
 #endif
-#ifdef HAVE_GEMINI_DB
-  case DB_TYPE_GEMINI:
-    return(gemini_skip ? DB_TYPE_MYISAM : database_type);
-#endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
 #endif
@@ -123,10 +116,6 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_INNODB:
     return new ha_innobase(table);
 #endif
-#ifdef HAVE_GEMINI_DB
-  case DB_TYPE_GEMINI:
-    return new ha_gemini(table);
-#endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
   case DB_TYPE_MYISAM:
@@ -162,17 +151,6 @@ int ha_init()
       have_innodb=SHOW_OPTION_DISABLED;
   }
 #endif
-#ifdef HAVE_GEMINI_DB
-  if (!gemini_skip)
-  {
-    if (gemini_init())
-      return -1;
-    if (!gemini_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
-    else
-      have_gemini=SHOW_OPTION_DISABLED;
-  }
-#endif
   return 0;
 }
 
@@ -200,13 +178,16 @@ int ha_panic(enum ha_panic_function flag)
   if (!innodb_skip)
     error|=innobase_end();
 #endif
-#ifdef HAVE_GEMINI_DB
-  if (!gemini_skip)
-    error|=gemini_end();
-#endif
   return error;
 } /* ha_panic */
 
+void ha_drop_database(char* path)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (!innodb_skip)
+    innobase_drop_database(path);
+#endif
+}
 
 void ha_close_connection(THD* thd)
 {
@@ -214,12 +195,6 @@ void ha_close_connection(THD* thd)
   if (!innodb_skip)
     innobase_close_connection(thd);
 #endif
-#ifdef HAVE_GEMINI_DB
-  if (!gemini_skip && thd->gemini.context)
-  {
-    gemini_disconnect(thd);
-  }
-#endif /* HAVE_GEMINI_DB */
 }
 
 /*
@@ -285,20 +260,6 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       trans->innodb_active_trans=0;
     }
 #endif
-#ifdef HAVE_GEMINI_DB 
-    /* Commit the transaction in behalf of the commit statement
-       or if we're in auto-commit mode               */
-    if((trans == &thd->transaction.all) || 
-        (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))))
-    {
-      error=gemini_commit(thd);
-      if (error)
-      {
-	my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
-	error=1;
-      }
-    }
-#endif
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->tx_isolation=thd->session_tx_isolation;
@@ -337,18 +298,6 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       trans->innodb_active_trans=0;
     }
 #endif
-#ifdef HAVE_GEMINI_DB
-    if((trans == &thd->transaction.stmt) &&
-       (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))
-      error = gemini_rollback_to_savepoint(thd);
-    else
-      error=gemini_rollback(thd);
-    if (error)
-    {
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
-      error=1;
-    }
-#endif
     if (trans == &thd->transaction.all)
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
@@ -358,17 +307,6 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
-
-void ha_set_spin_retries(uint retries)
-{
-#ifdef HAVE_GEMINI_DB
-  if (!gemini_skip)
-  {
-    gemini_set_option_long(GEM_OPTID_SPIN_RETRIES, retries);
-  }
-#endif /* HAVE_GEMINI_DB */
-}
-
 
 bool ha_flush_logs()
 {
@@ -751,22 +689,6 @@ int handler::rename_table(const char * from, const char * to)
   DBUG_RETURN(0);
 }
 
-int ha_commit_rename(THD *thd)
-{
-  int error=0;
-#ifdef HAVE_GEMINI_DB
-    /* Gemini needs to commit the rename; otherwise a rollback will change
-    ** the table names back internally but the physical files will still
-    ** have the new names.
-    */
-    if (ha_commit_stmt(thd))
-      error= -1;
-    if (ha_commit(thd))
-      error= -1;
-#endif
-    return error;
-}
-
 /* Tell the handler to turn on or off logging to the handler's
    recovery log
 */
@@ -775,14 +697,6 @@ int ha_recovery_logging(THD *thd, bool on)
   int error=0;
 
   DBUG_ENTER("ha_recovery_logging");
-#ifdef USING_TRANSACTIONS
-  if (opt_using_transactions)
-  {
-#ifdef HAVE_GEMINI_DB
-    error = gemini_recovery_logging(thd, on);
-#endif
-  }
-#endif
   DBUG_RETURN(error);
 }
 
