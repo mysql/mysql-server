@@ -94,6 +94,7 @@ insert into test values
 ('2001-01-01 01:01:01', '01:01:01', '1 01:01:01', '2001-01-01 01:01:01');
 
 SELECT ADDTIME(t1,t2) As ttt, ADDTIME(t2, t3) As qqq from test;
-SELECT TIMEDIFF(t1,t4) As ttt, TIMEDIFF(t2, t3) As qqq from test;
+SELECT TIMEDIFF(t1, t4) As ttt, TIMEDIFF(t2, t3) As qqq,
+       TIMEDIFF(t3, t2) As eee, TIMEDIFF(t2, t4) As rrr from test;
 
 drop table t1, test;

@@ -543,11 +543,12 @@ public:
 
 enum interval_type
 {
-  INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR, INTERVAL_MINUTE,
-  INTERVAL_SECOND, INTERVAL_MICROSECOND ,INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR,
-  INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE,
-  INTERVAL_HOUR_SECOND, INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND,
-  INTERVAL_HOUR_MICROSECOND, INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND
+  INTERVAL_YEAR, INTERVAL_QUARTER, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR,
+  INTERVAL_MINUTE, INTERVAL_WEEK, INTERVAL_SECOND, INTERVAL_MICROSECOND ,
+  INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND,
+  INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND, INTERVAL_MINUTE_SECOND,
+  INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND, INTERVAL_MINUTE_MICROSECOND,
+  INTERVAL_SECOND_MICROSECOND
 };
 
 
@@ -762,4 +763,21 @@ public:
     decimals=0;
     maybe_null=1;
   }
+};
+
+
+class Item_func_timestamp_diff :public Item_int_func
+{
+  const interval_type int_type;
+public:
+  Item_func_timestamp_diff(Item *a,Item *b,interval_type type_arg)
+    :Item_int_func(a,b), int_type(type_arg) {}
+  const char *func_name() const { return "timestamp_diff"; }
+  longlong val_int();
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    maybe_null=1;
+  }
+  void print(String *str);
 };
