@@ -82,6 +82,7 @@ drop temporary table t3;
 select * from t2;
 
 --replace_result $VERSION VERSION
+--replace_column 2 # 5 #
 show binlog events;
 
 drop table t1, t2;
