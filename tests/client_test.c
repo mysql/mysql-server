@@ -30,6 +30,7 @@
 
 
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
+#define MAX_KEY 64
 
 /* set default options */
 static char *opt_db= 0;
@@ -5507,6 +5508,7 @@ static void test_subselect()
   MYSQL_STMT *stmt;
   int        rc, id;
   MYSQL_BIND bind[1];
+  DBUG_ENTER("test_subselect");
 
   myheader("test_subselect");
 
@@ -5608,6 +5610,7 @@ static void test_subselect()
   assert(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -7018,13 +7021,13 @@ static void test_explain_bug()
                        "", "", "", 10, 0);
 
   verify_prepare_field(result, 4, "possible_keys", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*64, 0);
+                       "", "", "", NAME_LEN*MAX_KEY, 0);
 
   verify_prepare_field(result, 5, "key", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN, 0);
 
   verify_prepare_field(result, 6, "key_len", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_LEN*64, 0);
+                       "", "", "", NAME_LEN*MAX_KEY, 0);
 
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", NAME_LEN*16, 0);
