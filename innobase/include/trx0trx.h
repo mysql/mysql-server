@@ -275,13 +275,15 @@ trx_commit_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Prints info about a transaction to the standard output. The caller must
-own the kernel mutex. */
+own the kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
+InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
 	FILE*	f,	/* in: output stream */
-	trx_t* trx); 	/* in: transaction */
+	trx_t*	trx);	/* in: transaction */
 
 
 /* Signal to a transaction */
