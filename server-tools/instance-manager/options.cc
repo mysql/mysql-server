@@ -23,6 +23,8 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
+#include <m_string.h>
+#include <mysql_com.h>
 
 #include "priv.h"
 
@@ -76,6 +78,9 @@ static struct my_option my_long_options[] =
   { "socket", OPT_SOCKET, "Socket file to use for connection.",
     (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+
+  { "passwd", 'P', "Prepare entry for passwd file and exit.", 0, 0, 0,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
     (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
@@ -142,6 +147,34 @@ static void usage()
   my_print_variables(my_long_options);
 }
 
+
+static void passwd()
+{
+  char user[1024], pw[1024], *p;
+  char crypted_pw[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
+
+  fprintf(stderr, "Creating record for new user.\n");
+  fprintf(stderr, "Enter user name: ");
+  if (!fgets(user, sizeof(user), stdin))
+  {
+    fprintf(stderr, "Unable to read user.\n");
+    return;
+  }
+  if ((p= strchr(user, '\n'))) *p= 0;
+
+  fprintf(stderr, "Enter password: ");
+  if (! fgets(pw, sizeof(pw), stdin))
+  {
+    fprintf(stderr, "Unable to read password.\n");
+    return;
+  }
+  if ((p= strchr(pw, '\n'))) *p= 0;
+
+  make_scrambled_password(crypted_pw, pw);
+  printf("%s:%s\n", user, crypted_pw);
+}
+
+
 C_MODE_START
 
 static my_bool
@@ -153,7 +186,9 @@ get_one_option(int optid,
   case 'V':
     version();
     exit(0);
-  case 'I':
+  case 'P':
+    passwd();
+    exit(0);
   case '?':
     usage();
     exit(0);

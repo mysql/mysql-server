@@ -36,11 +36,17 @@ private:
   /* maximum buffer size is 16Mb */
   enum { MAX_BUFFER_SIZE= 16777216 };
   size_t buffer_size;
+  /* Error flag. Triggered if we get an error of some kind */
+  int error;
 public:
-  Buffer()
+  Buffer(size_t buffer_size_arg= BUFFER_INITIAL_SIZE)
+    :buffer_size(BUFFER_INITIAL_SIZE), error(0)
   {
-    buffer=(char *) malloc(BUFFER_INITIAL_SIZE);
-    buffer_size= BUFFER_INITIAL_SIZE;
+    /*
+      As append() will invokes realloc() anyway, it's ok if malloc returns 0
+    */
+    if (!(buffer= (char*) malloc(buffer_size)))
+        buffer_size= 0;
   }
 
   ~Buffer()
@@ -50,6 +56,8 @@ public:
 
 public:
   char *buffer;
+  int get_size();
+  int is_error();
   int append(uint position, const char *string, uint len_arg);
   int reserve(uint position, uint len_arg);
 };

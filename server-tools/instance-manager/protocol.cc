@@ -154,7 +154,8 @@ int send_fields(struct st_net *net, LIST *fields)
     store_to_string(&send_buff, (char *) "", &position); /* table name alias */
     store_to_string(&send_buff, field->name, &position); /* column name */
     store_to_string(&send_buff, field->name, &position); /* column name alias */
-    if (send_buff.reserve(position, 12))
+    send_buff.reserve(position, 12);
+    if (send_buff.is_error())
       goto err;
     send_buff.buffer[position++]= 12;
     int2store(send_buff.buffer + position, 1); /* charsetnr */
