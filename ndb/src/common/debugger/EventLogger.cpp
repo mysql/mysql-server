@@ -127,7 +127,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   // TODO: Change the switch implementation...
   char theNodeId[32];
   if (nodeId != 0){
-    ::snprintf(theNodeId, 32, "Node %u: ", nodeId);
+    BaseString::snprintf(theNodeId, 32, "Node %u: ", nodeId);
   } else {
     theNodeId[0] = 0;
   }
@@ -135,13 +135,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   EventReport::EventType eventType = (EventReport::EventType)type;
   switch (eventType){
   case EventReport::Connected:
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u Connected",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::ConnectedApiVersion:
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u: API version %d.%d.%d",
 	       theNodeId,
 	       theData[1],
@@ -150,7 +150,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       getBuild(theData[2]));
   break;
   case EventReport::Disconnected:
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u Disconnected", 
 	       theNodeId,
 	       theData[1]);
@@ -159,7 +159,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT communication to node closed.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sCommunication to Node %u closed", 
 	       theNodeId,
 	       theData[1]);
@@ -168,7 +168,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT communication to node opened.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sCommunication to Node %u opened", 
 	       theNodeId,
 	       theData[1]);
@@ -177,7 +177,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // Start of NDB has been initiated.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sStart initiated (version %d.%d.%d)", 
 	       theNodeId ,
 	       getMajor(theData[1]),
@@ -185,13 +185,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       getBuild(theData[1]));
   break;
   case EventReport::NDBStopStarted:
-    ::snprintf(m_text, m_text_len,
+    BaseString::snprintf(m_text, m_text_len,
 	       "%s%s shutdown initiated", 
 	       theNodeId, 
 	       (theData[1] == 1 ? "Cluster" : "Node"));
   break;
   case EventReport::NDBStopAborted:
-    ::snprintf(m_text, m_text_len,
+    BaseString::snprintf(m_text, m_text_len,
 	       "%sNode shutdown aborted",
 	       theNodeId);
   break;
@@ -199,7 +199,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // Start of NDB has been completed.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sStarted (version %d.%d.%d)", 
 	       theNodeId ,
 	       getMajor(theData[1]),
@@ -211,7 +211,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // STTORRY recevied after restart finished.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sSTTORRY received after restart finished",
 	       theNodeId);
   break;
@@ -237,7 +237,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       type = "";
       break;
     default:{
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "%sStart phase %u completed (unknown = %d)", 
 		 theNodeId,
 		 theData[1],
@@ -245,7 +245,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       return m_text;
     }
     }
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sStart phase %u completed %s", 
 	       theNodeId,
 	       theData[1],
@@ -254,7 +254,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     break;
   }
   case EventReport::CM_REGCONF:
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sCM_REGCONF president = %u, own Node = %u, our dynamic id = %u"
 	       , 
 	       theNodeId,
@@ -286,7 +286,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       break;
     }//switch
 
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sCM_REGREF from Node %u to our Node %u. Cause = %s", 
 	       theNodeId,
 	       theData[2], 
@@ -298,7 +298,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sWe are Node %u with dynamic ID %u, our left neighbour "
 	       "is Node %u, our right is Node %u", 
@@ -315,13 +315,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     if (theData[1] == 0)
     {
       if (theData[3] != 0) {
-        ::snprintf(m_text, m_text_len, 
+        BaseString::snprintf(m_text, m_text_len, 
 		 "%sNode %u completed failure of Node %u", 
 		 theNodeId,
 		 theData[3], 
 		 theData[2]);
       } else {
-        ::snprintf(m_text, m_text_len, 
+        BaseString::snprintf(m_text, m_text_len, 
 		 "%sAll nodes completed failure of Node %u", 
 		 theNodeId,
 		 theData[2]);
@@ -338,7 +338,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	line = "DBLQH";
       }
       
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "%sNode failure of %u %s completed", 
 		 theNodeId,
 		 theData[2], 
@@ -346,7 +346,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     }
     break;
   case EventReport::NODE_FAILREP:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode %u has failed. The Node state at failure "
 	       "was %u", 
@@ -366,41 +366,41 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const unsigned state = sd->code >> 16;
       switch (code) {
       case ArbitCode::ThreadStart:
-        ::snprintf(m_text, m_text_len,
+        BaseString::snprintf(m_text, m_text_len,
           "%sPresident restarts arbitration thread [state=%u]",
           theNodeId, state);
         break;
       case ArbitCode::PrepPart2:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sPrepare arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::PrepAtrun:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sReceive arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::ApiStart:
 	sd->ticket.getText(ticketText, sizeof(ticketText));
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sStarted arbitrator node %u [ticket=%s]",
 	  theNodeId, sd->node, ticketText);
 	break;
       case ArbitCode::ApiFail:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - process failure [state=%u]",
 	  theNodeId, sd->node, state);
 	break;
       case ArbitCode::ApiExit:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - process exit [state=%u]",
 	  theNodeId, sd->node, state);
 	break;
       default:
 	ArbitCode::getErrText(code, errText, sizeof(errText));
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sLost arbitrator node %u - %s [state=%u]",
 	  theNodeId, sd->node, errText, state);
 	break;
@@ -417,48 +417,48 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const unsigned state = sd->code >> 16;
       switch (code) {
       case ArbitCode::LoseNodes:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration check lost - less than 1/2 nodes left",
 	  theNodeId);
 	break;
       case ArbitCode::WinGroups:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration check won - node group majority",
 	  theNodeId);
 	break;
       case ArbitCode::LoseGroups:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration check lost - missing node group",
 	  theNodeId);
 	break;
       case ArbitCode::Partitioning:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - arbitration required",
 	  theNodeId);
 	break;
       case ArbitCode::WinChoose:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration won - positive reply from node %u",
 	  theNodeId, sd->node);
 	break;
       case ArbitCode::LoseChoose:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration lost - negative reply from node %u",
 	  theNodeId, sd->node);
 	break;
       case ArbitCode::LoseNorun:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - no arbitrator available",
 	  theNodeId);
 	break;
       case ArbitCode::LoseNocfg:
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sNetwork partitioning - no arbitrator configured",
 	  theNodeId);
 	break;
       default:
 	ArbitCode::getErrText(code, errText, sizeof(errText));
-	::snprintf(m_text, m_text_len,
+	BaseString::snprintf(m_text, m_text_len,
 	  "%sArbitration failure - %s [state=%u]",
 	  theNodeId, errText, state);
 	break;
@@ -470,7 +470,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     // This event reports that a global checkpoint has been started and this
     // node is the master of this global checkpoint.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sGlobal checkpoint %u started", 
 	       theNodeId,
@@ -481,7 +481,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     // This event reports that a global checkpoint has been completed on this
     // node and the node is the master of this global checkpoint.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sGlobal checkpoint %u completed", 
 	       theNodeId,
 	       theData[1]);
@@ -491,7 +491,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     // This event reports that a local checkpoint has been started and this
     // node is the master of this local checkpoint.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLocal checkpoint %u started. "
 	       "Keep GCI = %u oldest restorable GCI = %u", 
@@ -505,7 +505,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     // This event reports that a local checkpoint has been completed on this
     // node and the node is the master of this local checkpoint.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLocal checkpoint %u completed", 
 	       theNodeId,
@@ -515,14 +515,14 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // This event reports that a table has been created.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, m_text_len, 
+    BaseString::snprintf(m_text, m_text_len, 
 	       "%sTable with ID =  %u created", 
 	       theNodeId,
 	       theData[1]);
     break;
   case EventReport::LCPStoppedInCalcKeepGci:
     if (theData[1] == 0)
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "%sLocal Checkpoint stopped in CALCULATED_KEEP_GCI",
 		 theNodeId);
     break;
@@ -530,7 +530,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Node Restart completed copy of dictionary information.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode restart completed copy of dictionary information",
 	       theNodeId);
@@ -539,7 +539,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Node Restart completed copy of distribution information.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode restart completed copy of distribution information",
 	       theNodeId);
@@ -548,7 +548,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Node Restart is starting to copy the fragments.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode restart starting to copy the fragments "
 	       "to Node %u", 
@@ -559,7 +559,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u have been copied "
 	       "to Node %u", 
@@ -569,7 +569,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1]);
   break;
   case EventReport::NR_CopyFragsCompleted:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode restart completed copying the fragments "
 	       "to Node %u", 
@@ -577,7 +577,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1]);
     break;
   case EventReport::LCPFragmentCompleted:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u has completed LCP "
 	       "on Node %u", 
@@ -590,7 +590,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     // -------------------------------------------------------------------  
     // Report information about transaction activity once per 10 seconds.
     // ------------------------------------------------------------------- 
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTrans. Count = %u, Commit Count = %u, "
 	       "Read Count = %u, Simple Read Count = %u,\n"
@@ -610,7 +610,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[10]);
     break;
   case EventReport::OperationReportCounters:
-    ::snprintf(m_text, m_text_len,
+    BaseString::snprintf(m_text, m_text_len,
 	       "%sOperations=%u",
 	       theNodeId, 
 	       theData[1]);
@@ -619,7 +619,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sACC Blocked %u and TUP Blocked %u times last second",
 	       theNodeId,
@@ -628,7 +628,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   break;
   case EventReport::TransporterError:
   case EventReport::TransporterWarning:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTransporter to node %d reported error 0x%x",
 	       theNodeId,
@@ -639,7 +639,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode %d missed heartbeat %d",
 	       theNodeId,
@@ -650,21 +650,21 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode %d declared dead due to missed heartbeat",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::JobStatistic:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean loop Counter in doJob last 8192 times = %u",
 	       theNodeId,
 	       theData[1]);
     break;
   case EventReport::SendBytesStatistic:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean send size to Node = %d last 4096 sends = %u bytes",
 	       theNodeId,
@@ -672,7 +672,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2]);
     break;
   case EventReport::ReceiveBytesStatistic:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean receive size to Node = %d last 4096 sends = %u bytes",
 	       theNodeId,
@@ -680,14 +680,14 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2]);
   break;
   case EventReport::SentHeartbeat:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode Sent Heartbeat to node = %d",
 	       theNodeId,
 	       theData[1]);
   break;
   case EventReport::CreateLogBytes:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLog part %u, log file %u, MB %u",
 	       theNodeId,
@@ -696,7 +696,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3]);
   break;
   case EventReport::StartLog:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLog part %u, start MB %u, stop MB %u, last GCI, log exec %u",
 	       theNodeId,
@@ -706,7 +706,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[4]);
   break;
   case EventReport::StartREDOLog:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
 	       theNodeId,
@@ -723,7 +723,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       line = "DBACC";
     }
     
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%s UNDO %s %d [%d %d %d %d %d %d %d %d %d]",
 	       theNodeId,
@@ -741,36 +741,36 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   }
     break;
   case EventReport::InfoEvent:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
   case EventReport::WarningEvent:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
   case EventReport::GCP_TakeoverStarted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sGCP Take over started", theNodeId);
   break;
   case EventReport::GCP_TakeoverCompleted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sGCP Take over completed", theNodeId);
   break;
   case EventReport::LCP_TakeoverStarted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sLCP Take over started", theNodeId);
   break;
   case EventReport::LCP_TakeoverCompleted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sLCP Take over completed (state = %d)", 
 	       theNodeId, theData[1]);
@@ -783,7 +783,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     const int block = theData[5];
     const int percent = (used*100)/total;
     
-    ::snprintf(m_text, m_text_len,
+    BaseString::snprintf(m_text, m_text_len,
 	       "%s%s usage %s %d%s(%d %dK pages of total %d)",
 	       theNodeId,
 	       (block==DBACC ? "Index" : (block == DBTUP ?"Data":"<unknown>")),
@@ -802,7 +802,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Created subscription id"
 		 " (subId=%d,SubKey=%d)"
 		 " Return code: %d.",
@@ -816,7 +816,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Created subscription id" 
 		 " (subId=%d,SubKey=%d)"
 		 " Return code: %d.",
@@ -831,7 +831,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subKey  = theData[3];
       const int err     = theData[4];
       const int nodegrp = theData[5];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Created subscription using"
 		 " (subId=%d,SubKey=%d)" 
 		 " in primary system. Primary system has %d nodegroup(s)."
@@ -847,7 +847,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have created "
 		 "subscriptions"
 		 " using (subId=%d,SubKey=%d)."
@@ -862,7 +862,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Logging started on meta data changes." 
 		 " using (subId=%d,SubKey=%d)"
 		 " Return code: %d",
@@ -876,7 +876,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have started " 
 		 "logging meta data" 
 		 " changes on the subscription subId=%d,SubKey=%d) "
@@ -891,7 +891,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Logging started on table data changes " 
 		 " using (subId=%d,SubKey=%d)"
 		 " Return code: %d",
@@ -905,7 +905,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have started logging "
 		 "table data changes on the subscription " 
 		 "subId=%d,SubKey=%d)."
@@ -920,7 +920,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have started "
 		 " synchronization  on meta data (META SCAN) using "
 		 "(subId=%d,SubKey=%d)."
@@ -935,7 +935,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Synchronization started (META SCAN) on "
 		 " meta data using (subId=%d,SubKey=%d)"
 		 " Return code: %d",
@@ -949,7 +949,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have started " 
 		 "synchronization "
 		 " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
@@ -965,7 +965,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subKey  =  theData[3];
       const int err     =  theData[4];
       const int gci     =  theData[5];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Synchronization started (DATA SCAN) on "
 		 "table data using (subId=%d,SubKey=%d). GCI = %d"
 		 " Return code: %d",
@@ -980,7 +980,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: All participants have removed "
 		 "subscription (subId=%d,SubKey=%d). I have cleaned "
 		 "up resources I've used."
@@ -995,7 +995,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Removed subscription "
 		 "(subId=%d,SubKey=%d)"
 		 " Return code: %d",
@@ -1005,7 +1005,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       break;
     }
     default:
-      ::snprintf(m_text, 
+      BaseString::snprintf(m_text, 
 		 m_text_len, 
 		 "%sUnknown GrepSubscriptonInfo event: %d",
 		 theNodeId,
@@ -1024,7 +1024,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId    = theData[2];
       const int subKey   = theData[3];
       const int err      = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord:Error code: %d Error message: %s"
 		 " (subId=%d,SubKey=%d)",
 		 err,
@@ -1038,7 +1038,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err     = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: FAILED to Created subscription using"
 		 " (subId=%d,SubKey=%d)in primary system."
 		 " Error code: %d Error Message: %s",
@@ -1053,7 +1053,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Logging failed to start on meta "
 		 "data changes." 
 		 " using (subId=%d,SubKey=%d)"
@@ -1069,7 +1069,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Logging FAILED to start on table data "
 		 " changes using (subId=%d,SubKey=%d)"
 		 " Error code: %d Error Message: %s",
@@ -1084,7 +1084,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err     = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
 		 " meta data using (subId=%d,SubKey=%d)"
 		 " Error code: %d Error Message: %s",
@@ -1100,7 +1100,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subKey  =  theData[3];
       const int err     =  theData[4];
       const int gci     =  theData[5];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
 		 "table data using (subId=%d,SubKey=%d). GCI = %d"
 		 " Error code: %d Error Message: %s", 
@@ -1116,7 +1116,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::SSCoord: Failed to remove subscription "
 		 "(subId=%d,SubKey=%d). "
 		 " Error code: %d Error Message: %s",
@@ -1133,7 +1133,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Error code: %d Error Message: %s"
 		 " (subId=%d,SubKey=%d)",
 		 err,
@@ -1147,7 +1147,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err     = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: FAILED to Created subscription using"
 		 " (subId=%d,SubKey=%d)in primary system."
 		 " Error code: %d Error Message: %s",
@@ -1162,7 +1162,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err     = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Logging failed to start on meta "
 		 "data changes." 
 		 " using (subId=%d,SubKey=%d)"
@@ -1178,7 +1178,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Logging FAILED to start on table data "
 		 " changes using (subId=%d,SubKey=%d)"
 		 " Error code: %d Error Message: %s",
@@ -1193,7 +1193,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId   = theData[2];
       const int subKey  = theData[3];
       const int err     = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
 		 " meta data using (subId=%d,SubKey=%d)"
 		 " Error code: %d Error Message: %s",
@@ -1209,7 +1209,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subKey  =  theData[3];
       const int err     =  theData[4];
       const int gci     =  theData[5];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
 		 "table data using (subId=%d,SubKey=%d). GCI = %d. "
 		 " Error code: %d Error Message: %s",
@@ -1225,7 +1225,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       const int subId  = theData[2];
       const int subKey = theData[3];
       const int err    = theData[4];
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Grep::PSCoord: Failed to remove subscription "
 		 "(subId=%d,SubKey=%d)." 
 		 " Error code: %d Error Message: %s",
@@ -1239,7 +1239,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     {
       const int err       = theData[4];
       const int nodeId    = theData[5];   
-      ::snprintf(m_text, m_text_len, 
+      BaseString::snprintf(m_text, m_text_len, 
 		 "Rep: Node %d."
 		 " Error code: %d Error Message: %s",
 		 nodeId,
@@ -1250,7 +1250,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	
 	
     default:
-      ::snprintf(m_text, 
+      BaseString::snprintf(m_text, 
 		 m_text_len, 
 		 "%sUnknown GrepSubscriptionAlert event: %d",
 		 theNodeId,
@@ -1261,19 +1261,19 @@ EventLogger::getText(char * m_text, size_t m_text_len,
   }
 
   case EventReport::BackupStarted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %d started from node %d", 
 	       theNodeId, theData[2], refToNode(theData[1]));
   break;
   case EventReport::BackupFailedToStart:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup request from %d failed to start. Error: %d", 
 	       theNodeId, refToNode(theData[1]), theData[2]);
   break;
   case EventReport::BackupCompleted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %d started from node %d completed\n" 
 	       " StartGCP: %d StopGCP: %d\n"
@@ -1284,7 +1284,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[5], theData[7]);
   break;
   case EventReport::BackupAborted:
-    ::snprintf(m_text,
+    BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %d started from %d has been aborted. Error: %d",
 	       theNodeId, 
@@ -1293,7 +1293,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3]);
   break;
   default:
-    ::snprintf(m_text, 
+    BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sUnknown event: %d",
 	       theNodeId,
