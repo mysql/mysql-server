@@ -346,9 +346,17 @@ HELLO MY	1
 a	1
 hello	1
 drop table t1;
+create table t1 (a text, unique (a(300)));
+ERROR 42000: Specified key was too long; max key length is 255 bytes
 create table t1 (a text, key (a(300)));
-ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
-create table t1 (a text, key (a(255)));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 255 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  KEY `a` (`a`(255))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
