@@ -27,7 +27,7 @@
  * - Control the NDB Cluster log
  * - Perform other administrative tasks
  *
- * @section  General Concepts
+ * @section  secMgmApiGeneral General Concepts
  *
  * Each MGM API function needs a management server handle
  * of type @ref NdbMgmHandle.
@@ -63,6 +63,27 @@
  *   }
  *   free((void*)state);
  *   ndb_mgm_destroy_handle(&handle);
+ * @endcode
+ *
+ * @section secLogEvents  Log Events
+ *
+ * The database nodes and management server(s) regularly and on specific
+ * occations report on various log events that occurs in the cluster. These
+ * log events are written to the cluster log.  Optionally a mgmapi client
+ * may listen to these events by using the method ndb_mgm_listen_event().
+ * Each log event belongs to a category, @ref ndb_mgm_event_category, and
+ * has a severity, @ref ndb_mgm_event_severity, associated with it.  Each
+ * log event also has a level (0-15) associated with it.
+ *
+ * Which log events that come out is controlled with ndb_mgm_listen_event(),
+ * ndb_mgm_set_clusterlog_loglevel(), and 
+ * ndb_mgm_set_clusterlog_severity_filter().
+ *
+ * Below is an example of how to listen to events related to backup.
+ *
+ * @code
+ *   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+ *   int fd = ndb_mgm_listen_event(handle, filter);
  * @endcode
  */
 
@@ -325,92 +346,90 @@ extern "C" {
 #endif
 
   /**
-   *   Log severities (used to filter the cluster log)
+   *   Log event severities (used to filter the cluster log, 
+   *   ndb_mgm_set_clusterlog_severity_filter(), and filter listening to events
+   *   ndb_mgm_listen_event())
    */
-  enum ndb_mgm_clusterlog_level {
-    NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,
+  enum ndb_mgm_event_severity {
+    NDB_MGM_ILLEGAL_EVENT_SEVERITY = -1,
     /* must range from 0 and up, indexes into an array */
-    /** Cluster log on*/
-    NDB_MGM_CLUSTERLOG_ON    = 0,
+    /** Cluster log on */
+    NDB_MGM_EVENT_SEVERITY_ON    = 0,
     /** Used in NDB Cluster developement */
-    NDB_MGM_CLUSTERLOG_DEBUG = 1,
+    NDB_MGM_EVENT_SEVERITY_DEBUG = 1,
     /** Informational messages*/
-    NDB_MGM_CLUSTERLOG_INFO = 2,
+    NDB_MGM_EVENT_SEVERITY_INFO = 2,
     /** Conditions that are not error condition, but might require handling
      */
-    NDB_MGM_CLUSTERLOG_WARNING = 3,
+    NDB_MGM_EVENT_SEVERITY_WARNING = 3,
     /** Conditions that should be corrected */
-    NDB_MGM_CLUSTERLOG_ERROR = 4,
+    NDB_MGM_EVENT_SEVERITY_ERROR = 4,
     /** Critical conditions, like device errors or out of resources */
-    NDB_MGM_CLUSTERLOG_CRITICAL = 5,
+    NDB_MGM_EVENT_SEVERITY_CRITICAL = 5,
     /** A condition that should be corrected immediately,
      *  such as a corrupted system
      */
-    NDB_MGM_CLUSTERLOG_ALERT = 6,
+    NDB_MGM_EVENT_SEVERITY_ALERT = 6,
     /* must be next number, works as bound in loop */
     /** All severities */
-    NDB_MGM_CLUSTERLOG_ALL = 7
+    NDB_MGM_EVENT_SEVERITY_ALL = 7
   };
 
   /**
-   *  Log categories, used to set filter on the clusterlog using
-   *  ndb_mgm_set_loglevel_clusterlog()
+   *  Log event categories, used to set filter level on the log events using
+   *  ndb_mgm_set_clusterlog_loglevel() and ndb_mgm_listen_event()
    */
   enum ndb_mgm_event_category {
     /**
-     * Invalid
+     * Invalid log event category
      */
     NDB_MGM_ILLEGAL_EVENT_CATEGORY = -1,
     /**
-     * Events during all kinds of startups
+     * Log events during all kinds of startups
      */
     NDB_MGM_EVENT_CATEGORY_STARTUP = CFG_LOGLEVEL_STARTUP,
     /**
-     * Events during shutdown
+     * Log events during shutdown
      */
     NDB_MGM_EVENT_CATEGORY_SHUTDOWN = CFG_LOGLEVEL_SHUTDOWN,
     /**
-     * Transaction statistics (Job level, TCP/IP speed)
+     * Statistics log events
      */
     NDB_MGM_EVENT_CATEGORY_STATISTIC = CFG_LOGLEVEL_STATISTICS,
     /**
-     * Events regarding checkpoints
+     * Log events related to checkpoints
      */
     NDB_MGM_EVENT_CATEGORY_CHECKPOINT = CFG_LOGLEVEL_CHECKPOINT,
     /**
-     * Events during node restart
+     * Log events during node restart
      */
     NDB_MGM_EVENT_CATEGORY_NODE_RESTART = CFG_LOGLEVEL_NODERESTART,
     /**
-     * Events on connection between cluster nodes
+     * Log events related to connections between cluster nodes
      */
     NDB_MGM_EVENT_CATEGORY_CONNECTION = CFG_LOGLEVEL_CONNECTION,
     /**
-     * Backup events
+     * Backup related log events
      */
     NDB_MGM_EVENT_CATEGORY_BACKUP = CFG_LOGLEVEL_BACKUP,
+    /**
+     * Congestion related log events
+     */
+    NDB_MGM_EVENT_CATEGORY_CONGESTION = CFG_LOGLEVEL_CONGESTION,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Loglevel debug
      */
     NDB_MGM_EVENT_CATEGORY_DEBUG = CFG_LOGLEVEL_DEBUG,
+#endif
     /**
-     * Loglevel info
+     * Uncategorized log events (severity info)
      */
     NDB_MGM_EVENT_CATEGORY_INFO = CFG_LOGLEVEL_INFO,
     /**
-     * Loglevel warning
-     */
-    NDB_MGM_EVENT_CATEGORY_WARNING = CFG_LOGLEVEL_WARNING,
-    /**
-     * Loglevel error
+     * Uncategorized log events (severity warning or higher)
      */
     NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    /**
-     *
-     */
-    NDB_MGM_EVENT_CATEGORY_GREP = CFG_LOGLEVEL_GREP,
-#endif
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
     NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
@@ -614,7 +633,7 @@ extern "C" {
    */
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
-  const char * ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level);
+  const char * ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity);
   ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 #endif
@@ -740,27 +759,26 @@ extern "C" {
 
   /** @} *********************************************************************/
   /**
-   * @name Functions: Logging
+   * @name Functions: Controlling Clusterlog output
    * @{
    */
 
   /**
-   * Filter cluster log
+   * Filter cluster log severities
    *
    * @param   handle        NDB management handle.
-   * @param   level         A cluster log level to filter.
-   * @param   enable        set 1=enable 0=disable
+   * @param   severity      A cluster log severity to filter.
+   * @param   enable        set 1=enable, 0=disable
    * @param   reply         Reply message.
    *
    * @return                -1 on error.
    */
-  int ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
-				enum ndb_mgm_clusterlog_level level,
-				int enable,
-				struct ndb_mgm_reply* reply);
-
+  int ndb_mgm_set_clusterlog_severity_filter(NdbMgmHandle handle,
+					     enum ndb_mgm_event_severity severity,
+					     int enable,
+					     struct ndb_mgm_reply* reply);
   /**
-   * Get log filter
+   * Get clusterlog severity filter
    *
    * @param   handle        NDB management handle
    *
@@ -768,14 +786,14 @@ extern "C" {
    *                        where each element contains
    *                        1 if a severity is enabled and 0 if not.
    *                        A severity is stored at position
-   *                        ndb_mgm_clusterlog_level,
-   *                        for example the "error" level is stored in position
-   *                        [NDB_MGM_CLUSTERLOG_ERROR-1].
-   *                        The first element in the vector signals
-   *                        whether the clusterlog
-   *                        is disabled or enabled.
+   *                        ndb_mgm_event_severity,
+   *                        for example the "error" severity is stored in 
+   *                        position [NDB_MGM_EVENT_SEVERITY_ERROR].
+   *                        The first element [NDB_MGM_EVENT_SEVERITY_ON] 
+   *                        in the vector signals
+   *                        whether the clusterlog is disabled or enabled.
    */
-  unsigned int *ndb_mgm_get_logfilter(NdbMgmHandle handle);
+  const unsigned int *ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle);
 
   /**
    * Set log category and levels for the cluster log
@@ -787,21 +805,29 @@ extern "C" {
    * @param   reply         Reply message.
    * @return                -1 on error.
    */
-  int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle handle,
+  int ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle,
 				      int nodeId,
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
 
+  /** @} *********************************************************************/
   /**
-   * Listen to log events
+   * @name Functions: Listening to log events
+   * @{
+   */
+
+  /**
+   * Listen to log events. The are read from the return file descriptor
+   * and the format is textual, and the same as in the cluster log.
    *
+   * @param handle NDB management handle.
    * @param filter pairs of { level, ndb_mgm_event_category } that will be
-   *        pushed to fd, level=0 ends lists
+   *               pushed to fd, level=0 ends list.
    *
    * @return fd which events will be pushed to
    */
-  int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
+  int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -939,6 +965,36 @@ extern "C" {
 				   int param, const char  ** value);
   int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
   int ndb_mgm_check_connection(NdbMgmHandle handle);
+#endif
+
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  enum ndb_mgm_clusterlog_level {
+     NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,
+     NDB_MGM_CLUSTERLOG_ON    = 0,
+     NDB_MGM_CLUSTERLOG_DEBUG = 1,
+     NDB_MGM_CLUSTERLOG_INFO = 2,
+     NDB_MGM_CLUSTERLOG_WARNING = 3,
+     NDB_MGM_CLUSTERLOG_ERROR = 4,
+     NDB_MGM_CLUSTERLOG_CRITICAL = 5,
+     NDB_MGM_CLUSTERLOG_ALERT = 6,
+     NDB_MGM_CLUSTERLOG_ALL = 7
+  };
+  inline
+  int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
+				enum ndb_mgm_clusterlog_level s,
+				int e, struct ndb_mgm_reply* r)
+  { return ndb_mgm_set_clusterlog_severity_filter(h,(ndb_mgm_event_severity)s,
+						  e,r); }
+
+  inline
+  const unsigned int *ndb_mgm_get_logfilter(NdbMgmHandle h)
+  { return ndb_mgm_get_clusterlog_severity_filter(h); }
+
+  inline
+  int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle h, int n,
+				      enum ndb_mgm_event_category c,
+				      int l, struct ndb_mgm_reply* r)
+  { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
 #endif
 
 #ifdef __cplusplus
