@@ -3215,6 +3215,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
   store_key **ref_key= j->ref.key_copy;
   byte *key_buff=j->ref.key_buff, *null_ref_key= 0;
+  bool keyuse_uses_no_tables= true;
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
@@ -3234,6 +3235,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
+      keyuse_uses_no_tables= keyuse_uses_no_tables & !keyuse->used_tables;
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
@@ -3273,7 +3275,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
-  else if (ref_key == j->ref.key_copy)
+  else if (keyuse_uses_no_tables)
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -4062,7 +4064,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond, bool *simple_order)
 	}
 	if ((ref=order_tables & (not_const_tables ^ first_table)))
 	{
-	  if (only_eq_ref_tables(join,first_order,ref))
+	  if (!(order_tables & first_table) && only_eq_ref_tables(join,first_order,ref))
 	  {
 	    DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
 	    continue;
