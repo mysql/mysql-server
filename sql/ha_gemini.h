@@ -19,17 +19,26 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "gem_global.h"
 #include "dstd.h"
 #include "dsmpub.h"
 
 /* class for the the gemini handler */
 
 enum enum_key_string_options{KEY_CREATE,KEY_DELETE,KEY_CHECK};
+typedef struct st_gemini_share {
+  ha_rows  *rec_per_key;
+  THR_LOCK lock;
+  pthread_mutex_t mutex;
+  char *table_name;
+  uint table_name_length,use_count;
+} GEM_SHARE;
 
-#define  READ_UNCOMMITED  0
-#define  READ_COMMITED    1
-#define  REPEATABLE_READ  2
-#define  SERIALIZEABLE    3
+typedef struct gemBlobDesc
+{
+  dsmBlobId_t  blobId;
+  dsmBuffer_t *pBlob;
+} gemBlobDesc_t;
 
 class ha_gemini: public handler
 {
@@ -38,7 +47,7 @@ class ha_gemini: public handler
   uint int_option_flag;
   int tableNumber;
   dsmIndex_t  *pindexNumbers;  // dsm object numbers for the indexes on this table 
-  unsigned long lastRowid;
+  dsmRecid_t lastRowid;
   uint  last_dup_key;
   bool fixed_length_row, key_read, using_ignore;
   byte *rec_buff;
@@ -46,10 +55,12 @@ class ha_gemini: public handler
   dsmKey_t *pbracketLimit;
   dsmKey_t *pfoundKey;
   dsmMask_t    tableStatus;   // Crashed/repair status
+  gemBlobDesc_t *pBlobDescs;
 
   int index_open(char *tableName);
-  int  pack_row(byte **prow, int *ppackedLength, const byte *record);
-  void unpack_row(char *record, char *prow);
+  int  pack_row(byte **prow, int *ppackedLength, const byte *record, 
+                bool update);
+  int  unpack_row(char *record, char *prow);
   int findRow(THD *thd, dsmMask_t findMode, byte *buf);
   int fetch_row(void *gemini_context, const byte *buf);
   int handleIndexEntries(const byte * record, dsmRecid_t recid,
@@ -70,24 +81,28 @@ class ha_gemini: public handler
   void unpack_key(char *record, dsmKey_t *key, uint index);
 
   int key_cmp(uint keynr, const byte * old_row,
-                         const byte * new_row);
+                         const byte * new_row, bool updateStats);
 
+  int saveKeyStats(THD *thd);
+  void get_index_stats(THD *thd);
 
   short cursorId;  /* cursorId of active index cursor if any   */
   dsmMask_t  lockMode;  /* Shared or exclusive      */
 
   /* FIXFIX Don't know why we need this because I don't know what
      store_lock method does but we core dump without this  */
-  THR_LOCK      alock;
   THR_LOCK_DATA lock;
+  GEM_SHARE     *share;
+
  public:
   ha_gemini(TABLE *table): handler(table), file(0),
     int_option_flag(HA_READ_NEXT | HA_READ_PREV |
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
-                    HA_NO_BLOBS | HA_NO_TEMP_TABLES |
-		    /* HA_BLOB_KEY | */ /*HA_NOT_EXACT_COUNT | */ 
+		    HA_BLOB_KEY | 
+		    HA_NO_TEMP_TABLES | HA_NO_FULLTEXT_KEY |
+		    /*HA_NOT_EXACT_COUNT | */ 
 		    /*HA_KEY_READ_WRONG_STR |*/ HA_DROP_BEFORE_CREATE),
                     pbracketBase(0),pbracketLimit(0),pfoundKey(0),
                     cursorId(0)
@@ -100,7 +115,7 @@ class ha_gemini: public handler
   uint max_record_length() const { return MAXRECSZ; }
   uint max_keys()          const { return MAX_KEY-1; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return MAXKEYSZ; }
+  uint max_key_length()    const { return MAXKEYSZ / 2; }
   bool fast_key_read()	   { return 1;}
   bool has_transactions()  { return 1;}
 
@@ -129,8 +144,12 @@ class ha_gemini: public handler
   void info(uint);
   int extra(enum ha_extra_function operation);
   int reset(void);
+  int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd,  HA_CHECK_OPT* check_opt);
+  int restore(THD* thd, HA_CHECK_OPT* check_opt);
+  int backup(THD* thd, HA_CHECK_OPT* check_opt);
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int external_lock(THD *thd, int lock_type);
   virtual longlong get_auto_increment();
   void position(byte *record);
@@ -139,7 +158,7 @@ class ha_gemini: public handler
 			   enum ha_rkey_function start_search_flag,
 			   const byte *end_key,uint end_key_len,
 			   enum ha_rkey_function end_search_flag);
-
+  void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, register TABLE *form,
 	     HA_CREATE_INFO *create_info);
   int delete_table(const char *name);
@@ -167,6 +186,7 @@ extern long gemini_locktablesize;
 extern long gemini_lock_wait_timeout;
 extern long gemini_spin_retries;
 extern long gemini_connection_limit;
+extern char *gemini_basedir;
 extern TYPELIB gemini_recovery_typelib;
 extern ulong gemini_recovery_options;
 
@@ -175,12 +195,13 @@ bool gemini_end(void);
 bool gemini_flush_logs(void);
 int gemini_commit(THD *thd);
 int gemini_rollback(THD *thd);
+int gemini_recovery_logging(THD *thd, bool on);
 void gemini_disconnect(THD *thd);
 int gemini_rollback_to_savepoint(THD *thd);
 int gemini_parse_table_name(const char *fullname, char *dbname, char *tabname);
 int gemini_is_vst(const char *pname);
 int gemini_set_option_long(int optid, long optval);
 
-const int gemini_blocksize = 8192;
-const int gemini_recbits = 7;
+const int gemini_blocksize = BLKSIZE;
+const int gemini_recbits = DEFAULT_RECBITS;
 
