@@ -465,13 +465,13 @@ bool Item_asterisk_remover::fix_fields(THD *thd,
       Item_field *fitem=  (Item_field*) item;
       if (!list->next || fitem->db_name || fitem->table_name)
       {
-	TABLE_LIST *table= find_table_in_list(thd, list,
+	TABLE_LIST *table= find_table_in_list(list,
 					      fitem->db_name,
 					      fitem->table_name);
 	if (table)
 	{
 	  TABLE * tb= table->table;
-	  if (find_table_in_list(thd, table->next, fitem->db_name,
+	  if (find_table_in_list(table->next, fitem->db_name,
 				 fitem->table_name) != 0 ||
 	      tb->fields == 1)
 	  {
