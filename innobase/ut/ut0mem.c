@@ -80,7 +80,7 @@ ut_malloc_low(
 		fprintf(stderr,
 		"InnoDB: Fatal error: cannot allocate %lu bytes of\n"
 		"InnoDB: memory with malloc! Total allocated memory\n"
-		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
+		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
 		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
 		"InnoDB: ulimits of your operating system.\n"
