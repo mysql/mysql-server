@@ -70,6 +70,11 @@ public:
   NodeId getLocalNodeId() const;
 
   /**
+   * Get r_port we're connecting to
+   */
+  unsigned int get_r_port() { return m_r_port; };
+  
+  /**
    * Set r_port to connect to
    */
   void set_r_port(unsigned int port) { m_r_port = port; };
