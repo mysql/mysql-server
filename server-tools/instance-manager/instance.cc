@@ -88,8 +88,8 @@ Instance::~Instance()
 
 bool Instance::is_running()
 {
-  uint port;
-  const char *socket;
+  uint port= 0;
+  const char *socket= NULL;
 
   if (options.mysqld_port)
     port= atoi(strchr(options.mysqld_port, '=') + 1);

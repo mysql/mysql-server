@@ -85,7 +85,7 @@ int Buffer::reserve(uint position, uint len_arg)
                              min(MAX_BUFFER_SIZE,
                                  max((uint) (buffer_size*1.5),
                                      position + len_arg)));
-    if (buffer= NULL)
+    if (buffer == NULL)
       goto err;
     buffer_size= (uint) (buffer_size*1.5);
   }
