@@ -1,7 +1,10 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
 CREATE TABLE t2 (a int not null, b char (10) not null);
 insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
 select t1.a,t3.y from t1,(select a as y from t2  where b='c') as t3  where t1.a = t3.y;
-drop table if exists  t1.t2;
+CREATE TABLE t3 (a int not null, b char (10) not null);
+insert into t3 values (3,'f'),(4,'y'),(5,'z'),(6,'c');
+select t1.a,t4.y from t1,(select t2.a as y from t2,(select t3.b from t3 where t3.a>3) as t5  where t2.b=t5.b) as t4  where t1.a = t4.y;
+drop table if exists  t1.t2,t3;
