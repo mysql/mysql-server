@@ -34,6 +34,7 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 class acl_entry :public hash_filo_element
 {
@@ -985,51 +986,6 @@ exit:
   return (db_access & host_access);
 }
 
-
-int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
-{
-  reg3 int flag;
-  DBUG_ENTER("wild_case_compare");
-  DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
-  while (*wildstr)
-  {
-    while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
-    {
-      if (*wildstr == wild_prefix && wildstr[1])
-	wildstr++;
-      if (my_toupper(cs, *wildstr++) !=
-          my_toupper(cs, *str++)) DBUG_RETURN(1);
-    }
-    if (! *wildstr ) DBUG_RETURN (*str != 0);
-    if (*wildstr++ == wild_one)
-    {
-      if (! *str++) DBUG_RETURN (1);	/* One char; skip */
-    }
-    else
-    {						/* Found '*' */
-      if (!*wildstr) DBUG_RETURN(0);		/* '*' as last char: OK */
-      flag=(*wildstr != wild_many && *wildstr != wild_one);
-      do
-      {
-	if (flag)
-	{
-	  char cmp;
-	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
-	    cmp=wildstr[1];
-	  cmp=my_toupper(cs, cmp);
-	  while (*str && my_toupper(cs, *str) != cmp)
-	    str++;
-	  if (!*str) DBUG_RETURN (1);
-	}
-	if (wild_case_compare(cs, str,wildstr) == 0) DBUG_RETURN (0);
-      } while (*str++);
-      DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN (*str != '\0');
-}
-
-
 /*
   Check if there are any possible matching entries for this host
 
@@ -1136,7 +1092,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
       (strcmp(thd->user,user) ||
        my_strcasecmp(&my_charset_latin1, host, thd->host_or_ip)))
   {
-    if (check_access(thd, UPDATE_ACL, "mysql",0,1))
+    if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
       return(1);
   }
   if (!thd->slave_thread && !thd->user[0])
@@ -3605,3 +3561,50 @@ template class List_iterator<LEX_USER>;
 template class List<LEX_COLUMN>;
 template class List<LEX_USER>;
 #endif
+
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
+
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
+{
+  reg3 int flag;
+  DBUG_ENTER("wild_case_compare");
+  DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
+  while (*wildstr)
+  {
+    while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
+    {
+      if (*wildstr == wild_prefix && wildstr[1])
+	wildstr++;
+      if (my_toupper(cs, *wildstr++) !=
+          my_toupper(cs, *str++)) DBUG_RETURN(1);
+    }
+    if (! *wildstr ) DBUG_RETURN (*str != 0);
+    if (*wildstr++ == wild_one)
+    {
+      if (! *str++) DBUG_RETURN (1);	/* One char; skip */
+    }
+    else
+    {						/* Found '*' */
+      if (!*wildstr) DBUG_RETURN(0);		/* '*' as last char: OK */
+      flag=(*wildstr != wild_many && *wildstr != wild_one);
+      do
+      {
+	if (flag)
+	{
+	  char cmp;
+	  if ((cmp= *wildstr) == wild_prefix && wildstr[1])
+	    cmp=wildstr[1];
+	  cmp=my_toupper(cs, cmp);
+	  while (*str && my_toupper(cs, *str) != cmp)
+	    str++;
+	  if (!*str) DBUG_RETURN (1);
+	}
+	if (wild_case_compare(cs, str,wildstr) == 0) DBUG_RETURN (0);
+      } while (*str++);
+      DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN (*str != '\0');
+}
+

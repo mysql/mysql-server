@@ -48,14 +48,12 @@
 #endif
 
 #define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
-#define CLI_MYSQL_CLOSE cli_mysql_close
 
 #undef net_flush
 my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
-#define CLI_MYSQL_CLOSE mysql_close
 #endif /*EMBEDDED_LIBRARY*/
 
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
@@ -2127,6 +2125,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -2159,7 +2158,7 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
-void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
+void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -2529,6 +2528,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
   case MYSQL_OPT_GUESS_CONNECTION:
     mysql->options.methods_to_use= option;
     break;
+  case MYSQL_SET_CLIENT_IP:
+    mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
   default:
     DBUG_RETURN(1);
   }

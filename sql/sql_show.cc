@@ -73,10 +73,12 @@ mysqld_show_dbs(THD *thd,const char *wild)
 
   while ((file_name=it++))
   {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
 		thd->priv_user, file_name,0) ||
 	(grant_option && !check_grant_db(thd, file_name)))
+#endif
     {
       protocol->prepare_for_resend();
       protocol->store(file_name, system_charset_info);
@@ -437,6 +439,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 	  continue;
       }
     }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
     {
@@ -446,6 +449,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
         continue;
     }
+#endif
     if (files->push_back(thd->strdup(file->name)))
     {
       my_dirend(dirp);
@@ -674,8 +678,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   }
   file=table->file;
   file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) get_table_grant(thd, table_list);
-
+#endif
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
@@ -755,6 +760,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	{
 	  /* Add grant options & comments */
 	  end=tmp;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
 	  {
@@ -764,6 +770,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	      end=strmov(end,grant_types.type_names[bitnr]);
 	    }
 	  }
+#else
+	  end=strmov(end,"");
+#endif
 	  protocol->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1),
 			  system_charset_info);
 	  protocol->store(field->comment.str, field->comment.length,

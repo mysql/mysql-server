@@ -1002,6 +1002,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Query_cache_table *table = block_table->parent;
     table_list.db = table->db();
     table_list.alias= table_list.real_name= table->table();
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (check_table_access(thd,SELECT_ACL,&table_list,1))
     {
       DBUG_PRINT("qcache",
@@ -1021,6 +1022,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       thd->lex.safe_to_cache_query= 0;		// Don't try to cache this
       goto err_unlock;				// Parse query
     }
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
     if (check_tables && !handler::caching_allowed(thd, table->db(), 
 						  table->key_length(),
 						  table->type()))

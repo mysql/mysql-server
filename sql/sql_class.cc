@@ -135,7 +135,9 @@ THD::THD():user_time(0), is_fatal_error(0),
   slave_net = 0;
   command=COM_CONNECT;
   set_query_id=1;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access=NO_ACCESS;
+#endif
   version=refresh_version;			// For boot
   *scramble= '\0';
 
@@ -316,7 +318,7 @@ THD::~THD()
 #endif
 
   DBUG_PRINT("info", ("freeing host"));
-  if (host != localhost)			// If not pointer to constant
+  if (host != my_localhost)			// If not pointer to constant
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);

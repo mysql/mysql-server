@@ -218,7 +218,7 @@ const char *sql_mode_names[] =
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
 const char *first_keyword= "first", *binary_keyword= "BINARY";
-const char *localhost= "localhost", *delayed_user= "DELAYED";
+const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
 #define GET_HA_ROWS GET_ULL
 #else
@@ -875,8 +875,10 @@ void clean_up(bool print_message)
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
 #endif
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
+#endif
   query_cache_destroy();
   table_cache_free();
   hostname_cache_free();
@@ -1672,6 +1674,7 @@ static void init_signals(void)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 static void start_signal_handler(void)
 {
   int error;
@@ -1834,6 +1837,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   }
   return(0);					/* purecov: deadcode */
 }
+#endif /*!EMBEDDED_LIBRARY*/
 
 static void check_data_home(const char *path)
 {}
@@ -3111,7 +3115,7 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
       continue;
     }
     if (sock == unix_sock)
-      thd->host=(char*) localhost;
+      thd->host=(char*) my_localhost;
 #ifdef __WIN__
     /* Set default wait_timeout */
     ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
@@ -3201,7 +3205,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
       continue;
     }
     /* host name is unknown */
-    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
   }
 
@@ -3410,7 +3414,7 @@ errorconn:
       if (!event_client_read) CloseHandle(event_client_read);
       continue;
     }
-    thd->host = my_strdup(localhost,MYF(0)); /* Host is unknown */
+    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
     uint4korr(connect_number++);
   }
