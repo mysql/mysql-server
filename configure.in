@@ -3019,7 +3019,7 @@ AC_SUBST(server_scripts)
 sql_union_dirs=" $sql_server_dirs "
 for DIR in $sql_client_dirs
 do
-  if echo $sql_union_dirs | grep " $DIR " >/dev/null
+  if echo " $sql_union_dirs " | grep " $DIR " >/dev/null
   then
     :  # already present, skip
   else
