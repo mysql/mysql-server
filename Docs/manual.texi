@@ -50147,6 +50147,8 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in query cache after temporary table creation.
+@item
 Added --count=N (-c) to mysqladmin, to be used with -i (--sleep). When used,
 the program will only make N iterations. Useful in scripts.
 @item
