@@ -29,16 +29,16 @@ typedef struct st_bitmap
 #ifdef THREAD
   pthread_mutex_t mutex;
 #endif
-} BITMAP;
+} MY_BITMAP;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
-  extern my_bool bitmap_init(BITMAP *bitmap, uint bitmap_size);
-  extern void bitmap_free(BITMAP *bitmap);
-  extern void bitmap_set_bit(BITMAP *bitmap, uint bitmap_bit);
-  extern uint bitmap_set_next(BITMAP *bitmap);
-  extern void bitmap_clear_bit(BITMAP *bitmap, uint bitmap_bit);
+  extern my_bool bitmap_init(MY_BITMAP *bitmap, uint bitmap_size);
+  extern void bitmap_free(MY_BITMAP *bitmap);
+  extern void bitmap_set_bit(MY_BITMAP *bitmap, uint bitmap_bit);
+  extern uint bitmap_set_next(MY_BITMAP *bitmap);
+  extern void bitmap_clear_bit(MY_BITMAP *bitmap, uint bitmap_bit);
 #ifdef	__cplusplus
 }
 #endif

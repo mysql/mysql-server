@@ -27,9 +27,7 @@
 #include <my_bitmap.h>
 #include <assert.h>
 
-pthread_mutex_t LOCK_bitmap;
-
-my_bool bitmap_init(BITMAP *map, uint bitmap_size)
+my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size)
 {
   if (!(map->bitmap=(uchar*) my_malloc((bitmap_size+7)/8,MYF(MY_WME))))
     return 1;
@@ -41,7 +39,7 @@ my_bool bitmap_init(BITMAP *map, uint bitmap_size)
   return 0;
 }
 
-void bitmap_free(BITMAP *map)
+void bitmap_free(MY_BITMAP *map)
 {
   if (map->bitmap)
   {
@@ -53,7 +51,7 @@ void bitmap_free(BITMAP *map)
   }
 }
 
-void bitmap_set_bit(BITMAP *map, uint bitmap_bit)
+void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   if (bitmap_bit < map->bitmap_size)
   {
@@ -64,7 +62,7 @@ void bitmap_set_bit(BITMAP *map, uint bitmap_bit)
 }
 
 
-uint bitmap_set_next(BITMAP *map)
+uint bitmap_set_next(MY_BITMAP *map)
 {
   uchar *bitmap=map->bitmap;
   uint bit_found = MY_BIT_NONE;
@@ -94,7 +92,7 @@ uint bitmap_set_next(BITMAP *map)
 }
 
 
-void bitmap_clear_bit(BITMAP *map, uint bitmap_bit)
+void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   if (bitmap_bit < map->bitmap_size)
   {

@@ -284,7 +284,7 @@ I_List<THD> threads,thread_cache;
 time_t start_time;
 
 
-BITMAP temp_pool;
+MY_BITMAP temp_pool;
 bool use_temp_pool=0;
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
