@@ -56713,6 +56713,8 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 @tindex Environment variable, MYSQL_HISTFILE
 @tindex MYSQL_HOST environment variable
 @tindex Environment variable, MYSQL_HOST
+@tindex MYSQL_PS1 environment variable
+@tindex Environment variable, MYSQL_PS1
 @tindex MYSQL_PWD environment variable
 @tindex Environment variable, MYSQL_PWD
 @tindex MYSQL_TCP_PORT environment variable
@@ -56744,7 +56746,8 @@ variables to modify the behavior of MySQL. @xref{Option files}.
 @item @code{LD_RUN_PATH} @tab Used to specify where your @code{libmysqlclient.so} is.
 @item @code{MYSQL_DEBUG} @tab Debug-trace options when debugging.
 @item @code{MYSQL_HISTFILE} @tab The path to the @code{mysql} history file.
-@item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command-line prompt.
+@item @code{MYSQL_HOST} @tab Default host name used by the @code{mysql} command-line client.
+@item @code{MYSQL_PS1} @tab Command prompt to use in the @code{mysql} command-line client. @xref{mysql}.
 @item @code{MYSQL_PWD} @tab The default password when connecting to @code{mysqld}. Note that use of this is insecure!
 @item @code{MYSQL_TCP_PORT} @tab The default TCP/IP port.
 @item @code{MYSQL_UNIX_PORT} @tab The default socket; used for connections to @code{localhost}.
