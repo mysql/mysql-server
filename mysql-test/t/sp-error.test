@@ -341,6 +341,27 @@ begin
   declare c cursor for select field from t1;
 end|
 
+#
+# BUG#1965
+#
+create procedure bug1965()
+begin
+  declare c cursor for select val from t1 order by valname;
+  open c;
+  close c;
+end|
+
+--error 1054
+call bug1965()|
+drop procedure bug1965|
+
+#
+# BUG#1966
+#
+--error 1308
+select 1 into a|
+
+
 drop table t1|
 
 delimiter ;|
