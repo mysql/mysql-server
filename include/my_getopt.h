@@ -53,7 +53,7 @@ extern int handle_options (int *argc, char ***argv,
 						     char *));
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
-extern void my_getopt_register_get_addr(gptr* (*func_addr)(char *, uint,
+extern void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
 							   const struct my_option *));
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp);

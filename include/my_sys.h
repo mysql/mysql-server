@@ -501,6 +501,12 @@ my_off_t my_b_append_tell(IO_CACHE* info);
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
 
+/* key_cache_variables */
+typedef struct st_keycache
+{
+  ulonglong size;
+} KEY_CACHE;
+
 #include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
