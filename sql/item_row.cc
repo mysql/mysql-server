@@ -41,7 +41,7 @@ void Item_row::illegal_method_call(const char *method)
   DBUG_ENTER("Item_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   DBUG_ASSERT(0);
-  my_error(ER_CARDINALITY_COL, MYF(0), arg_count);
+  my_error(ER_CARDINALITY_COL, MYF(0), 1);
   DBUG_VOID_RETURN;
 }
 
@@ -99,4 +99,11 @@ bool Item_row::null_inside()
     }
   }
   return 0;
+}
+
+void Item_row::bring_value()
+{
+  for (uint i= 0; i < arg_count; i++)
+    items[i]->bring_value();
+  return;
 }

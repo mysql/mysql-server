@@ -916,10 +916,10 @@ select_subselect::select_subselect(Item_subselect *item)
   this->item=item;
 }
 
-bool select_singleval_subselect::send_data(List<Item> &items)
+bool select_singlerow_subselect::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_singleval_subselect::send_data");
-  Item_singleval_subselect *it= (Item_singleval_subselect *)item;
+  DBUG_ENTER("select_singlerow_subselect::send_data");
+  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
       my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));

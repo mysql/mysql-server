@@ -434,3 +434,17 @@ select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),(select c from t
 select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t1 where a=t2.a) from t2;
 select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t1 where a=t2.a) from t2;
 drop table t1,t2;
+
+drop table if exists t;
+create table t (a int, b real, c varchar(10));
+insert into t values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t);
+select ROW(1, 2, 'a') IN (select a,b,c from t);
+select ROW(1, 1, 'a') IN (select b,a,c from t);
+select ROW(1, 1, 'a') IN (select a,b,c from t where a is not null);
+select ROW(1, 2, 'a') IN (select a,b,c from t where a is not null);
+select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
+select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
+select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
+select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
+drop table if exists t;
