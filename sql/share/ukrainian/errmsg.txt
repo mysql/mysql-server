@@ -362,3 +362,8 @@ character-set=koi8u
 "View SELECT ╕ перел╕к стовбц╕в view мають р╕зну к╕льк╕сть сковбц╕в"
 "Алгоритм зливання view не може бути використаний зараз (алгоритм буде невизначений)"
 "View, що оновлюеться, не м╕стить повного ключа таблиц╕(ь), що викор╕стана в ньюому"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"

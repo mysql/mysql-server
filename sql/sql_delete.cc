@@ -26,6 +26,8 @@
 #include "mysql_priv.h"
 #include "ha_innodb.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
                  ha_rows limit, ulong options)
@@ -160,6 +162,11 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     // thd->net.report_error is tested to disallow delete row on error
     if (!(select && select->skip_record())&& !thd->net.report_error )
     {
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_BEFORE);
+
       if (!(error=table->file->delete_row(table->record[0])))
       {
 	deleted++;
@@ -183,6 +190,10 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
  	error= 1;
 	break;
       }
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_AFTER);
     }
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
