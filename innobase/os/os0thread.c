@@ -100,7 +100,7 @@ os_thread_create(
 {
 #ifdef __WIN__
 	os_thread_t	thread;
-	ulint           win_thread_id;
+	DWORD		win_thread_id;
 
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
@@ -253,7 +253,7 @@ os_thread_sleep(
 	ulint	tm)	/* in: time in microseconds */
 {
 #ifdef __WIN__
-	Sleep(tm / 1000);
+	Sleep((DWORD) tm / 1000);
 #elif defined(__NETWARE__)
 	delay(tm / 1000);
 #else

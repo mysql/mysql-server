@@ -170,3 +170,17 @@ c
 4
 5
 drop table t1;
+create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
+engine=ndb;
+insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
+create index c on t1(c);
+select * from t1 where b = 'two';
+a	b	c
+2	two	two
+alter table t1 drop index c;
+select * from t1 where b = 'two';
+ERROR 42S02: Table 'test.t1' doesn't exist
+select * from t1 where b = 'two';
+a	b	c
+2	two	two
+drop table t1;
