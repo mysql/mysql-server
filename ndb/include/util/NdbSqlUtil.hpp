@@ -84,7 +84,9 @@ public:
       Date,             // Precision down to 1 day (size 4 bytes)
       Blob,             // Blob
       Text,             // Text blob
-      Time = 25         // Time without date
+      Time = 25,        // Time without date
+      Year = 26,        // Year (size 1 byte)
+      Timestamp = 27    // Unix seconds (uint32)
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method
@@ -137,6 +139,8 @@ private:
   static Cmp cmpBlob;
   static Cmp cmpText;
   static Cmp cmpTime;
+  static Cmp cmpYear;
+  static Cmp cmpTimestamp;
 };
 
 #endif
