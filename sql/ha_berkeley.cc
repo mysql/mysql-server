@@ -779,6 +779,7 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
 
   for (; key_part != end && (int) key_length > 0 ; key_part++)
   {
+    uint offset=0;
     if (key_part->null_bit)
     {
       if (!(*buff++ = (*key_ptr == 0)))		// Store 0 if NULL
@@ -788,9 +789,9 @@ DBT *ha_berkeley::pack_key(DBT *key, uint keynr, char *buff,
 	key->flags|=DB_DBT_DUPOK;
 	continue;
       }
-      key_ptr++;
+      offset=1;					// Data is at key_ptr+1
     }
-    buff=key_part->field->pack_key_from_key_image(buff,key_ptr,
+    buff=key_part->field->pack_key_from_key_image(buff,key_ptr+offset,
 						  key_part->length);
     key_ptr+=key_part->store_length;
     key_length-=key_part->store_length;

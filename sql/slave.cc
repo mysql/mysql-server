@@ -1250,8 +1250,10 @@ reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 	  thd->proc_info = "processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
 	    {
-	      sql_print_error("Error running query, slave aborted. Fix the problem, and re-start\
- the slave thread with mysqladmin start-slave - log '%s' position %ld",
+	      sql_print_error("\
+Error running query, slave aborted. Fix the problem, and re-start \
+the slave thread with \"mysqladmin start-slave\". We stopped at log \
+'%s' position %ld",
 			      RPL_LOG_NAME, glob_mi.pos);
 	      goto err;
 	      // there was an error running the query

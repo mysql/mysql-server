@@ -1784,7 +1784,7 @@ static key_map get_key_map_from_key_list(THD *thd, TABLE *table,
   uint pos;
   while ((name=it++))
   {
-    if ((pos=find_type(name->c_ptr(), &table->keynames, 1)) <= 0)
+    if ((pos=find_type(name->c_ptr(), &table->keynames, 1+2)) <= 0)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
 	       table->real_name);

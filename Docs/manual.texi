@@ -284,6 +284,11 @@ Linux Notes (All Linux Versions)
 * Qube2::                       Qube2 Linux notes
 * Linux-Ia64::                  Linux-Ia64 notes
 
+OpenBSD Notes
+
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
+
 BSD/OS Notes
 
 * BSDI2::                       BSD/OS 2.x notes
@@ -555,7 +560,7 @@ What Languages Are Supported by MySQL?
 
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
-* Character arrays::            
+* Character arrays::            The character definition arrays
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 
@@ -568,7 +573,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -723,6 +728,7 @@ Some Common Errors When Using MySQL
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
+* Cannot initialize character set::  
 
 Solving Some Common Problems with MySQL
 
@@ -841,9 +847,9 @@ MySQL Internals
 
 MySQL Full-text Search
 
-* Fulltext Fine-tuning::
-* Fulltext features to appear in MySQL 4.0::
-* Fulltext TODO::
+* Fulltext Fine-tuning::        
+* Fulltext features to appear in MySQL 4.0::  
+* Fulltext TODO::               
 
 Credits
 
@@ -866,6 +872,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
@@ -7632,7 +7639,7 @@ when @code{make} tries to run @code{lint} on C++ files.
 * OpenBSD 2.8::                 OpenBSD 2.8 Notes
 @end menu
 
-@node OpenBSD 2.5
+@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, OpenBSD
 @subsubsection OpenBSD 2.5 Notes
 On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads
 with the following options:
@@ -7641,7 +7648,7 @@ with the following options:
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
-@node OpenBSD 2.8
+@node OpenBSD 2.8,  , OpenBSD 2.5, OpenBSD
 @subsubsection OpenBSD 2.8 Notes
 Our users have reported that OpenBSD 2.8 has a threading bug which causes
 problems with MySQL.  The OpenBSD Developers have fixed the problem, but as
@@ -7993,6 +8000,17 @@ the DCE libraries while you compile @code{gcc} 2.95!
 @subsection HP-UX Version 11.x Notes
 
 For HPUX Version 11.x we recommend @strong{MySQL} Version 3.23.15 or later.
+
+Because of some critical bugs in the standard HPUX libraries, one should
+install the following patches before trying to run MySQL on HPUX 11.0:
+
+@example
+PHKL_22840 Streams cumulative
+PHNE_22397 ARPA cumulative
+@end example
+
+This will solve a problem that one gets @code{EWOULDBLOCK} from @code{recv()} 
+and @code{EBADF} from @code{accept()} in threaded applications.
 
 If you are using @code{gcc} 2.95.1 on a unpatched HPUX 11.x system,
 you will get the error:
@@ -9462,7 +9480,9 @@ Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
 
 @item --enable-locking
-Enable system locking.
+Enable system locking.  Note that if you use this option on a system
+which a not fully working lockd() (as on Linux) you will easily get
+mysqld to deadlock.
 
 @item -T, --exit-info
 This is a bit mask of different flags one can use for debugging the
@@ -10390,6 +10410,9 @@ You don't need to name all selected columns in the @code{GROUP BY} part.
 This gives better performance for some very specific, but quite normal
 queries.
 @xref{Group by functions}.
+
+@item
+One can specify @code{ASC} and @code{DESC} with @code{GROUP BY}.
 
 @item
 To make it easier for users who come from other SQL environments,
@@ -17858,7 +17881,7 @@ or	PACK_KEYS = @{0 | 1@}
 or	PASSWORD = "string"
 or	DELAY_KEY_WRITE = @{0 | 1@}
 or      ROW_FORMAT= @{ default | dynamic | static | compressed @}
-or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#;
+or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#
 or	UNION = (table_name,[table_name...])
 
 select_statement:
@@ -18906,7 +18929,7 @@ SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
     [INTO @{OUTFILE | DUMPFILE@} 'file_name' export_options]
     [FROM table_references
         [WHERE where_definition]
-        [GROUP BY @{unsigned_integer | col_name | formula@}]
+        [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...]
         [HAVING where_definition]
         [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
         [LIMIT [offset,] rows]
@@ -19038,6 +19061,16 @@ to tell the optimizer that the result set will have many rows.  In this case,
 @strong{MySQL} will directly use disk-based temporary tables if needed.
 @strong{MySQL} will also, in this case, prefer sorting to doing a
 temporary table with a key on the @code{GROUP BY} elements.
+
+@item
+If you use @code{GROUP BY}, the output rows will be sorted according to the
+@code{GROUP BY} as if you would have had an @code{ORDER BY} over all the fields
+in the @code{GROUP BY}. @code{MySQL} has extended the @code{GROUP BY} so that
+you can also specify @code{ASC} and @code{DESC} to @code{GROUP BY}:
+
+@example
+SELECT a,COUNT(b) FROM test_table GROUP BY a DESC
+@end example
 
 @item
 @code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
@@ -25562,7 +25595,7 @@ your changes with the new @file{errmsg.txt} file.
 @menu
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
-* Character arrays::            
+* Character arrays::            The character definition arrays
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 @end menu
@@ -25575,6 +25608,12 @@ your changes with the new @file{errmsg.txt} file.
 
 By default, @strong{MySQL} uses the ISO-8859-1 (Latin1) character
 set. This is the character set used in the USA and western Europe.
+
+All standard @strong{MySQL} binaries are compiled with
+@code{--with-extra-charsets=complex}.  This will add code to all
+standard programs to be able to handle @code{latin1} and all multi-byte
+character sets within the binary. Other character sets will be
+loaded from a character-set definition file when needed.
 
 The character set determines what characters are allowed in names and how
 things are sorted by the @code{ORDER BY} and @code{GROUP BY} clauses of
@@ -25606,7 +25645,7 @@ One can specify this by putting in a @strong{MySQL} option file:
 
 @example
 [client]
-default-set-dir=/usr/local/mysql/share/mysql/charsets
+character-sets-dir=/usr/local/mysql/share/mysql/charsets
 @end example
 
 where the path points to where the dynamic @strong{MySQL} character sets
@@ -25895,7 +25934,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -26040,6 +26079,7 @@ Add the following to @code{my.cnf} on the slave(s):
 master-host=<hostname of the master>
 master-user=<replication user name>
 master-password=<replication user password>
+master-port=<TCP/IP port for master>
 server-id=<some unique number between 2 and 2^32-1>
 @end example
 
@@ -26936,12 +26976,13 @@ case.
 
 The @code{--skip-locking} option is on by default when compiling with
 MIT-pthreads, because @code{flock()} isn't fully supported by
-MIT-pthreads on all platforms.
+MIT-pthreads on all platforms.  It's also on default for Linux
+as Linux file locking are not yet safe.
 
 The only case when you can't use @code{--skip-locking} is if you run
-multiple @strong{MySQL} @emph{servers} (not clients) on the same data, or run
-@code{myisamchk} on the table without first flushing and locking the
-@code{mysqld} server tables first.
+multiple @strong{MySQL} @emph{servers} (not clients) on the same data,
+or run @code{myisamchk} on the table without first flushing and locking
+the @code{mysqld} server tables first.
 
 You can still use @code{LOCK TABLES}/@code{UNLOCK TABLES} even if you
 are using @code{--skip-locking}
@@ -32620,10 +32661,11 @@ To make Access work:
 @item
 If you are using Access 2000, you should get and install the newest
 Microsoft MDAC (@code{Microsoft Data Access Components}) from
-@uref{http://www.microsoft.com/data}.  This will fix the following bug in Access: when you export data to @strong{MySQL}, the table and column names
-aren't specified.  Another way to around this bug is to upgrade to
-MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together provide a
-workaround for this bug!
+@uref{http://www.microsoft.com/data}.  This will fix the following bug
+in Access: when you export data to @strong{MySQL}, the table and column
+names aren't specified.  Another way to around this bug is to upgrade to
+MyODBC Version 2.50.33 and @strong{MySQL} Version 3.23.x, which together
+provide a workaround for this bug!
 
 Note that if you are using @strong{MySQL} Version 3.22, you must to apply the
 MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
@@ -33397,6 +33439,7 @@ sure that no other programs are using the dynamic libraries!
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
+* Cannot initialize character set::  
 @end menu
 
 @node Gone away, Can not connect to server, Common errors, Common errors
@@ -33806,7 +33849,7 @@ mysql> update user set password=PASSWORD('your password')
 @end example
 @end itemize
 
-@node Cannot find table,  , Ignoring user, Common errors
+@node Cannot find table, Cannot initialize character set, Ignoring user, Common errors
 @subsection @code{Table 'xxx' doesn't exist} Error
 
 If you get the error @code{Table 'xxx' doesn't exist} or @code{Can't
@@ -33820,6 +33863,52 @@ references to a given table within a query must use the same case!)
 
 You can check which tables you have in the current database with
 @code{SHOW TABLES}. @xref{SHOW, , @code{SHOW}}.
+
+@cindex multibyte character sets
+@node Cannot initialize character set,  , Cannot find table, Common errors
+@subsection @code{Can't initialize character set 'xxx'} error.
+
+If you get an error like:
+
+@example
+MySQL Connection Failed: Can't initialize character set xx
+@end example
+
+This means one of the following things:
+
+@itemize @bullet
+@item
+The character set is a multi-byte character set and you have not support
+for the character set in the client.
+
+In this case you need to recompile the client with
+@code{--with-charset=xxx} or with @code{--with-extra-charsets=xxx}.
+@xref{configure options}.
+
+All standard @strong{MySQL} binaries are compiled with
+@code{--with-extra-character-sets=complex} which will enable support for
+all multi-byte character sets. @xref{Character sets}.
+
+@item
+The character set is a simple character set which is not compiled into
+@code{mysqld} and the character set definition files is not in the place
+where the client expect to find them.
+
+In this case you need to:
+
+@itemize @bullet
+@item
+Recompile the client with support for the character set.
+@xref{configure options}.
+@item
+Specify to the client where the character set definition files are. For many
+client you can do this with the
+@code{--character-sets-dir=path-to-charset-dir} option.
+@item
+Copy the character definition files to the path where the client expect them
+to be.
+@end itemize
+@end itemize
 
 @cindex full disk
 @cindex disk full
@@ -39121,9 +39210,9 @@ the Internet with a search engine.  It is with this reasoning that such rows
 have been assigned a low semantical value in @strong{a particular dataset}.
 
 @menu
-* Fulltext Fine-tuning::
-* Fulltext features to appear in MySQL 4.0::
-* Fulltext TODO::
+* Fulltext Fine-tuning::        
+* Fulltext features to appear in MySQL 4.0::  
+* Fulltext TODO::               
 @end menu
 
 @node Fulltext Fine-tuning, Fulltext features to appear in MySQL 4.0, MySQL full-text search, MySQL full-text search
@@ -39208,7 +39297,7 @@ index operations (querying/dumping/statistics).
 
 @end itemize
 
-@node Fulltext TODO, ,Fulltext features to appear in MySQL 4.0, MySQL full-text search
+@node Fulltext TODO,  , Fulltext features to appear in MySQL 4.0, MySQL full-text search
 @subsection Full-text Search TODO
 
 @itemize @bullet
@@ -39223,12 +39312,11 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Generic user-supplyable UDF (?) preparser.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
-
 @end itemize
 
-@node MySQL test suite,  , MySQL full-text search, MySQL internals
 @cindex mysqltest, MySQL Test Suite
 @cindex testing mysqld, mysqltest
+@node MySQL test suite,  , MySQL full-text search, MySQL internals
 @section MySQL Test Suite
 
 Until recently, our main full-coverage test suite was based on proprietary 
@@ -39356,7 +39444,6 @@ attachemnts, you should ftp all the relevant files to:
 @url{ftp://support.mysql.com/pub/mysql/Incoming}
 
 @end itemize
-
 
 @page
 @cindex environment variables, list of
@@ -40133,6 +40220,11 @@ of several databases simultaneously. By Innovative-IT Development AB.
 
 @item @uref{http://www.mysql.com/downloads/gui-clients.html, MySQLGUI}
 The @strong{MySQL} GUI client homepage. By Sinisa at MySQL AB.
+
+@item @uref{http://www.mysql.com/Downloads/Win32/secman.zip,  MySQL Security GUI}
+A user and security management GUI for MySQL on Windows. By Martin Jeremic.
+@uref{http://jsoft.webjump.com/, Home page for MySQL Security GUI}.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1.tar.gz, kmysqladmin-0.4.1.tar.gz}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.src.rpm, kmysqladmin-0.4.1-1.src.rpm}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/kmysqladmin-0.4.1-1.i386.rpm, kmysqladmin-0.4.1-1.i386.rpm}
@@ -40172,7 +40264,7 @@ New version of netadmin. See above for details.
 Home page for this can be found at: @uref{http://www.artronic.hr}.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/mysqlfront.zip, mysqlfront}
-Home page: @uref{http://my.anse.de/}.
+Home page: @uref{http://my.mysqlfront.de/}.
 Win32-Client for accessing and managing dbs, tables, table-data, indexes,
 import-/export-files. (Freeware).  By Ansgar Becker.
 
@@ -41123,6 +41215,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.34::                Changes in release 3.23.34
 * News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
@@ -41159,9 +41252,31 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
+@node News-3.23.34, News-3.23.33, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.34
+@itemize @bullet
+@item
+Fixed bug in @code{BDB} tables when using index on multi-part key where a
+key part may be @code{NULL}.
+@item
+Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
+This ensures that on gets same values for date functions like @code{NOW()}
+when using @code{mysqlbinlog} to pipe the queries to another server.
+@item
+Allow one to use @code{--skip-gemeni}, @code{--skip-bdb} and
+@code{--skip-innobase} to mysqld even if these databases are not compiled
+in @code{mysqld}.
+@item
+One can now do @code{GROUP BY ... DESC}.
+@end itemize
+
+@node News-3.23.33, News-3.23.32, News-3.23.34, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
 @itemize @bullet
+@item
+Fixed that DNS lookups are not using the same mutex as the hostname
+cache.  This will enable known hosts to be quickly resolved even if a
+DNS lookup takes a long time.
 @item
 Added @code{--character-sets-dir} to @code{myisampack}.
 @item
@@ -46148,6 +46263,10 @@ fast execution one should use @code{TRUNCATE table_name}.
 @item
 Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
 @code{DELETE}.
+@item
+Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
+To do this, we need to update the threads record cache when we update
+the @code{.MYD} file.
 @item
 Better replication.
 @item

@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.15"
+#define ADMIN_VERSION "8.16"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -853,6 +853,8 @@ static void usage(void)
   refresh		Flush all tables and close and open logfiles\n\
   shutdown		Take server down\n\
   status		Gives a short status message from the server\n\
+  start-slave		Start slave\n\
+  stop-slave		Stop slave\n\
   variables             Prints variables available\n\
   version		Get version info from server");
 }

@@ -30,8 +30,8 @@ void init_errmessage(void)
 {
   DBUG_ENTER("init_errmessage");
 
-  read_texts(ERRMSG_FILE,&errmsg[ERRMAPP],ER_ERROR_MESSAGES);
-  errmesg=errmsg[ERRMAPP];		/* Init global variabel */
+  read_texts(ERRMSG_FILE,&my_errmsg[ERRMAPP],ER_ERROR_MESSAGES);
+  errmesg=my_errmsg[ERRMAPP];		/* Init global variabel */
   init_myfunc_errs();			/* Init myfunc messages */
   DBUG_VOID_RETURN;
 }

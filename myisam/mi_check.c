@@ -745,12 +745,14 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       do
       {
 	if (_mi_read_cache(&param->read_cache,(byte*) block_info.header,
-			  (start_block=block_info.next_filepos),
-			  sizeof(block_info.header),test(! flag) | 2))
+			   (start_block=block_info.next_filepos),
+			   sizeof(block_info.header),
+			   (flag ? 0 : READING_NEXT) | READING_HEADER))
 	  goto err;
 	if (start_block & (MI_DYN_ALIGN_SIZE-1))
 	{
-	  mi_check_print_error(param,"Wrong aligned block at %s",llstr(start_block,llbuff));
+	  mi_check_print_error(param,"Wrong aligned block at %s",
+			       llstr(start_block,llbuff));
 	  goto err2;
 	}
 	b_type=_mi_get_block_info(&block_info,-1,start_block);
@@ -841,7 +843,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  got_error=1; break;
 	}
 	if (_mi_read_cache(&param->read_cache,(byte*) to,block_info.filepos,
-			   (uint) block_info.data_len, test(flag == 1)))
+			   (uint) block_info.data_len,
+			   flag == 1 ? READING_NEXT : 0))
 	  goto err;
 	to+=block_info.data_len;
 	link_used+= block_info.filepos-start_block;
@@ -895,7 +898,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       break;
     case COMPRESSED_RECORD:
       if (_mi_read_cache(&param->read_cache,(byte*) block_info.header, pos,
-			 info->s->pack.ref_length, 1))
+			 info->s->pack.ref_length, READING_NEXT))
 	goto err;
       start_recpos=pos;
       splits++;
@@ -910,7 +913,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	break;
       }
       if (_mi_read_cache(&param->read_cache,(byte*) info->rec_buff,
-			block_info.filepos, block_info.rec_len,1))
+			block_info.filepos, block_info.rec_len, READING_NEXT))
 	goto err;
       if (_mi_pack_rec_unpack(info,record,info->rec_buff,block_info.rec_len))
       {
@@ -2112,6 +2115,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	pos=MY_ALIGN(pos,MI_DYN_ALIGN_SIZE);
 	param->retry_without_quick=1;
+	sort_info->start_recpos=pos;	  
       }
       do
       {
@@ -2130,8 +2134,9 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 		     llstr(param->search_after_block,llbuff),
 		     llstr(sort_info->start_recpos,llbuff2));
 	if (_mi_read_cache(&param->read_cache,(byte*) block_info.header,pos,
-			  MI_BLOCK_INFO_HEADER_LENGTH,
-			   test(! found_record) | 2))
+			   MI_BLOCK_INFO_HEADER_LENGTH,
+			   (! found_record ? READING_NEXT : 0) |
+			   READING_HEADER))
 	{
 	  if (found_record)
 	  {
@@ -2172,6 +2177,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 		block_info.header[i] <= MI_MAX_DYN_HEADER_BYTE)
 	      break;
 	  pos+=(ulong) i;
+	  sort_info->start_recpos=pos;	  
 	  continue;
 	}
 	if (b_type & BLOCK_DELETED)
@@ -2206,7 +2212,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	    if (found_record)
 	      goto try_next;
 	    searching=1;
-	    pos++;
+	    pos+= MI_DYN_ALIGN_SIZE;
+	    sort_info->start_recpos=pos;	  
 	    block_info.second_read=0;
 	    continue;
 	  }
@@ -2226,7 +2233,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	    if (found_record)
 	      goto try_next;
 	    searching=1;
-	    pos++;
+	    pos+= MI_DYN_ALIGN_SIZE;
+	    sort_info->start_recpos=pos;	  
 	    block_info.second_read=0;
 	    continue;
 	  }
@@ -2242,7 +2250,10 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  if (found_record)
 	    goto try_next;
 	  if (searching)
-	    pos++;
+	  {
+	    pos+=MI_DYN_ALIGN_SIZE;
+	    sort_info->start_recpos=pos;
+	  }
 	  else
 	    pos=block_info.filepos+block_info.block_len;
 	  block_info.second_read=0;
@@ -2275,7 +2286,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	if (left_length < block_info.data_len || ! block_info.data_len)
 	{
 	  mi_check_print_info(param,"Found block with too small length at %s; Skipped",
-		     llstr(sort_info->start_recpos,llbuff));
+			      llstr(sort_info->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (block_info.filepos + block_info.data_len >
@@ -2286,9 +2297,11 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  goto try_next;
 	}
 	if (_mi_read_cache(&param->read_cache,to,block_info.filepos,
-			   block_info.data_len, test(found_record == 1)))
+			   block_info.data_len,
+			   (found_record == 1 ? READING_NEXT : 0)))
 	{
-	  mi_check_print_info(param,"Read error for block at: %s (error: %d); Skipped",
+	  mi_check_print_info(param,
+			      "Read error for block at: %s (error: %d); Skipped",
 			      llstr(block_info.filepos,llbuff),my_errno);
 	  goto try_next;
 	}
@@ -2335,8 +2348,9 @@ static int sort_get_next_record(SORT_INFO *sort_info)
   case COMPRESSED_RECORD:
     for (searching=0 ;; searching=1, sort_info->pos++)
     {
-      if (_mi_read_cache(&param->read_cache,(byte*) block_info.header,sort_info->pos,
-			share->pack.ref_length,1))
+      if (_mi_read_cache(&param->read_cache,(byte*) block_info.header,
+			 sort_info->pos,
+			 share->pack.ref_length,READING_NEXT))
 	DBUG_RETURN(-1);
       if (searching && ! sort_info->fix_datafile)
       {
@@ -2361,10 +2375,11 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	continue;
       }
       if (_mi_read_cache(&param->read_cache,(byte*) info->rec_buff,
-			block_info.filepos, block_info.rec_len,1))
+			 block_info.filepos, block_info.rec_len,
+			 READING_NEXT))
       {
 	if (! searching)
-	  mi_check_print_info(param,"Couldn't read hole record from %s",
+	  mi_check_print_info(param,"Couldn't read whole record from %s",
 			      llstr(sort_info->pos,llbuff));
 	continue;
       }

@@ -32,7 +32,8 @@ set-variable	= table_cache=512
 set-variable	= sort_buffer=2M
 set-variable	= record_buffer=2M
 set-variable	= thread_cache=8
-set-variable	= thread_concurrency=8	# Try number of CPU's*2
+# Try number of CPU's*2 for thread_concurrency
+set-variable	= thread_concurrency=8
 set-variable	= myisam_sort_buffer_size=64M
 log-bin
 server-id	= 1
@@ -51,7 +52,8 @@ set-variable	= max_allowed_packet=16M
 
 [mysql]
 no-auto-rehash
-#safe-updates	# Remove the comment character if you are not familiar with SQL
+# Remove the next comment character if you are not familiar with SQL
+#safe-updates
 
 [isamchk]
 set-variable	= key_buffer=256M

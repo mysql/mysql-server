@@ -1294,8 +1294,9 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     if (info->opt_flag & READ_CACHE_USED)
     {
       if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
-			sizeof(block_info.header),
-			test(!flag && skipp_deleted_blocks) | 2))
+			 sizeof(block_info.header),
+			 (!flag && skipp_deleted_blocks ? READING_NEXT : 0) |
+			 READING_HEADER))
 	goto panic;
       b_type=_mi_get_block_info(&block_info,-1,filepos);
     }
@@ -1368,7 +1369,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       {
 	if (_mi_read_cache(&info->rec_cache,(byte*) to,filepos,
 			   block_info.data_len,
-			   test(!flag && skipp_deleted_blocks)))
+			   (!flag && skipp_deleted_blocks) ? READING_NEXT :0))
 	  goto panic;
       }
       else

@@ -78,5 +78,5 @@ const char *client_errors[]=
 
 void init_client_errs(void)
 {
-  errmsg[CLIENT_ERRMAP] = &client_errors[0];
+  my_errmsg[CLIENT_ERRMAP] = &client_errors[0];
 }

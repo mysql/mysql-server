@@ -162,7 +162,7 @@ void   __CDECL hfree(void *ptr);
 #else
 extern int errno;			/* declare errno */
 #endif
-extern const char ** NEAR errmsg[];
+extern const char ** NEAR my_errmsg[];
 extern char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 extern char *home_dir;			/* Home directory for user */
 extern char *my_progname;		/* program-name (printed in errors) */

@@ -13,7 +13,8 @@ lock tables t1 read;
 unlock tables;
 lock tables t1 read;
 connection con1;
-send update t1 set n = 3;
+--send
+update t1 set n = 3;
 connection con2;
 sleep 0.5;
 unlock tables;

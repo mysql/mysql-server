@@ -187,7 +187,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
       }
       continue;
     }
-    if (find_type(fn_ext(file->name),&deletable_extentions,1) <= 0)
+    if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
     {
       found_other_files++;
       continue;
