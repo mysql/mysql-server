@@ -488,8 +488,7 @@ static int examine_log(my_string file_name, char **table_names)
 		   command_name[command], (int) extra_command,result);
       if (update && curr_file_info && !curr_file_info->closed)
       {
-	if (mi_extra(curr_file_info->isam,
-		     (int) extra_command) != (int) result)
+	if (mi_extra(curr_file_info->isam, extra_command) != (int) result)
 	{
 	  fflush(stdout);
 	  VOID(fprintf(stderr,
