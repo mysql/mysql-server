@@ -9,7 +9,7 @@ DOXYOUT =	.doxyout
 
 NDB_RELEASE = @NDB_VERSION_MAJOR@.@NDB_VERSION_MINOR@.@NDB_VERSION_BUILD@-@NDB_VERSION_STATUS@
 
-clean:
+clean-local:
 	rm -rf ndbapi.pdf ndbapi.html mgmapi.pdf mgmapi.html
 	rm -rf $(DOXYTMP) $(DOXYOUT)
 
@@ -48,7 +48,7 @@ ndbapi.html: $(noinst_HEADERS)
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
 	@CP@ $(top_srcdir)/ndb/include/ndbapi/*  $(DOXYTMP); \
-	@CP@ $(top_srcdir)/ndb/examples/*/*.[ch]pp $(DOXYTMP); \
+	@CP@ $(top_srcdir)/ndb/ndbapi-examples/*/*.[ch]pp $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.ndbapi); \

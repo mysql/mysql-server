@@ -5454,6 +5454,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncoll_cp932,
   my_strnncollsp_cp932,
   my_strnxfrm_cp932,
+  my_strnxfrmlen_simple,
   my_like_range_cp932,
   my_wildcmp_mb,	/* wildcmp  */
   my_strcasecmp_8bit,

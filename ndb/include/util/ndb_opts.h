@@ -22,23 +22,15 @@
 #include <my_getopt.h>
 #include <mysql_version.h>
 #include <ndb_version.h>
+#include <ndb_opt_defaults.h>
 
 #define NDB_STD_OPTS_VARS \
 const char *opt_connect_str= 0;\
-my_bool opt_ndb_shm;\
 my_bool	opt_ndb_optimized_node_selection
 
-#define NDB_STD_OPTS_OPTIONS \
-OPT_NDB_SHM= 256,\
-OPT_NDB_OPTIMIZED_NODE_SELECTION
+my_bool opt_ndb_shm;
 
 #define OPT_NDB_CONNECTSTRING 'c'
-
-#if defined(NOT_ENOUGH_TESTED) && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
-#define OPT_NDB_SHM_DEFAULT 1
-#else
-#define OPT_NDB_SHM_DEFAULT 0
-#endif
 
 #define NDB_STD_OPTS_COMMON \
   { "usage", '?', "Display this help and exit.", \
@@ -74,5 +66,52 @@ OPT_NDB_OPTIMIZED_NODE_SELECTION
 #else
 #define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
 #endif
+
+static void ndb_std_print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",
+	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+
+static void usage();
+
+enum ndb_std_options {
+  OPT_NDB_SHM= 256,
+  OPT_NDB_SHM_SIGNUM,
+  OPT_NDB_OPTIMIZED_NODE_SELECTION,
+  NDB_STD_OPTIONS_LAST /* should always be last in this enum */
+};
+
+static my_bool
+ndb_std_get_one_option(int optid,
+		       const struct my_option *opt __attribute__((unused)),
+		       const char *argument)
+{
+  switch (optid) {
+  case '#':
+    if (argument)
+    {
+      DBUG_PUSH(argument);
+    }
+    break;
+  case 'V':
+    ndb_std_print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  case OPT_NDB_SHM:
+    if (opt_ndb_shm)
+    {
+#ifndef NDB_SHM_TRANSPORTER
+      printf("Warning: binary not compiled with shared memory support,\n"
+	     "Tcp connections will now be used instead\n");
+      opt_ndb_shm= 0;
+#endif
+    }
+    break;
+  }
+  return 0;
+}
 
 #endif /*_NDB_OPTS_H */

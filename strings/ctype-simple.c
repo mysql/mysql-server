@@ -22,6 +22,15 @@
 #include "stdarg.h"
 
 /*
+  Returns the number of bytes required for strnxfrm().
+*/
+uint my_strnxfrmlen_simple(CHARSET_INFO *cs, uint len)
+{
+  return len * (cs->strxfrm_multiply ? cs->strxfrm_multiply : 1);
+}
+
+
+/*
   Converts a string into its sort key.
   
   SYNOPSIS
@@ -1365,6 +1374,7 @@ MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler =
     my_strnncoll_simple,
     my_strnncollsp_simple,
     my_strnxfrm_simple,
+    my_strnxfrmlen_simple,
     my_like_range_simple,
     my_wildcmp_8bit,
     my_strcasecmp_8bit,
