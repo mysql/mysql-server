@@ -616,6 +616,19 @@ public:
   };
 };
 
+class Item_func_collation :public Item_str_func
+{
+public:
+  Item_func_collation(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  const char *func_name() const { return "collation"; }
+  void fix_length_and_dec() 
+  {
+     max_length=40; // should be enough
+     set_charset(thd_charset());
+  };
+};
+
 
 /*******************************************************
 Spatial functions

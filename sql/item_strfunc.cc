@@ -2230,6 +2230,17 @@ String *Item_func_charset::val_str(String *str)
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
+  str->copy(res->charset()->csname,strlen(res->charset()->csname),
+	    &my_charset_latin1, thd_charset());
+  return str;
+}
+
+String *Item_func_collation::val_str(String *str)
+{
+  String *res = args[0]->val_str(str);
+
+  if ((null_value=(args[0]->null_value || !res->charset())))
+    return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
 	    &my_charset_latin1, thd_charset());
   return str;
