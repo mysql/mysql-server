@@ -1,15 +1,21 @@
 # Process this file with autoconf to produce a configure script
 AC_INIT
+AC_CANONICAL_SYSTEM
 AM_MAINTAINER_MODE
 AM_CONFIG_HEADER(ib_config.h)
 AM_INIT_AUTOMAKE(ib, 0.90)
 AC_PROG_CC
 AC_PROG_RANLIB
+AC_PROG_INSTALL
 AC_CHECK_HEADERS(aio.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_C_INLINE
 AC_C_BIGENDIAN
 
+case "$target_os" in
+       hp*) AC_DEFINE(UNIV_MUST_NOT_INLINE, 1,
+	                     No inlining because gcc broken on HP-UX);;
+esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile
 		buf/Makefile com/Makefile data/Makefile

@@ -25,6 +25,14 @@ saving CPU time. The kernel mutex contention is increased, however. */
 extern ulint	trx_n_mysql_transactions;
 
 /********************************************************************
+Retrieves the error_info field from a trx. */
+
+void*
+trx_get_error_info(
+/*===============*/
+		     /* out: the error info */
+	trx_t*  trx); /* in: trx object */
+/********************************************************************
 Creates and initializes a transaction object. */
 
 trx_t*
