@@ -245,7 +245,7 @@ static void my_win_init(void)
 
     /* Inserisce i dati come variabili d'ambiente */
     my_env=strdup(EnvString);  /* variable for putenv must be allocated ! */
-    putenv(EnvString) ;
+    putenv(my_env) ;
 
     dimNameValueBuffer = dimName ;
     dimDataValueBuffer = dimData ;
