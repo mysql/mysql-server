@@ -4,6 +4,9 @@
 
 #include <ndb_types.h>
 
+#define NDB_PORT "@ndb_port@"
+#define NDB_TCP_BASE_PORT "@ndb_port_base@"
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #define NDB_WIN32
 #include <winsock2.h>
@@ -12,6 +15,7 @@
 
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
+#define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
 
 #pragma warning(disable: 4503 4786)
 
