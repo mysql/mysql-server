@@ -38847,6 +38847,10 @@ Fernandez Herrero.
 Binary and source for @code{mydsn.dll}. mydsn should be used to build
 and remove the DSN registry file for the MyODBC driver in Coldfusion
 applications.  By Miguel Angel Solórzano.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-ADA95_API.zip, MySQL-ADA95_API.zip}
+An ADA95 interface to the MySQL API. By Francois Fabien.
+
 @end itemize
 
 @appendixsec  Clients
