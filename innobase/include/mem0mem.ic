@@ -493,18 +493,6 @@ mem_alloc_func(
 	ulint   line		/* in: line where created */
 	)
 {
-#ifdef notdefined
-	void* buf;
-
-	buf = mem_area_alloc(n, mem_comm_pool);
-
-#ifdef UNIV_SET_MEM_TO_ZERO
-	memset(buf, '\0', n);
-#endif
-	return(buf);
-	
-#else
-	
 	mem_heap_t*   	heap; 
 	void*           buf;
 
@@ -525,8 +513,6 @@ mem_alloc_func(
 	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
 					- MEM_FIELD_HEADER_SIZE);
 	return(buf);
-
-#endif
 }
 
 /*******************************************************************
@@ -542,17 +528,11 @@ mem_free_func(
 	ulint   line            /* in: line where created */
 	)
 {
-#ifdef notdefined
-
-	mem_area_free(ptr, mem_comm_pool);
-       
-#else
 	mem_heap_t*   heap; 
 
 	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
 				 		- MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
-#endif
 }
 
 /*********************************************************************

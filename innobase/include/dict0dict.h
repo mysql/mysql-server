@@ -658,13 +658,6 @@ dict_index_get_tree(
 				/* out: index tree */
 	dict_index_t*	index);	/* in: index */
 /*************************************************************************
-Gets the column data type. */
-UNIV_INLINE
-dtype_t*
-dict_col_get_type(
-/*==============*/
-	dict_col_t*	col);
-/*************************************************************************
 Gets the field order criterion. */
 UNIV_INLINE
 ulint
