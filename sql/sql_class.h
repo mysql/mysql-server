@@ -72,15 +72,18 @@ class MYSQL_LOG {
   // we should not try to rotate it or write any rotation events
   // the user should use FLUSH MASTER instead of FLUSH LOGS for
   // purging
-
+  enum cache_type io_cache_type;
+  bool need_start_event;
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
   pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  void set_need_start_event() { need_start_event = 1; }
   void set_index_file_name(const char* index_file_name = 0);
-  void init(enum_log_type log_type_arg);
+  void init(enum_log_type log_type_arg,
+	    enum cache_type io_cache_type_arg = WRITE_CACHE);
   void open(const char *log_name,enum_log_type log_type,
 	    const char *new_name=0);
   void new_file(bool inside_mutex = 0);

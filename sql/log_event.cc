@@ -149,12 +149,21 @@ static void cleanup_load_tmpdir()
 
 #endif
 
-Log_event::Log_event(const char* buf):cached_event_len(0),temp_buf(0)
+Log_event::Log_event(const char* buf, bool old_format):
+  cached_event_len(0),temp_buf(0)
 {
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
-  log_seq = uint4korr(buf + LOG_SEQ_OFFSET);
-  flags = uint2korr(buf + FLAGS_OFFSET);
+  if (old_format)
+  {
+    log_seq=0;
+    flags=0;
+  }
+  else
+  {
+    log_seq = uint4korr(buf + LOG_SEQ_OFFSET);
+    flags = uint2korr(buf + FLAGS_OFFSET);
+  }
 #ifndef MYSQL_CLIENT
   thd = 0;
 #endif  
@@ -441,17 +450,24 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 #define UNLOCK_MUTEX
 #endif
 
+#ifndef MYSQL_CLIENT
+#define LOCK_MUTEX if(log_lock) pthread_mutex_lock(log_lock);
+#else
+#define LOCK_MUTEX
+#endif
+
+
 // allocates memory - the caller is responsible for clean-up
 #ifndef MYSQL_CLIENT
-Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
+Log_event* Log_event::read_log_event(IO_CACHE* file,
+				     pthread_mutex_t* log_lock,
+				     bool old_format)
 #else
-Log_event* Log_event::read_log_event(IO_CACHE* file)
+Log_event* Log_event::read_log_event(IO_CACHE* file, bool old_format)
 #endif  
 {
   char head[LOG_EVENT_HEADER_LEN];
-#ifndef MYSQL_CLIENT 
- if(log_lock) pthread_mutex_lock(log_lock);
-#endif
+  LOCK_MUTEX;
   if (my_b_read(file, (byte *) head, sizeof(head)))
   {
     UNLOCK_MUTEX;
@@ -489,7 +505,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file)
     error = "read error";
     goto err;
   }
-  if ((res = read_log_event(buf, data_len, &error)))
+  if ((res = read_log_event(buf, data_len, &error, old_format)))
     res->register_temp_buf(buf);
 err:
   UNLOCK_MUTEX;
@@ -502,7 +518,7 @@ err:
 }
 
 Log_event* Log_event::read_log_event(const char* buf, int event_len,
-				     const char **error)
+				     const char **error, bool old_format)
 {
   if (event_len < EVENT_LEN_OFFSET ||
       (uint)event_len != uint4korr(buf+EVENT_LEN_OFFSET))
@@ -513,14 +529,14 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
   switch(buf[EVENT_TYPE_OFFSET])
   {
   case QUERY_EVENT:
-    ev  = new Query_log_event(buf, event_len);
+    ev  = new Query_log_event(buf, event_len, old_format);
     break;
   case LOAD_EVENT:
   case NEW_LOAD_EVENT:
-    ev = new Load_log_event(buf, event_len);
+    ev = new Load_log_event(buf, event_len, old_format);
     break;
   case ROTATE_EVENT:
-    ev = new Rotate_log_event(buf, event_len);
+    ev = new Rotate_log_event(buf, event_len, old_format);
     break;
   case SLAVE_EVENT:
     ev = new Slave_log_event(buf, event_len);
@@ -538,13 +554,13 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
     ev = new Execute_load_log_event(buf, event_len);
     break;
   case START_EVENT:
-    ev = new Start_log_event(buf);
+    ev = new Start_log_event(buf, old_format);
     break;
   case STOP_EVENT:
-    ev = new Stop_log_event(buf);
+    ev = new Stop_log_event(buf, old_format);
     break;
   case INTVAR_EVENT:
-    ev = new Intvar_log_event(buf);
+    ev = new Intvar_log_event(buf, old_format);
     break;
   default:
     break;
@@ -634,7 +650,8 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
 
 #endif /* #ifdef MYSQL_CLIENT */
 
-Start_log_event::Start_log_event(const char* buf) :Log_event(buf)
+Start_log_event::Start_log_event(const char* buf,
+				 bool old_format) :Log_event(buf, old_format)
 {
   binlog_version = uint2korr(buf + LOG_EVENT_HEADER_LEN +
 			     ST_BINLOG_VER_OFFSET);
@@ -652,8 +669,9 @@ int Start_log_event::write_data(IO_CACHE* file)
   return (my_b_write(file, (byte*) buff, sizeof(buff)) ? -1 : 0);
 }
 
-Rotate_log_event::Rotate_log_event(const char* buf, int event_len):
-  Log_event(buf),new_log_ident(NULL),alloced(0)
+Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
+				   bool old_format):
+  Log_event(buf, old_format),new_log_ident(NULL),alloced(0)
 {
   // the caller will ensure that event_len is what we have at
   // EVENT_LEN_OFFSET
@@ -695,8 +713,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   }
 #endif
 
-Query_log_event::Query_log_event(const char* buf, int event_len):
-  Log_event(buf),data_buf(0), query(NULL), db(NULL)
+Query_log_event::Query_log_event(const char* buf, int event_len,
+				 bool old_format):
+  Log_event(buf, old_format),data_buf(0), query(NULL), db(NULL)
 {
   if ((uint)event_len < QUERY_EVENT_OVERHEAD)
     return;				
@@ -766,7 +785,8 @@ int Query_log_event::write_data(IO_CACHE* file)
 	  my_b_write(file, (byte*) query, q_len)) ? -1 : 0;
 }
 
-Intvar_log_event::Intvar_log_event(const char* buf):Log_event(buf)
+Intvar_log_event::Intvar_log_event(const char* buf, bool old_format):
+  Log_event(buf, old_format)
 {
   buf += LOG_EVENT_HEADER_LEN;
   type = buf[I_TYPE_OFFSET];
@@ -1003,8 +1023,9 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 
 // the caller must do buf[event_len] = 0 before he starts using the
 // constructed event
-Load_log_event::Load_log_event(const char* buf, int event_len):
-  Log_event(buf),num_fields(0),fields(0),
+Load_log_event::Load_log_event(const char* buf, int event_len,
+			       bool old_format):
+  Log_event(buf, old_format),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
 {
@@ -1237,7 +1258,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 }
 
 Slave_log_event::Slave_log_event(const char* buf, int event_len):
-  Log_event(buf),mem_pool(0),master_host(0)
+  Log_event(buf,0),mem_pool(0),master_host(0)
 {
   event_len -= LOG_EVENT_HEADER_LEN;
   if(event_len < 0)
@@ -1291,7 +1312,7 @@ int Create_file_log_event::write_base(IO_CACHE* file)
 }
 
 Create_file_log_event::Create_file_log_event(const char* buf, int len):
-  Load_log_event(buf,0),fake_base(0),block(0)
+  Load_log_event(buf,0,0),fake_base(0),block(0)
 {
   int block_offset;
   if (copy_log_event(buf,len))
@@ -1347,7 +1368,7 @@ Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
 #endif  
   
 Append_block_log_event::Append_block_log_event(const char* buf, int len):
-  Log_event(buf),block(0)
+  Log_event(buf, 0),block(0)
 {
   if((uint)len < APPEND_BLOCK_EVENT_OVERHEAD)
     return;
@@ -1399,7 +1420,7 @@ Delete_file_log_event::Delete_file_log_event(THD* thd_arg):
 #endif  
 
 Delete_file_log_event::Delete_file_log_event(const char* buf, int len):
-  Log_event(buf),file_id(0)
+  Log_event(buf, 0),file_id(0)
 {
   if((uint)len < DELETE_FILE_EVENT_OVERHEAD)
     return;
@@ -1446,7 +1467,7 @@ Execute_load_log_event::Execute_load_log_event(THD* thd_arg):
 #endif  
   
 Execute_load_log_event::Execute_load_log_event(const char* buf,int len):
-  Log_event(buf),file_id(0)
+  Log_event(buf, 0),file_id(0)
 {
   if((uint)len < EXEC_LOAD_EVENT_OVERHEAD)
     return;
@@ -1657,15 +1678,11 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
 
 int Start_log_event::exec_event(struct st_master_info* mi)
 {
-#ifdef TO_BE_DELETED
-  /*
-    We can't close temporary files or cleanup the tmpdir here, becasue
-    someone may have just rotated the logs on the master.
-    We should only do this cleanup when we know the master restarted.
-  */
-  close_temporary_tables(thd);
-  cleanup_load_tmpdir();
-#endif
+  if (!mi->old_format)
+  {
+    close_temporary_tables(thd);
+    cleanup_load_tmpdir();
+  }
   return Log_event::exec_event(mi);
 }
 
@@ -1866,7 +1883,9 @@ int Execute_load_log_event::exec_event(struct st_master_info* mi)
     slave_print_error(my_errno, "Could not open file '%s'", fname);
     goto err;
   }
-  if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,0))
+  if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,
+							 (pthread_mutex_t*)0,
+							 (bool)0))
       || lev->get_type_code() != NEW_LOAD_EVENT)
   {
     slave_print_error(0, "File '%s' appears corrupted", fname);
