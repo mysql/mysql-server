@@ -1749,7 +1749,8 @@ void Item_func_in::fix_length_and_dec()
         thd->set_n_backup_item_arena(arena, &backup);
       for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
       {
-        if (!my_charset_same(cmp_collation.collation,
+        if (!arg[0]->null_value &&
+            !my_charset_same(cmp_collation.collation,
                              arg[0]->collation.collation))
         {
           Item_string *conv;
