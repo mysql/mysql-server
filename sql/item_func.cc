@@ -456,7 +456,7 @@ double Item_func_pow::val()
 
 double Item_func_acos::val()
 {
-  // this 'volatile' was added as a fix for BUG #2338 to calm optimizer down
+  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
   volatile double value=args[0]->val();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
@@ -465,7 +465,7 @@ double Item_func_acos::val()
 
 double Item_func_asin::val()
 {
-  // this 'volatile' was added as a fix for BUG #2338 to calm optimizer down
+  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
   volatile double value=args[0]->val();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
