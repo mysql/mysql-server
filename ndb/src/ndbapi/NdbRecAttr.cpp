@@ -141,40 +141,29 @@ static void
 ndbrecattr_print_string(NdbOut& out, const char *type,
 			const char *ref, unsigned sz)
 {
-  int i;
+  int i, len, printable= 1;
   // trailing zeroes are not printed
   for (i=sz-1; i >= 0; i--)
     if (ref[i] == 0) sz--;
     else break;
   if (sz == 0) return; // empty
 
-  char *str= (char*)malloc(sz+1);
-  memcpy(str, ref, sz);
-  str[sz]= 0; // null terminate
-  int len= strlen(str);
-  int printable= 1;
-  for (i=0; i < len; i++)
-  {
-    if (str[i] < 32) {
+  for (len=0; len < (int)sz && ref[i] != 0; len++)
+    if (printable && !isprint((int)ref[i]))
       printable= 0;
-      break;
-    }
-  }
-  if (printable)
-    out.print("%.*s", len, str);
-  else
-  {
-    for (i=0; i < len; i++)
-      out.print("%02X", (int)str[i]);
-  }
 
-  free(str);
+  if (printable)
+    out.print("%.*s", len, ref);
+  else
+    for (i=0; i < len; i++)
+      out.print("%02X", (int)ref[i]);
+
   if (len != (int)sz)
   {
     out.print("[");
     for (i= len+1; ref[i] != 0; i++)
     out.print("%u]",len-i);
-    assert(sz > i);
+    assert((int)sz > i);
     ndbrecattr_print_string(out,type,ref+i,sz-i);
   }
 }
