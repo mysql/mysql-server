@@ -213,7 +213,7 @@ class Item_bool_rowready_func2 :public Item_bool_func2
 public:
   Item_bool_rowready_func2(Item *a, Item *b) :Item_bool_func2(a, b)
   {
-    allowed_arg_cols= a->cols();
+    allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
@@ -390,7 +390,10 @@ class Item_func_interval :public Item_int_func
   double *intervals;
 public:
   Item_func_interval(Item_row *a)
-    :Item_int_func(a),row(a),intervals(0) { allowed_arg_cols= a->cols(); }
+    :Item_int_func(a),row(a),intervals(0)
+  {
+    allowed_arg_cols= 0;    // Fetch this value from first argument
+  }
   longlong val_int();
   void fix_length_and_dec();
   const char *func_name() const { return "interval"; }
@@ -743,7 +746,7 @@ class Item_func_in :public Item_int_func
   Item_func_in(List<Item> &list)
     :Item_int_func(list), array(0), in_item(0), have_null(0)
   {
-    allowed_arg_cols= args[0]->cols();
+    allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
   void fix_length_and_dec();
