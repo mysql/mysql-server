@@ -456,7 +456,7 @@ public:
   longlong val_int();
   String *val_str(String*) { return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
-  enum Item_result result_type () const { return INT_RESULT; }
+  enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
 };
 
