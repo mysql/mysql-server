@@ -667,7 +667,8 @@ longlong Item_func_ceiling::val_int()
 
 longlong Item_func_floor::val_int()
 {
-  double value=args[0]->val();
+  // the volatile's for BUG #3051 to calm optimizer down (because of gcc's bug)
+  volatile double value=args[0]->val();
   null_value=args[0]->null_value;
   return (longlong) floor(value);
 }
