@@ -3135,7 +3135,8 @@ unsent_create_error:
 	goto error;
     }
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, (bool) lex->local_file, lex->lock_option);
+                    lex->duplicates, (bool) lex->local_file,
+		    lex->lock_option, lex->duplicates == DUP_IGNORE);
     break;
   }
 
