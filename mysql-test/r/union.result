@@ -1173,3 +1173,25 @@ show columns from t4;
 Field	Type	Null	Key	Default	Extra
 sdate	date	YES		NULL	
 drop table t1, t2, t3, t4;
+create table t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+select * from ((select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
+a	b
+1	a
+2	b
+3	c
+select * from ((select * from t1) union (((select * from t1))) union (select * from t1)) a;
+a	b
+1	a
+2	b
+3	c
+drop table t1;

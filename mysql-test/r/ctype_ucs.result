@@ -624,3 +624,17 @@ ucs2_bin	00610009
 ucs2_bin	0061
 ucs2_bin	00610020
 drop table t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_swedish_ci';
+CREATE TABLE t1 (Field1 int(10) default '0');
+INSERT INTO t1 VALUES ('-1');
+SELECT * FROM t1;
+Field1
+-1
+DROP TABLE t1;
+CREATE TABLE t1 (Field1 int(10) unsigned default '0');
+INSERT INTO t1 VALUES ('-1');
+Warnings:
+Warning	1265	Data truncated for column 'Field1' at row 1
+DROP TABLE t1;
+SET NAMES latin1;
