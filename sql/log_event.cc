@@ -1881,7 +1881,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       set_fields(field_list);
-      thd->slave_proxy_id = thd->thread_id;
+      thd->slave_proxy_id = thread_id;
       if (net)
       {
 	// mysql_load will use thd->net to read the file
