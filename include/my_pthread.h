@@ -581,9 +581,13 @@ extern int pthread_dummy(int);
 
 #define THREAD_NAME_SIZE 10
 #if defined(__ia64__)
-#define DEFAULT_THREAD_STACK	(128*1024)
+/*
+  MySQL can survive with 32K, but some glibc libraries require > 128K stack
+  To resolve hostnames
+*/
+#define DEFAULT_THREAD_STACK	(192*1024L)
 #else
-#define DEFAULT_THREAD_STACK	(64*1024)
+#define DEFAULT_THREAD_STACK	(192*1024L)
 #endif
 
 struct st_my_thread_var

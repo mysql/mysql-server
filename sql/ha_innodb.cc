@@ -2249,19 +2249,7 @@ convert_search_mode_to_innobase(
 		case HA_READ_AFTER_KEY:		return(PAGE_CUR_G);
 		case HA_READ_BEFORE_KEY:	return(PAGE_CUR_L);
 		case HA_READ_PREFIX:		return(PAGE_CUR_GE);
-		case HA_READ_PREFIX_LAST:
-		  /*		        ut_print_timestamp(stderr);
-                        fprintf(stderr,
-			" InnoDB: Warning: Using HA_READ_PREFIX_LAST\n"); */
-		        return(PAGE_CUR_LE);
-
-		        /* InnoDB does not yet support ..PREFIX_LAST!
-		        We have to add a new search flag
-		        PAGE_CUR_LE_OR_PREFIX to InnoDB. */
-
-			/* the above PREFIX flags mean that the last
-			field in the key value may just be a prefix
-			of the complete fixed length field */
+          	case HA_READ_PREFIX_LAST:       return(PAGE_CUR_LE_OR_EXTENDS);
 		default:			assert(0);
 	}
 
@@ -2460,6 +2448,9 @@ ha_innobase::change_active_index(
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
 
+  ut_a(prebuilt->trx ==
+	     (trx_t*) current_thd->transaction.all.innobase_tid);
+
   active_index = keynr;
 
   if (keynr != MAX_KEY && table->keys > 0) {
@@ -2487,9 +2478,9 @@ ha_innobase::change_active_index(
 
   /* Maybe MySQL changes the active index for a handle also
      during some queries, we do not know: then it is safest to build
-     the template such that all columns will be fetched */
+     the template such that all columns will be fetched. */
 
-  build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
+  build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 
   DBUG_RETURN(0);
 }
@@ -2994,6 +2985,7 @@ ha_innobase::create(
 {
 	int		error;
 	dict_table_t*	innobase_table;
+	trx_t*		parent_trx;
 	trx_t*		trx;
 	int		primary_key_no;
 	uint		i;
@@ -3005,6 +2997,16 @@ ha_innobase::create(
 
 	DBUG_ASSERT(thd != NULL);
 
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	
+	parent_trx = check_trx_exists(current_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);	
+	
 	trx = trx_allocate_for_mysql();
 
 	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
@@ -3165,10 +3167,21 @@ ha_innobase::delete_table(
 {
 	ulint	name_len;
 	int	error;
+	trx_t*	parent_trx;
 	trx_t*	trx;
 	char	norm_name[1000];
 
   	DBUG_ENTER("ha_innobase::delete_table");
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	
+	parent_trx = check_trx_exists(current_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);	
 
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
@@ -3224,10 +3237,21 @@ innobase_drop_database(
 			the database name is 'test' */
 {
 	ulint	len		= 0;
+	trx_t*	parent_trx;
 	trx_t*	trx;
 	char*	ptr;
 	int	error;
 	char	namebuf[10000];
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	
+	parent_trx = check_trx_exists(current_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);	
 
 	ptr = strend(path) - 2;
 
@@ -3280,11 +3304,22 @@ ha_innobase::rename_table(
 	ulint	name_len1;
 	ulint	name_len2;
 	int	error;
+	trx_t*	parent_trx;
 	trx_t*	trx;
 	char	norm_from[1000];
 	char	norm_to[1000];
 
   	DBUG_ENTER("ha_innobase::rename_table");
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+	
+	parent_trx = check_trx_exists(current_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);	
 
 	if (lower_case_table_names) {
 		srv_lower_case_table_names = TRUE;
@@ -3332,8 +3367,8 @@ Estimates the number of index records in a range. */
 ha_rows
 ha_innobase::records_in_range(
 /*==========================*/
-						/* out: estimated number of rows,
-						currently 32-bit int or uint */
+						/* out: estimated number of
+						rows */
 	int 			keynr,		/* in: index number */
 	const mysql_byte*	start_key,	/* in: start key value of the
 						range, may also be empty */
@@ -3364,9 +3399,18 @@ ha_innobase::records_in_range(
 
    	DBUG_ENTER("records_in_range");
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(current_thd);
+
+	prebuilt->trx->op_info = (char*)"estimating records in index range";
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	active_index = keynr;
 
@@ -3400,6 +3444,8 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
+	prebuilt->trx->op_info = (char*)"";
+
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
@@ -3420,11 +3466,21 @@ ha_innobase::estimate_number_of_rows(void)
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+ 	DBUG_ENTER("estimate_number_of_rows");
 
- 	DBUG_ENTER("info");
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(current_thd);
+
+	prebuilt->trx->op_info = (char*)
+	                         "calculating upper bound for table rows";
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	index = dict_table_get_first_index_noninline(prebuilt->table);
 
@@ -3438,6 +3494,8 @@ ha_innobase::estimate_number_of_rows(void)
 	of the formula below. */
 
 	estimate = 2 * local_data_file_length / dict_index_calc_min_rec_len(index);
+
+	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN((ha_rows) estimate);
 }
@@ -3489,9 +3547,18 @@ ha_innobase::info(
                 return;
         }
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(current_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	prebuilt->trx->op_info = (char*)"returning various info to MySQL";
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
  	ib_table = prebuilt->table;
 
@@ -3499,7 +3566,12 @@ ha_innobase::info(
  		/* In sql_show we call with this flag: update then statistics
  		so that they are up-to-date */
 
+	        prebuilt->trx->op_info = (char*)"updating table statistics";
+
  		dict_update_statistics(ib_table);
+
+		prebuilt->trx->op_info = (char*)
+		                          "returning various info to MySQL";
  	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -3559,12 +3631,6 @@ ha_innobase::info(
 		}
 	}
 
-	/* The trx struct in InnoDB contains a pthread mutex embedded:
-	in the debug version of MySQL that it replaced by a 'safe mutex'
-	which is of a different size. We have to use a function to access
-	trx fields. Otherwise trx->error_info will be a random
-	pointer and cause a seg fault. */
-
   	if (flag & HA_STATUS_ERRKEY) {
 		ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 
@@ -3572,6 +3638,8 @@ ha_innobase::info(
 				       (dict_index_t*)
 				       trx_get_error_info(prebuilt->trx));
   	}
+
+	prebuilt->trx->op_info = (char*)"";
 
   	DBUG_VOID_RETURN;
 }
@@ -3630,11 +3698,22 @@ ha_innobase::update_table_comment(
   	char*		str 	= my_malloc(length + 16500, MYF(0));
   	char*		pos;
 
-	/* Warning: since it is not sure that MySQL calls external_lock
-	before calling this function, the trx field in prebuilt can be
-	obsolete! */
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(current_thd);
+
+	prebuilt->trx->op_info = (char*)"returning table comment";
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
    	
 	if (!str) {
+	        prebuilt->trx->op_info = (char*)"";
+
     		return((char*)comment);
 	}
 
@@ -3658,6 +3737,8 @@ ha_innobase::update_table_comment(
 							prebuilt->table);
 	}
 
+        prebuilt->trx->op_info = (char*)"";
+
   	return(str);
 }
 
@@ -3673,19 +3754,29 @@ ha_innobase::get_foreign_key_create_info(void)
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
 	char*	str;
+
+	ut_a(prebuilt != NULL);
+
+	/* We do not know if MySQL can call this function before calling
+	external_lock(). To be safe, update the thd of the current table
+	handle. */
+
+	update_thd(current_thd);
+
+        prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 	
-	if (prebuilt == NULL) {
-		fprintf(stderr,
-"InnoDB: Error: cannot get create info for foreign keys\n");
-
-		return(NULL);
-	}
-
 	str = (char*)ut_malloc(10000);
 
 	str[0] = '\0';
 	
   	dict_print_info_on_foreign_keys(TRUE, str, 9000, prebuilt->table);
+
+        prebuilt->trx->op_info = (char*)"";
 
   	return(str);
 }			
@@ -3752,9 +3843,10 @@ ha_innobase::reset(void)
 }
 
 /**********************************************************************
-When we create a temporary table inside MySQL LOCK TABLES, MySQL will
-not call external_lock for the temporary table when it uses it. Instead,
-it will call this function. */
+Inside LOCK TABLES MySQL will not call external_lock() between SQL
+statements. It will call this function at the start of each SQL statement.
+Note also a spacial case: if a temporary table is created inside LOCK
+TABLES, MySQL has not called external_lock() at all on that table. */
 
 int
 ha_innobase::start_stmt(
@@ -3892,8 +3984,8 @@ ha_innobase::external_lock(
 
 		  	trx->mysql_n_tables_locked = 0;
 
-			/* Here we release the search latch, auto_inc_lock,
-			and InnoDB thread FIFO ticket if they were reserved. */
+			/* Here we release the search latch and InnoDB
+			thread FIFO ticket if they were reserved. */
 
 			innobase_release_stat_resources(trx);
 
@@ -4209,4 +4301,4 @@ ha_innobase::get_auto_increment()
 }
 
 #endif /* HAVE_INNOBASE_DB */
- 
+

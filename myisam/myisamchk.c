@@ -129,7 +129,7 @@ int main(int argc, char **argv)
     char buff[22],buff2[22];
     if (!(check_param.testflag & T_SILENT) || check_param.testflag & T_INFO)
       puts("\n---------\n");
-    printf("\nTotal of all %d ISAM-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
+    printf("\nTotal of all %d MyISAM-files:\nData records: %9s   Deleted blocks: %9s\n",check_param.total_files,llstr(check_param.total_records,buff),
 	   llstr(check_param.total_deleted,buff2));
   }
   free_defaults(default_argv);
@@ -328,7 +328,7 @@ static void usage(void)
   print_version();
   puts("By Monty, for your professional use");
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
-  puts("Description, check and repair of ISAM tables.");
+  puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname);
   puts("\nGlobal options:\n\
@@ -1674,7 +1674,7 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   if (!param->warning_printed && !param->error_printed)
   {
     if (param->testflag & T_SILENT)
-      fprintf(stderr,"%s: ISAM file %s\n",my_progname,param->isam_file_name);
+      fprintf(stderr,"%s: MyISAM file %s\n",my_progname,param->isam_file_name);
     param->out_flag|= O_DATA_LOST;
   }
   param->error_printed|=1;
