@@ -4,41 +4,41 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-drop database if exists test2;
-drop database if exists test3;
-create database test2 character set latin2;
+drop database if exists mysqltest2;
+drop database if exists mysqltest3;
+create database mysqltest2 character set latin2;
 set @@character_set_server=latin5;
-create database test3;
+create database mysqltest3;
 
 --- --master--
-show create database test2;
+show create database mysqltest2;
 Database	Create Database
-test2	CREATE DATABASE `test2` /*!40100 DEFAULT CHARACTER SET latin2 */
-show create database test3;
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+show create database mysqltest3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET latin5 */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */
 
 --- --slave--
-show create database test2;
+show create database mysqltest2;
 Database	Create Database
-test2	CREATE DATABASE `test2` /*!40100 DEFAULT CHARACTER SET latin2 */
-show create database test3;
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
+show create database mysqltest3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET latin5 */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */
 set @@collation_server=armscii8_bin;
-drop database test3;
-create database test3;
+drop database mysqltest3;
+create database mysqltest3;
 
 --- --master--
-show create database test3;
+show create database mysqltest3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
 
 --- --slave--
-show create database test3;
+show create database mysqltest3;
 Database	Create Database
-test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
-use test2;
+mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+use mysqltest2;
 create table t1 (a int auto_increment primary key, b varchar(100));
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
@@ -57,7 +57,7 @@ a	b
 5	latin2_croatian_ci
 
 --- --slave--
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 a	b
 1	armscii8
 2	armscii8_bin
@@ -81,7 +81,7 @@ a	b
 4	Müller
 
 --- --slave--
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 a	b
 1	latin1_german1_ci
 2	Muffler
@@ -98,69 +98,69 @@ a	b
 1	cp850_general_ci
 
 --- --slave--
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 a	b
 1	cp850_general_ci
-drop database test2;
-drop database test3;
+drop database mysqltest2;
+drop database mysqltest3;
 show binlog events from 79;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	79	Query	1	79	use `test`; drop database if exists test2
-master-bin.000001	143	Query	1	143	use `test`; drop database if exists test3
-master-bin.000001	207	Query	1	207	use `test`; create database test2 character set latin2
-master-bin.000001	284	Query	1	284	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=30
-master-bin.000001	418	Query	1	418	use `test`; create database test3
-master-bin.000001	474	Query	1	474	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
-master-bin.000001	608	Query	1	608	use `test`; drop database test3
-master-bin.000001	662	Query	1	662	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
-master-bin.000001	796	Query	1	796	use `test`; create database test3
-master-bin.000001	852	Query	1	852	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	987	Query	1	987	use `test2`; create table t1 (a int auto_increment primary key, b varchar(100))
-master-bin.000001	1089	Query	1	1089	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	1225	Intvar	1	1225	INSERT_ID=1
-master-bin.000001	1253	Query	1	1253	use `test2`; insert into t1 (b) values(@@character_set_server)
-master-bin.000001	1338	Query	1	1338	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	1474	Intvar	1	1474	INSERT_ID=2
-master-bin.000001	1502	Query	1	1502	use `test2`; insert into t1 (b) values(@@collation_server)
-master-bin.000001	1583	Query	1	1583	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	1719	Intvar	1	1719	INSERT_ID=3
-master-bin.000001	1747	Query	1	1747	use `test2`; insert into t1 (b) values(@@character_set_client)
-master-bin.000001	1832	Query	1	1832	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	1968	Intvar	1	1968	INSERT_ID=4
-master-bin.000001	1996	Query	1	1996	use `test2`; insert into t1 (b) values(@@character_set_connection)
-master-bin.000001	2085	Query	1	2085	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	2221	Intvar	1	2221	INSERT_ID=5
-master-bin.000001	2249	Query	1	2249	use `test2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	2334	Query	1	2334	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	2469	Query	1	2469	use `test2`; truncate table t1
-master-bin.000001	2522	Query	1	2522	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	2657	Intvar	1	2657	INSERT_ID=1
-master-bin.000001	2685	Query	1	2685	use `test2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	2770	Query	1	2770	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	2905	Intvar	1	2905	INSERT_ID=2
-master-bin.000001	2933	Query	1	2933	use `test2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
-master-bin.000001	3021	Query	1	3021	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	3157	Intvar	1	3157	INSERT_ID=3
-master-bin.000001	3185	Query	1	3185	use `test2`; insert into t1 (b) values(@@collation_connection)
-master-bin.000001	3270	Query	1	3270	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	3406	Intvar	1	3406	INSERT_ID=4
-master-bin.000001	3434	Query	1	3434	use `test2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
-master-bin.000001	3522	Query	1	3522	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	3658	Intvar	1	3658	INSERT_ID=74
-master-bin.000001	3686	Create_file	1	3686	db=test2;table=t1;file_id=1;block_len=581
-master-bin.000001	4354	Query	1	4354	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	4490	Intvar	1	4490	INSERT_ID=5
-master-bin.000001	4518	Exec_load	1	4518	;file_id=1
-master-bin.000001	4541	Query	1	4541	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	4677	Query	1	4677	use `test2`; truncate table t1
-master-bin.000001	4730	Query	1	4730	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	4866	Intvar	1	4866	INSERT_ID=1
-master-bin.000001	4894	User var	1	4894	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
-master-bin.000001	4934	Query	1	4934	use `test2`; insert into t1 (b) values(collation(@a))
-master-bin.000001	5010	Query	1	5010	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	5146	Query	1	5146	use `test2`; drop database test2
-master-bin.000001	5201	Query	1	5201	SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
-master-bin.000001	5332	Query	1	5332	drop database test3
+master-bin.000001	79	Query	1	79	use `test`; drop database if exists mysqltest2
+master-bin.000001	148	Query	1	148	use `test`; drop database if exists mysqltest3
+master-bin.000001	217	Query	1	217	use `test`; create database mysqltest2 character set latin2
+master-bin.000001	299	Query	1	299	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=30
+master-bin.000001	433	Query	1	433	use `test`; create database mysqltest3
+master-bin.000001	494	Query	1	494	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
+master-bin.000001	628	Query	1	628	use `test`; drop database mysqltest3
+master-bin.000001	687	Query	1	687	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
+master-bin.000001	821	Query	1	821	use `test`; create database mysqltest3
+master-bin.000001	882	Query	1	882	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1022	Query	1	1022	use `mysqltest2`; create table t1 (a int auto_increment primary key, b varchar(100))
+master-bin.000001	1129	Query	1	1129	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1270	Intvar	1	1270	INSERT_ID=1
+master-bin.000001	1298	Query	1	1298	use `mysqltest2`; insert into t1 (b) values(@@character_set_server)
+master-bin.000001	1388	Query	1	1388	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1529	Intvar	1	1529	INSERT_ID=2
+master-bin.000001	1557	Query	1	1557	use `mysqltest2`; insert into t1 (b) values(@@collation_server)
+master-bin.000001	1643	Query	1	1643	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1784	Intvar	1	1784	INSERT_ID=3
+master-bin.000001	1812	Query	1	1812	use `mysqltest2`; insert into t1 (b) values(@@character_set_client)
+master-bin.000001	1902	Query	1	1902	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2043	Intvar	1	2043	INSERT_ID=4
+master-bin.000001	2071	Query	1	2071	use `mysqltest2`; insert into t1 (b) values(@@character_set_connection)
+master-bin.000001	2165	Query	1	2165	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2306	Intvar	1	2306	INSERT_ID=5
+master-bin.000001	2334	Query	1	2334	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	2424	Query	1	2424	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2564	Query	1	2564	use `mysqltest2`; truncate table t1
+master-bin.000001	2622	Query	1	2622	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2762	Intvar	1	2762	INSERT_ID=1
+master-bin.000001	2790	Query	1	2790	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	2880	Query	1	2880	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3020	Intvar	1	3020	INSERT_ID=2
+master-bin.000001	3048	Query	1	3048	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	3141	Query	1	3141	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3282	Intvar	1	3282	INSERT_ID=3
+master-bin.000001	3310	Query	1	3310	use `mysqltest2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	3400	Query	1	3400	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3541	Intvar	1	3541	INSERT_ID=4
+master-bin.000001	3569	Query	1	3569	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	3662	Query	1	3662	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3803	Intvar	1	3803	INSERT_ID=74
+master-bin.000001	3831	Create_file	1	3831	db=mysqltest2;table=t1;file_id=1;block_len=581
+master-bin.000001	4504	Query	1	4504	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	4645	Intvar	1	4645	INSERT_ID=5
+master-bin.000001	4673	Exec_load	1	4673	;file_id=1
+master-bin.000001	4696	Query	1	4696	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	4837	Query	1	4837	use `mysqltest2`; truncate table t1
+master-bin.000001	4895	Query	1	4895	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	5036	Intvar	1	5036	INSERT_ID=1
+master-bin.000001	5064	User var	1	5064	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
+master-bin.000001	5104	Query	1	5104	use `mysqltest2`; insert into t1 (b) values(collation(@a))
+master-bin.000001	5185	Query	1	5185	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	5326	Query	1	5326	use `mysqltest2`; drop database mysqltest2
+master-bin.000001	5391	Query	1	5391	SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	5522	Query	1	5522	drop database mysqltest3
 set global character_set_server=latin2;
 ERROR HY000: Binary logging and replication forbid changing the global server character set or collation
 set global character_set_server=latin2;
