@@ -1079,7 +1079,7 @@ to expand the MySQL business.
 
 @menu
 * Business Services Support::   Support
-* Business Services Training::  Training
+* Business Services Training::  Training and Certification
 * Business Services Consulting::  Consulting
 * Business Services Commercial licenses::  Commercial Licenses
 * Business Services Partnering::  Partnering
@@ -1108,43 +1108,71 @@ Internet, please contact our sales staff at @email{sales@@mysql.com}.
 
 
 @node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
-@subsubsection Training
-MySQL AB and its authorized training partners offer  MySQL and related
-training on various levels all over the world. Our training material
-uses the same example databases as our documentation and our sample
-applications, and it is always updated to reflect the latest MySQL
-version. Our trainers are backed by the development team to guarantee
-the quality of the training and the continuous development of the
-course material. Also, this ensures that no questions raised during
-the courses remain unanswered."
+@subsubsection Training and Certification
+MySQL AB delivers MySQL and related training worldwide. We offer both
+open courses and In-House courses tailored to specific needs of your
+company. MySQL Training is also available through our partners, the
+Authorized MySQL Training Centers.
 
-If you're interested in our training as a potential participant or
+Our training material uses the same example databases as our
+documentation and our sample applications, and it is always updated
+to reflect the latest MySQL version. Our trainers are backed by the
+development team to guarantee the quality of the training and the
+continuous development of the course material. This also ensures
+that no questions raised during the courses remain unanswered.
+
+Attending our training courses will enable you to achieve your goals
+related to your MySQL applications. You will also:
+@itemize @bullet
+@item
+Save time.
+@item
+Improve the performance of your application(s).
+@item
+Reduce or eliminate the need for additional hardware, decreasing cost.
+@item
+Enhance security.
+@item
+Increase customers and co-workers satisfaction.
+@item
+Prepare yourself for MySQL Certification.
+@end itemize
+
+If you are interested in our training as a potential participant or
 training partner, please visit the training section at
 @uref{http://www.mysql.com/training/}.
 If you have restricted access to the Internet, please contact our
 training staff at @email{training@@mysql.com}.
 
+We plan to release the MySQL Certification Program in 2002, for
+details see @uref{http://www.mysql.com/training/certification.html}.
+If you would like to be kept informed about the MySQL Certification
+Program, please e-mail @email{certification@@mysql.com}.
+
 
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
 @subsubsection Consulting
-MySQL AB offers consulting services to users of MySQL and to those who
-embed MySQL in their own software, all over the world. Our consultants
-can help you design and tune your databases, construct efficient
-queries, tune your platform for optimal performance, resolve migration
-issues, set up replication, build robust transactional applications,
-and more.
+MySQL AB and its Authorised Partners offer consulting services to
+users of MySQL and to those who embed MySQL in their own software,
+all over the world.
+
+Our consultants can help you design and tune your databases, construct
+efficient queries, tune your platform for optimal performance, resolve
+migration issues, set up replication, build robust transactional
+applications, and more.
 We also help customers embed MySQL in their products and applications
-for large-scale deployment. Our consultants work in close collaboration
-with our development team which ensures the technical quality of our
-professional services.
+for large-scale deployment.
+
+Our consultants work in close collaboration with our development team
+which ensures the technical quality of our professional services.
 Consulting assignments range from 2-day power start sessions to
 projects that span weeks and months. Our expertise does not only cover
 MySQL, but extends into programming and scripting languages such as
 PHP, Perl and more.
 
-If you're interested in our consulting services or want to become a
-consulting partner, please visit the consulting section at
-@uref{http://www.mysql.com/consulting/}.
+If you are interested in our consulting services or want to become a
+consulting partner, please visit the consulting section of our website
+at @uref{http://www.mysql.com/consulting/}.
 If you have restricted access to the Internet, please contact our
 consulting staff at @email{consulting@@mysql.com}.
 
@@ -1217,6 +1245,10 @@ an email to @email{advertising@@mysql.com}.
 @uref{http://www.mysql.com/, The MySQL website}
 provides the latest information about MySQL and MySQL AB.
 
+For press service and inquiries not covered in our News releases
+(@uref{http://www.mysql.com/news/}), please mail to
+@email{press@@mysql.com}.
+
 If you have a valid support contract with MySQL AB; you will get
 timely, precise answers to your technical questions about MySQL.
 For more information, see @ref{Support}.
@@ -1228,6 +1260,12 @@ For information about MySQL training, please visit the training
 section at @uref{http://www.mysql.com/training/}. If you have
 restricted access to the Internet, please contact the MySQL AB
 training staff at @email{training@@mysql.com}.
+@xref{Business Services Training}.
+
+For information on the MySQL Certification Program, please see
+@uref{http://www.mysql.com/training/certification.html}.
+If you would like to be kept informed about the MySQL Certification
+Program, please e-mail @email{certification@@mysql.com}.
 @xref{Business Services Training}.
 
 If you're interested in consulting, please visit the consulting
@@ -7402,9 +7440,8 @@ release or the last stable release:
 Normally, if you are beginning to use MySQL for the first time
 or trying to port it to some system for which there is no binary
 distribution, we recommend going with the stable release (currently
-Version @value{mysql_version}.  Note that all MySQL releases are
-checked with the MySQL benchmarks and an extensive test suite
-before each release.
+Version 3.23.  Note that all MySQL releases are checked with the
+MySQL benchmarks and an extensive test suite before each release.
 
 @item
 Otherwise, if you are running an old system and want to upgrade, but
