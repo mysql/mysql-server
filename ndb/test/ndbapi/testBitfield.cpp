@@ -12,13 +12,15 @@ static void usage()
 {
   ndb_std_print_version();
 }
+#if 0
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+	       const char *argument)
 {
   return ndb_std_get_one_option(optid, opt, argument ? argument :
 				"d:t:O,/tmp/testBitfield.trace");
 }
+#endif
 
 static const NdbDictionary::Table* create_random_table(Ndb*);
 static int transactions(Ndb*, const NdbDictionary::Table* tab);
