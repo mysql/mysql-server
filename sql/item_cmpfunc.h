@@ -478,15 +478,40 @@ public:
 class Item_func_like :public Item_bool_func2
 {
   char escape;
+
+  // Turbo Boyer-Moore data
+  bool        canDoTurboBM;	// pattern is '%abcd%' case
+  const char* pattern;
+  int         pattern_len;
+
+  // TurboBM buffers, *this is owner
+  int* bmGs; //   good suffix shift table, size is pattern_len + 1
+  int* bmBc; // bad character shift table, size is alphabet_size
+
+  void turboBM_compute_suffixes(int* suff);
+  void turboBM_compute_good_suffix_shifts(int* suff);
+  void turboBM_compute_bad_character_shifts();
+  bool turboBM_matches(const char* text, int text_len) const;
+  enum { alphabet_size = 256 };
+
 public:
-  Item_func_like(Item *a,Item *b, char* escape_arg) :Item_bool_func2(a,b),escape(*escape_arg)
+  Item_func_like::Item_func_like(Item *a,Item *b, char* escape_arg) :
+    Item_bool_func2(a,b),
+    escape(*escape_arg),
+    canDoTurboBM(false),
+    pattern(0),
+    pattern_len(0),
+    bmGs(0),
+    bmBc(0)
   {}
+
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
   void fix_length_and_dec();
+  bool fix_fields(THD *thd,struct st_table_list *tlist);
 };
 
 #ifdef USE_REGEX
