@@ -1624,9 +1624,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     switch (command) {
     case MYSQL_OPTION_MULTI_STATEMENTS_ON:
       thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
+      send_eof(thd);
       break;
     case MYSQL_OPTION_MULTI_STATEMENTS_OFF:
       thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
+      send_eof(thd);
       break;
     default:
       send_error(thd, ER_UNKNOWN_COM_ERROR);
