@@ -32,6 +32,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_EXAMPLE_DB
+#include "examples/ha_example.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #else
@@ -76,6 +79,8 @@ struct show_table_type_st sys_table_types[]=
    "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
   {"BERKELEYDB",&have_berkeley_db,
    "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {"EXAMPLE",&have_example_db,
+   "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -171,6 +176,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
     return new ha_innobase(table);
+#endif
+#ifdef HAVE_EXAMPLE_DB
+  case DB_TYPE_EXAMPLE_DB:
+    return new ha_example(table);
 #endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
