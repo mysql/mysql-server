@@ -2095,10 +2095,12 @@ mysql_execute_command(THD *thd)
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
       auxi->table= auxi->table_list->table;
+    fix_tables_pointers(&lex->select_lex);
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
     {
-      res= mysql_select(thd,tables,select_lex->item_list,
+      res= mysql_select(thd,select_lex->get_table_list(),
+			select_lex->item_list,
 			select_lex->where,
 			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
 			(ORDER *)NULL,
