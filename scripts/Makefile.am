@@ -120,6 +120,7 @@ SUFFIXES = .sh
 	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \
+	  -e 's!@''WRAPLIBS''@!@WRAPLIBS@!' \
 	  -e 's!@''innodb_system_libs''@!@innodb_system_libs@!' \
 	  -e 's!@''openssl_libs''@!@openssl_libs@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \

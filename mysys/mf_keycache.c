@@ -2038,7 +2038,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
 /*
   flush all key blocks for a file to disk, but don't do any mutex locks
 
-    flush_key_blocks()
+    flush_key_blocks_int()
       keycache            pointer to a key cache data structure
       file                handler for the file to flush to
       flush_type          type of the flush
@@ -2255,7 +2255,7 @@ restart:
   RETURN
     0   ok
     1  error
- */
+*/
 
 int flush_key_blocks(KEY_CACHE_HANDLE key_cache,
                      File file, enum flush_type type)
