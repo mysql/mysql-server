@@ -108,6 +108,9 @@ protected:
 
   bool connect_common(NDB_SOCKET_TYPE sockfd);
 
+  bool ndb_shm_create();
+  bool ndb_shm_get();
+  bool ndb_shm_attach();
 
   /**
    * Check if there are two processes attached to the segment (a connection)

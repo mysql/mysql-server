@@ -23,11 +23,8 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 
-#ifndef NDB_WIN32
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#endif
-
+#include <InputStream.hpp>
+#include <OutputStream.hpp>
 
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 const char *lHostName,
@@ -222,3 +219,127 @@ SHM_Transporter::prepareSend(const SignalHeader * const signalHeader,
   return SEND_DISCONNECTED;
 }
 #endif
+
+
+bool
+SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+{
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream s_input(sockfd);
+  char buf[256];
+
+  // Create
+  if(!_shmSegCreated){
+    if (!ndb_shm_create()) {
+      report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT);
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+    _shmSegCreated = true;
+  }
+
+  // Attach
+  if(!_attached){
+    if (!ndb_shm_attach()) {
+      report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+    _attached = true;
+  }
+
+  // Send ok to client
+  s_output.println("shm server 1 ok");
+
+  // Wait for ok from client
+  if (s_input.gets(buf, 256) == 0) {
+    NDB_CLOSE_SOCKET(sockfd);
+    return false;
+  }
+
+  int r= connect_common(sockfd);
+
+  if (r) {
+    // Send ok to client
+    s_output.println("shm server 2 ok");
+    // Wait for ok from client
+    if (s_input.gets(buf, 256) == 0) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+  }
+
+  NDB_CLOSE_SOCKET(sockfd);
+  return r;
+}
+
+bool
+SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+{
+  SocketInputStream s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  char buf[256];
+
+  // Wait for server to create and attach
+  if (s_input.gets(buf, 256) == 0) {
+    NDB_CLOSE_SOCKET(sockfd);
+    return false;
+  }
+
+  // Create
+  if(!_shmSegCreated){
+    if (!ndb_shm_get()) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+    _shmSegCreated = true;
+  }
+
+  // Attach
+  if(!_attached){
+    if (!ndb_shm_attach()) {
+      report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT);
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+    _attached = true;
+  }
+
+  // Send ok to server
+  s_output.println("shm client 1 ok");
+
+  int r= connect_common(sockfd);
+
+  if (r) {
+    // Wait for ok from server
+    if (s_input.gets(buf, 256) == 0) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return false;
+    }
+    // Send ok to server
+    s_output.println("shm client 2 ok");
+  }
+
+  NDB_CLOSE_SOCKET(sockfd);
+  return r;
+}
+
+bool
+SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
+{
+  if (!checkConnected())
+    return false;
+  
+  if(!setupBuffersDone) {
+    setupBuffers();
+    setupBuffersDone=true;
+  }
+
+  if(setupBuffersDone) {
+    NdbSleep_MilliSleep(m_timeOutMillis);
+    if(*serverStatusFlag == 1 && *clientStatusFlag == 1)
+      return true;
+  }
+
+  return false;
+}
