@@ -84,7 +84,7 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
       ((uint) size <= sizeof(void*) || ((uint) size & (sizeof(void*)-1))))
   {
     tree->offset_to_key=sizeof(TREE_ELEMENT); /* Put key after element */
-    /* Fix allocation size so that we don't loose any memory */
+    /* Fix allocation size so that we don't lose any memory */
     default_alloc_size/=(sizeof(TREE_ELEMENT)+size);
     if (!default_alloc_size)
       default_alloc_size=1;
