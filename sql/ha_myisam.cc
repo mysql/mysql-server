@@ -1136,19 +1136,9 @@ int ha_myisam::ft_read(byte * buf)
 
   thread_safe_increment(ha_read_next_count,&LOCK_status); // why ?
 
-  if ((error=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf)))
-    ft_handler=NULL; // Magic here ! See Item_func_match::val()
-                     // and ha_myisam::index_init()
+  error=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf);
+
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
-}
-
-int ha_myisam::index_init(uint idx)
-{
-  if (idx != active_index)
-    ft_handler=NULL; // Magic here !
-
-  active_index=idx;
-  return 0;
 }
 

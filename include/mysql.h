@@ -229,8 +229,12 @@ MYSQL *		STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
 void		STDCALL mysql_close(MYSQL *sock);
 int		STDCALL mysql_select_db(MYSQL *mysql, const char *db);
 int		STDCALL mysql_query(MYSQL *mysql, const char *q);
+int		STDCALL mysql_send_query(MYSQL *mysql, const char *q);
+int		STDCALL mysql_reap_query(MYSQL *mysql);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned int length);
+int		STDCALL mysql_real_send_query(MYSQL *mysql, const char *q,
+					unsigned int len);
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_shutdown(MYSQL *mysql);
