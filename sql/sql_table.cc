@@ -951,6 +951,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       sprintf(buff, ER(ER_OPEN_AS_READONLY), table_name);
       net_store_data(packet, buff);
       close_thread_tables(thd);
+      table->table=0;				// For query cache
       if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
@@ -1028,6 +1029,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
     close_thread_tables(thd);
+    table->table=0;				// For query cache
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))
       goto err;
@@ -1037,8 +1039,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   DBUG_RETURN(0);
  err:
   close_thread_tables(thd);			// Shouldn't be needed
+  if (table)
+    table->table=0;
   DBUG_RETURN(-1);
 }
+
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 {
@@ -1658,24 +1663,30 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   if (error)
   {
-    // This shouldn't happen.  We solve this the safe way by
-    // closing the locked table.
+    /*
+      This shouldn't happen.  We solve this the safe way by
+      closing the locked table.
+    */
     close_cached_table(thd,table);
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
   if (thd->lock || new_name != table_name)	// True if WIN32
   {
-    // Not table locking or alter table with rename
-    // free locks and remove old table
+    /*
+      Not table locking or alter table with rename
+      free locks and remove old table
+    */
     close_cached_table(thd,table);
     VOID(quick_rm_table(old_db_type,db,old_name));
   }
   else
   {
-    // Using LOCK TABLES without rename.
-    // This code is never executed on WIN32!
-    // Remove old renamed table, reopen table and get new locks
+    /*
+      Using LOCK TABLES without rename.
+      This code is never executed on WIN32!
+      Remove old renamed table, reopen table and get new locks
+    */
     if (table)
     {
       VOID(table->file->extra(HA_EXTRA_FORCE_REOPEN)); // Use new file
@@ -1712,7 +1723,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
-  table_list->table=0;				// Table is closed
+  table_list->table=0;				// For query cache
   query_cache.invalidate(table_list);
 
 end_temporary:

@@ -156,7 +156,7 @@ if ($limits->{'group_functions'})
     fetch_all_rows($dbh,"select sum(idn+100),sum(rev_idn-100) from bench1");
   }
   $end_time=new Benchmark;
-  print "Time for select_query_cache ($opt_loop_count): " .
+  print "Time for select_cache ($opt_loop_count): " .
      timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
   # If the database has a query cache, the following loop should be much
@@ -168,7 +168,7 @@ if ($limits->{'group_functions'})
     fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn-$tests) from bench1");
   }
   $end_time=new Benchmark;
-  print "Time for select_query_cache2 ($opt_loop_count): " .
+  print "Time for select_cache2 ($opt_loop_count): " .
      timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
 
