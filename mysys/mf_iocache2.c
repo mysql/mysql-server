@@ -60,16 +60,20 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
       DBUG_VOID_RETURN;
     }
     flush_io_cache(info);
+    /* Correct buffer end so that we write in increments of IO_SIZE */
+    info->write_end=(info->write_buffer+info->buffer_length-
+		     (pos & (IO_SIZE-1)));
   }
   info->pos_in_file=pos;
   info->seek_not_done=1;
 }
 
+
 /*
-**  Fill buffer.  Note that this assumes that you have already used
-**  all characters in the CACHE, independent of the read_pos value!
-**  return:  0 on error or EOF (info->error = -1 on error)
-**           number of characters
+  Fill buffer.  Note that this assumes that you have already used
+  all characters in the CACHE, independent of the read_pos value!
+  return:  0 on error or EOF (info->error = -1 on error)
+  number of characters
 */
 
 uint my_b_fill(IO_CACHE *info)
@@ -109,11 +113,12 @@ uint my_b_fill(IO_CACHE *info)
   return length;
 }
 
+
 /*
-** Read a string ended by '\n' into a buffer of 'max_length' size.
-** Returns number of characters read, 0 on error.
-** last byte is set to '\0'
-** If buffer is full then to[max_length-1] will be set to \0.
+  Read a string ended by '\n' into a buffer of 'max_length' size.
+  Returns number of characters read, 0 on error.
+  last byte is set to '\0'
+  If buffer is full then to[max_length-1] will be set to \0.
 */
 
 uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
@@ -150,6 +155,7 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
       return 0;
   }
 }
+
 
 /*
   Simple printf version.  Supports '%s', '%d', '%u', "%ld" and "%lu"
