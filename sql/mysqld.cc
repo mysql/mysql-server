@@ -1768,13 +1768,11 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 		   no_auto_events);
 }
 
-static int init_common_variables(char *progname, 
-				 const char *conf_file_name, int argc, char **argv,
+static int init_common_variables(const char *conf_file_name, int argc, char **argv,
 				 const char **groups)
 {
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
-  MY_INIT(progname);		// init my_sys library & pthreads
   umask(((~my_umask) & 0666));
   tzset();			// Set tzname
 
@@ -1999,7 +1997,74 @@ static void create_maintenance_thread()
   }
 }
 
-#ifdef _DUMMY
+static void create_shutdown_thread()
+{
+
+#ifdef __WIN__
+  {
+    hEventShutdown=CreateEvent(0, FALSE, FALSE, event_name);
+    pthread_t hThread;
+    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+      sql_print_error("Warning: Can't create thread to handle shutdown requests");
+
+    // On "Stop Service" we have to do regular shutdown
+    Service.SetShutdownEvent(hEventShutdown);
+  }
+#endif
+#ifdef OS2
+  {
+    pthread_cond_init( &eventShutdown, NULL);
+    pthread_t hThread;
+    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+      sql_print_error("Warning: Can't create thread to handle shutdown requests");
+  }
+#endif
+}
+
+#ifdef __NT__
+void create_named_pipe_thread()
+{
+  if (hPipe == INVALID_HANDLE_VALUE &&
+      (!have_tcpip || opt_disable_networking))
+  {
+    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
+	unireg_abort(1);
+  }
+  else
+  {
+    pthread_mutex_lock(&LOCK_thread_count);
+    (void) pthread_cond_init(&COND_handler_count,NULL);
+    {
+      pthread_t hThread;
+      handler_count=0;
+      if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
+      {
+	handler_count++;
+	if (pthread_create(&hThread,&connection_attrib,
+			   handle_connections_namedpipes, 0))
+	{
+	  sql_print_error("Warning: Can't create thread to handle named pipes");
+	  handler_count--;
+	}
+      }
+      if (have_tcpip && !opt_disable_networking)
+      {
+	handler_count++;
+	if (pthread_create(&hThread,&connection_attrib,
+			   handle_connections_sockets, 0))
+	{
+	  sql_print_error("Warning: Can't create thread to handle named pipes");
+	  handler_count--;
+	}
+      }
+      while (handler_count > 0)
+	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
+    }
+    pthread_mutex_unlock(&LOCK_thread_count);
+  }
+}
+#endif
+
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
@@ -2009,25 +2074,18 @@ int main(int argc, char **argv)
   int init_error;
 
   DEBUGGER_OFF;
-//  MAIN_THD;
-  /*
-    Initialize signal_th and shutdown_th to main_th for default value
-    as we need to initialize them to something safe. They are used
-    when compiled with safemalloc.
-  */
-//  SIGNAL_THD;
-//  SHUTDOWN_THD;
 
-/*#ifdef _CUSTOMSTARTUPCONFIG_
+#ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
   {
     / * _cust_check_startup will report startup failure error * /
     exit( 1 );
   }
 #endif
-*/
-  if ((init_error=init_common_variables(argv[0], MYSQL_CONFIG_NAME, 
-				       argc, argv, load_default_groups)))
+
+  MY_INIT(argv[0]);		// init my_sys library & pthreads
+  if ((init_error=init_common_variables(MYSQL_CONFIG_NAME, 
+					argc, argv, load_default_groups)))
     if (init_error == 2)
       unireg_abort(1);
     else
@@ -2145,70 +2203,14 @@ The server will not act as a slave.");
     }
   }
 
-#ifdef __WIN__
-  {
-    hEventShutdown=CreateEvent(0, FALSE, FALSE, event_name);
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-      sql_print_error("Warning: Can't create thread to handle shutdown requests");
-
-    // On "Stop Service" we have to do regular shutdown
-    Service.SetShutdownEvent(hEventShutdown);
-  }
-#endif
-#ifdef OS2
-  {
-    pthread_cond_init( &eventShutdown, NULL);
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-      sql_print_error("Warning: Can't create thread to handle shutdown requests");
-  }
-#endif
-
+  create_shutdown_thread();
   create_maintenance_thread();
 
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
 
 #ifdef __NT__
-  if (hPipe == INVALID_HANDLE_VALUE &&
-      (!have_tcpip || opt_disable_networking))
-  {
-    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
-	unireg_abort(1);
-  }
-  else
-  {
-    pthread_mutex_lock(&LOCK_thread_count);
-    (void) pthread_cond_init(&COND_handler_count,NULL);
-    {
-      pthread_t hThread;
-      handler_count=0;
-      if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
-      {
-	handler_count++;
-	if (pthread_create(&hThread,&connection_attrib,
-			   handle_connections_namedpipes, 0))
-	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
-	  handler_count--;
-	}
-      }
-      if (have_tcpip && !opt_disable_networking)
-      {
-	handler_count++;
-	if (pthread_create(&hThread,&connection_attrib,
-			   handle_connections_sockets, 0))
-	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
-	  handler_count--;
-	}
-      }
-      while (handler_count > 0)
-	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
-    }
-    pthread_mutex_unlock(&LOCK_thread_count);
-  }
+  create_named_pipe_thread();
 #else
   handle_connections_sockets(0);
 #ifdef EXTRA_DEBUG2
@@ -2254,7 +2256,8 @@ The server will not act as a slave.");
   exit(0);
   return(0);					/* purecov: deadcode */
 }
-#endif
+
+#ifdef _DUMMY
 
 #ifdef __WIN__
 int win_main(int argc, char **argv)
@@ -2693,6 +2696,7 @@ The server will not act as a slave.");
   exit(0);
   return(0);					/* purecov: deadcode */
 }
+#endif
 
 /****************************************************************************
   Main and thread entry function for Win32
