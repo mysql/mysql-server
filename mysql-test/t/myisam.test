@@ -560,11 +560,25 @@ drop table t1,t2;
 let $default=`select @@storage_engine`;
 set storage_engine=MyISAM;
 source include/varchar.inc;
-eval set storage_engine=$default;
+
+#
+# Some errors/warnings on create
+#
+
+create table t1 (v varchar(65530), key(v));
+drop table if exists t1;
+create table t1 (v varchar(65536));
+show create table t1;
+drop table t1;
+create table t1 (v varchar(65530) character set utf8);
+show create table t1;
+drop table t1;
 
 # MyISAM specific varchar tests
 --error 1118
 create table t1 (v varchar(65535));
+
+eval set storage_engine=$default;
 
 #
 # Test how DROP TABLE works if the index or data file doesn't exists
