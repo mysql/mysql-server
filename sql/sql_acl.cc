@@ -3622,7 +3622,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     /* Remove db access privileges */
-    for (counter= 0 ; counter < acl_dbs.elements ; counter++)
+    for (counter= 0 ; counter < acl_dbs.elements ; )
     {
       const char *user,*host;
 
@@ -3636,12 +3636,18 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
       {
 	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	{
 	  result= -1;
+	  ++counter;
+	  continue;
+	}
       }
+      else
+	++counter;
     }
 
     /* Remove column access */
-    for (counter= 0 ; counter < column_priv_hash.records ; counter++)
+    for (counter= 0 ; counter < column_priv_hash.records ; )
     {
       const char *user,*host;
       GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
@@ -3660,6 +3666,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				~0, 0, 1))
 	{
 	  result= -1;
+	  ++counter;
 	  continue;
 	}
 	if (grant_table->cols)
@@ -3670,9 +3677,15 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				   grant_table->db,
 				   grant_table->tname,
 				   ~0, 1))
+	  {
 	    result= -1;
+	    ++counter;
+	    continue;
+	  }
 	}
       }
+      else
+	++counter;
     }
   }
 
