@@ -146,7 +146,7 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
 /* ---------------------------------------------------------------- */
 int Dbtup::readAttributes(Page* const pagePtr,
                           Uint32  tupHeadOffset,
-                          Uint32* inBuffer,
+                          const Uint32* inBuffer,
                           Uint32  inBufLen,
                           Uint32* outBuffer,
                           Uint32  maxRead)
