@@ -2691,7 +2691,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (do_send_ok)
         send_ok(thd);
     }
-    else
+    else if (error > 0)
     {
       table->file->print_error(error, MYF(0));
       error= -1;
