@@ -1502,7 +1502,10 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       if (!(field_names[i] = (char **) alloc_root(&hash_mem_root,
 						  sizeof(char *) *
 						  (num_fields*2+1))))
-	break;
+      {
+        mysql_free_result(fields);
+        break;
+      }
       field_names[i][num_fields*2]= '\0';
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
@@ -2077,10 +2080,10 @@ print_table_data_html(MYSQL_RES *result)
   }
   while ((cur = mysql_fetch_row(result)))
   {
+    ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      ulong *lengths=mysql_fetch_lengths(result);
       (void) tee_fputs("<TD>", PAGER);
       safe_put_field(cur[i],lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
@@ -2106,10 +2109,10 @@ print_table_data_xml(MYSQL_RES *result)
   fields = mysql_fetch_fields(result);
   while ((cur = mysql_fetch_row(result)))
   {
+    ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("\n  <row>\n", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      ulong *lengths=mysql_fetch_lengths(result);
       tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
 				  (fields[i].name[0] ? fields[i].name :
 				   " &nbsp; ") : "NULL"));
