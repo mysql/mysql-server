@@ -3932,11 +3932,12 @@ do:	DO_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DO;
-	  if (!(lex->insert_list = new List_item))
-	    YYABORT;
+	  mysql_init_select(lex);
 	}
-	values
-	{}
+	expr_list
+	{
+	  Lex->insert_list= $3;
+	}
 	;
 
 /*

@@ -2057,6 +2057,10 @@ t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
+do default;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+do foobar;
+ERROR 42S22: Unknown column 'foobar' in 'field list'
 CREATE TABLE t1 (
 id mediumint(8) unsigned NOT NULL auto_increment,
 pseudo varchar(35) NOT NULL default '',
