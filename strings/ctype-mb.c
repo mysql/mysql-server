@@ -276,5 +276,31 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
   return (str != str_end ? 1 : 0);
 }
 
+uint my_numchars_mb(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *b, const char *e)
+{
+  register uint32 n=0,mblen;
+  while (b < e) 
+  {
+    b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
+    ++n;
+  }
+  return n;
+}
+
+uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
+		     const char *b, const char *e, uint pos)
+{
+  uint mblen;
+  const char *b0=b;
+  
+  while (pos && b<e)
+  {
+    b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
+    pos--;
+  }
+  return b-b0;
+}
+
 
 #endif

@@ -363,46 +363,13 @@ bool String::append(IO_CACHE* file, uint32 arg_length)
 
 uint32 String::numchars()
 {
-#ifdef USE_MB
-  register uint32 n=0,mblen;
-  register const char *mbstr=Ptr;
-  register const char *end=mbstr+str_length;
-  if (use_mb(str_charset))
-  {
-    while (mbstr < end) {
-        if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-        else ++mbstr;
-        ++n;
-    }
-    return n;
-  }
-  else
-#endif
-    return str_length;
+  return str_charset->numchars(str_charset, Ptr, Ptr+str_length);
 }
 
 int String::charpos(int i,uint32 offset)
 {
-#ifdef USE_MB
-  register uint32 mblen;
-  register const char *mbstr=Ptr+offset;
-  register const char *end=Ptr+str_length;
-  if (use_mb(str_charset))
-  {
-    if (i<=0) return i;
-    while (i && mbstr < end) {
-       if ((mblen=my_ismbchar(str_charset, mbstr,end))) mbstr+=mblen;
-       else ++mbstr;
-       --i;
-    }
-    if ( INT_MAX32-i <= (int) (mbstr-Ptr-offset)) 
-      return INT_MAX32;
-    else 
-      return (int) ((mbstr-Ptr-offset)+i);
-  }
-  else
-#endif
-    return i;
+  if (i<0) return i;
+  return str_charset->charpos(str_charset,Ptr+offset,Ptr+str_length,i);
 }
 
 int String::strstr(const String &s,uint32 offset)
@@ -573,66 +540,10 @@ void String::qs_append(const char &c)
 
 int sortcmp(const String *x,const String *y)
 {
-  const char *s= x->ptr();
-  const char *t= y->ptr();
-  uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
-
-  if (use_strnxfrm(x->str_charset))
-  {
-#ifndef CMP_ENDSPACE
-    while (x_len && my_isspace(x->str_charset,s[x_len-1]))
-      x_len--;
-    while (y_len && my_isspace(x->str_charset,t[y_len-1]))
-      y_len--;
-#endif
-    return my_strnncoll(x->str_charset,
-                        (unsigned char *)s,x_len,(unsigned char *)t,y_len);
-  }
-  else
-  {
-    x_len-=len;					// For easy end space test
-    y_len-=len;
-    if (x->str_charset->sort_order)
-    {
-      while (len--)
-      {
-        if (x->str_charset->sort_order[(uchar) *s++] != 
-          x->str_charset->sort_order[(uchar) *t++])
-            return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
-                  (int) x->str_charset->sort_order[(uchar) t[-1]]);
-      }
-    }
-    else
-    {
-      while (len--)
-      {
-        if (*s++ != *t++)
-            return ((int) s[-1] - (int) t[-1]);
-      }
-    }
-#ifndef CMP_ENDSPACE
-    /* Don't compare end space in strings */
-    {
-      if (y_len)
-      {
-        const char *end=t+y_len;
-        for (; t != end ; t++)
-          if (!my_isspace(x->str_charset,*t))
-            return -1;
-      }
-      else
-      {
-        const char *end=s+x_len;
-        for (; s != end ; s++)
-          if (!my_isspace(x->str_charset,*s))
-            return 1;
-      }
-      return 0;
-    }
-#else
-    return (int) (x_len-y_len);
-#endif /* CMP_ENDSPACE */
-  }
+  CHARSET_INFO *cs= x->str_charset;
+  return cs->strnncollsp(cs,
+                        (unsigned char *) x->ptr(),x->length(),
+			(unsigned char *) y->ptr(),y->length());
 }
 
 

@@ -284,6 +284,7 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* tab_from_uni  */
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
+    my_strnncoll_binary,
     my_strnxfrm_bin,		/* strxnfrm      */
     my_like_range_simple,	/* like_range    */
     my_wildcmp_bin,		/* wildcmp       */
@@ -291,6 +292,8 @@ CHARSET_INFO my_charset_bin =
     NULL,			/* ismbchar      */
     NULL,			/* ismbhead      */
     NULL,			/* mbcharlen     */
+    my_numchars_8bit,
+    my_charpos_8bit,
     my_mb_wc_bin,		/* mb_wc         */
     my_wc_mb_bin,		/* wc_mb         */
     my_caseup_str_bin,		/* caseup_str    */
