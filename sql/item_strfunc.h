@@ -230,7 +230,7 @@ public:
   Item_func_des_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   Item_func_des_encrypt(Item *a, Item *b, Item *c): Item_str_func(a,b,c) {}
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  void fix_length_and_dec() { maybe_null=1; max_length = args[0]->max_length; }
   const char *func_name() const { return "des_encrypt"; }
 };
 
@@ -242,7 +242,7 @@ public:
   Item_func_des_decrypt(Item *a, Item *b): Item_str_func(a,b) {}
   Item_func_des_decrypt(Item *a, Item *b, Item *c): Item_str_func(a,b,c) {}
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  void fix_length_and_dec() { maybe_null=1; max_length = args[0]->max_length; }
   const char *func_name() const { return "des_decrypt"; }
 };
 
