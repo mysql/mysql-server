@@ -30,9 +30,9 @@
 #endif
 
 /*
-** Symbols are breaked in to separated arrays to allow fieldnames with
+** Symbols are broken into separated arrays to allow fieldnames with
 ** same name as functions
-** Theese are kept sorted for human lookup (the symbols are hashed)
+** These are kept sorted for human lookup (the symbols are hashed)
 */
 
 static SYMBOL symbols[] = {
@@ -232,6 +232,7 @@ static SYMBOL symbols[] = {
   { "NCHAR",		SYM(NCHAR_SYM),0,0},
   { "NUMERIC",		SYM(NUMERIC_SYM),0,0},
   { "NO",		SYM(NO_SYM),0,0},
+  { "NO_FOREIGN_KEY_CHECKS", SYM(NO_FOREIGN_KEY_CHECKS), 0, 0},
   { "NOT",		SYM(NOT),0,0},
   { "NULL",		SYM(NULL_SYM),0,0},
   { "ON",		SYM(ON),0,0},
@@ -260,6 +261,7 @@ static SYMBOL symbols[] = {
   { "REFERENCES",	SYM(REFERENCES),0,0},
   { "RELOAD",		SYM(RELOAD),0,0},
   { "REGEXP",		SYM(REGEXP),0,0},
+  { "RELAXED_UNIQUE_CHECKS", SYM(RELAXED_UNIQUE_CHECKS), 0, 0},
   { "RENAME",		SYM(RENAME),0,0},
   { "REPAIR",		SYM(REPAIR),0,0},
   { "REPLACE",		SYM(REPLACE),0,0},
