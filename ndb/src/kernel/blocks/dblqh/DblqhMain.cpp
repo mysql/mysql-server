@@ -64,6 +64,8 @@
 #define DEBUG(x)
 #endif
 
+//#define MARKER_TRACE 1
+
 const Uint32 NR_ScanNo = 0;
 
 void Dblqh::execACC_COM_BLOCK(Signal* signal)
@@ -2404,6 +2406,9 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.release(removedPtr, key);
   ndbrequire(removedPtr.i != RNIL);
+#ifdef MARKER_TRACE
+  ndbout_c("Rem marker[%.8x %.8x]", key.transid1, key.transid2);
+#endif
 }
 
 
@@ -3198,6 +3203,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     
     CommitAckMarkerPtr tmp;
 #ifdef VM_TRACE
+#ifdef MARKER_TRACE
+    ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
+#endif
     ndbrequire(!m_commitAckMarkerHash.find(tmp, * markerPtr.p));
 #endif
     m_commitAckMarkerHash.add(markerPtr);
@@ -5668,7 +5676,23 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   regTcPtr->abortState = TcConnectionrec::ABORT_FROM_TC;
   regTcPtr->activeCreat = ZFALSE;
+
+  const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
+  if(commitAckMarker != RNIL){
+    jam();
+#ifdef MARKER_TRACE
+    {
+      CommitAckMarkerPtr tmp;
+      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
+      ndbout_c("Ab2 marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
+    }
+#endif
+    m_commitAckMarkerHash.release(commitAckMarker);
+    regTcPtr->commitAckMarker = RNIL;
+  }
+
   abortStateHandlerLab(signal);
+
   return;
 }//Dblqh::execABORT()
 
@@ -6026,7 +6050,13 @@ void Dblqh::abortCommonLab(Signal* signal)
      * There is no NR ongoing and we have a marker
      */
     jam();
-    
+#ifdef MARKER_TRACE
+    {
+      CommitAckMarkerPtr tmp;
+      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
+      ndbout_c("Abo marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
+    }
+#endif
     m_commitAckMarkerHash.release(commitAckMarker);
     regTcPtr->commitAckMarker = RNIL;
   }

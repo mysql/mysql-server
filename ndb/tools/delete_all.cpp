@@ -143,7 +143,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       
       if(check != -1){
 	check = pTrans->execute(Commit);   
-	pTrans->releaseCompletedOperations();
+	pTrans->restart();
       }
       
       err = pTrans->getNdbError();    

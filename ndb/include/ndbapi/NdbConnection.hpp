@@ -309,6 +309,16 @@ public:
    */
   void close();
 
+  /**
+   * Restart transaction
+   *
+   *   Once a transaction has been completed successfully
+   *     it can be started again wo/ calling closeTransaction/startTransaction
+   *
+   *   Note this method also releases completed operations
+   */
+  int restart();
+
   /** @} *********************************************************************/
 
   /** 
@@ -417,15 +427,13 @@ public:
    */
   const NdbOperation * getNextCompletedOperation(const NdbOperation * op)const;
 
+  /** @} *********************************************************************/
+
+private:						
   /**
    * Release completed operations
    */
   void releaseCompletedOperations();
-
-
-  /** @} *********************************************************************/
-
-private:						
 
   typedef Uint64 TimeMillis_t;
   /**************************************************************************

@@ -1308,8 +1308,8 @@ void
 NdbConnection::sendTC_COMMIT_ACK(NdbApiSignal * aSignal,
 				 Uint32 transId1, Uint32 transId2, 
 				 Uint32 aTCRef){
-#if 0
-  ndbout_c("Sending TC_COMMIT_ACK(0x%x, 0x%x) to -> %d",
+#ifdef MARKER_TRACE
+  ndbout_c("Sending TC_COMMIT_ACK(0x%.8x, 0x%.8x) to -> %d",
 	   transId1,
 	   transId2,
 	   refToNode(aTCRef));

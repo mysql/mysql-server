@@ -193,6 +193,23 @@ NdbConnection::setErrorCode(int anErrorCode)
     theError.code = anErrorCode;
 }//NdbConnection::setErrorCode()
 
+int
+NdbConnection::restart(){
+  if(theCompletionStatus == CompletedSuccess){
+    releaseCompletedOperations();
+    Uint64 tTransid = theNdb->theFirstTransId;
+    theTransactionId = tTransid;
+    if((Uint32)tTransid == ((Uint32)~0)){
+      theNdb->theFirstTransId = (tTransid >> 32) << 32;
+    } else {
+      theNdb->theFirstTransId = tTransid + 1;
+    }
+    theCompletionStatus = NotCompleted;
+    return 0;
+  }
+  return -1;
+}
+
 /*****************************************************************************
 void handleExecuteCompletion(void);
 
@@ -1307,7 +1324,6 @@ from other transactions.
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
-      theTransactionId++;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 /**********************************************************************/
