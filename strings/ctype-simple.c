@@ -1030,16 +1030,25 @@ uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-int my_instr_simple(CHARSET_INFO *cs,
+uint my_instr_simple(CHARSET_INFO *cs,
                     const char *big,   uint b_length, 
-		    const char *small, uint s_length)
+		    const char *small, uint s_length,
+		    my_match_t *match, uint nmatch)
 {
   register const uchar *str, *search, *end, *search_end;
   
   if (s_length <= b_length)
   {
     if (!s_length)
-      return 0;		// Empty string is always found
+    {
+      if (nmatch)
+      {
+        match->beg= 0;
+        match->end= 0;
+        match->mblen= 0;
+      }
+      return 1;		/* Empty string is always found */
+    }
     
     str= (const uchar*) big;
     search= (const uchar*) small;
@@ -1060,11 +1069,24 @@ skipp:
 	  if (cs->sort_order[*i++] != cs->sort_order[*j++]) 
             goto skipp;
         
-	return (int) (str- (const uchar*)big) -1;
+	if (nmatch > 0)
+	{
+	  match[0].beg= 0;
+	  match[0].end= str- (const uchar*)big-1;
+	  match[0].mblen= match[0].end;
+	  
+	  if (nmatch > 1)
+	  {
+	    match[1].beg= match[0].end;
+	    match[1].end= match[0].end+s_length;
+	    match[1].mblen= match[1].end-match[1].beg;
+	  }
+	}
+	return 2;
       }
     }
   }
-  return -1;
+  return 0;
 }
 
 
