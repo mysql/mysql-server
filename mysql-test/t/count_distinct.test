@@ -55,3 +55,11 @@ create table t1 (f int);
 select count(distinct f) from t1;
 drop table t1;
 
+#
+# Bug #6515
+#
+
+create table t1 (a char(3), b char(20), primary key (a, b));
+insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
+select count(distinct a) from t1 group by b;
+drop table t1;
