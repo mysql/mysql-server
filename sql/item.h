@@ -412,6 +412,7 @@ public:
   void set_int(longlong i);
   void set_double(double i);
   void set_value(const char *str, uint length);
+  void set_value(const char *str, uint length, CHARSET_INFO *ci);
   void set_long_str(const char *str, ulong length);
   void set_long_binary(const char *str, ulong length);
   void set_longdata(const char *str, ulong length);
