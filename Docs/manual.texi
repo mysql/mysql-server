@@ -40712,6 +40712,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
+Don't convert field names when using @code{mysql_list_fields()}.  This is
+to keep this code compatible with @code{SHOW FIELDS}.
+@item
 @code{MERGE} tables didn't work on windows.
 @item
 Fixed problem with @code{SET PASSWORD=...} on windows.
