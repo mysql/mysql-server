@@ -458,6 +458,92 @@ static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
   }
 }
 
+/*
+** Calculate min_str and max_str that ranges a LIKE string.
+** Arguments:
+** ptr		Pointer to LIKE string.
+** ptr_length	Length of LIKE string.
+** escape	Escape character in LIKE.  (Normally '\').
+**		All escape characters should be removed from min_str and max_str
+** res_length	Length of min_str and max_str.
+** min_str	Smallest case sensitive string that ranges LIKE.
+**		Should be space padded to res_length.
+** max_str	Largest case sensitive string that ranges LIKE.
+**		Normally padded with the biggest character sort value.
+**
+** The function should return 0 if ok and 1 if the LIKE string can't be
+** optimized !
+*/
+
+my_bool my_like_range_mb(CHARSET_INFO *cs,
+			 const char *ptr,uint ptr_length,
+			 pbool escape, pbool w_one, pbool w_many,
+			 uint res_length,
+			 char *min_str,char *max_str,
+			 uint *min_length,uint *max_length)
+{
+  const char *end=ptr+ptr_length;
+  char *min_org=min_str;
+  char *min_end=min_str+res_length;
+  char *max_end=max_str+res_length;
+
+  for (; ptr != end && min_str != min_end ; ptr++)
+  {
+    if (*ptr == escape && ptr+1 != end)
+    {
+      ptr++;					/* Skip escape */
+      *min_str++= *max_str++ = *ptr;
+      continue;
+    }
+    if (*ptr == w_one || *ptr == w_many)	/* '_' and '%' in SQL */
+    {
+      char buf[10];
+      uint buflen;
+      
+      /* Write min key  */
+      *min_length= (uint) (min_str - min_org);
+      *max_length=res_length;
+      do
+      {
+	*min_str++= (char) cs->min_sort_char;
+      } while (min_str != min_end);
+      
+      /* 
+        Write max key: create a buffer with multibyte
+        representation of the max_sort_char character,
+        and copy it into max_str in a loop. 
+      */
+      buflen= cs->cset->wc_mb(cs, cs->max_sort_char, buf, buf + sizeof(buf));
+      DBUG_ASSERT(buflen > 0);
+      do
+      {
+        if ((max_str + buflen) <= max_end)
+        {
+          /* Enough space for max characer */
+          memcpy(max_str, buf, buflen);
+          max_str+= buflen;
+        }
+        else
+        {
+          /* 
+            There is no space for whole multibyte
+            character, then add trailing spaces.
+          */
+          
+	  *max_str++= ' ';
+	}
+      } while (max_str != max_end);
+      return 0;
+    }
+    *min_str++= *max_str++ = *ptr;
+  }
+  *min_length= *max_length = (uint) (min_str - min_org);
+
+  while (min_str != min_end)
+    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+  return 0;
+}
+
 static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 		  const char *str,const char *str_end,
 		  const char *wildstr,const char *wildend,
@@ -565,7 +651,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
           if (str++ == str_end) return (-1);
         }
 	{
-	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_mb_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
 	  if (tmp <= 0)
 	    return (tmp);
 	}

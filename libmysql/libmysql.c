@@ -1703,16 +1703,18 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 /**************** Misc utility functions ****************************/
 
 /*
-  Reallocate the NET package to be at least of 'length' bytes
+  Reallocate the NET package to have at least length bytes available.
 
   SYNPOSIS
-   my_realloc_str()
-   net                 The NET structure to modify
-   length              Ensure that net->buff is at least this big
+    my_realloc_str()
+    net                 The NET structure to modify.
+    length              Ensure that net->buff has space for at least
+                        this number of bytes.
 
   RETURN VALUES
-  0	ok
-  1	Error
+    0   Success.
+    1   Error, i.e. out of memory or requested packet size is bigger
+        than max_allowed_packet. The error code is stored in net->last_errno.
 */
 
 static my_bool my_realloc_str(NET *net, ulong length)
@@ -2365,7 +2367,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
     */
     if ((my_realloc_str(net, *param->length)))
     {
-      set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      set_stmt_error(stmt, net->last_errno, unknown_sqlstate);
       DBUG_RETURN(1);
     }
     (*param->store_param_func)(net, param);
@@ -2427,6 +2429,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     net_clear(net);				/* Sets net->write_pos */
     /* Reserve place for null-marker bytes */
     null_count= (stmt->param_count+7) /8;
+    if (my_realloc_str(net, null_count + 1))
+    {
+      set_stmt_error(stmt, net->last_errno, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
     bzero((char*) net->write_pos, null_count);
     net->write_pos+= null_count;
     param_end= stmt->params + stmt->param_count;
@@ -2435,6 +2442,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     *(net->write_pos)++= (uchar) stmt->send_types_to_server;
     if (stmt->send_types_to_server)
     {
+      if (my_realloc_str(net, 2 * stmt->param_count))
+      {
+        set_stmt_error(stmt, net->last_errno, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
       /*
 	Store types of parameters in first in first package
 	that is sent to the server.
@@ -3487,10 +3499,11 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     char *end;
     /* TODO: move this to a header shared between client and server. */
 #define NOT_FIXED_DEC  31
-    if (field->decimals >= 31)
+    if (field->decimals >= NOT_FIXED_DEC)
 #undef NOT_FIXED_DEC
     {
-      sprintf(buff, "%-*.*g", (int) param->buffer_length, width, value);
+      sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1, param->buffer_length),
+	      width, value);
       end= strcend(buff, ' ');
       *end= 0;
     }

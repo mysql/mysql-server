@@ -1401,6 +1401,7 @@ mysql_init(MYSQL *mysql)
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
+  strmov(mysql->net.sqlstate, not_error_sqlstate);
   /*
     By default, we are a replication pivot. The caller must reset it
     after we return if this is not the case.
@@ -1614,7 +1615,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       sock=0;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
-      host_info=(char*) ER(CR_SHARED_MEMORY_CONNECTION);
+      sprintf(host_info=buff, ER(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
 #endif /* HAVE_SMEM */
@@ -1678,8 +1679,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       net->vio=vio_new_win32pipe(hPipe);
-      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
-	      unix_socket);
+      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
 #endif

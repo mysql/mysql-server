@@ -180,3 +180,40 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_slovak_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 
+drop table t1;
+
+#
+# Bug#5324
+#
+SET NAMES utf8;
+#test1
+CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_general_ci, INDEX (c));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
+#Check one row
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
+COLLATE utf8_general_ci;
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+#Check two rows
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
+COLLATE utf8_general_ci ORDER BY c;
+DROP TABLE t1;
+#test2
+CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE ucs2_unicode_ci, INDEX (c));
+INSERT INTO t1 VALUES (_ucs2 0x039C03C903B403B11F770308);
+#Check one row
+SELECT * FROM t1 WHERE c LIKE _ucs2 0x039C0025 COLLATE ucs2_unicode_ci;
+INSERT INTO t1 VALUES (_ucs2 0x039C03C903B4);
+#Check two rows
+SELECT * FROM t1 WHERE c LIKE _ucs2 0x039C0025
+COLLATE ucs2_unicode_ci ORDER BY c;
+DROP TABLE t1;
+#test 3
+CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_unicode_ci, INDEX (c));
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B403B11F770308 USING utf8));
+#Check one row row
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8) COLLATE utf8_unicode_ci;
+INSERT INTO t1 VALUES (CONVERT(_ucs2 0x039C03C903B4 USING utf8));
+#Check two rows
+SELECT * FROM t1 WHERE c LIKE CONVERT(_ucs2 0x039C0025 USING utf8)
+COLLATE utf8_unicode_ci ORDER BY c;
+DROP TABLE t1;
