@@ -30196,6 +30196,10 @@ mysql> select 2 BETWEEN 2 AND 'x-3';
         -> 0
 @end example
 
+@findex NOT BETWEEN
+@item expr NOT BETWEEN min AND max
+Same as @code{NOT (expr BETWEEN min AND max)}.
+
 @findex IN
 @item expr IN (value,...)
 Returns @code{1} if @code{expr} is any of the values in the @code{IN} list,
