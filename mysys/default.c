@@ -258,7 +258,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   ctx= (struct handle_option_ctx *) in_ctx;
   if(find_type((char *)group_name, ctx->group, 3))
   {
-    if (!(tmp= alloc_root(ctx->alloc, (uint) strlen(option))))
+    if (!(tmp= alloc_root(ctx->alloc, (uint) strlen(option) + 1)))
       return 1;
     if (insert_dynamic(ctx->args, (gptr) &tmp))
       return 1;
