@@ -788,7 +788,6 @@ struct Operationrec {
   Uint8 commitDeleteCheckFlag;
   Uint8 isAccLockReq;
   Uint8 isUndoLogReq;
-  Uint32 nextOpList;
 }; /* p2c: size = 168 bytes */
 
   typedef Ptr<Operationrec> OperationrecPtr;
@@ -985,10 +984,8 @@ private:
   void initFragGeneral(FragmentrecPtr);
   void verifyFragCorrect(FragmentrecPtr regFragPtr);
   void sendFSREMOVEREQ(Signal* signal, Uint32 tableId);
-  void sendDROP_TABFILECONF(Signal* signal, TabrecPtr tabPtr);
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
   void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
-  void sendREL_TABMEMCONF(Signal* signal, TabrecPtr tabPtr);
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
   void releaseDirResources(Signal* signal,
                            Uint32 fragIndex,
@@ -1117,7 +1114,6 @@ private:
   void initLcpConnRec(Signal* signal);
   void initOverpage(Signal* signal);
   void initPage(Signal* signal);
-  void initPageZero(Signal* signal);
   void initRootfragrec(Signal* signal);
   void putOpInFragWaitQue(Signal* signal);
   void putOverflowRecInFrag(Signal* signal);
@@ -1171,8 +1167,6 @@ private:
   void refaccConnectLab(Signal* signal);
   void srReadOverPagesLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void exeoperationLab(Signal* signal);
-  void saveKeyDataLab(Signal* signal);
   void lcpOpenUndofileConfLab(Signal* signal);
   void srFsOpenConfLab(Signal* signal);
   void checkSyncUndoPagesLab(Signal* signal);
@@ -1184,13 +1178,12 @@ private:
   void srReadPagesLab(Signal* signal);
   void srDoUndoLab(Signal* signal);
   void ndbrestart1Lab(Signal* signal);
-  void initialiseRecordsLab(Signal* signal, Uint32 returnRef, Uint32 retData);
+  void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
   void srReadPagesAllocLab(Signal* signal);
   void checkNextBucketLab(Signal* signal);
   void endsavepageLab(Signal* signal);
   void saveZeroPageLab(Signal* signal);
   void srAllocPage0011Lab(Signal* signal);
-  void allocscanrecLab(Signal* signal);
   void sendLcpFragidconfLab(Signal* signal);
   void savepagesLab(Signal* signal);
   void saveOverPagesLab(Signal* signal);
@@ -1312,7 +1305,6 @@ private:
   Page8Ptr iloPageptr;
   Page8Ptr inpPageptr;
   Page8Ptr iopPageptr;
-  Page8Ptr ipzPageptr;
   Page8Ptr lastPageptr;
   Page8Ptr lastPrevpageptr;
   Page8Ptr lcnPageptr;
@@ -1342,7 +1334,6 @@ private:
   Page8Ptr ropPageptr;
   Page8Ptr rpPageptr;
   Page8Ptr slPageptr;
-  Page8Ptr slpPageptr;
   Page8Ptr spPageptr;
   Uint32 cfirstfreepage;
   Uint32 cfreepage;
@@ -1360,7 +1351,6 @@ private:
 /* --------------------------------------------------------------------------------- */
   Rootfragmentrec *rootfragmentrec;
   RootfragmentrecPtr rootfragrecptr;
-  RootfragmentrecPtr tmprootfrgptr;
   Uint32 crootfragmentsize;
   Uint32 cfirstfreerootfrag;
 /* --------------------------------------------------------------------------------- */
@@ -1433,7 +1423,6 @@ private:
   Uint32 tdelForward;
   Uint32 tiopPageId;
   Uint32 tipPageId;
-  Uint32 ttupKeyLength;
   Uint32 tgeLocked;
   Uint32 tgeResult;
   Uint32 tgeContainerptr;
@@ -1466,7 +1455,6 @@ private:
   Uint32 tscanFlag;
   Uint32 theadundoindex;
   Uint32 tgflBufType;
-  Uint32 thashvalue;
   Uint32 tgseIsforward;
   Uint32 tsscIsforward;
   Uint32 trscIsforward;
@@ -1475,17 +1463,7 @@ private:
   Uint32 tisoIsforward;
   Uint32 tgseIsLocked;
   Uint32 tsscIsLocked;
-  Uint32 tkey1;
-  Uint32 tkey2;
-  Uint32 tkey3;
-  Uint32 tkey4;
   Uint32 tkeylen;
-  Uint32 tkSize;
-  Uint32 tlhfragbits;
-  Uint32 tlhdirbits;
-  Uint32 tlocalkeylen;
-  Uint32 tmaxloadfactor;
-  Uint32 tminloadfactor;
   Uint32 tmp;
   Uint32 tmpP;
   Uint32 tmpP2;
@@ -1503,9 +1481,6 @@ private:
   Uint32 trsbPageindex;
   Uint32 tnciPageindex;
   Uint32 tlastPrevconptr;
-  Uint32 treqinfo;
-  Uint32 transactionid1;
-  Uint32 transactionid2;
   Uint32 tresult;
   Uint32 tslUpdateHeader;
   Uint32 tuserptr;
@@ -1518,16 +1493,13 @@ private:
   Uint32 tgdiPageindex;
   Uint32 tiopIndex;
   Uint32 tnciTmp;
-  Uint32 tlenKeyinfo;
   Uint32 tullIndex;
   Uint32 turlIndex;
   Uint32 tlfrTmp1;
   Uint32 tlfrTmp2;
   Uint32 tgnptNrTransaction;
-  Uint32 tudqeIndex;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
-  Uint32 taccscanTmp;
 
   Uint16 clastUndoPageIdWritten;
   Uint32 cactiveCheckpId;
