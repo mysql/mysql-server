@@ -91,7 +91,6 @@ public:
   uint last_errno;
   char last_error[MYSQL_ERRMSG_SIZE];
   bool get_longdata_error;
-  bool long_data_used;
   bool log_full_query;
 #ifndef EMBEDDED_LIBRARY
   bool (*set_params)(Prepared_statement *st, uchar *data, uchar *data_end,
@@ -471,12 +470,11 @@ static bool insert_params_withlog(Prepared_statement *stmt, uchar *null_array,
     {
       if (is_param_null(null_array, it - begin))
       {
-        param->maybe_null= param->null_value= param->value_is_set= 1;
+        param->set_null();
         res= &my_null_string;
       }
       else
       {
-        param->maybe_null= param->null_value= 0;
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
@@ -509,10 +507,9 @@ static bool insert_params(Prepared_statement *stmt, uchar *null_array,
     if (!param->long_data_supplied)
     {
       if (is_param_null(null_array, it - begin))
-        param->maybe_null= param->null_value= param->value_is_set= 1;
+        param->set_null();
       else
       {
-        param->maybe_null= param->null_value= 0;
         if (read_pos >= data_end)
           DBUG_RETURN(1);
         param->set_param_func(param, &read_pos, data_end - read_pos);
@@ -574,11 +571,10 @@ static bool emb_insert_params(Prepared_statement *stmt)
     if (!param->long_data_supplied)
     {
       if (*client_param->is_null)
-        param->maybe_null= param->null_value= 1;
+        param->set_null();
       else
       {
 	uchar *buff= (uchar*)client_param->buffer;
-        param->maybe_null= param->null_value= 0;
         param->set_param_func(param, &buff,
                               client_param->length ? 
                               *client_param->length : 
@@ -616,13 +612,12 @@ static bool emb_insert_params_withlog(Prepared_statement *stmt)
     {
       if (*client_param->is_null)
       {
-        param->maybe_null= param->null_value= 1;
+        param->set_null();
         res= &my_null_string;
       }
       else
       {
 	uchar *buff= (uchar*)client_param->buffer;
-        param->maybe_null= param->null_value= 0;
         param->set_param_func(param, &buff,
                               client_param->length ? 
                               *client_param->length : 
@@ -1451,6 +1446,24 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
   }
 }
 
+
+/* 
+    Clears parameters from data left from previous execution or long data
+    
+  SYNOPSIS
+    reset_stmt_params()
+      stmt - prepared statement for which parameters should be reset
+*/
+
+static void reset_stmt_params(Prepared_statement *stmt)
+{
+  Item_param **item= stmt->param_array;
+  Item_param **end= item + stmt->param_count;
+  for (;item < end ; ++item)
+    (**item).reset();
+}
+
+
 /*
   Executes previously prepared query.
   If there is any parameters, then replace markers with the data supplied
@@ -1524,11 +1537,13 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
   cleanup_items(stmt->free_list);
+  reset_stmt_params(stmt);
   close_thread_tables(thd); // to close derived tables
   thd->set_statement(&thd->stmt_backup);
   DBUG_VOID_RETURN;
 
 set_params_data_err:
+  reset_stmt_params(stmt);
   thd->set_statement(&thd->stmt_backup);
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
   send_error(thd);
@@ -1564,15 +1579,12 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   stmt->get_longdata_error= 0;
 
-  /* Free long data if used */
-  if (stmt->long_data_used)
-  {
-    Item_param **item= stmt->param_array;
-    Item_param **end= item + stmt->param_count;
-    stmt->long_data_used= 0;
-    for (; item < end ; item++)
-      (**item).reset();
-  }
+  /* 
+    Clear parameters from data which could be set by 
+    mysql_stmt_send_long_data() call.
+  */
+  reset_stmt_params(stmt);
+  
   DBUG_VOID_RETURN;
 }
 
@@ -1658,7 +1670,6 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
 #else
   param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
-  stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -1670,7 +1681,6 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_count(0),
   last_errno(0),
   get_longdata_error(0),
-  long_data_used(0),
   log_full_query(0)
 {
   *last_error= '\0';
