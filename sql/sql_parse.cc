@@ -825,7 +825,9 @@ bool do_command(THD *thd)
   /* If not reading from backup and if the query took too long */
   if (!thd->user_time)
   {
-    if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time)
+    if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
+	((thd->options & (OPTION_NO_INDEX_USED | OPTION_NO_GOOD_INDEX_USED)) &&
+	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
     {
       long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);

@@ -2420,6 +2420,7 @@ make_join_readinfo(JOIN *join,uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
+	join->thd->options|=OPTION_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -2434,6 +2435,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
+	    join->thd->options|=OPTION_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -2445,6 +2447,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  }
 	  else
 	  {
+	    join->thd->options|=OPTION_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -4234,7 +4237,7 @@ join_read_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (cmp_buffer_with_ref(tab) ||
-      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT)))
+      (table->status & (STATUS_GARBAGE | STATUS_NO_PARENT | STATUS_NULL_ROW)))
   {
     if (tab->ref.key_err)
     {
@@ -4252,6 +4255,7 @@ join_read_key(JOIN_TAB *tab)
       return 1;
     }
   }
+  table->null_row=0;
   return table->status ? -1 : 0;
 }
 

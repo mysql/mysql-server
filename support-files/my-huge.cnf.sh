@@ -62,3 +62,6 @@ set-variable	= key_buffer=256M
 set-variable	= sort_buffer=256M
 set-variable	= read_buffer=2M
 set-variable	= write_buffer=2M
+
+[mysqlhotcopy]
+interactive-timeout

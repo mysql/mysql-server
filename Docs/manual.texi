@@ -148,7 +148,8 @@ version see the relevant distribution.
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 
-@detailmenu --- The Detailed Node Listing ---
+@detailmenu
+ --- The Detailed Node Listing ---
 
 General Information About MySQL
 
@@ -482,6 +483,15 @@ MyISAM table formats
 * Dynamic format::              Dynamic table characteristics
 * Compressed format::           Compressed table characteristics
 
+BDB or Berkeley_db tables
+
+* BDB overview::                
+* BDB install::                 
+* BDB start::                   
+* BDB characteristic::          
+* BDB TODO::                    
+* BDB errors::                  
+
 MySQL Tutorial
 
 * Connecting-disconnecting::    Connecting to and disconnecting from the server
@@ -805,6 +815,11 @@ MySQL internals
 
 * MySQL threads::               MySQL threads
 * MySQL full-text search::      MySQL full-text search
+
+Credits
+
+* developers::                  
+* Contributors::                
 
 MySQL change history
 
@@ -1287,7 +1302,7 @@ mysql> SELECT author_name FROM biblio_db.author_list;
 @end example
 
 SQL statements may be written in uppercase or lowercase.  When this manual
-shows an SQL statement, uppercase is used for particular keywords if those
+shows a SQL statement, uppercase is used for particular keywords if those
 keywords are under discussion (to emphasize them) and lowercase is used for
 the rest of the statement.  For example, you might see the following in a
 discussion of the @code{SELECT} statement:
@@ -1975,6 +1990,8 @@ Apart from the following links, you can find and download a lot of
 @item @uref{http://www.4t2.com/mysql. German MySQL maling list}
 Information about the German MySQL mailing list.
 
+@item @uref{http://www.bitmover.com:8888//home/bk/mysql, MySQL bitkeeper repository}
+
 @item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}@*
 Beginners @strong{MySQL} Tutorial on how to install and set up
 @strong{MySQL} on a Windows machine.
@@ -2409,7 +2426,7 @@ A Contact Database using @strong{MySQL} and PHP.
 Web based interface and Community Calender with PHP.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}@*
-Perl package to generate html from an SQL table structure and for generating
+Perl package to generate html from a SQL table structure and for generating
 SQL statements from an html form.
 
 @item @uref{http://www.gusnet.cx/proj/telsql/}@*
@@ -9113,7 +9130,9 @@ Log updates to @code{file.#} where @code{#} is a unique number if not given.
 @xref{Update log}.
 
 @item --log-long-format
-Log some extra information to update log.
+Log some extra information to update log.  If you are using
+@code{--log-slow-queries} then queries that are not using indexes are logged
+to the slow query log.
 
 @item --low-priority-updates
 Table-modifying operations (@code{INSERT}/@code{DELETE}/@code{UPDATE})
@@ -10413,7 +10432,7 @@ In @strong{MySQL} Version 3.23 you can, however, use:
 The following discussion only concerns you if you are running a @strong{MySQL}
 version earlier than Version 3.23:
 
-If you have an SQL program in a text file that contains @samp{--} comments
+If you have a SQL program in a text file that contains @samp{--} comments
 you should use:
 
 @example
@@ -14539,7 +14558,7 @@ statement, @strong{MySQL} reports the table structure using the equivalent
 @node Functions, CREATE DATABASE, Column types, Reference
 @section Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
-A @code{select_expression} or @code{where_definition} in an SQL statement
+A @code{select_expression} or @code{where_definition} in a SQL statement
 can consist of any expression using the functions described below.
 
 An expression that contains @code{NULL} always produces a @code{NULL} value
@@ -19763,6 +19782,7 @@ The status variables listed above have the following meaning:
 @item @code{Connections} @tab Number of connection attempts to the @strong{MySQL} server.
 @item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk that have been created while executing statements.
 @item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory that have been created while executing statements.
+@item @code{Created_tmp_files} @tab How many temporary files @code{mysqld} have created.
 @item @code{Delayed_insert_threads} @tab Number of delayed insert handler threads in use.
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
@@ -19804,6 +19824,7 @@ have..
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that has taken more than @code{long_query_time}. @xref{Slow query log}.
+@item @code{Sort_merge_passes} @tab Number of merges the sort has to do. If this value is large you should consider increasing @code{sort_buffer}.
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
@@ -19824,9 +19845,16 @@ If @code{key_reads} is big, then your @code{key_cache} is probably too
 small.  The cache hit rate can be calculated with
 @code{key_reads}/@code{key_read_requests}.
 @item
-If @code{Handler_read_rnd} is big, then you have a probably a lot of queries
-that requires @strong{MySQL} to scan whole tables or you have joins that doesn't use
-keys properly.
+If @code{Handler_read_rnd} is big, then you have a probably a lot of
+queries that requires @strong{MySQL} to scan whole tables or you have
+joins that doesn't use keys properly.
+@item
+If @code{Created_tmp_tables} or @code{Sort_merge_passes} are high then
+your @code{mysqld} @code{sort_buffer} variables is probably too small.
+@item
+@code{Created_tmp_files} doesn't count the files needed to handle temporary
+tables.
+@item
 @end itemize
 
 @node SHOW VARIABLES, SHOW PROCESSLIST, SHOW STATUS, SHOW
@@ -22128,6 +22156,18 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @node BDB,  , HEAP, Table types
 @section BDB or Berkeley_db tables
 
+@menu
+* BDB overview::                
+* BDB install::                 
+* BDB start::                   
+* BDB characteristic::          
+* BDB TODO::                    
+* BDB errors::                  
+@end menu
+
+@node BDB overview, BDB install, BDB, BDB
+@subsection Overview over BDB tables
+
 Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 @strong{MySQL} with a transaction safe table handler. This will survive
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
@@ -22137,6 +22177,9 @@ will need Berkeley DB 3.1.14 or newer which can be downloaded from
 @uref{http://www.mysql.com/downloads/mysql-3.23.html}; or also from
 Sleepycat's download page at
 @uref{http://www.sleepycat.com/download.html}.
+
+@node BDB install, BDB start, BDB overview, BDB
+@subsection Installing BDB
 
 To install Berkeley DB first uncompress the @code{BDB} distribution
 and follow the instructions in the README provided in the distiribution
@@ -22165,6 +22208,9 @@ Even if Berkeley DB is in itself very tested and reliably, the
 @strong{MySQL} interface is still very alpha, but we are actively
 improving and optimizing it to get it this stable real soon.
 
+@node BDB start, BDB characteristic, BDB install, BDB
+@subsection BDB startup options
+
 If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
 tables will not be updated until you execute @code{COMMIT}.  Instead of commit
 you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
@@ -22191,7 +22237,8 @@ Normally you should start mysqld with @code{--bdb-recover} if you intend
 to use BDB tables.  This may however give you problems when you try to
 start mysqld if the BDB log files are corrupted. @xref{Starting server}.
 
-Some characteristic of @code{BDB} tables:
+@node BDB characteristic, BDB TODO, BDB start, BDB
+@subsection Some characteristic of @code{BDB} tables
 
 @itemize @bullet
 @item
@@ -22243,21 +22290,31 @@ to rotate and remove old logs when using @code{BDB} tables than using other tabl
 types.
 @end itemize
 
-Some things that we have to fix in the near future:
+@node BDB TODO, BDB errors, BDB characteristic, BDB
+@subsection Some things we need to fix for BDB in the near future
 
 @itemize @bullet
 @item
-Remove the requirement that @code{BDB} tables must have a primary key.  This
-will be fixed by having an automatic hidden auto_increment column for
-the tables without a primary key.
-@item
-@code{LOCK TABLES} should work as for other @strong{MySQL} tables.
-@item
-@code{ALTER TABLE} doesn't yet work.
-@item
 @code{SHOW TABLE STATUS} doesn't yet provide that much information for BDB
 tables.
+@item
+Optimize performance.
 @end itemize
+
+@node BDB errors,  , BDB TODO, BDB
+@subsection Errors you may get when using BDB tables
+
+If you are running in not @code{auto_commit} mode and delete a table you
+are using you may get the following error messages in the @strong{MySQL}
+error file:
+
+@example
+001119 23:43:56  bdb:  Missing log fileid entry
+001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid 
+@end example
+
+This is not fatal but we don't recommend you to delete tables you are
+using in not @code{auto_commit} mode.
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -22402,7 +22459,7 @@ This query illustrates several things about @code{mysql}:
 
 @itemize @bullet
 @item
-A command normally consists of an SQL statement followed by a semicolon.
+A command normally consists of a SQL statement followed by a semicolon.
 (There are some exceptions where a semicolon is not needed.  @code{QUIT},
 mentioned earlier, is one of them.  We'll get to others later.)
 
@@ -23942,7 +23999,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "[wW]";
 Because a regular expression pattern matches if it occurs anywhere in the
 value, it is not necessary in the previous query to put a wild card on either
 side of the pattern to get it to match the entire value like it would be if
-you used an SQL pattern.
+you used a SQL pattern.
 
 To find names containing exactly five characters, use @samp{^} and @samp{$}
 to match the beginning and end of the name, and five instances of @samp{.}
@@ -24669,7 +24726,7 @@ default character set in use to the client.  The client will switch to
 use this character set for this connection.
 
 One should use @code{mysql_real_escape_string()} when escaping strings
-for an SQL query.  @code{mysql_real_escape_string()} is identical to the
+for a SQL query.  @code{mysql_real_escape_string()} is identical to the
 old @code{mysql_escape_string()} function, except that it takes the MYSQL
 connection handle as the first parameter.
 
@@ -27508,7 +27565,7 @@ results. We would have used PHP or mod_perl instead but they were
 not available at that time.
 
 For graphical data we wrote a simple tool in @code{C} that can produce
-GIFs based on the result of an SQL query (with some processing of the
+GIFs based on the result of a SQL query (with some processing of the
 result). This is also dynamically executed from the Perl script that
 parses the @code{HTML} files.
 
@@ -27868,7 +27925,7 @@ If you have problems due to insufficient memory in the client, use the
 retrieve the result set.
 
 Using @code{mysql} is very easy;  Just start it as follows
-@code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type an SQL statement, end it with @samp{;}, @samp{\g} or @samp{\G}
+@code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type a SQL statement, end it with @samp{;}, @samp{\g} or @samp{\G}
 and press return/enter.
 
 @cindex command line options
@@ -27913,7 +27970,7 @@ Print the output of a query (rows) vertically. Without this option you
 can also force this output by ending your statements with @code{\G}.
 @cindex force option
 @item -f, --force
-Continue even if we get an SQL error.
+Continue even if we get a SQL error.
 @cindex no-named-commands option
 @item -g, --no-named-commands
 Named commands are disabled. Use \* form only, or use named commands
@@ -28015,7 +28072,7 @@ ego     (\G)    Send command to mysql server; Display result vertically
 print   (\p)    Print current command
 quit    (\q)    Quit mysql
 rehash  (\#)    Rebuild completion hash
-source  (\.)    Execute an SQL script file. Takes a file name as an argument
+source  (\.)    Execute a SQL script file. Takes a file name as an argument
 status  (\s)    Get status information from the server
 use     (\u)    Use another database. Takes database name as argument
 @end example
@@ -28216,7 +28273,7 @@ meaning as the corresponding clauses for @code{LOAD DATA INFILE}.
 @item -F, --flush-logs
 Flush log file in the @strong{MySQL} server before starting the dump.
 @item -f, --force,
-Continue even if we get an SQL error during a table dump.
+Continue even if we get a SQL error during a table dump.
 @item -h, --host=..
 Dump data from the @strong{MySQL} server on the named host. The default host
 is @code{localhost}.
@@ -30038,7 +30095,7 @@ functions.  Consult this file to see how UDF calling conventions work.
 For each function that you want to use in SQL statements, you should define
 corresponding C (or C++) functions.  In the discussion below, the name
 ``xxx'' is used for an example function name.  To distinquish between SQL and
-C/C++ usage, @code{XXX()} (uppercase) indicates an SQL function call, and
+C/C++ usage, @code{XXX()} (uppercase) indicates a SQL function call, and
 @code{xxx()} (lowercase) indicates a C/C++ function call.
 
 The C/C++ functions that you write to implement the inferface for
@@ -30082,7 +30139,7 @@ The deinitialization function for @code{xxx()}.  It should deallocate any
 memory allocated by the initialization function.
 @end table
 
-When an SQL statement invokes @code{XXX()}, @strong{MySQL} calls the
+When a SQL statement invokes @code{XXX()}, @strong{MySQL} calls the
 initialization function @code{xxx_init()} to let it perform any required
 setup, such as argument checking or memory allocation.  If @code{xxx_init()}
 returns an error, the SQL statement is aborted with an error message and the
@@ -32659,7 +32716,7 @@ backup. To get a consistent backup, do a @code{LOCK TABLES} on the
 relevant tables. @xref{LOCK TABLES, , @code{LOCK TABLES}}. You only need a
 read lock; this allows other threads to continue to query the tables while
 you are making a copy of the files in the database directory. If you want to
-make an SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
+make a SQL level backup of a table, you can use @code{SELECT INTO OUTFILE}.
 
 Another way to backup a database is to use the @code{mysqldump} program:
 @xref{mysqldump}.
@@ -33231,11 +33288,11 @@ Returns the error number for the most recently invoked @strong{MySQL} function.
 Returns the error message for the most recently invoked @strong{MySQL} function.
 
 @item @strong{mysql_real_escape_string()} @tab
-Escapes special characters in a string for use in an SQL statement taking
+Escapes special characters in a string for use in a SQL statement taking
 into account the current charset of the connection.
 
 @item @strong{mysql_escape_string()} @tab
-Escapes special characters in a string for use in an SQL statement.
+Escapes special characters in a string for use in a SQL statement.
 
 @item @strong{mysql_fetch_field()} @tab
 Returns the type of the next table field.
@@ -33316,13 +33373,13 @@ Checks whether or not the connection to the server is working, reconnecting
 as necessary.
 
 @item @strong{mysql_query()} @tab
-Executes an SQL query specified as a null-terminated string.
+Executes a SQL query specified as a null-terminated string.
 
 @item @strong{mysql_real_connect()} @tab
 Connects to a @strong{MySQL} server.
 
 @item @strong{mysql_real_query()} @tab
-Executes an SQL query specified as a counted string.
+Executes a SQL query specified as a counted string.
 
 @item @strong{mysql_reload()} @tab
 Tells the server to reload the grant tables.
@@ -33743,7 +33800,7 @@ None.
 Creates the database named by the @code{db} parameter.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue an SQL @code{CREATE DATABASE} statement instead.
+to issue a SQL @code{CREATE DATABASE} statement instead.
 
 @subsubheading Return values
 
@@ -33836,7 +33893,7 @@ mysql_debug("d:t:O,/tmp/client.trace");
 Drops the database named by the @code{db} parameter.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue an SQL @code{DROP DATABASE} statement instead.
+to issue a SQL @code{DROP DATABASE} statement instead.
 
 @subsubheading Return values
 
@@ -34870,6 +34927,7 @@ The specified group in the option file may contain the following options:
 @item @code{debug} @tab Debug options.
 @item @code{host} @tab Default host name.
 @item @code{init-command} @tab Command to execute when connecting to @strong{MySQL} server. Will automatically be re-executed when reconnecting.
+@item @code{interactive-timeout} @tab Same as specifying @code{CLIENT_INTERACTIVE} to @code{mysql_real_connect()}. @xref{mysql_real_connect}.
 @item @code{password} @tab Default password.
 @item @code{pipe} @tab Use named pipes to connect to a @strong{MySQL} server on NT.
 @item @code{port} @tab Default port number.
@@ -35045,11 +35103,14 @@ of the following flags in very special circumstances:
 
 @multitable @columnfractions .25 .7
 @item @strong{Flag name}       @tab @strong{Flag meaning}
-@item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
-@item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC; It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
-@item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
-@item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
 @code{mysqld} to be more ODBC-friendly.
+@item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
+@item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
+@item @code{CLIENT_IGNORE_SPACE} $tab Allow spaces after function names. Makes all functions names reserved words.
+@item @code{CLIENT_INTERACTIVE} @tab Allow @code{interactive_timeout} seconds (instead of @code{wait_timeout} seconds) of inactivity before closing the connection.
+@item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC; It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
+@item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
+@item @code{CLIENT_SSL}		@tab Use SSL (encrypted protocol).
 @end multitable
 @end itemize
 
@@ -35137,7 +35198,7 @@ try reconnecting to the server before giving up.
 
 Encodes the string in @code{from} to an escaped SQL string, taking into
 account the current charset of the connection, that can be sent to the
-server in an SQL statement, places the result in @code{to}, and adds a
+server in a SQL statement, places the result in @code{to}, and adds a
 terminating null byte.  Characters encoded are @code{NUL} (ASCII 0),
 @samp{\n}, @samp{\r}, @samp{\}, @samp{'}, @samp{"} and Control-Z
 (@pxref{Literals}).
@@ -35236,7 +35297,7 @@ Asks the @strong{MySQL} server to reload the grant tables. The
 connected user must have the @strong{reload} privilege.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
-to issue an SQL @code{FLUSH PRIVILEGES} statement instead.
+to issue a SQL @code{FLUSH PRIVILEGES} statement instead.
 
 @subsubheading Return values
 
@@ -35806,9 +35867,9 @@ Installation instructions for @strong{MySQL} Perl support are given in
 @multitable @columnfractions .3 .7
 @item @code{connect} @tab Establishes a connection to a database server.
 @item @code{disconnect} @tab Disconnects from the database server.
-@item @code{prepare} @tab Prepares an SQL statement for execution.
+@item @code{prepare} @tab Prepares a SQL statement for execution.
 @item @code{execute} @tab Executes prepared statements.
-@item @code{do}      @tab Prepares and executes an SQL statement.
+@item @code{do}      @tab Prepares and executes a SQL statement.
 @item @code{quote}   @tab Quotes string or @code{BLOB} values to be inserted.
 @item @code{fetchrow_array} @tab Fetches the next row as an array of fields.
 @item @code{fetchrow_arrayref} @tab Fetches next row as a reference array of fields.
@@ -35941,7 +36002,7 @@ $rc = $dbh->disconnect;
 @findex DBI->prepare()
 @findex prepare() DBI method
 @item prepare($statement)
-Prepares an SQL statement for execution by the database engine
+Prepares a SQL statement for execution by the database engine
 and returns a statement handle @code{($sth)} which you can use to invoke
 the @code{execute} method.
 Typically you handle @code{SELECT} statements (and @code{SELECT}-like statements
@@ -35972,7 +36033,7 @@ $rv = $sth->execute
 @findex DBI->do()
 @findex do() DBI method
 @item do($statement)
-The @code{do} method prepares and executes an SQL statement and returns the
+The @code{do} method prepares and executes a SQL statement and returns the
 number of rows affected.  If no rows are affected, @code{do} returns
 @code{"0E0"}, which Perl treats as zero but regards as true.  This method is
 generally used for non-@code{SELECT} statements which cannot be prepared in
@@ -37867,15 +37928,15 @@ and "post-processing" on both fields, records and operations.
 @itemize @bullet
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mod_mysql_include_1.0.tar.gz, mod_mysql_include_1.0.tar.gz}
-Apache module to include HTML from MySQL queries into your pages, and run update queries.
-Originally written to implement a simple fast low-overhead banner-rotation system.
-By Sasha Pachev.
+Apache module to include HTML from MySQL queries into your pages, and
+run update queries.  Originally written to implement a simple fast
+low-overhead banner-rotation system.  By Sasha Pachev.
 
 @item @uref{http://www.odbsoft.com/cook/sources.htm}
-This package has various functions for generating html code from an SQL
+This package has various functions for generating html code from a SQL
 table structure and for generating SQL statements (Select, Insert,
 Update, Delete) from an html form. You can build a complete forms
-interface to an SQL database (query, add, update, delete) without any
+interface to a SQL database (query, add, update, delete) without any
 programming!  By Marc Beneteau, @email{marc@@odbsoft.com}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/sqlhtml.tar.gz, sqlhtml.tar.gz}
@@ -38050,7 +38111,7 @@ By Steve Shreeve.
 
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/emacs-sql-mode.tar.gz, emacs-sql-mode.tar.gz}
-Raw port of an SQL mode for XEmacs. Supports completion. Original by
+Raw port of a SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
@@ -38186,26 +38247,35 @@ interested in.
 @end itemize
 
 @page
-@cindex contributors, list of
-@cindex credits
 @node Credits, News, Contrib, Top
-@appendix Contributors to MySQL
+@appendix Credits
 
-Contributors to the @strong{MySQL} distribution are listed below, in
-somewhat random order:
+The following persons have helped us make MySQL what it's today
+
+@cindex developers, list of
+@menu
+* developers::                  
+* Contributors::                
+@end menu
+
+@node developers, Contributors, Credits, Credits
+@appendixsubsec Delevopers at MySQL AB
+
+Developers that are or has been employed by MySQL AB to work on MySQL.
+(In about the order they started to work with us)
 
 @table @asis
 @item Michael (Monty) Widenius
 Has written the following parts of @strong{MySQL}:
 @itemize @bullet
 @item
-All the main code in @code{mysqld}.
+Most the main code in @code{mysqld}.
 @item
 New functions for the string library.
 @item
 Most of the @code{mysys} library.
 @item
-The @code{ISAM} and @code{MyISAM} libraries (B-tree index file
+The @code{ISAM},@code{MyISAM} and @code{MERGE} libraries (B-tree index file
 handlers with index compression and different record formats).
 @item
 The @code{HEAP} library. A memory table system with our superior full dynamic
@@ -38221,23 +38291,22 @@ also Unireg, a curses-based application tool with many utilities.
 Porting of @code{mSQL} tools like @code{msqlperl}, @code{DBD}/@code{DBI} and
 @code{DB2mysql}.
 @item
-Most parts of crash-me and the @strong{MySQL} benchmarks.
+Most parts of crash-me and the foundation for the @strong{MySQL} benchmarks.
 @end itemize
+
 @item David Axmark
 @itemize @bullet
 @item
-Coordinator and main writer for the @strong{Reference Manual}, including
-enhancements to @code{texi2html}. Also automatic website updating from
-this manual.
+Coordinator and intial main writer for the @strong{Reference Manual},
+including enhancements to @code{texi2html}. Also automatic website
+updating from this manual.
 @item
-Autoconf, Automake and @code{libtool} support.
+Inital Autoconf, Automake and @code{libtool} support.
 @item
 The licensing stuff.
 @item
 Parts of all the text files.  (Nowadays only the @file{README} is
 left. The rest ended up in the manual.)
-@item
-Our Mail master.
 @item
 Lots of testing of new features.
 @item
@@ -38251,6 +38320,125 @@ only some parts of @code{mysys} are left.
 Someone for Monty to call in the middle of the night when he just got
 that new feature to work. :-)
 @end itemize
+
+@item Jani Tolonen
+@itemize @bullet
+@item
+@code{mysqlimport}
+@item
+A lot of extensions to the @code{mysql} client.
+@item
+@code{procedure analyse}
+@end itemize
+
+@item Sinisa Milivojevic
+@itemize @bullet
+@item
+Compression (with @code{zlib}) to the client/server protocol.
+@item
+Perfect hashing for the lexical analyzer phase.
+@item
+The MySQLGUI client.
+@item
+Maintainer of mysql++.
+@end itemize
+
+@item Tõnu Samual
+@itemize @bullet
+@item
+Our security expert.
+@item
+Vio interface (foundation for the the encrypted client/server protocol).
+@item
+@code{RAID} support for @code{MyISAM} tables.
+@end itemize
+
+@item Sasha Pachev
+@itemize @bullet
+@item
+Replication.
+@item
+@code{SHOW TABLE CREATE}.
+@item
+mod_mysql_include
+@item
+cgi++
+@item
+mysql-bench
+@end itemize
+
+@item Matt Wagner
+@itemize @bullet
+@item
+@strong{MySQL} test suite
+@item
+Our web master.
+@end itemize
+
+@item Miguel Solórzano
+@itemize @bullet
+Winmysqladmin
+@end itemize
+
+@item Timothy Smith
+@itemize @bullet
+@item
+Dynamic character support.
+@item
+Responsible for @strong{MySQL} configure.
+@end itemize
+
+@item Sergei A. Golubchick
+@itemize @bullet
+@item
+Text search
+@item
+Added keys to the @code{MERGE} library.
+@end itemize
+
+@item Jeremy Cole
+@itemize @bullet
+@item
+Proofreading and editing this fine manual.
+@item
+@code{ALTER TABLE ... ORDER BY}
+@end itemize
+
+@item John Dean
+@itemize @bullet
+@item
+The new @strong{MySQL} GUI client.
+@end itemize
+
+@item Indrek Sitan
+@itemize @bullet
+Desinger/programmer of our web interface.
+@end itemize
+@end table
+
+The following non developers are also working in/with MySQL AB
+
+@table @asis
+@item
+Hans Kierkegaard ; Resonsible for MySQL license handling.
+@item
+Antti Halonen ; Sales manager
+@item
+Jonas Norrman ; Handles licensing questions sent to @email{info@@mysql.com}.
+@item
+Erik Granberg ; Handles MySQL partners (and a lot of other stuff)
+@item
+Allan Larsson (The BOSS for TCX DataKonsult AB).
+@end table
+
+@cindex contributors, list of
+@node Contributors,  , developers, Credits
+@appendixsubsec Contributors to MySQL
+
+Contributors to the @strong{MySQL} distribution are listed below, in
+somewhat random order:
+
+@table @asis
 @item Paul DuBois
 Help with making the Reference Manual correct and understandable. That
 includes rewriting Monty's and David's attempts at English into English
@@ -38260,10 +38448,6 @@ The initial port to Win32/NT.
 @item Kim Aldale
 Helped to rewrite Monty's and David's early attempts at English into
 English.
-@item Allan Larsson (The BOSS for TCX DataKonsult AB)
-For all the time he has allowed Monty to spend on this ``maybe useful''
-tool (@strong{MySQL}). Dedicated user (and bug finder) of Unireg &
-@strong{MySQL}.
 @item Per Eric Olsson
 For more or less constructive criticism and real testing of the dynamic
 record format.
@@ -38273,7 +38457,7 @@ Win32 port with Borland compiler.  @code{mysqlshutdown.exe} and
 @item David J. Hughes
 For the effort to make a shareware SQL database. We at TcX started with
 @code{mSQL}, but found that it couldn't satisfy our purposes so instead we
-wrote an SQL interface to our application builder Unireg.  @code{mysqladmin}
+wrote a SQL interface to our application builder Unireg.  @code{mysqladmin}
 and @code{mysql} are programs that were largely influenced by their
 @code{mSQL} counterparts. We have put a lot of effort into making the
 @strong{MySQL} syntax a superset of @code{mSQL}. Many of the APIs ideas are
@@ -38308,6 +38492,8 @@ incredible help we got in managing the @strong{MySQL} mailing lists.
 Monty).
 @item Tim Bunce, Alligator Descartes
 For the @code{DBD} (Perl) interface.
+@item Tim Bunce
+Author of @code{mysqlhotcopy}.
 @item Andreas Koenig @email{a.koenig@@mind.de}
 For the Perl interface to @strong{MySQL}.
 @item Eugene Chan @email{eugene@@acenet.com.sg}
@@ -38409,19 +38595,15 @@ The @file{libmysql.dll} library.
 Mysqlmanager, a Win32 GUI tool for administrating @strong{MySQL}.
 @item Curt Sampson @email{cjs@@portal.ca}
 Porting of MIT-pthreads to NetBSD/Alpha and NetBSD 1.3/i386.
-@item Sinisa Milivojevic @email{sinisa@@coresinc.com}
-Compression (with @code{zlib}) to the client/server protocol.
-Perfect hashing for the lexical analyzer phase.
 @item Antony T. Curtis @email{antony.curtis@@olcs.net}
 Porting of @strong{MySQL} to OS/2.
 @item Martin Ramsch @email{m.ramsch@@computer.org}
 Examples in the @strong{MySQL} Tutorial.
-@item Tim Bunce
-Author of @code{mysqlhotcopy}.
 @item Steve Harvey
 For making @code{mysqlaccess} more secure.
-@item Jeremy Cole @email{jeremy@@spaceapes.com}
-Proofreading and editing this fine manual.
+@item Konark IA-64 Centre of Persistent Systems Private Limited
+@uref{http://www.pspl.co.in/konark/}.  Help with the Win64 port of the
+@strong{MySQL} server.
 @item Valueclick Inc.
 For sponsoring the optimize section in this manual.
 @end table
@@ -38470,9 +38652,6 @@ Simple billing/license/support/copyright issues.
 ODBC and VisualC++ interface questions.
 @item Randy Harmon @email{rjharmon@@uptimecomputers.com}
 @code{DBD}, Linux, some SQL syntax questions.
-@item Konark IA-64 Centre of Persistent Systems Private Limited
-@uref{http://www.pspl.co.in/konark/}.  Help with the Win64 port of the
-@strong{MySQL} server.
 @end table
 
 @node News, Bugs, Credits, Top
@@ -38544,6 +38723,20 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
+One can now specify @code{interactive-timeout} in the option file that
+is read by @code{mysql_options()}. This makes it possible to force
+programs that runs for a long time (like @code{mysqlhotcopy}) to use
+@code{interactive_timeout} instead of @code{wait_timeout}.
+@item
+We now always print when the query was made and who made it in the 'slow
+query log'.  If you are using @code{--log-long-format} then also queries
+that are not using indexes are printed.
+@item
+Fixed problem in @code{LEFT JOIN} which caused all columns in reference
+table to be NULL.
+@item
+Fixed problem when using @code{NATURAL JOIN} without keys.
+@item
 Fixed bug when using a multi-part keys where the first part was of type
 @code{TEXT} or @code{BLOB}.
 @item
@@ -38574,8 +38767,11 @@ Fixed fatal bug in @code{CREATE TEMPORARY TABLE ...SELECT ...}.
 @item
 Fixed problem with @code{CREATE TABLE .. SELECT NULL}.
 @item
-Added status variables @code{large_file_support},@code{net_read_timeout},
+Added variables @code{large_file_support},@code{net_read_timeout},
 @code{net_write_timeout} and @code{query_buffer_size} to @code{SHOW VARIABLES}.
+@item
+Added status variables @code{created_tmp_files} and @code{sort_merge_passes}
+to @code{SHOW STATUS}.
 @item
 Fixed bug where we didn't allow an index name after the
 @code{FOREIGN KEY} definition.
@@ -41654,7 +41850,7 @@ New portable benchmark suite with @code{DBD}, with test results from
 @code{mSQL} 2.0.3, @strong{MySQL}, PostgreSQL 6.2.1 and Solid server 2.2.
 @item
 @code{crash-me} is now included with the benchmarks; This is a Perl program
-designed to find as many limits as possible in an SQL server. Tested with
+designed to find as many limits as possible in a SQL server. Tested with
 @code{mSQL}, PostgreSQL, Solid and @strong{MySQL}.
 @item
 Fixed bug in range-optimizer that crashed @strong{MySQL} on some queries.
@@ -42920,7 +43116,7 @@ Because @strong{MySQL} allows you to work with table types that doesn't
 support transactions (and thus can't @code{rollback} data) some things
 behaves a little different in @strong{MySQL} than in other SQL servers:
 (This is just to ensure that @strong{MySQL} never need to do a rollback
-for an SQL command).  This may be a little akward at times as column
+for a SQL command).  This may be a little akward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows @strong{MySQL} to do some
 optimizations that otherwice would be very hard to do.

@@ -100,15 +100,17 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     DBUG_RETURN(0);
   }
   /* If running in safe sql mode, don't allow updates without keys */
-  if ((thd->options & OPTION_SAFE_UPDATES) && !table->quick_keys &&
-      limit == HA_POS_ERROR)
+  if (!table->quick_keys)
   {
-    delete select;
-    table->time_stamp=save_time_stamp;
-    send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-    DBUG_RETURN(1);
+    thd->options|=OPTION_NO_INDEX_USED;
+    if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
+    {
+      delete select;
+      table->time_stamp=save_time_stamp;
+      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      DBUG_RETURN(1);
+    }
   }
-
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
     used_key_is_modified= (!select->quick->unique_key_range() &&

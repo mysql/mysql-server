@@ -160,6 +160,10 @@ void kill_one_thread(THD *thd, ulong id);
 #define OPTION_QUICK		OPTION_BEGIN*2
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
 
+/* The following is set when parsing the query */
+#define OPTION_NO_INDEX_USED		OPTION_QUOTE_SHOW_CREATE*2
+#define OPTION_NO_GOOD_INDEX_USED	OPTION_NO_INDEX_USED*2
+
 #define RAID_BLOCK_SIZE 1024
 
 /* BINLOG_DUMP options */
@@ -445,6 +449,7 @@ extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     delayed_insert_threads, delayed_insert_writes,
 	     delayed_rows_in_use,delayed_insert_errors;
 extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
+extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
 extern ulong select_full_range_join_count,select_full_join_count;
 extern uint test_flags,select_errors,mysql_port,ha_open_options;
@@ -615,6 +620,7 @@ inline bool add_group_to_list(Item *item,bool asc)
 inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
+  table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->null_bytes,255);
 }
 

@@ -684,8 +684,8 @@ mysql_free_result(MYSQL_RES *result)
 static const char *default_options[]=
 {"port","socket","compress","password","pipe", "timeout", "user",
  "init-command", "host", "database", "debug", "return-found-rows",
- "ssl_key" ,"ssl_cert" ,"ssl_ca" ,"ssl_capath",
- "character-set-dir", "default-character-set",
+ "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
+ "character-set-dir", "default-character-set", "interactive-timeout",
  NullS
 };
 
@@ -814,6 +814,9 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	case 18:
 	  my_free(options->charset_name,MYF(MY_ALLOW_ZERO_PTR));
           options->charset_name = my_strdup(opt_arg, MYF(MY_WME));
+	  break;
+	case 19:				/* Interactive-timeout */
+	  options->client_flag|=CLIENT_INTERACTIVE;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));

@@ -716,6 +716,8 @@ static int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   volatile bool *killed= &current_thd->killed;
   DBUG_ENTER("merge_buffers");
 
+  statistic_increment(filesort_merge_passes, &LOCK_status);
+
   count=error=0;
   offset=param->sort_length-param->ref_length;
   maxcount=(ulong) (param->keys/((uint) (Tb-Fb) +1));
