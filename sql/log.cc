@@ -209,9 +209,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 #ifdef EMBEDDED_LIBRARY
     sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
 #elif __NT__
-    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysqld_port, mysqld_unix_port);
 #else
-    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysqld_port,mysqld_unix_port);
 #endif
     end=strmov(strend(buff),"Time                 Id Command    Argument\n");
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
@@ -966,14 +966,6 @@ void MYSQL_LOG::new_file(bool need_lock)
 	THD* thd = current_thd;
 	Rotate_log_event r(thd,new_name+dirname_length(new_name));
 	r.set_log_pos(this);
-
-	/*
-	  Because this log rotation could have been initiated by a master of
-	  the slave running with log-bin, we set the flag on rotate
-	  event to prevent infinite log rotation loop
-	*/
-	if (thd->slave_thread)
-	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
 	r.write(&log_file);
 	bytes_written += r.get_event_len();
       }

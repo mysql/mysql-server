@@ -103,8 +103,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
     {
       /* The first # is to make the protocol backward compatible */
       buff[2]= '#';
-      strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
-      pos= buff + 2 + SQLSTATE_LENGTH +1;
+      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
     }
     length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
     err=buff;
@@ -236,28 +235,6 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Function called by my_net_init() to set some check variables
-*/
-
-#ifndef EMBEDDED_LIBRARY
-extern "C" {
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) global_system_variables.net_buffer_length;
-  net->read_timeout= (uint) global_system_variables.net_read_timeout;
-  net->write_timeout=(uint) global_system_variables.net_write_timeout;
-  net->retry_count=  (uint) global_system_variables.net_retry_count;
-  net->max_packet_size= max(global_system_variables.net_buffer_length,
-			    global_system_variables.max_allowed_packet);
-}
-}
-
-#else /* EMBEDDED_LIBRARY */
-void my_net_local_init(NET *net __attribute__(unused))
-{
-}
-#endif /* EMBEDDED_LIBRARY */
 
 /*
   Return ok to the client.

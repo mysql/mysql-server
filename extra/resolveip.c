@@ -43,7 +43,7 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Displays this help and exits.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"info", 'I', "Synonym for --help",
+  {"info", 'I', "Synonym for --help.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},

@@ -19,7 +19,7 @@ connection master;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
-connect (con3,localhost,test,,);
+connect (con3,localhost,,,);
 
 # We are going to use SET PSEUDO_THREAD_ID in this test;
 # check that it requires the SUPER privilege.

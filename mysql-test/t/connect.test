@@ -62,3 +62,8 @@ show tables;
 #--error 1045
 #connect (con1,localhost,test,zorro,);
 #--error 1045
+
+# remove user 'test' so that other tests which may use 'test'
+# do not depend on this test.
+delete from mysql.user where user="test";
+flush privileges;
