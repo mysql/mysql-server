@@ -8944,7 +8944,12 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
-  if(ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
+  /**
+   * This must be false as select count(*) otherwise
+   *   can "pass" committing on backup fragments and
+   *   get incorrect row count
+   */
+  if(false && ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
   {
     jam();
     Uint32 max = 3+signal->theData[6];
