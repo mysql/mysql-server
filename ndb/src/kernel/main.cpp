@@ -91,6 +91,10 @@ int main(int argc, char** argv)
       return 1;
     }
   }
+
+  globalTransporterRegistry.set_mgm_handle(theConfig
+					   ->get_config_retriever()
+					   ->get_mgmHandle());
   
 #ifndef NDB_WIN32
   for(pid_t child = fork(); child != 0; child = fork()){

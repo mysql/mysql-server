@@ -69,6 +69,11 @@ public:
    */
   NodeId getLocalNodeId() const;
 
+  /**
+   * Set r_port to connect to
+   */
+  void set_r_port(unsigned int port) { m_r_port = port; };
+
 protected:
   Transporter(TransporterRegistry &,
 	      const char *lHostName,
@@ -101,7 +106,7 @@ protected:
   struct in_addr remoteHostAddress;
   struct in_addr localHostAddress;
 
-  const unsigned int m_r_port;
+  unsigned int m_r_port;
 
   const NodeId remoteNodeId;
   const NodeId localNodeId;
@@ -149,7 +154,7 @@ Transporter::getRemoteNodeId() const {
 inline
 NodeId
 Transporter::getLocalNodeId() const {
-  return remoteNodeId;
+  return localNodeId;
 }
 
 inline

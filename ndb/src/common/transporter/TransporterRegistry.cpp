@@ -47,6 +47,8 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+#include <mgmapi/mgmapi_debug.h>
+
 int g_shm_pid = 0;
 
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
@@ -105,13 +107,15 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
   DBUG_RETURN(0);
 }
 
-TransporterRegistry::TransporterRegistry(void * callback,
+TransporterRegistry::TransporterRegistry(NdbMgmHandle mgm_handle,
+					 void * callback,
 					 unsigned _maxTransporters,
 					 unsigned sizeOfLongSignalMemory) {
 
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
+  m_mgm_handle = mgm_handle;
   
   callbackObj=callback;
 
@@ -1136,8 +1140,27 @@ TransporterRegistry::start_clients_thread()
       const NodeId nodeId = t->getRemoteNodeId();
       switch(performStates[nodeId]){
       case CONNECTING:
-	if(!t->isConnected() && !t->isServer)
-	    t->connect_client();
+	if(!t->isConnected() && !t->isServer) {
+	  if(server_port <= 0) {		// Port is dynamic
+	    Uint32 server_port=0;
+	    struct ndb_mgm_reply mgm_reply;
+	    int res;
+	    res=ndb_mgm_get_connection_int_parameter(m_mgm_handle,
+						     t->getRemoteNodeId(),
+						     t->getLocalNodeId(),
+						     CFG_CONNECTION_SERVER_PORT,
+						     &server_port,
+						     &mgm_reply);
+	    DBUG_PRINT("info",("Got dynamic port %u for %d -> %d (ret: %d)",
+			       server_port,t->getRemoteNodeId(),
+			       t->getLocalNodeId()));
+	    if(res>=0)
+	      t->set_r_port(server_port);
+	    else
+	      ndbout_c("Failed to get dynamic port to connect to.");
+	  }
+	  t->connect_client();
+	}
 	break;
       case DISCONNECTING:
 	if(t->isConnected())

@@ -165,7 +165,7 @@ extern "C" {
 					   int node1,
 					   int node2,
 					   int param,
-					   unsigned *value,
+					   Uint32 *value,
 					   struct ndb_mgm_reply* reply);
 
 #ifdef __cplusplus
