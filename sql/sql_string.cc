@@ -453,7 +453,7 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
   if (!arg_length)				// Default argument
     if (!(arg_length= (uint32) strlen(s)))
       return FALSE;
-  if (str_charset->mbmaxlen > 1)
+  if (cs != str_charset && str_charset->mbmaxlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
     if (realloc(str_length+ add_length))

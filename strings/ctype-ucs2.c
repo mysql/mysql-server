@@ -856,7 +856,7 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
   if (length >= sizeof(buf))
     length= sizeof(buf)-1;
   end= s+length;
- 
+
   while ((cnv=cs->cset->mb_wc(cs,&wc,s,end)) > 0)
   {
     s+=cnv;
@@ -865,9 +865,9 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     *b++= (char) wc;
   }
   *b= 0;
-  
+
   errno= 0;
-  res=strtod(buf, endptr);
+  res=my_strtod(buf, endptr);
   *err= errno;
   if (endptr)
     *endptr=(char*) (*endptr-buf+nptr);

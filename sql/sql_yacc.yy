@@ -2152,13 +2152,13 @@ select_init:
             SELECT_LEX * sel= lex->current_select;
 	    if (sel->set_braces(1))
 	    {
-	      send_error(lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
 	  if (sel->linkage == UNION_TYPE &&
 	      !sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
             /* select in braces, can't contain global parameters */
@@ -2174,13 +2174,13 @@ select_init2:
           SELECT_LEX * sel= lex->current_select;
           if (lex->current_select->set_braces(0))
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (sel->linkage == UNION_TYPE &&
 	      sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -2734,7 +2734,7 @@ simple_expr:
 	  {
             if ($1->type() != Item::ROW_ITEM)
             {
-              send_error(Lex->thd, ER_SYNTAX_ERROR);
+              yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
             $$= new Item_func_interval((Item_row *)$1);
@@ -3070,7 +3070,7 @@ in_sum_expr:
 	  LEX *lex= Lex;
 	  if (lex->current_select->inc_in_sum_expr())
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -3241,8 +3241,8 @@ select_derived:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
@@ -3880,7 +3880,7 @@ opt_insert_update:
                for a moment */
 	    if (Lex->sql_command != SQLCOM_INSERT)
             {
-	      send_error(Lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
           }
@@ -4487,7 +4487,7 @@ param_marker:
           }
           else
           {
-            yyerror("You have an error in your SQL syntax");
+            yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
         }
@@ -5530,7 +5530,7 @@ union_list:
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(lex, 0))
@@ -5630,8 +5630,8 @@ subselect_start:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(Lex, 1))
