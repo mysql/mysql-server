@@ -5619,9 +5619,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:
     max_allowed_packet= atoi(argument);
+    global_system_variables.max_allowed_packet= max_allowed_packet;
     break;
   case OPT_NET_BUFFER_LENGTH:
     net_buffer_length=  atoi(argument);
+    global_system_variables.net_buffer_length= net_buffer_length;
     break;
 #endif
 #include <sslopt-case.h>
