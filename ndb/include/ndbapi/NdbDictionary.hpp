@@ -144,6 +144,8 @@ public:
       FragAllLarge = 4        ///< Eight fragments per node group.
     };
   };
+
+  class Table; // forward declaration
   
   /**
    * @class Column
@@ -364,6 +366,8 @@ public:
     
     void setIndexOnlyStorage(bool);
     bool getIndexOnlyStorage() const;
+
+    const Table * getBlobTable() const;
 
     /** 
      * @name ODBC Specific methods 

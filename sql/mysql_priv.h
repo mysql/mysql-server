@@ -293,6 +293,13 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 */
 #define MAX_DATE_REP_LENGTH 30
 
+enum enum_parsing_place
+{
+  NO_MATTER,
+  IN_HAVING,
+  SELECT_LIST
+};
+
 struct st_table;
 class THD;
 class Item_arena;

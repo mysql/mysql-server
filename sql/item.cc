@@ -60,10 +60,10 @@ Item::Item():
   */
   if (thd->lex->current_select)
   {
-    SELECT_LEX_NODE::enum_parsing_place place= 
+    enum_parsing_place place= 
       thd->lex->current_select->parsing_place;
-    if (place == SELECT_LEX_NODE::SELECT_LIST ||
-	place == SELECT_LEX_NODE::IN_HAVING)
+    if (place == SELECT_LIST ||
+	place == IN_HAVING)
       thd->lex->current_select->select_n_having_items++;
   }
 }
@@ -1233,21 +1233,34 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  table_list= (last= sl)->get_table_list();
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
-	    // it is primary INSERT st_select_lex => skip first table resolving
+            /*
+              it is primary INSERT st_select_lex => skip first table
+              resolving
+            */
 	    table_list= table_list->next;
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-	  if ((tmp= find_field_in_tables(thd, this,
-					 table_list, &where,
-					 0)) != not_found_field)
-	  {
-	    if (!tmp)
-	      return -1;
-	    prev_subselect_item->used_tables_cache|= tmp->table->map;
-	    prev_subselect_item->const_item_cache= 0;
-	    break;
-	  }
+          enum_parsing_place place=
+            prev_subselect_item->parsing_place;
+          /*
+            check table fields only if subquery used somewhere out of HAVING
+            or SELECT list or outer SELECT do not use groupping (i.e. tables
+            are accessable)
+          */
+          if (((place != IN_HAVING &&
+                place != SELECT_LIST) ||
+               (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+              (tmp= find_field_in_tables(thd, this,
+                                         table_list, &where,
+                                         0)) != not_found_field)
+          {
+            if (!tmp)
+              return -1;
+            prev_subselect_item->used_tables_cache|= tmp->table->map;
+            prev_subselect_item->const_item_cache= 0;
+            break;
+          }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
 	      (refer= find_item_in_list(this, sl->item_list, &counter,
 					 REPORT_EXCEPT_NOT_FOUND)) !=
@@ -1906,16 +1919,25 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
 	}
-	if ((tmp= find_field_in_tables(thd, this,
-				       table_list, &where,
-				       0)) != not_found_field)
-	{
-	  prev_subselect_item->used_tables_cache|= tmp->table->map;
-	  prev_subselect_item->const_item_cache= 0;
-	  break;
-	}
-
-	// Reference is not found => depend from outer (or just error)
+        enum_parsing_place place=
+            prev_subselect_item->parsing_place;
+        /*
+          check table fields only if subquery used somewhere out of HAVING
+          or SELECT list or outer SELECT do not use groupping (i.e. tables
+          are accessable)
+        */
+        if (((place != IN_HAVING &&
+              place != SELECT_LIST) ||
+             (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+            (tmp= find_field_in_tables(thd, this,
+                                       table_list, &where,
+                                       0)) != not_found_field)
+        {
+          prev_subselect_item->used_tables_cache|= tmp->table->map;
+          prev_subselect_item->const_item_cache= 0;
+          break;
+        }
+        // Reference is not found => depend from outer (or just error)
 	prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
 	prev_subselect_item->const_item_cache= 0;
 
