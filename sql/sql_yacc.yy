@@ -803,7 +803,7 @@ verb_clause:
         ;
 
 deallocate:
-        DEALLOCATE_SYM PREPARE_SYM ident
+        deallocate_or_drop PREPARE_SYM ident
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
@@ -815,6 +815,12 @@ deallocate:
           lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
           lex->prepared_stmt_name= $3;
         };
+
+deallocate_or_drop:
+	DEALLOCATE_SYM |
+	DROP
+	;
+
 
 prepare:
         PREPARE_SYM ident FROM prepare_src

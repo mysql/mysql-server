@@ -636,9 +636,9 @@ Linux.
 #include "mem0mem.h"
 #include "os0proc.h"
 
-#define malloc(A)	mem_alloc(A)
-#define free(A)		mem_free(A)
-#define realloc(P, A)	mem_realloc(P, A, __FILE__, __LINE__)
+#define malloc(A)	ut_malloc(A)
+#define free(A)		ut_free(A)
+#define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
 #define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
@@ -655,16 +655,16 @@ string_append(
 	const char*	str,	/* in: string to be appended */
 	ulint		len)	/* in: length of the string */
 {
+	if (stringbuf == NULL) {
+		stringbuf = malloc(1);
+		stringbuf_len_alloc = 1;
+	}
+
 	if (stringbuf_len + len > stringbuf_len_alloc) {
-		if (stringbuf_len_alloc == 0) {
-			stringbuf_len_alloc++;
-		}
 		while (stringbuf_len + len > stringbuf_len_alloc) {
 			stringbuf_len_alloc <<= 1;
 		}
-		stringbuf = stringbuf
-			? realloc(stringbuf, stringbuf_len_alloc)
-			: malloc(stringbuf_len_alloc);
+		stringbuf = realloc(stringbuf, stringbuf_len_alloc);
 	}
 
 	memcpy(stringbuf + stringbuf_len, str, len);

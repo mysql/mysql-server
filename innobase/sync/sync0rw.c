@@ -171,7 +171,6 @@ rw_lock_free(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks. */
@@ -199,7 +198,6 @@ rw_lock_validate(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is

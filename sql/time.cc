@@ -411,7 +411,6 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags,
   ulong not_zero_date, allow_space;
   bool is_internal_format;
   const char *pos, *last_field_pos;
-  const char *str_begin= str;
   const char *end=str+length;
   const uchar *format_position;
   bool found_delimitier= 0, found_space= 0;
@@ -775,7 +774,6 @@ bool str_to_time(const char *str, uint length, TIME *l_time, int *was_cut)
 {
   long date[5],value;
   const char *end=str+length, *end_of_days;
-  const char *str_begin= str;
   bool found_days,found_hours;
   uint state;
 
