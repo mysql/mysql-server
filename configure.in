@@ -1812,7 +1812,7 @@ AC_CHECK_FUNCS(alarm bmove \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror \
  tell atod memcpy memmove \
- setupterm strcasecmp sighold vidattr lrand48 localtime_r \
+ setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
