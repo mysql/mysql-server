@@ -92,10 +92,10 @@ NOHUP_NICENESS="nohup"
 if test -w /
 then
   NOHUP_NICENESS=`nohup nice`
-  if test $? -ne 0 || test x"$NOHUP_NICENESS" = x0 || test ! nice --1 echo foo > /dev/null 2>&1; then
-    NOHUP_NICENESS="nohup"
-  else
+ if test $? -eq 0 && test x"$NOHUP_NICENESS" != x0 && nice --1 echo foo > /dev/null 2>&1; then
     NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
+  else
+    NOHUP_NICENESS="nohup"
   fi
 fi
 
@@ -193,4 +193,5 @@ do
   echo "`date +'%y%m%d %H:%M:%S  mysqld restarted'`" | tee -a $err_log
 done
 
-echo -e "`date +'%y%m%d %H:%M:%S  mysqld ended\n'`" | tee -a $err_log
+echo "`date +'%y%m%d %H:%M:%S  mysqld ended\n'`" | tee -a $err_log
+echo "" | tee -a $err_log

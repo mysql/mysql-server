@@ -146,7 +146,7 @@ static CHANGEABLE_VAR changeable_vars[] = {
   { "decode_bits",(long*) &decode_bits,9L,4L,17L,0L,1L },
   { NullS,(long*) 0,0L,0L,0L,0L,0L,} };
 
-enum options {OPT_CHARSETS_DIR=256, OPT_SET_CHARSET};
+enum options {OPT_CHARSETS_DIR=256, OPT_SET_CHARSET,OPT_START_CHECK_POS};
 
 
 static struct option long_options[] =
@@ -173,6 +173,7 @@ static struct option long_options[] =
   {"read-only",        no_argument,	  0, 'T'},
   {"recover",	       no_argument,	  0, 'r'},
   {"safe-recover",     no_argument,	  0, 'o'},
+  {"start-check-pos",  required_argument, 0, OPT_START_CHECK_POS},
   {"set-auto-increment",optional_argument, 0, 'A'},
   {"set-character-set",required_argument,0,OPT_SET_CHARSET},
   {"set-variable",     required_argument, 0, 'O'},
@@ -190,7 +191,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.30 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.31 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -416,6 +417,11 @@ static void get_options(register int *argc,register char ***argv)
     case OPT_SET_CHARSET:
       set_charset_name=optarg;
       break;
+#ifdef DEBUG					/* Only useful if debugging */
+    case OPT_START_CHECK_POS:
+      check_param.start_check_pos=strtoull(optarg,NULL,0);
+      break;
+#endif
     case '?':
       usage();
       exit(0);
@@ -732,7 +738,8 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       error =chk_size(param,info);
       if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
 	error|=chk_del(param, info,param->testflag);
-      if (!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)))
+      if ((!error || !(param->testflag & (T_FAST | T_FORCE_CREATE)) &&
+	   !param->start_check_pos))
       {
 	error|=chk_key(param, info);
 	if (!error && (param->testflag & (T_STATISTICS | T_AUTO_INC)))
@@ -745,8 +752,12 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  VOID(init_key_cache(param->use_buffers,(uint) NEAD_MEM));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
-			  READ_CACHE,share->pack.header_length,1,
-			  MYF(MY_WME)));
+			   READ_CACHE,
+			   (param->start_check_pos ?
+			    param->start_check_pos :
+			    share->pack.header_length),
+			   1,
+			   MYF(MY_WME)));
 	lock_memory(param);
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||

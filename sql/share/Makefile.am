@@ -16,7 +16,8 @@ install-data-local:
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.txt; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
-	(cd $(srcdir)/charsets; for f in Index README "*.conf"; \
+	(for f in $(srcdir)/charsets/Index $(srcdir)/charsets/README $(srcdir)/charsets/*.conf; \
 	do \
-		$(INSTALL_DATA) $$f $(DESTDIR)$(pkgdatadir)/charsets/; \
+		n=`basename $$f`; \
+		$(INSTALL_DATA) $$f $(DESTDIR)$(pkgdatadir)/charsets/$$n; \
 	done)

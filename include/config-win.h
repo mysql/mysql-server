@@ -82,6 +82,7 @@
 #define	SIGQUIT		SIGTERM		/* No SIGQUIT */
 
 #undef _REENTRANT			/* Crashes something for win32 */
+#undef SAFE_MUTEX			/* Can't be used on windows */
 
 #define LONGLONG_MIN	((__int64) 0x8000000000000000)
 #define LONGLONG_MAX	((__int64) 0x7FFFFFFFFFFFFFFF)
