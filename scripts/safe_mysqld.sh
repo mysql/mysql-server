@@ -159,7 +159,7 @@ then
   NOHUP_NICENESS=`nohup nice 2>&1`
   if test $? -eq 0 && test x"$NOHUP_NICENESS" != x0 && nice --1 echo foo > /dev/null 2>&1
   then
-    if $NOHUP_NICENESS -gt 0
+    if test $NOHUP_NICENESS -gt 0
     then
       $NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
     else
