@@ -2415,7 +2415,9 @@ dict_tree_build_node_ptr(
 	dict_tree_t*	tree,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to build node pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
-	mem_heap_t*	heap)	/* in: memory heap where pointer created */
+	mem_heap_t*	heap,	/* in: memory heap where pointer created */
+	ulint           level)  /* in: level of rec in tree: 0 means leaf
+				level */
 {
 	dtuple_t*	tuple;
 	dict_index_t*	ind;
@@ -2427,9 +2429,16 @@ dict_tree_build_node_ptr(
 	
 	if (tree->type & DICT_UNIVERSAL) {
 		/* In a universal index tree, we take the whole record as
-		the node pointer */
+		the node pointer if the reord is on the leaf level,
+		on non-leaf levels we remove the last field, which
+		contains the page number of the child page */
 
 		n_unique = rec_get_n_fields(rec);
+
+		if (level > 0) {
+		        ut_a(n_unique > 1);
+		        n_unique--;
+		}
 	} else {	
 		n_unique = dict_index_get_n_unique_in_tree(ind);
 	}
