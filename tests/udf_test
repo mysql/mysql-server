@@ -21,7 +21,7 @@ create temporary table t1 (a int,b double);
 insert into t1 values (1,5),(1,4),(2,8),(3,9),(4,11);
 select avgcost(a,b) from t1;
 select avgcost(a,b) from t1 group by a;
-select a, myfunc_argument_name(a) from t1;
+select a, myfunc_argument_name(a), myfunc_argument_name(a as b) from t1;
 drop table t1;
 
 DROP FUNCTION metaphon;

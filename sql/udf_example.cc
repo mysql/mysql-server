@@ -991,7 +991,6 @@ avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* error )
 extern "C" {
 my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
 				  char *message);
-void myfunc_argument_name_deinit(UDF_INIT *initid);
 char *myfunc_argument_name(UDF_INIT *initid, UDF_ARGS *args, char *result,
 			   unsigned long *length, char *null_value,
 			   char *error);
@@ -1010,8 +1009,6 @@ my_bool myfunc_argument_name_init(UDF_INIT *initid, UDF_ARGS *args,
   initid->const_item= 1;
   return 0;
 }
-
-void myfunc_argument_name_deinit(UDF_INIT *initid) {}
 
 char *myfunc_argument_name(UDF_INIT *initid, UDF_ARGS *args, char *result,
 			   unsigned long *length, char *null_value,
