@@ -203,20 +203,12 @@ mtr_read_dulint(
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
-#ifdef UNIV_SYNC_DEBUG
 #define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), IB__FILE__, __LINE__,\
 						(MTR))
-#else
-#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), (MTR))
-#endif
 /*************************************************************************
 This macro locks an rw-lock in x-mode. */
-#ifdef UNIV_SYNC_DEBUG
 #define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), IB__FILE__, __LINE__,\
 						(MTR))
-#else
-#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), (MTR))
-#endif
 /*************************************************************************
 NOTE! Use the macro above!
 Locks a lock in s-mode. */
@@ -225,10 +217,8 @@ void
 mtr_s_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line number */
-#endif
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************************
 NOTE! Use the macro above!
@@ -238,10 +228,8 @@ void
 mtr_x_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line number */
-#endif
 	mtr_t*		mtr);	/* in: mtr */
 
 /*******************************************************

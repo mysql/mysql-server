@@ -269,7 +269,13 @@ row_vers_old_has_index_entry(
 		row = row_build(ROW_COPY_POINTERS, clust_index, rec, heap);
 		entry = row_build_index_entry(row, index, heap);
 
-		if (dtuple_datas_are_equal(ientry, entry)) {
+ 		/* NOTE that we cannot do the comparison as binary
+		fields because the row is maybe being modified so that
+		the clustered index record has already been updated
+		to a different binary value in a char field, but the
+		collation identifies the old and new value anyway! */
+
+		if (dtuple_datas_are_ordering_equal(ientry, entry)) {
 
 			mem_heap_free(heap);
 
@@ -307,7 +313,13 @@ row_vers_old_has_index_entry(
 							prev_version, heap);
 			entry = row_build_index_entry(row, index, heap);
 
-			if (dtuple_datas_are_equal(ientry, entry)) {
+ 			/* NOTE that we cannot do the comparison as binary
+			fields because maybe the secondary index record has
+			already been updated to a different binary value in
+			a char field, but the collation identifies the old
+			and new value anyway! */
+
+			if (dtuple_datas_are_ordering_equal(ientry, entry)) {
 
 				mem_heap_free(heap);
 

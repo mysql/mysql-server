@@ -256,7 +256,8 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif	
-	if (latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
+	if (btr_search_latch.writer != RW_LOCK_NOT_LOCKED
+		&& latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 		&& !estimate
 	        && btr_search_guess_on_hash(index, info, tuple, mode,
 						latch_mode, cursor,
@@ -344,9 +345,7 @@ btr_cur_search_to_nth_level(
 retry_page_get:		
 		page = buf_page_get_gen(space, page_no, rw_latch, guess,
 					buf_mode,
-#ifdef UNIV_SYNC_DEBUG
 					IB__FILE__, __LINE__,
-#endif
 					mtr);
 
 		if (page == NULL) {
@@ -380,7 +379,7 @@ retry_page_get:
 		}
 #endif
 		ut_ad(0 == ut_dulint_cmp(tree->id,
-						btr_page_get_index_id(page)));
+					btr_page_get_index_id(page)));
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -515,9 +514,7 @@ btr_cur_open_at_index_side(
 	for (;;) {
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
-#ifdef UNIV_SYNC_DEBUG
 					IB__FILE__, __LINE__,
-#endif
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
 						btr_page_get_index_id(page)));
@@ -604,9 +601,7 @@ btr_cur_open_at_rnd_pos(
 	for (;;) {
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
-#ifdef UNIV_SYNC_DEBUG
 					IB__FILE__, __LINE__,
-#endif
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
 						btr_page_get_index_id(page)));
@@ -1223,6 +1218,57 @@ btr_cur_parse_update_in_place(
 }
 
 /*****************************************************************
+Updates a secondary index record when the update causes no size
+changes in its fields. The only case when this function is currently
+called is that in a char field characters change to others which
+are identified in the collation order. */
+
+ulint
+btr_cur_update_sec_rec_in_place(
+/*============================*/
+				/* out: DB_SUCCESS or error number */
+	btr_cur_t*	cursor,	/* in: cursor on the record to update;
+				cursor stays valid and positioned on the
+				same record */
+	upd_t*		update,	/* in: update vector */
+	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	dict_index_t*	index 		= cursor->index;
+	dict_index_t*	clust_index;
+	ulint		err;
+	rec_t*		rec;
+	dulint		roll_ptr	= ut_dulint_zero;
+	trx_t*		trx		= thr_get_trx(thr);
+
+	/* Only secondary index records are updated using this function */
+	ut_ad(0 == (index->type & DICT_CLUSTERED));
+
+	rec = btr_cur_get_rec(cursor);
+	
+	err = lock_sec_rec_modify_check_and_lock(0, rec, index, thr);
+
+	if (err != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	/* Remove possible hash index pointer to this record */
+	btr_search_update_hash_on_delete(cursor);
+
+	row_upd_rec_in_place(rec, update);
+
+	clust_index = dict_table_get_first_index(index->table);
+
+	/* Note that roll_ptr is really just a dummy value since
+	a secondary index record does not contain any sys columns */
+
+	btr_cur_update_in_place_log(BTR_KEEP_SYS_FLAG, rec, clust_index,
+						update, trx, roll_ptr, mtr);
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************
 Updates a record when the update causes no size changes in its fields. */
 
 ulint
@@ -1248,7 +1294,7 @@ btr_cur_update_in_place(
 	ibool		was_delete_marked;
 
 	/* Only clustered index records are updated using this function */
-	ut_ad((cursor->index)->type & DICT_CLUSTERED);
+	ut_ad(cursor->index->type & DICT_CLUSTERED);
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -2477,27 +2523,33 @@ btr_estimate_n_rows_in_range(
 }
 
 /***********************************************************************
-Estimates the number of different key values in a given index. */
+Estimates the number of different key values in a given index, for
+each n-column prefix of the index where n <= dict_index_get_n_unique(index).
+The estimates are stored in the array index->stat_n_diff_key_vals. */
 
-ulint
+void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
-				/* out: estimated number of key values */
 	dict_index_t*	index)	/* in: index */
 {
 	btr_cur_t	cursor;
 	page_t*		page;
 	rec_t*		rec;
-	ulint		total_n_recs		= 0;
-	ulint		n_diff_in_page;
-	ulint		n_diff			= 0;
+	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
+	ulint*		n_diff;
+	ulint		not_empty_flag	= 0;
 	ulint		i;
+	ulint		j;
 	mtr_t		mtr;
 
-	if (index->type & DICT_UNIQUE) {
-		return(index->table->stat_n_rows);
+	n_cols = dict_index_get_n_unique(index);
+
+	n_diff = mem_alloc((n_cols + 1) * sizeof(ib_longlong));
+
+	for (j = 0; j <= n_cols; j++) {
+		n_diff[j] = 0;
 	}
 
 	/* We sample some pages in the index to get an estimate */
@@ -2507,17 +2559,19 @@ btr_estimate_number_of_different_key_vals(
 
 		btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF, &cursor, &mtr);
 		
-		/* Count the number of different key values minus one on this
-		index page: we subtract one because otherwise our algorithm
-		would give a wrong estimate for an index where there is
-		just one key value */
+		/* Count the number of different key values minus one
+		for each prefix of the key on this index page: we subtract
+		one because otherwise our algorithm would give a wrong
+		estimate for an index where there is just one key value */
 
 		page = btr_cur_get_page(&cursor);
 
 		rec = page_get_infimum_rec(page);
 		rec = page_rec_get_next(rec);
 
-		n_diff_in_page = 0;
+		if (rec != page_get_supremum_rec(page)) {
+			not_empty_flag = 1;
+		}
 		
 		while (rec != page_get_supremum_rec(page)
 		       && page_rec_get_next(rec)
@@ -2528,30 +2582,30 @@ btr_estimate_number_of_different_key_vals(
 			cmp_rec_rec_with_match(rec, page_rec_get_next(rec),
 						index, &matched_fields,
 						&matched_bytes);
-			if (matched_fields <
-				dict_index_get_n_ordering_defined_by_user(
-								index)) {
-				n_diff_in_page++;
-			}
 
+			for (j = matched_fields + 1; j <= n_cols; j++) {
+				n_diff[j]++;
+			}
+					
 			rec = page_rec_get_next(rec);
 		}
-
-		n_diff += n_diff_in_page;
-		
-		total_n_recs += page_get_n_recs(page);
 		
 		mtr_commit(&mtr);
 	}
 
-	if (n_diff == 0) {
-		/* We play safe and assume that there are just two different
-		key values in the index */
-		
-		return(2);
+	/* If we saw k borders between different key values on
+	BTR_KEY_VAL_ESTIMATE_N_PAGES leaf pages, we can estimate how many
+	there will be in index->stat_n_leaf_pages */
+	
+	for (j = 0; j <= n_cols; j++) {
+		index->stat_n_diff_key_vals[j] =
+				(n_diff[j] * index->stat_n_leaf_pages
+				 + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
+				 + not_empty_flag)
+		                	/ BTR_KEY_VAL_ESTIMATE_N_PAGES;
 	}
-
-	return(index->table->stat_n_rows / (total_n_recs / n_diff));
+	
+	mem_free(n_diff);
 }
 
 /*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/

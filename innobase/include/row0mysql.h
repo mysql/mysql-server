@@ -133,6 +133,26 @@ row_update_prebuilt_trx(
 					handle */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
+Unlocks an AUTO_INC type lock possibly reserved by trx. */
+
+void		  	
+row_unlock_table_autoinc_for_mysql(
+/*===============================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
+AUTO_INC lock gives exclusive access to the auto-inc counter of the
+table. The lock is reserved only for the duration of an SQL statement.
+It is not compatible with another AUTO_INC or exclusive lock on the
+table. */
+
+int
+row_lock_table_autoinc_for_mysql(
+/*=============================*/
+					/* out: error code or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
+					table handle */
+/*************************************************************************
 Does an insert for MySQL. */
 
 int
@@ -211,6 +231,26 @@ row_create_index_for_mysql(
 	dict_index_t*	index,		/* in: index defintion */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
+Scans a table create SQL string and adds to the data dictionary
+the foreign key constraints declared in the string. This function
+should be called after the indexes for a table have been created.
+Each foreign key constraint must be accompanied with indexes in
+bot participating tables. The indexes are allowed to contain more
+fields than mentioned in the constraint. */
+
+int
+row_table_add_foreign_constraints(
+/*==============================*/
+				/* out: error code or DB_SUCCESS */
+	trx_t*	trx,		/* in: transaction */
+	char*	sql_string,	/* in: table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2 */
+	char*	name);		/* in: table full name in the normalized form
+				database_name/table_name */
+/*************************************************************************
 Drops a table for MySQL. If the name of the dropped table ends to
 characters INNODB_MONITOR, then this also stops printing of monitor
 output by the master thread. */
@@ -223,6 +263,15 @@ row_drop_table_for_mysql(
 	trx_t*	trx,		/* in: transaction handle */
 	ibool	has_dict_mutex);/* in: TRUE if the caller already owns the
 				dictionary system mutex */
+/*************************************************************************
+Drops a database for MySQL. */
+
+int
+row_drop_database_for_mysql(
+/*========================*/
+			/* out: error code or DB_SUCCESS */
+	char*	name,	/* in: database name which ends to '/' */
+	trx_t*	trx);	/* in: transaction handle */
 /*************************************************************************
 Renames a table for MySQL. */
 

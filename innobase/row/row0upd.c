@@ -72,6 +72,134 @@ searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
 /*************************************************************************
+Checks if index currently is mentioned as a referenced index in a foreign
+key constraint. This function also loads into the dictionary cache the
+possible referencing table. */
+static
+ibool
+row_upd_index_is_referenced(
+/*========================*/
+				/* out: TRUE if referenced; NOTE that since
+				we do not hold dict_foreign_key_check_lock
+				when leaving the function, it may be that
+				the referencing table has been dropped when
+				we leave this function: this function is only
+				for heuristic use! */
+	dict_index_t*	index)	/* in: index */
+{
+	dict_table_t*	table	= index->table;
+	dict_foreign_t*	foreign;
+	ulint		phase	= 1;
+
+try_again:	
+	if (!UT_LIST_GET_FIRST(table->referenced_list)) {
+
+		return(FALSE);
+	}
+
+	if (phase == 2) {
+		mutex_enter(&(dict_sys->mutex));
+	}
+
+	rw_lock_s_lock(&dict_foreign_key_check_lock);
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	while (foreign) {
+		if (foreign->referenced_index == index) {
+			if (foreign->foreign_table == NULL) {
+				if (phase == 2) {
+					dict_table_get_low(foreign->
+							foreign_table_name);
+				} else {
+					phase = 2;
+					rw_lock_s_unlock(
+						&dict_foreign_key_check_lock);
+					goto try_again;
+				}
+			}
+
+			rw_lock_s_unlock(&dict_foreign_key_check_lock);
+
+			if (phase == 2) {
+				mutex_exit(&(dict_sys->mutex));
+			}
+
+			return(TRUE);
+		}
+
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+	
+	rw_lock_s_unlock(&dict_foreign_key_check_lock);
+
+	if (phase == 2) {
+		mutex_exit(&(dict_sys->mutex));
+	}
+
+	return(FALSE);
+}
+
+/*************************************************************************
+Checks if possible foreign key constraints hold after a delete of the record
+under pcur. NOTE that this function will temporarily commit mtr and lose
+pcur position! */
+static
+ulint
+row_upd_check_references_constraints(
+/*=================================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT, or an error
+				code */
+	btr_pcur_t*	pcur,	/* in: cursor positioned on a record; NOTE: the
+				cursor position is lost in this function! */
+	dict_table_t*	table,	/* in: table in question */
+	dict_index_t*	index,	/* in: index of the cursor */
+	que_thr_t*	thr,	/* in: query thread */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	dict_foreign_t*	foreign;
+	mem_heap_t*	heap;
+	dtuple_t*	entry;
+	rec_t*		rec;
+	ulint		err;
+
+	rec = btr_pcur_get_rec(pcur);
+
+	heap = mem_heap_create(500);
+
+	entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
+
+	mtr_commit(mtr);	
+
+	mtr_start(mtr);	
+	
+	rw_lock_s_lock(&dict_foreign_key_check_lock);	
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+	while (foreign) {
+		if (foreign->referenced_index == index) {
+
+			err = row_ins_check_foreign_constraint(FALSE, foreign,
+						table, index, entry, thr);
+			if (err != DB_SUCCESS) {
+				rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+				mem_heap_free(heap);
+
+				return(err);
+			}
+		}
+
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+	mem_heap_free(heap);
+	
+	return(DB_SUCCESS);
+}
+
+/*************************************************************************
 Creates an update node for a query graph. */
 
 upd_node_t*
@@ -484,13 +612,73 @@ upd_ext_vec_contains(
 }
 	
 /*******************************************************************
-Builds an update vector from those fields, excluding the roll ptr and
-trx id fields, which in an index entry differ from a record that has
-the equal ordering fields. */
+Builds an update vector from those fields which in a secondary index entry
+differ from a record that has the equal ordering fields. NOTE: we compare
+the fields as binary strings! */
 
 upd_t*
-row_upd_build_difference(
-/*=====================*/
+row_upd_build_sec_rec_difference_binary(
+/*====================================*/
+				/* out, own: update vector of differing
+				fields */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: entry to insert */
+	rec_t*		rec,	/* in: secondary index record */
+	mem_heap_t*	heap)	/* in: memory heap from which allocated */
+{
+	upd_field_t*	upd_field;
+	dfield_t*	dfield;
+	byte*		data;
+	ulint		len;
+	upd_t*		update;
+	ulint		n_diff;
+	ulint		i;
+
+	/* This function is used only for a secondary index */
+	ut_ad(0 == (index->type & DICT_CLUSTERED));
+
+	update = upd_create(dtuple_get_n_fields(entry), heap);
+
+	n_diff = 0;
+
+	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+
+		data = rec_get_nth_field(rec, i, &len);
+
+		dfield = dtuple_get_nth_field(entry, i);
+
+		ut_a(len == dfield_get_len(dfield));
+
+		/* NOTE: we compare the fields as binary strings!
+		(No collation) */
+
+		if (!dfield_data_is_binary_equal(dfield, len, data)) {
+
+			upd_field = upd_get_nth_field(update, n_diff);
+
+			dfield_copy(&(upd_field->new_val), dfield);
+
+			upd_field_set_field_no(upd_field, i, index);
+
+			upd_field->extern_storage = FALSE;
+
+			n_diff++;
+		}
+	}
+
+	update->n_fields = n_diff;
+
+	return(update);
+}
+
+/*******************************************************************
+Builds an update vector from those fields, excluding the roll ptr and
+trx id fields, which in an index entry differ from a record that has
+the equal ordering fields. NOTE: we compare the fields as binary strings! */
+
+upd_t*
+row_upd_build_difference_binary(
+/*============================*/
 				/* out, own: update vector of differing
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
@@ -527,10 +715,13 @@ row_upd_build_difference(
 
 		dfield = dtuple_get_nth_field(entry, i);
 
+		/* NOTE: we compare the fields as binary strings!
+		(No collation) */
+
 		if ((rec_get_nth_field_extern_bit(rec, i)
 		    != upd_ext_vec_contains(ext_vec, n_ext_vec, i))
 		    || ((i != trx_id_pos) && (i != roll_ptr_pos)
-			&& !dfield_data_is_equal(dfield, len, data))) {
+			&& !dfield_data_is_binary_equal(dfield, len, data))) {
 
 			upd_field = upd_get_nth_field(update, n_diff);
 
@@ -630,13 +821,16 @@ row_upd_clust_index_replace_new_col_vals(
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
-fields in the index is small. Otherwise, this can be quadratic. */
+fields in the index is small. Otherwise, this can be quadratic.
+NOTE: we compare the fields as binary strings! */
 
 ibool
-row_upd_changes_ord_field(
-/*======================*/
+row_upd_changes_ord_field_binary(
+/*=============================*/
 				/* out: TRUE if update vector changes
-				an ordering field in the index record */
+				an ordering field in the index record;
+				NOTE: the fields are compared as binary
+				strings */
 	dtuple_t*	row,	/* in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
@@ -671,7 +865,7 @@ row_upd_changes_ord_field(
 
 			if (col_pos == upd_field->field_no
 			     && (row == NULL
-				 || !dfield_datas_are_equal(
+				 || !dfield_datas_are_binary_equal(
 					dtuple_get_nth_field(row, col_no),
 						&(upd_field->new_val)))) {
 				return(TRUE);
@@ -683,11 +877,12 @@ row_upd_changes_ord_field(
 }
 
 /***************************************************************
-Checks if an update vector changes an ordering field of an index record. */
+Checks if an update vector changes an ordering field of an index record.
+NOTE: we compare the fields as binary strings! */
 
 ibool
-row_upd_changes_some_index_ord_field(
-/*=================================*/
+row_upd_changes_some_index_ord_field_binary(
+/*========================================*/
 				/* out: TRUE if update vector may change
 				an ordering field in an index record */
 	dict_table_t*	table,	/* in: table */
@@ -812,6 +1007,7 @@ row_upd_sec_index_entry(
 	upd_node_t*	node,	/* in: row update node */
 	que_thr_t*	thr)	/* in: query thread */
 {
+	ibool		check_ref;
 	ibool		found;
 	dict_index_t*	index;
 	dtuple_t*	entry;
@@ -825,6 +1021,8 @@ row_upd_sec_index_entry(
 	
 	index = node->index;
 	
+	check_ref = row_upd_index_is_referenced(index);
+
 	heap = mem_heap_create(1024);
 
 	/* Build old index entry */
@@ -855,6 +1053,8 @@ row_upd_sec_index_entry(
 			"InnoDB: Make a detailed bug report and send it\n");
 	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
+		trx_print(thr_get_trx(thr));
+
 	  	mem_free(err_buf);
 	} else {
  	  	/* Delete mark the old index record; it can already be
@@ -864,9 +1064,21 @@ row_upd_sec_index_entry(
 	  	if (!rec_get_deleted_flag(rec)) {
 			err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE,
 								thr, &mtr);
+			if (err == DB_SUCCESS && check_ref) {
+				/* NOTE that the following call loses
+				the position of pcur ! */
+				err = row_upd_check_references_constraints(
+							&pcur, index->table,
+							index, thr, &mtr);
+				if (err != DB_SUCCESS) {
+
+					goto close_cur;
+				}
+			}
+
 	  	}
 	}
-
+close_cur:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
@@ -907,8 +1119,8 @@ row_upd_sec_step(
 	ut_ad(!(node->index->type & DICT_CLUSTERED));
 	
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
-			|| row_upd_changes_ord_field(node->row, node->index,
-							node->update)) {
+	    || row_upd_changes_ord_field_binary(node->row, node->index,
+							   node->update)) {
 		err = row_upd_sec_index_entry(node, thr);
 
 		return(err);
@@ -931,6 +1143,8 @@ row_upd_clust_rec_by_insert(
 	upd_node_t*	node,	/* in: row update node */
 	dict_index_t*	index,	/* in: clustered index of the record */
 	que_thr_t*	thr,	/* in: query thread */
+	ibool		check_ref,/* in: TRUE if index may be referenced in
+				a foreign key constraint */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
 {
 	mem_heap_t*	heap;
@@ -958,6 +1172,7 @@ row_upd_clust_rec_by_insert(
 
 			return(err);
 		}
+
 		/* Mark as not-owned the externally stored fields which the new
 		row inherits from the delete marked record: purge should not
 		free those externally stored fields even if the delete marked
@@ -965,6 +1180,19 @@ row_upd_clust_rec_by_insert(
 
 		btr_cur_mark_extern_inherited_fields(btr_cur_get_rec(btr_cur),
 							node->update, mtr);
+		if (check_ref) {
+			/* NOTE that the following call loses
+			the position of pcur ! */
+			err = row_upd_check_references_constraints(
+							pcur, table,
+							index, thr, mtr);
+			if (err != DB_SUCCESS) {
+				mtr_commit(mtr);
+
+				return(err);
+			}
+		}
+
 	} 
 
 	mtr_commit(mtr);
@@ -1095,6 +1323,8 @@ row_upd_del_mark_clust_rec(
 	upd_node_t*	node,	/* in: row update node */
 	dict_index_t*	index,	/* in: clustered index */
 	que_thr_t*	thr,	/* in: query thread */
+	ibool		check_ref,/* in: TRUE if index may be referenced in
+				a foreign key constraint */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
 {
 	btr_pcur_t*	pcur;
@@ -1120,6 +1350,18 @@ row_upd_del_mark_clust_rec(
 
 	err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG, btr_cur,
 							TRUE, thr, mtr);
+	if (err == DB_SUCCESS && check_ref) {
+		/* NOTE that the following call loses
+		the position of pcur ! */
+		err = row_upd_check_references_constraints(pcur, index->table,
+							index, thr, mtr);
+		if (err != DB_SUCCESS) {
+			mtr_commit(mtr);
+
+			return(err);
+		}
+	}
+
 	mtr_commit(mtr);
 	
 	return(err);
@@ -1140,11 +1382,14 @@ row_upd_clust_step(
 	dict_index_t*	index;
 	btr_pcur_t*	pcur;
 	ibool		success;
+	ibool		check_ref;
 	ulint		err;
-	mtr_t		mtr_buf;
 	mtr_t*		mtr;
+	mtr_t		mtr_buf;
 	
 	index = dict_table_get_first_index(node->table);
+
+	check_ref = row_upd_index_is_referenced(index);
 
 	pcur = node->pcur;
 
@@ -1210,8 +1455,8 @@ row_upd_clust_step(
 	/* NOTE: the following function calls will also commit mtr */
 
 	if (node->is_delete) {
-		err = row_upd_del_mark_clust_rec(node, index, thr, mtr);
-
+		err = row_upd_del_mark_clust_rec(node, index, thr, check_ref,
+									mtr);
 		if (err != DB_SUCCESS) {
 
 			return(err);
@@ -1244,7 +1489,7 @@ row_upd_clust_step(
 	
 	row_upd_store_row(node);
 
-	if (row_upd_changes_ord_field(node->row, index, node->update)) {
+	if (row_upd_changes_ord_field_binary(node->row, index, node->update)) {
 
 		/* Update causes an ordering field (ordering fields within
 		the B-tree) of the clustered index record to change: perform
@@ -1257,8 +1502,8 @@ row_upd_clust_step(
 		choosing records to update. MySQL solves now the problem
 		externally! */
 
-		err = row_upd_clust_rec_by_insert(node, index, thr, mtr);
-
+		err = row_upd_clust_rec_by_insert(node, index, thr, check_ref,
+									mtr);
 		if (err != DB_SUCCESS) {
 
 			return(err);
@@ -1304,8 +1549,8 @@ row_upd(
 		interpreter: we must calculate it on the fly: */
 		
 		if (node->is_delete ||
-			row_upd_changes_some_index_ord_field(node->table,
-							node->update)) {
+			row_upd_changes_some_index_ord_field_binary(
+					node->table, node->update)) {
 			node->cmpl_info = 0; 
 		} else {
 			node->cmpl_info = UPD_NODE_NO_ORD_CHANGE;

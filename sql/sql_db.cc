@@ -164,6 +164,8 @@ void mysql_rm_db(THD *thd,char *db,bool if_exists)
   }
   remove_db_from_cache(db);
 
+  ha_drop_database(path);
+
   if ((deleted=mysql_rm_known_files(thd, dirp, path,0)) >= 0)
   {
     if (!thd->query)

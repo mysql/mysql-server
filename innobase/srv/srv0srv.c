@@ -30,6 +30,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "os0proc.h"
 #include "mem0mem.h"
+#include "mem0pool.h"
 #include "sync0sync.h"
 #include "sync0ipm.h"
 #include "thr0loc.h"
@@ -46,10 +47,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "buf0flu.h"
 #include "btr0sea.h"
+#include "dict0load.h"
 
 /* The following counter is incremented whenever there is some user activity
 in the server */
 ulint	srv_activity_count	= 0;
+
+char*	srv_main_thread_op_info = "";
 
 /* Server parameters which are read from the initfile */
 
@@ -66,6 +70,11 @@ ulint*	srv_data_file_sizes = NULL;	/* size in database pages */
 
 ulint*  srv_data_file_is_raw_partition = NULL;
 
+/* If the following is TRUE we do not allow inserts etc. This protects
+the user from forgetting the 'newraw' keyword to my.cnf */
+
+ibool	srv_created_new_raw	= FALSE;
+
 char**	srv_log_group_home_dirs = NULL; 
 
 ulint	srv_n_log_groups	= ULINT_MAX;
@@ -74,6 +83,9 @@ ulint	srv_log_file_size	= ULINT_MAX;	/* size in database pages */
 ibool	srv_log_archive_on	= TRUE;
 ulint	srv_log_buffer_size	= ULINT_MAX;	/* size in database pages */ 
 ibool	srv_flush_log_at_trx_commit = TRUE;
+
+byte	srv_latin1_ordering[256];	/* The sort order table of the latin1
+					character set */
 
 ibool	srv_use_native_aio	= FALSE;
 		
@@ -92,6 +104,11 @@ ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 
 char*   srv_unix_file_flush_method_str = NULL;
 ulint   srv_unix_file_flush_method = 0;
+
+/* If the following is != 0 we do not allow inserts etc. This protects
+the user from forgetting  innodb_force_recovery keyword to my.cnf */
+
+ulint	srv_force_recovery	= 0;
 
 ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -115,10 +132,15 @@ ulint	srv_n_rows_inserted		= 0;
 ulint	srv_n_rows_updated		= 0;
 ulint	srv_n_rows_deleted		= 0;
 ulint	srv_n_rows_read			= 0;
+ulint	srv_n_rows_inserted_old		= 0;
+ulint	srv_n_rows_updated_old		= 0;
+ulint	srv_n_rows_deleted_old		= 0;
+ulint	srv_n_rows_read_old		= 0;
 
 ibool	srv_print_innodb_monitor	= FALSE;
 ibool   srv_print_innodb_lock_monitor   = FALSE;
 ibool   srv_print_innodb_tablespace_monitor = FALSE;
+ibool   srv_print_innodb_table_monitor = FALSE;
 
 /* The parameters below are obsolete: */
 
@@ -1739,31 +1761,153 @@ srv_release_mysql_thread_if_suspended(
 }
 
 /*************************************************************************
-A thread which wakes up threads whose lock wait may have lasted too long. */
+A thread which wakes up threads whose lock wait may have lasted too long.
+This also prints the info output by various InnoDB monitors. */
 
 #ifndef __WIN__
 void*
 #else
 ulint
 #endif
-srv_lock_timeout_monitor_thread(
-/*============================*/
+srv_lock_timeout_and_monitor_thread(
+/*================================*/
 			/* out: a dummy parameter */
 	void*	arg)	/* in: a dummy parameter required by
 			os_thread_create */
 {
+	double		time_elapsed;
+	time_t          current_time;
+	time_t          last_monitor_time;
 	ibool		some_waits;
 	srv_slot_t*	slot;
 	double		wait_time;
 	ulint		i;
 
 	UT_NOT_USED(arg);
+	last_monitor_time = time(NULL);
 loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);
-			
+	os_thread_sleep(1000000);		
+
+	/* In case mutex_exit is not a memory barrier, it is
+	theoretically possible some threads are left waiting though
+	the semaphore is already released. Wake up those threads: */
+	
+	sync_arr_wake_threads_if_sema_free();
+
+	current_time = time(NULL);
+
+	time_elapsed = difftime(current_time, last_monitor_time);
+	
+	if (time_elapsed > 15) {
+
+	    last_monitor_time = time(NULL);
+
+	    if (srv_print_innodb_monitor) {
+	
+	        printf("=====================================\n");
+		ut_print_timestamp(stdout);
+	
+		printf(" INNODB MONITOR OUTPUT\n"
+	       	       "=====================================\n");
+		printf("----------\n"
+		       "SEMAPHORES\n"
+		       "----------\n");
+		sync_print();
+		printf("------------\n"
+		       "TRANSACTIONS\n"
+		       "------------\n");
+		lock_print_info();
+		printf("--------\n"
+		       "FILE I/O\n"
+		       "--------\n");
+		os_aio_print();
+		printf("-------------\n"
+		       "INSERT BUFFER\n"
+		       "-------------\n");
+		ibuf_print();
+		printf("---\n"
+		       "LOG\n"
+		       "---\n");
+		log_print();
+		printf("----------------------\n"
+		       "BUFFER POOL AND MEMORY\n"
+		       "----------------------\n");
+		printf(
+	"Total memory allocated %lu; in additional pool allocated %lu\n",
+				ut_total_allocated_memory,
+				mem_pool_get_reserved(mem_comm_pool));
+		buf_print_io();
+		printf("--------------\n"
+		       "ROW OPERATIONS\n"
+		       "--------------\n");
+		printf("InnoDB main thread state: %s\n",
+						srv_main_thread_op_info);
+		printf(
+	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
+			srv_n_rows_inserted, 
+			srv_n_rows_updated, 
+			srv_n_rows_deleted, 
+			srv_n_rows_read);
+		printf(
+	"%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s\n",
+			(srv_n_rows_inserted - srv_n_rows_inserted_old)
+						/ time_elapsed,
+			(srv_n_rows_updated - srv_n_rows_updated_old)
+						/ time_elapsed,
+			(srv_n_rows_deleted - srv_n_rows_deleted_old)
+						/ time_elapsed,
+			(srv_n_rows_read - srv_n_rows_read_old)
+						/ time_elapsed);
+
+		srv_n_rows_inserted_old = srv_n_rows_inserted;
+		srv_n_rows_updated_old = srv_n_rows_updated;
+		srv_n_rows_deleted_old = srv_n_rows_deleted;
+		srv_n_rows_read_old = srv_n_rows_read;
+
+		printf("----------------------------\n"
+		       "END OF INNODB MONITOR OUTPUT\n"
+		       "============================\n");
+
+		
+            }
+
+            if (srv_print_innodb_tablespace_monitor) {
+	
+		printf("================================================\n");
+
+		ut_print_timestamp(stdout);
+
+		printf(" INNODB TABLESPACE MONITOR OUTPUT\n"
+		       "================================================\n");
+	       
+		fsp_print(0);
+		fprintf(stderr, "Validating tablespace\n");
+		fsp_validate(0);
+		fprintf(stderr, "Validation ok\n");
+		printf("---------------------------------------\n"
+	       		"END OF INNODB TABLESPACE MONITOR OUTPUT\n"
+	       		"=======================================\n");
+	    }
+
+	    if (srv_print_innodb_table_monitor) {
+
+		printf("===========================================\n");
+
+		ut_print_timestamp(stdout);
+
+		printf(" INNODB TABLE MONITOR OUTPUT\n"
+		       "===========================================\n");
+	    	dict_print();
+
+		printf("-----------------------------------\n"
+	       		"END OF INNODB TABLE MONITOR OUTPUT\n"
+	       		"==================================\n");
+	    }
+	}
+
 	mutex_enter(&kernel_mutex);
 
 	some_waits = FALSE;
@@ -1786,11 +1930,10 @@ loop:
 
 				/* Timeout exceeded or a wrap over in system
 				time counter: cancel the lock request queued
-				by the transaction; NOTE that currently only
-				a record lock request can be waiting in
-				MySQL! */
+				by the transaction and release possible
+				other transactions waiting behind */
 
-				lock_rec_cancel(
+				lock_cancel_waiting_and_release(
 				    thr_get_trx(slot->thr)->wait_lock);
 			}
 		}
@@ -1800,14 +1943,48 @@ loop:
 
 	mutex_exit(&kernel_mutex);
 
-	if (some_waits) {
+	if (some_waits || srv_print_innodb_monitor
+			|| srv_print_innodb_lock_monitor
+			|| srv_print_innodb_tablespace_monitor
+			|| srv_print_innodb_table_monitor) {
 		goto loop;
 	}
 
-	/* No one was waiting for a lock: suspend this thread */
+	/* No one was waiting for a lock and no monitor was active:
+	suspend this thread */
 	
 	os_event_wait(srv_lock_timeout_thread_event);
 
+	goto loop;
+
+#ifndef __WIN__
+        return(NULL);
+#else
+	return(0);
+#endif
+}
+
+/*************************************************************************
+A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs. */
+
+#ifndef __WIN__
+void*
+#else
+ulint
+#endif
+srv_error_monitor_thread(
+/*=====================*/
+			/* out: a dummy parameter */
+	void*	arg)	/* in: a dummy parameter required by
+			os_thread_create */
+{
+	UT_NOT_USED(arg);
+loop:
+	os_thread_sleep(10000000);
+
+	sync_array_print_long_waits();
+			
 	goto loop;
 
 #ifndef __WIN__
@@ -1855,15 +2032,18 @@ srv_master_thread(
 			os_thread_create */
 {
 	os_event_t	event;
+	time_t          last_flush_time;
+	time_t          current_time;
 	ulint		old_activity_count;
 	ulint		n_pages_purged;
 	ulint		n_bytes_merged;
 	ulint		n_pages_flushed;
 	ulint		n_bytes_archived;
+	ulint		n_ios;
+	ulint		n_ios_old;
+	ulint		n_ios_very_old;
+	ulint		n_pend_ios;
 	ulint		i;
-	time_t          last_flush_time;
-	time_t          current_time;
-	time_t          last_monitor_time;
 	
 	UT_NOT_USED(arg);
 
@@ -1876,26 +2056,56 @@ srv_master_thread(
 	mutex_exit(&kernel_mutex);
 
 	os_event_set(srv_sys->operational);
-
-	last_monitor_time = time(NULL);
 loop:
+	srv_main_thread_op_info = "reserving kernel mutex";
+
+	n_ios_very_old = log_sys->n_log_ios + buf_pool->n_pages_read
+						+ buf_pool->n_pages_written;
 	mutex_enter(&kernel_mutex);
 
 	old_activity_count = srv_activity_count;
 
 	mutex_exit(&kernel_mutex);
 
-	/* We run purge every 10 seconds, even if the server were active: */
+	/* We run purge and a batch of ibuf_contract every 10 seconds, even
+	if the server were active: */
 
 	for (i = 0; i < 10; i++) {
+		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
+						+ buf_pool->n_pages_written;
+
+		srv_main_thread_op_info = "sleeping";
 		os_thread_sleep(1000000);
+
+		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
+
+			goto loop;
+		}
 
 		/* We flush the log once in a second even if no commit
 		is issued or the we have specified in my.cnf no flush
 		at transaction commit */
 
+		srv_main_thread_op_info = "flushing log";
 		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
+		/* If there were less than 10 i/os during the
+		one second sleep, we assume that there is free
+		disk i/o capacity available, and it makes sense to
+		do an insert buffer merge. */
+
+		n_pend_ios = buf_get_n_pending_ios()
+						+ log_sys->n_pending_writes;
+		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
+						+ buf_pool->n_pages_written;
+		if (n_pend_ios < 3 && (n_ios - n_ios_old < 10)) {
+			srv_main_thread_op_info = "doing insert buffer merge";
+			ibuf_contract_for_n_pages(TRUE, 5);
+
+			srv_main_thread_op_info = "flushing log";
+			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+		}
+		
 		if (srv_activity_count == old_activity_count) {
 
 			if (srv_print_thread_releases) {
@@ -1910,28 +2120,48 @@ loop:
 		printf("Master thread wakes up!\n");
 	}
 
+	/* If there were less than 200 i/os during the 10 second period,
+	we assume that there is free disk i/o capacity available, and it
+	makes sense to do a buffer pool flush. */
+
+	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
+	n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
+						+ buf_pool->n_pages_written;
+	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
+
+		srv_main_thread_op_info = "flushing buffer pool pages";
+		buf_flush_batch(BUF_FLUSH_LIST, 50, ut_dulint_max);
+
+		srv_main_thread_op_info = "flushing log";
+		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	}
+
+	/* We run a batch of insert buffer merge every 10 seconds,
+	even if the server were active */
+
+	srv_main_thread_op_info = "doing insert buffer merge";
+	ibuf_contract_for_n_pages(TRUE, 5);
+
+	srv_main_thread_op_info = "flushing log";
+	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+
+	/* We run a full purge every 10 seconds, even if the server
+	were active */
+	
 	n_pages_purged = 1;
 
 	last_flush_time = time(NULL);
 
 	while (n_pages_purged) {
-		/* TODO: replace this by a check if we are running
-							out of file space! */
-		if (srv_print_innodb_monitor) {
-			ut_print_timestamp(stdout);
-			printf(" InnoDB starts purge\n");
-		}
-		
-		n_pages_purged = trx_purge();
 
-		if (srv_print_innodb_monitor) {
-			ut_print_timestamp(stdout);
-			printf(" InnoDB purged %lu pages\n", n_pages_purged);
-		}
+		srv_main_thread_op_info = "purging";
+		n_pages_purged = trx_purge();
 
 		current_time = time(NULL);
 
 		if (difftime(current_time, last_flush_time) > 1) {
+			srv_main_thread_op_info = "flushing log";
+
 		        log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 			last_flush_time = current_time;
 		}
@@ -1941,67 +2171,7 @@ background_loop:
 	/* In this loop we run background operations when the server
 	is quiet */
 
-	current_time = time(NULL);
-	
-	if (difftime(current_time, last_monitor_time) > 15) {
-
-	    last_monitor_time = time(NULL);
-
-	    if (srv_print_innodb_monitor) {
-	
-	        printf("=====================================\n");
-		ut_print_timestamp(stdout);
-	
-		printf(" INNODB MONITOR OUTPUT\n"
-	       	       "=====================================\n");
-		printf("------------\n"
-		       "TRANSACTIONS\n"
-		       "------------\n");
-		lock_print_info();
-		printf("-----------------------------------------------\n"
-		       "CURRENT SEMAPHORES RESERVED AND SEMAPHORE WAITS\n"
-		       "-----------------------------------------------\n");
-		sync_print();
-		printf("CURRENT PENDING FILE I/O'S\n"
-		       "--------------------------\n");
-		os_aio_print();
-		printf("-----------\n"
-		       "BUFFER POOL\n"
-		       "-----------\n");
-		buf_print_io();
-		printf("--------------\n"
-		       "ROW OPERATIONS\n"
-		       "--------------\n");
-		printf(
-	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
-			srv_n_rows_inserted, 
-			srv_n_rows_updated, 
-			srv_n_rows_deleted, 
-			srv_n_rows_read);
-		printf("Server activity counter %lu\n", srv_activity_count);
-		printf("----------------------------\n"
-		       "END OF INNODB MONITOR OUTPUT\n"
-		       "============================\n");
-            }
-
-            if (srv_print_innodb_tablespace_monitor) {
-	
-		printf("================================================\n");
-
-		ut_print_timestamp(stdout);
-
-		printf(" INNODB TABLESPACE MONITOR OUTPUT\n"
-		       "================================================\n");
-	       
-		fsp_print(0);
-		fprintf(stderr, "Validating tablespace\n");
-		fsp_validate(0);
-		fprintf(stderr, "Validation ok\n");
-		printf("---------------------------------------\n"
-	       		"END OF INNODB TABLESPACE MONITOR OUTPUT\n"
-	       		"=======================================\n");
-	    }
-	}
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2014,17 +2184,11 @@ background_loop:
 	/* The server has been quiet for a while: start running background
 	operations */
 		
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB starts purge\n");
-	}
+	srv_main_thread_op_info = "purging";
 
 	n_pages_purged = trx_purge();
 
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB purged %lu pages\n", n_pages_purged);
-	}
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2033,17 +2197,10 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB starts insert buffer merge\n");
-	}
+	srv_main_thread_op_info = "doing insert buffer merge";
+	n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
 
-	n_bytes_merged = ibuf_contract(TRUE);
-
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB merged %lu bytes\n", n_bytes_merged);
-	}
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2052,17 +2209,10 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB (main thread) starts buffer pool flush\n");
-	}
-
+	srv_main_thread_op_info = "flushing buffer pool pages";
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
-	if (srv_print_innodb_monitor) {
-		ut_print_timestamp(stdout);
-		printf(" InnoDB flushed %lu pages\n", n_pages_flushed);
-	}
+	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2071,16 +2221,23 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
+	srv_main_thread_op_info = "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+
+	srv_main_thread_op_info = "making checkpoint";
 
 	log_checkpoint(TRUE, FALSE);
 
+	srv_main_thread_op_info = "reserving kernel mutex";
+
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
 		mutex_exit(&kernel_mutex);
 		goto loop;
 	}
 	mutex_exit(&kernel_mutex);
+
+	srv_main_thread_op_info = "archiving log (if log archive is on)";
 	
 	log_archive_do(FALSE, &n_bytes_archived);
 
@@ -2098,11 +2255,15 @@ background_loop:
 	/* There is no work for background operations either: suspend
 	master thread to wait for more server activity */
 	
+	srv_main_thread_op_info = "suspending";
+
 	mutex_enter(&kernel_mutex);
 
 	event = srv_suspend_thread();
 
 	mutex_exit(&kernel_mutex);
+
+	srv_main_thread_op_info = "waiting for server activity";
 
 	os_event_wait(event);
 

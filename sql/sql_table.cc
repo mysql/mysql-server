@@ -587,6 +587,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
   thd->proc_info="creating table";
 
+  create_info->create_statement = thd->query;
   create_info->table_options=db_options;
   if (rea_create_table(path, create_info, fields, key_count,
 		       key_info_buffer))

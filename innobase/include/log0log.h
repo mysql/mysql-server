@@ -659,6 +659,11 @@ struct log_struct{
 					mutex! */
 	ulint		n_log_ios;	/* number of log i/os initiated thus
 					far */
+	ulint		n_log_ios_old;	/* number of log i/o's at the
+					previous printout */
+	time_t		last_printout_time;/* when log_print was last time
+					called */
+
 	/* Fields involved in checkpoints */
 	ulint		max_modified_age_async;
 					/* when this recommended value for lsn
