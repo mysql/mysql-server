@@ -1359,6 +1359,35 @@ longlong Item_date_add_interval::val_int()
     ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
+static const char *interval_names[]=
+{
+  "year", "month", "day", "hour", "minute",
+  "second", "microsecond", "year_month",
+  "day_hour", "day_minute", "day_second",
+  "hour_minute", "hour_second", "minute_second",
+  "day_microsecond", "hour_microsecond",
+  "minute_microsecond", "second_microsecond"
+};
+
+void Item_date_add_interval::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(date_sub_interval?" - interval ":" + interval ");
+  args[1]->print(str);
+  str->append(interval_names[int_type]);
+  str->append(')');
+}
+
+void Item_extract::print(String *str)
+{
+  str->append("extract(");
+  str->append(interval_names[int_type]);
+  str->append(' ');
+  args[0]->print(str);
+  str->append(')');
+}
+
 void Item_extract::fix_length_and_dec()
 {
   value.alloc(32);				// alloc buffer
@@ -1467,10 +1496,31 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const
 
 void Item_typecast::print(String *str)
 {
-  str->append("CAST(");
+  str->append("cast(");
   args[0]->print(str);
-  str->append(" AS ");
-  str->append(func_name());
+  str->append(" as ");
+  str->append(cast_type());
+  str->append(')');
+}
+
+void Item_char_typecast::print(String *str)
+{
+  str->append("cast(");
+  args[0]->print(str);
+  str->append(" as char");
+  if (cast_length >= 0)
+  {
+    str->append('(');
+    char buff[10];
+    snprintf(buff, 10, "%d", cast_length);
+    str->append(buff);
+    str->append(')');
+  }
+  if (cast_cs)
+  {
+    str->append(" charset ");
+    str->append(cast_cs->name);
+  }
   str->append(')');
 }
 
@@ -1739,6 +1789,28 @@ null_date:
   null_value=1;
   return 0;
 }
+
+
+void Item_func_add_time::print(String *str)
+{
+  if (is_date)
+  {
+    DBUG_ASSERT(sign > 0);
+    str->append("timestamp(");
+  }
+  else
+  {
+    if (sign > 0)
+      str->append("addtime(");
+    else
+      str->append("subtime(");
+  }
+  args[0]->print(str);
+  str->append(',');
+  args[0]->print(str);
+  str->append(')');
+}
+
 
 /*
   TIMEDIFF(t,s) is a time function that calculates the 
