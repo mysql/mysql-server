@@ -451,7 +451,7 @@ inline static uint int_token(const char *str,uint length)
     {
       cmp=longlong_str;
       smaller=LONG_NUM;
-      bigger=REAL_NUM;
+      bigger= ULONGLONG_NUM;
     }
   }
   while (*cmp && *cmp++ == *str++) ;
