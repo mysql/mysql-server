@@ -61,7 +61,7 @@ bool
 Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   Item **arg,**arg_end;
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   binary=0;
   used_tables_cache=0;
   const_item_cache=1;
@@ -629,7 +629,12 @@ double Item_func_round::val()
 	      log_10[abs_dec] : pow(10.0,(double) abs_dec));
 
   if (truncate)
-    return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+  {
+    if (value >= 0)
+      return dec < 0 ? floor(value/tmp)*tmp : floor(value*tmp)/tmp;
+    else
+      return dec < 0 ? ceil(value/tmp)*tmp : ceil(value*tmp)/tmp;
+  }
   return dec < 0 ? rint(value/tmp)*tmp : rint(value*tmp)/tmp;
 }
 
@@ -1089,7 +1094,7 @@ bool
 udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
-  char buff[sizeof(double)];			// Max argument in function
+  char buff[STACK_BUFF_ALLOC];			// Max argument in function
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)
@@ -1610,7 +1615,7 @@ longlong Item_func_get_lock::val_int()
   set_timespec(abstime,timeout);
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)
@@ -2042,6 +2047,11 @@ void Item_func_match::init_search(bool no_order)
   if (ft_handler)
     return;
 
+  if (key == NO_SUCH_KEY)
+    concat=new Item_func_concat_ws(new Item_string(" ",1,
+						   default_charset_info),
+				   fields);
+
   if (master)
   {
     join_key=master->join_key=join_key|master->join_key;
@@ -2050,9 +2060,6 @@ void Item_func_match::init_search(bool no_order)
     join_key=master->join_key;
     return;
   }
-
-  if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws (new Item_string(" ",1,default_charset_info), fields);
 
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
@@ -2251,10 +2258,13 @@ double Item_func_match::val()
 
 Item *get_system_var(LEX_STRING name)
 {
-  if (!strcmp(name.str,"IDENTITY"))
+  if (!my_strcasecmp(system_charset_info, name.str, "IDENTITY"))
     return new Item_int((char*) "@@IDENTITY",
 			current_thd->insert_id(),21);
-  my_error(ER_UNKNOWN_SYSTEM_VARIABLE,MYF(0),name);
+  if (!my_strcasecmp(system_charset_info, name.str, "VERSION"))
+    return new Item_string("@@VERSION",server_version,
+			   (uint) strlen(server_version), system_charset_info);
+  net_printf(&current_thd->net, ER_UNKNOWN_SYSTEM_VARIABLE, name.str);
   return 0;
 }
 

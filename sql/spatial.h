@@ -3,8 +3,8 @@
 
 #include "gstream.h"
 
-const int POINT_DATA_SIZE = 8+8; 
-const int WKB_HEADER_SIZE = 1+4;
+const uint POINT_DATA_SIZE = 8+8; 
+const uint WKB_HEADER_SIZE = 1+4;
 
 struct stPoint2D
 {

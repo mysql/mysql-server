@@ -90,21 +90,21 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 	(*param->item)->val() < 0)
     {
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
-      return 0;
+      DBUG_RETURN(0);
     }
     pc->max_tree_elements = (uint) (*param->item)->val_int();
     param = param->next;
     if (param->next)  // no third parameter possible
     {
       net_printf(&thd->net, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
-      return 0;
+      DBUG_RETURN(0);
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
       net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
-      return 0;
+      DBUG_RETURN(0);
     }
     pc->max_treemem = (uint) (*param->item)->val_int();
   }
@@ -112,7 +112,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 	   (*param->item)->val() < 0)
   {
     net_printf(&thd->net, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
-    return 0;
+    DBUG_RETURN(0);
   }
   // if only one parameter was given, it will be the value of max_tree_elements
   else
@@ -148,21 +148,26 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if (item->result_type() == STRING_RESULT)
       *f_info++ = new field_str(item, pc);
   }
-  return pc;
-} // proc_analyse_init
+  DBUG_RETURN(pc);
+}
 
 
-// return 1 if number, else return 0
-// store info about found number in info
-// NOTE:It is expected, that elements of 'info' are all zero!
+/*
+  Return 1 if number, else return 0
+  store info about found number in info
+  NOTE:It is expected, that elements of 'info' are all zero!
+*/
+
 bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
 {
   const char *begin, *end = str + str_len;
 
   DBUG_ENTER("test_if_number");
 
-  // MySQL removes any endspaces of a string, so we must take care only of
-  // spaces in front of a string
+  /*
+    MySQL removes any endspaces of a string, so we must take care only of
+    spaces in front of a string
+  */
   for (; str != end && my_isspace(system_charset_info, *str); str++) ;
   if (str == end)
     return 0;

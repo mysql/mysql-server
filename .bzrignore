@@ -38,6 +38,7 @@ COPYING.LIB
 Docs/#manual.texi#
 Docs/INSTALL-BINARY
 Docs/include.texi
+Docs/internals.info
 Docs/manual.aux
 Docs/manual.cp
 Docs/manual.cps
@@ -334,6 +335,8 @@ linked_libmysqldex_sources
 linked_server_sources
 linked_tools_sources
 locked
+mit-pthreads/config.flags
+mit-pthreads/syscall.S
 myisam/FT1.MYD
 myisam/FT1.MYI
 myisam/ft_dump
@@ -350,6 +353,9 @@ myisam/rt_test
 myisam/sp_test
 myisam/test1.MYD
 myisam/test1.MYI
+mysql-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
+mysql-4.0.2-alpha.tar.gz
+mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
@@ -369,6 +375,8 @@ mysql.proj
 mysqld.S
 mysqld.sym
 mysys/#mf_iocache.c#
+mysys/getopt.c
+mysys/getopt1.c
 mysys/test_charset
 mysys/test_dir
 mysys/test_io_cache

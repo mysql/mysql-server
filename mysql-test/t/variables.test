@@ -27,3 +27,14 @@ SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid OR c_id=666;
 ALTER TABLE t1 DROP PRIMARY KEY;
 select * from t1 where c_id=@min_cid OR c_id=@max_cid;
 drop table t1;
+
+#
+# Test system variables
+#
+
+select @@VERSION=version();
+select last_insert_id(345);
+select @@IDENTITY,last_insert_id();
+select @@identity;
+--error 1193
+select @@unknown_variable;
