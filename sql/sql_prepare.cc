@@ -1498,9 +1498,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
-
   reset_stmt_for_execute(stmt);
-
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
@@ -1540,6 +1538,11 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   reset_stmt_params(stmt);
   close_thread_tables(thd); // to close derived tables
   thd->set_statement(&thd->stmt_backup);
+  /* 
+    Free Items that were created during this execution of the PS by query
+    optimizer.
+  */
+  free_items(thd->free_list); 
   DBUG_VOID_RETURN;
 
 set_params_data_err:

@@ -203,7 +203,7 @@ a
 2
 check table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	error	The storage engine for the table doesn't support check
+test.t1	check	note	The storage engine for the table doesn't support check
 drop table t1;
 create table t1 (a int,b varchar(20)) engine=bdb;
 insert into t1 values (1,""), (2,"testing");
