@@ -15,11 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Functions to convert to lover_case and to upper_case in scandinavia.
-
-  case_sort converts a character string to a representaion that can
-  be compared by strcmp to find with is alfabetical bigger.
-  (lower- and uppercase letters is compared as the same)
+  Functions to convert to lover_case and to upper_case.
 */
 
 #include "mysys_priv.h"
@@ -29,21 +25,11 @@
 #endif
 
 
-	/* to sort-string that can be compared to get text in order */
-
-void case_sort(CHARSET_INFO *cs, my_string str, uint length)
-{
-  register uchar *map=cs->sort_order;
-  
-  for ( ; length>0 ; length--, str++)
-    *str= (char) map[(uchar) *str];
-} /* case_sort */
-
 
 int my_sortcmp(CHARSET_INFO *cs, const char *s, const char *t, uint len)
 {
 #ifdef USE_STRCOLL
-  if (use_strcoll(cs))
+  if (use_strnxfrm(cs))
     return my_strnncoll(cs,(uchar *)s, len, (uchar *)t, len);
   else
 #endif
@@ -63,7 +49,7 @@ int my_sortncmp(CHARSET_INFO *cs,
                 const char *t, uint t_len)
 {
 #ifdef USE_STRCOLL
-  if (use_strcoll(cs))
+  if (use_strnxfrm(cs))
     return my_strnncoll(cs, (uchar *)s, s_len, (uchar *)t, t_len);
   else
 #endif

@@ -377,6 +377,7 @@ static CHARSET_INFO *add_charset(uint cs_number, myf flags)
   cs->casedn_str  = my_casedn_str_8bit;
   cs->caseup      = my_caseup_8bit;
   cs->casedn      = my_casedn_8bit;
+  cs->tosort      = my_tosort_8bit;
   cs->strcasecmp  = my_strcasecmp_8bit;
   cs->strncasecmp = my_strncasecmp_8bit;
   cs->mb_wc       = my_mb_wc_8bit;

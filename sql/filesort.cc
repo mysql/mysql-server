@@ -140,7 +140,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=param.max_rows;			/* purecov: inspected */
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(charset) &&
+  if (use_strnxfrm(charset) &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 #endif
@@ -511,7 +511,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    length=sort_field->length;
 	  }
 #ifdef USE_STRCOLL
-          if(use_strcoll(cs))
+          if(use_strnxfrm(cs))
           {
             if (item->binary)
             {
@@ -541,7 +541,7 @@ static void make_sortkey(register SORTPARAM *param,
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
             if (!item->binary)
-              case_sort(cs, (char*) to,length);
+              my_tosort(cs, (char*) to,length);
 #ifdef USE_STRCOLL
           }
 #endif
@@ -946,7 +946,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	if (!sortorder->field->binary())
 	{
 	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
-	  if (use_strcoll(cs))
+	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
 #endif
@@ -966,7 +966,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 	if (!sortorder->item->binary)
 	{ 
 	  CHARSET_INFO *cs=sortorder->item->str_value.charset();
-	  if (use_strcoll(cs))
+	  if (use_strnxfrm(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
 #endif
