@@ -41685,7 +41685,7 @@ limit of 4 MB
 @item
 Allow space around @code{=} in argument to @code{--set-variable}.
 @item
-Fixed problem in automatic repair that could let some threads in state
+Fixed problem in automatic repair that could let some threads in state 
 @code{Waiting for table}.
 @item
 @code{SHOW CREATE TABLE} now dumps the @code{UNION()} for @code{MERGE} tables.
@@ -41709,6 +41709,9 @@ Allow one to use @code{--skip-gemini}, @code{--skip-bdb} and
 compiled in @code{mysqld}.
 @item
 One can now do @code{GROUP BY ... DESC}.
+@item
+Fixed a deadlock in the @code{SET} code, when one ran @code{SET @@foo=bar}, 
+where @code{bar} is a column reference, an error was not properly generated.
 @end itemize
 
 @node News-3.23.33, News-3.23.32, News-3.23.34, News-3.23.x
