@@ -339,7 +339,7 @@ stop_slave ()
      if [ -f $SLAVE_MYPID ] ; then
        echo "slave refused to die, resorting to SIGKILL murder"
        kill -9 `cat $SLAVE_MYPID`
-       rm -f $SLAVE_MYPID
+       $RM -f $SLAVE_MYPID
      else
       echo "slave responded to SIGTERM " 
      fi
@@ -360,7 +360,7 @@ stop_master ()
      if [ -f $MASTER_MYPID ] ; then
        echo "master refused to die, resorting to SIGKILL murder"
        kill -9 `cat $MASTER_MYPID`
-       rm -f $MASTER_MYPID
+       $RM -f $MASTER_MYPID
      else
       echo "master responded to SIGTERM " 
      fi
@@ -450,6 +450,7 @@ run_testcase ()
  cd $MYSQL_TEST_DIR
   
  if [ -f $tf ] ; then
+    $RM -f r/$tname.*.reject
     mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $extra_flags \
      < $tf 2> $TIMEFILE`
     res=$?
