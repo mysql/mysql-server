@@ -517,7 +517,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_COMMIT, MYF(0));
+	  my_message_(ER_ERROR_DURING_COMMIT, ER(ER_ERROR_DURING_COMMIT),
+                      MYF(0));
         error=1;
       }
       if (trans == &thd->transaction.all)
@@ -592,7 +593,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));
+	  my_message(ER_ERROR_DURING_ROLLBACK, ER(ER_ERROR_DURING_ROLLBACK),
+                     MYF(0));
         error=1;
       }
       trans->ndb_tid = 0;
@@ -1198,7 +1200,7 @@ void handler::print_error(int error, myf errflag)
 	str.length(max_length-4);
 	str.append("...");
       }
-      my_error(ER_DUP_ENTRY,MYF(0),str.c_ptr(),key_nr+1);
+      my_error(ER_DUP_ENTRY, MYF(0), str.c_ptr(), key_nr+1);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -1220,7 +1222,7 @@ void handler::print_error(int error, myf errflag)
     textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
-    my_error(ER_OUT_OF_RESOURCES,errflag);
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), errflag);
     DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
@@ -1267,7 +1269,7 @@ void handler::print_error(int error, myf errflag)
     uint length=dirname_part(buff,table->path);
     buff[length-1]=0;
     db=buff+dirname_length(buff);
-    my_error(ER_NO_SUCH_TABLE,MYF(0),db,table->table_name);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table->table_name);
     break;
   }
   default:
@@ -1281,16 +1283,16 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,str.ptr(),engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
 	else
-	  my_error(ER_GET_ERRMSG,MYF(0),error,str.ptr(),engine);
+	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
       }
       else       
 	my_error(ER_GET_ERRNO,errflag,error);
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno,errflag,table->table_name,error);
+  my_error(textno, errflag, table->table_name, error);
   DBUG_VOID_RETURN;
 }
 
@@ -1412,7 +1414,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
   if (error)
-    my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
+    my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name,error);
   DBUG_RETURN(error != 0);
 }
 

@@ -490,8 +490,8 @@ int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 
 void table_rule_ent_hash_to_str(String* s, HASH* h);
 void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);
-int show_master_info(THD* thd, MASTER_INFO* mi);
-int show_binlog_info(THD* thd);
+bool show_master_info(THD* thd, MASTER_INFO* mi);
+bool show_binlog_info(THD* thd);
 
 /* See if the query uses any tables that should not be replicated */
 int tables_ok(THD* thd, TABLE_LIST* tables);

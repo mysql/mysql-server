@@ -48,7 +48,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *packet);
   List all open tables in a database
 ***************************************************************************/
 
-int mysqld_show_open_tables(THD *thd,const char *wild)
+bool mysqld_show_open_tables(THD *thd,const char *wild)
 {
   List<Item> field_list;
   OPEN_TABLE_LIST *open_list;
@@ -62,10 +62,10 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   for (; open_list ; open_list=open_list->next)
   {
@@ -76,11 +76,11 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
     protocol->store_tiny((longlong) open_list->locked);
     if (protocol->write())
     {
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -88,7 +88,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 ** List all table types supported 
 ***************************************************************************/
 
-int mysqld_show_storage_engines(THD *thd)
+bool mysqld_show_storage_engines(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
@@ -100,7 +100,7 @@ int mysqld_show_storage_engines(THD *thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   const char *default_type_name= 
     ha_get_storage_engine((enum db_type)thd->variables.table_type);
@@ -118,10 +118,10 @@ int mysqld_show_storage_engines(THD *thd)
     protocol->store(option_name, system_charset_info);
     protocol->store(types->comment, system_charset_info);
     if (protocol->write())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -163,7 +163,7 @@ static struct show_privileges_st sys_privileges[]=
   {NullS, NullS, NullS}
 };
 
-int mysqld_show_privileges(THD *thd)
+bool mysqld_show_privileges(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
@@ -175,7 +175,7 @@ int mysqld_show_privileges(THD *thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   show_privileges_st *privilege= sys_privileges;
   for (privilege= sys_privileges; privilege->privilege ; privilege++)
@@ -185,10 +185,10 @@ int mysqld_show_privileges(THD *thd)
     protocol->store(privilege->context, system_charset_info);
     protocol->store(privilege->comment, system_charset_info);
     if (protocol->write())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -228,7 +228,7 @@ static struct show_column_type_st sys_column_types[]=
     "A very small integer"},
 };
 
-int mysqld_show_column_types(THD *thd)
+bool mysqld_show_column_types(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
@@ -251,7 +251,7 @@ int mysqld_show_column_types(THD *thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   /* TODO: Change the loop to not use 'i' */
   for (uint i=0; i < sizeof(sys_column_types)/sizeof(sys_column_types[0]); i++)
@@ -272,10 +272,10 @@ int mysqld_show_column_types(THD *thd)
     protocol->store(sys_column_types[i].default_value, system_charset_info);
     protocol->store(sys_column_types[i].comment, system_charset_info);
     if (protocol->write())
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -374,7 +374,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 ** List all columns in a table_list->real_name
 ***************************************************************************/
 
-int
+bool
 mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 		   bool verbose)
 {
@@ -390,11 +390,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                       table_list->real_name));
 
   table_list->lock_type= TL_UNLOCK;
-  if ((res= open_and_lock_tables(thd, table_list)))
+  if (open_and_lock_tables(thd, table_list))
   {
-    if (res < 0)
-      send_error(thd);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
   table= table_list->table;
   file=table->file;
@@ -420,7 +418,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         // Send first number of fields and records
   if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
       protocol->send_fields(&field_list, Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   restore_record(table,default_values);      // Get empty record
 
   Field **ptr,*field;
@@ -529,16 +527,16 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 			  system_charset_info);
 	}
         if (protocol->write())
-          DBUG_RETURN(1);
+          DBUG_RETURN(TRUE);
       }
     }
   }
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
-int
+bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
@@ -551,18 +549,16 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                       table_list->real_name));
 
   /* Only one table for now, but VIEW can involve several tables */
-  if ((res= open_and_lock_tables(thd, table_list)))
+  if (open_and_lock_tables(thd, table_list))
   {
-    if (res < 0)
-      send_error(thd);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
   /* TODO: add environment variables show when it become possible */
   if (thd->lex->only_view && !table_list->view)
   {
-    my_error(ER_WRONG_OBJECT, MYF(0), table_list->db,
-             table_list->real_name, "VIEW");
-    DBUG_RETURN(-1);
+    my_error(ER_WRONG_OBJECT, MYF(0),
+             table_list->db, table_list->real_name, "VIEW");
+    DBUG_RETURN(TRUE);
   }
 
   table= table_list->table;
@@ -570,7 +566,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if ((table_list->view ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table, &buffer)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   List<Item> field_list;
   if (table_list->view)
@@ -589,31 +585,31 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   protocol->prepare_for_resend();
   buffer.length(0);
   if (table_list->view)
   {
     protocol->store(table_list->view_name.str, system_charset_info);
     if (view_store_create_info(thd, table_list, &buffer))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   else
   {
     protocol->store(table->table_name, system_charset_info);
     if (store_create_info(thd, table, &buffer))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->write())
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
-int mysqld_show_create_db(THD *thd, char *dbname,
-			  HA_CREATE_INFO *create_info)
+bool mysqld_show_create_db(THD *thd, char *dbname,
+                           HA_CREATE_INFO *create_info)
 {
   int length;
   char	path[FN_REFLEN];
@@ -630,8 +626,8 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 
   if (check_db_name(dbname))
   {
-    net_printf(thd,ER_WRONG_DB_NAME, dbname);
-    DBUG_RETURN(1);
+    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
+    DBUG_RETURN(TRUE);
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -642,11 +638,11 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
-    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
-	       thd->priv_user, thd->host_or_ip, dbname);
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->priv_user, thd->host_or_ip, dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user, thd->host_or_ip, dbname);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 #endif
 
@@ -660,8 +656,8 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   }
   if (access(path,F_OK))
   {
-    net_printf(thd,ER_BAD_DB_ERROR,dbname);
-    DBUG_RETURN(1);
+    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
+    DBUG_RETURN(TRUE);
   }
   if (found_libchar)
     path[length-1]= FN_LIBCHAR;
@@ -674,7 +670,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   protocol->prepare_for_resend();
   protocol->store(dbname, strlen(dbname), system_charset_info);
@@ -699,12 +695,12 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->write())
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
-int
+bool
 mysqld_show_logs(THD *thd)
 {
   List<Item> field_list;
@@ -717,15 +713,15 @@ mysqld_show_logs(THD *thd)
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
 #ifdef HAVE_BERKELEY_DB
   if ((have_berkeley_db == SHOW_OPTION_YES) && berkeley_show_logs(protocol))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 #endif
 
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -743,12 +739,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_PRINT("enter",("table: %s",table_list->real_name));
 
   table_list->lock_type= TL_UNLOCK;
-  if ((res= open_and_lock_tables(thd, table_list)))
-  {
-    if (res < 0)
-      send_error(thd);
+  if (open_and_lock_tables(thd, table_list))
     DBUG_VOID_RETURN;
-  }
   table= table_list->table;
 
   List<Item> field_list;
@@ -1402,10 +1394,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Status functions
 *****************************************************************************/
 
-int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type,
-		pthread_mutex_t *mutex,
-		struct system_status_var *status_var)
+bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
+                 enum enum_var_type value_type,
+                 pthread_mutex_t *mutex,
+                 struct system_status_var *status_var)
 {
   char buff[1024];
   List<Item> field_list;
@@ -1417,7 +1409,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   field_list.push_back(new Item_empty_string("Value",256));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1); /* purecov: inspected */
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
 
@@ -1709,11 +1701,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   }
   pthread_mutex_unlock(mutex);
   send_eof(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
  err:
   pthread_mutex_unlock(mutex);
-  DBUG_RETURN(1);
+  DBUG_RETURN(TRUE);
 }
 
 
