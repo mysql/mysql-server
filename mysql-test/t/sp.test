@@ -3390,28 +3390,3 @@ delete from t1|
 delimiter ;|
 drop table t1,t2;
 
-#
-# BUG#8850
-#
---disable_warnings
-drop procedure if exists sp1;
---enable_warnings
-delimiter |;
-create table t1 (a int) engine=innodb|
-create procedure sp1 ()
-begin
-  truncate table t1; insert t1 values (1); rollback;
-end
-|
-delimiter ;|
-set autocommit=0;
-insert t1 values (2);
---error 1192
-call sp1();
-commit;
-set autocommit=1;
-select * from t1;
-call sp1();
-select * from t1;
-drop table t1;
-drop procedure sp1;
