@@ -4265,9 +4265,9 @@ will only clear the mapping for the table, not delete everything in the
 mapped tables.
 
 @item
-You cannot build in another directory when using
+You cannot build the server in another directory when using
 MIT-pthreads. Because this requires changes to MIT-pthreads, we are not
-likely to fix this.
+likely to fix this. @xref{MIT-pthreads}.
 
 @item
 @code{BLOB} values can't ``reliably'' be used in @code{GROUP BY} or
@@ -4496,6 +4496,7 @@ should be read with that in mind.  There are no factual errors contained
 in this section that we know of.  If you find something which you believe
 to be an error, please contact us about it at @email{docs@@mysql.com}.
 
+@c FIX this is bad lingo: "supported limits", etc.
 For a list of all supported limits, functions, and types, see the
 @code{crash-me} Web page at 
 @uref{http://www.mysql.com/information/crash-me.php}.
@@ -4705,7 +4706,7 @@ differences in spelling between @code{mSQL} and MySQL for the
 most-used C API functions.
 For example, it changes instances of @code{msqlConnect()} to
 @code{mysql_connect()}. Converting a client program from @code{mSQL} to
-MySQL usually takes a couple of minutes.
+MySQL usually requires only minor effort.
 @end table
 
 @menu
@@ -4722,7 +4723,7 @@ MySQL usually takes a couple of minutes.
 @cindex converting, tools
 @cindex tools, converting
 
-According to our experience, it would just take a few hours to convert tools
+According to our experience, it doesn't take long to convert tools
 such as @code{msql-tcl} and @code{msqljava} that use the
 @code{mSQL} C API so that they work with the MySQL C API.
 
@@ -4824,8 +4825,10 @@ Has the following additional types (among others;
 @pxref{CREATE TABLE, , @code{CREATE TABLE}}):
 @itemize @bullet
 @item
+@c FIX bad lingo, needs rephrasing
 @code{ENUM} type for one of a set of strings.
 @item
+@c FIX bad lingo, needs rephrasing
 @code{SET} type for many of a set of strings.
 @item
 @code{BIGINT} type for 64-bit integers.
@@ -5381,11 +5384,11 @@ benchmark page.
 Before going to the other benchmarks we know of, we would like to give
 some background on benchmarks:
 
-It's very easy to write a test that shows ANY database to be best
+It's very easy to write a test that shows ANY database to be the best
 database in the world, by just restricting the test to something the
-database is very good at and not test anything that the database is not
-good at.  If one after this publishes the result with a single figure,
-things are even easier.
+database is very good at and not testing anything that the database is
+not good at.  If one, after doing this, summarises the result with as
+a single figure, things are even easier.
 
 This would be like us measuring the speed of MySQL compared to PostgreSQL
 by looking at the summary time of the MySQL benchmarks on our web page.
@@ -5692,9 +5695,9 @@ derived tables for the duration of the query.
 @item
 Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
-Extend the server/client protocol to support warnings.
+Extend the client/server protocol to support warnings.
 @item
-Add options to the server/protocol protocol to get progress notes
+Add options to the client/server protocol to get progress notes
 for long running commands.
 @item
 Add database and real table name (in case of alias) to the MYSQL_FIELD
