@@ -32,6 +32,9 @@ static int _mi_put_key_in_record(MI_INFO *info,uint keynr,byte *record);
 	** Ret: Length of key
 	*/
 
+#define my_charpos(cs, b, e, num)\
+ (cs)->cset->charpos((cs), (const char*) (b), (const char *)(e), (num))
+
 uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 		  const byte *record, my_off_t filepos)
 {
@@ -57,6 +60,8 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   {
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=keyseg->length;
+    uint char_length;
+    CHARSET_INFO *cs;
 
     if (keyseg->null_bit)
     {
@@ -68,6 +73,15 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       *key++=1;					/* Not NULL */
     }
 
+    char_length= (cs= keyseg->charset) && (cs->mbmaxlen > 1) ?
+                 length / cs->mbmaxlen : 0;
+    
+    if (info->s->keyinfo[keynr].flag & HA_FULLTEXT)
+    {
+      /* Ask Serg to make a better fix */
+      char_length= 0;
+    }
+    
     pos= (byte*) record+keyseg->start;
     if (keyseg->flag & HA_SPACE_PACK)
     {
@@ -83,6 +97,11 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 	  pos++;
       }
       length=(uint) (end-pos);
+      if (char_length && length > char_length)
+      {
+        char_length= my_charpos(cs, pos, pos+length, char_length);
+        set_if_smaller(length, char_length);
+      }
       store_key_length_inc(key,length);
       memcpy((byte*) key,(byte*) pos,(size_t) length);
       key+=length;
@@ -94,13 +113,26 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       pos+=2;					/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
       store_key_length_inc(key,length);
+      memcpy((byte*) key, pos, length);
+      key+= length;
+      continue;
     }
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length=_mi_calc_blob_length(keyseg->bit_start,pos);
       memcpy_fixed((byte*) &pos,pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
+#if NOT_YET_BLOB_PART
+      if (char_length && length > char_length)
+      {
+        char_length= my_charpos(cs, pos, pos+length, char_length);
+        set_if_smaller(length, char_length);
+      }
+#endif
       store_key_length_inc(key,length);
+      memcpy((byte*) key, pos, length);
+      key+= length;
+      continue;
     }
     else if (keyseg->flag & HA_SWAP_KEY)
     {						/* Numerical column */
@@ -136,6 +168,13 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       continue;
     }
+#ifdef NOT_YET_FIXED_LENGTH_KEY
+    if (char_length && length > char_length)
+    {
+      char_length= my_charpos(cs, pos, pos+length, char_length);
+      set_if_smaller(length, char_length);
+    }
+#endif
     memcpy((byte*) key, pos, length);
     key+= length;
   }
