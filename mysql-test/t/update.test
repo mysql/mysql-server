@@ -7,6 +7,16 @@ create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL); 
 update t1 set a=a+10 where a > 34;
 update t1 set a=a+100 where a > 0;
+
+# Some strange updates to test some otherwise unused code
+update t1 set a=a+100 where a=1 and a=2;
+--error 1054
+update t1 set a=b+100 where a=1 and a=2; 
+--error 1054
+update t1 set a=b+100 where c=1 and a=2; 
+--error 1054
+update t1 set d=a+100 where a=1;
+select * from t1;
 drop table t1;
 
 CREATE TABLE t1

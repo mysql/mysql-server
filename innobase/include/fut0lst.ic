@@ -1,0 +1,147 @@
+/**********************************************************************
+File-based list utilities
+
+(c) 1995 Innobase Oy
+
+Created 11/28/1995 Heikki Tuuri
+***********************************************************************/
+
+#include "fut0fut.h"
+#include "mtr0log.h"
+#include "buf0buf.h"
+
+/* We define the field offsets of a node for the list */
+#define FLST_PREV	0	/* 6-byte address of the previous list element;
+				the page part of address is FIL_NULL, if no
+				previous element */
+#define FLST_NEXT	FIL_ADDR_SIZE	/* 6-byte address of the next
+				list element; the page part of address
+				is FIL_NULL, if no next element */
+
+/* We define the field offsets of a base node for the list */
+#define FLST_LEN	0	/* 32-bit list length field */
+#define	FLST_FIRST	4	/* 6-byte address of the first element
+				of the list; undefined if empty list */
+#define	FLST_LAST	(4 + FIL_ADDR_SIZE) /* 6-byte address of the
+				first element of the list; undefined
+				if empty list */
+
+/************************************************************************
+Writes a file address. */
+UNIV_INLINE
+void
+flst_write_addr(
+/*============*/
+	fil_faddr_t*	faddr,	/* in: pointer to file faddress */
+	fil_addr_t	addr,	/* in: file address */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(faddr && mtr);
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(faddr),
+							MTR_MEMO_PAGE_X_FIX));
+
+	mlog_write_ulint(faddr + FIL_ADDR_PAGE, addr.page, MLOG_4BYTES, mtr); 
+	mlog_write_ulint(faddr + FIL_ADDR_BYTE, addr.boffset,
+							MLOG_2BYTES, mtr); 
+}
+
+/************************************************************************
+Reads a file address. */
+UNIV_INLINE
+fil_addr_t
+flst_read_addr(
+/*===========*/
+				/* out: file address */
+	fil_faddr_t*	faddr,	/* in: pointer to file faddress */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	fil_addr_t	addr;
+
+	ut_ad(faddr && mtr);
+
+	addr.page = mtr_read_ulint(faddr + FIL_ADDR_PAGE, MLOG_4BYTES, mtr); 
+	addr.boffset = mtr_read_ulint(faddr + FIL_ADDR_BYTE, MLOG_2BYTES, 
+								mtr);
+	return(addr); 
+}
+
+/************************************************************************
+Initializes a list base node. */
+UNIV_INLINE
+void
+flst_init(
+/*======*/
+	flst_base_node_t*	base,	/* in: pointer to base node */
+	mtr_t*			mtr)	/* in: mini-transaction handle */
+{
+	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
+							MTR_MEMO_PAGE_X_FIX));
+	mlog_write_ulint(base + FLST_LEN, 0, MLOG_4BYTES, mtr); 
+	flst_write_addr(base + FLST_FIRST, fil_addr_null, mtr); 
+	flst_write_addr(base + FLST_LAST, fil_addr_null, mtr); 
+}
+
+/************************************************************************
+Gets list length. */
+UNIV_INLINE
+ulint
+flst_get_len(
+/*=========*/
+					/* out: length */
+	flst_base_node_t*	base,	/* in: pointer to base node */
+	mtr_t*			mtr)	/* in: mini-transaction handle */
+{
+	return(mtr_read_ulint(base + FLST_LEN, MLOG_4BYTES, mtr));
+}
+
+/************************************************************************
+Gets list first node address. */
+UNIV_INLINE
+fil_addr_t
+flst_get_first(
+/*===========*/
+					/* out: file address */
+	flst_base_node_t*	base,	/* in: pointer to base node */
+	mtr_t*			mtr)	/* in: mini-transaction handle */
+{
+	return(flst_read_addr(base + FLST_FIRST, mtr));
+}
+
+/************************************************************************
+Gets list last node address. */
+UNIV_INLINE
+fil_addr_t
+flst_get_last(
+/*==========*/
+					/* out: file address */
+	flst_base_node_t*	base,	/* in: pointer to base node */
+	mtr_t*			mtr)	/* in: mini-transaction handle */
+{
+	return(flst_read_addr(base + FLST_LAST, mtr));
+}
+
+/************************************************************************
+Gets list next node address. */
+UNIV_INLINE
+fil_addr_t
+flst_get_next_addr(
+/*===============*/
+				/* out: file address */
+	flst_node_t*	node,	/* in: pointer to node */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	return(flst_read_addr(node + FLST_NEXT, mtr));
+}
+
+/************************************************************************
+Gets list prev node address. */
+UNIV_INLINE
+fil_addr_t
+flst_get_prev_addr(
+/*===============*/
+				/* out: file address */
+	flst_node_t*	node,	/* in: pointer to node */
+	mtr_t*		mtr)	/* in: mini-transaction handle */
+{
+	return(flst_read_addr(node + FLST_PREV, mtr));
+}

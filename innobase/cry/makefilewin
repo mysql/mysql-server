@@ -1,0 +1,12 @@
+include ..\include\makefile.i
+
+doall: cr.exe dcr.exe wro.exe
+
+cr.exe: cry0cry.c
+	$(CCOM) $(CFLW) -o cr.exe -I.. cry0cry.c ..\ut.lib ..\os.lib
+
+dcr.exe: cry0dcr.c
+	$(CCOM) $(CFLW) -o dcr.exe -I.. cry0dcr.c ..\ut.lib ..\os.lib
+
+wro.exe: cry0wro.c
+	$(CCOM) $(CFLW) -o wro.exe -I.. cry0wro.c ..\ut.lib ..\os.lib

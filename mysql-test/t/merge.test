@@ -31,6 +31,7 @@ select * from t3 where a > 10 and a < 20;
 explain select a from t3 order by a desc limit 10;
 select a from t3 order by a desc limit 10;
 select a from t3 order by a desc limit 300,10;
+show create table t3;
 
 # The following should give errors
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);

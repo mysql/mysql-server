@@ -1,0 +1,304 @@
+/******************************************************
+Query graph
+
+(c) 1996 Innobase Oy
+
+Created 5/27/1996 Heikki Tuuri
+*******************************************************/
+
+#include "usr0sess.h"
+
+/***************************************************************************
+Gets the trx of a query thread. */
+UNIV_INLINE
+trx_t*
+thr_get_trx(
+/*========*/
+	que_thr_t*	thr)	/* in: query thread */
+{
+	ut_ad(thr);
+
+	return(thr->graph->trx);
+}
+
+/***************************************************************************
+Gets the first thr in a fork. */
+UNIV_INLINE
+que_thr_t*
+que_fork_get_first_thr(
+/*===================*/
+	que_fork_t*	fork) 	/* in: query fork */
+{
+	return(UT_LIST_GET_FIRST(fork->thrs));
+}
+
+/***************************************************************************
+Gets the child node of the first thr in a fork. */
+UNIV_INLINE
+que_node_t*
+que_fork_get_child(
+/*===============*/
+	que_fork_t*	fork) 	/* in: query fork */
+{
+	que_thr_t*	thr;
+
+	thr = UT_LIST_GET_FIRST(fork->thrs);
+
+	return(thr->child);
+}
+
+/***************************************************************************
+Gets the type of a graph node. */
+UNIV_INLINE
+ulint
+que_node_get_type(
+/*==============*/
+	que_node_t*	node)	/* in: graph node */
+{
+	ut_ad(node);
+
+	return(((que_common_t*)node)->type);
+}
+
+/***************************************************************************
+Gets pointer to the value dfield of a graph node. */
+UNIV_INLINE
+dfield_t*
+que_node_get_val(
+/*=============*/
+	que_node_t*	node)	/* in: graph node */
+{
+	ut_ad(node);
+
+	return(&(((que_common_t*)node)->val));
+}
+
+/***************************************************************************
+Gets the value buffer size of a graph node. */
+UNIV_INLINE
+ulint
+que_node_get_val_buf_size(
+/*======================*/
+				/* out: val buffer size, not defined if
+				val.data == NULL in node */
+	que_node_t*	node)	/* in: graph node */
+{
+	ut_ad(node);
+
+	return(((que_common_t*)node)->val_buf_size);
+}
+
+/***************************************************************************
+Sets the value buffer size of a graph node. */
+UNIV_INLINE
+void
+que_node_set_val_buf_size(
+/*======================*/
+	que_node_t*	node,	/* in: graph node */
+	ulint		size)	/* in: size */
+{
+	ut_ad(node);
+
+	((que_common_t*)node)->val_buf_size = size;
+}
+
+/***************************************************************************
+Sets the parent of a graph node. */
+UNIV_INLINE
+void
+que_node_set_parent(
+/*================*/
+	que_node_t*	node,	/* in: graph node */
+	que_node_t*	parent)	/* in: parent */
+{
+	ut_ad(node);
+
+	((que_common_t*)node)->parent = parent;
+}
+
+/***************************************************************************
+Gets pointer to the value data type field of a graph node. */
+UNIV_INLINE
+dtype_t*
+que_node_get_data_type(
+/*===================*/
+	que_node_t*	node)	/* in: graph node */
+{
+	ut_ad(node);
+
+	return(&(((que_common_t*)node)->val.type));
+}
+
+/*************************************************************************
+Catenates a query graph node to a list of them, possible empty list. */
+UNIV_INLINE
+que_node_t*
+que_node_list_add_last(
+/*===================*/
+					/* out: one-way list of nodes */
+	que_node_t*	node_list,	/* in: node list, or NULL */
+	que_node_t*	node)		/* in: node */
+{
+	que_common_t*	cnode;
+	que_common_t*	cnode2;
+
+	cnode = node;
+	
+	cnode->brother = NULL;
+
+	if (node_list == NULL) {
+
+		return(node);
+	}
+
+	cnode2 = node_list;
+	
+	while (cnode2->brother != NULL) {
+		cnode2 = cnode2->brother;
+	}
+
+	cnode2->brother = node;
+
+	return(node_list);
+}
+
+/*************************************************************************
+Gets the next list node in a list of query graph nodes. */
+UNIV_INLINE
+que_node_t*
+que_node_get_next(
+/*==============*/
+				/* out: next node in a list of nodes */
+	que_node_t*	node)	/* in: node in a list */
+{
+	return(((que_common_t*)node)->brother);
+}
+
+/*************************************************************************
+Gets a query graph node list length. */
+UNIV_INLINE
+ulint
+que_node_list_get_len(
+/*==================*/
+					/* out: length, for NULL list 0 */
+	que_node_t*	node_list)	/* in: node list, or NULL */
+{
+	que_common_t*	cnode;
+	ulint		len;
+
+	cnode = node_list;
+	len = 0;
+	
+	while (cnode != NULL) {
+		len++;
+		cnode = cnode->brother;
+	}
+
+	return(len);
+}
+
+/*************************************************************************
+Gets the parent node of a query graph node. */
+UNIV_INLINE
+que_node_t*
+que_node_get_parent(
+/*================*/
+				/* out: parent node or NULL */
+	que_node_t*	node)	/* in: node */
+{
+	return(((que_common_t*)node)->parent);
+}
+
+/**************************************************************************
+Checks if graph, trx, or session is in a state where the query thread should
+be stopped. */
+UNIV_INLINE
+ibool
+que_thr_peek_stop(
+/*==============*/
+				/* out: TRUE if should be stopped; NOTE that
+				if the peek is made without reserving the
+				kernel mutex, then another peek with the
+				mutex reserved is necessary before deciding
+				the actual stopping */
+	que_thr_t*	thr)	/* in: query thread */
+{
+	trx_t*	trx;
+	que_t*	graph;
+
+	graph = thr->graph;
+	trx = graph->trx;
+	
+	if (graph->state != QUE_FORK_ACTIVE
+	    || trx->que_state == TRX_QUE_LOCK_WAIT
+	    || (UT_LIST_GET_LEN(trx->signals) > 0
+				&& trx->que_state == TRX_QUE_RUNNING)) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/***************************************************************************
+Returns TRUE if the query graph is for a SELECT statement. */
+UNIV_INLINE
+ibool
+que_graph_is_select(
+/*================*/
+					/* out: TRUE if a select */
+	que_t*		graph)		/* in: graph */
+{
+	if (graph->fork_type == QUE_FORK_SELECT_SCROLL
+			|| graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
+
+	    	return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**************************************************************************
+Moves a thread from another state to the QUE_THR_RUNNING state. Increments
+the n_active_thrs counters of the query graph and transaction if thr was
+not active. */
+UNIV_INLINE
+void
+que_thr_move_to_run_state_for_mysql(
+/*================================*/
+	que_thr_t*	thr,	/* in: an query thread */
+	trx_t*		trx)	/* in: transaction */
+{
+	if (!thr->is_active) {
+
+		(thr->graph)->n_active_thrs++;
+
+		trx->n_active_thrs++;
+
+		thr->is_active = TRUE;
+
+		ut_ad((thr->graph)->n_active_thrs == 1);
+		ut_ad(trx->n_active_thrs == 1);
+	}
+	
+	thr->state = QUE_THR_RUNNING;
+}
+
+/**************************************************************************
+A patch for MySQL used to 'stop' a dummy query thread used in MySQL
+select, when there is no error or lock wait. */
+UNIV_INLINE
+void
+que_thr_stop_for_mysql_no_error(
+/*============================*/
+	que_thr_t*	thr,	/* in: query thread */
+	trx_t*		trx)	/* in: transaction */
+{
+	ut_ad(thr->state == QUE_THR_RUNNING);
+		
+	thr->state = QUE_THR_COMPLETED;
+
+	thr->is_active = FALSE;
+	(thr->graph)->n_active_thrs--;
+
+	trx->n_active_thrs--;
+}

@@ -1,0 +1,84 @@
+/***********************************************************************
+Comparison services for records
+
+(c) 1994-1996 Innobase Oy
+
+Created 7/1/1994 Heikki Tuuri
+************************************************************************/
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. */
+
+int
+cmp_data_data_slow(
+/*===============*/	
+				/* out: 1, 0, -1, if data1 is greater, equal, 
+				less than data2, respectively */
+	dtype_t*	cur_type,/* in: data type of the fields */
+	byte*		data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	byte*		data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
+
+
+/*****************************************************************
+This function is used to compare two data fields for which we know the
+data type. */
+UNIV_INLINE
+int
+cmp_data_data(
+/*==========*/	
+				/* out: 1, 0, -1, if data1 is greater, equal, 
+				less than data2, respectively */
+	dtype_t*	cur_type,/* in: data type of the fields */
+	byte*		data1,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
+	byte*		data2,	/* in: data field (== a pointer to a memory
+				buffer) */
+	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
+{
+	return(cmp_data_data_slow(cur_type, data1, len1, data2, len2));
+}
+
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield(
+/*==============*/	
+				/* out: 1, 0, -1, if dfield1 is greater, equal, 
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2)/* in: data field */
+{
+	ut_ad(dfield_check_typed(dfield1));
+
+	return(cmp_data_data(dfield_get_type(dfield1),
+			dfield_get_data(dfield1), dfield_get_len(dfield1),
+			dfield_get_data(dfield2), dfield_get_len(dfield2)));
+}
+
+/*****************************************************************
+This function is used to compare two physical records. Only the common
+first fields are compared. */
+UNIV_INLINE
+int
+cmp_rec_rec(
+/*========*/	
+				/* out: 1, 0 , -1 if rec1 is greater, equal,
+				less, respectively, than rec2; only the common
+				first fields are compared */
+	rec_t*		rec1,	/* in: physical record */
+	rec_t*		rec2,	/* in: physical record */
+	dict_index_t*	index)	/* in: data dictionary index */
+{
+	ulint	match_f		= 0;
+	ulint	match_b		= 0;
+	
+	return(cmp_rec_rec_with_match(rec1, rec2, index, &match_f, &match_b));
+}

@@ -1,0 +1,7 @@
+include ..\include\makefile.i
+
+innobase.lib: odbc0odbc.obj
+	lib -out:..\libs\innobase.lib odbc0odbc.obj ..\libs\btr.lib ..\libs\eval.lib ..\libs\ibuf.lib ..\libs\trx.lib ..\libs\pars.lib ..\libs\que.lib ..\libs\lock.lib ..\libs\row.lib ..\libs\read.lib ..\libs\srv.lib ..\libs\com.lib ..\libs\usr.lib ..\libs\thr.lib ..\libs\fut.lib ..\libs\fsp.lib ..\libs\page.lib ..\libs\dyn.lib ..\libs\mtr.lib ..\libs\log.lib ..\libs\rem.lib ..\libs\fil.lib ..\libs\buf.lib ..\libs\dict.lib ..\libs\data.lib ..\libs\mach.lib ..\libs\ha.lib ..\libs\ut.lib ..\libs\sync.lib ..\libs\mem.lib ..\libs\os.lib
+
+odbc0odbc.obj: odbc0odbc.c
+	$(CCOM) $(CFL) -c odbc0odbc.c

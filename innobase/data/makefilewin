@@ -1,0 +1,11 @@
+include ..\include\makefile.i
+
+data.lib: data0type.obj data0data.obj
+	lib -out:..\libs\data.lib data0type.obj data0data.obj
+
+data0type.obj: data0type.c
+	$(CCOM) $(CFL) -c data0type.c
+
+data0data.obj: data0data.c
+	$(CCOM) $(CFL) -c data0data.c
+

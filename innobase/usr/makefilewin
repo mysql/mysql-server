@@ -1,0 +1,7 @@
+include ..\include\makefile.i
+
+usr.lib: usr0sess.obj
+	lib -out:..\libs\usr.lib usr0sess.obj
+
+usr0sess.obj: usr0sess.c
+	$(CCOM) $(CFL) -c usr0sess.c

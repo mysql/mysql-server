@@ -16,7 +16,6 @@
 
 /* This file is included by all internal myisam files */
 
-#define ISAM_LIBRARY
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #ifdef THREAD

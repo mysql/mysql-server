@@ -52,10 +52,17 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
       fprintf(stderr,"Can't find '=' in expression '%s' to option -O\n",str);
     else
     {
-      uint length=(uint) (end-str),found_count=0;
+      uint length,found_count=0;
       CHANGEABLE_VAR *var,*found;
+      my_string var_end;
       const char *name;
       long num;
+
+      /* Skip end space from variable */
+      for (var_end=end ; end > str && isspace(var_end[-1]) ; var_end--) ;
+      length=(uint) (var_end-str);
+      /* Skip start space from argument */
+      for (end++ ; isspace(*end) ; end++) ;
 
       for (var=vars,found=0 ; (name=var->name) ; var++)
       {
@@ -80,11 +87,13 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
 	DBUG_RETURN(1);
       }
 
-      num=(long) atol(end+1); endchar=strend(end+1)[-1];
+      num=(long) atol(end); endchar=strend(end)[-1];
       if (endchar == 'k' || endchar == 'K')
 	num*=1024;
       else if (endchar == 'm' || endchar == 'M')
 	num*=1024L*1024L;
+      else if (endchar == 'g' || endchar == 'G')
+	num*=1024L*1024L*1024L;
       else if (!isdigit(endchar))
       {
 	fprintf(stderr,"Unknown prefix used for variable value '%s'\n",str);

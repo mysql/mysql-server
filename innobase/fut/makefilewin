@@ -1,0 +1,12 @@
+include ..\include\makefile.i
+
+fut.lib: fut0lst.obj fut0fut.obj
+	lib -out:..\libs\fut.lib fut0lst.obj fut0fut.obj
+
+fut0lst.obj: fut0lst.c
+	$(CCOM) $(CFL) -c fut0lst.c
+
+fut0fut.obj: fut0fut.c
+	$(CCOM) $(CFL) -c fut0fut.c
+
+

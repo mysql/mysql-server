@@ -81,6 +81,12 @@ a
 412
 412
 411
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL default '0',
+  `b` char(20) default NULL,
+  KEY `a` (`a`)
+) TYPE=MRG_MyISAM UNION=(t1,t2)
 c
 test1
 test1

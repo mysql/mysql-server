@@ -32,6 +32,7 @@ extern ulong locks_immediate,locks_waited ;
 enum thr_lock_type { TL_IGNORE=-1,
 		     TL_UNLOCK,			/* UNLOCK ANY LOCK */
 		     TL_READ,			/* Read lock */
+		     TL_READ_WITH_SHARED_LOCKS,
 		     /* High prior. than TL_WRITE. Allow concurrent insert */
 		     TL_READ_HIGH_PRIORITY,
 		     /* READ, Don't allow concurrent insert */

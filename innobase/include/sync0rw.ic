@@ -1,0 +1,510 @@
+/******************************************************
+The read-write lock (for threads)
+
+(c) 1995 Innobase Oy
+
+Created 9/11/1995 Heikki Tuuri
+*******************************************************/
+
+/**********************************************************************
+Lock an rw-lock in shared mode for the current thread. If the rw-lock is
+locked in exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+waiting for the lock before suspending the thread. */
+
+void
+rw_lock_s_lock_spin(
+/*================*/
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,ulint		pass,	/* in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+);
+/**********************************************************************
+Inserts the debug information for an rw-lock. */
+
+void
+rw_lock_add_debug_info(
+/*===================*/
+	rw_lock_t*	lock,		/* in: rw-lock */
+	ulint		pass,		/* in: pass value */
+	ulint		lock_type,	/* in: lock type */
+	char*		file_name,	/* in: file where requested */
+	ulint		line);		/* in: line where requested */
+/**********************************************************************
+Removes a debug information struct for an rw-lock. */
+
+void
+rw_lock_remove_debug_info(
+/*======================*/
+	rw_lock_t*	lock,		/* in: rw-lock */
+	ulint		pass,		/* in: pass value */
+	ulint		lock_type);	/* in: lock type */
+
+
+/************************************************************************
+Accessor functions for rw lock. */
+UNIV_INLINE
+ulint
+rw_lock_get_waiters(
+/*================*/
+	rw_lock_t*	lock)
+{
+	return(lock->waiters);
+}
+UNIV_INLINE
+void
+rw_lock_set_waiters(
+/*================*/
+	rw_lock_t*	lock,
+	ulint		flag)
+{
+	lock->waiters = flag;
+}
+UNIV_INLINE
+ulint
+rw_lock_get_writer(
+/*===============*/
+	rw_lock_t*	lock)
+{
+	return(lock->writer);
+}
+UNIV_INLINE
+void
+rw_lock_set_writer(
+/*===============*/
+	rw_lock_t*	lock,
+	ulint		flag)
+{
+	lock->writer = flag;
+}
+UNIV_INLINE
+ulint
+rw_lock_get_reader_count(
+/*=====================*/
+	rw_lock_t*	lock)
+{
+	return(lock->reader_count);
+}
+UNIV_INLINE
+void
+rw_lock_set_reader_count(
+/*=====================*/
+	rw_lock_t*	lock,
+	ulint		count)
+{
+	lock->reader_count = count;
+}
+UNIV_INLINE
+mutex_t*
+rw_lock_get_mutex(
+/*==============*/
+	rw_lock_t*	lock)
+{
+	return(&(lock->mutex));
+}
+
+/**********************************************************************
+Returns the value of writer_count for the lock. Does not reserve the lock
+mutex, so the caller must be sure it is not changed during the call. */
+UNIV_INLINE
+ulint
+rw_lock_get_x_lock_count(
+/*=====================*/
+				/* out: value of writer_count */
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	return(lock->writer_count);
+}
+
+/**********************************************************************
+Low-level function which tries to lock an rw-lock in s-mode. Performs no
+spinning. */
+UNIV_INLINE
+ibool
+rw_lock_s_lock_low(
+/*===============*/
+				/* out: TRUE if success */
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,ulint		pass,	/* in: pass value; != 0, if the lock will be
+				passed to another thread to unlock */
+	char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
+
+	/* Check if the writer field is free */
+
+	if (lock->writer == RW_LOCK_NOT_LOCKED) {
+		/* Set the shared lock by incrementing the reader count */
+		lock->reader_count++;
+
+		#ifdef UNIV_SYNC_DEBUG
+		rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name,
+									line);
+		#endif
+		
+		return(TRUE);	/* locking succeeded */
+	}
+
+	return(FALSE);	/* locking did not succeed */
+}
+
+/**********************************************************************
+Low-level function which locks an rw-lock in s-mode when we know that it
+is possible and none else is currently accessing the rw-lock structure.
+Then we can do the locking without reserving the mutex. */
+UNIV_INLINE
+void
+rw_lock_s_lock_direct(
+/*==================*/
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+	ut_ad(lock->writer == RW_LOCK_NOT_LOCKED);
+	ut_ad(rw_lock_get_reader_count(lock) == 0);
+	
+	/* Set the shared lock by incrementing the reader count */
+	lock->reader_count++;
+
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name, line);
+	#endif
+}
+
+/**********************************************************************
+Low-level function which locks an rw-lock in x-mode when we know that it
+is not locked and none else is currently accessing the rw-lock structure.
+Then we can do the locking without reserving the mutex. */
+UNIV_INLINE
+void
+rw_lock_x_lock_direct(
+/*==================*/
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+        ut_ad(rw_lock_validate(lock));
+	ut_ad(rw_lock_get_reader_count(lock) == 0);
+	ut_ad(rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED);
+
+	rw_lock_set_writer(lock, RW_LOCK_EX);
+	lock->writer_thread = os_thread_get_curr_id();
+	lock->writer_count++;
+	lock->pass = 0;
+			
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
+	#endif
+}
+
+/**********************************************************************
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in shared mode for the current thread. If the rw-lock is locked
+in exclusive mode, or there is an exclusive lock request waiting, the
+function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting for
+the lock, before suspending the thread. */
+UNIV_INLINE
+void
+rw_lock_s_lock_func(
+/*================*/
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,ulint		pass,	/* in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+	/* NOTE: As we do not know the thread ids for threads which have
+	s-locked a latch, and s-lockers will be served only after waiting
+	x-lock requests have been fulfilled, then if this thread already
+	owns an s-lock here, it may end up in a deadlock with another thread
+	which requests an x-lock here. Therefore, we will forbid recursive
+	s-locking of a latch: the following assert will warn the programmer
+	of the possibility of a tjis kind of deadlock. If we want to implement
+	safe recursive s-locking, we should keep in a list the thread ids of
+	the threads which have s-locked a latch. This would use some CPU
+	time. */
+	
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+
+	mutex_enter(rw_lock_get_mutex(lock));
+
+	if (TRUE == rw_lock_s_lock_low(lock
+			#ifdef UNIV_SYNC_DEBUG
+			,pass, file_name, line
+			#endif
+			   )) {
+		mutex_exit(rw_lock_get_mutex(lock));
+
+		return; /* Success */
+	} else {
+		/* Did not succeed, try spin wait */
+		mutex_exit(rw_lock_get_mutex(lock));
+
+		rw_lock_s_lock_spin(lock
+				#ifdef UNIV_SYNC_DEBUG
+				,pass, file_name, line
+				#endif
+			   	);
+		return;
+	}
+}
+
+/**********************************************************************
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in shared mode for the current thread if the lock can be acquired
+immediately. */
+UNIV_INLINE
+ibool
+rw_lock_s_lock_func_nowait(
+/*=======================*/
+				/* out: TRUE if success */
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+	ibool	success	= FALSE;
+
+	mutex_enter(rw_lock_get_mutex(lock));
+
+	if (lock->writer == RW_LOCK_NOT_LOCKED) {
+		/* Set the shared lock by incrementing the reader count */
+		lock->reader_count++;
+
+		#ifdef UNIV_SYNC_DEBUG
+		rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name,
+									line);
+		#endif
+		
+		success = TRUE;
+	}
+
+	mutex_exit(rw_lock_get_mutex(lock));
+
+	return(success);
+}
+
+/**********************************************************************
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in exclusive mode for the current thread if the lock can be
+obtained immediately. */
+UNIV_INLINE
+ibool
+rw_lock_x_lock_func_nowait(
+/*=======================*/
+				/* out: TRUE if success */
+        rw_lock_t*   	lock  	/* in: pointer to rw-lock */
+	#ifdef UNIV_SYNC_DEBUG
+	,char*		file_name, /* in: file name where lock requested */
+	ulint		line	/* in: line where requested */
+	#endif
+)
+{
+	ibool	success	= FALSE;
+	
+	mutex_enter(rw_lock_get_mutex(lock));
+
+	if ((rw_lock_get_reader_count(lock) == 0)
+	     && ((rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED)
+	     	 || ((rw_lock_get_writer(lock) == RW_LOCK_EX)
+	     	     && (lock->pass == 0)
+	     	     && (lock->writer_thread == os_thread_get_curr_id())))) {
+
+		rw_lock_set_writer(lock, RW_LOCK_EX);
+		lock->writer_thread = os_thread_get_curr_id();
+		lock->writer_count++;
+		lock->pass = 0;
+			
+		#ifdef UNIV_SYNC_DEBUG
+		rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
+		#endif
+
+		success = TRUE;
+	}
+
+	mutex_exit(rw_lock_get_mutex(lock));
+
+        ut_ad(rw_lock_validate(lock));
+
+	return(success);
+}
+
+/**********************************************************************
+Releases a shared mode lock. */
+UNIV_INLINE
+void
+rw_lock_s_unlock_func(
+/*==================*/
+	rw_lock_t*	lock	/* in: rw-lock */
+#ifdef UNIV_SYNC_DEBUG
+	,ulint		pass	/* in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	)
+{
+	mutex_t*	mutex	= &(lock->mutex);
+	ibool		sg 	= FALSE;
+
+        /* Acquire the mutex protecting the rw-lock fields */
+	mutex_enter(mutex);
+
+	/* Reset the shared lock by decrementing the reader count */
+
+	ut_ad(lock->reader_count > 0);
+	lock->reader_count--;
+
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
+	#endif
+	
+	/* If there may be waiters and this was the last s-lock,
+	signal the object */
+
+	if (lock->waiters && (lock->reader_count == 0)) {
+	       	sg = TRUE;
+
+		rw_lock_set_waiters(lock, 0);
+	}
+	
+	mutex_exit(mutex);
+
+	if (sg == TRUE) {
+		sync_array_signal_object(sync_primary_wait_array, lock);
+	}
+
+        ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_s_exit_count++;
+#endif
+}
+
+/**********************************************************************
+Releases a shared mode lock when we know there are no waiters and none
+else will access the lock during the time this function is executed. */
+UNIV_INLINE
+void
+rw_lock_s_unlock_direct(
+/*====================*/
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	/* Reset the shared lock by decrementing the reader count */
+
+	ut_ad(lock->reader_count > 0);
+
+	lock->reader_count--;
+
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
+	#endif
+
+	ut_ad(!lock->waiters);
+        ut_ad(rw_lock_validate(lock));
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_s_exit_count++;
+#endif
+}
+
+/**********************************************************************
+Releases an exclusive mode lock. */
+UNIV_INLINE
+void
+rw_lock_x_unlock_func(
+/*==================*/
+	rw_lock_t*	lock	/* in: rw-lock */
+#ifdef UNIV_SYNC_DEBUG
+	,ulint		pass	/* in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	)
+{
+	ibool	sg 	= FALSE;
+
+        /* Acquire the mutex protecting the rw-lock fields */
+	mutex_enter(&(lock->mutex));
+
+	/* Reset the exclusive lock if this thread no longer has an x-mode
+	lock */
+
+	ut_ad(lock->writer_count > 0);
+
+	lock->writer_count--;
+
+	if (lock->writer_count == 0) {
+		rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
+	}
+
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
+	#endif
+	
+	/* If there may be waiters, signal the lock */
+	if (lock->waiters && (lock->writer_count == 0)) {
+
+	       	sg = TRUE;
+		rw_lock_set_waiters(lock, 0);
+	}
+	
+	mutex_exit(&(lock->mutex));
+
+	if (sg == TRUE) {
+		sync_array_signal_object(sync_primary_wait_array, lock);
+	}
+
+        ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_x_exit_count++;
+#endif
+}
+
+/**********************************************************************
+Releases an exclusive mode lock when we know there are no waiters, and
+none else will access the lock durint the time this function is executed. */
+UNIV_INLINE
+void
+rw_lock_x_unlock_direct(
+/*====================*/
+	rw_lock_t*	lock)	/* in: rw-lock */
+{
+	/* Reset the exclusive lock if this thread no longer has an x-mode
+	lock */
+
+	ut_ad(lock->writer_count > 0);
+
+	lock->writer_count--;
+
+	if (lock->writer_count == 0) {
+		rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
+	}
+
+	#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
+	#endif
+
+	ut_ad(!lock->waiters);
+        ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_x_exit_count++;
+#endif
+}
