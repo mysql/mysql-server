@@ -35,6 +35,19 @@
 #include "sql_sort.h"
 
 
+int unique_write_to_file(gptr key, element_count count, Unique *unique)
+{
+  return my_b_write(&unique->file, (byte*) key,
+		    unique->tree.size_of_element) ? 1 : 0;
+}
+
+int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
+{
+  memcpy(unique->record_pointers, key, unique->tree.size_of_element);
+  unique->record_pointers+=unique->tree.size_of_element;
+  return 0;
+}
+
 Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 	       uint size, ulong max_in_memory_size_arg)
   :max_in_memory_size(max_in_memory_size_arg),elements(0)
@@ -69,20 +82,6 @@ bool Unique::flush()
       insert_dynamic(&file_ptrs, (gptr) &file_ptr))
     return 1;
   delete_tree(&tree);
-  return 0;
-}
-
-
-int unique_write_to_file(gptr key, element_count count, Unique *unique)
-{
-  return my_b_write(&unique->file, (byte*) key,
-		    unique->tree.size_of_element) ? 1 : 0;
-}
-
-int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
-{
-  memcpy(unique->record_pointers, key, unique->tree.size_of_element);
-  unique->record_pointers+=unique->tree.size_of_element;
   return 0;
 }
 

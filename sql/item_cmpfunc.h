@@ -46,6 +46,7 @@ public:
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
+  bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
 };
 
 
@@ -429,7 +430,6 @@ class Item_func_in :public Item_int_func
 
 class Item_func_isnull :public Item_bool_func
 {
-  enum Item_result internal_result_type;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
@@ -438,7 +438,6 @@ public:
   {
     decimals=0; max_length=1; maybe_null=0;
     Item_func_isnull::update_used_tables();
-    internal_result_type=args[0]->result_type();
   }
   const char *func_name() const { return "isnull"; }
   /* Optimize case of not_null_column IS NULL */
@@ -457,7 +456,6 @@ public:
 
 class Item_func_isnotnull :public Item_bool_func
 {
-  enum Item_result internal_result_type;
 public:
   Item_func_isnotnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
@@ -465,7 +463,6 @@ public:
   void fix_length_and_dec()
   {
     decimals=0; max_length=1; maybe_null=0;
-    internal_result_type=args[0]->result_type();
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }

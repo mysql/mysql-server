@@ -81,6 +81,7 @@ public:
   virtual void split_sum_func(List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
+  virtual bool is_null() { return 0; }
 };
 
 
@@ -130,6 +131,7 @@ public:
   Field *tmp_table_field() { return result_field; }
   bool get_date(TIME *ltime,bool fuzzydate);  
   bool get_time(TIME *ltime);  
+  bool is_null() { return field->is_null(); }
 };
 
 
@@ -150,6 +152,7 @@ public:
   bool send(String *str);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
+  bool is_null() { return 1; }
 };
 
 
@@ -383,6 +386,7 @@ public:
   void copy();
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
+  bool is_null() { return null_value; }
 };
 
 
