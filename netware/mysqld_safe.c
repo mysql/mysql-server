@@ -67,6 +67,7 @@ void check_data_vol();
 void check_setup();
 void check_tables();
 void mysql_start(int, char*[]);
+void parse_setvar(char *arg);
 
 /******************************************************************************
 
@@ -321,7 +322,8 @@ void parse_args(int argc, char *argv[])
     OPT_ERR_LOG,
     OPT_SAFE_LOG,
     OPT_MYSQLD,
-    OPT_HELP
+    OPT_HELP,
+    OPT_SETVAR
   };
   
   static struct option options[] =
@@ -337,6 +339,7 @@ void parse_args(int argc, char *argv[])
     {"safe-log",      required_argument,  0,            OPT_SAFE_LOG},
     {"mysqld",        required_argument,  0,            OPT_MYSQLD},
     {"help",          no_argument,        0,            OPT_HELP},
+    {"set-variable",          required_argument,        0,            OPT_SETVAR},
     {0,               0,                  0,            0}
   };
   
@@ -384,7 +387,11 @@ void parse_args(int argc, char *argv[])
     case OPT_MYSQLD:
       strcpy(mysqld, optarg);
       break;
-      
+
+    case OPT_SETVAR:
+      parse_setvar(optarg);
+      break;
+ 
     case OPT_HELP:
       usage();
       break;
@@ -395,6 +402,25 @@ void parse_args(int argc, char *argv[])
     }
   }
 }
+
+/*
+  parse_setvar(char *arg)
+  Pasrsing for port just to display the port num on the mysqld_safe screen
+*/
+void parse_setvar(char *arg)
+{
+  char *pos;
+  
+  if ((pos= strindex(arg, "port")))
+  {
+    for (; *pos && *pos != '='; pos++) ;
+    if (*pos)
+      strcpy(port, pos + 1);
+  }
+}
+/******************************************************************************
+
+
 
 /******************************************************************************
 
@@ -599,32 +625,32 @@ void check_tables()
 ******************************************************************************/
 void mysql_start(int argc, char *argv[])
 {
-	arg_list_t al;
-	int i, j, err;
-	struct stat info;
-	time_t cal;
-	struct tm lt;
-	char stamp[PATH_MAX];
-	char skip;
+  arg_list_t al;
+  int i, j, err;
+  struct stat info;
+  time_t cal;
+  struct tm lt;
+  char stamp[PATH_MAX];
+  char skip;
   
   // private options
   static char *private_options[] =
   {
-  	"--autoclose",
+    "--autoclose",
     "--check-tables",
     "--help",
-  	"--err-log=",
-  	"--mysqld=",
-  	NULL
+    "--err-log=",
+    "--mysqld=",
+    NULL
   };
   
-	// args
-	init_args(&al);
-	add_arg(&al, "%s", mysqld);
-	
-	// parent args
-	for(i = 1; i < argc; i++)
-	{
+  // args
+  init_args(&al);
+  add_arg(&al, "%s", mysqld);
+  
+  // parent args
+  for(i = 1; i < argc; i++)
+  {
     skip = FALSE;
     
     // skip private arguments
@@ -633,38 +659,42 @@ void mysql_start(int argc, char *argv[])
       if(!strnicmp(argv[i], private_options[j], strlen(private_options[j])))
       {
         skip = TRUE;
+	consoleprintf("The argument skipped is %s\n",argv[i]);
         break;
       }
     }
-		
-    if (!skip) add_arg(&al, "%s", argv[i]);
-	}
-	
+    
+    if (!skip)
+    {
+      add_arg(&al, "%s", argv[i]);
+      consoleprintf("The final argument is %s\n",argv[i]);
+    }
+  }
   // spawn
-	do
-	{
-  	// check the database tables
-  	if (checktables) check_tables();
-	
-		// status
+  do
+  {
+    // check the database tables
+    if (checktables) check_tables();
+    
+    // status
     time(&cal);
     localtime_r(&cal, &lt);
     strftime(stamp, PATH_MAX, "%d %b %Y %H:%M:%S", &lt);
     log("mysql started    : %s\n", stamp);
-		
-		// spawn mysqld
-		spawn(mysqld, &al, TRUE, NULL, NULL, err_log);
-	}
-	while (!stat(pid_file, &info));
-
-	// status
+    
+    // spawn mysqld
+    spawn(mysqld, &al, TRUE, NULL, NULL, err_log);
+  }
+  while (!stat(pid_file, &info));
+  
+  // status
   time(&cal);
   localtime_r(&cal, &lt);
   strftime(stamp, PATH_MAX, "%d %b %Y %H:%M:%S", &lt);
   log("mysql stopped    : %s\n\n", stamp);
 	
-	// free args
-	free_args(&al);
+  // free args
+  free_args(&al);
 }
 
 /******************************************************************************
