@@ -1878,10 +1878,10 @@ mysql_execute_command(void)
 		       lex->lock_option);
     break;
   case SQLCOM_REPLACE:
-    if (check_access(thd,INSERT_ACL | UPDATE_ACL | DELETE_ACL,
+    if (check_access(thd,INSERT_ACL | DELETE_ACL,
 		     tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,INSERT_ACL | UPDATE_ACL | DELETE_ACL,
+    if (grant_option && check_grant(thd,INSERT_ACL | DELETE_ACL,
 				    tables))
 
       goto error;
@@ -1899,7 +1899,7 @@ mysql_execute_command(void)
     */
     {
       ulong privilege= (lex->sql_command == SQLCOM_INSERT_SELECT ?
-			INSERT_ACL : INSERT_ACL | UPDATE_ACL | DELETE_ACL);
+			INSERT_ACL : INSERT_ACL | DELETE_ACL);
       TABLE_LIST *save_next=tables->next;
       tables->next=0;
       if (check_access(thd, privilege,
