@@ -321,9 +321,9 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   return my_errno=HA_ERR_END_OF_FILE;
 }
 
-float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid)
+float ft_boolean_find_relevance(FT_INFO *ftb,
+    my_off_t docid __attribute__((unused)), byte *record)
 {
-  fprintf(stderr, "ft_boolean_find_relevance called!\n");
   return -1.0; /* to be done via str scan */
 }
 
