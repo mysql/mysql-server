@@ -147,7 +147,7 @@ echo_pass () {
 prompt_user ()
 {
  echo $1
- read
+ read not_used
 }
 
 echo_fail () {
@@ -285,7 +285,7 @@ start_slave()
 	    --master-connect-retry=1 \
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
-	    --core-file \
+	    --core-file --log-bin --log-slave-updates \
             --basedir=$CWD \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
@@ -363,7 +363,7 @@ run_testcase ()
  tname=`$ECHO $tname | $CUT -d . -f 1`
  master_opt_file=$TESTDIR/$tname-master.opt
  slave_opt_file=$TESTDIR/$tname-slave.opt
- SKIP_SLAVE=`$EXPR \( match $tname rpl \) = 0`
+ SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  
  if [ -f $master_opt_file ] ;
  then
