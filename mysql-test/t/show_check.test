@@ -182,3 +182,57 @@ SHOW CREATE TABLE `table`;
 DROP TABLE `table`;
 
 SET sql_quote_show_create=ON;
+
+#
+# Test for bug #2719 "Heap tables status shows wrong or missing data."
+#
+
+select @@max_heap_table_size;
+
+CREATE TABLE t1 (
+ a int(11) default NULL,
+ KEY a TYPE BTREE (a)
+) ENGINE=HEAP;
+
+CREATE TABLE t2 (
+ b int(11) default NULL,
+ index(b)
+) ENGINE=HEAP;
+
+CREATE TABLE t3 (
+ a int(11) default NULL,
+ b int(11) default NULL,
+ KEY a TYPE BTREE (a),
+ index(b)
+) ENGINE=HEAP;
+
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1,1),(2,2);
+show table status;
+insert into t1 values (3),(4);
+insert into t2 values (3),(4);
+insert into t3 values (3,3),(4,4);
+show table status;
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+delete from t1 where a=3;
+delete from t2 where b=3;
+delete from t3 where a=3;
+show table status;
+delete from t1;
+delete from t2;
+delete from t3;
+show table status;
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+delete from t1 where a=5;
+delete from t2 where b=5;
+delete from t3 where a=5;
+show table status;
+
+drop table t1, t2, t3;
