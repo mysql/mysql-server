@@ -328,7 +328,9 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Alter_column> &alter_list,
                       ORDER *order,
 		      bool drop_primary,
-		      enum enum_duplicates handle_duplicates);
+		      enum enum_duplicates handle_duplicates,
+		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
+    		      bool simple_alter=0);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
