@@ -267,7 +267,10 @@ INSERT INTO t1 VALUES (2,'\Z\Z\Z\Z\Z\Z');
 INSERT INTO t1 VALUES (3,'\Z\Z\Z\Z');
 select c1 from t1 where c2='\Z\Z\Z\Z';
 DELETE FROM t1 WHERE (c1 = 1);
+check table t1;
 select c1 from t1 where c2='\Z\Z\Z\Z';
 DELETE FROM t1 WHERE (c1 = 3);
+check table t1;
 select c1 from t1 where c2='\Z\Z\Z\Z';
+drop table t1;
 
