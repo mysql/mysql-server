@@ -413,7 +413,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0)
+   do_update(1), trans_safe(0), on_the_fly(1)
 {}
 
 
@@ -538,12 +538,15 @@ multi_update::initialize_tables(JOIN *join)
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
   log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
-
+#ifdef HAVE_INNOBASE_DB
+  if (main_table->db_type == DB_TYPE_INNODB)
+    on_the_fly=0;
+#endif
   /* Create a temporary table for all tables after except main table */
   for (table_ref= update_tables; table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
-    if (table != main_table)
+    if (!on_the_fly || table != main_table)
     {
       uint cnt= table_ref->shared;
       ORDER     group;
@@ -623,7 +626,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 
     uint offset= cur_table->shared;
     table->file->position(table->record[0]);
-    if (table == main_table)
+    if (on_the_fly && table == main_table)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,1);
@@ -716,7 +719,7 @@ int multi_update::do_updates(bool from_send_error)
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     table = cur_table->table;
-    if (table == main_table)
+    if (on_the_fly && table == main_table)
       continue;					// Already updated
 
     org_updated= updated;
