@@ -1243,21 +1243,11 @@ mysql_execute_command(void)
     if (strlen(tables->name) > NAME_LEN)
     {
       net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
-      res=0;
       break;
     }
 
-    if(fetch_nx_table(thd, tables->db, tables->real_name, &glob_mi, 0))
-      // fetch_nx_table is responsible for sending
-      // the error
-      {
-	res = 0;
-	thd->net.no_send_ok = 0; // easier to do it here
-	// this way we make sure that when we are done, we are clean
-        break;
-      }
-
-    res = 0;
+    if (fetch_nx_table(thd, tables->db, tables->real_name, &glob_mi, 0))
+      break;      // fetch_nx_table did send the error to the client
     send_ok(&thd->net);
     break;
 
