@@ -103,9 +103,9 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
   DBUG_VOID_RETURN;
 }
 
-void delete_tree(TREE *tree)
+static void free_tree(TREE *tree, myf free_flags)
 {
-  DBUG_ENTER("delete_tree");
+  DBUG_ENTER("free_tree");
   DBUG_PRINT("enter",("tree: %lx",tree));
 
   if (tree->root)				/* If initialized */
@@ -116,7 +116,7 @@ void delete_tree(TREE *tree)
     {
       if (tree->free)
 	delete_tree_element(tree,tree->root);
-      free_root(&tree->mem_root,MYF(0));
+      free_root(&tree->mem_root, free_flags);
     }
   }
   tree->root= &tree->null_element;
@@ -124,6 +124,18 @@ void delete_tree(TREE *tree)
 
   DBUG_VOID_RETURN;
 }
+
+void delete_tree(TREE* tree)
+{
+  free_tree(tree, MYF(0)); /* my_free() mem_root if applicable */
+}
+
+void reset_tree(TREE* tree)
+{
+  free_tree(tree, MYF(MY_MARK_BLOCKS_FREE));
+  /* do not my_free() mem_root if applicable, just mark blocks as free */
+}
+
 
 static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
 {

@@ -924,7 +924,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 void Item_sum_count_distinct::reset()
 {
   if(use_tree)
-    delete_tree(&tree);
+    reset_tree(&tree);
   else
     {
       table->file->extra(HA_EXTRA_NO_CACHE);
