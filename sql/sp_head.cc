@@ -1144,10 +1144,12 @@ sp_instr_hpush_jump::print(String *str)
 {
   str->reserve(32);
   str->append("hpush_jump ");
+  str->qs_append(m_dest);
+  str->append(" t=");
   str->qs_append(m_type);
-  str->append(' ');
+  str->append(" f=");
   str->qs_append(m_frame);
-  str->append(' ');
+  str->append(" h=");
   str->qs_append(m_handler);
 }
 
