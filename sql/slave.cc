@@ -1991,13 +1991,12 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->priv_user = 0;
   thd->slave_thread = 1;
   thd->options = ((opt_log_slave_updates) ? OPTION_BIN_LOG:0) |
-    OPTION_AUTO_IS_NULL |
-    /* 
-       It's nonsense to constraint the slave threads with max_join_size; if a
-       query succeeded on master, we HAVE to execute it.
-    */
-    OPTION_BIG_SELECTS ; 
-    
+    OPTION_AUTO_IS_NULL;
+  /* 
+     It's nonsense to constraint the slave threads with max_join_size; if a
+     query succeeded on master, we HAVE to execute it.
+  */
+  thd->variables.max_join_size= HA_POS_ERROR;    
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   thd->real_id=pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
