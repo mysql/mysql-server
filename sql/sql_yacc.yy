@@ -682,7 +682,7 @@ query:
 	   {
 	     send_error(thd,ER_EMPTY_QUERY);
 	     YYABORT;
- 	   }
+	   }
 	   else
 	   {
 	     thd->lex.sql_command = SQLCOM_EMPTY_QUERY;
@@ -810,7 +810,7 @@ create:
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
 	  if (!lex->select_lex.add_table_to_list($5,
-			 			 ($2 &
+						 ($2 &
 						  HA_LEX_CREATE_TMP_TABLE ?
 						  &tmp_table_alias :
 						  (LEX_STRING*) 0),1,
@@ -1073,7 +1073,7 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
-	| BINARY '(' NUM ')' 		{ Lex->length=$3.str;
+	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
@@ -1219,15 +1219,15 @@ attribute:
 
 charset_name:
 	BINARY
-	{ 
+	{
 	  if (!($$=get_charset_by_name("binary",MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,"binary");
 	    YYABORT;
 	  }
 	}
-	| ident	
-	{ 
+	| ident
+	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
@@ -1373,7 +1373,7 @@ alter:
 	  lex->alter_list.empty();
           lex->select_lex.init_order();
 	  lex->select_lex.db=lex->name=0;
-    	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
+	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
@@ -1617,12 +1617,12 @@ table_to_table_list:
 
 table_to_table:
 	table_ident TO_SYM table_ident
-	{ 
+	{
 	  SELECT_LEX_NODE *sl= Lex->current_select;
 	  if (!sl->add_table_to_list($1,NULL,1,TL_IGNORE) ||
 	      !sl->add_table_to_list($3,NULL,1,TL_IGNORE))
 	    YYABORT;
- 	};
+	};
 
 /*
   Select : retrieve data from table
@@ -1636,8 +1636,8 @@ select:
 select_init:
 	SELECT_SYM select_init2
 	|
-	'(' SELECT_SYM 	select_part2 ')' 
-	  { 
+	'(' SELECT_SYM select_part2 ')'
+	  {
 	    LEX *lex= Lex;
             SELECT_LEX_NODE * sel= lex->current_select;
 	    if (sel->set_braces(true))
@@ -1647,12 +1647,12 @@ select_init:
 	    }
             /* select in braces, can't contain global parameters */
             sel->master_unit()->global_parameters=
-              	sel->master_unit();
+               sel->master_unit();
           } union_opt;
 
 select_init2:
 	select_part2
-        { 
+        {
 	  LEX *lex= Lex;
           if (lex->current_select->set_braces(false))
 	  {
@@ -2901,7 +2901,7 @@ insert:
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	} insert_lock_option
-	opt_ignore insert2 
+	opt_ignore insert2
 	{
 	  Select->set_lock_for_tables($3);
 	}
@@ -2911,7 +2911,7 @@ insert:
 replace:
 	REPLACE
 	{
-	  LEX *lex=Lex;	
+	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
 	}
@@ -2927,7 +2927,7 @@ insert_lock_option:
 	| LOW_PRIORITY	{ $$= TL_WRITE_LOW_PRIORITY; }
 	| DELAYED_SYM	{ $$= TL_WRITE_DELAYED; }
 	| HIGH_PRIORITY { $$= TL_WRITE; }
-	;	
+	;
 
 replace_lock_option:
 	opt_low_priority { $$= $1; }
@@ -3039,13 +3039,22 @@ values:
 	;
 
 expr_or_default:
-	expr 	  { $$= $1;}
+	expr	  { $$= $1;}
 	| DEFAULT {$$= new Item_default(); }
 	;
 
 opt_insert_update:
         /* empty */
         | ON DUPLICATE KEY_SYM UPDATE_SYM SET update_list
+          { /* for simplisity, let's forget about
+               INSERT ... SELECT ... UPDATE
+               for a moment */
+	    if (Lex->sql_command != SQLCOM_INSERT)
+            {
+	      send_error(Lex->thd, ER_SYNTAX_ERROR);
+              YYABORT;
+            }
+          }
         ;
 
 /* Update rows in a table */
