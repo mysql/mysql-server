@@ -528,7 +528,7 @@ page_mem_free(
 /*==========*/
 	page_t*		page,	/* in: index page */
 	rec_t*		rec,	/* in: pointer to the (origin of) record */
-	dict_index_t*	index);	/* in: record descriptor */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
 The index page creation function. */
 

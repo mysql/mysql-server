@@ -620,7 +620,7 @@ rec_set_nth_field_extern_bit_new(
 						mlog_write_ulint(lens + 1, len,
 							MLOG_1BYTE, mtr);
 					} else {
-						lens[1] = len;
+						lens[1] = (byte) len;
 					}
 					return;
 				}
@@ -656,29 +656,6 @@ rec_set_field_extern_bits(
 	for (i = 0; i < n_fields; i++) {
 		rec_set_nth_field_extern_bit(rec, index, vec[i], TRUE, mtr);
 	}
-}
-
-/**************************************************************
-Returns the total size of a physical record.  */
-
-ulint
-rec_get_size(
-/*=========*/
-				/* out: size */
-	rec_t*		rec,	/* in: physical record */
-	dict_index_t*	index)	/* in: record descriptor */
-{
-	mem_heap_t*	heap	= NULL;
-	ulint		offsets_[100 + REC_OFFS_HEADER_SIZE]
-				= { 100, };
-	ulint*		offsets	= rec_get_offsets(rec, index, offsets_,
-				ULINT_UNDEFINED, &heap);
-	ulint		size	= rec_offs_size(offsets);
-
-	if (heap) {
-		mem_heap_free(heap);
-	}
-	return(size);
 }
 
 /*************************************************************** 
@@ -935,13 +912,13 @@ init:
 				|| dtype_get_mtype(type) == DATA_BLOB);
 			if (len < 128 || (dtype_get_len(type) < 256
 				&& dtype_get_mtype(type) != DATA_BLOB)) {
-				*lens-- = len;
+				*lens-- = (byte) len;
 			}
 			else {
 				/* the extern bits will be set later */
 				ut_ad(len < 16384);
-				*lens-- = len >> 8 | 0x80;
-				*lens-- = len;
+				*lens-- = (byte) (len >> 8) | 0x80;
+				*lens-- = (byte) len;
 			}
 		}
 	copy:
