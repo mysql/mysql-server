@@ -39,10 +39,10 @@ my_string my_load_path(my_string to, const char *path,
 	   (is_prefix((gptr) path,FN_PARENTDIR)) ||
 	   ! own_path_prefix)
   {
-    if (! my_getwd(buff,(uint) (FN_REFLEN-strlen(path)),MYF(0)))
-      VOID(strcat(buff,path));
+    if (! my_getwd(buff,(uint) (FN_REFLEN+2-strlen(path)),MYF(0)))
+      VOID(strcat(buff,path+2));
     else
-      VOID(strmov(buff,path));
+      VOID(strmov(buff,path));			/* Return org file name */
   }
   else
     VOID(strxmov(buff,own_path_prefix,path,NullS));

@@ -194,7 +194,7 @@ t5	CREATE TABLE `t5` (
 alter table t5 type=myisam;
 drop table t5, mysqltest.t6;
 drop database mysqltest;
-drop table if exists t4,t3,t1,t2;
+drop table t4,t3,t1,t2;
 create table t1 (c char(10)) type=myisam;
 create table t2 (c char(10)) type=myisam;
 create table t3 (c char(10)) union=(t1,t2) type=merge;
@@ -540,7 +540,11 @@ a	b
 6	1
 6	2
 6	3
-drop table if exists t6, t5, t4, t3, t2, t1;
+insert into t1 values (99,NULL);
+select * from t4 where a+0 > 90;
+a	b
+99	1
+drop table t6, t5, t4, t3, t2, t1;
 CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
 INSERT INTO t1 VALUES (1,1), (2,1);
 CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) TYPE=MyISAM;
@@ -552,7 +556,7 @@ max(b)
 select max(b) from t1 where a = 2;
 max(b)
 1
-drop table if exists t3,t1,t2;
+drop table t3,t1,t2;
 create table t1 (a int not null);
 create table t2 (a int not null);
 insert into t1 values (1);
@@ -571,7 +575,7 @@ select * from t6;
 a
 1
 2
-drop table if exists t6, t3, t1, t2, t4, t5;
+drop table t6, t3, t1, t2, t4, t5;
 CREATE TABLE t1 (
 fileset_id tinyint(3) unsigned NOT NULL default '0',
 file_code varchar(32) NOT NULL default '',
