@@ -363,40 +363,17 @@ NULL	test	PRIMARY	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	constraint_1	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	key_1	NULL	test	t1	a	1	NULL	NULL	NULL
 NULL	test	key_2	NULL	test	t1	a	1	NULL	NULL	NULL
-drop table t1;
-CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
-CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
-FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
-select * from information_schema.TABLE_CONSTRAINTS where
-TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_METHOD
-NULL	test	PRIMARY	test	t1	PRIMARY KEY	NULL
-NULL	test	PRIMARY	test	t2	PRIMARY KEY	NULL
-NULL	test	t2_ibfk_1	test	t2	FOREIGN KEY	ON DELETE CASCADE
-NULL	test	t2_ibfk_2	test	t2	FOREIGN KEY	ON UPDATE CASCADE
-select * from information_schema.KEY_COLUMN_USAGE where
-TABLE_SCHEMA= "test";
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
-NULL	test	PRIMARY	NULL	test	t1	id	1	NULL	NULL	NULL
-NULL	test	PRIMARY	NULL	test	t2	id	1	NULL	NULL	NULL
-NULL	test	t2_ibfk_1	NULL	test	t2	t1_id	1	NULL		id
-NULL	test	t2_ibfk_2	NULL	test	t2	t1_id	1	NULL		id
 select table_name from information_schema.TABLES where table_schema like "test%";
 table_name
 t1
-t2
 select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
 table_name	column_name
-t1	id
-t2	id
-t2	t1_id
+t1	a
 select ROUTINE_NAME from information_schema.ROUTINES;
 ROUTINE_NAME
 sel2
 sub1
 delete from mysql.user where user='mysqltest_1';
-drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
