@@ -541,7 +541,7 @@ struct show_var_st init_vars[]= {
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
-  {"tmpdir",                  (char*) &mysql_tmpdir,                SHOW_CHAR_PTR},
+  {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
   {"version",                 server_version,                       SHOW_CHAR},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}

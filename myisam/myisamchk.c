@@ -41,9 +41,10 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
-static const char *set_charset_name;
+static const char *set_charset_name, *opt_tmpdir;
 static CHARSET_INFO *set_charset;
 static long opt_myisam_block_size;
+static MY_TMPDIR myisamchk_tmpdir;
 
 static const char *type_names[]=
 { "?","char","binary", "short", "long", "float",
@@ -257,7 +258,7 @@ static struct my_option my_long_options[] =
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
    "Path for temporary files.",
-   (gptr*) &check_param.tmpdir,
+   (gptr*) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
@@ -338,7 +339,9 @@ static void usage(void)
                       Change the value of a variable. Please note that\n\
                       this option is deprecated; you can set variables\n\
                       directly with '--variable-name=value'.\n\
-  -t, --tmpdir=path   Path for temporary files\n\
+  -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
+                      specified, separated by colon (:), they will be used\n\
+                      in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent\n\
   -v, --verbose       Print more information. This can be used with\n\
@@ -692,6 +695,11 @@ static void get_options(register int *argc,register char ***argv)
 		 my_progname));
     exit(1);
   }
+
+  if (init_tmpdir(&myisamchk_tmpdir, opt_tmpdir))
+    exit(1);
+
+  check_param.tmpdir=&myisamchk_tmpdir;
 
   if (set_charset_name)
     if (!(set_charset=get_charset_by_name(set_charset_name, MYF(MY_WME))))
