@@ -1621,7 +1621,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   char		buff[200], time_buff[32], *pos;
   MYSQL_RES	*result;
   ulong		timer, warnings;
-  uint		error=0;
+  uint		error= 0;
+  int           err= 0;
 
   if (!status.batch)
   {
@@ -1739,7 +1740,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
     else if (unbuffered)
       fflush(stdout);
     mysql_free_result(result);
-  } while (!mysql_next_result(&mysql));
+  } while (!(err= mysql_next_result(&mysql)));
+  if (err >= 1)
+    error= put_error(&mysql);
 
   return error;				/* New command follows */
 }
