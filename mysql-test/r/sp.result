@@ -2777,26 +2777,23 @@ a
 3.2000
 drop procedure bug8937|
 delete from t1|
+drop procedure if exists bug6600|
+drop table if exists t3|
+drop view if exists v1|
+create table t3 (s1 decimal(31,30))|
+create view v1 as select * from t3|
+create procedure bug6600()
+check table v1|
+call bug6600()|
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+call bug6600()|
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+call bug6600()|
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+drop procedure bug6600|
+drop view v1|
+drop table t3|
 drop table t1,t2;
-drop procedure if exists sp1;
-create table t1 (a int) engine=innodb|
-create procedure sp1 ()
-begin
-truncate table t1; insert t1 values (1); rollback;
-end
-|
-set autocommit=0;
-insert t1 values (2);
-call sp1();
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-commit;
-set autocommit=1;
-select * from t1;
-a
-2
-call sp1();
-select * from t1;
-a
-1
-drop table t1;
-drop procedure sp1;

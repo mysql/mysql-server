@@ -2446,3 +2446,12 @@ cast((a - b) as unsigned)
 1
 18446744073709551615
 drop table t1;
+create table t1 (a int, b int);
+create table t2 like t1;
+select t1.a from (t1 inner join t2 on t1.a=t2.a) where t2.a=1;
+a
+select t1.a from ((t1 inner join t2 on t1.a=t2.a)) where t2.a=1;
+a
+select x.a, y.a, z.a from ( (t1 x inner join t2 y on x.a=y.a) inner join t2 z on y.a=z.a) WHERE x.a=1;
+a	a	a
+drop table t1,t2;

@@ -279,7 +279,7 @@ public:
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
-  bool set_warning(const unsigned int level, const unsigned int code, 
+  bool set_warning(unsigned int level, unsigned int code,
                    int cuted_increment);
   bool check_int(const char *str, int length, const char *int_end,
                  CHARSET_INFO *cs);

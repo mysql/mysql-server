@@ -80,7 +80,8 @@ void mysql_reset_errors(THD *thd, bool force)
     thd->warn_id= thd->query_id;
     free_root(&thd->warn_root,MYF(0));
     bzero((char*) thd->warn_count, sizeof(thd->warn_count));
-    if (force) thd->total_warn_count= 0;
+    if (force)
+      thd->total_warn_count= 0;
     thd->warn_list.empty();
     thd->row_count= 1; // by default point to row 1
   }
@@ -113,7 +114,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     DBUG_RETURN(0);
 
   if (thd->query_id != thd->warn_id)
-    mysql_reset_errors(thd);
+    mysql_reset_errors(thd, 0);
   thd->got_warning= 1;
   if (thd->spcont &&
       thd->spcont->find_handler(code,

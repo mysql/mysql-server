@@ -1782,7 +1782,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
   /* Reset warnings from previous command */
-  mysql_reset_errors(thd);
+  mysql_reset_errors(thd, 0);
   lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
