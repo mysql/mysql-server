@@ -163,11 +163,6 @@ private:
   static const unsigned AttributeHeaderSize = 1;
 
   /*
-   * Array of pointers to TUP table attributes.  Always read-on|y.
-   */
-  typedef const Uint32** TableData;
-
-  /*
    * Logical tuple address, "local key".  Identifies table tuples.
    */
   typedef Uint32 TupAddr;
@@ -330,11 +325,15 @@ private:
 
   /*
    * Attribute metadata.  Size must be multiple of word size.
+   *
+   * Prefix comparison of char data must use strxfrm and binary
+   * comparison.  The charset is currently unused.
    */
   struct DescAttr {
     Uint32 m_attrDesc;          // standard AttributeDescriptor
     Uint16 m_primaryAttrId;
-    Uint16 m_typeId;
+    unsigned m_typeId : 6;
+    unsigned m_charset : 10;
   };
   static const unsigned DescAttrSize = sizeof(DescAttr) >> 2;
 
@@ -553,9 +552,9 @@ private:
   void execREAD_CONFIG_REQ(Signal* signal);
   // utils
   void setKeyAttrs(const Frag& frag);
-  void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData);
-  void readTablePk(const Frag& frag, TreeEnt ent, unsigned& pkSize, Data pkData);
-  void copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
+  void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData);
+  void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
+  void copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
 
   /*
    * DbtuxMeta.cpp
@@ -622,17 +621,15 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void searchToAdd(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToRemove(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToAdd(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  void searchToRemove(Signal* signal, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void searchToScan(Signal* signal, Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
-  int cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, TableData entryKey);
+  int cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
   int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen = MaxAttrDataSize);
-  int cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, TableData entryKey);
 
   /*
    * DbtuxDebug.cpp
@@ -679,17 +676,27 @@ private:
   Uint32 c_typeOfStart;
 
   /*
-   * Array of index key attribute ids in AttributeHeader format.
-   * Includes fixed attribute sizes.  This is global data set at
-   * operation start and is not passed as a parameter.
+   * Global data set at operation start.  Unpacked from index metadata.
+   * Not passed as parameter to methods.  Invalid across timeslices.
+   *
+   * TODO inline all into index metadata
    */
+
+  // index key attr ids with sizes in AttributeHeader format
   Data c_keyAttrs;
 
-  // buffer for search key data as pointers to TUP storage
-  TableData c_searchKey;
+  // pointers to index key comparison functions
+  NdbSqlUtil::Cmp** c_sqlCmp;
 
-  // buffer for current entry key data as pointers to TUP storage
-  TableData c_entryKey;
+  /*
+   * Other buffers used during the operation.
+   */
+
+  // buffer for search key data with headers
+  Data c_searchKey;
+
+  // buffer for current entry key data with headers
+  Data c_entryKey;
 
   // buffer for scan bounds and keyinfo (primary key)
   Data c_dataBuffer;
