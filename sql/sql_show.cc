@@ -1059,10 +1059,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user :
 				   (tmp->system_thread ?
 				    "system user" : "unauthenticated user"));
-        thd_info->host=thd->strdup(tmp->host ? tmp->host :
-				   (tmp->ip ? tmp->ip :
-				    (tmp->system_thread ? "none" :
-				     "connecting host")));
+        thd_info->host= thd->strdup(tmp->host_or_ip);
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;

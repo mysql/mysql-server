@@ -972,14 +972,14 @@ int Rand_log_event::write_data(IO_CACHE* file)
 #ifdef MYSQL_CLIENT
 void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 {
-  char llbuff[22];
+  char llbuff[22],llbuff2[22];
   if (!short_form)
   {
     print_header(file);
     fprintf(file, "\tRand\n");
   }
   fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
-	  llstr(seed1, llbuff),llstr(seed2, llbuff));
+	  llstr(seed1, llbuff),llstr(seed2, llbuff2));
   fflush(file);
 }
 #endif
