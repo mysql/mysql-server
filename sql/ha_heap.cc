@@ -85,7 +85,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
       seg->start=   (uint) key_part->offset;
       seg->length=  (uint) key_part->length;
       seg->flag =   0;
-      seg->charset= default_charset_info;
+      seg->charset= field->binary() ? NULL : ((Field_str*)field)->charset();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;

@@ -104,6 +104,7 @@ struct st_table {
         *rowid_field;
   Field_timestamp *timestamp_field;
   my_string comment;			/* Comment about table */
+  CHARSET_INFO *table_charset;		/* Default charset of string fields */
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;

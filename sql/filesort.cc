@@ -77,9 +77,17 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   SORTPARAM param;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
+  CHARSET_INFO *charset=table->table_charset;
+  uint i;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
+
+  // BAR TODO: this is not absolutely correct, but OK for now
+  for(i=0;i<table->fields;i++)
+    if (!table->field[i]->binary())
+      charset=((Field_str*)(table->field[i]))->charset();
+  // /BAR TODO
 
   outfile= table->io_cache;
   my_b_clear(&tempfile);
@@ -129,7 +137,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=param.max_rows;			/* purecov: inspected */
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info) &&
+  if (use_strcoll(charset) &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 #endif

@@ -341,6 +341,15 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 			 (hash_get_key) get_field_name,0,
 			 HASH_CASE_INSENSITIVE);
 
+// BAR: dirty hack while waiting for new FRM
+// BAR: take a charset information from table name
+{
+  const char* csname=strstr(alias,"_cs_");
+  if(!csname || 
+     !(outparam->table_charset=get_charset_by_name(csname+4,MYF(MY_WME))))
+    outparam->table_charset=default_charset_info;
+}
+
   for (i=0 ; i < outparam->fields; i++, strpos+= 11, field_ptr++)
   {
     uint pack_flag= uint2korr(strpos+6);
@@ -357,6 +366,18 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		  (TYPELIB*) 0),
 		 outparam->fieldnames.type_names[i],
 		 outparam);
+    if (!reg_field->binary())
+    {
+      // BAR: dirty hack while waiting for new FRM
+      // BAR: take a charset information from field name
+
+      Field_str* str_field=(Field_str*)reg_field;
+      const char* csname=strstr(str_field->field_name,"_cs_");
+      CHARSET_INFO *fcs;
+      if (!csname || (!(fcs=get_charset_by_name(csname+4,MYF(MY_WME)))))
+        fcs=outparam->table_charset;
+      str_field->set_charset(fcs);
+    }
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
