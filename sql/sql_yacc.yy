@@ -5204,7 +5204,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT FROM user_list
+	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
