@@ -2467,6 +2467,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate);
       DBUG_RETURN(1);
     }
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+    {
+      set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
 
     net_clear(net);				/* Sets net->write_pos */
     /* Reserve place for null-marker bytes */
