@@ -1922,7 +1922,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables)
   
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd,tables))
+  if (args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
   binary=args[0]->binary;

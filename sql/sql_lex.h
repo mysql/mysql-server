@@ -240,6 +240,7 @@ typedef struct st_select_lex_unit SELECT_LEX_UNIT;
 /*
   SELECT_LEX - store information of parsed SELECT_LEX statment
 */
+class JOIN;
 class st_select_lex: public st_select_lex_node {
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
@@ -251,12 +252,13 @@ public:
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
+  JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
   uint in_sum_expr;
   bool	create_refs, 
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
     depended, /* depended from outer select subselect */
     /* TRUE when having fix field called in processing of this SELECT */
-    having_fix_field; 
+    having_fix_field;e
 
   void init_query();
   void init_select();
