@@ -3257,9 +3257,7 @@ int Field_year::store(longlong nr)
 bool Field_year::send_binary(Protocol *protocol)
 {
   ulonglong tmp= Field_year::val_int();
-  TIME tm;
-  tm.year= (uint32) tmp;
-  return protocol->store_date(&tm);
+  return protocol->store_short(tmp);
 }
 
 double Field_year::val_real(void)

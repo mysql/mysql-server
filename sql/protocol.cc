@@ -852,7 +852,8 @@ bool Protocol_prep::store_short(longlong from)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_SHORT);
+        field_types[field_pos] == MYSQL_TYPE_SHORT ||
+        field_types[field_pos] == MYSQL_TYPE_YEAR);
 #endif
   field_pos++;
   char *to= packet->prep_append(2, PACKET_BUFFET_EXTRA_ALLOC);
@@ -939,7 +940,6 @@ bool Protocol_prep::store(TIME *tm)
 {
 #ifndef DEBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-        field_types[field_pos] == MYSQL_TYPE_YEAR ||
 	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
 	      field_types[field_pos] == MYSQL_TYPE_DATE ||
 	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
@@ -950,11 +950,11 @@ bool Protocol_prep::store(TIME *tm)
   pos= buff+1;
   
   int2store(pos, tm->year);
-  int2store(pos+2, tm->month);
-  int2store(pos+3, tm->day);
-  int2store(pos+4, tm->hour);
-  int2store(pos+5, tm->minute);
-  int2store(pos+6, tm->second);
+  pos[2]= (uchar) tm->month;
+  pos[3]= (uchar) tm->day;
+  pos[4]= (uchar) tm->hour;
+  pos[5]= (uchar) tm->minute;
+  pos[6]= (uchar) tm->second;
   int4store(pos+7, tm->second_part);
   if (tm->second_part)
     length=11;
@@ -987,15 +987,15 @@ bool Protocol_prep::store_time(TIME *tm)
   field_pos++;
   pos= buff+1;
   pos[0]= tm->neg ? 1 : 0;
-  int4store(pos+1, tm->day);
-  int2store(pos+5, tm->hour);
-  int2store(pos+7, tm->minute);
-  int2store(pos+9, tm->second);
-  int4store(pos+11, tm->second_part);
+  int4store(pos+1, tm->day); 
+  pos[5]= (uchar) tm->hour;
+  pos[6]= (uchar) tm->minute;
+  pos[7]= (uchar) tm->second;
+  int4store(pos+8, tm->second_part);
   if (tm->second_part)
-    length=14;
+    length=11;
   else if (tm->hour || tm->minute || tm->second || tm->day)
-    length=10;
+    length=8;
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
