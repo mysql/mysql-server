@@ -2103,49 +2103,103 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 }
 
 
-static int my_strncasecmp_utf8(CHARSET_INFO *cs,
-                const char *s, const char *t,  uint len)
+/*
+  Compare 0-terminated UTF8 strings.
+
+  SYNOPSIS
+    my_strcasecmp_utf8()
+    cs                  character set handler
+    s                   First 0-terminated string to compare
+    t                   Second 0-terminated string to compare
+
+  IMPLEMENTATION
+
+  RETURN
+    - negative number if s < t
+    - positive number if s > t
+    - 0 is the strings are equal
+*/
+
+static
+int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
 {
-  int s_res,t_res;
-  my_wc_t s_wc,t_wc;
-  const char *se=s+len;
-  const char *te=t+len;
-
-  while ( s < se && t < te )
+  while (s[0] && t[0])
   {
-    int plane;
+    my_wc_t s_wc,t_wc;
 
-    s_res=my_utf8_uni(cs,&s_wc, (const uchar*)s, (const uchar*)se);
-    t_res=my_utf8_uni(cs,&t_wc, (const uchar*)t, (const uchar*)te);
-
-    if ( s_res <= 0 || t_res <= 0 )
+    if (s[0] >= 0)
     {
-      /* Incorrect string, compare byte by byte value */
-      return bincmp(s, se, t, te);
+      /* 
+        s[0] is between 0 and 127.
+        It represents a single byte character.
+        Convert it into weight according to collation.
+      */
+      s_wc= plane00[(uchar) s[0]].tolower;
+      s++;
     }
+    else
+    {
+      int plane, res;
+      
+      /*
+        Scan a multibyte character.
 
-    plane=(s_wc>>8) & 0xFF;
-    s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].tolower : s_wc;
+        In the future it is worth to write a special version of my_utf8_uni()
+        for 0-terminated strings which will not take in account length. Now
+        we call the regular version of my_utf8_uni() with s+3 in the
+        last argument. s+3 is enough to scan any multibyte sequence.
 
-    plane=(t_wc>>8) & 0xFF;
-    t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].tolower : t_wc;
-
+        Calling the regular version of my_utf8_uni is safe for 0-terminated
+        strings: we will never lose the end of the string:
+        If we have 0 character in the middle of a multibyte sequence,
+        then my_utf8_uni will always return a negative number, so the
+        loop with finish.
+      */
+      
+      res= my_utf8_uni(cs,&s_wc, (const uchar*)s, (const uchar*) s + 3);
+      
+      /* 
+         In the case of wrong multibyte sequence we will
+         call strcmp() for byte-to-byte comparison.
+      */
+      if (res <= 0)
+        return strcmp(s, t);
+      s+= res;
+      
+      /* Convert Unicode code into weight according to collation */
+      plane=(s_wc>>8) & 0xFF;
+      s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].tolower : s_wc;
+    }
+    
+    
+    /* Do the same for the second string */
+    
+    if (t[0] >= 0)
+    {
+      /* Convert single byte character into weight */
+      t_wc= plane00[(uchar) t[0]].tolower;
+      t++;
+    }
+    else
+    {
+      int plane;
+      int res=my_utf8_uni(cs,&t_wc, (const uchar*)t, (const uchar*) t + 3);
+      if (res <= 0)
+        return strcmp(s, t);
+      t+= res;
+      
+      /* Convert code into weight */
+      plane=(t_wc>>8) & 0xFF;
+      t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].tolower : t_wc;
+    }
+    
+    /* Now we have two weights, let's compare them */
     if ( s_wc != t_wc )
       return  ((int) s_wc) - ((int) t_wc);
-
-    s+=s_res;
-    t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return ((int)(uchar)s[0]) - ((int) (uchar) t[0]);
 }
 
-static int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
-{
-  uint s_len=strlen(s);
-  uint t_len=strlen(t);
-  uint len = (s_len > t_len) ? s_len : t_len;
-  return  my_strncasecmp_utf8(cs, s, t, len);
-}
 
 static
 int my_wildcmp_utf8(CHARSET_INFO *cs,
