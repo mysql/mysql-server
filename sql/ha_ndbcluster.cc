@@ -4537,13 +4537,13 @@ bool ndbcluster_init()
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&LOCK_ndb_util_thread,MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_ndb_util_thread,NULL);
+  pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_ndb_util_thread, NULL);
 
 
   // Create utility thread
   pthread_t tmp;
-  if (pthread_create(&tmp,&connection_attrib,ndb_util_thread_func,0))
+  if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
   {
     DBUG_PRINT("error", ("Could not create ndb utility thread"));
     goto ndbcluster_init_error;
@@ -4570,7 +4570,7 @@ bool ndbcluster_end()
 
   // Kill ndb utility thread
   (void) pthread_mutex_lock(&LOCK_ndb_util_thread);  
-  DBUG_PRINT("exit",("killing ndb util thread: %lx",ndb_util_thread));
+  DBUG_PRINT("exit",("killing ndb util thread: %lx", ndb_util_thread));
   (void) pthread_cond_signal(&COND_ndb_util_thread);
   (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
@@ -5597,7 +5597,8 @@ ha_ndbcluster::update_table_comment(
 
 
 // Utility thread main loop
-extern "C" pthread_handler_decl(ndb_util_thread_func,arg __attribute__((unused)))
+extern "C" pthread_handler_decl(ndb_util_thread_func, 
+				arg __attribute__((unused)))
 {
   THD *thd; // needs to be first for thread_stack
   int error = 0;
@@ -5628,8 +5629,8 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,arg __attribute__((unused))
 
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     error= pthread_cond_timedwait(&COND_ndb_util_thread, 
-			   &LOCK_ndb_util_thread, 
-			   &abstime);
+				  &LOCK_ndb_util_thread, 
+				  &abstime);
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
     DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d", 
