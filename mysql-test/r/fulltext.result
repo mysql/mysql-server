@@ -55,7 +55,7 @@ Full-text indexes	are called collections	1
 Only MyISAM tables	support collections	2
 Function MATCH ... AGAINST()	is used to do a search	0
 Full-text search in MySQL	implements vector space model	0
-select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
+select * from t1 where MATCH a AGAINST ("sear*" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
 delete from t1 where a like "MySQL%";
