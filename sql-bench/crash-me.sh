@@ -48,7 +48,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
 $opt_dir="limits";
-$opt_user=$opt_password="";
+$opt_user=$opt_password="";$opt_verbose="";
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
 $opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=0;
 $opt_db_start_cmd="";           # the db server start command
@@ -67,8 +67,8 @@ $retry_limit=3;
 GetOptions("Information","help","server=s","debug","user=s","password=s",
 "database=s","restart","force","quick","log-all-queries","comment=s",
 "host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","suffix=s",
-"batch-mode","config-file=s","log-queries-to-file=s","check-server") 
-  || usage();
+"batch-mode","config-file=s","log-queries-to-file=s","check-server",
+"verbose!" => \$opt_verbose) || usage();
 usage() if ($opt_help || $opt_Information);
 
 $opt_suffix = '-'.$opt_suffix if (length($opt_suffix) != 0);
@@ -1375,7 +1375,6 @@ if ($limits{'type_sql_date'} eq 'yes')
 	}
     }
     
-    
 # Test: WEEK()
     {
 	my $resultat="no";
@@ -1494,6 +1493,36 @@ if ($limits{'type_sql_date'} eq 'yes')
     safe_query("drop table crash_me_d $drop_attr");    
     
 }
+
+
+# NOT id BETWEEN a and b
+if ($limits{'func_where_not_between'} eq 'yes')
+{
+   my $resultat = 'error';
+   my $err;
+   my $key='not_id_between';
+   my $prompt='NOT ID BETWEEN interprets as ID NOT BETWEEN';
+   print "$prompt:";
+   save_incomplete($key,$prompt);
+   safe_query_l($key,["create table crash_me_b (i int)",
+         "insert into crash_me_b values(2)",
+         "insert into crash_me_b values(5)"]);
+   $err =safe_query_result_l($key,
+    "select i from crash_me_b where not i between 1 and 3",
+     5,0);
+   if ($err eq 1) {
+      if (not defined($last_result)) {
+        $resultat='no';
+      };
+   };
+   if ( $err eq 0) {
+      $resultat = 'yes';
+   };
+   safe_query_l($key,["drop table crash_me_b"]);
+   save_config_data($key,$resultat,$prompt);
+   print "$resultat\n";
+};
+
 
 
 
@@ -2740,7 +2769,7 @@ $0 takes the following options:
 
 --password='password'
   Password for the current user.
-
+   
 --restart
   Save states during each limit tests. This will make it possible to continue
   by restarting with the same options if there is some bug in the DBI or
@@ -2765,6 +2794,10 @@ $0 takes the following options:
 
 --sleep='time in seconds' (Default $opt_sleep)
   Wait this long before restarting server.
+
+--verbose
+--noverbose
+  Log into the result file queries performed for determination parameter value
 
 EOF
   exit(0);
@@ -3615,6 +3648,11 @@ sub safe_query_result_l{
 
 sub safe_query_result
 {
+# result type can be 
+#  8 (must be empty), 2 (Any value), 0 (number)
+#  1 (char, endspaces can differ), 3 (exact char), 4 (NULL)
+#  5 (char with prefix), 6 (exact, errors are ignored)
+#  7 (array of numbers)
   my ($query,$answer,$result_type)=@_;
   my ($sth,$row,$result,$retry);
   undef($last_result);
@@ -3990,7 +4028,7 @@ sub add_log
 {
   my $key = shift;
   my $line = shift;
-  $log{$key} .= $line . "\n";  
+  $log{$key} .= $line . "\n" if ($opt_verbose);;  
 }
 
 sub save_all_config_data
