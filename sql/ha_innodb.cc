@@ -2016,8 +2016,27 @@ ha_innobase::write_row(
 
   	DBUG_ENTER("ha_innobase::write_row");
 
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->transaction.all.innobase_tid);
+	if (prebuilt->trx !=
+			(trx_t*) current_thd->transaction.all.innobase_tid) {
+		char	err_buf[2000];
+		
+		fprintf(stderr,
+"InnoDB: Error: the transaction object for the table handle is at\n"
+"InnoDB: %lx, but for the current thread it is at %lx\n",
+			(ulong)prebuilt->trx,
+			(ulong)current_thd->transaction.all.innobase_tid);
+		
+		ut_sprintf_buf(err_buf, ((byte*)prebuilt) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around prebuilt: %.1000s\n", err_buf);
+
+		ut_sprintf_buf(err_buf,
+			((byte*)(&(current_thd->transaction.all))) - 100, 200);
+		fprintf(stderr,
+"InnoDB: Dump of 200 bytes around transaction.all: %.1000s\n", err_buf);
+
+		ut_a(0);
+	}
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
