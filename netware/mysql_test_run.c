@@ -24,9 +24,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/mode.h>
-
 #include "my_manage.h"
-
 /******************************************************************************
 
   macros
@@ -143,7 +141,7 @@ int read_option(char *, char *);
 void run_test(char *);
 void setup(char *);
 void vlog(char *, va_list);
-void log(char *, ...);
+void log_msg(char *, ...);
 void log_info(char *, ...);
 void log_error(char *, ...);
 void log_errno(char *, ...);
@@ -161,21 +159,21 @@ void report_stats()
 {
   if (total_fail == 0)
   {
-    log("\nAll %d test(s) were successful.\n", total_test);
+    log_msg("\nAll %d test(s) were successful.\n", total_test);
   }
   else
   {
     double percent = ((double)total_pass / total_test) * 100;
     
-    log("\nFailed %u/%u test(s), %.02f%% successful.\n",
+    log_msg("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
-		log("\nThe .out and .err files in %s may give you some\n", result_dir);
-		log("hint of what when wrong.\n");
-		log("\nIf you want to report this error, please first read the documentation\n");
-		log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
+		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
+		log_msg("hint of what when wrong.\n");
+		log_msg("\nIf you want to report this error, please first read the documentation\n");
+		log_msg("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
   }
 
-  log("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
+  log_msg("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
 }
 
 /******************************************************************************
@@ -240,7 +238,7 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
   
   // create subdirectories
-  log("Creating test-suite folders...\n");
+  log_msg("Creating test-suite folders...\n");
   snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
   mkdir(temp, S_IRWXU);
   snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
@@ -259,9 +257,9 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
 
   // install databases
-  log("Creating test databases for master... \n");
+  log_msg("Creating test databases for master... \n");
   install_db(master_dir);
-  log("Creating test databases for slave... \n");
+  log_msg("Creating test databases for slave... \n");
   install_db(slave_dir);
 }
 
@@ -589,15 +587,18 @@ void start_slave()
                                      mysql_tmp_dir)) == 0)
     {
       slave_running = TRUE;
+
     }
     else
     {
       log_error("The slave server went down early.");
+
     }
   }
   else
   {
     log_error("Unable to start slave server.");
+
   }
   
   // free args
@@ -805,7 +806,7 @@ void run_test(char *test)
   if (ignore)
   {
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
          
     // ignore
     rstr = TEST_IGNORE;
@@ -887,7 +888,7 @@ void run_test(char *test)
     sleep(1);
 
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // args
     init_args(&al);
@@ -959,7 +960,7 @@ void run_test(char *test)
   else // early skips
   {
     // show test
-    log("%-46s ", test);
+    log_msg("%-46s ", test);
     
     // skip
     rstr = TEST_SKIP;
@@ -967,7 +968,7 @@ void run_test(char *test)
   }
   
   // result
-  log("%10.06f   %-14s\n", elapsed, rstr);
+  log_msg("%10.06f   %-14s\n", elapsed, rstr);
 }
 
 /******************************************************************************
@@ -996,7 +997,7 @@ void vlog(char *format, va_list ap)
   Log the message.
 
 ******************************************************************************/
-void log(char *format, ...)
+void log_msg(char *format, ...)
 {
   va_list ap;
 
@@ -1020,9 +1021,9 @@ void log_info(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- INFO : ");
+  log_msg("-- INFO : ");
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1040,9 +1041,9 @@ void log_error(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: ");
+  log_msg("-- ERROR: ");
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1060,9 +1061,9 @@ void log_errno(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: (%003u) ", errno);
+  log_msg("-- ERROR: (%003u) ", errno);
   vlog(format, ap);
-  log("\n");
+  log_msg("\n");
 
   va_end(ap);
 }
@@ -1157,8 +1158,9 @@ void setup(char *file)
   snprintf(file_path, PATH_MAX*2, "%s/mysqlbinlog --no-defaults --local-load=%s", bin_dir, mysql_tmp_dir);
   setenv("MYSQL_BINLOG", file_path, 1);
   setenv("MASTER_MYPORT", "9306", 1);
-
-
+  setenv("SLAVE_MYPORT", "9307", 1);
+  setenv("MYSQL_TCP_PORT", "3306", 1);
+  
 }
 
 /******************************************************************************
@@ -1198,18 +1200,18 @@ int main(int argc, char **argv)
     is_ignore_list = 1;
   }
   // header
-  log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  log_msg("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   
-  log("Initializing Tests...\n");
+  log_msg("Initializing Tests...\n");
   
   // install test databases
   mysql_install_db();
   
-  log("Starting Tests...\n");
+  log_msg("Starting Tests...\n");
   
-  log("\n");
-  log(HEADER);
-  log(DASH);
+  log_msg("\n");
+  log_msg(HEADER);
+  log_msg(DASH);
 
   if ( argc > 1 + is_ignore_list )
   {
@@ -1264,10 +1266,10 @@ int main(int argc, char **argv)
   // stop server
   mysql_stop();
 
-  log(DASH);
-  log("\n");
+  log_msg(DASH);
+  log_msg("\n");
 
-  log("Ending Tests...\n");
+  log_msg("Ending Tests...\n");
 
   // report stats
   report_stats();
