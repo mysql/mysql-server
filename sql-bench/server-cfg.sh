@@ -3470,7 +3470,8 @@ sub version
   if ($sth->execute && (@row = $sth->fetchrow_array)
       && $row[0] =~ /([\d\.]+)/)
   {
-    $version="sap-db $1";
+    $version=$row[0];
+    $verson =~ s/KERNEL/SAP DB/i; 
   }
   $sth->finish;
   $dbh->disconnect;
