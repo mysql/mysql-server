@@ -4558,12 +4558,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
-@c @image{Flags/south-korea} Korea [KREONet] @
+@c @image{Flags/south-korea} South Korea [KREONet] @
 @c @uref{http://linux.kreonet.re.kr/mysql/, WWW}
 
 @item
 @c EMAIL: jasper@webiiz.com (Kang, Tae-jin)
-@image{Flags/south-korea} Korea [Webiiz] @
+@image{Flags/south-korea} South Korea [Webiiz] @
 @uref{http://mysql.webiiz.com/, WWW}
 
 @item
@@ -4574,7 +4574,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @item
 @c ftp -> remove old files
 @c EX: ahmlhs@nmsvr.chosun.com (Ho-sun Lee)
-@c @image{Flags/south-korea} Korea [KREONet] @
+@c @image{Flags/south-korea} South Korea [KREONet] @
 @c @uref{ftp://linux.kreonet.re.kr/pub/tools/db/mysql/, FTP}
 
 @item
