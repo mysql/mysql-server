@@ -221,7 +221,9 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: keys with prefix compression, case insensitive collation.
 #
+--disable_warnings
 create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
+--enable_warnings
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 --error 1062
@@ -269,7 +271,9 @@ drop table t1;
 # Bug 4521: unique key prefix interacts poorly with utf8
 # InnoDB: fixed length keys, case insensitive collation
 #
+--disable_warnings
 create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
+--enable_warnings
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -504,10 +508,12 @@ drop table t1;
 # Bug#4594: column index make = failed for gbk, but like works
 # Check InnoDB
 #
+--disable_warnings
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str  (str(2))
 ) engine=innodb;
+--enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -563,10 +569,12 @@ DROP TABLE t1;
 # Bug #5723: length(<varchar utf8 field>) returns varying results
 #
 SET NAMES utf8;
+--disable_warnings
 CREATE TABLE t1 (
   subject varchar(255) character set utf8 collate utf8_unicode_ci,
   p varchar(15) character set utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
 INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
 INSERT INTO t1 VALUES ('aaa','bbb');
 SELECT length(subject) FROM t1;
@@ -612,3 +620,18 @@ SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
 SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
 SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
 DROP TABLE t1;
+
+#
+# Bug #6019 SELECT tries to use too short prefix index on utf8 data
+#
+set names utf8;
+--disable_warnings
+create table t1 (
+  a int primary key,
+  b varchar(6),
+  index b3(b(3))
+) engine=innodb character set=utf8;
+--enable_warnings
+insert into t1 values(1,'foo'),(2,'foobar');
+select * from t1 where b like 'foob%';
+drop table t1;
