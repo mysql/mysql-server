@@ -794,6 +794,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   share->tot_locks-= share->r_locks;
   share->r_locks=0;
   raid_chunks=share->base.raid_chunks;
+  VOID(mi_extra(info, HA_EXTRA_SET_KEY_CACHE, dflt_keycache));
 
   /*
     Skip the checking of the file if:
