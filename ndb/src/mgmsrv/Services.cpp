@@ -31,6 +31,7 @@
 #include <mgmapi_configuration.hpp>
 #include <Vector.hpp>
 #include "Services.hpp"
+#include "../mgmapi/ndb_logevent.hpp"
 
 extern bool g_StopServer;
 
@@ -256,6 +257,7 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("listen event", &MgmApiSession::listen_event, ""),
     MGM_ARG("node", Int, Optional, "Node"),  
+    MGM_ARG("parsable", Int, Optional, "Parsable"),  
     MGM_ARG("filter", String, Mandatory, "Event category"),
 
   MGM_CMD("purge stale sessions", &MgmApiSession::purge_stale_sessions, ""),
@@ -1249,25 +1251,49 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   Uint32 threshold;
   LogLevel::EventCategory cat;
   Logger::LoggerLevel severity;
+  EventLoggerBase::EventTextFunction textF;
   int i;
   DBUG_ENTER("Ndb_mgmd_event_service::log");
   DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
 
-  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity))
+  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity,textF))
     DBUG_VOID_RETURN;
 
   char m_text[256];
-  EventLogger::getText(m_text, sizeof(m_text), eventType, theData, nodeId);
+  EventLogger::getText(m_text, sizeof(m_text),
+		       textF, theData, nodeId);
 
-  Vector<NDB_SOCKET_TYPE> copy; 
+  BaseString str("log event reply\n");
+  str.appfmt("type=%d\n", eventType);
+  str.appfmt("time=%d\n", 0);
+  str.appfmt("source_nodeid=%d\n", nodeId);
+  for (i= 0; ndb_logevent_body[i].token; i++)
+  {
+    if ( ndb_logevent_body[i].type != eventType)
+      continue;
+    int val= theData[ndb_logevent_body[i].index];
+    if (ndb_logevent_body[i].index_fn)
+      val= (*(ndb_logevent_body[i].index_fn))(val);
+    str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
+  }
+
+  Vector<NDB_SOCKET_TYPE> copy;
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--){
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
-      if(m_clients[i].m_socket != NDB_INVALID_SOCKET &&
-	 println_socket(m_clients[i].m_socket, 
-			MAX_WRITE_TIMEOUT, m_text) == -1){
-	copy.push_back(m_clients[i].m_socket);
-	m_clients.erase(i, false);
+      if(m_clients[i].m_socket != NDB_INVALID_SOCKET)
+      {
+	int r;
+	if (m_clients[i].m_parsable)
+	  r= println_socket(m_clients[i].m_socket,
+			    MAX_WRITE_TIMEOUT, str.c_str());
+	else
+	  r= println_socket(m_clients[i].m_socket,
+			    MAX_WRITE_TIMEOUT, m_text);
+	if (r == -1) {
+	  copy.push_back(m_clients[i].m_socket);
+	  m_clients.erase(i, false);
+	}
       }
     }
   }
@@ -1395,15 +1421,17 @@ MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 void
 MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
 			    Properties const & args) {
-  
+  Uint32 parsable= 0;
   BaseString node, param, value;
   args.get("node", node);
   args.get("filter", param);
+  args.get("parsable", &parsable);
 
   int result = 0;
   BaseString msg;
 
   Ndb_mgmd_event_service::Event_listener le;
+  le.m_parsable = parsable;
   le.m_socket = m_socket;
 
   Vector<BaseString> list;

@@ -4,7 +4,7 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-use Carp qw(cluck);
+#use Carp qw(cluck);
 use strict;
 
 use POSIX ":sys_wait_h";
@@ -64,18 +64,6 @@ sub spawn_impl ($$$$$$$) {
   my $error=      shift;
   my $pid_file=   shift;                 # FIXME
 
-  # FIXME really needing a PATH???
-  # $ENV{'PATH'}= "/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin:/usr/bin/X11:$ENV{'PATH'}";
-
-  $ENV{'TZ'}=             "GMT-3";         # for UNIX_TIMESTAMP tests to work
-  $ENV{'LC_COLLATE'}=     "C";
-  $ENV{'MYSQL_TEST_DIR'}= $::glob_mysql_test_dir;
-  $ENV{'MASTER_MYPORT'}=  $::opt_master_myport;
-  $ENV{'SLAVE_MYPORT'}=   $::opt_slave_myport;
-# $ENV{'MYSQL_TCP_PORT'}= '@MYSQL_TCP_PORT@'; # FIXME
-  $ENV{'MYSQL_TCP_PORT'}= 3306;
-  $ENV{'MASTER_MYSOCK'}=  $::master->[0]->{'path_mysock'};
-
   if ( $::opt_script_debug )
   {
     print STDERR "\n";
@@ -85,17 +73,21 @@ sub spawn_impl ($$$$$$$) {
     print STDERR "#### ", "STDERR $error\n" if $error;
     if ( $join )
     {
-      print STDERR "#### ", "run";
+      print STDERR "#### ", "RUN  ";
     }
     else
     {
-      print STDERR "#### ", "spawn";
+      print STDERR "#### ", "SPAWN ";
     }
     print STDERR "$path ", join(" ",@$arg_list_t), "\n";
     print STDERR "#### ", "-" x 78, "\n";
   }
 
   my $pid= fork();
+  if ( ! defined $pid )
+  {
+    mtr_error("$path ($pid) can't be forked");
+  }
 
   if ( $pid )
   {
@@ -104,17 +96,22 @@ sub spawn_impl ($$$$$$$) {
     {
       # We run a command and wait for the result
       # FIXME this need to be improved
-      waitpid($pid,0);
+      my $res= waitpid($pid,0);
+
+      if ( $res == -1 )
+      {
+        mtr_error("$path ($pid) got lost somehow");
+      }
       my $exit_value=  $? >> 8;
       my $signal_num=  $? & 127;
       my $dumped_core= $? & 128;
       if ( $signal_num )
       {
-        mtr_error("spawn got signal $signal_num");
+        mtr_error("$path ($pid) got signal $signal_num");
       }
       if ( $dumped_core )
       {
-        mtr_error("spawn dumped core");
+        mtr_error("$path ($pid) dumped core");
       }
       return $exit_value;
     }
@@ -326,7 +323,8 @@ sub mtr_stop_mysqld_servers ($$) {
       mtr_init_args(\$args);
 
       mtr_add_arg($args, "--no-defaults");
-      mtr_add_arg($args, "-uroot");
+      mtr_add_arg($args, "--user=%s", $::opt_user);
+      mtr_add_arg($args, "--password=");
       if ( -e $srv->{'sockfile'} )
       {
         mtr_add_arg($args, "--socket=%s", $srv->{'sockfile'});
@@ -336,7 +334,8 @@ sub mtr_stop_mysqld_servers ($$) {
         mtr_add_arg($args, "--port=%s", $srv->{'port'});
       }
       mtr_add_arg($args, "--connect_timeout=5");
-      mtr_add_arg($args, "--shutdown_timeout=70");
+      mtr_add_arg($args, "--shutdown_timeout=20");
+      mtr_add_arg($args, "--protocol=tcp"); # FIXME new thing, will it help?!
       mtr_add_arg($args, "shutdown");
       # We don't wait for termination of mysqladmin
       mtr_spawn($::exe_mysqladmin, $args,
@@ -360,6 +359,10 @@ sub mtr_stop_mysqld_servers ($$) {
     if ( ! $pidsockfiles_left )
     {
       last PIDSOCKFILEREMOVED;
+    }
+    if ( $loop % 20 == 1 )
+    {
+      mtr_warning("Still processes alive after 10 seconds, retrying for $loop seconds...");
     }
     mtr_debug("Sleep for 1 second waiting for pid and socket file removal");
     sleep(1);                          # One second
@@ -463,5 +466,41 @@ sub start_reap_all {
 sub stop_reap_all {
   $SIG{CHLD}= 'DEFAULT';
 }
+
+##############################################################################
+#
+#  Wait for a file to be created
+#
+##############################################################################
+
+
+sub sleep_until_file_created ($$) {
+  my $pidfile= shift;
+  my $timeout= shift;
+
+  my $loop=  $timeout;
+  while ( $loop-- )
+  {
+    if ( -r $pidfile )
+    {
+      return;
+    }
+    mtr_debug("Sleep for 1 second waiting for creation of $pidfile");
+
+    if ( $loop % 20 == 1 )
+    {
+      mtr_warning("Waiting for $pidfile to be created, still trying for $loop seconds...");
+    }
+
+    sleep(1);
+  }
+
+  if ( ! -r $pidfile )
+  {
+    mtr_error("No $pidfile was created");
+  }
+}
+
+
 
 1;

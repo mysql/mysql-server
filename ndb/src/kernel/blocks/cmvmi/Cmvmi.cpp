@@ -197,7 +197,8 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   Uint32 threshold;
   LogLevel::EventCategory eventCategory;
   Logger::LoggerLevel severity;  
-  if (EventLoggerBase::event_lookup(eventType,eventCategory,threshold,severity))
+  EventLoggerBase::EventTextFunction textF;
+  if (EventLoggerBase::event_lookup(eventType,eventCategory,threshold,severity,textF))
     return;
   
   SubscriberPtr ptr;

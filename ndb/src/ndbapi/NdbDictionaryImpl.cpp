@@ -1591,6 +1591,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     abort();
   }
   
+  int distKeys= impl.m_noOfDistributionKeys;
   for(i = 0; i<sz; i++){
     const NdbColumnImpl * col = impl.m_columns[i];
     if(col == 0)
@@ -1625,7 +1626,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       DBUG_RETURN(-1);
     }
     // distribution key not supported for Char attribute
-    if (col->m_distributionKey && col->m_cs != NULL) {
+    if (distKeys && col->m_distributionKey && col->m_cs != NULL) {
       m_error.code= 745;
       DBUG_RETURN(-1);
     }
