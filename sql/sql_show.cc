@@ -374,6 +374,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   if (wild && !wild[0])
     wild=0;
+
   bzero((char*) &table_list,sizeof(table_list));
 
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
@@ -445,6 +446,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   }
   DBUG_PRINT("info",("found: %d files", files->elements));
   my_dirend(dirp);
+
+  VOID(ha_find_files(thd,db,path,wild,dir,files));
+
   DBUG_RETURN(0);
 }
 
