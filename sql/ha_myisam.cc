@@ -970,7 +970,9 @@ int ha_myisam::delete_table(const char *name)
 
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
-  return mi_lock_database(file,lock_type);
+  if (!table->tmp_table)
+    return mi_lock_database(file,lock_type);
+  return 0;
 }
 
 
