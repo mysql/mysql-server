@@ -2279,7 +2279,9 @@ String *Item_load_file::val_str(String *str)
   DBUG_ENTER("load_file");
 
   if (!(file_name= args[0]->val_str(str)) ||
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       !(current_thd->master_access & FILE_ACL) ||
+#endif
       !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
     goto err;
   if (!(stat_info.st_mode & S_IROTH))

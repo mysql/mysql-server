@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 #define SELECT_ACL	(1L << 0)
 #define INSERT_ACL	(1L << 1)
 #define UPDATE_ACL	(1L << 2)
@@ -58,6 +57,8 @@
 
 #define EXTRA_ACL	(1L << 29)
 #define NO_ACCESS	(1L << 30)
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /*
   Defines to change the above bits to how things are stored in tables
@@ -162,3 +163,6 @@ void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(const char *user, const char *host, USER_CONN *uc);
 int mysql_drop_user(THD *thd, List <LEX_USER> &list);
 int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
+
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
+

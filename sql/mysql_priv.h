@@ -393,18 +393,24 @@ bool check_stack_overrun(THD *thd,char *dummy);
 #define check_stack_overrun(A, B) 0
 #endif
 
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
-                          bool *write_to_binlog);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
-bool check_access(THD *thd, ulong access, const char *db=0, ulong *save_priv=0,
-		  bool no_grant=0, bool no_errors=0);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
+                          bool *write_to_binlog);
+bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
+		  bool no_grant, bool no_errors);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors=0);
+			bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
+#else
+#define check_access(thd, access, db, save_priv, no_grant, no_errors) false
+#define  check_table_access(thd, want_access, tables, no_errors) false
+#define check_global_access(thd, want_access) false
+#endif
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list);
@@ -720,7 +726,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
 extern const char *command_name[];
-extern const char *first_keyword, *localhost, *delayed_user, *binary_keyword;
+extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;

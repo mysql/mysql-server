@@ -33,6 +33,9 @@ static const char *fake_groups[] = { "server", "embedded", 0 };
 #include "../sql/mysqld.cc"
 #endif
 
+int check_user(THD *thd, enum enum_server_command command, 
+	       const char *passwd, uint passwd_len, const char *db,
+	       bool check_count);
 C_MODE_START
 #include <mysql.h>
 #undef ER
@@ -41,14 +44,6 @@ C_MODE_START
 
 static my_bool  org_my_init_done;
 my_bool         server_inited;
-
-static int check_connections1(THD * thd);
-static int check_connections2(THD * thd);
-static bool check_user(THD *thd, enum_server_command command,
-		       const char *user, const char *passwd, const char *db,
-		       bool check_count);
-char * get_mysql_home(){ return mysql_home;};
-char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
 static my_bool STDCALL
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
@@ -238,34 +233,6 @@ void THD::clear_error()
   net.report_error= 0;
 }
 
-static bool check_user(THD *thd,enum_server_command command, const char *user,
-		       const char *passwd, const char *db, bool check_count)
-{
-  thd->db=0;
-
-  if (!(thd->user = my_strdup(user, MYF(0))))
-  {
-    send_error(thd,ER_OUT_OF_RESOURCES);
-    return 1;
-  }
-  thd->master_access= ~0L;			// No user checking
-  thd->priv_user= thd->user;
-  mysql_log.write(thd,command,
-		  (thd->priv_user == thd->user ?
-		   (char*) "%s@%s on %s" :
-		   (char*) "%s@%s as anonymous on %s"),
-		  user,
-		  thd->host_or_ip,
-		  db ? db : (char*) "");
-  thd->db_access=0;
-  if (db && db[0])
-    return test(mysql_change_db(thd,db));
-  else
-    send_ok(thd);				// Ready to handle questions
-  return 0;					// ok
-}
-
-
 /*
   Make a copy of array and the strings array points to
 */
@@ -360,7 +327,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   error_handler_hook = my_message_sql;
 
-  opt_noacl = 1;				// No permissions
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (acl_init((THD *)0, opt_noacl))
   {
     mysql_server_end();
@@ -368,11 +335,16 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   }
   if (!opt_noacl)
     (void) grant_init((THD *)0);
+
+#endif
+
   init_max_user_conn();
   init_update_queries();
 
 #ifdef HAVE_DLOPEN
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!opt_noacl)
+#endif
     udf_init();
 #endif
 
@@ -465,14 +437,61 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thd->db= db;
   thd->db_length= db ? strip_sp(db) : 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->db_access= DB_ACLS;
   thd->master_access= ~NO_ACCESS;
+#endif
   thd->net.query_cache_query= 0;
 
   thd->data= 0;
 
   return thd;
 }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+int check_embedded_connection(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  int result;
+  char scramble_buff[SCRAMBLE_LENGTH];
+  int passwd_len;
+
+  thd->host= mysql->options.client_ip ?
+    mysql->options.client_ip : (char*)my_localhost;
+  thd->ip= thd->host;
+  thd->host_or_ip= thd->host;
+
+  if (acl_check_host(thd->host,thd->ip))
+  {
+    result= ER_HOST_NOT_PRIVILEGED;
+    goto err;
+  }
+
+  thd->user= mysql->user;
+  if (mysql->passwd && mysql->passwd[0])
+  {
+    memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
+    thd->scramble[SCRAMBLE_LENGTH]= 0;
+    scramble(scramble_buff, thd->scramble, mysql->passwd);
+    passwd_len= SCRAMBLE_LENGTH;
+  }
+  else
+    passwd_len= 0;
+
+  if((result= check_user(thd, COM_CONNECT, 
+			 scramble_buff, passwd_len, thd->db, true)))
+     goto err;
+
+  return 0;
+err:
+  {
+    NET *net= &mysql->net;
+    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
+    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
+  }
+  return result;
+}
+#endif
 
 void free_embedded_thd(MYSQL *mysql)
 {

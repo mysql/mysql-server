@@ -142,7 +142,7 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP
 };
 
 struct st_mysql_options {
@@ -180,6 +180,7 @@ struct st_mysql_options {
   my_bool separate_thread;
 #endif
   enum mysql_option methods_to_use;
+  char *client_ip;
 };
 
 enum mysql_status 
