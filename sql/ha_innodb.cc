@@ -1861,7 +1861,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
-    		DBUG_RETURN(1);
+    		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
  	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
@@ -1878,7 +1878,7 @@ ha_innobase::open(
     		my_free((char*) upd_buff, MYF(0));
     		my_errno = ENOENT;
 
-    		DBUG_RETURN(1);
+    		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   	}
 
 	innobase_prebuilt = row_create_prebuilt(ib_table);
