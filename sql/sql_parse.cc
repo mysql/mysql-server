@@ -1133,8 +1133,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
       // null test to handle EOM
-      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
-	  check_db_name(db))
+      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1150,8 +1149,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
       char *db=thd->strdup(packet), *alias;
       // null test to handle EOM
-      if (!db || !strip_sp(db) || !(alias= thd->strdup(db)) ||
-	  check_db_name(db))
+      if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -2332,8 +2330,7 @@ mysql_execute_command(void)
   case SQLCOM_CREATE_DB:
   {
     char *alias;
-    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
-	check_db_name(lex->name))
+    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2362,8 +2359,7 @@ mysql_execute_command(void)
   case SQLCOM_DROP_DB:
   {
     char *alias;
-    if (!strip_sp(lex->name) || !(alias=thd->strdup(lex->name)) ||
-	check_db_name(lex->name))
+    if (!(alias=thd->strdup(lex->name)) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
