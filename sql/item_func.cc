@@ -107,6 +107,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
+    coercibility= COER_NOCOLL;
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -1004,6 +1005,16 @@ longlong Item_func_char_length::val_int()
   return (longlong) (!args[0]->binary()) ? res->numchars() : res->length();
 }
 
+longlong Item_func_coercibility::val_int()
+{
+  if (args[0]->null_value)
+  {
+    null_value= 1;
+    return 0;
+  }
+  null_value= 0;
+  return (longlong) args[0]->coercibility;
+}
 
 longlong Item_func_locate::val_int()
 {

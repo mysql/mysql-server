@@ -441,6 +441,7 @@ static SYMBOL sql_functions[] = {
   { "CHAR_LENGTH",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "CHARACTER_LENGTH", SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_char_length)},
   { "COALESCE",		SYM(COALESCE),0,0},
+  { "COERCIBILITY",	SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_coercibility)},
   { "CONCAT",		SYM(CONCAT),0,0},
   { "CONCAT_WS",	SYM(CONCAT_WS),0,0},
   { "CONNECTION_ID",	SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_connection_id)},

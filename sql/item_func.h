@@ -590,6 +590,15 @@ public:
   void fix_length_and_dec() { max_length=10; }
 };
 
+class Item_func_coercibility :public Item_int_func
+{
+public:
+  Item_func_coercibility(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "coercibility"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
 class Item_func_locate :public Item_int_func
 {
   String value1,value2;
