@@ -1568,31 +1568,31 @@ int main(int argc, char **argv)
 
   /* These must be set early */
 
+  (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_grant,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_open,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_mapped_file,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_status,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_error_log,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_delayed_insert,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_delayed_status,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_delayed_create,MY_MUTEX_INIT_SLOW);
+  (void) pthread_mutex_init(&LOCK_manager,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_crypt,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_binlog_update, MY_MUTEX_INIT_FAST);	// QQ NOT USED
+  (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
-  (void) pthread_mutex_init(&LOCK_mysql_create_db,NULL);
-  (void) pthread_mutex_init(&LOCK_Acl,NULL);
-  (void) pthread_mutex_init(&LOCK_grant,NULL);
-  (void) pthread_mutex_init(&LOCK_open,NULL);
-  (void) pthread_mutex_init(&LOCK_thread_count,NULL);
-  (void) pthread_mutex_init(&LOCK_mapped_file,NULL);
-  (void) pthread_mutex_init(&LOCK_status,NULL);
-  (void) pthread_mutex_init(&LOCK_error_log,NULL);
-  (void) pthread_mutex_init(&LOCK_delayed_insert,NULL);
-  (void) pthread_mutex_init(&LOCK_delayed_status,NULL);
-  (void) pthread_mutex_init(&LOCK_delayed_create,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
-  (void) pthread_mutex_init(&LOCK_manager,NULL);
-  (void) pthread_mutex_init(&LOCK_crypt,NULL);
-  (void) pthread_mutex_init(&LOCK_bytes_sent,NULL);
-  (void) pthread_mutex_init(&LOCK_bytes_received,NULL);
-  (void) pthread_mutex_init(&LOCK_timezone,NULL);
-  (void) pthread_mutex_init(&LOCK_binlog_update, NULL);
-  (void) pthread_mutex_init(&LOCK_slave, NULL);
-  (void) pthread_mutex_init(&LOCK_server_id, NULL);
-  (void) pthread_mutex_init(&LOCK_user_conn, NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
   (void) pthread_cond_init(&COND_slave_start, NULL);

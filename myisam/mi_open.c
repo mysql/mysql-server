@@ -393,7 +393,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     setup_functions(share);
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,NULL));
+    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
     for (i=0; i<keys; i++)
       VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
     if (!thr_lock_inited)

@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 	    error,errno);
     exit(1);
   }
-  pthread_mutex_init(&LOCK_thread_count,NULL);
+  pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
 
   if ((error=pthread_attr_init(&thr_attr)))
   {

@@ -288,7 +288,7 @@ void thr_lock_init(THR_LOCK *lock)
 {
   DBUG_ENTER("thr_lock_init");
   bzero((char*) lock,sizeof(*lock));
-  VOID(pthread_mutex_init(&lock->mutex,NULL));
+  VOID(pthread_mutex_init(&lock->mutex,MY_MUTEX_INIT_FAST));
   lock->read.last= &lock->read.data;
   lock->read_wait.last= &lock->read_wait.data;
   lock->write_wait.last= &lock->write_wait.data;
@@ -1218,7 +1218,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 	    error,errno);
     exit(1);
   }
-  if ((error=pthread_mutex_init(&LOCK_thread_count,NULL)))
+  if ((error=pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST)))
   {
     fprintf(stderr,"Got error: %d from pthread_cond_init (errno: %d)",
 	    error,errno);

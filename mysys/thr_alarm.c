@@ -71,7 +71,7 @@ void init_thr_alarm(uint max_alarms)
   init_queue(&alarm_queue,max_alarms+1,offsetof(ALARM,expire_time),0,
 	     compare_ulong,NullS);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
-  pthread_mutex_init(&LOCK_alarm,NULL);
+  pthread_mutex_init(&LOCK_alarm,MY_MUTEX_INIT_FAST);
 #if THR_CLIENT_ALARM != SIGALRM || defined(USE_ALARM_THREAD)
 #if defined(HAVE_mit_thread)
   sigset(THR_CLIENT_ALARM,thread_alarm);	/* int. thread system calls */
@@ -862,7 +862,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '#')
     DBUG_PUSH(argv[1]+2);
 
-  pthread_mutex_init(&LOCK_thread_count,NULL);
+  pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_thread_count,NULL);
 
   /* Start a alarm handling thread */

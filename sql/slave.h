@@ -20,7 +20,7 @@ typedef struct st_master_info
   st_master_info():pending(0),fd(-1),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
-    pthread_mutex_init(&lock, NULL);
+    pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond, NULL);
   }
 

@@ -63,7 +63,7 @@ int my_rwlock_init( rw_lock_t *rwp, void *arg __attribute__((unused)))
 {
   pthread_condattr_t	cond_attr;
 
-  pthread_mutex_init( &rwp->lock, NULL );
+  pthread_mutex_init( &rwp->lock, MY_MUTEX_INIT_FAST);
   pthread_condattr_init( &cond_attr );
   pthread_cond_init( &rwp->readers, &cond_attr );
   pthread_cond_init( &rwp->writers, &cond_attr );

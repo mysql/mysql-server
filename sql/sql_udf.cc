@@ -105,7 +105,7 @@ void udf_init()
   if (initialized)
     DBUG_VOID_RETURN;
 
-  pthread_mutex_init(&THR_LOCK_udf,NULL);
+  pthread_mutex_init(&THR_LOCK_udf,MY_MUTEX_INIT_SLOW);
 
   init_sql_alloc(&mem, 1024,0);
   THD *new_thd = new THD;
