@@ -17,12 +17,12 @@
 
 /* Function with list databases, tables or fields */
 
-#undef USE_RAID
-#define USE_RAID
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
 #include <my_dir.h>
+#undef USE_RAID
+#define USE_RAID
 
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"			// For berkeley_show_logs
@@ -108,7 +108,7 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
 
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
-    
+
   if (list_open_tables(thd,&tables,db,wild))
     DBUG_RETURN(-1);
 
@@ -889,13 +889,19 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" CHECKSUM=1", 11);
   if (table->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
     packet->append(" DELAY_KEY_WRITE=1",18);
+  if (file->raid_type)
+  {
+    char buff[100];
+    sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
+            my_raid_type(file->raid_type), file->raid_chunks, file->raid_chunksize/RAID_BLOCK_SIZE);
+    packet->append(buff);
+  }
   if(table->comment)
-    {
-      packet->append(" COMMENT='", 10);
-      append_unescaped(packet, table->comment);
-      packet->append('\'');
-    }
-
+  {
+    packet->append(" COMMENT='", 10);
+    append_unescaped(packet, table->comment);
+    packet->append('\'');
+  }
 
   DBUG_RETURN(0);
 }
