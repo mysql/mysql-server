@@ -66,6 +66,7 @@
 #define HA_NO_WRITE_DELAYED	(HA_NOT_EXACT_COUNT*2)
 #define HA_PRIMARY_KEY_IN_READ_INDEX (HA_NO_WRITE_DELAYED*2)
 #define HA_DROP_BEFORE_CREATE	(HA_PRIMARY_KEY_IN_READ_INDEX*2)
+#define HA_CHECK_AND_REPAIR	(HA_DROP_BEFORE_CREATE*2)
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */
@@ -248,6 +249,7 @@ public:
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
   virtual int check(THD* thd,   HA_CHECK_OPT* check_opt );
   virtual int repair(THD* thd,  HA_CHECK_OPT* check_opt);
+  virtual bool check_and_repair(THD *thd, const char *name) {return 1;}
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);

@@ -331,7 +331,13 @@ elif $PS $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
 else
-  AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+  case $SYSTEM_TYPE in
+    *darwin*)
+      FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      ;;
+    *)
+      AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
+  esac
 fi
 AC_SUBST(FIND_PROC)
 AC_MSG_RESULT("$FIND_PROC")
@@ -619,6 +625,7 @@ int main()
 # Some system specific hacks
 #
 
+MAX_C_OPTIMIZE="-O6"
 case $SYSTEM_TYPE in
   *solaris2.7*)
     # Solaris 2.7 has a broken /usr/include/widec.h
@@ -672,6 +679,15 @@ case $SYSTEM_TYPE in
       then
 	with_named_curses=""
       fi
+    fi
+    ;;
+  *darwin*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      CFLAGS="$CFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS"
+      CXXFLAGS="$CXXFLAGS -traditional-cpp -DHAVE_DARWIN_THREADS"
+      MAX_C_OPTIMIZE="-O"
+      with_named_curses=""
     fi
     ;;
   *freebsd*)
@@ -1012,7 +1028,7 @@ if test "$ac_cv_prog_gcc" = "yes"
 then
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC="-O"
-  OPTIMIZE_CFLAGS="-O6"
+  OPTIMIZE_CFLAGS="$MAX_C_OPTIMIZE"
 else
   DEBUG_CFLAGS="-g"
   DEBUG_OPTIMIZE_CC=""
@@ -1221,7 +1237,7 @@ AC_CHECK_FUNCS(alarm bmove \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
  perror pread realpath rename \
  socket strnlen madvise \
- strtoul strtoull snprintf tempnam thr_setconcurrency \
+ strtol strtoul strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror\
  tell atod memcpy memmove \

@@ -594,7 +594,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   TABLE table;
   DBUG_ENTER("ha_create_table");
 
-  if (openfrm(name,"",0,(uint) READ_ALL,&table))
+  if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
     DBUG_RETURN(1);
   if (update_create_info)
   {

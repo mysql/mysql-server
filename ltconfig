@@ -1798,7 +1798,7 @@ bsdi4*)
   finish_cmds='PATH="\$PATH:/sbin" ldconfig $libdir'
   shlibpath_var=LD_LIBRARY_PATH
   deplibs_check_method='file_magic ELF [0-9][0-9]*-bit [ML]SB (shared object|dynamic lib)'
-  file_magic_cmd=/usr/bin/file
+  file_magic_cmd="/usr/bin/file -L"
   file_magic_test_file=/shlib/libc.so
   sys_lib_search_path_spec="/shlib /usr/lib /usr/X11/lib /usr/contrib/lib /lib /usr/local/lib"
   sys_lib_dlsearch_path_spec="/shlib /usr/lib /usr/local/lib"

@@ -48,7 +48,7 @@ static void usage(my_bool version)
   puts("Prints all arguments that is give to some program using the default files");
   printf("Usage: %s [OPTIONS] groups\n",my_progname);
   printf("\n\
-  -c, --config-file=# --defaults-file=#\n\
+  -c, --config-file=#, --defaults-file=#\n\
 	                The config file to use (default '%s')\n\
   --no-defaults		Return an empty string (useful for scripts)\n\
   -?, --help		Display this help message and exit.\n\

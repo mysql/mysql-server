@@ -140,6 +140,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   if (!table)
     DBUG_RETURN(-1);
   thd->proc_info="init";
+  thd->used_tables=0;
   save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
@@ -200,7 +201,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     }
     else
     {
-      table->record[0][0]=table->record[2][0];	// Fix delete marker
+      if (thd->used_tables)			// Column used in values()
+	restore_record(table,2);		// Get empty record
+      else
+	table->record[0][0]=table->record[2][0]; // Fix delete marker
       if (fill_record(table->field,*values))
       {
 	if (values_list.elements != 1)
@@ -1166,12 +1170,7 @@ select_insert::prepare(List<Item> &values)
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
 
-  if (fields->elements)
-  {
-    restore_record(table,2);			// Get empty record
-  }
-  else
-    table->record[0][0]=table->record[2][0];	// Fix delete marker
+  restore_record(table,2);			// Get empty record
   table->next_number_field=table->found_next_number_field;
   thd->count_cuted_fields=1;			/* calc cuted fields */
   thd->cuted_fields=0;

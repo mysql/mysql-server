@@ -346,6 +346,19 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
 #endif
 
+#ifdef HAVE_DARWIN_THREADS
+#define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
+#define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_condattr_init(A) pthread_dummy(0)
+#define pthread_condattr_destroy(A) pthread_dummy(0)
+#define pthread_cond_init( A, B ) pthread_cond_init( (A), 0 )
+#define pthread_signal(A,B) pthread_dummy(0)
+#undef	pthread_detach_this_thread
+#define pthread_detach_this_thread() { pthread_t tmp=pthread_self() ; pthread_detach(&tmp); }
+#undef sigset
+#define sigset(A,B) pthread_signal((A),(void (*)(int)) (B))
+#endif
+
 #if ((defined(HAVE_PTHREAD_ATTR_CREATE) && !defined(HAVE_SIGWAIT)) || defined(HAVE_DEC_3_2_THREADS)) && !defined(HAVE_CTHREADS_WRAPPER)
 /* This is set on AIX_3_2 and Siemens unix (and DEC OSF/1 3.2 too) */
 #define pthread_key_create(A,B) \

@@ -200,7 +200,7 @@ get_history_event (string, caller_index, delimiting_quote)
     }
 
   /* Only a closing `?' or a newline delimit a substring search string. */
-  for (local_index = i; c = string[i]; i++)
+  for (local_index = i; (c = string[i]); i++)
     if ((!substring_okay && (whitespace (c) || c == ':' ||
 	(history_search_delimiter_chars && member (c, history_search_delimiter_chars)) ||
 	string[i] == delimiting_quote)) ||

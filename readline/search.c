@@ -174,7 +174,7 @@ noninc_search (dir, pchar)
 #define SEARCH_RETURN rl_restore_prompt (); return
 
   /* Read the search string. */
-  while (c = rl_read_key ())
+  while ((c = rl_read_key ()))
     {
       switch (c)
 	{
