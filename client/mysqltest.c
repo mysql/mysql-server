@@ -1662,16 +1662,16 @@ int do_while(struct st_query* q)
     happen for any tests in the test suite.
 */
 
-char my_getc(FILE *file)
+int my_getc(FILE *file)
 {
   if (line_buffer_pos == line_buffer)
     return fgetc(file);
-  return line_buffer[--line_buffer_pos];
+  return *--line_buffer_pos;
 }
 
 void my_ungetc(int c)
 {
-  line_buffer[line_buffer_pos++]= c;
+  *line_buffer_pos++= (char) c;
 }
 
 
@@ -1692,8 +1692,9 @@ my_bool end_of_query(int c)
     return 1;					/* Found delimiter */
 
   /* didn't find delimiter, push back things that we read */
-  for (j = 1 ; j <= i ; j++)
-    my_ungetc(tmp[j]);
+  my_ungetc(c);
+  while (i > 1)
+    my_ungetc(tmp[--i]);
   return 0;
 }
 
@@ -2396,9 +2397,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       }
     }
 
-    if (glob_replace)
-      free_replace();
-
     if (record)
     {
       if (!q->record_file[0] && !result_file)
@@ -2419,6 +2417,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     mysql_error(mysql);
 
 end:
+  free_replace();
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
