@@ -259,14 +259,14 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   started with corresponding variable that is greater then 0.
 */
 
-static byte* get_key_conn(user_conn *buff, uint *length,
-			  my_bool not_used __attribute__((unused)))
+extern "C" static byte *get_key_conn(user_conn *buff, uint *length,
+				  my_bool not_used __attribute__((unused)))
 {
   *length=buff->len;
   return (byte*) buff->user;
 }
 
-static void free_user(struct user_conn *uc)
+extern "C" static void free_user(struct user_conn *uc)
 {
   my_free((char*) uc,MYF(0));
 }
@@ -274,7 +274,7 @@ static void free_user(struct user_conn *uc)
 void init_max_user_conn(void) 
 {
   (void) hash_init(&hash_user_connections,max_connections,0,0,
-		   (hash_get_key) get_key_conn, (void (*)(void*)) free_user,
+		   (hash_get_key) get_key_conn, (hash_free_key) free_user,
 		   0);
 }
 
@@ -713,7 +713,7 @@ end_thread:
   Used when creating the initial grant tables
 */
 
-pthread_handler_decl(handle_bootstrap,arg)
+extern "C" pthread_handler_decl(handle_bootstrap,arg)
 {
   THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;

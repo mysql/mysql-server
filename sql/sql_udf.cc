@@ -98,7 +98,7 @@ static void init_syms(udf_func *tmp)
   }
 }
 
-static byte* get_hash_key(const byte *buff,uint *length,
+extern "C" static byte* get_hash_key(const byte *buff,uint *length,
 			  my_bool not_used __attribute__((unused)))
 {
   udf_func *udf=(udf_func*) buff;

@@ -1027,7 +1027,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
   {
     bool should_rotate = 0;
     THD *thd=event_info->thd;
-    const char* db = event_info->get_db();
+    const char *local_db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
     IO_CACHE *file = ((event_info->get_cache_stmt()) ?
 		      &thd->transaction.trans_log :
@@ -1037,7 +1037,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 #endif    
     if ((thd && !(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & SUPER_ACL)) ||
-	(db && !db_ok(db, binlog_do_db, binlog_ignore_db)))
+	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
@@ -1237,7 +1237,7 @@ err:
 */
 
 bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
-		      time_t query_start)
+		      time_t query_start_arg)
 {
   bool error=0;
   if (is_open())
@@ -1255,7 +1255,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	VOID(pthread_mutex_unlock(&LOCK_log));
 	return 0;
       }
-      if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start)
+      if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start_arg)
       {
 	current_time=time(NULL);
 	if (current_time != last_time)
@@ -1283,13 +1283,13 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 			thd->ip ? thd->ip : "") == (uint) -1)
 	  tmp_errno=errno;
       }
-      if (query_start)
+      if (query_start_arg)
       {
 	/* For slow query log */
 	if (my_b_printf(&log_file,
 			"# Query_time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
-			(ulong) (current_time - query_start),
-			(ulong) (thd->time_after_lock - query_start),
+			(ulong) (current_time - query_start_arg),
+			(ulong) (thd->time_after_lock - query_start_arg),
 			(ulong) thd->sent_row_count,
 			(ulong) thd->examined_row_count) == (uint) -1)
 	  tmp_errno=errno;
@@ -1316,11 +1316,11 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       }
       if (thd->query_start_used)
       {
-	if (query_start != thd->query_start())
+	if (query_start_arg != thd->query_start())
 	{
-	  query_start=thd->query_start();
+	  query_start_arg=thd->query_start();
 	  end=strmov(end,",timestamp=");
-	  end=int10_to_str((long) query_start,end,10);
+	  end=int10_to_str((long) query_start_arg,end,10);
 	}
       }
       if (end != buff)

@@ -130,9 +130,6 @@ int main(void)
   if (errors)
     fputs("--- Some functions doesn't work!! Fix them\n",stderr);
   return(errors > 0);
-
-  fputs("Fatal error\n",stderr);
-  return(2);
 } /* main */
 
 

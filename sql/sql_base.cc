@@ -39,8 +39,8 @@ static key_map get_key_map_from_key_list(TABLE *table,
 					 List<String> *index_list);
 
 
-static byte *cache_key(const byte *record,uint *length,
-		       my_bool not_used __attribute__((unused)))
+extern "C" static byte *cache_key(const byte *record,uint *length,
+				  my_bool not_used __attribute__((unused)))
 {
   TABLE *entry=(TABLE*) record;
   *length=entry->key_length;
@@ -50,7 +50,7 @@ static byte *cache_key(const byte *record,uint *length,
 void table_cache_init(void)
 {
   VOID(hash_init(&open_cache,table_cache_size+16,0,0,cache_key,
-		 (void (*)(void*)) free_cache_entry,0));
+		 (hash_free_key) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
 

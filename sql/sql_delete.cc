@@ -204,7 +204,7 @@ cleanup:
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-int refposcmp2(void* arg, const void *a,const void *b)
+extern "C" static int refposcmp2(void* arg, const void *a,const void *b)
 {
   return memcmp(a,b, *(int*) arg);
 }
@@ -392,7 +392,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 
 int multi_delete::do_deletes(bool from_send_error)
 {
-  int error = 0, counter = 0;
+  int local_error= 0, counter= 0;
 
   if (from_send_error)
   {
@@ -413,27 +413,27 @@ int multi_delete::do_deletes(bool from_send_error)
     TABLE *table = table_being_deleted->table;
     if (tempfiles[counter]->get(table))
     {
-      error=1;
+      local_error=1;
       break;
     }
 
     READ_RECORD	info;
     init_read_record(&info,thd,table,NULL,0,0);
-    while (!(error=info.read_record(&info)) &&
+    while (!(local_error=info.read_record(&info)) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
-      if ((error=table->file->delete_row(table->record[0])))
+      if ((local_error=table->file->delete_row(table->record[0])))
       {
-	table->file->print_error(error,MYF(0));
+	table->file->print_error(local_error,MYF(0));
 	break;
       }
       deleted++;
     }
     end_read_record(&info);
-    if (error == -1)				// End of file
-      error = 0;
+    if (local_error == -1)				// End of file
+      local_error = 0;
   }
-  return error;
+  return local_error;
 }
 
 
@@ -449,11 +449,11 @@ bool multi_delete::send_eof()
   thd->proc_info="deleting from reference tables";
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int error = do_deletes(0);		// returns 0 if success
+  int local_error= do_deletes(0);		// returns 0 if success
 
   /* reset used flags */
   thd->proc_info="end";
-  if (error)
+  if (local_error)
   {
     ::send_error(&thd->net);
     return 1;
@@ -473,10 +473,10 @@ bool multi_delete::send_eof()
       Query_log_event qinfo(thd, thd->query, thd->query_length);
       if (mysql_bin_log.write(&qinfo) &&
 	  !not_trans_safe)
-	error=1;  // Log write failed: roll back the SQL statement
+	local_error=1;  // Log write failed: roll back the SQL statement
     }
     /* Commit or rollback the current SQL statement */ 
-    VOID(ha_autocommit_or_rollback(thd,error > 0));
+    VOID(ha_autocommit_or_rollback(thd,local_error > 0));
   }
   if (deleted)
   {

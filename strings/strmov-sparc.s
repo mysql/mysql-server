@@ -23,10 +23,10 @@
 	.proc	0102
 strmov:
 .loop:
-	ldub	[%o1], %g2
-	stb	%g2, [%o0]
+	ldub	[%o1], %o3
+	stb	%o3, [%o0]
 	add	%o1, 1, %o1
-	cmp	%g2, 0
+	cmp	%o3, 0
 	bne,a	.loop
 	add	%o0, 1, %o0
 	retl

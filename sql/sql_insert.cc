@@ -25,7 +25,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list);
 static int write_delayed(THD *thd,TABLE *table, enum_duplicates dup,
 			 char *query, uint query_length, bool log_on);
 static void end_delayed_insert(THD *thd);
-static pthread_handler_decl(handle_delayed_insert,arg);
+extern "C" static pthread_handler_decl(handle_delayed_insert,arg);
 static void unlink_blobs(register TABLE *table);
 
 /* Define to force use of my_malloc() if the allocated memory block is big */
@@ -913,7 +913,7 @@ void kill_delayed_threads(void)
  * Create a new delayed insert thread
 */
 
-static pthread_handler_decl(handle_delayed_insert,arg)
+extern "C" static pthread_handler_decl(handle_delayed_insert,arg)
 {
   delayed_insert *di=(delayed_insert*) arg;
   THD *thd= &di->thd;
