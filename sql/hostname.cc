@@ -65,7 +65,8 @@ bool hostname_cache_init()
 
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
 				     sizeof(struct in_addr),NULL,
-				     (hash_free_key) free)))
+				     (hash_free_key) free,
+				     &my_charset_latin1)))
     return 1;
   hostname_cache->clear();
   return 0;

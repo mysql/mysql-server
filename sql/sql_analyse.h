@@ -21,6 +21,8 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+#define my_thd_charset	default_charset_info
+
 #define DEC_IN_AVG 4
 
 typedef struct st_number_info

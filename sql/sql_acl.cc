@@ -97,7 +97,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (!acl_cache)
     acl_cache=new hash_filo(ACL_CACHE_SIZE,0,0,
 			    (hash_get_key) acl_entry_get_key,
-			    (hash_free_key) free);
+			    (hash_free_key) free, system_charset_info);
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
