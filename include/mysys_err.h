@@ -54,7 +54,23 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_CANT_SYMLINK		25
 #define EE_REALPATH		26
 
+  /* exit codes for all MySQL programs */
+
+#define EXIT_UNSPECIFIED_ERROR		1
+#define EXIT_UNKNOWN_OPTION		2
+#define EXIT_AMBIGUOUS_OPTION		3
+#define EXIT_NO_ARGUMENT_ALLOWED	4
+#define EXIT_ARGUMENT_REQUIRED		5
+#define EXIT_VAR_PREFIX_NOT_UNIQUE	6
+#define EXIT_UNKNOWN_VARIABLE		7
+#define EXIT_OUT_OF_MEMORY		8
+#define EXIT_UNKNOWN_SUFFIX		9
+#define EXIT_NO_PTR_TO_VARIABLE		10
+#define EXIT_CANNOT_CONNECT_TO_SERVICE	11
+
+
 #ifdef	__cplusplus
 }
 #endif
 #endif
+

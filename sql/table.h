@@ -154,7 +154,7 @@ typedef struct st_table_list {
 
 typedef struct st_changed_table_list {
   struct	st_changed_table_list *next;
-  char		*key, *table_name;
+  char		*key;
   uint32        key_length;
 } CHANGED_TABLE_LIST;
 

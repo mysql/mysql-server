@@ -419,6 +419,7 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 ****************************************************************************/
 
 #if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
+#undef pthread_cond_timedwait
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)

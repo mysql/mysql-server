@@ -292,7 +292,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -615,13 +615,15 @@ get_one_option(int optid,
 
 static void get_options(register int *argc,register char ***argv)
 {
+  int ho_error;
+
   load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
 
-  if (handle_options(argc, argv, my_long_options, get_one_option))
-    exit(1);
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   /* If using repair, then update checksum if one uses --update-state */
   if ((check_param.testflag & T_UPDATE_STATE) &&

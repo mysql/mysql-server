@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.3"
+#define CHECK_VERSION "2.4"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -265,11 +265,7 @@ static int get_options(int *argc, char ***argv)
   load_defaults("my", load_default_groups, argc, argv);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (!what_to_do)
   {

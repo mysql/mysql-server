@@ -72,10 +72,6 @@ FTP (@uref{ftp://mir1.ovh.net/ftp.mysql.com/})
 WWW (@uref{http://www.mysql.netsample.com/})
 
 @item
-@image{Flags/france} France [Omegatomic] @@
-WWW (@uref{http://mysql.omegatomic.com/})
-
-@item
 @image{Flags/france} France [Universite Paris 10] @@
 WWW (@uref{http://ftp.u-paris10.fr/mysql.com})
 FTP (@uref{ftp://ftp.u-paris10.fr/mysql.com})
@@ -184,14 +180,14 @@ WWW (@uref{http://darkstar.ist.utl.pt/mysql/})
 FTP (@uref{ftp://darkstar.ist.utl.pt/pub/mysql/})
 
 @item
-@image{Flags/portugal} Portugal [Netc] @@
-WWW (@uref{http://ftp.netc.pt/pub/mysql/})
-FTP (@uref{ftp://ftp.netc.pt/pub/mysql/})
-
-@item
 @image{Flags/portugal} Portugal [Netvisão] @@
 WWW (@uref{http://mysql.netvisao.pt/})
 FTP (@uref{ftp://mirrors2.netvisao.pt/pub/mysql/})
+
+@item
+@image{Flags/portugal} Portugal [VIZZAVI] @@
+WWW (@uref{http://ftp.vizzavi.pt/pub/mysql/})
+FTP (@uref{ftp://ftp.vizzavi.pt/pub/mysql/})
 
 @item
 @image{Flags/romania} Romania [roedu.net/Bucharest] @@
@@ -268,10 +264,6 @@ FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 @item
 @image{Flags/usa} USA [adgrafix.com / Boston, MA] @@
 WWW (@uref{http://mysql.adgrafix.com/})
-
-@item
-@image{Flags/usa} USA [Fast Mirror / Englewood, CO] @@
-WWW (@uref{http://mysql.fastmirror.com/})
 
 @item
 @image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@

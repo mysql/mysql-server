@@ -160,7 +160,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->connections = 1;
     uc->questions=uc->updates=uc->conn_per_hour=0;
     uc->user_resources=*mqh;
-    if (mqh->connections > max_user_connections) 
+    if (max_user_connections && mqh->connections > max_user_connections) 
       uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
     if (hash_insert(&hash_user_connections, (byte*) uc))
@@ -298,7 +298,7 @@ static int check_for_max_user_connections(USER_CONN *uc)
     goto end;
   }
   uc->connections++; 
-if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
+  if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
   {
     net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_connections",
 	       (long) uc->user_resources.connections);
@@ -317,12 +317,7 @@ static void decrease_user_connections(USER_CONN *uc)
 */
 
   DBUG_ENTER("decrease_user_connections");
-  if (mqh_used)
-  {
-    if (uc->conn_per_hour) 
-      uc->conn_per_hour--;
-  }
-  else if (!--uc->connections)
+  if (!mqh_used && uc->connections && !--uc->connections)
   {
     /* Last connection for user; Delete it */
     (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -594,7 +589,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
   // The following calls needs to be done before we call DBUG_ macros
-  if (my_thread_init())
+  if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_thread_count);
@@ -1047,7 +1042,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1063,7 +1058,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_thread_count);
       char *db=thd->strdup(packet);
       // null test to handle EOM
-      if (!db || !stripp_sp(db) || check_db_name(db))
+      if (!db || !strip_sp(db) || check_db_name(db))
       {
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
@@ -1797,6 +1792,7 @@ mysql_execute_command(void)
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
+      thd->select_limit=HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
 	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
@@ -1964,13 +1960,9 @@ mysql_execute_command(void)
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
       auxi->table= (TABLE *) walk;		// Remember corresponding table
+      (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-    if (add_item_to_list(new Item_null()))
-    {
-      res= -1;
-      break;
-    }
     thd->proc_info="init";
     if ((res=open_and_lock_tables(thd,tables)))
       break;
@@ -2241,7 +2233,7 @@ mysql_execute_command(void)
     break;
   case SQLCOM_CREATE_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2253,7 +2245,7 @@ mysql_execute_command(void)
   }
   case SQLCOM_DROP_DB:
   {
-    if (!stripp_sp(lex->name) || check_db_name(lex->name))
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
     {
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
@@ -2440,7 +2432,6 @@ mysql_execute_command(void)
     }
     else
       res= -1;
-    thd->transaction.cleanup();
     break;
   }
   case SQLCOM_ROLLBACK:
@@ -2455,7 +2446,6 @@ mysql_execute_command(void)
     else
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-    thd->transaction.cleanup();
     break;
   default:					/* Impossible */
     send_ok(&thd->net);
@@ -2574,8 +2564,17 @@ check_table_access(THD *thd,uint want_access,TABLE_LIST *tables,
       }
     }
     else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
+			  0, no_errors | grant_option))
+    {
+      if (grant_option) 
+      {
+	if ( check_access(thd,want_access & (uint) ~TABLE_ACLS,tables->db,&tables->grant.privilege,
 			  0, no_errors))
-      return TRUE;				// Access denied
+	return TRUE;			
+      }
+      else
+	return TRUE;
+    }
   }
   if (grant_option)
     return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
@@ -2746,7 +2745,7 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command =  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit=HA_POS_ERROR;
+  lex->select->select_limit=lex->thd->select_limit=HA_POS_ERROR;
   lex->auxilliary_table_list=lex->select_lex.table_list;
   lex->select->table_list.elements=0; 
   lex->select->table_list.first=0;
@@ -2890,6 +2889,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
+  case FIELD_TYPE_GEOMETRY:
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
@@ -2991,7 +2991,9 @@ bool add_field_to_list(char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
-	new_field->length+=(uint) strlen(*pos)+1;
+      {
+	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+      }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
@@ -3012,10 +3014,10 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=(uint) strlen(interval->type_names[0]);
+      new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strlen(*pos);
+	uint length=(uint) strip_sp((char*) *pos);
 	set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);

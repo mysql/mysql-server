@@ -2407,7 +2407,7 @@ static void create_new_thread(THD *thd)
 inline void kill_broken_server()
 {
   /* hack to get around signals ignored in syscalls for problem OS's */
-  if (unix_sock == INVALID_SOCKET || ip_sock ==INVALID_SOCKET)
+  if (unix_sock == INVALID_SOCKET || (!opt_disable_networking && ip_sock ==INVALID_SOCKET))
   {
     select_thread_in_use = 0;
     kill_server((void*)MYSQL_KILL_SIGNAL); /* never returns */
@@ -3053,7 +3053,6 @@ static struct my_option my_long_options[] =
   */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
   {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
    "Undocumented: Meant for debugging and testing of replication",
    (gptr*) &disconnect_slave_event_count,
@@ -3070,7 +3069,6 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_sporadic_binlog_dump_fail,
    (gptr*) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#endif
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3474,12 +3472,12 @@ static struct my_option my_long_options[] =
   {"query_cache_limit", OPT_QUERY_CACHE_LIMIT,
    "Don't cache results that are bigger than this.",
    (gptr*) &query_cache_limit, (gptr*) &query_cache_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 0, ULONG_MAX, 0, 1, 0},
+   REQUIRED_ARG, 1024*1024L, 0, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /*HAVE_QUERY_CACHE*/
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",
    (gptr*) &query_cache_size, (gptr*) &query_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1, 0},
 #ifdef HAVE_QUERY_CACHE
   {"query_cache_startup_type", OPT_QUERY_CACHE_STARTUP_TYPE,
    "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache all results except SELECT SQL_NO_CACHE ... queries. 2 = DEMAND = Cache only SELECT SQL_CACHE ... queries.",
@@ -3499,9 +3497,10 @@ static struct my_option my_long_options[] =
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
    "Undocumented", (gptr*) &relay_log_space_limit,
    (gptr*) &relay_log_space_limit, 0, GET_ULONG, REQUIRED_ARG, 0L, 0L,
-   ULONG_MAX, 0, 1, 0},
+   (longlong) ULONG_MAX, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
-   "Undocumented", (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
+   "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
+   (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
@@ -4005,6 +4004,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
+    test_flags&= ~TEST_NO_THREADS;
     opt_endinfo=1;
     break;
   case (int) OPT_BIG_TABLES:
@@ -4193,8 +4193,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_specialflag|=SPECIAL_SKIP_SHOW_DB;
     mysql_port=0;
     break;
+#ifdef ONE_THREAD
   case (int) OPT_ONE_THREAD:
     test_flags |= TEST_NO_THREADS;
+#endif
     break;
   case (int) OPT_WANT_CORE:
     test_flags |= TEST_CORE_ON_SIGNAL;
@@ -4421,11 +4423,7 @@ static void get_options(int argc,char **argv)
 #endif
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];

@@ -432,6 +432,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   TABLE *table;
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
+  Item *item;
   CONVERT *convert=thd->convert_set;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
@@ -451,7 +452,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   field_list.push_back(new Item_empty_string("Type",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
-  field_list.push_back(new Item_empty_string("Default",NAME_LEN));
+  field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
+  item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra",20));
   if (verbose)
     field_list.push_back(new Item_empty_string("Privileges",80));

@@ -39,6 +39,7 @@ struct my_option
 };
 
 extern char *disabled_my_option;
+extern my_bool my_getopt_print_errors;
 
 extern int handle_options (int *argc, char ***argv, 
 			   const struct my_option *longopts, 

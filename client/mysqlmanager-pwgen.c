@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_PWGEN_VERSION "1.2"
+#define MANAGER_PWGEN_VERSION "1.4"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -86,9 +86,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
-  default:
-    usage();
-    exit(1);
   }
   return 0;
 }
@@ -99,11 +96,8 @@ int parse_args(int argc, char** argv)
   int ho_error;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   return 0;
 }
 

@@ -122,8 +122,6 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->pos_in_file= seek_offset;
   info->pre_close = info->pre_read = info->post_read = 0;
   info->arg = 0;
-  info->init_count++; /* we assume the user had set it to 0 prior to
-			 first call */
   info->alloced_buffer = 0;
   info->buffer=0;
   info->seek_not_done= test(file >= 0);

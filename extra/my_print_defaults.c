@@ -55,7 +55,7 @@ static struct my_option my_long_options[] =
 
 static void usage(my_bool version)
 {
-  printf("%s  Ver 1.4 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.5 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
   if (version)
     return;
@@ -92,11 +92,8 @@ static int get_options(int *argc,char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (*argc < 1)
   {
     usage(0);

@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.21"
+#define MTEST_VERSION "1.24"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -1446,12 +1446,14 @@ int do_connect(struct st_query* q)
     die("Failed on mysql_init()");
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
   /* Special database to allow one to connect without a database name */
-  if (!strcmp(con_db,"*NO-ONE*"))
+  if (con_db && !strcmp(con_db,"*NO-ONE*"))
     con_db=0;
   if ((con_error = safe_connect(&next_con->mysql, con_host,
 				con_user, con_pass,
@@ -1957,11 +1959,7 @@ int parse_args(int argc, char **argv)
   default_argv= argv;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (argc > 1)
   {
@@ -2359,6 +2357,8 @@ int main(int argc, char** argv)
     die("Failed in mysql_init()");
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");
@@ -2410,9 +2410,11 @@ int main(int argc, char** argv)
       case Q_QUERY:
       case Q_REAP:	
       {
-	int flags = QUERY_REAP; /* we read the result always regardless
-				* of the mode for both full query and
-				* read-result only ( reap) */
+	/*
+	  We read the result always regardless of the mode for both full
+	  query and read-result only (reap)
+	*/
+	int flags = QUERY_REAP;
 	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
 	if (q_send_flag)
@@ -2439,12 +2441,13 @@ int main(int argc, char** argv)
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
-	/* run query can execute a query partially, depending on the flags
-	 * QUERY_SEND flag without QUERY_REAP tells it to just send the
-	 * query and read the result some time later when reap instruction
-	 * is given on this connection
+	/*
+	  run_query() can execute a query partially, depending on the flags
+	  QUERY_SEND flag without QUERY_REAP tells it to just send the
+	  query and read the result some time later when reap instruction
+	  is given on this connection.
 	 */
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);

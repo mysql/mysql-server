@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.7";
+const char *VER= "12.10";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -440,7 +440,7 @@ static struct my_option my_long_options[] =
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-auto-rehash", 'A',
-   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options depricated; use --disable-auto-rehash instead.",
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -468,7 +468,7 @@ static struct my_option my_long_options[] =
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-named-commands", 'g',
-   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option depricated; use --disable-named-commands instead.",
+   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"named-commands", 'G',
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
@@ -489,25 +489,25 @@ static struct my_option my_long_options[] =
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (gptr*) &line_numbers, (gptr*) &line_numbers, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},  
-  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is depricated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef __WIN__
   {"no-pager", OPT_NOPAGER,
-   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option depricated; use --disable-pager instead.",
+   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option depricated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
+  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option deprecated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (gptr*) &unbuffered,
    (gptr*) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
    (gptr*) &column_names, (gptr*) &column_names, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
-   "Don't write column names in results. WARNING: -N is depricated, use long version of this options instead.",
+   "Don't write column names in results. WARNING: -N is deprecated, use long version of this options instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
    "Only update the default database. This is useful for skipping updates to other database in the update log.",
@@ -604,115 +604,115 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-    case OPT_CHARSETS_DIR:
-      strmov(mysql_charsets_dir, argument);
-      charsets_dir = mysql_charsets_dir;
-      break;
-    case OPT_LOCAL_INFILE:
-      using_opt_local_infile=1;
-      opt_local_infile= test(!argument || atoi(argument)>0);
-      break;
-    case OPT_TEE:
-      if (argument == disabled_my_option)
-      {
-	if (opt_outfile)
-	  end_tee();
-	opt_outfile= 0;
-      }
-      else
-	if (!opt_outfile)
-	{
-	  strmov(outfile, argument);
-	  opt_outfile= 1;
-	  init_tee();
-	}
-      break;
-    case OPT_NOTEE:
-      printf("WARNING: option depricated; use --disable-tee instead.\n");
+  case OPT_CHARSETS_DIR:
+    strmov(mysql_charsets_dir, argument);
+    charsets_dir = mysql_charsets_dir;
+    break;
+  case OPT_LOCAL_INFILE:
+    using_opt_local_infile=1;
+    opt_local_infile= test(!argument || atoi(argument)>0);
+    break;
+  case OPT_TEE:
+    if (argument == disabled_my_option)
+    {
       if (opt_outfile)
 	end_tee();
-      opt_outfile= 0;
-      break;
-    case OPT_PAGER:
-      opt_nopager= 0;
-      if (argument)
-	strmov(pager, argument);
-      else
-	strmov(pager, default_pager);
-      strmov(default_pager, pager);
-      break;
-    case OPT_NOPAGER:
-      printf("WARNING: option depricated; use --disable-pager instead.\n");
-      opt_nopager= 1;
-      break;
-    case 'A':
-      rehash= 0;
-      break;
-    case 'e':
+    }
+    else
+      if (!opt_outfile)
+      {
+	strmov(outfile, argument);
+	init_tee();
+      }
+    break;
+  case OPT_NOTEE:
+    printf("WARNING: option deprecated; use --disable-tee instead.\n");
+    if (opt_outfile)
+      end_tee();
+    break;
+  case OPT_PAGER:
+    opt_nopager= 0;
+    if (argument)
+      strmov(pager, argument);
+    else
+      strmov(pager, default_pager);
+    strmov(default_pager, pager);
+    break;
+  case OPT_NOPAGER:
+    printf("WARNING: option deprecated; use --disable-pager instead.\n");
+    opt_nopager= 1;
+    break;
+  case 'A':
+    rehash= 0;
+    break;
+  case 'N':
+    column_names= 0;
+    break;
+  case 'e':
+    status.batch= 1;
+    status.add_to_history= 0;
+    batch_readline_end(status.line_buff);	// If multiple -e
+    if (!(status.line_buff= batch_readline_command(argument)))
+      return 1;
+    ignore_errors= 0;
+    break;
+  case 'o':
+    if (argument == disabled_my_option)
+      one_database= 0;
+    else
+      one_database= skip_updates= 1;
+    break;
+  case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
+    if (argument)
+    {
+      char *start= argument;
+      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      opt_password= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		// Destroy argument
+      if (*start)
+	start[1]=0 ;
+    }
+    else
+      tty_password= 1;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    info_flag= 1;
+    break;
+  case 's':
+    if (argument == disabled_my_option)
+      opt_silent= 0;
+    else
+      opt_silent++;
+    break;
+  case 'v':
+    if (argument == disabled_my_option)
+      verbose= 0;
+    else
+      verbose++;
+    break;
+  case 'B':
+    if (!status.batch)
+    {
       status.batch= 1;
       status.add_to_history= 0;
-      batch_readline_end(status.line_buff);	// If multiple -e
-      if (!(status.line_buff= batch_readline_command(argument)))
-	return 1;
-      ignore_errors= 0;
-      break;
-    case 'o':
-      if (argument == disabled_my_option)
-	one_database= 0;
-      else
-	one_database= skip_updates= 1;
-      break;
-    case 'p':
-      if (argument == disabled_my_option)
-	argument= (char*) "";			// Don't require password
-      if (argument)
-      {
-	char *start= argument;
-	my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-	opt_password= my_strdup(argument, MYF(MY_FAE));
-	while (*argument) *argument++= 'x';		// Destroy argument
-	if (*start)
-	  start[1]=0 ;
-      }
-      else
-	tty_password= 1;
-      break;
-    case '#':
-      DBUG_PUSH(argument ? argument : default_dbug_option);
-      info_flag= 1;
-      break;
-    case 's':
-      if (argument == disabled_my_option)
-	opt_silent= 0;
-      else
-	opt_silent++;
-      break;
-    case 'v':
-      if (argument == disabled_my_option)
-	verbose= 0;
-      else
-	verbose++;
-      break;
-    case 'B':
-      if (!status.batch)
-      {
-	status.batch= 1;
-	status.add_to_history= 0;
-	opt_silent++;				// more silent
-      }
-      break;
-    case 'W':
+      opt_silent++;				// more silent
+    }
+    break;
+  case 'W':
 #ifdef __WIN__
-      opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
+    opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
 #endif
-      break;
-    case 'V':
-      usage(1);
-      exit(0);
-    case 'I':
-    case '?':
-      usage(0);
-      exit(0);
+    break;
+  case 'V':
+    usage(1);
+    exit(0);
+  case 'I':
+  case '?':
+    usage(0);
+    exit(0);
 #include "sslopt-case.h"
   }
   return 0;
@@ -739,11 +739,7 @@ static int get_options(int argc, char **argv)
   strmov(default_pager, pager);
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (status.batch) /* disable pager and outfile in this case */
   {
@@ -1514,17 +1510,22 @@ static void end_pager()
 
 static void init_tee()
 {
+  if (opt_outfile)
+    end_tee();
   if (!(OUTFILE= my_fopen(outfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
   {
-    opt_outfile=0;
+    opt_outfile= 0;
     init_pager();
     return;
   }
+  opt_outfile= 1;
+  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
 }
 
 static void end_tee()
 {
   my_fclose(OUTFILE, MYF(0));
+  opt_outfile= 0;
   return;
 }
 
@@ -1599,18 +1600,19 @@ print_table_data(MYSQL_RES *result)
     tee_puts(separator.c_ptr(), PAGER);
   }
 
-  while ((cur = mysql_fetch_row(result)))
+  while ((cur= mysql_fetch_row(result)))
   {
     (void) tee_fputs("|", PAGER);
-    mysql_field_seek(result,0);
-    for (uint off=0 ; off < mysql_num_fields(result); off++)
+    mysql_field_seek(result, 0);
+    for (uint off= 0; off < mysql_num_fields(result); off++)
     {
-      const char *str=cur[off] ? cur[off] : "NULL";
-      field = mysql_fetch_field(result);
-      uint length=field->max_length;
+      const char *str= cur[off] ? cur[off] : "NULL";
+      field= mysql_fetch_field(result);
+      uint length= field->max_length;
       if (length > MAX_COLUMN_LENGTH)
       {
-	tee_fputs(str,PAGER); tee_fputs(" |",PAGER);
+	tee_fputs(str, PAGER);
+	tee_fputs(" |", PAGER);
       }
       else
       tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
@@ -1811,7 +1813,7 @@ print_tab_data(MYSQL_RES *result)
     for (uint off=1 ; off < mysql_num_fields(result); off++)
     {
       (void) tee_fputs("\t", PAGER);
-      safe_put_field(cur[off],lengths[off]);
+      safe_put_field(cur[off], lengths[off]);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -1830,8 +1832,8 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   {
     if (!strlen(outfile))
     {
-      printf("No previous outfile available, you must give the filename!\n");
-      opt_outfile=0;
+      printf("No previous outfile available, you must give a filename!\n");
+      opt_outfile= 0;
       return 0;
     }
   }
@@ -1839,10 +1841,10 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   {
     while (isspace(*param))
       param++;
-    end=strmake(file_name, param, sizeof(file_name)-1);
+    end= strmake(file_name, param, sizeof(file_name) - 1);
     while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
       end--;
-    end[0]=0;
+    end[0]= 0;
     strmov(outfile, file_name);
   }
   if (!strlen(outfile))
@@ -1850,12 +1852,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     printf("No outfile specified!\n");
     return 0;
   }
-  if (!opt_outfile)
-  {
-    init_tee();
-    opt_outfile=1;
-  }
-  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
+  init_tee();
   return 0;
 }
 
@@ -1865,7 +1862,6 @@ com_notee(String *buffer __attribute__((unused)),
 {
   if (opt_outfile)
     end_tee();
-  opt_outfile=0;
   tee_fprintf(stdout, "Outfile disabled.\n");
   return 0;
 }
@@ -2288,11 +2284,11 @@ com_status(String *buffer __attribute__((unused)),
     }
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
-      tee_fprintf(stdout, "SSL cipher in use is %s\n",
+      tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else
 #endif /* HAVE_OPENSSL */
-      tee_puts("SSL is not in use\n", stdout);
+      tee_puts("SSL:\t\t\tNot in use", stdout);
   }
   else
   {

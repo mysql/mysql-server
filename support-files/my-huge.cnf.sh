@@ -35,8 +35,23 @@ set-variable	= thread_cache=8
 # Try number of CPU's*2 for thread_concurrency
 set-variable	= thread_concurrency=8
 set-variable	= myisam_sort_buffer_size=64M
-log-bin
-server-id	= 1
+
+# Replication Master Server (default)
+log-bin             # required for replication
+server-id	= 1 # required unique id between 1 and 2^32 - 1
+                    # defaults to 1 if master-host is not set
+                    # but will not function as a master if omitted
+
+# Replication Slave Server (comment out master section to use this)
+#master-host     =   # MUST BE SET
+#master-user     =   # MUST BE SET
+#master-password =   # MUST BE SET
+#master-port     =   # optional--defaults to 3306
+#log-bin             # not required for slaves, but recommended
+#server-id       = 2 # required unique id between 2 and 2^32 - 1
+                    # (and different from the master)
+                    # defaults to 2 if master-host is set
+                    # but will not function as a slave if omitted
 
 # Point the following paths to different dedicated disks
 #tmpdir		= /tmp/		

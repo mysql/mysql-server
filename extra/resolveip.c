@@ -16,11 +16,10 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
-#define RESOLVE_VERSION "2.1"
+#define RESOLVE_VERSION "2.2"
 
 #include <my_global.h>
 #include <m_ctype.h>
-#include <my_net.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <sys/types.h>
@@ -30,12 +29,8 @@
 #endif
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <my_net.h>
 #include <my_getopt.h>
-
-#ifdef SCO
-#undef h_errno
-#define h_errno errno
-#endif
 
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)
 extern int h_errno;
@@ -99,11 +94,8 @@ static int get_options(int *argc,char ***argv)
   /*  load_defaults("my",load_default_groups,argc,argv); */
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (*argc == 0)
   {
     usage();

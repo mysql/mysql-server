@@ -608,6 +608,9 @@ int show_slave_hosts(THD* thd)
 
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 {
+  if (!mi->host || !*mi->host)			/* empty host */
+    return 1;
+
   if (!mc_mysql_connect(mysql, mi->host, mi->user, mi->password, 0,
 		   mi->port, 0, 0))
   {
@@ -667,8 +670,10 @@ int load_master_data(THD* thd)
   int restart_thread_mask;
   mc_mysql_init(&mysql);
 
-  // we do not want anyone messing with the slave at all for the entire
-  // duration of the data load;
+  /*
+    We do not want anyone messing with the slave at all for the entire
+    duration of the data load.
+  */
   LOCK_ACTIVE_MI;
   lock_slave_threads(active_mi);
   init_thread_mask(&restart_thread_mask,active_mi,0 /*not inverse*/);
@@ -704,8 +709,10 @@ int load_master_data(THD* thd)
 
     if (!(num_dbs = (uint) mc_mysql_num_rows(db_res)))
       goto err;
-    // in theory, the master could have no databases at all
-    // and run with skip-grant
+    /*
+      In theory, the master could have no databases at all
+      and run with skip-grant
+    */
 
     if (!(table_res = (MYSQL_RES**)thd->alloc(num_dbs * sizeof(MYSQL_RES*))))
     {
@@ -713,10 +720,12 @@ int load_master_data(THD* thd)
       goto err;
     }
 
-    // this is a temporary solution until we have online backup
-    // capabilities - to be replaced once online backup is working
-    // we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
-    // can to minimize the lock time
+    /*
+      This is a temporary solution until we have online backup
+      capabilities - to be replaced once online backup is working
+      we wait to issue FLUSH TABLES WITH READ LOCK for as long as we
+      can to minimize the lock time.
+    */
     if (mc_mysql_query(&mysql, "FLUSH TABLES WITH READ LOCK", 0) ||
 	mc_mysql_query(&mysql, "SHOW MASTER STATUS",0) ||
 	!(master_status_res = mc_mysql_store_result(&mysql)))
@@ -726,8 +735,10 @@ int load_master_data(THD* thd)
       goto err;
     }
 
-    // go through every table in every database, and if the replication
-    // rules allow replicating it, get it
+    /*
+      Go through every table in every database, and if the replication
+      rules allow replicating it, get it
+    */
 
     table_res_end = table_res + num_dbs;
 
@@ -816,7 +827,7 @@ int load_master_data(THD* thd)
     }
   }
   thd->proc_info="purging old relay logs";
-  if (purge_relay_logs(&active_mi->rli,0 /* not only reset, but also reinit*/,
+  if (purge_relay_logs(&active_mi->rli,0 /* not only reset, but also reinit */,
 		       &errmsg))
   {
     send_error(&thd->net, 0, "Failed purging old relay logs");
