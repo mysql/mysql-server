@@ -3636,14 +3636,11 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
       {
 	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
-	{
 	  result= -1;
-	  ++counter;
+	else
 	  continue;
-	}
       }
-      else
-	++counter;
+      ++counter;
     }
 
     /* Remove column access */
@@ -3666,26 +3663,26 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				~0, 0, 1))
 	{
 	  result= -1;
-	  ++counter;
-	  continue;
 	}
-	if (grant_table->cols)
+	else
 	{
-	  List<LEX_COLUMN> columns;
-	  if (replace_column_table(grant_table,tables[3].table, *lex_user,
-				   columns,
-				   grant_table->db,
-				   grant_table->tname,
-				   ~0, 1))
+	  if (grant_table->cols)
 	  {
-	    result= -1;
-	    ++counter;
-	    continue;
+	    List<LEX_COLUMN> columns;
+	    if (replace_column_table(grant_table,tables[3].table, *lex_user,
+				     columns,
+				     grant_table->db,
+				     grant_table->tname,
+				     ~0, 1))
+	      result= -1;
+	    else
+	      continue;
 	  }
+	  else
+	    continue;
 	}
       }
-      else
-	++counter;
+      ++counter;
     }
   }
 
