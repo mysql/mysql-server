@@ -1335,8 +1335,7 @@ mysql_execute_command(THD *thd)
     TODO: solve problem with depended derived tables in subselects
   */
   if (lex->sql_command == SQLCOM_SELECT && 
-      (select_lex->options & SELECT_DESCRIBE) &&
-      lex->derived_tables)
+      lex->describe && lex->derived_tables)
   {
     if (!(explain_result= new select_send()))
     {
@@ -1405,8 +1404,6 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SELECT:
   {
     select_result *result=lex->result;
-    if (select_lex->options & SELECT_DESCRIBE)
-      lex->exchange=0;
     if (tables)
     {
       res=check_table_access(thd,
@@ -1431,35 +1428,10 @@ mysql_execute_command(THD *thd)
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
-    if (!result)
-    {
-      if ((result=new select_send()))
-      {
-	/*
-	  Normal select:
-	  Change lock if we are using SELECT HIGH PRIORITY,
-	  FOR UPDATE or IN SHARE MODE
-	*/
-	TABLE_LIST *table;
-	for (table = tables ; table ; table=table->next)
-	  table->lock_type= lex->lock_option;
-      }
-      else
-      {
-	res= -1;
-#ifdef DELETE_ITEMS
-	delete select_lex->having;
-	delete select_lex->where;
-#endif
-	break;
-      }
-    }
-
     if (!(res=open_and_lock_tables(thd,tables)))
     {
-      if (select_lex->options & SELECT_DESCRIBE)
+      if (lex->describe)
       {
-	delete result; // we do not need it for explain
 	if (!explain_result)
 	  if (!(explain_result= new select_send()))
 	  {
@@ -1477,12 +1449,33 @@ mysql_execute_command(THD *thd)
       }
       else
       {
+	if (!result)
+	{
+	  if ((result=new select_send()))
+	  {
+	    /*
+	      Normal select:
+	      Change lock if we are using SELECT HIGH PRIORITY,
+	      FOR UPDATE or IN SHARE MODE
+	    */
+	    TABLE_LIST *table;
+	    for (table = tables ; table ; table=table->next)
+	      table->lock_type= lex->lock_option;
+	  }
+	  else
+	  {
+	    res= -1;
+#ifdef DELETE_ITEMS
+	    delete select_lex->having;
+	    delete select_lex->where;
+#endif
+	    break;
+	  }
+	}
 	query_cache_store_query(thd, tables);
 	res=handle_select(thd, lex, result);
       }
     }
-    else
-      delete result;
     break;
   }
   case SQLCOM_DO:
@@ -2913,7 +2906,7 @@ mysql_init_query(THD *thd)
   thd->free_list= 0;
   thd->lex.union_option= 0;
   thd->lex.select= &thd->lex.select_lex;
-  thd->lex.olap=0;
+  thd->lex.olap=thd->lex.describe=0;
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error= 0;				// Safety
   thd->total_warn_count=0;			// Warnings for this query

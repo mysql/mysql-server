@@ -2553,7 +2553,8 @@ procedure_item:
 
 select_var_list_init:
 	   {
-	      if (!(Lex->result= new select_dumpvar()))
+             LEX *lex=Lex;
+	     if (!lex->describe && (!(lex->result= new select_dumpvar())))
 	        YYABORT;
 	   }
 	   select_var_list 
@@ -2567,27 +2568,34 @@ select_var_list:
 select_var_ident:  '@' ident_or_text
            {
              LEX *lex=Lex;
-	     if ( ((select_dumpvar *)lex->result)->var_list.push_back((LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING))))
+	     if (lex->result && ((select_dumpvar *)lex->result)->var_list.push_back((LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING))))
 	       YYABORT;
 	   }
+           ;
 
 opt_into:
         INTO OUTFILE TEXT_STRING
 	{
 	  LEX *lex=Lex;
-	  if (!(lex->exchange= new sql_exchange($3.str,0)))
-	    YYABORT;
-	  if (!(lex->result= new select_export(lex->exchange)))
-            YYABORT;
+	  if (!lex->describe)
+	  {
+	    if (!(lex->exchange= new sql_exchange($3.str,0)))
+	      YYABORT;
+	    if (!(lex->result= new select_export(lex->exchange)))
+	      YYABORT;
+	  }
 	}
 	opt_field_term opt_line_term
 	| INTO DUMPFILE TEXT_STRING
 	{
 	  LEX *lex=Lex;
-	  if (!(lex->exchange= new sql_exchange($3.str,1)))
-	    YYABORT;
-	  if (!(lex->result= new select_dump(lex->exchange)))
-            YYABORT;
+	  if (!lex->describe)
+	  {
+	    if (!(lex->exchange= new sql_exchange($3.str,1)))
+	      YYABORT;
+	    if (!(lex->result= new select_dump(lex->exchange)))
+	      YYABORT;
+	  }
 	}
         | INTO select_var_list_init
 	{
@@ -3057,7 +3065,11 @@ describe:
 	}
 	opt_describe_column
 	| describe_command select
-          { Lex->select_lex.options|= SELECT_DESCRIBE; };
+          { 
+	    LEX *lex=Lex;
+	    lex->select_lex.options|= SELECT_DESCRIBE; 
+	    lex->describe=1;
+	  };
 
 
 describe_command:
