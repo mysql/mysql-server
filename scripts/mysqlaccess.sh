@@ -8,7 +8,7 @@ use Fcntl;
 BEGIN {
 	# ****************************
 	# static information...
-	$VERSION     = "2.05, 17 Feb 2000";
+	$VERSION     = "2.06, 20 Dec 2000";
 	$0           =~ m%/([^/]+)$%o;
 	$script      = $1;
         $script      = 'MySQLAccess' unless $script;
@@ -301,6 +301,8 @@ Release Notes:
 
    2.05: (2000-02-17)   Monty
    Moved the log file from /tmp to ~
+
+   2.06:  Don't print '+++USING FULL WHERE CLAUSE+++'
 
 _RELEASE
 
@@ -1468,7 +1470,7 @@ sub Sort_table {
 
     # server version 3.21 has a full where clause :-)
     if ($MySQLaccess::Host::SERVER >= '3.21') {
-print "+++USING FULL WHERE CLAUSE+++\n";
+    # print "+++USING FULL WHERE CLAUSE+++\n";
        $start = "SELECT *,UCASE(host) as ucase_host FROM $tbl WHERE ";
        $end = ' ORDER BY ' . join(',', @order) . ";\n";
     }

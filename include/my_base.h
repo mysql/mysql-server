@@ -88,7 +88,9 @@ enum ha_extra_function {
   HA_EXTRA_FORCE_REOPEN=21,		/* Datafile have changed on disk */
   HA_EXTRA_FLUSH,			/* Flush tables to disk */
   HA_EXTRA_NO_ROWS,			/* Don't write rows */
-  HA_EXTRA_RESET_STATE			/* Reset positions */
+  HA_EXTRA_RESET_STATE,			/* Reset positions */
+  HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
+  HA_EXTRA_NO_IGNORE_DUP_KEY
 };
 
 	/* The following is parameter to ha_panic() */

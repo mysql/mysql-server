@@ -1,0 +1,68 @@
+.TH REPLACE 1 "20 December 2000" 
+.SH NAME 
+.TP
+replace - A utility program that is used by msql2mysql, but that has more general applicability as well. replace changes strings in place in files or on the standard input. Uses a finite state machine to match longer strings first. Can be used to swap strings.
+.SH USAGE 
+replace [-?svIV] from to from to ... -- [files]
+.TP
+or
+.TP
+replace [-?svIV] from to from to ... < fromfile > tofile
+.SH SYNOPSIS 
+.B replace 
+.RB [ -?  |  -I ] 
+.RB [ -s ] 
+.RB [ -v ] 
+.SH DESCRIPTION 
+.TP
+.BR replace
+.TP
+.BR -?  |  -I
+info
+.TP
+.BR -s
+silent
+.TP
+.BR -v
+verbose
+.SH EXTRA INFO
+.B Special characters in from string:
+.TP
+\\^
+Match start of line.
+.TP
+\\$
+Match end of line.
+.TP
+\\b
+Match space-character, start of line or end of line. For a end \\b the next replace starts locking at the end space-character. A \\b alone in a string matches only a space-character.
+.SH EXAMPLE
+this command swaps a and b in the given files:
+.TP
+shell> replace a b b a -- file1 file2 ...
+.SH "SEE ALSO" 
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+.SH AUTHOR 
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+.\" end of man page
+
+
