@@ -85,9 +85,13 @@ set_root_password() {
 	return 1
     fi
 
-    do_query "SET PASSWORD FOR root=PASSWORD('$password1');"
+    do_query "UPDATE mysql.user SET Password=PASSWORD('$password1') WHERE User='root';"
     if [ $? -eq 0 ]; then
 	echo "Password updated successfully!"
+	echo "Reloading privilege tables.."
+	if ! reload_privilege_tables; then
+	    exit 1
+	fi
 	echo
 	rootpass=$password1
 	make_config
@@ -144,11 +148,11 @@ reload_privilege_tables() {
     do_query "FLUSH PRIVILEGES;"
     if [ $? -eq 0 ]; then
 	echo " ... Success!"
+	return 0
     else
 	echo " ... Failed!"
+	return 1
     fi
-
-    return 0
 }
 
 interrupt() {
