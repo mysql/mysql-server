@@ -69,21 +69,21 @@ manual_toc.html: manual.html
 
 # PDF, Portable Document Format
 manual.pdf: manual.texi
-	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi
+	sed -e 's|@image{[^}]*} *||g' <$< >manual-tmp.texi
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
-	mv manual-tmp.pdf manual.pdf
+	mv manual-tmp.pdf $@
 	rm -f manual-tmp.*
 	touch $@
 
 # XML, DocBook 4.0
 mysql.xml: manual.texi include.texi
-	$(MAKEINFO) --force --no-ifinfo --docbook manual.texi
-	mv mysql.xml mysql-tmp.xml
-	Support/docbook-fixup.pl <mysql-tmp.xml >mysql.xml
+	$(MAKEINFO) --force --no-ifinfo --docbook $<
+	mv $@ mysql-tmp.xml
+	Support/docbook-fixup.pl <mysql-tmp.xml >$@
 	rm -f mysql-tmp.xml
 
 # Postscript, A4 Paper
@@ -123,21 +123,21 @@ manual_toc.de.html: manual.html
 
 # PDF, Portable Document Format
 manual.de.pdf: manual.de.texi
-	cat manual.de.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi
+	sed -e 's|@image{[^}]*} *||g' <$< >manual-tmp.texi
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
-	mv manual-tmp.pdf manual.de.pdf
+	mv manual-tmp.pdf $@
 	rm -f manual-tmp.*
 	touch $@
 
 # XML, DocBook 4.0
 mysql.de.xml: manual.de.texi include.texi
-	$(MAKEINFO) --force --no-ifinfo --docbook manual.de.texi
-	mv mysql.de.xml mysql-tmp.xml
-	Support/docbook-fixup.pl <mysql-tmp.xml >mysql.de.xml
+	$(MAKEINFO) --force --no-ifinfo --docbook $<
+	mv $@ mysql-tmp.xml
+	Support/docbook-fixup.pl <mysql-tmp.xml >$@
 	rm -f mysql-tmp.xml
 
 # Postscript, A4 Paper
@@ -163,18 +163,17 @@ manual_letter.de.ps:	manual.de.texi include.texi
 
 # Target to produce NuSphere Manual
 nusphere.pdf: manual.texi
-	cat manual.texi \
-	| sed -e 's/@example/@smallexample/g' \
-	      -e 's/@end example/@end smallexample/g' \
-	      -e 's/@c ifnusphere //g' \
-	      -e 's|@image{[^}]*} *||g' \
-	> manual-tmp.texi
+	sed -e 's/@example/@smallexample/g' \
+	    -e 's/@end example/@end smallexample/g' \
+	    -e 's/@c ifnusphere //g' \
+	    -e 's|@image{[^}]*} *||g' \
+	<$< >manual-tmp.texi
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	texindex manual-tmp.??
 	pdftex --interaction=nonstopmode manual-tmp.texi
-	mv manual-tmp.pdf nusphere.pdf
+	mv manual-tmp.pdf $@
 	rm -f manual-tmp.*
 	touch $@
 
