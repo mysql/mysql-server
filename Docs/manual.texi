@@ -31071,6 +31071,10 @@ mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
         -> 'no'
 @end example
 
+If @code{expr2} or @code{expr3} is explicitely @code{NULL} then the
+result type of the @code{IF()} function is the type of the not
+@code{NULL} column. (This behavior is new in MySQL 4.0.3).
+
 @code{expr1} is evaluated as an integer value, which means that if you are
 testing floating-point or string values, you should do so using a comparison
 operation:
@@ -50226,10 +50230,13 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
-Fixed security bug in database hash
+Changed behavior of @code{IF(condition,column,NULL)} so that it returns
+the value of the column type.
+@item
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
 @item
-Fixed security bug when having an empty databasename in the user.db table.
+Fixed security bug when having an empty databasename in the @code{user.db}
+table.
 @item
 Fixed some problems with @code{CREATE TABLE ... SELECT function()}.
 @item

@@ -1097,7 +1097,6 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 			   const byte *record, my_off_t pos)
 {
   byte *rec_buff,*old_record;
-  uint alloced_rec_buff_length;
   int error;
   DBUG_ENTER("_mi_cmp_dynamic_unique");
 

@@ -855,7 +855,7 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
     errmsg = "Master reported unrecognized MySQL version";
     break;
   }
-err:
+
   if (errmsg)
   {
     sql_print_error(errmsg);
@@ -874,7 +874,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   TABLE_LIST tables;
   int error= 1;
   handler *file;
-  uint save_options;
+  ulong save_options;
   
   if (packet_len == packet_error)
   {
@@ -903,7 +903,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   
   /* we do not want to log create table statement */
   save_options = thd->options;
-  thd->options &= ~(ulong) OPTION_BIN_LOG;
+  thd->options &= ~(ulong) (OPTION_BIN_LOG);
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   char* save_db = thd->db;
@@ -2642,7 +2642,7 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   *pos++='\n';
   pos=longlong2str(rli->master_log_pos, pos, 10);
   *pos='\n';
-  if (my_b_write(file, buff, (ulong) (pos-buff)+1))
+  if (my_b_write(file, (byte*) buff, (ulong) (pos-buff)+1))
     error=1;
   if (flush_io_cache(file))
     error=1;
