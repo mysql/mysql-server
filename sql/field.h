@@ -199,7 +199,8 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type)
+  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs,
+			     imagetype type)
     { get_image(buff,length,cs); }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }
