@@ -81,15 +81,17 @@ void Item_subselect::make_field (Send_field *tmp_field)
 
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  // Is it one field subselect?
-  if (engine->cols() > max_columns)
-  {  
-    my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
-    return 1;
-  }
   int res= engine->prepare();
   if (!res)
+  {
+    // Is it one field subselect?
+    if (engine->cols() > max_columns)
+    {  
+      my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+      return 1;
+    }
     fix_length_and_dec();
+  }
   return res;
 }
 
