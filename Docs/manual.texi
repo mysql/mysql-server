@@ -35519,17 +35519,11 @@ Selects a database.
 @item @strong{mysql_shutdown()} @tab
 Shuts down the database server.
 
-@item @strong{mysql_start_slave()} @tab
-Starts slave replication thread.
-
 @item @strong{mysql_stat()} @tab
 Returns the server status as a string.
 
 @item @strong{mysql_store_result()} @tab
 Retrieves a complete result set to the client.
-
-@item @strong{mysql_stop_slave()} @tab
-Stops slave replication thread.
 
 @item @strong{mysql_thread_id()} @tab
 Returns the current thread ID.
