@@ -516,7 +516,8 @@ extern TYPELIB tx_isolation_typelib;
 #define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
-                                 T != DB_TYPE_BERKELEY_DB)
+                                 T != DB_TYPE_BERKELEY_DB && \
+                                 T != DB_TYPE_NDBCLUSTER)
 
 bool ha_caching_allowed(THD* thd, char* table_key,
                         uint key_length, uint8 cache_type);
