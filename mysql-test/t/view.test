@@ -1254,7 +1254,7 @@ drop table t1,t2;
 #
 create table t1 (s1 int);
 create view v1 as select * from t1;
--- error 1346
+-- error 1347
 handler v1 open as xx;
 drop view v1;
 drop table t1;
