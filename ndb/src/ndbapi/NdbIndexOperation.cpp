@@ -52,7 +52,7 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   /**
    * Change receiver type
    */
-  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this);
+  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this, false);
 }
 
 NdbIndexOperation::~NdbIndexOperation()
@@ -664,10 +664,8 @@ NdbIndexOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64  aTransactionId)
       tSignal = tnextSignal;
     } while (tSignal != NULL);
   }//if
-  NdbRecAttr* tRecAttrObject = theFirstRecAttr;
   theStatus = WaitResponse;
-  theCurrentRecAttr = tRecAttrObject;
-
+  theReceiver.prepareSend();
   return 0;
 }
 

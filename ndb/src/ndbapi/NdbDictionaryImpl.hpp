@@ -123,7 +123,9 @@ public:
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
-  
+  int m_keyLenInWords;
+  int m_fragmentCount;
+
   NdbDictionaryImpl * m_dictionary;
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);

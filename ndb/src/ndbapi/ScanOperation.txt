@@ -8,3 +8,49 @@ theNdbCon -> z
 z) NdbConnection (scan)
 theScanningOp -> y
 theFirstOpInList -> y (until after openScan)
+
+# SU
+
+ScanOpLen: includes KeyInfo
+New protocol
+
+# -- Impl.
+
+1) Scan uses one NdbReceiver per "parallelism"
+2) Each NdbReceiver can handle up to "batch size" rows
+3) API send one "pointer" per parallelism (prev. was one per row)
+4) API handles each receiver independently.
+   It can "nextResult"-one, receive one and close-one
+5) When a recevier has been "nextResult"-ed, the API can fetch from it again
+6) After doing "openScan"-req, no wait is performed
+   (only possible to block on nextResult(true) or closeScan)
+
+7) Instead of "ack"-ing each row with length,
+* Each row is sent in one lonw signal (unless to short)
+* Each NdbReceiver is ack-ed with #rows and sum(#length)
+* KeyInfo20 is one signal and included in sum(#length)
+
+8) The API receive(s) the data into NdbRecAttr-objects
+   (prev. it copied signals using new/delete)
+9) KeyInfo20 is also received into a NdbRecAttr-object
+10)
+
+# -- Close of scan
+
+1) Each NdbReciver gets a signal when it's complete
+   (0 rows is ack-ed)
+2) The API then "closes" this receiver
+3) The API can at any time close then scan for other reason(s)
+   (example dying)
+4) This is signal:ed via a NEXT_SCANREQ (close = 1)
+5) TC responds with a SCAN_TABCONF (close = 1)
+
+
+# -- Sorted
+
+1) The sorted scan is transparent to TC
+   It's a API only impl.
+2) The API makes the following adjustements:
+* Scan all fragments simultaniously (max parallelism)
+* Never return a row to the API if a NdbReciver is "outstanding"
+* Sort Receivers (only top row as they already are sorted within)

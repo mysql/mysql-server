@@ -18,11 +18,9 @@
 #include "NdbApiSignal.hpp"
 #include "AttrType.hpp"
 #include "NdbImpl.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbIndexOperation.hpp"
-#include "NdbScanReceiver.hpp"
+#include "NdbScanOperation.hpp"
 #include "NdbConnection.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbReceiver.hpp"
@@ -35,6 +33,9 @@
 #include <signaldata/CreateIndx.hpp>
 #include <signaldata/DropIndx.hpp>
 #include <signaldata/TcIndx.hpp>
+#include <signaldata/TransIdAI.hpp>
+#include <signaldata/ScanFrag.hpp>
+#include <signaldata/ScanTab.hpp>
 
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
@@ -301,26 +302,28 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   NdbOperation* tOp;
   NdbIndexOperation* tIndexOp;
   NdbConnection* tCon;
-  int tReturnCode;
+  int tReturnCode = -1;
   const Uint32* tDataPtr = aSignal->getDataPtr();
   const Uint32 tWaitState = theWaiter.m_state;
   const Uint32 tSignalNumber = aSignal->readSignalNumber();
   const Uint32 tFirstData = *tDataPtr;
+  const Uint32 tLen = aSignal->getLength();
+  void * tFirstDataPtr;
 
   /*
-  In order to support 64 bit processes in the application we need to use
-  id's rather than a direct pointer to the object used. It is also a good
-  idea that one cannot corrupt the application code by sending a corrupt
-  memory pointer.
-  
-  All signals received by the API requires the first data word to be such
-  an id to the receiving object.
+    In order to support 64 bit processes in the application we need to use
+    id's rather than a direct pointer to the object used. It is also a good
+    idea that one cannot corrupt the application code by sending a corrupt
+    memory pointer.
+    
+    All signals received by the API requires the first data word to be such
+    an id to the receiving object.
   */
-
+  
   switch (tSignalNumber){
   case GSN_TCKEYCONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       const TcKeyConf * const keyConf = (TcKeyConf *)tDataPtr;
@@ -329,7 +332,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
           (tCon->theSendStatus == sendTC_OP)) {
-        tReturnCode = tCon->receiveTCKEYCONF(keyConf, aSignal->getLength());
+        tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
         if (tReturnCode != -1) {
           completedTransaction(tCon);
         }//if
@@ -347,91 +350,48 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       
       return;
     }
-  case GSN_READCONF:
-    {
-      void* tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-
-      tOp = void2rec_op(tFirstDataPtr);
-      if (tOp->checkMagicNumber() == 0) {
-	tCon = tOp->theNdbCon;
-	if (tCon != NULL) {
-	  if (tCon->theSendStatus == sendTC_OP) {
-	    tReturnCode = tOp->receiveREAD_CONF(tDataPtr, 
-						aSignal->getLength());
-	    if (tReturnCode != -1) {
-	      completedTransaction(tCon);
-	    }//if
-	  }//if
-	}//if
-      }//if
-      return;
-    }
   case GSN_TRANSID_AI:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
+      assert(tFirstDataPtr);
       if (tFirstDataPtr == 0) goto InvalidSignal;
-
-      //      ndbout << "*** GSN_TRANSID_AI ***" << endl;
       NdbReceiver* tRec = void2rec(tFirstDataPtr);
-      if (tRec->getType() == NdbReceiver::NDB_OPERATION){
-	//	tOp = (NdbOperation*)tRec->getOwner();
-	tOp = void2rec_op(tFirstDataPtr);
-	//	ndbout << "NDB_OPERATION" << endl;
-	if (tOp->checkMagicNumber() == 0) {
-	  tCon = tOp->theNdbCon;
-	  if (tCon != NULL) {
-	    if (tCon->theSendStatus == sendTC_OP) {
-	      tReturnCode = tOp->receiveTRANSID_AI(tDataPtr, 
-						   aSignal->getLength());
-	      if (tReturnCode != -1) {
-		completedTransaction(tCon);
-		break;
-	      }
-	    } 
-	  }
+      assert(tRec->checkMagicNumber());
+      assert(tRec->getTransaction());
+      assert(tRec->getTransaction()->checkState_TransId(((const TransIdAI*)tDataPtr)->transId));
+      if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
+	 tCon->checkState_TransId(((const TransIdAI*)tDataPtr)->transId)){
+	Uint32 com;
+	if(aSignal->m_noOfSections > 0){
+	  com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
+	} else {
+	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
+				     tLen - TransIdAI::HeaderLength);
 	}
-      } else if (tRec->getType() == NdbReceiver::NDB_INDEX_OPERATION){
-	//	tOp = (NdbIndexOperation*)tRec->getOwner();
-	tOp = void2rec_iop(tFirstDataPtr);
-	//	ndbout << "NDB_INDEX_OPERATION" << endl;
-	if (tOp->checkMagicNumber() == 0) {
-	  tCon = tOp->theNdbCon;
-	  if (tCon != NULL) {
-	    if (tCon->theSendStatus == sendTC_OP) {
-	      tReturnCode = tOp->receiveTRANSID_AI(tDataPtr, 
-						   aSignal->getLength());
-	      if (tReturnCode != -1) {
-		completedTransaction(tCon);
-		break;
-	      }
-	    } 
-	  }
-	}
-      } else if (tRec->getType() == NdbReceiver::NDB_SCANRECEIVER) {
-	//	NdbScanReceiver* tScanRec = (NdbScanReceiver*)tRec->getOwner();
-	//	NdbScanReceiver* tScanRec =
-	//	  (NdbScanReceiver*)(void2rec(tFirstDataPtr)->getOwner());
-	NdbScanReceiver* tScanRec = void2rec_srec(tFirstDataPtr);
-	//	ndbout << "NDB_SCANRECEIVER" << endl;
-	if(tScanRec->checkMagicNumber() == 0){
-	  tReturnCode = tScanRec->receiveTRANSID_AI_SCAN(aSignal);
-	  if (tReturnCode != -1) {
+	
+	if(com == 1){
+	  switch(tRec->getType()){
+	  case NdbReceiver::NDB_OPERATION:
+	  case NdbReceiver::NDB_INDEX_OPERATION:
+	    if(tCon->OpCompleteSuccess() != -1)
+	      completedTransaction(tCon);
+	    break;
+	  case NdbReceiver::NDB_SCANRECEIVER:
+	    tCon->theScanningOp->receiver_delivered(tRec);
 	    theWaiter.m_state = NO_WAIT;
 	    break;
+	  default:
+	    goto InvalidSignal;
 	  }
 	}
+	break;
       } else {
-#ifdef NDB_NO_DROPPED_SIGNAL
-	abort();
-#endif
 	goto InvalidSignal;
       }
-      return;
     }
   case GSN_TCKEY_FAILCONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       const TcKeyFailConf * const failConf = (TcKeyFailConf *)tDataPtr;
@@ -462,7 +422,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCKEY_FAILREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tOp = void2rec_op(tFirstDataPtr);
@@ -483,7 +443,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCKEYREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tOp = void2rec_op(tFirstDataPtr);
@@ -504,7 +464,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     } 
   case GSN_TC_COMMITCONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       const TcCommitConf * const commitConf = (TcCommitConf *)tDataPtr;
@@ -532,7 +492,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
   case GSN_TC_COMMITREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tCon = void2con(tFirstDataPtr);
@@ -548,7 +508,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCROLLBACKCONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tCon = void2con(tFirstDataPtr);
@@ -563,7 +523,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCROLLBACKREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tCon = void2con(tFirstDataPtr);
@@ -579,7 +539,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCROLLBACKREP:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       tCon = void2con(tFirstDataPtr);
@@ -593,7 +553,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCSEIZECONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       if (tWaitState != WAIT_TC_SEIZE) {
@@ -613,7 +573,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCSEIZEREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       if (tWaitState != WAIT_TC_SEIZE) {
@@ -633,7 +593,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_TCRELEASECONF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       if (tWaitState != WAIT_TC_RELEASE) {
@@ -651,7 +611,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     } 
   case GSN_TCRELEASEREF:
     {
-      void* tFirstDataPtr = int2void(tFirstData);
+      tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       if (tWaitState != WAIT_TC_RELEASE) {
@@ -705,7 +665,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
   case GSN_DIHNDBTAMPER:
     {
-    void* tFirstDataPtr = int2void(tFirstData);
+    tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
 
     if (tWaitState != WAIT_NDB_TAMPER)
@@ -719,27 +679,34 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     break;
     }
   case GSN_SCAN_TABCONF:
-    {
-    void* tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-
-    //ndbout << "*** GSN_SCAN_TABCONF *** " << endl;
-    if (tWaitState != WAIT_SCAN){
-      return;
+  {
+    tFirstDataPtr = int2void(tFirstData);
+    assert(tFirstDataPtr);
+    assert(void2con(tFirstDataPtr));
+    assert(void2con(tFirstDataPtr)->checkMagicNumber() == 0);
+    if(tFirstDataPtr && 
+       (tCon = void2con(tFirstDataPtr)) && (tCon->checkMagicNumber() == 0)){
+      
+      if(aSignal->m_noOfSections > 0){
+	tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, ptr[0].p, ptr[0].sz);
+      } else {
+	tReturnCode = 
+	  tCon->receiveSCAN_TABCONF(aSignal, 
+				    tDataPtr + ScanTabConf::SignalLength, 
+				    tLen - ScanTabConf::SignalLength);
+      }
+      if (tReturnCode != -1)
+	theWaiter.m_state = NO_WAIT;
+      break;
+    } else {
+      goto InvalidSignal;
     }
-    tCon = void2con(tFirstDataPtr);
-    if (tCon->checkMagicNumber() != 0)
-      return;
-    tReturnCode = tCon->receiveSCAN_TABCONF(aSignal);
-    if (tReturnCode != -1)
-      theWaiter.m_state = NO_WAIT;
-    break;
-    }
+  }
   case GSN_SCAN_TABREF:
-    {
-    void* tFirstDataPtr = int2void(tFirstData);
+  {
+    tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
-
+    
     if (tWaitState == WAIT_SCAN){
       tCon = void2con(tFirstDataPtr);
       if (tCon->checkMagicNumber() == 0){
@@ -754,35 +721,41 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
   case GSN_SCAN_TABINFO: 
     {
-    void* tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-
-    //ndbout << "*** GSN_SCAN_TABINFO ***" << endl;
-    if (tWaitState != WAIT_SCAN)
-      return;
-    tCon = void2con(tFirstDataPtr);
-    if (tCon->checkMagicNumber() != 0)
-      return;
-    tReturnCode = tCon->receiveSCAN_TABINFO(aSignal);
-    if (tReturnCode != -1)
-      theWaiter.m_state = NO_WAIT;
-    break;
+      goto InvalidSignal;
     }
   case GSN_KEYINFO20: {
-    void* tFirstDataPtr = int2void(tFirstData);
+    tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
+    NdbReceiver* tRec = void2rec(tFirstDataPtr);
+    
+    if(tRec->checkMagicNumber() && (tCon = tRec->getTransaction()) &&
+       tCon->checkState_TransId(&((const KeyInfo20*)tDataPtr)->transId1)){
 
-    //ndbout << "*** GSN_KEYINFO20 ***" << endl;
-    NdbScanReceiver* tScanRec = void2rec_srec(tFirstDataPtr);
-    if (tScanRec->checkMagicNumber() != 0)
-      return;
-    tReturnCode = tScanRec->receiveKEYINFO20(aSignal);
-    if (tReturnCode != -1)
-      theWaiter.m_state = NO_WAIT;
-    break;
+      Uint32 len = ((const KeyInfo20*)tDataPtr)->keyLen;
+      Uint32 info = ((const KeyInfo20*)tDataPtr)->scanInfo_Node;
+      int com = -1;
+      if(aSignal->m_noOfSections > 0 && len == ptr[0].sz){
+	com = tRec->execKEYINFO20(info, ptr[0].p, len);
+      } else if(len == tLen - KeyInfo20::HeaderLength){
+	com = tRec->execKEYINFO20(info, tDataPtr+KeyInfo20::HeaderLength, len);
+      }
+      
+      switch(com){
+      case 1:
+	tCon->theScanningOp->receiver_delivered(tRec);
+	theWaiter.m_state = NO_WAIT;
+	break;
+      case 0:
+	break;
+      case -1:
+	goto InvalidSignal;
+      }
+      break;
+    }
+    goto InvalidSignal;
   }
   case GSN_TCINDXCONF:{
-    void* tFirstDataPtr = int2void(tFirstData);
+    tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
 
     const TcIndxConf * const indxConf = (TcIndxConf *)tDataPtr;
@@ -790,7 +763,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     tCon = void2con(tFirstDataPtr);
     if ((tCon->checkMagicNumber() == 0) &&
 	(tCon->theSendStatus == sendTC_OP)) {
-      tReturnCode = tCon->receiveTCINDXCONF(indxConf, aSignal->getLength());
+      tReturnCode = tCon->receiveTCINDXCONF(indxConf, tLen);
       if (tReturnCode != -1) { 
 	completedTransaction(tCon);
       }//if
@@ -805,7 +778,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     break;
   }
   case GSN_TCINDXREF:{
-    void* tFirstDataPtr = int2void(tFirstData);
+    tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
 
     tIndexOp = void2rec_iop(tFirstDataPtr);
@@ -895,8 +868,8 @@ Ndb::completedTransaction(NdbConnection* aCon)
     ndbout << endl << flush;
 #ifdef VM_TRACE
     printState("completedTransaction abort");
-#endif
     abort();
+#endif
   }//if
 }//Ndb::completedTransaction()
 
@@ -1255,8 +1228,7 @@ Return:  0 - Response received
 
 ******************************************************************************/
 int	
-Ndb::receiveResponse(int waitTime)
-{
+Ndb::receiveResponse(int waitTime){
   int tResultCode;
   TransporterFacade::instance()->checkForceSend(theNdbBlockNumber);
   
@@ -1310,10 +1282,10 @@ Ndb::sendRecSignal(Uint16 node_id,
       if (return_code != -1) {
         theWaiter.m_node = node_id;
         theWaiter.m_state = aWaitState;
-        return receiveResponse();
-        // End of protected area
-      }//if
-      return_code = -3;
+        return_code = receiveResponse();
+      } else {
+	return_code = -3;
+      }
     } else {
       return_code = -4;
     }//if

@@ -258,6 +258,7 @@ NdbTableImpl::init(){
   m_indexType = NdbDictionary::Index::Undefined;
   
   m_noOfKeys = 0;
+  m_fragmentCount = 0;
 }
 
 bool
@@ -276,11 +277,9 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     if(strcmp(m_internalName.c_str(), obj.m_internalName.c_str()) != 0){
       return false;
   }
-  
   if(m_fragmentType != obj.m_fragmentType){
     return false;
   }
-
   if(m_columns.size() != obj.m_columns.size()){
     return false;
   }
@@ -319,6 +318,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_newExternalName.assign(org.m_newExternalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
   m_fragmentType = org.m_fragmentType;
+  m_fragmentCount = org.m_fragmentCount;
 
   for(unsigned i = 0; i<org.m_columns.size(); i++){
     NdbColumnImpl * col = new NdbColumnImpl();
@@ -827,6 +827,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     m_waiter.m_state = wst;
 
     m_waiter.wait(theWait);
+    m_transporter->unlock_mutex();    
     // End of Protected area  
     
     if(m_waiter.m_state == NO_WAIT && m_error.code == 0){
@@ -1116,6 +1117,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_kvalue = tableDesc.TableKValue;
   impl->m_minLoadFactor = tableDesc.MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc.MaxLoadFactor;
+  impl->m_fragmentCount = tableDesc.FragmentCount;
 
   impl->m_indexType = (NdbDictionary::Index::Type)
     getApiConstant(tableDesc.TableType,
@@ -1199,6 +1201,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     it.next();
   }
   impl->m_noOfKeys = keyCount;
+  impl->m_keyLenInWords = keyInfoPos;
+  
   * ret = impl;
   return 0;
 }
@@ -2708,6 +2712,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal)
     m_waiter.m_node = aNodeId;
     m_waiter.m_state = WAIT_LIST_TABLES_CONF;
     m_waiter.wait(WAITFOR_RESPONSE_TIMEOUT);
+    m_transporter->unlock_mutex();    
     // end protected
     if (m_waiter.m_state == NO_WAIT && m_error.code == 0)
       return 0;

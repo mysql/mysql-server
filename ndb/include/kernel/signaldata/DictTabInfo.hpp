@@ -100,6 +100,7 @@ public:
     CustomTriggerId    = 25,
     FrmLen             = 26,
     FrmData            = 27,
+    FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -277,6 +278,7 @@ public:
     Uint32 CustomTriggerId;
     Uint32 FrmLen;
     char   FrmData[MAX_FRM_DATA_SIZE];
+    Uint32 FragmentCount;
 
     void init();
   };

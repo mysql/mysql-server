@@ -114,6 +114,8 @@ Cmvmi::Cmvmi(const Configuration & conf) :
     }
     setNodeInfo(nodeId).m_type = nodeType;
   }
+
+  setNodeInfo(getOwnNodeId()).m_connected = true;
 }
 
 Cmvmi::~Cmvmi()

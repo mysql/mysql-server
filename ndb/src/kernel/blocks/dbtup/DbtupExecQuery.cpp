@@ -873,6 +873,7 @@ int Dbtup::handleReadReq(Signal* signal,
                          Page* pagePtr)
 {
   Uint32 Ttupheadoffset = regOperPtr->pageOffset;
+  const BlockReference sendBref = regOperPtr->recBlockref;
   if (regTabPtr->checksumIndicator &&
       (calculateChecksum(pagePtr, Ttupheadoffset,
                          regTabPtr->tupheadsize) != 0)) {
@@ -882,14 +883,29 @@ int Dbtup::handleReadReq(Signal* signal,
     return -1;
   }//if
 
+  Uint32 * dst = &signal->theData[25];
+  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
+  const Uint32 node = refToNode(sendBref);
+  if(node != 0 && node != getOwnNodeId()) {
+    ;
+  } else {
+    jam();
+    /**
+     * execute direct
+     */
+    dst = &signal->theData[3];
+    dstLen = (sizeof(signal->theData) / 4) - 3;
+  }
+  
   if (regOperPtr->interpretedExec != 1) {
     jam();
+    
     Uint32 TnoOfDataRead = readAttributes(pagePtr,
                                           Ttupheadoffset,
                                           &cinBuffer[0],
                                           regOperPtr->attrinbufLen,
-                                          &coutBuffer[0],
-                                         (Uint32)ZATTR_BUFFER_SIZE);
+                                          dst,
+					  dstLen);
     if (TnoOfDataRead != (Uint32)-1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
@@ -1214,11 +1230,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
   Uint32 RattrinbufLen = regOperPtr->attrinbufLen;
   const BlockReference sendBref = regOperPtr->recBlockref;
 
-  Uint32 * dst = &coutBuffer[0];
-  Uint32 dstLen = sizeof(coutBuffer) / 4;
-  Uint32 * tmp = &signal->theData[3];
-  Uint32 tmpLen = (sizeof(signal->theData) / 4) - 3;
-  bool executeDirect = false;
+  Uint32 * dst = &signal->theData[25];
+  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
   const Uint32 node = refToNode(sendBref);
   if(node != 0 && node != getOwnNodeId()) {
     ;
@@ -1227,12 +1240,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
     /**
      * execute direct
      */
-    executeDirect = true;
     dst = &signal->theData[3];
     dstLen = (sizeof(signal->theData) / 4) - 3;
-
-    tmp = &coutBuffer[0];
-    tmpLen = sizeof(coutBuffer) / 4;
   }
   
   RtotalLen = RinitReadLen;
@@ -1292,8 +1301,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     RexecRegionLen,
 				     &cinBuffer[RsubPC],
 				     RsubLen,
-				     tmp,
-				     tmpLen);
+				     &coutBuffer[0],
+				     sizeof(coutBuffer) / 4);
       if (TnoDataRW != (Uint32)-1) {
 	RinstructionCounter += RexecRegionLen;
 	RlogSize = TnoDataRW;
@@ -1350,20 +1359,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     }//if
     regOperPtr->logSize = RlogSize;
     regOperPtr->attroutbufLen = RattroutCounter;
-    if(!executeDirect) {
-      jam();
-      sendReadAttrinfo(signal, RattroutCounter, regOperPtr);
-    } else {
-      jam();
-      Uint32 sig0 = regOperPtr->tcOperationPtr;
-      Uint32 sig1 = regOperPtr->transid1;
-      Uint32 sig2 = regOperPtr->transid2;
-      signal->theData[0] = sig0;
-      signal->theData[1] = sig1;
-      signal->theData[2] = sig2;
-      EXECUTE_DIRECT(refToBlock(sendBref), GSN_TRANSID_AI, signal, 
-		     3 + RattroutCounter);
-    }//if
+    sendReadAttrinfo(signal, RattroutCounter, regOperPtr);
     if (RlogSize > 0) {
       sendLogAttrinfo(signal, RlogSize, regOperPtr);
     }//if

@@ -295,6 +295,7 @@ int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 int HugoOperations::scanReadRecords(Ndb* pNdb, 
 				    Uint32 parallelism, ScanLock lock){
 
+#ifdef JONAS_NOT_DONE
   NdbConnection * pCon = pNdb->hupp(pTrans);
   NDBT_ResultRow * m_tmpRow = new NDBT_ResultRow(tab);
   ScanTmp tmp(pCon, m_tmpRow);
@@ -350,6 +351,7 @@ int HugoOperations::scanReadRecords(Ndb* pNdb,
   m_scans.push_back(tmp);
 
   return 0;
+#endif
 }
 
 int HugoOperations::executeScanRead(Ndb* pNdb){
@@ -414,6 +416,7 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
 
 int
 HugoOperations::run(ScanTmp & tmp){
+#if JONAS_NOT_DONE
   int count = 0;
   if(tmp.m_op == ScanTmp::DONE)
     abort();
@@ -443,6 +446,7 @@ HugoOperations::run(ScanTmp & tmp){
 
   if(count == 0)
     return 626;
+#endif
 
   return 0;
 }

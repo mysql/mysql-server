@@ -205,6 +205,7 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+#if 0
 
 #include "../bank/Bank.hpp"
 
@@ -394,6 +395,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   
   return result;
 }
+#endif
 
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
@@ -411,6 +413,7 @@ TESTCASE("BackupOne",
   FINALIZER(runClearTable);
 
 }
+#if 0
 TESTCASE("BackupBank", 
 	 "Test that backup and restore works during transaction load\n"
 	 " by backing up the bank"
@@ -429,8 +432,8 @@ TESTCASE("BackupBank",
   STEP(runBackupBank);
   VERIFIER(runRestoreBankAndVerify);
   //  FINALIZER(runDropBank);
-
 }
+#endif
 TESTCASE("NFMaster", 
 	 "Test that backup behaves during node failiure\n"){
   INITIALIZER(setMaster);

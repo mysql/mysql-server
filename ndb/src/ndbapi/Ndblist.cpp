@@ -15,16 +15,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbOut.hpp>
-#include "Ndb.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
-#include "NdbOperation.hpp"
-#include "NdbScanOperation.hpp"
-#include "NdbIndexOperation.hpp"
-#include "NdbConnection.hpp"
+#include <Ndb.hpp>
+#include <NdbOperation.hpp>
+#include <NdbIndexOperation.hpp>
+#include <NdbIndexScanOperation.hpp>
+#include <NdbConnection.hpp>
 #include "NdbApiSignal.hpp"
-#include "NdbRecAttr.hpp"
-#include "NdbScanReceiver.hpp"
+#include <NdbRecAttr.hpp>
 #include "NdbUtil.hpp"
 #include "API.hpp"
 
@@ -263,13 +260,13 @@ Ndb::getNdbLabel()
  * Remark:        Get a NdbScanReceiver from theScanRecList and return the 
  *                object .
  ****************************************************************************/ 
-NdbScanReceiver*
+NdbReceiver*
 Ndb::getNdbScanRec()
 {
-  NdbScanReceiver*      tNdbScanRec;
+  NdbReceiver*      tNdbScanRec;
   if ( theScanList == NULL )
   {
-    tNdbScanRec = new NdbScanReceiver(this);
+    tNdbScanRec = new NdbReceiver(this);
     if (tNdbScanRec == NULL)
     {
       return NULL;
@@ -344,17 +341,17 @@ Return Value:   Return theOpList : if the  getScanOperation was succesful.
                 Return NULL : In all other case.  
 Remark:         Get an operation from theScanOpIdleList and return the object .
 ***************************************************************************/ 
-NdbScanOperation*
+NdbIndexScanOperation*
 Ndb::getScanOperation()
 {
-  NdbScanOperation* tOp = theScanOpIdleList;
+  NdbIndexScanOperation* tOp = theScanOpIdleList;
   if (tOp != NULL ) {
-    NdbScanOperation* tOpNext = (NdbScanOperation*) tOp->next();
+    NdbIndexScanOperation* tOpNext = (NdbIndexScanOperation*)tOp->next();
     tOp->next(NULL);
     theScanOpIdleList = tOpNext;
     return tOp;
   } else {
-    tOp = new NdbScanOperation(this);
+    tOp = new NdbIndexScanOperation(this);
     if (tOp != NULL)
       tOp->next(NULL);
   }
@@ -495,7 +492,7 @@ Parameters:     aNdbScanRec: The NdbScanReceiver object.
 Remark:         Add a NdbScanReceiver object into the Scan idlelist.
 ***************************************************************************/
 void
-Ndb::releaseNdbScanRec(NdbScanReceiver* aNdbScanRec)
+Ndb::releaseNdbScanRec(NdbReceiver* aNdbScanRec)
 {
   aNdbScanRec->next(theScanList);
   theScanList = aNdbScanRec;
@@ -544,12 +541,12 @@ Parameters:     aScanOperation : The released NdbScanOperation object.
 Remark:         Add a NdbScanOperation object into the signal idlelist.
 ***************************************************************************/
 void
-Ndb::releaseScanOperation(NdbScanOperation* aScanOperation)
+Ndb::releaseScanOperation(NdbIndexScanOperation* aScanOperation)
 {
   aScanOperation->next(theScanOpIdleList);
   aScanOperation->theNdbCon = NULL;
   aScanOperation->theMagicNumber = 0xFE11D2;
-  theScanOpIdleList = (NdbScanOperation*)aScanOperation;
+  theScanOpIdleList = aScanOperation;
 }
 
 /***************************************************************************
@@ -623,7 +620,7 @@ void
 Ndb::freeScanOperation()
 {
   NdbScanOperation* tOp = theScanOpIdleList;
-  theScanOpIdleList = (NdbScanOperation *) theScanOpIdleList->next();
+  theScanOpIdleList = (NdbIndexScanOperation *) theScanOpIdleList->next();
   delete tOp;
 }
 
@@ -674,7 +671,7 @@ Remark:         Always release the first item in the free list
 void
 Ndb::freeNdbScanRec()
 {
-  NdbScanReceiver* tNdbScanRec = theScanList;
+  NdbReceiver* tNdbScanRec = theScanList;
   theScanList = theScanList->next();
   delete tNdbScanRec;
 }
