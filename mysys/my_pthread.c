@@ -443,6 +443,7 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   pthread_mutex_trylock returns 1 on success, not 0 like
   pthread_mutex_lock
 */
+#undef pthread_mutex_trylock
 
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
