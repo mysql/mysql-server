@@ -98,11 +98,11 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Mediumint,
-    NULL // cmpMediumint
+    cmpMediumint
   },
   {
     Type::Mediumunsigned,
-    NULL // cmpMediumunsigned
+    cmpMediumunsigned
   },
   {
     Type::Int,
@@ -130,7 +130,7 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Decimal,
-    NULL // cmpDecimal
+    NULL  // cmpDecimal
   },
   {
     Type::Char,
@@ -142,11 +142,11 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Binary,
-    NULL // cmpBinary
+    cmpBinary
   },
   {
     Type::Varbinary,
-    NULL // cmpVarbinary
+    cmpVarbinary
   },
   {
     Type::Datetime,
@@ -154,11 +154,11 @@ NdbSqlUtil::m_typeList[] = {
   },
   {
     Type::Timespec,
-    NULL // cmpTimespec
+    cmpTimespec
   },
   {
     Type::Blob,
-    NULL // cmpDatetime
+    cmpBlob
   },
   {
     Type::Text,

@@ -240,3 +240,6 @@ select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
 select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 'zвасяz' rlike '[[:<:]]вася[[:>:]]'
 0
+CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
+ALTER TABLE t1 ADD COLUMN b CHAR(20);
+DROP TABLE t1;
