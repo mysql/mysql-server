@@ -1614,7 +1614,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->activate_all_index(thd);
+	error= (table->file->activate_all_index(thd) ? -1 : 0);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
