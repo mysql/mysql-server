@@ -478,7 +478,7 @@ public:
   ulong	     rand_saved_seed1, rand_saved_seed2;
   long	     dbug_thread_id;
   pthread_t  real_id;
-  uint	     current_tablenr,tmp_table,cond_count;
+  uint	     current_tablenr,tmp_table,cond_count,global_read_lock;
   uint	     server_status,open_options,system_thread;
   uint32     query_length;
   uint32     db_length;
@@ -489,7 +489,7 @@ public:
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     in_lock_tables,global_read_lock;
+  bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
