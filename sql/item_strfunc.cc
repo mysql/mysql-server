@@ -2731,11 +2731,17 @@ String *Item_func_compress::val_str(String *str)
    compress(compress(compress(...)))
    I.e. zlib give number 'at least'..
   */
-  ulong new_size= (ulong)((res->length()*120)/100)+12;
+  ulong new_size= res->length() + res->length() / 5 + 12;
 
-  buffer.realloc((uint32)new_size + 4 + 1);
+  // Will check new_size overflow: new_size <= res->length()
+  if (((uint32) new_size <= res->length()) || 
+      buffer.realloc((uint32) new_size + 4 + 1))
+  {
+    null_value= 1;
+    return 0;
+  }
+
   Byte *body= ((Byte*)buffer.ptr()) + 4;
-
 
   // As far as we have checked res->is_empty() we can use ptr()
   if ((err= compress(body, &new_size,
