@@ -3824,6 +3824,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
 	  group->field->move_field((char*) ++group->buff);
+	  ++group_buff;
 	}
 	else
 	  group->field->move_field((char*) group_buff);
