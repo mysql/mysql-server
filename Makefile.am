@@ -27,10 +27,10 @@ SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@bench_dirs@ support-files
 
 # Relink after clean
-CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources
+CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources linked_include_sources
 
 # This is just so that the linking is done early.
-config.h:	linked_client_sources linked_server_sources linked_include_sources
+config.h:	linked_include_sources linked_client_sources linked_server_sources
 
 linked_include_sources:
 	cd include; $(MAKE) link_sources

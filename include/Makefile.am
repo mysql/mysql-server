@@ -19,9 +19,9 @@ BUILT_SOURCES =		mysql_version.h m_ctype.h
 pkginclude_HEADERS =	dbug.h m_string.h my_sys.h mysql.h mysql_com.h \
 			mysqld_error.h my_list.h \
 		        my_pthread.h my_no_pthread.h raid.h errmsg.h \
-			my_config.h my_global.h my_net.h \
+			my_global.h my_net.h \
 			sslopt-case.h sslopt-longopts.h sslopt-usage.h \
-			sslopt-vars.h my_config.h $(BUILT_SOURCES)
+			sslopt-vars.h $(BUILT_SOURCES)
 noinst_HEADERS =	global.h config-win.h \
 			nisam.h heap.h merge.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -30,6 +30,7 @@ noinst_HEADERS =	global.h config-win.h \
 			my_tree.h hash.h thr_alarm.h thr_lock.h \
 			getopt.h t_ctype.h violite.h \
 			mysql_version.h.in
+EXTRA_DIST=		my_config.h
 
 # mysql_version.h are generated
 SUPERCLEANFILES =	mysql_version.h my_global.h
