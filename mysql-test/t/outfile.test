@@ -8,7 +8,6 @@ drop table if exists t1;
 
 # We need to check that we have 'file' privilege.
 
-#drop table if exists t1;
 #create table t1 (`a` blob);
 #insert into t1 values("hello world"),("Hello mars"),(NULL);
 #select * into outfile "/tmp/select-test.1" from t1;
