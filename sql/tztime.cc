@@ -2158,20 +2158,21 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
       if (!(result_tz= new (&tz_storage) Time_zone_offset(offset)) ||
           my_hash_insert(&offset_tzs, (const byte *) result_tz))
       {
+        result_tz= 0;
         sql_print_error("Fatal error: Out of memory "
                         "while setting new time zone");
-        result_tz= 0;
       }
     }
-  } else {
+  }
+  else
+  {
+    result_tz= 0;
     if ((tmp_tzname= (TZ_NAMES_ENTRY *)hash_search(&tz_names,
                                                    (const byte *)name->ptr(),
                                                    name->length())))
       result_tz= tmp_tzname->tz;
-    else if(time_zone_tables_exist)
+    else if (time_zone_tables_exist)
       result_tz= tz_load_from_open_tables(name, tz_tables);
-    else
-      result_tz= 0;
   }
 
   VOID(pthread_mutex_unlock(&tz_LOCK));

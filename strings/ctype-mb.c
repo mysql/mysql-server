@@ -237,7 +237,8 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
           if (str++ == str_end) return (-1);
         }
 	{
-	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,
+                                w_many);
 	  if (tmp <= 0)
 	    return (tmp);
 	}
@@ -248,41 +249,46 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
   return (str != str_end ? 1 : 0);
 }
 
+
 uint my_numchars_mb(CHARSET_INFO *cs __attribute__((unused)),
-		      const char *b, const char *e)
+		      const char *pos, const char *end)
 {
-  register uint32 n=0,mblen;
-  while (b < e) 
+  register uint32 count=0;
+  while (pos < end) 
   {
-    b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
-    ++n;
+    uint mblen;
+    pos+= (mblen= my_ismbchar(cs,pos,end)) ? mblen : 1;
+    count++;
   }
-  return n;
+  return count;
 }
 
+
 uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
-		     const char *b, const char *e, uint pos)
+		     const char *pos, const char *end, uint length)
 {
-  uint mblen;
-  const char *b0=b;
+  const char *start= pos;
   
-  while (pos && b<e)
+  while (length && pos < end)
   {
-    b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
-    pos--;
+    uint mblen;
+    pos+= (mblen= my_ismbchar(cs, pos, end)) ? mblen : 1;
+    length--;
   }
-  return pos ? e+2-b0 : b-b0;
+  return length ? end+2-start : pos-start;
 }
+
 
 uint my_well_formed_len_mb(CHARSET_INFO *cs,
 			   const char *b, const char *e, uint pos)
 {
-  my_wc_t wc;
-  int mblen;
   const char *b_start= b;
   
   while (pos)
   {
+    my_wc_t wc;
+    int mblen;
+
     if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <0)
       break;
     b+= mblen;
@@ -374,7 +380,8 @@ static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 
   NOTE
    This function is used for character strings with binary collations.
-   It ignores trailing spaces.
+   The shorter string is extended with end space to be as long as the longer
+   one.
 
   RETURN
     A negative number if s < t
