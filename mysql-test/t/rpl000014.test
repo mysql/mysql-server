@@ -20,5 +20,7 @@ create table foo (n int);
 insert into foo values (1),(2),(3);
 connection slave;
 change master to master_log_pos=73;
-sleep 0.2;
+sleep 2;
 select * from foo;
+connection master;
+drop table foo;

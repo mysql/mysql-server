@@ -18,7 +18,7 @@ drop table if exists foo;
 create table foo (n int);
 insert into foo values (10),(45),(90);
 connection slave;
-sleep 0.3;
+sleep 2;
 select * from foo;
-
-
+connection master;
+drop table foo;

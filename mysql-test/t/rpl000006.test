@@ -10,3 +10,5 @@ connection slave;
 drop table if exists foo;
 load table foo from master;
 @r/rpl000006.result select unix_timestamp(t) from foo;
+connection master;
+drop table foo;

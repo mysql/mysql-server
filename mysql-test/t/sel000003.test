@@ -11,7 +11,8 @@
 # Testing count() function and GROUP BY clause.
 #
 
-DROP TABLE IF EXISTS t;
-CREATE TABLE t (name CHAR(20) NOT NULL PRIMARY KEY, score SMALLINT NOT NULL, KEY(score));
-INSERT INTO t VALUES ('Sasha', 20), ('Matt', 20), ('Monty', 10), ('David', 10), ('Tim', 10), ('Jeremy', 10);
-@r/sel000003.result SELECT COUNT(*) as n, score FROM t GROUP BY score;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (name CHAR(20) NOT NULL PRIMARY KEY, score SMALLINT NOT NULL, KEY(score));
+INSERT INTO t1 VALUES ('Sasha', 20), ('Matt', 20), ('Monty', 10), ('David', 10), ('Tim', 10), ('Jeremy', 10);
+@r/sel000003.result SELECT COUNT(*) as n, score FROM t1 GROUP BY score;
+drop table t1;

@@ -1,17 +1,18 @@
 source include/master-slave.inc;
 connection master;
-drop table if exists x;
-create table x(n int);
-create temporary table t(n int);
-insert into t values(1),(2),(3);
-insert into x select * from t;
+drop table if exists t2;
+create table t2(n int);
+create temporary table t1 (n int);
+insert into t1 values(1),(2),(3);
+insert into t2 select * from t1;
 connection master1;
-create temporary table t (n int);
-insert into t values (4),(5);
-insert into x select * from t;
+create temporary table t1 (n int);
+insert into t1 values (4),(5);
+insert into t2 select * from t1;
 disconnect master;
 connection master1;
-insert into x values(6);
+insert into t2 values(6);
+sleep 2;
 disconnect master1;
 connection slave;
 let $1=12;
@@ -21,5 +22,11 @@ while ($1)
  sleep 0.2;
  dec $1;
 }
-@r/rpl000013.result select * from x;
+@r/rpl000013.result select * from t2;
 @r/rpl000013.status.result show status like 'Slave_open_temp_tables';
+#
+# Clean up
+#
+connect (master2,localhost,root,,test,0,var/tmp/mysql.sock);
+connection master2;
+drop table if exists t1,t2;

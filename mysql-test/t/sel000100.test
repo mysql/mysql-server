@@ -1,7 +1,6 @@
-DROP TABLE IF EXISTS test1;
-DROP TABLE IF EXISTS test2;
+DROP TABLE IF EXISTS t1,t2;
 
-CREATE TABLE test1 (
+CREATE TABLE t1 (
   ID int(11) NOT NULL auto_increment,
   NAME varchar(75) DEFAULT '' NOT NULL,
   LINK_ID int(11) DEFAULT '0' NOT NULL,
@@ -10,11 +9,11 @@ CREATE TABLE test1 (
   KEY LINK_ID (LINK_ID)
 );
 
-INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (1,'Mike',0);
-INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (2,'Jack',0);
-INSERT INTO test1 (ID, NAME, LINK_ID) VALUES (3,'Bill',0);
+INSERT INTO t1 (ID, NAME, LINK_ID) VALUES (1,'Mike',0);
+INSERT INTO t1 (ID, NAME, LINK_ID) VALUES (2,'Jack',0);
+INSERT INTO t1 (ID, NAME, LINK_ID) VALUES (3,'Bill',0);
 
-CREATE TABLE test2 (
+CREATE TABLE t2 (
   ID int(11) NOT NULL auto_increment,
   NAME varchar(150) DEFAULT '' NOT NULL,
   PRIMARY KEY (ID),
@@ -22,9 +21,11 @@ CREATE TABLE test2 (
 );
 
 @r/sel000100.result SELECT DISTINCT
-    test2.id AS key_link_id,
-    test2.name AS link
-FROM test1
-LEFT JOIN test2 ON test1.link_id=test2.id
-GROUP BY test1.id
+    t2.id AS key_link_id,
+    t2.name AS link
+FROM t1
+LEFT JOIN t2 ON t1.link_id=t2.id
+GROUP BY t1.id
 ORDER BY link;
+
+drop table t1,t2;

@@ -1,9 +1,9 @@
 source include/master-slave.inc;
 connection master;
 use test;
-drop table if exists words;
-create table words (word char(20) not null);
-load data infile '../../std_data/words.dat' into table words;
+drop table if exists t1;
+create table t1 (word char(20) not null);
+load data infile '../../std_data/words.dat' into table t1;
 drop table if exists foo;
 create table foo(n int);
 insert into foo values(1),(2);
@@ -11,5 +11,8 @@ connection slave;
 sleep 2;
 use test;
 @r/rpl000001.a.result select * from foo;
-@r/rpl000001.b.result select sum(length(word)) from words;
+@r/rpl000001.b.result select sum(length(word)) from t1;
+connection master;
+drop table t1;
+
 

@@ -18,5 +18,7 @@ drop table if exists choo;
 create table choo (k int);
 insert into choo values(55);
 connection slave;
-sleep 1;
+sleep 2;
 @r/rpl000008.result select foo.n,bar.m,choo.k from foo,bar,choo;
+connection master;
+drop table if exists foo,bar,choo;

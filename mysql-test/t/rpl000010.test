@@ -2,12 +2,14 @@
 #must run slave with --disconnect-slave-event-count=1 --master-connect-retry=1
 source include/master-slave.inc;
 connection slave;
-drop table if exists foo;
+drop table if exists t1;
 connection master;
-drop table if exists foo;
-create table foo (n int not null auto_increment primary key);
-insert into foo values(NULL);
-insert into foo values(2);
+drop table if exists t1;
+create table t1 (n int not null auto_increment primary key);
+insert into t1 values(NULL);
+insert into t1 values(2);
 connection slave;
 sleep 5;
-@r/rpl000010.result select n from foo;
+@r/rpl000010.result select n from t1;
+connection master;
+drop table t1;

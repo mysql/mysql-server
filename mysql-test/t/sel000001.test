@@ -11,7 +11,8 @@
 # Testing WHERE clause.
 #
 
-DROP TABLE IF EXISTS t;
-CREATE TABLE t (s CHAR(20) PRIMARY KEY, id INT);
-INSERT INTO t VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77);
-@r/sel000001.result SELECT s, id FROM t WHERE s = 'mouse';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (s CHAR(20) PRIMARY KEY, id INT);
+INSERT INTO t1 VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77);
+@r/sel000001.result SELECT s, id FROM t1 WHERE s = 'mouse';
+drop table t1;
