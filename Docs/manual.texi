@@ -46942,6 +46942,8 @@ temporary tables used for some (unlikely) @code{GROUP BY} queries.
 Fixed a bug in key optimizing handling where the expression
 @code{WHERE column_name = key_column_name} was calculated as true
 for @code{NULL} values.
+@item
+Fixed core dump bug when doing @code{LEFT JOIN ... WHERE key_column=NULL}.
 @end itemize
 
 @node News-3.23.53, News-3.23.52, News-3.23.54, News-3.23.x
