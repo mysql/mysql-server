@@ -1285,7 +1285,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
   sanity(to);
 
   /* removing all the leading zeroes */
-  i=prec1 % DIG_PER_DEC1;
+  i=((prec1-1) % DIG_PER_DEC1)+1;
   while (prec1 > 0 && *buf1 == 0)
   {
     prec1-=i;
@@ -1300,7 +1300,7 @@ static int do_div_mod(decimal *from1, decimal *from2,
   for (i=(prec1-1) % DIG_PER_DEC1; *buf1 < powers10[i--]; prec1--) ;
   DBUG_ASSERT(prec1 > 0);
 
-  i=prec2 % DIG_PER_DEC1;
+  i=((prec2-1) % DIG_PER_DEC1)+1;
   while (prec2 > 0 && *buf2 == 0)
   {
     prec2-=i;
