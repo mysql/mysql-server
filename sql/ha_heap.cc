@@ -531,8 +531,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 			mem_per_row);
   if (table_arg->found_next_number_field)
   {
-    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
-    found_real_auto_increment= table_arg->next_number_key_offset == 0;
+    keydef[share->next_number_index].flag|= HA_AUTO_KEY;
+    found_real_auto_increment= share->next_number_key_offset == 0;
   }
   HP_CREATE_INFO hp_create_info;
   hp_create_info.auto_key_type= auto_key_type;
