@@ -42029,7 +42029,7 @@ Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
 @item
 Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
-Added @code{SELECT .. WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
+Added @code{SELECT ... WITH UPDATE} and @code{SELECT ... IN SHARE MODE} to
 get more locking options.
 @end itemize
 
@@ -42111,7 +42111,7 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34a
 @itemize @bullet
 @item
-Add extra files to distribution to allow one to compile Innobase.
+Add extra files to distribution to allow Innobase support to be compiled.
 @end itemize
 
 @node News-3.23.34, News-3.23.33, News-3.23.34a, News-3.23.x
@@ -42130,24 +42130,24 @@ Fixed thread-hang-bug in @code{INSERT DELAYED} when inserting
 @code{auto_increment} generated key.
 @item
 @code{mysqld} now only sets @code{CLIENT_TRANSACTIONS} in
-@code{mysql->server_capabilities} if the server supports a transaction
-safe handler.
+@code{mysql->server_capabilities} if the server supports a
+transaction-safe handler.
 @item
-Fixed that one can with @code{LOAD DATA INFILE} read number values to
+Fixed @code{LOAD DATA INFILE} to allow numeric values to be read into
 @code{ENUM} and @code{SET} columns.
 @item
-Improved error diagnostic for slave thread exit
+Improved error diagnostic for slave thread exit.
 @item
 Fixed bug in @code{ALTER TABLE ... ORDER BY}.
 @item
 Added option @code{max_user_connections} to @code{mysqld}.
 @item
-Limit query length for replication by max_allowed_packet, not the arbitrary
-limit of 4 MB
+Limit query length for replication by @code{max_allowed_packet}, not the
+arbitrary limit of 4 MB.
 @item
 Allow space around @code{=} in argument to @code{--set-variable}.
 @item
-Fixed problem in automatic repair that could let some threads in state 
+Fixed problem in automatic repair that could leave some threads in state 
 @code{Waiting for table}.
 @item
 @code{SHOW CREATE TABLE} now dumps the @code{UNION()} for @code{MERGE} tables.
@@ -42156,7 +42156,7 @@ Fixed problem in automatic repair that could let some threads in state
 @item
 Fixed bug when replicating timestamps.
 @item
-Fixed bug in bi-directonal replication.
+Fixed bug in bi-directional replication.
 @item
 Fixed bug in @code{BDB} tables when using index on multi-part key where a
 key part may be @code{NULL}.
