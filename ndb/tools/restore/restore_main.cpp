@@ -258,11 +258,18 @@ main(int argc, char** argv)
     ndbout << "Failed to read " << metaData.getFilename() << endl << endl;
     return -1;
   }
+
+  const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
+  const Uint32 version = tmp.NdbVersion;
+  
+  ndbout << "Ndb version in backup files: " 
+	 <<  getVersionString(version, 0) << endl;
+  
   /**
    * check wheater we can restore the backup (right version).
    */
   int res  = metaData.loadContent();
-
+  
   if (res == 0)
   {
     ndbout_c("Restore: Failed to load content");
