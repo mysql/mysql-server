@@ -2566,9 +2566,12 @@ int main(int argc, char **argv)
 	return 0;
       if (Service.IsService(argv[2]))
       {
-	/* start an optional service */
+	/*
+	  mysqld was started as
+	  mysqld --defaults-file=my_path\my.ini service-name
+	*/
 	use_opt_args=1;
-	opt_argc=argc;
+	opt_argc= 2;				// Skip service-name
 	opt_argv=argv;
 	start_mode= 1;
 	Service.Init(argv[2], mysql_service);
