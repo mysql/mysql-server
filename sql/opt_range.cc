@@ -7564,6 +7564,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
     else
       max_functions_it= NULL;
   }
+  else
+    min_max_ranges.elements= 0;
 
   return 0;
 }
@@ -7656,7 +7658,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
   max_used_key_length= real_prefix_len;
   if (min_max_ranges.elements > 0)
   {
-    QUICK_RANGE *cur_range;
+    QUICK_RANGE *cur_range= 0;
     if (have_min)
     { /* Check if the right-most range has a lower boundary. */
       get_dynamic(&min_max_ranges, (gptr)&cur_range,

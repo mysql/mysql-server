@@ -789,7 +789,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_extended_describe
         prepare prepare_src execute deallocate 
 	statement sp_suid opt_view_list view_list or_replace algorithm
-	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
+	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmt
@@ -1371,7 +1371,7 @@ create_function_tail:
 
 sp_a_chistics:
 	  /* Empty */ {}
-	| sp_a_chistics sp_a_chistic {}
+	| sp_a_chistics sp_chistic {}
 	;
 
 sp_c_chistics:
@@ -1395,12 +1395,6 @@ sp_chistic:
 	  { Lex->sp_chistics.daccess= SP_MODIFIES_SQL_DATA; }
 	| sp_suid
 	  { }
-	;
-
-/* Alter characteristics */
-sp_a_chistic:
-	  sp_chistic     { }
-	| NAME_SYM ident { Lex->name= $2.str; }
 	;
 
 /* Create characteristics */
@@ -3197,7 +3191,6 @@ alter:
 	    LEX *lex= Lex;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	    lex->name= 0;
           }
 	  sp_a_chistics
 	  {
@@ -3212,7 +3205,6 @@ alter:
 	    LEX *lex= Lex;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	    lex->name= 0;
           }
 	  sp_a_chistics
 	  {
@@ -6500,12 +6492,6 @@ simple_ident:
 
 	  if (spc && (spv = spc->find_pvar(&$1)))
 	  { /* We're compiling a stored procedure and found a variable */
-	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
-	    {
-	      push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-	                          ER_SP_UNINIT_VAR, ER(ER_SP_UNINIT_VAR),
-				  $1.str);
-	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
@@ -7917,7 +7903,7 @@ check_option:
         /* empty */
           { Lex->create_view_check= VIEW_CHECK_NONE; }
         | WITH CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
+          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
         | WITH CASCADED CHECK_SYM OPTION
           { Lex->create_view_check= VIEW_CHECK_CASCADED; }
         | WITH LOCAL_SYM CHECK_SYM OPTION

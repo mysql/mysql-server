@@ -156,14 +156,6 @@ foo: loop
   set @x=2;
 end loop bar|
 
-# Referring to undef variable
-create procedure foo(out x int)
-begin
-  declare y int;
-  set x = y;
-end|
-drop procedure foo|
-
 # RETURN in FUNCTION only
 --error 1313
 create procedure foo()
@@ -307,9 +299,6 @@ drop procedure p|
 
 --error 1305
 alter procedure bar3 sql security invoker|
---error 1059
-alter procedure bar3 name
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 
 drop table t1|
 

@@ -66,9 +66,52 @@ ha_create(
 }
 
 /*****************************************************************
+Removes an adaptive hash index node from the doubly linked list of hash nodes
+for the buffer block. */
+UNIV_INLINE
+void
+ha_remove_buf_block_node(
+/*=====================*/
+	buf_block_t*	block,	/* in: buffer block */
+	ha_node_t*	node)	/* in: an adaptive hash index node */
+{
+	if (node == block->hash_nodes) {
+		block->hash_nodes = node->next_for_block;
+	}
+
+	if (node->prev_for_block != NULL) {
+		(node->prev_for_block)->next_for_block = node->next_for_block;
+	}
+
+	if (node->next_for_block != NULL) {
+		(node->next_for_block)->prev_for_block = node->prev_for_block;
+	}
+}
+
+/*****************************************************************
+Adds an adaptive hash index node to the start of the doubly linked list of
+hash nodes for the buffer block. */
+UNIV_INLINE
+void
+ha_add_buf_block_node(
+/*==================*/
+	buf_block_t*	block,	/* in: buffer block */
+	ha_node_t*	node)	/* in: an adaptive hash index node */
+{
+	node->next_for_block = block->hash_nodes;
+	node->prev_for_block = NULL;
+
+	block->hash_nodes = node;
+
+	if (node->next_for_block != NULL) {
+		(node->next_for_block)->prev_for_block = node;
+	}
+}
+
+/*****************************************************************
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
-is inserted. */
+is inserted. This function is only used in the adaptive hash index. */
 
 ibool
 ha_insert_for_fold(
@@ -84,6 +127,7 @@ ha_insert_for_fold(
 {
 	hash_cell_t*	cell;
 	ha_node_t*	node;
+	buf_block_t*	block;
 	ha_node_t*	prev_node;
 	buf_block_t*	prev_block;
 	ulint		hash;
@@ -92,6 +136,9 @@ ha_insert_for_fold(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 #endif /* UNIV_SYNC_DEBUG */
+
+	block = buf_block_align(data);
+
 	hash = hash_calc_hash(fold, table);
 
 	cell = hash_get_nth_cell(table, hash);
@@ -104,7 +151,15 @@ ha_insert_for_fold(
 				prev_block = buf_block_align(prev_node->data);
 				ut_a(prev_block->n_pointers > 0);
 				prev_block->n_pointers--;
-				buf_block_align(data)->n_pointers++;
+
+				block->n_pointers++;
+				
+				if (prev_block != block) {
+					ha_remove_buf_block_node(prev_block,
+								prev_node);
+					ha_add_buf_block_node(block,
+								prev_node);
+				}
 			}
 
 			prev_node->data = data;
@@ -131,7 +186,9 @@ ha_insert_for_fold(
 	ha_node_set_data(node, data);
 
 	if (table->adaptive) {
-		buf_block_align(data)->n_pointers++;
+		block->n_pointers++;
+
+		ha_add_buf_block_node(block, node);
 	}
 
 	node->fold = fold;
@@ -166,9 +223,15 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/* in: hash table */
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
+	buf_block_t*	block;
+
 	if (table->adaptive) {
-		ut_a(buf_block_align(del_node->data)->n_pointers > 0);
-		buf_block_align(del_node->data)->n_pointers--;
+		block = buf_block_align(del_node->data);
+
+		ut_a(block->n_pointers > 0);
+
+		block->n_pointers--;
+		ha_remove_buf_block_node(block, del_node);
 	}
 
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
@@ -209,6 +272,8 @@ ha_search_and_update_if_found(
 	void*		data,	/* in: pointer to the data */
 	void*		new_data)/* in: new pointer to the data */
 {
+	buf_block_t*	old_block;
+	buf_block_t*	block;
 	ha_node_t*	node;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -220,8 +285,15 @@ ha_search_and_update_if_found(
 	if (node) {
 		if (table->adaptive) {
 			ut_a(buf_block_align(node->data)->n_pointers > 0);
-			buf_block_align(node->data)->n_pointers--;
-			buf_block_align(new_data)->n_pointers++;
+
+			old_block = buf_block_align(node->data);
+			ut_a(old_block->n_pointers > 0);
+			old_block->n_pointers--;
+			ha_remove_buf_block_node(old_block, node);
+
+			block = buf_block_align(new_data);
+			block->n_pointers++;
+			ha_add_buf_block_node(block, node);
 		}
 
 		node->data = new_data;
@@ -236,43 +308,25 @@ void
 ha_remove_all_nodes_to_page(
 /*========================*/
 	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: fold value */
 	page_t*		page)	/* in: buffer page */
 {
+	buf_block_t*	block;
 	ha_node_t*	node;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-#endif /* UNIV_SYNC_DEBUG */
-	node = ha_chain_get_first(table, fold);
+	block = buf_block_align(page);
+
+	node = block->hash_nodes;
 
 	while (node) {
-		if (buf_frame_align(ha_node_get_data(node)) == page) {
+		/* Remove the hash node */
 
-			/* Remove the hash node */
+		ha_delete_hash_node(table, node);
 
-			ha_delete_hash_node(table, node);
-
-			/* Start again from the first node in the chain
-			because the deletion may compact the heap of
-			nodes and move other nodes! */
-
-			node = ha_chain_get_first(table, fold);
-		} else {
-			node = ha_chain_get_next(node);
-		}
+		node = block->hash_nodes;
 	}
-#ifdef UNIV_DEBUG
-	/* Check that all nodes really got deleted */
 	
-	node = ha_chain_get_first(table, fold);
-
-	while (node) {
-		ut_a(buf_frame_align(ha_node_get_data(node)) != page);
-
-		node = ha_chain_get_next(node);
-	}
-#endif
+	ut_a(block->n_pointers == 0);
+	ut_a(block->hash_nodes == NULL);
 }
 
 /*****************************************************************
@@ -352,6 +406,7 @@ ha_print_info(
 			n_bufs++;
 		}
 				
-		fprintf(file, ", node heap has %lu buffer(s)\n", (ulong) n_bufs);
+		fprintf(file, ", node heap has %lu buffer(s)\n",
+							(ulong) n_bufs);
 	}
 }	

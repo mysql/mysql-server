@@ -990,9 +990,9 @@ show create procedure chistics|
 call chistics()|
 select * from t1|
 delete from t1|
-alter procedure chistics sql security invoker name chistics2|
-show create procedure chistics2|
-drop procedure chistics2|
+alter procedure chistics sql security invoker|
+show create procedure chistics|
+drop procedure chistics|
 
 create function chistics() returns int
     language sql
@@ -1004,11 +1004,11 @@ create function chistics() returns int
 show create function chistics|
 # Call it, just to make sure.
 select chistics()|
-alter function chistics name chistics2
+alter function chistics
    no sql
    comment 'Characteristics function test'|
-show create function chistics2|
-drop function chistics2|
+show create function chistics|
+drop function chistics|
 
 
 # Check mode settings
@@ -2105,6 +2105,51 @@ select * from t3|
 drop procedure bug4905|
 drop table t3|
 
+#
+# BUG#6022: Stored procedure shutdown problem with self-calling function.
+#
+--disable_warnings
+drop function if exists bug6022|
+--enable_warnings
+
+create function bug6022(x int) returns int
+begin
+  if x < 0 then
+    return 0;
+  else
+    return bug6022(x-1);
+  end if;
+end|
+
+select bug6022(5)|
+drop function bug6022|
+
+#
+# BUG#6029: Stored procedure specific handlers should have priority
+#
+--disable_warnings
+drop procedure if exists bug6029|
+--enable_warnings
+
+create procedure bug6029()
+begin
+  declare exit handler for 1136  select '1136';
+  declare exit handler for sqlstate '23000'  select 'sqlstate 23000';
+  declare continue handler for sqlexception  select 'sqlexception';
+
+  insert into t3 values (1);
+  insert into t3 values (1,2);
+end|
+ 
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (1)|
+call bug6029()|
+delete from t3|
+call bug6029()|
+
+drop procedure bug6029|
+drop table t3|
+
 
 #
 # Some "real" examples
@@ -2283,8 +2328,8 @@ create procedure bar(x char(16), y int)
  insert into test.t1 values (x, y)|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
-alter procedure bar name bar2 comment "2222222222" sql security definer|
-alter procedure bar2 name bar comment "3333333333"|
+alter procedure bar comment "2222222222" sql security definer|
+alter procedure bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'

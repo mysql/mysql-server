@@ -838,9 +838,10 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
 bool eval_const_cond(COND *cond);
 
 /* sql_load.cc */
-bool mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
-                List<Item> &fields, enum enum_duplicates handle_duplicates,
-                bool local_file,thr_lock_type lock_type);
+bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
+	        List<Item> &fields, enum enum_duplicates handle_duplicates,
+	        bool local_file, thr_lock_type lock_type,
+	        bool ignore_check_option_errors);
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */

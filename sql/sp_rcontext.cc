@@ -56,7 +56,7 @@ sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
   }
 }
 
-int
+bool
 sp_rcontext::find_handler(uint sql_errno,
                           MYSQL_ERROR::enum_warning_level level)
 {
@@ -66,9 +66,9 @@ sp_rcontext::find_handler(uint sql_errno,
     return 1;			// Already got one
 
   const char *sqlstate= mysql_errno_to_sqlstate(sql_errno);
-  int i= m_hcount, found= 0;
+  int i= m_hcount, found= -1;
 
-  while (!found && i--)
+  while (i--)
   {
     sp_cond_type_t *cond= m_handler[i].cond;
 
@@ -76,31 +76,36 @@ sp_rcontext::find_handler(uint sql_errno,
     {
     case sp_cond_type_t::number:
       if (sql_errno == cond->mysqlerr)
-	found= 1;
+	found= i;		// Always the most specific
       break;
     case sp_cond_type_t::state:
-      if (strcmp(sqlstate, cond->sqlstate) == 0)
-	found= 1;
+      if (strcmp(sqlstate, cond->sqlstate) == 0 &&
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::number))
+	found= i;
       break;
     case sp_cond_type_t::warning:
-      if (sqlstate[0] == '0' && sqlstate[1] == '1' ||
-          level == MYSQL_ERROR::WARN_LEVEL_WARN)
-	found= 1;
+      if ((sqlstate[0] == '0' && sqlstate[1] == '1' ||
+	   level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	found= i;
       break;
     case sp_cond_type_t::notfound:
-      if (sqlstate[0] == '0' && sqlstate[1] == '2')
-	found= 1;
+      if (sqlstate[0] == '0' && sqlstate[1] == '2' &&
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	found= i;
       break;
     case sp_cond_type_t::exception:
-      if (sqlstate[0] != '0' || sqlstate[1] > '2' ||
-          level == MYSQL_ERROR::WARN_LEVEL_ERROR)
-	found= 1;
+      if ((sqlstate[0] != '0' || sqlstate[1] > '2' ||
+	   level == MYSQL_ERROR::WARN_LEVEL_ERROR) &&
+	  (found < 0 || m_handler[found].cond->type > sp_cond_type_t::state))
+	found= i;
       break;
     }
   }
-  if (found)
-    m_hfound= i;
-  return found;
+  if (found < 0)
+    return FALSE;
+  m_hfound= found;
+  return TRUE;
 }
 
 void

@@ -2548,7 +2548,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	thd->net.pkt_nr = net->pkt_nr;
       }
       if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
-		     TL_WRITE))
+		     TL_WRITE, 0))
 	thd->query_error = 1;
       if (thd->cuted_fields)
       {
