@@ -2764,9 +2764,9 @@ bool check_grant_column(THD *thd,TABLE *table, const char *name,
   if (table->grant.version != grant_version)
   {
     table->grant.grant_table=
-      table_hash_search(thd->host,thd->ip,thd->db,
+      table_hash_search(thd->host, thd->ip, table->table_cache_key,
 			thd->priv_user,
-			table->real_name,0);	/* purecov: inspected */
+			table->real_name, 0);	/* purecov: inspected */
     table->grant.version=grant_version;		/* purecov: inspected */
   }
   if (!(grant_table=table->grant.grant_table))
@@ -3161,7 +3161,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   /* Add database access */
   for (counter=0 ; counter < acl_dbs.elements ; counter++)
   {
-    const char *user,*host;
+    const char *user, *host;
 
     acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
     if (!(user=acl_db->user))

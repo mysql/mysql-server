@@ -1555,18 +1555,20 @@ set_params_data_err:
 
 
 /*
-    Reset a prepared statement, in case there was an error in send_longdata.
-    Note: we don't send any reply to that command.
+    Reset a prepared statement in case there was a recoverable error.
   SYNOPSIS
     mysql_stmt_reset()
     thd		Thread handle
     packet	Packet with stmt id 
 
   DESCRIPTION
-    This function is useful when one gets an error after calling
-    mysql_stmt_getlongdata() and wants to reset the handle
-    so that one can call execute again.
-    See also bug #1664
+    This function resets statement to the state it was right after prepare.
+    It can be used to:
+     - clear an error happened during mysql_stmt_send_long_data
+     - cancel long data stream for all placeholders without
+       having to call mysql_stmt_execute.
+    Sends 'OK' packet in case of success (statement was reset)
+    or 'ERROR' packet (unrecoverable error/statement not found/etc).
 */
 
 void mysql_stmt_reset(THD *thd, char *packet)
@@ -1577,7 +1579,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   
   DBUG_ENTER("mysql_stmt_reset");
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "reset", DONT_SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "reset", SEND_ERROR)))
     DBUG_VOID_RETURN;
 
   stmt->get_longdata_error= 0;
@@ -1587,6 +1589,8 @@ void mysql_stmt_reset(THD *thd, char *packet)
     mysql_stmt_send_long_data() call.
   */
   reset_stmt_params(stmt);
+
+  send_ok(thd);
   
   DBUG_VOID_RETURN;
 }

@@ -140,7 +140,7 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* el(uint i) { return (Item*)row[i]; }
+  Item* el(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();

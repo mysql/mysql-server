@@ -661,7 +661,7 @@ void query_cache_end_of_result(THD *thd)
   if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
 #ifdef EMBEDDED_LIBRARY
-    query_cache_insert(&thd->net, (byte*)thd, 
+    query_cache_insert(&thd->net, (char*)thd, 
 		       emb_count_querycache_size(thd));
 #endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);

@@ -674,7 +674,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 
-#ifndef HAVE_ISINF
+#if !defined(HAVE_ISINF) && !defined(isinf)
 #define isinf(X)    0
 #endif
 
