@@ -207,3 +207,6 @@
 "Could not create slave thread, check system resources",
 "User %-.64s has already more than 'max_user_connections' active connections",
 "You may only use constant expressions with SET",
+"Lock wait timeout exceeded",
+"The total number of locks exceeds the lock table size",
+"Update locks cannot be acquired during a READ UNCOMMITTED transaction",
