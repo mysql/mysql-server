@@ -457,19 +457,18 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       my_bool got_pidfile= 0;
       time_t last_modified= 0; /* to keep compiler happy */
       struct stat pidfile_status;
-      my_bool check_pidfile_status= 1;
+      my_bool check_pidfile_status= 0;
 
       /*
 	Only wait for pidfile on local connections
 	If pidfile doesn't exist, continue without pid file checking
       */
-      if (mysql->unix_socket)
-	got_pidfile= !get_pidfile(mysql, pidfile);
-      
-      if (got_pidfile && stat(pidfile, &pidfile_status))
-	check_pidfile_status= 0;
-      else
+      if (mysql->unix_socket && (got_pidfile= !get_pidfile(mysql, pidfile)) &&
+	  !stat(pidfile, &pidfile_status))
+      {
+	check_pidfile_status= 1;
 	last_modified= pidfile_status.st_mtime;
+      }
 
       if (mysql_shutdown(mysql))
       {
