@@ -32,6 +32,13 @@ int HugoOperations::startTransaction(Ndb* pNdb){
   return NDBT_OK;
 }
 
+void 
+HugoOperations::setTransactionId(Uint64 id){
+  if (pTrans != NULL){
+    pTrans->setTransactionId(id);
+  }
+}
+
 int HugoOperations::closeTransaction(Ndb* pNdb){
 
   if (pTrans != NULL){
@@ -401,6 +408,10 @@ HugoOperations::HugoOperations(const NdbDictionary::Table& _tab):
 
 HugoOperations::~HugoOperations(){
   deallocRows();
+  if (pTrans != NULL){
+    pTrans->close();
+    pTrans = NULL;
+  }
 }
 
 

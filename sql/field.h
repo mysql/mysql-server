@@ -1265,6 +1265,7 @@ int set_field_to_null(Field *field);
 int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
+bool field_types_to_be_kept(enum_field_types field_type);
 
 /*
   The following are for the interface with the .frm file

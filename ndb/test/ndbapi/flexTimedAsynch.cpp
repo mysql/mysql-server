@@ -406,9 +406,8 @@ threadLoop(void* ThreadData)
 
   delete localNdb;
   ThreadReady[threadNo] = 1;
-  NdbThread_Exit(0);
 
-  return NULL;
+  return NULL; // thread exits
 }
 
 void executeThread(StartType aType, Ndb* aNdbObject, ThreadNdb* threadInfo)

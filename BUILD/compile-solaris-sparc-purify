@@ -61,7 +61,7 @@ purifying_binaries ()
     if [ -n "$cxxfilt" ] ; then
       opts="$opts -demangle-program=$cxxfilt"
     fi
-    opts="$opts -best-effort g++"
+    opts="$opts -best-effort"
 
     back=`pwd`
     cd $dir
@@ -76,17 +76,17 @@ purifying_binaries ()
     fi
 
     if [ -n "$mode" -a $mode = purify ] ; then
-      gmake CXXLD="purify   $opts"  $target
+      gmake CCLD="purify   $opts gcc"  CXXLD="purify   $opts g++"  $target
       mv $binary $binary-purify
     fi
 
     if [ -n "$mode" -a $mode = quantify ] ; then
-      gmake CXXLD="quantify $opts"  $target
+      gmake CCLD="quantify $opts gcc"  CXXLD="quantify $opts g++"  $target
       mv $binary $binary-quantify
     fi
 
     if [ -n "$mode" -a $mode = purecov ] ; then
-      gmake CXXLD="purecov  $opts"  $target
+      gmake CCLD="purecov  $opts gcc"  CXXLD="purecov  $opts g++"  $target
       mv $binary $binary-purecov
     fi
 

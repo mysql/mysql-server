@@ -251,7 +251,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
   if (!res && (a != a_end || b != b_end))
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -266,7 +266,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
     for (; a < a_end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;
