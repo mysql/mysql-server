@@ -4066,9 +4066,9 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
-@image{Flags/germany} Germany [Bonn University, Bonn] @
-@uref{http://www.wipol.uni-bonn.de/MySQL/, WWW}
-@uref{ftp://ftp.wipol.uni-bonn.de/pub/mirror/MySQL/, FTP}
+@image{Flags/germany} Germany [Kernelnotes.de, Bonn] @
+@uref{http://www.kernelnotes.de/mysql/, WWW}
+@uref{ftp://ftp.kernelnotes.de/pub/mirror/mysql.org/, FTP}
 
 @item
 @c EMAIL: th@rz.fh-wolfenbuettel.de (Thorsten Ludewig)
@@ -4163,6 +4163,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/poland} Poland [Sunsite] @
 @uref{http://sunsite.icm.edu.pl/mysql/, WWW}
 @uref{ftp://sunsite.icm.edu.pl/pub/unix/mysql/, FTP}
+
+@item
+@c EMAIL: admin@net.ncservice.com.pl (Marian Witkowski)
+@image{Flags/poland} Poland [ncservice.com/Gdansk] @
+@uref{http://mysql.service.net.pl/, WWW}
 
 @c @item
 @c EMAIL: melo@co.telenet.pt (Pedro Melo)
@@ -25629,7 +25634,7 @@ Starting in Version 3.23.15, @strong{MySQL} supports one-way replication
 internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
-(@xref{Binary log}) and an index file of binary logs to keep track of
+(@xref{Binary log}.) and an index file of binary logs to keep track of
 log rotation.  The slave, upon connecting, informs the master where it
 left off since the last successfully propagated update, catches up on
 the updates, and then blocks and waits for the master to notify it of
@@ -25651,7 +25656,7 @@ master. @xref{Backup}.
 
 @strong{MySQL} replication is based on the server keeping track of all
 changes to your database (updates, deletes, etc) in the binary
-log (@xref{Binary log}), and the slave server(s) reading the saved
+log (@xref{Binary log}.), and the slave server(s) reading the saved
 queries from the master server's binary log so that the slave can
 execute the same queries on its copy of the data.
 
@@ -25769,7 +25774,7 @@ them, just as on the master.
 
 @item Restart the slave(s).
 
-@end itemize
+@end enumerate
 
 After you have done the above, the slave(s) should connect to the master
 and catch up on any updates which happened since the snapshot was taken.
