@@ -866,17 +866,6 @@ avg	0	4.4
 delete from t1;
 delete from t2;
 drop procedure bug1874;
-drop table if exists table_1;
-create table t3 (column_1_0 int);
-create procedure bug1653()
-update t3 set column_1 = 0;
-call bug1653();
-ERROR 42S22: Unknown column 'column_1' in 'field list'
-drop table t3;
-create table t3 (column_1 int);
-call bug1653();
-drop procedure bug1653;
-drop table t3;
 drop table if exists fac;
 create table fac (n int unsigned not null primary key, f bigint unsigned);
 create procedure ifac(n int unsigned)
@@ -918,7 +907,7 @@ n	f
 drop table fac;
 show function status like '%f%';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-fac	FUNCTION	root	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop procedure ifac;
 drop function fac;
 show function status like '%f%';
@@ -1011,8 +1000,8 @@ end loop;
 end
 show procedure status like '%p%';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-ip	PROCEDURE	root	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-opp	PROCEDURE	root	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call ip(200);
 select * from primes where i=45 or i=100 or i=199;
 i	p
@@ -1074,7 +1063,7 @@ comment "111111111111" sql security invoker
 insert into test.t1 values (x, y);
 show procedure status like 'bar';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
+bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
 alter procedure bar name bar2 comment "2222222222" sql security definer;
 alter procedure bar2 name bar comment "3333333333";
 alter procedure bar;
@@ -1085,7 +1074,7 @@ bar	CREATE PROCEDURE bar(x char(16), y int)
 insert into test.t1 values (x, y)
 show procedure status like 'bar';
 Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
+bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
 drop procedure bar;
 drop table t1;
 drop table t2;

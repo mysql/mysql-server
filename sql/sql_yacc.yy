@@ -2712,7 +2712,7 @@ alter:
 	    LEX *lex= Lex;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	    Lex->name= 0;
+	    lex->name= 0;
           }
 	  sp_a_chistics
 	  {

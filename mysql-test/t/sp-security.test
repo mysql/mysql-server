@@ -1,0 +1,99 @@
+#
+# Testing SQL SECURITY of stored procedures
+#
+
+connect (con1root,localhost,root,,);
+
+connection con1root;
+use test;
+
+# Create dummy user with no particular access rights
+grant usage on *.* to dummy@localhost;
+
+--disable_warnings
+drop database if exists db1_secret;
+--enable_warnings
+# Create our secret database
+create database db1_secret;
+
+use db1_secret;
+
+create table t1 ( u varchar(64), i int );
+
+# Our test procedure
+create procedure stamp(i int)
+  insert into db1_secret.t1 values (user(), i);
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like 'stamp';
+
+# root can, of course
+call stamp(1);
+select * from t1;
+
+connect (con2dummy,localhost,dummy,,);
+connect (con3anon,localhost,anon,,);
+
+#
+# Dummy can
+#
+connection con2dummy;
+
+# This should work...
+call stamp(2);
+
+# ...but not this
+--error 1044
+select * from db1_secret.t1;
+
+#
+# Anonymous can
+#
+connection con3anon;
+
+# This should work...
+call stamp(3);
+
+# ...but not this
+--error 1044
+select * from db1_secret.t1;
+
+#
+# Check it out
+#
+connection con1root;
+select * from t1;
+
+#
+# Change to invoker's rights
+#
+alter procedure stamp sql security invoker;
+--replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+show procedure status like 'stamp';
+
+# root still can
+call stamp(4);
+select * from t1;
+
+#
+# Dummy cannot
+#
+connection con2dummy;
+
+# This should not work
+--error 1044
+call stamp(5);
+
+#
+# Anonymous cannot
+#
+connection con3anon;
+
+# This should not work
+--error 1044
+call stamp(6);
+
+# Clean up
+connection con1root;
+use test;
+drop database db1_secret;
+delete from mysql.user where user='dummy';

@@ -3495,6 +3495,7 @@ mysql_execute_command(THD *thd)
       }
       else
       {
+	st_sp_security_context save_ctx;
 	uint smrx;
 	LINT_INIT(smrx);
 
@@ -3526,7 +3527,11 @@ mysql_execute_command(THD *thd)
 	  thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
 	}
 
+	sp_change_security_context(thd, sp, &save_ctx);
+
 	res= sp->execute_procedure(thd, &lex->value_list);
+
+	sp_restore_security_context(thd, sp, &save_ctx);
 
 #ifndef EMBEDDED_LIBRARY
 	thd->net.no_send_ok= nsok;

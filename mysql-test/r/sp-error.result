@@ -280,4 +280,15 @@ create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t);
 ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
+drop table if exists table_1;
+create table t3 (column_1_0 int);
+create procedure bug1653()
+update t3 set column_1 = 0;
+call bug1653();
+ERROR 42S22: Unknown column 'column_1' in 'field list'
+drop table t3;
+create table t3 (column_1 int);
+call bug1653();
+drop procedure bug1653;
+drop table t3;
 drop table t1;

@@ -3069,13 +3069,21 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
+  st_sp_security_context save_ctx;
+  int res;
 
   if (! m_sp)
     m_sp= sp_find_function(thd, &m_name);
   if (! m_sp)
     DBUG_RETURN(-1);
 
-  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+  sp_change_security_context(thd, m_sp, &save_ctx);
+
+  res= m_sp->execute_function(thd, args, arg_count, itp);
+
+  sp_restore_security_context(thd, m_sp, &save_ctx);
+
+  DBUG_RETURN(res);
 }
 
 enum enum_field_types

@@ -61,8 +61,8 @@ public:
   LEX_STRING m_retstr;		// For FUNCTIONs only
   LEX_STRING m_body;
   LEX_STRING m_defstr;
-  char *m_creator;
-  uint m_creatorlen;
+  LEX_STRING m_definer_user;
+  LEX_STRING m_definer_host;
   longlong m_created;
   longlong m_modified;
   // Pointers set during parsing
@@ -159,16 +159,9 @@ public:
     return sp_map_result_type(m_returns);
   }
 
-  void set_info(char *creator, uint creatorlen,
+  void set_info(char *definer, uint definerlen,
 		longlong created, longlong modified,
-		st_sp_chistics *chistics)
-  {
-    m_creator= creator;
-    m_creatorlen= creatorlen;
-    m_created= created;
-    m_modified= modified;
-    m_chistics= chistics;
-  }
+		st_sp_chistics *chistics);
 
   inline void reset_thd_mem_root(THD *thd)
   {
@@ -641,5 +634,25 @@ private:
 
 }; // class sp_instr_cfetch : public sp_instr
 
+
+struct st_sp_security_context
+{
+  bool changed;
+  uint master_access;
+  uint db_access;
+  char *db;
+  uint db_length;
+  char *priv_user;
+  char priv_host[MAX_HOSTNAME];
+  char *user;
+  char *host;
+  char *ip;
+};
+
+void
+sp_change_security_context(THD *thd, sp_head *sp, st_sp_security_context *ctxp);
+
+void
+sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
 
 #endif /* _SP_HEAD_H_ */
