@@ -302,7 +302,7 @@ os_file_handle_error(
 				/* out: TRUE if we should retry the
 				operation */
 	os_file_t	file,	/* in: file pointer */
-	char*		name,	/* in: name of a file or NULL */
+	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
@@ -357,6 +357,32 @@ os_file_handle_error(
 
 	return(FALSE);	
 }
+
+#if !defined(__WIN__) && !defined(UNIV_HOTBACKUP)
+/********************************************************************
+Obtain an exclusive lock on a file. */
+static
+int
+os_file_lock(
+/*=========*/
+				/* out: 0 on success */
+	int		fd,	/* in: file descriptor */
+	const char*	name)	/* in: file name */
+{
+	struct flock lk;
+	lk.l_type = F_WRLCK;
+	lk.l_whence = SEEK_SET;
+	lk.l_start = lk.l_len = 0;
+	if (fcntl(fd, F_SETLK, &lk) == -1) {
+		fprintf(stderr,
+			"InnoDB: Unable to lock %s", name);
+		perror (": fcntl");
+		close(fd);
+		return(-1);
+	}
+	return 0;
+}
+#endif /* !defined(__WIN__) && !defined(UNIV_HOTBACKUP) */
 
 /********************************************************************
 Creates the seek mutexes used in positioned reads and writes. */
@@ -441,7 +467,7 @@ try_again:
 	}
 
 	return(file);
-#else
+#else /* __WIN__ */
 	os_file_t	file;
 	int		create_flag;
 	ibool		retry;
@@ -478,12 +504,17 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
+#ifndef UNIV_HOTBACKUP
+	} else if (os_file_lock(file, name)) {
+		*success = FALSE;
+		file = -1;
+#endif
 	} else {
 		*success = TRUE;
 	}
 
 	return(file);	
-#endif
+#endif /* __WIN__ */
 }
 
 /********************************************************************
@@ -544,7 +575,7 @@ os_file_create_simple_no_error_handling(
 	}
 
 	return(file);
-#else
+#else /* __WIN__ */
 	os_file_t	file;
 	int		create_flag;
 	
@@ -572,12 +603,17 @@ os_file_create_simple_no_error_handling(
 	
 	if (file == -1) {
 		*success = FALSE;
+#ifndef UNIV_HOTBACKUP
+	} else if (os_file_lock(file, name)) {
+		*success = FALSE;
+		file = -1;
+#endif
 	} else {
 		*success = TRUE;
 	}
 
 	return(file);	
-#endif
+#endif /* __WIN__ */
 }
 
 /********************************************************************
@@ -689,7 +725,7 @@ try_again:
 	}
 
 	return(file);
-#else
+#else /* __WIN__ */
 	os_file_t	file;
 	int		create_flag;
 	ibool		retry;
@@ -772,12 +808,17 @@ try_again:
 		if (retry) {
 			goto try_again;
 		}
+#ifndef UNIV_HOTBACKUP
+	} else if (os_file_lock(file, name)) {
+		*success = FALSE;
+		file = -1;
+#endif
 	} else {
 		*success = TRUE;
 	}
 
 	return(file);	
-#endif
+#endif /* __WIN__ */
 }
 
 /***************************************************************************
