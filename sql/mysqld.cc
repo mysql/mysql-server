@@ -333,9 +333,9 @@ ulong delayed_insert_errors,flush_time, thread_created;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong max_connections,max_used_connections,
-      max_connect_errors, max_user_connections = 0;
+      max_connect_errors;
+uint  max_user_connections= 0;
 ulong thread_id=1L,current_pid;
-my_bool timed_mutexes= 0;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
@@ -351,7 +351,7 @@ char *default_tz_name;
 char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char* log_error_file_ptr= log_error_file;
 char mysql_real_data_home[FN_REFLEN],
-     language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
+     language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
@@ -5254,8 +5254,8 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, 32, 1, ~0L, 0, 1, 0},
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
    "The maximum number of active connections for a single user (0 = no limit).",
-   (gptr*) &max_user_connections, (gptr*) &max_user_connections, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 1, ~0L, 0, 1, 0},
+   (gptr*) &max_user_connections, (gptr*) &max_user_connections, 0, GET_UINT,
+   REQUIRED_ARG, 0, 1, ~0, 0, 1, 0},
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    (gptr*) &max_write_lock_count, (gptr*) &max_write_lock_count, 0, GET_ULONG,

@@ -712,6 +712,10 @@ void free_des_key_file();
 /* sql_do.cc */
 bool mysql_do(THD *thd, List<Item> &values);
 
+/* sql_analyse.h */
+bool append_escaped(String *to_str, String *from_str);
+bool append_escaped(String *to_str, char *from, uint from_len);
+
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
@@ -978,7 +982,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern char language[LIBLEN],reg_ext[FN_EXTLEN];
+extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
@@ -1001,8 +1005,7 @@ extern ulong ha_read_count, ha_discover_count;
 extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
-extern ulong max_user_connections;
-extern my_bool timed_mutexes;
+extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
