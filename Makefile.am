@@ -70,7 +70,7 @@ linked_netware_sources:
 
 #avoid recursive make calls in sql directory
 linked_server_sources:
-	cd sql; rm -f mini_client_errors.c;@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
+	cd sql; rm -f mini_client_errors.c;@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c;	rm -f pack.c;@LN_CP_F@ ../sql-common/pack.c pack.c
 	echo timestamp > linked_server_sources
 
 # Create permission databases
