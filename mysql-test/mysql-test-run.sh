@@ -394,7 +394,7 @@ SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
-SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
+SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
 export MASTER_MYPORT
 export SLAVE_MYPORT
@@ -795,13 +795,13 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-    $@  >> $CUR_MYERR 2>&1  &
+    $@  >> $CUR_MYERR 2>&1 &
     sleep 2 #hack
     return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
-def_exec $ident $@
+def_exec $ident "$@"
 set_exec_stdout $ident $CUR_MYERR
 set_exec_stderr $ident $CUR_MYERR
 set_exec_con $ident root localhost $CUR_MYSOCK

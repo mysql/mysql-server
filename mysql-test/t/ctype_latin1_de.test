@@ -64,6 +64,7 @@ drop table t1;
 # The below checks both binary and character comparisons.
 #
 create table t1 (word varchar(255) not null, word2 varchar(255) not null, index(word));
+show create table t1;
 insert into t1 (word) values ('ss'),(0xDF),(0xE4),('ae');
 update t1 set word2=word;
 select word, word=binary 0xdf as t from t1 having t > 0;
@@ -85,6 +86,7 @@ drop table t1;
 CREATE TABLE t1 (
 s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
 );
+show create table t1;
 INSERT INTO t1 VALUES ('Ü');
 INSERT INTO t1 VALUES ('ue');
 SELECT DISTINCT s1 FROM t1;

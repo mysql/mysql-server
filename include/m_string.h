@@ -232,6 +232,7 @@ extern char *int2str(long val,char *dst,int radix);
 extern char *int10_to_str(long val,char *dst,int radix);
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
+longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
 #define longlong2str(A,B,C) int2str((A),(B),(C))
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))

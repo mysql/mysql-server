@@ -421,7 +421,11 @@ struct system_variables
   CHARSET_INFO	*collation_server;
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
-  sys_var_datetime_format datetime_formats[3];
+
+  /* DATE, DATETIME and TIME formats */
+  DATE_TIME_FORMAT *date_format;
+  DATE_TIME_FORMAT *datetime_format;
+  DATE_TIME_FORMAT *time_format;
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);

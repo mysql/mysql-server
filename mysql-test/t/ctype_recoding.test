@@ -1,7 +1,7 @@
 SET CHARACTER SET koi8r;
 
 --disable_warnings
-DROP TABLE IF EXISTS таблица;
+DROP TABLE IF EXISTS таблица, t1;
 --enable_warnings
 
 SET CHARACTER SET koi8r;
@@ -11,7 +11,7 @@ SELECT a FROM t1;
 SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
-CREATE TABLE таблица 
+CREATE TABLE `таблица`
 (
   поле CHAR(32) CHARACTER SET koi8r NOT NULL COMMENT "комментарий поля"
 ) COMMENT "комментарий таблицы";

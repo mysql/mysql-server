@@ -210,6 +210,12 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
+  variables.time_format= date_time_format_copy((THD*) 0,
+					       variables.time_format);
+  variables.date_format= date_time_format_copy((THD*) 0,
+					       variables.date_format);
+  variables.datetime_format= date_time_format_copy((THD*) 0,
+						   variables.datetime_format);
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;
@@ -281,9 +287,9 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   close_temporary_tables(this);
-  variables.datetime_formats[DATE_FORMAT_TYPE].clean();
-  variables.datetime_formats[TIME_FORMAT_TYPE].clean();
-  variables.datetime_formats[DATETIME_FORMAT_TYPE].clean();
+  my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) variables.datetime_format, MYF(MY_ALLOW_ZERO_PTR));
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
   if (global_read_lock)
