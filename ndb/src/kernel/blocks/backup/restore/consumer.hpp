@@ -21,20 +21,14 @@
 
 class BackupConsumer {
 public:
+  virtual ~BackupConsumer() { }
   virtual bool init() { return true;}
   virtual bool table(const TableS &){return true;}
-#ifdef USE_MYSQL
-  virtual bool table(const TableS &, MYSQL* mysqlp) {return true;};
-#endif
   virtual void tuple(const TupleS &){}
   virtual void tuple_free(){}
   virtual void endOfTuples(){}
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
-protected:
-#ifdef USE_MYSQL
-  int create_table_string(const TableS & table, char * ,char *);
-#endif
 };
 
 #endif

@@ -45,13 +45,9 @@ public:
   }
   
   virtual ~BackupRestore();
-
   virtual bool init();
   virtual void release();
   virtual bool table(const TableS &);
-#ifdef USE_MYSQL
-  virtual bool table(const TableS &, MYSQL* mysqlp);
-#endif
   virtual void tuple(const TupleS &);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);

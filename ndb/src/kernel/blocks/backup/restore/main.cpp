@@ -18,10 +18,6 @@
 #include <Vector.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
-#ifdef USE_MYSQL
-#include <mysql.h>
-#endif
-
 #include <NdbOut.hpp>
 
 #include "consumer_restore.hpp"
@@ -37,26 +33,7 @@ static int ga_backupId = 0;
 static bool ga_dont_ignore_systab_0 = false;
 static myVector<class BackupConsumer *> g_consumers;
 
-#ifdef USE_MYSQL
-/**
- * mysql specific stuff:
- */
-static const char* ga_user = "root";
-static const char* ga_host = "localhost";
-static const char* ga_socket =  "/tmp/mysql.sock";
-static const char* ga_password = "";
-static const char* ga_database = "";
-static int ga_port = 3306;
-static bool  use_mysql = false;
-static MYSQL mysql;
-#endif
-
-
-#ifdef NDB_WIN32
 static const char* ga_backupPath = "." DIR_SEPARATOR;
-#else
-static const char* ga_backupPath = "." DIR_SEPARATOR;
-#endif
 
 static const char* ga_connect_NDB = NULL;
 
@@ -130,7 +107,6 @@ readArguments(const int argc, const char** argv)
       ga_nParallelism  < 1 ||
       ga_nParallelism >1024) 
   {
-
     arg_printusage(args, num_args, argv[0], "<path to backup files>\n");
     return false;
   }
@@ -185,11 +161,11 @@ readArguments(const int argc, const char** argv)
   }
 
   {
-    BackupConsumer * c = printer; 
+    BackupConsumer * c = printer;
     g_consumers.push_back(c);
   }
   {
-    BackupConsumer * c = restore; 
+    BackupConsumer * c = restore;
     g_consumers.push_back(c);
   }
   // Set backup file path
@@ -197,20 +173,6 @@ readArguments(const int argc, const char** argv)
   {
     ga_backupPath = argv[optind];
   }
-#ifdef USE_MYSQL
-  if(use_mysql) {
-    ga_dont_ignore_systab_0 = false;
-    ga_database = ""; //not used yet. pethaps later if we want to 
-                          // restore meta data in an existing mysql database,
-                          // and not just restore it to the same database
-                          // as when the backup was taken.
-                          // If implementing this, then the 
-                          // tupleAsynch must also be changed so that the 
-                          // table data is restored to the correct table.
-                          // also, mysql_select_db must be set properly (ie., 
-                          // ignored in codw below)
-  }
-#endif
 
   return true;
 }
@@ -233,7 +195,6 @@ checkSysTable(const char *tableName)
      strcmp(tableName, "sys/def/SYSTAB_0") != 0 &&
      strcmp(tableName, "sys/def/NDB$EVENTS_0") != 0);
 }
-
 
 static void
 free_data_callback()
@@ -305,25 +266,13 @@ main(int argc, const char** argv)
     if (checkSysTable(metaData[i]->getTableName()))
     {
       for(int j = 0; j<g_consumers.size(); j++)
-#ifdef USE_MYSQL
-	if(use_mysql) {
-	  if (!g_consumers[j]->table(* metaData[i], &mysql))
-	    {
-	      ndbout_c("Restore: Failed to restore table: %s. "
-		       "Exiting...", 
-		       metaData[i]->getTableName());
-	      return -11;
-	    } 
-	} else	  
-#endif
-	  if (!g_consumers[j]->table(* metaData[i]))
-	  {
-	    ndbout_c("Restore: Failed to restore table: %s. "
-		     "Exiting...", 
-		     metaData[i]->getTableName());
-	    return -11;
-	  } 
-      
+	if (!g_consumers[j]->table(* metaData[i]))
+	{
+	  ndbout_c("Restore: Failed to restore table: %s. "
+		   "Exiting...", 
+		   metaData[i]->getTableName());
+	  return -11;
+	} 
     }
   }
   
@@ -341,10 +290,10 @@ main(int argc, const char** argv)
 	}
 	
 	
-	while (dataIter.readFragmentHeader(res))
+	while (dataIter.readFragmentHeader(res= 0))
 	{
 	  const TupleS* tuple;
-	  while ((tuple = dataIter.getNextTuple(res)) != NULL)
+	  while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	  {
 	    if (checkSysTable(tuple->getTable()->getTableName()))
 	      for(int i = 0; i < g_consumers.size(); i++) 
@@ -366,40 +315,33 @@ main(int argc, const char** argv)
 	
 	if (res < 0)
 	{
-	  ndbout_c("Restore: An error occured while restoring data. "
-		   "Exiting...");
+	  err << "Restore: An error occured while restoring data. Exiting... res=" << res << endl;
 	  return -1;
 	}
 	
 	
 	dataIter.validateFooter(); //not implemented
+
 	for (int i = 0; i<g_consumers.size(); i++)
 	  g_consumers[i]->endOfTuples();
 	
 	RestoreLogIterator logIter(metaData);
 	if (!logIter.readHeader())
 	{
-	  ndbout << "Failed to read header of data file. Exiting...";
+	  err << "Failed to read header of data file. Exiting..." << endl;
 	  return -1;
 	}
 	
-	/**
-	 * I have not touched the part below : -johan 040218
-	 * except fixing return values.
-	 */
 	const LogEntry * logEntry = 0;
-	while ((logEntry = logIter.getNextLogEntry(res)))
+	while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
 	{
 	  if (checkSysTable(logEntry->m_table->getTableName()))
-	  {
 	    for(int i = 0; i<g_consumers.size(); i++)
 	      g_consumers[i]->logEntry(* logEntry);
-	  }
 	}
 	if (res < 0)
 	{
-	  ndbout_c("Restore: An restoring the data log"
-		     "Exiting...");
+	  err << "Restore: An restoring the data log. Exiting... res=" << res << endl;
 	  return -1;
 	}
 	logIter.validateFooter(); //not implemented
