@@ -232,9 +232,9 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   FD_ZERO(&sfds);
   FD_SET(s, &sfds);
   /*
-   * select could be interrupted by a signal, and if it is, 
+   * select could be interrupted by a signal, and if it is,
    * the timeout should be adjusted and the select restarted
-   * to work around OSes that don't restart select and 
+   * to work around OSes that don't restart select and
    * implementations of select that don't adjust tv upon
    * failure to reflect the time remaining
    */
@@ -346,23 +346,23 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 }
 #endif
 
-/* 
+/*
   Create new shared memory connection, return handler of connection
 
   SYNOPSIS
     create_shared_memory()
     mysql  Pointer of mysql structure
-    net    Pointer of net structure 
+    net    Pointer of net structure
     connect_timeout Timeout of connection
 */
 #ifdef HAVE_SMEM
 HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 {
   ulong smem_buffer_length = shared_memory_buffer_length + 4;
-/*  
-  event_connect_request is event object for start connection actions 
+/*
+  event_connect_request is event object for start connection actions
   event_connect_answer is event object for confirm, that server put data
-  handle_connect_file_map is file-mapping object, use for create shared memory  
+  handle_connect_file_map is file-mapping object, use for create shared memory
   handle_connect_map is pointer on shared memory
   handle_map is pointer on shared memory for client
   event_server_wrote,
@@ -382,10 +382,10 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   HANDLE event_client_wrote = NULL;
   HANDLE event_client_read = NULL;
   HANDLE handle_file_map = NULL;
-  ulong connect_number; 
+  ulong connect_number;
   char connect_number_char[22], *p;
   char tmp[64];
-  char *suffix_pos;  
+  char *suffix_pos;
   DWORD error_allow = 0;
   DWORD error_code = 0;
   char *shared_memory_base_name = mysql->options.shared_memory_base_name;
@@ -399,24 +399,24 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((event_connect_request = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL) 
+  if ((event_connect_request = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
     goto err;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if ((event_connect_answer = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL) 
+  if ((event_connect_answer = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
   }
   strmov(suffix_pos, "CONNECT_DATA");
-  if ((handle_connect_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL) 
+  if ((handle_connect_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
     goto err;
   }
-  if ((handle_connect_map = MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,sizeof(DWORD))) == NULL) 
+  if ((handle_connect_map = MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,sizeof(DWORD))) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
     goto err;
@@ -424,7 +424,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 /*
  Send to server request of connection
 */
-  if (!SetEvent(event_connect_request)) 
+  if (!SetEvent(event_connect_request))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
     goto err;
@@ -456,7 +456,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   if ((handle_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
   {
     error_allow = CR_SHARED_MEMORY_FILE_MAP_ERROR;
-    goto err2;    
+    goto err2;
   }
   if ((handle_map = MapViewOfFile(handle_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == NULL)
   {
@@ -496,13 +496,13 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 */
   SetEvent(event_server_read);
 
-err2:   
-  if (error_allow == 0) 
+err2:
+  if (error_allow == 0)
   {
     net->vio = vio_new_win32shared_memory(net,handle_file_map,handle_map,event_server_wrote,
-                                          event_server_read,event_client_wrote,event_client_read);        
-  } 
-  else 
+                                          event_server_read,event_client_wrote,event_client_read);
+  }
+  else
   {
     error_code = GetLastError();
     if (event_server_read) CloseHandle(event_server_read);
@@ -518,7 +518,7 @@ err:
   if (event_connect_answer) CloseHandle(event_connect_answer);
   if (handle_connect_map) UnmapViewOfFile(handle_connect_map);
   if (handle_connect_file_map) CloseHandle(handle_connect_file_map);
-  if (error_allow) 
+  if (error_allow)
   {
     net->last_errno=error_allow;
     if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
@@ -526,7 +526,7 @@ err:
     else
       sprintf(net->last_error,ER(net->last_errno),error_code);
     return(INVALID_HANDLE_VALUE);
-  } 
+  }
   return(handle_map);
 };
 #endif
@@ -554,7 +554,7 @@ net_safe_read(MYSQL *mysql)
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
     end_server(mysql);
-    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ? 
+    net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ?
 		     CR_NET_PACKET_TOO_LARGE:
 		     CR_SERVER_LOST);
     strmov(net->last_error,ER(net->last_errno));
@@ -1095,7 +1095,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
             my_free(options->shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
           options->shared_memory_base_name=my_strdup(opt_arg,MYF(MY_WME));
 #endif
-          break;        
+          break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -1161,7 +1161,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->name=   strdup_root(alloc,(char*) row->data[1]);
       field->length= (uint) uint3korr(row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
-      
+
       if (server_capabilities & CLIENT_LONG_FLAG)
       {
         field->flags=   uint2korr(row->data[4]);
@@ -1346,7 +1346,7 @@ my_bool STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
 }
 
 
-/* perform query on slave */  
+/* perform query on slave */
 my_bool STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 				  unsigned long length)
 {
@@ -1391,7 +1391,7 @@ void STDCALL mysql_disable_rpl_parse(MYSQL* mysql)
   mysql->options.rpl_parse = 0;
 }
 
-/* get the value of the parse flag */  
+/* get the value of the parse flag */
 int STDCALL mysql_rpl_parse_enabled(MYSQL* mysql)
 {
   return mysql->options.rpl_parse;
@@ -1408,7 +1408,7 @@ void STDCALL mysql_disable_reads_from_master(MYSQL* mysql)
   mysql->options.no_master_reads = 1;
 }
 
-/* get the value of the master read flag */  
+/* get the value of the master read flag */
 my_bool STDCALL mysql_reads_from_master_enabled(MYSQL* mysql)
 {
   return !(mysql->options.no_master_reads);
@@ -1537,7 +1537,7 @@ my_bool STDCALL mysql_rpl_probe(MYSQL* mysql)
     the most reliable way to do this is to run SHOW SLAVE STATUS and see
     if we have a non-empty master host. This is still not fool-proof -
     it is not a sin to have a master that has a dormant slave thread with
-    a non-empty master host. However, it is more reliable to check 
+    a non-empty master host. However, it is more reliable to check
     for empty master than whether the slave thread is actually running
   */
   if (mysql_query(mysql, "SHOW SLAVE STATUS") ||
@@ -1602,7 +1602,7 @@ STDCALL mysql_rpl_query_type(const char* q, int len)
       case 'a':  /* alter */
 	return MYSQL_RPL_MASTER;
       case 'c':  /* create or check */
-	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN : 
+	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
 	  MYSQL_RPL_MASTER;
       case 's': /* select or show */
 	return my_tolower(system_charset_info,q[1]) == 'h' ? MYSQL_RPL_ADMIN :
@@ -1643,7 +1643,7 @@ mysql_init(MYSQL *mysql)
     By default, we are a replication pivot. The caller must reset it
     after we return if this is not the case.
   */
-  mysql->rpl_pivot = 1; 
+  mysql->rpl_pivot = 1;
 #if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);
@@ -1658,7 +1658,7 @@ mysql_init(MYSQL *mysql)
 #endif
 #ifdef HAVE_SMEM
   mysql->options.shared_memory_base_name=(char*)def_shared_memory_base_name;
-#endif    
+#endif
   return mysql;
 }
 
@@ -1716,9 +1716,9 @@ static void mysql_once_init()
 
 my_bool STDCALL
 mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	      const char *key __attribute__((unused)), 
+	      const char *key __attribute__((unused)),
 	      const char *cert __attribute__((unused)),
-	      const char *ca __attribute__((unused)), 
+	      const char *ca __attribute__((unused)),
 	      const char *capath __attribute__((unused)),
 	      const char *cipher __attribute__((unused)))
 {
@@ -1795,7 +1795,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
-  char          password_hash[20]; /* Used for tmp storage of stage1 hash */
+  char          password_hash[SCRAMBLE41_LENGTH]; /* tmp storage stage1 hash */
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1861,7 +1861,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)&&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
-    if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) == 
+    if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
           INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
@@ -1871,11 +1871,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
           (int) mysql->options.shared_memory_base_name,
           (int) have_tcpip));
 	  if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
-	    goto error;		
-/* 
+	    goto error;
+/*
 Try also with PIPE or TCP/IP
 */
-    }  
+    }
     else
     {
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
@@ -1935,9 +1935,9 @@ Try also with PIPE or TCP/IP
       if (mysql->options.protocol == MYSQL_PROTOCOL_PIPE ||
           (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
           (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
-            goto error;		
-	    /* 
-            Try also with TCP/IP 
+            goto error;
+	    /*
+            Try also with TCP/IP
             */
     }
     else
@@ -2028,7 +2028,7 @@ Try also with PIPE or TCP/IP
       vio_poll_read(net->vio, mysql->options.connect_timeout))
   {
     net->last_errno= CR_SERVER_LOST;
-    strmov(net->last_error,ER(net->last_errno));    
+    strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
@@ -2100,7 +2100,7 @@ Try also with PIPE or TCP/IP
     }
     goto error;
   }
-  
+
   /* Save connection information */
   if (!user) user="";
   if (!passwd) passwd="";
@@ -2180,7 +2180,7 @@ Try also with PIPE or TCP/IP
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
-      strmov(net->last_error,ER(net->last_errno));    
+      strmov(net->last_error,ER(net->last_errno));
       goto error;
     }
     /* Do the SSL layering. */
@@ -2192,7 +2192,7 @@ Try also with PIPE or TCP/IP
 				       options->ssl_cipher)))
     {
       net->last_errno= CR_SSL_CONNECTION_ERROR;
-      strmov(net->last_error,ER(net->last_errno));    
+      strmov(net->last_error,ER(net->last_errno));
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
@@ -2201,7 +2201,7 @@ Try also with PIPE or TCP/IP
     {
       net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));
-      goto error;    
+      goto error;
     }
     DBUG_PRINT("info", ("IO layer change done!"));
   }
@@ -2215,7 +2215,7 @@ Try also with PIPE or TCP/IP
     strmake(buff+5,user,32);			/* Max user name */
   else
     read_user_name((char*) buff+5);
-  /* We have to handle different version of handshake here */    
+  /* We have to handle different version of handshake here */
 #ifdef _CUSTOMCONFIG_
 #include "_cust_libmysql.h";
 #endif
@@ -2232,7 +2232,7 @@ Try also with PIPE or TCP/IP
       end=scramble(strend(buff+5)+1, mysql->scramble_buff,"\1~MySQL#!\2",
                  (my_bool) (mysql->protocol_version == 9));
     }
-    else  /* For empty password*/ 
+    else  /* For empty password*/
     {
       end=strend(buff+5)+1;
       *end=0; /* Store zero length scramble */
@@ -2243,23 +2243,23 @@ Try also with PIPE or TCP/IP
     end=scramble(strend(buff+5)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
 
-  /* Add database if needed */	       
+  /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
     end=strmake(end+1,db,NAME_LEN);
     mysql->db=my_strdup(db,MYF(MY_WME));
     db=0;
   }
-  /* Write authentication package */ 
+  /* Write authentication package */
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
   {
-    net->last_errno= CR_SERVER_LOST; 
-    strmov(net->last_error,ER(net->last_errno));    
+    net->last_errno= CR_SERVER_LOST;
+    strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
-    
-  /* We shall only query sever if it expect us to do so */ 
-    
+
+  /* We shall only query sever if it expect us to do so */
+
   if ( (pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -2269,46 +2269,47 @@ Try also with PIPE or TCP/IP
     if (pkt_length==24) /* We have new hash back */
     {
       /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0]) 
+      if (net->read_pos[0])
       {
-        /* Build full password hash as it is required to decode scramble */        
-        password_hash_stage1(buff, passwd);        
+        /* Build full password hash as it is required to decode scramble */
+        password_hash_stage1(buff, passwd);
         /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,20);
+        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
         password_hash_stage2(password_hash,net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
-        mysql->scramble_buff[20]=0;    
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
+                       SCRAMBLE41_LENGTH);
+        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,20);
+        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
       }
       else
       {
        /* Create password to decode scramble */
        create_key_from_old_password(passwd,password_hash);
        /* Decypt and store scramble 4 = hash for stage2 */
-       password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
-       mysql->scramble_buff[20]=0;    
-       /* Finally scramble decoded scramble with password */    
-       scramble(buff, mysql->scramble_buff, passwd,
-                 (my_bool) (mysql->protocol_version == 9));    
-      }    
+       password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
+                      SCRAMBLE41_LENGTH);
+       mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
+       /* Finally scramble decoded scramble with password */
+       scramble(buff, mysql->scramble_buff, passwd,0);
+      }
       /* Write second package of authentication */
-      if (my_net_write(net,buff,20) || net_flush(net))
+      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
       {
-        net->last_errno= CR_SERVER_LOST; 
-        strmov(net->last_error,ER(net->last_errno));    
+        net->last_errno= CR_SERVER_LOST;
+        strmov(net->last_error,ER(net->last_errno));
         goto error;
       }
-      /* Read What server thinks about out new auth message report */ 
+      /* Read What server thinks about out new auth message report */
       if (net_safe_read(mysql) == packet_error)
           goto error;
     }
   }
-    
-    /* End of authentication part of handshake */      
-    
+
+    /* End of authentication part of handshake */
+
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
   if (db && mysql_select_db(mysql,db))
@@ -2395,7 +2396,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   mysql->free_me=0;
   mysql_close(mysql);
   *mysql=tmp_mysql;
-  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */  
+  mysql_fix_pointers(mysql, &tmp_mysql); /* adjust connection pointers */
   net_clear(&mysql->net);
   mysql->affected_rows= ~(my_ulonglong) 0;
   DBUG_RETURN(0);
@@ -2403,28 +2404,28 @@ static my_bool mysql_reconnect(MYSQL *mysql)
 
 
 /**************************************************************************
-  Change user and database 
+  Change user and database
 **************************************************************************/
 
-my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
+my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
   ulong		pkt_length;
-  char          password_hash[20]; /* Used for tmp storage of stage1 hash */
+  char          password_hash[SCRAMBLE41_LENGTH]; /* Used for tmp storage of stage1 hash */
   NET		*net= &mysql->net;
-  
+
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
     user="";
   if (!passwd)
     passwd="";
-    
+
    /* Store user into the buffer */
   end=strmov(end,user)+1;
-   
-  /* 
+
+  /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
   */
@@ -2434,24 +2435,24 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     {
       /* Use something for not empty password not to match it against empty one */
       end=scramble(end, mysql->scramble_buff,"\1~MySQL#!\2",
-                 (my_bool) (mysql->protocol_version == 9));                 
-    }             
-    else  /* For empty password*/ 
+                 (my_bool) (mysql->protocol_version == 9));
+    }
+    else  /* For empty password*/
       *end=0; /* Store zero length scramble */
   }
   /* Real scramble is sent only for servers. This is to be blocked by option */
   else
     end=scramble(end, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
-                                              
-  /* Add database if needed */	       
+
+  /* Add database if needed */
   end=strmov(end+1,db ? db : "");
-  
-  /* Write authentication package */ 
-  
+
+  /* Write authentication package */
+
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
-  
-  /* We shall only query sever if it expect us to do so */     
+
+  /* We shall only query sever if it expect us to do so */
   if ( (pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -2461,44 +2462,46 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     if (pkt_length==24) /* We have new hash back */
     {
       /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0]) 
+      if (net->read_pos[0])
       {
-        /* Build full password hash as it is required to decode scramble */        
-        password_hash_stage1(buff, passwd);        
+        /* Build full password hash as it is required to decode scramble */
+        password_hash_stage1(buff, passwd);
         /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,20);
+        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
         /* Finally hash complete password using hash we got from server */
         password_hash_stage2(password_hash,net->read_pos);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
-        mysql->scramble_buff[20]=0;    
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
+                       SCRAMBLE41_LENGTH);
+        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
         /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,20);
+        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
       }
       else
       {
         /* Create password to decode scramble */
         create_key_from_old_password(passwd,password_hash);
         /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,20);
-        mysql->scramble_buff[20]=0;    
-        /* Finally scramble decoded scramble with password */    
+        password_crypt(net->read_pos+4,mysql->scramble_buff,password_hash,
+                       SCRAMBLE41_LENGTH);
+        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
+        /* Finally scramble decoded scramble with password */
         scramble(buff, mysql->scramble_buff, passwd,
-                  (my_bool) (mysql->protocol_version == 9));    
-      }    
+                  (my_bool) (mysql->protocol_version == 9));
+      }
       /* Write second package of authentication */
-      if (my_net_write(net,buff,20) || net_flush(net))
+      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
       {
-        net->last_errno= CR_SERVER_LOST; 
-        strmov(net->last_error,ER(net->last_errno));    
+        net->last_errno= CR_SERVER_LOST;
+        strmov(net->last_error,ER(net->last_errno));
         goto error;
       }
-      /* Read What server thinks about out new auth message report */ 
+      /* Read What server thinks about out new auth message report */
       if (net_safe_read(mysql) == packet_error)
           goto error;
     }
   }
-      
+
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
@@ -2507,10 +2510,10 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   mysql->passwd=my_strdup(passwd,MYF(MY_WME));
   mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   DBUG_RETURN(0);
-  
+
   error:
   DBUG_RETURN(1);
-   
+
 }
 
 
@@ -2598,7 +2601,7 @@ mysql_close(MYSQL *mysql)
       {
         next_element= element->next;
         stmt_close((MYSQL_STMT *)element->data, 0);
-      }      
+      }
     }
     if (mysql != mysql->master)
       mysql_close(mysql->master);
@@ -2686,7 +2689,7 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
   Send the query and return so we can do something else.
   Needs to be followed by mysql_read_query_result() when we want to
   finish processing it.
-*/  
+*/
 
 int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, ulong length)
@@ -4024,12 +4027,12 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
   DBUG_ENTER("store_param");
   DBUG_PRINT("enter",("type: %d, buffer:%lx, length: %d", param->buffer_type,
     param->buffer ? param->buffer : "0", *param->length));
-  
+
   if (param->is_null || param->buffer_type == MYSQL_TYPE_NULL)
     store_param_null(net, param);
   else
   {
-    /* Allocate for worst case (long string) */  
+    /* Allocate for worst case (long string) */
     if ((my_realloc_str(net, 9 + *param->length)))
       DBUG_RETURN(1);
     (*param->store_param_func)(net, param);
@@ -4205,14 +4208,14 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
 	      param->param_number);
       DBUG_RETURN(1);
     }
-    
+
     /*
       If param->length is not given, change it to point to bind_length.
       This way we can always use *param->length to get the length of data
     */
     if (!param->length)
       param->length= &param->bind_length;
-      
+
     /* Setup data copy functions for the different supported types */
     switch (param->buffer_type) {
     case MYSQL_TYPE_NULL:
@@ -4358,7 +4361,7 @@ static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 static void fetch_result_short(MYSQL_BIND *param, uchar **row)
 {
   short value= *(short *)row;
-  int2store(param->buffer, value); 
+  int2store(param->buffer, value);
   *row+=2;
 }
 
@@ -4462,7 +4465,7 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       sprintf(stmt->last_error, ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
 	      param->buffer_type, param->param_number);
       DBUG_RETURN(1);
-    }                                    
+    }
     if (!param->length)
       param->length= &param->bind_length;
   }
@@ -4479,10 +4482,10 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar **row)
 {
   MYSQL_BIND  *bind, *end;
   uchar *null_ptr= (uchar*) *row, bit;
-  
-  *row+= (stmt->field_count+7)/8;  
+
+  *row+= (stmt->field_count+7)/8;
   bit=1;
-  
+
   /* Copy complete row to application buffers */
   for (bind= stmt->bind, end= (MYSQL_BIND *) bind + stmt->field_count;
        bind < end;
@@ -4505,7 +4508,7 @@ stmt_fetch_row(MYSQL_STMT *stmt, uchar **row)
 }
 
 static int read_binary_data(MYSQL *mysql)
-{  
+{
   if (packet_error == net_safe_read(mysql))
     return -1;
   if (mysql->net.read_pos[0])
@@ -4532,9 +4535,9 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
 	      DBUG_RETURN((int) stmt_fetch_row(stmt,(uchar **) &mysql->net.read_pos+1));
       DBUG_RETURN(0);
     }
-    DBUG_PRINT("info", ("end of data"));    
+    DBUG_PRINT("info", ("end of data"));
     mysql->status= MYSQL_STATUS_READY;
-    
+
     if (res < 0)				/* Network error */
     {
 	   set_stmt_errmsg(stmt,(char *)mysql->net.last_error,
