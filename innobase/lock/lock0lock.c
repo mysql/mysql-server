@@ -339,6 +339,11 @@ lock_deadlock_recursive(
 	ulint*	cost);		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return TRUE */
+
+#define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
+#define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
+
+#ifdef notdefined
 /*************************************************************************
 Reserves the kernel mutex. This function is used in this module to allow
 monitoring the contention degree on the kernel mutex caused by the lock
@@ -362,6 +367,7 @@ lock_mutex_exit_kernel(void)
 {
 	mutex_exit(&kernel_mutex);
 }
+#endif
 
 #ifdef notdefined
 

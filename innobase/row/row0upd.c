@@ -698,7 +698,7 @@ row_upd_build_sec_rec_difference_binary(
 	ulint		i;
 
 	/* This function is used only for a secondary index */
-	ut_ad(0 == (index->type & DICT_CLUSTERED));
+	ut_a(0 == (index->type & DICT_CLUSTERED));
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
@@ -710,7 +710,13 @@ row_upd_build_sec_rec_difference_binary(
 
 		dfield = dtuple_get_nth_field(entry, i);
 
-		ut_a(len == dfield_get_len(dfield));
+		/* NOTE that it may be that len != dfield_get_len(dfield) if we
+		are updating in a character set and collation where strings of
+		different length can be equal in an alphabetical comparison,
+		and also in the case where we have a column prefix index
+		and the last characters in the index field are spaces; the
+		latter case probably caused the assertion failures reported at
+		row0upd.c line 713 in versions 4.0.14 - 4.0.16. */
 
 		/* NOTE: we compare the fields as binary strings!
 		(No collation) */
@@ -820,12 +826,76 @@ Replaces the new column values stored in the update vector to the index entry
 given. */
 
 void
+row_upd_index_replace_new_col_vals_index_pos(
+/*=========================================*/
+	dtuple_t*	entry,	/* in/out: index entry where replaced */
+	dict_index_t*	index,	/* in: index; NOTE that this may also be a
+				non-clustered index */
+	upd_t*		update,	/* in: an update vector built for the index so
+				that the field number in an upd_field is the
+				index position */
+	mem_heap_t*	heap)	/* in: memory heap to which we allocate and
+				copy the new values, set this as NULL if you
+				do not want allocation */
+{
+	dict_field_t*	field;
+	upd_field_t*	upd_field;
+	dfield_t*	dfield;
+	dfield_t*	new_val;
+	ulint		j;
+	ulint		i;
+
+	ut_ad(index);
+
+	dtuple_set_info_bits(entry, update->info_bits);
+
+	for (j = 0; j < dict_index_get_n_fields(index); j++) {
+
+	        field = dict_index_get_nth_field(index, j);
+
+		for (i = 0; i < upd_get_n_fields(update); i++) {
+
+		        upd_field = upd_get_nth_field(update, i);
+
+			if (upd_field->field_no == j) {
+
+			        dfield = dtuple_get_nth_field(entry, j);
+
+				new_val = &(upd_field->new_val);
+
+				dfield_set_data(dfield, new_val->data,
+								new_val->len);
+				if (heap && new_val->len != UNIV_SQL_NULL) {
+				        dfield->data = mem_heap_alloc(heap,
+								new_val->len);
+					ut_memcpy(dfield->data, new_val->data,
+								new_val->len);
+				}
+
+				if (field->prefix_len > 0
+			            && new_val->len != UNIV_SQL_NULL
+			            && new_val->len > field->prefix_len) {
+
+				        dfield->len = field->prefix_len;
+				}
+			}
+		}
+	}
+}
+
+/***************************************************************
+Replaces the new column values stored in the update vector to the index entry
+given. */
+
+void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update,	/* in: update vector */
+	upd_t*		update,	/* in: an update vector built for the
+				CLUSTERED index so that the field number in
+				an upd_field is the clustered index position */
 	mem_heap_t*	heap)	/* in: memory heap to which we allocate and
 				copy the new values, set this as NULL if you
 				do not want allocation */
@@ -893,7 +963,9 @@ row_upd_changes_ord_field_binary(
 				known when this function is called, e.g., at
 				compile time */
 	dict_index_t*	index,	/* in: index of the record */
-	upd_t*		update)	/* in: update vector for the row */
+	upd_t*		update)	/* in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
 {
 	upd_field_t*	upd_field;
 	dict_field_t*	ind_field;
