@@ -77,13 +77,13 @@ main(	int	argc __attribute__((unused)),
 	sa.sin_port        = htons     (1111);          /* Server Port number */
 
 	err = connect(client_vio->sd, (struct sockaddr*) &sa,
-		sizeof(sa));          
+		sizeof(sa));
 
 	/* ----------------------------------------------- */
 	/* Now we have TCP conncetion. Start SSL negotiation. */
 	read(client_vio->sd,xbuf, sizeof(xbuf));
         sslconnect(ssl_connector,client_vio,60L);
-	err = client_vio->read(client_vio,xbuf, sizeof(xbuf));
+	err = vio_read(client_vio,xbuf, sizeof(xbuf));
 	if (err<=0) {
 		my_free((gptr)ssl_connector,MYF(0));
 		fatal_error("client:SSL_read");
