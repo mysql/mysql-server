@@ -197,7 +197,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 
-typedef ulonglong my_xid;
+typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
 #define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
 #define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))

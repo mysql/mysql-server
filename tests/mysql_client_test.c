@@ -12584,6 +12584,42 @@ static void test_bug7990()
 }
 
 
+static void test_view_sp_list_fields()
+{
+  MYSQL_STMT	*stmt;
+  int		rc;
+  MYSQL_RES     *res;
+
+  myheader("test_view_insert_fields");
+
+  rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS v1, t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW IF EXISTS v1, t1, t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create function f1 () returns int return 5");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t1 (s1 char,s2 char)");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (s1 int);");
+  myquery(rc);
+  rc= mysql_query(mysql, "create view v1 as select s2,sum(s1) - \
+count(s2) as vx from t1 group by s2 having sum(s1) - count(s2) < (select f1() \
+from t2);");
+  myquery(rc);
+  res= mysql_list_fields(mysql, "v1", NullS);
+  DIE_UNLESS(res != 0 && mysql_num_fields(res) != 0);
+  rc= mysql_query(mysql, "DROP FUNCTION f1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1, t2");
+  myquery(rc);
+
+}
+
+
 /*
  Test mysql_real_escape_string() with gbk charset
 
@@ -12693,6 +12729,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
+  { "test_view_sp_list_fields", test_view_sp_list_fields},
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
 #if NOT_YET_WORKING
