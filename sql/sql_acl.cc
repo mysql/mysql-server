@@ -3221,8 +3221,17 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
     some kind of updates to the mysql.% tables.
   */
-  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
-    DBUG_RETURN(1);
+  if (thd->slave_thread && table_rules_on)
+  {
+    /* 
+       The tables must be marked "updating" so that tables_ok() takes them into
+       account in tests.
+    */
+    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=1;
+    if (!tables_ok(0, tables))
+      DBUG_RETURN(1);
+    tables[0].updating=tables[1].updating=tables[2].updating=tables[3].updating=0;
+  }
 #endif
 
   if (open_and_lock_tables(thd, tables))
