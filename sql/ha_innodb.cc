@@ -4390,10 +4390,11 @@ ha_innobase::info(
 			unpack_filename(path,path);
 		}
 
+		/* Note that we do not know the access time of the table, 
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
 		if (os_file_get_status(path,&stat_info)) {
 			create_time = stat_info.ctime;
-			check_time  = stat_info.atime;
-			update_time = stat_info.mtime;
 		}
  	}
 
