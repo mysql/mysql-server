@@ -219,9 +219,9 @@ extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 
 
 /* statistics */
-extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
-		_my_cache_read;
-extern ulong	_my_blocks_used,_my_blocks_changed;
+extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
+		my_cache_read;
+extern ulong	my_blocks_used, my_blocks_changed;
 extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern my_bool	key_cache_inited, my_init_done;
