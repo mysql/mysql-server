@@ -2135,8 +2135,18 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
     {
       if (!my_strcasecmp(system_charset_info, trans[i].name, name))
       {
+        if (table_list->schema_table_reformed)
+        {
+          /*
+            Translation table items are always Item_fields 
+            and fixed already('mysql_schema_table' function). 
+            So we can return ->field. It is used only for 
+            'show & where' commands.
+          */
+          DBUG_RETURN(((Item_field*) (trans[i].item))->field);
+        }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	if (check_grants_view && !table_list->schema_table_reformed &&
+	if (check_grants_view &&
 	    check_grant_column(thd, &table_list->grant,
 			       table_list->view_db.str,
 			       table_list->view_name.str,
