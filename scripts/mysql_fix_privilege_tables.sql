@@ -101,7 +101,7 @@ SET @hadShowDbPriv:=0;
 SELECT @hadShowDbPriv:=1 FROM user WHERE Show_db_priv LIKE '%';
 
 ALTER TABLE user
-ADD Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER alter_priv,
+ADD Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Alter_priv,
 ADD Super_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_db_priv,
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Super_priv,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
@@ -112,7 +112,7 @@ ADD Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
 
 -- Convert privileges so that users have similar privileges as before
 
-UPDATE user SET show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv where user<>"" AND @hadShowDbPriv = 0;
+UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv=Process_priv, Create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=File_priv where user<>"" AND @hadShowDbPriv = 0;
 
 
 --  Add fields that can be used to limit number of questions and connections
