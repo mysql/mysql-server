@@ -6,12 +6,15 @@ then
   exit 1
 fi
 
+prefix_configs="--prefix=/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
 while test $# -gt 0
 do
   case "$1" in
+  --prefix=* ) prefix_configs="$1"; shift ;;
+  --with-debug=full ) full_debug="=full"; shift ;;
   -c | --just-configure ) just_configure=1; shift ;;
   -n | --just-print | --print ) just_print=1; shift ;;
   -h | --help ) cat <<EOF; exit 0 ;;
@@ -19,12 +22,11 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
-
-Any other options will be passed directly to configure.
+  --with-debug=full       Build with full debug.
+  --prefix=path           Build with prefix 'path'.
 
 Note:  this script is intended for internal use by MySQL developers.
 EOF
-  --with-debug=full ) full_debug="=full"; shift ;;
   * )
     echo "Unknown option '$1'"
     exit 1
@@ -70,7 +72,7 @@ debug_extra_cflags="-O1 -Wuninitialized"
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 amd64_cxxflags="-DBIG_TABLES"
 
-base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
+base_configs="$prefix_configs --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
 static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static"
 amd64_configs=""
 alpha_configs=""	# Not used yet
