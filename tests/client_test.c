@@ -10163,6 +10163,52 @@ static void test_bug4231()
   myquery(rc);
 }
 
+
+static void test_bug5399()
+{
+  /*
+    Ascii 97 is 'a', which gets mapped to Ascii 65 'A' unless internal
+    statement id hash in the server uses binary collation.
+  */
+#define NUM_OF_USED_STMT 97 
+  MYSQL_STMT *stmt[NUM_OF_USED_STMT];
+  MYSQL_BIND bind[1];
+  char buff[500];
+  int rc, i;
+  int32 no;
+
+  myheader("test_bug5399");
+
+  bzero(bind, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= &no;
+
+  for (i= 0; i < NUM_OF_USED_STMT; ++i)
+  {
+    stmt[i]= mysql_stmt_init(mysql);
+    sprintf(buff, "select %d", i);
+    rc= mysql_stmt_prepare(stmt[i], buff, strlen(buff));
+    check_execute(stmt[i], rc);
+    mysql_stmt_bind_result(stmt[i], bind);
+  }
+  printf("%d statements prepared.\n", NUM_OF_USED_STMT);
+
+  for (i= 0; i < NUM_OF_USED_STMT; ++i)
+  {
+    rc= mysql_stmt_execute(stmt[i]);
+    check_execute(stmt[i], rc);
+    rc= mysql_stmt_store_result(stmt[i]);
+    check_execute(stmt[i], rc);
+    rc= mysql_stmt_fetch(stmt[i]);
+    assert(rc == 0);
+    assert((int32) i == no);
+  }
+
+  for (i= 0; i < NUM_OF_USED_STMT; ++i)
+    mysql_stmt_close(stmt[i]);
+#undef NUM_OF_USED_STMT
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10463,6 +10509,8 @@ int main(int argc, char **argv)
     test_bug5126();         /* support for mediumint type in libmysql */
     test_bug4231();         /* proper handling of all-zero times and
                                dates in the server */
+    test_bug5399();         /* check that statement id uniquely identifies
+                               statement */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
