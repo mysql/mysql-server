@@ -1,4 +1,4 @@
-					License Agreement for Commercial Use of MySQL[tm] Software
+          License Agreement for Commercial Use of MySQL[tm] Software
 
 This Agreement ("License") is between MySQL AB, a Swedish company
 ("Licensor"), and the customer ("Licensee") identified on the electronic order
@@ -6,7 +6,7 @@ form submitted on behalf of Licensee (the "Order Form"). In consideration of
 the mutual promises, covenants and conditions contained herein, the
 sufficiency of which is hereby acknowledged, the parties agree as follows.
 
-1.	License Grant.
+1.  License Grant.
 "Licensed Software" means a complete and unchanged copy of the object code
 version of the MySQL relational database management software identified in the
 Order Form and posted on a special download page of the MySQL AB web site (the
@@ -27,7 +27,7 @@ shall be deemed accepted by Licensee immediately upon download. Licensee may
 make one additional copy of each Licensed Copy for backup and archival
 purposes only.
 
-2.	Transfer.
+2.  Transfer.
 Only after Licensee has linked or compiled a Licensed Copy as permitted in
 Section 1, Licensee may transfer to a third party (the "Transferee") the right
 to use such copy as described in Section 1. As a condition to any such
@@ -42,7 +42,7 @@ described in Section 1. If you did not purchase this License directly from
 MySQL AB, then you are a Transferee. Licensee and any Transferee must comply
 with all applicable export laws and regulations.
 
-3.	Restrictions.
+3.  Restrictions.
 Licensee may use the Licensed Software only as expressly provided in Section
 1. Without limiting the foregoing, Licensee shall not: (a) lease, license,
 use, make available, distribute or modify all or any part of the Licensed
@@ -60,7 +60,7 @@ in the Licensed Software. Except as otherwise provided in Section 2, the
 rights granted to Licensee herein are rights that may be exercised solely by
 Licensee.
 
-4.	Price and payment.
+4.  Price and payment.
 No later than thirty (30) days after submission of the Order Form, Licensee
 shall remit one non-refundable license fee per Licensed Copy as posted on
 http://order.mysql.com on the date Licensee submitted the Order Form (the
@@ -71,7 +71,7 @@ with this License, other than taxes based upon Licensor's net income. Licensee
 shall not be permitted to access the Download Page until Licensor has received
 payment in full.
 
-5.	Termination.
+5.  Termination.
 Licensor may terminate this License immediately if the Licensee shall breach
 any of the provisions of this License and such breach remains uncured 30 days
 after receipt of notice. In the event that Licensee becomes liquidated,
@@ -84,7 +84,7 @@ destroy all copies of the Licensed Software, including (without limitation) as
 linked or compiled in any Integrated Product. Sections 4 through 10 shall
 survive the termination of this License for any reason. 
 
-6.	Proprietary Rights.
+6.  Proprietary Rights.
 Licensee agrees that the copyright, patent, trade secrets and all other
 intellectual proprietary rights of whatever nature in the Licensed Software
 and related documentation, including derivative works, are and shall remain
@@ -96,7 +96,7 @@ used by Licensee without Licensor's express written authorization. Licensee
 shall include in the Integrated Products a conspicuous notice that the
 Integrated Products include software whose copyright is owned by MySQL AB.
 
-7.	Disclaimer of Warranties.
+7.  Disclaimer of Warranties.
 THE LICENSED SOFTWARE IS LICENSED "AS IS," WITHOUT ANY WARRANTIES WHATSOEVER.
 LICENSOR EXPRESSLY DISCLAIMS, AND LICENSEE EXPRESSLY WAIVES, ALL WARRANTIES,
 WHETHER EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTIBILITY, FITNESS
@@ -112,7 +112,7 @@ construction, maintenance, control or direct operation of nuclear facilities,
 aircraft navigation, control or communication systems, weapons systems or
 direct life support systems.
 
-8.	Indemnification.
+8.  Indemnification.
 Licensee hereby indemnifies and agrees to defend Licensor against any and all
 damages, judgments and costs (including reasonable attorneys' fees) related to
 any claim based upon: (a) an allegation that the Licensee Application
@@ -126,7 +126,7 @@ changes made, or actions taken, by Licensor upon Licensee's direct
 instructions; or (f) bodily injury, property damage or any other damage or
 injury due to the use or inability to use an Integrated Product.
 
-9.	Limitation of Liability.
+9.  Limitation of Liability.
 LICENSOR SHALL HAVE NO LIABILITY WITH RESPECT TO ITS OBLIGATIONS UNDER THIS
 AGREEMENT OR OTHERWISE FOR CONSEQUENTIAL, EXEMPLARY, SPECIAL, INDIRECT,
 INCIDENTAL OR PUNITIVE DAMAGES, INCLUDING (WITHOUT LIMITATION) ANY LOST
@@ -143,9 +143,9 @@ AUTHORIZED BY APPLICABLE LAWS. THE LICENSE FEES ARE SET IN RELIANCE UPON THIS
 ALLOCATION OF RISK AND THE EXCLUSION OF CERTAIN DAMAGES AS SET FORTH IN THIS
 AGREEMENT.
 
-10.	Miscellaneous. 
+10. Miscellaneous. 
 
-10.1	Interpretation.
+10.1  Interpretation.
 Failure by Licensor to exercise any right or remedy does not signify
 acceptance of the event giving rise to such right or remedy. No action arising
 out of this License may be brought by Licensee more than one year after the
@@ -178,7 +178,7 @@ License. The parties are, and shall remain, independent contractors; nothing
 in this License is designed to create, nor shall create between them, a
 partnership, joint venture, agency, or employment relationship.
 
-10.3	Governing Law; Dispute Forum.
+10.3  Governing Law; Dispute Forum.
 If Licensee's residence, principal place of business or place of organization
 is in the United States of America ("USA"), then this License shall be deemed
 to have been executed in the USA and shall be governed by the laws of the
@@ -213,7 +213,7 @@ Licensee shall be responsible for Licensor's attorneys fees and other expenses
 associated with the enforcement of this License or the collection of any
 amounts due under this License.
 
-10.4	Notice.
+10.4  Notice.
 Unless otherwise agreed, any notice under this License shall be delivered and
 addressed to Licensee at the address set forth on the Order Form, and to
 Licensor at Bangardsgatan 8, 753 20, Uppsala, Sweden. Notice shall be deemed
@@ -226,7 +226,7 @@ international courier.  Either party may change its address for notice
 purposes upon notice in accordance with this Section. Licensor may identify
 Licensee as a commercial licensee, including on the MySQL web site.
 
-10.5	GPL.
+10.5  GPL.
 The GPL License shall continue to apply to any and all uses and distributions
 of the Licensed Software undertaken by Licensee either prior to the Effective
 Date, after termination, or otherwise outside the scope of this License.  This
@@ -234,7 +234,7 @@ Agreement shall not be deemed to replace or otherwise amend any Licensee
 rights or obligations pursuant to the GPL License with respect to any uses of
 the Licensed Software described in the preceding sentence.
 
-10.6	Entire Agreement.
+10.6  Entire Agreement.
 This Agreement (including the Order Form and the invoice) comprises the entire
 agreement, and supercedes and merges all prior proposals, understandings and
 agreements, oral and written, between the parties relating to the subject
@@ -247,6 +247,6 @@ in any way in conflict or inconsistent with, or in addition to, this License,
 unless such terms are separately and specifically accepted in writing by an
 authorized officer of Licensor.
 
-10.7	Print this License.
+10.7  Print this License.
 For record keeping purposes, we encourage Licensee to print this License and
 the Order Form on the date that the Order Form is submitted.
