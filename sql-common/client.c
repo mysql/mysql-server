@@ -1121,7 +1121,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
+void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
 			      unsigned int field_count)
 { 
   ulong *prev_length;
