@@ -420,7 +420,7 @@ ulong expire_logs_days = 0;
 
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
-     mysql_charsets_dir[FN_REFLEN], *charsets_list,
+     mysql_charsets_dir[FN_REFLEN],
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
 char *language_ptr= language;
@@ -942,7 +942,6 @@ void clean_up(bool print_message)
 #endif
   if (defaults_argv)
     free_defaults(defaults_argv);
-  my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -2110,8 +2109,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.collation_results= default_charset_info;
   global_system_variables.collation_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
-
-  charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
@@ -4607,6 +4604,7 @@ static void set_options(void)
 #endif
 
   sys_charset.value= (char*) MYSQL_CHARSET;
+  sys_charset_system.value= (char*) system_charset_info->csname;
   (void) strmake(language, LANGUAGE, sizeof(language)-1);
   (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
 		 sizeof(mysql_real_data_home)-1);

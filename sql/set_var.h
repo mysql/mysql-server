@@ -582,4 +582,5 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
 
 extern sys_var_str sys_charset;
+extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
