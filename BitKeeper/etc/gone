@@ -443,6 +443,7 @@ BK|vio/vio-global.h|19700101030959|00021|c261412c01b2f4
 BK|vio/vioelitexx.cc|19700101030959|00022|3eaba70da792a7fc
 BK|vio/violite.h|19700101030959|00023|58d2942a52ea7a83
 BK|vio/viotypes.h|19700101030959|00027|f5a38e7326bd50f3
+BitKeeper/deleted/SCCS/s..del-makefile.w32
 Sinisa@sinisa.nasamreza.org|=6|20010818122920|53462|33f33b0a159dc5d5
 Sinisa@sinisa.nasamreza.org|mysql-test/r/sel000004.result|20020522121240|20995|360af2095c88cb8c
 Sinisa@sinisa.nasamreza.org|mysql-test/r/sel000004.result|20020522133259|25000|4b5fbc60d0d9754f
