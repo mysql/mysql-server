@@ -4534,6 +4534,36 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
+static
+uint my_numcells_sjis(CHARSET_INFO *cs __attribute__((unused)),
+                      const char *str, const char *strend)
+{
+  uint clen= 0;
+  const unsigned char *b= (const unsigned char *) str;
+  const unsigned char *e= (const unsigned char *) strend;
+  
+  for (clen= 0; b < e; )
+  {
+    if (*b >= 0xA1 && *b <= 0xDF)
+    {
+      clen++;
+      b++;
+    }
+    else if (*b > 0x7F)
+    {
+      clen+= 2;
+      b+= 2;
+    }
+    else
+    {
+      clen++;
+      b++;
+    }
+  }
+  return clen;
+}
+
+
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
@@ -4558,7 +4588,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
-  my_numcells_mb,
+  my_numcells_sjis,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
   my_caseup_str_8bit,
