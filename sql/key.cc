@@ -250,7 +250,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
 
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
 {
-  List_iterator<Item> f(fields);
+  List_iterator_fast<Item> f(fields);
   KEY_PART_INFO *key_part,*key_part_end;
   for (key_part=table->key_info[idx].key_part,key_part_end=key_part+
 	 table->key_info[idx].key_parts ;

@@ -91,7 +91,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     thd->dupp_field=0;
-    if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0))
+    if (setup_tables(table_list) || setup_fields(thd,table_list,fields,1,0,0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)
     {
@@ -102,7 +102,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   uint tot_length=0;
   bool use_blobs=0,use_timestamp=0;
-  List_iterator<Item> it(fields);
+  List_iterator_fast<Item> it(fields);
 
   Item_field *field;
   while ((field=(Item_field*) it++))
@@ -269,7 +269,7 @@ static int
 read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 		  READ_INFO &read_info)
 {
-  List_iterator<Item> it(fields);
+  List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   DBUG_ENTER("read_fixed_length");
 
@@ -332,7 +332,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	       List<Item> &fields, READ_INFO &read_info,
 	       String &enclosed)
 {
-  List_iterator<Item> it(fields);
+  List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
   uint enclosed_length;
   DBUG_ENTER("read_sep_field");

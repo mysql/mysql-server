@@ -274,7 +274,7 @@ bool select_send::send_fields(List<Item> &list,uint flag)
 
 bool select_send::send_data(List<Item> &items)
 {
-  List_iterator<Item> li(items);
+  List_iterator_fast<Item> li(items);
   String *packet= &thd->packet;
   DBUG_ENTER("send_data");
 
@@ -297,12 +297,6 @@ bool select_send::send_data(List<Item> &items)
   thd->sent_row_count++;
   bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
   DBUG_RETURN(error);
-}
-
-
-void select_send::send_error(uint errcode,const char *err)
-{
-  ::send_error(&thd->net,errcode,err);
 }
 
 bool select_send::send_eof()
@@ -367,7 +361,7 @@ select_export::prepare(List<Item> &list)
   }
   /* Check if there is any blobs in data */
   {
-    List_iterator<Item> li(list);
+    List_iterator_fast<Item> li(list);
     Item *item;
     while ((item=li++))
     {
@@ -414,7 +408,7 @@ bool select_export::send_data(List<Item> &items)
   Item *item;
   char *buff_ptr=buff;
   uint used_length=0,items_left=items.elements;
-  List_iterator<Item> li(items);
+  List_iterator_fast<Item> li(items);
 
   if (my_b_write(&cache,(byte*) exchange->line_start->ptr(),
 		 exchange->line_start->length()))
@@ -607,7 +601,7 @@ select_dump::prepare(List<Item> &list __attribute__((unused)))
 
 bool select_dump::send_data(List<Item> &items)
 {
-  List_iterator<Item> li(items);
+  List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff)),*res;
   tmp.length(0);

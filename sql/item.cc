@@ -677,5 +677,6 @@ bool field_is_equal_to_item(Field *field,Item *item)
 #ifdef __GNUC__
 template class List<Item>;
 template class List_iterator<Item>;
+template class List_iterator_fast<Item>;
 template class List<List_item>;
 #endif

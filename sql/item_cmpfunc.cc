@@ -1129,7 +1129,7 @@ void Item_cond::update_used_tables()
 {
   used_tables_cache=0;
   const_item_cache=1;
-  List_iterator<Item> li(list);
+  List_iterator_fast<Item> li(list);
   Item *item;
   while ((item=li++))
   {
@@ -1143,7 +1143,7 @@ void Item_cond::update_used_tables()
 void Item_cond::print(String *str)
 {
   str->append('(');
-  List_iterator<Item> li(list);
+  List_iterator_fast<Item> li(list);
   Item *item;
   if ((item=li++))
     item->print(str);
@@ -1160,7 +1160,7 @@ void Item_cond::print(String *str)
 
 longlong Item_cond_and::val_int()
 {
-  List_iterator<Item> li(list);
+  List_iterator_fast<Item> li(list);
   Item *item;
   while ((item=li++))
   {
@@ -1179,7 +1179,7 @@ longlong Item_cond_and::val_int()
 
 longlong Item_cond_or::val_int()
 {
-  List_iterator<Item> li(list);
+  List_iterator_fast<Item> li(list);
   Item *item;
   null_value=0;
   while ((item=li++))

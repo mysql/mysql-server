@@ -47,7 +47,8 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
-static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
+static int create_total_list_and_check_acl(THD *thd, LEX *lex,
+					   TABLE_LIST **result);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1737,10 +1738,10 @@ mysql_execute_command(void)
   }
   case SQLCOM_UNION_SELECT:
   {
-    SQL_LIST *total=(SQL_LIST *) thd->calloc(sizeof(SQL_LIST));
+    TABLE_LIST *total;
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
-    if ((res = link_in_large_list_and_check_acl(thd,lex,total)) == -1)
+    if ((res = create_total_list_and_check_acl(thd,lex,&total)) == -1)
     {
       res=0;
       break;
@@ -1753,31 +1754,31 @@ mysql_execute_command(void)
       res=0;
       break;
     }
-    if (!(res=open_and_lock_tables(thd,(TABLE_LIST *)total->first)))
-		{
-    /* Fix tables--to-be-unioned-from list to point at opened tables */
-			for (SELECT_LEX *sl=&lex->select_lex;sl;sl=sl->next)
-			{
-				for (TABLE_LIST *cursor=(TABLE_LIST *)sl->table_list.first;cursor;cursor=cursor->next)
-					cursor->table= ((TABLE_LIST*) cursor->table)->table;
-			}
-			ha_rows save_it=thd->offset_limit; thd->offset_limit=0;
-      res=mysql_union(thd,lex, select_lex->select_number+1);
-			thd->offset_limit=save_it;
-		}
+    if (!(res=open_and_lock_tables(thd, total)))
+    {
+      /* Fix tables--to-be-unioned-from list to point at opened tables */
+      for (SELECT_LEX *sl=&lex->select_lex; sl; sl=sl->next)
+      {
+	for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
+	     cursor;
+	     cursor=cursor->next)
+	  cursor->table= ((TABLE_LIST*) cursor->table)->table;
+      }
+      res=mysql_union(thd,lex);
+    }
     close_thread_tables(thd);
     break;
   }
   case SQLCOM_DROP_TABLE:
-    {
-      if (check_table_access(thd,DROP_ACL,tables))
-	goto error;				/* purecov: inspected */
-      if (end_active_trans(thd))
-	res= -1;
-      else
-	res = mysql_rm_table(thd,tables,lex->drop_if_exists);
-    }
-    break;
+  {
+    if (check_table_access(thd,DROP_ACL,tables))
+      goto error;				/* purecov: inspected */
+    if (end_active_trans(thd))
+      res= -1;
+    else
+      res = mysql_rm_table(thd,tables,lex->drop_if_exists);
+  }
+  break;
   case SQLCOM_DROP_INDEX:
     if (!tables->db)
       tables->db=thd->db;
@@ -2901,52 +2902,65 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   DBUG_RETURN(ptr);
 }
 
-static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
+
+/*
+** This is used for UNION to create a new table list of all used tables
+** The table_list->table entry in all used tables are set to point
+** to the entries in this list.
+*/
+
+static int create_total_list_and_check_acl(THD *thd, LEX *lex,
+					   TABLE_LIST **result)
 {
-  SELECT_LEX *sl; const char *current_db=thd->db ? thd->db : "";
-	TABLE_LIST *ptr;
-  for (sl=&lex->select_lex;sl;sl=sl->next)
+  SELECT_LEX *sl;
+  TABLE_LIST **new_table_list= result, *aux;
+  const char *current_db=thd->db ? thd->db : ""; // QQ;  To be removed
+  
+  *new_table_list=0;				// end result list
+  for (sl=&lex->select_lex; sl; sl=sl->next)
   {
-    if ((lex->sql_command == SQLCOM_UNION_SELECT) && (sl->order_list.first != (byte *)NULL) && (sl->next != (st_select_lex  *)NULL))
+    if ((lex->sql_command == SQLCOM_UNION_SELECT) &&
+	sl->order_list.first && sl->next)
     {
-      net_printf(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);  // correct error message will come here; only last SELECT can have ORDER BY
+      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
       return -1;
     }
-    if (sl->table_list.first == (byte *)NULL) continue;
-    TABLE_LIST *cursor,*aux=(TABLE_LIST*) sl->table_list.first;
+    aux= (TABLE_LIST*) sl->table_list.first;
     if (aux)
     {
-      if (check_table_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL , aux))
-				return -1;
-      for (;aux;aux=aux->next)
+      TABLE_LIST *next;
+      if (check_table_access(thd,
+			     lex->exchange ?
+			     SELECT_ACL | FILE_ACL : SELECT_ACL , aux))
+	return -1;
+      for (; aux; aux=next)
       {
-				if (!aux->db)
-					aux->db=(char *)current_db;
-				for (cursor=(TABLE_LIST *)tables->first;cursor;cursor=cursor->next)
-					if (!strcmp(cursor->db,aux->db) && (!strcmp(cursor->real_name,aux->real_name)))
-						break;
-				if (!cursor ||  !tables->first)
-				{
-					aux->lock_type= lex->lock_option;
-					if (!tables->next)
-						tables->next= (byte**) &tables->first;
-					if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
-						return 1;
-					ptr->db= aux->db; ptr->real_name=aux->real_name;
-					ptr->name=aux->name;  ptr->lock_type=aux->lock_type;
-					ptr->updating=aux->updating;
-					ptr->use_index=aux->use_index;
-					ptr->ignore_index=aux->use_index;
-					aux->table=(TABLE *)ptr;
-					link_in_list(tables,(byte*)ptr,(byte**) &ptr->next);
-				}
-				else
-					aux->table=(TABLE *)cursor;
+	TABLE_LIST *cursor;
+	next= aux->next;
+	if (!aux->db)
+	  aux->db=(char *)current_db;		// QQ;  To be removed
+	for (cursor= *result; cursor; cursor=cursor->next)
+	  if (!strcmp(cursor->db,aux->db) &&
+	      (!strcmp(cursor->real_name,aux->real_name)))
+	    break;
+	if (!cursor)
+	{
+	  /* Add not used table to the total table list */
+	  aux->lock_type= lex->lock_option;
+	  if (!(cursor = (TABLE_LIST *) thd->memdup((byte*) aux,
+						    sizeof(*aux))))
+	    return 1;
+	  *new_table_list= cursor;
+	  new_table_list= &cursor->next;
+	  *new_table_list=0;				// end result list
+	}
+	aux->table=(TABLE *) cursor;
       }
     }
   }
-  return (tables->first) ? 0 : 1;
+  return 0;
 }
+
 
 void add_join_on(TABLE_LIST *b,Item *expr)
 {
