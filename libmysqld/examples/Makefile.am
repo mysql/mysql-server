@@ -26,6 +26,7 @@ mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
                 my_readline.h sql_string.h completion_hash.h
 mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
+client_test_LINK = $(CXXLINK)
 client_test_SOURCES =	client_test.c
 
 clean:

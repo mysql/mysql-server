@@ -193,7 +193,7 @@ trx_rollback_to_savepoint_for_mysql(
 						DB_NO_SAVEPOINT,
 						otherwise DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
-	char*		savepoint_name,		/* in: savepoint name */
+	const char*	savepoint_name,		/* in: savepoint name */
 	ib_longlong*	mysql_binlog_cache_pos);/* out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
@@ -211,7 +211,7 @@ trx_savepoint_for_mysql(
 /*====================*/
 						/* out: always DB_SUCCESS */
 	trx_t*		trx,			/* in: transaction handle */
-	char*		savepoint_name,		/* in: savepoint name */
+	const char*	savepoint_name,		/* in: savepoint name */
 	ib_longlong	binlog_cache_pos);	/* in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the

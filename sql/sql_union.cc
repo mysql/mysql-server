@@ -339,8 +339,8 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
-    if (union_distinct) // for subselects
-      table->file->extra(HA_EXTRA_CHANGE_KEY_TO_UNIQUE);
+    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+      DBUG_RETURN(1);  // For sub-selects
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
@@ -392,7 +392,11 @@ int st_select_lex_unit::exec()
 	records_at_start= table->file->records;
 	sl->join->exec();
         if (sl == union_distinct)
-          table->file->extra(HA_EXTRA_CHANGE_KEY_TO_DUP);
+	{
+	  if (table->file->disable_indexes(HA_KEY_SWITCH_ALL))
+	    DBUG_RETURN(1);
+	  table->no_keyread=1;
+	}
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
@@ -554,4 +558,33 @@ void st_select_lex_unit::reinit_exec_mechanism()
     }
   }
 #endif
+}
+
+
+/*
+  change select_result object of unit
+
+  SYNOPSIS
+    st_select_lex_unit::change_result()
+    result	new select_result object
+    old_result	old select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int st_select_lex_unit::change_result(select_subselect *result,
+				      select_subselect *old_result)
+{
+  int res= 0;
+  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  {
+    if (sl->join && sl->join->result == old_result)
+      if ((res= sl->join->change_result(result)))
+	return (res);
+  }
+  if (fake_select_lex && fake_select_lex->join)
+    res= fake_select_lex->join->change_result(result);
+  return (res);
 }
