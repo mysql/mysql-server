@@ -62,6 +62,7 @@ while ($1)
 }
 enable_query_log;
 alter table t2 engine=ndbcluster;
+alter table t2 add c int;
 --error 1297
 delete from t2;
 #to make sure we do a full table scan
