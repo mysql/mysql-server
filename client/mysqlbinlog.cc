@@ -33,9 +33,9 @@
 #undef MYSQL_SERVER
 #include "client_priv.h"
 #include <my_time.h>
-#include "log_event.h"
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "mysql_priv.h" 
+#include "log_event.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
