@@ -135,7 +135,7 @@ test.t1	optimize	error	The handler for the table doesn't support check/repair
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	id	A	87	NULL	NULL	
 t1	1	parent_id	1	parent_id	A	43	NULL	NULL	
-t1	1	level	1	level	A	8	NULL	NULL	
+t1	1	level	1	level	A	6	NULL	NULL	
 gesuchnr	benutzer_id
 1	1
 2	1
