@@ -2824,9 +2824,11 @@ void Dblqh::execKEYINFO(Signal* signal)
       return;
     }//if
     jam();
-    abort();
     terrorCode = errorCode;
-    abortErrorLab(signal);
+    if(state == TcConnectionrec::WAIT_TUPKEYINFO)
+      abortErrorLab(signal);
+    else
+      abort_scan(signal, regTcPtr->tcScanRec, errorCode);
     return;
   }//if
   if(state == TcConnectionrec::WAIT_TUPKEYINFO)
@@ -7602,23 +7604,29 @@ void Dblqh::scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
     }//if
     return;
   }//if
-  terrorCode = ZGET_ATTRINBUF_ERROR;
+  abort_scan(signal, scanptr.i, ZGET_ATTRINBUF_ERROR);
+}
+
+void Dblqh::abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode){
+  jam();
+  scanptr.i = scan_ptr_i;
+  c_scanRecordPool.getPtr(scanptr);
   finishScanrec(signal);
   releaseScanrec(signal);
   tcConnectptr.p->transactionState = TcConnectionrec::IDLE;
   tcConnectptr.p->abortState = TcConnectionrec::ABORT_ACTIVE;
-
+  
   ScanFragRef * ref = (ScanFragRef*)&signal->theData[0];
   ref->senderData = tcConnectptr.p->clientConnectrec;
   ref->transId1 = tcConnectptr.p->transid[0];
   ref->transId2 = tcConnectptr.p->transid[1];
-  ref->errorCode = terrorCode;
+  ref->errorCode = errcode;
   sendSignal(tcConnectptr.p->clientBlockref, GSN_SCAN_FRAGREF, signal, 
 	     ScanFragRef::SignalLength, JBB);
   deleteTransidHash(signal);
   releaseOprec(signal);
   releaseTcrec(signal, tcConnectptr);
-}//Dblqh::scanAttrinfoLab()
+}
 
 /*---------------------------------------------------------------------*/
 /* Send this 'I am alive' signal to TC when it is received from ACC    */
