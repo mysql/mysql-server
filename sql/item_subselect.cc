@@ -280,13 +280,13 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
-  for(SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
   {
     Item *item;
     if (sl->item_list.elements > 1)
     {
       my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
-      item= 0; // Item_asterisk_remover mast fail
+      item= 0; // Item_asterisk_remover must fail
     }
     else
       item= (Item*) sl->item_list.pop();
@@ -408,7 +408,7 @@ void subselect_union_engine::fix_length_and_dec()
 {
   uint32 mlen= 0, len;
   Item *sel_item= 0;
-  for(SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
   {
     List_iterator_fast<Item> li(sl->item_list);
     Item *s_item= li++;

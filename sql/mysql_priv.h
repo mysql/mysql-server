@@ -578,6 +578,8 @@ bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_thread_tables(THD *thd,bool locked=0);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
+TABLE_LIST * find_table_in_list(TABLE_LIST *table,
+				const char *db_name, const char *table_name);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);

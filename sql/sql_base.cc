@@ -743,6 +743,29 @@ void close_temporary_tables(THD *thd)
   thd->temporary_tables=0;
 }
 
+/*
+  Find first suitable table in given list.
+
+  SYNOPSIS
+    find_table_in_list()
+    table - pointer to table list
+    db_name - data base name or 0 for any
+    table_name - table name or 0 for any
+
+  RETURN VALUES
+    NULL	Table not found
+    #		Pointer to found table.
+*/
+
+TABLE_LIST * find_table_in_list(TABLE_LIST *table,
+				const char *db_name, const char *table_name)
+{
+  for (; table; table= table->next)
+    if ((!db_name || !strcmp(table->db, db_name)) &&
+	(!table_name || !strcmp(table->alias, table_name)))
+      break;
+  return table;
+}
 
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
