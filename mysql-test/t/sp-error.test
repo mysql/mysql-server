@@ -5,6 +5,29 @@
 # Make sure we don't have any procedures left.
 delete from mysql.proc;
 
+# A test "global" procedures, i.e. not belonging to any database.
+create function .f1() returns int return 1;
+create procedure .p1() select 1, database();
+create procedure p1() select 2, database();
+
+alter procedure .p1 sql security invoker;
+
+# This is ok:
+select .f1();
+call .p1();
+call p1();
+
+# This is not ok:
+--error 1304
+select f1();
+
+select db,name,type,security_type from mysql.proc;
+
+drop function .f1;
+drop procedure .p1;
+drop procedure p1;
+
+
 delimiter |;
 
 # This should give three syntax errors (sometimes crashed; bug #643)
