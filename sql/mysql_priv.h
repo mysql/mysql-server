@@ -627,6 +627,7 @@ extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char log_error_file[FN_REFLEN];
 extern char blob_newline;
 extern double log_10[32];
 extern ulonglong keybuff_size;
@@ -812,6 +813,9 @@ extern int sql_cache_hit(THD *thd, char *inBuf, uint length);
 
 /* item.cc */
 Item *get_system_var(enum_var_type var_type, LEX_STRING name);
+
+/* log.cc */
+bool flush_error_log(void);
 
 /* Some inline functions for more speed */
 

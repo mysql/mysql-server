@@ -1568,3 +1568,49 @@ void sql_perror(const char *message)
   perror(message);
 #endif
 }
+
+bool flush_error_log()
+{
+  bool result=0;
+  if (log_error_file[0] != '\0') /* --log-error="" */
+  {
+    char err_renamed[FN_REFLEN], *end;
+    end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
+    strmov(end, "-old");
+#ifdef __WIN__
+    char err_temp[FN_REFLEN+4];
+    /*
+     On Windows is necessary a temporary file for to rename
+     the current error file.
+    */
+    strmov(strmov(err_temp, err_renamed),"-tmp");
+    (void) my_delete(err_temp, MYF(0)); 
+    if (freopen(err_temp,"a+",stdout))
+    {
+      freopen(err_temp,"a+",stderr);
+      (void) my_delete(err_renamed, MYF(0));
+      my_rename(log_error_file,err_renamed,MYF(0));
+      if (freopen(log_error_file,"a+",stdout))
+        freopen(log_error_file,"a+",stderr);
+      int fd, bytes;
+      char buf[IO_SIZE];
+      if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
+      {
+        while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE, MYF(0))) > 0)
+             my_fwrite(stderr, (byte*) buf, (uint) strlen(buf),MYF(0));
+        my_close(fd, MYF(0));
+      }
+      (void) my_delete(err_temp, MYF(0)); 
+    }
+    else
+     result= 1;
+#else
+   my_rename(log_error_file,err_renamed,MYF(0));
+   if (freopen(log_error_file,"a+",stdout))
+     freopen(log_error_file,"a+",stderr);
+   else
+     result= 1;
+#endif
+  }
+   return result;
+}
