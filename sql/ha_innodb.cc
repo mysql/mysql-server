@@ -4123,7 +4123,7 @@ innodb_show_status(
 	}
 
   	protocol->prepare_for_resend();
-	protocol->store(buf, strlen(buf));
+	protocol->store(buf, strlen(buf), system_charset_info);
 	ut_free(buf);
   
   	if (protocol->write())

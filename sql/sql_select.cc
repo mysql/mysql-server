@@ -7687,7 +7687,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (_db_on_ && !item_field->name)
 	{
 	  char buff[256];
-	  String str(buff,sizeof(buff),default_charset_info);
+	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
 	  item->print(&str);
 	  item_field->name= sql_strmake(str.ptr(),str.length());

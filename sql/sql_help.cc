@@ -201,8 +201,8 @@ int send_variant_2_list(Protocol *protocol, List<char> *names,
   while ((cur_name= it++))
   {
     protocol->prepare_for_resend();
-    protocol->store(cur_name);
-    protocol->store(cat);
+    protocol->store(cur_name, system_charset_info);
+    protocol->store(cat, system_charset_info);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -317,10 +317,10 @@ int send_answer_1(Protocol *protocol, const char *s1, const char *s2,
     DBUG_RETURN(1);
   
   protocol->prepare_for_resend();
-  protocol->store(s1);
-  protocol->store(s2);
-  protocol->store(s3);
-  protocol->store(s4);
+  protocol->store(s1, system_charset_info);
+  protocol->store(s2, system_charset_info);
+  protocol->store(s3, system_charset_info);
+  protocol->store(s4, system_charset_info);
   if (protocol->write())
     DBUG_RETURN(-1);
   DBUG_RETURN(0);

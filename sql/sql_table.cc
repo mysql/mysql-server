@@ -1108,10 +1108,10 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();
-  protocol->store(table->alias);
-  protocol->store((char*) operator_name);
-  protocol->store("error", 5);
-  protocol->store(errmsg);
+  protocol->store(table->alias, system_charset_info);
+  protocol->store((char*) operator_name, system_charset_info);
+  protocol->store("error", 5, system_charset_info);
+  protocol->store(errmsg, system_charset_info);
   thd->net.last_error[0]=0;
   if (protocol->write())
     return -1;
@@ -1301,12 +1301,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       const char *err_msg;
       protocol->prepare_for_resend();
-      protocol->store(table_name);
-      protocol->store(operator_name);
-      protocol->store("error",5);
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store("error",5, system_charset_info);
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
-      protocol->store(err_msg);
+      protocol->store(err_msg, system_charset_info);
       thd->net.last_error[0]=0;
       if (protocol->write())
 	goto err;
@@ -1316,11 +1316,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       protocol->prepare_for_resend();
-      protocol->store(table_name);
-      protocol->store(operator_name);
-      protocol->store("error", 5);
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      protocol->store("error", 5, system_charset_info);
       sprintf(buff, ER(ER_OPEN_AS_READONLY), table_name);
-      protocol->store(buff);
+      protocol->store(buff, system_charset_info);
       close_thread_tables(thd);
       table->table=0;				// For query cache
       if (protocol->write())
@@ -1355,8 +1355,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->net.last_errno= 0;  // these errors shouldn't get client
 #endif
     protocol->prepare_for_resend();
-    protocol->store(table_name);
-    protocol->store(operator_name);
+    protocol->store(table_name, system_charset_info);
+    protocol->store(operator_name, system_charset_info);
 
     switch (result_code) {
     case HA_ADMIN_NOT_IMPLEMENTED:
@@ -1364,40 +1364,41 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
         char buf[ERRMSGSIZE+20];
         uint length=my_snprintf(buf, ERRMSGSIZE,
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
-        protocol->store("error", 5);
-        protocol->store(buf, length);
+        protocol->store("error", 5, system_charset_info);
+        protocol->store(buf, length, system_charset_info);
       }
       break;
 
     case HA_ADMIN_OK:
-      protocol->store("status", 6);
-      protocol->store("OK",2);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("OK",2, system_charset_info);
       break;
 
     case HA_ADMIN_FAILED:
-      protocol->store("status", 6);
-      protocol->store("Operation failed",16);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("Operation failed",16, system_charset_info);
       break;
 
     case HA_ADMIN_ALREADY_DONE:
-      protocol->store("status", 6);
-      protocol->store("Table is already up to date", 27);
+      protocol->store("status", 6, system_charset_info);
+      protocol->store("Table is already up to date", 27, system_charset_info);
       break;
 
     case HA_ADMIN_CORRUPT:
-      protocol->store("error", 5);
-      protocol->store("Corrupt", 8);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Corrupt", 8, system_charset_info);
       fatal_error=1;
       break;
 
     case HA_ADMIN_INVALID:
-      protocol->store("error", 5);
-      protocol->store("Invalid argument",16);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Invalid argument",16, system_charset_info);
       break;
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
-      protocol->store("error", 5);
-      protocol->store("Unknown - internal error during operation", 41);
+      protocol->store("error", 5, system_charset_info);
+      protocol->store("Unknown - internal error during operation", 41
+		      , system_charset_info);
       fatal_error=1;
       break;
     }
