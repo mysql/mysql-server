@@ -1855,7 +1855,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
     end--;
   end[0]= 0;
-  if (!strlen(outfile))
+  if (!strlen(file_name))
   {
     printf("No outfile specified!\n");
     return 0;
