@@ -22,6 +22,8 @@ INSERT INTO t2 VALUES('456', 'lui');
 
 select match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
        from t1 left join t2 on t2.id=t1.id;
+select match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
+       from t1 left join t2 on t2.id=t1.id;
 
 drop table t1, t2;
 

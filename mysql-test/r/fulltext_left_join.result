@@ -22,4 +22,11 @@ match(t1.texte,t1.sujet,t1.motsclefs) against('droit')
 0
 0.67003107070923
 0
+select match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
+from t1 left join t2 on t2.id=t1.id;
+match(t1.texte,t1.sujet,t1.motsclefs) against('droit' IN BOOLEAN MODE)
+0
+0
+1
+0
 drop table t1, t2;
