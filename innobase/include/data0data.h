@@ -123,7 +123,7 @@ dfield_datas_are_binary_equal(
 	dfield_t*	field2);/* in: field */
 /*************************************************************************
 Tests if dfield data length and content is equal to the given. */
-UNIV_INLINE
+
 ibool
 dfield_data_is_binary_equal(
 /*========================*/
@@ -276,6 +276,14 @@ Checks that a data tuple is typed. Asserts an error if not. */
 ibool
 dtuple_check_typed(
 /*===============*/
+				/* out: TRUE if ok */
+	dtuple_t*	tuple);	/* in: tuple */
+/**************************************************************
+Checks that a data tuple is typed. */
+
+ibool
+dtuple_check_typed_no_assert(
+/*=========================*/
 				/* out: TRUE if ok */
 	dtuple_t*	tuple);	/* in: tuple */
 /**************************************************************

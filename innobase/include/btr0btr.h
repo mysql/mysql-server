@@ -204,16 +204,6 @@ btr_page_reorganize(
 	page_t*	page,	/* in: page to be reorganized */
 	mtr_t*	mtr);	/* in: mtr */
 /*****************************************************************
-Reorganizes an index page. */
-
-void
-btr_page_reorganize_low(
-/*====================*/
-	ibool	low,	/* in: TRUE if locks should not be updated, i.e.,
-			there cannot exist locks on the page */
-	page_t*	page,	/* in: page to be reorganized */
-	mtr_t*	mtr);	/* in: mtr */
-/*****************************************************************
 Decides if the page should be split at the convergence point of
 inserts converging to left. */
 

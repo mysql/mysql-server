@@ -290,7 +290,7 @@ mlog_write_string(
 		ut_a(0);
 	}
 	ut_ad(ptr && mtr);
-	ut_ad(len < UNIV_PAGE_SIZE);
+	ut_a(len < UNIV_PAGE_SIZE);
 
 	ut_memcpy(ptr, str, len);
 
@@ -338,8 +338,12 @@ mlog_parse_string(
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
 
+	ut_a(offset < UNIV_PAGE_SIZE);
+
 	len = mach_read_from_2(ptr);
 	ptr += 2;
+
+	ut_a(len + offset < UNIV_PAGE_SIZE);
 
 	if (end_ptr < ptr + len) {
 

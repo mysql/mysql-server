@@ -2608,6 +2608,7 @@ fseg_free_page_low(
 	ulint	not_full_n_used;
 	ulint	state;
 	ulint	i;
+	char	errbuf[200];
 	
 	ut_ad(seg_inode && mtr);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) ==
@@ -2621,8 +2622,25 @@ fseg_free_page_low(
 	descr = xdes_get_descriptor(space, page, mtr);
 
 	ut_a(descr);
-	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
-								== FALSE);
+	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
+							!= FALSE) {
+		ut_sprintf_buf(errbuf, descr, 40);
+		fprintf(stderr,
+"InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
+
+		fprintf(stderr,
+"InnoDB: Serious error! InnoDB is trying to free page %lu\n",
+"InnoDB: though it is already marked as free in the tablespace!\n"
+"InnoDB: The tablespace free space info is corrupt.\n"
+"InnoDB: You may need to dump your InnoDB tables and recreate the whole\n"
+"InnoDB: database!\n", page);
+
+		fprintf(stderr,
+"InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
+"InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
+		ut_a(0);
+	}
+		
 	state = xdes_get_state(descr, mtr);
 
 	if (state != XDES_FSEG) {

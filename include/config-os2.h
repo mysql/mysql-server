@@ -26,6 +26,7 @@
 #include <os2.h>
 #include <math.h>
 #include <io.h>
+#include <types.h>
 
 /* Define to name of system eg solaris*/
 #define SYSTEM_TYPE "IBM OS/2 Warp"
@@ -54,6 +55,8 @@
 #define O_SHARE		0x1000		/* Open file in sharing mode */
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
 #define S_IROTH		S_IREAD		/* for my_lib */
+
+#define CANT_DELETE_OPEN_FILES		/* saves open files in a list, for delayed delete */
 
 #define O_NONBLOCK	0x10
 
@@ -84,7 +87,7 @@
 #define F_WRLCK		2	    /* Write lock.  */
 #define F_UNLCK		0	    /* Remove lock.  */
 
-#define S_IFMT		0xF000	    /* Mask for file type */
+#define S_IFMT		0x17000	    /* Mask for file type */
 #define F_TO_EOF	0L	    /* Param to lockf() to lock rest of file */
 
 #define HUGE_PTR
@@ -268,7 +271,7 @@ typedef unsigned long long os_off_t;
 /* #undef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT */
 
 /* READLINE: */
-#define HAVE_POSIX_SIGNALS 1
+#define HAVE_POSIX_SIGNALS 0
 
 /* sigwait with one argument */
 /* #undef HAVE_NONPOSIX_SIGWAIT */

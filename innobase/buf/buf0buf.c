@@ -1126,12 +1126,50 @@ buf_page_get_known_nowait(
 }
 
 /************************************************************************
+Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+
+void
+buf_page_init_for_backup_restore(
+/*=============================*/
+	ulint		space,	/* in: space id */
+	ulint		offset,	/* in: offset of the page within space
+				in units of a page */
+	buf_block_t*	block)	/* in: block to init */
+{
+	/* Set the state of the block */
+	block->magic_n		= BUF_BLOCK_MAGIC_N;
+
+	block->state 		= BUF_BLOCK_FILE_PAGE;
+	block->space 		= space;
+	block->offset 		= offset;
+
+	block->lock_hash_val	= 0;
+	block->lock_mutex	= NULL;
+	
+	block->freed_page_clock = 0;
+
+	block->newest_modification = ut_dulint_zero;
+	block->oldest_modification = ut_dulint_zero;
+	
+	block->accessed		= FALSE;
+	block->buf_fix_count 	= 0;
+	block->io_fix		= 0;
+
+	block->n_hash_helps	= 0;
+	block->is_hashed	= FALSE;
+	block->n_fields         = 1;
+	block->n_bytes          = 0;
+	block->side             = BTR_SEARCH_LEFT_SIDE;
+
+	block->file_page_was_freed = FALSE;
+}
+
+/************************************************************************
 Inits a page to the buffer buf_pool. */
 static
 void
 buf_page_init(
 /*==========*/
-				/* out: pointer to the block */
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
@@ -1141,6 +1179,8 @@ buf_page_init(
 	ut_ad(block->state == BUF_BLOCK_READY_FOR_USE);
 
 	/* Set the state of the block */
+	block->magic_n		= BUF_BLOCK_MAGIC_N;
+
 	block->state 		= BUF_BLOCK_FILE_PAGE;
 	block->space 		= space;
 	block->offset 		= offset;
@@ -1758,8 +1798,10 @@ buf_get_n_pending_ios(void)
 Prints info of the buffer i/o. */
 
 void
-buf_print_io(void)
-/*==============*/
+buf_print_io(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	time_t	current_time;
 	double	time_elapsed;
@@ -1767,19 +1809,28 @@ buf_print_io(void)
 	
 	ut_ad(buf_pool);
 
+	if (buf_end - buf < 400) {
+
+		return;
+	}
+
 	size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE;
 
 	mutex_enter(&(buf_pool->mutex));
 	
-	printf("Free list length  %lu \n", UT_LIST_GET_LEN(buf_pool->free));
-	printf("LRU list length   %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
-	printf("Flush list length %lu \n",
+	buf += sprintf(buf,
+		"Free list length  %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+	buf += sprintf(buf,
+		"LRU list length   %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+	buf += sprintf(buf,
+		"Flush list length %lu \n",
 				UT_LIST_GET_LEN(buf_pool->flush_list));
-	printf("Buffer pool size  %lu\n", size);
+	buf += sprintf(buf, "Buffer pool size  %lu\n", size);
 
-	printf("Pending reads %lu \n", buf_pool->n_pend_reads);
+	buf += sprintf(buf, "Pending reads %lu \n", buf_pool->n_pend_reads);
 
-	printf("Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+	buf += sprintf(buf,
+		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
 		buf_pool->n_flush[BUF_FLUSH_LRU],
 		buf_pool->n_flush[BUF_FLUSH_LIST],
 		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
@@ -1789,10 +1840,10 @@ buf_print_io(void)
 
 	buf_pool->last_printout_time = current_time;
 
-	printf("Pages read %lu, created %lu, written %lu\n",
+	buf += sprintf(buf, "Pages read %lu, created %lu, written %lu\n",
 			buf_pool->n_pages_read, buf_pool->n_pages_created,
 						buf_pool->n_pages_written);
-	printf("%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
+	buf += sprintf(buf, "%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
 		(buf_pool->n_pages_read - buf_pool->n_pages_read_old)
 		/ time_elapsed,
 		(buf_pool->n_pages_created - buf_pool->n_pages_created_old)
@@ -1801,13 +1852,14 @@ buf_print_io(void)
 		/ time_elapsed);
 
 	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
-		printf("Buffer pool hit rate %lu / 1000\n",
+		buf += sprintf(buf, "Buffer pool hit rate %lu / 1000\n",
 		1000
 		- ((1000 *
 		    (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
 		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old)));
 	} else {
-		printf("No buffer pool activity since the last printout\n");
+		buf += sprintf(buf,
+			"No buffer pool activity since the last printout\n");
 	}
 
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;

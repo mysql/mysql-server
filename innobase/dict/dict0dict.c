@@ -261,7 +261,7 @@ dict_table_get_index_noninline(
 {
 	return(dict_table_get_index(table, name));
 }
-	
+
 /************************************************************************
 Initializes the autoinc counter. It is not an error to initialize an already
 initialized counter. */
@@ -2810,6 +2810,12 @@ dict_update_statistics_low(
 
 	index = dict_table_get_first_index(table);	
 
+	if (index == NULL) {
+		/* Table definition is corrupt */
+	
+		return;
+	}
+
 	while (index) {
 		size = btr_get_size(index, BTR_TOTAL_SIZE);
 
@@ -3200,6 +3206,14 @@ dict_print_info_on_foreign_keys(
 		}
 
 		buf2 += sprintf(buf2, ")");
+
+		if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE) {
+			buf2 += sprintf(buf2, " ON DELETE CASCADE");
+		}
+	
+		if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
+			buf2 += sprintf(buf2, " ON DELETE SET NULL");
+		}
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}

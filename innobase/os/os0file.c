@@ -22,6 +22,16 @@ Created 10/21/1995 Heikki Tuuri
 
 #endif
 
+/* This specifies the file permissions InnoDB uses when it craetes files in
+Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
+my_umask */
+
+#ifndef __WIN__
+ulint	os_innodb_umask		= S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+#else
+ulint	os_innodb_umask		= 0;
+#endif
+
 /* If the following is set to TRUE, we do not call os_file_flush in every
 os_file_write. We can set this TRUE if the doublewrite buffer is used. */
 ibool	os_do_not_call_flush_at_each_write	= FALSE;
@@ -32,13 +42,15 @@ OS does not provide an atomic pread or pwrite, or similar */
 os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
-#define OS_AIO_MERGE_N_CONSECUTIVE	32
+#define OS_AIO_MERGE_N_CONSECUTIVE	64
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads */
 
 ibool	os_aio_use_native_aio	= FALSE;
+
+ibool	os_aio_print_debug	= FALSE;
 
 /* The aio array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
@@ -115,7 +127,12 @@ os_aio_array_t*	os_aio_sync_array	= NULL;
 
 ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
+/* If the following is TRUE, read i/o handler threads try to
+wait until a batch of new read requests have been posted */
+ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+
 ulint	os_n_file_reads		= 0;
+ulint	os_bytes_read_since_printout = 0;
 ulint	os_n_file_writes	= 0;
 ulint	os_n_fsyncs		= 0;
 ulint	os_n_file_reads_old	= 0;
@@ -412,8 +429,8 @@ try_again:
 	}
 
 	if (create_mode == OS_FILE_CREATE) {
-	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
-			                     | S_IWGRP | S_IROTH | S_IWOTH);
+	        file = open(name, create_flag, S_IRUSR | S_IWUSR
+						| S_IRGRP | S_IWGRP);
         } else {
                 file = open(name, create_flag);
         }
@@ -548,8 +565,7 @@ try_again:
 	}
 #endif
 	if (create_mode == OS_FILE_CREATE) {
-	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
-			                     | S_IWGRP | S_IROTH | S_IWOTH);
+	        file = open(name, create_flag, os_innodb_umask);
         } else {
                 file = open(name, create_flag);
         }
@@ -673,6 +689,7 @@ os_file_set_size(
 	ulint   	n_bytes;
 	ibool		ret;
 	byte*   	buf;
+	byte*   	buf2;
 	ulint   	i;
 
 	ut_a(size == (size & 0xFFFFFFFF));
@@ -680,7 +697,10 @@ os_file_set_size(
 	/* We use a very big 8 MB buffer in writing because Linux may be
 	extremely slow in fsync on 1 MB writes */
 
-	buf = ut_malloc(UNIV_PAGE_SIZE * 512);
+	buf2 = ut_malloc(UNIV_PAGE_SIZE * 513);
+
+	/* Align the buffer for possible raw i/o */
+	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
 	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
@@ -702,13 +722,13 @@ os_file_set_size(
 				    (ulint)(offset >> 32),
 				n_bytes);
 	        if (!ret) {
-			ut_free(buf);
+			ut_free(buf2);
 	         	goto error_handling;
 	        }
 	        offset += n_bytes;
 	}
 
-	ut_free(buf);
+	ut_free(buf2);
 
 	ret = os_file_flush(file);
 
@@ -734,6 +754,8 @@ os_file_flush(
 
 	ut_a(file);
 
+	os_n_fsyncs++;
+
 	ret = FlushFileBuffers(file);
 
 	if (ret) {
@@ -741,6 +763,10 @@ os_file_flush(
 	}
 
 	os_file_handle_error(file, NULL);
+
+	/* It is a fatal error if a file flush does not succeed, because then
+	the database can get corrupt on disk */
+	ut_a(0);
 
 	return(FALSE);
 #else
@@ -764,10 +790,16 @@ os_file_flush(
 	        return(TRUE);
 	}
 
+	ut_print_timestamp(stderr);
+	
 	fprintf(stderr,
-		"InnoDB: Error: the OS said file flush did not succeed\n");
+		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
 	os_file_handle_error(file, NULL);
+
+	/* It is a fatal error if a file flush does not succeed, because then
+	the database can get corrupt on disk */
+	ut_a(0);
 
 	return(FALSE);
 #endif
@@ -954,6 +986,7 @@ os_file_read(
 	ut_a((offset & 0xFFFFFFFF) == offset);
 
 	os_n_file_reads++;
+	os_bytes_read_since_printout += n;
 
 try_again:	
 	ut_ad(file);
@@ -1062,7 +1095,9 @@ os_file_write(
 
 		fprintf(stderr,
 "  InnoDB: Error: File pointer positioning to file %s failed at\n"
-"InnoDB: offset %lu %lu. Operating system error number %lu.\n",
+"InnoDB: offset %lu %lu. Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means.\n",
 			name, offset_high, offset,
 			(ulint)GetLastError());
 
@@ -1093,8 +1128,10 @@ os_file_write(
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %lu were written.\n"
 "InnoDB: Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
-"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
+"InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
 			name, offset_high, offset, n, len,
 			(ulint)GetLastError());
 
@@ -1120,10 +1157,12 @@ os_file_write(
 "  InnoDB: Error: Write to file %s failed at offset %lu %lu.\n"
 "InnoDB: %lu bytes should have been written, only %lu were written.\n"
 "InnoDB: Operating system error number %lu.\n"
+"InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+"InnoDB: what the error number means or use the perror program of MySQL.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
-"InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, ret, (ulint)errno);
-
+"InnoDB: Check also that the disk is not full or a disk quota exceeded.\n",
+			name, offset_high, offset, n, (ulint)ret,
+							(ulint)errno);
 		os_has_said_disk_full = TRUE;
 	}
 
@@ -1623,10 +1662,37 @@ os_aio_simulated_wake_handler_threads(void)
 		/* We do not use simulated aio: do nothing */
 
 		return;
-	}
+	}	
+
+	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
 	for (i = 0; i < os_aio_n_segments; i++) {
 		os_aio_simulated_wake_handler_thread(i);
+	}
+}
+
+/**************************************************************************
+This function can be called if one wants to post a batch of reads and
+prefers an i/o-handler thread to handle them all at once later. You must
+call os_aio_simulated_wake_handler_threads later to ensure the threads
+are not left sleeping! */
+
+void
+os_aio_simulated_put_read_threads_to_sleep(void)
+/*============================================*/
+{
+	os_aio_array_t*	array;
+	ulint		g;
+
+	os_aio_recommend_sleep_for_read_threads	= TRUE;
+
+	for (g = 0; g < os_aio_n_segments; g++) {
+		os_aio_get_array_and_local_segment(&array, g);
+
+		if (array == os_aio_read_array) {
+		
+			os_event_reset(os_aio_segment_wait_events[g]);
+		}
 	}
 }
 
@@ -1685,7 +1751,6 @@ os_aio(
 	ut_ad(buf);
 	ut_ad(n > 0);
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad((ulint)buf % OS_FILE_LOG_BLOCK_SIZE == 0)
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
 
@@ -2036,18 +2101,14 @@ os_aio_simulated_handle(
 	ulint		offs;
 	ulint		lowest_offset;
 	byte*		combined_buf;
+	byte*		combined_buf2;
 	ibool		ret;
 	ulint		n;
 	ulint		i;
-
+	
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 	
 restart:
-	/* Give other threads chance to add several i/os to the array
-	at once */
-	
-	os_thread_yield();
-
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
@@ -2058,6 +2119,15 @@ restart:
 
 	/* Look through n slots after the segment * n'th slot */
 
+	if (array == os_aio_read_array
+	    && os_aio_recommend_sleep_for_read_threads) {
+
+		/* Give other threads chance to add several i/os to the array
+		at once. */
+
+		goto recommended_sleep;
+	}
+	
 	os_mutex_enter(array->mutex);
 
 	/* Check if there is a slot for which the i/o has already been
@@ -2067,6 +2137,11 @@ restart:
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
 		if (slot->reserved && slot->io_already_done) {
+
+			if (os_aio_print_debug) {
+				fprintf(stderr,
+"InnoDB: i/o for slot %lu already done, returning\n", i);
+			}
 
 			ret = TRUE;
 			
@@ -2149,9 +2224,11 @@ consecutive_loop:
 		/* We can use the buffer of the i/o request */
 		combined_buf = slot->buf;
 	} else {
-		combined_buf = ut_malloc(total_len);
+		combined_buf2 = ut_malloc(total_len + UNIV_PAGE_SIZE);
 
-		ut_a(combined_buf);
+		ut_a(combined_buf2);
+
+		combined_buf = ut_align(combined_buf2, UNIV_PAGE_SIZE);
 	}
 	
 	/* We release the array mutex for the time of the i/o: NOTE that
@@ -2173,6 +2250,13 @@ consecutive_loop:
 	}
 
 	srv_io_thread_op_info[global_segment] = (char*) "doing file i/o";
+
+	if (os_aio_print_debug) {
+		fprintf(stderr,
+"InnoDB: doing i/o of type %lu at offset %lu %lu, length %lu\n",
+			slot->type, slot->offset_high, slot->offset,
+			total_len);
+	}
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
@@ -2203,7 +2287,7 @@ consecutive_loop:
 	}
 
 	if (n_consecutive > 1) {
-		ut_free(combined_buf);
+		ut_free(combined_buf2);
 	}
 
 	os_mutex_enter(array->mutex);
@@ -2241,10 +2325,18 @@ wait_for_io:
 
 	os_mutex_exit(array->mutex);
 
-	srv_io_thread_op_info[global_segment] = (char*) "waiting for i/o request";
+recommended_sleep:
+	srv_io_thread_op_info[global_segment] =
+				(char*)"waiting for i/o request";
 
 	os_event_wait(os_aio_segment_wait_events[global_segment]);
 
+	if (os_aio_print_debug) {
+		fprintf(stderr,
+"InnoDB: i/o handler thread for i/o segment %lu wakes up\n",
+			global_segment);
+	}
+	
 	goto restart;
 }
 
@@ -2305,22 +2397,30 @@ os_aio_validate(void)
 Prints info of the aio arrays. */
 
 void
-os_aio_print(void)
-/*==============*/
+os_aio_print(
+/*=========*/
+	char*	buf,	/* in/out: buffer where to print */
+	char*	buf_end)/* in: buffer end */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 	ulint		n_reserved;
 	time_t		current_time;
 	double		time_elapsed;
+	double		avg_bytes_read;
 	ulint		i;
 
+	if (buf_end - buf < 1000) {
+
+		return;
+	}
+
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		printf("I/O thread %lu state: %s\n", i,
+		buf += sprintf(buf, "I/O thread %lu state: %s\n", i,
 					srv_io_thread_op_info[i]);
 	}
 
-	printf("Pending normal aio reads:");
+	buf += sprintf(buf, "Pending normal aio reads:");
 
 	array = os_aio_read_array;
 loop:
@@ -2347,12 +2447,12 @@ loop:
 
 	ut_a(array->n_reserved == n_reserved);
 
-	printf(" %lu", n_reserved);
+	buf += sprintf(buf, " %lu", n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
-		printf(", aio writes:");
+		buf += sprintf(buf, ", aio writes:");
 	
 		array = os_aio_write_array;
 
@@ -2360,38 +2460,50 @@ loop:
 	}
 
 	if (array == os_aio_write_array) {
-		printf(",\n ibuf aio reads:");
+		buf += sprintf(buf, ",\n ibuf aio reads:");
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
-		printf(", log i/o's:");
+		buf += sprintf(buf, ", log i/o's:");
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
-		printf(", sync i/o's:");		
+		buf += sprintf(buf, ", sync i/o's:");		
 		array = os_aio_sync_array;
 
 		goto loop;
 	}
 
-	printf("\n");
+	buf += sprintf(buf, "\n");
 	
 	current_time = time(NULL);
 	time_elapsed = difftime(current_time, os_last_printout);
 
-	printf("Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
+	buf += sprintf(buf,
+		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n",
 	       fil_n_pending_log_flushes, fil_n_pending_tablespace_flushes);
-	printf("%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
+	buf += sprintf(buf,
+		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
 		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
-	printf("%.2f reads/s, %.2f writes/s, %.2f fsyncs/s\n",
+
+	if (os_n_file_reads == os_n_file_reads_old) {
+		avg_bytes_read = 0.0;
+	} else {
+		avg_bytes_read = os_bytes_read_since_printout /
+				(os_n_file_reads - os_n_file_reads_old);
+	}
+
+	buf += sprintf(buf,
+"%.2f reads/s, %lu avg bytes/read, %.2f writes/s, %.2f fsyncs/s\n",
 		(os_n_file_reads - os_n_file_reads_old)
 		/ time_elapsed,
+		(ulint)avg_bytes_read,
 		(os_n_file_writes - os_n_file_writes_old)
 		/ time_elapsed,
 		(os_n_fsyncs - os_n_fsyncs_old)
@@ -2400,6 +2512,7 @@ loop:
 	os_n_file_reads_old = os_n_file_reads;
 	os_n_file_writes_old = os_n_file_writes;
 	os_n_fsyncs_old = os_n_fsyncs;
+	os_bytes_read_since_printout = 0;
 	
 	os_last_printout = current_time;
 }
