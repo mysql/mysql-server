@@ -39,7 +39,7 @@
 #include "my_readline.h"
 #include <signal.h>
 
-const char *VER="11.10";
+const char *VER="11.11";
 
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
@@ -1192,7 +1192,8 @@ You can turn off this feature to get a quicker startup with -A\n\n");
   field_names=0;
 
   /* hash all field names, both with the table prefix and without it */
-  if (!tables) { /* no tables */
+  if (!tables)					/* no tables */
+  {
     DBUG_VOID_RETURN;
   }
   mysql_data_seek(tables,0);
@@ -1201,7 +1202,6 @@ You can turn off this feature to get a quicker startup with -A\n\n");
 				     MYF(MY_WME));
   if (!field_names)
     DBUG_VOID_RETURN;
-  field_names[mysql_num_rows(tables)]='\0';
   i=0;
   while ((table_row=mysql_fetch_row(tables)))
   {
@@ -1229,10 +1229,14 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
     }
     else
+    {
       tee_fprintf(stdout,
 		  "Didn't find any fields in table '%s'\n",table_row[0]);
+      field_names[i]=0;
+    }
     i++;
   }
+  field_names[i]=0;				// End pointer
   DBUG_VOID_RETURN;
 }
 
@@ -2018,11 +2022,11 @@ com_use(String *buffer __attribute__((unused)), char *line)
 	if (mysql_select_db(&mysql,tmp))
 	  return put_info(mysql_error(&mysql),INFO_ERROR,mysql_errno(&mysql));
       }
+      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
+      current_db=my_strdup(tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
       build_completion_hash(no_rehash,1);
 #endif
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-      current_db=my_strdup(tmp,MYF(MY_WME));
     }
   }
   else

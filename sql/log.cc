@@ -952,7 +952,7 @@ void sql_print_error(const char *format,...)
 #ifndef DBUG_OFF
   {
     char buff[1024];
-    vsprintf(buff,format,args);
+    vsnprintf(buff,sizeof(buff)-1,format,args);
     DBUG_PRINT("error",("%s",buff));
   }
 #endif

@@ -1190,7 +1190,11 @@ static void init_signals(void)
   struct sigaction sa; sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-  sa.sa_handler=handle_segfault;
+#ifdef HAVE_DARWIN_THREADS
+   sa.sa_handler=( void (*)() ) handle_segfault;
+#else
+   sa.sa_handler=handle_segfault;
+#endif
   sigaction(SIGSEGV, &sa, NULL);
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
@@ -2512,6 +2516,8 @@ CHANGEABLE_VAR changeable_vars[] = {
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size",          (long*) &berkeley_cache_size, 
       KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE },
+  {"bdb_log_buffer_size",      (long*) &berkeley_log_buffer_size, 0, 256*1024L,
+     ~0L, 0, 1024},
   { "bdb_max_lock",            (long*) &berkeley_max_lock, 
       10000, 0, (long) ~0, 0, 1 },
     /* QQ: The following should be removed soon! */
@@ -2622,6 +2628,7 @@ struct show_var_st init_vars[]= {
   {"basedir",                 mysql_home,                           SHOW_CHAR},
 #ifdef HAVE_BERKELEY_DB
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
+  {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
   {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
@@ -2812,7 +2819,7 @@ static void usage(void)
 			Don't flush key buffers between writes for any MyISAM\n\
 			table\n\
   --enable-locking	Enable system locking\n\
-  -T, --exit-info	Print some debug info at exit\n\
+  -T, --exit-info	Used for debugging;  Use at your own risk!\n\
   --flush		Flush tables to disk between SQL commands\n\
   -?, --help		Display this help and exit\n\
   --init-file=file	Read SQL commands from this file at startup\n\

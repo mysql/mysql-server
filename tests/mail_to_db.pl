@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.0";
+$VER = "2.1";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -40,6 +40,32 @@ my ($dbh, $progname, $mail_no_from_f, $mail_no_txt_f, $mail_too_big,
 
 $mail_no_from_f = $mail_no_txt_f = $mail_too_big = $mail_forwarded =
 $mail_duplicates = $mail_no_subject_f = $mail_inserted = 0;
+$mail_fixed=0;
+
+#
+# Remove the following message-ends from message
+#
+@remove_tail= (
+"\n-*\nSend a mail to .*\n.*\n.*\$",
+"\n-*\nPlease check .*\n.*\n\nTo unsubscribe, .*\n.*\n.*\nIf you have a broken.*\n.*\n.*\$",
+"\n-*\nPlease check .*\n(.*\n){1,3}\nTo unsubscribe.*\n.*\n.*\$",
+"\n-*\nPlease check .*\n.*\n\nTo unsubscribe.*\n.*\$",
+"\n-*\nTo request this thread.*\nTo unsubscribe.*\n.*\.*\n.*\$",
+"\n -*\n.*Send a mail to.*\n.*\n.*unsubscribe.*\$",
+"\n-*\nTo request this thread.*\n\nTo unsubscribe.*\n.*\$"
+);
+
+# Generate regexp to remove tails where the unsubscribed is quoted
+{
+  my (@tmp, $tail);
+  @tmp=();
+  foreach $tail (@remove_tail)
+  {
+    $tail =~ s/\n/\n[> ]*/g;
+    push(@tmp, $tail);
+  }
+  push @remove_tail,@tmp;
+}
 
 my %months = ('Jan' => 1, 'Feb' => 2, 'Mar' => 3, 'Apr' => 4, 'May' => 5,
 	      'Jun' => 6, 'Jul' => 7, 'Aug' => 8, 'Sep' => 9, 'Oct' => 10,
@@ -90,7 +116,8 @@ sub main
   push @args, "mysql_socket=$opt_socket" if defined($opt_socket);
   push @args, "mysql_read_default_group=mail_to_db";
   $connect_arg .= join ';', @args;
-  $dbh = DBI->connect("$connect_arg", $opt_user, $opt_password)
+  $dbh = DBI->connect("$connect_arg", $opt_user, $opt_password,
+		     { PrintError => 0})
   || die "Couldn't connect: $DBI::errstr\n";
 
   die "You must specify the database; use --db=" if (!defined($opt_db));
@@ -127,6 +154,7 @@ sub main
   print "Total number of mails:\t\t"; 
   print $mail_inserted + $ignored;
   print "\n";
+  print "Mails with unsubscribe removed:\t$mail_fixed\n";
   exit(0);
 }
 
@@ -279,6 +307,9 @@ sub date_parser
       print "Inbox filename: $file_name\n";
     }
     exit(1) if ($opt_stop_on_error);
+    $values->{'date'} = "";
+    $values->{'time_zone'} = "";
+    return;
   }
   $tmp = $3 . "-" . $months{$2} . "-" . "$1 $4";
   $tmp.= defined($5) ? $5 : ":00";
@@ -294,15 +325,29 @@ sub date_parser
 sub update_table
 {
   my($dbh, $file_name, $values) = @_;
-  my($q);
+  my($q,$tail,$message);
 
   if (!defined($values->{'subject'}) || !defined($values->{'to'}))
   {
     $mail_no_subject_f++;
     return;			# Ignore these
   }
-  $values->{'message'} =~ s/^\s*//; #removes whitespaces from the beginning 
-  $values->{'message'} =~ s/\s*$//; #removes whitespaces from the end
+  $message=$values->{'message'};
+  $message =~ s/^\s*//; #removes whitespaces from the beginning 
+
+ restart:
+  $message =~ s/[\s\n>]*$//; #removes whitespaces and '>' from the end
+  $values->{'message'}=$message;
+  foreach $tail (@remove_tail)
+  {
+    $message =~ s/$tail//;
+  }
+  if ($message ne $values->{'message'})
+  {
+    $message =~ s/\s*$//; #removes whitespaces from the end
+    $mail_fixed++;
+    goto restart;	  # Some mails may have duplicated messages
+  }
 
   $q = "INSERT INTO $opt_table (";
   $q.= "mail_id,";
@@ -320,7 +365,8 @@ sub update_table
   $q.= "NULL,";
   $q.= "'" . $values->{'date'} . "',";
   $q.= (defined($values->{'time_zone'}) ?
-	("'" . $values->{'time_zone'} . "',") : "NULL,");
+	$dbh->quote($values->{'time_zone'}) : "NULL");
+  $q.= ",";
   $q.= defined($values->{'from'}) ? $dbh->quote($values->{'from'}) : "NULL";
   $q.= ",";
   $q.= defined($values->{'reply'}) ? $dbh->quote($values->{'reply'}) : "NULL";
@@ -331,7 +377,7 @@ sub update_table
   $q.= ","; 
   $q.= $dbh->quote($values->{'subject'});
   $q.= ",";
-  $q.= $dbh->quote($values->{'message'});
+  $q.= $dbh->quote($message);
   $q.= ",";
   $q.= $dbh->quote($file_name);
   $q.= ",";
@@ -339,12 +385,12 @@ sub update_table
   $q.= ")";
 
   # Don't insert mails bigger than $opt_max_mail_size
-  if (length($values->{'message'}) > $opt_max_mail_size)
+  if (length($message) > $opt_max_mail_size)
   {
     $mail_too_big++;
   }
   # Don't insert mails without 'From' field
-  elsif ($values->{'from'} eq "") 
+  elsif (!defined($values->{'from'}) || $values->{'from'} eq "")
   {
     $mail_no_from_f++;
   }
@@ -354,7 +400,7 @@ sub update_table
     $mail_inserted++;
   }
   # Don't insert mails without the 'message'
-  elsif ($values->{'message'} eq "") 
+  elsif ($message eq "") 
   {
     $mail_no_txt_f++;
   }
