@@ -792,9 +792,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	if ((error=table->file->update_row(table->record[1],
 					   table->record[0])))
 	{
-	  table->file->print_error(error,MYF(0));
 	  updated--;
-	  DBUG_RETURN(1);
+	  if (handle_duplicates != DUP_IGNORE ||
+	      error != HA_ERR_FOUND_DUPP_KEY)
+	  {
+	    table->file->print_error(error,MYF(0));
+	    DBUG_RETURN(1);
+	  }
 	}
       }
     }
