@@ -261,18 +261,6 @@ mem_free_func(
 	const char*	file_name,	/* in: file name where created */
 	ulint		line		/* in: line where created */
 );
-/*******************************************************************
-Implements realloc. */
-UNIV_INLINE
-void*
-mem_realloc(
-/*========*/
-					/* out, own: free storage,
-					NULL if did not succeed */
-	void*		buf,		/* in: pointer to an old buffer */
-	ulint		n,		/* in: desired number of bytes */
-	const char*	file_name,	/* in: file name where called */
-	ulint		line);		/* in: line where called */
 
 /**************************************************************************
 Duplicates a NUL-terminated string. */

@@ -332,7 +332,6 @@ void
 fsp_print(
 /*======*/
 	ulint	space);	/* in: space id */
-#ifdef UNIV_DEBUG
 /***********************************************************************
 Validates a segment. */
 
@@ -350,7 +349,6 @@ fseg_print(
 /*=======*/
 	fseg_header_t*	header, /* in: segment header */
 	mtr_t*		mtr);	/* in: mtr */
-#endif /* UNIV_DEBUG */
 
 /* Flags for fsp_reserve_free_extents */
 #define FSP_NORMAL	1000000
