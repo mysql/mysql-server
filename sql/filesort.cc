@@ -87,6 +87,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   for(i=0;i<table->fields;i++)
     if (!table->field[i]->binary())
       charset=((Field_str*)(table->field[i]))->charset();
+  charset=charset?charset:default_charset_info;
   // /BAR TODO
 
   outfile= table->io_cache;
@@ -930,7 +931,6 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 #ifdef USE_STRCOLL
 	if (!sortorder->field->binary())
 	{
-	  // BAR TODO: need checking that it is really Field_str based class
 	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
 	  if (use_strcoll(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
