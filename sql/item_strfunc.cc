@@ -2215,6 +2215,7 @@ String *Item_func_quote::val_str(String *str)
   }
   *to= '\'';
   str->length(new_length);
+  null_value= 0;
   return str;
 
 null:
