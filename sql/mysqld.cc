@@ -2130,7 +2130,17 @@ int main(int argc, char **argv)
   (void) pthread_attr_setdetachstate(&connection_attrib,
 				     PTHREAD_CREATE_DETACHED);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
-
+  {
+    /* Retrieve used stack size;  Needed for checking stack overflows */
+    size_t stack_size;
+    pthread_attr_getstacksize(&connection_attrib, &stack_size);
+    if (global_system_variables.log_warnings && stack_size != thread_stack)
+    {
+      sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
+		      thread_stack, stack_size);
+      thread_stack= stack_size;
+    }
+  }
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
