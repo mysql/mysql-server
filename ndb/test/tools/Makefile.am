@@ -1,7 +1,6 @@
 
-bin_PROGRAMS = waiter hugoCalculator hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index 
+bin_PROGRAMS = waiter hugoCalculator hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc
 
-# ndb_cpcc
 # transproxy 
 
 hugoCalculator_SOURCES = hugoCalculator.cpp
@@ -20,10 +19,14 @@ waiter_SOURCES = waiter.cpp
 verify_index_SOURCES = verify_index.cpp
 copy_tab_SOURCES = copy_tab.cpp
 create_index_SOURCES = create_index.cpp
-#ndb_cpcc_SOURCES = cpcc.cpp
+ndb_cpcc_SOURCES = cpcc.cpp
+
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmclient
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
+
+ndb_cpcc_LDADD = $(LDADD) $(top_srcdir)/ndb/src/mgmclient/CpcClient.o
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
