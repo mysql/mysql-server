@@ -4415,7 +4415,7 @@ option_value:
 	{
 	  THD* thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  CHARSET_INFO *cs= thd->variables->vars->thd_charset;
+	  CHARSET_INFO *cs= thd->variables.thd_charset;
 	  CHARSET_INFO *cl= $2;
 
 	  if (!cl)
