@@ -37,7 +37,8 @@
 #include <sys/mode.h>
 #endif
 #ifdef __WIN__
-#include <Shlwapi.h>
+#include <windows.h>
+#include <shlwapi.h>
 #include <direct.h>
 #endif
 
@@ -1544,7 +1545,11 @@ int main(int argc, char **argv)
     }
 #else
     struct _finddata_t dir;
+#if defined(_MSC_VER) && _MSC_VER > 1200
     intptr_t handle;
+#else
+    long handle;
+#endif  /* _MSC_VER && _MSC_VER > 1200  */ 
     char test[FN_LEN];
     char mask[FN_REFLEN];
     char *p;
