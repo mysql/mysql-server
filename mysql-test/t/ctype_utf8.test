@@ -80,3 +80,21 @@ insert into t1 select repeat('Ña',66000);
 insert into t1 select repeat('ÑÑ',66000);
 select length(s1),char_length(s1) from t1;
 drop table t1;
+
+#
+# Bug #2368 Multibyte charsets do not check that incoming data is well-formed
+#
+create table t1 (s1 char(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 varchar(10) character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
+
+create table t1 (s1 text character set utf8);
+insert into t1 values (0x41FF);
+select hex(s1) from t1;
+drop table t1;
