@@ -401,7 +401,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   *write_lock_used=0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
-    if (table_ptr[i]->tmp_table != TMP_TABLE)
+    if (table_ptr[i]->s->tmp_table != TMP_TABLE)
     {
       tables+=table_ptr[i]->file->lock_count();
       lock_count++;
@@ -421,7 +421,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   for (i=0 ; i < count ; i++)
   {
     TABLE *table;
-    if ((table=table_ptr[i])->tmp_table == TMP_TABLE)
+    if ((table=table_ptr[i])->s->tmp_table == TMP_TABLE)
       continue;
     *to++=table;
     enum thr_lock_type lock_type= table->reginfo.lock_type;
@@ -430,7 +430,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       *write_lock_used=table;
       if (table->db_stat & HA_READ_ONLY)
       {
-	my_error(ER_OPEN_AS_READONLY, MYF(0), table->table_name);
+	my_error(ER_OPEN_AS_READONLY, MYF(0), table->alias);
 	my_free((gptr) sql_lock,MYF(0));
 	return 0;
       }
@@ -526,11 +526,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   char *db= table_list->db;
   uint  key_length;
   DBUG_ENTER("lock_table_name");
-  DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->real_name));
+  DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->table_name));
 
   safe_mutex_assert_owner(&LOCK_open);
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_list->real_name)
+  key_length=(uint) (strmov(strmov(key,db)+1,table_list->table_name)
 		     -key)+ 1;
 
 
@@ -549,8 +549,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
 				  MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(-1);
-  memcpy((table->table_cache_key= (char*) (table+1)), key, key_length);
-  table->key_length=key_length;
+  table->s= &table->share_not_to_be_used;
+  memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
+  table->s->key_length=key_length;
   table->in_use=thd;
   table->locked_by_name=1;
   table_list->table=table;
@@ -560,7 +561,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
     my_free((gptr) table,MYF(0));
     DBUG_RETURN(-1);
   }
-  if (remove_table_from_cache(thd, db, table_list->real_name))
+  if (remove_table_from_cache(thd, db, table_list->table_name))
     DBUG_RETURN(1);					// Table is in use
   DBUG_RETURN(0);
 }

@@ -644,7 +644,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   uint idx= 0;
 
   KEY *keyinfo,*keyinfo_end;
-  for (keyinfo= table->key_info, keyinfo_end= keyinfo+table->keys ;
+  for (keyinfo= table->key_info, keyinfo_end= keyinfo+table->s->keys ;
        keyinfo != keyinfo_end;
        keyinfo++,idx++)
   {

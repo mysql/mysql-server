@@ -893,7 +893,7 @@ bool tables_ok(THD* thd, TABLE_LIST* tables)
     some_tables_updating= 1;
     end= strmov(hash_key, tables->db ? tables->db : thd->db);
     *end++= '.';
-    len= (uint) (strmov(end, tables->real_name) - hash_key);
+    len= (uint) (strmov(end, tables->table_name) - hash_key);
     if (do_table_inited) // if there are any do's
     {
       if (hash_search(&replicate_do_table, (byte*) hash_key, len))
@@ -1520,7 +1520,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
-  tables.alias= tables.real_name= (char*)table_name;
+  tables.alias= tables.table_name= (char*)table_name;
 
   /* Drop the table if 'overwrite' is true */
   if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
@@ -1580,7 +1580,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
-    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->real_name);
+    my_error(ER_INDEX_REBUILD, MYF(0), tables.table->s->table_name);
 
 err:
   close_thread_tables(thd);

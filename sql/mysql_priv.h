@@ -1269,7 +1269,7 @@ inline void mark_as_null_row(TABLE *table)
 {
   table->null_row=1;
   table->status|=STATUS_NULL_ROW;
-  bfill(table->null_flags,table->null_bytes,255);
+  bfill(table->null_flags,table->s->null_bytes,255);
 }
 
 inline void table_case_convert(char * name, uint length)
@@ -1319,7 +1319,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->const_table= 0;
   table->null_row= 0;
   table->status= STATUS_NO_RECORD;
-  table->keys_in_use_for_query= table->keys_in_use;
+  table->keys_in_use_for_query= table->s->keys_in_use;
   table->maybe_null= test(table->outer_join= table_list->outer_join);
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
