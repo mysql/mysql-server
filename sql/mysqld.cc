@@ -285,7 +285,7 @@ char log_error_file[FN_REFLEN];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
-my_bool opt_enable_named_pipe= 0;
+my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
@@ -387,7 +387,7 @@ bool opt_using_transactions, using_update_log;
 bool volatile abort_loop, select_thread_in_use, signal_thread_in_use;
 bool volatile ready_to_exit, shutdown_in_progress, grant_option;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
-ulong query_id=1L,long_query_count,aborted_threads,
+ulong query_id=1L,long_query_count,aborted_threads, killed_threads,
       aborted_connects,delayed_insert_timeout,delayed_insert_limit,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
@@ -919,6 +919,12 @@ void clean_up(bool print_message)
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
+  free_list(&replicate_do_db);
+  free_list(&replicate_ignore_db);
+  free_list(&binlog_do_db);
+  free_list(&binlog_ignore_db);
+  free_list(&replicate_rewrite_db);
+
 #ifdef HAVE_OPENSSL
   if (ssl_acceptor_fd)
     my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
@@ -1273,7 +1279,10 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
   THD *thd=current_thd;
   DBUG_ENTER("end_thread_signal");
   if (thd && ! thd->bootstrap)
+  {
+    statistic_increment(killed_threads, &LOCK_status);
     end_thread(thd,0);
+  }
   DBUG_VOID_RETURN;				/* purecov: deadcode */
 }
 
@@ -1592,7 +1601,8 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  sigset(THR_KILL_SIGNAL,end_thread_signal);
+  if (test_flags & TEST_SIGINT)
+    sigset(THR_KILL_SIGNAL,end_thread_signal);
   sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -1651,7 +1661,8 @@ static void init_signals(void)
   sigaddset(&set,SIGTSTP);
 #endif
   sigaddset(&set,THR_SERVER_ALARM);
-  sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
+  if (test_flags & TEST_SIGINT)
+    sigdelset(&set,THR_KILL_SIGNAL);		// May be SIGINT
   sigdelset(&set,THR_CLIENT_ALARM);		// For alarms
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
@@ -1707,9 +1718,12 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(max_connections+max_insert_delayed_threads+10);
 #if SIGINT != THR_KILL_SIGNAL
-  (void) sigemptyset(&set);			// Setup up SIGINT for debug
-  (void) sigaddset(&set,SIGINT);		// For debugging
-  (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
+  if (test_flags & TEST_SIGINT)
+  {
+    (void) sigemptyset(&set);			// Setup up SIGINT for debug
+    (void) sigaddset(&set,SIGINT);		// For debugging
+    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
+  }
 #endif
   (void) sigemptyset(&set);			// Setup up SIGINT for debug
 #ifdef USE_ONE_SIGNAL_HAND
@@ -2715,6 +2729,7 @@ static void create_new_thread(THD *thd)
 	thread_count--;
 	thd->killed=1;				// Safety
 	(void) pthread_mutex_unlock(&LOCK_thread_count);
+	statistic_increment(aborted_connects,&LOCK_status);
 	net_printf(net,ER_CANT_CREATE_THREAD,error);
 	(void) pthread_mutex_lock(&LOCK_thread_count);
 	close_connection(net,0,0);
@@ -3145,7 +3160,7 @@ enum options {
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
-  OPT_READONLY,
+  OPT_READONLY, OPT_DEBUGGING,
   OPT_SORT_BUFFER, OPT_TABLE_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
@@ -3277,6 +3292,10 @@ struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
+  {"gdb", OPT_DEBUGGING,
+   "Set up signals usable for debugging",
+   (gptr*) &opt_debugging, (gptr*) &opt_debugging,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
@@ -3469,8 +3488,6 @@ Does nothing yet.",
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &mysql_port,
    (gptr*) &mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"reckless-slave", OPT_RECKLESS_SLAVE, "For debugging", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-do-db", OPT_REPLICATE_DO_DB,
    "Tells the slave thread to restrict replication to the specified database. To specify more than one database, use the directive multiple times, once for each database. Note that this will only work if you do not use cross-database queries such as UPDATE some_db.some_table SET foo='bar' while having selected a different or no database. If you need cross database updates to work, make sure you have 3.23.28 or later, and use replicate-wild-do-table=db_name.%.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4717,6 +4734,12 @@ static void get_options(int argc,char **argv)
     have_symlink=SHOW_OPTION_DISABLED;
   }
 #endif
+  if (opt_debugging)
+  {
+    /* Allow break with SIGINT, no core or stack trace */
+    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
+    test_flags&= ~TEST_CORE_ON_SIGNAL;
+  }
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write((THD*) 0, OPT_GLOBAL);
 

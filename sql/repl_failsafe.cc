@@ -71,6 +71,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   if (init_thr_lock() || thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES); // is this needed?
+    statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     DBUG_RETURN(-1);
   }
