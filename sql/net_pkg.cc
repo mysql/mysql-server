@@ -273,12 +273,12 @@ send_eof(THD *thd, bool no_flush)
   {
     if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
     {
-      char buff[5];
+      uchar buff[5];
       uint tmp= min(thd->total_warn_count, 65535);
       buff[0]=254;
       int2store(buff+1, tmp);
       int2store(buff+3, 0);			// No flags yet
-      VOID(my_net_write(net,buff,5));
+      VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
     }
     else

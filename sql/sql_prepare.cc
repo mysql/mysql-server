@@ -634,7 +634,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 {
   MEM_ROOT thd_root = thd->mem_root;
   PREP_STMT stmt;
-  bool error;
   DBUG_ENTER("mysql_stmt_prepare");
 
   bzero((char*) &stmt, sizeof(stmt));

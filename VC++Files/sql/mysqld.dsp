@@ -282,6 +282,10 @@ SOURCE=.\filesort.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\gstream.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\ha_berkeley.cpp
 # End Source File
 # Begin Source File
@@ -460,16 +464,24 @@ SOURCE=.\item_func.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
+# ADD CPP /I "../zlib"
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
 
-# ADD CPP /G5
+# ADD CPP /G5 /I "../zlib"
 # SUBTRACT CPP /YX /Yc /Yu
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
 
+# ADD CPP /I "../zlib"
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
 
+# ADD CPP /I "../zlib"
+
 !ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
+
+# ADD CPP /I "../zlib"
 
 !ENDIF 
 
@@ -493,6 +505,10 @@ SOURCE=.\item_strfunc.cpp
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\item_subselect.cpp
 # End Source File
 # Begin Source File
 
@@ -811,6 +827,10 @@ SOURCE=.\slave.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\spatial.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_acl.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -927,7 +947,15 @@ SOURCE=.\sql_delete.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_derived.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_do.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_error.cpp
 # End Source File
 # Begin Source File
 
@@ -1056,6 +1084,10 @@ SOURCE=.\sql_parse.cpp
 
 !ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_prepare.cpp
 # End Source File
 # Begin Source File
 
