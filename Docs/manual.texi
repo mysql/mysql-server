@@ -2574,7 +2574,7 @@ but without concessions to speed and quality of the code.
 @cindex ANSI mode, running
 
 If you start @code{mysqld} with the @code{--ansi} option, the following
-behavior of MySQL Server changes:
+behaviour of MySQL Server changes:
 
 @itemize @bullet
 @item
@@ -3566,7 +3566,7 @@ numerical column, MySQL Server will store 0 into it.
 @item
 If you try to store @code{NULL} into a column that doesn't take
 @code{NULL} values, MySQL Server will store 0 or @code{''} (empty
-string) in it instead. (This behavior can, however, be changed with the
+string) in it instead. (This behaviour can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option.)
 
 @item
@@ -4625,7 +4625,7 @@ Use @code{CLIKE}.
 @table @code
 @item MySQL Server
 Strips all spaces at the end of @code{CHAR} and @code{VARCHAR}
-columns. Use a @code{TEXT} column if this behavior is not desired.
+columns. Use a @code{TEXT} column if this behaviour is not desired.
 @item mSQL
 Retains trailing space.
 @end table
@@ -4636,7 +4636,7 @@ Retains trailing space.
 @table @code
 @item MySQL Server
 MySQL correctly prioritises everything (@code{AND} is evaluated
-before @code{OR}). To get @code{mSQL} behavior in MySQL Server, use
+before @code{OR}). To get @code{mSQL} behaviour in MySQL Server, use
 parentheses (as shown in an example later in this section).
 @item mSQL
 Evaluates everything from left to right. This means that some logical
@@ -7161,7 +7161,7 @@ configurations, and the @code{--with-low-memory} option usually fixes it.
 @item
 By default, @code{configure} picks @code{c++} as the compiler name and
 GNU @code{c++} links with @code{-lg++}.  If you are using @code{gcc},
-that behavior can cause problems during configuration such as this:
+that behaviour can cause problems during configuration such as this:
 
 @cindex C++ compiler cannot create executables
 @example
@@ -8201,7 +8201,7 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 arguments is a binary string. Otherwise they are case-insensitive.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
-which means that the default comparison behavior now is case-insensitive.
+which means that the default comparison behaviour now is case-insensitive.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -8329,7 +8329,7 @@ A @code{TIME} string must now be of one of the following formats:
 
 @item
 @code{LIKE} now compares strings using the same character comparison rules
-as @code{=}.  If you require the old behavior, you can compile
+as @code{=}.  If you require the old behaviour, you can compile
 MySQL with the @code{CXXFLAGS=-DLIKE_CMP_TOUPPER} flag.
 
 @item
@@ -8687,10 +8687,10 @@ experimentally discovered, will successfully unmap an already mapped region
 if you ask it to map out an address already in use, zeroing out the data
 on the entire page, instead of returning an error.  So, the safety of
 @code{mysqld} or any other threaded application depends on the "gentleman"
-behavior of the code that creates threads.  The user must take measures to
+behaviour of the code that creates threads.  The user must take measures to
 make sure the number of running threads at any time is sufficiently low for
 thread stacks to stay away from the global heap.  With @code{mysqld}, you
-should enforce this "gentleman" behavior by setting a reasonable value for
+should enforce this "gentleman" behaviour by setting a reasonable value for
 the @code{max_connections} variable.
 
 If you build MySQL yourself and do not want to mess with patching
@@ -8756,7 +8756,7 @@ hold the mutex for a short time. On an SMP system, ironic as it is, if
 you link MySQL against unmodified @code{LinuxThreads},
 removing processors from the machine improves MySQL performance
 in many cases.  We have made a patch available for @code{glibc 2.1.3}
-to correct this behavior
+to correct this behaviour
 (@uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch}).
 
 With @code{glibc-2.2.2}
@@ -8765,7 +8765,7 @@ better than even the patched one in @code{glibc-2.1.3}. Be warned, however,
 that under some conditions, the current mutex code in @code{glibc-2.2.2}
 overspins, which hurts MySQL performance. The chance of this
 condition can be reduced by renicing @code{mysqld} process to the highest
-priority. We have also been able to correct the overspin behavior with
+priority. We have also been able to correct the overspin behaviour with
 a patch, available at
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch}.
 It combines the correction of overspin, maximum number of
@@ -10778,7 +10778,7 @@ by downloading the latest DEC (Compaq) patch kit from:
 @uref{http://ftp.support.compaq.com/public/unix/}.
 
 On OSF/1 V4.0D and compiler "DEC C V5.6-071 on Digital Unix V4.0 (Rev. 878)"
-the compiler had some strange behavior (undefined @code{asm} symbols).
+the compiler had some strange behaviour (undefined @code{asm} symbols).
 @code{/bin/ld} also appears to be broken (problems with @code{_exit
 undefined} errors occuring while linking @code{mysqld}).  On this system, we
 have managed to compile MySQL with the following @code{configure}
@@ -14391,7 +14391,7 @@ With this option one can turn on only needed SQL modes. @xref{ANSI mode}.
 Using this option will cause most temporary files created to use a small
 set of names, rather than a unique name for each new file. This is to
 work around a problem in the Linux kernel dealing with creating a bunch
-of new files with different names. With the old behavior, Linux seems to
+of new files with different names. With the old behaviour, Linux seems to
 'leak' memory, as it's being allocated to the directory entry cache
 instead of the disk cache.
 
@@ -15041,7 +15041,7 @@ following suggestions:
 @item
 Use passwords for all MySQL users. Remember that anyone can log in
 as any other person as simply as @code{mysql -u other_user db_name} if
-@code{other_user} has no password.  It is common behavior with client/server
+@code{other_user} has no password.  It is common behaviour with client/server
 applications that the client may specify any user name.  You can change the
 password of all users by editing the @code{mysql_install_db} script before
 you run it, or only the password for the MySQL @code{root} user like
@@ -22500,7 +22500,7 @@ So it can be used in a similar way as @code{mysqldump} when it
 comes to what databases and tables you want to choose.
 
 @code{mysqlcheck} does have a special feature compared to the other
-clients; the default behavior, checking tables (-c), can be changed by
+clients; the default behaviour, checking tables (-c), can be changed by
 renaming the binary. So if you want to have a tool that repairs tables
 by default, you should just copy @code{mysqlcheck} to your harddrive
 with a new name, @code{mysqlrepair}, or alternatively make a symbolic
@@ -22508,7 +22508,7 @@ link to @code{mysqlrepair} and name the symbolic link as
 @code{mysqlrepair}. If you invoke @code{mysqlrepair} now, it will repair
 tables by default.
 
-The names that you can use to change @code{mysqlcheck} default behavior
+The names that you can use to change @code{mysqlcheck} default behaviour
 are here:
 
 @example
@@ -24929,7 +24929,7 @@ from this benchmark.
 
 As you can see in these results, all databases have some weak points. That
 is, they have different design compromises that lead to different
-behavior.
+behaviour.
 
 If you strive for database independence, you need to get a good feeling
 for each SQL server's bottlenecks. MySQL is very fast in
@@ -31835,7 +31835,7 @@ mysql> SELECT ROUND(1.58);
         -> 2
 @end example
 
-Note that the behavior of @code{ROUND()} when the argument
+Note that the behaviour of @code{ROUND()} when the argument
 is half way between two integers depends on the C library
 implementation.  Some round to the nearest even number,
 always up, always down, or always toward zero.  If you need
@@ -32938,7 +32938,7 @@ If @code{crypt()} is not available on your system, @code{ENCRYPT()} always
 returns @code{NULL}.
 
 @code{ENCRYPT()} ignores all but the first 8 characters of @code{str}, at
-least on some systems.  This will be determined by the behavior of the
+least on some systems.  This will be determined by the behaviour of the
 underlying @code{crypt()} system call.
 
 @findex ENCODE()
@@ -34727,7 +34727,7 @@ file is ignored.
 
 If you load data from a local file using the @code{LOCAL} keyword, the server
 has no way to stop transmission of the file in the middle of the operation,
-so the default behavior is the same as if @code{IGNORE} is specified.
+so the default behaviour is the same as if @code{IGNORE} is specified.
 
 If you use @code{LOAD DATA INFILE} on an empty @code{MyISAM} table,
 all non-unique indexes are created in a separate batch (like in @code{REPAIR}).
@@ -35556,7 +35556,7 @@ specified.  For example, if @code{TYPE=BDB} is specified, and that distribution
 of MySQL does not support @code{BDB} tables, the table will be created
 as @code{MyISAM} instead.
 
-The other table options are used to optimise the behavior of the
+The other table options are used to optimise the behaviour of the
 table. In most cases, you don't have to specify any of them.
 The options work for all table types, if not otherwise indicated:
 
@@ -36490,7 +36490,7 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
-The default behavior is to set the isolation level for the next (not
+The default behaviour is to set the isolation level for the next (not
 started) transaction.  If you use the @code{GLOBAL} keyword, the statement
 sets the default transaction level globally for all new connections
 created from that point on.  You will need the @code{SUPER}
@@ -36639,7 +36639,7 @@ Empty set (0.00 sec)
 The search for the word @code{MySQL} produces no results in the above
 example, because that word is present in more than half the rows.  As such,
 it is effectively treated as a stopword (that is, a word with zero semantic
-value).  This is the most desirable behavior -- a natural language query
+value).  This is the most desirable behaviour -- a natural language query
 should not return every second row from a 1GB table.
 
 A word that matches half of rows in a table is less likely to locate relevant
@@ -36758,10 +36758,10 @@ The argument to @code{AGAINST()} must be a constant string.
 Unfortunately, full-text search has few user-tunable parameters yet,
 although adding some is very high on the TODO. If you have a
 MySQL source distribution (@pxref{Installing source}), you can
-exert more control over full-text searching behavior.
+exert more control over full-text searching behaviour.
 
 Note that full-text search was carefully tuned for the best searching
-effectiveness.  Modifying the default behavior will, in most cases,
+effectiveness.  Modifying the default behaviour will, in most cases,
 only make the search results worse.  Do not alter the MySQL sources
 unless you know what you are doing!
 
@@ -37203,7 +37203,7 @@ will automatically update this on @code{INSERT/UPDATE}. The
 will make @code{AUTO_INCREMENT} columns faster (at least 10%) and old
 numbers will not be reused as with the old @code{ISAM}. Note that when an
 @code{AUTO_INCREMENT} is defined on the end of a multi-part-key the old
-behavior is still present.
+behaviour is still present.
 @item
 When inserted in sorted order (as when you are using an @code{AUTO_INCREMENT}
 column) the key tree will be split so that the high node only contains one
@@ -37263,7 +37263,7 @@ Note that index files are usually much smaller with @code{MyISAM} than with
 system resources than @code{ISAM}, but will need more CPU time when inserting
 data into a compressed index.
 
-The following options to @code{mysqld} can be used to change the behavior of
+The following options to @code{mysqld} can be used to change the behaviour of
 @code{MyISAM} tables. @xref{SHOW VARIABLES}.
 
 @multitable @columnfractions .40 .60
@@ -39654,7 +39654,7 @@ bypasses locking and transaction handling. Therefore you may also get
 gaps in the number sequence if you roll back transactions which have
 got numbers from the counter.
 
-The behavior of auto-increment is not defined if a user gives a negative
+The behaviour of auto-increment is not defined if a user gives a negative
 value to the column or if the value becomes bigger than the maximum
 integer that can be stored in the specified integer type.
 
@@ -40005,7 +40005,7 @@ the @code{BEGIN WORK} SQL command, after which your changes will not be
 committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
 the changes).
 
-The following options to @code{mysqld} can be used to change the behavior of
+The following options to @code{mysqld} can be used to change the behaviour of
 BDB tables:
 
 @multitable @columnfractions .25 .55
@@ -43466,7 +43466,7 @@ None.
 
 @subsubheading Description
 
-Can be used to set extra connect options and affect behavior for a connection.
+Can be used to set extra connect options and affect behaviour for a connection.
 This function may be called multiple times to set several options.
 
 @code{mysql_options()} should be called after @code{mysql_init()} and before
@@ -47188,7 +47188,7 @@ ERROR: Can't find file: 'path/with/filename.frm' (Errcode: 13)
 @tindex Environment variable, UMASK
 then the environment variable @code{UMASK} might be set incorrectly when
 @code{mysqld} starts up.  The default umask value is @code{0660}. You can
-change this behavior by starting @code{safe_mysqld} as follows:
+change this behaviour by starting @code{safe_mysqld} as follows:
 
 @example
 shell> UMASK=384  # = 600 in octal
@@ -47199,7 +47199,7 @@ shell> /path/to/safe_mysqld &
 @tindex UMASK_DIR environment variable
 @tindex Environment variable, UMASK_DIR
 By default MySQL will create database and @code{RAID}
-directories with permission type 0700.  You can modify this behavior by
+directories with permission type 0700.  You can modify this behaviour by
 setting the @code{UMASK_DIR} variable. If you set this, new
 directories are created with the combined @code{UMASK} and
 @code{UMASK_DIR}. For example, if you want to give group access to
@@ -49919,7 +49919,7 @@ now handle signed and unsigned @code{BIGINT} numbers correctly.
 New character set @code{latin_de} which provides correct German sorting.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
-which means that the default comparison behavior now is case-insensitive.
+which means that the default comparison behaviour now is case-insensitive.
 @item
 @code{TRUNCATE TABLE} and @code{DELETE FROM tbl_name} are now separate
 functions. One bonus is that @code{DELETE FROM tbl_name} now returns
@@ -51083,7 +51083,7 @@ Added @code{--temp-pool} option to @code{mysqld}.  Using this option
 will cause most temporary files created to use a small set of names,
 rather than a unique name for each new file.  This is to work around a
 problem in the Linux kernel dealing with creating a bunch of new files
-with different names.  With the old behavior, Linux seems to "leak"
+with different names.  With the old behaviour, Linux seems to "leak"
 memory, as it's being allocated to the directory entry cache instead of
 the disk cache.
 @end itemize
@@ -51754,7 +51754,7 @@ usage of @code{MIN(key_part)} or @code{MAX(key_part)} returned an empty set.
 Updated @code{mysqlhotcopy} to use the new @code{FLUSH TABLES table_list}
 syntax. Only tables which are being backed up are flushed now.
 @item
-Changed behavior of @code{--enable-thread-safe-client} so
+Changed behaviour of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded
 (@code{-lmysqlclient_r}) libraries are built.  Users who linked
 against a threaded @code{-lmysqlclient} will need to link against
@@ -54477,7 +54477,7 @@ Removed that @code{NULL = NULL} is true.  Now you must use @code{IS NULL}
 or @code{IS NOT NULL} to test whether a value is @code{NULL}.
 (This is according to ANSI SQL but may break
 old applications that are ported from @code{mSQL}.)
-You can get the old behavior by compiling with @code{-DmSQL_COMPLIANT}.
+You can get the old behaviour by compiling with @code{-DmSQL_COMPLIANT}.
 @item
 Fixed bug that core dumped when using many @code{LEFT OUTER JOIN} clauses.
 @item
@@ -55696,7 +55696,7 @@ Previously, this resulted in the error:
 when encountering ASCII 0, tab, newline or @code{'\'} while writing
 tab-separated output.
 This is to allow printing of binary data in a portable format.
-To get the old behavior, use @code{-r} (or @code{--raw}).
+To get the old behaviour, use @code{-r} (or @code{--raw}).
 @item
 Added german error messages (60 of 80 error messages translated).
 @item
@@ -56819,7 +56819,7 @@ values in configuration files take precedence over values in environment
 variables.
 
 In many cases it's preferable to use a configure file instead of environment
-variables to modify the behavior of MySQL. @xref{Option files}.
+variables to modify the behaviour of MySQL. @xref{Option files}.
 
 @tindex CCX environment variable
 @tindex Environment variable, CCX
