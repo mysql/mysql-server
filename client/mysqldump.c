@@ -43,6 +43,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
+#include <assert.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -63,7 +64,6 @@
 #define SHOW_NULL  2
 #define SHOW_DEFAULT  4
 #define SHOW_EXTRA  5
-#define QUOTE_CHAR	'`'
 
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
@@ -89,6 +89,7 @@ static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *where=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
+static char compatible_mode_normal_str[255];
 static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
@@ -111,6 +112,15 @@ const char *compatible_mode_names[]=
   "ANSI",
   NullS
 };
+#define MASK_ANSI_QUOTES \
+(\
+ (1<<2)  | /* POSTGRESQL */\
+ (1<<3)  | /* ORACLE     */\
+ (1<<4)  | /* MSSQL      */\
+ (1<<5)  | /* DB2        */\
+ (1<<6)  | /* MAXDB      */\
+ (1<<10)   /* ANSI       */\
+)
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 				  "", compatible_mode_names};
 
@@ -377,10 +387,10 @@ static void write_header(FILE *sql_file, char *db_name)
 ");
     }
     fprintf(sql_file,
-	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s\" */;\n",
-	    path?"":"NO_AUTO_VALUE_ON_ZERO");
+	    "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=\"%s%s%s\" */;\n",
+	    path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
+	    compatible_mode_normal_str);
   }
-  return;
 } /* write_header */
 
 
@@ -480,6 +490,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_COMPATIBLE:
     {  
       char buff[255];
+      char *end= compatible_mode_normal_str;
+      int i;
+      ulong mode;
 
       opt_quoted= 1;
       opt_set_names= 1;
@@ -493,6 +506,27 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
 	exit(1);
       }
+#if !defined(DBUG_OFF)
+      {
+	int size_for_sql_mode= 0;
+	const char **ptr;
+	for (ptr= compatible_mode_names; *ptr; ptr++)
+	  size_for_sql_mode+= strlen(*ptr);
+	size_for_sql_mode+= sizeof(compatible_mode_names)-1;
+	DBUG_ASSERT(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
+      }
+#endif
+      mode= opt_compatible_mode;
+      for (i= 0, mode= opt_compatible_mode; mode; mode>>= 1, i++)
+      {
+	if (mode & 1)
+	{
+	  end= strmov(end, compatible_mode_names[i]);
+	  end= strmov(end, ",");
+	}
+      }
+      if (end!=compatible_mode_normal_str)
+	end[-1]= 0;
       break;
     }
   case (int) OPT_MYSQL_PROTOCOL:
@@ -594,6 +628,7 @@ static void safe_exit(int error)
 */
 static int dbConnect(char *host, char *user,char *passwd)
 {
+  char buff[20+FN_REFLEN];
   DBUG_ENTER("dbConnect");
   if (verbose)
   {
@@ -620,6 +655,16 @@ static int dbConnect(char *host, char *user,char *passwd)
          0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
+    return 1;
+  }
+  sprintf(buff, "/*!40100 SET @@SQL_MODE=\"%s\" */",
+	  compatible_mode_normal_str);
+  if (mysql_query(sock, buff))
+  {
+    fprintf(stderr, "%s: Can't set the compatible mode %s (error %s)\n",
+	    my_progname, compatible_mode_normal_str, mysql_error(sock));
+    mysql_close(sock);
+    safe_exit(EX_MYSQLERR);
     return 1;
   }
   return 0;
@@ -670,17 +715,19 @@ static my_bool test_if_special_chars(const char *str)
 static char *quote_name(const char *name, char *buff, my_bool force)
 {
   char *to= buff;
+  char qtype= (opt_compatible_mode & MASK_ANSI_QUOTES) ? '\"' : '`';
+
   if (!force && !opt_quoted && !test_if_special_chars(name))
     return (char*) name;
-  *to++= QUOTE_CHAR;
+  *to++= qtype;
   while (*name)
   {
-    if (*name == QUOTE_CHAR)
-      *to++= QUOTE_CHAR;
+    if (*name == qtype)
+      *to++= qtype;
     *to++= *name++;
   }
-  to[0]=QUOTE_CHAR;
-  to[1]=0;
+  to[0]= qtype;
+  to[1]= 0;
   return buff;
 } /* quote_name */
 
@@ -852,31 +899,6 @@ static uint getTableStructure(char *table, char* db)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
-
-      if (opt_compatible_mode)
-      {
-	char *end;
-	uint i;
-
-	sprintf(buff, "/*!40100 SET @@sql_mode=\"");
-	end= strend(buff);
-	for (i= 0; opt_compatible_mode; opt_compatible_mode>>= 1, i++)
-	{
-	  if (opt_compatible_mode & 1)
-	  {
-	    end= strmov(end, compatible_mode_names[i]);
-	    end= strmov(end, ",");
-	  }
-	}
-	end= strmov(end-1, "\" */");
-	if (mysql_query(sock, buff))
-	{
-	  fprintf(stderr, "%s: Can't set the compatible mode '%s' (%s)\n",
-		  my_progname, table, mysql_error(sock));
-	  safe_exit(EX_MYSQLERR);
-        DBUG_RETURN(0);
-	}
-      }
 
       sprintf(buff,"show create table %s", result_table);
       if (mysql_query(sock, buff))
@@ -1858,6 +1880,7 @@ int main(int argc, char **argv)
 {
   MYSQL_ROW row;
   MYSQL_RES *master;
+  compatible_mode_normal_str[0]= 0;
 
   MY_INIT(argv[0]);
   if (get_options(&argc, &argv))
