@@ -690,7 +690,7 @@ is the header of the packet.
 @end menu
 
 
-@node ok packet, error packet, basic packets, basic packets
+@node ok packet, error packet, basic packets, basic packets, basic packets
 @subsection OK Packet
 
 For details, see @file{sql/net_pkg.cc::send_ok()}.
@@ -720,7 +720,7 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 @end table
 
 
-@node error packet,  , ok packet, basic packets
+@node error packet,  , ok packet, basic packets, basic packets
 @subsection Error Packet	
 
 @example
@@ -745,6 +745,7 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 @node communication, fieldtype codes, basic packets, protocol
 @section Communication
 
+@example
 > Packet from server to client
 < Paket from client tor server
 
@@ -832,9 +833,9 @@ For details, see @file{sql/net_pkg.cc::send_ok()}.
 		4 byte header
 		1-8 byte length of data
 		n data
-		
+@end example
  
-@node fieldtype codes, protocol functions, communication, protocol
+@node fieldtype codes, protocol functions, communication
 @section Fieldtype Codes
 
 @example
@@ -858,10 +859,12 @@ Time            03 08 00 00     |01 0B                  |03 00 00 00
 Date            03 0A 00 00     |01 0A                  |03 00 00 00
 @end example
 
-@node protocol functions, protocol version 2, fieldtype codes, protocol
+@node protocol functions, protocol version 2, fieldtype codes
 @section Functions used to implement the protocol
 
-This should be merged with the above one and changed to texi format
+@c This should be merged with the above one and changed to texi format
+
+@example
 
 Raw packets
 -----------
@@ -966,12 +969,14 @@ The encrypted message is sent to the server which uses the stored
 random number password to encrypt the random string sent to the
 client. If this is equal to the new message the client sends to the
 server then the password is accepted.
+@end example
 
-@node protocol version 2,  , protocol functions, protocol
+@node protocol version 2, 4.1 protocol changes, protocol functions
 @section Another description of the protocol
 
-This should be merged with the above one and changed to texi format.
+@c This should be merged with the above one and changed to texi format.
 
+@example
 *****************************
 *
 * PROTOCOL OVERVIEW
@@ -1646,7 +1651,7 @@ one packet is sent from the server, for simplicity's sake):
 Followed immediately by one 'LAST DATA' packet:
 
 fe 00                       . .
-
+@end example
 
 
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)
@@ -1659,7 +1664,7 @@ fe 00                       . .
 @c @node 4.1 protocol,,,
 @c @chapter MySQL 4.1 protocol
 
-@node 4.1 protocol changes,,,
+@node 4.1 protocol changes, 4.1 field packet, protocol version 2
 @section Changes to 4.0 protocol in 4.1
 
 All basic packet handling is identical to 4.0. When communication
@@ -1694,7 +1699,7 @@ results will sent as binary (low-byte-first).
 @end itemize
 
 
-@node 4.1 field packet,,,
+@node 4.1 field packet, 4.1 field desc, 4.1 protocol changes
 @section 4.1 field description packet
 
 The field description packet is sent as a response to a query that
@@ -1714,7 +1719,7 @@ uses this to send the number of rows in the table)
 This packet is always followed by a field description set.
 @xref{4.1 field desc}.
 
-@node 4.1 field desc,,,
+@node 4.1 field desc, 4.1 ok packet, 4.1 field packet
 @section 4.1 field description result set
 
 The field description result set contains the meta info for a result set.
@@ -1732,7 +1737,7 @@ The field description result set contains the meta info for a result set.
 @end multitable
 
 
-@node 4.1 ok packet,,,
+@node 4.1 ok packet, 4.1 end packet, 4.1 field desc
 @section 4.1 ok packet
 
 The ok packet is the first that is sent as an response for a query
@@ -1758,7 +1763,7 @@ The message is optional.  For example for multi line INSERT it
 contains a string for how many rows was inserted / deleted.
 
 
-@node 4.1 end packet,,,
+@node 4.1 end packet, 4.1 error packet, 4.1 ok packet
 @section 4.1 end packet
 
 The end packet is sent as the last packet for
@@ -1787,7 +1792,7 @@ by checking the packet length < 9 bytes (in which case it's and end
 packet).
 
 
-@node 4.1 error packet
+@node 4.1 error packet, 4.1 prep init, 4.1 end packet
 @section 4.1 error packet.
 
 The error packet is sent when something goes wrong.
@@ -1804,7 +1809,7 @@ The client/server protocol is designed in such a way that a packet
 can only start with 255 if it's an error packet.
 
 
-@node 4.1 prep init,,,
+@node 4.1 prep init, 4.1 long data, 4.1 error packet
 @section 4.1 prepared statement init packet
 
 This is the return packet when one sends a query with the COM_PREPARE
@@ -1838,7 +1843,7 @@ prepared statement will contain a result set. In this case the packet
 is followed by a field description result set. @xref{4.1 field desc}.
 
 
-@node 4.1 long data,,,
+@node 4.1 long data, 4.1 execute, 4.1 prep init
 @section 4.1 long data handling
 
 This is used by mysql_send_long_data() to set any parameter to a string
@@ -1865,7 +1870,7 @@ The server will NOT send an @code{ok} or @code{error} packet in
 responce for this.  If there is any errors (like to big string), one
 will get the error when calling execute.
 
-@node 4.1 execute,,,
+@node 4.1 execute, 4.1 binary result, 4.1 long data
 @section 4.1 execute
 
 On execute we send all parameters to the server in a COM_EXECUTE
@@ -1903,7 +1908,7 @@ The parameters are stored the following ways:
 The result for this will be either an ok packet or a binary result
 set.
 
-@node 4.1 binary result,,,
+@node 4.1 binary result, , 4.1 execute
 @section 4.1 binary result set
 
 A binary result are sent the following way.
@@ -3510,6 +3515,7 @@ an "*" in the following list. For example, you will find that
 (\myisam\mi_extra.c) with the same descriptive comment.
 @*@*
 
+@itemize
 @item
 hp_block.c  --  Read/write a block (i.e. a page)
 @item
