@@ -136,6 +136,7 @@ sp_head::execute(THD *thd)
   int ret= 0;
   uint ip= 0;
 
+  LINT_INIT(olddbname);
   if (olddbptr)
     olddbname= my_strdup(olddbptr, MYF(MY_WME));
 
@@ -148,15 +149,19 @@ sp_head::execute(THD *thd)
       break;
     DBUG_PRINT("execute", ("Instruction %u", ip));
     ret= i->execute(thd, &ip);
-  } while (ret == 0);
+  } while (ret == 0 && !thd->killed);
 
+  DBUG_PRINT("info", ("ret=%d killed=%d", ret, thd->killed));
+  if (thd->killed)
+    ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
   if (olddbptr && olddbptr != thd->db && olddbname)
   {
     /* QQ Maybe we should issue some special error message or warning here,
        if this fails?? */
-    ret= mysql_change_db(thd, olddbname);
+    if (! thd->killed)
+      ret= mysql_change_db(thd, olddbname);
     my_free(olddbname, MYF(0));
   }
   DBUG_RETURN(ret);
