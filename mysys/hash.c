@@ -180,7 +180,10 @@ uint calc_hashnr_caseup(const byte *key, uint len)
 #endif
 
 
-inline uint rec_hashnr(HASH *hash,const byte *record)
+#ifndef _FORTREC_
+inline
+#endif
+uint rec_hashnr(HASH *hash,const byte *record)
 {
   uint length;
   byte *key=hash_key(hash,record,&length,0);
