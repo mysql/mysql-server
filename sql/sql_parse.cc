@@ -47,6 +47,7 @@ static void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
+static inline int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1719,6 +1720,30 @@ mysql_execute_command(void)
      close_thread_tables(thd);
      break;
    }
+  case SQLCOM_UNION_SELECT:
+  {
+    uint total_selects = select_lex->select_number; total_selects++;
+    SQL_LIST *total=(SQL_LIST *) thd->calloc(sizeof(SQL_LIST));
+    if (select_lex->options & SELECT_DESCRIBE)
+      lex->exchange=0;
+    res = link_in_large_list_and_check_acl(thd,lex,total);
+    if (res == -1)
+    {
+      res=0;
+      break;
+    }
+    if (res && (res=check_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL, any_db)))
+    {
+      res=0;
+      break;
+    }
+    if (!(res=open_and_lock_tables(thd,(TABLE_LIST *)total->first)))
+    {
+      res=mysql_union(thd,lex,total_selects);
+      if (res==-1) res=0;
+    }
+    break;
+  }
   case SQLCOM_DROP_TABLE:
     {
       if (check_table_access(thd,DROP_ACL,tables))
@@ -2405,6 +2430,14 @@ mysql_init_select(LEX *lex)
   select_lex->next = (SELECT_LEX *)NULL; 
 }
 
+void
+mysql_new_select(LEX *lex)
+{
+  uint select_no=lex->select->select_number;
+  SELECT_LEX *select_lex = (SELECT_LEX *)sql_calloc(sizeof(SELECT_LEX));
+  lex->select->next=select_lex; 
+  lex->select=select_lex; lex->select->select_number = ++select_no;
+}
 
 void
 mysql_parse(THD *thd,char *inBuf,uint length)
@@ -2836,6 +2869,40 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   }
   link_in_list(&thd->lex.select->table_list,(byte*) ptr,(byte**) &ptr->next);
   DBUG_RETURN(ptr);
+}
+
+static inline int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
+{
+  SELECT_LEX *sl; const char *current_db=thd->db ? thd->db : "";
+  for (sl=&lex->select_lex;sl;sl=sl->next)
+  {
+    if ((lex->sql_command == SQLCOM_UNION_SELECT) && (sl->order_list.first != (byte *)NULL) && (sl->next != (st_select_lex  *)NULL))
+    {
+      net_printf(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);  // correct error message will come here; only last SELECt can have ORDER BY
+      return -1;
+    }
+    if (sl->table_list.first == (byte *)NULL) continue;
+    TABLE_LIST *cursor,*aux=(TABLE_LIST*) sl->table_list.first;
+    if (aux)
+    {
+      if (check_table_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL , aux))
+	return -1;
+      for (;aux;aux=aux->next)
+      {
+	if (!aux->db)
+	  aux->db=(char *)current_db;
+	for (cursor=(TABLE_LIST *)tables->first;cursor;cursor=cursor->next)
+	  if (!strcmp(cursor->db,aux->db) && (!strcmp(cursor->real_name,aux->real_name)))
+	    break;
+	if (!cursor ||  !tables->first)
+	{
+	  aux->lock_type= lex->lock_option;
+	  link_in_list(tables,(byte*)aux,(byte**) &aux->next);
+	}
+      }
+    }
+  }
+  return (tables->first) ? 0 : 1;
 }
 
 void add_join_on(TABLE_LIST *b,Item *expr)
