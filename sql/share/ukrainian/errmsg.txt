@@ -251,7 +251,7 @@ character-set=koi8u
 "Key reference and table reference doesn't match",
 "Операнд ма╓ складатися з %d стовбц╕в",
 "П╕дзапит поверта╓ б╕льш нiж 1 запис",
-"Unknown prepared statement handler (%ld) given to %s",
+"Unknown prepared statement handler (%.*s) given to %s",
 "Help database is corrupt or does not exist",
 "Цикл╕чне посилання на п╕дзапит",
 "Перетворення стовбца '%s' з %s у %s",
