@@ -109,6 +109,69 @@ public:
   Item_cache **get_cache() { return &cache; }
 };
 
+class Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const = 0;
+  virtual const char* symbol(bool invert) const = 0;
+  virtual bool eqne_op() const = 0;
+  virtual bool l_op() const = 0;
+};
+
+class Eq_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<>" : "="; }
+  virtual bool eqne_op() const { return 1; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Ne_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "=" : "<>"; }
+  virtual bool eqne_op() const { return 1; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Gt_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<=" : ">"; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Lt_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? ">=" : "<"; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 1; }
+};
+
+class Ge_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? "<" : ">="; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 0; }
+};
+
+class Le_creator :public Comp_creator
+{
+public:
+  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual const char* symbol(bool invert) const { return invert? ">" : "<="; }
+  virtual bool eqne_op() const { return 0; }
+  virtual bool l_op() const { return 1; }
+};
+
 class Item_bool_func2 :public Item_int_func
 {						/* Bool with 2 string args */
 protected:
@@ -128,13 +191,6 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-
-  static Item_bool_func2* eq_creator(Item *a, Item *b);
-  static Item_bool_func2* ne_creator(Item *a, Item *b);
-  static Item_bool_func2* gt_creator(Item *a, Item *b);
-  static Item_bool_func2* lt_creator(Item *a, Item *b);
-  static Item_bool_func2* ge_creator(Item *a, Item *b);
-  static Item_bool_func2* le_creator(Item *a, Item *b);
 
   friend class  Arg_comparator;
 };

@@ -338,7 +338,7 @@ inline THD *_current_thd(void)
 #include "protocol.h"
 #include "sql_udf.h"
 #include "item.h"
-typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
+typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -770,6 +770,12 @@ extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
 extern const char *in_left_expr_name, *in_additional_cond;
+extern Eq_creator eq_creator;
+extern Ne_creator ne_creator;
+extern Gt_creator gt_creator;
+extern Lt_creator lt_creator;
+extern Ge_creator ge_creator;
+extern Le_creator le_creator;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
@@ -1059,12 +1065,12 @@ inline void table_case_convert(char * name, uint length)
     my_casedn(files_charset_info, name, length);
 }
 
-compare_func_creator comp_eq_creator(bool invert);
-compare_func_creator comp_ge_creator(bool invert);
-compare_func_creator comp_gt_creator(bool invert);
-compare_func_creator comp_le_creator(bool invert);
-compare_func_creator comp_lt_creator(bool invert);
-compare_func_creator comp_ne_creator(bool invert);
+Comp_creator *comp_eq_creator(bool invert);
+Comp_creator *comp_ge_creator(bool invert);
+Comp_creator *comp_gt_creator(bool invert);
+Comp_creator *comp_le_creator(bool invert);
+Comp_creator *comp_lt_creator(bool invert);
+Comp_creator *comp_ne_creator(bool invert);
 
 Item * all_any_subquery_creator(Item *left_expr,
 				chooser_compare_func_creator cmp,

@@ -287,16 +287,16 @@ void Item_func::print(String *str)
 {
   str->append(func_name());
   str->append('(');
-  print_args(str);
+  print_args(str, 0);
   str->append(')');
 }
 
 
-void Item_func::print_args(String *str)
+void Item_func::print_args(String *str, uint from)
 {
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=from ; i < arg_count ; i++)
   {
-    if (i)
+    if (i != from)
       str->append(',');
     args[i]->print(str);
   }
@@ -2092,9 +2092,9 @@ void Item_func_benchmark::print(String *str)
 {
   str->append("benchmark(", 10);
   char buffer[20];
-  // latin1 is good enough for numbers
-  String st(buffer, sizeof(buffer), &my_charset_latin1);
-  st.set((ulonglong)loop_count, &my_charset_latin1);
+  // my_charset_bin is good enough for numbers
+  String st(buffer, sizeof(buffer), &my_charset_bin);
+  st.set((ulonglong)loop_count, &my_charset_bin);
   str->append(st);
   str->append(',');
   args[0]->print(str);
@@ -2870,21 +2870,13 @@ double Item_func_match::val()
 void Item_func_match::print(String *str)
 {
   str->append("(match ", 7);
-  List_iterator_fast<Item> li(fields);
-  Item *item;
-  bool first= 1;
-  while ((item= li++))
-  {
-    if (first)
-      first= 0;
-    else
-      str->append(',');
-    item->print(str);
-  }
+  print_args(str, 1);
   str->append(" against (", 10);
   args[0]->print(str);
-  if (mode == FT_BOOL)
+  if (flags & FT_BOOL)
     str->append(" in boolean mode", 16);
+  else if (flags & FT_EXPAND)
+    str->append(" with query expansion", 21);
   str->append("))", 2);
 }
 

@@ -2304,15 +2304,22 @@ expr_expr:
 	| expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| expr AND expr		{ $$= new Item_cond_and($1,$3); }
-	| expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5));}
+	| expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| expr LIKE simple_expr opt_escape
+          { $$= new Item_func_like($1,$3,$4); }
+	| expr NOT LIKE simple_expr opt_escape
+          { $$= new Item_func_not(new Item_func_like($1,$4,$5));}
 	| expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| expr NOT REGEXP expr
+          { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| expr comp_op expr %prec EQ	{ $$= (*$2)(0)->create($1,$3); }
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  $$= all_any_subquery_creator($1, $2, $3, $4);
@@ -2345,15 +2352,22 @@ no_in_expr:
 	| no_in_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_in_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
 	| no_in_expr AND expr		{ $$= new Item_cond_and($1,$3); }
-	| no_in_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| no_in_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| no_in_expr NOT LIKE simple_expr opt_escape { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+	| no_in_expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| no_in_expr LIKE simple_expr opt_escape
+	  { $$= new Item_func_like($1,$3,$4); }
+	| no_in_expr NOT LIKE simple_expr opt_escape
+	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_in_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_in_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| no_in_expr NOT REGEXP expr
+	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_in_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_in_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| no_in_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_in_expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| no_in_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  all_any_subquery_creator($1, $2, $3, $4);
@@ -2395,15 +2409,22 @@ no_and_expr:
 	| no_and_expr OR_OR_CONCAT expr	{ $$= or_or_concat(YYTHD, $1,$3); }
 	| no_and_expr OR expr		{ $$= new Item_cond_or($1,$3); }
         | no_and_expr XOR expr		{ $$= new Item_cond_xor($1,$3); }
-	| no_and_expr SOUNDS_SYM LIKE expr { $$= Item_bool_func2::eq_creator(new Item_func_soundex($1), new Item_func_soundex($4));}
-	| no_and_expr LIKE simple_expr opt_escape { $$= new Item_func_like($1,$3,$4); }
-	| no_and_expr NOT LIKE simple_expr opt_escape	{ $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
+	| no_and_expr SOUNDS_SYM LIKE expr
+	  {
+	    $$= new Item_func_eq(new Item_func_soundex($1),
+				 new Item_func_soundex($4));
+	  }
+	| no_and_expr LIKE simple_expr opt_escape
+	  { $$= new Item_func_like($1,$3,$4); }
+	| no_and_expr NOT LIKE simple_expr opt_escape
+	  { $$= new Item_func_not(new Item_func_like($1,$4,$5)); }
 	| no_and_expr REGEXP expr { $$= new Item_func_regex($1,$3); }
-	| no_and_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
+	| no_and_expr NOT REGEXP expr
+	  { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_and_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_and_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
 	| no_and_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_and_expr comp_op expr %prec EQ { $$= (*((*$2)(0)))($1,$3); }
+	| no_and_expr comp_op expr %prec EQ { $$= (*$2)(0)->create($1,$3); }
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  all_any_subquery_creator($1, $2, $3, $4);

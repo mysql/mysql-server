@@ -661,7 +661,7 @@ void Item_func_concat_ws::print(String *str)
   if (arg_count)
   {
     str->append(',');
-    print_args(str);
+    print_args(str, 0);
   }
   str->append(')');
 }
@@ -1629,10 +1629,10 @@ void Item_func_format::print(String *str)
   str->append("format(", 7);
   args[0]->print(str);
   str->append(',');  
-  // latin1 is good enough for numbers
+  // my_charset_bin is good enough for numbers
   char buffer[20];
-  String st(buffer, sizeof(buffer), &my_charset_latin1);
-  st.set((ulonglong)decimals, &my_charset_latin1);
+  String st(buffer, sizeof(buffer), &my_charset_bin);
+  st.set((ulonglong)decimals, &my_charset_bin);
   str->append(st);
   str->append(')');
 }
@@ -1795,7 +1795,7 @@ void Item_func_make_set::print(String *str)
   if (arg_count)
   {
     str->append(',');
-    print_args(str);
+    print_args(str, 0);
   }
   str->append(')');
 }

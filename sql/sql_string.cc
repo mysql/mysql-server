@@ -680,3 +680,35 @@ outp:
   }
   return (uint32) (to - to_start);
 }
+
+void String::print(String *str)
+{
+  char *st= (char*)Ptr, *end= st+str_length;
+  for(; st < end; st++)
+  {
+    uchar c= *st;
+    switch (c)
+    {
+    case '\\':
+      str->append("\\\\", 2);
+      break;
+    case '\0':
+      str->append("\\0", 2);
+      break;
+    case '\'':
+      str->append("\\'", 2);
+      break;
+    case '\n':
+      str->append("\\n", 2);
+      break;
+    case '\r':
+      str->append("\\r", 2);
+      break;
+    case 26: //Ctrl-Z
+      str->append("\\z", 2);
+      break;
+    default:
+      str->append(c);
+    }
+  }
+}
