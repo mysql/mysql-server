@@ -22662,9 +22662,12 @@ Overrides option --databases (-B).
 @item  -T, --tab=path-to-some-directory
 Creates a @code{table_name.sql} file, that contains the SQL CREATE commands,
 and a @code{table_name.txt} file, that contains the data, for each give table.
-@strong{Note}: This only works if @code{mysqldump} is run on the same
-machine as the @code{mysqld} daemon.  The format of the @file{.txt} file
-is made according to the @code{--fields-xxx} and @code{--lines--xxx} options.
+The format of the @file{.txt} file is made according to the
+@code{--fields-xxx} and @code{--lines--xxx} options.
+@strong{Note}: This option only works if @code{mysqldump} is run on the same
+machine as the @code{mysqld} daemon, and the user/group that @code{mysqld}
+is running as (normally user @code{mysql}, group @code{mysql}) needs to have
+permission to create/write a file at the location you specify.
 @item -u user_name, --user=user_name
 The MySQL user name to use when connecting to the server. The
 default value is your Unix login name.
