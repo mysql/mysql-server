@@ -529,3 +529,11 @@ explain select a,b from t1 order by b;
 explain select a,b from t1;
 explain select a,b,c from t1;
 drop table t1;
+
+#
+# Check describe
+#
+
+create table t1 (testint int not null default 1) type=innodb;
+desc t1;
+drop table t1;
