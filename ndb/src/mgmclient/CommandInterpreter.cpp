@@ -655,13 +655,13 @@ CommandInterpreter::executeShutdown(char* parameters)
 
   int result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 0, 0);
-  if (result <= 0) {
+  if (result < 0) {
     ndbout << "Shutdown failed." << endl;
     printError();
     return;
   }
 
-  ndbout << "NDB Cluster storage node(s) have shutdown." << endl;
+  ndbout << result << " NDB Cluster storage node(s) have shutdown." << endl;
 
   int mgm_id= 0;
   for(int i=0; i < state->no_of_nodes; i++) {
@@ -989,7 +989,7 @@ CommandInterpreter::executeStop(int processId, const char *, bool all)
   } else {
     result = ndb_mgm_stop(m_mgmsrv, 1, &processId);
   }
-  if (result <= 0) {
+  if (result < 0) {
     ndbout << "Shutdown failed." << endl;
     printError();
   } else

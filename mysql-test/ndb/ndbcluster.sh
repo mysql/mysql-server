@@ -54,7 +54,7 @@ while test $# -gt 0; do
      stop_ndb=1
      ;;
     --initial)
-     flags_ndb="$flags_ndb -i"
+     flags_ndb="$flags_ndb --initial"
      initial_ndb=1
      ;;
     --debug*)
@@ -143,7 +143,7 @@ fi
 rm -f "$cfgfile" 2>&1 | cat > /dev/null
 rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
 
-if ( cd "$fs_ndb" ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
@@ -153,14 +153,14 @@ cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 # Start database node 
 
 echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
+( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
 echo "Starting ndbd"
-( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
+( cd "$fs_ndb" ; $exec_ndb $flags_ndb & )
 
 cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
