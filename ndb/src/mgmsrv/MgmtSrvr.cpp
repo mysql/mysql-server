@@ -28,7 +28,6 @@
 #include <GlobalSignalNumbers.h>
 #include <signaldata/TestOrd.hpp>
 #include <signaldata/TamperOrd.hpp>
-#include <signaldata/SetVarReq.hpp>
 #include <signaldata/StartOrd.hpp>
 #include <signaldata/ApiVersion.hpp>
 #include <signaldata/ResumeReq.hpp>
@@ -47,6 +46,10 @@
 #include "SocketServer.hpp"
 #include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
+
+#include <mgmapi.h>
+#include <mgmapi_configuration.hpp>
+#include <mgmapi_config_parameters.h>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
@@ -224,19 +227,33 @@ void
 MgmtSrvr::startEventLog() 
 {
   g_EventLogger.setCategory("MgmSrvr");
-  const Properties *mgmProps;
-  _config->get("Node", _ownNodeId, &mgmProps);
+
+  ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
+    ((ndb_mgm_configuration*)_config->m_configValues, CFG_SECTION_NODE);
+  if(iter == 0)
+    return ;
+  
+  if(ndb_mgm_find(iter, CFG_NODE_ID, _ownNodeId) != 0){
+    ndb_mgm_destroy_iterator(iter);
+    return ;
+  }
+  
+  const char * tmp;
   BaseString logdest;
   char clusterLog[MAXPATHLEN];
-
   NdbConfig_ClusterLogFileName(clusterLog, sizeof(clusterLog));
-
-  mgmProps->get("LogDestination", logdest); 
-
-  if(logdest.length()==0) {
-    logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", clusterLog);
+  
+  
+  if(ndb_mgm_get_string_parameter(iter, CFG_LOG_DESTINATION, &tmp) == 0){
+    logdest.assign(tmp);
   }
-
+  ndb_mgm_destroy_iterator(iter);
+  
+  if(logdest.length()==0) {
+    logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
+		   clusterLog);
+  }
+  
   if(!g_EventLogger.addHandler(logdest)) {
     ndbout << "ERROR: cannot parse \"" << logdest << "\"" << endl;
     exit(1);
@@ -374,8 +391,8 @@ MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const
 }
 
 int 
-MgmtSrvr::getStatPort() const 
-{
+MgmtSrvr::getStatPort() const {
+#if 0
   const Properties *mgmProps;
   if(!getConfig()->get("Node", _ownNodeId, &mgmProps))
     return -1;
@@ -385,12 +402,16 @@ MgmtSrvr::getStatPort() const
     return -1;
 
   return tmp;
+#else
+  return -1;
+#endif
 }
 
 /* Constructor */
 MgmtSrvr::MgmtSrvr(NodeId nodeId,
 		   const BaseString &configFilename,
-		   const BaseString &ndb_config_filename):
+		   const BaseString &ndb_config_filename,
+		   Config * config):
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
   _ownReference(0),
@@ -415,8 +436,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   m_nextConfigGenerationNumber = 0;
 
-  _config = readConfig();
-
+  _config = (config == 0 ? readConfig() : config);
+  
   theMgmtWaitForResponseCondPtr = NdbCondition_Create();
 
   m_configMutex = NdbMutex_Create();
@@ -427,31 +448,38 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   for(Uint32 i = 0; i<MAX_NODES; i++)
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
 
-  Properties::Iterator it(_config);
-  const char * name;
-  for(name = it.first(); name != NULL; name = it.next()){
-    if(strncmp(name, "Node_", strlen("Node_")) == 0){
-      const Properties * tmp;
+  ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
+    (config->m_configValues, CFG_SECTION_NODE);
+  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
+    unsigned type, id;
+    if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0)
+      continue;
 
-      _config->get(name, &tmp);
+    if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &id) != 0)
+      continue;
+
+    MGM_REQUIRE(id < MAX_NODES);
       
-      Uint32 nodeId;
-      BaseString type;
-      MGM_REQUIRE(tmp->get("Id", &nodeId));
-      MGM_REQUIRE(tmp->get("Type", type));
-      MGM_REQUIRE(nodeId < MAX_NODES);
-      
-      if(type == "MGM")
-	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_MGM;
-      if(type == "API")
-	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_API;
-      if(type == "DB")
-	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_NDB;
-      if(type == "REP")
-	nodeTypes[nodeId] = NDB_MGM_NODE_TYPE_API;
+    switch(type){
+    case NODE_TYPE_DB:
+      nodeTypes[id] = NDB_MGM_NODE_TYPE_NDB;
+      break;
+    case NODE_TYPE_API:
+      nodeTypes[id] = NDB_MGM_NODE_TYPE_API;
+      break;
+    case NODE_TYPE_MGM:
+      nodeTypes[id] = NDB_MGM_NODE_TYPE_MGM;
+      break;
+    case NODE_TYPE_REP:
+      nodeTypes[id] = NDB_MGM_NODE_TYPE_REP;
+      break;
+    case NODE_TYPE_EXT_REP:
+    default:
+      break;
     }
   }
-  
+  ndb_mgm_destroy_iterator(iter);
+
   m_statisticsListner = NULL;
   
   _nodeLogLevelList    = new NodeLogLevelList();
@@ -471,13 +499,6 @@ MgmtSrvr::check_start()
     return false;
   }
 
-  _props = new Config(* _config);
-  if (_props == 0) {
-    DEBUG("MgmtSrvr.cpp: Object props is NULL.");
-    return false;
-  }
-  MGM_REQUIRE(_props->put("LocalNodeId", _ownNodeId, true));
-
   return true;
 }
 
@@ -488,11 +509,10 @@ MgmtSrvr::start()
     if (!check_start())
       return false;
   }
+  theFacade = TransporterFacade::start_instance
+    (_ownNodeId, 
+     (ndb_mgm_configuration*)_config->m_configValues);
   
-  theFacade = TransporterFacade::start_instance(_props, NULL);
-  delete _props;
-  _props = NULL;
-
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
     return false;
@@ -505,14 +525,14 @@ MgmtSrvr::start()
   _blockNumber = theFacade->open(this,
 				 signalReceivedNotification,
 				 nodeStatusNotification);
-
+  
   if(_blockNumber == -1){
     DEBUG("MgmtSrvr.cpp: _blockNumber is -1.");
     theFacade->stop_instance();
     theFacade = 0;
     return false;
   }
- 
+  
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
   
   startEventLog();
@@ -557,7 +577,11 @@ MgmtSrvr::~MgmtSrvr()
   NdbMutex_Destroy(m_configMutex);
 
   if(m_newConfig != NULL)
-    delete m_newConfig;
+    free(m_newConfig);
+
+  if(_config != NULL)
+    delete _config;
+
   delete _nodeLogLevelList;
   delete _clusterLogLevelList;
 
@@ -812,9 +836,10 @@ MgmtSrvr::restart(bool nostart, bool initalStart, bool abort,
     s = NDB_MGM_NODE_STATUS_NO_CONTACT;
     while (s == NDB_MGM_NODE_STATUS_NO_CONTACT && waitTime > 0) {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
+      Uint32 connectCount = 0;
       bool system;
       status(nodeId, &s, &version, &startPhase, 
-	     &system, &dynamicId, &nodeGroup);
+	     &system, &dynamicId, &nodeGroup, &connectCount);
       NdbSleep_MilliSleep(100);  
       waitTime = (maxTime - NdbTick_CurrentMillisecond());
     }
@@ -1297,7 +1322,8 @@ MgmtSrvr::status(int processId,
 		 Uint32 * _phase, 
 		 bool * _system,
 		 Uint32 * dynamic,
-		 Uint32 * nodegroup)
+		 Uint32 * nodegroup,
+		 Uint32 * connectCount)
 {
   if (getNodeType(processId) == NDB_MGM_NODE_TYPE_API) {
     if(versionNode(processId, false,0,0) ==0)
@@ -1324,7 +1350,8 @@ MgmtSrvr::status(int processId,
 
   * dynamic = node.m_state.dynamicId;
   * nodegroup = node.m_state.nodeGroup;
-
+  * connectCount = node.m_info.m_connectCount;
+  
   switch(node.m_state.startLevel){
   case NodeState::SL_CMVMI:
     * _status = NDB_MGM_NODE_STATUS_NOT_STARTED;
@@ -1375,11 +1402,11 @@ MgmtSrvr::status(int processId,
     * _phase = 0;
     return 0;
   }
-
+  
   return -1;
 }
-
-
+ 
+ 
 //****************************************************************************
 //****************************************************************************
 int 
@@ -1949,7 +1976,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     BackupEvent event;
     event.Event = BackupEvent::BackupStarted;
     event.Started.BackupId = conf->backupId;
-    event.Started.Nodes = conf->nodes;
+    event.Nodes = conf->nodes;
 #ifdef VM_TRACE
     ndbout_c("Backup master is %d", refToNode(signal->theSendersBlockRef));
 #endif
@@ -2012,7 +2039,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
 
     event.Completed.stopGCP = rep->stopGCP;
     event.Completed.startGCP = rep->startGCP;
-    event.Completed.Nodes = rep->nodes;
+    event.Nodes = rep->nodes;
 
     backupCallback(event);
   }
@@ -2169,8 +2196,9 @@ MgmtSrvr::getNextNodeId(NodeId * nodeId, enum ndb_mgm_node_type type) const
   while(nodeTypes[tmp] != type && tmp < MAX_NODES)
     tmp++;
   
-  if(tmp == MAX_NODES)
+  if(tmp == MAX_NODES){
     return false;
+  }
 
   * nodeId = tmp;
   return true;
@@ -2529,8 +2557,8 @@ MgmtSrvr::getStuff()
 }
 
 NodeId
-MgmtSrvr::getPrimaryNode() const
-{
+MgmtSrvr::getPrimaryNode() const {
+#if 0
   Uint32 tmp;
   const Properties *prop = NULL;
 
@@ -2541,4 +2569,7 @@ MgmtSrvr::getPrimaryNode() const
   prop->get("PrimaryMGMNode", &tmp);
   
   return tmp;
+#else
+  return 0;
+#endif
 }

@@ -21,6 +21,8 @@
 #include <ErrorReporter.hpp>
 
 class SignalCounter {
+  friend struct NodeReceiverGroup;
+  
 private:
   Uint32 m_count;
   NdbNodeBitmask m_nodes;

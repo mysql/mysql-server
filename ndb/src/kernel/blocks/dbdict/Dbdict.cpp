@@ -27,7 +27,6 @@
 #include <SimpleProperties.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/DictSchemaInfo.hpp>
-#include <signaldata/DictSizeAltReq.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DropTabFile.hpp>
 
@@ -76,7 +75,6 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/CreateTab.hpp>
-#include "../dbtc/Dbtc.hpp"
 #include <NdbSleep.h>
 
 #define ZNOT_FOUND 626
@@ -255,6 +253,7 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::FragmentKeyTypeVal, tablePtr.p->fragmentKeyType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
+  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   
   if (tablePtr.p->primaryTableId != RNIL){
     TableRecordPtr primTab;
@@ -1042,10 +1041,10 @@ Dbdict::Dbdict(const class Configuration & conf):
 {
   BLOCK_CONSTRUCTOR(Dbdict);
   
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  p->get("MaxNoOfTriggers", &c_maxNoOfTriggers);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &c_maxNoOfTriggers);
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdict::execDUMP_STATE_ORD);
   addRecSignal(GSN_GET_TABINFOREQ, &Dbdict::execGET_TABINFOREQ);
@@ -1161,7 +1160,7 @@ Dbdict::Dbdict(const class Configuration & conf):
   addRecSignal(GSN_LQHADDATTREF, &Dbdict::execLQHADDATTREF);
   addRecSignal(GSN_LQHFRAGREF, &Dbdict::execLQHFRAGREF);
   addRecSignal(GSN_NDB_STTOR, &Dbdict::execNDB_STTOR);
-  addRecSignal(GSN_SIZEALT_REP, &Dbdict::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbdict::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_STTOR, &Dbdict::execSTTOR);
   addRecSignal(GSN_TC_SCHVERCONF, &Dbdict::execTC_SCHVERCONF);
   addRecSignal(GSN_NODE_FAILREP, &Dbdict::execNODE_FAILREP);
@@ -1524,7 +1523,6 @@ void Dbdict::execSTTOR(Signal* signal)
   c_startPhase = signal->theData[1];
   switch (c_startPhase) {
   case 1:
-    initCommonData();
     break;
   case 3:
     c_restartType = signal->theData[7];         /* valid if 3 */
@@ -1551,14 +1549,22 @@ void Dbdict::sendSTTORRY(Signal* signal)
 /* ---------------------------------------------------------------- */
 // We receive information about sizes of records.
 /* ---------------------------------------------------------------- */
-void Dbdict::execSIZEALT_REP(Signal* signal) 
+void Dbdict::execREAD_CONFIG_REQ(Signal* signal) 
 {
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
   jamEntry();
-  BlockReference tblockref;
-  tblockref        = signal->theData[DictSizeAltReq::IND_BLOCK_REF];
-  Uint32 attributesize   = signal->theData[DictSizeAltReq::IND_ATTRIBUTE];
-//  Uint32 connectsize     = signal->theData[DictSizeAltReq::IND_CONNECT];
-  Uint32 tablerecSize    = signal->theData[DictSizeAltReq::IND_TABLE];
+ 
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  Uint32 attributesize, tablerecSize;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,&attributesize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &tablerecSize));
 
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
@@ -1594,9 +1600,14 @@ void Dbdict::execSIZEALT_REP(Signal* signal)
   bat[1].bits.q = ZLOG_SIZE_OF_PAGES_IN_WORDS; // 2**13 = 8192 elements
   bat[1].bits.v = 5;  // 32 bits per element
 
+  initCommonData();
   initRecords();
-  signal->theData[0] = DBDICT_REF;
-  sendSignal(tblockref, GSN_SIZEALT_ACK, signal, 2, JBB);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }//execSIZEALT_REP()
 
 /* ---------------------------------------------------------------- */
@@ -2390,7 +2401,7 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
   
   SegmentedSectionPtr tabInfoPtr;
   signal->getSection(tabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
-  
+
   CreateTableRecordPtr createTabPtr;  
   ndbrequire(c_opCreateTable.find(createTabPtr, senderData));
   ndbrequire(!createTabPtr.isNull());
@@ -2412,7 +2423,10 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
   
+  signal->header.m_noOfSections = 0;
   writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
+  signal->setSection(tabInfoPtr, 0);
+  releaseSections(signal);
 }
 
 void
@@ -3585,30 +3599,37 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
 
   SegmentedSectionPtr fragDataPtr;
   signal->getSection(fragDataPtr, CreateFragmentationConf::FRAGMENTS);
-
   signal->header.m_noOfSections = 0;
 
   /**
-   * Correct table
+   * Get table
    */
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
 
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+  /**
+   * Save fragment count
+   */
+  tabPtr.p->fragmentCount = conf->noOfFragments;
 
   /**
    * Update table version
    */
+  PageRecordPtr pagePtr;
+  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
+  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+
   tabPtr.p->tableVersion = tabEntry->m_tableVersion + 1;
-  
+
+  /**
+   * Pack
+   */
   SimplePropertiesSectionWriter w(getSectionSegmentPool());
   packTableIntoPagesImpl(w, tabPtr);
   
   SegmentedSectionPtr spDataPtr;
   w.getPtr(spDataPtr);
-
+  
   signal->setSection(spDataPtr, CreateTabReq::DICT_TAB_INFO);
   signal->setSection(fragDataPtr, CreateTabReq::FRAGMENTATION);
   
@@ -3820,15 +3841,15 @@ Dbdict::execCREATE_TAB_REQ(Signal* signal){
   CreateTabReq::RequestType rt = (CreateTabReq::RequestType)req->requestType;
   switch(rt){
   case CreateTabReq::CreateTablePrepare:
-    CRASH_INSERTION2(14000, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6003, getOwnNodeId() != c_masterNodeId);
     createTab_prepare(signal, req);
     return;
   case CreateTabReq::CreateTableCommit:
-    CRASH_INSERTION2(14001, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6004, getOwnNodeId() != c_masterNodeId);
     createTab_commit(signal, req);
     return;
   case CreateTabReq::CreateTableDrop:
-    CRASH_INSERTION2(14002, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6005, getOwnNodeId() != c_masterNodeId);
     createTab_drop(signal, req);
     return;
   }
@@ -3928,9 +3949,9 @@ Dbdict::createTab_writeSchemaConf1(Signal* signal,
   
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
-  
   writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
 
+  createTabPtr.p->m_tabInfoPtrI = RNIL;
   signal->setSection(tabInfoPtr, 0);
   releaseSections(signal);
 }
@@ -4238,7 +4259,9 @@ Dbdict::execDIADDTABCONF(Signal* signal){
     /**
      * No local fragment (i.e. no LQHFRAGREQ)
      */
-    sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
+    execute(signal, createTabPtr.p->m_callback, 0);
+    return;
+    //sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
   }
 }
 
@@ -4623,6 +4646,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->fragmentKeyType = (DictTabInfo::FragmentKeyType)tableDesc.FragmentKeyType;
   tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
   tablePtr.p->kValue = tableDesc.TableKValue;
+  tablePtr.p->fragmentCount = tableDesc.FragmentCount;
 
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
@@ -5066,8 +5090,20 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal){
   
   Uint32 nodeId = refToNode(prep->senderRef);
   dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
- 
-  dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  
+  Uint32 block = refToBlock(prep->senderRef);
+  if((prep->errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH) ||
+     (prep->errorCode == PrepDropTabRef::NF_FakeErrorREF)){
+    jam();
+    /**
+     * Ignore errors:
+     * 1) no such table and LQH, it might not exists in different LQH's
+     * 2) node failure...
+     */
+  } else {
+    dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  }
+  
   if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
     jam();
     return;
@@ -5098,6 +5134,19 @@ void
 Dbdict::execDROP_TAB_REF(Signal* signal){
   jamEntry();
 
+  DropTabRef * const req = (DropTabRef*)signal->getDataPtr();
+
+  Uint32 block = refToBlock(req->senderRef);
+  ndbrequire(req->errorCode == DropTabRef::NF_FakeErrorREF ||
+	     (req->errorCode == DropTabRef::NoSuchTable &&
+	      (block == DBTUP || block == DBACC || block == DBLQH)));
+  
+  if(block != DBDICT){
+    jam();
+    ndbrequire(refToNode(req->senderRef) == getOwnNodeId());
+    dropTab_localDROP_TAB_CONF(signal);
+    return;
+  }
   ndbrequire(false);
 }
 
@@ -11498,7 +11547,7 @@ Dbdict::initSchemaFile(SchemaFile * sf, Uint32 fileSz){
   ndbrequire(noEntries > MAX_TABLES);
 
   sf->NoOfTableEntries = noEntries;
-  memset(sf->TableEntries, 0, sizeof(noEntries*sizeof(SchemaFile::TableEntry)));
+  memset(sf->TableEntries, 0, noEntries*sizeof(SchemaFile::TableEntry));
   memset(&(sf->TableEntries[noEntries]), 0, slack);
   computeChecksum(sf);
 }

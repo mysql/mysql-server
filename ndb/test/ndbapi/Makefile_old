@@ -4,12 +4,11 @@ include .defs.mk
 ifeq ($(NDB_OS), OSE)
 DIRS = basic flexBench flexAsynch
 else
-DIRS = lmc-bench bank ronja
+DIRS = lmc-bench ronja
 BIN_DIRS = 			\
 	flexAsynch      \
 	flexBench       \
 	flexHammer	\
-	flexScan        \
 	flexTT          \
 	create_tab	\
 	create_all_tabs \
@@ -32,7 +31,6 @@ BIN_DIRS = 			\
 	testDataBuffers \
 	testDict	\
         acid 		\
-	interpreterInTup \
 	telco       \
 	indexTest       \
 	test_event      \

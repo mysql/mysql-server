@@ -34,24 +34,24 @@ public:
 
   int clearTable(Ndb*, 
 		 int records = 0,
-		 int parallelism = 240);
+		 int parallelism = 0);
   
   // Delete all records from the table using a scan
   int clearTable1(Ndb*, 
 		  int records = 0,
-		  int parallelism = 16);
+		  int parallelism = 0);
   // Delete all records from the table using a scan
   // Using batching
   int clearTable2(Ndb*, 
 		  int records = 0,
-		  int parallelism = 240);
+		  int parallelism = 0);
   
   int clearTable3(Ndb*, 
 		  int records = 0,
-		  int parallelism = 240);
+		  int parallelism = 0);
   
   int selectCount(Ndb*, 
-		  int parallelism = 16,
+		  int parallelism = 0,
 		  int* count_rows = NULL,
 		  ScanLock lock = SL_Read,
 		  NdbConnection* pTrans = NULL);
@@ -64,7 +64,7 @@ public:
 		      ReadCallBackFn* fn = NULL);
   int verifyIndex(Ndb*,
 		  const char* indexName,
-		  int parallelism = 240,
+		  int parallelism = 0,
 		  bool transactional = false);
 
   int copyTableData(Ndb*,
@@ -88,7 +88,7 @@ private:
 
   int verifyUniqueIndex(Ndb*,
 			const char* indexName,
-			int parallelism = 240,
+			int parallelism = 0,
 			bool transactional = false);
   
   int scanAndCompareUniqueIndex(Ndb* pNdb,

@@ -1130,7 +1130,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   if(!pTrans) goto done;
   sOp = pTrans->getNdbScanOperation(pTab->getName());
   if(!sOp) goto done;
-  rs = sOp->readTuples(240, NdbScanOperation::LM_Exclusive);
+  rs = sOp->readTuples(NdbScanOperation::LM_Exclusive);
   if(!rs) goto done;
   if(pTrans->execute(NoCommit) == -1) goto done;
   while((eof = rs->nextResult(true)) == 0){

@@ -15,12 +15,15 @@ LIB_TARGET_ARCHIVES := $(ARCHIVE_TARGET) \
                        transporter       \
                        general           \
                        signaldataprint   \
-                       mgmsrvcommon      \
+                       mgmapi mgmsrvcommon      \
                        portlib           \
                        logger            \
                        trace
 
 DIRS := signal-sender
+
+CFLAGS_TransporterFacade.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
+CFLAGS_ClusterMgr.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
 
 # Source files of non-templated classes (.cpp files)
 SOURCES = \
@@ -31,31 +34,25 @@ SOURCES = \
         Ndblist.cpp     \
         Ndbif.cpp       \
         Ndbinit.cpp     \
-        Ndberr.cpp    \
-        ndberror.c    \
-        NdbErrorOut.cpp    \
-        NdbConnection.cpp       \
+        ndberror.c Ndberr.cpp NdbErrorOut.cpp   \
+        NdbConnection.cpp \
         NdbConnectionScan.cpp \
         NdbOperation.cpp        \
         NdbOperationSearch.cpp  \
-        NdbOperationScan.cpp    \
         NdbOperationInt.cpp     \
         NdbOperationDefine.cpp  \
         NdbOperationExec.cpp    \
-        NdbScanReceiver.cpp     \
         NdbResultSet.cpp        \
-        NdbCursorOperation.cpp  \
         NdbScanOperation.cpp    NdbScanFilter.cpp \
         NdbIndexOperation.cpp   \
         NdbEventOperation.cpp   \
         NdbEventOperationImpl.cpp   \
         NdbApiSignal.cpp        \
         NdbRecAttr.cpp  \
-        NdbSchemaCon.cpp        \
-        NdbSchemaOp.cpp \
         NdbUtil.cpp \
         NdbReceiver.cpp \
-        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp
+        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp \
+	NdbSchemaCon.cpp NdbSchemaOp.cpp
 
 include $(NDB_TOP)/Epilogue.mk
 

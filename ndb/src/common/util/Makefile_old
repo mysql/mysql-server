@@ -8,7 +8,7 @@ ARCHIVE_TARGET := general
 SOURCES   = File.cpp md5_hash.cpp Properties.cpp socket_io.cpp \
             SimpleProperties.cpp Parser.cpp InputStream.cpp SocketServer.cpp \
 	    OutputStream.cpp NdbOut.cpp BaseString.cpp Base64.cpp \
-	    NdbSqlUtil.cpp new.cpp
+	    NdbSqlUtil.cpp ConfigValues.cpp new.cpp
 
 SOURCES.c = uucode.c random.c getarg.c version.c
 
@@ -20,7 +20,7 @@ ifeq ($(NDB_OS), OSE)
 endif
 	SOURCES.c += strdup.c strlcat.c strlcpy.c
 
-DIRS := testSimpleProperties
+DIRS := testSimpleProperties testProperties testConfigValues
 
 include $(NDB_TOP)/Epilogue.mk
 

@@ -46,6 +46,7 @@ Adjust:  971114  UABMNST   First version.
 #include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/IndxAttrInfo.hpp>
 #include <signaldata/TcHbRep.hpp>
+#include <signaldata/ScanTab.hpp>
 
 #include <NdbOut.hpp>
 
@@ -188,7 +189,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_SCAN_TABREQ;
-      theLength               = 25;      
+      theLength               = 9; // ScanTabReq::SignalLength;      
     }
     break;
 

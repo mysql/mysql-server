@@ -13,17 +13,18 @@ SOURCES = \
 	TransporterCallback.cpp \
 	Emulator.cpp		\
 	Configuration.cpp		\
-	ClusterConfiguration.cpp	\
 	WatchDog.cpp \
         SimplePropertiesSection.cpp \
         SectionReader.cpp \
 	MetaData.cpp \
         Mutex.cpp SafeCounter.cpp
 
+CFLAGS_Configuration.cpp := -I$(call fixpath,$(NDB_TOP)/src/mgmapi)
+
 DIRS := testCopy testDataBuffer testSimplePropertiesSection
+
 ifneq ($(USE_EDITLINE), N)
 DIRS += testLongSig
 endif
-
 
 include $(NDB_TOP)/Epilogue.mk

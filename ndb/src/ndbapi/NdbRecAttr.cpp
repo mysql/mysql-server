@@ -57,6 +57,8 @@ NdbRecAttr::setup(const NdbColumnImpl* anAttrInfo, char* aValue)
   theAttrSize = tAttrSize;
   theArraySize = tArraySize;
   theValue = aValue;
+  theNULLind = 0;
+  m_nullable = anAttrInfo->m_nullable;
 
   // check alignment to signal data
   // a future version could check alignment per data type as well
@@ -123,4 +125,20 @@ NdbRecAttr::clone() const {
   }
   memcpy(ret->theRef, theRef, n);
   return ret;
+}
+
+bool
+NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
+  const Uint32 n = (theAttrSize * theArraySize + 3) >> 2;  
+  if(n == sz){
+    if(!copyoutRequired())
+      memcpy(theRef, data, 4 * sz);
+    else
+      memcpy(theValue, data, theAttrSize * theArraySize);
+    return true;
+  } else if(sz == 0){
+    setNULL();
+    return true;
+  }
+  return false;
 }

@@ -88,7 +88,7 @@ class CreateFragmentationConf {
   friend bool printCREATE_FRAGMENTATION_CONF(FILE *, 
 					     const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   SECTION( FRAGMENTS = 0 );
   
 private:
