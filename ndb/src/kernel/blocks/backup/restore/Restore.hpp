@@ -18,12 +18,14 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include <NdbOut.hpp>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
-#include "myVector.hpp"
 
 #include <ndb_version.h>
 #include <version.h>
+
+static const char * delimiter = ";"; // Delimiter in file dump
 
 const int FileNameLenC = 256;
 const int TableNameLenC = 256;
@@ -89,19 +91,26 @@ class TupleS {
 private:
   friend class RestoreDataIterator;
   
-  const TableS * m_currentTable;
-  myVector<AttributeS*> allAttributes;
-  Uint32 * dataRecord;
+  const TableS *m_currentTable;
+  AttributeData *allAttrData;
   bool prepareRecord(const TableS &);
   
 public:
-  TupleS() {dataRecord = NULL;};
-  ~TupleS() {if(dataRecord != NULL) delete [] dataRecord;};
-  int getNoOfAttributes() const { return allAttributes.size(); };  
-  const TableS * getTable() const { return m_currentTable;};
-  const AttributeS * operator[](int i) const { return allAttributes[i];};
-  Uint32 * getDataRecord() { return dataRecord;};
-  void createDataRecord(Uint32 bytes) { dataRecord = new Uint32[bytes];};
+  TupleS() {
+    m_currentTable= 0;
+    allAttrData= 0;
+  };
+  ~TupleS()
+  {
+    if (allAttrData)
+      delete [] allAttrData;
+  };
+  TupleS(const TupleS& tuple); // disable copy constructor
+  TupleS & operator=(const TupleS& tuple);
+  int getNoOfAttributes() const;
+  const TableS * getTable() const;
+  const AttributeDesc * getDesc(int i) const;
+  AttributeData * getData(int i) const;
 }; // class TupleS
 
 class TableS {
@@ -112,27 +121,23 @@ class TableS {
   
   Uint32 schemaVersion;
   Uint32 backupVersion;
-  myVector<AttributeDesc *> allAttributesDesc;
-  myVector<AttributeDesc *> m_fixedKeys;
-  //myVector<AttributeDesc *> m_variableKey; 
-  myVector<AttributeDesc *> m_fixedAttribs;
-  myVector<AttributeDesc *> m_variableAttribs;
+  Vector<AttributeDesc *> allAttributesDesc;
+  Vector<AttributeDesc *> m_fixedKeys;
+  //Vector<AttributeDesc *> m_variableKey; 
+  Vector<AttributeDesc *> m_fixedAttribs;
+  Vector<AttributeDesc *> m_variableAttribs;
   
   Uint32 m_noOfNullable;
   Uint32 m_nullBitmaskSize;
 
   int pos;
-  char create_string[2048];
-  /*
-  char mysqlTableName[1024];
-  char mysqlDatabaseName[1024];
-  */
 
   void createAttr(NdbDictionary::Column *column);
 
 public:
   class NdbDictionary::Table* m_dictTable;
   TableS (class NdbTableImpl* dictTable);
+  ~TableS();
 
   Uint32 getTableId() const { 
     return m_dictTable->getTableId(); 
@@ -185,18 +190,26 @@ protected:
   BackupFormat::FileHeader m_expectedFileHeader;
   
   Uint32 m_nodeId;
-  Uint32 * m_buffer;
-  Uint32 m_bufferSize;
-  Uint32 * createBuffer(Uint32 bytes);
   
+  void * m_buffer;
+  void * m_buffer_ptr;
+  Uint32 m_buffer_sz;
+  Uint32 m_buffer_data_left;
+  void (* free_data_callback)();
+
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
   void setDataFile(const BackupFile & bf, Uint32 no);
   void setLogFile(const BackupFile & bf, Uint32 no);
   
+  Uint32 buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  Uint32 buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
+
   void setName(const char * path, const char * name);
 
-  BackupFile();
+  BackupFile(void (* free_data_callback)() = 0);
   ~BackupFile();
 public:
   bool readHeader();
@@ -206,12 +219,12 @@ public:
   const char * getFilename() const { return m_fileName;}
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
-  bool Twiddle(AttributeS * attr, Uint32 arraySize = 0);
+  bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
 };
 
 class RestoreMetaData : public BackupFile {
 
-  myVector<TableS *> allTables;
+  Vector<TableS *> allTables;
   bool readMetaFileHeader();
   bool readMetaTableDesc();
 		
@@ -224,14 +237,11 @@ class RestoreMetaData : public BackupFile {
   bool parseTableDescriptor(const Uint32 * data, Uint32 len);
 
 public:
-
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo);
-  ~RestoreMetaData();
+  virtual ~RestoreMetaData();
   
   int loadContent();
 		  
-		
-  
   Uint32 getNoOfTables() const { return allTables.size();}
   
   const TableS * operator[](int i) const { return allTables[i];}
@@ -243,20 +253,20 @@ public:
 
 class RestoreDataIterator : public BackupFile {
   const RestoreMetaData & m_metaData;
-
   Uint32 m_count;
-  TupleS  m_tuple;
   const TableS* m_currentTable;
+  TupleS m_tuple;
+
 public:
 
   // Constructor
-  RestoreDataIterator(const RestoreMetaData &);
-  ~RestoreDataIterator();
+  RestoreDataIterator(const RestoreMetaData &, void (* free_data_callback)());
+  ~RestoreDataIterator() {};
   
   // Read data file fragment header
   bool readFragmentHeader(int & res);
   bool validateFragmentFooter();
-  
+
   const TupleS *getNextTuple(int & res);
 };
 
@@ -269,9 +279,35 @@ public:
   };
   EntryType m_type;
   const TableS * m_table;  
-  myVector<AttributeS*> m_values;
-  
-
+  Vector<AttributeS*> m_values;
+  Vector<AttributeS*> m_values_e;
+  AttributeS *add_attr() {
+    AttributeS * attr;
+    if (m_values_e.size() > 0) {
+      attr = m_values_e[m_values_e.size()-1];
+      m_values_e.erase(m_values_e.size()-1);
+    }
+    else
+    {
+      attr = new AttributeS;
+    }
+    m_values.push_back(attr);
+    return attr;
+  }
+  void clear() {
+    for(Uint32 i= 0; i < m_values.size(); i++)
+      m_values_e.push_back(m_values[i]);
+    m_values.clear();
+  }
+  ~LogEntry()
+  {
+    for(Uint32 i= 0; i< m_values.size(); i++)
+      delete m_values[i];
+    for(Uint32 i= 0; i< m_values_e.size(); i++)
+      delete m_values_e[i];
+  }
+  Uint32 size() const { return m_values.size(); }
+  const AttributeS * operator[](int i) const { return m_values[i];}
 };
 
 class RestoreLogIterator : public BackupFile {
@@ -282,9 +318,15 @@ private:
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  
+  virtual ~RestoreLogIterator() {};
+
   const LogEntry * getNextLogEntry(int & res);
 };
+
+NdbOut& operator<<(NdbOut& ndbout, const TableS&);
+NdbOut& operator<<(NdbOut& ndbout, const TupleS&);
+NdbOut& operator<<(NdbOut& ndbout, const LogEntry&);
+NdbOut& operator<<(NdbOut& ndbout, const RestoreMetaData&);
 
 #endif
 
