@@ -330,6 +330,9 @@ t1_id	name	t2_id	t1_id	name
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
+create table t1 (a text, fulltext key (a));
+insert into t1 select "xxxx yyyy zzzz";
+drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');

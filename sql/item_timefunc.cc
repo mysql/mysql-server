@@ -2121,8 +2121,10 @@ String *Item_char_typecast::val_str(String *str)
   else
   {
     // Convert character set if differ
+    uint dummy_errors;
     if (!(res1= args[0]->val_str(&tmp_value)) ||
-	str->copy(res1->ptr(), res1->length(),res1->charset(), cast_cs))
+	str->copy(res1->ptr(), res1->length(), res1->charset(),
+                  cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;

@@ -29,7 +29,7 @@ int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
 uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 			const char *from, uint32 from_length,
-			CHARSET_INFO *from_cs, uint *errors= 0);
+			CHARSET_INFO *from_cs, uint *errors);
 
 class String
 {
@@ -199,7 +199,7 @@ public:
 		    CHARSET_INFO *cs);
   bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
-	    CHARSET_INFO *csto, uint *errors= 0);
+	    CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
   bool append(const char *s,uint32 arg_length);

@@ -322,8 +322,11 @@ select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 
 ## replace
---error 1295
 prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
+execute stmt1;
+execute stmt1;
+execute stmt1;
+
 
 
 ## multi table statements

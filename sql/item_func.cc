@@ -76,7 +76,7 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 
 
 bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
-                                   bool allow_superset_conversion)
+                                   uint flags)
 {
   uint i;
   c.nagg= 0;
@@ -84,7 +84,7 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation, allow_superset_conversion))
+    if (c.aggregate(av[i]->collation, flags))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
@@ -96,9 +96,9 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count,
-                                                  bool allow_superset_conv)
+                                                  uint flags)
 {
-  if (agg_arg_collations(c, av, count, allow_superset_conv))
+  if (agg_arg_collations(c, av, count, flags))
     return TRUE;
 
   if (c.derivation == DERIVATION_NONE)
@@ -2906,8 +2906,9 @@ void Item_func_match::init_search(bool no_order)
 
   if (ft_tmp->charset() != cmp_collation.collation)
   {
+    uint dummy_errors;
     search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
-                      cmp_collation.collation);
+                      cmp_collation.collation, &dummy_errors);
     ft_tmp= &search_value;
   }
 

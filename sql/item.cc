@@ -259,7 +259,43 @@ CHARSET_INFO *Item::default_charset()
   return current_thd->variables.collation_connection;
 }
 
-bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
+
+/*
+   Aggregate two collations together taking
+   into account their coercibility (aka derivation):
+
+   0 == DERIVATION_EXPLICIT  - an explicitely written COLLATE clause
+   1 == DERIVATION_NONE      - a mix of two different collations
+   2 == DERIVATION_IMPLICIT  - a column
+   3 == DERIVATION_COERCIBLE - a string constant
+
+   The most important rules are:
+
+   1. If collations are the same:
+      chose this collation, and the strongest derivation.
+
+   2. If collations are different:
+     - Character sets may differ, but only if conversion without
+       data loss is possible. The caller provides flags whether
+       character set conversion attempts should be done. If no
+       flags are substituted, then the character sets must be the same.
+       Currently processed flags are:
+         MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+         MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+     - two EXPLICIT collations produce an error, e.g. this is wrong:
+       CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
+     - the side with smaller derivation value wins,
+       i.e. a column is stronger than a string constant,
+       an explicit COLLATE clause is stronger than a column.
+     - if derivations are the same, we have DERIVATION_NONE,
+       we'll wait for an explicit COLLATE clause which possibly can
+       come from another argument later: for example, this is valid,
+       but we don't know yet when collecting the first two arguments:
+         CONCAT(latin1_swedish_ci_column,
+                latin1_german1_ci_column,
+                expr COLLATE latin1_german2_ci)
+*/
+bool DTCollation::aggregate(DTCollation &dt, uint flags)
 {
   nagg++;
   if (!my_charset_same(collation, dt.collation))
@@ -290,28 +326,37 @@ bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
       else
        ; // Do nothing
     }
-    else if (superset_conversion)
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             derivation < dt.derivation &&
+             collation->state & MY_CS_UNICODE)
     {
-      if (derivation < dt.derivation &&
-          collation->state & MY_CS_UNICODE)
-        ; // Do nothing
-      else if (dt.derivation < derivation &&
-               dt.collation->state & MY_CS_UNICODE)
-      {
-        set(dt);
-        strong= nagg;
-      }
-      else
-      {
-        // Cannot convert to superset
-        set(0, DERIVATION_NONE);
-        return 1;
-      }
+      // Do nothing
+    }
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             dt.derivation < derivation &&
+             dt.collation->state & MY_CS_UNICODE)
+    {
+      set(dt);
+      strong= nagg;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             derivation < dt.derivation &&
+             dt.derivation == DERIVATION_COERCIBLE)
+    {
+      // Do nothing;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             dt.derivation < derivation &&
+             derivation == DERIVATION_COERCIBLE)
+    {
+      set(dt);
+      strong= nagg;
     }
     else
     {
+      // Cannot apply conversion
       set(0, DERIVATION_NONE);
-      return 1; 
+      return 1;
     }
   }
   else if (derivation < dt.derivation)
@@ -773,7 +818,9 @@ bool Item_param::set_str(const char *str, ulong length)
     Assign string with no conversion: data is converted only after it's
     been written to the binary log.
   */
-  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin))
+  uint dummy_errors;
+  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin,
+                     &dummy_errors))
     DBUG_RETURN(TRUE);
   state= STRING_VALUE;
   maybe_null= 0;
