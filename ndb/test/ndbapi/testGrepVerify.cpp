@@ -74,16 +74,13 @@ int main(int argc, const char** argv){
   if(table == 0) 
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb::useFullyQualifiedNames(false);
-
   Ndb * m_ndb = new Ndb("");
+  m_ndb->useFullyQualifiedNames(false);
   m_ndb->setConnectString(connectString);
-  Ndb::useFullyQualifiedNames(false);
   /**
    * @todo  Set proper max no of transactions?? needed?? Default 12??
    */
   m_ndb->init(2048);
-  Ndb::useFullyQualifiedNames(false);
   if (m_ndb->waitUntilReady() != 0){
     ndbout_c("NDB Cluster not ready for connections");
   }

@@ -190,7 +190,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif /* EMBEDDED_LIBRARY */
     res= open_and_lock_tables(thd, table_list);
-  if (res)
+  if (res || thd->is_fatal_error)
     DBUG_RETURN(-1);
 
   table= table_list->table;

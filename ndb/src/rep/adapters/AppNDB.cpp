@@ -50,9 +50,10 @@ void
 AppNDB::init(const char* connectString) {
 
   //  NdbThread_SetConcurrencyLevel(1+ 2);
-  Ndb::useFullyQualifiedNames(false);
-
   m_ndb = new Ndb("");
+
+  m_ndb->useFullyQualifiedNames(false);
+
   m_ndb->setConnectString(connectString);
   /**
    * @todo  Set proper max no of transactions?? needed?? Default 12??
@@ -539,7 +540,8 @@ AppNDB::prepareMetaRecord(MetaRecord* mr) {
   NdbTableImpl * tmp = 0;
   NdbDictionary::Table * table =0;
   Uint32 * data =(Uint32*)( ((char*)mr + sizeof(Uint32)*6));
-  int res = NdbDictInterface::parseTableInfo(&tmp, data, mr->dataLen);
+  int res = NdbDictInterface::parseTableInfo(&tmp, data, mr->dataLen,
+					     m_ndb->usingFullyQualifiedNames());
   if(res == 0) {
     table = tmp;
     return table;
