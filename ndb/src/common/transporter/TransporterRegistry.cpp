@@ -47,6 +47,9 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 int g_shm_pid = 0;
 
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
@@ -57,49 +60,10 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     DBUG_RETURN(0);
   }
 
+  if (!m_transporter_registry->connect_server(sockfd))
   {
-    // read node id from client
-    int nodeId;
-    SocketInputStream s_input(sockfd);
-    char buf[256];
-    if (s_input.gets(buf, 256) == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Could not get node id from client"));
-      DBUG_RETURN(0);
-    }
-    if (sscanf(buf, "%d", &nodeId) != 1) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Error in node id from client"));
-      DBUG_RETURN(0);
-    }
-
-    //check that nodeid is valid and that there is an allocated transporter
-    if ( nodeId < 0 || nodeId >= (int)m_transporter_registry->maxTransporters) {
-      NDB_CLOSE_SOCKET(sockfd); 
-      DBUG_PRINT("error", ("Node id out of range from client"));
-      DBUG_RETURN(0);
-    }
-    if (m_transporter_registry->theTransporters[nodeId] == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("No transporter for this node id from client"));
-      DBUG_RETURN(0);
-    }
-    
-    //check that the transporter should be connected
-    if (m_transporter_registry->performStates[nodeId] != TransporterRegistry::CONNECTING) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
-      DBUG_RETURN(0);
-    }
-
-    Transporter *t= m_transporter_registry->theTransporters[nodeId];
-
-    // send info about own id (just as response to acknowledge connection)
-    SocketOutputStream s_output(sockfd);
-    s_output.println("%d", t->getLocalNodeId());
-
-    // setup transporter (transporter responsible for closing sockfd)
-    t->connect_server(sockfd);
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(0);
   }
 
   DBUG_RETURN(0);
@@ -193,6 +157,91 @@ TransporterRegistry::init(NodeId nodeId) {
   
   //  return allocateLongSignalMemoryPool(nLargeSegments);
   return true;
+}
+
+bool
+TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
+{
+  DBUG_ENTER("TransporterRegistry::connect_server");
+
+  // read node id from client
+  // read transporter type
+  int nodeId, remote_transporter_type= -1;
+  SocketInputStream s_input(sockfd);
+  char buf[256];
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("Could not get node id from client"));
+    DBUG_RETURN(false);
+  }
+  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  switch (r) {
+  case 2:
+    break;
+  case 1:
+    // we're running version prior to 4.1.9
+    // ok, but with no checks on transporter configuration compatability
+    break;
+  default:
+    DBUG_PRINT("error", ("Error in node id from client"));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
+		      nodeId,remote_transporter_type));
+
+  //check that nodeid is valid and that there is an allocated transporter
+  if ( nodeId < 0 || nodeId >= (int)maxTransporters) {
+    DBUG_PRINT("error", ("Node id out of range from client"));
+    DBUG_RETURN(false);
+  }
+  if (theTransporters[nodeId] == 0) {
+      DBUG_PRINT("error", ("No transporter for this node id from client"));
+      DBUG_RETURN(false);
+  }
+
+  //check that the transporter should be connected
+  if (performStates[nodeId] != TransporterRegistry::CONNECTING) {
+    DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
+    DBUG_RETURN(false);
+  }
+
+  Transporter *t= theTransporters[nodeId];
+
+  // send info about own id (just as response to acknowledge connection)
+  // send info on own transporter type
+  SocketOutputStream s_output(sockfd);
+  s_output.println("%d %d", t->getLocalNodeId(), t->m_type);
+
+  if (remote_transporter_type != -1)
+  {
+    if (remote_transporter_type != t->m_type)
+    {
+      DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
+			   t->m_type, remote_transporter_type));
+      g_eventLogger.error("Incompatible configuration: Transporter type "
+			  "mismatch with node %d", nodeId);
+
+      // wait for socket close for 1 second to let message arrive at client
+      {
+	fd_set a_set;
+	FD_ZERO(&a_set);
+	FD_SET(sockfd, &a_set);
+	struct timeval timeout;
+	timeout.tv_sec  = 1; timeout.tv_usec = 0;
+	select(sockfd+1, &a_set, 0, 0, &timeout);
+      }
+      DBUG_RETURN(false);
+    }
+  }
+  else if (t->m_type == tt_SHM_TRANSPORTER)
+  {
+    g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+  }
+
+  // setup transporter (transporter responsible for closing sockfd)
+  t->connect_server(sockfd);
+
+  DBUG_RETURN(true);
 }
 
 bool
