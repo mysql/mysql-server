@@ -159,11 +159,11 @@ s_echo()
    fi
 }
 
-s_echo "This scripts updates all the mysql privilege tables to be usable by"
+s_echo "This script updates all the mysql privilege tables to be usable by"
 s_echo "MySQL 4.0 and above."
 s_echo ""
 s_echo "This is needed if you want to use the new GRANT functions,"
-s_echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 4.1"
+s_echo "CREATE AGGREGATE FUNCTION, or the more secure passwords in 4.1"
 s_echo ""
 
 if test $verbose = 1
