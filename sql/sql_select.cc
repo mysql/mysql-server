@@ -7161,7 +7161,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     /* check if we can use a key to resolve the group */
     /* Tables using JT_NEXT are handled here */
     uint nr;
-    key_map keys;
+    key_map keys_to_use, keys;
+    keys_to_use.set_all();
 
     /*
       If not used with LIMIT, only use keys if the whole query can be
@@ -7169,14 +7170,21 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       retrieving all rows through an index.
     */
     if (select_limit >= table->file->records)
-    {
-      keys=*table->file->keys_to_use_for_scanning();
-      keys.merge(table->used_keys);
+
+nning();
+
+
+
+ified in FORCE INDEX clause, 
+
+n ORDER BY.
+
+
+ry);
+
     }
     else
-      keys.set_all();
-
-    keys.intersect(usable_keys);
+      keys= usable_keys;
 
     for (nr=0; nr < table->keys ; nr++)
     {

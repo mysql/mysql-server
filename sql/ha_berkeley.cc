@@ -2123,9 +2123,18 @@ static void print_msg(THD *thd, const char *table_name, const char *op_name,
 
 int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  DB_BTREE_STAT *stat=0;
   uint i;
+  DB_BTREE_STAT *stat=0;
   DB_TXN_STAT *txn_stat_ptr= 0;
+
+  /*
+   Original bdb documentation says:
+   "The DB->stat method cannot be transaction-protected.
+   For this reason, it should be called in a thread of
+   control that has no open cursors or active transactions."
+   So, let's check if there are any changes have been done since
+   the beginning of the transaction..
+  */
 
   if (!db_env->txn_stat(db_env, &txn_stat_ptr, 0) &&
       txn_stat_ptr && txn_stat_ptr->st_nactive>=2)

@@ -1672,6 +1672,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       open_for_modify= false;
       break;
 
+    case HA_ADMIN_REJECT:
+      net_store_data(packet,"status");
+      net_store_data(packet,"Operation need committed state");
+      open_for_modify= false;
+      break;
+
     case HA_ADMIN_ALREADY_DONE:
       protocol->store("status", 6, system_charset_info);
       protocol->store("Table is already up to date", 27, system_charset_info);
