@@ -1011,7 +1011,7 @@ static uint getTableStructure(char *table, char* db)
         if (verbose)
           fprintf(stderr, "-- It's a view, skipped\n");
         was_views= 1;
-        DBUG_RETURN(0)
+        DBUG_RETURN(0);
       }
       row= mysql_fetch_row(tableRes);
       fprintf(sql_file, "%s;\n", row[1]);
@@ -2218,7 +2218,7 @@ static my_bool getViewStructure(char *table, char* db)
   {
     if (verbose)
       fprintf(stderr, "-- It's base table, skipped\n");
-    DBUG_RETURN(0)
+    DBUG_RETURN(0);
   }
 
   if (!opt_xml && opt_comments)
