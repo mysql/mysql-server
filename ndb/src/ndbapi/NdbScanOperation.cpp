@@ -1227,10 +1227,10 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
     Uint32 type = NdbColumnImpl::getImpl(* r1->m_column).m_extType;
     Uint32 size = (r1->theAttrSize * r1->theArraySize + 3) / 4;
     if(!r1_null){
-      char r = NdbSqlUtil::cmp(type, d1, d2, size, size);
+      const NdbSqlUtil::Type& t = NdbSqlUtil::getType(type);
+      int r = (*t.m_cmp)(d1, d2, size, size);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
-	assert(r != NdbSqlUtil::CmpError);
 	return r;
       }
     }
