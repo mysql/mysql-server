@@ -633,6 +633,7 @@ pthread_handler_decl(handle_bootstrap,arg)
       length--;
     buff[length]=0;
     thd->current_tablenr=0;
+    thd->query_length=length;
     thd->query= thd->memdup(buff,length+1);
     thd->query_id=query_id++;
     mysql_parse(thd,thd->query,length);
@@ -692,19 +693,18 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
 
   thd->free_list = 0;
   thd->query = tbl_name;
-  if((error = mysqld_dump_create_info(thd, table, -1)))
-    {
-      my_error(ER_GET_ERRNO, MYF(0));
-      goto err;
-    }
+  thd->query_length=strlen(tbl_name);
+  if ((error = mysqld_dump_create_info(thd, table, -1)))
+  {
+    my_error(ER_GET_ERRNO, MYF(0));
+    goto err;
+  }
   net_flush(&thd->net);
   if ((error = table->file->dump(thd,fd)))
     my_error(ER_GET_ERRNO, MYF(0));
 
 err:
-
   close_thread_tables(thd);
-
   DBUG_RETURN(error);
 }
 
@@ -872,6 +872,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->free_list=0;
     table_list.name=table_list.real_name=thd->strdup(packet);
     thd->query=fields=thd->strdup(strend(packet)+1);
+    thd->query_length=strlen(thd->query);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
 
@@ -2052,9 +2053,9 @@ mysql_execute_command(void)
 	goto error;
       res = mysql_table_grant(thd,tables,lex->users_list, lex->columns,
 			      lex->grant, lex->sql_command == SQLCOM_REVOKE);
-      if(!res)
+      if (!res)
       {
-	mysql_update_log.write(thd, thd->query,thd->query_length);
+	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query);
@@ -2074,7 +2075,7 @@ mysql_execute_command(void)
 			  lex->sql_command == SQLCOM_REVOKE);
       if (!res)
       {
-	mysql_update_log.write(thd, thd->query,thd->query_length);
+	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
 	  Query_log_event qinfo(thd, thd->query);

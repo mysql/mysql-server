@@ -38,25 +38,9 @@
 #include <sys/ioctl.h>
 #endif
 
-#if defined(__EMX__)
+#if defined(__EMX__) || defined(OS2)
 #define ioctlsocket ioctl
 #endif	/* defined(__EMX__) */
-
-#if defined(MSDOS) || defined(__WIN__)
-#ifdef __WIN__
-#undef errno
-#undef EINTR
-#undef EAGAIN
-#define errno WSAGetLastError()
-#define EINTR  WSAEINTR
-#define EAGAIN WSAEINPROGRESS
-#endif /* __WIN__ */
-#define O_NONBLOCK 1    /* For emulation of fcntl() */
-#endif
-#ifndef EWOULDBLOCK
-#define EWOULDBLOCK EAGAIN
-#endif
-
 
 /*
  * Helper to fill most of the Vio* with defaults.
