@@ -39,8 +39,8 @@ parse_arguments() {
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
       --user=*)
-        if [ $SET_USER == 0 ]
-	then
+        if test $SET_USER -eq 0
+        then
           user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1
         fi
         ;;

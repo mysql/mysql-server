@@ -3,9 +3,11 @@
 #
 
 drop table if exists t1,t2;
-create table t1 (i int, j int);
-insert into t1 values (1,2), (3,4), (5,6), (7,8);
+create table t1 (i int, j int, empty_string char(10), bool char(1), d date);
+insert into t1 values (1,2,"","Y","2002-03-03"), (3,4,"","N","2002-03-04"), (5,6,"","Y","2002-03-04"), (7,8,"","N","2002-03-05");
 select * from t1 procedure analyse();
+select * from t1 procedure analyse(2);
 create table t2 select * from t1 procedure analyse();
 select * from t2;
 drop table t1,t2;
+
