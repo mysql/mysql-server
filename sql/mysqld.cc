@@ -5609,6 +5609,9 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
+#endif /*HAVE_NDBCLUSTER_DB*/
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
