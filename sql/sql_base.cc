@@ -1851,7 +1851,6 @@ bool setup_tables(TABLE_LIST *tables)
       for (Field **ptr=table->field ; *ptr ; ptr++)
 	(*ptr)->query_id=0;
     }
-    table->used_keys&= table->keys_in_use_for_query;
   }
   if (tablenr > MAX_TABLES)
   {
