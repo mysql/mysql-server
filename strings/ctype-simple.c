@@ -50,6 +50,26 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen,
   return (int) (slen-tlen);
 }
 
+
+int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  uchar *map= cs->sort_order;
+  int len;
+  
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  
+  len  = ( slen > tlen ) ? tlen : slen;
+  
+  while (len--)
+  {
+    if (map[*s++] != map[*t++])
+      return ((int) map[s[-1]] - (int) map[t[-1]]);
+  }
+  return (int) (slen-tlen);
+}
+
 void my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
   register uchar *map=cs->to_upper;

@@ -8654,6 +8654,7 @@ CHARSET_INFO my_charset_euc_kr =
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
+    my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_mb,	/* wildcmp    */

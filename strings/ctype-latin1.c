@@ -190,6 +190,7 @@ CHARSET_INFO my_charset_latin1 =
     NULL,		/* tab_from_uni */
     2,			/* strxfrm_multiply */
     my_strnncoll_simple,
+    my_strnncollsp_simple,
     my_strnxfrm_simple,
     my_like_range_simple,
     my_wildcmp_8bit,	/* wildcmp   */

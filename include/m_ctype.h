@@ -92,6 +92,8 @@ typedef struct charset_info_st
   uint      strxfrm_multiply;
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, uint, const uchar *, uint);
+  int     (*strnncollsp)(struct charset_info_st *,
+		       const uchar *, uint, const uchar *, uint);
   int     (*strnxfrm)(struct charset_info_st *,
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
@@ -187,6 +189,9 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
 			       uint); 
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
+				const uchar *, uint);
+
+extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint);
 
 extern uint my_hash_caseup_simple(CHARSET_INFO *cs,
