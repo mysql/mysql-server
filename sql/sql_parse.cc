@@ -894,7 +894,7 @@ static int check_connection(THD *thd)
     x_free(thd->user);
   if (!(thd->user= my_strdup(user, MYF(0))))
     return (ER_OUT_OF_RESOURCES);
-  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, true);
+  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
 }
 
 
@@ -4771,7 +4771,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     acl_reload(thd);
     grant_reload(thd);
     if (mqh_used)
-      reset_mqh(thd,(LEX_USER *) NULL,true);
+      reset_mqh(thd,(LEX_USER *) NULL,TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
