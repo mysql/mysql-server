@@ -199,7 +199,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     /* Read key types */
     keyinfo=outparam->key_info;
     for (i=0 ; i < keys ; i++, keyinfo++)
+    {
       keyinfo->algorithm= (enum ha_key_alg) *(strpos++);
+      /* Temporary fix to get spatial index to work */
+      if (keyinfo->algorithm == HA_KEY_ALG_RTREE)
+	keyinfo->flags|= HA_SPATIAL;
+    }
   }
   else
   {
