@@ -19,15 +19,15 @@
 
 #include <ndb_types.h>
 #include <NdbError.hpp>
+#include <NdbDictionary.hpp>
 
 class NdbConnection;
 class NdbOperation;
-class NdbCursorOperation;
 class NdbScanOperation;
+class NdbIndexScanOperation;
 class NdbIndexOperation;
 class NdbApiSignal;
 class Ndb;
-class NdbScanReceiver;
 class NdbBlob;
 
 
@@ -160,7 +160,7 @@ class NdbConnection
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
-  friend class NdbScanReceiver;
+  friend class NdbIndexScanOperation;
   friend class NdbBlob;
  
 public:
@@ -178,56 +178,31 @@ public:
   NdbOperation* getNdbOperation(const char* aTableName);
 
   /**
-   * Get an NdbOperation for index scan of a table.
-   * Note that the operation has to be defined before it is executed.
-   *
-   * @note All operations within the same transaction need to 
-   *       be initialized with this method.
-   * 
-   * @param  anIndexName  The index name.
-   * @param  aTableName   The table name.
-   * @return  Pointer to an NdbOperation object if successful, otherwise NULL.
-   */
-  NdbOperation* getNdbOperation(const char* anIndexName, 
-				const char* aTableName);
-
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  /**
    * Get an operation from NdbScanOperation idlelist and 
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
-   * This operation will set the theTableId
-   * in the NdbOperation object.synchronous.
    *
    * @param  aTableName a table name.
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbScanOperation* getNdbScanOperation(const char* aTableName);
-#endif
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Get an operation from NdbScanOperation idlelist and 
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
-   * This operation will set the theTableId
-   * in the NdbOperation object.synchronous.
    *
    * @param  anIndexName  The index name.
    * @param  aTableName a table name.
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
-  NdbScanOperation* getNdbScanOperation(const char* anIndexName,
-					const char* aTableName);
-#endif
-
-
+  NdbIndexScanOperation* getNdbIndexScanOperation(const char* anIndexName,
+						  const char* aTableName);
+  
   /**
    * Get an operation from NdbIndexOperation idlelist and 
    * get the NdbConnection object that
    * was fetched by startTransaction pointing to this operation.
-   * This operation will set the theTableId
-   * in the NdbOperation object.  Synchronous.
    *
    * @param   indexName   An index name (as created by createIndex).
    * @param   tableName    A table name.
@@ -337,76 +312,17 @@ public:
    */
   void close();
 
+  /**
+   * Restart transaction
+   *
+   *   Once a transaction has been completed successfully
+   *     it can be started again wo/ calling closeTransaction/startTransaction
+   *
+   *   Note this method also releases completed operations
+   */
+  int restart();
+
   /** @} *********************************************************************/
-
-  /** 
-   * @name Scan Transactions
-   * @{
-   */
-
-  /**
-   * Execute a scan transaction. This will define
-   * and start the scan transaction in the NDB kernel.
-   *
-   * @return 0 if successful otherwise -1.
-   */
-  int executeScan();
-
-  /**
-   * Get the next tuple in a scan transaction. 
-   * 
-   * After each call to NdbConnection::nextScanResult
-   * the buffers and NdbRecAttr objects defined in 
-   * NdbOperation::getValue are updated with values 
-   * from the scanned tuple. 
-   *
-   * @param  fetchAllowed  If set to false, then fetching is disabled
-   *
-   * The NDB API will contact the NDB Kernel for more tuples 
-   * when necessary to do so unless you set the fetchAllowed 
-   * to false. 
-   * This will force NDB to process any records it
-   * already has in it's caches. When there are no more cached 
-   * records it will return 2. You must then call nextScanResult
-   * with fetchAllowed = true in order to contact NDB for more 
-   * records.
-   *
-   * fetchAllowed = false is useful when you want to update or 
-   * delete all the records fetched in one transaction(This will save a
-   *  lot of round trip time and make updates or deletes of scanned 
-   * records a lot faster). 
-   * While nextScanResult(false)
-   * returns 0 take over the record to another transaction. When 
-   * nextScanResult(false) returns 2 you must execute and commit the other 
-   * transaction. This will cause the locks to be transferred to the 
-   * other transaction, updates or deletes will be made and then the 
-   * locks will be released.
-   * After that, call nextScanResult(true) which will fetch new records and
-   * cache them in the NdbApi. 
-   * 
-   * @note  If you don't take over the records to another transaction the 
-   *        locks on those records will be released the next time NDB Kernel
-   *        is contacted for more records.
-   *
-   * @note  Please contact for examples of efficient scan
-   *        updates and deletes.
-   *
-   * @return 
-   * -  -1: if unsuccessful,<br>
-   * -   0: if another tuple was received, and<br> 
-   * -   1: if there are no more tuples to scan.
-   * -   2: if there are no more cached records in NdbApi
-   */
-  int nextScanResult(bool fetchAllowed = true);
-
-  /**
-   * Stops the scan.  Used if no more tuples are wanted.  
-   * The transaction should still be closed with 
-   * Ndb::closeTransaction.
-   *
-   * @return 0 if successful otherwise -1.
-   */
-  int stopScan();
 
   /** 
    * @name Meta Information
@@ -514,15 +430,30 @@ public:
    */
   const NdbOperation * getNextCompletedOperation(const NdbOperation * op)const;
 
+  /** @} *********************************************************************/
+
+  /**
+   * Execute the transaction in NoCommit mode if there are any not-yet
+   * executed blob part operations of given types.  Otherwise do
+   * nothing.  The flags argument is bitwise OR of (1 << optype) where
+   * optype comes from NdbOperation::OperationType.  Only the basic PK
+   * ops are used (read, insert, update, delete).
+   */
+  int executePendingBlobOps(Uint8 flags = 0xFF);
+
+  // Fast path calls for MySQL ha_ndbcluster
+  NdbOperation* getNdbOperation(NdbDictionary::Table * table);
+  NdbIndexOperation* getNdbIndexOperation(NdbDictionary::Index * index,
+					  NdbDictionary::Table * table);
+  NdbScanOperation* getNdbScanOperation(NdbDictionary::Table * table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(NdbDictionary::Index * index,
+						  NdbDictionary::Table * table);
+
+private:						
   /**
    * Release completed operations
    */
   void releaseCompletedOperations();
-
-
-  /** @} *********************************************************************/
-
-private:						
 
   typedef Uint64 TimeMillis_t;
   /**************************************************************************
@@ -587,13 +518,7 @@ private:
   int  receiveTCINDXCONF(const class TcIndxConf *, Uint32 aDataLength);
   int  receiveTCINDXREF(NdbApiSignal*);
   int  receiveSCAN_TABREF(NdbApiSignal*);
-  int  receiveSCAN_TABCONF(NdbApiSignal*);
-  int  receiveSCAN_TABINFO(NdbApiSignal*);
-
-  int checkNextScanResultComplete(); 
-  int sendScanStart();
-  int sendScanNext(bool stopScanFlag);
-  int fetchNextScanResult();
+  int  receiveSCAN_TABCONF(NdbApiSignal*, const Uint32*, Uint32 len);
 
   int 	doSend();	                // Send all operations
   int 	sendROLLBACK();	                // Send of an ROLLBACK
@@ -616,7 +541,7 @@ private:
 
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
-  void releaseCursorOperations(NdbCursorOperation*);	
+  void releaseScanOperations(NdbIndexScanOperation*);	
 
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
@@ -633,10 +558,12 @@ private:
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0);
-  NdbScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
+  NdbIndexScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
                                           class NdbTableImpl* aTable,
                                           NdbOperation* aNextOp = 0);
+  NdbIndexScanOperation* getNdbIndexScanOperation(NdbIndexImpl* index,
+						  NdbTableImpl* table);
   
   void		handleExecuteCompletion();
   
@@ -687,7 +614,6 @@ private:
   Uint32	theNoOfOpSent;				// How many operations have been sent	    
   Uint32	theNoOfOpCompleted;			// How many operations have completed
   Uint32        theNoOfOpFetched;           	        // How many operations was actually fetched
-  Uint32        theNoOfSCANTABCONFRecv;		        // How many SCAN_TABCONF have been received
   Uint32	theMyRef;				// Our block reference		
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
@@ -723,23 +649,20 @@ private:
   Uint32 theNodeSequence; // The sequence no of the db node
   bool theReleaseOnClose;
 
-  // Cursor operations
-  bool m_waitForReply;     
-  NdbCursorOperation* m_theFirstCursorOperation;
-  NdbCursorOperation* m_theLastCursorOperation;
-  
-  NdbCursorOperation* m_firstExecutedCursorOp;
   // Scan operations
-  bool theScanFinished;
+  bool m_waitForReply;     
+  NdbIndexScanOperation* m_theFirstScanOperation;
+  NdbIndexScanOperation* m_theLastScanOperation;
+  
+  NdbIndexScanOperation* m_firstExecutedScanOp;
 
-  NdbScanReceiver* theCurrentScanRec;	    // The current operation to 
-                                            // distribute to the app.
-  NdbScanReceiver* thePreviousScanRec;      // The previous operation read by 
-                                            // nextScanResult.
-  NdbOperation* theScanningOp; // The operation actually performing the scan
+  // Scan operations
+  // The operation actually performing the scan
+  NdbScanOperation* theScanningOp; 
   Uint32 theBuddyConPtr;
   // optim: any blobs
   bool theBlobFlag;
+  Uint8 thePendingBlobOps;
 
   static void sendTC_COMMIT_ACK(NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
@@ -749,6 +672,7 @@ private:
 #ifdef VM_TRACE
   void printState();
 #endif
+  bool checkState_TransId(const Uint32 * transId) const;
 };
 
 inline
@@ -781,6 +705,16 @@ NdbConnection::checkMagicNumber()
 #endif
     return -1;
   }
+}
+
+inline
+bool
+NdbConnection::checkState_TransId(const Uint32 * transId) const {
+  const Uint32 tTmp1 = transId[0];
+  const Uint32 tTmp2 = transId[1];
+  Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
+  bool b = theStatus == Connected && theTransactionId == tRecTransId;
+  return b;
 }
 
 /************************************************************************************************
@@ -956,6 +890,21 @@ NdbConnection::OpSent()
   theNoOfOpSent++;
 }
 
+/******************************************************************************
+void executePendingBlobOps();
+******************************************************************************/
+#include <stdlib.h>
+inline
+int
+NdbConnection::executePendingBlobOps(Uint8 flags)
+{
+  if (thePendingBlobOps & flags) {
+    // not executeNoBlobs because there can be new ops with blobs
+    return execute(NoCommit);
+  }
+  return 0;
+}
+
 inline
 Uint32
 NdbConnection::ptr2int(){
@@ -963,5 +912,3 @@ NdbConnection::ptr2int(){
 }
 
 #endif
-
-

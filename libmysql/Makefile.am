@@ -1,9 +1,12 @@
-# Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+# Copyright (C) 2000-2004 MySQL AB
 # 
-# This library is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
-# License as published by the Free Software Foundation; either
-# version 2 of the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of version 2 GNU General Public License as
+# published by the Free Software Foundation.
+#
+# There are special exceptions to the terms and conditions of the GPL as it
+# is applied to this software. View the full text of the exception in file
+# EXCEPTIONS-CLIENT in the directory of this software distribution.
 # 
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,13 +17,13 @@
 # License along with this library; if not, write to the Free
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
-
+#
 # This file is public domain and comes with NO WARRANTY of any kind
 
 target =	libmysqlclient.la
 target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
 LIBS =		@CLIENT_LIBS@
-INCLUDES =	-I$(top_srcdir)/include $(openssl_includes)
+INCLUDES =	-I$(top_srcdir)/include $(openssl_includes) @ZLIB_INCLUDES@
 
 include $(srcdir)/Makefile.shared
 

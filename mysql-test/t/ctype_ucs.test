@@ -293,3 +293,25 @@ SELECT HEX(a) FROM t1;
 DROP TABLE t1;
 
 -- the same should be also done with enum and set
+
+
+#
+# Bug #5024 Server crashes with queries on fields
+#  with certain charset/collation settings
+#
+
+create table t1 (s1 char character set `ucs2` collate `ucs2_czech_ci`);
+insert into t1 values ('0'),('1'),('2'),('a'),('b'),('c');
+select s1 from t1 where s1 > 'a' order by s1;
+drop table t1;
+
+#
+# Bug #5081 : UCS2 fields are filled with '0x2020'
+# after extending field length
+#
+create table t1(a char(1)) default charset = ucs2;
+insert into t1 values ('a'),('b'),('c');
+alter table t1 modify a char(5);
+select a, hex(a) from t1;
+drop table t1;
+

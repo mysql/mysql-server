@@ -20,7 +20,7 @@
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
 
-#include "SimBlockList.hpp"
+#include "vm/SimBlockList.hpp"
 #include "ThreadConfig.hpp"
 #include <SignalLoggerManager.hpp>
 #include <NdbOut.hpp>
@@ -31,20 +31,19 @@
 
 #include <LogLevel.hpp>
 #include <EventLogger.hpp>
-#include <NodeState.hpp>
+
+#include <NdbAutoPtr.hpp>
 
 #if defined NDB_SOLARIS // ok
 #include <sys/processor.h> // For system informatio
 #endif
 
-#if !defined NDB_SOFTOSE && !defined NDB_OSE
-#include <signal.h>        // For process signals
-#endif
-
 extern EventLogger g_eventLogger;
 
 void catchsigs(bool ignore); // for process signal handling
-extern "C" void handler(int signo);  // for process signal handling
+
+extern "C" void handler_shutdown(int signum);  // for process signal handling
+extern "C" void handler_error(int signum);  // for process signal handling
 
 // Shows system information
 void systemInfo(const Configuration & conf,
@@ -68,18 +67,16 @@ NDB_MAIN(ndb_kernel){
   }
   
   { // Do configuration
-    theConfig->setupConfiguration();
+    signal(SIGPIPE, SIG_IGN);
+    theConfig->fetch_configuration();
   }
-
-  // Get NDB_HOME path
-  char homePath[255];
-  NdbConfig_HomePath(homePath, 255);
-
+  
   if (theConfig->getDaemonMode()) {
     // Become a daemon
-    char lockfile[255], logfile[255];
-    snprintf(lockfile, 255, "%snode%d.pid", homePath, globalData.ownId);
-    snprintf(logfile, 255, "%snode%d.out", homePath, globalData.ownId);
+    char *lockfile= NdbConfig_PidFileName(globalData.ownId);
+    char *logfile=  NdbConfig_StdoutFileName(globalData.ownId);
+    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
+
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
       return 1;
@@ -132,24 +129,26 @@ NDB_MAIN(ndb_kernel){
       exit(0);
     }
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
+    theConfig->fetch_configuration();
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+  theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
-
+  
     // Load blocks
   globalEmulatorData.theSimBlockList->load(* theConfig);
     
   // Set thread concurrency for Solaris' light weight processes
   int status;
   status = NdbThread_SetConcurrencyLevel(30);
-  NDB_ASSERT(status == 0, "Can't set appropriate concurrency level.");
+  assert(status == 0);
   
 #ifdef VM_TRACE
   // Create a signal logger
-  char buf[255];
-  strcpy(buf, homePath);
-  FILE * signalLog = fopen(strncat(buf,"Signal.log", 255), "a");
+  char *buf= NdbConfig_SignalLogFileName(globalData.ownId);
+  NdbAutoPtr<char> tmp_aptr(buf);
+  FILE * signalLog = fopen(buf, "a");
   globalSignalLoggers.setOwnNodeId(globalData.ownId);
   globalSignalLoggers.setOutputStream(signalLog);
 #endif
@@ -168,16 +167,38 @@ NDB_MAIN(ndb_kernel){
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_STARTING);
     break;
   default:
-    NDB_ASSERT(0, "Illegal state globalData.theRestartFlag");
+    assert("Illegal state globalData.theRestartFlag" == 0);
   }
+
+  SocketServer socket_server;
 
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
+  if (!globalTransporterRegistry.start_service(socket_server)){
+    ndbout_c("globalTransporterRegistry.start_service() failed");
+    exit(-1);
+  }
+
+  if (!globalTransporterRegistry.start_clients()){
+    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    exit(-1);
+  }
+
   globalEmulatorData.theWatchDog->doStart();
   
+  socket_server.startServer();
+
+  //  theConfig->closeConfiguration();
+
   globalEmulatorData.theThreadConfig->ipControlLoop();
   
   NdbShutdown(NST_Normal);
+
+  socket_server.stopServer();
+  socket_server.stopSessions();
+
+  globalTransporterRegistry.stop_clients();
+
   return NRT_Default;
 }
 
@@ -229,74 +250,91 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 
 }
 
+#define handler_register(signum, handler, ignore)\
+{\
+  if (ignore) {\
+    if(signum != SIGCHLD)\
+      signal(signum, SIG_IGN);\
+  } else\
+    signal(signum, handler);\
+}
+
 void 
 catchsigs(bool ignore){
 #if ! defined NDB_SOFTOSE && !defined NDB_OSE 
 
-#if defined SIGRTMIN
-  #define MAX_SIG_CATCH SIGRTMIN
-#elif defined NSIG
-  #define MAX_SIG_CATCH NSIG
-#else
-  #error "neither SIGRTMIN or NSIG is defined on this platform, please report bug at bugs.mysql.com"
+  static const int signals_shutdown[] = {
+#ifdef SIGBREAK
+    SIGBREAK,
+#endif
+    SIGHUP,
+    SIGINT,
+#if defined SIGPWR
+    SIGPWR,
+#elif defined SIGINFO
+    SIGINFO,
+#endif
+    SIGQUIT,
+    SIGTERM,
+#ifdef SIGTSTP
+    SIGTSTP,
+#endif
+    SIGTTIN,
+    SIGTTOU
+  };
+
+  static const int signals_error[] = {
+    SIGABRT,
+    SIGALRM,
+#ifdef SIGBUS
+    SIGBUS,
+#endif
+    SIGCHLD,
+    SIGFPE,
+    SIGILL,
+#ifdef SIGIO
+    SIGIO,
+#endif
+#ifdef SIGPOLL
+    SIGPOLL,
+#endif
+    SIGSEGV,
+#ifdef SIGTRAP
+    SIGTRAP
+#endif
+  };
 #endif
 
-  // Makes the main process catch process signals, eg installs a 
-  // handler named "handler". "handler" will then be called is instead 
-  // of the defualt process signal handler)
-  if(ignore){
-    for(int i = 1; i < MAX_SIG_CATCH; i++){
-      if(i != SIGCHLD)
-	signal(i, SIG_IGN);
-    }
-  } else {
-    for(int i = 1; i < MAX_SIG_CATCH; i++){
-      signal(i, handler);
-    }
-  }
-#endif
+  static const int signals_ignore[] = {
+    SIGPIPE
+  };
+
+  size_t i;
+  for(i = 0; i < sizeof(signals_shutdown)/sizeof(signals_shutdown[0]); i++)
+    handler_register(signals_shutdown[i], handler_shutdown, ignore);
+  for(i = 0; i < sizeof(signals_error)/sizeof(signals_error[0]); i++)
+    handler_register(signals_error[i], handler_error, ignore);
+  for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
+    handler_register(signals_ignore[i], SIG_IGN, ignore);
 }
 
 extern "C"
 void 
-handler(int sig){
-  switch(sig){
-  case SIGHUP:   /*  1 - Hang up    */
-  case SIGINT:   /*  2 - Interrupt  */
-  case SIGQUIT:  /*  3 - Quit       */
-  case SIGTERM:  /* 15 - Terminate  */
-#ifdef SIGPWR
-  case SIGPWR:   /* 19 - Power fail */
-#endif
-#ifdef SIGPOLL
-  case SIGPOLL:  /* 22              */
-#endif
-  case SIGSTOP:  /* 23              */
-  case SIGTSTP:  /* 24              */
-  case SIGTTIN:  /* 26              */
-  case SIGTTOU:  /* 27              */
-    globalData.theRestartFlag = perform_stop;
-    break;
-#ifdef SIGWINCH
-  case SIGWINCH:
-#endif
-  case SIGPIPE:
-    /**
-     * Can happen in TCP Transporter
-     *  
-     *  Just ignore
-     */
-    break;
-  default:
-    // restart the system
-    char errorData[40];
-    snprintf(errorData, 40, "Signal %d received", sig);
-    ERROR_SET(fatal, 0, errorData, __FILE__);
-    break;
-  }
+handler_shutdown(int signum){
+  g_eventLogger.info("Received signal %d. Performing stop.", signum);
+  globalData.theRestartFlag = perform_stop;
 }
 
-	
+extern "C"
+void 
+handler_error(int signum){
+  g_eventLogger.info("Received signal %d. Running error handler.", signum);
+  // restart the system
+  char errorData[40];
+  snprintf(errorData, 40, "Signal %d received", signum);
+  ERROR_SET(fatal, 0, errorData, __FILE__);
+}
+
 
 
 

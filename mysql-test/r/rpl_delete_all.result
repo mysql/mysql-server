@@ -4,12 +4,12 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-create database test1;
-drop database if exists test1;
+create database mysqltest;
+drop database if exists mysqltest;
 Warnings:
-Note	1008	Can't drop database 'test1'; database doesn't exist
-show tables from test1;
-ERROR HY000: Can't read dir of './test1/' (Errcode: X)
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+show tables from mysqltest;
+ERROR HY000: Can't read dir of './mysqltest/' (Errcode: X)
 create table t1 (a int);
 drop table if exists t1;
 Warnings:

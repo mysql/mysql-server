@@ -555,7 +555,7 @@ fi
 LIB@&t@OBJS=`echo "$LIB@&t@OBJS" |
 	     sed 's,\.[[^.]]* ,$U&,g;s,\.[[^.]]*$,$U&,'`
 LTLIBOBJS=`echo "$LIB@&t@OBJS" |
-	   sed 's,\.[[^.]]* ,.lo ,g;s,\.[[^.]]*$,.lo,'`
+	   sed "s,\.[[^.]]* ,$o ,g;s,\.[[^.]]*$,$o,"`
 AC_SUBST(LTLIBOBJS)
 
 # Initial output file list.

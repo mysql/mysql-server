@@ -892,6 +892,7 @@ ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;
 extern sys_var_str sys_init_connect;
 extern sys_var_str sys_init_slave;
+extern sys_var_thd_time_zone sys_time_zone;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 		NAMED_LIST **found);
