@@ -793,7 +793,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic
 END_OF_INPUT
 
-%type <NONE> call sp_proc_stmts sp_proc_stmt
+%type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
 %type <spcondtype> sp_cond sp_hcond
 %type <spblock> sp_decls sp_decl
@@ -1508,7 +1508,11 @@ sp_opt_inout:
 sp_proc_stmts:
 	  /* Empty */ {}
 	| sp_proc_stmts  { Lex->query_tables= 0; } sp_proc_stmt ';'
+	;
 
+sp_proc_stmts1:
+	  sp_proc_stmt ';' {}
+	| sp_proc_stmts1  { Lex->query_tables= 0; } sp_proc_stmt ';'
 	;
 
 sp_decls:
@@ -2071,16 +2075,16 @@ sp_proc_stmt:
 	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
 	    sp->add_instr(i);
 	  }
-	| FETCH_SYM ident INTO
+	| FETCH_SYM sp_opt_fetch_noise ident INTO
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    uint offset;
 	    sp_instr_cfetch *i;
 
-	    if (! lex->spcont->find_cursor(&$2, &offset))
+	    if (! lex->spcont->find_cursor(&$3, &offset))
 	    {
-	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $3.str);
 	      YYABORT;
 	    }
 	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
@@ -2103,6 +2107,12 @@ sp_proc_stmt:
 	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
 	    sp->add_instr(i);
 	  }
+	;
+
+sp_opt_fetch_noise:
+	  /* Empty */
+	| NEXT_SYM FROM
+	| FROM
 	;
 
 sp_fetch_list:
@@ -2165,7 +2175,7 @@ sp_if:
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
 	  }
-	  sp_proc_stmts
+	  sp_proc_stmts1
 	  {
 	    sp_head *sp= Lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
@@ -2187,7 +2197,7 @@ sp_if:
 sp_elseifs:
 	  /* Empty */
 	| ELSEIF_SYM sp_if
-	| ELSE sp_proc_stmts
+	| ELSE sp_proc_stmts1
 	;
 
 sp_case:
@@ -2219,7 +2229,7 @@ sp_case:
 	    lex->query_tables= 0;
             sp->add_instr(i);
 	  }
-	  sp_proc_stmts
+	  sp_proc_stmts1
 	  {
 	    sp_head *sp= Lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
@@ -2248,7 +2258,7 @@ sp_whens:
 
 	    sp->add_instr(i);
 	  }
-	| ELSE sp_proc_stmts {}
+	| ELSE sp_proc_stmts1 {}
 	| WHEN_SYM sp_case {}
 	;
 
@@ -2326,7 +2336,7 @@ sp_unlabeled_control:
 	    lex->spcont= ctx->pop_context();
 	  }
 	| LOOP_SYM
-	  sp_proc_stmts END LOOP_SYM
+	  sp_proc_stmts1 END LOOP_SYM
 	  {
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
@@ -2349,7 +2359,7 @@ sp_unlabeled_control:
 	    lex->query_tables= 0;
             sp->add_instr(i);
 	  }
-	  sp_proc_stmts END WHILE_SYM
+	  sp_proc_stmts1 END WHILE_SYM
 	  {
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
@@ -2358,7 +2368,7 @@ sp_unlabeled_control:
 
 	    lex->sphead->add_instr(i);
 	  }
-	| REPEAT_SYM sp_proc_stmts UNTIL_SYM expr END REPEAT_SYM
+	| REPEAT_SYM sp_proc_stmts1 UNTIL_SYM expr END REPEAT_SYM
 	  {
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
@@ -5491,7 +5501,7 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP FUNCTION_SYM if_exists sp_name opt_restrict
+	| DROP FUNCTION_SYM if_exists sp_name
 	  {
 	    LEX *lex=Lex;
 	    if (lex->sphead)
@@ -5503,7 +5513,7 @@ drop:
 	    lex->drop_if_exists= $3;
 	    lex->spname= $4;
 	  }
-	| DROP PROCEDURE if_exists sp_name opt_restrict
+	| DROP PROCEDURE if_exists sp_name
 	  {
 	    LEX *lex=Lex;
 	    if (lex->sphead)
