@@ -631,7 +631,7 @@ dict_table_get_on_id(
 }
 
 /************************************************************************
-Looks for column n postion in the clustered index. */
+Looks for column n position in the clustered index. */
 
 ulint
 dict_table_get_nth_col_pos(
@@ -643,6 +643,44 @@ dict_table_get_nth_col_pos(
 {
 	return(dict_index_get_nth_col_pos(dict_table_get_first_index(table),
 								n));
+}
+
+/************************************************************************
+Checks if a column is in the ordering columns of the clustered index of a
+table. Column prefixes are treated like whole columns. */
+
+ibool
+dict_table_col_in_clustered_key(
+/*============================*/
+				/* out: TRUE if the column, or its prefix, is
+				in the clustered key */
+	dict_table_t*	table,	/* in: table */
+	ulint		n)	/* in: column number */
+{
+	dict_index_t*	index;
+	dict_field_t*	field;
+	dict_col_t*	col;
+	ulint		pos;
+	ulint		n_fields;
+	
+	ut_ad(table);
+
+	col = dict_table_get_nth_col(table, n);
+
+	index = dict_table_get_first_index(table);
+
+	n_fields = dict_index_get_n_unique(index);
+	
+	for (pos = 0; pos < n_fields; pos++) {
+		field = dict_index_get_nth_field(index, pos);
+
+		if (col == field->col) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
 }
 
 /**************************************************************************

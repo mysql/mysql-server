@@ -493,6 +493,17 @@ dict_table_get_sys_col_no(
 				/* out: column number */
 	dict_table_t*	table,	/* in: table */
 	ulint		sys);	/* in: DATA_ROW_ID, ... */
+/************************************************************************
+Checks if a column is in the ordering columns of the clustered index of a
+table. Column prefixes are treated like whole columns. */
+
+ibool
+dict_table_col_in_clustered_key(
+/*============================*/
+				/* out: TRUE if the column, or its prefix, is
+				in the clustered key */
+	dict_table_t*	table,	/* in: table */
+	ulint		n);	/* in: column number */
 /***********************************************************************
 Copies types of columns contained in table to tuple. */
 
