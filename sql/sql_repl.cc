@@ -350,6 +350,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   int left_events = max_binlog_dump_events;
 #endif
   DBUG_ENTER("mysql_binlog_send");
+  bzero((char*) &log,sizeof(log));
 
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
@@ -359,7 +360,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   }
 #endif
 
-  bzero((char*) &log,sizeof(log));
 
   if (!mysql_bin_log.is_open())
   {
