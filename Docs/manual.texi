@@ -24186,6 +24186,14 @@ tables are:
 @item Tables are compressed with @code{pack_isam} rather than with @code{myisampack}.
 @end itemize
 
+If you want to convert an @code{ISAM} table to a @code{MyISAM} table so
+that you can use utilities such as @code{mysqlcheck}, use an @code{ALTER
+TABLE} statement:
+
+@example
+mysql> ALTER TABLE tbl_name TYPE = MYISAM;
+@end example
+
 @cindex tables, @code{HEAP}
 @node HEAP, BDB, ISAM, Table types
 @section HEAP Tables
