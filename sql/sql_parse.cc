@@ -1329,6 +1329,18 @@ mysql_execute_command(void)
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
+  
+  /*
+    When option readonly is set deny operations which change tables.
+    Except for the replication thread and the 'super' users.
+  */
+  if (opt_readonly &&
+      !(thd->slave_thread || (thd->master_access & SUPER_ACL)) &&
+      (uc_update_queries[lex->sql_command] > 0))
+  {
+    send_error(&thd->net,ER_CANT_UPDATE_WITH_READLOCK);
+    DBUG_VOID_RETURN;
+  }
 
   statistic_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
@@ -2977,9 +2989,8 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
-  if (length)
-    if (!(new_field->length= (uint) atoi(length)))
-      length=0; /* purecov: inspected */
+  if (length && !(new_field->length= (uint) atoi(length)))
+    length=0; /* purecov: inspected */
   uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
@@ -3015,10 +3026,13 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
-      new_field->length = 10;			// Default length for DECIMAL
-    new_field->length+=sign_len;
-    if (new_field->decimals)
-      new_field->length++;
+      new_field->length= 10;			// Default length for DECIMAL
+    if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
+    {
+      new_field->length+=sign_len;
+      if (new_field->decimals)
+	new_field->length++;
+    }
     break;
   case FIELD_TYPE_BLOB:
   case FIELD_TYPE_TINY_BLOB:

@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.13)
+AM_INIT_AUTOMAKE(mysql, 4.0.14)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -361,7 +361,7 @@ then
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
-  if test "$CXX" = "gcc"
+  if test "$CXX" = "gcc" -o "$CXX" = "ccache gcc"
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
@@ -1025,8 +1025,16 @@ case $SYSTEM_TYPE in
     ;;
   *freebsd*)
     echo "Adding fix for interrupted reads"
-    CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
-    CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
+    OSVERSION=`sysctl -a | grep osreldate | awk '{ print $2 }'`
+    if test "$OSVERSION" -gt "480100" && \
+       test "$OSVERSION" -lt "500000" || \
+       test "$OSVERSION" -gt "500109"
+    then
+       CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    else
+       CFLAGS="$CFLAGS -DHAVE_BROKEN_REALPATH"
+       CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000 -DHAVE_BROKEN_REALPATH"
+    fi
     ;;
   *netbsd*)
     echo "Adding flag -Dunix"
@@ -1369,10 +1377,8 @@ then
       with_named_thread="-Kthread -lsocket -lnsl"
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
-#        AC_DEFINE(HAVE_OpenUNIX8_THREADS)
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)
       else
-#        AC_DEFINE(HAVE_OpenUNIX8_POSIX)
         AC_DEFINE(HAVE_UNIXWARE7_POSIX)
       fi
       # We must have cc
@@ -1381,10 +1387,8 @@ then
       then
 	{ echo "configure: error: On OpenUNIX8 and UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
       else
-#	CC="$CC -Kthread -DOpenUNIX8";
-#	CXX="$CXX -Kthread -DOpenUNIX8";
-	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
-	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK"
+ 	CC="$CC -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
+ 	CXX="$CXX -Kthread -DUNIXWARE_7 -DHAVE_BROKEN_RWLOCK";
       fi
       AC_MSG_RESULT("yes")
     else

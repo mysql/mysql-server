@@ -185,6 +185,7 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
+sys_var_bool_ptr	sys_readonly("read_only", &opt_readonly);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 sys_var_long_ptr	sys_rpl_recovery_rank("rpl_recovery_rank",
@@ -375,6 +376,7 @@ sys_var *sys_variables[]=
   &sys_slave_compressed_protocol,
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
+  &sys_readonly,
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -513,6 +515,7 @@ struct show_var_st init_vars[]= {
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE

@@ -146,7 +146,7 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley BD and UDF support
+Summary: MySQL - server with Berkeley BD, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
@@ -154,7 +154,7 @@ Requires: MySQL >= 4.0
 
 %description Max 
 Optional MySQL server binary that supports additional features like
-Berkeley DB and User Defined Functions (UDFs).
+Berkeley DB, RAID and User Defined Functions (UDFs).
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -257,6 +257,7 @@ export PATH
 BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
+		--with-raid \
 		--with-server-suffix='-Max'"
 
 # Save everything for debug
@@ -534,6 +535,9 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+* Fri May 16 2003 Lenz Grimmer <lenz@mysql.com>
+
+- re-enabled RAID again
 
 * Wed Apr 30 2003 Lenz Grimmer <lenz@mysql.com>
 
