@@ -825,7 +825,7 @@ limits. Here are some examples:
 @item Solaris 2.5.1             @tab 2G (possible 4G with patch)
 @item Solaris 2.6               @tab 4G
 @item Solaris 2.7 Intel         @tab 4G
-@item Solaris 2.7 ULTRA-SPARC @tab 512G
+@item Solaris 2.7 UltraSPARC    @tab 512G
 @end multitable
 
 On Linux 2.2 you can get bigger tables than 2G by using the LFS patch for
@@ -5823,7 +5823,7 @@ hitting some platform-specific surprise are much smaller.
 
 Based on the above criteria, the best platforms for running
 MySQL at this point are x86 with SuSE Linux 7.1, 2.4 kernel and
-ReiserFS (or any similar Linux distribution) and Sparc with Solaris 2.7
+ReiserFS (or any similar Linux distribution) and SPARC with Solaris 2.7
 or 2.8. FreeBSD comes third, but we really hope it will join the top
 club once the thread library is improved. We also hope that at some
 point we will be able to include all other platforms on which
@@ -6196,7 +6196,7 @@ and are configured with the following compilers and options:
 @item AIX 2 4 with @code{gcc} 2.7.2.2
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
 
-@item OSF1 V4.0 564 alpha with @code{gcc} 2.8.1
+@item OSF/1 V4.0 564 alpha with @code{gcc} 2.8.1
 @code{CC=gcc CFLAGS=-O CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item Irix 6.3 IP32 with @code{gcc} 2.8.0
@@ -9756,7 +9756,7 @@ CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 ./configure --prefix=/usr/local/mysql --with-low-memory --enable-assembler
 @end example
 
-If you have a ultra sparc, you can get 4 % more performance by adding
+If you have an UltraSPARC, you can get 4 % more performance by adding
 "-mcpu=v8 -Wa,-xarch=v8plusa" to CFLAGS and CXXFLAGS.
 
 If you have Sun Workshop (Fortre) 5.3 (or newer) compiler, you can
@@ -9768,7 +9768,7 @@ CXX=CC CXXFLAGS="-noex -xO4 -mt" \
 ./configure --prefix=/usr/local/mysql --enable-assembler
 @end example
 
-In the MySQL benchmarks, we got a 6 % speedup on an Ultrasparc when
+In the MySQL benchmarks, we got a 6 % speedup on an UltraSPARC when
 using Sun Workshop 5.3 compared to using gcc with -mcpu flags.
 
 If you get a problem with @code{fdatasync} or @code{sched_yield},
@@ -10302,7 +10302,7 @@ alias mysqladmin '/usr/local/mysql/bin/mysqladmin'
 * IBM-AIX::                     IBM-AIX notes
 * SunOS::                       SunOS 4 Notes
 * Alpha-DEC-UNIX::              Alpha-DEC-UNIX Notes (Tru64)
-* Alpha-DEC-OSF1::              Alpha-DEC-OSF1 Notes
+* Alpha-DEC-OSF1::              Alpha-DEC-OSF/1 Notes
 * SGI-Irix::                    SGI Irix Notes
 * Caldera::                     Caldera Notes
 * Caldera Unixware::            Caldera Unixware Version 7.0 Notes
@@ -10748,7 +10748,7 @@ scripts/mysql_install_db
 
 
 @node Alpha-DEC-OSF1, SGI-Irix, Alpha-DEC-UNIX, Other Unix Notes
-@subsubsection Alpha-DEC-OSF1 Notes
+@subsubsection Alpha-DEC-OSF/1 Notes
 
 If you have problems compiling and have DEC @code{CC} and @code{gcc}
 installed, try running @code{configure} like this:
@@ -10772,7 +10772,7 @@ Note that the following problems with the @code{ld} program can be fixed
 by downloading the latest DEC (Compaq) patch kit from:
 @uref{http://ftp.support.compaq.com/public/unix/}.
 
-On OSF1 V4.0D and compiler "DEC C V5.6-071 on Digital Unix V4.0 (Rev. 878)"
+On OSF/1 V4.0D and compiler "DEC C V5.6-071 on Digital Unix V4.0 (Rev. 878)"
 the compiler had some strange behavior (undefined @code{asm} symbols).
 @code{/bin/ld} also appears to be broken (problems with @code{_exit
 undefined} errors occuring while linking @code{mysqld}).  On this system, we
@@ -10797,7 +10797,7 @@ export CC CFLAGS CXX CXXFLAGS
             --disable-shared --with-named-thread-libs="-lmach -lexc -lc"
 @end example
 
-In some versions of OSF1, the @code{alloca()} function is broken. Fix
+In some versions of OSF/1, the @code{alloca()} function is broken. Fix
 this by removing the line in @file{config.h} that defines @code{'HAVE_ALLOCA'}.
 
 The @code{alloca()} function also may have an incorrect prototype in
@@ -21556,8 +21556,8 @@ binaries includes:
 @item Linux-Alpha @tab N	@tab Y
 @item Linux-Intel @tab Y @tab Y
 @item Linux-Ia64 @tab N @tab Y
-@item Solaris-intel @tab N @tab Y
-@item Solaris-sparc @tab Y @tab Y
+@item Solaris-Intel @tab N @tab Y
+@item Solaris-SPARC @tab Y @tab Y
 @item Caldera (SCO) OSR5 @tab Y @tab Y
 @item UnixWare @tab Y @tab Y
 @item Windows/NT @tab Y @tab Y
@@ -27120,7 +27120,7 @@ configuring with @code{--with-debug}.
 On a Sun SPARCstation 20, SunPro C++ 4.2 is 5 % faster than @code{gcc} 2.95.2.
 
 @item
-Compiling with @code{gcc} 2.95.2 for ultrasparc with the option
+Compiling with @code{gcc} 2.95.2 for UltraSPARC with the option
 @code{-mcpu=v8 -Wa,-xarch=v8plusa} gives 4 % more performance.
 
 @item
@@ -39616,7 +39616,7 @@ system.
 @item
 Linux 2.x intel
 @item
-Solaris sparc
+Solaris SPARC
 @item
 Caldera (SCO) OpenServer
 @item
@@ -49065,7 +49065,7 @@ Fixed bug when @code{HANDLER} was used with some unsupported table type.
 @item
 Added @code{mysql_fix_extensions} script.
 @item
-Fixed stack overrun problem with @code{LOAD DATA FROM MASTER} on OSF1.
+Fixed stack overrun problem with @code{LOAD DATA FROM MASTER} on OSF/1.
 @item
 Fixed shutdown problem on HP-UX.
 @item
@@ -50245,7 +50245,7 @@ the disk cache.
 
 @itemize @bullet
 @item
-Changed code to get around compiler bug in Compaq C++ on OSF1, that broke
+Changed code to get around compiler bug in Compaq C++ on OSF/1, that broke
 @code{BACKUP}, @code{RESTORE}, @code{CHECK}, @code{REPAIR}, and
 @code{ANALYZE TABLE}.
 @item
@@ -50574,7 +50574,7 @@ Fixed a bug when using a multi-part keys where the first part was of type
 @item
 Fixed a bug where @code{SELECT DISTINCT * ... LIMIT #} only returned one row.
 @item
-Fixed a bug in the assembler code in @code{strstr()} for sparc and cleaned up
+Fixed a bug in the assembler code in @code{strstr()} for SPARC and cleaned up
 the @file{global.h} header file to avoid a problem with bad aliasing with
 the compiler submitted with RedHat 7.0. (Reported by Trond Eivind Glomsrød)
 @item
@@ -52735,7 +52735,7 @@ New SQL command:  @code{FLUSH [ TABLES | HOSTS | LOGS | PRIVILEGES ] [, ...]}
 New SQL command:  @code{KILL} @code{thread_id}.
 @item
 Added casts and changed include files to make MySQL easier to
-compile on AIX and DEC OSF1 4.x
+compile on AIX and DEC OSF/1 4.x
 @item
 Fixed conversion problem when using @code{ALTER TABLE} from a @code{INT}
 to a short @code{CHAR()} column.
@@ -53548,7 +53548,7 @@ part.
 @item
 Added Italian error messages from @email{brenno@@dewinter.com}.
 @item
-@code{configure} now works better on OSF1 (tested on 4.0D).
+@code{configure} now works better on OSF/1 (tested on 4.0D).
 @item
 Added hooks to allow @code{LIKE} optimisation with international character
 support.
@@ -53609,7 +53609,7 @@ Starting with this version, all MySQL distributions will be
 configured, compiled and tested with @code{crash-me} and the benchmarks on
 the following platforms: SunOS 5.6 sun4u, SunOS 5.5.1 sun4u, SunOS 4.14 sun4c,
 SunOS 5.6 i86pc, Irix 6.3 mips5k, HP-UX 10.20 hppa, AIX 4.2.1 ppc,
-OSF1 V4.0 alpha, FreeBSD 2.2.2 i86pc and BSDI 3.1 i386.
+OSF/1 V4.0 alpha, FreeBSD 2.2.2 i86pc and BSDI 3.1 i386.
 @item
 Fix @code{COUNT(*)} problems when the @code{WHERE} clause didn't match any
 records.  (Bug from 3.21.17.)
@@ -54202,7 +54202,7 @@ New function @code{SUBSTRING_INDEX()}, originally by Zeev Suraski.
 
 @itemize @bullet
 @item
-Should now configure and compile on OSF1 4.0 with the DEC compiler.
+Should now configure and compile on OSF/1 4.0 with the DEC compiler.
 @item
 Configuration and compilation on BSD/OS 3.0 works, but due to some bugs in
 BSD/OS 3.0, @code{mysqld} doesn't work on it yet.
@@ -54475,7 +54475,7 @@ The test of using @code{MYSQL_PWD} was reversed. Now @code{MYSQL_PWD} is
 enabled as default in the default release.
 @item
 Fixed conversion bug which caused @code{mysqld} to core dump with
-Arithmetic error on Sparc-386.
+Arithmetic error on SPARC-386.
 @item
 Added @code{--unbuffered} option to @code{mysql}, for new @code{mysqlaccess}.
 @item
@@ -55117,7 +55117,7 @@ See the @file{thr_lock.c} and @file{thr_alarm.c} programs in the @file{mysys}
 directory for some tests/examples of these problems.
 
 Both the server and the client need a working C++ compiler (we use @code{gcc}
-and have tried SparcWorks). Another compiler that is known to work is the
+and have tried SPARCworks). Another compiler that is known to work is the
 Irix @code{cc}.
 
 To compile only the client use @code{./configure --without-server}.
@@ -55933,7 +55933,7 @@ Kernel threads. Thread switching is handled by the thread library or the
 kernel and is very fast. Everything is done in one process, but on some
 systems, @code{ps} may show the different threads. If one thread aborts, the
 whole process aborts. Most system calls are thread safe and should
-require very little overhead.  Solaris, HP-UX, AIX and OSF1 have kernel
+require very little overhead.  Solaris, HP-UX, AIX and OSF/1 have kernel
 threads.
 @end itemize
 
