@@ -111,13 +111,11 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
     cs->coll= &my_collation_8bit_simple_ci_handler;
   
   cs->cset= &my_charset_8bit_handler;
-  cs->mbminlen= 1;
-  cs->mbmaxlen= 1;
 }
 
 
 
-static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
 
@@ -168,8 +166,9 @@ static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 						    sz, MYF(MY_WME))))
       goto err;
   }
-  to->mbminlen= 1;
-  to->mbmaxlen= 1;
+  if (from->tailoring)
+    if (!(to->tailoring= my_once_strdup(from->tailoring,MYF(MY_WME))))
+      goto err;
 
   return 0;
 
@@ -297,40 +296,6 @@ static my_tailoring tailoring[]=
   }
 };
 
-
-
-static int ucs2_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
-{
-  
-  to->number= from->number ? from->number : to->number;
-  
-  if (from->csname)
-    if (!(to->csname= my_once_strdup(from->csname,MYF(MY_WME))))
-      goto err;
-  
-  if (from->name)
-    if (!(to->name= my_once_strdup(from->name,MYF(MY_WME))))
-      goto err;
-  
-  if (from->comment)
-    if (!(to->comment= my_once_strdup(from->comment,MYF(MY_WME))))
-      goto err;
-  
-  if (from->tailoring)
-    if (!(to->tailoring= my_once_strdup(from->tailoring,MYF(MY_WME))))
-      goto err;
-  
-  to->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
-  to->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
-  to->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
-  to->mbminlen= 2;
-  to->mbmaxlen= 2;
-  
-  return 0;
-  
-err:
-  return 1;
-}
 #endif
 
 
@@ -365,22 +330,28 @@ static int add_collation(CHARSET_INFO *cs)
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
+      CHARSET_INFO *new= all_charsets[cs->number];
+      if (cs_copy_data(all_charsets[cs->number],cs))
+        return MY_XML_ERROR;
+
       if (!strcmp(cs->csname,"ucs2") )
       {
 #ifdef HAVE_CHARSET_ucs2
-        CHARSET_INFO *new= all_charsets[cs->number];
         new->cset= my_charset_ucs2_general_uca.cset;
         new->coll= my_charset_ucs2_general_uca.coll;
-        if (ucs2_copy_data(new, cs))
-          return MY_XML_ERROR;
+        new->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
+        new->min_sort_char= my_charset_ucs2_general_uca.min_sort_char;
+        new->max_sort_char= my_charset_ucs2_general_uca.max_sort_char;
+        new->mbminlen= 2;
+        new->mbmaxlen= 2;
         new->state |= MY_CS_AVAILABLE | MY_CS_LOADED;
 #endif        
       }
       else
       {
         simple_cs_init_functions(all_charsets[cs->number]);
-        if (simple_cs_copy_data(all_charsets[cs->number],cs))
-	  return MY_XML_ERROR;
+        new->mbminlen= 1;
+        new->mbmaxlen= 1;
         if (simple_cs_is_full(all_charsets[cs->number]))
         {
           all_charsets[cs->number]->state |= MY_CS_LOADED;
