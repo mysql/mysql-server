@@ -39,6 +39,7 @@ public:
    * @param batch     No of rows to fetch from each fragment at a time
    * @param LockMode  Scan lock handling   
    * @param order_by  Order result set in index order
+   * @param order_desc  Order descending, ignored unless order_by
    * @returns NdbResultSet.
    * @see NdbScanOperation::readTuples
    */ 
@@ -46,6 +47,7 @@ public:
 		 Uint32 batch = 0, 
 		 Uint32 parallel = 0,
 		 bool order_by = false,
+                 bool order_desc = false,
 		 bool read_range_no = false);
   
   inline int readTuples(int parallell){
@@ -128,6 +130,7 @@ public:
   int get_range_no();
   
   bool getSorted() const { return m_ordered; }
+  bool getDescending() const { return m_descending; }
 private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();

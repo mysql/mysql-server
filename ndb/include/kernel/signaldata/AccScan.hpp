@@ -52,9 +52,11 @@ private:
    */
   static Uint32 getLockMode(const Uint32 & requestInfo);
   static Uint32 getReadCommittedFlag(const Uint32 & requestInfo);
+  static Uint32 getDescendingFlag(const Uint32 & requestInfo);
   
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
+  static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
 };
 
 /**
@@ -62,14 +64,16 @@ private:
  *
  * l = Lock Mode             - 1  Bit 2
  * h = Read Committed        - 1  Bit 5
+ * z = Descending (TUX)      - 1  Bit 6
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *   l  h    
+ *   l  hz   
  */
 #define AS_LOCK_MODE_SHIFT       (2)
 #define AS_LOCK_MODE_MASK        (1)
 #define AS_READ_COMMITTED_SHIFT  (5)
+#define AS_DESCENDING_SHIFT      (6)
 
 inline 
 Uint32
@@ -84,6 +88,12 @@ AccScanReq::getReadCommittedFlag(const Uint32 & requestInfo){
 }
 
 inline
+Uint32
+AccScanReq::getDescendingFlag(const Uint32 & requestInfo){
+  return (requestInfo >> AS_DESCENDING_SHIFT) & 1;
+}
+
+inline
 void
 AccScanReq::setLockMode(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, AS_LOCK_MODE_MASK, "AccScanReq::setLockMode");
@@ -95,6 +105,13 @@ void
 AccScanReq::setReadCommittedFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "AccScanReq::setReadCommittedFlag");
   requestInfo |= (val << AS_READ_COMMITTED_SHIFT);
+}
+
+inline
+void
+AccScanReq::setDescendingFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "AccScanReq::setDescendingFlag");
+  requestInfo |= (val << AS_DESCENDING_SHIFT);
 }
 
 class AccScanConf {
