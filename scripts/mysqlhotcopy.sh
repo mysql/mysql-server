@@ -8,6 +8,7 @@ use File::Path;
 use DBI;
 use Sys::Hostname;
 use File::Copy;
+use File::Temp;
 
 =head1 NAME
 
@@ -626,7 +627,6 @@ sub copy_files {
 sub copy_index
 {
   my ($method, $files, $source, $target) = @_;
-  my $tmpfile="$opt_tmpdir/mysqlhotcopy$$";
   
   print "Copying indices for ".@$files." files...\n" unless $opt{quiet};  
   foreach my $file (@$files)
@@ -635,6 +635,7 @@ sub copy_index
     my $to="$target/$file";
     my $buff;
     open(INPUT, "<$from") || die "Can't open file $from: $!\n";
+    binmode(INPUT, ":raw");
     my $length=read INPUT, $buff, 2048;
     die "Can't read index header from $from\n" if ($length < 1024);
     close INPUT;
@@ -652,23 +653,23 @@ sub copy_index
       }
       close OUTPUT	   || die "Error on close of $to: $!\n";
     }
-    elsif ($opt{method} eq 'scp')
+    elsif ($opt{method} =~ /^scp\b/)
     {
-      my $tmp=$tmpfile;
-      open(OUTPUT,">$tmp") || die "Can\'t create file $tmp: $!\n";
-      if (syswrite(OUTPUT,$buff) != length($buff))
+      my ($fh, $tmp)=tempfile('mysqlhotcopy-XXXXXX', DIR => $opt_tmpdir);
+      die "Can\'t create/open file in $opt_tmpdir\n";
+      if (syswrite($fh,$buff) != length($buff))
       {
 	die "Error when writing data to $tmp: $!\n";
       }
-      close OUTPUT	     || die "Error on close of $tmp: $!\n";
-      safe_system("scp $tmp $to");
+      close $fh || die "Error on close of $tmp: $!\n";
+      safe_system("$opt{method} $tmp $to");
+      unlink $tmp;
     }
     else
     {
       die "Can't use unsupported method '$opt{method}'\n";
     }
   }
-  unlink "$tmpfile" if  ($opt{method} eq 'scp');
 }
 
 

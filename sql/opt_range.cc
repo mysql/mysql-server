@@ -727,7 +727,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
 		head->used_keys.is_set(keynr) &&
-		(head->file->index_flags(keynr) & HA_KEYREAD_ONLY))
+		(head->file->index_flags(keynr, param.max_key_part, 1) &
+                 HA_KEYREAD_ONLY))
 	    {
 	      /*
 		We can resolve this by only reading through this key.
@@ -1028,7 +1029,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     uint length,offset,min_length,max_length;
 
-    if (!field->optimize_range(param->real_keynr[key_part->key]))
+    if (!field->optimize_range(param->real_keynr[key_part->key],
+                               key_part->part))
       DBUG_RETURN(0);				// Can't optimize this
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
@@ -1093,7 +1095,8 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     DBUG_RETURN(new SEL_ARG(field,min_str,max_str));
   }
 
-  if (!field->optimize_range(param->real_keynr[key_part->key]) &&
+  if (!field->optimize_range(param->real_keynr[key_part->key],
+                             key_part->part) &&
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this

@@ -178,7 +178,7 @@ public:
   inline bool real_maybe_null(void) { return null_ptr != 0; }
   virtual void make_field(Send_field *)=0;
   virtual void sort_string(char *buff,uint length)=0;
-  virtual bool optimize_range(uint idx);
+  virtual bool optimize_range(uint idx, uint part);
   virtual bool store_for_compare() { return 0; }
   virtual void free() {}
   Field *new_field(MEM_ROOT *root, struct st_table *new_table)
@@ -1134,7 +1134,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_ENUM; }
   virtual bool zero_pack() const { return 0; }
-  bool optimize_range(uint idx) { return 0; }
+  bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_ENUM; }
