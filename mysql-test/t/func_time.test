@@ -123,6 +123,8 @@ select extract(MONTH FROM "2001-02-00");
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
+# test bug 614 (multiple extracts in where)
+select ctime from t1 where extract(MONTH FROM ctime) = 1 AND extract(YEAR FROM ctime) = 2001;
 drop table t1;
 
 #
