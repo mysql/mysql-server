@@ -127,6 +127,8 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
+  lex->select_lex.group_list.empty();
+  lex->select_lex.order_list.empty();
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
