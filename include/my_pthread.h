@@ -279,7 +279,7 @@ extern int my_pthread_create_detached;
 #endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
 
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
-int sigwait(const sigset_t *set, int *sig);
+int sigwait(sigset_t *set, int *sig);
 #endif
 
 #if defined(HAVE_UNIXWARE7_POSIX)
@@ -290,7 +290,7 @@ int sigwait(const sigset_t *set, int *sig);
 #ifndef HAVE_NONPOSIX_SIGWAIT
 #define my_sigwait(A,B) sigwait((A),(B))
 #else
-int my_sigwait(sigset_t *set,int *sig);
+int my_sigwait(const sigset_t *set,int *sig);
 #endif
 
 #ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT
@@ -309,7 +309,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #endif
 
 #if !defined(HAVE_SIGWAIT) && !defined(HAVE_mit_thread) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
-int sigwait(const sigset_t *setp, int *sigp);		/* Use our implemention */
+int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 #if !defined(HAVE_SIGSET) && !defined(HAVE_mit_thread) && !defined(sigset)
 #define sigset(A,B) do { struct sigaction s; sigset_t set;              \

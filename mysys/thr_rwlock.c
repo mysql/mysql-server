@@ -65,8 +65,13 @@ int my_rwlock_init( rw_lock_t *rwp, void *arg __attribute__((unused)))
 
   pthread_mutex_init( &rwp->lock, NULL );
   pthread_condattr_init( &cond_attr );
+#ifdef HAVE_PTHREAD_CONDATTR_CREATE	/* HPUX 11.0 */
+  pthread_cond_init( &rwp->readers, cond_attr );
+  pthread_cond_init( &rwp->writers, cond_attr );
+#else
   pthread_cond_init( &rwp->readers, &cond_attr );
   pthread_cond_init( &rwp->writers, &cond_attr );
+#endif
   pthread_condattr_destroy(&cond_attr);
 
   rwp->state	= 0;
