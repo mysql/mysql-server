@@ -1646,6 +1646,7 @@ int Stop_log_event::exec_event(struct st_master_info* mi)
   if(mi->pos > 4) // stop event should be ignored after rotate event
   {
     close_temporary_tables(thd);
+    //clean_up_load_tmp_dir();
     mi->inc_pos(get_event_len(), log_seq);
     flush_master_info(mi);
   }
