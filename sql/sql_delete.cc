@@ -35,26 +35,10 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
   TABLE **table_ptr;
   DBUG_ENTER("generate_table");
 
+  if (wait_if_global_read_lock(thd,0))
+    DBUG_RETURN(1);
   thd->proc_info="generate_table";
-
-  if (global_read_lock)
-  {
-    if(thd->global_read_lock)
-    {
-      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
-	       table_list->real_name);
-      DBUG_RETURN(-1);
-    }
-    pthread_mutex_lock(&LOCK_open);
-    while (global_read_lock && ! thd->killed ||
-	   thd->version != refresh_version)
-    {
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    }
-    pthread_mutex_unlock(&LOCK_open);
-  }
-
-  
+ 
     /* If it is a temporary table, close and regenerate it */
   if ((table_ptr=find_temporary_table(thd,table_list->db,
 				      table_list->real_name)))
@@ -91,6 +75,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
       if (!locked_table)
       {
 	VOID(pthread_mutex_unlock(&LOCK_open));
+	start_waiting_global_read_lock(thd);	
 	DBUG_RETURN(1);				// We must get a lock on table
       }
     }
@@ -118,6 +103,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
     }
     send_ok(&thd->net);		// This should return record count
   }
+  start_waiting_global_read_lock(thd);
   DBUG_RETURN(error ? -1 : 0);
 }
 
@@ -298,7 +284,7 @@ int mysql_delete(THD *thd,
 
 int refposcmp2(void* arg, const void *a,const void *b)
 {
-  return memcmp(a,b,(int) arg);
+  return memcmp(a,b, *(int*) arg);
 }
 
 multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
@@ -321,7 +307,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
     (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
     tempfiles[counter] = new Unique (refposcmp2,
-				     (void *) table->file->ref_length,
+				     (void *) &table->file->ref_length,
 				     table->file->ref_length,
 				     MEM_STRIP_BUF_SIZE);
   }

@@ -35,7 +35,10 @@ static int _mi_balance_page(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key);
-
+int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
+		      uint key_length);
+int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
+		       uint key_length);
 
 	/* Write new record to database */
 
@@ -214,7 +217,7 @@ int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
  **********************************************************************/
 
 int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
-		 uint key_length)
+		       uint key_length)
 {
   int error;
   DBUG_ENTER("_mi_ck_write_btree");
@@ -710,7 +713,7 @@ typedef struct {
 } bulk_insert_param;
 
 int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
-		 uint key_length)
+		      uint key_length)
 {
   int error;
   DBUG_ENTER("_mi_ck_write_tree");

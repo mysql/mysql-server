@@ -1006,7 +1006,7 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
 	my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
 			ER(ER_NO_PERMISSION_TO_CREATE_USER),
 			MYF(0),thd->user,
-			thd->host ? thd->host : thd->ip ? thd->ip: "");
+			thd->host_or_ip);
       error= -1;
       goto end;
     }
@@ -1503,8 +1503,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   uint store_table_rights,store_col_rights;
   DBUG_ENTER("replace_table_table");
 
-  strxmov(grantor,thd->user,"@",thd->host ? thd->host : thd->ip ? thd->ip :"",
-	  NullS);
+  strxmov(grantor, thd->user, "@", thd->host_or_ip, NullS);
 
   // The following should always succeed as new users are created before
   // this function is called!
@@ -2091,7 +2090,7 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
     net_printf(&thd->net,ER_TABLEACCESS_DENIED_ERROR,
 	       command,
 	       thd->priv_user,
-	       thd->host ? thd->host : (thd->ip ? thd->ip : "unknown"),
+	       thd->host_or_ip,
 	       table ? table->real_name : "unknown");
   }
   return 1;
@@ -2154,7 +2153,7 @@ bool check_grant_column (THD *thd,TABLE *table, const char *name,
 		    MYF(0),
 		    command,
 		    thd->priv_user,
-		    thd->host ? thd->host : (thd->ip ? thd->ip : "unknown"),
+		    thd->host_or_ip,
 		    name,
 		    table ? table->real_name : "unknown");
   }
@@ -2212,7 +2211,7 @@ bool check_grant_all_columns(THD *thd,uint want_access, TABLE *table)
 		  MYF(0),
 		  command,
 		  thd->priv_user,
-		  thd->host ? thd->host : (thd->ip ? thd->ip : "unknown"),
+		  thd->host_or_ip,
 		  field ? field->field_name : "unknown",
 		  table->real_name);
   return 1;

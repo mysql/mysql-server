@@ -285,7 +285,6 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
 
 /* net_pkg.c */
-void send_error(NET *net,uint sql_errno=0, const char *err=0);
 void send_warning(NET *net, uint sql_errno, const char *err=0);
 void net_printf(NET *net,uint sql_errno, ...);
 void send_ok(NET *net,ha_rows affected_rows=0L,ulonglong id=0L,
@@ -312,11 +311,12 @@ SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
 int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
                 List <Item> &all_fields, ORDER *order);
 
+int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result);
-int mysql_union(THD *thd,LEX *lex,select_result  *create_insert=(select_result *)NULL);
+int mysql_union(THD *thd,LEX *lex,select_result *result);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -586,6 +586,10 @@ void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table);
 void mysql_lock_abort(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
+bool lock_global_read_lock(THD *thd);
+void unlock_global_read_lock(THD *thd);
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh);
+void start_waiting_global_read_lock(THD *thd);
 
 /* Lock based on name */
 int lock_table_name(THD *thd, TABLE_LIST *table_list);
