@@ -52,6 +52,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
 NdbScanOperation::~NdbScanOperation()
 {
   for(Uint32 i = 0; i<m_allocated_receivers; i++){
+    m_receivers[i]->release();
     theNdb->releaseNdbScanRec(m_receivers[i]);
   }
   delete[] m_array;
@@ -191,7 +192,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return 0;
   }
   
-  theSCAN_TABREQ = theNdb->getSignal();
+  theSCAN_TABREQ = (!theSCAN_TABREQ ? theNdb->getSignal() : theSCAN_TABREQ);
   if (theSCAN_TABREQ == NULL) {
     setErrorCodeAbort(4000);
     return 0;
@@ -719,6 +720,12 @@ void NdbScanOperation::release()
   for(Uint32 i = 0; i<m_allocated_receivers; i++){
     m_receivers[i]->release();
   }
+  if(theSCAN_TABREQ)
+  {
+    theNdb->releaseSignal(theSCAN_TABREQ);
+    theSCAN_TABREQ = 0;
+  }
+  NdbOperation::release();
 }
 
 /***************************************************************************
