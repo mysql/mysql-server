@@ -1282,7 +1282,7 @@ in bed or while you travel. Here is a list of books about @strong{MySQL} (in
 English):
 
 @multitable @columnfractions .3 .7
-@item Title	@tab		@uref{http://www2.newriders.com/cfm/prod_book.cfm?RecordID=584,MySQL}
+@item Title	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?userid=2I7CR56GYQ&mscssid=7M1HKEME12MW9MFS547RKBSQX1N4FVLD&isbn=0735709211,MySQL}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
 @item Pub Date	@tab		1st Edition December 1999
@@ -1340,7 +1340,7 @@ and PHP's @strong{MySQL}-related functions
 @end itemize
 
 @multitable @columnfractions .3 .7
-@item Title	@tab		@uref{http://www.oreilly.com/catalog/msql/noframes.html,MySQL & mSQL}
+@item Title	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?userid=2I7CR56GYQ&mscssid=7M1HKEME12MW9MFS547RKBSQX1N4FVLD&isbn=1565924347,MySQL & mSQL}
 @item Publisher	@tab		O'Reilly
 @item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
 @item Pub Date	@tab		1st Edition July 1999
