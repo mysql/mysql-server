@@ -38,14 +38,14 @@ insert into t1 values (2),(4),(6),(8),(10),(12),(14),(16),(18),(20),(22),(24),(2
 delete from t1 where a=27;
 drop table t1;
 
-CREATE TABLE `t` (
+CREATE TABLE `t1` (
   `i` int(10) NOT NULL default '0',
   `i2` int(10) NOT NULL default '0',
   PRIMARY KEY  (`i`)
-) TYPE=MyISAM CHARSET=latin1;
+);
 -- error 1054
-DELETE FROM t USING t WHERE post='1';
-drop table if exists t;
+DELETE FROM t1 USING t1 WHERE post='1';
+drop table t1;
 
 #
 # CHAR(0) bug - not actually DELETE bug, but anyway...

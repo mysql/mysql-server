@@ -69,6 +69,8 @@ Incorrect table name ''
 create table t1 (`` int);
 Incorrect column name ''
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
 create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;

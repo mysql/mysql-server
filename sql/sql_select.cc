@@ -1275,7 +1275,7 @@ JOIN::cleanup(THD *thd)
       }
     }
     tmp_join->tmp_join= 0;
-    return tmp_join->cleanup(thd);
+    DBUG_RETURN(tmp_join->cleanup(thd));
   }
 
 
@@ -3812,7 +3812,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       }
     }
     if (should_fix_fields)
-      cond->fix_fields(current_thd,0);
+      cond->fix_fields(current_thd,0, &cond);
 
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)

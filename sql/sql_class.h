@@ -680,6 +680,7 @@ public:
   {
     is_fatal_error= 1;
     net.report_error= 1; 
+    DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.thd_charset; }
 };
@@ -907,10 +908,11 @@ class Table_ident :public Sql_alloc
   LEX_STRING db;
   LEX_STRING table;
   SELECT_LEX_UNIT *sel;
-  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg, bool force)
+  inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
+		     bool force)
     :table(table_arg), sel((SELECT_LEX_UNIT *)0)
   {
-    if (!force && (current_thd->client_capabilities & CLIENT_NO_SCHEMA))
+    if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
       db.str=0;
     else
       db= db_arg;
@@ -922,7 +924,8 @@ class Table_ident :public Sql_alloc
   }
   inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
   {
-    db.str=0; table.str=(char *)""; table.length=0;
+    /* We must have a table name here as this is used with add_table_to_list */
+    db.str=0; table.str=(char *)"*"; table.length=1;
   }
   inline void change_db(char *db_name)
   {
