@@ -41,8 +41,7 @@ row_undo_search_clust_to_pcur(
 				/* out: TRUE if found; NOTE the node->pcur
 				must be closed by the caller, regardless of
 				the return value */
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr);	/* in: query thread */
+	undo_node_t*	node);	/* in: row undo node */
 /***************************************************************
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs. */

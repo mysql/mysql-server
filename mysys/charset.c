@@ -97,7 +97,7 @@ static void init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;
   state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) MY_LEX_BOOL;
   state_map[(uchar)'#']=(uchar) MY_LEX_COMMENT;
-  state_map[(uchar)';']=(uchar) MY_LEX_COLON;
+  state_map[(uchar)';']=(uchar) MY_LEX_SEMICOLON;
   state_map[(uchar)':']=(uchar) MY_LEX_SET_VAR;
   state_map[0]=(uchar) MY_LEX_EOL;
   state_map[(uchar)'\\']= (uchar) MY_LEX_ESCAPE;
@@ -373,7 +373,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   uint len;
   MY_STAT stat_info;
   
-  if (!my_stat(filename, &stat_info, MYF(MY_WME)) ||
+  if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
        !(buf= (char *)my_malloc(len,myflags)))
     return TRUE;

@@ -1356,7 +1356,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for(; table; table= table->next)
+  for (; table; table= table->next)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

@@ -28,7 +28,8 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || \
+    defined(HAVE_NDBCLUSTER_DB)
 #define USING_TRANSACTIONS
 #endif
 
@@ -78,7 +79,6 @@
 #define HA_LASTKEY_ORDER       (1 << 25)
 /* Table data are stored in separate files */
 #define HA_FILE_BASED	       (1 << 26)
-
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -141,12 +141,18 @@
 #define HA_CACHE_TBL_ASKTRANSACT 1
 #define HA_CACHE_TBL_TRANSACT    2
 
-enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
-	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
-	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
-	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
-	       DB_TYPE_DEFAULT };
+enum db_type 
+{ 
+  DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
+  DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
+  DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
+  DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
+  DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, 
+  DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
+  DB_TYPE_EXAMPLE_DB,
+	       
+  DB_TYPE_DEFAULT // Must be last
+};
 
 struct show_table_type_st {
   const char *type;
@@ -176,6 +182,7 @@ typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
   bool innodb_active_trans;
+  void *ndb_tid;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -479,3 +486,5 @@ bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
+int ha_discover(const char* dbname, const char* name,
+		const void** frmblob, uint* frmlen);

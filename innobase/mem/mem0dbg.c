@@ -336,7 +336,7 @@ mem_hash_remove(
 	}
 						
 	if (node == NULL) {
-		printf(
+		fprintf(stderr,
     	    "Memory heap or buffer freed in %s line %lu did not exist.\n",
 			file_name, (ulong) line);
 		ut_error;
@@ -351,20 +351,14 @@ mem_hash_remove(
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,
 								NULL, NULL);
 	if (error) {
-	        printf(
-"Inconsistency in memory heap or buffer n:o %lu created\n",
-							(ulong) node->nth_heap);
-		printf("in %s line %lu and tried to free in %s line %lu.\n",
-		       node->file_name, (ulong) node->line,
-		       file_name, (ulong) line);
-
-		printf(
-"Hex dump of 400 bytes around memory heap first block start:\n");
-
-		ut_print_buf((byte*)(node->heap) - 200, 400);
-
-		printf("\nDump of the mem heap:\n");
-
+		fprintf(stderr,
+	"Inconsistency in memory heap or buffer n:o %lu created\n"
+	"in %s line %lu and tried to free in %s line %lu.\n"
+	"Hex dump of 400 bytes around memory heap first block start:\n",
+			node->nth_heap, node->file_name, (ulong) node->line,
+			file_name, (ulong) line);
+		ut_print_buf(stderr, (byte*)node->heap - 200, 400);
+		fputs("\nDump of the mem heap:\n", stderr);
 		mem_heap_validate_or_print(node->heap, NULL, TRUE, &error,
 							 &size, NULL, NULL);
 		ut_error;
@@ -379,6 +373,7 @@ mem_hash_remove(
 }
 #endif /* UNIV_MEM_DEBUG */
 
+#ifdef UNIV_DEBUG
 /*******************************************************************
 Checks a memory heap for consistency and prints the contents if requested.
 Outputs the sum of sizes of buffers given to the user (only in
@@ -440,7 +435,7 @@ mem_heap_validate_or_print(
 	}
 
 	if (print) {
-		printf("Memory heap:");
+		fputs("Memory heap:", stderr);
 	}
 
 	while (block != NULL) {	
@@ -461,7 +456,7 @@ mem_heap_validate_or_print(
 		/* We can trace the fields of the block only in the debug
 		version */
 		if (print) {
-			printf(" Block %ld:", block_count);
+			fprintf(stderr, " Block %ld:", block_count);
 		}
 
 		field = (byte*)block + mem_block_get_start(block);
@@ -481,7 +476,7 @@ mem_heap_validate_or_print(
 			len = mem_field_header_get_len(user_field); 
 						   
 			if (print) {
-				ut_print_buf(user_field, len);
+				ut_print_buf(stderr, user_field, len);
 			}
 				
 			total_len += len;
@@ -561,7 +556,7 @@ mem_heap_print(
 
 	mem_heap_validate_or_print(heap, NULL, TRUE, &error, 
 				&us_size, &phys_size, &n_blocks);
-	printf(
+	fprintf(stderr,
   "\nheap type: %lu; size: user size %lu; physical size %lu; blocks %lu.\n",
 			(ulong) heap->type, (ulong) us_size,
 			(ulong) phys_size, (ulong) n_blocks);
@@ -608,6 +603,7 @@ mem_heap_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
@@ -680,9 +676,11 @@ mem_validate_no_assert(void)
 				&ph_size, &n_blocks);
 
 			if (error) {
- 	   printf("\nERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n");
-	   printf("Inconsistency in memory heap or buffer created\n");
-	   printf("in %s line %lu.\n", node->file_name, node->line);
+				fprintf(stderr,
+		"\nERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n"
+		"Inconsistency in memory heap or buffer created\n"
+		"in %s line %lu.\n",
+					node->file_name, node->line);
 
 				mutex_exit(&mem_hash_mutex);
 
@@ -742,12 +740,10 @@ mem_analyze_corruption(
 	ulint	i;
 	ulint	dist;
 
-	ut_sprintf_buf(srv_fatal_errbuf, ptr - 250, 500);
-	fprintf(stderr,
-  "InnoDB: Apparent memory corruption: mem dump %s\n", srv_fatal_errbuf);
+	fputs("InnoDB: Apparent memory corruption: mem dump ", stderr);
+	ut_print_buf(stderr, ptr - 250, 500);
 
-	fprintf(stderr,
-  "InnoDB: Scanning backward trying to find previous allocated mem blocks\n");
+	fputs("\nInnoDB: Scanning backward trying to find previous allocated mem blocks\n", stderr);
 
 	p = ptr;
 	dist = 0;

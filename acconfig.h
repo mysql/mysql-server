@@ -112,6 +112,9 @@
 /* Define if we are using OSF1 DEC threads on 3.2 */
 #undef HAVE_DEC_3_2_THREADS
 
+/* Builds Example DB */
+#undef HAVE_EXAMPLE_DB
+
 /* fp_except from ieeefp.h */
 #undef HAVE_FP_EXCEPT
 
@@ -148,6 +151,9 @@
 
 /* Do we use user level threads */
 #undef HAVE_mit_thread
+
+/* Using Ndb Cluster DB */
+#undef HAVE_NDBCLUSTER_DB
 
 /* For some non posix threads */
 #undef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC

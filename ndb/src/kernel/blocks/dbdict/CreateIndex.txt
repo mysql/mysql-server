@@ -1,0 +1,152 @@
+Unique Hash Index
+=================
+
+unique hash index X on T(A1,...,An) becomes:
+table X with primary key A1,...,An and extra attribute NDB$PK
+
+NDB$PK is primary key of T concatenated at 4-byte boundaries
+
+Protocols:
+
+U - user, initiator of protocol
+C - coordinator
+P - participants, including coordinator node
+
+RT_ - request type, current state
+
+P always replies to C with current RT_ (initially RT_DICT_PREPARE)
+C replies to U at the end
+
+CREATE INDEX
+------------
+
+U: RT_USER
+
+C: forward request to P's
+P: check and reply
+
+C: invoke CREATE TABLE for index table
+
+C: invoke ALTER INDEX online
+
+C: send RT_DICT_COMMIT to P's
+P: reply
+
+C: reply to U
+
+DROP INDEX
+----------
+
+[ todo ]
+
+ALTER INDEX online
+------------------
+
+U: RT_USER, RT_CREATE_INDEX, RT_NODERESTART, RT_SYSTEMRESTART
+
+C: forward request to P's
+P: check and reply
+
+C: send RT_DICT_TC to P's
+P: create index in local TC, and reply
+
+C: invoke CREATE TRIGGER for insert/update/delete triggers
+
+C: invoke BUILD INDEX
+
+C: send RT_DICT_COMMIT to P's
+P: reply
+
+C: reply to U
+
+ALTER INDEX offline
+-------------------
+
+[ todo ]
+
+BUILD INDEX
+-----------
+
+U: RT_USER, RT_ALTER_INDEX
+
+C: forward request to P's
+P: check and reply
+
+C: invoke CREATE TRIGGER for read-only constraint on NDB$PK
+
+C: send RT_DICT_TRIX to P's
+P: build index via local TRIX, and reply
+
+C: invoke DROP TRIGGER for read-only constraint on NDB$PK
+
+C: send RT_DICT_TC to P's
+P: online index in local TC, and reply
+
+CREATE TRIGGER
+--------------
+
+U: RT_USER, RT_ALTER_INDEX, RT_BUILD_INDEX
+
+C: forward request to P's
+P: check and reply
+
+C: seize trigger id and send RT_DICT_CREATE to P's
+P: create trigger in DICT (also connect to index record), and reply
+
+C: invoke ALTER TRIGGER online [ not if subscription trigger ]
+
+C: send RT_DICT_COMMIT to P's
+P: reply
+
+C: reply to U
+
+DROP TRIGGER
+------------
+
+[ todo ]
+
+ALTER TRIGGER online
+--------------------
+
+U: RT_USER, RT_CREATE_TRIGGER
+
+C: forward request to P's
+P: check and reply
+
+C: send RT_DICT_TC to P's
+P: create trigger in local TC, and reply
+
+C: send RT_DICT_LQH to P's
+P: create trigger in local LQH (which just forwards to TUP), and reply
+
+C: send RT_DICT_COMMIT to P's
+P: reply
+
+C: reply to U
+
+ALTER TRIGGER offline
+---------------------
+
+[ todo ]
+
+Ordered Index  << under work >>
+=============
+
+created as DICT table, as before, to reuse the code
+
+keep NDB$PK as last attribute (not used but logically correct)
+
+create fragments and attributes must be modified
+
+global metadata?  implemented but will use signals anyway
+
+create (after-) insert/update/delete triggers as DICT objects, as before
+
+skip following:
+- create index in TC
+- create triggers in TC
+- read-only constraint on NDB$PK
+
+create (before-) commit trigger in TUP
+
+alter online (in TUX, instead of TC) is needed

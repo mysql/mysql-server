@@ -337,7 +337,9 @@ row_drop_table_for_mysql(
 /*=====================*/
 			/* out: error code or DB_SUCCESS */
 	char*	name,	/* in: table name */
-	trx_t*	trx);	/* in: transaction handle */
+	trx_t*	trx,	/* in: transaction handle */
+	ibool	drop_db);/* in: TRUE=dropping whole database */
+
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
