@@ -72,3 +72,16 @@ CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
 INSERT INTO t1 VALUES ('ä'),('ö'),('ü'),('ß');
 SELECT * FROM t1;
 DROP TABLE t1;
+
+#
+# Test bug where enum fields where extended for each ALTER TABLE
+#
+
+create table t1 (a enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin);
+insert into t1 values ('Y');
+alter table t1 add b set ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+alter table t1 add c enum ('Y','N') CHARACTER SET utf8 COLLATE utf8_bin;
+--enable_metadata
+select * from t1;
+--disable metadata
+drop table t1;
