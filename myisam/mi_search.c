@@ -264,9 +264,9 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
      SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
      flag is the value returned by _mi_key_cmp and as treated as final */
   int flag=0, my_flag=-1;
-  uint nod_flag, length, len, matched, cmplen, kseg_len, key_len_left;
+  uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint prefix_len,suffix_len;
-  int key_len_skip, seg_len_pack;
+  int key_len_skip, seg_len_pack, key_len_left;
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
@@ -288,6 +288,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     key_len_skip=lenght_pack+kseg_len;
     key_len_left=key_len-key_len_skip;
     cmplen=(key_len_left>=0) ? kseg_len : key_len-lenght_pack;
+    DBUG_PRINT("info",("key: '%.*s'",kseg_len,kseg));
   }
 
 /*
@@ -342,6 +343,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     saved_vseg=vseg;
     saved_prefix_len=prefix_len;
 
+    DBUG_PRINT("loop",("page: '%.*s%.*s'",prefix_len,t_buff+seg_len_pack,suffix_len,vseg));
     {
       uchar *from=vseg+suffix_len;
       MI_KEYSEG *keyseg;
@@ -409,7 +411,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
         }
         else if (len > cmplen)
         {
-          if(my_flag = !(nextflag & SEARCH_PREFIX) && key_len_left>0)
+          if(my_flag = !(nextflag & SEARCH_PREFIX) || key_len_left>0)
             break;
           goto fix_flag;
         }
@@ -688,8 +690,8 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
 
         /*
-        ** Compare two keys with is bigger
-        ** Returns <0, 0, >0 acording to with is bigger
+        ** Compare two keys
+        ** Returns <0, 0, >0 acording to which is bigger
         ** Key_length specifies length of key to use.  Number-keys can't
         ** be splited
         ** If flag <> SEARCH_FIND compare also position
