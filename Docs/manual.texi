@@ -28045,10 +28045,10 @@ way (this is mostly relevant only for @code{MyISAM} tables).
 @itemize @bullet
 @item
 In the data directory you will always have the table definition file
-and the data/index files.
+and the data and index files.
 
 @item
-You can symlink the index file and the datafile to different directories
+You can symlink the index file and the data file to different directories
 independently of the other.
 
 @item
@@ -28057,8 +28057,8 @@ not running) or with the @code{INDEX/DATA DIRECTORY="path-to-dir"} command
 in @code{CREATE TABLE}. @xref{CREATE TABLE}.
 
 @item
-@code{myisamchk} will not replace a symlink with the index/file but
-work directly on the files the symlinks points to. Any temporary files
+@code{myisamchk} will not replace a symlink with the data or index file but
+work directly on the file the symlink points to. Any temporary files
 will be created in the same directory where the data or index file is
 located.
 
@@ -28069,17 +28069,19 @@ should @strong{not} run @code{mysqld} as @code{root} or allow
 persons to have write access to the MySQL database directories.
 
 @item
-If you rename a table with @code{ALTER TABLE RENAME} and you don't change
-database, the symlink in the database directory will be renamed to the new
-name and the data/index file will be renamed accordingly.
+If you rename a table with @code{ALTER TABLE RENAME} and you don't move
+the table to another database, the symlinks in the database directory
+will be renamed to the new names and the data and index files will be
+renamed accordingly.
 
 @item
 If you use @code{ALTER TABLE RENAME} to move a table to another database,
-then the table will be moved to the other database directory and the old
-symlinks and the files they pointed to will be deleted.
+the table will be moved to the other database directory and the old
+symlinks and the files they pointed to will be deleted.  (In other words,
+the new table will not be symlinked.)
 
 @item
-If you are not using symlinks you should use the @code{--skip-symlink}
+If you are not using symlinks, you should use the @code{--skip-symlink}
 option to @code{mysqld} to ensure that no one can drop or rename a file
 outside of the @code{mysqld} data directory.
 @end itemize
