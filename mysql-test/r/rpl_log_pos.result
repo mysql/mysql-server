@@ -21,7 +21,7 @@ Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Lo
 slave start;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	1	master-bin.001	73	slave-relay-bin.001	4	master-bin.001	No	Yes			0		0	73	4
+127.0.0.1	root	MASTER_PORT	1	master-bin.001	73	slave-relay-bin.001	45	master-bin.001	No	Yes			0		0	73	45
 slave stop;
 change master to master_log_pos=173;
 slave start;

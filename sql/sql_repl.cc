@@ -51,7 +51,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 }
 
 static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
-			     const char**errmsg)
+                             ulonglong position, const char**errmsg)
 {
   char header[LOG_EVENT_HEADER_LEN], buf[ROTATE_HEADER_LEN];
   memset(header, 0, 4); // when does not matter
@@ -69,7 +69,7 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   
   packet->append(header, sizeof(header));
   /* We need to split the next statement because of problem with cxx */
-  int4store(buf,4); // tell slave to skip magic number
+  int4store(buf,position);
   int4store(buf+4,0);
   packet->append(buf, ROTATE_HEADER_LEN);
   packet->append(p,ident_len);
@@ -382,17 +382,30 @@ impossible position";
   */
   packet->set("\0", 1);
 
-  // if we are at the start of the log
-  if (pos == BIN_LOG_HEADER_SIZE)
+  /*
+    Before 4.0.14 we called fake_rotate_event below only if 
+    (pos == BIN_LOG_HEADER_SIZE), because if this is false then the slave
+    already knows the binlog's name.
+    Now we always call fake_rotate_event; if the slave already knew the log's
+    name (ex: CHANGE MASTER TO MASTER_LOG_FILE=...) this is useless but does not
+    harm much. It is nice for 3.23 (>=.58) slaves which test Rotate events
+    to see if the master is 4.0 (then they choose to stop because they can't
+    replicate 4.0); by always calling fake_rotate_event we are sure that 3.23.58
+    and newer will detect the problem as soon as replication starts (BUG#198).
+    Always calling fake_rotate_event makes sending of normal
+    (=from-binlog) Rotate events a priori unneeded, but it is not so simple: the
+    2 Rotate events are not equivalent, the normal one is before the Stop event,
+    the fake one is after. If we don't send the normal one, then the Stop event
+    will be interpreted (by existing 4.0 slaves) as "the master stopped", which
+    is wrong. So for safety, given that we want minimum modification of 4.0, we
+    send the normal and fake Rotates.
+  */
+  if (fake_rotate_event(net, packet, log_file_name, pos, &errmsg))
   {
-    // tell the client log name with a fake rotate_event
-    if (fake_rotate_event(net, packet, log_file_name, &errmsg))
-    {
-      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-      goto err;
-    }
-    packet->set("\0", 1);
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    goto err;
   }
+  packet->set("\0", 1);
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
@@ -585,10 +598,12 @@ Increase max_allowed_packet on master";
       end_io_cache(&log);
       (void) my_close(file, MYF(MY_WME));
 
-      // fake Rotate_log event just in case it did not make it to the log
-      // otherwise the slave make get confused about the offset
+      /*
+        Even if the previous log contained a Rotate_log_event, we still fake
+        one.
+      */
       if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
-	  fake_rotate_event(net, packet, log_file_name, &errmsg))
+	  fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE, &errmsg))
       {
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
 	goto err;
