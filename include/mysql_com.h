@@ -232,7 +232,7 @@ my_bool net_realloc(NET *net, unsigned long length);
 #ifndef EMBEDDED_LIBRARY
 my_bool	net_flush(NET *net);
 #else
-#define net_flush(A) (0)
+#define net_flush(A)
 #endif
 
 my_bool	my_net_write(NET *net,const char *packet,unsigned long len);

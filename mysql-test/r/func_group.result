@@ -173,11 +173,11 @@ select max(t2.a2), max(t1.a1) from t1, t2;
 max(t2.a2)	max(t1.a1)
 NULL	NULL
 explain select min(a2) from t1;
-Comment
-Select tables optimized away
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 explain select max(t1.a1), max(t2.a2) from t1, t2;
-Comment
-No matching min/max row
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 insert into t2 values('AAA', 10, 0.5);
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)

@@ -91,7 +91,10 @@ select * from t3 where a in (select b from t2);
 select * from t3 where a not in (select b from t2);
 select * from t3 where a = some (select b from t2);
 select * from t3 where a <> any (select b from t2);
+
+# Rewrite: select * from t3 where not exists (select b from t2 where a <> b);
 select * from t3 where a = all (select b from t2);
+
 select * from t3 where a <> all (select b from t2);
 insert into t2 values (100, 5);
 select * from t3 where a < any (select b from t2);

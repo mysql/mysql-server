@@ -528,7 +528,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     table_list.db=(char*) db;
     table_list.real_name= table_list.alias= file_name;
     if (lower_case_table_names)
-      casedn_str(file_name);
+      my_casedn_str(files_charset_info, file_name);
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
       for (uint i=0 ; i < field_list.elements ; i++)
@@ -958,7 +958,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,2);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
-  VOID(net_flush(&thd->net));
+  net_flush(&thd->net);
   DBUG_VOID_RETURN;
 }
 
@@ -981,7 +981,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   {
     if (protocol->write())
       DBUG_RETURN(-1);
-    VOID(net_flush(&thd->net));
+    net_flush(&thd->net);
   }
   else
   {

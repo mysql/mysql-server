@@ -612,7 +612,7 @@ public:
     return (item->fix_fields(thd, tlist, &item) || item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
-  void split_sum_func(List<Item> &fields);
+  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void update_used_tables()
   {
     item->update_used_tables() ; Item_func::update_used_tables();

@@ -23,7 +23,6 @@
 #define MAX_REC_LENGTH 1024
 #define KEYALG HA_KEY_ALG_RTREE
 
-static void create_point(char *record,uint rownr);
 static void create_linestring(char *record,uint rownr);
 static void print_record(char * record,my_off_t offs,const char * tail);
 
@@ -33,7 +32,6 @@ static void print_key(const char *key,const char * tail);
 static int run_test(const char *filename);
 static int read_with_pos(MI_INFO * file, int silent);
 
-static int rtree_CreatePointWKB(double *ords, uint n_dims, uchar *wkb);
 static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points, uchar *wkb);
 static  void rtree_PrintWKB(uchar *wkb, uint n_dims);
 
@@ -362,7 +360,7 @@ static void print_record(char * record, my_off_t offs,const char * tail)
 
 
 
-#ifndef NOT_USED
+#ifdef NOT_USED
 static void create_point(char *record,uint rownr)
 {
    uint tmp;
@@ -449,6 +447,8 @@ static void print_key(const char *key,const char * tail)
 
 
 
+#ifdef NOT_USED
+
 static int rtree_CreatePointWKB(double *ords, uint n_dims, uchar *wkb)
 {
   uint i;
@@ -465,8 +465,11 @@ static int rtree_CreatePointWKB(double *ords, uint n_dims, uchar *wkb)
   }
   return 5 + n_dims * 8;
 }
+#endif
 
-static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points, uchar *wkb)
+
+static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points,
+				     uchar *wkb)
 {
   uint i;
   uint n_ords = n_dims * n_points;

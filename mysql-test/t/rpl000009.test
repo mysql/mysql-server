@@ -12,7 +12,7 @@ create database mysqltest;
 save_master_pos;
 connection slave;
 sync_with_master;
-create database mysqltest;
+create database mysqltest2;
 create table mysqltest2.foo (n int);
 insert into mysqltest2.foo values(4);
 connection master;

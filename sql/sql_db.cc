@@ -605,7 +605,7 @@ bool mysql_change_db(THD *thd, const char *name)
 }
 
 
-int mysqld_show_create_db(THD *thd, const char *dbname,
+int mysqld_show_create_db(THD *thd, char *dbname,
 			  HA_CREATE_INFO *create_info)
 {
   int length;

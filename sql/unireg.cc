@@ -28,7 +28,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
-#define FCOMP			15		/* Bytes for a packed field */
+#define FCOMP			17		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -451,15 +451,15 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     buff[0]= (uchar) field->row;
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
-    buff[3]= (uchar) field->length;
+    int2store(buff+3, field->length);
     uint recpos=(uint) field->offset+1;
-    int2store(buff+4,recpos);
-    int2store(buff+6,field->pack_flag);
-    int2store(buff+8,field->unireg_check);
-    buff[10]= (uchar) field->interval_id;
-    buff[11]= (uchar) field->sql_type; 
-    buff[12]= (uchar) field->charset->number;
-    int2store(buff+13, field->comment.length);
+    int3store(buff+5,recpos);
+    int2store(buff+8,field->pack_flag);
+    int2store(buff+10,field->unireg_check);
+    buff[12]= (uchar) field->interval_id;
+    buff[13]= (uchar) field->sql_type; 
+    buff[14]= (uchar) field->charset->number;
+    int2store(buff+15, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
     if (my_write(file,(byte*) buff,FCOMP,MYF_RW))

@@ -158,9 +158,11 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
 
-  /* In ::external_lock InnoDB resets the fields which tell it that
-     the handle is used in the HANDLER interface. Tell it again that
-     we are using it for HANDLER. */
+  /*
+    In ::external_lock InnoDB resets the fields which tell it that
+    the handle is used in the HANDLER interface. Tell it again that
+    we are using it for HANDLER.
+  */
 
   table->file->init_table_handle_for_HANDLER();
 
@@ -273,23 +275,15 @@ err0:
   return -1;
 }
 
-/**************************************************************************
-   Monty: It could easily happen, that the following service functions are
-   already defined somewhere in the code, but I failed to find them.
-   If this is the case, just say a word and I'll use old functions here.
-**************************************************************************/
-
-/*
-  Note: this function differs from find_locked_table() because we're looking
-  here for alias, not real table name
-*/
 
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
-				      const char *alias)
+				      const char *table_name, bool is_alias)
 {
   int dblen;
   TABLE **ptr;
 
+  if (!db || ! *db)
+    db= thd->db ? thd->db : "";
   dblen=strlen(db)+1;
   ptr= &(thd->handler_tables);
 
@@ -299,7 +293,6 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
         !my_strcasecmp(system_charset_info,
 		       (is_alias ? table->table_name : table->real_name),
 		       table_name))
-        !my_strcasecmp(system_charset_info,table->table_name,alias))
       break;
     ptr= &(table->next);
   }

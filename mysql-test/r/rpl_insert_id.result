@@ -1,10 +1,12 @@
-slave stop;
+stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-slave start;
+start slave;
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
 insert into t1 values (1),(2),(3);
