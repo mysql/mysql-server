@@ -181,6 +181,7 @@ class ha_ndbcluster: public handler
   int get_ndb_value(NdbOperation*, uint fieldnr, byte *field_ptr);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key(NdbOperation *op);
+  int set_primary_key_from_old_data(NdbOperation *op, const byte *old_data);
   int set_bounds(NdbOperation *ndb_op, const key_range *key,
 		 int bound);
   int key_cmp(uint keynr, const byte * old_row, const byte * new_row);
