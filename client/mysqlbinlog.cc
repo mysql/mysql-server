@@ -652,7 +652,7 @@ static int dump_remote_log_entries(const char* logname)
 {
   char buf[128];
   char last_db[FN_REFLEN+1] = "";
-  uint len;
+  uint len, logname_len;
   NET* net = &mysql->net;
   int old_format;
   DBUG_ENTER("dump_remote_log_entries");
@@ -669,16 +669,16 @@ static int dump_remote_log_entries(const char* logname)
   }
   int4store(buf, position);
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
-  len = (uint) strlen(logname);
+  logname_len = (uint) strlen(logname);
   int4store(buf + 6, 0);
-  memcpy(buf + 10, logname,len);
-  if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+  memcpy(buf + 10, logname, logname_len);
+  if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
   {
     fprintf(stderr,"Got fatal error sending the log dump command\n");
     DBUG_RETURN(1);
   }
 
-  my_off_t old_off= 0;  
+  my_off_t old_off= position;  
   ulonglong rec_count= 0;
   char fname[FN_REFLEN+1];
 
@@ -707,6 +707,37 @@ static int dump_remote_log_entries(const char* logname)
     Log_event_type type= ev->get_type_code();
     if (!old_format || ( type != LOAD_EVENT && type != CREATE_FILE_EVENT))
     {
+      /*
+        If this is a Rotate event, maybe it's the end of the requested binlog;
+        in this case we are done (stop transfer).
+        This is suitable for binlogs, not relay logs (but for now we don't read
+        relay logs remotely because the server is not able to do that). If one
+        day we read relay logs remotely, then we will have a problem with the
+        detection below: relay logs contain Rotate events which are about the
+        binlogs, so which would trigger the end-detection below.
+      */
+      if (ev->get_type_code() == ROTATE_EVENT)
+      {
+        Rotate_log_event *rev= (Rotate_log_event *)ev;
+        /*
+          If this is a fake Rotate event, and not about our log, we can stop
+          transfer. If this a real Rotate event (so it's not about our log,
+          it's in our log describing the next log), we print it (because it's
+          part of our log) and then we will stop when we receive the fake one
+          soon.
+        */
+        if (rev->when == 0)
+        {
+          if ((rev->ident_len != logname_len) ||
+              memcmp(rev->new_log_ident, logname, logname_len))
+            DBUG_RETURN(0);
+          /*
+            Otherwise, this is a fake Rotate for our log, at the very beginning
+            for sure. Skip it.
+          */
+          continue;
+        }
+      }
       if (process_event(&rec_count,last_db,ev,old_off,old_format))
 	DBUG_RETURN(1);
     }
@@ -735,12 +766,10 @@ static int dump_remote_log_entries(const char* logname)
     
     /*
       Let's adjust offset for remote log as for local log to produce 
-      similar text..
+      similar text. As we don't print the fake Rotate event, all events are
+      real so we can simply add the length.
     */
-    if (old_off)
-      old_off+= len-1;
-    else
-      old_off= BIN_LOG_HEADER_SIZE;
+    old_off+= len-1;
   }
   DBUG_RETURN(0);
 }

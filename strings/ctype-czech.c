@@ -634,7 +634,8 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     4,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
-    0,
+    0,			/* min_sort_char */
+    0,			/* max_sort_char */
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler
 };

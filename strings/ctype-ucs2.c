@@ -1284,13 +1284,94 @@ void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   }
 }
 
+/*
+** Calculate min_str and max_str that ranges a LIKE string.
+** Arguments:
+** ptr		Pointer to LIKE string.
+** ptr_length	Length of LIKE string.
+** escape	Escape character in LIKE.  (Normally '\').
+**		All escape characters should be removed from min_str and max_str
+** res_length	Length of min_str and max_str.
+** min_str	Smallest case sensitive string that ranges LIKE.
+**		Should be space padded to res_length.
+** max_str	Largest case sensitive string that ranges LIKE.
+**		Normally padded with the biggest character sort value.
+**
+** The function should return 0 if ok and 1 if the LIKE string can't be
+** optimized !
+*/
+
+my_bool my_like_range_ucs2(CHARSET_INFO *cs,
+			   const char *ptr,uint ptr_length,
+			   pbool escape, pbool w_one, pbool w_many,
+			   uint res_length,
+			   char *min_str,char *max_str,
+			   uint *min_length,uint *max_length)
+{
+  const char *end=ptr+ptr_length;
+  char *min_org=min_str;
+  char *min_end=min_str+res_length;
+  
+  for (; ptr + 1 < end && min_str + 1 < min_end ; ptr+=2)
+  {
+    if (ptr[0] == '\0' && ptr[1] == escape && ptr+2 < end)
+    {
+      ptr+=2;					/* Skip escape */
+      *min_str++= *max_str++ = ptr[0];
+      *min_str++= *max_str++ = ptr[1];
+      continue;
+    }
+    if (ptr[0] == '\0' && ptr[1] == w_one)	/* '_' in SQL */
+    {
+      *min_str++= (char) cs->min_sort_char >> 8;
+      *min_str++= (char) cs->min_sort_char & 255;
+      *max_str++= (char) cs->max_sort_char >> 8;
+      *max_str++= (char) cs->max_sort_char & 255;
+      continue;
+    }
+    if (ptr[0] == '\0' && ptr[1] == w_many)	/* '%' in SQL */
+    {
+      *min_length= (uint) (min_str - min_org);
+      *max_length=res_length;
+      do {
+        *min_str++ = '\0';
+	*min_str++ = ' ';		/* Because if key compression */
+	*max_str++ = (char) cs->max_sort_char >>8;
+	*max_str++ = (char) cs->max_sort_char & 255;
+      } while (min_str + 1 < min_end);
+      return 0;
+    }
+    *min_str++= *max_str++ = ptr[0];
+    *min_str++= *max_str++ = ptr[1];
+  }
+  *min_length= *max_length = (uint) (min_str - min_org);
+
+  /* Temporary fix for handling w_one at end of string (key compression) */
+  {
+    char *tmp;
+    for (tmp= min_str ; tmp-1 > min_org && tmp[-1] == '\0' && tmp[-2]=='\0';)
+    {
+      *--tmp=' ';
+      *--tmp='\0';
+    }
+  }
+  
+  while (min_str + 1 < min_end)
+  {
+    *min_str++ = *max_str++ = '\0';
+    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+  }
+  return 0;
+}
+
+extern MY_COLLATION_HANDLER my_collation_uca_handler;
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     my_strnncoll_ucs2,
     my_strnncoll_ucs2,
     my_strnxfrm_ucs2,
-    my_like_range_simple,
+    my_like_range_ucs2,
     my_wildcmp_ucs2_ci,
     my_strcasecmp_ucs2,
     my_instr_mb,
@@ -1356,7 +1437,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
-    0,
+    0,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_general_ci_handler
 };
@@ -1380,7 +1462,8 @@ CHARSET_INFO my_charset_ucs2_bin=
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
-    0,
+    0,			/* min_sort_char */
+    0xFFFF,		/* max_sort_char */
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
 };
