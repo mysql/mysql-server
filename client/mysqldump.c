@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.15"
+#define DUMP_VERSION "8.16"
 
 #include <global.h>
 #include <my_sys.h>
@@ -1060,7 +1060,12 @@ static void dumpTable(uint numFields, char *table)
 		dynstr_append(&extended_row,"\'");
 	      }
 	      else
-		dynstr_append(&extended_row,row[i]);
+	      {
+		/* change any strings ("inf","nan",..) into NULL */
+		char *ptr = row[i];
+		dynstr_append(&extended_row,
+			      (!isalpha(*ptr)) ? ptr : "NULL");
+	      }
 	    }
 	    else
 	      dynstr_append(&extended_row,"\'\'");
@@ -1080,7 +1085,11 @@ static void dumpTable(uint numFields, char *table)
 	    if (!IS_NUM_FIELD(field))
 	      unescape(md_result_file, row[i], lengths[i]);
 	    else
-	      fputs(row[i],md_result_file);
+	    {
+	      /* change any strings ("inf","nan",..) into NULL */
+	      char *ptr = row[i];
+	      fputs((!isalpha(*ptr)) ? ptr : "NULL", md_result_file);
+	    }
 	  }
 	  else
 	  {
