@@ -38245,15 +38245,15 @@ Fixed bug in a BDB key compare function when comparing part keys.
 Added variable @code{bdb_lock_max} to @code{mysqld}.
 @item
 @code{SLAVE START} did not work if you started with 
- @code{--skip-slave-start} and had not explicitly run @code{CHANGE
-MASTER TO}
+@code{--skip-slave-start} and had not explicitly run @code{CHANGE
+MASTER TO}.
 @item
 Fixed the output of @code{SHOW MASTER STATUS} to be consistent with
-@code{SHOW SLAVE STATUS} ( no directory in the log name)
+@code{SHOW SLAVE STATUS} (no directory in the log name).
 @item
-Added @code{PURGE MASTER LOGS TO} 
+Added @code{PURGE MASTER LOGS TO}.
 @item
-Added @code{SHOW MASTER LOGS} 
+Added @code{SHOW MASTER LOGS}.
 @end itemize
 
 @node News-3.23.27, News-3.23.26, News-3.23.28, News-3.23.x
