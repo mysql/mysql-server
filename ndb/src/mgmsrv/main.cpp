@@ -296,7 +296,7 @@ int main(int argc, char** argv)
     snprintf(connect_str,20,"localhost:%u",glob.mgmObject->getPort());
     opt_connect_str= connect_str;
   }
-  glob.mgmObject->set_connect_string(connect_str);
+  glob.mgmObject->set_connect_string(opt_connect_str);
 
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
