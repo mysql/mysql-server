@@ -3095,7 +3095,15 @@ consecutive_loop:
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
 		if (array == os_aio_write_array) {
-
+			if ((total_len % UNIV_PAGE_SIZE != 0)
+			    || (slot->offset % UNIV_PAGE_SIZE != 0)) {
+				fprintf(stderr,
+"InnoDB: Error: trying a displaced write to %s %lu %lu, len %lu\n",
+					slot->name, slot->offset_high,
+					slot->offset, total_len);
+				ut_a(0);
+			}
+			  
 			/* Do a 'last millisecond' check that the page end
 			is sensible; reported page checksum errors from
 			Linux seem to wipe over the page end */

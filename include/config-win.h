@@ -183,8 +183,8 @@ inline double rint(double nr)
 }
 
 #ifdef _WIN64
-#define ulonglong2double(A) ((double) (A))
-#define my_off_t2double(A)  ((double) (A))
+#define ulonglong2double(A) ((double) (ulonglong) (A))
+#define my_off_t2double(A)  ((double) (my_off_t) (A))
 
 #else
 inline double ulonglong2double(ulonglong value)

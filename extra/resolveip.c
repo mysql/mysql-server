@@ -36,10 +36,6 @@
 extern int h_errno;
 #endif
 
-#ifndef HAVE_IN_ADDR_T
-#define in_addr_t ulong
-#endif
-
 static my_bool silent;
 
 static struct my_option my_long_options[] =

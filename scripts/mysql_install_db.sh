@@ -167,7 +167,7 @@ then
   fi
 fi
 
-if test "$ip_only" ="1"
+if test "$ip_only" = "1"
 then
   ip=`echo "$resolved" | awk '/ /{print $6}'`
   hostname=$ip

@@ -3287,14 +3287,14 @@ rec_loop:
 			latest version of the record */
 		
 		} else if (index == clust_index) {
-			
+			  
 			/* Fetch a previous version of the row if the current
 			one is not visible in the snapshot; if we have a very
 			high force recovery level set, we try to avoid crashes
 			by skipping this lookup */
 
 			if (srv_force_recovery < 5
-			    && !lock_clust_rec_cons_read_sees(rec, index,
+                            && !lock_clust_rec_cons_read_sees(rec, index,
 							trx->read_view)) {
 
 				err = row_sel_build_prev_vers_for_mysql(

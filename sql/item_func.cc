@@ -2571,7 +2571,7 @@ err:
 
 bool Item_func_get_user_var::const_item() const
 {
-  return var_entry && current_thd->query_id != var_entry->update_query_id;
+  return (!var_entry || current_thd->query_id != var_entry->update_query_id);
 }
 
 

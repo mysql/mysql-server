@@ -23,5 +23,3 @@ sleep 3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 33 #
 show slave status;
-connection master;
-reset master;

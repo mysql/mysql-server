@@ -172,6 +172,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     }
   }
   thd->user_connect=uc;
+  uc->connections++;
 end:
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   return return_val;
@@ -314,14 +315,15 @@ int check_user(THD *thd, enum enum_server_command command,
       thd->db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
-      if ((ur.questions || ur.updates ||
-           ur.connections || max_user_connections) &&
-          get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
-        DBUG_RETURN(-1);
-      if (thd->user_connect && (thd->user_connect->user_resources.connections ||
-            max_user_connections) &&
-          check_for_max_user_connections(thd, thd->user_connect))
-        DBUG_RETURN(-1);
+      if ((ur.questions || ur.updates || ur.connections ||
+	   max_user_connections) &&
+	  get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+	DBUG_RETURN(-1);
+      if (thd->user_connect &&
+	  (thd->user_connect->user_resources.connections ||
+	   max_user_connections) &&
+	  check_for_max_user_connections(thd, thd->user_connect))
+	DBUG_RETURN(-1);
 
       /* Change database if necessary: OK or FAIL is sent in mysql_change_db */
       if (db && db[0])
@@ -386,42 +388,84 @@ void init_max_user_conn(void)
 }
 
 
+/*
+  check if user has already too many connections
+  
+  SYNOPSIS
+  check_for_max_user_connections()
+  thd			Thread handle
+  uc			User connect object
+
+  NOTES
+    If check fails, we decrease user connection count, which means one
+    shouldn't call decrease_user_connections() after this function.
+
+  RETURN
+    0	ok
+    1	error
+*/
+
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
 {
   int error=0;
   DBUG_ENTER("check_for_max_user_connections");
 
+  (void) pthread_mutex_lock(&LOCK_user_conn);
   if (max_user_connections &&
-      (max_user_connections <  (uint) uc->connections))
+      max_user_connections < (uint) uc->connections)
   {
     net_printf(thd,ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
-  uc->connections++;
   if (uc->user_resources.connections &&
-      uc->conn_per_hour++ >= uc->user_resources.connections)
+      uc->user_resources.connections <= uc->conn_per_hour)
   {
     net_printf(thd, ER_USER_LIMIT_REACHED, uc->user,
 	       "max_connections",
 	       (long) uc->user_resources.connections);
     error=1;
+    goto end;
   }
-end:
+  uc->conn_per_hour++;
+
+  end:
+  if (error)
+    uc->connections--; // no need for decrease_user_connections() here
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
 
 
+/*
+  Decrease user connection count
+
+  SYNOPSIS
+    decrease_user_connections()
+    uc			User connection object
+
+  NOTES
+    If there is a n user connection object for a connection
+    (which only happens if 'max_user_connections' is defined or
+    if someone has created a resource grant for a user), then
+    the connection count is always incremented on connect.
+
+    The user connect object is not freed if some users has
+    'max connections per hour' defined as we need to be able to hold
+    count over the lifetime of the connection.
+*/
+
 static void decrease_user_connections(USER_CONN *uc)
 {
   DBUG_ENTER("decrease_user_connections");
-  if ((uc->connections && !--uc->connections) && !mqh_used)
+  (void) pthread_mutex_lock(&LOCK_user_conn);
+  DBUG_ASSERT(uc->connections);
+  if (!--uc->connections && !mqh_used)
   {
     /* Last connection for user; Delete it */
-    (void) pthread_mutex_lock(&LOCK_user_conn);
     (void) hash_delete(&hash_user_connections,(byte*) uc);
-    (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+  (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_VOID_RETURN;
 }
 
@@ -1227,15 +1271,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_user= thd->user;
     char *save_priv_user= thd->priv_user;
     char *save_db= thd->db;
-    USER_CONN *save_uc= thd->user_connect;
-    thd->user= my_strdup(user, MYF(0));
-    if (!thd->user)
+    USER_CONN *save_user_connect= thd->user_connect;
+    
+    if (!(thd->user= my_strdup(user, MYF(0))))
     {
       thd->user= save_user;
       send_error(thd, ER_OUT_OF_RESOURCES);
       break;
     }
 
+    /* Clear variables that are allocated */
+    thd->user_connect= 0;
     int res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, false);
 
     if (res)
@@ -1246,6 +1292,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       x_free(thd->user);
       thd->user= save_user;
       thd->priv_user= save_priv_user;
+      thd->user_connect= save_user_connect;
       thd->master_access= save_master_access;
       thd->db_access= save_db_access;
       thd->db= save_db;
@@ -1254,8 +1301,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
     {
       /* we've authenticated new user */
-      if (max_connections && save_uc)
-        decrease_user_connections(save_uc);
+      if (save_user_connect)
+	decrease_user_connections(save_user_connect);
       x_free((gptr) save_db);
       x_free((gptr) save_user);
     }

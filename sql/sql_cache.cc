@@ -2761,11 +2761,33 @@ my_bool Query_cache::move_by_type(byte **border,
     relink(block, new_block, next, prev, pnext, pprev);
     if (queries_blocks == block)
       queries_blocks = new_block;
+    Query_cache_block_table *beg_of_table_table= block->table(0),
+      *end_of_table_table= block->table(n_tables);
+    byte *beg_of_new_table_table= (byte*) new_block->table(0);
+      
     for (TABLE_COUNTER_TYPE j=0; j < n_tables; j++)
     {
       Query_cache_block_table *block_table = new_block->table(j);
-      block_table->next->prev = block_table;
-      block_table->prev->next = block_table;
+
+      // use aligment from begining of table if 'next' is in same block
+      if ((beg_of_table_table <= block_table->next) &&
+	  (block_table->next < end_of_table_table))
+	((Query_cache_block_table *)(beg_of_new_table_table + 
+				     (((byte*)block_table->next) -
+				      ((byte*)beg_of_table_table))))->prev=
+	 block_table;
+      else
+	block_table->next->prev= block_table;
+
+      // use aligment from begining of table if 'prev' is in same block
+      if ((beg_of_table_table <= block_table->prev) &&
+	  (block_table->prev < end_of_table_table))
+	((Query_cache_block_table *)(beg_of_new_table_table + 
+				     (((byte*)block_table->prev) -
+				      ((byte*)beg_of_table_table))))->next=
+	  block_table;
+      else
+	block_table->prev->next = block_table;
     }
     DBUG_PRINT("qcache", ("after circle tt"));
     *border += len;

@@ -109,19 +109,6 @@ else
 fi
 
 #
-# Set pid file if not given
-#
-if test -z "$pid_file"
-then
-  pid_file=$datadir/`@HOSTNAME@`.pid
-else
-  case "$pid_file" in
-    /* ) ;;
-    * )  pid_file="$datadir/$pid_file" ;;
-  esac
-fi
-
-#
 # Test if someone changed datadir;  In this case we should also read the
 # default arguments from this directory
 #
@@ -133,6 +120,19 @@ then
 fi
 
 parse_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
+
+#
+# Set pid file if not given
+#
+if test -z "$pid_file"
+then
+  pid_file=$datadir/`@HOSTNAME@`.pid
+else
+  case "$pid_file" in
+    /* ) ;;
+    * )  pid_file="$datadir/$pid_file" ;;
+  esac
+fi
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir

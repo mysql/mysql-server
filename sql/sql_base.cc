@@ -575,6 +575,8 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   uint	key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   TABLE *table,**prev;
 
+  int4store(key+key_length,thd->server_id);
+  key_length += 4;
   int4store(key+key_length,thd->variables.pseudo_thread_id);
   key_length += 4;
 
@@ -603,18 +605,27 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
   return 0;
 }
 
+/*
+  Used by ALTER TABLE when the table is a temporary one. It changes something
+  only if the ALTER contained a RENAME clause (otherwise, table_name is the old
+  name).
+  Prepares a table cache key, which is the concatenation of db, table_name and
+  thd->slave_proxy_id, separated by '\0'.
+*/
 bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			    const char *table_name)
 {
   char *key;
   if (!(key=(char*) alloc_root(&table->mem_root,
 			       (uint) strlen(db)+
-			       (uint) strlen(table_name)+6)))
+			       (uint) strlen(table_name)+6+4)))
     return 1;				/* purecov: inspected */
   table->key_length=(uint)
     (strmov((table->real_name=strmov(table->table_cache_key=key,
 				     db)+1),
 	    table_name) - table->table_cache_key)+1;
+  int4store(key+table->key_length,thd->server_id);
+  table->key_length += 4;
   int4store(key+table->key_length,thd->variables.pseudo_thread_id);
   table->key_length += 4;
   return 0;
@@ -771,12 +782,13 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  int4store(key + key_length, thd->variables.pseudo_thread_id);
+  int4store(key + key_length, thd->server_id);
+  int4store(key + key_length + 4, thd->variables.pseudo_thread_id);
 
   for (table=thd->temporary_tables; table ; table=table->next)
   {
-    if (table->key_length == key_length+4 &&
-	!memcmp(table->table_cache_key,key,key_length+4))
+    if (table->key_length == key_length+8 &&
+	!memcmp(table->table_cache_key,key,key_length+8))
     {
       if (table->query_id == thd->query_id)
       {
@@ -1671,7 +1683,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     total of 6 extra bytes in my_malloc in addition to table/db stuff
   */
   if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+(uint) strlen(db)+
-				     (uint) strlen(table_name)+6,
+				     (uint) strlen(table_name)+6+4,
 				     MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
@@ -1693,6 +1705,9 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 					 strmov(tmp_table->table_cache_key,db)
 					 +1), table_name)
 				 - tmp_table->table_cache_key)+1;
+  int4store(tmp_table->table_cache_key + tmp_table->key_length,
+	    thd->server_id);
+  tmp_table->key_length += 4;
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
 	    thd->variables.pseudo_thread_id);
   tmp_table->key_length += 4;

@@ -355,6 +355,22 @@ void init_slave_skip_errors(const char* arg)
   }
 }
 
+void st_relay_log_info::close_temporary_tables()
+{
+  TABLE *table,*next;
+
+  for (table=save_temporary_tables ; table ; table=next)
+  {
+    next=table->next;
+    /*
+      Don't ask for disk deletion. For now, anyway they will be deleted when
+      slave restarts, but it is a better intention to not delete them.
+    */
+    close_temporary(table, 0);
+  }
+  save_temporary_tables= 0;
+  slave_open_temp_tables= 0;
+}
 
 /*
   purge_relay_logs()
@@ -847,6 +863,7 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 
 void end_slave()
 {
+  /* This is called when the server terminates, in close_connections(). */
   if (active_mi)
   {
     /*
@@ -1428,7 +1445,7 @@ file '%s', errno %d)", fname, my_errno);
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
     {
-      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4");
+      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4)");
       goto err;
     }
     rli->group_master_log_name[0]= 0;
@@ -3166,8 +3183,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
-  /* Free temporary tables etc */
-  thd->cleanup();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -3585,6 +3600,12 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
   }
   rli->inited = 0;
   rli->relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
+  /*
+    Delete the slave's temporary tables from memory.
+    In the future there will be other actions than this, to ensure persistance
+    of slave's temp tables after shutdown.
+  */
+  rli->close_temporary_tables();
   DBUG_VOID_RETURN;
 }
 
