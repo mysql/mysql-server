@@ -3,6 +3,8 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 -- error 1243
 SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
+-- error 1243
+SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);

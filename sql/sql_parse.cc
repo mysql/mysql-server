@@ -2862,7 +2862,8 @@ mysql_init_query(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->param_list.empty();
-  lex->unit.global_parameters= lex->unit.slave= lex->current_select= &lex->select_lex;
+  lex->unit.global_parameters= lex->unit.slave= lex->current_select= 
+    &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
   lex->olap=lex->describe=0;
@@ -2875,6 +2876,7 @@ mysql_init_query(THD *thd)
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used=0;
   thd->safe_to_cache_query= 1;
+  thd->possible_loops= 0;
   DBUG_VOID_RETURN;
 }
 

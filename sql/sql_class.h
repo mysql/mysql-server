@@ -482,6 +482,7 @@ public:
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;   
   CHARSET_INFO *thd_charset;
+  List<Item> *possible_loops; // Items that may cause loops in subselects
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count, old_total_warn_count;
@@ -632,6 +633,7 @@ public:
     net.last_errno= 0;
     net.report_error= 0;
   }
+  void add_possible_loop(Item *);
 };
 
 /*

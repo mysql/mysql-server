@@ -876,11 +876,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
-	if (check_loop(thd->check_loops_counter++))
-	{
-	  my_message(ER_CYCLIC_REFERENCE, ER(ER_CYCLIC_REFERENCE), MYF(0));
-	  return 1;
-	}
+	thd->add_possible_loop(this);
       }
     }
     else if (!ref)
