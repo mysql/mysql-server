@@ -4528,7 +4528,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -1)
       table->file->print_error(my_errno,MYF(0));
   }
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || join->thd->net.report_error);
 }
 
 
