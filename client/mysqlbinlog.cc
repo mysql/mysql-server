@@ -59,12 +59,13 @@ static MYSQL* mysql = NULL;
 
 static const char* dirname_for_local_load= 0;
 
-static void dump_local_log_entries(const char* logname);
-static void dump_remote_log_entries(const char* logname);
-static void dump_log_entries(const char* logname);
-static void dump_remote_file(NET* net, const char* fname);
+static int dump_local_log_entries(const char* logname);
+static int dump_remote_log_entries(const char* logname);
+static int dump_log_entries(const char* logname);
+static int dump_remote_file(NET* net, const char* fname);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
+
 
 class Load_log_processor
 {
@@ -150,38 +151,13 @@ public:
       return res;
     }
   int process(Create_file_log_event *ce);
-  int process(Append_block_log_event *ae)
-    {
-      File file;
-      Create_file_log_event* ce= (ae->file_id < file_names.elements) ?
-          *((Create_file_log_event**)file_names.buffer + ae->file_id) : 0;
-        
-      if (ce)
-      {
-	if (((file= my_open(ce->fname,
-			    O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0) ||
-	    my_write(file,(byte*)ae->block,ae->block_len,MYF(MY_WME|MY_NABP)) ||
-	    my_close(file,MYF(MY_WME)))
-	  return -1;
-      }
-      else
-      {
-        /*
-          There is no Create_file event (a bad binlog or a big
-          --position). Assuming it's a big --position, we just do nothing and
-          print a warning.
-        */
-	fprintf(stderr,"Warning: ignoring Append_block as there is no \
-Create_file event for file_id: %u\n",ae->file_id);
-	return -1;
-      }
-      return 0;
-    }
-
+  int process(Append_block_log_event *ae);
   File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
   int load_old_format_file(NET* net, const char *server_fname,
 			   uint server_fname_len, File file);
 };
+
+
 
 File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
 							 char *filename)
@@ -204,6 +180,7 @@ File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
   
   return file;
 }
+
 
 int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
 					     uint server_fname_len, File file)
@@ -248,21 +225,24 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
   return 0;
 }
 
+
 int Load_log_processor::process(Create_file_log_event *ce)
 {
   const char *bname= ce->fname+dirname_length(ce->fname);
   uint blen= ce->fname_len - (bname-ce->fname);
   uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
+  int error= 0;
   char *fname, *ptr;
   File file;
 
-  if (!(fname= my_malloc(full_len,MYF(MY_WME))) ||
-      set_dynamic(&file_names,(gptr)&ce,ce->file_id))
+  if (set_dynamic(&file_names,(gptr)&ce,ce->file_id))
   {
     sql_print_error("Could not construct local filename %s%s",
 		    target_dir_name,bname);
     return -1;
   }
+  if (!(fname= my_malloc(full_len,MYF(MY_WME))))
+    return -1;
 
   memcpy(fname, target_dir_name, target_dir_name_len);
   ptr= fname + target_dir_name_len;
@@ -278,15 +258,51 @@ int Load_log_processor::process(Create_file_log_event *ce)
   }
   ce->set_fname_outside_temp_buf(fname,strlen(fname));
 
-  if (my_write(file,(byte*) ce->block,ce->block_len,MYF(MY_WME|MY_NABP)) ||
-      my_close(file,MYF(MY_WME)))
-    return -1;
+  if (my_write(file,(byte*) ce->block,ce->block_len,MYF(MY_WME|MY_NABP)))
+    error= -1;
+  if (my_close(file,MYF(MY_WME)))
+    error= -1;
+  return error;
 }
+
+
+int Load_log_processor::process(Append_block_log_event *ae)
+{
+  Create_file_log_event* ce= ((ae->file_id < file_names.elements) ?
+			      *((Create_file_log_event**)file_names.buffer +
+				ae->file_id) :
+			      0);
+
+  if (ce)
+  {
+    File file;
+    int error= 0;
+    if (((file= my_open(ce->fname,
+			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
+      return -1;
+    if (my_write(file,(byte*)ae->block,ae->block_len,MYF(MY_WME|MY_NABP)))
+      error= -1;
+    if (my_close(file,MYF(MY_WME)))
+      error= -1;
+    return error;
+  }
+
+  /*
+    There is no Create_file event (a bad binlog or a big
+    --position). Assuming it's a big --position, we just do nothing and
+    print a warning.
+  */
+  fprintf(stderr,"Warning: ignoring Append_block as there is no \
+Create_file event for file_id: %u\n",ae->file_id);
+  return -1;
+}
+
 
 Load_log_processor load_processor;
 
-void process_event(ulonglong *rec_count, char *last_db, Log_event *ev, 
-		   my_off_t pos, int old_format)
+
+int process_event(ulonglong *rec_count, char *last_db, Log_event *ev, 
+		  my_off_t pos, int old_format)
 {
   char ll_buff[21];
   if ((*rec_count) >= offset)
@@ -303,7 +319,7 @@ void process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 	{
 	  (*rec_count)++;
 	  delete ev;
-	  return; // next
+	  return 0; // Time for next event
 	}
       }
       ev->print(result_file, short_form, last_db);
@@ -324,7 +340,7 @@ void process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 	{
 	  (*rec_count)++;
 	  delete ev;
-	  return; // next
+	  return 0; // next
 	}
       }
       /*
@@ -337,14 +353,16 @@ void process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
       ce->print(result_file, short_form, last_db, true);
       if (!old_format)
       {
-	load_processor.process(ce);
+	if (load_processor.process(ce))
+	  break;				// Error
 	ev= 0;
       }
       break;
     }
     case APPEND_BLOCK_EVENT:
       ev->print(result_file, short_form, last_db);
-      load_processor.process((Append_block_log_event*)ev);
+      if (load_processor.process((Append_block_log_event*) ev))
+	break;					// Error
       break;
     case EXEC_LOAD_EVENT:
     {
@@ -374,7 +392,9 @@ Create_file event for file_id: %u\n",exv->file_id);
   (*rec_count)++;
   if (ev)
     delete ev;
+  return 0;
 }
+
 
 static struct my_option my_long_options[] =
 {
@@ -545,13 +565,14 @@ static MYSQL* safe_connect()
   return local_mysql;
 }
 
-static void dump_log_entries(const char* logname)
+
+static int dump_log_entries(const char* logname)
 {
   if (remote_opt)
-    dump_remote_log_entries(logname);
-  else
-    dump_local_log_entries(logname);  
+    return dump_remote_log_entries(logname);
+  return dump_local_log_entries(logname);  
 }
+
 
 static int check_master_version(MYSQL* mysql)
 {
@@ -601,7 +622,7 @@ static int check_master_version(MYSQL* mysql)
 }
 
 
-static void dump_remote_log_entries(const char* logname)
+static int dump_remote_log_entries(const char* logname)
 {
   char buf[128];
   char last_db[FN_REFLEN+1] = "";
@@ -615,7 +636,7 @@ static void dump_remote_log_entries(const char* logname)
   if (position < BIN_LOG_HEADER_SIZE)
   {
     position = BIN_LOG_HEADER_SIZE;
-    // warn the guity
+    // warn the user
     sql_print_error("Warning: The position in the binary log can't be less than %d.\nStarting from position %d\n", BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE);
   }
   int4store(buf, position);
@@ -624,7 +645,10 @@ static void dump_remote_log_entries(const char* logname)
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname,len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
-    die("Error sending the log dump command");
+  {
+    fprintf(stderr,"Got fatal error sending the log dump command\n");
+    return 1;
+  }
 
   my_off_t old_off= 0;  
   ulonglong rec_count= 0;
@@ -635,7 +659,11 @@ static void dump_remote_log_entries(const char* logname)
     const char *error;
     len = net_safe_read(mysql);
     if (len == packet_error)
-      die("Error reading packet from server: %s", mysql_error(mysql));
+    {
+      fprintf(stderr, "Got error reading packet from server: %s\n",
+	      mysql_error(mysql));
+      return 1;
+    }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
@@ -644,39 +672,48 @@ static void dump_remote_log_entries(const char* logname)
 					      len - 1, &error, old_format);
     if (!ev)
     {
-      die("Could not construct log event object");
+      fprintf(stderr, "Could not construct log event object\n");
+      return 1;
     }   
+
+    Log_event_type type= ev->get_type_code();
+    if (!old_format || ( type != LOAD_EVENT && type != CREATE_FILE_EVENT))
+    {
+      if (process_event(&rec_count,last_db,ev,old_off,old_format))
+	return 1;
+    }
     else
     {
-      Log_event_type type= ev->get_type_code();
-      if (!old_format || ( type != LOAD_EVENT && type != CREATE_FILE_EVENT ) )
+      Load_log_event *le= (Load_log_event*)ev;
+      const char *old_fname= le->fname;
+      uint old_len= le->fname_len;
+      File file;
+
+      if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
+	return 1;
+      if (process_event(&rec_count,last_db,ev,old_off,old_format))
       {
-	process_event(&rec_count,last_db,ev,old_off,old_format);
+	my_close(file,MYF(MY_WME));
+	return 1;
       }
-      else
+      if (load_processor.load_old_format_file(net,old_fname,old_len,file))
       {
-	Load_log_event *le= (Load_log_event*)ev;
-	const char *old_fname= le->fname;
-	uint old_len= le->fname_len;
-	File file= load_processor.prepare_new_file_for_old_format(le,fname);
-	if (file >= 0)
-	{
-	  process_event(&rec_count,last_db,ev,old_off,old_format);
-	  load_processor.load_old_format_file(net,old_fname,old_len,file);
-	  my_close(file,MYF(MY_WME));
-	}
+	my_close(file,MYF(MY_WME));
+	return 1;
       }
+      my_close(file,MYF(MY_WME));
     }
     
     /*
-       Let's adjust offset for remote log as for local log to produce 
-       similar text..
+      Let's adjust offset for remote log as for local log to produce 
+      similar text..
     */
     if (old_off)
       old_off+= len-1;
     else
       old_off= BIN_LOG_HEADER_SIZE;
   }
+  return 0;
 }
 
 
@@ -706,7 +743,7 @@ static int check_header(IO_CACHE* file)
 }
 
 
-static void dump_local_log_entries(const char* logname)
+static int dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
@@ -714,23 +751,27 @@ static void dump_local_log_entries(const char* logname)
   char last_db[FN_REFLEN+1];
   byte tmp_buff[BIN_LOG_HEADER_SIZE];
   bool old_format = 0;
+  int error= 0;
 
-  last_db[0]=0;
+  last_db[0]= 0;
 
   if (logname && logname[0] != '-')
   {
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
-      exit(1);
+      return 1;
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
+    {
+      my_close(fd, MYF(MY_WME));
       exit(1);
+    }
     old_format = check_header(file);
   }
   else
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
-      exit(1);
+      return 1;
     old_format = check_header(file);
     if (position)
     {
@@ -741,7 +782,10 @@ static void dump_local_log_entries(const char* logname)
       {
 	tmp=min(length,sizeof(buff));
 	if (my_b_read(file, buff, (uint) tmp))
-	  exit(1);
+	{
+	  error= 1;
+	  goto end;
+	}
       }
     }
     file->pos_in_file=position;
@@ -749,7 +793,15 @@ static void dump_local_log_entries(const char* logname)
   }
 
   if (!position)
-    my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE); // Skip header
+  {
+    // Skip header
+    if (my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE))
+    {
+      error= 1;
+      goto end;
+    }
+  }
+
   for (;;)
   {
     char llbuff[21];
@@ -759,18 +811,30 @@ static void dump_local_log_entries(const char* logname)
     if (!ev)
     {
       if (file->error)
-	die("\
-Could not read entry at offset %s : Error in log format or read error",
-	    llstr(old_off,llbuff));
+      {
+	fprintf(stderr,
+		"Could not read entry at offset %s:"
+		"Error in log format or read error\n",
+		llstr(old_off,llbuff));
+	error= 1;
+      }
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
-    process_event(&rec_count,last_db,ev,old_off,false);
+    if (process_event(&rec_count,last_db,ev,old_off,false))
+    {
+      error= 1;
+      break;
+    }
   }
+
+end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
   end_io_cache(file);
+  return error;
 }
+
 
 #if MYSQL_VERSION_ID < 40101
 
@@ -842,9 +906,11 @@ void free_tmpdir(MY_TMPDIR *tmpdir)
 
 #endif
 
+
 int main(int argc, char** argv)
 {
   static char **defaults_argv;
+  int exit_value;
   MY_INIT(argv[0]);
 
   parse_args(&argc, (char***)&argv);
@@ -854,7 +920,7 @@ int main(int argc, char** argv)
   {
     usage();
     free_defaults(defaults_argv);
-    return -1;
+    exit(1);
   }
 
   if (remote_opt)
@@ -874,8 +940,15 @@ int main(int argc, char** argv)
   else
     load_processor.init_by_cur_dir();
 
+  exit_value= 0;
   while (--argc >= 0)
-    dump_log_entries(*(argv++));
+  {
+    if (dump_log_entries(*(argv++)))
+    {
+      exit_value=1;
+      break;
+    }
+  }
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
@@ -886,7 +959,8 @@ int main(int argc, char** argv)
   cleanup();
   free_defaults(defaults_argv);
   my_end(0);
-  return 0;
+  exit(exit_value);
+  return exit_value;				// Keep compilers happy
 }
 
 /*

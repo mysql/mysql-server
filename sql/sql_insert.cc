@@ -438,7 +438,8 @@ int write_record(TABLE *table,COPY_INFO *info)
 	key_copy((byte*) key,table,key_nr,0);
 	if ((error=(table->file->index_read_idx(table->record[1],key_nr,
 						(byte*) key,
-						table->key_info[key_nr].key_length,
+						table->key_info[key_nr].
+						key_length,
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
@@ -449,8 +450,8 @@ int write_record(TABLE *table,COPY_INFO *info)
 	UPDATE.
       */
 
-      if (last_uniq_key(table,key_nr)
-	  && !table->file->referenced_by_foreign_key())
+      if (last_uniq_key(table,key_nr) &&
+	  !table->file->referenced_by_foreign_key())
       {
 	if ((error=table->file->update_row(table->record[1],table->record[0])))
 	  goto err;
