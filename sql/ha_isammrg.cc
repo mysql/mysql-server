@@ -78,8 +78,8 @@ int ha_isammrg::write_row(byte * buf)
 int ha_isammrg::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_data+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
   return !mrg_update(file,old_data,new_data) ? 0 : my_errno ? my_errno : -1;
 }
 
