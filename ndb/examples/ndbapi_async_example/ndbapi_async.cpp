@@ -57,15 +57,14 @@
 /**
  * Helper sleep function
  */
-int
+static void
 milliSleep(int milliseconds){
-  int result = 0;
-  struct timespec sleeptime;
+  struct timeval sleeptime;
   sleeptime.tv_sec = milliseconds / 1000;
-  sleeptime.tv_nsec = (milliseconds - (sleeptime.tv_sec * 1000)) * 1000000;
-  result = nanosleep(&sleeptime, NULL);
-  return result;
+  sleeptime.tv_usec = (milliseconds - (sleeptime.tv_sec * 1000)) * 1000000;
+  select(0, 0, 0, 0, &sleeptime);
 }
+
 
 /**
  * error printout macro
