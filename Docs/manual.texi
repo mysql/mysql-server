@@ -39274,35 +39274,35 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
-Fixed that @code{DROP DATABASE} works on OS/2.
+Fixed @code{DROP DATABASE} to work on OS/2.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2..} when table2 was empty.
 @item
 Added @code{--abort-slave-event-count} and
 @code{--disconnect-slave-event-count} options to @code{mysqld} for
-debugging and testing of replication
+debugging and testing of replication.
 @item
 added @code{Slave_open_temp_tables} status variable.
 @item
 Fixed replication of temporary tables. Handles everything except
 slave server restart.
 @item
-@code{SHOW KEYS} now shows whether key is FULLTEXT or not.
+@code{SHOW KEYS} now shows whether or not key is @code{FULLTEXT}.
 @item
-Added new script, mysql-multi.server.sh.  Thanks to
-Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying mysql.server to
-easily handle hosts running many mysqlds.
+Added new script, @file{mysql-multi.server.sh}.  Thanks to
+Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
+easily handle hosts running many @code{mysqld} processes.
 @item
-safe_mysqld, mysql.server and mysql_install_db have been modified
-to use mysql_print_defaults instead of various hacks to read the
-my.cnf files.  In addition, the handling of various paths has been
-made more consistent with how mysqld handles them by default.
+@file{safe_mysqld}, @file{mysql.server}, and @file{mysql_install_db} have
+been modified to use mysql_print_defaults instead of various hacks to read
+the @file{my.cnf} files.  In addition, the handling of various paths has been
+made more consistent with how @code{mysqld} handles them by default.
 @item
-Automatically remove Berkeley DB transaction logs that are no longer in
+Automatically remove Berkeley DB transaction logs that no longer are in
 use.
 @item
-Fixed bug with several FULLTEXT indexes in one table.
+Fixed bug with several @code{FULLTEXT} indexes in one table.
 @item
 Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 @item
@@ -39316,16 +39316,17 @@ that @code{mysql_install_db} core dumped on some Linux machines.
 @item
 Changed @code{mi_create()} to use less stack.
 @item
-Fixed bug with optimizer trying to over-optimize MATCH when used
-with UNIQUE key.
+Fixed bug with optimizer trying to over-optimize @code{MATCH} when used
+with @code{UNIQUE} key.
 @item
-Changed crash-me and the MySQL benchmarks to also work with FrontBase.
+Changed @code{crash-me} and the @strong{MySQL} benchmarks to also work
+with FrontBase.
 @item
 Allow @code{RESTRICT} and @code{CASCADE} after @code{DROP TABLE} to make
 porting easier.
 @item
 If we get an error we now only rollback the statement (for BDB tables),
-not the whole transaction.
+not the entire transaction.
 @item
 If you do a @code{ROLLBACK} when you have updated a non-transactional table
 you will get an error as a warning.
@@ -39334,7 +39335,7 @@ Reset status variable which could cause problem if one used @code{--slow-log}.
 @item
 Added variable @code{connect_timeout} to @code{mysql} and @code{mysqladmin}.
 @item
-Added @code{connect_timeout} as an alias for @code{timeout} for config files
+Added @code{connect_timeout} as an alias for @code{timeout} for option files
 read by @code{mysql_options()}.
 @end itemize
 
@@ -39361,7 +39362,7 @@ When reading options_files with @code{mysql_options()} the
 @item
 One can now specify @code{interactive-timeout} in the option file that
 is read by @code{mysql_options()}. This makes it possible to force
-programs that runs for a long time (like @code{mysqlhotcopy}) to use
+programs that run for a long time (like @code{mysqlhotcopy}) to use
 @code{interactive_timeout} instead of @code{wait_timeout}.
 @item
 Added to the slow query log the time and the user name for each logged
