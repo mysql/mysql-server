@@ -24,6 +24,7 @@
 # by using option --loop_value='what_ever_you_like'.
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
@@ -31,7 +32,7 @@ $opt_loop_count=100000;	# Change this to make test harder/easier
 $str_length=65000;	# This is the length of blob strings in PART:5
 $max_test=20;		# How many times to test if the server is busy
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 # This is the length of blob strings in PART:5

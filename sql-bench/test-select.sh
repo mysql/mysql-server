@@ -20,6 +20,7 @@
 #
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Getopt::Long;
 use Benchmark;
@@ -30,7 +31,7 @@ $opt_small_loop_count=10;
 $opt_regions=6;
 $opt_groups=100;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $columns=min($limits->{'max_columns'},500,($limits->{'query_size'}-50)/24,
