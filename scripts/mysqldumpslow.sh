@@ -3,6 +3,7 @@
 
 # Original version by Tim Bunce, sometime in 2000.
 # Further changes by Tim Bunce, 8th March 2001.
+# Handling of strings with \ and double '' by Monty 11 Aug 2001.
 
 use strict;
 use Getopt::Long;
@@ -95,8 +96,8 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     unless ($opt{a}) {
 	s/\b\d+\b/N/g;
 	s/\b0x[0-9A-Fa-f]+\b/N/g;
-	s/'.*?'/'S'/g;
-	s/".*?"/"S"/g;
+	s/'([^\\\']|\\.|\'\')+'/'S'/g;
+	s/"([^\\\"]|\\.|\"\")+"/"S"/g;
 	# -n=8: turn log_20001231 into log_NNNNNNNN
 	s/([a-z_]+)(\d{$opt{n},})/$1.('N' x length($2))/ieg if $opt{n};
 	# abbreviate massive "in (...)" statements and similar
