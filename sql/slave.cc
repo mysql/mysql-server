@@ -465,7 +465,7 @@ void init_slave_skip_errors(const char* arg)
 
 
 void st_relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
-						bool skip_lock=0)  
+						bool skip_lock)  
 {
   if (!skip_lock)
     pthread_mutex_lock(&data_lock);
@@ -3046,7 +3046,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     
     if ((ev->server_id == (uint32) ::server_id &&
          !replicate_same_server_id &&
-         type_code!= FORMAT_DESCRIPTION_EVENT) ||
+         type_code != FORMAT_DESCRIPTION_EVENT) ||
  	(rli->slave_skip_counter && 
          type_code != ROTATE_EVENT && type_code != STOP_EVENT &&
          type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
