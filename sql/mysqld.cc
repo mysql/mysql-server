@@ -970,8 +970,11 @@ static void server_init(void)
       unireg_abort(1);
     }
     if (listen(ip_sock,(int) back_log) < 0)
-      sql_print_error("Warning:  listen() on TCP/IP failed with error %d",
+    {
+      sql_print_error("Error:  listen() on TCP/IP failed with error %d",
 		      socket_errno);
+      unireg_abort(1);
+    }
   }
 
   if (mysqld_chroot)
