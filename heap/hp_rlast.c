@@ -25,6 +25,7 @@ int heap_rlast(HP_INFO *info, byte *record, int inx)
   HP_KEYDEF *keyinfo= share->keydef + inx;
 
   DBUG_ENTER("heap_rlast");
+  info->lastinx= inx;
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
     byte *pos;
