@@ -9,6 +9,7 @@ SET NAMES binary;
 # prepare playground before tests
 --disable_warnings
 drop database if exists mysqltest;
+drop database if exists mysqltest_1;
 --enable_warnings
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
@@ -56,7 +57,6 @@ grant create user on *.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
-select current_user;
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
@@ -83,6 +83,24 @@ delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 
+#
+# wild_compare part two - acl_cache
+#
+create database mysqltest_1;
+grant all privileges on `mysqltest\_1`.* to mysqltest_1@localhost with grant option;
+connect (user2,localhost,mysqltest_1,,);
+connection user2;
+select current_user();
+show databases;
+--error 1044
+grant all privileges on `mysqltest_1`.* to mysqltest_1@localhost with grant option;
+disconnect user2;
+connection default;
+show grants for mysqltest_1@localhost;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+drop database mysqltest_1;
+flush privileges;
 
 #
 # Bug #6173: One can circumvent missing UPDATE privilege if he has SELECT
