@@ -4320,6 +4320,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.silverpoint.nl/, WWW}
 
 @item
+@c EMAIL: mysql@widexs.nl (Wouter de Jong)
+@image{Flags/netherlands} Netherlands [Widexs BV] @
+@uref{http://mysql.widexs.nl/, WWW}
+@uref{ftp://mysql.widexs.nl/pub/mysql/, FTP}
+
+@item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
 @image{Flags/poland} Poland [Sunsite] @
@@ -4435,11 +4441,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
-@item
+@c @item
 @c lance@uklinux.net (Lance)
-@image{Flags/great-britain} UK [uklinux.net] @
-@uref{http://mirror.uklinux.net/mysql/, WWW}
-@uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
+@c @image{Flags/great-britain} UK [uklinux.net] @
+@c @uref{http://mirror.uklinux.net/mysql/, WWW}
+@c @uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
 
 @c @item
 @c unknown
@@ -40600,12 +40606,17 @@ for all MySQL fieldtypes (version 2001.1.1). By SciBit @uref{http://www.scibit.c
 @item @uref{http://www.fastflow.it/mylua/, MyLUA home page}
 How to use the LUA language to write @strong{MySQL} @code{PROCEDURE} that can
 be loaded runtime.
+
 @itemize @bullet
 @item @uref{http://www.mysql.com/Downloads/Contrib/lua-4.0.tar.gz, Lua 4.0}
 LUA 4.0
 @item @uref{http://www.mysql.com/Downloads/Contrib/mylua-3.23.32.1.tar.gz, mylua-3.23.32.1.tar.gz}
 Patch for MySQL 3.23.32 to use LUA 4.0.  By Cristian Giussani.
 @end itemize
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/patched_myodbc.zip, patched_myodbc.zip}
+Patch (for Omniform 4.0 support) to the MyODBC driver.
+By Thomas Thaele @email{tthaele@@papenmeier.de}
 
 @end itemize
 

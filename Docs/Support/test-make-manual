@@ -129,6 +129,8 @@ echo "If you would like to use a different browser, set the 'BROWSER' environmen
 echo "variable." 
 echo
 
-$BROWSER file://`pwd`/manual_toc.html
+$BROWSER file:`pwd`/manual_toc.html
 
+echo "-- Press Enter to Continue --"
+read
 cleanup
