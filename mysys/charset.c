@@ -80,6 +80,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->strntoll    = my_strntoll_8bit;
   cs->strntoull   = my_strntoull_8bit;
   cs->strntod     = my_strntod_8bit;
+  cs->scan	  = my_scan_8bit;
   cs->mbmaxlen    = 1;
 }
 

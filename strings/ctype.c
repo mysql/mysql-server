@@ -2849,7 +2849,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -2895,7 +2896,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -2940,7 +2942,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -2985,7 +2988,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3031,7 +3035,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3076,7 +3081,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3121,7 +3127,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3166,7 +3173,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3212,7 +3220,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3257,7 +3266,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3302,7 +3312,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3347,7 +3358,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3392,7 +3404,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3437,7 +3450,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3482,7 +3496,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3528,7 +3543,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3573,7 +3589,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3619,7 +3636,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3665,7 +3683,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3710,7 +3729,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3755,7 +3775,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3800,7 +3821,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3845,7 +3867,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
   },
 #endif
 
@@ -3884,6 +3907,7 @@ static CHARSET_INFO compiled_charsets[] = {
     NULL,		/* hash_caseup */
     NULL,		/* hash_sort   */
     0,
+    NULL,
     NULL,
     NULL,
     NULL,
