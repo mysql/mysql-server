@@ -263,7 +263,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       end_delayed_insert(thd);
     }
     if (info.copied || info.deleted)
+    {
       query_cache_invalidate3(thd, table_list, 1);
+    }
   }
   else
   {

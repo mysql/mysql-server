@@ -24,11 +24,11 @@
 #include <malloc.h>
 
 #if defined(__NT__)
-#define	SYSTEM_TYPE	"NT"
+#define SYSTEM_TYPE	"NT"
 #elif defined(__WIN2000__)
-#define	SYSTEM_TYPE	"WIN2000"
+#define SYSTEM_TYPE	"WIN2000"
 #else
-#define	SYSTEM_TYPE	"Win95/Win98"
+#define SYSTEM_TYPE	"Win95/Win98"
 #endif
 
 #if defined(_WIN64) || defined(WIN64)
@@ -43,23 +43,23 @@
 #endif
 #endif /* _WIN64 */
 #ifndef __WIN__
-#define __WIN__                       /* To make it easier in VC++ */
+#define __WIN__			      /* To make it easier in VC++ */
 #endif
 
 /* File and lock constants */
-#define O_SHARE         0x1000 		/* Open file in sharing mode */
+#define O_SHARE		0x1000		/* Open file in sharing mode */
 #ifdef __BORLANDC__
-#define	F_RDLCK		LK_NBLCK	/* read lock */
-#define	F_WRLCK		LK_NBRLCK	/* write lock */
-#define	F_UNLCK		LK_UNLCK	/* remove lock(s) */
+#define F_RDLCK		LK_NBLCK	/* read lock */
+#define F_WRLCK		LK_NBRLCK	/* write lock */
+#define F_UNLCK		LK_UNLCK	/* remove lock(s) */
 #else
-#define	F_RDLCK		_LK_NBLCK	/* read lock */
-#define	F_WRLCK		_LK_NBRLCK	/* write lock */
-#define	F_UNLCK		_LK_UNLCK	/* remove lock(s) */
+#define F_RDLCK		_LK_NBLCK	/* read lock */
+#define F_WRLCK		_LK_NBRLCK	/* write lock */
+#define F_UNLCK		_LK_UNLCK	/* remove lock(s) */
 #endif
 
-#define F_EXCLUSIVE     1		/* We have only exclusive locking */
-#define F_TO_EOF        (INT_MAX32/2)   /* size for lock of all file */
+#define F_EXCLUSIVE	1		/* We have only exclusive locking */
+#define F_TO_EOF	(INT_MAX32/2)	/* size for lock of all file */
 #define F_OK		0		/* parameter to access() */
 
 #define S_IROTH		S_IREAD		/* for my_lib */
@@ -70,15 +70,15 @@
 #define O_SHORT_LIVED	0
 #define SH_DENYNO	_SH_DENYNO
 #else
-#define O_BINARY        _O_BINARY       /* compability with MSDOS */
-#define FILE_BINARY     _O_BINARY       /* my_fopen in binary mode */
-#define O_TEMPORARY     _O_TEMPORARY
-#define O_SHORT_LIVED   _O_SHORT_LIVED
-#define SH_DENYNO       _SH_DENYNO
+#define O_BINARY	_O_BINARY	/* compability with MSDOS */
+#define FILE_BINARY	_O_BINARY	/* my_fopen in binary mode */
+#define O_TEMPORARY	_O_TEMPORARY
+#define O_SHORT_LIVED	_O_SHORT_LIVED
+#define SH_DENYNO	_SH_DENYNO
 #endif
 #define NO_OPEN_3			/* For my_create() */
 
-#define	SIGQUIT		SIGTERM		/* No SIGQUIT */
+#define SIGQUIT		SIGTERM		/* No SIGQUIT */
 
 #undef _REENTRANT			/* Crashes something for win32 */
 #undef SAFE_MUTEX			/* Can't be used on windows */
@@ -89,15 +89,15 @@
 
 /* Type information */
 
-typedef unsigned short  ushort;
-typedef unsigned int    uint;
+typedef unsigned short	ushort;
+typedef unsigned int	uint;
 typedef unsigned __int64 ulonglong;	/* Microsofts 64 bit types */
-typedef __int64	longlong;
+typedef __int64 longlong;
 typedef int sigset_t;
 #define longlong_defined
 /* off_t should not be __int64 because of conflicts in header files;
    Use my_off_t or os_off_t instead */
-typedef	long off_t;
+typedef long off_t;
 typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
@@ -109,7 +109,7 @@ typedef uint rf_SetTimer;
 #define Socket_defined
 #define my_socket SOCKET
 #define bool BOOL
-#define SIGPIPE	SIGINT
+#define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID
 #define RETSIGTYPE void
@@ -118,7 +118,9 @@ typedef uint rf_SetTimer;
 #define bool_defined
 #define byte_defined
 #define HUGE_PTR
-#define STDCALL __stdcall           /* Used by libmysql.dll */
+#define STDCALL __stdcall	    /* Used by libmysql.dll */
+#define isnan(X) _isnan(X)
+#define finite(X) _finite(X)
 
 #ifndef UNDEF_THREAD_HACK
 #define THREAD
@@ -201,7 +203,7 @@ inline double ulonglong2double(ulonglong value)
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
 				    (((uint32) ((uchar) (A)[3])) << 24)) +\
-			 	    (((ulonglong) ((uchar) (A)[4])) << 32))
+				    (((ulonglong) ((uchar) (A)[4])) << 32))
 #define uint8korr(A)	(*((ulonglong *) (A)))
 #define sint8korr(A)	(*((longlong *) (A)))
 #define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
@@ -247,14 +249,15 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_FLOAT_H
 #define HAVE_LIMITS_H
 #define HAVE_STDDEF_H
-#define HAVE_RINT               /* defined in this file */
-#define NO_FCNTL_NONBLOCK       /* No FCNTL */
+#define HAVE_RINT		/* defined in this file */
+#define NO_FCNTL_NONBLOCK	/* No FCNTL */
 #define HAVE_ALLOCA
 #define HAVE_STRPBRK
 #define HAVE_STRSTR
 #define HAVE_COMPRESS
 #define HAVE_CREATESEMAPHORE
-
+#define HAVE_ISNAN
+#define HAVE_FINITE
 #define HAVE_ISAM		/* We want to have support for ISAM in 4.0 */
 
 #ifdef NOT_USED
@@ -276,8 +279,8 @@ inline double ulonglong2double(ulonglong value)
 #ifdef _CUSTOMCONFIG_
 #include <custom_conf.h>
 #else
-#define	DEFAULT_MYSQL_HOME	"c:\\mysql"
-#define PACKAGE		 	"mysql"
+#define DEFAULT_MYSQL_HOME	"c:\\mysql"
+#define PACKAGE			"mysql"
 #define DEFAULT_BASEDIR		"C:\\"
 #define SHAREDIR		"share"
 #define DEFAULT_CHARSET_HOME	"C:/mysql/"
@@ -303,6 +306,6 @@ inline double ulonglong2double(ulonglong value)
 	pthread_mutex_lock((L)); (V)+=(C); pthread_mutex_unlock((L));
 #define thread_safe_sub(V,C,L) \
 	pthread_mutex_lock((L)); (V)-=(C); pthread_mutex_unlock((L));
-#define statistic_add(V,C,L)     (V)+=(C)
+#define statistic_add(V,C,L)	 (V)+=(C)
 #endif
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
