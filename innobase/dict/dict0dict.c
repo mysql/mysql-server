@@ -2578,8 +2578,6 @@ dict_update_statistics_low(
 	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
-	printf("Updating statistics for table %s\n", table->name);
-
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
