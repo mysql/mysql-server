@@ -2801,7 +2801,7 @@ static my_bool int_is_null_false= 0;
     bind structure before setting it's members. This will both shorten
     your application code and make it robust to future extensions of
     MYSQL_BIND structure.
-    Then you need to assign typecode of your applicatoin buffer to
+    Then you need to assign typecode of your application buffer to
     MYSQL_BIND::buffer_type. The following typecodes with their
     correspondence to C language types are supported:
     MYSQL_TYPE_TINY       for 8-bit integer variables. Normally it's
@@ -2932,8 +2932,8 @@ static my_bool int_is_null_false= 0;
     The function copies given bind array to internal storage of the
     statement, and sets up typecode-specific handlers to perform
     serialization of bound data. This means that although you don't need
-    to call this routine after each assignement to bind buffers, you
-    need to call eat each time you change parameter typecodes, or other
+    to call this routine after each assignment to bind buffers, you
+    need to call it each time you change parameter typecodes, or other
     members of MYSQL_BIND array.
     This is a pure local call. Data types of client buffers are sent
     along with buffers' data at first execution of the statement.
