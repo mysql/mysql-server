@@ -537,3 +537,14 @@ CREATE TABLE t1 (id int(11),value1 float(10,2));
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
 select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
 DROP TABLE t1;
+
+#
+# BUG#8464 decimal AVG returns incorrect result
+#
+
+CREATE TABLE t1 (col1 decimal(16,12));
+INSERT INTO t1 VALUES (-5.00000000001),(-5.00000000002),(-5.00000000003),(-5.00000000000),(-5.00000000001),(-5.00000000002);
+insert into t1 select * from t1;
+select col1,count(col1),sum(col1),avg(col1) from t1 group by col1;
+DROP TABLE t1;
+
