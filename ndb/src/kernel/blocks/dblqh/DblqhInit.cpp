@@ -19,7 +19,6 @@
 #define DBLQH_C
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
-#include <new>
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
