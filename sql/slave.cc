@@ -1392,18 +1392,18 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
   bool slave_killed=0;
   MASTER_INFO* mi = rli->mi;
-  const char* save_proc_info;
   THD* thd = mi->io_thd;
 
   DBUG_ENTER("wait_for_relay_log_space");
   pthread_mutex_lock(&rli->log_space_lock);
-  save_proc_info = thd->proc_info;
-  thd->proc_info = "Waiting for relay log space to free";
+  const char* save_proc_info= thd->enter_cond(&rli->log_space_cond,
+                                              &rli->log_space_lock, 
+                                              "Waiting for relay log space to free");
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
-  thd->proc_info = save_proc_info;
+  thd->exit_cond(save_proc_info);
   pthread_mutex_unlock(&rli->log_space_lock);
   DBUG_RETURN(slave_killed);
 }
@@ -2445,6 +2445,8 @@ reconnect done to recover from failed read");
         for no reason, but this function will do a clean read, notice the clean
         value and exit immediately.
       */
+      DBUG_PRINT("info", ("ignore_log_space_limit=%d", (int)
+                          mi->rli.ignore_log_space_limit)); 
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
 	  mi->rli.log_space_total &&
           !mi->rli.ignore_log_space_limit)
@@ -2626,6 +2628,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));
   pthread_cond_broadcast(&rli->data_cond);
+  rli->ignore_log_space_limit= 0; /* don't need any lock */
   rli->save_temporary_tables = thd->temporary_tables;
 
   /*
@@ -3268,8 +3271,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
           log), and also when the SQL thread starts. We should also reset
           ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
           fact, no need as RESET SLAVE requires that the slave
-          be stopped, and when the SQL thread is later restarted
-          ignore_log_space_limit will be reset to 0.
+          be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
+          it stops.
         */
         pthread_mutex_lock(&rli->log_space_lock);
         // prevent the I/O thread from blocking next times
