@@ -8151,7 +8151,7 @@ should check if you need some of the new grants that you didn't need
 before.  In particular, you will need @code{REPLICATION SLAVE}
 (instead of @code{FILE}) for new slaves.
 @item
-@code{DOUBLE} and @code{FLOAT} columns are now honoring the
+@code{DOUBLE} and @code{FLOAT} columns now honour the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
 these columns).
 @item
