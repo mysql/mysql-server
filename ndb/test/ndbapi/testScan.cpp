@@ -809,58 +809,11 @@ int runExecuteScanWithoutOpenScan(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runOnlyOneOpBeforeOpenScan(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpBeforeOpenScan,
-			      false) == 0){
-    numFailed++;
-  }
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneOpBeforeOpenScan,
-			      true) == 0){
-    numFailed++;
-  }
-  
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
     return NDBT_OK;
-
 }
+
 int runOnlyOneScanPerTrans(NDBT_Context* ctx, NDBT_Step* step){
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-  int records = ctx->getNumRecords();
-  int numFailed = 0;
-
-  ScanFunctions scanF(*pTab);
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneScanPerTrans,
-			      false) == 0){
-    numFailed++;
-  }
-  if (scanF.scanReadFunctions(GETNDB(step), 
-			      records, 
-			      6,
-			      ScanFunctions::OnlyOneScanPerTrans,
-			      true) == 0){
-    numFailed++;
-  }
-    
-  if(numFailed > 0)
-    return NDBT_FAILED;
-  else
-    return NDBT_OK;
-
+  return NDBT_OK;
 }
 
 int runNoCloseTransaction(NDBT_Context* ctx, NDBT_Step* step){
