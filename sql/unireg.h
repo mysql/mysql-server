@@ -104,13 +104,13 @@
 #define SPECIAL_SAFE_MODE	2048
 
 	/* Extern defines */
-#define store_record(A,B) bmove_allign((A)->record[B],(A)->record[0],(size_t) (A)->reclength)
-#define restore_record(A,B) bmove_allign((A)->record[0],(A)->record[B],(size_t) (A)->reclength)
-#define cmp_record(A,B) memcmp((A)->record[0],(A)->record[B],(size_t) (A)->reclength)
+#define store_record(A,B) bmove_allign((A)->B,(A)->record[0],(size_t) (A)->reclength)
+#define restore_record(A,B) bmove_allign((A)->record[0],(A)->B,(size_t) (A)->reclength)
+#define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->reclength)
 #define empty_record(A) { \
-bmove_allign((A)->record[0],(A)->record[2],(size_t) (A)->reclength); \
-bfill((A)->null_flags,(A)->null_bytes,255);\
-}
+                          restore_record((A),default_values); \
+                          bfill((A)->null_flags,(A)->null_bytes,255);\
+                        }
 
 	/* Defines for use with openfrm, openprt and openfrd */
 

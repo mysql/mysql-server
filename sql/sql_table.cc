@@ -1762,7 +1762,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /* Full alter table */
-  restore_record(table,2);			// Empty record for DEFAULT
+  restore_record(table,default_values);			// Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(drop_list);
   List_iterator<create_field> def_it(fields);
   List_iterator<Alter_column> alter_it(alter_list);

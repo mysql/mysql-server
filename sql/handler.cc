@@ -34,6 +34,8 @@
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
+#else
+#define innobase_query_caching_of_table_permitted(X,Y,Z) 1
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -877,7 +879,7 @@ int handler::delete_all_rows()
   return (my_errno=HA_ERR_WRONG_COMMAND);
 }
 
-bool handler::caching_allowed(THD* thd, char* table_key, 
+bool handler::caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cache_type)
 {
   if (cache_type == HA_CACHE_TBL_ASKTRANSACT)

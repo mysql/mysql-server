@@ -34,13 +34,13 @@ public:
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
-	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM, 
-	     FIELD_VARIANCE_ITEM, CONST_ITEM,
+	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
+	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
-  enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2, 
-  		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
+  enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2,
+		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
 
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
@@ -201,6 +201,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   friend class Item_default_value;
+  friend class Item_insert_value;
 };
 
 class Item_null :public Item
@@ -734,7 +735,7 @@ public:
   Item *arg;
   Item_default_value() :
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(NULL) {}
-  Item_default_value(Item *a) : 
+  Item_default_value(Item *a) :
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
   enum Type type() const { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -749,6 +750,24 @@ public:
       field->set_default();
       return 0;
     }
+    return Item_field::save_in_field(field, no_conversions);
+  }
+  table_map used_tables() const { return (table_map)0L; }
+};
+
+class Item_insert_value : public Item_field
+{
+public:
+  Item *arg;
+  Item_insert_value(Item *a) :
+    Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
+  bool eq(const Item *item, bool binary_cmp) const;
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  void set_outer_resolving() { arg->set_outer_resolving(); }
+  void print(String *str);
+  virtual bool basic_const_item() const { return true; }
+  int save_in_field(Field *field, bool no_conversions)
+  {
     return Item_field::save_in_field(field, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }

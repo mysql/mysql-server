@@ -267,6 +267,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       (ulong) (uint2korr(head+6)+uint2korr(head+14)),
 	       MYF(MY_NABP)))
     goto err_not_open; /* purecov: inspected */
+  /* HACK: table->record[2] is used instead of table->default_values here */
   for (i=0 ; i < records ; i++, record+=rec_buff_length)
   {
     outparam->record[i]=(byte*) record;
@@ -276,11 +277,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (records == 2)
   {						/* fix for select */
-    outparam->record[2]=outparam->record[1];
+    outparam->default_values=outparam->record[1];
     if (db_stat & HA_READ_ONLY)
       outparam->record[1]=outparam->record[0]; /* purecov: inspected */
   }
-  
+  outparam->insert_values=0;                   /* for INSERT ... UPDATE */
+
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file,(byte*) head,288,MYF(MY_NABP))) goto err_not_open;
   if (crypted)
