@@ -154,7 +154,7 @@ class FT_SELECT: public QUICK_SELECT {
 public:
   FT_SELECT(THD *thd, TABLE *table, uint key):
     QUICK_SELECT (thd, table, key, 1) { init(); }
-
+  ~FT_SELECT() { file->ft_end(); }
   int init() { return error= file->ft_init(); }
   int get_next() { return error= file->ft_read(record); }
 };
