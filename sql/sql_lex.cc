@@ -966,27 +966,17 @@ void st_select_lex_node::init_query()
   options= 0;
   linkage= UNSPECIFIED_TYPE;
   no_table_names_allowed= uncacheable= dependent= 0;
-  ref_pointer_array= 0;
-  cond_count= 0;
 }
 
 void st_select_lex_node::init_select()
 {
-  order_list.elements= 0;
-  order_list.first= 0;
-  order_list.next= (byte**) &order_list.first;
-  select_limit= HA_POS_ERROR;
-  offset_limit= 0;
-  select_items= 0;
-  with_sum_func= 0;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 void st_select_lex_unit::init_query()
 {
   st_select_lex_node::init_query();
   linkage= GLOBAL_OPTIONS_TYPE;
-  global_parameters= this;
+  global_parameters= first_select();
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
   union_option= 0;
@@ -994,6 +984,7 @@ void st_select_lex_unit::init_query()
   item= 0;
   union_result= 0;
   table= 0;
+  fake_select_lex= 0;
 }
 
 void st_select_lex::init_query()
@@ -1005,7 +996,8 @@ void st_select_lex::init_query()
   where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   insert_select= having_fix_field= 0;
-  with_wild= 0;
+  cond_count= with_wild= 0;
+  ref_pointer_array= 0;
 }
 
 void st_select_lex::init_select()
@@ -1027,6 +1019,14 @@ void st_select_lex::init_select()
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
+  order_list.elements= 0;
+  order_list.first= 0;
+  order_list.next= (byte**) &order_list.first;
+  select_limit= HA_POS_ERROR;
+  offset_limit= 0;
+  select_items= 0;
+  with_sum_func= 0;
+  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 /*
@@ -1040,6 +1040,23 @@ void st_select_lex_node::include_down(st_select_lex_node *upper)
     next->prev= &next;
   prev= &upper->slave;
   upper->slave= this;
+  master= upper;
+  slave= 0;
+}
+
+/*
+  include on level down (but do not link)
+  
+  SYNOPSYS
+    st_select_lex_node::include_standalone()
+    upper - reference on node underr which this node should be included
+    ref - references on reference on this node
+*/
+void st_select_lex_node::include_standalone(st_select_lex_node *upper,
+					    st_select_lex_node **ref)
+{
+  next= 0;
+  prev= ref;
   master= upper;
   slave= 0;
 }
@@ -1125,33 +1142,6 @@ void st_select_lex_unit::exclude_level()
     (*prev)= next;
 }
 
-st_select_lex* st_select_lex_node::select_lex()
-{
-  DBUG_ENTER("st_select_lex_node::select_lex (never should be called)");
-  DBUG_ASSERT(0);
-  DBUG_RETURN(0);
-}
-
-bool st_select_lex_node::add_item_to_list(THD *thd, Item *item)
-{
-  return 1;
-}
-
-bool st_select_lex_node::add_group_to_list(THD *thd, Item *item, bool asc)
-{
-  return 1;
-}
-
-bool st_select_lex_node::add_order_to_list(THD *thd, Item *item, bool asc)
-{
-  return add_to_list(thd, order_list, item, asc);
-}
-
-bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)
-{
-  return 1;
-}
-
 /*
   st_select_lex_node::mark_as_dependent mark all st_select_lex struct from 
   this to 'last' as dependent
@@ -1165,31 +1155,26 @@ bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)
 
 */
 
-void st_select_lex_node::mark_as_dependent(SELECT_LEX *last)
+void st_select_lex::mark_as_dependent(SELECT_LEX *last)
 {
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
   */
-  for (SELECT_LEX_NODE *s= this;
+  for (SELECT_LEX *s= this;
        s &&s != last;
        s= s->outer_select())
     if ( !s->dependent )
     {
       // Select is dependent of outer select
       s->dependent= 1;
-      if (s->linkage != GLOBAL_OPTIONS_TYPE)
-      { 
-	//s is st_select_lex*
-
-	s->master_unit()->dependent= 1;
-	//Tables will be reopened many times
-	for (TABLE_LIST *tbl=
-	       s->get_table_list();
-	     tbl;
-	     tbl= tbl->next)
-	  tbl->shared= 1;
-      }
+      s->master_unit()->dependent= 1;
+      //Tables will be reopened many times
+      for (TABLE_LIST *tbl=
+	     s->get_table_list();
+	   tbl;
+	   tbl= tbl->next)
+	tbl->shared= 1;
     }
 }
 
@@ -1200,15 +1185,6 @@ TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
 List<String>* st_select_lex_node::get_use_index()    { return 0; }
 List<String>* st_select_lex_node::get_ignore_index() { return 0; }
-TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
-						  LEX_STRING *alias,
-						  ulong table_join_options,
-						  thr_lock_type flags,
-						  List<String> *use_index,
-						  List<String> *ignore_index)
-{
-  return 0;
-}
 
 ulong st_select_lex_node::get_table_join_options()
 {
@@ -1218,7 +1194,7 @@ ulong st_select_lex_node::get_table_join_options()
 /*
   prohibit using LIMIT clause
 */
-bool st_select_lex_node::test_limit()
+bool st_select_lex::test_limit()
 {
   if (select_limit != HA_POS_ERROR)
   {
@@ -1293,22 +1269,39 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
   TABLE_LIST **new_table_list= *result, *aux;
   SELECT_LEX *sl= (SELECT_LEX*)slave;
-  for (; sl; sl= sl->next_select())
+  
+  /*
+    iterate all inner selects + fake_select (if exists),
+    fake_select->next_select() always is 0
+  */
+  for (;
+       sl;
+       sl= (sl->next_select() ?
+	    sl->next_select() :
+	    (sl == fake_select_lex ?
+	     0 :
+	     fake_select_lex)))
   {
     // check usage of ORDER BY in union
-    if (sl->order_list.first && sl->next_select() && !sl->braces)
+    if (sl->order_list.first && sl->next_select() && !sl->braces &&
+	sl->linkage != GLOBAL_OPTIONS_TYPE)
     {
       net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
+
     if (sl->linkage == DERIVED_TABLE_TYPE && !check_derived)
-      continue;
+      goto end;
+
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
 	 inner;
 	 inner= inner->next_unit())
+    {
       if (inner->create_total_list_n_last_return(thd, lex,
 						 &slave_list_last, 0))
 	return 1;
+    }
+
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {
       TABLE_LIST *next;
@@ -1342,6 +1335,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
       }
     }
   }
+end:
   if (slave_list_first)
   {
     *new_table_list= slave_list_first;
@@ -1361,9 +1355,9 @@ st_select_lex* st_select_lex_unit::outer_select()
   return (st_select_lex*) master;
 }
 
-st_select_lex* st_select_lex::select_lex()
+bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return this;
+  return add_to_list(thd, order_list, item, asc);
 }
 
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
@@ -1432,18 +1426,6 @@ ulong st_select_lex::get_table_join_options()
 {
   return table_join_options;
 }
-
-st_select_lex::st_select_lex(struct st_lex *lex)
-  :fake_select(0)
-{
-  select_number= ++lex->thd->select_number;
-  init_query();
-  init_select();
-  include_neighbour(lex->current_select);
-  include_global((st_select_lex_node**)&lex->all_selects_list);
-  lex->current_select= this;
-}
-
 
 /*
   There are st_select_lex::add_table_to_list & 

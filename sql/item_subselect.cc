@@ -336,8 +336,8 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
 
 bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
 {
-  if (unit->global_parameters == unit &&
-      unit->global_parameters->test_limit())
+  if (unit->fake_select_lex &&
+      unit->fake_select_lex->test_limit())
     return(1);
 
   SELECT_LEX *sl= unit->first_select();
@@ -495,7 +495,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX_NODE *current= thd->lex.current_select, *up;
+    SELECT_LEX *current= thd->lex.current_select, *up;
+
     thd->lex.current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
@@ -658,7 +659,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
     substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-    SELECT_LEX_NODE *current= thd->lex.current_select, *up;
+    SELECT_LEX *current= thd->lex.current_select, *up;
     thd->lex.current_select= up= current->return_after_parsing();
     //optimizer never use Item **ref => we can pass 0 as parameter
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
@@ -771,7 +772,7 @@ int subselect_single_select_engine::prepare()
   if (prepared)
     return 0;
   prepared= 1;
-  SELECT_LEX_NODE *save_select= thd->lex.current_select;
+  SELECT_LEX *save_select= thd->lex.current_select;
   thd->lex.current_select= select_lex;
   if (join->prepare(&select_lex->ref_pointer_array,
 		    (TABLE_LIST*) select_lex->table_list.first,
@@ -876,7 +877,7 @@ int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
   char const *save_where= join->thd->where;
-  SELECT_LEX_NODE *save_select= join->thd->lex.current_select;
+  SELECT_LEX *save_select= join->thd->lex.current_select;
   join->thd->lex.current_select= select_lex;
   if (!optimized)
   {
