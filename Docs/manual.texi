@@ -1,4 +1,4 @@
-input texinfo  @c -*-texinfo-*-
+\input texinfo  @c -*-texinfo-*-
 @c Copyright 1997-2001 TcX AB, Detron HB and MySQL Finland AB
 @c
 @c *********************************************************
