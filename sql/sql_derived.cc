@@ -151,7 +151,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   
     if ((derived_result=new select_union(table)))
     {
-      derived_result->tmp_table_param=&tmp_table_param;
+      derived_result->tmp_table_param=tmp_table_param;
       unit->offset_limit_cnt= select_cursor->offset_limit;
       unit->select_limit_cnt= select_cursor->select_limit+
 	select_cursor->offset_limit;
