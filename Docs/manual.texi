@@ -24779,6 +24779,8 @@ and check the query with @code{EXPLAIN} again. @xref{ALTER TABLE}.
 To see what indexes a table has, use @code{SHOW INDEX FROM tbl_name}.
 
 @item key
+@findex USE INDEX
+@findex IGNORE INDEX
 The @code{key} column indicates the key that MySQL actually
 decided to use. The key is @code{NULL} if no index was chosen.  If
 MySQL chooses the wrong index, you can probably force
@@ -32810,6 +32812,13 @@ because the column value may not yet be determined when the
 The @code{FROM table_references} clause indicates the tables from which to
 retrieve rows.  If you name more than one table, you are performing a
 join.  For information on join syntax, see @ref{JOIN, , @code{JOIN}}.
+For each table specified, you may optionally specify an alias, as well as
+make a suggestion to the optimiser what index to use or ignore.
+@findex USE INDEX
+@findex IGNORE INDEX
+@example
+table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
+@end example
 
 @item
 You can refer to a column as @code{col_name}, @code{tbl_name.col_name}, or
@@ -33099,6 +33108,8 @@ table_reference NATURAL [RIGHT [OUTER]] JOIN table_reference
 @end example
 
 Where @code{table_reference} is defined as:
+@findex USE INDEX
+@findex IGNORE INDEX
 @example
 table_name [[AS] alias] [USE INDEX (key_list)] [IGNORE INDEX (key_list)]
 @end example
@@ -33194,6 +33205,8 @@ cases where the join optimiser puts the tables in the wrong order.
 
 @item
 @cindex hints
+@findex USE INDEX
+@findex IGNORE INDEX
 As of MySQL Version 3.23.12, you can give hints about which
 index MySQL should use when retrieving information from a
 table. This is useful if @code{EXPLAIN} shows that MySQL is
