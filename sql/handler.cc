@@ -1325,7 +1325,7 @@ int ha_create_table_from_engine(THD* thd,
   }
 
 err_end:
-  my_free((char*) frmblob, MYF(MY_ALLOW_ZERO));
+  my_free((char*) frmblob, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(error);  
 }
 
