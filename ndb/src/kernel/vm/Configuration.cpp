@@ -34,6 +34,7 @@
 
 #include <kernel_types.h>
 #include <ndb_limits.h>
+#include <ndbapi_limits.h>
 #include "pc.hpp"
 #include <LogLevel.hpp>
 #include <NdbSleep.h>
@@ -454,6 +455,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfTables = 0;
   unsigned int noOfUniqueHashIndexes = 0;
   unsigned int noOfOrderedIndexes = 0;
+  unsigned int noOfTriggers = 0;
   unsigned int noOfReplicas = 0;
   unsigned int noOfDBNodes = 0;
   unsigned int noOfAPINodes = 0;
@@ -478,6 +480,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
     { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes, false },
+    { CFG_DB_NO_TRIGGERS, &noOfTriggers, true },
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
@@ -586,6 +589,16 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ConfigValues::Iterator it2(*ownConfig, db.m_config);
   it2.set(CFG_DB_NO_TABLES, noOfTables);
   it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
+  {
+    Uint32 neededNoOfTriggers =
+      3 * (noOfUniqueHashIndexes + NDB_MAX_ACTIVE_EVENTS)+
+      noOfOrderedIndexes;
+    if (noOfTriggers < neededNoOfTriggers)
+    {
+      noOfTriggers= neededNoOfTriggers;
+      it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
+    }
+  }
 
   /**
    * Do size calculations
