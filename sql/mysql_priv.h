@@ -1069,6 +1069,9 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
 Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
 		     uint length, const char *item_name);
+/* item_func.cc */
+int get_var_with_binlog(THD *thd, LEX_STRING &name,
+                        user_var_entry **out_entry);
 /* log.cc */
 bool flush_error_log(void);
 
