@@ -92,6 +92,7 @@ MASTER_RUNNING=0
 MASTER_MYPORT=9306
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9307
+NO_SLAVE=0
 
 EXTRA_MYSQL_TEST_OPT=""
 USE_RUNNING_SERVER=1
@@ -107,6 +108,7 @@ while test $# -gt 0; do
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --skip-rpl) NO_SLAVE=1 ;;
     --record)
       RECORD=1;
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
@@ -480,7 +482,20 @@ run_testcase ()
  slave_opt_file=$TESTDIR/$tname-slave.opt
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
-  
+
+ if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
+ then
+   USERT="    ...."
+   SYST="    ...."
+   REALT="    ...."
+   timestr="$USERT $SYST $REALT"
+   pname=`$ECHO "$tname                 "|$CUT -c 1-16`
+   RES="$pname          $timestr"
+   pass_inc
+   $ECHO "$RES$RES_SPACE [ skipped ]"
+   return
+ fi
+
  if [ -f $master_opt_file ] ;
  then
   EXTRA_MASTER_OPT=`$CAT $master_opt_file`
