@@ -1,0 +1,21 @@
+use test;
+drop table if exists test_select;
+Warnings:
+Note	1051	Unknown table 'test_select'
+CREATE TABLE test_select(session_id  char(9) NOT NULL);
+INSERT INTO test_select VALUES ("abc");
+SELECT * FROM test_select;
+session_id
+abc
+prepare st_1180 from 'SELECT * FROM test_select WHERE ?="1111" and session_id = "abc"';
+set @arg1= 'abc';
+execute st_1180 using @arg1;
+session_id
+set @arg1= '1111';
+execute st_1180 using @arg1;
+session_id
+abc
+set @arg1= 'abc';
+execute st_1180 using @arg1;
+session_id
+drop table test_select;
