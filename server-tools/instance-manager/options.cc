@@ -23,6 +23,8 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
+#include <m_string.h>
+#include <mysql_com.h>
 
 #include "priv.h"
 
@@ -35,11 +37,12 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::default_admin_user= QUOTE(DEFAULT_USER);
-const char *Options::default_admin_password= QUOTE(DEFAULT_PASSWORD);
-const char *Options::bind_address= 0;              /* No default value */
+const char *Options::bind_address= 0;           /* No default value */
+const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
+/* just to declare */
+char **Options::saved_argv;
 
 /*
   List of options, accepted by the instance manager.
@@ -54,9 +57,6 @@ enum options {
   OPT_MYSQLD_PATH,
   OPT_RUN_AS_SERVICE,
   OPT_USER,
-  OPT_PASSWORD,
-  OPT_DEFAULT_ADMIN_USER,
-  OPT_DEFAULT_ADMIN_PASSWORD,
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
   OPT_BIND_ADDRESS
@@ -79,13 +79,16 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
+  { "passwd", 'P', "Prepare entry for passwd file and exit.", 0, 0, 0,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
   { "bind-address", OPT_BIND_ADDRESS, "Bind address to use for connection.",
     (gptr *) &Options::bind_address, (gptr *) &Options::bind_address,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "port", OPT_PORT, "Port number to use for connections",
     (gptr *) &Options::port_number, (gptr *) &Options::port_number,
-    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    0, GET_UINT, REQUIRED_ARG, DEFAULT_PORT, 0, 0, 0, 0, 0 },
 
   { "password-file", OPT_PASSWORD_FILE, "Look for Instane Manager users"
                                         " and passwords here.",
@@ -98,27 +101,21 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::default_mysqld_path, (gptr *) &Options::default_mysqld_path,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
-  { "default-admin-user", OPT_DEFAULT_ADMIN_USER, "Username to shutdown MySQL"
-                                           " instances.",
-                   (gptr *) &Options::default_admin_user,
-                   (gptr *) &Options::default_admin_user,
-                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
-  { "default-admin-password", OPT_DEFAULT_ADMIN_PASSWORD, "Password to"
-                                            "shutdown MySQL instances.",
-                   (gptr *) &Options::default_admin_password,
-                   (gptr *) &Options::default_admin_password,
-                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-
   { "monitoring-interval", OPT_MONITORING_INTERVAL, "Interval to monitor instances"
                                             " in seconds.",
                    (gptr *) &Options::monitoring_interval,
                    (gptr *) &Options::monitoring_interval,
-                   0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+                   0, GET_UINT, REQUIRED_ARG, DEFAULT_MONITORING_INTERVAL,
+                   0, 0, 0, 0, 0 },
 
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+
+  { "user", OPT_USER, "Username to start mysqlmanager",
+                   (gptr *) &Options::user,
+                   (gptr *) &Options::user,
+                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -150,6 +147,34 @@ static void usage()
   my_print_variables(my_long_options);
 }
 
+
+static void passwd()
+{
+  char user[1024], pw[1024], *p;
+  char crypted_pw[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
+
+  fprintf(stderr, "Creating record for new user.\n");
+  fprintf(stderr, "Enter user name: ");
+  if (!fgets(user, sizeof(user), stdin))
+  {
+    fprintf(stderr, "Unable to read user.\n");
+    return;
+  }
+  if ((p= strchr(user, '\n'))) *p= 0;
+
+  fprintf(stderr, "Enter password: ");
+  if (! fgets(pw, sizeof(pw), stdin))
+  {
+    fprintf(stderr, "Unable to read password.\n");
+    return;
+  }
+  if ((p= strchr(pw, '\n'))) *p= 0;
+
+  make_scrambled_password(crypted_pw, pw);
+  printf("%s:%s\n", user, crypted_pw);
+}
+
+
 C_MODE_START
 
 static my_bool
@@ -161,7 +186,9 @@ get_one_option(int optid,
   case 'V':
     version();
     exit(0);
-  case 'I':
+  case 'P':
+    passwd();
+    exit(0);
   case '?':
     usage();
     exit(0);
@@ -180,12 +207,20 @@ C_MODE_END
   May not return.
 */
 
-void Options::load(int argc, char **argv)
+int Options::load(int argc, char **argv)
 {
+  int rc;
   /* config-file options are prepended to command-line ones */
   load_defaults("my", default_groups, &argc, &argv);
 
-  if (int rc= handle_options(&argc, &argv, my_long_options, get_one_option))
-    exit(rc);
+  if (rc= handle_options(&argc, &argv, my_long_options, get_one_option))
+    return rc;
+  Options::saved_argv= argv;
+  return 0;
 }
 
+void Options::cleanup()
+{
+  /* free_defaults returns nothing */
+  free_defaults(Options::saved_argv);
+}

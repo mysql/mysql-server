@@ -50,29 +50,6 @@ static struct tokens_st tokens[]= {
 
 
 /*
-  tries to find next word in the text
-  if found, returns the beginning and puts word length to word_len argument.
-  if not found returns pointer to first non-space or to '\0', word_len == 0
-*/
-
-inline void get_word(const char **text, uint *word_len)
-{
-  const char *word_end;
-
-  /* skip space */
-  while (my_isspace(default_charset_info, **text))
-    ++(*text);
-
-  word_end= *text;
-
-  while (my_isalnum(default_charset_info, *word_end))
-    ++word_end;
-
-  *word_len= word_end - *text;
-}
-
-
-/*
   Returns token no if word corresponds to some token, otherwise returns
   TOK_NOT_FOUND
 */

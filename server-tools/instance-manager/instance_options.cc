@@ -19,20 +19,113 @@
 #endif
 
 #include "instance_options.h"
+#include "parse_output.h"
+#include "buffer.h"
 #include <my_sys.h>
 #include <mysql.h>
 #include <signal.h>
 #include <m_string.h>
 
-int Instance_options::complete_initialization(const char *default_path,
-                                              const char *default_user,
-                                              const char *default_password)
-{
-  /* we need to reserve space for the final zero + possible default options */
-  if (!(argv= (char**) alloc_root(&alloc, (options_array.elements + 1
-                       + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
-  goto err;
 
+/*
+  Get compiled-in value of default_option
+
+  SYNOPSYS
+    get_default_option()
+    result            buffer to put found value
+    result_len        buffer size
+    oprion_name       the name of the option, prefixed with "--"
+
+  DESCRIPTION
+
+   Get compile-in value of requested option from server
+
+  RETURN
+    0 - ok
+    1 - error occured
+*/
+
+int Instance_options::get_default_option(char *result, size_t result_len,
+                                         const char *option_name)
+{
+  int position= 0;
+  int rc= 1;
+  char verbose_option[]= " --no-defaults --verbose --help";
+
+  Buffer cmd(strlen(mysqld_path)+sizeof(verbose_option)+1);
+  if (cmd.get_size()) /* malloc succeeded */
+  {
+    cmd.append(position, mysqld_path, strlen(mysqld_path));
+    position+=  strlen(mysqld_path);
+    cmd.append(position, verbose_option, sizeof(verbose_option) - 1);
+    position+= sizeof(verbose_option) - 1;
+    cmd.append(position, "\0", 1);
+
+    if (cmd.is_error())
+      goto err;
+    /* get the value from "mysqld --help --verbose" */
+    rc= parse_output_and_get_value(cmd.buffer, option_name + 2,
+                                   result, result_len);
+  }
+
+  return rc;
+err:
+  return 1;
+}
+
+
+int Instance_options::get_pid_filename(char *result)
+{
+  const char *pid_file= mysqld_pid_file;
+  char datadir[MAX_PATH_LEN];
+
+  if (mysqld_datadir == NULL)
+  {
+    /* we might get an error here if we have wrong path to the mysqld binary */
+    if (get_default_option(datadir, sizeof(datadir), "--datadir"))
+      return 1;
+  }
+  else
+    strxnmov(datadir, MAX_PATH_LEN - 1, strchr(mysqld_datadir, '=') + 1,
+             "/", NullS);
+
+  DBUG_ASSERT(mysqld_pid_file);
+  pid_file= strchr(pid_file, '=') + 1;
+
+  /* get the full path to the pidfile */
+  my_load_path(result, pid_file, datadir);
+  return 0;
+}
+
+
+int Instance_options::unlink_pidfile()
+{
+  return unlink(pid_file_with_path);
+}
+
+
+pid_t Instance_options::get_pid()
+{
+  FILE *pid_file_stream;
+
+  /* get the pid */
+  if ((pid_file_stream= my_fopen(pid_file_with_path,
+                                O_RDONLY | O_BINARY, MYF(0))) != NULL)
+  {
+    pid_t pid;
+
+    fscanf(pid_file_stream, "%i", &pid);
+    my_fclose(pid_file_stream, MYF(0));
+    return pid;
+  }
+  else
+    return 0;
+}
+
+
+int Instance_options::complete_initialization(const char *default_path)
+{
+  const char *tmp;
 
   if (mysqld_path == NULL)
   {
@@ -40,22 +133,37 @@ int Instance_options::complete_initialization(const char *default_path,
       goto err;
   }
 
-  /* this option must be first in the argv */
+  if (!(tmp= strdup_root(&alloc, "--no-defaults")))
+    goto err;
+
+  if (mysqld_pid_file == NULL)
+  {
+    char pidfilename[MAX_PATH_LEN];
+    char hostname[MAX_PATH_LEN];
+    if (!gethostname(hostname, sizeof(hostname) - 1))
+      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", hostname, "-",
+               instance_name, ".pid", NullS);
+    else
+      strxnmov(pidfilename, MAX_PATH_LEN - 1, "--pid-file=", instance_name,
+               ".pid", NullS);
+
+    add_option(pidfilename);
+  }
+
+  if (get_pid_filename(pid_file_with_path))
+    goto err;
+
+  /* we need to reserve space for the final zero + possible default options */
+  if (!(argv= (char**) alloc_root(&alloc, (options_array.elements + 1
+                       + MAX_NUMBER_OF_DEFAULT_OPTIONS) * sizeof(char*))))
+  goto err;
+
+  /* the path must be first in the argv */
   if (add_to_argv(mysqld_path))
     goto err;
 
-  /* the following options are not for argv */
-  if (mysqld_user == NULL)
-  {
-    if (!(mysqld_user= strdup_root(&alloc, default_user)))
-      goto err;
-  }
-
-  if (mysqld_password == NULL)
-  {
-    if (!(mysqld_password= strdup_root(&alloc, default_password)))
-      goto err;
-  }
+  if (add_to_argv(tmp))
+    goto err;
 
   memcpy((gptr) (argv + filled_default_options), options_array.buffer,
          options_array.elements*sizeof(char*));
@@ -102,9 +210,8 @@ int Instance_options::add_option(const char* option)
     {"--bind-address=", 15, &mysqld_bind_address, SAVE_WHOLE_AND_ADD},
     {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
     {"--mysqld-path=", 14, &mysqld_path, SAVE_VALUE},
-    {"--admin-user=", 13, &mysqld_user, SAVE_VALUE},
-    {"--admin-password=", 17, &mysqld_password, SAVE_VALUE},
-    {"--guarded", 9, &is_guarded, SAVE_WHOLE},
+    {"--nonguarded", 9, &nonguarded, SAVE_WHOLE},
+    {"--shutdown_delay", 9, &shutdown_delay, SAVE_VALUE},
     {NULL, 0, NULL, 0}
   };
   struct selected_options_st *selected_options;
@@ -131,6 +238,9 @@ int Instance_options::add_option(const char* option)
        }
    }
 
+  /* if we haven't returned earlier we should just save the option */
+  insert_dynamic(&options_array,(gptr) &tmp);
+
   return 0;
 
 err:
@@ -145,6 +255,18 @@ int Instance_options::add_to_argv(const char* option)
   if (option != NULL)
     argv[filled_default_options++]= (char *) option;
   return 0;
+}
+
+
+/* function for debug purposes */
+void Instance_options::print_argv()
+{
+  int i;
+  printf("printing out an instance %s argv:\n", instance_name);
+  for (i=0; argv[i] != NULL; i++)
+  {
+    printf("argv: %s\n", argv[i]);
+  }
 }
 
 
