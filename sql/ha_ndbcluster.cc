@@ -134,8 +134,13 @@ static int ndb_to_mysql_error(const NdbError *err)
   uint i;
   for (i=0 ; err_map[i].ndb_err != err->code ; i++)
   {
-    if (err_map[i].my_err == -1)
+    if (err_map[i].my_err == -1){
+      // Push the NDB error message as warning
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			  ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+			  err->code, err->message, "NDB");      
       return err->code;
+    }
   }
   return err_map[i].my_err;
 }
@@ -2188,7 +2193,7 @@ int ha_ndbcluster::index_read(byte *buf,
   default:
   case UNDEFINED_INDEX:
     DBUG_ASSERT(false);
-    return 1;
+    DBUG_RETURN(1);
     break;
   }
   
