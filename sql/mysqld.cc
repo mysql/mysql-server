@@ -3704,7 +3704,7 @@ struct my_option my_long_options[] =
    "If Innodb should enforce LOCK TABLE",
    (gptr*) &global_system_variables.innodb_table_locks,
    (gptr*) &global_system_variables.innodb_table_locks,
-   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},

@@ -552,8 +552,14 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
 	   !lock->write_wait.data &&
 	   lock->write.data->type == TL_WRITE_ALLOW_WRITE))
       {
-	/* We have already got a write lock or all locks are
-	   TL_WRITE_ALLOW_WRITE */
+	/*
+          We have already got a write lock or all locks are
+          TL_WRITE_ALLOW_WRITE
+        */
+        DBUG_PRINT("info", ("write_wait.data: 0x%lx  old_type: %d",
+                            (ulong) lock->write_wait.data,
+                            lock->write.data->type));
+
 	(*lock->write.last)=data;	/* Add to running fifo */
 	data->prev=lock->write.last;
 	lock->write.last= &data->next;
@@ -568,6 +574,8 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
     }
     else
     {
+      DBUG_PRINT("info", ("write_wait.data: 0x%lx",
+                          (ulong) lock->write_wait.data));
       if (!lock->write_wait.data)
       {						/* no scheduled write locks */
 	if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
