@@ -52,7 +52,7 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 
 const char *ha_table_type[] = {
   "", "DIAB_ISAM","HASH","MISAM","PISAM","RMS_ISAM","HEAP", "ISAM",
-  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNOBASE", "GEMINI", "?", "?",NullS
+  "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNODB", "GEMINI", "?", "?",NullS
 };
 
 TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
@@ -837,8 +837,15 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   }
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
-  if (error)
-    my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
+  if (error) {
+    if (table.db_type == DB_TYPE_INNOBASE) {
+      /* Creation of InnoDB table cannot fail because of an OS error:
+	 put error as the number */
+      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
+    } else {
+      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
+    }
+  }
   DBUG_RETURN(error != 0);
 }
 

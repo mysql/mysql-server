@@ -15,6 +15,10 @@ Created 5/7/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "trx0purge.h"
 
+/* Restricts the length of search we will do in the waits-for
+graph of transactions */
+#define LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK 1000000
+
 /* When releasing transaction locks, this specifies how often we release
 the kernel mutex for a moment to give also others access to it */
 
@@ -312,11 +316,14 @@ static
 ibool
 lock_deadlock_recursive(
 /*====================*/
-				/* out: TRUE if a deadlock was detected */
+				/* out: TRUE if a deadlock was detected
+				or the calculation took too long */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
-	lock_t*	wait_lock);	/* in: the lock trx is waiting to be granted */
-
+	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
+	ulint*	cost);		/* in/out: number of calculation steps thus
+				far: if this exceeds LOCK_MAX_N_STEPS_...
+				we return TRUE */
 /*************************************************************************
 Reserves the kernel mutex. This function is used in this module to allow
 monitoring the contention degree on the kernel mutex caused by the lock
@@ -2655,12 +2662,25 @@ lock_deadlock_occurs(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
+	trx_t*		mark_trx;
 	ibool		ret;
+	ulint		cost	= 0;
 
 	ut_ad(trx && lock);
 	ut_ad(mutex_own(&kernel_mutex));
-	
-	ret = lock_deadlock_recursive(trx, trx, lock);
+
+	/* We check that adding this trx to the waits-for graph
+	does not produce a cycle. First mark all active transactions
+	with 0: */
+
+	mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+
+	while (mark_trx) {
+		mark_trx->deadlock_mark = 0;
+		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
+	}
+
+	ret = lock_deadlock_recursive(trx, trx, lock, &cost);
 
 	if (ret) {
 		if (lock_get_type(lock) == LOCK_TABLE) {
@@ -2685,10 +2705,14 @@ static
 ibool
 lock_deadlock_recursive(
 /*====================*/
-				/* out: TRUE if a deadlock was detected */
+				/* out: TRUE if a deadlock was detected
+				or the calculation took too long */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
-	lock_t*	wait_lock)	/* in: the lock trx is waiting to be granted */
+	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
+	ulint*	cost)		/* in/out: number of calculation steps thus
+				far: if this exceeds LOCK_MAX_N_STEPS_...
+				we return TRUE */
 {
 	lock_t*	lock;
 	ulint	bit_no;
@@ -2697,6 +2721,20 @@ lock_deadlock_recursive(
 	ut_a(trx && start && wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
 	
+	if (trx->deadlock_mark == 1) {
+		/* We have already exhaustively searched the subtree starting
+		from this trx */
+
+		return(FALSE);
+	}
+
+	*cost = *cost + 1;
+
+	if (*cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK) {
+
+		return(TRUE);
+	}
+
 	lock = wait_lock;
 
 	if (lock_get_type(wait_lock) == LOCK_REC) {
@@ -2719,6 +2757,8 @@ lock_deadlock_recursive(
 		}
 
 		if (lock == NULL) {
+			/* We can mark this subtree as searched */
+			trx->deadlock_mark = 1;
 
 			return(FALSE);
 		}
@@ -2742,7 +2782,7 @@ lock_deadlock_recursive(
 				a lock */
 
 				if (lock_deadlock_recursive(start, lock_trx,
-						lock_trx->wait_lock)) {
+						lock_trx->wait_lock, cost)) {
 
 					return(TRUE);
 				}

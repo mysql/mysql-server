@@ -470,7 +470,8 @@ dtuple_convert_big_rec(
 			}
 		}
 	
-		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10) {
+		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
+						+ REC_1BYTE_OFFS_LIMIT) {
 
 			/* Cannot shorten more */
 
@@ -479,26 +480,18 @@ dtuple_convert_big_rec(
 			return(NULL);
 		}
 
-		/* Move data from field longest_i to big rec vector,
-		but do not let data size of the remaining entry
+		/* Move data from field longest_i to big rec vector;
+		we do not let data size of the remaining entry
 		drop below 128 which is the limit for the 2-byte
-		offset storage format in a physical record */
+		offset storage format in a physical record. This
+		we accomplish by storing 128 bytes of data in entry
+		itself, and only the remaining part to big rec vec. */
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
-		if (dtuple_get_data_size(entry) - dfield->len
-						<= REC_1BYTE_OFFS_LIMIT) {
-			vector->fields[n_fields].len =
-			     dtuple_get_data_size(entry)
+		vector->fields[n_fields].len = dfield->len
 						- REC_1BYTE_OFFS_LIMIT;
-			/* Since dfield will contain at least
-			a 20-byte reference to the extern storage,
-			we know that the data size of entry will be
-			> REC_1BYTE_OFFS_LIMIT */
-		} else {
-			vector->fields[n_fields].len = dfield->len;
-		}
 
 		vector->fields[n_fields].data = mem_heap_alloc(heap,
 						vector->fields[n_fields].len);

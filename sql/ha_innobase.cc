@@ -21,7 +21,7 @@ InnoDB */
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
-
+ 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -2844,7 +2844,7 @@ ha_innobase::info(
     		if (records == 0) {
     			mean_rec_length = 0;
     		} else {
-    			mean_rec_length = (ulong) data_file_length / records;
+    			mean_rec_length = (ulong) (data_file_length / records);
     		}
     	}
 
