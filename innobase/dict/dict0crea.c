@@ -1244,6 +1244,8 @@ loop:
 			((dict_index_t*)trx->error_info)->table_name,
 			((dict_index_t*)trx->error_info)->name);
 
+			fprintf(stderr, "%s\n", buf);
+			
 			fprintf(stderr,
 	"InnoDB: Maybe the internal data dictionary of InnoDB is\n"
 	"InnoDB: out-of-sync from the .frm files of your tables.\n"
