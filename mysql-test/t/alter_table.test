@@ -105,3 +105,13 @@ insert into t1 values (null),(null),(null),(null);
 alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
 select * from t1;
 drop table t1;
+
+#
+# Alter table and rename
+#
+
+create table t1 (i int unsigned not null auto_increment primary key);
+alter table t1 rename t2;
+alter table t2 rename t1, add c char(10) comment "no comment";
+show columns from t1;
+drop table t1;

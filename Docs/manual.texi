@@ -49343,6 +49343,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed that @code{ALTER TABLE table_name RENAME new_table_name} is as fast
+as @code{RENAME TABLE}.
+@item
 Fixed bug in @code{GROUP BY} with two or more fields, where at least one
 field can contain @code{NULL} values.
 @item

@@ -1304,13 +1304,14 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
     {
       pattern     = first + 1;
       pattern_len = len - 2;
-      DBUG_PRINT("TurboBM", ("Initializing pattern: '%s'...", first));
-      int* suff = (int*)thd->alloc(sizeof(int[pattern_len + 1]));
-      bmGs      = (int*)thd->alloc(sizeof(int[pattern_len + 1]));
-      bmBc      = (int*)thd->alloc(sizeof(int[alphabet_size]));
+      DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
+      int *suff = (int*) thd->alloc(sizeof(int)*((pattern_len + 1)*2+
+						 alphabet_size));
+      bmGs      = suff + pattern_len + 1;
+      bmBc      = bmGs + pattern_len + 1;
       turboBM_compute_good_suffix_shifts(suff);
       turboBM_compute_bad_character_shifts();
-      DBUG_PRINT("turboBM",("done"));
+      DBUG_PRINT("info",("done"));
     }
   }
   return 0;
