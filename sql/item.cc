@@ -2558,8 +2558,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (use_new_field || use_expression_type ||
       (new_result_type != item_type) || (new_length > max_length) ||
       (!maybe_null && item->maybe_null) ||
-      (item_type == STRING_RESULT &&
-       !my_charset_same(collation.collation, item->collation.collation)))
+      (item_type == STRING_RESULT && 
+       collation.collation != item->collation.collation))
   {
     if (use_expression_type || item->type() != Item::FIELD_ITEM)
       field_example= 0;

@@ -264,6 +264,23 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
+  {
+    /*
+     Check that it was possible to aggregate all collations together.
+    */
+    List_iterator_fast<Item> tp(types);
+    Item *type;
+    while ((type= tp++))
+    {
+      if (type->result_type() == STRING_RESULT &&
+          type->collation.derivation == DERIVATION_NONE)
+      {
+        my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), "UNION");
+        goto err;
+      }
+    }
+  }
+
   // it is not single select
   if (first_select->next_select())
   {
