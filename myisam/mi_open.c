@@ -148,7 +148,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       goto err;
     }
     /* Don't call realpath() if the name can't be a link */
-    if (strcmp(name_buff, org_name)  ||
+    if (!strcmp(name_buff, org_name) ||
         my_readlink(index_name, org_name, MYF(0)) == -1)
       (void) strmov(index_name, org_name);
     (void) fn_format(data_name,org_name,"",MI_NAME_DEXT,2+4+16);

@@ -847,7 +847,10 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
   }
   close_cached_file(to_file);			// This holds old result
   if (to_file == t_file)
+  {
     *t_file=t_file2;				// Copy result file
+    setup_io_cache(t_file);
+  }
 
   DBUG_RETURN(*maxbuffer >= MERGEBUFF2);	/* Return 1 if interrupted */
 } /* merge_many_buff */
