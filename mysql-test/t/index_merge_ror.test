@@ -8,13 +8,13 @@ drop table if exists  t0,t1,t2;
 create table t1
 (
   /* Field names reflect value(rowid) distribution, st=STairs, swt= SaWTooth */
-  st_a int not null,
-  swt1a int not null,
-  swt2a int not null,
+  st_a int not null default 0,
+  swt1a int not null default 0,
+  swt2a int not null default 0,
 
-  st_b int not null,
-  swt1b int not null,
-  swt2b int not null,
+  st_b int not null default 0,
+  swt1b int not null default 0,
+  swt2b int not null default 0,
 
   /* fields/keys for row retrieval tests */
   key1 int,
