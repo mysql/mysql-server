@@ -284,7 +284,7 @@ character-set=greek
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-"Can't drop one or more of the requested users",
+"Operation %s failed for %d of the requested users",
 "Can't revoke all privileges, grant for one or more of the requested users",
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
