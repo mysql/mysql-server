@@ -3,7 +3,7 @@
 # Fix the output of `makeinfo --docbook` version 4.0c
 # Convert the broken docbook output to well-formed XML that conforms to the O'Reilly idiom
 # See code for detailed comments
-# Authors: Arjen Lentz and Zak Greant
+# Authors: Arjen Lentz and Zak Greant (original code by Jeremy Cole)
 
 use strict;
 
@@ -13,7 +13,7 @@ my $apx   = '';
 my @nodes = ();
 my $nodes = '';
 
-msg ("\n-- Post-processing `makeinfo --docbook` output --");
+msg ("-- Post-processing `makeinfo --docbook` output --");
 msg ("** Written to work with makeinfo version 4.0c **\n");
 
 msg ("Discarding DTD - not required by subsequent scripts");
@@ -31,6 +31,26 @@ msg ("Add missing <bookinfo> and <abstract> opening tags");
 # ...as soon as we find the first instance, we can stop looking.
 $data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/;
 
+
+# arjen 2002-05-01
+msg ("Processing docbook-prefix special strings");
+$data =~ s/FIXUPmdashFIXUP/\&mdash\;/g;
+
+$data =~ s/FIXUPdoubledashFIXUP/--/g;
+
+$data =~ s/FIXUPstrongFIXUP/<emphasis\ role\=bold>/g;
+$data =~ s/FIXUPendstrongFIXUP/<\/emphasis>/g;
+
+$data =~ s/FIXUPemphFIXUP/<emphasis>/g;
+$data =~ s/FIXUPendemphFIXUP/<\/emphasis>/g;
+
+$data =~ s/FIXUPfileFIXUP/<filename>/g;
+$data =~ s/FIXUPendfileFIXUP/<\/filename>/g;
+
+$data =~ s/FIXUPsampFIXUP/<literal>/g;
+$data =~ s/FIXUPendsampFIXUP/<\/literal>/g;
+
+
 msg ("Removing mailto: from email addresses...");
 $data =~ s/mailto://g;
 
@@ -38,9 +58,19 @@ msg ("Removing INFORMALFIGURE...");
 $data =~ s{<informalfigure>.+?</informalfigure>}
           {}gs;
 
-msg ("Convert ampersands to XML escape sequences ");
+msg ("Convert ampersand to XML escape sequence...");
 $data =~ s/&(?!\w+;)/&amp;/g;
-  
+
+# arjen 2002-05-01
+msg ("Changing (TM) to XML escape sequence...");
+$data =~ s/MySQL \(TM\)/MySQL&trade;/g;
+$data =~ s{<command>TM</command>}
+          {&trade;}g;
+
+# arjen 2002-05-01
+msg ("Changing ' -- ' to XML escape sequence...");
+$data =~ s/ -- /&mdash;/g;
+
 msg ("Changing @@ to @...");
 $data =~ s/@@/@/g;
 
@@ -142,7 +172,7 @@ exit;
 #
 
 sub msg {
-    print STDERR shift, "\n";
+    print STDERR "docbook-fixup:", shift, "\n";
 }
 
 sub strip_tag($$) {
