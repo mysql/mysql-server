@@ -14,6 +14,7 @@
 */.pure
 *~
 .*.swp
+./config.h
 .defs.mk
 .depend
 .depend.mk
@@ -830,6 +831,7 @@ support-files/MacOSX/postinstall
 support-files/MacOSX/preinstall
 support-files/binary-configure
 support-files/my-huge.cnf
+support-files/my-innodb-heavy-4G.cnf
 support-files/my-large.cnf
 support-files/my-medium.cnf
 support-files/my-small.cnf
@@ -907,4 +909,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-support-files/my-innodb-heavy-4G.cnf
