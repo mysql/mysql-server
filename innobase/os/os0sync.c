@@ -32,24 +32,23 @@ struct os_mutex_struct{
 				/* list of all 'slow' OS mutexes created */
 };
 
-/* Mutex protecting the thread count and the lists of OS mutexes
-and events */
+/* Mutex protecting counts and the lists of OS mutexes and events */
 os_mutex_t	os_sync_mutex;
 ibool		os_sync_mutex_inited	= FALSE;
 
 /* This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
-ulint		os_thread_count		= 0;
+ulint	os_thread_count		= 0;
 
-/* The list of all events created (not in Windows) */
+/* The list of all events created */
 UT_LIST_BASE_NODE_T(os_event_struct_t)	os_event_list;
 
 /* The list of all OS 'slow' mutexes */
 UT_LIST_BASE_NODE_T(os_mutex_str_t)	os_mutex_list;
 
-/* The following are approximate counters for debugging in Unix */
-ulint		os_event_count		= 0;
-ulint		os_mutex_count		= 0;
+ulint	os_event_count		= 0;
+ulint	os_mutex_count		= 0;
+ulint	os_fast_mutex_count	= 0;
 
 
 /*************************************************************
@@ -68,7 +67,7 @@ os_sync_init(void)
 }
 
 /*************************************************************
-Frees created events (not in Windows) and OS 'slow' mutexes. */
+Frees created events and OS 'slow' mutexes. */
 
 void
 os_sync_free(void)
@@ -89,6 +88,12 @@ os_sync_free(void)
 	mutex = UT_LIST_GET_FIRST(os_mutex_list);
 
 	while (mutex) {
+	      if (mutex == os_sync_mutex) {
+		      /* Set the flag to FALSE so that we do not try to
+		      reserve os_sync_mutex any more in remaining freeing
+		      operations in shutdown */
+		      os_sync_mutex_inited = FALSE;
+	      }
 
 	      os_mutex_free(mutex);
 
@@ -97,10 +102,9 @@ os_sync_free(void)
 }
 
 /*************************************************************
-Creates an event semaphore, i.e., a semaphore which may
-just have two states: signaled and nonsignaled.
-The created event is manual reset: it must be reset
-explicitly by calling sync_os_reset_event. */
+Creates an event semaphore, i.e., a semaphore which may just have two
+states: signaled and nonsignaled. The created event is manual reset: it
+must be reset explicitly by calling sync_os_reset_event. */
 
 os_event_t
 os_event_create(
@@ -112,20 +116,18 @@ os_event_create(
 #ifdef __WIN__
         os_event_t event;
 
-	event = CreateEvent(NULL,	/* No security attributes */
+	event = ut_malloc(sizeof(struct os_event_struct));
+
+	event->handle = CreateEvent(NULL,/* No security attributes */
 			TRUE,		/* Manual reset */
 			FALSE,		/* Initial state nonsignaled */
 			name);
-	if (!event) {
+	if (!event->handle) {
 	        fprintf(stderr,
 "InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
 		  (ulint)GetLastError());
 	}
-
-	ut_a(event);
-
-	return(event);
-#else
+#else /* Unix */
 	os_event_t	event;
 
 	UT_NOT_USED(name);
@@ -141,7 +143,9 @@ os_event_create(
 	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
 #endif
 	event->is_set = FALSE;
+#endif /* __WIN__ */
 
+        /* Put to the list of events */
 	os_mutex_enter(os_sync_mutex);
 
 	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
@@ -151,13 +155,12 @@ os_event_create(
 	os_mutex_exit(os_sync_mutex);
 
 	return(event);
-#endif
 }
 
+#ifdef __WIN__
 /*************************************************************
-Creates an auto-reset event semaphore, i.e., an event
-which is automatically reset when a single thread is
-released. */
+Creates an auto-reset event semaphore, i.e., an event which is automatically
+reset when a single thread is released. Works only in Windows. */
 
 os_event_t
 os_event_create_auto(
@@ -166,26 +169,33 @@ os_event_create_auto(
 	char*	name)	/* in: the name of the event, if NULL
 			the event is created without a name */
 {
-#ifdef __WIN__
         os_event_t event;
 
-	event = CreateEvent(NULL,	/* No security attributes */
+	event = ut_malloc(sizeof(struct os_event_struct));
+
+	event->handle = CreateEvent(NULL,/* No security attributes */
 			FALSE,		/* Auto-reset */
 			FALSE,		/* Initial state nonsignaled */
 			name);
-	ut_a(event);
+
+	if (!event->handle) {
+	        fprintf(stderr,
+"InnoDB: Could not create a Windows auto event semaphore; Windows error %lu\n",
+		  (ulint)GetLastError());
+	}
+
+        /* Put to the list of events */
+	os_mutex_enter(os_sync_mutex);
+
+	UT_LIST_ADD_FIRST(os_event_list, os_event_list, event);
+
+	os_event_count++;
+
+	os_mutex_exit(os_sync_mutex);
 
 	return(event);
-#else
-	/* Does nothing in Posix because we do not need this with MySQL  */
-
-	UT_NOT_USED(name);
-
-	ut_a(0);
-
-	return(NULL);
-#endif
 }
+#endif
 
 /**************************************************************
 Sets an event semaphore to the signaled state: lets waiting threads
@@ -198,7 +208,7 @@ os_event_set(
 {
 #ifdef __WIN__	
 	ut_a(event);
-	ut_a(SetEvent(event));
+	ut_a(SetEvent(event->handle));
 #else
 	ut_a(event);
 
@@ -227,7 +237,7 @@ os_event_reset(
 #ifdef __WIN__
 	ut_a(event);
 
-	ut_a(ResetEvent(event));
+	ut_a(ResetEvent(event->handle));
 #else
 	ut_a(event);
 
@@ -255,12 +265,14 @@ os_event_free(
 #ifdef __WIN__
 	ut_a(event);
 
-	ut_a(CloseHandle(event));
+	ut_a(CloseHandle(event->handle));
 #else
 	ut_a(event);
 
 	os_fast_mutex_free(&(event->os_mutex));
 	ut_a(0 == pthread_cond_destroy(&(event->cond_var)));
+#endif
+        /* Remove from the list of events */
 
 	os_mutex_enter(os_sync_mutex);
 
@@ -271,7 +283,6 @@ os_event_free(
 	os_mutex_exit(os_sync_mutex);
 
 	ut_free(event);
-#endif
 }
 
 /**************************************************************
@@ -291,7 +302,7 @@ os_event_wait(
 	ut_a(event);
 
 	/* Specify an infinite time limit for waiting */
-	err = WaitForSingleObject(event, INFINITE);
+	err = WaitForSingleObject(event->handle, INFINITE);
 
 	ut_a(err == WAIT_OBJECT_0);
 
@@ -324,7 +335,7 @@ loop:
 
 /**************************************************************
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded. */
+a timeout is exceeded. In Unix the timeout is always infinite. */
 
 ulint
 os_event_wait_time(
@@ -341,9 +352,9 @@ os_event_wait_time(
 	ut_a(event);
 
 	if (time != OS_SYNC_INFINITE_TIME) {
-		err = WaitForSingleObject(event, time / 1000);
+		err = WaitForSingleObject(event->handle, time / 1000);
 	} else {
-		err = WaitForSingleObject(event, INFINITE);
+		err = WaitForSingleObject(event->handle, INFINITE);
 	}
 	
 	if (err == WAIT_OBJECT_0) {
@@ -367,8 +378,9 @@ os_event_wait_time(
 #endif
 }
 
+#ifdef __WIN__
 /**************************************************************
-Waits for any event in an event array. Returns if even a single
+Waits for any event in an OS native event array. Returns if even a single
 one is signaled or becomes signaled. */
 
 ulint
@@ -376,18 +388,18 @@ os_event_wait_multiple(
 /*===================*/
 					/* out: index of the event
 					which was signaled */
-	ulint		n,		/* in: number of events in the
+	ulint			n,	/* in: number of events in the
 					array */
-	os_event_t*	event_array)	/* in: pointer to an array of event
+	os_native_event_t*	native_event_array)
+					/* in: pointer to an array of event
 					handles */
 {
-#ifdef __WIN__
 	DWORD	index;
 
-	ut_a(event_array);
+	ut_a(native_event_array);
 	ut_a(n > 0);
 
-	index = WaitForMultipleObjects(n, event_array,
+	index = WaitForMultipleObjects(n, native_event_array,
 					FALSE,	   /* Wait for any 1 event */
 					INFINITE); /* Infinite wait time
 						   limit */
@@ -399,21 +411,12 @@ os_event_wait_multiple(
 	}
 
 	return(index - WAIT_OBJECT_0);
-#else
-	ut_a(n == 0);
-	
-	/* In Posix we can only wait for a single event */
-
-	os_event_wait(*event_array);
-
-	return(0);
-#endif
 }
+#endif
 
 /*************************************************************
-Creates an operating system mutex semaphore.
-Because these are slow, the mutex semaphore of the database
-itself (sync_mutex_t) should be used where possible. */
+Creates an operating system mutex semaphore. Because these are slow, the
+mutex semaphore of InnoDB itself (mutex_t) should be used where possible. */
 
 os_mutex_t
 os_mutex_create(
@@ -430,50 +433,35 @@ os_mutex_create(
 			FALSE,		/* Initial state: no owner */
 			name);
 	ut_a(mutex);
+#else
+	os_fast_mutex_t*	mutex;
+	os_mutex_t		mutex_str;
 
+	UT_NOT_USED(name);
+	
+	mutex = ut_malloc(sizeof(os_fast_mutex_t));
+
+	os_fast_mutex_init(mutex);
+#endif	
 	mutex_str = ut_malloc(sizeof(os_mutex_str_t));
 
 	mutex_str->handle = mutex;
 	mutex_str->count = 0;
 
 	if (os_sync_mutex_inited) {
+		/* When creating os_sync_mutex itself we cannot reserve it */
 	        os_mutex_enter(os_sync_mutex);
 	}
 
 	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
+
+	os_mutex_count++;
 
 	if (os_sync_mutex_inited) {
 		os_mutex_exit(os_sync_mutex);
 	}
 
 	return(mutex_str);
-#else
-	os_fast_mutex_t*	os_mutex;
-	os_mutex_t		mutex_str;
-
-	UT_NOT_USED(name);
-	
-	os_mutex = ut_malloc(sizeof(os_fast_mutex_t));
-
-	os_fast_mutex_init(os_mutex);
-
-	mutex_str = ut_malloc(sizeof(os_mutex_str_t));
-
-	mutex_str->handle = os_mutex;
-	mutex_str->count = 0;
-
-	if (os_sync_mutex_inited) {
-	        os_mutex_enter(os_sync_mutex);
-	}
-
-	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
-
-	if (os_sync_mutex_inited) {
-		os_mutex_exit(os_sync_mutex);
-	}
-
-	return(mutex_str);
-#endif	
 }
 
 /**************************************************************
@@ -513,21 +501,14 @@ os_mutex_exit(
 /*==========*/
 	os_mutex_t	mutex)	/* in: mutex to release */
 {
-#ifdef __WIN__
 	ut_a(mutex);
 
 	ut_a(mutex->count == 1);
 
 	(mutex->count)--;
-
+#ifdef __WIN__
 	ut_a(ReleaseMutex(mutex->handle));
 #else
-	ut_a(mutex);
-
-	ut_a(mutex->count == 1);
-
-	(mutex->count)--;
-
 	os_fast_mutex_unlock(mutex->handle);
 #endif	
 }
@@ -540,25 +521,25 @@ os_mutex_free(
 /*==========*/
 	os_mutex_t	mutex)	/* in: mutex to free */
 {
-#ifdef __WIN__
 	ut_a(mutex);
 
-	os_mutex_enter(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		os_mutex_enter(os_sync_mutex);
+	}
 
 	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
+	
+	os_mutex_count--;
 
-	os_mutex_exit(os_sync_mutex);
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
 
+#ifdef __WIN__
 	ut_a(CloseHandle(mutex->handle));
 
 	ut_free(mutex);
 #else
-	os_mutex_enter(os_sync_mutex);
-
-	UT_LIST_REMOVE(os_mutex_list, os_mutex_list, mutex);
-
-	os_mutex_exit(os_sync_mutex);
-
 	os_fast_mutex_free(mutex->handle);
 	ut_free(mutex->handle);
 	ut_free(mutex);
@@ -583,8 +564,19 @@ os_fast_mutex_init(
 #else
 	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
 #endif
-	os_mutex_count++;
 #endif
+	if (os_sync_mutex_inited) {
+		/* When creating os_sync_mutex itself (in Unix) we cannot
+		reserve it */
+
+		os_mutex_enter(os_sync_mutex);
+	}
+
+	os_fast_mutex_count++;
+
+	if (os_sync_mutex_inited) {
+	        os_mutex_exit(os_sync_mutex);
+	}
 }
 
 /**************************************************************
@@ -631,6 +623,17 @@ os_fast_mutex_free(
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	ut_a(0 == pthread_mutex_destroy(fast_mutex));
-	os_mutex_count--;
 #endif
+	if (os_sync_mutex_inited) {
+		/* When freeing the last mutexes, we have
+		already freed os_sync_mutex */
+
+		os_mutex_enter(os_sync_mutex);
+	}
+
+	os_fast_mutex_count--;
+
+	if (os_sync_mutex_inited) {
+		os_mutex_exit(os_sync_mutex);
+	}
 }

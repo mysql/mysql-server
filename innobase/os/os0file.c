@@ -80,6 +80,8 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
+        os_event_t	event;		/* event object we need in the
+					OVERLAPPED struct */
 	OVERLAPPED	control;	/* Windows control block for the
 					aio request */
 #elif defined(POSIX_ASYNC_IO)
@@ -107,11 +109,14 @@ struct os_aio_array_struct{
 	ulint		n_reserved;/* Number of reserved slots in the
 				  aio array outside the ibuf segment */
 	os_aio_slot_t* 	slots;	  /* Pointer to the slots in the array */
-	os_event_t*	events;	  /* Pointer to an array of event handles
-				  where we copied the handles from slots,
-				  in the same order. This can be used in
-				  WaitForMultipleObjects; used only in
+#ifdef __WIN__
+	os_native_event_t* native_events;	 
+				  /* Pointer to an array of OS native event
+				  handles where we copied the handles from
+				  slots, in the same order. This can be used
+				  in WaitForMultipleObjects; used only in
 				  Windows */
+#endif
 };
 
 /* Array of events used in simulated aio */
@@ -296,7 +301,7 @@ os_file_handle_error(
 				operation */
 	os_file_t	file,	/* in: file pointer */
 	char*		name,	/* in: name of a file or NULL */
-	const char*	operation) /* in: type of operation */
+	const char*	operation)/* in: operation */
 {
 	ulint	err;
 
@@ -338,8 +343,8 @@ os_file_handle_error(
 	        if (name) {
 	                fprintf(stderr, "InnoDB: File name %s\n", name);
 	        }
-		fprintf(stderr, "InnoDB: system call %s\n", operation);
-
+	  
+		fprintf(stderr, "InnoDB: System call %s.\n", operation);
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
 		fflush(stderr);
@@ -422,9 +427,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -465,10 +469,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-
-
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -576,9 +578,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -625,9 +626,8 @@ try_again:
 		*success = FALSE;
 
 		retry = os_file_handle_error(file, name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-
+				create_mode == OS_FILE_OPEN ?
+				"open" : "create");
 		if (retry) {
 			goto try_again;
 		}
@@ -1319,19 +1319,22 @@ os_aio_array_create(
 	array->n_segments	= n_segments;
 	array->n_reserved	= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
-	array->events		= ut_malloc(n * sizeof(os_event_t));
-	
+#ifdef __WIN__
+	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+#endif	
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
+		slot->event = os_event_create(NULL);
+
 		over = &(slot->control);
 
-		over->hEvent = os_event_create(NULL);
+		over->hEvent = slot->event->handle;
 
-		*((array->events) + i) = over->hEvent;
+		*((array->native_events) + i) = over->hEvent;
 #endif
 	}
 	
@@ -1429,7 +1432,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 
 	for (i = 0; i < array->n_slots; i++) {
 
-	        os_event_set(*(array->events + i));
+	        os_event_set((array->slots + i)->event);
 	}
 }
 #endif
@@ -1689,7 +1692,7 @@ loop:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(control->hEvent);
+	os_event_reset(slot->event);
 
 #elif defined(POSIX_ASYNC_IO)
 
@@ -1747,7 +1750,7 @@ os_aio_array_free_slot(
 	}
 
 #ifdef WIN_ASYNC_IO		
-	os_event_reset(slot->control.hEvent);
+	os_event_reset(slot->event);
 #endif
 	os_mutex_exit(array->mutex);
 }
@@ -1872,7 +1875,7 @@ os_aio(
 				offset where to read or write */
 	ulint		offset_high, /* in: most significant 32 bits of
 				offset */
-	ulint		n,	/* in: number of bytes to read or write */	
+	ulint		n,	/* in: number of bytes to read or write */
 	void*		message1,/* in: messages for the aio handler (these
 				can be used to identify a completed aio
 				operation); if mode is OS_AIO_SYNC, these
@@ -1916,7 +1919,8 @@ os_aio(
 		wait in the Windows case. */
 
 		if (type == OS_FILE_READ) {
-			return(os_file_read(file, buf, offset, offset_high, n));
+			return(os_file_read(file, buf, offset,
+							offset_high, n));
 		}
 
 		ut_a(type == OS_FILE_WRITE);
@@ -1994,8 +1998,7 @@ try_again:
 #ifdef WIN_ASYNC_IO
 	if (os_aio_use_native_aio) {
 		if ((ret && len == n)
-			|| (!ret && GetLastError() == ERROR_IO_PENDING)) {	
-
+		    || (!ret && GetLastError() == ERROR_IO_PENDING)) {
 			/* aio was queued successfully! */
 		
 	    		if (mode == OS_AIO_SYNC) {
@@ -2025,8 +2028,8 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name, "aio");
-
+	retry = os_file_handle_error(file, name,
+			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
 		goto try_again;
@@ -2091,15 +2094,15 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		srv_io_thread_op_info[orig_seg] = "wait Windows aio for 1 page";
-
-		ut_ad(pos < array->n_slots); 
-		os_event_wait(array->events[pos]);
+		srv_io_thread_op_info[orig_seg] =
+						"wait Windows aio for 1 page";
+		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
 		i = pos;
 	} else {
 		srv_io_thread_op_info[orig_seg] =
 						"wait Windows aio";
-		i = os_event_wait_multiple(n, (array->events) + segment * n);
+		i = os_event_wait_multiple(n,
+				(array->native_events) + segment * n);
 	}
 
 	os_mutex_enter(array->mutex);
@@ -2124,7 +2127,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name, "aio");
+		os_file_handle_error(slot->file, slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  
