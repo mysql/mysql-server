@@ -2631,7 +2631,9 @@ ha_innobase::write_row(
         if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
                 table->timestamp_field->set_time();
 
-	if (user_thd->lex->sql_command == SQLCOM_ALTER_TABLE
+	if ((user_thd->lex->sql_command == SQLCOM_ALTER_TABLE
+	    || user_thd->lex->sql_command == SQLCOM_CREATE_INDEX
+	    || user_thd->lex->sql_command == SQLCOM_DROP_INDEX)
 	    && num_write_row >= 10000) {
 		/* ALTER TABLE is COMMITted at every 10000 copied rows.
 		The IX table lock for the original table has to be re-issued.
