@@ -2386,3 +2386,13 @@ a	1
 b	0
 c	0
 drop table t1;
+SET collation_connection='utf8_unicode_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8_unicode_ci	6109
+utf8_unicode_ci	61
+utf8_unicode_ci	6120
+drop table t1;
