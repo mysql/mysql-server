@@ -529,8 +529,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	  if (field->type() == FIELD_TYPE_TIMESTAMP)
 	    ((Field_timestamp*) field)->set_time();
 	  else if (field != table->next_number_field)      
-      field->set_warning((uint)MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_NULL_TO_NOTNULL);
+	    field->set_warning((uint) MYSQL_ERROR::WARN_LEVEL_WARN, 
+			       ER_WARN_NULL_TO_NOTNULL);
 	}
 	continue;
       }
@@ -1014,7 +1014,7 @@ bool READ_INFO::find_start_of_fields()
     {						// Can't be line_start
       PUSH(chr);
       while (--ptr != line_start_ptr)
-      {					// Restart with next char
+      {						// Restart with next char
 	PUSH((uchar) *ptr);
       }
       goto try_again;

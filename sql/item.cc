@@ -1259,14 +1259,15 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 void Item_field::make_field(Send_field *tmp_field)
 {
   field->make_field(tmp_field);
+  DBUG_ASSERT(tmp_field->table_name);
   if (name)
     tmp_field->col_name=name;			// Use user supplied name
 }
 
-/*
-** Set a field:s value from a item
-*/
 
+/*
+  Set a field:s value from a item
+*/
 
 void Item_field::save_org_in_field(Field *to)
 {
