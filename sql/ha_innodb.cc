@@ -1698,7 +1698,9 @@ innobase_rollback_to_savepoint(
 	innobase_release_stat_resources(trx);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", (ulong) savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
         error = trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
@@ -1724,7 +1726,9 @@ innobase_release_savepoint(
 	trx = check_trx_exists(thd);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", (ulong) savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
 	error = trx_release_savepoint_for_mysql(trx, name);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
@@ -1763,7 +1767,9 @@ innobase_savepoint(
         DBUG_ASSERT(trx->active_trans);
 
         /* TODO: use provided savepoint data area to store savepoint data */
-        char name[16]; sprintf(name, "s_%08lx", (ulong) savepoint);
+        char name[64];
+        longlong2str((ulonglong)savepoint,name,36);
+
         error = trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
