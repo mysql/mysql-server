@@ -123,3 +123,5 @@ SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 select * from (select 1 as a) b  left join (select 2 as a) c using(a);
 a	a
 1	NULL
+SELECT * FROM (SELECT 1 UNION SELECT a) b;
+Unknown column 'a' in 'field list'

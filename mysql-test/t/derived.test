@@ -43,3 +43,5 @@ explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 drop table if exists  t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 select * from (select 1 as a) b  left join (select 2 as a) c using(a);
+--error 1054
+SELECT * FROM (SELECT 1 UNION SELECT a) b;

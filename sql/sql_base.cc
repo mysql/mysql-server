@@ -1735,6 +1735,14 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   bool allow_rowid= tables && !tables->next;	// Only one table
   for (; tables ; tables=tables->next)
   {
+    if (!tables->table)
+    {
+      if (report_error)
+	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
+			item->full_name(),thd->where);
+      return (Field*) not_found_field;
+    }
+
     Field *field=find_field_in_table(thd,tables->table,name,length,
 				     grant_option &&
 				     !thd->master_access, allow_rowid);
