@@ -55,12 +55,6 @@ my_bool	net_flush(NET *net);
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
-
-#if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
-
-#include <winsock.h>
-#include <odbcinst.h>
-#endif /* !defined(MYSQL_SERVER) && (defined(__WIN__) ... */
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
