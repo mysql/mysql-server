@@ -390,3 +390,13 @@ while ($tab_count)
 --enable_query_log
 drop view a2, a1;
 drop table t_crashme;
+
+#
+# Bug #7215  information_schema: columns are longtext instead of varchar
+# Bug #7217  information_schema: columns are varbinary() instead of timestamp
+#
+select table_schema,table_name, column_name from
+information_schema.columns 
+where data_type = 'longtext';
+select table_name, column_name, data_type from information_schema.columns
+where data_type = 'datetime';
