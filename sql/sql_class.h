@@ -662,6 +662,8 @@ public:
     DBUG_PRINT("error",("Fatal error set"));
   }
   inline CHARSET_INFO *charset() { return variables.thd_charset; }
+  inline CHARSET_INFO *result_charset(CHARSET_INFO *cs)
+  { return variables.convert_result_charset ? variables.thd_charset : cs; }
 };
 
 /*
