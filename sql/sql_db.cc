@@ -609,7 +609,7 @@ bool mysql_change_db(THD *thd, const char *name)
   }
   if ((db_length > NAME_LEN) || check_db_name(dbname))
   {
-    net_printf(thd,ER_WRONG_DB_NAME, dbname);
+    net_printf(thd, ER_WRONG_NAME, ER(ER_DATABASE), dbname);
     x_free(dbname);
     DBUG_RETURN(1);
   }
@@ -675,7 +675,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 
   if (check_db_name(dbname))
   {
-    net_printf(thd,ER_WRONG_DB_NAME, dbname);
+    net_printf(thd,ER_WRONG_NAME, ER(ER_DATABASE), dbname);
     DBUG_RETURN(1);
   }
 

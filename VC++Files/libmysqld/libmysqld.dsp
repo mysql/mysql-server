@@ -446,6 +446,10 @@ SOURCE=..\strings\strcont.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\strfunc.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\strings\strinstr.c
 # End Source File
 # Begin Source File

@@ -42,8 +42,6 @@ void unireg_init(ulong options)
 #endif
 
   VOID(strmov(reg_ext,".frm"));
-  for (i=0 ; i < 6 ; i++)		// YYMMDDHHMMSS
-    dayord.pos[i]=i;
   specialflag=SPECIAL_SAME_DB_NAME;
   /* Make a tab of powers of 10 */
   for (i=0,nr=1.0; i < array_elements(log_10) ; i++)

@@ -125,9 +125,9 @@ public:
   void print(String *str);
   void print_op(String *str);
   void fix_num_length_and_dec();
-  inline bool get_arg0_date(TIME *ltime,bool fuzzy_date)
+  inline bool get_arg0_date(TIME *ltime, uint fuzzy_date)
   {
-    return (null_value=args[0]->get_date(ltime,fuzzy_date));
+    return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
   inline bool get_arg0_time(TIME *ltime)
   {

@@ -1253,6 +1253,26 @@ SOURCE=.\sql_yacc.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\strfunc.cpp
+
+!IF  "$(CFG)" == "mysqld - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
+
+# ADD CPP /G5
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
+
+!ENDIF
+
+# End Source File
+# Begin Source File
+
 SOURCE=.\table.cpp
 # End Source File
 # Begin Source File

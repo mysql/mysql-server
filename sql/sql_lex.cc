@@ -40,10 +40,18 @@ LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
 pthread_key(LEX*,THR_LEX);
 
+/* Longest standard keyword name */
 #define TOCK_NAME_LENGTH 24
 
 /*
-  The following is based on the latin1 character set, and is only
+  Map to default keyword characters.  This is used to test if an identifer
+  is 'simple', in which case we don't have to do any character set conversions
+  on it
+*/
+uchar *bin_ident_map= my_charset_bin.ident_map;
+
+/*
+  The following data is based on the latin1 character set, and is only
   used when comparing keywords
 */
 
@@ -65,6 +73,7 @@ uchar to_upper_lex[] = {
   192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,
   208,209,210,211,212,213,214,247,216,217,218,219,220,221,222,255
 };
+
 
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
@@ -410,15 +419,18 @@ inline static uint int_token(const char *str,uint length)
 }
 
 
-// yylex remember the following states from the following yylex()
-// MY_LEX_EOQ ; found end of query
-// MY_LEX_OPERATOR_OR_IDENT ; last state was an ident, text or number
-// 			     (which can't be followed by a signed number)
+/*
+  yylex remember the following states from the following yylex()
+
+  - MY_LEX_EOQ			Found end of query
+  - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
+				(which can't be followed by a signed number)
+*/
 
 int yylex(void *arg, void *yythd)
 {
   reg1	uchar c;
-  int	tokval;
+  int	tokval, result_state;
   uint length;
   enum my_lex_states state,prev_state;
   LEX	*lex= &(((THD *)yythd)->lex);
@@ -503,6 +515,7 @@ int yylex(void *arg, void *yythd)
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
+	result_state= IDENT_QUOTED;
         if (my_mbcharlen(cs, yyGetLast()) > 1)
         {
           int l = my_ismbchar(cs,
@@ -529,7 +542,15 @@ int yylex(void *arg, void *yythd)
       }
       else
 #endif
-        while (ident_map[c=yyGet()]) ;
+      {
+	result_state= bin_ident_map[c] ? IDENT : IDENT_QUOTED;
+        while (ident_map[c=yyGet()])
+	{
+	  /* If not simple character, mark that we must convert it */
+	  if (!bin_ident_map[c])
+	    result_state= IDENT_QUOTED;
+	}
+      }
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
       {
@@ -560,8 +581,7 @@ int yylex(void *arg, void *yythd)
           (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,
 					      MY_CS_PRIMARY,MYF(0))))
         return(UNDERSCORE_CHARSET);
-      else
-        return(IDENT);
+      return(result_state);			// IDENT or IDENT_QUOTED
 
     case MY_LEX_IDENT_SEP:		// Found ident and now '.'
       yylval->lex_str.str=(char*) lex->ptr;
@@ -611,21 +631,11 @@ int yylex(void *arg, void *yythd)
       }
       // fall through
     case MY_LEX_IDENT_START:			// We come here after '.'
+      result_state= IDENT;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
-        if (my_mbcharlen(cs, yyGetLast()) > 1)
-        {
-          int l = my_ismbchar(cs,
-                              (const char *)lex->ptr-1,
-                              (const char *)lex->end_of_query);
-          if (l == 0)
-          {
-            state = MY_LEX_CHAR;
-            continue;
-          }
-          lex->ptr += l - 1;
-        }
+	result_state= IDENT_QUOTED;
         while (ident_map[c=yyGet()])
         {
           if (my_mbcharlen(cs, c) > 1)
@@ -641,15 +651,17 @@ int yylex(void *arg, void *yythd)
       }
       else
 #endif
-        while (ident_map[c = yyGet()]) ;
-
+        while (ident_map[c = yyGet()])
+	{
+	  /* If not simple character, mark that we must convert it */
+	  if (!bin_ident_map[c])
+	    result_state= IDENT_QUOTED;
+	}
       if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=MY_LEX_IDENT_SEP;// Next is '.'
-      // fall through
 
-    case MY_LEX_FOUND_IDENT:		// Complete ident
-      yylval->lex_str=get_token(lex,yyLength());
-      return(IDENT);
+      yylval->lex_str= get_token(lex,yyLength());
+      return(result_state);
 
     case MY_LEX_USER_VARIABLE_DELIMITER:
     {
@@ -699,7 +711,7 @@ int yylex(void *arg, void *yythd)
       if (c == delim)
 	yySkip();			// Skip end `
       lex->next_state= MY_LEX_START;
-      return(IDENT);
+      return(IDENT_QUOTED);
     }
     case MY_LEX_INT_OR_REAL:		// Compleat int or incompleat real
       if (c != '.')
@@ -924,7 +936,13 @@ int yylex(void *arg, void *yythd)
 	We should now be able to handle:
 	[(global | local | session) .]variable_name
       */
-      while (ident_map[c=yyGet()]) ;
+      result_state= IDENT;
+      while (ident_map[c=yyGet()])
+      {
+	/* If not simple character, mark that we must convert it */
+	if (!bin_ident_map[c])
+	  result_state= IDENT_QUOTED;
+      }
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
@@ -934,7 +952,7 @@ int yylex(void *arg, void *yythd)
 	return(tokval);				// Was keyword
       }
       yylval->lex_str=get_token(lex,length);
-      return(IDENT);
+      return(result_state);
     }
   }
 }

@@ -332,7 +332,7 @@ SETUP_PARAM_FUNCTION(setup_param_datetime)
     tm.day=    (uint) to[3];
     tm.neg=    0;
 
-    param->set_time(&tm, TIMESTAMP_FULL);
+    param->set_time(&tm, TIMESTAMP_DATETIME);
   }
   *pos+= length;
 }

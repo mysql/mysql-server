@@ -1284,8 +1284,8 @@ void Item_func_find_in_set::fix_length_and_dec()
       String *find=args[0]->val_str(&value);
       if (find)
       {
-	enum_value=find_enum(((Field_enum*) field)->typelib,find->ptr(),
-			     find->length());
+	enum_value= find_type(((Field_enum*) field)->typelib,find->ptr(),
+			      find->length(), 0);
 	enum_bit=0;
 	if (enum_value)
 	  enum_bit=LL(1) << (enum_value-1);
@@ -2094,8 +2094,8 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 /*
-  When a user variable is updated (in a SET command or a query like SELECT @a:=
-  ).
+  When a user variable is updated (in a SET command or a query like
+  SELECT @a:= ).
 */
 
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
@@ -2454,14 +2454,15 @@ void Item_func_get_user_var::fix_length_and_dec()
       sql_set_variables() is what is called from 'case SQLCOM_SET_OPTION'
       in dispatch_command()). Instead of building a one-element list to pass to
       sql_set_variables(), we could instead manually call check() and update();
-      this would save memory and time; but calling sql_set_variables() makes one
-      unique place to maintain (sql_set_variables()). 
+      this would save memory and time; but calling sql_set_variables() makes
+      one unique place to maintain (sql_set_variables()). 
     */
 
     List<set_var_base> tmp_var_list;
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
                                                                        new Item_null())));
-    if (sql_set_variables(thd, &tmp_var_list)) /* this will create the variable */
+    /* Create the variable */
+    if (sql_set_variables(thd, &tmp_var_list))
       goto err;
     if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
       goto err;

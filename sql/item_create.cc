@@ -450,7 +450,8 @@ Item *create_load_file(Item* a)
 }
 
 
-Item *create_func_cast(Item *a, Cast_target cast_type, int len, CHARSET_INFO *cs)
+Item *create_func_cast(Item *a, Cast_target cast_type, int len,
+		       CHARSET_INFO *cs)
 {
   Item *res;
   LINT_INIT(res);
