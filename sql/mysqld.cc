@@ -158,6 +158,8 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
 	    opt_ansi_mode=0,opt_myisam_log=0;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
+extern MASTER_INFO glob_mi;
+extern int init_master_info(MASTER_INFO* mi);
 
 // if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync, and are
 // treated as aliases for each other
@@ -1618,6 +1620,8 @@ int main(int argc, char **argv)
 	if(!opt_skip_slave_start &&
 	   pthread_create(&hThread, &connection_attrib, handle_slave, 0))
 	  sql_print_error("Warning: Can't create thread to handle slave");
+	else if(opt_skip_slave_start)
+	  init_master_info(&glob_mi);
       }
     else
       sql_print_error("Server id is not set, slave thread will not be started");

@@ -34,12 +34,20 @@ enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 #define LOG_INFO_IO  -2
 #define LOG_INFO_INVALID -3
 #define LOG_INFO_SEEK -4
+#define LOG_INFO_PURGE_NO_ROTATE -5
+#define LOG_INFO_MEM -6
+#define LOG_INFO_FATAL -7
+#define LOG_INFO_IN_USE -8
 
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
   my_off_t index_file_offset;
-  my_off_t pos; 
+  my_off_t pos;
+  bool fatal; // if the purge happens to give us a negative offset
+  pthread_mutex_t lock;
+  st_log_info():fatal(0) { pthread_mutex_init(&lock, NULL);}
+  ~st_log_info() { pthread_mutex_destroy(&lock);}
 } LOG_INFO;
 
 typedef struct st_master_info
@@ -114,6 +122,7 @@ public:
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
+  int purge_logs(THD* thd, const char* to_log);
   void flush(void);
   void close(bool exiting = 0); // if we are exiting, we also want to close the
   // index file
@@ -126,6 +135,9 @@ public:
   inline bool is_open() { return log_type != LOG_CLOSED; }
   char* get_index_fname() { return index_file_name;}
   char* get_log_fname() { return log_file_name; }
+  void lock_index() { pthread_mutex_lock(&LOCK_index);}
+  void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
+  FILE* get_index_file() { return index_file;}
 };
 
 /* character conversion tables */
@@ -295,6 +307,10 @@ public:
   bool	     volatile killed,bootstrap;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error;
+  LOG_INFO*  current_linfo;
+  // if we do a purge of binary logs, log index info of the threads
+  // that are currently reading it needs to be adjusted. To do that
+  // each thread that is using LOG_INFO needs to adjust the pointer to it
   THD();
   ~THD();
   bool store_globals();

@@ -94,6 +94,7 @@ THD::THD()
   options=thd_startup_options;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   start_time=(time_t) 0;
+  current_linfo =  0;
   last_nx_table = last_nx_db = 0;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;

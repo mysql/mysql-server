@@ -19,6 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_acl.h"
+#include "sql_repl.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -256,7 +257,8 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
 	}
 
       // if the log entry matches, empty string matching anything
-      if(!log_name_len || (fname[log_name_len] == '\n' && !memcmp(fname, log_name, log_name_len)))
+      if(!log_name_len || (fname[log_name_len] == '\n' &&
+			   !memcmp(fname, log_name, log_name_len)))
 	{
 	  if(log_name_len)
 	    fname[log_name_len] = 0; // to kill \n
@@ -275,6 +277,137 @@ err:
   return error;
      
 }
+
+int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
+{
+  if(!index_file) return LOG_INFO_INVALID;
+  if(no_rotate) return LOG_INFO_PURGE_NO_ROTATE;
+  int error;
+  char fname[FN_REFLEN];
+  char* fname_end, *p;
+  uint fname_len, i;
+  bool logs_to_purge_inited = 0, logs_to_keep_inited = 0, found_log = 0;
+  DYNAMIC_ARRAY logs_to_purge, logs_to_keep;
+  my_off_t purge_offset ;
+  pthread_mutex_lock(&LOCK_index);
+  
+  if(my_fseek(index_file, 0, MY_SEEK_SET,
+		MYF(MY_WME) ) == MY_FILEPOS_ERROR)
+    {
+      error = LOG_INFO_SEEK;
+      goto err;
+    }
+  
+  if(init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
+    {
+      error = LOG_INFO_MEM;
+      goto err;
+    }
+  logs_to_purge_inited = 1;
+  
+  if(init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
+    {
+      error = LOG_INFO_MEM;
+      goto err;
+    }
+  logs_to_keep_inited = 1;
+
+  
+  for(;;)
+    {
+      if(!fgets(fname, FN_REFLEN, index_file))
+	{
+	  if(feof(index_file))
+	    break;
+	  else
+	    error = LOG_INFO_IO;
+	  goto err;
+	}
+
+      *(fname_end = (strend(fname) - 1)) = 0; // kill \n
+      fname_len = (uint)(fname_end - fname);
+      
+      if(!memcmp(fname, to_log, fname_len + 1 ))
+	{
+	  found_log = 1;
+	  purge_offset = my_ftell(index_file, MYF(MY_WME)) - fname_len - 1;
+	}
+      
+      if(!found_log && log_in_use(fname))
+	// if one of the logs before the target is in use
+	{
+	  error = LOG_INFO_IN_USE;
+	  goto err;
+	}
+      
+      p = sql_memdup(fname, (uint)(fname_end - fname) + 1);
+      if((found_log) ?
+	  insert_dynamic(&logs_to_keep, (gptr) &p) :
+	  insert_dynamic(&logs_to_purge, (gptr) &p) 
+	 )
+	{
+	  error = LOG_INFO_MEM;
+	  goto err;
+	}
+     }
+  
+  if(!found_log)
+    {
+      error = LOG_INFO_EOF;
+      goto err;
+    }
+  
+  for(i = 0; i < logs_to_purge.elements; i++)
+    {
+      char* l;
+      get_dynamic(&logs_to_purge, (gptr)&l, i);
+      if(my_delete(l, MYF(MY_WME)))
+	sql_print_error("Error deleting %s during purge", l);
+    }
+  
+  // if we get killed -9 here, the sysadmin would have to do a small
+  // vi job on the log index file after restart - otherwise, this should
+  // be safe
+  my_fclose(index_file, MYF(MY_WME));
+  if(!(index_file = my_fopen(index_file_name, O_BINARY|O_WRONLY,
+			     MYF(MY_WME))))
+  {
+    sql_print_error("Ouch! Could not re-open the binlog index file \
+during log purge for write");
+    error = LOG_INFO_FATAL;
+    goto err;
+  }
+  
+  for(i = 0; i < logs_to_keep.elements; i++)
+    {
+      char* l;
+      get_dynamic(&logs_to_keep, (gptr)&l, i);
+      fprintf(index_file, "%s\n", l);
+    }
+  my_fclose(index_file, MYF(MY_WME));
+  
+  if(!(index_file = my_fopen(index_file_name, O_BINARY|O_RDWR|O_APPEND,
+			     MYF(MY_WME))))
+  {
+    sql_print_error("Ouch! Could not re-open the binlog index file \
+during log purge for append");
+    error = LOG_INFO_FATAL;
+    goto err;
+  }
+  // now update offsets
+  adjust_linfo_offsets(purge_offset);
+  error = 0;
+err:
+  pthread_mutex_unlock(&LOCK_index);
+  if(logs_to_purge_inited)
+    delete_dynamic(&logs_to_purge);
+  if(logs_to_keep_inited)
+    delete_dynamic(&logs_to_keep);
+    
+  return error;
+  
+}
+
 int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
 {
   // mutex needed because we need to make sure the file pointer does not move
@@ -285,6 +418,12 @@ int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
   char* end ;
   
   pthread_mutex_lock(&LOCK_index);
+  if(linfo->fatal)
+    {
+      error = LOG_INFO_FATAL;
+      goto err;
+    }
+  
   if(my_fseek(index_file, linfo->index_file_offset, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
     {
       error = LOG_INFO_SEEK;

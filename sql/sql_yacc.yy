@@ -107,6 +107,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_SYM
 %token	REPAIR
 %token  RESET_SYM
+%token  PURGE
 %token  SLAVE
 %token  START_SYM
 %token  STOP_SYM
@@ -493,7 +494,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <NONE>
 	query verb_clause create change select drop insert replace insert2
 	insert_values update delete show describe load alter optimize flush
-	reset begin commit rollback slave master_def master_defs
+	reset purge begin commit rollback slave master_def master_defs
 	repair restore backup analyze check rename
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
@@ -549,6 +550,7 @@ verb_clause:
 	| lock
 	| kill
 	| optimize
+	| purge  
 	| rename
         | repair
 	| replace
@@ -2147,6 +2149,10 @@ show_param:
 	    if (!add_table_to_list($3,NULL))
 	      YYABORT;
 	  }
+        | MASTER_SYM LOGS_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
+          }      
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -2245,6 +2251,13 @@ reset_options:
 reset_option:
         SLAVE           { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
+
+purge:
+	PURGE { Lex->sql_command = SQLCOM_PURGE; Lex->type=0;}
+        MASTER_SYM LOGS_SYM TO_SYM TEXT_STRING
+         {
+	   Lex->to_log = $6.str;
+         } 
 
 /* kill threads */
 

@@ -14,7 +14,10 @@ int stop_slave(THD* thd = 0, bool net_report = 1);
 int change_master(THD* thd);
 void reset_slave();
 void reset_master();
-
+int purge_master_logs(THD* thd, const char* to_log);
+bool log_in_use(const char* log_name);
+void adjust_linfo_offsets(my_off_t purge_offset);
+int show_binlogs(THD* thd);
 extern int init_master_info(MASTER_INFO* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
 

@@ -48,7 +48,7 @@ enum enum_sql_command {
   SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_SHOW_CREATE,
   SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT, SQLCOM_CHANGE_MASTER,
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
-  SQLCOM_RESET
+  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -97,6 +97,7 @@ typedef struct st_lex {
   char *length,*dec,*change,*name;
   char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   char *backup_dir;				/* For RESTORE/BACKUP */
+  char* to_log;                                 /* For PURGE MASTER LOGS TO */
   String *wild;
   sql_exchange *exchange;
   ha_rows select_limit,offset_limit;
