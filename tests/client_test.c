@@ -9614,7 +9614,6 @@ union distinct \
 select sum(a) + 200, 1 from t1 \
 group by b ");
   check_stmt(stmt);
-
   mysql_stmt_close(stmt);
 
  stmt= mysql_simple_prepare(mysql,
@@ -9624,14 +9623,14 @@ union distinct \
 select sum(a) + 200, 1 from t1 \
 group by b ");
   check_stmt(stmt);
+  mysql_stmt_close(stmt);
 
- stmt= mysql_simple_prepare(mysql,
+  stmt= mysql_simple_prepare(mysql,
 			     "select sum(a) + 200, ? from t1 \
 union distinct \
 select sum(a) + 200, 1 from t1 \
 group by b ");
   check_stmt(stmt);
-
   mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "DROP TABLE t1");
