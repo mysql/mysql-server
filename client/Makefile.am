@@ -32,7 +32,7 @@ mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc ../mysys/mf_tempdir.c
+mysqlbinlog_SOURCES =   mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 
 sql_src=log_event.h mysql_priv.h log_event.cc
 
