@@ -89,15 +89,15 @@ static char master_socket[FN_REFLEN]= "./var/tmp/master.sock";
 static char slave_socket[FN_REFLEN]=  "./var/tmp/slave.sock";
 #endif
 
+#define MAX_COUNT_TESTES 1024
 /* comma delimited list of tests to skip or empty string */
 #ifndef __WIN__
 static char skip_test[FN_REFLEN]= " lowercase_table3 , system_mysql_db_fix ";
+#define _stricmp strcasecmp
 #else
 /*
   The most ignore testes contain the calls of system command
-*/
-#define MAX_COUNT_TESTES 1024
-/*
+
   lowercase_table3 is disabled by Gerg
   system_mysql_db_fix  is disabled by Gerg
   sp contains a command system
@@ -1437,12 +1437,11 @@ void setup(char *file __attribute__((unused)))
 /*
   Compare names of testes for right order
 */
-#ifdef __WIN__
 int compare( const void *arg1, const void *arg2 )
 {
   return _stricmp( * ( char** ) arg1, * ( char** ) arg2 );
 }
-#endif
+
 
 
 /******************************************************************************
@@ -1454,6 +1453,10 @@ int compare( const void *arg1, const void *arg2 )
 int main(int argc, char **argv)
 {
   int is_ignore_list= 0;
+  char **names= 0;
+  char **testes= 0;
+  int name_index;
+  int index;
   /* setup */
   setup(argv[0]);
 
@@ -1517,6 +1520,9 @@ int main(int argc, char **argv)
   else
   {
     /* run all tests */
+    names= malloc(MAX_COUNT_TESTES*4);
+    testes= names;
+    name_index= 0;
 #ifndef __WIN__
     struct dirent *entry;
     DIR *parent;
@@ -1536,8 +1542,11 @@ int main(int argc, char **argv)
         {
           /* null terminate at the suffix */
           *(test + position - 1)= '\0';
-          /* run test */
-          run_test(test);
+          /* insert test */
+          *names= malloc(FN_REFLEN);
+          strcpy(*names,test);
+          names++;
+          name_index++;
         }
       }
       closedir(parent);
@@ -1549,10 +1558,6 @@ int main(int argc, char **argv)
     char mask[FN_REFLEN];
     char *p;
     int position;
-    char **names= 0;
-    char **testes= 0;
-    int name_index;
-    int index;
 
     /* single test */
     single_test= FALSE;
@@ -1564,9 +1569,6 @@ int main(int argc, char **argv)
       die("Unable to open tests directory.");
     }
 
-    names= malloc(MAX_COUNT_TESTES*4);
-    testes= names;
-    name_index= 0;
 
     do
     {
@@ -1577,10 +1579,8 @@ int main(int argc, char **argv)
         /* find the test suffix */
         if ((position= strinstr(test, TEST_SUFFIX)) != 0)
         {
-          p= test + position - 1;
           /* null terminate at the suffix */
-          *p= 0;
-
+          *(test + position - 1)= '\0';
           /* insert test */
           *names= malloc(FN_REFLEN);
           strcpy(*names,test);
@@ -1591,7 +1591,7 @@ int main(int argc, char **argv)
     }while (_findnext(handle,&dir) == 0);
 
     _findclose(handle);
-
+#endif
     qsort( (void *)testes, name_index, sizeof( char * ), compare );
 
     for (index= 0; index <= name_index; index++)
@@ -1601,7 +1601,6 @@ int main(int argc, char **argv)
     }
 
     free(testes);
-#endif
   }
 
   /* stop server */
