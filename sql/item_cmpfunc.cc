@@ -317,7 +317,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
   }
   else if (type == INT_RESULT)
   {
-    if (func == &Arg_comparator::compare_int)
+    if (func == &Arg_comparator::compare_int_signed)
     {
       if ((*a)->unsigned_flag)
         func= ((*b)->unsigned_flag)? &Arg_comparator::compare_int_unsigned : 
@@ -432,7 +432,7 @@ int Arg_comparator::compare_e_real()
   return test(val1 == val2);
 }
 
-int Arg_comparator::compare_int()
+int Arg_comparator::compare_int_signed()
 {
   longlong val1= (*a)->val_int();
   if (!(*a)->null_value)
