@@ -165,3 +165,25 @@ select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
 ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;
+
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
+# Check keys with prefix compression
+#
+create table t1 (c varchar(30) character set utf8, unique(c(10)));
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaaa');
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+select c c2 from t1 where c='2';
+select c c3 from t1 where c='3';
+select c cx from t1 where c='x';
+select c cy from t1 where c='y';
+select c cz from t1 where c='z';
+select c ca10 from t1 where c='aaaaaaaaaa';
+select c cb20 from t1 where c=repeat('b',20);
+drop table t1;
