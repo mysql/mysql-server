@@ -1664,6 +1664,10 @@ simple_expr:
 	    }
 	    $$= new Item_func_conv_charset($3,cs); 
 	  }
+	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
+	  { 
+	    $$= new Item_func_conv_charset3($3,$5,$7); 
+	  }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'

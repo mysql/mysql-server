@@ -1843,6 +1843,79 @@ void Item_func_conv_charset::fix_length_and_dec()
   /* BAR TODO: What to do here??? */
 }
 
+
+String *Item_func_conv_charset3::val_str(String *str)
+{
+  my_wc_t wc;
+  int cnvres;
+  const uchar *s, *se;
+  uchar *d, *d0, *de;
+  uint dmaxlen;
+  String *arg= args[0]->val_str(str);
+  String *to_cs= args[1]->val_str(str);
+  String *from_cs= args[2]->val_str(str);
+  CHARSET_INFO *from_charset;
+  CHARSET_INFO *to_charset;
+  
+  if (!arg     || args[0]->null_value || 
+      !to_cs   || args[1]->null_value || 
+      !from_cs || args[2]->null_value ||
+      !(from_charset=find_compiled_charset_by_name(from_cs->ptr())) ||
+      !(to_charset=find_compiled_charset_by_name(to_cs->ptr())))
+  {
+    null_value=1;
+    return 0;
+  }
+
+  s=(const uchar*)arg->ptr();
+  se=s+arg->length();
+  
+  dmaxlen=arg->length()*(to_charset->mbmaxlen?to_charset->mbmaxlen:1)+1;
+  str->alloc(dmaxlen);
+  d0=d=(unsigned char*)str->ptr();
+  de=d+dmaxlen;
+  
+  while( s < se && d < de){
+
+    cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
+    if (cnvres>0)
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    cnvres=to_charset->wc_mb(to_charset,wc,d,de);
+    if (cnvres>0)
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+        wc='?';
+        goto outp;
+    }
+    else
+      break;
+  };
+  
+  str->length((uint) (d-d0));
+  str->set_charset(to_charset);
+  return str;
+}
+
+void Item_func_conv_charset3::fix_length_and_dec()
+{
+  /* BAR TODO: What to do here??? */
+}
+
+
 String *Item_func_hex::val_str(String *str)
 {
   if (args[0]->result_type() != STRING_RESULT)
