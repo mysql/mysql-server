@@ -48,7 +48,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
 	 cursor=cursor->next)
-      cursor->table= ((TABLE_LIST*) cursor->table)->table;
+      cursor->table= cursor->table_list->table;
   }
 
   /* Global option */

@@ -70,7 +70,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1247,7 +1246,8 @@ mysql_execute_command(void)
 					   cursor))
 	DBUG_VOID_RETURN;
   }
-  if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
+  if ((lex->select_lex.link_next && 
+       lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
@@ -1942,7 +1942,7 @@ mysql_execute_command(void)
 	goto error;
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
-      auxi->table= (TABLE *) walk;		// Remember corresponding table
+      auxi->table_list=  walk;		// Remember corresponding table
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     if (add_item_to_list(new Item_null()))
@@ -1955,7 +1955,7 @@ mysql_execute_command(void)
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-      auxi->table= ((TABLE_LIST*) auxi->table)->table;
+      auxi->table= auxi->table_list->table;
     if (!thd->fatal_error && (result=new multi_delete(thd,aux_tables,
 						      lex->lock_option,table_count)))
     {
@@ -3190,68 +3190,6 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   }
   link_in_list(&thd->lex.select->table_list,(byte*) ptr,(byte**) &ptr->next);
   DBUG_RETURN(ptr);
-}
-
-
-/*
-** This is used for UNION to create a new table list of all used tables
-** The table_list->table entry in all used tables are set to point
-** to the entries in this list.
-*/
-
-static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
-{
-  /* Handle the case when we are not using union */
-  if (!lex->select_lex.next)
-  {
-    *result= (TABLE_LIST*) lex->select_lex.table_list.first;
-    return 0;
-  }
-
-  SELECT_LEX *sl;
-  TABLE_LIST **new_table_list= result, *aux;
-
-  *new_table_list= 0;				// end result list
-  for (sl= &lex->select_lex; sl; sl= (SELECT_LEX *) sl->next)
-  {
-    if (sl->order_list.first && sl->next && !sl->braces)
-    {
-      net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
-      return 1;
-    }
-    if ((aux= (TABLE_LIST*) sl->table_list.first))
-    {
-      TABLE_LIST *next;
-      for (; aux; aux=next)
-      {
-	TABLE_LIST *cursor;
-	next= aux->next;
-	for (cursor= *result; cursor; cursor=cursor->next)
-	  if (!strcmp(cursor->db,aux->db) &&
-	      !strcmp(cursor->real_name,aux->real_name) &&
-	      !strcmp(cursor->name, aux->name))
-	    break;
-	if (!cursor)
-	{
-	  /* Add not used table to the total table list */
-	  aux->lock_type= lex->lock_option;
-	  if (!(cursor = (TABLE_LIST *) thd->memdup((char*) aux,
-						    sizeof(*aux))))
-	  {
-	    send_error(&thd->net,0);
-	    return 1;
-	  }
-	  *new_table_list= cursor;
-	  new_table_list= &cursor->next;
-	  *new_table_list=0;			// end result list
-	}
-	else
-	  aux->shared=1;			// Mark that it's used twice
-	aux->table=(TABLE *) cursor;
-      }
-    }
-  }
-  return 0;
 }
 
 
