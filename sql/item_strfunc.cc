@@ -208,6 +208,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
+   maybe_null= 1;
 }
 
 
@@ -1465,7 +1466,8 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 String *Item_func_format::val_str(String *str)
 {
   double nr	=args[0]->val();
-  uint32 diff,length,str_length;
+  uint32 length,str_length;
+  int diff;
   uint dec;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1483,17 +1485,17 @@ String *Item_func_format::val_str(String *str)
   if (str_length >= dec+4)
   {
     char *tmp,*pos;
-    length= str->length()+(diff=(str_length- dec-1)/3);
+    length= str->length()+(diff= (int)(str_length- dec-1)/3);
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
     tmp= (char*) str->ptr()+length - dec-1;
     for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
-      pos[0]= pos[-(int) diff];
+      pos[0]= pos[-diff];
     while (diff)
     {
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
+      pos[0]=pos[-diff]; pos--;
+      pos[0]=pos[-diff]; pos--;
+      pos[0]=pos[-diff]; pos--;
       pos[0]=',';
       pos--;
       diff--;

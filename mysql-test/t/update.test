@@ -164,3 +164,13 @@ insert into t1 values (1, "t1c2-1", 10), (2, "t1c2-2", 20);
 update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1";
 update t1 left join t2 on t1.c1 = t2.c1 set t2.c2 = "t2c2-1" where t1.c3 = 10;
 drop table t1, t2;
+
+#
+# Bug #8942: a problem with update and partial key part
+#
+
+create table t1 (a int, b char(255), key(a, b(20)));
+insert into t1 values (0, '1');
+update t1 set b = b + 1 where a = 0;
+select * from t1;
+drop table t1;

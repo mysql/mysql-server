@@ -450,3 +450,16 @@ select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 
 drop table t1, t2, t3;
+
+# Test for BUG#8711 '<=>' was considered to be a NULL-rejecting predicate.
+create table t1 (
+  a int(11),
+  b char(10),
+  key (a)
+);
+insert into t1 (a) values (1),(2),(3),(4);
+create table t2 (a int);
+
+select * from t1 left join t2 on t1.a=t2.a where not (t2.a <=> t1.a);
+select * from t1 left join t2 on t1.a=t2.a having not (t2.a <=> t1.a);
+drop table t1,t2;

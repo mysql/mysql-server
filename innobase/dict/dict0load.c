@@ -639,29 +639,13 @@ dict_load_table(
 
 	/* Check if the table name in record is the searched one */
 	if (len != ut_strlen(name) || ut_memcmp(name, field, len) != 0) {
-
+	err_exit:
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
 		
 		return(NULL);
 	}
-
-#if MYSQL_VERSION_ID < 50300
-	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
-	"compact format" flag. */
-	field = rec_get_nth_field(rec, 7, &len);
-	if (mach_read_from_1(field) & 0x80) {
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: table %s is in the new compact format\n"
-			"InnoDB: of MySQL 5.0.3 or later\n", name);
-		return(NULL);
-	}
-#endif /* MYSQL_VERSION_ID < 50300 */
 
 	ut_a(0 == ut_strcmp((char *) "SPACE",
 		dict_field_get_col(
@@ -678,6 +662,13 @@ dict_load_table(
 
 	field = rec_get_nth_field(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
+	if (n_cols & 0x80000000UL) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: table %s is in the new compact format\n"
+			"InnoDB: of MySQL 5.0.3 or later\n", name);
+		goto err_exit;
+	}
 
 	table = dict_mem_table_create(name, space, n_cols);
 
