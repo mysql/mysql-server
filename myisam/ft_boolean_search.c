@@ -421,7 +421,7 @@ err:
 }
 
 
-/* returns 1 if str0 ~= /\<str1\>/ */
+/* returns 1 if str0 ~= /\bstr1\b/ */
 static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)
