@@ -3351,7 +3351,7 @@ static void test_bind_result()
   MYSQL_STMT *stmt;
   int        rc;
   int        nData;
-  ulong      length, length1;
+  ulong      length1;
   char       szData[100];
   MYSQL_BIND bind[2];
   my_bool    is_null[2];
@@ -3416,7 +3416,6 @@ static void test_bind_result()
   DIE_UNLESS(strcmp(szData, "MySQL") == 0);
   DIE_UNLESS(length1 == 5);
 
-  length= 99;
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
@@ -5350,7 +5349,6 @@ static void test_prepare_alter()
 {
   MYSQL_STMT  *stmt;
   int         rc, id;
-  long        length;
   MYSQL_BIND  bind[1];
   my_bool     is_null;
 
@@ -5385,7 +5383,6 @@ static void test_prepare_alter()
   check_execute(stmt, rc);
 
   id= 30;
-  length= 0;
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -11620,14 +11617,13 @@ static void test_bug6059()
 {
   MYSQL_STMT *stmt;
   const char *stmt_text;
-  int rc;
 
   myheader("test_bug6059");
 
   stmt_text= "SELECT 'foo' INTO OUTFILE 'x.3'";
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  (void) mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
   DIE_UNLESS(mysql_stmt_field_count(stmt) == 0);
   mysql_stmt_close(stmt);
 }

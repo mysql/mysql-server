@@ -2011,7 +2011,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   TABLE_READ_PLAN **roru_read_plans;
   TABLE_READ_PLAN **cur_roru_plan;
   double roru_index_costs;
-  double blocks_in_index_read;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
@@ -2077,7 +2076,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     goto skip_to_ror_scan;
   }
-  blocks_in_index_read= imerge_cost;
   if (cpk_scan)
   {
     /*
@@ -5654,7 +5652,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
-  DBUG_ASSERT(cur_quick);
+  DBUG_ASSERT(cur_quick != 0);
   
   /*
     We reuse the same instance of handler so we need to call both init and 
@@ -6099,7 +6097,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length, byte *cur_prefix)
     if (range)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
-      DBUG_ASSERT(cur_prefix);
+      DBUG_ASSERT(cur_prefix != 0);
       result= file->index_read(record, cur_prefix, prefix_length,
                                HA_READ_AFTER_KEY);
       if (result || (file->compare_key(file->end_range) <= 0))

@@ -379,7 +379,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       for (Field **field= table->field; *field; field++)
       {
         Item_field *item_field= (Item_field*) it++;
-        DBUG_ASSERT(item_field);
+        DBUG_ASSERT(item_field != 0);
         item_field->reset_field(*field);
       }
     }
