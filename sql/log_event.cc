@@ -593,8 +593,9 @@ err:
   UNLOCK_MUTEX;
   if (error)
   {
-    sql_print_error("Error in Log_event::read_log_event(): '%s', \
-data_len=%d,event_type=%d",error,data_len,head[EVENT_TYPE_OFFSET]);
+    sql_print_error("\
+Error in Log_event::read_log_event(): '%s', data_len: %d, event_type: %d",
+		    error,data_len,head[EVENT_TYPE_OFFSET]);
     my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -1433,8 +1434,8 @@ void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
     return;
   print_header(file);
   fputc('\n', file);
-  fprintf(file, "Slave: master_host: '%s'  master_port: %d  \
-master_log: '%s'  master_pos: %s\n",
+  fprintf(file, "\
+Slave: master_host: '%s'  master_port: %d  master_log: '%s'  master_pos: %s\n",
 	  master_host, master_port, master_log, llstr(master_pos, llbuff));
 }
 
@@ -1755,7 +1756,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error, actual_error= 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= (char*) rewrite_db(db);
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -1811,15 +1812,16 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 	  !ignored_error_code(expected_error))
       {
 	slave_print_error(rli, 0,
-                          "Query '%s' did not get the same error as the query \
-got on master - got on master: '%s' (%d), got on slave: '%s' (%d) \
-(default database was '%s')",
+                          "\
+Query '%s' caused different errors on master and slave. \
+Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Default database: '%s'",
                           query,
                           ER_SAFE(expected_error),
                           expected_error,
                           actual_error ? thd->net.last_error: "no error",
                           actual_error,
-                          print_slave_db_safe((char*)db));
+                          print_slave_db_safe(db));
 	thd->query_error= 1;
       }
       /*
@@ -1837,11 +1839,12 @@ got on master - got on master: '%s' (%d), got on slave: '%s' (%d) \
       */
       else if (thd->query_error || thd->fatal_error)
       {
-        slave_print_error(rli,actual_error, "Error '%s' on query '%s' \
-(default database was '%s')",
-                          actual_error ? thd->net.last_error :
-                          "unexpected success or fatal error", query,
-                          print_slave_db_safe((char*)db)); 
+        slave_print_error(rli,actual_error,
+			  "Error '%s' on query '%s'. Default database: '%s'",
+                          (actual_error ? thd->net.last_error :
+			   "unexpected success or fatal error"),
+			  query,
+                          print_slave_db_safe(db));
         thd->query_error= 1;
       }
     } 
@@ -1896,7 +1899,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
@@ -1978,17 +1981,15 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
 		     TL_WRITE))
 	thd->query_error = 1;
+      /* log_pos is the position of the LOAD event in the master log */
       if (thd->cuted_fields)
-	/* 
-	   log_pos is the position of the LOAD
-	   event in the master log
-	*/
-	sql_print_error("Slave: load data infile at position %s in log \
-'%s' produced %d warning(s) (loaded table was '%s', database was '%s')",
+	sql_print_error("\
+Slave: load data infile on table '%s' at log position %s in log \
+'%s' produced %ld warning(s). Default database: '%s'",
+                        (char*) table_name,
                         llstr(log_pos,llbuff), RPL_LOG_NAME, 
-			thd->cuted_fields,
-                        (char*)table_name,
-                        print_slave_db_safe((char*)db));
+			(ulong) thd->cuted_fields,
+                        print_slave_db_safe(db));
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
     }
@@ -2019,10 +2020,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       sql_errno=ER_UNKNOWN_ERROR;
       err=ER(sql_errno);       
     }
-    slave_print_error(rli,sql_errno,
-		      "Error '%s' running load data infile \
-(loaded table was '%s', database was '%s')",
-		      err, (char*)table_name, print_slave_db_safe((char*)db));
+    slave_print_error(rli,sql_errno,"\
+Error '%s' running lOAD DATA INFILE on table '%s'. Default database: '%s'",
+		      err, (char*)table_name, print_slave_db_safe(db));
     free_root(&thd->mem_root,0);
     return 1;
   }
@@ -2030,10 +2030,9 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	    
   if (thd->fatal_error)
   {
-    slave_print_error(rli,ER_UNKNOWN_ERROR,
-"Fatal error running \
-LOAD DATA INFILE (loaded table was '%s', database was '%s')",
-                    (char*)table_name, print_slave_db_safe((char*)db));
+    slave_print_error(rli,ER_UNKNOWN_ERROR, "\
+Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
+		      (char*)table_name, print_slave_db_safe(db));
     return 1;
   }
 
@@ -2339,13 +2338,15 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
       What we want instead is add the filename to the current error message.
     */
     char *tmp= my_strdup(rli->last_slave_error,MYF(MY_WME));
-    if (!tmp)
-      goto err;
-    slave_print_error(rli,rli->last_slave_errno, /* ok to re-use the error code */
-                      "%s. Failed executing load from '%s'", 
-                      tmp, fname);
-    my_free(tmp,MYF(0));
-    thd->options = save_options;
+    if (tmp)
+    {
+      slave_print_error(rli,
+			rli->last_slave_errno, /* ok to re-use error code */
+			"%s. Failed executing load from '%s'", 
+			tmp, fname);
+      my_free(tmp,MYF(0));
+    }
+    thd->options= save_options;
     goto err;
   }
   thd->options = save_options;

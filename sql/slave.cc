@@ -828,6 +828,7 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
   return rli->abort_slave || abort_loop || thd->killed;
 }
 
+
 /*
   Writes an error message to rli->last_slave_error and rli->last_slave_errno
   (which will be displayed by SHOW SLAVE STATUS), and prints it to stderr.
@@ -842,7 +843,7 @@ static bool sql_slave_killed(THD* thd, RELAY_LOG_INFO* rli)
 
   RETURN VALUES
     void
- */
+*/
 
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
 {
@@ -853,11 +854,11 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...)
   rli->last_slave_errno = err_code;
   /* If the error string ends with '.', do not add a ',' it would be ugly */
   if (rli->last_slave_error[0] && 
-      (rli->last_slave_error[strlen(rli->last_slave_error)-1] == '.'))
-    sql_print_error("Slave: %s Error_code=%d", rli->last_slave_error,
+      (*(strend(rli->last_slave_error)-1) == '.'))
+    sql_print_error("Slave: %s Error_code: %d", rli->last_slave_error,
                     err_code);
   else
-    sql_print_error("Slave: %s, error_code=%d", rli->last_slave_error,
+    sql_print_error("Slave: %s, Error_code: %d", rli->last_slave_error,
                     err_code);
 
 }
@@ -872,7 +873,7 @@ void skip_load_data_infile(NET* net)
 }
 
 
-char* rewrite_db(char* db)
+const char *rewrite_db(const char* db)
 {
   if (replicate_rewrite_db.is_empty() || !db)
     return db;
@@ -889,13 +890,14 @@ char* rewrite_db(char* db)
 
 /*
   From other comments and tests in code, it looks like
-  sometimes Query_log_event and Load_log_event can have db==0
+  sometimes Query_log_event and Load_log_event can have db == 0
   (see rewrite_db() above for example)
   (cases where this happens are unclear; it may be when the master is 3.23).
 */
-char* print_slave_db_safe(char* db)
+
+const char *print_slave_db_safe(const char* db)
 {
-  return (db ? rewrite_db(db) : (char*) "");
+  return (db ? rewrite_db(db) : "");
 }
 
 /*
@@ -1303,8 +1305,8 @@ file '%s', errno %d)", fname, my_errno);
     if (init_io_cache(&rli->info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
 		      MYF(MY_WME))) 
     {
-      sql_print_error("Failed to create a cache on relay log info file (\
-file '%s')", fname);
+      sql_print_error("Failed to create a cache on relay log info file '%s'",
+		      fname);
       msg= current_thd->net.last_error;
       goto err;
     }
@@ -1313,8 +1315,7 @@ file '%s')", fname);
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
     {
-      sql_print_error("Failed to open the relay log (relay_log_name='FIRST', \
-relay_log_pos=4)");
+      sql_print_error("Failed to open the relay log 'FIRST' (relay_log_pos 4");
       goto err;
     }
     rli->master_log_name[0]= 0;
@@ -1330,15 +1331,16 @@ relay_log_pos=4)");
       int error=0;
       if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0)
       {
-        sql_print_error("Failed to open the existing relay log info file (\
-file '%s', errno %d)", fname, my_errno);
+        sql_print_error("\
+Failed to open the existing relay log info file '%s' (errno %d)",
+			fname, my_errno);
         error= 1;
       }
       else if (init_io_cache(&rli->info_file, info_fd,
                              IO_SIZE*2, READ_CACHE, 0L, 0, MYF(MY_WME)))
       {
-        sql_print_error("Failed to create a cache on relay log info file (\
-file '%s')", fname);
+        sql_print_error("Failed to create a cache on relay log info file '%s'",
+			fname);
         error= 1;
       }
       if (error)
@@ -1377,8 +1379,8 @@ file '%s')", fname);
 			   &msg))
     {
       char llbuf[22];
-      sql_print_error("Failed to open the relay log (relay_log_name='%s', \
-relay_log_pos=%s)", rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
+      sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s)",
+		      rli->relay_log_name, llstr(rli->relay_log_pos, llbuf));
       goto err;
     }
   }
