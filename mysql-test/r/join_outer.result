@@ -684,3 +684,23 @@ t1	ALL	NULL	NULL	NULL	NULL	3
 t2	ALL	NULL	NULL	NULL	NULL	2	
 t3	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1, t2, t3;
+create table t1 (
+a int(11),
+b char(10),
+key (a)
+);
+insert into t1 (a) values (1),(2),(3),(4);
+create table t2 (a int);
+select * from t1 left join t2 on t1.a=t2.a where not (t2.a <=> t1.a);
+a	b	a
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+select * from t1 left join t2 on t1.a=t2.a having not (t2.a <=> t1.a);
+a	b	a
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+drop table t1,t2;
