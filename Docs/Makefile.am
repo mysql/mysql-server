@@ -22,7 +22,7 @@ targets =		manual.txt mysql.info manual.html
 
 BUILT_SOURCES =		$(targets) manual_toc.html include.texi
 EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
-			INSTALL-BINARY reservedwords.texi 
+			INSTALL-BINARY reservedwords.texi internals.texi
 
 all:			$(targets) txt_files
 

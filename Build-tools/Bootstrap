@@ -276,7 +276,7 @@ unless ($opt_skip_manual)
 {
 	$msg= "Adding manual.texi";
 	&logger($msg);
-	$command= "install -m 644 $opt_docdir/Docs/{manual,reservedwords}.texi";
+	$command= "install -m 644 $opt_docdir/Docs/{internals,manual,reservedwords}.texi";
 	$command.= " $target_dir/Docs/";
 	&run_command($command, "Could not update the manual in $target_dir/Docs/!");
 }
