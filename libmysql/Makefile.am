@@ -20,6 +20,8 @@
 target = libmysqlclient.la
 target_defs = -DUNDEF_THREADS_HACK
 LIBS   = @CLIENT_LIBS@
+INCLUDES =	-I$(srcdir)/../include -I../include \
+		-I$(srcdir)/.. -I$(top_srcdir) -I..
 
 include $(srcdir)/Makefile.shared
 

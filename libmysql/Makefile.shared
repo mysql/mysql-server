@@ -20,8 +20,6 @@
 MYSQLDATAdir =			$(localstatedir)
 MYSQLSHAREdir =			$(pkgdatadir)
 MYSQLBASEdir=			$(prefix)
-INCLUDES =			-I$(srcdir)/../include -I../include \
-				-I$(srcdir)/.. -I$(top_srcdir) -I..
 ## We'll use CLIENT_EXTRA_LDFLAGS for threaded and non-threaded
 ## until someone complains that they need separate options.
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(target)

@@ -15,11 +15,14 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-# This file is public domain and comes with NO WARRANTY of any kind
+
 
 target = libmysqlclient_r.la
 target_defs =
 ## LIBS = @LIBS@
+
+INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \
+		-I$(srcdir)/.. -I$(top_srcdir) -I..
 
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared
