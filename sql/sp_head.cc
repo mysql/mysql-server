@@ -424,10 +424,10 @@ sp_head::~sp_head()
 void
 sp_head::destroy()
 {
-  DBUG_ENTER("sp_head::destroy");
-  DBUG_PRINT("info", ("name: %s", m_name.str));
   sp_instr *i;
   LEX *lex;
+  DBUG_ENTER("sp_head::destroy");
+  DBUG_PRINT("info", ("name: %s", m_name.str));
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
