@@ -3217,7 +3217,7 @@ it should give its customers at least read access to the source of
 the @strong{MySQL} installation so that its customer can verify that
 it is patched correctly.
 
-@cindexweb server, running
+@cindex web server, running
 @cindex running, a web server
 @node Web server,  , ISP, Licensing examples
 @subsection Running a Web Server Using @strong{MySQL}
@@ -5008,7 +5008,7 @@ and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
 @cindex HP-UX, binary distribution
-@cindexbinary distribution, on HP-UX
+@cindex binary distribution, on HP-UX
 @node Binary notes-HP-UX,  , Binary notes-Linux, Binary install system issues
 @subsubsection HP-UX Notes for Binary Distributions
 
@@ -12646,7 +12646,7 @@ or export formats (@code{LOAD DATA INFILE}, @code{SELECT ... INTO OUTFILE}).
 Database, table, index, column, and alias names all follow the same rules in
 @strong{MySQL}.
 
-@tindex, identifiers, quoting
+@tindex identifiers, quoting
 @tindex quoting of identifiers
 @tindex `
 @tindex "
@@ -25787,7 +25787,7 @@ format table and it is possible to use a smaller static format table that
 can be used to find the relevant rows when scanning the table.
 @end itemize
 
-@cindexindexes, uses for
+@cindex indexes, uses for
 @node MySQL indexes, Query Speed, Data size, Performance
 @section How @strong{MySQL} uses indexes
 
