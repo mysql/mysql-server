@@ -866,7 +866,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   index_name= get_index_name(active_index);
   if (!(op= trans->getNdbIndexScanOperation(index_name, m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0,parallelism)))
+  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0, 
+			       parallelism))) //, sorted))) // Bug
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
 
@@ -1173,8 +1174,30 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   /* Check for update of primary key and return error */  
   if ((table->primary_key != MAX_KEY) &&
       (key_cmp(table->primary_key, old_data, new_data)))
-    DBUG_RETURN(HA_ERR_UNSUPPORTED);
-  
+  {
+    DBUG_PRINT("info", ("primary key update, doing insert + delete"));
+    int insert_res = write_row(new_data);
+    if (!insert_res)
+    {
+      DBUG_PRINT("info", ("delete succeded"));
+      int delete_res = delete_row(old_data);
+      if (!delete_res)
+      {
+	DBUG_PRINT("info", ("insert + delete succeeded"));
+	DBUG_RETURN(0);
+      }
+      else
+      {
+	DBUG_PRINT("info", ("delete failed"));
+	DBUG_RETURN(delete_row(new_data));
+      }
+    } 
+    else
+    {
+      DBUG_PRINT("info", ("insert failed"));
+      DBUG_RETURN(insert_res);
+    }
+  }
   if (cursor)
   {
     /*
@@ -2600,10 +2623,12 @@ int ndbcluster_drop_database(const char *path)
 
 longlong ha_ndbcluster::get_auto_increment()
 {  
+  DBUG_ENTER("get_auto_increment");
+  DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
   int cache_size = rows_to_insert ? rows_to_insert : 32;
   Uint64 auto_value= 
     m_ndb->getAutoIncrementValue(m_tabname, cache_size);
-  return (longlong)auto_value;
+  DBUG_RETURN((longlong)auto_value);
 }
 
 
