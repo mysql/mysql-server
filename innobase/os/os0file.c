@@ -291,6 +291,15 @@ os_file_get_last_error(void)
 		return(OS_FILE_NOT_FOUND);
 	} else if (err == EEXIST) {
 		return(OS_FILE_ALREADY_EXISTS);
+#ifdef UNIV_AIX
+	} else if (err == 0) {
+		fprintf(stderr,
+"InnoDB: errno is 0. Since AIX 5.1 after security patch ML7 erroneously\n"
+"InnoDB: sets errno to 0 when it should be EEXIST, we assume that the real\n"
+"InnoDB: error here was EEXIST.\n");
+ 
+		return(OS_FILE_ALREADY_EXISTS);
+#endif
 	} else {
 		return(100 + err);
 	}
