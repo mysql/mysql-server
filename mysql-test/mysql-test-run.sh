@@ -1506,12 +1506,6 @@ run_testcase ()
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi
- if [ -f "$TESTDIR/$tname.disabled" ]
- then
-   comment=`$CAT $TESTDIR/$tname.disabled`;
-   disable_test $tname "$comment"
-   return
- fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1538,6 +1532,20 @@ run_testcase ()
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ; then
    skip_test $tname
+   return
+ fi
+
+ if [ -f "$TESTDIR/$tname.disabled" ]
+ then
+   comment=`$CAT $TESTDIR/$tname.disabled`;
+   disable_test $tname "$comment"
+   return
+ fi
+ comment=`$GREP "^$tname *: *" $TESTDIR/disabled.def`;
+ if [ -n "$comment" ]
+ then
+   comment=`echo $comment | sed 's/^[^:]*: *//'`
+   disable_test $tname "$comment"
    return
  fi
 
