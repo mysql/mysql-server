@@ -537,6 +537,7 @@ static void print_result()
   my_bool found_error=0;
 
   res = mysql_use_result(sock);
+
   prev[0] = '\0';
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
@@ -565,7 +566,7 @@ static void print_result()
     putchar('\n');
   }
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
-      (!opt_fast || strcmp(row[3],"OK")))
+      !opt_fast)
     insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }
