@@ -412,6 +412,7 @@ protected:
 };
 
 extern Query_cache query_cache;
+extern TYPELIB ndb_query_cache_type_typelib;
 extern TYPELIB query_cache_type_typelib;
 void query_cache_end_of_result(THD *thd);
 void query_cache_abort(NET *net);
