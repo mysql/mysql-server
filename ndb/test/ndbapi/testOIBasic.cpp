@@ -40,18 +40,20 @@ struct Opt {
   bool m_core;
   const char* m_csname;
   CHARSET_INFO* m_cs;
+  int m_die;
   bool m_dups;
   NdbDictionary::Object::FragmentType m_fragtype;
   unsigned m_subsubloop;
   const char* m_index;
   unsigned m_loop;
-  bool m_nologging;
   bool m_msglock;
+  bool m_nologging;
+  bool m_noverify;
   unsigned m_pctnull;
   unsigned m_rows;
   unsigned m_samples;
-  unsigned m_scanrd;
-  unsigned m_scanex;
+  unsigned m_scanbat;
+  unsigned m_scanpar;
   unsigned m_seed;
   unsigned m_subloop;
   const char* m_table;
@@ -64,22 +66,24 @@ struct Opt {
     m_core(false),
     m_csname("latin1_bin"),
     m_cs(0),
+    m_die(0),
     m_dups(false),
     m_fragtype(NdbDictionary::Object::FragUndefined),
     m_subsubloop(4),
     m_index(0),
     m_loop(1),
-    m_nologging(false),
     m_msglock(true),
+    m_nologging(false),
+    m_noverify(false),
     m_pctnull(10),
     m_rows(1000),
     m_samples(0),
-    m_scanrd(240),
-    m_scanex(240),
+    m_scanbat(0),
+    m_scanpar(0),
     m_seed(0),
     m_subloop(4),
     m_table(0),
-    m_threads(6),       // table + 5 indexes
+    m_threads(10),
     m_v(1) {
   }
 };
@@ -100,16 +104,18 @@ printhelp()
     << "  -case abc     only given test cases (letters a-z)" << endl
     << "  -core         core dump on error [" << d.m_core << "]" << endl
     << "  -csname S     charset (collation) of non-pk char column [" << d.m_csname << "]" << endl
+    << "  -die nnn      exit immediately on NDB error code nnn" << endl
     << "  -dups         allow duplicate tuples from index scan [" << d.m_dups << "]" << endl
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 1-9)" << endl
     << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
+    << "  -noverify     skip index verifications" << endl
     << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
-    << "  -scanrd N     scan read parallelism [" << d.m_scanrd << "]" << endl
-    << "  -scanex N     scan exclusive parallelism [" << d.m_scanex << "]" << endl
+    << "  -scanbat N    scan batch per fragment (ignored by ndb api) [" << d.m_scanbat << "]" << endl
+    << "  -scanpar N    scan parallelism [" << d.m_scanpar << "]" << endl
     << "  -seed N       srandom seed 0=loop number[" << d.m_seed << "]" << endl
     << "  -subloop N    subtest loop count [" << d.m_subloop << "]" << endl
     << "  -table xyz    only given table numbers (digits 1-9)" << endl
@@ -695,8 +701,8 @@ struct Con {
   int setBound(int num, int type, const void* value);
   int execute(ExecType t);
   int execute(ExecType t, bool& deadlock);
-  int openScanRead(unsigned parallelism);
-  int openScanExclusive(unsigned parallelism);
+  int openScanRead(unsigned scanbat, unsigned scanpar);
+  int openScanExclusive(unsigned scanbat, unsigned scanpar);
   int executeScan();
   int nextScanResult(bool fetchAllowed);
   int nextScanResult(bool fetchAllowed, bool& deadlock);
@@ -822,18 +828,20 @@ Con::execute(ExecType t, bool& deadlock)
 }
 
 int
-Con::openScanRead(unsigned parallelism)
+Con::openScanRead(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultset = m_scanop->readTuples(parallelism)) != 0, *this);
+  NdbOperation::LockMode lm = NdbOperation::LM_Read;
+  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
   return 0;
 }
 
 int
-Con::openScanExclusive(unsigned parallelism)
+Con::openScanExclusive(unsigned scanbat, unsigned scanpar)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON((m_resultset = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
+  NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
+  CHKCON((m_resultset = m_scanop->readTuples(lm, scanbat, scanpar)) != 0, *this);
   return 0;
 }
 
@@ -900,26 +908,36 @@ Con::printerror(NdbOut& out)
   m_errtype = ErrOther;
   unsigned any = 0;
   int code;
+  int die = 0;
   if (m_ndb) {
     if ((code = m_ndb->getNdbError().code) != 0) {
       LL0(++any << " ndb: error " << m_ndb->getNdbError());
+      die += (code == g_opt.m_die);
     }
     if (m_dic && (code = m_dic->getNdbError().code) != 0) {
       LL0(++any << " dic: error " << m_dic->getNdbError());
+      die += (code == g_opt.m_die);
     }
     if (m_tx) {
       if ((code = m_tx->getNdbError().code) != 0) {
         LL0(++any << " con: error " << m_tx->getNdbError());
+        die += (code == g_opt.m_die);
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499)
           m_errtype = ErrDeadlock;
       }
       if (m_op && m_op->getNdbError().code != 0) {
         LL0(++any << " op : error " << m_op->getNdbError());
+        die += (code == g_opt.m_die);
       }
     }
   }
   if (! any) {
     LL0("failed but no NDB error code");
+  }
+  if (die) {
+    if (g_opt.m_core)
+      abort();
+    exit(1);
   }
 }
 
@@ -2290,7 +2308,7 @@ scanreadtable(Par par)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   while (1) {
@@ -2318,7 +2336,7 @@ scanreadtablefast(Par par, unsigned countcheck)
   LL3("scanfast " << tab.m_name);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   // get 1st column
   NdbRecAttr* rec;
   CHK(con.getValue((Uint32)0, rec) == 0);
@@ -2350,7 +2368,7 @@ scanreadindex(Par par, const ITab& itab, const BSet& bset)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -2381,7 +2399,7 @@ scanreadindexfast(Par par, const ITab& itab, const BSet& bset, unsigned countche
   LL4(bset);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanRead(par.m_scanrd) == 0);
+  CHK(con.openScanRead(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   // get 1st column
   NdbRecAttr* rec;
@@ -2500,7 +2518,7 @@ scanupdatetable(Par par)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
-  CHK(con.openScanExclusive(par.m_scanex) == 0);
+  CHK(con.openScanExclusive(par.m_scanbat, par.m_scanpar) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
   unsigned count = 0;
@@ -2579,7 +2597,7 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
   Set set2(tab, set.m_rows);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(itab, tab) == 0);
-  CHK(con.openScanExclusive(par.m_scanex) == 0);
+  CHK(con.openScanExclusive(par.m_scanbat, par.m_scanpar) == 0);
   CHK(bset.setbnd(par) == 0);
   set2.getval(par);
   CHK(con.executeScan() == 0);
@@ -2685,6 +2703,8 @@ scanupdateall(Par par)
 static int
 readverify(Par par)
 {
+  if (par.m_noverify)
+    return 0;
   par.m_verify = true;
   CHK(pkread(par) == 0);
   CHK(scanreadall(par) == 0);
@@ -2694,6 +2714,8 @@ readverify(Par par)
 static int
 readverifyfull(Par par)
 {
+  if (par.m_noverify)
+    return 0;
   par.m_verify = true;
   if (par.m_no == 0)
     CHK(scanreadtable(par) == 0);
@@ -3342,6 +3364,12 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         continue;
       }
     }
+    if (strcmp(arg, "-die") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_die = atoi(argv[0]);
+        continue;
+      }
+    }
     if (strcmp(arg, "-dups") == 0) {
       g_opt.m_dups = true;
       continue;
@@ -3382,6 +3410,10 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
       g_opt.m_nologging = true;
       continue;
     }
+    if (strcmp(arg, "-noverify") == 0) {
+      g_opt.m_noverify = true;
+      continue;
+    }
     if (strcmp(arg, "-pctnull") == 0) {
       if (++argv, --argc > 0) {
         g_opt.m_pctnull = atoi(argv[0]);
@@ -3400,15 +3432,15 @@ NDB_COMMAND(testOIBasic, "testOIBasic", "testOIBasic", "testOIBasic", 65535)
         continue;
       }
     }
-    if (strcmp(arg, "-scanrd") == 0) {
+    if (strcmp(arg, "-scanbat") == 0) {
       if (++argv, --argc > 0) {
-        g_opt.m_scanrd = atoi(argv[0]);
+        g_opt.m_scanbat = atoi(argv[0]);
         continue;
       }
     }
-    if (strcmp(arg, "-scanex") == 0) {
+    if (strcmp(arg, "-scanpar") == 0) {
       if (++argv, --argc > 0) {
-        g_opt.m_scanex = atoi(argv[0]);
+        g_opt.m_scanpar = atoi(argv[0]);
         continue;
       }
     }
