@@ -57,6 +57,10 @@ while test $# -gt 0; do
      flags_ndb="$flags_ndb -i"
      initial_ndb=1
      ;;
+    --debug*)
+     f=`echo "$1" | sed -e "s;--debug=;;"`
+     flags_ndb="$flags_ndb $f"
+     ;;
     --status)
      status_ndb=1
      ;;
@@ -180,15 +184,6 @@ status_ndbcluster() {
 
 stop_default_ndbcluster() {
 
-#if [ ! -f $pidfile ] ; then
-#  exit 0
-#fi
-
-#if [ ! -f $cfgfile ] ; then
-#  echo "$cfgfile missing"
-#  exit 1
-#fi
-
 # Start management client
 
 exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
@@ -196,10 +191,29 @@ exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 echo "shutdown" | $exec_mgmtclient 2>&1 | cat > /dev/null
 
 if [ -f "$fs_ndb/$pidfile" ] ; then
-  kill -9 `cat "$fs_ndb/$pidfile"` 2> /dev/null
+  kill_pids=`cat "$fs_ndb/$pidfile"`
+  attempt=0
+  while [ $attempt -lt 10 ] ; do
+    new_kill_pid=""
+    for p in $kill_pids ; do
+      kill -0 $p 2> /dev/null
+      if [ $? -eq 0 ] ; then
+        new_kill_pid="$p $new_kill_pid"
+      fi
+    done
+    kill_pids=$new_kill_pid
+    if [ "$kill_pids" == "" ] ; then
+      break
+    fi
+    sleep 1
+    attempt=`expr $attempt + 1`
+  done
+  if [ "$kill_pids" != "" ] ; then
+    echo "Failed to shutdown ndbcluster, executing kill -9 "$kill_pids
+    kill -9 $kill_pids
+  fi
   rm "$fs_ndb/$pidfile"
 fi
-
 }
 
 if [ $status_ndb ] ; then
