@@ -2818,7 +2818,16 @@ row_search_for_mysql(
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
 	    && dtuple_get_n_fields(search_tuple)
-				== dict_index_get_n_unique(index)) {
+					== dict_index_get_n_unique(index)
+	    && (index->type & DICT_CLUSTERED
+		 || !dtuple_contains_null(search_tuple))) {
+
+		/* Note above that a UNIQUE secondary index can contain many
+		rows with the same key value if one of the columns is the SQL
+		null. A clustered index under MySQL can never contain null
+		columns because we demand that all the columns in primary key
+		are non-null. */
+
 		unique_search = TRUE;
 
 		/* Even if the condition is unique, MySQL seems to try to
