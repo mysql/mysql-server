@@ -1093,7 +1093,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
     number of fields in table, 0 if error
 */
 
-static uint getTableStructure(char *table, char* db)
+static uint getTableStructure(char *table, char *db)
 {
   MYSQL_RES  *tableRes;
   MYSQL_ROW  row;
@@ -1396,10 +1396,9 @@ static uint getTableStructure(char *table, char* db)
       /* Get MySQL specific create options */
       if (create_options)
       {
-	char show_name_buff[FN_REFLEN];
+	char show_name_buff[NAME_LEN*2+2+24];
 
 	/* Check memory for quote_for_like() */
-	DBUG_ASSERT(2*sizeof(table) < sizeof(show_name_buff));
         my_snprintf(buff, sizeof(buff), "show table status like %s",
 		    quote_for_like(table, show_name_buff));
 
