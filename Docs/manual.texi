@@ -50364,6 +50364,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug with wildcarded fields in select list, which led to the wrong 
+number of elements in a list containing all fields
+@item
 Fixed bug with the @code{--slow-log} when logging an administrator command
 (like @code{FLUSH TABLES}).
 @item
