@@ -5360,16 +5360,25 @@ opt_option:
 	| OPTION {};
 
 option_value_list:
-	option_type option_value
-	| option_value_list ',' option_type option_value;
+        option_value_ext
+        | option_value_list ',' option_value_ext;
 
-option_type:
-	/* empty */	{}
+option_value_ext:
+        option_type_ext sys_option_value {}
+        | option_type option_value {}
+        ;
+
+option_type_ext:
+        option_type     {}
 	| GLOBAL_SYM	{ Lex->option_type= OPT_GLOBAL; }
 	| LOCAL_SYM	{ Lex->option_type= OPT_SESSION; }
 	| SESSION_SYM	{ Lex->option_type= OPT_SESSION; }
-	| ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
 	;
+
+option_type:
+        /* empty */	{}
+        | ONE_SHOT_SYM	{ Lex->option_type= OPT_SESSION; Lex->one_shot_set= 1; }
+        ;
 
 opt_var_type:
 	/* empty */	{ $$=OPT_SESSION; }
@@ -5385,34 +5394,37 @@ opt_var_ident_type:
 	| SESSION_SYM '.'	{ $$=OPT_SESSION; }
 	;
 
+sys_option_value:
+        internal_variable_name equal set_expr_or_default
+        {
+          LEX *lex=Lex;
+          lex->var_list.push_back(new set_var(lex->option_type, $1.var,
+                                  &$1.base_name, $3));
+        }
+        | TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
+        {
+          LEX *lex=Lex;
+          LEX_STRING tmp;
+          tmp.str=0;
+          tmp.length=0;
+          lex->var_list.push_back(new set_var(lex->option_type,
+                                              find_sys_var("tx_isolation"),
+                                              &tmp,
+                                              new Item_int((int32) $4)));
+        }
+        ;
+
 option_value:
 	'@' ident_or_text equal expr
 	{
 	  Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	}
-	| internal_variable_name equal set_expr_or_default
-	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type, $1.var,
-						&$1.base_name, $3));
-	  }
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
-	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
-						&$4.base_name, $6));
-	  }
-	| TRANSACTION_SYM ISOLATION LEVEL_SYM isolation_types
-	  {
-	    LEX *lex=Lex;
-	    LEX_STRING tmp;
-	    tmp.str=0;
-	    tmp.length=0;
-	    lex->var_list.push_back(new set_var(lex->option_type,
-						find_sys_var("tx_isolation"),
-						&tmp,
-						new Item_int((int32) $4)));
-	  }
+	{
+          LEX *lex=Lex;
+          lex->var_list.push_back(new set_var((enum_var_type) $3, $4.var,
+                                  &$4.base_name, $6));
+        }
 	| charset old_or_new_charset_name_or_default
 	{
 	  THD *thd= YYTHD;
