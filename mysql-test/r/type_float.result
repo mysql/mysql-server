@@ -57,7 +57,7 @@ de2	decimal(6,0)	YES		NULL		select,insert,update,references
 de3	decimal(5,2)	YES		NULL		select,insert,update,references
 n	decimal(10,0)	YES		NULL		select,insert,update,references
 n2	decimal(8,0)	YES		NULL		select,insert,update,references
-n3	decimal(8,6)	YES		NULL		select,insert,update,references
+n3	decimal(7,6)	YES		NULL		select,insert,update,references
 a
 -0.010
 -0.002
