@@ -97,3 +97,12 @@ explain select * from t1 where v like 'This is a test' order by v;
 explain select * from t1 where v='This is a test' order by v;
 explain select * from t1 where v like 'S%' order by v;
 drop table t1;
+
+#
+# bug#9339 - meaningless Field_varstring::get_key_image
+#
+create table t1 (pkcol varchar(16), othercol varchar(16), primary key (pkcol));
+insert into t1 values ('test', 'something');
+update t1 set othercol='somethingelse' where pkcol='test';
+select * from t1;
+drop table t1;

@@ -420,6 +420,7 @@ SHOW_COMP_OPTION have_federated_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_blackhole_db;
 
 /* Thread specific variables */
 
@@ -3134,8 +3135,17 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #endif
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
-  /* init_slave() must be called after the thread keys are created */
-  init_slave();
+  /*
+    init_slave() must be called after the thread keys are created.
+    Some parts of the code (e.g. SHOW STATUS LIKE 'slave_running' and other
+    places) assume that active_mi != 0, so let's fail if it's 0 (out of
+    memory); a message has already been printed.
+  */
+  if (init_slave() && !active_mi)
+  {
+    end_thr_alarm(1);				// Don't allow alarms
+    unireg_abort(1);
+  }
 
   if (opt_bootstrap)
   {
@@ -3892,9 +3902,18 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   char *suffix_pos;
   char connect_number_char[22], *p;
   const char *errmsg= 0;
+  SECURITY_ATTRIBUTES *sa_event= 0, *sa_mapping= 0;
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
+
+  if (my_security_attr_create(&sa_event, &errmsg,
+                              GENERIC_ALL, SYNCHRONIZE | EVENT_MODIFY_STATE))
+    goto error;
+
+  if (my_security_attr_create(&sa_mapping, &errmsg,
+                             GENERIC_ALL, FILE_MAP_READ | FILE_MAP_WRITE))
+    goto error;
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -3905,22 +3924,22 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   */
   suffix_pos= strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((smem_event_connect_request= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+  if ((smem_event_connect_request= CreateEvent(sa_event,
+                                               FALSE, FALSE, tmp)) == 0)
   {
     errmsg= "Could not create request event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if ((event_connect_answer= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+  if ((event_connect_answer= CreateEvent(sa_event, FALSE, FALSE, tmp)) == 0)
   {
     errmsg="Could not create answer event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_DATA");
-  if ((handle_connect_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
-						   PAGE_READWRITE,
-						   0,sizeof(connect_number),
-						   tmp)) == 0)
+  if ((handle_connect_file_map=
+       CreateFileMapping(INVALID_HANDLE_VALUE, sa_mapping,
+                         PAGE_READWRITE, 0, sizeof(connect_number), tmp)) == 0)
   {
     errmsg= "Could not create file mapping";
     goto error;
@@ -3965,10 +3984,9 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     suffix_pos= strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
 			 "_",NullS);
     strmov(suffix_pos, "DATA");
-    if ((handle_client_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
-						    PAGE_READWRITE,0,
-						    smem_buffer_length,
-						    tmp)) == 0)
+    if ((handle_client_file_map=
+         CreateFileMapping(INVALID_HANDLE_VALUE, sa_mapping,
+                           PAGE_READWRITE, 0, smem_buffer_length, tmp)) == 0)
     {
       errmsg= "Could not create file mapping";
       goto errorconn;
@@ -3981,31 +3999,33 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
+    if ((event_client_wrote= CreateEvent(sa_event, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client write event";
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
+    if ((event_client_read= CreateEvent(sa_event, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
+    if ((event_server_read= CreateEvent(sa_event, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
+    if ((event_server_wrote= CreateEvent(sa_event,
+                                         FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server write event";
       goto errorconn;
     }
     strmov(suffix_pos, "CONNECTION_CLOSED");
-    if ((event_conn_closed= CreateEvent(0, TRUE , FALSE, tmp)) == 0)
+    if ((event_conn_closed= CreateEvent(sa_event,
+                                        TRUE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create closed connection event";
       goto errorconn;
@@ -4055,6 +4075,8 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
+    my_security_attr_free(sa_event);
+    my_security_attr_free(sa_mapping);
     if (handle_client_file_map) 
       CloseHandle(handle_client_file_map);
     if (handle_client_map)
@@ -4080,6 +4102,8 @@ error:
     strxmov(buff, "Can't create shared memory service: ", errmsg, ".", NullS);
     sql_perror(buff);
   }
+  my_security_attr_free(sa_event);
+  my_security_attr_free(sa_mapping);
   if (handle_connect_map)	UnmapViewOfFile(handle_connect_map);
   if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
   if (event_connect_answer)	CloseHandle(event_connect_answer);
@@ -5225,7 +5249,7 @@ The minimum value for this variable is 4096.",
    "Max number of errors/warnings to store for a statement.",
    (gptr*) &global_system_variables.max_error_count,
    (gptr*) &max_system_variables.max_error_count,
-   0, GET_ULONG, REQUIRED_ARG, DEFAULT_ERROR_COUNT, 1, 65535, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, DEFAULT_ERROR_COUNT, 0, 65535, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
    (gptr*) &global_system_variables.max_heap_table_size,
@@ -5689,7 +5713,8 @@ struct show_var_st status_vars[]= {
   {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONG_STATUS},
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
-  {"Slave_running",            (char*) 0, SHOW_SLAVE_RUNNING},
+  {"Slave_running",            (char*) 0,                       SHOW_SLAVE_RUNNING},
+  {"Slave_retried_transactions",(char*) 0,                      SHOW_SLAVE_RETRIED_TRANS},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
   {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},
@@ -5953,6 +5978,11 @@ static void mysql_init_variables(void)
   have_archive_db= SHOW_OPTION_YES;
 #else
   have_archive_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  have_blackhole_db= SHOW_OPTION_YES;
+#else
+  have_blackhole_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_FEDERATED_DB
   have_federated_db= SHOW_OPTION_YES;

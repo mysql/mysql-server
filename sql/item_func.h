@@ -704,7 +704,8 @@ public:
   Item_func_coercibility(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "coercibility"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length=10; maybe_null= 0; }
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_locate :public Item_int_func
