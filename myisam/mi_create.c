@@ -404,7 +404,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     length+=key_length;
     keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
-        length > MI_MAX_KEY_LENGTH)
+        length >= MI_MAX_KEY_BUFF)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;

@@ -78,7 +78,7 @@ extern ulong collstat;
 /* Mysterious, but w/o (double) GWS_IDF performs better :-o */
 #define GWS_IDF		   log(aio->info->state->records/doc_cnt)
 #define GWS_IDF1	   log((double)aio->info->state->records/doc_cnt)
-#define GWS_PROB log(((double)(aio->info->state->records-doc_cnt))/doc_cnt)
+#define GWS_PROB ((aio->info->state->records > doc_cnt) ? log(((double)(aio->info->state->records-doc_cnt))/doc_cnt) : 0 )
 #define GWS_FREQ					(1.0/doc_cnt)
 #define GWS_SQUARED pow(log((double)aio->info->state->records/doc_cnt),2)
 #define GWS_CUBIC   pow(log((double)aio->info->state->records/doc_cnt),3)

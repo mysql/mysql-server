@@ -190,6 +190,7 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
 {
   byte *doc=*start;
   int mwc;
+  DBUG_ENTER("ft_simple_get_word");
 
   while (doc<end)
   {
@@ -211,32 +212,35 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
         !is_stopword(word->pos, word->len))
     {
       *start=doc;
-      return 1;
+      DBUG_RETURN(1);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
 {
+  DBUG_ENTER("ft_parse_init");
   if (!is_tree_inited(wtree))
     init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+  DBUG_VOID_RETURN;
 }
 
 int ft_parse(TREE *wtree, byte *doc, int doclen)
 {
   byte   *end=doc+doclen;
   FT_WORD w;
+  DBUG_ENTER("ft_parse");
 
   while (ft_simple_get_word(&doc,end,&w))
   {
     if (!tree_insert(wtree, &w, 0, wtree->custom_arg))
       goto err;
   }
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   delete_tree(wtree);
-  return 1;
+  DBUG_RETURN(1);
 }
 

@@ -110,7 +110,6 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
     DBUG_RETURN(0);
   prepared= 1;
   union_result=0;
-  describe=(first_select()->options & SELECT_DESCRIBE) ? 1 : 0;
   res= 0;
   found_rows_for_union= false;
   TMP_TABLE_PARAM tmp_table_param;
@@ -122,30 +121,11 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   if (((void*)(global_parameters)) == ((void*)this))
   {
     found_rows_for_union= first_select()->options & OPTION_FOUND_ROWS && 
-      !describe && global_parameters->select_limit;
+      global_parameters->select_limit;
     if (found_rows_for_union)
       first_select()->options ^=  OPTION_FOUND_ROWS;
   }
   item_list.empty();
-  if (describe)
-  {
-    Item *item;
-    item_list.push_back(new Item_empty_string("table",NAME_LEN));
-    item_list.push_back(new Item_empty_string("type",10));
-    item_list.push_back(item=new Item_empty_string("possible_keys",
-						  NAME_LEN*MAX_KEY));
-    item->maybe_null=1;
-    item_list.push_back(item=new Item_empty_string("key",NAME_LEN));
-    item->maybe_null=1;
-    item_list.push_back(item=new Item_int("key_len",0,3));
-    item->maybe_null=1;
-    item_list.push_back(item=new Item_empty_string("ref",
-						    NAME_LEN*MAX_REF_PARTS));
-    item->maybe_null=1;
-    item_list.push_back(new Item_real("rows",0.0,0,10));
-    item_list.push_back(new Item_empty_string("Extra",255));
-  }
-  else
   {
     Item *item;
     List_iterator<Item> it(first_select()->item_list);
@@ -162,8 +142,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
   tmp_table_param.field_count=item_list.elements;
   if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
-				(ORDER*) 0, !describe & 
-				!thd->lex.union_option,
+				(ORDER*) 0, !union_option,
 				1, 0,
 				(first_select()->options | thd->options |
 				 TMP_TABLE_ALL_COLUMNS),
@@ -179,7 +158,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   if (!(union_result=new select_union(table)))
     goto err;
 
-  union_result->save_time_stamp=!describe;
+  union_result->save_time_stamp=1;
   union_result->tmp_table_param=&tmp_table_param;
 
   // prepare selects
@@ -187,8 +166,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   for (sl= first_select(); sl; sl= sl->next_select())
   {
     JOIN *join= new JOIN(thd, sl->item_list, 
-			 sl->options | thd->options | SELECT_NO_UNLOCK | 
-			 ((describe) ? SELECT_DESCRIBE : 0),
+			 sl->options | thd->options | SELECT_NO_UNLOCK,
 			 union_result);
     joins.push_back(new JOIN_P(join));
     thd->lex.select=sl;
@@ -220,11 +198,12 @@ err:
 int st_select_lex_unit::exec()
 {
   DBUG_ENTER("st_select_lex_unit::exec");
+  SELECT_LEX *lex_select_save= thd->lex.select;
+
   if(depended || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
       item->assigned(0); // We will reinit & rexecute unit
-    SELECT_LEX *lex_select_save= thd->lex.select;
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       thd->lex.select=sl;
@@ -236,27 +215,28 @@ int st_select_lex_unit::exec()
 	sl->options&= ~OPTION_FOUND_ROWS;
 
       if (!optimized)
-	sl->join->optimize();
+	res= sl->join->optimize();
       else
-	sl->join->reinit();
+	res= sl->join->reinit();
 
-      sl->join->exec();
-      res= sl->join->error;
-
+      if (!res)
+      {
+	sl->join->exec();
+	res= sl->join->error;
+      }
       if (res)
       {
 	thd->lex.select= lex_select_save;
 	DBUG_RETURN(res);
       }
     }
-    thd->lex.select= lex_select_save;
     optimized= 1;
   }
 
   if (union_result->flush())
   {
-    res= 1;					// Error is already sent
-    DBUG_RETURN(res);
+    thd->lex.select= lex_select_save;
+    DBUG_RETURN(1);
   }
 
   /* Send result to 'result' */
@@ -289,12 +269,8 @@ int st_select_lex_unit::exec()
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	thd->options&= ~OPTION_FOUND_ROWS;
-      if (describe)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
       res= mysql_select(thd,&result_table_list,
 			item_list, NULL,
-			(describe) ? 
-			0: 
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
 			thd->options, result, this, first_select(), 1);
@@ -303,6 +279,7 @@ int st_select_lex_unit::exec()
     }
   }
   thd->lex.select_lex.ftfunc_list= &thd->lex.select_lex.ftfunc_list_alloc;
+  thd->lex.select= lex_select_save;
   DBUG_RETURN(res);
 }
 
