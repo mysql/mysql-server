@@ -169,8 +169,11 @@ static int lock_external(TABLE **tables,uint count)
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
 {
   DBUG_ENTER("mysql_unlock_tables");
-  thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
-  VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
+  if (sql_lock->lock_count)
+  {
+    thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
+    VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
+  }
   my_free((gptr) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -213,7 +216,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   if (i != found)
   {
     thr_multi_unlock(lock,i-found);
-    sql_lock->lock_count-=found;
+    sql_lock->lock_count= found;
   }
 
   /* Then to the same for the external locks */
@@ -232,7 +235,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   if (i != found)
   {
     VOID(unlock_external(thd,table,i-found));
-    sql_lock->table_count-=found;
+    sql_lock->table_count=found;
   }
   DBUG_VOID_RETURN;
 }

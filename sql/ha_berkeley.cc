@@ -1181,9 +1181,11 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
   DBUG_ENTER("remove_key");
   DBUG_PRINT("enter",("index: %d",keynr));
 
-  if (keynr == primary_key ||
-      ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
-       HA_NOSAME))
+  if (keynr == active_index && cursor)
+    error=cursor->c_del(cursor,0);
+  else if (keynr == primary_key ||
+	   ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
+	    HA_NOSAME))
   {						// Unique key
     dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
     error=key_file[keynr]->del(key_file[keynr], trans,
@@ -1312,7 +1314,10 @@ int ha_berkeley::index_init(uint keynr)
     an active cursor at this point
   */
   if (cursor)
+  {
+    DBUG_PRINT("note",("Closing active cursor"));
     cursor->c_close(cursor);
+  }
   active_index=keynr;
   if ((error=key_file[keynr]->cursor(key_file[keynr], transaction, &cursor,
 				     table->reginfo.lock_type >
@@ -1659,12 +1664,13 @@ int ha_berkeley::external_lock(THD *thd, int lock_type)
     if (!thd->transaction.bdb_lock_count++)
     {
       changed_rows=0;
+      transaction=0;				// Safety
       /* First table lock, start transaction */
       if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN |
 			   OPTION_TABLE_LOCK)) &&
 	  !thd->transaction.all.bdb_tid)
       {
-	DBUG_ASSERT(thd->transaction.stmt.bdb_tid != 0);
+	DBUG_ASSERT(thd->transaction.stmt.bdb_tid == 0);
 	/* We have to start a master transaction */
 	DBUG_PRINT("trans",("starting transaction all"));
 	if ((error=txn_begin(db_env, 0,
