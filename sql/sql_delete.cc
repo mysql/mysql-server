@@ -126,7 +126,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   SQL_SELECT	*select;
   READ_RECORD	info;
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool	        use_generate_table;
+  bool	        use_generate_table,using_transactions;
   DBUG_ENTER("mysql_delete");
 
   if (!table_list->db)
@@ -214,18 +214,20 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   (void) table->file->extra(HA_EXTRA_READCHECK);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);    
-  if (deleted)
+  using_transactions=table->file->has_transactions();
+  if (deleted && (error == 0 || !using_transactions))
   {
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      Query_log_event qinfo(thd, thd->query, using_transactions);
+      if (mysql_bin_log.write(&qinfo) && using_transactions)
+	error=1;
     }
-    if (!table->file->has_transactions())
+    if (!using_transactions)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (ha_autocommit_or_rollback(thd,error >= 0))
+  if (using_transactions && ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
   if (thd->lock)
   {

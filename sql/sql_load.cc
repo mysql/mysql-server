@@ -245,10 +245,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   
   if (!table->file->has_transactions())
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
-  if (!read_file_from_client)
+  if (!read_file_from_client && mysql_bin_log.is_open())
   {
     ex->skip_lines = save_skip_lines; 
-    Load_log_event qinfo(thd, ex, table->table_name, fields, handle_duplicates);
+    Load_log_event qinfo(thd, ex, table->table_name, fields, 
+			 handle_duplicates);
     mysql_bin_log.write(&qinfo);
   }
   DBUG_RETURN(0);

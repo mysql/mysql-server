@@ -198,3 +198,4 @@
 "La tabella '%-.64s' e' segnalata come rovinata e deve essere riparata",
 "La tabella '%-.64s' e' segnalata come rovinata e l'ultima ricostruzione (automatica?) e' fallita",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
+"Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',

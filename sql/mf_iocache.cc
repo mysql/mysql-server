@@ -121,7 +121,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   }
   /* end_of_file may be changed by user later */
   info->end_of_file= ((type == READ_NET || type == READ_FIFO ) ? 0
-		      : MY_FILEPOS_ERROR);
+		      : ~(my_off_t) 0);
   info->type=type;
   info->error=0;
   info->read_function=(type == READ_NET) ? _my_b_net_read : _my_b_read; /* net | file */
@@ -176,6 +176,8 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   DBUG_ENTER("reinit_io_cache");
 
   info->seek_not_done= test(info->file >= 0);	/* Seek not done */
+
+  /* If the whole file is in memory, avoid flushing to disk */
   if (! clear_cache &&
       seek_offset >= info->pos_in_file &&
       seek_offset <= info->pos_in_file +
@@ -186,8 +188,12 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       info->rc_end=info->rc_pos;
       info->end_of_file=my_b_tell(info);
     }
-    else if (info->type == READ_CACHE && type == WRITE_CACHE)
-      info->rc_end=info->buffer+info->buffer_length;
+    else if (type == WRITE_CACHE)
+    {
+      if (info->type == READ_CACHE)
+	info->rc_end=info->buffer+info->buffer_length;
+      info->end_of_file = ~(my_off_t) 0;
+    }
     info->rc_pos=info->rc_request_pos+(seek_offset-info->pos_in_file);
 #ifdef HAVE_AIOWAIT
     my_aiowait(&info->aio_result);		/* Wait for outstanding req */
@@ -195,11 +201,20 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   }
   else
   {
+    /*
+      If we change from WRITE_CACHE to READ_CACHE, assume that everything
+      after the current positions should be ignored
+    */
     if (info->type == WRITE_CACHE && type == READ_CACHE)
       info->end_of_file=my_b_tell(info);
-    if (flush_io_cache(info))
+    /* No need to flush cache if we want to reuse it */
+    if ((type != WRITE_CACHE || !clear_cache) && flush_io_cache(info))
       DBUG_RETURN(1);
-    info->pos_in_file=seek_offset;
+    if (info->pos_in_file != seek_offset)
+    {
+      info->pos_in_file=seek_offset;
+      info->seek_not_done=1;
+    }
     info->rc_request_pos=info->rc_pos=info->buffer;
     if (type == READ_CACHE || type == READ_NET || type == READ_FIFO)
     {
@@ -210,7 +225,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       info->rc_end=info->buffer+info->buffer_length-
 	(seek_offset & (IO_SIZE-1));
       info->end_of_file= ((type == READ_NET || type == READ_FIFO) ? 0 :
-			  MY_FILEPOS_ERROR);
+			  ~(my_off_t) 0);
     }
   }
   info->type=type;
@@ -536,6 +551,11 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->rc_pos+=rest_length;
+  if (info->pos_in_file+info->buffer_length > info->end_of_file)
+  {
+    my_errno=errno=EFBIG;
+    return info->error = -1;
+  }    
   if (flush_io_cache(info))
     return 1;
   if (Count >= IO_SIZE)

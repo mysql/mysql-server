@@ -33,7 +33,8 @@ const char **ha_heap::bas_ext() const
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
-  uint key,part,parts;
+  uint key,part,parts,mem_per_row=0;
+  ulong max_rows;
   HP_KEYDEF *keydef;
   HP_KEYSEG *seg;
 
@@ -47,7 +48,8 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   for (key=0 ; key < table->keys ; key++)
   {
     KEY *pos=table->key_info+key;
-
+    mem_per_row += (pos->key_length + (sizeof(char*) * 2));
+    
     keydef[key].keysegs=(uint) pos->key_parts;
     keydef[key].flag = (pos->flags & HA_NOSAME);
     keydef[key].seg=seg;
@@ -66,9 +68,13 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
       seg++;
     }
   }
+  mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));
+  max_rows = (ulong) (max_heap_table_size / mem_per_row);
   file=heap_open(table->path,mode,
 		 table->keys,keydef,
-		 table->reclength,table->max_rows,
+		 table->reclength,
+		 ((table->max_rows < max_rows && table->max_rows) ? 
+		  table->max_rows : max_rows),
 		 table->min_rows);
   my_free((gptr) keydef,MYF(0));
   info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);

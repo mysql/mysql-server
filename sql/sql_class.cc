@@ -121,8 +121,10 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
   if (open_cached_file(&transaction.trans_log,
-		       mysql_tmpdir,LOG_PREFIX,0,MYF(MY_WME)))
+		       mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
+		       MYF(MY_WME)))
     killed=1;
+  transaction.trans_log.end_of_file= max_binlog_cache_size;
 #endif
 
 #ifdef	__WIN__

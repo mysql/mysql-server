@@ -201,10 +201,10 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0;
-ulong thread_cache_size=0;
+ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
 
-// replication parameters, if master_host is not NULL, we are slaving off the master
+// replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
   master_info_file = (char*) "master.info";
 const char *localhost=LOCAL_HOST;
@@ -1496,23 +1496,21 @@ int main(int argc, char **argv)
   if (opt_update_log)
     open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
 	     LOG_NEW);
+
+  if (!server_id)
+    server_id= !master_host ? 1 : 2;
   if (opt_bin_log)
   {
-    if(server_id)
-      {
-	if (!opt_bin_logname)
-	  {
-	    char tmp[FN_REFLEN];
-	    strnmov(tmp,glob_hostname,FN_REFLEN-5);
-	    strmov(strcend(tmp,'.'),"-bin");
-	    opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-	  }
-	mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-	open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-		 LOG_BIN);
-      }
-    else
-      sql_print_error("Server id is not set - binary logging disabled");
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      strnmov(tmp,glob_hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
+    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     LOG_BIN);
   }
   
   if (opt_slow_log)
@@ -1620,19 +1618,14 @@ int main(int argc, char **argv)
   }
 
   // slave thread
-  if(master_host)
+  if (master_host)
   {
-    if(server_id)
-      {
-	pthread_t hThread;
-	if(!opt_skip_slave_start &&
-	   pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-	  sql_print_error("Warning: Can't create thread to handle slave");
-	else if(opt_skip_slave_start)
-	  init_master_info(&glob_mi);
-      }
-    else
-      sql_print_error("Server id is not set, slave thread will not be started");
+    pthread_t hThread;
+    if(!opt_skip_slave_start &&
+       pthread_create(&hThread, &connection_attrib, handle_slave, 0))
+      sql_print_error("Warning: Can't create thread to handle slave");
+    else if(opt_skip_slave_start)
+      init_master_info(&glob_mi);
   }
 
   printf(ER(ER_READY),my_progname,server_version,"");
@@ -2205,7 +2198,8 @@ enum options {
                OPT_BDB_HOME,             OPT_BDB_LOG,  
                OPT_BDB_TMP,              OPT_BDB_NOSYNC,
                OPT_BDB_LOCK,             OPT_BDB_SKIP, 
-               OPT_BDB_RECOVER,          OPT_MASTER_HOST,  
+               OPT_BDB_RECOVER,		 OPT_BDB_SHARED,
+	       OPT_MASTER_HOST,  
                OPT_MASTER_USER,          OPT_MASTER_PASSWORD,
                OPT_MASTER_PORT,          OPT_MASTER_INFO_FILE,
                OPT_MASTER_CONNECT_RETRY, OPT_SQL_BIN_UPDATE_SAME,
@@ -2233,6 +2227,7 @@ static struct option long_options[] = {
   {"bdb-logdir",            required_argument, 0, (int) OPT_BDB_LOG},
   {"bdb-recover",           no_argument,       0, (int) OPT_BDB_RECOVER},
   {"bdb-no-sync",           no_argument,       0, (int) OPT_BDB_NOSYNC},
+  {"bdb-shared-data",       required_argument, 0, (int) OPT_BDB_SHARED},
   {"bdb-tmpdir",            required_argument, 0, (int) OPT_BDB_TMP},
 #endif
   {"big-tables",            no_argument,       0, (int) OPT_BIG_TABLES},
@@ -2323,7 +2318,7 @@ static struct option long_options[] = {
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
-  {"server-id",		    required_argument, 0, (int)OPT_SERVER_ID},
+  {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
 #ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
@@ -2363,9 +2358,14 @@ CHANGEABLE_VAR changeable_vars[] = {
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size",          (long*) &berkeley_cache_size, 
       KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE },
-  { "bdb_lock_max",            (long*) &berkeley_lock_max, 
+  { "bdb_max_lock",            (long*) &berkeley_max_lock, 
+      1000, 0, (long) ~0, 0, 1 },
+    /* QQ: The following should be removed soon! */
+  { "bdb_lock_max",            (long*) &berkeley_max_lock, 
       1000, 0, (long) ~0, 0, 1 },
 #endif
+  { "binlog_cache_size", 	(long*) &binlog_cache_size,
+      32*1024L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "connect_timeout",         (long*) &connect_timeout,
       CONNECT_TIMEOUT, 2, 65535, 0, 1 },
   { "delayed_insert_timeout", (long*) &delayed_insert_timeout, 
@@ -2390,7 +2390,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   {"innobase_buffer_pool_size", 
      (long*) &innobase_buffer_pool_size, 8*1024*1024L, 1024*1024L,
      ~0L, 0, 1024*1024L},
-  {"innobase_additional_mem_pool_size_mb",
+  {"innobase_additional_mem_pool_size",
    (long*) &innobase_additional_mem_pool_size, 1*1024*1024L, 512*1024L,
      ~0L, 0, 1024},
   {"innobase_file_io_threads",
@@ -2408,6 +2408,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       IF_WIN(1,0), 0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
       1024*1024L, 80, 17*1024*1024L, MALLOC_OVERHEAD, 1024 },
+  { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
+      ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "max_connections",         (long*) &max_connections,
       100, 1, 16384, 0, 1 },
   { "max_connect_errors",      (long*) &max_connect_errors,
@@ -2465,10 +2467,12 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_BERKELEY_DB
   {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONG},
   {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
-  {"bdb_lock_max",            (char*) &berkeley_lock_max,	    SHOW_LONG},
+  {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
+  {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
 #endif
+  {"binlog_cache_size",       (char*) &binlog_cache_size,	    SHOW_LONG},
   {"character_set",           default_charset,                      SHOW_CHAR},
   {"character_sets",          (char*) &charsets_list,               SHOW_CHAR_PTR},
   {"concurrent_insert",       (char*) &myisam_concurrent_insert,    SHOW_MY_BOOL},
@@ -2497,6 +2501,7 @@ struct show_var_st init_vars[]= {
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
   {"max_allowed_packet",      (char*) &max_allowed_packet,          SHOW_LONG},
+  {"max_binlog_cache_size",  (char*) &max_binlog_cache_size,	    SHOW_LONG},
   {"max_connections",         (char*) &max_connections,             SHOW_LONG},
   {"max_connect_errors",      (char*) &max_connect_errors,          SHOW_LONG},
   {"max_delayed_threads",     (char*) &max_insert_delayed_threads,  SHOW_LONG},
@@ -2711,8 +2716,9 @@ static void usage(void)
   --bdb-lock-detect=#	  Berkeley lock detect\n\
                           (DEFAULT, OLDEST, RANDOM or YOUNGEST, # sec)\n\
   --bdb-logdir=directory  Berkeley DB log file directory\n\
-  --bdb-nosync		  Don't synchronously flush logs\n\
+  --bdb-no-sync		  Don't synchronously flush logs\n\
   --bdb-recover		  Start Berkeley DB in recover mode\n\
+  --bdb-shared-data	  Start Berkeley DB in multi-process mode\n\
   --bdb-tmpdir=directory  Berkeley DB tempfile name\n\
   --skip-bdb		  Don't use berkeley db (will save memory)\n\
 ");
@@ -3224,6 +3230,10 @@ static void get_options(int argc,char **argv)
       }
       break;
     }
+    case OPT_BDB_SHARED:
+      berkeley_init_flags&= ~(DB_PRIVATE);
+      berkeley_shared_data=1;
+      break;
     case OPT_BDB_SKIP:
       berkeley_skip=1;
       break;

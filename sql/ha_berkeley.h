@@ -27,11 +27,13 @@
 
 typedef struct st_berkeley_share {
   ulonglong auto_ident;
+  ha_rows rows, org_rows, *rec_per_key;
   THR_LOCK lock;
   pthread_mutex_t mutex;
   char *table_name;
+  DB *status_block;
   uint table_name_length,use_count;
-  bool primary_key_inited;
+  uint status,version;
 } BDB_SHARE;
 
 
@@ -49,7 +51,8 @@ class ha_berkeley: public handler
   BDB_SHARE *share;
   ulong int_option_flag;
   ulong alloced_rec_buff_length;
-  uint primary_key,last_dup_key, hidden_primary_key;
+  ulong changed_rows;
+  uint primary_key,last_dup_key, hidden_primary_key, version;
   bool fixed_length_row, fixed_length_primary_key, key_read;
   bool  fix_rec_buff_for_blob(ulong length);
   byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];
@@ -58,7 +61,8 @@ class ha_berkeley: public handler
   int pack_row(DBT *row,const  byte *record, bool new_row);
   void unpack_row(char *record, DBT *row);
   void ha_berkeley::unpack_key(char *record, DBT *key, uint index);
-  DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *record);
+  DBT *create_key(DBT *key, uint keynr, char *buff, const byte *record,
+		  int key_length = MAX_KEY_LENGTH);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key_ptr,
 		uint key_length);
   int remove_key(DB_TXN *trans, uint keynr, const byte *record,
@@ -79,8 +83,9 @@ class ha_berkeley: public handler
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
 		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT | 
-		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE),
-    last_dup_key((uint) -1)
+		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
+		    HA_AUTO_PART_KEY),
+    last_dup_key((uint) -1),version(0)
   {
   }
   ~ha_berkeley() {}
@@ -123,6 +128,10 @@ class ha_berkeley: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   void position(byte *record);
+  int analyze(THD* thd,HA_CHECK_OPT* check_opt);
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
+  int check(THD* thd, HA_CHECK_OPT* check_opt);
+
   ha_rows records_in_range(int inx,
 			   const byte *start_key,uint start_key_len,
 			   enum ha_rkey_function start_search_flag,
@@ -135,7 +144,7 @@ class ha_berkeley: public handler
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
 
-  void update_auto_primary_key();
+  void get_status();
   inline void get_auto_primary_key(byte *to)
   {
     ulonglong tmp;
@@ -144,11 +153,12 @@ class ha_berkeley: public handler
     int5store(to,share->auto_ident);
     pthread_mutex_unlock(&share->mutex);
   }
+  longlong ha_berkeley::get_auto_increment();
 };
 
-extern bool berkeley_skip;
+extern bool berkeley_skip, berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_lock_type,berkeley_lock_types[];
-extern ulong berkeley_cache_size, berkeley_lock_max;
+extern ulong berkeley_cache_size, berkeley_max_lock;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
 extern TYPELIB berkeley_lock_typelib;

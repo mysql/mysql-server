@@ -158,14 +158,14 @@ exit:
   are 2 digits (raid directories).
 */
 
-static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
-				  uint level)
+static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *org_path,
+				 uint level)
 {
   long deleted=0;
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
   DBUG_ENTER("mysql_rm_known_files");
-  DBUG_PRINT("enter",("path: %s", path));
+  DBUG_PRINT("enter",("path: %s", org_path));
   /* remove all files with known extensions */
 
   for (uint idx=2 ;
@@ -181,7 +181,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
     {
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
-      strxmov(newpath,path,"/",file->name,NullS);
+      strxmov(newpath,org_path,"/",file->name,NullS);
       unpack_filename(newpath,newpath);
       if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
       {
@@ -199,7 +199,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
       found_other_files++;
       continue;
     }
-    strxmov(filePath,path,"/",file->name,NullS);
+    strxmov(filePath,org_path,"/",file->name,NullS);
     unpack_filename(filePath,filePath);
     if (my_delete(filePath,MYF(MY_WME)))
     {
@@ -224,9 +224,9 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *path,
   */
   if (!found_other_files)
   {
-#ifdef HAVE_READLINK
     char tmp_path[FN_REFLEN];
-    path=unpack_filename(tmp_path,path);
+    char *path=unpack_filename(tmp_path,org_path);
+#ifdef HAVE_READLINK
     int linkcount = readlink(path,filePath,sizeof(filePath)-1);
     if (linkcount > 0)			// If the path was a symbolic link
     {

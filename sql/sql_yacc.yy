@@ -2451,6 +2451,7 @@ user:
 keyword:
 	ACTION			{}
 	| AFTER_SYM		{}
+	| AGAINST		{}
 	| AGGREGATE_SYM		{}
 	| AUTOCOMMIT		{}
 	| AVG_ROW_LENGTH	{}
