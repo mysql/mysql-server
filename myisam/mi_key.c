@@ -19,7 +19,6 @@
 #include "myisamdef.h"
 #include "m_ctype.h"
 #include "sp_defs.h"
-#include <assert.h>
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif

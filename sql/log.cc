@@ -31,6 +31,7 @@
 #include <m_ctype.h>				// For test_if_number
 
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
+ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
@@ -1164,6 +1165,13 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 }
 
 
+inline bool sync_binlog(IO_CACHE *cache)
+{
+  return (sync_binlog_period &&
+          (sync_binlog_period == ++sync_binlog_counter) &&
+          (sync_binlog_counter= 0, my_sync(cache->file, MYF(MY_WME))));
+}
+
 /*
   Write an event to the binary log
 */
@@ -1369,9 +1377,9 @@ COLLATION_CONNECTION=%lu,COLLATION_DATABASE=%lu,COLLATION_SERVER=%lu",
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_io_cache(file))
+      if (flush_io_cache(file) || sync_binlog(file))
 	goto err;
- 
+
       if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
         /*
@@ -1529,7 +1537,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
       qinfo.set_log_pos(this);
-      if (qinfo.write(&log_file) || flush_io_cache(&log_file))
+      if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
+          sync_binlog(&log_file))
 	goto err;
     }
     if (cache->error)				// Error on read
