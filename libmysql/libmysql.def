@@ -16,7 +16,6 @@ EXPORTS
 	list_add
 	list_delete
 	load_defaults
-	max_allowed_packet
 	my_end
 	my_getopt_print_errors
 	my_init
@@ -24,6 +23,7 @@ EXPORTS
 	my_memdup
 	my_no_flags_free
 	my_path
+	mysql_get_parameters
 	my_print_help
 	my_print_variables
 	my_realloc
@@ -116,7 +116,6 @@ EXPORTS
 	mysql_stmt_sqlstate
 	mysql_sqlstate
 	mysql_get_server_version
-	net_buffer_length
 	set_dynamic
 	strcend
 	strcont
