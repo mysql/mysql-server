@@ -2940,6 +2940,13 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
 #else
+#ifdef __WIN__
+  if ( !have_tcpip || opt_disable_networking)
+  {
+    sql_print_error("TCP/IP unavailable or disabled with --skip-networking; no available interfaces");
+    unireg_abort(1);
+  }
+#endif
   handle_connections_sockets(0);
 #endif /* __NT__ */
 

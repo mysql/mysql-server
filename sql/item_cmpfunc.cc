@@ -211,9 +211,20 @@ void Item_bool_func2::fix_length_and_dec()
       }
       else
       {
-	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
+        THD *thd= current_thd;
+        /*
+          In case we're in statement prepare, create conversion item
+          in its memory: it will be reused on each execute.
+        */
+        Item_arena *arena= thd->current_arena, backup;
+        if (arena->is_stmt_prepare())
+          thd->set_n_backup_item_arena(arena, &backup);
+	conv= new Item_func_conv_charset(args[weak],
+                                         args[strong]->collation.collation);
+        if (arena->is_stmt_prepare())
+          thd->restore_backup_item_arena(arena, &backup);
         conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(current_thd, 0, &conv);
+        conv->fix_fields(thd, 0, &conv);
       }
       args[weak]= conv ? conv : args[weak];
     }
