@@ -15,9 +15,6 @@ Created 10/21/1995 Heikki Tuuri
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
 
-#undef __USE_FILE_OFFSET64
-
-#include <aio.h>
 #endif
 
 /* We use these mutexes to protect lseek + file i/o operation, if the
@@ -520,8 +517,10 @@ os_file_pread(
 	ulint		n,	/* in: number of bytes to read */	
 	ulint		offset)	/* in: offset from where to read */
 {
+        off_t     offs = (off_t)offset;
+
 #ifdef HAVE_PREAD
-	return(pread(file, buf, n, (off_t) offset));
+	return(pread(file, buf, n, offs));
 #else
 	ssize_t	ret;
 	ulint	i;
@@ -531,7 +530,7 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, (off_t) offset, 0);
+	ret = lseek(file, offs, 0);
 
 	if (ret < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -560,9 +559,10 @@ os_file_pwrite(
 	ulint		offset)	/* in: offset where to write */
 {
 	ssize_t	ret;
+	off_t   offs    = (off_t)offset;
 
 #ifdef HAVE_PWRITE
-	ret = pwrite(file, buf, n, (off_t) offset);
+	ret = pwrite(file, buf, n, offs);
 
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
@@ -578,7 +578,7 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, (off_t) offset, 0);
+	ret = lseek(file, offs, 0);
 
 	if (ret < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -661,7 +661,6 @@ try_again:
 #else
 	ibool	retry;
 	ssize_t	ret;
-	ulint   i;
 	
 #if (UNIV_WORD_SIZE == 8)
 	offset = offset + (offset_high << 32);
@@ -669,15 +668,9 @@ try_again:
 	UT_NOT_USED(offset_high);
 #endif	
 try_again:
-	/* Protect the seek / read operation with a mutex */
-	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-	
-	os_mutex_enter(os_file_seek_mutexes[i]);
-
-	ret = os_file_pread(file, buf, n, (off_t) offset);
+	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint)ret == n) {
-		os_mutex_exit(os_file_seek_mutexes[i]);
 
 		return(TRUE);
 	}
@@ -767,7 +760,7 @@ try_again:
 	UT_NOT_USED(offset_high);
 #endif	
 try_again:
-	ret = os_file_pwrite(file, buf, n, (off_t) offset);
+	ret = os_file_pwrite(file, buf, n, offset);
 
 	if ((ulint)ret == n) {
 		return(TRUE);
