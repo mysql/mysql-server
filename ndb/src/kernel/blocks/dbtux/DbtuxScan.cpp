@@ -112,6 +112,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
 void
 Dbtux::execTUX_BOUND_INFO(Signal* signal)
 {
+  jamEntry();
   struct BoundInfo {
     unsigned offset;
     unsigned size;

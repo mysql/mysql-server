@@ -7700,6 +7700,7 @@ void Dblqh::accScanConfScanLab(Signal* signal)
     ndbrequire(sz == boundAiLength);
     EXECUTE_DIRECT(DBTUX, GSN_TUX_BOUND_INFO,
         signal, TuxBoundInfo::SignalLength + boundAiLength);
+    jamEntry();
     if (req->errorCode != 0) {
       jam();
       /*

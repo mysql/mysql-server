@@ -58,7 +58,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
         const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        ret = (*cmp)(p1, p2, size1, size2);
+        ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           break;
@@ -132,6 +132,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         jam();
         // current attribute
         const unsigned index = boundInfo.ah().getAttributeId();
+        ndbrequire(index < frag.m_numAttrs);
         const DescAttr& descAttr = descEnt.m_descAttr[index];
         ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
         // full data size
@@ -143,7 +144,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        int ret = (*cmp)(p1, p2, size1, size2);
+        int ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           return ret;

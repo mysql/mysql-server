@@ -1374,7 +1374,8 @@ private:
                      const Uint32*  inBuffer,
                      Uint32   inBufLen,
                      Uint32*  outBuffer,
-                     Uint32   TmaxRead);
+                     Uint32   TmaxRead,
+                     bool     xfrmFlag);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -1619,6 +1620,20 @@ private:
   bool updateDynSmallVarSize(Uint32* inBuffer,
                              Uint32  attrDescriptor,
                              Uint32  attrDes2);
+
+// *****************************************************************
+// Read char routines optionally (tXfrmFlag) apply strxfrm
+// *****************************************************************
+
+  bool readCharNotNULL(Uint32* outBuffer,
+                       AttributeHeader* ahOut,
+                       Uint32  attrDescriptor,
+                       Uint32  attrDes2);
+
+  bool readCharNULLable(Uint32* outBuffer,
+                        AttributeHeader* ahOut,
+                        Uint32  attrDescriptor,
+                        Uint32  attrDes2);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2225,6 +2240,7 @@ private:
   Uint32          tMaxRead;
   Uint32          tOutBufIndex;
   Uint32*         tTupleHeader;
+  bool            tXfrmFlag;
 
 // updateAttributes module
   Uint32          tInBufIndex;
