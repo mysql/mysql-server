@@ -119,3 +119,21 @@ EXECUTE stmt1 USING @var;
 _utf8 'A' collate utf8_bin = ?
 1
 DEALLOCATE PREPARE stmt1;
+create table t1 (id int);
+prepare stmt1 from "select FOUND_ROWS()";
+select SQL_CALC_FOUND_ROWS * from t1;
+id
+execute stmt1;
+FOUND_ROWS()
+0
+insert into t1 values (1);
+select SQL_CALC_FOUND_ROWS * from t1;
+id
+1
+execute stmt1;
+FOUND_ROWS()
+1
+execute stmt1;
+FOUND_ROWS()
+0
+deallocate prepare stmt1;
