@@ -12130,11 +12130,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-static void get_options(int argc, char **argv)
+static void get_options(int *argc, char ***argv)
 {
   int ho_error;
 
-  if ((ho_error= handle_options(&argc, &argv, client_test_long_options,
+  if ((ho_error= handle_options(argc, argv, client_test_long_options,
                                 get_one_option)))
     exit(ho_error);
 
@@ -12177,7 +12177,7 @@ int main(int argc, char **argv)
   
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
   defaults_argv= argv;
-  get_options(argc, argv);
+  get_options(&argc, &argv);
 
   client_connect();       /* connect to server */
 
@@ -12187,30 +12187,28 @@ int main(int argc, char **argv)
     /* Start of tests */
     test_count= 1;
     start_time= time((time_t *)0);
-    int i, name_ok;
-    if (!argv[1])
+    if (!argc)
     {
       for (fptr= my_tests; fptr->name; fptr++)
 	(*fptr->function)();	
     }
     else
     {
-      for (i= 1; argv[i]; i++)
+      for ( ; *argv ; argv++)
       {
-	name_ok= 0;
 	for (fptr= my_tests; fptr->name; fptr++)
 	{
-	  if (!strcmp(fptr->name, argv[i]))
+	  if (!strcmp(fptr->name, *argv))
 	  {
-	    name_ok= 1;
 	    (*fptr->function)();
+	    break;
 	  }
 	}
-	if (!name_ok)
+	if (!fptr->name)
 	{
-	  printf("\n\nGiven test not found: '%s'\n", argv[i]);
-	  printf("See legal test names with %s -T\n\nAborting!\n",
-		 my_progname);
+	  fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
+	  fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
+		  my_progname);
 	  client_disconnect();
 	  free_defaults(defaults_argv);
 	  exit(1);
