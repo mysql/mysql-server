@@ -172,6 +172,7 @@ struct DepricationTransform {
 
 static
 const DepricationTransform f_deprication[] = {
+  ,{ "DB", "Discless", "Diskless", 0, 1 }
   { 0, 0, 0, 0, 0}
 };
 
@@ -796,7 +797,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_DB_DISCLESS,
-    "Discless",
+    "Diskless",
     "DB",
     "Run wo/ disk",
     ConfigInfo::USED,
@@ -805,6 +806,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     0,
     1},
+
+  {
+    CFG_DB_DISCLESS,
+    "Discless",
+    "DB",
+    "Diskless",
+    ConfigInfo::DEPRICATED,
+    true,
+    ConfigInfo::BOOL,
+    0,
+    0,
+    1},
+  
+
   
   {
     CFG_DB_ARBIT_TIMEOUT,
@@ -2732,7 +2747,8 @@ transform(InitConfigFileParser::Context & ctx,
   require(ctx.m_currentSection->getTypeOf(oldName, &oldType));
   ConfigInfo::Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
   if(!((oldType == PropertiesType_Uint32 || oldType == PropertiesType_Uint64) 
-       && (newType == ConfigInfo::INT || newType == ConfigInfo::INT64))){
+       && (newType == ConfigInfo::INT || newType == ConfigInfo::INT64 || newType == ConfigInfo::BOOL))){
+    ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType << endl;
     ctx.reportError("Unable to handle type conversion w.r.t deprication %s %s"
 		    "- [%s] starting at line: %d",
 		    oldName, newName,
