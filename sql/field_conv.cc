@@ -520,7 +520,9 @@ void field_conv(Field *to,Field *from)
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),default_charset_info);
     from->val_str(&result,&result);
-    to->store(result.c_ptr_quick(),result.length(),default_charset_info);
+    to->store(result.c_ptr_quick(),result.length(),
+	to->binary()?default_charset_info:((Field_str*)to)->charset());
+    // QQ: what to do if "from" and "to" are of dirrent charsets?
   }
   else if (from->result_type() == REAL_RESULT)
     to->store(from->val_real());
