@@ -9,7 +9,7 @@ insert into t1 values (1),(1);
 ERROR 23000: Duplicate entry '1' for key 1
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	273	#	#	master-bin.000001	Yes	Yes				test.t3,test.t1,test.t2			0		0	273	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	287	#	#	master-bin.000001	Yes	Yes				test.t3,test.t1,test.t2			0		0	287	#	None		0	No						#
 show tables like 't1';
 Tables_in_test (t1)
 drop table t1;
@@ -28,12 +28,12 @@ kill @id;
 drop table t2,t3;
 show binlog events from 95;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	95	Query	1	187	use `test`; create table t1 (a int primary key)
-master-bin.000001	187	Query	1	273	use `test`; insert into t1 values (1),(1)
-master-bin.000001	273	Query	1	343	use `test`; drop table t1
-master-bin.000001	343	Query	1	435	use `test`; create table t2 (a int primary key)
-master-bin.000001	435	Query	1	516	use `test`; insert into t2 values(1)
-master-bin.000001	516	Query	1	597	use `test`; create table t3 (id int)
-master-bin.000001	597	Query	1	692	use `test`; insert into t3 values(connection_id())
-master-bin.000001	692	Query	1	805	use `test`; update t2 set a = a + 1 + get_lock('crash_lock%20C', 10)
-master-bin.000001	805	Query	1	878	use `test`; drop table t2,t3
+master-bin.000001	95	Query	1	194	use `test`; create table t1 (a int primary key)
+master-bin.000001	194	Query	1	287	use `test`; insert into t1 values (1),(1)
+master-bin.000001	287	Query	1	364	use `test`; drop table t1
+master-bin.000001	364	Query	1	463	use `test`; create table t2 (a int primary key)
+master-bin.000001	463	Query	1	551	use `test`; insert into t2 values(1)
+master-bin.000001	551	Query	1	639	use `test`; create table t3 (id int)
+master-bin.000001	639	Query	1	741	use `test`; insert into t3 values(connection_id())
+master-bin.000001	741	Query	1	861	use `test`; update t2 set a = a + 1 + get_lock('crash_lock%20C', 10)
+master-bin.000001	861	Query	1	941	use `test`; drop table t2,t3

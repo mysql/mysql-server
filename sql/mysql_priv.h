@@ -285,6 +285,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE	(MODE_NO_AUTO_CREATE_USER*2)
+/*
+  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
+  use strictly more than 64 bits by adding one more define above, you should
+  contact the replication team because the replication code should then be
+  updated (to store more bytes on disk).
+*/
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -401,6 +407,9 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+                                      uint key_length,
+                                      ulonglong *engine_data);
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
@@ -446,6 +455,7 @@ Item *negate_expression(THD *thd, Item *expr);
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
+  unsigned int client_protocol_41:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -714,7 +724,6 @@ bool mysql_do(THD *thd, List<Item> &values);
 
 /* sql_analyse.h */
 bool append_escaped(String *to_str, String *from_str);
-bool append_escaped(String *to_str, char *from, uint from_len);
 
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);

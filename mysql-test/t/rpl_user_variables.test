@@ -46,7 +46,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 select * from t1;
-show binlog events from 179;
+show binlog events from 95;
 connection master;
 drop table t1;
 save_master_pos;
