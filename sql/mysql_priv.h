@@ -340,6 +340,9 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+                                      uint key_length,
+                                      ulonglong *engine_data);
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
