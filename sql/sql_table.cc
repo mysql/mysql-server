@@ -1845,6 +1845,20 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
                           table_name); /* purecov: inspected */
     DBUG_RETURN(-1);       /* purecov: inspected */
   }
+  else
+  {
+    // Must be written before unlock
+    mysql_update_log.write(thd,thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    test(create_info->options &
+				 HA_LEX_CREATE_TMP_TABLE));
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   DBUG_RETURN(0);
   
 table_exists:
