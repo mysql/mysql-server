@@ -3,7 +3,7 @@
 # Script to create Solaris packages
 #
 $INTERACTIVE= 0;
-$hostname= `hostname`;
+chomp ($hostname= `hostname`);
 $find = "/usr/bin/find";
 $pkgproto = "/usr/bin/pkgproto";
 $pkgmk = "/usr/bin/pkgmk -o";
@@ -75,7 +75,7 @@ $os =~ '\.';
 $os = "sol$'";
 chomp $os;
 $default{"basedir"}= "/usr/local";
-$default{"packagename"}= $fullname . '.pkg';
+$default{"packagename"}= "${fullname}.pkg";
 
 # Check for correctness of guessed values by userinput
 
@@ -136,6 +136,8 @@ system ("gzip /tmp/$packagename");
 
 # Clean-up the spool area
 system ("(cd /var/spool/pkg; rm -rf $pkg)");
+# Clean-up the ~/packaging/ area
+system ("(rm -rf mysql*)");
 unlink $pkginfo;
 unlink $prototype;
 system ("mv /tmp/${packagename}.gz $pkgdir");

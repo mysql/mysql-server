@@ -53,6 +53,7 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 /* Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
@@ -76,6 +77,7 @@ void
 innobase_casedn_str(
 /*================*/
 	char*	a);	/* in/out: string to put in lower case */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
 Adds a column to the data dictionary hash table. */
@@ -2095,6 +2097,7 @@ dict_foreign_find_index(
 	dict_index_t*	types_idx)/* in: NULL or an index to whose types the
 				column types must match */
 {
+#ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
 	const char*	col_name;
 	ulint		i;
@@ -2139,6 +2142,12 @@ dict_foreign_find_index(
 	}
 
 	return(NULL);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /**************************************************************************
@@ -2492,6 +2501,7 @@ dict_scan_col(
 	const char**	name)	/* out,own: the column name; NULL if no name
 				was scannable */
 {
+#ifndef UNIV_HOTBACKUP
 	dict_col_t*	col;
 	ulint		i;
 
@@ -2525,6 +2535,12 @@ dict_scan_col(
 	}
 	
 	return(ptr);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /*************************************************************************
@@ -2542,6 +2558,7 @@ dict_scan_table_name(
 	const char**	ref_name)/* out,own: the table name;
 				NULL if no name was scannable */
 {
+#ifndef UNIV_HOTBACKUP
 	const char*	database_name	= NULL;
 	ulint		database_name_len = 0;
 	const char*	table_name	= NULL;
@@ -2623,6 +2640,12 @@ dict_scan_table_name(
 	*table = dict_table_get_low(ref);
 
 	return(ptr);
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /*************************************************************************
