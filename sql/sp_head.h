@@ -79,6 +79,7 @@ public:
 
   int m_type;			// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
   enum enum_field_types m_returns; // For FUNCTIONs only
+  CHARSET_INFO *m_returns_cs;	// For FUNCTIONs only
   my_bool m_has_return;		// For FUNCTIONs only
   my_bool m_simple_case;	// TRUE if parsing simple case, FALSE otherwise
   my_bool m_multi_results;	// TRUE if a procedure with SELECT(s)

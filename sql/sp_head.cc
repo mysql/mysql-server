@@ -207,7 +207,7 @@ sp_head::operator delete(void *ptr, size_t size)
 
 sp_head::sp_head()
   : Sql_alloc(), m_has_return(FALSE), m_simple_case(FALSE),
-    m_multi_results(FALSE), m_free_list(NULL)
+    m_multi_results(FALSE), m_free_list(NULL), m_returns_cs(NULL)
 {
   DBUG_ENTER("sp_head::sp_head");
 
@@ -228,6 +228,7 @@ sp_head::init(LEX *lex)
     m_body.str= m_defstr.str= 0;
   m_qname.length= m_db.length= m_name.length= m_params.length=
     m_retstr.length= m_body.length= m_defstr.length= 0;
+  m_returns_cs= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -266,7 +267,10 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   if (m_returns_begin && m_returns_end)
   {
     /* QQ KLUDGE: We can't seem to cut out just the type in the parser
-       (without the RETURNS), so we'll have to do it here. :-( */
+       (without the RETURNS), so we'll have to do it here. :-(
+       Furthermore, if there's a character type as well, it's not include
+       (beyond the m_returns_end pointer), in which case we need
+       m_returns_cs. */
     char *p= (char *)m_returns_begin+strspn((char *)m_returns_begin,"\t\n\r ");
     p+= strcspn(p, "\t\n\r ");
     p+= strspn(p, "\t\n\r ");
@@ -278,9 +282,22 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
 	   (*p == '\t' || *p == '\n' || *p == '\r' || *p == ' '))
       p-= 1;
     m_returns_end= (uchar *)p+1;
-    m_retstr.length=  m_returns_end - m_returns_begin;
-    m_retstr.str= strmake_root(root,
-			       (char *)m_returns_begin, m_retstr.length);
+    if (m_returns_cs)
+    {
+      String s((char *)m_returns_begin, m_returns_end - m_returns_begin,
+	       system_charset_info);
+
+      s.append(' ');
+      s.append(m_returns_cs->csname);
+      m_retstr.length= s.length();
+      m_retstr.str= strmake_root(root, s.ptr(), m_retstr.length);
+    }
+    else
+    {
+      m_retstr.length= m_returns_end - m_returns_begin;
+      m_retstr.str= strmake_root(root,
+				 (char *)m_returns_begin, m_retstr.length);
+    }
   }
   m_body.length= lex->end_of_query - m_body_begin;
   m_body.str= strmake_root(root, (char *)m_body_begin, m_body.length);
@@ -894,7 +911,7 @@ sp_instr_stmt::print(String *str)
 {
   str->reserve(12);
   str->append("stmt ");
-  str->qs_append(m_lex->sql_command);
+  str->qs_append((uint)m_lex->sql_command);
 }
 
 
@@ -1117,7 +1134,7 @@ sp_instr_freturn::print(String *str)
 {
   str->reserve(12);
   str->append("freturn ");
-  str->qs_append(m_type);
+  str->qs_append((uint)m_type);
   str->append(' ');
   m_value->print(str);
 }
