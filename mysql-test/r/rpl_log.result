@@ -12,7 +12,10 @@ create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
 create table t1 (word char(20) not null);
-load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
+select count(*) from t1;
+count(*)
+69
 drop table t1;
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
