@@ -1420,7 +1420,7 @@ int cmp_item_row::compare(cmp_item *c)
 bool Item_func_in::nulls_in_row()
 {
   Item **arg,**arg_end;
-  for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
+  for (arg= args+1, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
     if ((*arg)->null_inside())
       return 1;
@@ -1437,42 +1437,43 @@ static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 
 void Item_func_in::fix_length_and_dec()
 {
+  Item **arg, **arg_end;
+  uint const_itm= 1;
+  
+  if ((args[0]->result_type() == STRING_RESULT) &&
+      (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
+    return;
+  
+  for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+    const_itm&= arg[0]->const_item();
+  
   /*
     Row item with NULLs inside can return NULL or FALSE => 
     they can't be processed as static
   */
-  if (const_item() && !nulls_in_row())
+  if (const_itm && !nulls_in_row())
   {
-    switch (item->result_type()) {
+    switch (args[0]->result_type()) {
     case STRING_RESULT:
       uint i;
-      cmp_collation.set(item->collation);
-      for (i=0 ; i<arg_count; i++)
-	if (cmp_collation.aggregate(args[i]->collation))
-	  break;
-      if (cmp_collation.derivation == DERIVATION_NONE)
-      {
-        my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
-	return;
-      }
-      array=new in_string(arg_count,(qsort2_cmp) srtcmp_in, 
+      array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
 			  cmp_collation.collation);
       break;
     case INT_RESULT:
-      array= new in_longlong(arg_count);
+      array= new in_longlong(arg_count-1);
       break;
     case REAL_RESULT:
-      array= new in_double(arg_count);
+      array= new in_double(arg_count-1);
       break;
     case ROW_RESULT:
-      array= new in_row(arg_count, item);
+      array= new in_row(arg_count-1, args[0]);
       break;
     default:
       DBUG_ASSERT(0);
       return;
     }
     uint j=0;
-    for (uint i=0 ; i < arg_count ; i++)
+    for (uint i=1 ; i < arg_count ; i++)
     {
       array->set(j,args[i]);
       if (!args[i]->null_value)			// Skip NULL values
@@ -1485,19 +1486,19 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    in_item= cmp_item::get_comparator(item);
+    in_item= cmp_item::get_comparator(args[0]);
+    if (args[0]->result_type() == STRING_RESULT)
+      in_item->cmp_charset= cmp_collation.collation;
   }
-  maybe_null= item->maybe_null;
+  maybe_null= args[0]->maybe_null;
   max_length= 1;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  const_item_cache&=args[0]->const_item();
 }
 
 
 void Item_func_in::print(String *str)
 {
   str->append('(');
-  item->print(str);
   Item_func::print(str);
   str->append(')');
 }
@@ -1507,15 +1508,15 @@ longlong Item_func_in::val_int()
 {
   if (array)
   {
-    int tmp=array->find(item);
-    null_value=item->null_value || (!tmp && have_null);
+    int tmp=array->find(args[0]);
+    null_value=args[0]->null_value || (!tmp && have_null);
     return tmp;
   }
-  in_item->store_value(item);
-  if ((null_value=item->null_value))
+  in_item->store_value(args[0]);
+  if ((null_value=args[0]->null_value))
     return 0;
   have_null= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=1 ; i < arg_count ; i++)
   {
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return 1;					// Would maybe be nice with i ?
@@ -1523,29 +1524,6 @@ longlong Item_func_in::val_int()
   }
   null_value= have_null;
   return 0;
-}
-
-
-void Item_func_in::update_used_tables()
-{
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
-}
-
-void Item_func_in::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
-{
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
-  }  
-  Item_func::split_sum_func(ref_pointer_array, fields);
 }
 
 
