@@ -822,23 +822,22 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
+    SELECT_LEX *sl=thd->lex.select->outer_select();
     if ((ref= find_item_in_list(this, thd->lex.select->item_list,
-				REPORT_EXCEPT_NOT_FOUND)) ==
+		(sl ? REPORT_EXCEPT_NOT_FOUND : REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
       /*
-	We can't find table field in table list of current select, 
+	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
-	We can't join lists of outer & current select, because of scope 
-	of view rules. For example if both tables (outer & current) have 
-	field 'field' it is not mistake to refer to this field without 
+	We can't join lists of outer & current select, because of scope
+	of view rules. For example if both tables (outer & current) have
+	field 'field' it is not mistake to refer to this field without
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
       SELECT_LEX *last=0;
-      for (SELECT_LEX *sl= thd->lex.select->outer_select();
-	   sl;
-	   sl= sl->outer_select())
+      for ( ; sl ; sl= sl->outer_select())
 	if((ref= find_item_in_list(this, (last= sl)->item_list,
 				   REPORT_EXCEPT_NOT_FOUND)) !=
 	   (Item **)not_found_item)
@@ -852,13 +851,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	// Call to report error
 	find_item_in_list(this, thd->lex.select->item_list, REPORT_ALL_ERRORS);
+        ref=0;
 	return 1;
       }
       else
       {
 	depended_from= last;
 	/*
-	  Mark all selects from resolved to 1 before select where was 
+	  Mark all selects from resolved to 1 before select where was
 	  found table as depended (of select where was found table)
 	*/
 	for (SELECT_LEX *s= thd->lex.select;
@@ -867,9 +867,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  if( !s->depended )
 	  {
 	    // Select is depended of outer select
-	    s->depended= s->master_unit()->depended= 1; 
+	    s->depended= s->master_unit()->depended= 1;
 	    //Tables will be reopened many times
-	    for (TABLE_LIST *tbl= 
+	    for (TABLE_LIST *tbl=
 		   (TABLE_LIST*)s->table_list.first;
 		 tbl;
 		 tbl= tbl->next)

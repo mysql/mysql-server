@@ -516,7 +516,7 @@ class Rand_log_event: public Log_event
 #ifndef MYSQL_CLIENT
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
     :Log_event(thd_arg),seed1(seed1_arg),seed2(seed2_arg)
-    {}
+  {}
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -534,7 +534,7 @@ class Rand_log_event: public Log_event
 class Stop_log_event: public Log_event
 {
 public:
-#ifndef MYSQL_CLIENT  
+#ifndef MYSQL_CLIENT
   Stop_log_event() :Log_event((THD*)0)
   {}
   int exec_event(struct st_relay_log_info* rli);
