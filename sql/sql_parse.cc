@@ -1179,6 +1179,13 @@ mysql_execute_command(void)
     res = show_slave_hosts(thd);
     break;
   }
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  {
+    if(check_access(thd, FILE_ACL, any_db))
+      goto error;
+    res = show_binlog_events(thd);
+    break;
+  }
   case SQLCOM_BACKUP_TABLE:
     {
       if (check_db_used(thd,tables) ||

@@ -230,6 +230,8 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
 	open_index(O_APPEND | O_RDWR | O_CREAT))
       goto err;
+
+    log_seq = 1;
     Start_log_event s;
     bool error;
     s.set_log_seq(0, this);
@@ -240,10 +242,12 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     {
       THD* thd = current_thd;
       Slave_log_event s(thd, &glob_mi);
-      s.set_log_seq(thd, this);
 	
       if(s.master_host)
+      {
+        s.set_log_seq(thd, this);
 	s.write(&log_file);
+      }
     }
 
     flush_io_cache(&log_file);
@@ -553,7 +557,6 @@ void MYSQL_LOG::new_file()
     open(old_name, log_type, new_name);
     my_free(old_name,MYF(0));
     last_time=query_start=0;
-    log_seq = 1;
     write_error=0;
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
@@ -666,8 +669,12 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
   if (is_open())
   {
     THD *thd=event_info->thd;
+#ifdef USING_TRANSACTIONS    
     IO_CACHE *file = (event_info->cache_stmt ? &thd->transaction.trans_log :
 		      &log_file);
+#else
+    IO_CACHE *file = &log_file;
+#endif    
     if ((!(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & PROCESS_ACL)) ||
 	!db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
@@ -680,12 +687,14 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
     if (thd->last_insert_id_used)
     {
       Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
+      e.set_log_seq(thd, this);
       if (e.write(file))
 	goto err;
     }
     if (thd->insert_id_used)
     {
       Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
+      e.set_log_seq(thd, this);
       if (e.write(file))
 	goto err;
     }
@@ -698,10 +707,12 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
       // just in case somebody wants it later
       thd->query_length = (uint)(p - buf);
       Query_log_event e(thd, buf);
+      e.set_log_seq(thd, this);
       if (e.write(file))
 	goto err;
       thd->query_length = save_query_length; // clean up
     }
+    event_info->set_log_seq(thd, this);
     if (event_info->write(file) ||
 	file == &log_file && flush_io_cache(file))
       goto err;
@@ -796,6 +807,7 @@ bool MYSQL_LOG::write(Load_log_event* event_info)
       if ((thd->options & OPTION_BIN_LOG) ||
 	  !(thd->master_access & PROCESS_ACL))
       {
+	event_info->set_log_seq(thd, this);
 	if (event_info->write(&log_file) || flush_io_cache(&log_file))
 	{
 	  if (!write_error)
@@ -947,6 +959,7 @@ void MYSQL_LOG::close(bool exiting)
     if (log_type == LOG_BIN)
     {
       Stop_log_event s;
+      s.set_log_seq(0, this);
       s.write(&log_file);
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }

@@ -1,0 +1,51 @@
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	4	Start	1	1	Server ver: 4.0.0-debug-log, Binlog ver: 2
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+master-bin.001	263	Query	1	5	use test; drop table t1
+master-bin.001	311	Query	1	6	use test; create table t1 (word char(20) not null)
+master-bin.001	386	Load	1	7	use test; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1 FIELDS TERMINATED BY '\t' ESCAPED BY '\\' LINES TERMINATED BY '\n' (word)
+master-bin.001	468	Query	1	8	use test; drop table t1
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.001	4	Start	1	1	Server ver: 4.0.0-debug-log, Binlog ver: 2
+master-bin.001	79	Query	1	2	use test; create table t1(n int not null auto_increment primary key)
+master-bin.001	172	Intvar	1	3	INSERT_ID=1
+master-bin.001	200	Query	1	4	use test; insert into t1 values (NULL)
+master-bin.001	263	Query	1	5	use test; drop table t1
+master-bin.001	311	Query	1	6	use test; create table t1 (word char(20) not null)
+master-bin.001	386	Load	1	7	use test; LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1 FIELDS TERMINATED BY '\t' ESCAPED BY '\\' LINES TERMINATED BY '\n' (word)
+master-bin.001	468	Query	1	8	use test; drop table t1
+master-bin.001	516	Rotate	1	9	master-bin.002
+master-bin.001	549	Stop	1	10	
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+master-bin.002	4	Start	1	1	Server ver: 4.0.0-debug-log, Binlog ver: 2
+Log_name
+slave-bin.001
+slave-bin.002
+slave-bin.003
+slave-bin.004
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+slave-bin.001	4	Start	2	1	Server ver: 4.0.0-debug-log, Binlog ver: 2
+slave-bin.001	79	Slave	2	2	
+slave-bin.001	118	Rotate	2	3	slave-bin.002
+slave-bin.001	150	Stop	2	4	
+Log_name	Pos	Event_type	Server_id	Log_seq	Info
+slave-bin.002	4	Start	2	1	Server ver: 4.0.0-debug-log, Binlog ver: 2
+slave-bin.002	79	Slave	1	2	
+slave-bin.002	132	Slave	1	3	
+slave-bin.002	185	Query	1	4	use test; create table t1(n int not null auto_increment primary key)
+slave-bin.002	278	Intvar	2	5	INSERT_ID=1
+slave-bin.002	306	Query	1	6	use test; insert into t1 values (NULL)
+slave-bin.002	369	Query	1	7	use test; drop table t1
+slave-bin.002	417	Query	1	8	use test; create table t1 (word char(20) not null)
+slave-bin.002	492	Query	1	9	use test; drop table t1
+slave-bin.002	540	Rotate	2	10	slave-bin.003
+slave-bin.002	572	Stop	2	11	

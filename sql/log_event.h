@@ -71,9 +71,9 @@
 
 /* slave event post-header */
 
-#define SL_MASTER_PORT_OFFSET   12
-#define SL_MASTER_POS_OFFSET    4
-#define SL_MASTER_HOST_OFFSET   14
+#define SL_MASTER_PORT_OFFSET   8
+#define SL_MASTER_POS_OFFSET    0
+#define SL_MASTER_HOST_OFFSET   10
 
 /* query event post-header */
 
@@ -177,11 +177,15 @@ public:
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
   static Log_event* read_log_event(const char* buf, int event_len);
+  const char* get_type_str();
 
 #ifndef MYSQL_CLIENT
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
   void set_log_seq(THD* thd, MYSQL_LOG* log);
+  virtual void pack_info(String* packet);
+  int net_send(THD* thd, const char* log_name, ulong pos);
+  static void init_show_field_list(List<Item>* field_list);
 #endif
   
 };
@@ -217,6 +221,8 @@ public:
     exec_time = (ulong) (end_time  - thd->start_time);
     db_len = (db) ? (uint32) strlen(db) : 0;
   }
+  
+  void pack_info(String* packet);
 #endif
 
   Query_log_event(const char* buf, int event_len);
@@ -257,6 +263,7 @@ public:
 
 #ifndef MYSQL_CLIENT  
   Slave_log_event(THD* thd_arg, struct st_master_info* mi);
+  void pack_info(String* packet);
 #endif
   
   Slave_log_event(const char* buf, int event_len);
@@ -383,6 +390,7 @@ public:
     fields = fields_buf.ptr();
   }
   void set_fields(List<Item> &fields_arg);
+  void pack_info(String* packet);
 #endif
 
   Load_log_event(const char* buf, int event_len);
@@ -432,6 +440,9 @@ public:
   {
     return START_HEADER_LEN;
   }
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+#endif  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 };
 
@@ -446,8 +457,12 @@ public:
   Intvar_log_event(const char* buf);
   ~Intvar_log_event() {}
   Log_event_type get_type_code() { return INTVAR_EVENT;}
+  const char* get_var_type_name();
   int get_data_size() { return  sizeof(type) + sizeof(val);}
   int write_data(IO_CACHE* file);
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+#endif  
   
   
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
@@ -491,6 +506,12 @@ public:
   int write_data(IO_CACHE* file);
   
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+#endif  
 };
 
 #endif
+
+
+

@@ -130,6 +130,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	LOAD
 %token	LOCK_SYM
 %token	UNLOCK_SYM
+%token  BINLOG_SYM
+%token  EVENTS_SYM
 
 %token	ACTION
 %token	AGGREGATE_SYM
@@ -466,12 +468,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_escape
 
 %type <string>
-	text_string
+	text_string 
 
 %type <num>
 	type int_type real_type order_dir opt_field_spec set_option lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists
+	table_option opt_if_not_exists 
 
 %type <ulong_num>
 	ULONG_NUM raid_types
@@ -2406,6 +2408,10 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
           }
+        | BINLOG_SYM EVENTS_SYM binlog_in binlog_from limit_clause
+          {
+	    Lex->sql_command = SQLCOM_SHOW_BINLOG_EVENTS;
+          } 
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -2455,6 +2461,15 @@ wild:
 opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; }
+
+binlog_in:
+	/* empty */ { Lex->mi.log_file_name = 0; }
+        | IN_SYM TEXT_STRING { Lex->mi.log_file_name = $2.str; }
+
+binlog_from:
+	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
+        | FROM ULONGLONG_NUM { Lex->mi.pos = $2; }
+
 
 /* A Oracle compatible synonym for show */
 describe:

@@ -32,6 +32,7 @@ static void pretty_print_char(FILE* file, int c)
   case '\r': fprintf(file, "\\r"); break;
   case '\\': fprintf(file, "\\\\"); break;
   case '\b': fprintf(file, "\\b"); break;
+  case '\t': fprintf(file, "\\t"); break;
   case '\'': fprintf(file, "\\'"); break;
   case 0   : fprintf(file, "\\0"); break;
   default:
@@ -40,6 +41,203 @@ static void pretty_print_char(FILE* file, int c)
   }
   fputc('\'', file);
 }
+
+#ifndef MYSQL_CLIENT
+
+static void pretty_print_char(String* packet, int c)
+{
+  packet->append('\'');
+  switch(c) {
+  case '\n': packet->append( "\\n"); break;
+  case '\r': packet->append( "\\r"); break;
+  case '\\': packet->append( "\\\\"); break;
+  case '\b': packet->append( "\\b"); break;
+  case '\t': packet->append( "\\t"); break;
+  case '\'': packet->append( "\\'"); break;
+  case 0   : packet->append( "\\0"); break;
+  default:
+    packet->append((char)c);
+    break;
+  }
+  packet->append('\'');
+}
+
+#endif
+
+const char* Log_event::get_type_str()
+{
+  switch(get_type_code())
+  {
+  case START_EVENT:  return "Start";
+  case STOP_EVENT:   return "Stop";
+  case QUERY_EVENT:  return "Query";
+  case ROTATE_EVENT: return "Rotate";
+  case INTVAR_EVENT: return "Intvar";
+  case LOAD_EVENT:   return "Load";
+  case SLAVE_EVENT:  return "Slave";
+  default: /* impossible */ return "Unknown";
+  }
+}
+
+#ifndef MYSQL_CLIENT
+
+void Log_event::pack_info(String* packet)
+{
+  net_store_data(packet, "", 0);
+}
+
+void Query_log_event::pack_info(String* packet)
+{
+  String tmp;
+  if(db && db_len)
+  {
+   tmp.append("use ");
+   tmp.append(db, db_len);
+   tmp.append("; ", 2);
+  }
+
+  if(query && q_len)
+    tmp.append(query, q_len);
+  net_store_data(packet, (char*)tmp.ptr(), tmp.length());
+}
+
+void Start_log_event::pack_info(String* packet)
+{
+  String tmp;
+  char buf[22];
+
+  tmp.append("Server ver: ");
+  tmp.append(server_version);
+  tmp.append(", Binlog ver: ");
+  tmp.append(llstr(binlog_version, buf));
+  net_store_data(packet, tmp.ptr(), tmp.length());
+}
+
+void Load_log_event::pack_info(String* packet)
+{
+  String tmp;
+  if(db && db_len)
+  {
+   tmp.append("use ");
+   tmp.append(db, db_len);
+   tmp.append("; ", 2);
+  }
+
+  tmp.append("LOAD DATA INFILE '");
+  tmp.append(fname);
+  tmp.append("' ", 2);
+  if(sql_ex.opt_flags && REPLACE_FLAG )
+    tmp.append(" REPLACE ");
+  else if(sql_ex.opt_flags && IGNORE_FLAG )
+    tmp.append(" IGNORE ");
+  
+  tmp.append("INTO TABLE ");
+  tmp.append(table_name);
+  if (!(sql_ex.empty_flags & FIELD_TERM_EMPTY))
+  {
+    tmp.append(" FIELDS TERMINATED BY ");
+    pretty_print_char(&tmp, sql_ex.field_term);
+  }
+
+  if (!(sql_ex.empty_flags & ENCLOSED_EMPTY))
+  {
+    if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
+      tmp.append(" OPTIONALLY ");
+    tmp.append( " ENCLOSED BY ");
+    pretty_print_char(&tmp, sql_ex.enclosed);
+  }
+     
+  if (!(sql_ex.empty_flags & ESCAPED_EMPTY))
+  {
+    tmp.append( " ESCAPED BY ");
+    pretty_print_char(&tmp, sql_ex.escaped);
+  }
+     
+  if (!(sql_ex.empty_flags & LINE_TERM_EMPTY))
+  {
+    tmp.append(" LINES TERMINATED BY ");
+    pretty_print_char(&tmp, sql_ex.line_term);
+  }
+
+  if (!(sql_ex.empty_flags & LINE_START_EMPTY))
+  {
+    tmp.append(" LINES STARTING BY ");
+    pretty_print_char(&tmp, sql_ex.line_start);
+  }
+     
+  if ((int)skip_lines > 0)
+    tmp.append( " IGNORE %ld LINES ", (long) skip_lines);
+
+  if (num_fields)
+  {
+    uint i;
+    const char* field = fields;
+    tmp.append(" (");
+    for(i = 0; i < num_fields; i++)
+    {
+      if(i)
+	tmp.append(" ,");
+      tmp.append( field);
+	  
+      field += field_lens[i]  + 1;
+    }
+    tmp.append(')');
+  }
+
+  net_store_data(packet, tmp.ptr(), tmp.length());
+}
+
+void Rotate_log_event::pack_info(String* packet)
+{
+  net_store_data(packet, new_log_ident, ident_len);
+}
+
+void Intvar_log_event::pack_info(String* packet)
+{
+  String tmp;
+  char buf[22];
+  tmp.append(get_var_type_name());
+  tmp.append('=');
+  tmp.append(llstr(val, buf));
+  net_store_data(packet, tmp.ptr(), tmp.length());
+}
+
+void Slave_log_event::pack_info(String* packet)
+{
+  net_store_data(packet, "", 0);
+}
+
+
+void Log_event::init_show_field_list(List<Item>* field_list)
+{
+  field_list->push_back(new Item_empty_string("Log_name", 20));
+  field_list->push_back(new Item_empty_string("Pos", 20));
+  field_list->push_back(new Item_empty_string("Event_type", 20));
+  field_list->push_back(new Item_empty_string("Server_id", 20));
+  field_list->push_back(new Item_empty_string("Log_seq", 20));
+  field_list->push_back(new Item_empty_string("Info", 20));
+}
+
+int Log_event::net_send(THD* thd, const char* log_name, ulong pos)
+{
+  String* packet = &thd->packet;
+  const char* p = strrchr(log_name, FN_LIBCHAR);
+  const char* event_type;
+  if (p)
+    log_name = p + 1;
+  
+  packet->length(0);
+  net_store_data(packet, log_name, strlen(log_name));
+  net_store_data(packet, (longlong)pos);
+  event_type = get_type_str();
+  net_store_data(packet, event_type, strlen(event_type));
+  net_store_data(packet, server_id);
+  net_store_data(packet, log_seq);
+  pack_info(packet);
+  return my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
+}
+
+#endif
 
 int Query_log_event::write(IO_CACHE* file)
 {
@@ -208,6 +406,17 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
     }
 
     return r;
+  }
+  case SLAVE_EVENT:
+  {
+    Slave_log_event* s = new Slave_log_event(buf, event_len);
+    if (!s->master_host)
+    {
+      delete s;
+      return NULL;
+    }
+
+    return s;
   }
   case START_EVENT:  return  new Start_log_event(buf);
   case STOP_EVENT:  return  new Stop_log_event(buf);
@@ -392,6 +601,16 @@ Intvar_log_event::Intvar_log_event(const char* buf):Log_event(buf)
   buf += LOG_EVENT_HEADER_LEN;
   type = buf[I_TYPE_OFFSET];
   val = uint8korr(buf+I_VAL_OFFSET);
+}
+
+const char* Intvar_log_event::get_var_type_name()
+{
+  switch(type)
+  {
+  case LAST_INSERT_ID_EVENT: return "LAST_INSERT_ID";
+  case INSERT_ID_EVENT: return "INSERT_ID";
+  default: /* impossible */ return "UNKNOWN";
+  }
 }
 
 int Intvar_log_event::write_data(IO_CACHE* file)
@@ -616,8 +835,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,MASTER_INFO* mi):
   if((mem_pool = (char*)my_malloc(get_data_size() + 1,
 				  MYF(MY_WME))))
   {
-    master_host = mem_pool + sizeof(uint32) +
-      sizeof(ulonglong) + sizeof(uint16);
+    master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
     memcpy(master_host, mi->host, master_host_len + 1);
     master_log = master_host + master_host_len + 1;
     memcpy(master_log, mi->log_file_name, master_log_len + 1);
@@ -653,19 +871,15 @@ void Slave_log_event::print(FILE* file, bool short_form = 0,
 
 int Slave_log_event::get_data_size()
 {
-  return master_host_len + master_log_len + 1 + 4 /* data_size*/ +
-    8 /* master_pos */ +
-    2 /* master_port */;
+  return master_host_len + master_log_len + 1 + SL_MASTER_HOST_OFFSET;
 }
 
 int Slave_log_event::write_data(IO_CACHE* file)
 {
-  int data_size = get_data_size();
-  int4store(mem_pool, data_size);
   int8store(mem_pool + SL_MASTER_POS_OFFSET, master_pos);
   int2store(mem_pool + SL_MASTER_PORT_OFFSET, master_port);
   // log and host are already there
-  return my_b_write(file, (byte*)mem_pool, data_size);
+  return my_b_write(file, (byte*)mem_pool, get_data_size());
 }
 
 void Slave_log_event::init_from_mem_pool(int data_size)
@@ -694,8 +908,3 @@ Slave_log_event::Slave_log_event(const char* buf, int event_len):
   mem_pool[event_len] = 0;
   init_from_mem_pool(event_len);
 }
-
-
-
-
-

@@ -381,7 +381,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 
   if (pos < 4)
   {
-    errmsg = "Client requested master to start repliction from impossible position.\n";
+    errmsg = "Client requested master to start repliction from \
+impossible position";
     goto err;
   }
  
@@ -825,6 +826,105 @@ void reset_master()
   mysql_bin_log.open(opt_bin_logname,LOG_BIN);
 
 }
+
+
+int show_binlog_events(THD* thd)
+{
+  DBUG_ENTER("show_binlog_events");
+  List<Item> field_list;
+  const char* errmsg = 0;
+  IO_CACHE log;
+  File file = -1;
+  
+  Log_event::init_show_field_list(&field_list);  
+  if (send_fields(thd, field_list, 1))
+    DBUG_RETURN(-1);
+  
+  if (mysql_bin_log.is_open())
+  {
+    LOG_INFO linfo;
+    char search_file_name[FN_REFLEN];
+    LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
+    uint event_count, limit_start, limit_end;
+    const char* log_file_name = lex_mi->log_file_name;
+    Log_event* ev;
+    ulong pos = (ulong) lex_mi->pos;
+      
+    limit_start = thd->lex.select->offset_limit;
+    limit_end = thd->lex.select->select_limit + limit_start;
+
+    if (log_file_name)
+      mysql_bin_log.make_log_name(search_file_name, log_file_name);
+    else
+      search_file_name[0] = 0;
+
+    linfo.index_file_offset = 0;
+    thd->current_linfo = &linfo;
+    
+    if (mysql_bin_log.find_first_log(&linfo, search_file_name))
+    {
+      errmsg = "Could not find target log";
+      goto err;
+    }
+
+    if ((file=open_binlog(&log, linfo.log_file_name, &errmsg)) < 0)
+      goto err;
+
+    if (pos < 4)
+    {
+      errmsg = "Invalid log position";
+      goto err;
+    }
+
+    pthread_mutex_lock(mysql_bin_log.get_log_lock());
+ 
+    my_b_seek(&log, pos);
+
+    for (event_count = 0;
+	(ev = Log_event::read_log_event(&log, 0));)
+    {
+      if (event_count >= limit_start &&
+	   ev->net_send(thd, linfo.log_file_name, pos))
+	{
+	  errmsg = "Net error";
+	  delete ev;
+	  pthread_mutex_unlock(mysql_bin_log.get_log_lock());
+          goto err;
+	}
+      
+      pos = my_b_tell(&log);	
+      delete ev;
+
+      if (++event_count >= limit_end)
+	break;
+    }
+
+    if (event_count < limit_end && log.error)
+    {
+      errmsg = "Wrong offset or I/O error";
+      goto err;
+    }
+    
+    pthread_mutex_unlock(mysql_bin_log.get_log_lock());
+  }
+
+err:
+  if (file >= 0)
+  {
+    end_io_cache(&log);
+    (void) my_close(file, MYF(MY_WME));
+  }
+  
+  if (errmsg)
+  {
+    net_printf(&thd->net, ER_SHOW_BINLOG_EVENTS, errmsg);
+    DBUG_RETURN(1);
+  }
+
+  send_eof(&thd->net);
+  DBUG_RETURN(0);
+}
+
 
 int show_slave_hosts(THD* thd)
 {
