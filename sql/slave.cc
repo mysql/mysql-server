@@ -2963,7 +2963,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
      restarts replication from a non-transactional statement (with CHANGE
      MASTER).
   */
-  rli->inside_transaction= 0;
   /* Wake up master_pos_wait() */
   pthread_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",("Signaling possibly waiting master_pos_wait() functions"));

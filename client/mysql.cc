@@ -1812,7 +1812,6 @@ print_field_types(MYSQL_RES *result)
   while ((field = mysql_fetch_field(result)))
   {
     tee_fprintf(PAGER,"Catalog:    '%s'\nDatabase:   '%s'\nTable:      '%s'\nName:       '%s'\nType:       %d\nLength:     %d\nMax length: %d\nIs_null:    %d\nFlags:      %d\nDecimals:   %d\n\n",
-    tee_fprintf(PAGER,"'%s.%s.%s.%s' %d %d %d %d %d\n",
 		field->catalog, field->db, field->table, field->name,
 		(int) field->type,
 		field->length, field->max_length,

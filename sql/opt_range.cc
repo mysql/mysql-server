@@ -618,6 +618,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     SEL_TREE *tree;
     KEY_PART *key_parts;
     PARAM param;
+    THD *thd= current_thd;
 
     /* set up parameter that is passed to all functions */
     param.baseflag=basflag;
@@ -628,13 +629,13 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     param.keys=0;
     param.mem_root= &alloc;
 
-    current_thd->no_errors=1;			// Don't warn about NULL
+    thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc,2048,0);
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
 						   sizeof(KEY_PART)*
 						   head->key_parts)))
     {
-      current_thd->no_errors=0;
+      thd->no_errors=0;
       free_root(&alloc,MYF(0));			// Return memory & allocator
       DBUG_RETURN(0);				// Can't use range
     }
@@ -736,7 +737,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     }
     free_root(&alloc,MYF(0));			// Return memory & allocator
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-    current_thd->no_errors=0;
+    thd->no_errors=0;
   }
   DBUG_EXECUTE("info",print_quick(quick,needed_reg););
   /*
@@ -764,7 +765,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       while ((item=li++))
       {
 	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if(current_thd->fatal_error)
+	if (current_thd->is_fatal_error)
 	  DBUG_RETURN(0);	// out of memory
 	tree=tree_and(param,tree,new_tree);
 	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)

@@ -290,6 +290,12 @@ update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+delete from t1 where i8=1;
+select i1,i2 from t1;
+i1	i2
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop table t1;
 CREATE TABLE `t1` (
 `post_id` mediumint(8) unsigned NOT NULL auto_increment,

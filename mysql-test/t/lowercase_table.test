@@ -11,7 +11,7 @@ INSERT INTO T1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
 SELECT * FROM t1;
 SELECT T1.id from T1 LIMIT 1;
 SELECT T2.id from t1 as T2 LIMIT 1;
---error 1109
+# This gave an error in 4.0, but it's fixed in 4.1
 SELECT T2.id from t1 as t2 LIMIT 1;
 RENAME TABLE T1 TO T2;
 ALTER TABLE T2 ADD new_col int not null;

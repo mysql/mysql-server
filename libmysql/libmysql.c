@@ -1715,10 +1715,10 @@ unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 */
 
 MYSQL_RES * STDCALL
-mysql_prepare_result(MYSQL_STMT *stmt)
+mysql_get_metadata(MYSQL_STMT *stmt)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_prepare_result");
+  DBUG_ENTER("mysql_get_metadata");
   
   if (!stmt->field_count || !stmt->fields)
   {
@@ -1758,7 +1758,6 @@ mysql_param_result(MYSQL_STMT *stmt)
 }
 
 
-
 /********************************************************************
  Prepare-execute, and param handling
 *********************************************************************/
@@ -1772,6 +1771,7 @@ static void store_param_type(NET *net, uint type)
   int2store(net->write_pos, type);
   net->write_pos+=2;
 }
+
 
 /****************************************************************************
   Functions to store parameter data from a prepared statement.
@@ -1787,7 +1787,6 @@ static void store_param_type(NET *net, uint type)
     0	ok
     1	Error	(Can't alloc net->buffer)
 ****************************************************************************/
-
 
 static void store_param_tinyint(NET *net, MYSQL_BIND *param)
 {
@@ -2085,8 +2084,6 @@ my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 
 static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
 static my_bool int_is_null_false= 0;
-static my_bool int_is_null_dummy;
-static unsigned long param_length_is_dummy;
 
 /*
   Setup the parameter data buffers from application
@@ -2422,7 +2419,10 @@ static void send_data_long(MYSQL_BIND *param, longlong value)
     char tmp[22];				/* Enough for longlong */
     uint length= (uint)(longlong10_to_str(value,(char *)tmp,10)-tmp);
     ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
-    memcpy(buffer, (char *)tmp+param->offset, copy_length);
+    if ((long) copy_length < 0)
+      copy_length=0;
+    else
+      memcpy(buffer, (char *)tmp+param->offset, copy_length);
     *param->length= length;		
   
     if (copy_length != param->buffer_length)
@@ -2470,7 +2470,10 @@ static void send_data_double(MYSQL_BIND *param, double value)
     char tmp[128];
     uint length= my_sprintf(tmp,(tmp,"%g",value));
     ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
-    memcpy(buffer, (char *)tmp+param->offset, copy_length);
+    if ((long) copy_length < 0)
+      copy_length=0;
+    else
+      memcpy(buffer, (char *)tmp+param->offset, copy_length);
     *param->length= length;		
   
     if (copy_length != param->buffer_length)
@@ -2535,15 +2538,19 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
   case MYSQL_TYPE_BLOB:
     *param->length= length;
     length= min(length-param->offset, param->buffer_length);
-    memcpy(buffer, value+param->offset, length);
+    if ((long) length > 0)
+      memcpy(buffer, value+param->offset, length);
     break;
   default:
     *param->length= length;
     length= min(length-param->offset, param->buffer_length);
-    memcpy(buffer, value+param->offset, length);
+    if ((long) length < 0)
+      length= 0;
+    else
+      memcpy(buffer, value+param->offset, length);
     if (length != param->buffer_length)
       buffer[length]= '\0';
-  } 
+  }
 }
 
 
@@ -2605,15 +2612,16 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
 
 /* Fetch data to buffers */
 
-static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row, 
-                          my_bool field_is_unsigned)
+static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
 {
   ulong length;
-  
+  enum enum_field_types field_type= field->type;
+
   switch (field_type) {
   case MYSQL_TYPE_TINY:
   {
     char value= (char) **row;
+    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned char) value:
 		    (longlong) value);
     send_data_long(param,data);
@@ -2624,6 +2632,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   case MYSQL_TYPE_YEAR:
   {
     short value= sint2korr(*row);
+    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned short) value:
 		    (longlong) value);
     send_data_long(param,data);
@@ -2633,6 +2642,7 @@ static void fetch_results(MYSQL_BIND *param, uint field_type, uchar **row,
   case MYSQL_TYPE_LONG:
   {
     long value= sint4korr(*row);
+    uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned long) value:
 		    (longlong) value);
     send_data_long(param,data);
@@ -2781,24 +2791,6 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   *row+= length;
 }
 
-static uint default_binary_field_length(uint field_type)
-{
-  switch(field_type) {
-  case MYSQL_TYPE_TINY:
-    return 1;
-  case MYSQL_TYPE_SHORT:
-    return 2;
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_FLOAT:
-    return 4;
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_DOUBLE:
-    return 8;
-  default:
-    return 0;
-  } 
-}
-
 
 /*
   Setup the bind buffers for resultset processing
@@ -2838,10 +2830,10 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       This is to make the excute code easier
     */
     if (!param->is_null)
-      param->is_null= &int_is_null_dummy;
+      param->is_null= &param->internal_is_null;
 
     if (!param->length)
-      param->length= &param_length_is_dummy;
+      param->length= &param->internal_length;
 
     param->param_number= param_count++;
     param->offset= 0;
@@ -2945,10 +2937,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else 
-      {
-        my_bool field_is_unsigned= (field->flags & UNSIGNED_FLAG) ? 1: 0;
-        fetch_results(bind, field->type, &row, field_is_unsigned);
-      }
+        fetch_results(bind, field, &row);
     }
     if (!((bit<<=1) & 255))
     {
@@ -2970,8 +2959,8 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
   uchar *row;
   DBUG_ENTER("mysql_fetch");
 
-  stmt->last_fetched_column= 0; /* reset */
-  if (stmt->result_buffered) /* buffered */
+  stmt->last_fetched_column= 0;			/* reset */
+  if (stmt->result_buffered)			/* buffered */
   {
     MYSQL_RES *res;
     
@@ -2986,7 +2975,7 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
     row= (uchar *)res->data_cursor->data;
     res->data_cursor= res->data_cursor->next;
   }
-  else /* un-buffered */
+  else						/* un-buffered */
   {
     if (packet_error == net_safe_read(mysql))
     {
@@ -3012,107 +3001,55 @@ no_data:
 
 
 /*
-  Fetch only specified column data to buffers
+  Fetch datat for one specified column data
+
+  SYNOPSIS
+    mysql_fetch_column()
+    stmt		Prepared statement handler
+    bind		Where date should be placed. Should be filled in as
+			when calling mysql_bind_param()
+    column		Column to fetch (first column is 0)
+    ulong offset	Offset in result data (to fetch blob in pieces)
+			This is normally 0
+  RETURN 
+    0	ok
+    1	error
 */
 
 int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
-                               my_ulonglong icol, 
-                               ulong offset)
+                               uint column, ulong offset)
 {
-  uchar   *row;
-  my_bool null_data;
-
+  MYSQL_BIND *param= stmt->bind+column; 
   DBUG_ENTER("mysql_fetch_column");
 
-  if (!(row= stmt->current_row))
+  if (!stmt->current_row)
     goto no_data;
 
 #ifdef CHECK_EXTRA_ARGUMENTS  
-  if (!bind || icol >= stmt->field_count)
+  if (column >= stmt->field_count)
   {
-    set_stmt_errmsg(stmt, "Invalid column descriptor or offset",1, 
-                    unknown_sqlstate);
+    set_stmt_errmsg(stmt, "Invalid column descriptor",1, unknown_sqlstate);
     DBUG_RETURN(1);
   }
 #endif
 
-  /* column '0' == first column */
-  if (stmt->res_buffers)
-  {
-    /* 
-      Already buffers are parsed and cached to stmt->bind 
-      during mysql_fetch() call.
-    */
-    MYSQL_BIND *param= stmt->bind+icol; 
-    null_data= param->null_field;
-    row= param->inter_buffer;
-  }
-  else
-  { 
-    if (stmt->last_fetched_column == icol+1)
-    {
-      /* 
-        Data buffer is already parsed during the last call, get 
-        the cached information 
-      */
-      if (!stmt->last_fetched_buffer)
-        null_data= 1;
-      else
-      {
-        null_data= 0;
-        row= stmt->last_fetched_buffer;
-      }
-    }
-    else
-    {
-      /* 
-        Advance the data buffer to icol position and cache 
-        the information for subsequent calls
-      */
-      uint bit= icol > 6 ? 1 : 4;
-      stmt->last_fetched_column= icol+1;
-
-      if (row[icol/8] & (bit << icol & 7))
-      {
-        stmt->last_fetched_buffer= 0;
-        null_data= 1;
-      }
-      else
-      {
-        uint length, i;
-
-        null_data= 0;
-        row+= (stmt->field_count+9)/8;		/* skip null bits */
-        
-        for (i=0; i < icol; i++)
-        {
-          if (!(length= default_binary_field_length((uint)(stmt->fields[i].
-							   type))))
-            length= net_field_length(&row);
-          row+= length;
-        }
-        stmt->last_fetched_buffer= row;
-      }
-    }
-  }
-  if (null_data)
+  if (param->null_field)
   {
     if (bind->is_null)
       *bind->is_null= 1;
   }
   else
   {    
-    MYSQL_FIELD *field= stmt->fields+icol; 
-    my_bool field_is_unsigned= (field->flags & UNSIGNED_FLAG) ? 1: 0;
-    
+    MYSQL_FIELD *field= stmt->fields+column; 
+    uchar *row= param->inter_buffer;
     bind->offset= offset;
     if (bind->is_null)
       *bind->is_null= 0;
     if (bind->length) /* Set the length if non char/binary types */
-      *bind->length= default_binary_field_length(field->type);
+      *bind->length= *param->length;
     else
-      bind->length= &param_length_is_dummy;
-    fetch_results(bind, field->type, &row, field_is_unsigned);
+      bind->length= &param->internal_length;	/* Needed for fetch_result() */
+    fetch_results(bind, field, &row);
   }
   DBUG_RETURN(0);
 

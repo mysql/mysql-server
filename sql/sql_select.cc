@@ -1414,6 +1414,7 @@ JOIN::exec()
 			    curr_join->group_list : curr_join->order,
 			    curr_join->select_limit, unit->select_limit_cnt))
 	DBUG_VOID_RETURN;
+    }
   }
   curr_join->having= curr_join->tmp_having;
   thd->proc_info="Sending data";

@@ -262,23 +262,8 @@ int st_select_lex_unit::exec()
 	res= sl->join->reinit();
       else
       {
-	/* Don't use offset for the last union if there is no braces */
-	if (sl != lex_sl)
-	{
-	  offset_limit_cnt= sl->offset_limit;
-	  select_limit_cnt= sl->select_limit+sl->offset_limit;
-	}
-	else
-	{
-	  offset_limit_cnt= 0;
-	  /*
-	    We can't use LIMIT at this stage if we are using ORDER BY for the
-	    whole query
-	  */
-	  select_limit_cnt= HA_POS_ERROR;
-	  if (! sl->order_list.first)
-	    select_limit_cnt= sl->select_limit+sl->offset_limit;
-	}
+	offset_limit_cnt= sl->offset_limit;
+	select_limit_cnt= sl->select_limit+sl->offset_limit;
 	if (select_limit_cnt < sl->select_limit)
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
 
@@ -297,10 +282,10 @@ int st_select_lex_unit::exec()
 	  sl->options|= found_rows_for_union;
 	}
 	
-	/* 
-	   As far as union share table space we should reassign table map,
-	   which can be spoiled by 'prepare' of JOIN of other UNION parts
-	   if it use same tables
+	/*
+	  As far as union share table space we should reassign table map,
+	  which can be spoiled by 'prepare' of JOIN of other UNION parts
+	  if it use same tables
 	*/
 	uint tablenr=0;
 	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;

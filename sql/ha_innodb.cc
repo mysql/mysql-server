@@ -1540,82 +1540,6 @@ ha_innobase::close(void)
   	DBUG_RETURN(0);
 }
 
-/* The following accessor functions should really be inside MySQL code! */
-
-/******************************************************************
-Gets field offset for a field in a table. */
-inline
-uint
-get_field_offset(
-/*=============*/
-			/* out: offset */
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field)	/* in: MySQL field object */
-{
-	return((uint) (field->ptr - (char*) table->record[0]));
-}
-
-/******************************************************************
-Checks if a field in a record is SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-inline
-uint
-field_in_record_is_null(
-/*====================*/
-			/* out: 1 if NULL, 0 otherwise */
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field,	/* in: MySQL field object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	int	null_offset;
-
-	if (!field->null_ptr) {
-
-		return(0);
-	}
-
-	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
-
-	if (record[null_offset] & field->null_bit) {
-
-		return(1);
-	}
-
-	return(0);
-}
-
-/******************************************************************
-Sets a field in a record to SQL NULL. Uses the record format
-information in table to track the null bit in record. */
-inline
-void
-set_field_in_record_to_null(
-/*========================*/
-	TABLE*	table,	/* in: MySQL table object */
-	Field*	field,	/* in: MySQL field object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	int	null_offset;
-
-	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
-
-	record[null_offset] = record[null_offset] | field->null_bit;
-}
-
-/******************************************************************
-Resets SQL NULL bits in a record to zero. */
-inline
-void
-reset_null_bits(
-/*============*/
-	TABLE*	table,	/* in: MySQL table object */
-	char*	record)	/* in: a row in MySQL format */
-{
-	bzero(record, table->null_bytes);
-}
-
 extern "C" {
 /*****************************************************************
 InnoDB uses this function is to compare two data fields for which the
@@ -1825,11 +1749,10 @@ ha_innobase::store_key_val_for_row(
 		    
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
 				(byte*) (record
-				+ (ulint)get_field_offset(table, field)),
+					 + (ulint) field->offset()),
 					(ulint) field->pack_length());
 
-			ut_a(get_field_offset(table, field)
-						     == key_part->offset);
+			ut_a(field->offset() == key_part->offset);
 			if (blob_len > key_part->length) {
 			        blob_len = key_part->length;
 			}
@@ -2009,9 +1932,7 @@ build_template(
 			templ->mysql_null_bit_mask = 0;
 		}
 
-		templ->mysql_col_offset = (ulint)
-					get_field_offset(table, field);
-
+		templ->mysql_col_offset = (ulint) field->offset();
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
@@ -2348,8 +2269,8 @@ calc_row_difference(
 		/*	goto skip_field;
 		}*/
 
-		o_ptr = (byte*) old_row + get_field_offset(table, field);
-		n_ptr = (byte*) new_row + get_field_offset(table, field);
+		o_ptr = (byte*) old_row + field->offset();
+		n_ptr = (byte*) new_row + field->offset();
 		o_len = field->pack_length();
 		n_len = field->pack_length();
 
@@ -2374,13 +2295,11 @@ calc_row_difference(
 		}
 
 		if (field->null_ptr) {
-			if (field_in_record_is_null(table, field,
-							(char*) old_row)) {
+			if (field->is_null_in_record((uchar*) old_row)) {
 				o_len = UNIV_SQL_NULL;
 			}
 
-			if (field_in_record_is_null(table, field,
-							(char*) new_row)) {
+			if (field->is_null_in_record((uchar*) new_row)) {
 				n_len = UNIV_SQL_NULL;
 			}
 		}

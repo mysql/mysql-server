@@ -1459,7 +1459,7 @@ void Item_func_in::fix_length_and_dec()
       DBUG_ASSERT(0);
       return;
     }
-    if (array && !(current_thd->fatal_error))		// If not EOM
+    if (array && !(current_thd->is_fatal_error))	// If not EOM
     {
       uint j=0;
       for (uint i=1 ; i < arg_count ; i++)

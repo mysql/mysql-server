@@ -499,10 +499,12 @@ typedef struct st_mysql_bind
   /* Following are for internal use. Set by mysql_bind_param */
   unsigned char *inter_buffer;    /* for the current data position */
   unsigned long offset;           /* offset position for char/binary fetch */
+  unsigned long	internal_length;  /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
   my_bool	long_data_used;	  /* If used with mysql_send_long_data */
   my_bool       binary_data;      /* data buffer is binary */
   my_bool       null_field;       /* NULL data cache flag */
+  my_bool	internal_is_null; /* Used if is_null is 0 */
   void (*store_param_func)(NET *net, struct st_mysql_bind *param);
   void (*fetch_result)(struct st_mysql_bind *, unsigned char **row);
 } MYSQL_BIND;
@@ -572,13 +574,13 @@ my_bool STDCALL mysql_rollback(MYSQL * mysql);
 my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode);
 int	STDCALL mysql_fetch(MYSQL_STMT *stmt);
 int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
-                               my_ulonglong column, 
+                               unsigned int column,
                                unsigned long offset);
 my_bool STDCALL mysql_send_long_data(MYSQL_STMT *stmt, 
 				     unsigned int param_number,
 				     const char *data, 
 				     unsigned long length);
-MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
+MYSQL_RES *STDCALL mysql_get_metadata(MYSQL_STMT *stmt);
 MYSQL_RES *STDCALL mysql_param_result(MYSQL_STMT *stmt);
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
 int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt);
