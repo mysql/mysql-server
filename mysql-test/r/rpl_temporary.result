@@ -39,17 +39,18 @@ f
 show binlog events;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
-master-bin.000001	79	Query	1	79	use `test`; create table t1(f int)
-master-bin.000001	136	Query	1	136	use `test`; create table t2(f int)
-master-bin.000001	193	Query	1	193	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
-master-bin.000001	290	Query	1	290	use `test`; create temporary table t3(f int)
-master-bin.000001	357	Query	1	357	use `test`; insert into t3 select * from t1 where f<6
-master-bin.000001	433	Query	1	433	use `test`; create temporary table t3(f int)
-master-bin.000001	500	Query	1	500	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	573	Query	1	573	use `test`; insert into t3 select * from t1 where f>=4
-master-bin.000001	650	Query	1	650	use `test`; drop temporary table t3
-master-bin.000001	708	Query	1	708	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	781	Query	1	781	use `test`; drop temporary table t3
+master-bin.000001	79	Query	1	79	use `test`; drop table if exists t1,t2
+master-bin.000001	140	Query	1	140	use `test`; create table t1(f int)
+master-bin.000001	197	Query	1	197	use `test`; create table t2(f int)
+master-bin.000001	254	Query	1	254	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+master-bin.000001	351	Query	1	351	use `test`; create temporary table t3(f int)
+master-bin.000001	418	Query	1	418	use `test`; insert into t3 select * from t1 where f<6
+master-bin.000001	494	Query	1	494	use `test`; create temporary table t3(f int)
+master-bin.000001	561	Query	1	561	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	634	Query	1	634	use `test`; insert into t3 select * from t1 where f>=4
+master-bin.000001	711	Query	1	711	use `test`; drop temporary table t3
+master-bin.000001	769	Query	1	769	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	842	Query	1	842	use `test`; drop temporary table t3
 drop table t1, t2;
 use test;
 SET TIMESTAMP=1040323920;
