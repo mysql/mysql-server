@@ -1371,7 +1371,9 @@ recv_apply_log_recs_for_backup(
 
 	if (recv_max_parsed_page_no >= n_pages_total) {
 		printf(
-"InnoDB: Error: tablespace size %lu pages, but a log record on page %lu!\n",
+"InnoDB: Error: tablespace size %lu pages, but a log record on page %lu!\n"
+"InnoDB: Are you sure you have specified all the ibdata files right in\n"
+"InnoDB: the my.cnf file you gave as the argument to ibbackup --restore?\n",
 			n_pages_total, recv_max_parsed_page_no);
 	}
 
@@ -1395,7 +1397,7 @@ recv_apply_log_recs_for_backup(
 							&success);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot open %lu'th data file %s\n", nth_file);
+"InnoDB: Error: cannot open %lu'th data file\n", nth_file);
 
 				exit(1);
 			}
@@ -1411,7 +1413,7 @@ recv_apply_log_recs_for_backup(
 				UNIV_PAGE_SIZE);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot read page no %lu from %lu'th data file %s\n",
+"InnoDB: Error: cannot read page no %lu from %lu'th data file\n",
 				nth_page_in_file, nth_file);
 
 				exit(1);
@@ -1439,7 +1441,7 @@ recv_apply_log_recs_for_backup(
 				UNIV_PAGE_SIZE);
 			if (!success) {
 				printf(
-"InnoDB: Error: cannot write page no %lu to %lu'th data file %s\n",
+"InnoDB: Error: cannot write page no %lu to %lu'th data file\n",
 				nth_page_in_file, nth_file);
 
 				exit(1);
@@ -1797,7 +1799,7 @@ recv_report_corrupt_log(
 "InnoDB: Recv offset %lu, prev %lu\n",
 		recv_previous_parsed_rec_type,
 		recv_previous_parsed_rec_is_multi,
-		ptr - recv_sys->buf,
+		(ulint)(ptr - recv_sys->buf),
 		recv_previous_parsed_rec_offset);
 
 	if ((ulint)(ptr - recv_sys->buf + 100)
