@@ -320,10 +320,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file;
 
-const char *opt_datetime_formats[3];
-const char *opt_datetime_format_names[3]= {"date_format",
-					   "time_format",
-					   "datetime_format"};
+const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
@@ -351,7 +348,6 @@ struct system_variables global_system_variables;
 struct system_variables max_system_variables;
 
 MY_TMPDIR mysql_tmpdir_list;
-DATE_FORMAT dayord;
 MY_BITMAP temp_pool;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
@@ -912,9 +908,12 @@ void clean_up(bool print_message)
 #ifdef USE_RAID
   end_raid();
 #endif
-  g_datetime_frm(DATE_FORMAT_TYPE).clean();
-  g_datetime_frm(TIME_FORMAT_TYPE).clean();
-  g_datetime_frm(DATETIME_FORMAT_TYPE).clean();
+  my_free((char*) global_system_variables.date_format,
+	  MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) global_system_variables.time_format,
+	  MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) global_system_variables.datetime_format,
+	  MYF(MY_ALLOW_ZERO_PTR));
   if (defaults_argv)
     free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
@@ -2008,33 +2007,46 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 }
 
 
-int init_global_datetime_format(datetime_format_types format_type, bool is_alloc)
-{
-  const char *format_str= opt_datetime_formats[format_type];
-  uint format_length= 0;
-  DATETIME_FORMAT *tmp_format= &g_datetime_frm(format_type).datetime_format;
+/*
+  Initialize one of the global date/time format variables
 
-  if (format_str)
+  SYNOPSIS
+    init_global_datetime_format()
+    format_type		What kind of format should be supported
+    var_ptr		Pointer to variable that should be updated
+  
+  NOTES
+    The default value is taken from either opt_date_time_formats[] or
+    the ISO format (ANSI SQL)
+
+  RETURN
+    0 ok
+    1 error
+*/
+
+bool init_global_datetime_format(timestamp_type format_type,
+				 DATE_TIME_FORMAT **var_ptr)
+{
+  /* Get command line option */
+  const char *str= opt_date_time_formats[format_type];
+  DATE_TIME_FORMAT *format;
+
+  if (!str)					// No specified format
   {
-    format_str= opt_datetime_formats[format_type];
-    format_length= strlen(format_str);
+    str= get_date_time_format_str(&known_date_time_formats[ISO_FORMAT],
+				  format_type);
+    /*
+      Set the "command line" option to point to the generated string so
+      that we can set global formats back to default
+    */
+    opt_date_time_formats[format_type]= str;
   }
-  else
+  if (!(*var_ptr= date_time_format_make(format_type, str, strlen(str))))
   {
-    format_str= datetime_formats[format_type][ISO_FORMAT];
-    format_length= strlen(datetime_formats[format_type][ISO_FORMAT]);
-    opt_datetime_formats[format_type]= format_str;
+    fprintf(stderr, "Wrong date/time format specifier: %s\n", str);
+    return 1;
   }
-  if (make_format(tmp_format, format_type, format_str,
-		  format_length, is_alloc))
-  {
-    g_datetime_frm(format_type).name= opt_datetime_format_names[format_type];
-    g_datetime_frm(format_type).name_length=
-      strlen(opt_datetime_format_names[format_type]);
-    g_datetime_frm(format_type).format_type= format_type;
-    return 0;
-  }
-  return 1;
+  return 0;
 }
 
 
@@ -2149,17 +2161,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
     }
     default_charset_info= default_collation;
   }
-  global_system_variables.collation_server= default_charset_info;
-  global_system_variables.collation_database= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
+  /* Set collactions that depends on the default collation */
+  global_system_variables.collation_server=	 default_charset_info;
+  global_system_variables.collation_database=	 default_charset_info;
+  global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
-
-  if (init_global_datetime_format(DATE_FORMAT_TYPE, 1) ||
-      init_global_datetime_format(TIME_FORMAT_TYPE, 1) ||
-      init_global_datetime_format(DATETIME_FORMAT_TYPE, 1))
-    return 1;
+  global_system_variables.character_set_client=  default_charset_info;
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
     return 1;
@@ -4572,7 +4579,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
-   "Logs will be rotated after expire-log-days days. ",
+   "Logs will be rotated after expire-log-days days ",
    (gptr*) &expire_logs_days,
    (gptr*) &expire_logs_days, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
@@ -4582,22 +4589,23 @@ The minimum value for this variable is 4096.",
     (gptr*) &max_system_variables.default_week_format,
     0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
-    "The DATE format.",
-    (gptr*) &opt_datetime_formats[DATE_FORMAT_TYPE],
-    (gptr*) &opt_datetime_formats[DATE_FORMAT_TYPE],
+    "The DATE format (For future).",
+    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
+    (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "datetime-format", OPT_DATETIME_FORMAT,
-    "The DATETIME/TIMESTAMP format.",
-    (gptr*) &opt_datetime_formats[DATETIME_FORMAT_TYPE],
-    (gptr*) &opt_datetime_formats[DATETIME_FORMAT_TYPE],
+    "The DATETIME/TIMESTAMP format (for future).",
+    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
+    (gptr*) &opt_date_time_formats[TIMESTAMP_DATETIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "time-format", OPT_TIME_FORMAT,
-    "The TIME format.",
-    (gptr*) &opt_datetime_formats[TIME_FORMAT_TYPE],
-    (gptr*) &opt_datetime_formats[TIME_FORMAT_TYPE],
+    "The TIME format (for future).",
+    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
+    (gptr*) &opt_date_time_formats[TIMESTAMP_TIME],
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 struct show_var_st status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
@@ -4904,6 +4912,8 @@ static void mysql_init_variables(void)
   national_charset_info= &my_charset_utf8_general_ci;
   table_alias_charset= &my_charset_bin;
 
+  opt_date_time_formats[0]= opt_date_time_formats[1]= opt_date_time_formats[2]= 0;
+
   /* Things with default values that are not zero */
   delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -4960,11 +4970,6 @@ static void mysql_init_variables(void)
 
 
   /* Set default values for some option variables */
-  global_system_variables.collation_server= default_charset_info;
-  global_system_variables.collation_database= default_charset_info;
-  global_system_variables.collation_connection= default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
@@ -4972,10 +4977,6 @@ static void mysql_init_variables(void)
   global_system_variables.max_join_size= (ulonglong) HA_POS_ERROR;
   max_system_variables.max_join_size=   (ulonglong) HA_POS_ERROR;
   global_system_variables.old_passwords= 0;
-
-  init_global_datetime_format(DATE_FORMAT_TYPE, 0);
-  init_global_datetime_format(TIME_FORMAT_TYPE, 0);
-  init_global_datetime_format(DATETIME_FORMAT_TYPE, 0);
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -5578,7 +5579,7 @@ static void get_options(int argc,char **argv)
     exit(ho_error);
   if (argc > 0)
   {
-    fprintf(stderr, "%s: Too many arguments.\nUse --help to get a list of available options\n", my_progname);
+    fprintf(stderr, "%s: Too many arguments (first extra is '%s').\nUse --help to get a list of available options\n", my_progname, *argv);
     exit(ho_error);
   }
 
@@ -5639,6 +5640,14 @@ static void get_options(int argc,char **argv)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
   if (opt_log_queries_not_using_indexes)
     opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
+
+  if (init_global_datetime_format(TIMESTAMP_DATE,
+				  &global_system_variables.date_format) ||
+      init_global_datetime_format(TIMESTAMP_TIME,
+				  &global_system_variables.time_format) ||
+      init_global_datetime_format(TIMESTAMP_DATETIME,
+				  &global_system_variables.datetime_format))
+    exit(1);
 }
 
 

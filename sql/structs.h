@@ -20,15 +20,19 @@
 struct st_table;
 class Field;
 
-typedef struct st_date_format {		/* How to print date */
-  uint pos[6];				/* Positions to YY.MM.DD HH:MM:SS */
-} DATE_FORMAT;
+typedef struct lex_string {
+  char *str;
+  uint length;
+} LEX_STRING;
 
-typedef struct st_datetime_format {
-  byte dt_pos[8];
-  char *format;
-  uint format_length;
-} DATETIME_FORMAT;
+
+typedef struct st_date_time_format {
+  uchar positions[8];
+  char  time_separator;			/* Separator between hour and minute */
+  uint flag;				/* For future */
+  LEX_STRING format;
+} DATE_TIME_FORMAT;
+
 
 typedef struct st_keyfile_info {	/* used with ha_info() */
   byte ref[MAX_REFLENGTH];		/* Pointer to current row */
@@ -115,8 +119,17 @@ typedef struct st_read_record {			/* Parameter to read_record */
   bool print_error, ignore_not_found_rows;
 } READ_RECORD;
 
-enum timestamp_type { TIMESTAMP_NONE, WRONG_TIMESTAMP_FULL, TIMESTAMP_DATE, TIMESTAMP_FULL,
-		      TIMESTAMP_TIME};
+
+enum timestamp_type
+{
+  TIMESTAMP_NONE= -2, TIMESTAMP_DATETIME_ERROR= -1,
+  TIMESTAMP_DATE= 0,  TIMESTAMP_DATETIME= 1, TIMESTAMP_TIME= 2
+};
+
+/* Parameters to str_to_TIME */
+#define TIME_FUZZY_DATE		1
+#define TIME_DATETIME_ONLY	2
+
 
 typedef struct st_time {
   uint year,month,day,hour,minute,second;
@@ -125,10 +138,19 @@ typedef struct st_time {
   timestamp_type time_type;
 } TIME;
 
+
 typedef struct {
   long year,month,day,hour,minute,second,second_part;
   bool neg;
 } INTERVAL;
+
+
+typedef struct st_known_date_time_format {
+  const char *format_name;
+  const char *date_format;
+  const char *datetime_format;
+  const char *time_format;
+} KNOWN_DATE_TIME_FORMAT;
 
 
 enum SHOW_TYPE
@@ -167,11 +189,6 @@ typedef struct show_var_st {
   SHOW_TYPE type;
 } SHOW_VAR;
 
-
-typedef struct lex_string {
-  char *str;
-  uint length;
-} LEX_STRING;
 
 typedef struct	st_lex_user {
   LEX_STRING user, host, password;

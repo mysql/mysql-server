@@ -222,7 +222,7 @@ public:
   uint offset();			// Should be inline ...
   void copy_from_tmp(int offset);
   uint fill_cache_field(struct st_cache_field *copy);
-  virtual bool get_date(TIME *ltime,bool fuzzydate);
+  virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual bool has_charset(void) const { return FALSE; }
@@ -645,7 +645,7 @@ public:
     longget(tmp,ptr);
     return tmp;
   }
-  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
 };
 
@@ -733,7 +733,7 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
 };
 
@@ -803,7 +803,7 @@ public:
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
   bool zero_pack() const { return 1; }
-  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
 };
 
@@ -1158,9 +1158,6 @@ uint pack_length_to_packflag(uint type);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
 bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
-uint find_enum(TYPELIB *typelib,const char *x, uint length);
-ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
-		   char **err_pos, uint *err_len, bool *set_warning);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
 

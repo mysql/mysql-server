@@ -108,3 +108,11 @@ drop temporary table t3;
 
 select * from t2;
 drop table t1,t2;
+
+# Create last a temporary table that is not dropped at end to ensure that we
+# don't get any memory leaks for this
+
+create temporary table t3 (f int);
+sync_with_master;
+
+# The server will now close done

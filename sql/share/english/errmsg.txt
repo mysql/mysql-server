@@ -259,9 +259,9 @@ character-set=latin1
 "Slave is already running"
 "Slave has already been stopped"
 "Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)"
-"Z_MEM_ERROR: Not enough memory available for zlib"
-"Z_BUF_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)"
-"Z_DATA_ERROR: Input data was corrupted for zlib"
+"ZLIB: Not enough memory available for zlib"
+"ZLIB: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)"
+"ZLIB: Input data was corrupted for zlib"
 "%d line(s) was(were) cut by group_concat()"
 "Record count is fewer than the column count at row %ld";
 "Record count is more than the column count at row %ld";
@@ -279,7 +279,12 @@ character-set=latin1
 "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
 "Server is running in --secure-auth mode, but '%s@%s' has a password in the old format; please change the password to the new format",
 "Field or reference '%-.64s%s%-.64s%s%-.64s' of SELECT #%d was resolved in SELECT #%d",
-"Wrong parameter or combination of parameters for START SLAVE UNTIL"
-"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
-"SQL thread is not to be started so UNTIL options are ignored"
-"Incorrect index name '%-.100s'",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL",
+"It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL. Otherwise you will get problems if you get an unexpected slave's mysqld restart",
+"SQL thread is not to be started so UNTIL options are ignored",
+"Incorrect %s name '%-.100s'",
+"table",
+"database",
+"column",
+"index",
+"catalog",
