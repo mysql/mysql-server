@@ -24219,7 +24219,7 @@ optimize this is to spread the data on more than one disk.
 
 @item Disk reading/writing.
 When the disk is at the correct position we need to read the data. With
-modern disks in 1999, one disk delivers something like 10-20Mb/s. This
+modern disks in 1999, one disk delivers something like 10-20MB/s. This
 is easier to optimize than seeks because you can read in parallel from
 multiple disks.
 
