@@ -1,0 +1,70 @@
+delete from mysql.proc;
+create procedure proc1()
+set @x = 42;
+create function func1() returns int
+return 42;
+create procedure foo()
+create procedure bar() set @x=3;
+Can't create a PROCEDURE from within another stored routine
+create procedure foo()
+create function bar() returns double return 2.3;
+Can't create a FUNCTION from within another stored routine
+create procedure proc1()
+set @x = 42;
+PROCEDURE proc1 already exists
+create function func1() returns int
+return 42;
+FUNCTION func1 already exists
+alter procedure foo;
+PROCEDURE foo does not exist
+alter function foo;
+FUNCTION foo does not exist
+drop procedure foo;
+PROCEDURE foo does not exist
+drop function foo;
+FUNCTION foo does not exist
+call foo();
+PROCEDURE foo does not exist
+create procedure foo()
+foo: loop
+leave bar;
+end loop;
+LEAVE with no matching label: bar
+create procedure foo()
+foo: loop
+iterate bar;
+end loop;
+ITERATE with no matching label: bar
+create procedure foo()
+foo: loop
+foo: loop
+set @x=2;
+end loop foo;
+end loop foo;
+Redefining label foo
+create procedure foo()
+foo: loop
+set @x=2;
+end loop bar;
+End-label bar without match
+create procedure foo(out x int)
+begin
+declare y int;
+set x = y;
+end;
+Referring to uninitialized variable y
+create procedure foo(x int)
+select * from test.t1;
+SELECT in a stored procedure must have INTO
+create procedure foo()
+return 42;
+RETURN is only allowed in a FUNCTION
+create function foo() returns int
+begin
+declare x int;
+select max(c) into x from test.t;
+return x;
+end;
+Queries, like SELECT, INSERT, UPDATE (and others), are not allowed in a FUNCTION
+drop procedure proc1;
+drop function func1;

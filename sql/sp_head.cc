@@ -443,6 +443,19 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 }
 
 //
+// sp_instr_jump
+//
+int
+sp_instr_jump::execute(THD *thd, uint *nextp)
+{
+  DBUG_ENTER("sp_instr_jump::execute");
+  DBUG_PRINT("info", ("destination: %u", m_dest));
+
+  *nextp= m_dest;
+  DBUG_RETURN(0);
+}
+
+//
 // sp_instr_jump_if
 //
 int
