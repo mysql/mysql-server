@@ -968,10 +968,20 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	}
       }
     }
+    /*
+      Here we sort rows for ORDER BY/GROUP BY clause, if the optimiser
+      chose FILESORT to be faster than INDEX SCAN or there is no 
+      suitable index present.
+      Note, that create_sort_index calls test_if_skip_sort_order and may
+      finally replace sorting with index scan if there is a LIMIT clause in
+      the query. XXX: it's never shown in EXPLAIN!
+      OPTION_FOUND_ROWS supersedes LIMIT and is taken into account.
+    */
     if (create_sort_index(&join.join_tab[join.const_tables],
 			  group ? group : order,
 			  select_limit, 
-			  thd->select_limit))
+                          join.select_options & OPTION_FOUND_ROWS ?
+                          HA_POS_ERROR : thd->select_limit))
       goto err;
   }
   join.having=having;				// Actually a parameter
