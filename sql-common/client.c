@@ -451,7 +451,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 
   /* Get number of connection */
   connect_number = uint4korr(handle_connect_map);/*WAX2*/
-  p= int2str(connect_number, connect_number_char, 10);
+  p= int10_to_str(connect_number, connect_number_char, 10);
 
   /*
     The name of event and file-mapping events create agree next rule:

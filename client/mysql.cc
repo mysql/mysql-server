@@ -1872,7 +1872,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       *pos++= ',';
       *pos++= ' ';
-      pos=int2str(warnings, pos, 10);
+      pos=int10_to_str(warnings, pos, 10);
       pos=strmov(pos, " warning");
       if (warnings != 1)
 	*pos++= 's';
@@ -3090,21 +3090,21 @@ static void nice_time(double sec,char *buff,bool part_second)
   {
     tmp=(ulong) floor(sec/(3600.0*24));
     sec-=3600.0*24*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0)
   {
     tmp=(ulong) floor(sec/3600.0);
     sec-=3600.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0)
   {
     tmp=(ulong) floor(sec/60.0);
     sec-=60.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff," min ");
   }
   if (part_second)

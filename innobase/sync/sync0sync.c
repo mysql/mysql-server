@@ -214,7 +214,7 @@ mutex_create_func(
 	mutex->magic_n = MUTEX_MAGIC_N;
 #ifdef UNIV_SYNC_DEBUG
 	mutex->line = 0;
-	mutex->file_name = (char *) "not yet reserved";
+	mutex->file_name = "not yet reserved";
 #endif /* UNIV_SYNC_DEBUG */
 	mutex->level = SYNC_LEVEL_NONE;
 	mutex->cfile_name = cfile_name;
@@ -512,7 +512,7 @@ void
 mutex_set_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line)		/* in: line where requested */
 {
 	ut_ad(mutex);

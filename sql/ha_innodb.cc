@@ -103,7 +103,7 @@ are determined in innobase_init below: */
 char*	innobase_data_home_dir			= NULL;
 char*	innobase_data_file_path 		= NULL;
 char*	innobase_log_group_home_dir		= NULL;
-char*	innobase_log_arch_dir			= NULL;
+char*	innobase_log_arch_dir			= NULL;/* unused */
 /* The following has a misleading name: starting from 4.0.5, this also
 affects Windows: */
 char*	innobase_unix_file_flush_method		= NULL;
@@ -112,7 +112,7 @@ char*	innobase_unix_file_flush_method		= NULL;
 values */
 
 uint	innobase_flush_log_at_trx_commit	= 1;
-my_bool innobase_log_archive			= FALSE;
+my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
@@ -839,7 +839,8 @@ innobase_init(void)
 	if (!innobase_log_group_home_dir) {
 	  	innobase_log_group_home_dir = default_path;
 	}
-	  	
+
+#ifdef UNIV_LOG_ARCHIVE	  	
 	/* Since innodb_log_arch_dir has no relevance under MySQL,
 	starting from 4.0.6 we always set it the same as
 	innodb_log_group_home_dir: */
@@ -847,6 +848,7 @@ innobase_init(void)
 	innobase_log_arch_dir = innobase_log_group_home_dir;
 
 	srv_arch_dir = innobase_log_arch_dir;
+#endif /* UNIG_LOG_ARCHIVE */
 
 	ret = (bool)
 		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
@@ -868,7 +870,9 @@ innobase_init(void)
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ulint) innobase_log_file_size;
 
+#ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
+#endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
