@@ -29,7 +29,8 @@
 
 my_bool bitmap_init(MY_BITMAP *map, uint bitmap_size)
 {
-  if (!(map->bitmap=(uchar*) my_malloc((bitmap_size+7)/8,MYF(MY_WME))))
+  if (!(map->bitmap=(uchar*) my_malloc((bitmap_size+7)/8,
+				       MYF(MY_WME | MY_ZEROFILL))))
     return 1;
   dbug_assert(bitmap_size != ~(uint) 0);
 #ifdef THREAD
