@@ -498,7 +498,8 @@ check_connections(THD *thd)
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
       /* Cut very long hostnames to avoid possible overflows */
-      thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+      if (thd->host)
+	thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -3158,12 +3159,30 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
 }
 
 
+/*
+  Add a table to list of used tables
+
+  SYNOPSIS
+    add_table_to_list()
+    table		Table to add
+    alias		alias for table (or null if no alias)
+    table_options	A set of the following bits:
+			TL_OPTION_UPDATING	Table will be updated
+			TL_OPTION_FORCE_INDEX	Force usage of index
+    lock_type		How table should be locked
+    use_index		List of indexed used in USE INDEX
+    ignore_index	List of indexed used in IGNORE INDEX
+
+    RETURN
+      0		Error
+      #		Pointer to TABLE_LIST element added to the total table list
+*/
+
 TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
-			      bool updating,
-			      thr_lock_type flags,
+			      ulong table_options,
+			      thr_lock_type lock_type,
 			      List<String> *use_index,
-			      List<String> *ignore_index
-			      )
+			      List<String> *ignore_index)
 {
   register TABLE_LIST *ptr;
   THD	*thd=current_thd;
@@ -3211,8 +3230,9 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   }
   ptr->real_name=table->table.str;
   ptr->real_name_length=table->table.length;
-  ptr->lock_type=flags;
-  ptr->updating=updating;
+  ptr->lock_type= lock_type;
+  ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));
@@ -3221,7 +3241,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
 						   sizeof(*ignore_index));
 
   /* check that used name is unique */
-  if (flags != TL_IGNORE)
+  if (lock_type != TL_IGNORE)
   {
     for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select->table_list.first ;
 	 tables ;
