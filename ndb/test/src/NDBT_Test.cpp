@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
 
@@ -482,7 +484,7 @@ void NDBT_TestCaseImpl1::startStepInThread(int stepNo, NDBT_Context* ctx){
   NDBT_Step* pStep = steps[stepNo];
   pStep->setContext(ctx);
   char buf[16];
-  snprintf(buf, sizeof(buf), "step_%d", stepNo);
+  BaseString::snprintf(buf, sizeof(buf), "step_%d", stepNo);
   NdbThread* pThread = NdbThread_Create(runStep_C,
 					(void**)pStep,
 					65535,
@@ -702,7 +704,7 @@ void NDBT_TestCaseImpl1::printTestResult(){
       res = "FAILED TO CREATE TABLE";
     else if (tcr->getResult() == FAILED_TO_DISCOVER)
       res = "FAILED TO DISCOVER TABLE";
-    snprintf(buf, 255," %-10s %-5s %-20s", tcr->getName(), res, tcr->getTimeStr());
+    BaseString::snprintf(buf, 255," %-10s %-5s %-20s", tcr->getName(), res, tcr->getTimeStr());
     ndbout << buf<<endl;    
   }
 }
@@ -856,6 +858,11 @@ void NDBT_TestSuite::execute(Ndb* ndb, const NdbDictionary::Table* pTab,
     else
       numTestsOk++;
     numTestsExecuted++;
+
+    if (result == NDBT_OK && createTable == true){
+      pDict->dropTable(pTab->getName());
+    }
+    
     delete ctx;
   }
 }
@@ -953,6 +960,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   int _print_cases = false;
   int _verbose = false;
+#ifndef DBUG_OFF
+  const char *debug_option= 0;
+#endif
 
   struct getargs args[] = {
     { "print", '\0', arg_flag, &_print, "Print execution tree", "" },
@@ -964,6 +974,10 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     { "remote_mgm", 'm', arg_string, &_remote_mgm, 
       "host:port to mgmsrv of remote cluster", "host:port" },
     { "timer", 't', arg_flag, &_timer, "Print execution time", "time" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "verbose", 'v', arg_flag, &_verbose, "Print verbose status", "verbose" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
@@ -973,6 +987,12 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     arg_printusage(args, num_args, argv[0], "tabname1 tabname2 ... tabnameN\n");
     return NDBT_WRONGARGS;
   }
+
+#ifndef DBUG_OFF
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
+
   // Check if table name is supplied
   if (argv[optind] != NULL)
     _tabname = argv[optind];
@@ -1058,7 +1078,7 @@ const char* NDBT_TestSuite::getDate(){
   tm_now = gmtime(&now);
 #endif
   
-  snprintf(theTime, 128,
+  BaseString::snprintf(theTime, 128,
 	   "%d-%.2d-%.2d %.2d:%.2d:%.2d",
 	   tm_now->tm_year + 1900, 
 	   tm_now->tm_mon + 1, 
@@ -1128,6 +1148,20 @@ void NDBT_TestCaseImpl1::print(){
 void NDBT_Step::print(){
   ndbout << "      "<< name << endl;
 
+}
+
+void
+NDBT_Context::sync_down(const char * key){
+  Uint32 threads = getProperty(key, (unsigned)0);
+  if(threads){
+    decProperty(key);
+  }
+}
+
+void
+NDBT_Context::sync_up_and_wait(const char * key, Uint32 value){
+  setProperty(key, value);
+  getPropertyWait(key, (unsigned)0);
 }
 
 template class Vector<NDBT_TestCase*>;

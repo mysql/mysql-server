@@ -41,6 +41,7 @@ show variables like "%auto%";
 Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10
+innodb_autoextend_increment	8
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 insert into t1 values (NULL),(5),(NULL);
 insert into t1 values (250),(NULL);

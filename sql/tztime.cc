@@ -1456,6 +1456,10 @@ tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
     link this list to the end of global table list (it will read and update
     accordingly variable pointed by global_next_ptr for this).
 
+  NOTE
+    my_tz_check_n_skip_implicit_tables() function depends on fact that
+    elements of list created are allocated as TABLE_LIST[4] array.
+
   RETURN VALUES
     Returns pointer to first TABLE_LIST object, (could be 0 if time zone
     tables don't exist) and &fake_time_zone_tables_list in case of error.
@@ -1662,8 +1666,8 @@ end_with_setting_default_tz:
   /* If we have default time zone try to load it */
   if (default_tzname)
   {
-    String tzname(default_tzname, &my_charset_latin1);
-    if (!(global_system_variables.time_zone= my_tz_find(&tzname, tables)))
+    String tmp_tzname(default_tzname, &my_charset_latin1);
+    if (!(global_system_variables.time_zone= my_tz_find(&tmp_tzname, tables)))
     {
       sql_print_error("Fatal error: Illegal or unknown default time zone '%s'",
                       default_tzname);

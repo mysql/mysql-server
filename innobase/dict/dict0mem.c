@@ -50,6 +50,7 @@ dict_mem_table_create(
 
 	table->type = DICT_TABLE_ORDINARY;
 	table->name = mem_heap_strdup(heap, name);
+	table->dir_path_of_temp_table = NULL;
 	table->space = space;
 	table->ibd_file_missing = FALSE;
 	table->tablespace_discarded = FALSE;

@@ -39,6 +39,7 @@ extern CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_slovak_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_spanish2_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_roman_uca_ci;
+extern CHARSET_INFO my_charset_ucs2_persian_uca_ci;
 #endif
 
 #ifdef HAVE_CHARSET_utf8
@@ -58,6 +59,7 @@ extern CHARSET_INFO my_charset_utf8_lithuanian_uca_ci;
 extern CHARSET_INFO my_charset_utf8_slovak_uca_ci;
 extern CHARSET_INFO my_charset_utf8_spanish2_uca_ci;
 extern CHARSET_INFO my_charset_utf8_roman_uca_ci;
+extern CHARSET_INFO my_charset_utf8_persian_uca_ci;
 #endif
 
 my_bool init_compiled_charsets(myf flags __attribute__((unused)))
@@ -127,6 +129,7 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_ucs2_slovak_uca_ci);
   add_compiled_collation(&my_charset_ucs2_spanish2_uca_ci);
   add_compiled_collation(&my_charset_ucs2_roman_uca_ci);
+  add_compiled_collation(&my_charset_ucs2_persian_uca_ci);
 #endif
 
 #ifdef HAVE_CHARSET_ujis
@@ -153,6 +156,7 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_utf8_slovak_uca_ci);
   add_compiled_collation(&my_charset_utf8_spanish2_uca_ci);
   add_compiled_collation(&my_charset_utf8_roman_uca_ci);
+  add_compiled_collation(&my_charset_utf8_persian_uca_ci);
 #endif
 
   /* Copy compiled charsets */

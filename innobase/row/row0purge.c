@@ -543,8 +543,8 @@ row_purge_parse_undo_rec(
 								node->heap);
 
 	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					roll_ptr, info_bits, node->heap,
-					&(node->update));
+					roll_ptr, info_bits, trx,
+					node->heap, &(node->update));
 
 	/* Read to the partial row the fields that occur in indexes */
 

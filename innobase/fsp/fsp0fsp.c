@@ -2972,9 +2972,9 @@ fseg_free_page_low(
 "InnoDB: database!\n", (ulong) page);
 	crash:
 		fputs(
-"InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
-"InnoDB: of http://www.innodb.com/ibman.php about forcing recovery.\n",
-			stderr);
+"InnoDB: Please refer to\n"
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+"InnoDB: about forcing recovery.\n", stderr);
 		ut_error;
 	}
 		

@@ -1,7 +1,7 @@
 # Local macros for automake & autoconf
 
 
-AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
+AC_DEFUN([MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY], [
     AC_CACHE_CHECK([HIST_ENTRY is declared in readline/readline.h], mysql_cv_hist_entry_declared,
 	AC_TRY_COMPILE(
 	    [
@@ -21,7 +21,7 @@ AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
     )
 ])
 
-AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
+AC_DEFUN([MYSQL_CHECK_LIBEDIT_INTERFACE], [
     AC_CACHE_CHECK([libedit variant of rl_completion_entry_function], mysql_cv_libedit_interface,
 	AC_TRY_COMPILE(
 	    [
@@ -42,7 +42,7 @@ AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
     )
 ])
 
-AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
+AC_DEFUN([MYSQL_CHECK_NEW_RL_INTERFACE], [
     AC_CACHE_CHECK([defined rl_compentry_func_t and rl_completion_func_t], mysql_cv_new_rl_interface,
 	AC_TRY_COMPILE(
 	    [
@@ -65,7 +65,7 @@ AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
 
 # A local version of AC_CHECK_SIZEOF that includes sys/types.h
 dnl MYSQL_CHECK_SIZEOF(TYPE [, CROSS-SIZE])
-AC_DEFUN(MYSQL_CHECK_SIZEOF,
+AC_DEFUN([MYSQL_CHECK_SIZEOF],
 [changequote(<<, >>)dnl
 dnl The name to #define.
 define(<<AC_TYPE_NAME>>, translit(sizeof_$1, [a-z *], [A-Z_P]))dnl
@@ -94,7 +94,7 @@ undefine([AC_CV_NAME])dnl
 ])
 
 #---START: Used in for client configure
-AC_DEFUN(MYSQL_TYPE_ACCEPT,
+AC_DEFUN([MYSQL_TYPE_ACCEPT],
 [ac_save_CXXFLAGS="$CXXFLAGS"
 AC_CACHE_CHECK([base type of last arg to accept], mysql_cv_btype_last_arg_accept,
 AC_LANG_SAVE
@@ -135,7 +135,7 @@ CXXFLAGS="$ac_save_CXXFLAGS"
 #---END:
 
 dnl Find type of qsort
-AC_DEFUN(MYSQL_TYPE_QSORT,
+AC_DEFUN([MYSQL_TYPE_QSORT],
 [AC_CACHE_CHECK([return type of qsort], mysql_cv_type_qsort,
 [AC_TRY_COMPILE([#include <stdlib.h>
 #ifdef __cplusplus
@@ -153,7 +153,7 @@ then
 fi
 ])
 
-AC_DEFUN(MYSQL_TIMESPEC_TS,
+AC_DEFUN([MYSQL_TIMESPEC_TS],
 [AC_CACHE_CHECK([if struct timespec has a ts_sec member], mysql_cv_timespec_ts,
 [AC_TRY_COMPILE([#include <pthread.h>
 #ifdef __cplusplus
@@ -172,7 +172,7 @@ then
 fi
 ])
 
-AC_DEFUN(MYSQL_TZNAME,
+AC_DEFUN([MYSQL_TZNAME],
 [AC_CACHE_CHECK([if we have tzname variable], mysql_cv_tzname,
 [AC_TRY_COMPILE([#include <time.h>
 #ifdef __cplusplus
@@ -241,13 +241,10 @@ dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
 AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
 AC_MSG_CHECKING([for zlib compression library])
 case $SYSTEM_TYPE in
-dnl  This is a quick fix for Netware if AC_TRY_LINK for some reason 
-dnl  won't work there. Uncomment in case of failure and on Netware
-dnl  we'll always assume that zlib is present 
-dnl  *netware* | *modesto*)
-dnl     AC_MSG_RESULT(ok)
-dnl     AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
-dnl    ;;
+*netware* | *modesto*)
+     AC_MSG_RESULT(ok)
+     AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
+    ;;
   *)
     AC_ARG_WITH([zlib-dir],
                 AC_HELP_STRING([--with-zlib-dir=DIR],
@@ -299,7 +296,7 @@ esac
 dnl ------------------------------------------------------------------------
 
 #---START: Used in for client configure
-AC_DEFUN(MYSQL_CHECK_ULONG,
+AC_DEFUN([MYSQL_CHECK_ULONG],
 [AC_MSG_CHECKING(for type ulong)
 AC_CACHE_VAL(ac_cv_ulong,
 [AC_TRY_RUN([#include <stdio.h>
@@ -317,7 +314,7 @@ then
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_UCHAR,
+AC_DEFUN([MYSQL_CHECK_UCHAR],
 [AC_MSG_CHECKING(for type uchar)
 AC_CACHE_VAL(ac_cv_uchar,
 [AC_TRY_RUN([#include <stdio.h>
@@ -335,7 +332,7 @@ then
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_UINT,
+AC_DEFUN([MYSQL_CHECK_UINT],
 [AC_MSG_CHECKING(for type uint)
 AC_CACHE_VAL(ac_cv_uint,
 [AC_TRY_RUN([#include <stdio.h>
@@ -354,7 +351,7 @@ fi
 ])
 
 
-AC_DEFUN(MYSQL_CHECK_IN_ADDR_T,
+AC_DEFUN([MYSQL_CHECK_IN_ADDR_T],
 [AC_MSG_CHECKING(for type in_addr_t)
 AC_CACHE_VAL(ac_cv_in_addr_t,
 [AC_TRY_RUN([#include <stdio.h>
@@ -376,7 +373,7 @@ fi
 ])
 
 
-AC_DEFUN(MYSQL_PTHREAD_YIELD,
+AC_DEFUN([MYSQL_PTHREAD_YIELD],
 [AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
 [AC_TRY_LINK([#define _GNU_SOURCE
 #include <pthread.h>
@@ -415,7 +412,7 @@ fi
 
 #---END:
 
-AC_DEFUN(MYSQL_CHECK_FP_EXCEPT,
+AC_DEFUN([MYSQL_CHECK_FP_EXCEPT],
 [AC_MSG_CHECKING(for type fp_except)
 AC_CACHE_VAL(ac_cv_fp_except,
 [AC_TRY_RUN([#include <stdio.h>
@@ -456,7 +453,7 @@ fi
 # program @code{ansi2knr}, which comes with Ghostscript.
 # @end defmac
 
-AC_DEFUN(AM_PROG_CC_STDC,
+AC_DEFUN([AM_PROG_CC_STDC],
 [AC_REQUIRE([AC_PROG_CC])
 AC_MSG_CHECKING(for ${CC-cc} option to accept ANSI C)
 AC_CACHE_VAL(am_cv_prog_cc_stdc,
@@ -500,7 +497,7 @@ esac
 # Check to make sure that the build environment is sane.
 #
 
-AC_DEFUN(AM_SANITY_CHECK,
+AC_DEFUN([AM_SANITY_CHECK],
 [AC_MSG_CHECKING([whether build environment is sane])
 sleep 1
 echo timestamp > conftestfile
@@ -519,7 +516,7 @@ AC_MSG_RESULT(yes)])
 
 # Orginal from bash-2.0 aclocal.m4, Changed to use termcap last by monty.
  
-AC_DEFUN(MYSQL_CHECK_LIB_TERMCAP,
+AC_DEFUN([MYSQL_CHECK_LIB_TERMCAP],
 [
 AC_CACHE_VAL(mysql_cv_termcap_lib,
 [AC_CHECK_LIB(ncurses, tgetent, mysql_cv_termcap_lib=libncurses,
@@ -540,7 +537,7 @@ AC_MSG_RESULT($TERMCAP_LIB)
 ])
 
 dnl Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
-AC_DEFUN(MYSQL_SIGNAL_CHECK,
+AC_DEFUN([MYSQL_SIGNAL_CHECK],
 [AC_REQUIRE([AC_TYPE_SIGNAL])
 AC_MSG_CHECKING(for type of signal functions)
 AC_CACHE_VAL(mysql_cv_signal_vintage,
@@ -580,7 +577,7 @@ AC_DEFINE(HAVE_USG_SIGHOLD, [1], [sighold() is present and usable])
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_GETPW_FUNCS,
+AC_DEFUN([MYSQL_CHECK_GETPW_FUNCS],
 [AC_MSG_CHECKING(whether programs are able to redeclare getpw functions)
 AC_CACHE_VAL(mysql_cv_can_redecl_getpw,
 [AC_TRY_COMPILE([#include <sys/types.h>
@@ -593,7 +590,7 @@ AC_DEFINE(HAVE_GETPW_DECLS, [1], [getpwent() declaration present])
 fi
 ])
 
-AC_DEFUN(MYSQL_HAVE_TIOCGWINSZ,
+AC_DEFUN([MYSQL_HAVE_TIOCGWINSZ],
 [AC_MSG_CHECKING(for TIOCGWINSZ in sys/ioctl.h)
 AC_CACHE_VAL(mysql_cv_tiocgwinsz_in_ioctl,
 [AC_TRY_COMPILE([#include <sys/types.h>
@@ -606,7 +603,7 @@ AC_DEFINE([GWINSZ_IN_SYS_IOCTL], [1],
 fi
 ])
 
-AC_DEFUN(MYSQL_HAVE_FIONREAD,
+AC_DEFUN([MYSQL_HAVE_FIONREAD],
 [AC_MSG_CHECKING(for FIONREAD in sys/ioctl.h)
 AC_CACHE_VAL(mysql_cv_fionread_in_ioctl,
 [AC_TRY_COMPILE([#include <sys/types.h>
@@ -618,7 +615,7 @@ AC_DEFINE([FIONREAD_IN_SYS_IOCTL], [1], [Do we have FIONREAD])
 fi
 ])
 
-AC_DEFUN(MYSQL_HAVE_TIOCSTAT,
+AC_DEFUN([MYSQL_HAVE_TIOCSTAT],
 [AC_MSG_CHECKING(for TIOCSTAT in sys/ioctl.h)
 AC_CACHE_VAL(mysql_cv_tiocstat_in_ioctl,
 [AC_TRY_COMPILE([#include <sys/types.h>
@@ -631,7 +628,7 @@ AC_DEFINE(TIOCSTAT_IN_SYS_IOCTL, [1],
 fi
 ])
 
-AC_DEFUN(MYSQL_STRUCT_DIRENT_D_INO,
+AC_DEFUN([MYSQL_STRUCT_DIRENT_D_INO],
 [AC_REQUIRE([AC_HEADER_DIRENT])
 AC_MSG_CHECKING(if struct dirent has a d_ino member)
 AC_CACHE_VAL(mysql_cv_dirent_has_dino,
@@ -665,7 +662,7 @@ AC_DEFINE(STRUCT_DIRENT_HAS_D_INO, [1],
 fi
 ])
 
-AC_DEFUN(MYSQL_STRUCT_DIRENT_D_NAMLEN,
+AC_DEFUN([MYSQL_STRUCT_DIRENT_D_NAMLEN],
 [AC_REQUIRE([AC_HEADER_DIRENT])
 AC_MSG_CHECKING(if struct dirent has a d_namlen member)
 AC_CACHE_VAL(mysql_cv_dirent_has_dnamlen,
@@ -700,7 +697,7 @@ fi
 ])
 
 
-AC_DEFUN(MYSQL_TYPE_SIGHANDLER,
+AC_DEFUN([MYSQL_TYPE_SIGHANDLER],
 [AC_MSG_CHECKING([whether signal handlers are of type void])
 AC_CACHE_VAL(mysql_cv_void_sighandler,
 [AC_TRY_COMPILE([#include <sys/types.h>
@@ -719,7 +716,7 @@ AC_DEFINE(VOID_SIGHANDLER, [1], [sighandler type is void (*signal ()) ();])
 fi
 ])
 
-AC_DEFUN(MYSQL_CXX_BOOL,
+AC_DEFUN([MYSQL_CXX_BOOL],
 [
 AC_REQUIRE([AC_PROG_CXX])
 AC_MSG_CHECKING(if ${CXX} supports bool types)
@@ -738,7 +735,7 @@ AC_DEFINE([HAVE_BOOL], [1], [bool is not defined by all C++ compilators])
 fi
 ])dnl
 
-AC_DEFUN(MYSQL_STACK_DIRECTION,
+AC_DEFUN([MYSQL_STACK_DIRECTION],
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([#include <stdlib.h>
  int find_stack_direction ()
@@ -761,7 +758,7 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
 ])dnl
 
-AC_DEFUN(MYSQL_FUNC_ALLOCA,
+AC_DEFUN([MYSQL_FUNC_ALLOCA],
 [
 # Since we have heard that alloca fails on IRIX never define it on a
 # SGI machine
@@ -830,7 +827,7 @@ else
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_LONGLONG_TO_FLOAT,
+AC_DEFUN([MYSQL_CHECK_LONGLONG_TO_FLOAT],
 [
 AC_MSG_CHECKING(if conversion of longlong to float works)
 AC_CACHE_VAL(ac_cv_conv_longlong_to_float,
@@ -855,7 +852,7 @@ fi
 AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 ])
 
-AC_DEFUN(MYSQL_CHECK_CPU,
+AC_DEFUN([MYSQL_CHECK_CPU],
 [AC_CACHE_CHECK([if compiler supports optimizations for current cpu],
 mysql_cv_cpu,[
 
@@ -902,7 +899,7 @@ else
 fi
 ]]))
 
-AC_DEFUN(MYSQL_CHECK_VIO, [
+AC_DEFUN([MYSQL_CHECK_VIO], [
   AC_ARG_WITH([vio],
               [  --with-vio              Include the Virtual IO support],
               [vio="$withval"],
@@ -921,7 +918,7 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_SUBST([vio_libs])
 ])
 
-AC_DEFUN(MYSQL_FIND_OPENSSL, [
+AC_DEFUN([MYSQL_FIND_OPENSSL], [
   incs="$1"
   libs="$2"
   case "$incs---$libs" in
@@ -976,10 +973,10 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
 
 ])
 
-AC_DEFUN(MYSQL_CHECK_OPENSSL, [
+AC_DEFUN([MYSQL_CHECK_OPENSSL], [
 AC_MSG_CHECKING(for OpenSSL)
   AC_ARG_WITH([openssl],
-              [  --with-openssl          Include the OpenSSL support],
+              [  --with-openssl[=DIR]    Include the OpenSSL support],
               [openssl="$withval"],
               [openssl=no])
 
@@ -997,8 +994,19 @@ AC_MSG_CHECKING(for OpenSSL)
               [openssl_libs="$withval"],
               [openssl_libs=""])
 
-  if test "$openssl" = "yes"
+  if test "$openssl" != "no"
   then
+	if test "$openssl" != "yes"
+	then
+		if test -z "$openssl_includes" 
+		then
+			openssl_includes="$openssl/include"
+		fi
+		if test -z "$openssl_libs" 
+		then
+			openssl_libs="$openssl/lib"
+		fi
+	fi
     MYSQL_FIND_OPENSSL([$openssl_includes], [$openssl_libs])
     #force VIO use
     vio_dir="vio"
@@ -1034,13 +1042,21 @@ AC_MSG_CHECKING(for OpenSSL)
     NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   else
     AC_MSG_RESULT(no)
+	if test ! -z "$openssl_includes"
+	then
+		AC_MSG_ERROR(Can't have --with-openssl-includes without --with-openssl);
+	fi
+	if test ! -z "$openssl_libs"
+	then
+		AC_MSG_ERROR(Can't have --with-openssl-libs without --with-openssl);
+	fi
   fi
   AC_SUBST(openssl_libs)
   AC_SUBST(openssl_includes)
 ])
 
 
-AC_DEFUN(MYSQL_CHECK_MYSQLFS, [
+AC_DEFUN([MYSQL_CHECK_MYSQLFS], [
   AC_ARG_WITH([mysqlfs],
               [
   --with-mysqlfs          Include the corba-based MySQL file system],
@@ -1068,7 +1084,7 @@ dnl get substituted.
   AC_SUBST([fs_dirs])
 ])
 
-AC_DEFUN(MYSQL_CHECK_ORBIT, [
+AC_DEFUN([MYSQL_CHECK_ORBIT], [
 AC_MSG_CHECKING(for ORBit)
 orbit_config_path=`which orbit-config`
 if test -n "$orbit_config_path" -a $? = 0
@@ -1551,16 +1567,43 @@ dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
                                                                                 
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
+  AC_ARG_WITH([ndb-sci],
+              AC_HELP_STRING([--with-ndb-sci=DIR],
+                             [Provide MySQL with a custom location of
+                             sci library. Given DIR, sci library is 
+                             assumed to be in $DIR/lib and header files
+                             in $DIR/include.]),
+              [mysql_sci_dir=${withval}],
+              [mysql_sci_dir=""])
+
+  case "$mysql_sci_dir" in
+    "no" )
+      have_ndb_sci=no
+      AC_MSG_RESULT([-- not including sci transporter])
+      ;;
+    * )
+      if test -f "$mysql_sci_dir/lib/libsisci.a" -a \ 
+              -f "$mysql_sci_dir/include/sisci_api.h"; then
+        NDB_SCI_INCLUDES="-I$mysql_sci_dir/include"
+        NDB_SCI_LIBS="-L$mysql_sci_dir/lib -lsisci"
+        AC_MSG_RESULT([-- including sci transporter])
+        AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
+                  [Including Ndb Cluster DB sci transporter])
+        AC_SUBST(NDB_SCI_INCLUDES)
+        AC_SUBST(NDB_SCI_LIBS)
+        have_ndb_sci="yes"
+        AC_MSG_RESULT([found sci transporter in $mysql_sci_dir/{include, lib}])
+      else
+        AC_MSG_RESULT([could not find sci transporter in $mysql_sci_dir/{include, lib}])
+      fi
+      ;;
+  esac
+
   AC_ARG_WITH([ndb-shm],
               [
   --with-ndb-shm        Include the NDB Cluster shared memory transporter],
               [ndb_shm="$withval"],
               [ndb_shm=no])
-  AC_ARG_WITH([ndb-sci],
-              [
-  --with-ndb-sci        Include the NDB Cluster sci transporter],
-              [ndb_sci="$withval"],
-              [ndb_sci=no])
   AC_ARG_WITH([ndb-test],
               [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
@@ -1571,6 +1614,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
               [ndb_docs="$withval"],
               [ndb_docs=no])
+  AC_ARG_WITH([ndb-port-base],
+              [
+  --with-ndb-port-base  Base port for NDB Cluster],
+              [ndb_port_base="$withval"],
+              [ndb_port_base="default"])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1585,19 +1633,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including shared memory transporter])
-      ;;
-  esac
-
-  have_ndb_sci=no
-  case "$ndb_sci" in
-    yes )
-      AC_MSG_RESULT([-- including sci transporter])
-      AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
-                [Including Ndb Cluster DB sci transporter])
-      have_ndb_sci="yes"
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including sci transporter])
       ;;
   esac
 
@@ -1673,7 +1708,7 @@ dnl Written by Paul Eggert <eggert@twinsun.com>.
 
 dnl Internal subroutine of AC_SYS_LARGEFILE.
 dnl AC_SYS_LARGEFILE_FLAGS(FLAGSNAME)
-AC_DEFUN(AC_SYS_LARGEFILE_FLAGS,
+AC_DEFUN([AC_SYS_LARGEFILE_FLAGS],
   [AC_CACHE_CHECK([for $1 value to request large file support],
      ac_cv_sys_largefile_$1,
      [if ($GETCONF LFS_$1) >conftest.1 2>conftest.2 && test ! -s conftest.2
@@ -1712,7 +1747,7 @@ changequote([, ])dnl
 
 dnl Internal subroutine of AC_SYS_LARGEFILE.
 dnl AC_SYS_LARGEFILE_SPACE_APPEND(VAR, VAL)
-AC_DEFUN(AC_SYS_LARGEFILE_SPACE_APPEND,
+AC_DEFUN([AC_SYS_LARGEFILE_SPACE_APPEND],
   [case $2 in
    no) ;;
    ?*)
@@ -1724,7 +1759,7 @@ AC_DEFUN(AC_SYS_LARGEFILE_SPACE_APPEND,
 
 dnl Internal subroutine of AC_SYS_LARGEFILE.
 dnl AC_SYS_LARGEFILE_MACRO_VALUE(C-MACRO, CACHE-VAR, COMMENT, CODE-TO-SET-DEFAULT)
-AC_DEFUN(AC_SYS_LARGEFILE_MACRO_VALUE,
+AC_DEFUN([AC_SYS_LARGEFILE_MACRO_VALUE],
   [AC_CACHE_CHECK([for $1], $2,
      [$2=no
 changequote(, )dnl
@@ -1743,7 +1778,7 @@ changequote([, ])dnl
      AC_DEFINE_UNQUOTED([$1], [$]$2, [$3])
    fi])
 
-AC_DEFUN(MYSQL_SYS_LARGEFILE,
+AC_DEFUN([MYSQL_SYS_LARGEFILE],
   [AC_REQUIRE([AC_CANONICAL_HOST])
   AC_ARG_ENABLE(largefile,
      [  --disable-largefile     Omit support for large files])

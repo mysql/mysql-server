@@ -276,7 +276,7 @@ printReport(TestPhase & p){
     
     char buf[255];
     if(p.signalSize != 0){
-      snprintf(buf, 255,
+      BaseString::snprintf(buf, 255,
 	       "%d\t%d\t%s\t%s\t%s\t%s\t%d\t%d",
 	       p.noOfSignals,
 	       4*p.signalSize,
@@ -287,7 +287,7 @@ printReport(TestPhase & p){
 	       (int)(p.sendLenBytes / (p.sendCount == 0 ? 1 : p.sendCount)),
 	       (int)(p.recvLenBytes / (p.recvCount == 0 ? 1 : p.recvCount)));
     } else {
-      snprintf(buf, 255,
+      BaseString::snprintf(buf, 255,
 	       "%d\trand\t%s\t%s\t%s\t%s\t%d\t%d",
 	       p.noOfSignals,
 	       st,

@@ -365,6 +365,37 @@ lock_deadlock_recursive(
 	ulint*	cost);		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return TRUE */
+/*************************************************************************
+Gets the nth bit of a record lock. */
+UNIV_INLINE
+ibool
+lock_rec_get_nth_bit(
+/*=================*/
+			/* out: TRUE if bit set */
+	lock_t*	lock,	/* in: record lock */
+	ulint	i)	/* in: index of the bit */
+{
+	ulint	byte_index;
+	ulint	bit_index;
+	ulint	b;
+
+	ut_ad(lock);
+	ut_ad(lock_get_type(lock) == LOCK_REC);
+
+	if (i >= lock->un_member.rec_lock.n_bits) {
+
+		return(FALSE);
+	}
+
+	byte_index = i / 8;
+	bit_index = i % 8;
+
+	b = (ulint)*((byte*)lock + sizeof(lock_t) + byte_index);
+
+	return(ut_bit_get_nth(b, bit_index));
+}	
+
+/*************************************************************************/
 
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
 #define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
@@ -398,7 +429,7 @@ lock_check_trx_id_sanity(
 			stderr);
 		rec_print(stderr, rec);
 		fputs("InnoDB: in ", stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, NULL, index);
 		fprintf(stderr, "\n"
 "InnoDB: is %lu %lu which is higher than the global trx id counter %lu %lu!\n"
 "InnoDB: The table is corrupt. You have to do dump + drop + reimport.\n",
@@ -756,9 +787,13 @@ lock_rec_has_to_wait(
 	ulint	type_mode,/* in: precise mode of the new lock to set:
 			LOCK_S or LOCK_X, possibly ORed to
 			LOCK_GAP or LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION */
-	lock_t*	lock2)	/* in: another record lock; NOTE that it is assumed
+	lock_t*	lock2,	/* in: another record lock; NOTE that it is assumed
 			that this has a lock bit set on the same record as
 			in the new lock we are setting */
+	ibool lock_is_on_supremum)  /* in: TRUE if we are setting the lock
+			on the 'supremum' record of an index
+			page: we know then that the lock request
+			is really for a 'gap' type lock */
 {
 	ut_ad(trx && lock2);
 	ut_ad(lock_get_type(lock2) == LOCK_REC);
@@ -770,10 +805,22 @@ lock_rec_has_to_wait(
 		/* We have somewhat complex rules when gap type record locks
 		cause waits */
 
-		if ((type_mode & LOCK_REC_NOT_GAP)
+		if ((lock_is_on_supremum || (type_mode & LOCK_GAP))
+			&& !(type_mode & LOCK_INSERT_INTENTION)) {
+
+			/* Gap type locks without LOCK_INSERT_INTENTION flag
+			do not need to wait for anything. This is because 
+			different users can have conflicting lock types 
+			on gaps. */
+						  
+			return(FALSE);
+		}
+		
+		if (!(type_mode & LOCK_INSERT_INTENTION)
 						&& lock_rec_get_gap(lock2)) {
-			/* Lock on just the record does not need to wait for
-			a gap type lock */
+
+			/* Record lock (LOCK_ORDINARY or LOCK_REC_NOT_GAP
+			does not need to wait for a gap type lock */
 
 			return(FALSE);
 		}
@@ -829,9 +876,13 @@ lock_has_to_wait(
 				     		lock_get_mode(lock2))) {
 		if (lock_get_type(lock1) == LOCK_REC) {
 			ut_ad(lock_get_type(lock2) == LOCK_REC);
-				
+
+			/* If this lock request is for a supremum record
+			then the second bit on the lock bitmap is set */
+			
 			return(lock_rec_has_to_wait(lock1->trx,
-						lock1->type_mode, lock2));
+					lock1->type_mode, lock2,
+					lock_rec_get_nth_bit(lock1,1)));
 		}
 
 		return(TRUE);
@@ -853,36 +904,6 @@ lock_rec_get_n_bits(
 {
 	return(lock->un_member.rec_lock.n_bits);
 }
-
-/*************************************************************************
-Gets the nth bit of a record lock. */
-UNIV_INLINE
-ibool
-lock_rec_get_nth_bit(
-/*=================*/
-			/* out: TRUE if bit set */
-	lock_t*	lock,	/* in: record lock */
-	ulint	i)	/* in: index of the bit */
-{
-	ulint	byte_index;
-	ulint	bit_index;
-	ulint	b;
-
-	ut_ad(lock);
-	ut_ad(lock_get_type(lock) == LOCK_REC);
-
-	if (i >= lock->un_member.rec_lock.n_bits) {
-
-		return(FALSE);
-	}
-
-	byte_index = i / 8;
-	bit_index = i % 8;
-
-	b = (ulint)*((byte*)lock + sizeof(lock_t) + byte_index);
-
-	return(ut_bit_get_nth(b, bit_index));
-}	
 
 /**************************************************************************
 Sets the nth bit of a record lock to TRUE. */
@@ -1420,7 +1441,8 @@ lock_rec_other_has_conflicting(
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		if (lock_rec_has_to_wait(trx, mode, lock)) {
+		if (lock_rec_has_to_wait(trx, mode, lock,
+			page_rec_is_supremum(rec))) {
 
 			return(lock);
 		}
@@ -1651,7 +1673,7 @@ lock_rec_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, index->table_name);
+		ut_print_name(stderr, trx, index->table_name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -1688,7 +1710,7 @@ lock_rec_enqueue_waiting(
 	if (lock_print_waits) {
 		fprintf(stderr, "Lock wait for trx %lu in index ",
 			(ulong) ut_dulint_get_low(trx->id));
-		ut_print_name(stderr, index->name);
+		ut_print_name(stderr, trx, index->name);
 	}
 	
 	return(DB_LOCK_WAIT);	
@@ -3293,7 +3315,7 @@ lock_table_enqueue_waiting(
 		fputs(
 "  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
-		ut_print_name(stderr, table->name);
+		ut_print_name(stderr, trx, table->name);
 		fputs(".\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
@@ -3820,7 +3842,7 @@ lock_table_print(
 		fputs("EXPLICIT ", file);
 	}
 	fputs("TABLE LOCK table ", file);
-	ut_print_name(file, lock->un_member.tab_lock.table->name);
+	ut_print_name(file, lock->trx, lock->un_member.tab_lock.table->name);
 	fprintf(file, " trx id %lu %lu",
 		(ulong) (lock->trx)->id.high, (ulong) (lock->trx)->id.low);
 
@@ -3871,7 +3893,7 @@ lock_rec_print(
 	fprintf(file, "RECORD LOCKS space id %lu page no %lu n bits %lu ",
 		       (ulong) space, (ulong) page_no,
 		       (ulong) lock_rec_get_n_bits(lock));
-	dict_index_name_print(file, lock->index);
+	dict_index_name_print(file, lock->trx, lock->index);
 	fprintf(file, " trx id %lu %lu",
 		       (ulong) (lock->trx)->id.high,
 		       (ulong) (lock->trx)->id.low);

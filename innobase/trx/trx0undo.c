@@ -404,7 +404,7 @@ trx_undo_seg_create(
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr,
 "InnoDB: Warning: cannot find a free slot for an undo log. Do you have too\n"
-"InnoDB: many active transactions running concurrently?");
+"InnoDB: many active transactions running concurrently?\n");
 
 		return(NULL);
 	}

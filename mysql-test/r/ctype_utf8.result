@@ -63,6 +63,15 @@ select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%')
 1
+select convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8);
+convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8)
+1
+select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
+CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8)
+1
+select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
+CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8)
+1
 SELECT 'a' = 'a ';
 'a' = 'a '
 1
@@ -316,7 +325,63 @@ select c cb20 from t1 where c=repeat('b',20);
 cb20
 bbbbbbbbbbbbbbbbbbbb
 drop table t1;
+create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+insert into t1 values ('aaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaaa' for key 1
+insert into t1 values ('aaaaaaaaaaaa');
+ERROR 23000: Duplicate entry 'aaaaaaaaaaaa' for key 1
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+c1
+1
+select c c2 from t1 where c='2';
+c2
+2
+select c c3 from t1 where c='3';
+c3
+3
+select c cx from t1 where c='x';
+cx
+x
+select c cy from t1 where c='y';
+cy
+y
+select c cz from t1 where c='z';
+cz
+z
+select c ca10 from t1 where c='aaaaaaaaaa';
+ca10
+aaaaaaaaaa
+select c cb20 from t1 where c=repeat('b',20);
+cb20
+bbbbbbbbbbbbbbbbbbbb
+drop table t1;
 create table t1 (c char(3) character set utf8, unique (c(2)));
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+insert into t1 values ('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values ('b');
+insert into t1 values ('bb');
+insert into t1 values ('bbb');
+ERROR 23000: Duplicate entry 'bbb' for key 1
+insert into t1 values ('а');
+insert into t1 values ('аа');
+insert into t1 values ('ааа');
+ERROR 23000: Duplicate entry 'ааа' for key 1
+insert into t1 values ('б');
+insert into t1 values ('бб');
+insert into t1 values ('ббб');
+ERROR 23000: Duplicate entry 'ббб' for key 1
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+insert into t1 values ('ꪪꪪꪪ');
+ERROR 23000: Duplicate entry 'ꪪꪪ' for key 1
+drop table t1;
+create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -611,6 +676,16 @@ str
 drop table t1;
 create table t1 (
 str varchar(255) character set utf8 not null,
+key str  (str(2))
+) engine=innodb;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+str
+str
+drop table t1;
+create table t1 (
+str varchar(255) character set utf8 not null,
 key str using btree (str(2))
 ) engine=heap;
 INSERT INTO t1 VALUES ('str');
@@ -638,4 +713,104 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 str
 str
+drop table t1;
+CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ('test');
+SELECT a FROM t1 WHERE a LIKE '%te';
+a
+DROP TABLE t1;
+SET NAMES utf8;
+CREATE TABLE t1 (
+subject varchar(255) character set utf8 collate utf8_unicode_ci,
+p varchar(15) character set utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
+INSERT INTO t1 VALUES ('aaa','bbb');
+SELECT length(subject) FROM t1;
+length(subject)
+432
+3
+SELECT length(subject) FROM t1 ORDER BY 1;
+length(subject)
+3
+432
+DROP TABLE t1;
+CREATE TABLE t1 (
+id       int unsigned NOT NULL auto_increment,
+list_id  smallint unsigned NOT NULL,
+term     TEXT NOT NULL,
+PRIMARY KEY(id),
+INDEX(list_id, term(4))
+) ENGINE=MYISAM CHARSET=utf8;
+INSERT INTO t1 SET list_id = 1, term = "letterc";
+INSERT INTO t1 SET list_id = 1, term = "letterb";
+INSERT INTO t1 SET list_id = 1, term = "lettera";
+INSERT INTO t1 SET list_id = 1, term = "letterd";
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterc");
+id
+1
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
+id
+2
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
+id
+3
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
+id
+4
+DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 (
+id int unsigned NOT NULL auto_increment,
+list_id smallint unsigned NOT NULL,
+term text NOT NULL,
+PRIMARY KEY(id),
+INDEX(list_id, term(19))
+) ENGINE=MyISAM CHARSET=utf8;
+INSERT INTO t1 set list_id = 1, term = "test�test";
+INSERT INTO t1 set list_id = 1, term = "testetest";
+INSERT INTO t1 set list_id = 1, term = "test�test";
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+id	term
+1	test�test
+2	testetest
+3	test�test
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "testetest");
+id	term
+1	test�test
+2	testetest
+3	test�test
+SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
+id	term
+1	test�test
+2	testetest
+3	test�test
+DROP TABLE t1;
+set names utf8;
+create table t1 (
+a int primary key,
+b varchar(6),
+index b3(b(3))
+) engine=innodb character set=utf8;
+insert into t1 values(1,'foo'),(2,'foobar');
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+alter table t1 engine=bdb;
+select * from t1 where b like 'foob%';
+a	b
+2	foobar
+drop table t1;
+create table t1 (
+a enum('петя','вася','анюта') character set utf8 not null default 'анюта',
+b set('петя','вася','анюта') character set utf8 not null default 'анюта'
+);
+create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` char(5) character set utf8 NOT NULL default '',
+  `b` char(15) character set utf8 NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t2;
 drop table t1;

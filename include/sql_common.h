@@ -25,7 +25,6 @@ extern "C" {
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);
-my_bool mysql_autenticate(MYSQL *mysql, const char *passwd);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
 my_bool mysql_reconnect(MYSQL *mysql);

@@ -64,25 +64,12 @@
 /*       CONSTANTS OF THE LOG PAGES                                          */
 /* ------------------------------------------------------------------------- */
 #define ZPAGE_HEADER_SIZE 32
-#if defined NDB_OSE
-/**
- * Set the fragment log file size to 2Mb in OSE
- * This is done in order to speed up the initial start
- */
-#define ZNO_MBYTES_IN_FILE 2
-#define ZPAGE_SIZE 2048
-#define ZPAGES_IN_MBYTE 128
-#define ZTWOLOG_NO_PAGES_IN_MBYTE 7
-#define ZTWOLOG_PAGE_SIZE 11
-#define ZMAX_MM_BUFFER_SIZE 32     // Main memory window during log execution
-#else
 #define ZNO_MBYTES_IN_FILE 16
 #define ZPAGE_SIZE 8192
 #define ZPAGES_IN_MBYTE 32
 #define ZTWOLOG_NO_PAGES_IN_MBYTE 5
 #define ZTWOLOG_PAGE_SIZE 13
 #define ZMAX_MM_BUFFER_SIZE 32     // Main memory window during log execution
-#endif
 
 #define ZMAX_PAGES_WRITTEN 8    // Max pages before writing to disk (=> config)
 #define ZMIN_READ_BUFFER_SIZE 2       // Minimum number of pages to execute log
@@ -246,10 +233,6 @@
 /* ------------------------------------------------------------------------- */
 #define ZNODE_UP 0
 #define ZNODE_DOWN 1
-/* ------------------------------------------------------------------------- */
-/*       OPERATION TYPES                                                     */
-/* ------------------------------------------------------------------------- */
-#define ZSIMPLE_READ 1
 /* ------------------------------------------------------------------------- */
 /*       START PHASES                                                        */
 /* ------------------------------------------------------------------------- */
@@ -468,7 +451,7 @@ public:
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
     Uint16 noOfKeyAttr;
-    Uint16 noOfNewAttr;
+    Uint32 noOfNewAttr; // noOfCharsets in upper half
     Uint16 noOfAttributeGroups;
     Uint16 lh3DistrBits;
     Uint16 tableType;
@@ -532,10 +515,21 @@ public:
       SCAN = 1,
       COPY = 2
     };
-    UintR scanAccOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanApiOpPtr[MAX_PARALLEL_OP_PER_SCAN];
-    UintR scanOpLength[MAX_PARALLEL_OP_PER_SCAN];
+
+    UintR scan_acc_op_ptr[32];
+    Uint32 scan_acc_index;
+    Uint32 scan_acc_attr_recs;
+    UintR scanApiOpPtr;
     UintR scanLocalref[2];
+    
+    Uint32 m_max_batch_size_rows;
+    Uint32 m_max_batch_size_bytes;
+
+    Uint32 m_curr_batch_size_rows;
+    Uint32 m_curr_batch_size_bytes;
+
+    bool check_scan_batch_completed() const;
+    
     UintR copyPtr;
     union {
       Uint32 nextPool;
@@ -553,8 +547,6 @@ public:
     
     UintR scanAccPtr;
     UintR scanAiLength;
-    UintR scanCompletedOperations;
-    UintR scanConcurrentOperations;
     UintR scanErrorCounter;
     UintR scanLocalFragid;
     UintR scanSchemaVersion;
@@ -565,16 +557,18 @@ public:
     ScanType scanType;
     BlockReference scanApiBlockref;
     NodeId scanNodeId;
+    Uint16 scanReleaseCounter;
+    Uint16 scanNumber;
+ 
     Uint8 scanCompletedStatus;
     Uint8 scanFlag;
     Uint8 scanLockHold;
     Uint8 scanLockMode;
     Uint8 readCommitted;
     Uint8 rangeScan;
-    Uint8 scanNumber;
-    Uint8 scanReleaseCounter;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
+    Uint8 m_last_row;
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -1829,11 +1823,7 @@ public:
      * - There is no more information needed. 
      *   The next mbyte will always refer to the start of the next mbyte.
      */
-#ifdef NDB_OSE
-    UintR logPageWord[2048]; // Size 8 kbytes
-#else
     UintR logPageWord[8192]; // Size 32 kbytes
-#endif
   };  
   typedef Ptr<LogPageRecord> LogPageRecordPtr;
 
@@ -1855,8 +1845,8 @@ public:
       PREP_DROP_TABLE_DONE = 4
     };
     
-    UintR fragrec[NO_OF_FRAG_PER_NODE];
-    Uint16 fragid[NO_OF_FRAG_PER_NODE];
+    UintR fragrec[MAX_FRAG_PER_NODE];
+    Uint16 fragid[MAX_FRAG_PER_NODE];
     /**
      * Status of the table 
      */
@@ -2097,7 +2087,8 @@ private:
   void execSTART_EXEC_SR(Signal* signal);
   void execEXEC_SRREQ(Signal* signal);
   void execEXEC_SRCONF(Signal* signal);
-
+  void execREAD_PSUEDO_REQ(Signal* signal);
+  
   void execDUMP_STATE_ORD(Signal* signal);
   void execACC_COM_BLOCK(Signal* signal);
   void execACC_COM_UNBLOCK(Signal* signal);
@@ -2217,6 +2208,14 @@ private:
   void execTUX_ADD_ATTRREF(Signal* signal);
 
   // Statement blocks
+
+  void init_acc_ptr_list(ScanRecord*);
+  bool seize_acc_ptr_list(ScanRecord*, Uint32);
+  void release_acc_ptr_list(ScanRecord*);
+  Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32, bool);
+  void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
+  void i_get_acc_ptr(ScanRecord*, Uint32*&, Uint32);
+  
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
   void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
@@ -2245,8 +2244,7 @@ private:
   void sendAttrinfoLoop(Signal* signal);
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
-  void sendKeyinfoAcc(Signal* signal);
-  void initScanAccOp(Signal* signal);
+  void sendKeyinfoAcc(Signal* signal, Uint32 pos);
   Uint32 initScanrec(const class ScanFragReq *);
   void initScanTc(Signal* signal,
                   Uint32 transid1,
@@ -2383,6 +2381,8 @@ private:
   int saveTupattrbuf(Signal* signal, Uint32* dataPtr, Uint32 length);
   void seizeAddfragrec(Signal* signal);
   void seizeAttrinbuf(Signal* signal);
+  Uint32 seize_attrinbuf();
+  Uint32 release_attrinbuf(Uint32);
   void seizeFragmentrec(Signal* signal);
   void seizePageRef(Signal* signal);
   void seizeTcrec();
@@ -2433,6 +2433,7 @@ private:
   void abortStateHandlerLab(Signal* signal);
   void writeAttrinfoLab(Signal* signal);
   void scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
+  void abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode);
   void localAbortStateHandlerLab(Signal* signal);
   void logLqhkeyreqLab(Signal* signal);
   void lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
@@ -2586,13 +2587,14 @@ private:
   UintR cfirstfreeAddfragrec;
   UintR caddfragrecFileSize;
 
-#define ZATTRINBUF_FILE_SIZE 10000  // 1.25 MByte
+#define ZATTRINBUF_FILE_SIZE 12288  // 1.5 MByte
 #define ZINBUF_DATA_LEN 24            /* POSITION OF 'DATA LENGHT'-VARIABLE. */
 #define ZINBUF_NEXT 25                /* POSITION OF 'NEXT'-VARIABLE.        */
   Attrbuf *attrbuf;
   AttrbufPtr attrinbufptr;
   UintR cfirstfreeAttrinbuf;
   UintR cattrinbufFileSize;
+  Uint32 c_no_attrinbuf_recs;
 
 #define ZDATABUF_FILE_SIZE 10000    // 200 kByte
   Databuf *databuf;
@@ -2643,7 +2645,6 @@ private:
   UintR cfirstfreeLfo;
   UintR clfoFileSize;
 
-#define ZLOG_PAGE_FILE_SIZE 256   // 8 MByte 
   LogPageRecord *logPageRecord;
   LogPageRecordPtr logPagePtr;
   UintR cfirstfreeLogPage;
@@ -2912,5 +2913,16 @@ public:
 
   DLHashTable<ScanRecord> c_scanTakeOverHash;
 };
+
+inline
+bool
+Dblqh::ScanRecord::check_scan_batch_completed() const
+{
+  Uint32 max_rows = m_max_batch_size_rows;
+  Uint32 max_bytes = m_max_batch_size_bytes;
+
+  return (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
+    (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
+}
 
 #endif

@@ -25,6 +25,7 @@
 
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   int _records = 0;
   const char* _tabname = NULL;

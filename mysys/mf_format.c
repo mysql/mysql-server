@@ -42,7 +42,7 @@ my_string fn_format(my_string to, const char *name, const char *dir,
     /* Use given directory */
     convert_dirname(dev,dir,NullS);		/* Fix to this OS */
   }
-  else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(name))
+  else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(dev))
   {
     /* Put 'dir' before the given path */
     strmake(buff,dev,sizeof(buff)-1);

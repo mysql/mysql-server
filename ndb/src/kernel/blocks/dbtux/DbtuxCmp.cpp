@@ -18,44 +18,47 @@
 #include "Dbtux.hpp"
 
 /*
- * Search key vs node prefix.
+ * Search key vs node prefix or entry
  *
- * The comparison starts at given attribute position (in fact 0).  The
- * position is updated by number of equal initial attributes found.  The
- * prefix may be partial in which case CmpUnknown may be returned.
+ * The comparison starts at given attribute position.  The position is
+ * updated by number of equal initial attributes found.  The entry data
+ * may be partial in which case CmpUnknown may be returned.
  */
 int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, ConstData entryData, unsigned maxlen)
+Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, ConstData entryData, unsigned maxlen)
 {
   const unsigned numAttrs = frag.m_numAttrs;
   const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
   // number of words of attribute data left
   unsigned len2 = maxlen;
-  // skip to right position in search key
-  searchKey += start;
+  // skip to right position in search key only
+  for (unsigned i = 0; i < start; i++) {
+    jam();
+    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
+  }
   int ret = 0;
   while (start < numAttrs) {
-    if (len2 < AttributeHeaderSize) {
+    if (len2 <= AttributeHeaderSize) {
       jam();
       ret = NdbSqlUtil::CmpUnknown;
       break;
     }
     len2 -= AttributeHeaderSize;
-    if (*searchKey != 0) {
+    if (! searchKey.ah().isNULL()) {
       if (! entryData.ah().isNULL()) {
         jam();
         // current attribute
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const unsigned typeId = descAttr.m_typeId;
         // full data size
         const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
         ndbrequire(size1 != 0 && size1 == entryData.ah().getDataSize());
         const unsigned size2 = min(size1, len2);
         len2 -= size2;
         // compare
-        const Uint32* const p1 = *searchKey;
+        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
+        const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
+        ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           break;
@@ -74,87 +77,33 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, Cons
         break;
       }
     }
-    searchKey += 1;
+    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
     start++;
   }
-  // XXX until data format errors are handled
-  ndbrequire(ret != NdbSqlUtil::CmpError);
   return ret;
 }
 
 /*
- * Search key vs tree entry.
+ * Scan bound vs node prefix or entry.
  *
- * Start position is updated as in previous routine.
- */
-int
-Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, TableData searchKey, TableData entryKey)
-{
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  // skip to right position
-  searchKey += start;
-  entryKey += start;
-  int ret = 0;
-  while (start < numAttrs) {
-    if (*searchKey != 0) {
-      if (*entryKey != 0) {
-        jam();
-        // current attribute
-        const DescAttr& descAttr = descEnt.m_descAttr[start];
-        const unsigned typeId = descAttr.m_typeId;
-        // full data size
-        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-        // compare
-        const Uint32* const p1 = *searchKey;
-        const Uint32* const p2 = *entryKey;
-        ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
-        if (ret != 0) {
-          jam();
-          break;
-        }
-      } else {
-        jam();
-        // not NULL > NULL
-        ret = +1;
-        break;
-      }
-    } else {
-      if (*entryKey != 0) {
-        jam();
-        // NULL < not NULL
-        ret = -1;
-        break;
-      }
-    }
-    searchKey += 1;
-    entryKey += 1;
-    start++;
-  }
-  // XXX until data format errors are handled
-  ndbrequire(ret != NdbSqlUtil::CmpError);
-  return ret;
-}
-
-/*
- * Scan bound vs node prefix.
+ * Compare lower or upper bound and index entry data.  The entry data
+ * may be partial in which case CmpUnknown may be returned.  Otherwise
+ * returns -1 if the bound is to the left of the entry and +1 if the
+ * bound is to the right of the entry.
  *
- * Compare lower or upper bound and index attribute data.  The attribute
- * data may be partial in which case CmpUnknown may be returned.
- * Returns -1 if the boundary is to the left of the compared key and +1
- * if the boundary is to the right of the compared key.
+ * The routine is similar to cmpSearchKey, but 0 is never returned.
+ * Suppose all attributes compare equal.  Recall that all bounds except
+ * possibly the last one are non-strict.  Use the given bound direction
+ * (0-lower 1-upper) and strictness of last bound to return -1 or +1.
  *
- * To get this behaviour we treat equality a little bit special.  If the
- * boundary is a lower bound then the boundary is to the left of all
- * equal keys and if it is an upper bound then the boundary is to the
- * right of all equal keys.
+ * Following example illustrates this.  We are at (a=2, b=3).
  *
- * When searching for the first key we are using the lower bound to try
- * to find the first key that is to the right of the boundary.  Then we
- * start scanning from this tuple (including the tuple itself) until we
- * find the first key which is to the right of the boundary.  Then we
- * stop and do not include that key in the scan result.
+ * dir  bounds                  strict          return
+ * 0    a >= 2 and b >= 3       no              -1
+ * 0    a >= 2 and b >  3       yes             +1
+ * 1    a <= 2 and b <= 3       no              +1
+ * 1    a <= 2 and b <  3       yes             -1
  */
 int
 Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, ConstData entryData, unsigned maxlen)
@@ -164,20 +113,15 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
   ndbrequire(dir <= 1);
   // number of words of data left
   unsigned len2 = maxlen;
-  /*
-   * No boundary means full scan, low boundary is to the right of all
-   * keys.  Thus we should always return -1.  For upper bound we are to
-   * the right of all keys, thus we should always return +1.  We achieve
-   * this behaviour by initializing type to 4.
-   */
+  // in case of no bounds, init last type to something non-strict
   unsigned type = 4;
   while (boundCount != 0) {
-    if (len2 < AttributeHeaderSize) {
+    if (len2 <= AttributeHeaderSize) {
       jam();
       return NdbSqlUtil::CmpUnknown;
     }
     len2 -= AttributeHeaderSize;
-    // get and skip bound type
+    // get and skip bound type (it is used after the loop)
     type = boundInfo[0];
     boundInfo += 1;
     if (! boundInfo.ah().isNULL()) {
@@ -185,8 +129,8 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         jam();
         // current attribute
         const unsigned index = boundInfo.ah().getAttributeId();
+        ndbrequire(index < frag.m_numAttrs);
         const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const unsigned typeId = descAttr.m_typeId;
         ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
         // full data size
         const unsigned size1 = boundInfo.ah().getDataSize();
@@ -194,11 +138,10 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
         const unsigned size2 = min(size1, len2);
         len2 -= size2;
         // compare
+        NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
-        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size2);
-        // XXX until data format errors are handled
-        ndbrequire(ret != NdbSqlUtil::CmpError);
+        int ret = (*cmp)(0, p1, p2, size1, size2);
         if (ret != 0) {
           jam();
           return ret;
@@ -220,100 +163,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigne
     entryData += AttributeHeaderSize + entryData.ah().getDataSize();
     boundCount -= 1;
   }
-  if (dir == 0) {
-    jam();
-    /*
-     * Looking for the lower bound.  If strict lower bound then the
-     * boundary is to the right of the compared key and otherwise (equal
-     * included in range) then the boundary is to the left of the key.
-     */
-    if (type == 1) {
-      jam();
-      return +1;
-    }
-    return -1;
-  } else {
-    jam();
-    /*
-     * Looking for the upper bound.  If strict upper bound then the
-     * boundary is to the left of all equal keys and otherwise (equal
-     * included in the range) then the boundary is to the right of all
-     * equal keys.
-     */
-    if (type == 3) {
-      jam();
-      return -1;
-    }
-    return +1;
-  }
-}
-
-/*
- * Scan bound vs tree entry.
- */
-int
-Dbtux::cmpScanBound(const Frag& frag, unsigned dir, ConstData boundInfo, unsigned boundCount, TableData entryKey)
-{
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  // direction 0-lower 1-upper
-  ndbrequire(dir <= 1);
-  // initialize type to equality
-  unsigned type = 4;
-  while (boundCount != 0) {
-    // get and skip bound type
-    type = boundInfo[0];
-    boundInfo += 1;
-    if (! boundInfo.ah().isNULL()) {
-      if (*entryKey != 0) {
-        jam();
-        // current attribute
-        const unsigned index = boundInfo.ah().getAttributeId();
-        const DescAttr& descAttr = descEnt.m_descAttr[index];
-        const unsigned typeId = descAttr.m_typeId;
-        // full data size
-        const unsigned size1 = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-        // compare
-        const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
-        const Uint32* const p2 = *entryKey;
-        int ret = NdbSqlUtil::cmp(typeId, p1, p2, size1, size1);
-        // XXX until data format errors are handled
-        ndbrequire(ret != NdbSqlUtil::CmpError);
-        if (ret != 0) {
-          jam();
-          return ret;
-        }
-      } else {
-        jam();
-        // not NULL > NULL
-        return +1;
-      }
-    } else {
-      jam();
-      if (*entryKey != 0) {
-        jam();
-        // NULL < not NULL
-        return -1;
-      }
-    }
-    boundInfo += AttributeHeaderSize + boundInfo.ah().getDataSize();
-    entryKey += 1;
-    boundCount -= 1;
-  }
-  if (dir == 0) {
-    // lower bound
-    jam();
-    if (type == 1) {
-      jam();
-      return +1;
-    }
-    return -1;
-  } else {
-    // upper bound
-    jam();
-    if (type == 3) {
-      jam();
-      return -1;
-    }
-    return +1;
-  }
+  // all attributes were equal
+  const int strict = (type & 0x1);
+  return (dir == 0 ? (strict == 0 ? -1 : +1) : (strict == 0 ? +1 : -1));
 }
