@@ -32,7 +32,7 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *arg, const struct my_option *optp,
 			    int *err);
 static void init_variables(const struct my_option *options);
-static int setval(const struct my_option *opts, char *argument,
+static int setval(const struct my_option *opts, gptr *value, char *argument,
 		  my_bool set_maximum_value);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
@@ -68,9 +68,9 @@ my_bool my_getopt_print_errors= 1;
   one. Call function 'get_one_option()' once for each option.
 */
 
-static gptr* (*getopt_get_addr)(char *, uint, const struct my_option *);
+static gptr* (*getopt_get_addr)(const char *, uint, const struct my_option *);
 
-void my_getopt_register_get_addr(gptr* (*func_addr)(char *, uint,
+void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
 						    const struct my_option *))
 {
   getopt_get_addr= func_addr;
@@ -395,7 +395,8 @@ int handle_options(int *argc, char ***argv,
 		  /* the other loop will break, because *optend + 1 == 0 */
 		}
 	      }
-	      if ((error= setval(optp, argument, set_maximum_value)))
+	      if ((error= setval(optp, optp->value, argument,
+				 set_maximum_value)))
 	      {
 		fprintf(stderr,
 			"%s: Error while setting value '%s' to '%s'\n",
@@ -417,7 +418,7 @@ int handle_options(int *argc, char ***argv,
 	(*argc)--; /* option handled (short), decrease argument count */
 	continue;
       }
-      if ((error= setval(optp, argument, set_maximum_value)))
+      if ((error= setval(optp, value, argument, set_maximum_value)))
       {
 	fprintf(stderr,
 		"%s: Error while setting value '%s' to '%s'\n",
@@ -473,13 +474,13 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   if (end - ptr > 1)
   {
     uint len= ptr - cur_arg;
-    strnmov(key_name, cur_arg, len);
-    key_name[len]= '\0';
+    set_if_smaller(len, FN_REFLEN-1);
+    strmake(key_name, cur_arg, len);
     return ++ptr;
   }
   else
   {
-    key_name= 0;
+    key_name[0]= 0;
     return cur_arg;
   }
 }
@@ -491,15 +492,15 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, char *argument,
+static int setval(const struct my_option *opts, gptr *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0;
 
-  if (opts->value && argument)
+  if (value && argument)
   {
     gptr *result_pos= ((set_maximum_value) ?
-		       opts->u_max_value : opts->value);
+		       opts->u_max_value : value);
 
     if (!result_pos)
       return EXIT_NO_PTR_TO_VARIABLE;
@@ -692,43 +693,45 @@ static void init_variables(const struct my_option *options)
 {
   for (; options->name; options++)
   {
-    if (options->value)
+    gptr *value= (options->var_type & GET_ASK_ADDR ?
+		  (*getopt_get_addr)("", 0, options) : options->value);
+    if (value)
     {
       switch ((options->var_type & GET_TYPE_MASK)) {
       case GET_BOOL:
 	if (options->u_max_value)
 	  *((my_bool*) options->u_max_value)= (my_bool) options->max_value;
-	*((my_bool*) options->value)= (my_bool) options->def_value;
+	*((my_bool*) value)= (my_bool) options->def_value;
 	break;
       case GET_INT:
 	if (options->u_max_value)
 	  *((int*) options->u_max_value)= (int) options->max_value;
-	*((int*) options->value)= (int) options->def_value;
+	*((int*) value)= (int) options->def_value;
 	break;
       case GET_UINT:
 	if (options->u_max_value)
 	  *((uint*) options->u_max_value)= (uint) options->max_value;
-	*((uint*) options->value)= (uint) options->def_value;
+	*((uint*) value)= (uint) options->def_value;
 	break;
       case GET_LONG:
 	if (options->u_max_value)
 	  *((long*) options->u_max_value)= (long) options->max_value;
-	*((long*) options->value)= (long) options->def_value;
+	*((long*) value)= (long) options->def_value;
 	break;
       case GET_ULONG:
 	if (options->u_max_value)
 	  *((ulong*) options->u_max_value)= (ulong) options->max_value;
-	*((ulong*) options->value)= (ulong) options->def_value;
+	*((ulong*) value)= (ulong) options->def_value;
 	break;
       case GET_LL:
 	if (options->u_max_value)
 	  *((longlong*) options->u_max_value)= (longlong) options->max_value;
-	*((longlong*) options->value)= (longlong) options->def_value;
+	*((longlong*) value)= (longlong) options->def_value;
 	break;
       case GET_ULL:
 	if (options->u_max_value)
 	  *((ulonglong*) options->u_max_value)= (ulonglong) options->max_value;
-	*((ulonglong*) options->value)=  (ulonglong) options->def_value;
+	*((ulonglong*) value)=  (ulonglong) options->def_value;
 	break;
       default: /* dummy default to avoid compiler warnings */
 	break;
@@ -831,7 +834,9 @@ void my_print_variables(const struct my_option *options)
   printf("--------------------------------- -----------------------------\n");
   for (optp= options; optp->id; optp++)
   {
-    if (optp->value)
+    gptr *value= (optp->var_type & GET_ASK_ADDR ?
+		  (*getopt_get_addr)("", 0, optp) : optp->value);
+    if (value)
     {
       printf("%s", optp->name);
       length= strlen(optp->name);
@@ -840,29 +845,29 @@ void my_print_variables(const struct my_option *options)
       switch ((optp->var_type & GET_TYPE_MASK)) {
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */
-	printf("%s\n", *((char**) optp->value) ? *((char**) optp->value) :
+	printf("%s\n", *((char**) value) ? *((char**) value) :
 	       "(No default value)");
 	break;
       case GET_BOOL:
-	printf("%s\n", *((my_bool*) optp->value) ? "TRUE" : "FALSE");
+	printf("%s\n", *((my_bool*) value) ? "TRUE" : "FALSE");
 	break;
       case GET_INT:
-	printf("%d\n", *((int*) optp->value));
+	printf("%d\n", *((int*) value));
 	break;
       case GET_UINT:
-	printf("%d\n", *((uint*) optp->value));
+	printf("%d\n", *((uint*) value));
 	break;
       case GET_LONG:
-	printf("%lu\n", *((long*) optp->value));
+	printf("%lu\n", *((long*) value));
 	break;
       case GET_ULONG:
-	printf("%lu\n", *((ulong*) optp->value));
+	printf("%lu\n", *((ulong*) value));
 	break;
       case GET_LL:
-	printf("%s\n", llstr(*((longlong*) optp->value), buff));
+	printf("%s\n", llstr(*((longlong*) value), buff));
 	break;
       case GET_ULL:
-	longlong2str(*((ulonglong*) optp->value), buff, 10);
+	longlong2str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
 	break;
       default: /* dummy default to avoid compiler warnings */
