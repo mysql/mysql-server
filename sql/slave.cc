@@ -420,11 +420,10 @@ int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
       goto err;
     }
   }
-  safe_connect(thd, mysql, mi);
   if (slave_killed(thd))
     goto err;
 
-  if (request_table_dump(mysql, thd->last_nx_db, thd->last_nx_table))
+  if (request_table_dump(mysql, db_name, table_name))
   {
     nx_errno = ER_GET_ERRNO;
     sql_print_error("fetch_nx_table: failed on table dump request ");
