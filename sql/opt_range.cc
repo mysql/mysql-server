@@ -290,6 +290,7 @@ typedef struct st_qsel_param {
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
+  char escape;
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
@@ -637,7 +638,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
-
+    if (cond->type() == Item::FUNC_ITEM &&
+        ((Item_func*)cond)->functype() == Item_func::LIKE_FUNC)
+      param.escape= ((Item_func_like*)cond)->escape;
     param.thd->no_errors=1;			// Don't warn about NULL
     init_sql_alloc(&alloc, param.thd->variables.range_alloc_block_size, 0);
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
@@ -994,7 +997,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
     if (maybe_null)
       max_str[0]= min_str[0]=0;
     if (field->binary())
-      like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
+      like_error=like_range(res->ptr(),res->length(),param->escape,field_length,
 			    min_str+offset,max_str+offset,(char) 255,
 			    &min_length,&max_length);
     else
@@ -1002,12 +1005,12 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
 #ifdef USE_STRCOLL
       if (use_strcoll(default_charset_info))
         like_error= my_like_range(default_charset_info,
-                                  res->ptr(),res->length(),wild_prefix,
+                                  res->ptr(),res->length(),param->escape,
                                   field_length, min_str+maybe_null,
                                   max_str+maybe_null,&min_length,&max_length);
       else
 #endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,
+        like_error=like_range(res->ptr(),res->length(),param->escape,
 			      field_length,
                               min_str+offset,max_str+offset,
                               max_sort_char,&min_length,&max_length);

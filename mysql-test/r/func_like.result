@@ -37,3 +37,9 @@ select * from t1 where a like "%abc\d%";
 a
 abcd
 drop table t1;
+create table t1 (a varchar(10), key(a));
+insert into t1 values ('a'), ('a\\b');
+select * from t1 where a like 'a\\%' escape '#';
+a
+a\b
+drop table t1;
