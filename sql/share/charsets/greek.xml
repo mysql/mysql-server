@@ -114,6 +114,8 @@
 </map>
 </collation>
 
+<collation name="greek_bin"	flag="binary"/>
+
 </charset>
 
 </charsets>

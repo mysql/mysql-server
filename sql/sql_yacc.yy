@@ -1304,7 +1304,7 @@ attribute:
 charset_name:
 	ident
 	{
-	  if (!($$=get_charset_by_csname($1.str,MYF(0))))
+	  if (!($$=get_charset_by_csname($1.str,MY_CS_PRIMARY,MYF(0))))
 	  {
 	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
 	    YYABORT;
@@ -1989,8 +1989,12 @@ expr_expr:
 	  { $$= new Item_date_add_interval($1,$3,$4,0); }
 	| expr '-' interval_expr interval
 	  { $$= new Item_date_add_interval($1,$3,$4,1); }
-	| expr COLLATE_SYM collation_name
-	  { $$= new Item_func_set_collation($1,$3); };
+	| expr COLLATE_SYM ident
+	  { 
+	    $$= new Item_func_set_collation($1,new Item_string($3.str,$3.length,
+					    YYTHD->variables.thd_charset));
+	  }
+	;
 
 /* expressions that begin with 'expr' that do NOT follow IN_SYM */
 no_in_expr:
@@ -2142,7 +2146,11 @@ simple_expr:
           { Select->add_ftfunc_to_list((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
-	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,&my_charset_bin); }
+	| BINARY expr %prec NEG 
+	  {
+	    $$= new Item_func_set_collation($2,new Item_string("BINARY",6,
+					    &my_charset_latin1));
+	  }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }

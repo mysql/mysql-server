@@ -201,6 +201,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
   case _CS_FLAG:
     if (!strncmp("primary",attr,len))
       i->cs.state|= MY_CS_PRIMARY;
+    else if (!strncmp("binary",attr,len))
+      i->cs.state|= MY_CS_BINSORT;
     break;
   case _CS_UPPERMAP:
     fill_uchar(i->to_upper,MY_CS_TO_UPPER_TABLE_SIZE,attr,len);

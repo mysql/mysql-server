@@ -107,7 +107,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
-    coercibility= COER_NOCOLL;
+    bool first_coll= 1;
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -122,15 +122,17 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  Set return character set to first argument if we are returning a
 	  string.
 	*/
-	if ((*arg)->binary())
+	if (first_coll)
+	{
+	  set_charset((*arg)->charset());
+	  coercibility= (*args)->coercibility;
+	  first_coll= 0;
+	}
+	else if ((*arg)->charset() == &my_charset_bin || 
+		 charset() == &my_charset_bin)
 	{
 	  set_charset(&my_charset_bin);
 	  coercibility= COER_NOCOLL;
-	}
-	else if (coercibility== COER_NOCOLL)
-	{
-	  coercibility= (*arg)->coercibility;
-	  set_charset((*arg)->charset());
 	}
 	else if ((*arg)->coercibility < coercibility)
 	{
@@ -864,6 +866,7 @@ void Item_func_min_max::fix_length_and_dec()
   max_length=0;
   maybe_null=1;
   cmp_type=args[0]->result_type();
+
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (max_length < args[i]->max_length)
@@ -873,11 +876,11 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->binary())
+    if (i==0)
+      set_charset(args[i]->charset());
+    else if (args[i]->charset() == &my_charset_bin)
       set_charset(&my_charset_bin);
   }
-  if (cmp_type == STRING_RESULT)
-    str_cmp_function= binary() ? stringcmp : sortcmp;
 }
 
 
@@ -922,7 +925,7 @@ String *Item_func_min_max::val_str(String *str)
 	res2= args[i]->val_str(res == str ? &tmp_value : str);
 	if (res2)
 	{
-	  int cmp= (*str_cmp_function)(res,res2);
+	  int cmp= sortcmp(res,res2,charset());
 	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
 	    res=res2;
 	}

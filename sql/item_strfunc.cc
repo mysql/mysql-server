@@ -2181,12 +2181,15 @@ String *Item_func_set_collation::val_str(String *str)
   str=args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
-  str->set_charset(set_collation);
+  str->set_charset(charset());
   return str;
 }
 
 bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
 {
+  CHARSET_INFO *set_collation;
+  String tmp, *str;
+  const char *colname;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
   used_tables_cache=0;
   const_item_cache=1;
@@ -2195,17 +2198,32 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
     return 0;					// Fatal error if flag is set!
   if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
     return 1;
-  maybe_null=args[0]->maybe_null;
+  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
+    return 2;
+  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
+
+  str= args[1]->val_str(&tmp);
+  colname= str->c_ptr();
+  if (!strncmp(colname,"BINARY",6))
+    set_collation= get_charset_by_csname(args[0]->charset()->csname,
+					 MY_CS_BINSORT,MYF(0));
+  else
+    set_collation= get_charset_by_name(colname,MYF(0));
+  
+  if (!set_collation)
+  {
+    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), str->c_ptr());
+    return 1;
+  }
+  
   if (strcmp(args[0]->charset()->csname,set_collation->csname))
   {
-    if (strcmp(set_collation->name,"binary"))
-    {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-        set_collation->name,args[0]->charset()->csname);
-      return 1;
-    }
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
+      set_collation->name,args[0]->charset()->csname);
+    return 1;
   }
   set_charset(set_collation);
+  
   coercibility= COER_EXPLICIT;
   with_sum_func= with_sum_func || args[0]->with_sum_func;
   used_tables_cache=args[0]->used_tables();
@@ -2227,7 +2245,7 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
       func_name() != item_func->func_name())
     return 0;
   Item_func_set_collation *item_func_sc=(Item_func_set_collation*) item;
-  if (set_collation != item_func_sc->set_collation)
+  if (charset() != item_func_sc->charset())
     return 0;
   for (uint i=0; i < arg_count ; i++)
     if (!args[i]->eq(item_func_sc->args[i], binary_cmp))

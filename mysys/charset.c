@@ -57,22 +57,40 @@ static void set_max_sort_char(CHARSET_INFO *cs)
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
   
-  cs->strnxfrm    = my_strnxfrm_simple;
-  cs->strnncoll   = my_strnncoll_simple;
-  cs->strnncollsp = my_strnncollsp_simple;
-  cs->like_range  = my_like_range_simple;
-  cs->wildcmp     = my_wildcmp_8bit;
-  cs->mb_wc       = my_mb_wc_8bit;
-  cs->wc_mb       = my_wc_mb_8bit;
+  if (cs->state & MY_CS_BINSORT)
+  {
+    CHARSET_INFO *b= &my_charset_bin;
+    cs->strnxfrm    = b->strnxfrm;
+    cs->like_range  = b->like_range;
+    cs->wildcmp     = b->wildcmp;
+    cs->strnncoll   = b->strnncoll;
+    cs->strnncollsp = b->strnncollsp;
+    cs->tosort      = b->tosort;
+    cs->strcasecmp  = b->strcasecmp;
+    cs->strncasecmp = b->strncasecmp;
+    cs->hash_caseup = b->hash_caseup;
+    cs->hash_sort   = b->hash_sort;
+  }
+  else
+  {
+    cs->strnxfrm    = my_strnxfrm_simple;
+    cs->like_range  = my_like_range_simple;
+    cs->wildcmp     = my_wildcmp_8bit;
+    cs->strnncoll   = my_strnncoll_simple;
+    cs->strnncollsp = my_strnncollsp_simple;
+    cs->tosort      = my_tosort_8bit;
+    cs->strcasecmp  = my_strcasecmp_8bit;
+    cs->strncasecmp = my_strncasecmp_8bit;
+    cs->hash_caseup = my_hash_caseup_simple;
+    cs->hash_sort   = my_hash_sort_simple;
+  }
+  
   cs->caseup_str  = my_caseup_str_8bit;
   cs->casedn_str  = my_casedn_str_8bit;
   cs->caseup      = my_caseup_8bit;
   cs->casedn      = my_casedn_8bit;
-  cs->tosort      = my_tosort_8bit;
-  cs->strcasecmp  = my_strcasecmp_8bit;
-  cs->strncasecmp = my_strncasecmp_8bit;
-  cs->hash_caseup = my_hash_caseup_simple;
-  cs->hash_sort   = my_hash_sort_simple;
+  cs->mb_wc       = my_mb_wc_8bit;
+  cs->wc_mb       = my_wc_mb_8bit;
   cs->snprintf	  = my_snprintf_8bit;
   cs->long10_to_str= my_long10_to_str_8bit;
   cs->longlong10_to_str= my_longlong10_to_str_8bit;
@@ -223,7 +241,8 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
-	  (cs->number && cs->name && cs->sort_order));
+	  (cs->number && cs->name &&
+	  (cs->sort_order || (cs->state & MY_CS_BINSORT) )));
 }
 
 
@@ -553,7 +572,9 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
 }
 
 
-CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
+CHARSET_INFO *get_charset_by_csname(const char *cs_name,
+				    uint cs_flags,
+				    myf flags)
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
@@ -561,7 +582,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
   
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
-    if ( css[0] && (css[0]->state & MY_CS_PRIMARY) && 
+    if ( css[0] && (css[0]->state & cs_flags) && 
          css[0]->csname && !strcmp(css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;

@@ -112,7 +112,7 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
-  bool binary_cmp;
+  CHARSET_INFO *cmp_charset;
 
 public:
   Item_bool_func2(Item *a,Item *b):
@@ -127,7 +127,7 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  virtual bool binary() const { return binary_cmp; }
+  virtual bool binary() const { return test(cmp_charset->state & MY_CS_BINSORT); }
 
   static Item_bool_func2* eq_creator(Item *a, Item *b);
   static Item_bool_func2* ne_creator(Item *a, Item *b);
@@ -242,7 +242,7 @@ public:
 
 class Item_func_between :public Item_int_func
 {
-  int (*string_compare)(const String *x,const String *y);
+  CHARSET_INFO *cmp_charset;
 public:
   Item_result cmp_type;
   String value0,value1,value2;
@@ -263,7 +263,9 @@ public:
   void fix_length_and_dec()
   {
     max_length=2;
-    binary_cmp= args[0]->binary() || args[1]->binary();
+    /* QQ: COERCIBILITY */
+    cmp_charset= args[0]->binary() || args[1]->binary() ? 
+    		 &my_charset_bin : args[0]->charset();
   }
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
@@ -439,7 +441,8 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  cmp_item() {}
+  CHARSET_INFO *cmp_charset;
+  cmp_item() { cmp_charset= &my_charset_bin; }
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   virtual int cmp(Item *item)= 0;
@@ -453,18 +456,14 @@ public:
   }
 };
 
-typedef int (*str_cmp_func_pointer)(const String *, const String *);
 class cmp_item_string :public cmp_item 
 {
 protected:
-  str_cmp_func_pointer str_cmp_func;
   String *value_res;
 public:
-  cmp_item_string (str_cmp_func_pointer cmp): str_cmp_func(cmp) {}
+  cmp_item_string (CHARSET_INFO *cs) { cmp_charset= cs; }
   friend class cmp_item_sort_string;
-  friend class cmp_item_binary_string;
   friend class cmp_item_sort_string_in_static;
-  friend class cmp_item_binary_string_in_static;
 };
 
 class cmp_item_sort_string :public cmp_item_string
@@ -473,12 +472,9 @@ protected:
   char value_buff[80];
   String value;
 public:
-  cmp_item_sort_string(str_cmp_func_pointer cmp):
-    cmp_item_string(cmp),
-    value(value_buff, sizeof(value_buff), default_charset_info) {}
-  cmp_item_sort_string():
-    cmp_item_string(&sortcmp),
-    value(value_buff, sizeof(value_buff), default_charset_info) {}
+  cmp_item_sort_string(CHARSET_INFO *cs):
+    cmp_item_string(cs),
+    value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
   {
     value_res= item->val_str(&value);
@@ -489,19 +485,13 @@ public:
     String tmp(buff, sizeof(buff), default_charset_info), *res;
     if (!(res= arg->val_str(&tmp)))
       return 1;				/* Can't be right */
-    return (*str_cmp_func)(value_res, res);
+    return sortcmp(value_res, res, cmp_charset);
   }
   int compare(cmp_item *c)
   {
     cmp_item_string *cmp= (cmp_item_string *)c;
-    return (*str_cmp_func)(value_res, cmp->value_res);
+    return sortcmp(value_res, cmp->value_res, cmp_charset);
   } 
-  cmp_item *make_same();
-};
-
-class cmp_item_binary_string :public cmp_item_sort_string {
-public:
-  cmp_item_binary_string(): cmp_item_sort_string(&stringcmp)  {}
   cmp_item *make_same();
 };
 
@@ -590,9 +580,8 @@ class cmp_item_sort_string_in_static :public cmp_item_string
  protected:
   String value;
 public:
-  cmp_item_sort_string_in_static(str_cmp_func_pointer cmp):
-    cmp_item_string(cmp) {}
-  cmp_item_sort_string_in_static(): cmp_item_string(&sortcmp) {}
+  cmp_item_sort_string_in_static(CHARSET_INFO *cs):
+    cmp_item_string(cs) {}
   void store_value(Item *item)
   {
     value_res= item->val_str(&value);
@@ -606,21 +595,11 @@ public:
   int compare(cmp_item *c)
   {
     cmp_item_string *cmp= (cmp_item_string *)c;
-    return (*str_cmp_func)(value_res, cmp->value_res);
+    return sortcmp(value_res, cmp->value_res, cmp_charset);
   }
   cmp_item * make_same()
   {
-    return new cmp_item_sort_string_in_static();
-  }
-};
-
-class cmp_item_binary_string_in_static :public cmp_item_sort_string_in_static {
-public:
-  cmp_item_binary_string_in_static():
-    cmp_item_sort_string_in_static(&stringcmp) {}
-  cmp_item * make_same()
-  {
-    return new cmp_item_binary_string_in_static();
+    return new cmp_item_sort_string_in_static(cmp_charset);
   }
 };
 

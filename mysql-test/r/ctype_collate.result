@@ -483,4 +483,31 @@ Z
 z
 SELECT DISTINCT latin1_f COLLATE koi8r        FROM t1;
 COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) NOT NULL default ''
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32)	latin1				
+ALTER TABLE t1 CHANGE latin1_f 
+latin1_f CHAR(32) CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
+) TYPE=MyISAM CHARSET=latin1
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32) character set latin1	latin1_bin	YES		NULL	
+ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `latin1_f` char(32) collate latin1_bin default NULL
+) TYPE=MyISAM CHARSET=latin1 COLLATE=latin1_bin
+SHOW FIELDS FROM  t1;
+Field	Type	Collation	Null	Key	Default	Extra
+latin1_f	char(32)	latin1_bin	YES		NULL	
 DROP TABLE t1;
