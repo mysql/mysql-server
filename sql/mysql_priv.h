@@ -801,6 +801,8 @@ bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool my_dbopt_init(void);
+void my_dbopt_cleanup(void);
 void my_dbopt_free(void);
 
 /*
@@ -895,8 +897,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave,
-       LOCK_dboptions;
+extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;

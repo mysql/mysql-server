@@ -2294,42 +2294,48 @@ inline int hexchar_to_int(char c)
   return -1;
 }
 
-String *Item_func_unhex::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
+
   /* Convert given hex string to a binary string */
 
-  String *res= args[0]->val_str(str);
-  if (!res || tmp_value.alloc((1+res->length())/2))
+String *Item_func_unhex::val_str(String *str)
+{
+  const char *from, *end;
+  char *to;
+  String *res;
+  uint length;
+  DBUG_ASSERT(fixed == 1);
+
+  res= args[0]->val_str(str);
+  if (!res || tmp_value.alloc(length= (1+res->length())/2))
   {
     null_value=1;
     return 0;
   }
 
-  const char *from=res->ptr(), *end;
-  char *to;
-  int r;
-
-  null_value=0;
-  tmp_value.length((1+res->length())/2);
+  from= res->ptr();
+  null_value= 0;
+  tmp_value.length(length);
   to= (char*) tmp_value.ptr();
   if (res->length() % 2)
   {
-    *to++= r= hexchar_to_int(*from++);
-    if ((null_value= (r == -1)))
+    int hex_char;
+    *to++= hex_char= hexchar_to_int(*from++);
+    if ((null_value= (hex_char == -1)))
       return 0;
   }
   for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
   {
-    *to= (r= hexchar_to_int(from[0])) << 4;
-    if ((null_value= (r == -1)))
+    int hex_char;
+    *to= (hex_char= hexchar_to_int(from[0])) << 4;
+    if ((null_value= (hex_char == -1)))
       return 0;
-    *to|= r= hexchar_to_int(from[1]);
-    if ((null_value= (r == -1)))
+    *to|= hex_char= hexchar_to_int(from[1]);
+    if ((null_value= (hex_char == -1)))
       return 0;
   }
   return &tmp_value;
 }
+
 
 void Item_func_binary::print(String *str)
 {

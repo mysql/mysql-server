@@ -344,12 +344,24 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
 {
   ulong flags= (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY
                 | HA_READ_RANGE);
-  for (uint idx= all_parts ? 0 : part ; idx <= part ; idx++)
+  for (uint i= all_parts ? 0 : part ; i <= part ; i++)
   {
-    if (table->key_info[idx].key_part[part].field->type() == FIELD_TYPE_BLOB)
+    if (table->key_info[idx].key_part[i].field->type() == FIELD_TYPE_BLOB)
     {
       /* We can't use BLOBS to shortcut sorts */
-      flags&= ~ (HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
+      flags&= ~(HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
+      break;
+    }
+    switch (table->key_info[idx].key_part[i].field->key_type()) {
+    case HA_KEYTYPE_TEXT:
+    case HA_KEYTYPE_VARTEXT:
+      /*
+        As BDB stores only one copy of equal strings, we can't use key read
+        on these
+      */
+      flags&= ~HA_KEYREAD_ONLY;
+      break;
+    default:                                    // Keep compiler happy
       break;
     }
   }

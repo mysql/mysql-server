@@ -1168,7 +1168,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     HA_CREATE_INFO db_info;
     uint length;
     char  path[FN_REFLEN];
-    (void) sprintf(path,"%s/%s", mysql_data_home, db);
+    strxmov(path, mysql_data_home, "/", db, NullS);
     length= unpack_dirname(path,path);             // Convert if not unix
     strmov(path+length, MY_DB_OPT_FILE);
     load_db_opt(thd, path, &db_info);

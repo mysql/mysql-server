@@ -369,7 +369,6 @@ revoke all privileges on test.t1 from drop_user@localhost ;
 --error 1295
 prepare stmt3 from ' drop user drop_user@localhost ';
 drop user drop_user@localhost;
---error 1141
 
 #### table related commands
 ## describe
