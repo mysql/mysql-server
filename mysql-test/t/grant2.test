@@ -125,8 +125,10 @@ show grants for 'mysqltest_1';
 drop user 'mysqltest_1', 'mysqltest_3';
 #
 # Grant must not create user
-#grant all on test.t1 to 'mysqltest_1';
-#drop user 'mysqltest_1';
+--error 1211
+grant all on test.t1 to 'mysqltest_1';
+--error 1268
+drop user 'mysqltest_1';
 #
 # Cleanup
 drop table t1, t2;
@@ -198,7 +200,7 @@ grant usage on *.* to mysqltest_2@localhost with grant option;
 connect (user2,localhost,mysqltest_2,,);
 connection user2;
 --error 1044
-select host,user,password from mysql.user order by host,user,password;
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 create user mysqltest_A@'%';
 rename user mysqltest_A@'%' to mysqltest_B@'%';
 drop user mysqltest_B@'%';
@@ -211,7 +213,7 @@ create user mysqltest_3@localhost;
 grant all privileges on mysql.* to mysqltest_3@localhost;
 connect (user3,localhost,mysqltest_3,,);
 connection user3;
-select host,user,password from mysql.user order by host,user,password;
+select host,user,password from mysql.user where user like 'mysqltest_%' order by host,user,password;
 insert into mysql.user set host='%', user='mysqltest_B';
 --error 1044
 create user mysqltest_A@'%';
