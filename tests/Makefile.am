@@ -40,6 +40,9 @@ client_test_DEPENDENCIES= $(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 
+# Fix for mit-threads
+DEFS =			-DUNDEF_THREADS_HACK
+
 thread_test.o:		thread_test.c
 			$(COMPILE) -c @MT_INCLUDES@ $(INCLUDES) $<
 
