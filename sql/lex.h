@@ -430,6 +430,7 @@ static SYMBOL sql_functions[] = {
   { "AES_DECRYPT",      SYM(FUNC_ARG2),0,CREATE_FUNC(create_func_aes_decrypt)},
   { "AREA",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_area)},
   { "ASIN",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_asin)},
+  { "ASBINARY",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_as_wkb)},
   { "ASTEXT",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_as_text)},
   { "ASWKB",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_as_wkb)},
   { "ATAN",		SYM(ATAN),0,0},
