@@ -90,6 +90,7 @@ sub add_copyright
 	 $ARGV =~ /\.cc$/ ||
 	 $ARGV =~ /\.h$/ ||
 	 $ARGV =~ /\.cpp$/ ||
+	 $ARGV =~ /\.txt$/ ||
 	 $ARGV =~ /\.yy$/)
   {
     $start_copyright="/* ";
