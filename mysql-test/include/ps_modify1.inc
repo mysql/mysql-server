@@ -20,12 +20,12 @@
 # several test cases.
 #
 # Please do not modify the structure (DROP/ALTER..) of the tables
-#     't1' and 't_many_col_types'. 
+#     't1' and 't9'. 
 #
 # But you are encouraged to use these two tables within your statements
 # (DELETE/UPDATE/...) whenever possible. 
-#     t1               - very simple table
-#     t_many_col_types - table with nearly all available column types
+#     t1   - very simple table
+#     t9   - table with nearly all available column types
 #
 # The structure and the content of these tables can be found in
 #     include/ps_create.inc  CREATE TABLE ...
@@ -40,6 +40,11 @@
 
 
 #-------- Please be very carefull when editing behind this line  ----------#
+
+--source include/ps_renew.inc
+#
+# add a NULL row to t1: this row is used only in this test
+insert into t1 values(0,NULL) ;
 
 ## big insert select statements
 set @duplicate='duplicate ' ;
