@@ -22,12 +22,13 @@
 $VER = "1.0";
 
 use Getopt::Long;
+use Cwd;
 use DBI;
 
 $max_row_length=500000;		# Don't create bigger SQL rows that this
 $opt_lock=1;			# lock tables
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
