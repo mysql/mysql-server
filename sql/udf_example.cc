@@ -66,7 +66,7 @@
 ** You can easily get all switches right by doing:
 ** cd sql ; make udf_example.o
 ** Take the compile line that make writes, remove the '-c' near the end of
-** the line and add -o udf_example.so to the end of the compile line.
+** the line and add -shared -o udf_example.so to the end of the compile line.
 ** The resulting library (udf_example.so) should be copied to some dir
 ** searched by ld. (/usr/lib ?)
 **
@@ -96,6 +96,13 @@
 ** The CREATE FUNCTION and DROP FUNCTION update the func@mysql table. All
 ** Active function will be reloaded on every restart of server
 ** (if --skip-grant-tables is not given)
+**
+** If you ge problems with undefined symbols when loading the shared
+** library, you should verify that mysqld is compiled with the -rdynamic
+** option.
+**
+** If you can't get AGGREGATES to work, check that you have the column
+** 'type' in the mysql.func table.  If not, run 'mysql_fix_privilege_tables'.
 **
 */
 
@@ -128,6 +135,11 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
  void sequence_deinit(UDF_INIT *initid);
 long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 		   char *error);
+my_bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
+void avgcost_deinit( UDF_INIT* initid );
+void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
+double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
 }
 
 
@@ -766,6 +778,7 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
   *res_length=(ulong) (strmov(result,hp->h_name) - result);
   return result;
 }
+#endif // defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
 
 /*
 ** Syntax for the new aggregate commands are:
@@ -777,13 +790,6 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 ** (this example is provided by Andreas F. Bobak <bobak@relog.ch>)
 */
 
-extern "C" {
-my_bool avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message );
-void avgcost_deinit( UDF_INIT* initid );
-void avgcost_reset( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
-void avgcost_add( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
-double avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char *error );
-}
 
 struct avgcost_data
 {
@@ -810,7 +816,7 @@ avgcost_init( UDF_INIT* initid, UDF_ARGS* args, char* message )
     return 1;
   }
 
-  if ((args->arg_type[0] != INT_RESULT) && (args->arg_type[1] != REAL_RESULT) )
+  if ((args->arg_type[0] != INT_RESULT) || (args->arg_type[1] != REAL_RESULT) )
   {
     strcpy(
 	   message,
@@ -917,5 +923,4 @@ avgcost( UDF_INIT* initid, UDF_ARGS* args, char* is_null, char* error )
   return data->totalprice/double(data->totalquantity);
 }
 
-#endif // defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
 #endif /* HAVE_DLOPEN */
