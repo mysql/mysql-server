@@ -206,7 +206,7 @@ resolve it\n");
 
 /* Produce a core for the thread */
 
-#ifdef HAVE_LINUXTHREADS
+#ifdef NOT_USED /* HAVE_LINUXTHREADS */
 void write_core(int sig)
 {
   signal(sig, SIG_DFL);

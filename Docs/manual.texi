@@ -46930,6 +46930,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.54
 @itemize
 @item
+Fixed that @code{--core-file} works on Linux (at least on kernel 2.4.18).
+@item
 Fixed a problem with BDB and @code{ALTER TABLE}.
 @item
 Fixed reference to freed memory when doing complicated @code{GROUP BY
