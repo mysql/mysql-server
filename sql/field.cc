@@ -4525,7 +4525,7 @@ void Field_blob::get_key_image(char *buff,uint length,
 
     MBR mbr;
     Geometry gobj;
-    gobj.create_from_wkb(blob,blob_length);
+    gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
     gobj.get_mbr(&mbr);
     float8store(buff,    mbr.xmin);
     float8store(buff+8,  mbr.xmax);
@@ -4554,35 +4554,6 @@ void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
   (void) Field_blob::store(buff+2,length,cs);
 }
 
-
-void Field_geom::get_key_image(char *buff,uint length,CHARSET_INFO *cs,
-			       imagetype type)
-{
-  length-=HA_KEY_BLOB_LENGTH;
-  ulong blob_length=get_length(ptr);
-  char *blob;
-  get_ptr(&blob);
-
-  MBR mbr;
-  Geometry gobj;
-  gobj.create_from_wkb(blob,blob_length);
-  gobj.get_mbr(&mbr);
-  float8store(buff,    mbr.xmin);
-  float8store(buff+8,  mbr.xmax);
-  float8store(buff+16, mbr.ymin);
-  float8store(buff+24, mbr.ymax);
-  return;
-}
-
-void Field_geom::set_key_image(char *buff,uint length,CHARSET_INFO *cs)
-{
-  Field_blob::set_key_image(buff, length, cs);
-}
-
-void Field_geom::sql_type(String &res) const
-{
-  res.set("geometry", 8, &my_charset_latin1);
-}
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
@@ -4775,6 +4746,64 @@ uint Field_blob::max_packed_col_length(uint max_length)
 {
   return (max_length > 255 ? 2 : 1)+max_length;
 }
+
+
+void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
+			       imagetype type)
+{
+  length-= HA_KEY_BLOB_LENGTH;
+  ulong blob_length= get_length(ptr);
+  char *blob;
+  get_ptr(&blob);
+
+  MBR mbr;
+  Geometry gobj;
+  gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
+  gobj.get_mbr(&mbr);
+  float8store(buff, mbr.xmin);
+  float8store(buff + 8, mbr.xmax);
+  float8store(buff + 16, mbr.ymin);
+  float8store(buff + 24, mbr.ymax);
+  return;
+}
+
+
+void Field_geom::set_key_image(char *buff, uint length, CHARSET_INFO *cs)
+{
+  Field_blob::set_key_image(buff, length, cs);
+}
+
+void Field_geom::sql_type(String &res) const
+{
+  res.set("geometry", 8, &my_charset_latin1);
+}
+
+
+int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
+{
+  if (!length)
+  {
+    bzero(ptr, Field_blob::pack_length());
+  }
+  else
+  {
+    // Should check given WKB
+    if (length < 4 + 1 + 4 + 8 + 8)		// SRID + WKB_HEADER + X + Y
+      return 1;
+    uint32 wkb_type= uint4korr(from + 5);
+    if (wkb_type < 1 || wkb_type > 7)
+      return 1;
+    Field_blob::store_length(length);
+    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    {						// Must make a copy
+      value.copy(from, length, cs);
+      from= value.ptr();
+    }
+    bmove(ptr + packlength, (char*) &from, sizeof(char*));
+  }
+  return 0;
+}
+
 
 /****************************************************************************
 ** enum type.

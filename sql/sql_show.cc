@@ -923,7 +923,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       protocol->store((const char*) pos, system_charset_info);
       protocol->store(table->file->index_type(i), system_charset_info);
       /* Comment */
-      protocol->store("", 0);
+      protocol->store("", system_charset_info);
       if (protocol->write())
         DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -979,8 +979,8 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  if (protocol->convert)
-    protocol->convert->convert((char*) packet->ptr(), packet->length());
+  //if (protocol->convert)
+  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())
@@ -1014,12 +1014,12 @@ append_identifier(THD *thd, String *packet, const char *name)
   if (thd->options & OPTION_QUOTE_SHOW_CREATE)
   {
     packet->append(&qtype, 1);
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
     packet->append(&qtype, 1);
   }
   else
   {
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
   }
 }
 

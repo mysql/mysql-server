@@ -27,6 +27,10 @@
 #define EILSEQ ENOENT
 #endif
 
+#ifndef HAVE_CHARSET_utf8
+#define HAVE_CHARSET_utf8
+#endif
+
 #ifdef HAVE_CHARSET_utf8
 #define HAVE_UNIDATA
 #endif

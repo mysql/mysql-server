@@ -87,6 +87,35 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
+bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
+				      CHARSET_INFO *cs2, enum coercion co2)
+{
+  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  {
+    cmp_charset= &my_charset_bin;
+    return 0;
+  }
+
+  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
+    return 1;
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+    cmp_charset= cs1;
+  else if (co2 < co1)
+    cmp_charset= cs2;
+  else // co1==co2
+  {
+    if (cs1 == cs2)
+      cmp_charset= cs1;
+    else
+      return 1;
+  }
+  return 0;
+}
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -124,10 +153,13 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return;
+  }
   set_cmp_func();
-  /* QQ: COERCIBILITY */
-  cmp_charset= (args[0]->binary() || args[1]->binary()) ? 
-	      &my_charset_bin : args[0]->charset();
 }
 
 
@@ -2204,17 +2236,19 @@ longlong Item_cond_xor::val_int()
 
 longlong Item_func_spatial_rel::val_int()
 {
-  String *res1=args[0]->val_str(&tmp_value1);
-  String *res2=args[1]->val_str(&tmp_value2);
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
   Geometry g1, g2;
-  MBR mbr1,mbr2;
+  MBR mbr1, mbr2;
 
-  if ((null_value=(args[0]->null_value ||
-                   args[1]->null_value ||
-                   g1.create_from_wkb(res1->ptr(),res1->length()) || 
-                   g2.create_from_wkb(res2->ptr(),res2->length()) ||
-                   g1.get_mbr(&mbr1) || 
-                   g2.get_mbr(&mbr2))))
+  if ((null_value= (args[0]->null_value ||
+		    args[1]->null_value ||
+		    g1.create_from_wkb(res1->ptr() + SRID_SIZE,
+				       res1->length() - SRID_SIZE) || 
+		    g2.create_from_wkb(res2->ptr() + SRID_SIZE,
+				       res2->length() - SRID_SIZE) ||
+		    g1.get_mbr(&mbr1) || 
+		    g2.get_mbr(&mbr2))))
    return 0;
 
   switch (spatial_rel)
@@ -2264,15 +2298,16 @@ longlong Item_func_issimple::val_int()
 longlong Item_func_isclosed::val_int()
 {
   String tmp;
-  String *wkb=args[0]->val_str(&tmp);
+  String *swkb= args[0]->val_str(&tmp);
   Geometry geom;
   int isclosed;
 
-  null_value= (!wkb || 
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,is_closed) ||
-               geom.is_closed(&isclosed));
+  null_value= (!swkb || 
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) ||
+	       !GEOM_METHOD_PRESENT(geom,is_closed) ||
+	       geom.is_closed(&isclosed));
 
   return (longlong) isclosed;
 }

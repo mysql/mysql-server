@@ -1196,6 +1196,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	    goto err;
 	}
       }
+#if 0
       if (thd->variables.convert_set)
       {
 	char buf[256], *p;
@@ -1206,6 +1207,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	if (e.write(file))
 	  goto err;
       }
+#endif
     }
     event_info->set_log_pos(this);
     if (event_info->write(file) ||

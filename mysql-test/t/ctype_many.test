@@ -2,6 +2,8 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+SET NAMES latin1;
+
 CREATE TABLE t1 (
   comment CHAR(32) ASCII NOT NULL,
   koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL
@@ -135,10 +137,12 @@ INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'ü','CYR CAPIT E');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'à','CYR CAPIT YU');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES (_koi8r'ñ','CYR CAPIT YA');
 
-SELECT CONVERT(koi8_ru_f USING utf8),MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
+SET NAMES utf8;
+SELECT koi8_ru_f,MIN(comment),COUNT(*) FROM t1 GROUP BY 1;
 
 ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL;
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
+SET NAMES koi8r;
 SELECT * FROM t1;
 
 ALTER TABLE t1 ADD bin_f CHAR(32) BYTE NOT NULL;
@@ -161,6 +165,7 @@ FROM t1 t11,t1 t12
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
 ORDER BY t12.utf8_f,t11.comment,t12.comment;
 
+SET NAMES utf8;
 ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2;
 ALTER TABLE t1 CHANGE ucs2_f ucs2_f CHAR(32) UNICODE NOT NULL;
 
@@ -189,9 +194,12 @@ INSERT INTO t1 (ucs2_f,comment) VALUES (0x0566,'ARMENIAN SMALL ZA');
 
 ALTER TABLE t1 ADD armscii8_f CHAR(32) CHARACTER SET armscii8 NOT NULL;
 ALTER TABLE t1 ADD greek_f CHAR(32) CHARACTER SET greek NOT NULL;
-UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE 'GRE%';
-UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE 'ARM%';
-UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f='';
-UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f='';
+UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE%';
+UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
+UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
+UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
+SELECT * FROM t1;
+SET NAMES 'binary';
+SELECT * FROM t1;
 SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
 DROP TABLE t1;

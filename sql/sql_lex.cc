@@ -107,6 +107,7 @@ void lex_free(void)
 LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= &thd->lex;
+  lex->thd= thd;
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
@@ -117,7 +118,6 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->current_select= &lex->select_lex;
-  lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->thd_charset= lex->thd->variables.thd_charset;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
@@ -520,8 +520,6 @@ int yylex(void *arg, void *yythd)
 	yySkip();			// next state does a unget
       }
       yylval->lex_str=get_token(lex,length);
-      if (lex->convert_set)
-	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
 
       /* 
          Note: "SELECT _bla AS 'alias'"
@@ -621,8 +619,6 @@ int yylex(void *arg, void *yythd)
 
     case MY_LEX_FOUND_IDENT:		// Complete ident
       yylval->lex_str=get_token(lex,yyLength());
-      if (lex->convert_set)
-        lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
 
     case MY_LEX_USER_VARIABLE_DELIMITER:
@@ -670,8 +666,6 @@ int yylex(void *arg, void *yythd)
 	else
 	  yylval->lex_str=get_token(lex,yyLength());
       }
-      if (lex->convert_set)
-        lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       if (c == delim)
 	yySkip();			// Skip end `
       return(IDENT);
@@ -802,8 +796,6 @@ int yylex(void *arg, void *yythd)
 	break;
       }
       yylval->lex_str.length=lex->yytoklen;
-      if (lex->convert_set)
-	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(TEXT_STRING);
 
     case MY_LEX_COMMENT:			//  Comment
@@ -940,8 +932,6 @@ int yylex(void *arg, void *yythd)
 	return(tokval);				// Was keyword
       }
       yylval->lex_str=get_token(lex,length);
-      if (lex->convert_set)
-	lex->convert_set->convert((char*) yylval->lex_str.str,lex->yytoklen);
       return(IDENT);
     }
   }

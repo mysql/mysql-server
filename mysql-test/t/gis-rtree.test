@@ -1,0 +1,69 @@
+#
+# test of rtree (using with spatial data)
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  g GEOMETRY NOT NULL,
+  SPATIAL KEY(g)
+) TYPE=MyISAM;
+
+SHOW CREATE TABLE t1;
+
+let $1=150;
+let $2=150;
+while ($1)
+{
+  eval INSERT INTO t1 (g) VALUES (GeomFromText('LineString($1 $1, $2 $2)'));
+  dec $1;
+  inc $2;
+}
+
+SELECT count(*) FROM t1;
+EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+
+DROP TABLE t1;
+
+CREATE TABLE t2 (
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  g GEOMETRY NOT NULL
+) TYPE=MyISAM;
+
+let $1=10;
+while ($1)
+{
+  let $2=10;
+  while ($2)
+  {
+    eval INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    dec $2;
+  }
+  dec $1;
+}
+
+ALTER TABLE t2 ADD SPATIAL KEY(g);
+SHOW CREATE TABLE t2;
+SELECT count(*) FROM t2;
+EXPLAIN SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
+  GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
+  GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+
+let $1=10;
+while ($1)
+{
+  let $2=10;
+  while ($2)
+  {
+    eval DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10)))));
+    SELECT count(*) FROM t2;
+    dec $2;
+  }
+  dec $1;
+}
+
+DROP TABLE t2;

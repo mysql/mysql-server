@@ -107,7 +107,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 0;					// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
-    bool first_coll= 1;
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
       if ((*arg)->fix_fields(thd, tables, arg) ||
@@ -116,38 +115,6 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       if ((*arg)->maybe_null)
 	maybe_null=1;
       
-      if ((*arg)->result_type() == STRING_RESULT)
-      {
-	/*
-	  Set return character set to first argument if we are returning a
-	  string.
-	*/
-	if (first_coll)
-	{
-	  set_charset((*arg)->charset());
-	  coercibility= (*args)->coercibility;
-	  first_coll= 0;
-	}
-	else if ((*arg)->charset() == &my_charset_bin || 
-		 charset() == &my_charset_bin)
-	{
-	  set_charset(&my_charset_bin);
-	  coercibility= COER_NOCOLL;
-	}
-	else if ((*arg)->coercibility < coercibility)
-	{
-	  if (!my_charset_same(charset(),(*arg)->charset()))
-	  {
-	    set_charset(&my_charset_bin);
-	    coercibility= COER_NOCOLL;
-	  }
-	  else
-	  {
-	    coercibility= (*arg)->coercibility;
-	    set_charset((*arg)->charset());
-	  }
-	}
-      }
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
@@ -2652,7 +2619,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     pos=strmov(pos,"global.");
   memcpy(pos, var->name, var->name_length+1);
   // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff)+var->name_length);
+  item->set_name(buff,(uint) (pos-buff)+var->name_length, system_charset_info);
   return item;
 }
 
@@ -2667,9 +2634,9 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   var= find_sys_var(var_name, length);
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
-    return 0;					// Impossible
+    return 0;						// Impossible
   thd->lex.uncacheable();
-  item->set_name(item_name);		// Will use original name
+  item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }
 
@@ -2717,115 +2684,129 @@ longlong Item_func_is_free_lock::val_int()
 longlong Item_func_dimension::val_int()
 {
   uint32 dim;
-  String *wkb=args[0]->val_str(&value);
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               geom.dimension(&dim));
-
+  null_value= (!swkb || 
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       geom.dimension(&dim));
   return (longlong) dim;
 }
 
 longlong Item_func_numinteriorring::val_int()
 {
   uint32 num;
-  String *wkb=args[0]->val_str(&value);
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,num_interior_ring) || 
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, num_interior_ring) || 
 	       geom.num_interior_ring(&num));
-
   return (longlong) num;
 }
 
 longlong Item_func_numgeometries::val_int()
 {
-  uint32 num=0;
-  String *wkb=args[0]->val_str(&value);
+  uint32 num= 0;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,num_geometries) || 
-               geom.num_geometries(&num));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, num_geometries) || 
+	       geom.num_geometries(&num));
   return (longlong) num;
 }
 
 longlong Item_func_numpoints::val_int()
 {
-  uint32 num=0;
-  String *wkb=args[0]->val_str(&value);
+  uint32 num;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               !GEOM_METHOD_PRESENT(geom,num_points) ||
-               geom.num_points(&num));
-
+  null_value= (!swkb ||
+	       args[0]->null_value ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) ||
+	       !GEOM_METHOD_PRESENT(geom, num_points) ||
+	       geom.num_points(&num));
   return (longlong) num;
 }
 
 
 double Item_func_x::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,get_x) || 
-               geom.get_x(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, get_x) || 
+	       geom.get_x(&res));
   return res;
 }
 
 
 double Item_func_y::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,get_y) || 
-               geom.get_y(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, get_y) || 
+	       geom.get_y(&res));
   return res;
 }
 
 
 double Item_func_area::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,area) || 
-               geom.area(&res));
-
+  null_value= (!swkb ||
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, area) || 
+	       geom.area(&res));
   return res;
 }
 
 
 double Item_func_glength::val()
 {
-  double res=0;
-  String *wkb=args[0]->val_str(&value);
+  double res;
+  String *swkb= args[0]->val_str(&value);
   Geometry geom;
 
-  null_value= (!wkb || 
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) || 
-               !GEOM_METHOD_PRESENT(geom,length) || 
-               geom.length(&res));
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE) || 
+	       !GEOM_METHOD_PRESENT(geom, length) || 
+	       geom.length(&res));
   return res;
+}
+
+
+longlong Item_func_srid::val_int()
+{
+  String *swkb= args[0]->val_str(&value);
+  Geometry geom;
+
+  null_value= (!swkb || 
+	       geom.create_from_wkb(swkb->ptr() + SRID_SIZE,
+				    swkb->length() - SRID_SIZE));
+  uint32 res= uint4korr(swkb->ptr());
+  return (longlong) res;
 }
