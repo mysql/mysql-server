@@ -988,9 +988,10 @@ String *Item_param::val_str(String* str)
     return str;
   case TIME_VALUE:
   {
-    if (str->reserve(MAX_DATE_REP_LENGTH))
+    if (str->reserve(MAX_DATE_STRING_REP_LENGTH))
       break;
-    TIME_to_string(&value.time, str);
+    str->length((uint) my_TIME_to_str(&value.time, (char*) str->ptr()));
+    str->set_charset(&my_charset_bin);
     return str;
   }
   case NULL_VALUE:
@@ -1020,24 +1021,19 @@ const String *Item_param::query_val_str(String* str) const
   case TIME_VALUE:
     {
       char *buf, *ptr;
-      String tmp;
       str->length(0);
       /*
         TODO: in case of error we need to notify replication
         that binary log contains wrong statement 
       */
-      if (str->reserve(MAX_DATE_REP_LENGTH+3))
+      if (str->reserve(MAX_DATE_STRING_REP_LENGTH+3))
         break; 
 
       /* Create date string inplace */
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      tmp.set(ptr, MAX_DATE_REP_LENGTH, &my_charset_bin);
-      tmp.length(0);
-      TIME_to_string(&value.time, &tmp);
-
-      ptr+= tmp.length();
+      ptr+= (uint) my_TIME_to_str(&value.time, ptr);
       *ptr++= '\'';
       str->length((uint32) (ptr - buf));
       break;
