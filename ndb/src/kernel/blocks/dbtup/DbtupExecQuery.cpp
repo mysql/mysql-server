@@ -1540,13 +1540,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  // Calculate the number of words of this attribute.
 	  // We allow writes into arrays as long as they fit into the 64 bit
 	  // register size.
-	  //TEST_MR See to that TattrNoOfWords can be 
-	  // read faster from attribute description.
 	  /* --------------------------------------------------------------- */
-	  Uint32 TarraySize = (TattrDesc1 >> 16);
-	  Uint32 TattrLogLen = (TattrDesc1 >> 4) & 0xf;
-	  Uint32 TattrNoOfBits = TarraySize << TattrLogLen;
-	  Uint32 TattrNoOfWords = (TattrNoOfBits + 31) >> 5;
+          Uint32 TattrNoOfWords = AttributeDescriptor::getSizeInWords(TattrDesc1);
 	  Uint32 Toptype = operPtr.p->optype;
 
 	  Uint32 TdataForUpdate[3];
