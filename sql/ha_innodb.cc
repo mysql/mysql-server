@@ -64,6 +64,7 @@ extern "C" {
 #include "../innobase/include/log0log.h"
 #include "../innobase/include/lock0lock.h"
 #include "../innobase/include/dict0crea.h"
+#include "../innobase/include/dict0dict.h"
 #include "../innobase/include/btr0cur.h"
 #include "../innobase/include/btr0btr.h"
 #include "../innobase/include/fsp0fsp.h"
@@ -916,6 +917,10 @@ innobase_init(void)
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+
+	if (my_isspace(default_charset_info, (char)0xA0)) {
+		dict_char_0xA0_is_space = TRUE;
+	}
 
 	if (strcmp(default_charset_info->name, "latin1") == 0) {
 
