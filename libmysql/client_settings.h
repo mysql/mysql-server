@@ -14,27 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 extern uint		mysql_port;
 extern my_string	mysql_unix_port;
 
-#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
-                             | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
-			     | CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
-
-
-#ifdef __WIN__
-#define CONNECT_TIMEOUT 20
-#else
-#define CONNECT_TIMEOUT 0
-#endif
-
-#ifdef HAVE_SMEM
-char *shared_memory_base_name=0;
-const char *def_shared_memory_base_name=default_shared_memory_base_name;
-#endif
-
-extern my_bool org_my_init_done;
+#define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
+                             CLIENT_LOCAL_FILES | CLIENT_TRANSACTIONS |   \
+			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);

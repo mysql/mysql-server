@@ -3337,15 +3337,19 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
 
     tables[0].table->field[0]->store(user_name->host.str,(uint) 
-				     user_name->host.length, system_charset_info);
+				     user_name->host.length,
+				     system_charset_info);
     tables[0].table->field[1]->store(user_name->user.str,(uint) 
-				     user_name->user.length, system_charset_info);
+				     user_name->user.length,
+				     system_charset_info);
     if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
-					       (byte*) tables[0].table->field[0]->ptr,0,
+					       (byte*) tables[0].table->
+					       field[0]->ptr,0,
 					       HA_READ_KEY_EXACT))
     {
       int error;
-      if ((error = tables[0].table->file->delete_row(tables[0].table->record[0])))
+      if ((error = tables[0].table->file->delete_row(tables[0].table->
+						     record[0])))
       {
 	tables[0].table->file->print_error(error, MYF(0));
 	tables[0].table->file->index_end();
@@ -3355,7 +3359,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     tables[0].table->file->index_end();
   }
-err:
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);

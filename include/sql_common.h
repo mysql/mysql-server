@@ -41,9 +41,5 @@ void mysql_read_default_options(struct st_mysql_options *options,
 }
 #endif
 
-#ifdef MYSQL_SERVER
-#define protocol_41(A) FALSE
-#else
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
-#endif
 

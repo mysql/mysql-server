@@ -24,8 +24,8 @@ a	b
 alter table t1 add c int not null, add key using BTREE (c,a);
 drop table t1;
 create table t1 (a int not null,b int not null, primary key using BTREE (a)) type=heap comment="testing heaps";
-insert into t1 values(1,1),(2,2),(3,3),(4,4);
-delete from t1 where a > 0;
+insert into t1 values(-2,-2),(-1,-1),(0,0),(1,1),(2,2),(3,3),(4,4);
+delete from t1 where a > -3;
 select * from t1;
 a	b
 drop table t1;

@@ -25,7 +25,7 @@
 #define HOSTNAME_LENGTH 60
 #define USERNAME_LENGTH 16
 #define SERVER_VERSION_LENGTH 60
-#define SQLSTATE_LENGTH 6
+#define SQLSTATE_LENGTH 5
 
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
@@ -110,6 +110,7 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_QUERIES     65536  /* Enable/disable multiquery support */
 #define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
+#define CLIENT_REMEMBER_OPTIONS	(1L << 31)
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */

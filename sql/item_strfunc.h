@@ -536,8 +536,8 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    set_charset(&my_charset_bin);
-    maybe_null=1; 
+    set_charset(&my_charset_bin, COER_COERCIBLE);
+    maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
 };
@@ -571,7 +571,11 @@ public:
   Item_func_quote(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
-  void fix_length_and_dec() { max_length= args[0]->max_length * 2 + 2; }
+  void fix_length_and_dec() 
+  { 
+    set_charset(args[0]->charset(), args[0]->coercibility);
+    max_length= args[0]->max_length * 2 + 2; 
+  }
 };
 
 class Item_func_conv_charset :public Item_str_func
