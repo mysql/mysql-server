@@ -558,8 +558,6 @@ innobase_init(void)
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
-        printf("Flush value %lu\n", srv_flush_log_at_trx_commit);
-
 	srv_use_native_aio = 0;
 
 	srv_pool_size = (ulint) innobase_buffer_pool_size;
