@@ -207,7 +207,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.45 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.46 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -676,7 +676,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  info->update|=HA_STATE_CHANGED;
       }
       VOID(fn_format(fixed_name,filename,"",MI_NAME_IEXT,
-		     4+ (param->opt_follow_links ? 16 : 0)));
+		     4+ (param->opt_follow_links ? 32 : 0)));
 
       if (rep_quick && chk_del(&check_param, info,
 			       param->testflag & ~T_VERBOSE))

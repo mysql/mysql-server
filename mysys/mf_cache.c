@@ -28,7 +28,8 @@
 	  this, just remember the file name for later removal
 	*/
 
-static my_bool cache_remove_open_tmp(IO_CACHE *cache, const char *name)
+static my_bool cache_remove_open_tmp(IO_CACHE *cache __attribute__((unused)),
+				     const char *name)
 {
 #if O_TEMPORARY == 0
 #if !defined(CANT_DELETE_OPEN_FILES)

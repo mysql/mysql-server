@@ -31,11 +31,11 @@ static char *query=NULL;
 int main(int argc,char *argv[])
 {
   int error=0;
-  uint keylen, inx, doc_cnt;
+  uint keylen, inx, doc_cnt=0;
   float weight;
-  double gws, min_gws, avg_gws=0;
+  double gws, min_gws=0, avg_gws=0;
   MI_INFO *info;
-  char buf[MAX], buf2[MAX], buf_maxlen[MAX], buf_min_gws[MAX], *s;
+  char buf[MAX], buf2[MAX], buf_maxlen[MAX], buf_min_gws[MAX];
   ulong total=0, maxlen=0, uniq=0, max_doc_cnt=0;
 #ifdef EVAL_RUN
   uint	       cnt;
@@ -111,8 +111,8 @@ int main(int argc,char *argv[])
       cnt=*(byte *)(info->lastkey+keylen);
 #endif /* EVAL_RUN */
 
-      snprintf(buf,MAX,"%.*s",keylen,info->lastkey+1);
-      for (s=buf;*s;s++) *s=tolower(*s);
+      snprintf(buf,MAX,"%.*s",(int) keylen,info->lastkey+1);
+      casedn_str(buf);
       total++;
 
       if (count || stats)
