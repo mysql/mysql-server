@@ -131,22 +131,25 @@ const char* Log_event::get_type_str()
 }
 
 #ifndef MYSQL_CLIENT
-Log_event::Log_event(THD* thd_arg, uint16 flags_arg)
-  :exec_time(0), flags(flags_arg), cached_event_len(0),
-   temp_buf(0), thd(thd_arg)
+Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
+  :temp_buf(0), exec_time(0), cached_event_len(0), flags(flags_arg), 
+   thd(thd_arg)
 {
-  if (thd)
-  {
-    server_id = thd->server_id;
-    when = thd->start_time;
-    log_pos = thd->log_pos;
-  }
-  else
-  {
-    server_id = ::server_id;
-    when = time(NULL);
-    log_pos=0;
-  }
+  server_id = thd->server_id;
+  when = thd->start_time;
+  log_pos = thd->log_pos;
+  cache_stmt= (using_trans &&
+	       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+}
+
+
+Log_event::Log_event()
+  :temp_buf(0), exec_time(0), cached_event_len(0), flags(0), cache_stmt(0),
+   thd(0)
+{
+  server_id = ::server_id;
+  when = time(NULL);
+  log_pos=0;
 }
 
 /*
@@ -179,7 +182,7 @@ static void cleanup_load_tmpdir()
 #endif
 
 Log_event::Log_event(const char* buf, bool old_format)
-  :cached_event_len(0), temp_buf(0)
+  :temp_buf(0), cached_event_len(0), cache_stmt(0)
 {
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
@@ -350,14 +353,12 @@ void Intvar_log_event::pack_info(String* packet)
 
 void Rand_log_event::pack_info(String* packet)
 {
-  char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1));
-  tmp.length(0);
-  tmp.append("randseed1=");
-  tmp.append(llstr(seed1, buf));
-  tmp.append(",randseed2=");
-  tmp.append(llstr(seed2, buf));
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  char buf1[256], *pos;
+  pos=strmov(buf1,"rand_seed1=");
+  pos=int10_to_str((long) seed1, pos, 10);
+  pos=strmov(pos, ",rand_seed2=");
+  pos=int10_to_str((long) seed2, pos, 10);
+  net_store_data(packet, buf1, (uint) (pos-buf1));
 }
 
 void Slave_log_event::pack_info(String* packet)
@@ -783,12 +784,10 @@ int Rotate_log_event::write_data(IO_CACHE* file)
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg), data_buf(0), query(query_arg),  db(thd_arg->db),
-  q_len((uint32) query_length),
+  :Log_event(thd_arg, 0, using_trans), data_buf(0), query(query_arg),
+   db(thd_arg->db), q_len((uint32) query_length),
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
-  thread_id(thd_arg->thread_id),
-  cache_stmt(using_trans &&
-	     (thd_arg->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  thread_id(thd_arg->thread_id)
 {
   time_t end_time;
   time(&end_time);
@@ -963,8 +962,8 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
     print_header(file);
     fprintf(file, "\tRand\n");
   }
-  fprintf(file, "SET RAND SEED1=%s;\n", llstr(seed1, llbuff));
-  fprintf(file, "SET RAND SEED2=%s;\n", llstr(seed2, llbuff));
+  fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
+	  llstr(seed1, llbuff),llstr(seed2, llbuff));
   fflush(file);
 }
 #endif
@@ -1093,8 +1092,10 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
 Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 			       const char* db_arg, const char* table_name_arg,
 			       List<Item>& fields_arg,
-			       enum enum_duplicates handle_dup)
-  :Log_event(thd),thread_id(thd->thread_id), num_fields(0),fields(0),
+			       enum enum_duplicates handle_dup,
+			       bool using_trans)
+  :Log_event(thd, 0, using_trans),thread_id(thd->thread_id),
+  num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(table_name_arg ? table_name_arg : ""),
   db(db_arg), fname(ex->file_name)
@@ -1332,7 +1333,7 @@ void Load_log_event::set_fields(List<Item> &fields)
 
 Slave_log_event::Slave_log_event(THD* thd_arg,
 				 struct st_relay_log_info* rli):
-  Log_event(thd_arg),mem_pool(0),master_host(0)
+  Log_event(thd_arg,0,0),mem_pool(0),master_host(0)
 {
   DBUG_ENTER("Slave_log_event");
   if (!rli->inited)				// QQ When can this happen ?
@@ -1432,11 +1433,13 @@ Slave_log_event::Slave_log_event(const char* buf, int event_len)
 }
 
 #ifndef MYSQL_CLIENT
-Create_file_log_event::Create_file_log_event(THD* thd_arg, sql_exchange* ex,
-		 const char* db_arg, const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
-			char* block_arg, uint block_len_arg)
-  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup),
+Create_file_log_event::
+Create_file_log_event(THD* thd_arg, sql_exchange* ex,
+		      const char* db_arg, const char* table_name_arg,
+		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
+		      char* block_arg, uint block_len_arg, bool using_trans)
+  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
+		  using_trans),
    fake_base(0),block(block_arg),block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
@@ -1532,9 +1535,10 @@ void Create_file_log_event::pack_info(String* packet)
 
 #ifndef MYSQL_CLIENT  
 Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
-					       uint block_len_arg)
-  :Log_event(thd_arg), block(block_arg),block_len(block_len_arg),
-   file_id(thd_arg->file_id)
+					       uint block_len_arg,
+					       bool using_trans)
+  :Log_event(thd_arg,0, using_trans), block(block_arg),
+   block_len(block_len_arg), file_id(thd_arg->file_id)
 {
 }
 #endif  
@@ -1578,8 +1582,8 @@ void Append_block_log_event::pack_info(String* packet)
   net_store_data(packet, buf1);
 }
 
-Delete_file_log_event::Delete_file_log_event(THD* thd_arg)
-  :Log_event(thd_arg),file_id(thd_arg->file_id)
+Delete_file_log_event::Delete_file_log_event(THD* thd_arg, bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
 {
 }
 #endif  
@@ -1624,14 +1628,14 @@ void Delete_file_log_event::pack_info(String* packet)
 
 
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD* thd_arg)
-  :Log_event(thd_arg),file_id(thd_arg->file_id)
+Execute_load_log_event::Execute_load_log_event(THD* thd_arg, bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
 {
 }
 #endif  
   
-Execute_load_log_event::Execute_load_log_event(const char* buf,int len)
-  :Log_event(buf, 0),file_id(0)
+Execute_load_log_event::Execute_load_log_event(const char* buf, int len)
+  :Log_event(buf, 0), file_id(0)
 {
   if ((uint)len < EXEC_LOAD_EVENT_OVERHEAD)
     return;

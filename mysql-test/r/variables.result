@@ -170,6 +170,10 @@ convert_character_set	cp1251_koi8
 select @@timestamp>0;
 @@timestamp>0
 1
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
+select ROUND(RAND(),5);
+ROUND(RAND(),5)
+0.02887
 set big_tables=OFFF;
 Variable 'big_tables' can't be set to the value of 'OFFF'
 set big_tables="OFFF";

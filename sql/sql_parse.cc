@@ -2347,7 +2347,7 @@ mysql_execute_command(void)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query, thd->query_length);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
       }
@@ -2367,7 +2367,7 @@ mysql_execute_command(void)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
-	  Query_log_event qinfo(thd, thd->query, thd->query_length);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -2729,8 +2729,8 @@ mysql_init_query(THD *thd)
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
-  thd->sent_row_count=thd->examined_row_count=0;
   thd->rand_used=0;
+  thd->sent_row_count=thd->examined_row_count=0;
   thd->safe_to_cache_query=1;
   DBUG_VOID_RETURN;
 }

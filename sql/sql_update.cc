@@ -54,7 +54,7 @@ int mysql_update(THD *thd,
 		 thr_lock_type lock_type)
 {
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool		used_key_is_modified, using_transactions;
+  bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
   uint		save_time_stamp, used_index, want_privilege;
   ulong		query_id=thd->query_id, timestamp_query_id;
@@ -301,21 +301,22 @@ int mysql_update(THD *thd,
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
-  using_transactions=table->file->has_transactions();
-  if (updated && (error <= 0 || !using_transactions))
+  transactional_table= table->file->has_transactions();
+  log_delayed= (transactional_table || table->tmp_table);
+  if (updated && (error <= 0 || !transactional_table))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    using_transactions);
-      if (mysql_bin_log.write(&qinfo) && using_transactions)
-	error=1;
+			    log_delayed);
+      if (mysql_bin_log.write(&qinfo) && transactional_table)
+	error=1;				// Rollback update
     }
-    if (!using_transactions)
+    if (!log_delayed)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
-  if (using_transactions && ha_autocommit_or_rollback(thd, error >= 0))
+  if (transactional_table && ha_autocommit_or_rollback(thd, error >= 0))
     error=1;
   if (updated)
   {
@@ -790,7 +791,7 @@ bool multi_update::send_eof()
   if (updated || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    Query_log_event qinfo(thd, thd->query, thd->query_length);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 
     /*
       mysql_bin_log is not open if binlogging or replication
