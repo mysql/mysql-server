@@ -195,7 +195,7 @@ joce
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
 Subselect returns more than 1 record
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
-drop table if exists searchconthardwarefr3;
+drop table if exists searchconthardwarefr3, forumconthardwarefr7;
 CREATE TABLE `searchconthardwarefr3` (
 `topic` mediumint(8) unsigned NOT NULL default '0',
 `date` date NOT NULL default '0000-00-00',
@@ -241,4 +241,12 @@ topic	date	pseudo
 43506	2002-10-02	joce
 SELECT * from searchconthardwarefr3 where topic IN (SELECT SUM(topic) FROM searchconthardwarefr3);
 topic	date	pseudo
-drop table searchconthardwarefr3;
+CREATE TABLE `forumconthardwarefr7` (
+`numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+`maxnumrep` int(10) unsigned NOT NULL default '0',
+PRIMARY KEY  (`numeropost`),
+UNIQUE KEY `maxnumrep` (`maxnumrep`)) TYPE=MyISAM ROW_FORMAT=FIXED;
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
+SELECT SQL_CALC_FOUND_ROWS numeropost,maxnumrep FROM forumconthardwarefr7 WHERE numeropost IN (SELECT topic FROM searchconthardwarefr3 WHERE pseudo='joce' AND date >= '2002-10-06') ORDER BY maxnumrep DESC LIMIT 0,20;
+numeropost	maxnumrep
+drop table searchconthardwarefr3, forumconthardwarefr7;
