@@ -77,8 +77,12 @@ int main(int argc, const char** argv){
      */
     
     // Connect to Ndb
-    Ndb MyNdb( "TEST_DB" );
-    MyNdb.setConnectString(_connectstr);
+    Ndb_cluster_connection con(_connectstr);
+    if(con.connect(12, 5, 1) != 0)
+    {
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+    Ndb MyNdb(&con, "TEST_DB" );
     
     if(MyNdb.init() != 0){
       ERR(MyNdb.getNdbError());

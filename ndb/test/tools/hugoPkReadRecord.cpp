@@ -62,7 +62,12 @@ int main(int argc, const char** argv)
 	 << "Row: " << _row << ", PrimaryKey: " << _primaryKey
 	 << endl;
 
-  Ndb* ndb = new Ndb("TEST_DB");
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  Ndb* ndb = new Ndb(&con, "TEST_DB");
   if (ndb->init() == 0 && ndb->waitUntilReady(30) == 0)
   {
     NdbConnection* conn = ndb->startTransaction();

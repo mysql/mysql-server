@@ -53,8 +53,13 @@ main(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
 
-  Ndb MyNdb(_dbname);
+  Ndb MyNdb(&con, _dbname);
   if(MyNdb.init() != 0){
     ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
