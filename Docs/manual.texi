@@ -7041,7 +7041,7 @@ When the build is done, run @code{make install}.  Be careful with this
 on a production machine; the command may overwrite your live release
 installation.  If you have another installation of MySQL, we
 recommand that you run @code{./configure} with different values for the
-@code{prefix}, @code{tcp-port}, and @code{unix-socket-path} options than
+@code{prefix}, @code{with-tcp-port}, and @code{unix-socket-path} options than
 those used for your production server.
 
 @item
