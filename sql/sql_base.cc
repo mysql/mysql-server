@@ -1805,7 +1805,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   if (cached_field_index < table->fields &&
       !my_strcasecmp(system_charset_info, 
                      table->field[cached_field_index]->field_name, name))
-      field_ptr= table->field + cached_field_index;
+    field_ptr= table->field + cached_field_index;
   else if (table->name_hash.records)
     field_ptr= (Field**)hash_search(&table->name_hash,(byte*) name,
                                     length);

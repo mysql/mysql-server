@@ -2105,13 +2105,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
 #ifndef DBUG_OFF
-  if (*(MYSQL_SERVER_SUFFIX))
-    strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
+  if (!*(MYSQL_SERVER_SUFFIX))
+    strmov(strend(server_version),"-debug");
   else
-    strmov(strend(server_version),"--debug");
-#else
-    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 #endif
+    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;

@@ -1279,7 +1279,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
 
     /* 
-      Again we are using CURRENT_TIMESTAMP instead of NOW becaus eit is
+      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
       more standard 
     */
     has_now_default= table->timestamp_field == field && 
