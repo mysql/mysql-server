@@ -25,11 +25,11 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.6";
+my $VERSION = "1.7";
 
 my $OPTIONS = <<"_OPTIONS";
 
-Usage: $0 db_name new_db_name
+Usage: $0 db_name [new_db_name | directory]
 
   -?, --help           display this helpscreen and exit
   -u, --user=#         user for database login if not current user
@@ -126,7 +126,9 @@ my $dsn = ";host=localhost";
 $dsn .= ";port=$opt{port}" if $opt{port};
 $dsn .= ";mysql_socket=$opt{socket}" if $opt{socket};
 
-my $dbh = DBI->connect("dbi:mysql:$dsn", $opt{user}, $opt{password}, {
+my $dbh = DBI->connect("dbi:mysql:$dsn;mysql_read_default_group=mysqlhotcopy",
+                        $opt{user}, $opt{password},
+{
     RaiseError => 1,
     PrintError => 0,
     AutoCommit => 1,
@@ -143,20 +145,23 @@ if ( $opt{checkpoint} ) {
 }
 
 # --- get variables from database ---
-my $sth_vars = $dbh->prepare("show variables");
+my $sth_vars = $dbh->prepare("show variables like 'datadir'");
 $sth_vars->execute;
 while ( my ($var,$value) = $sth_vars->fetchrow_array ) {
     $mysqld_vars{ $var } = $value;
 }
-my $datadir = $mysqld_vars{datadir}
+my $datadir = $mysqld_vars{'datadir'}
     || die "datadir not in mysqld variables";
 $datadir =~ s:/$::;
 
 
 # --- get target path ---
-my $tgt_dirname;
-if ($tgt_name =~ m:^\w+$:) {
+my ($tgt_dirname, $to_other_database);
+$to_other_database=0;
+if ($tgt_name =~ m:^\w+$: && @db_desc <= 1)
+{
     $tgt_dirname = "$datadir/$tgt_name";
+    $to_other_database=1;
 }
 elsif ($tgt_name =~ m:/: || $tgt_name eq '.') {
     $tgt_dirname = $tgt_name;
@@ -209,6 +214,7 @@ foreach my $rdb ( @db_desc ) {
 
     $hc_locks .= ", "  if ( length $hc_locks && @hc_tables );
     $hc_locks .= join ", ", map { "$_ READ" } @hc_tables;
+    $hc_tables .= ", "  if ( length $hc_tables && @hc_tables );
     $hc_tables .= join ", ", @hc_tables;
 
     $num_tables += scalar @hc_tables;
@@ -223,19 +229,30 @@ if (length $tgt_name ) {
     # explicit destination directory specified
 
     # GNU `cp -r` error message
-    die "copying multiple databases, but last argument ($tgt_name) is not a directory\n"
-      if ( @db_desc > 1 && !(-e $tgt_name && -d $tgt_name ) );
+    die "copying multiple databases, but last argument ($tgt_dirname) is not a directory\n"
+      if ( @db_desc > 1 && !(-e $tgt_dirname && -d $tgt_dirname ) );
 
-    foreach my $rdb ( @db_desc ) {
-	$rdb->{target} = "$tgt_name/$rdb->{src}";
+    if ($to_other_database)
+    {
+      foreach my $rdb ( @db_desc ) {
+	$rdb->{target} = "$tgt_dirname";
+      }
     }
-}
+    else
+    {
+      die "Last argument ($tgt_dirname) is not a directory\n"
+	if (!(-e $tgt_dirname && -d $tgt_dirname ) );
+      foreach my $rdb ( @db_desc ) {
+	$rdb->{target} = "$tgt_dirname/$rdb->{src}";
+      }
+    }
+  }
 else {
-    die "Error: expected \$opt{suffix} to exist" unless ( exists $opt{suffix} );
-
-    foreach my $rdb ( @db_desc ) {
-	$rdb->{target} = "$datadir/$rdb->{src}$opt{suffix}";
-    }
+  die "Error: expected \$opt{suffix} to exist" unless ( exists $opt{suffix} );
+  
+  foreach my $rdb ( @db_desc ) {
+    $rdb->{target} = "$datadir/$rdb->{src}$opt{suffix}";
+  }
 }
 
 print Dumper( \@db_desc ) if ( $opt{debug} );
@@ -570,6 +587,9 @@ on the command line:
 where ":" delimits the subsets, the /^foo_/ indicates all tables
 with names begining with "foo_" and the "+" indicates all tables
 not copied by the previous subsets.
+
+newdb is either another not existing database or a full path to a directory
+where we can create a directory 'db'
 
 Add option to lock each table in turn for people who don't need
 cross-table integrity.

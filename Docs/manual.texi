@@ -581,7 +581,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN} and ${RIGHT JOIN}
+* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN} and @code{RIGHT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
@@ -30108,11 +30108,17 @@ clients connected to the @code{mysqld} server.
 If you need more connections than the default (100), then you should restart
 @code{mysqld} with a bigger value for the @code{max_connections} variable.
 
-Note that @code{mysqld} actually allows (@code{max_connections}+1) clients to connect.
-The last connection is reserved for a user with the @strong{process} privilege.
-By not giving this privilege to normal users (they shouldn't need this), an
-administrator with this privilege can login and use @code{SHOW PROCESSLIST}
-to find out what could be wrong. @xref{SHOW}.
+Note that @code{mysqld} actually allows (@code{max_connections}+1)
+clients to connect.  The last connection is reserved for a user with the
+@strong{process} privilege.  By not giving this privilege to normal
+users (they shouldn't need this), an administrator with this privilege
+can login and use @code{SHOW PROCESSLIST} to find out what could be
+wrong. @xref{SHOW}.
+
+The maximum number of connects @strong{MySQL} is depending on how good
+the thread library is on a given platform. Linux or Solaris should be
+able to support 500-1000 simultaneous connections, depending on how much
+RAM you have and what your clients are doing.
 
 @node Out of memory, Packet too large, Too many connections, Common errors
 @subsection @code{Out of memory} error
@@ -30546,6 +30552,10 @@ shell> UMASK_DIR=504  # = 770 in octal
 shell> export UMASK_DIR
 shell> /path/to/safe_mysqld &
 @end example
+
+In @strong{MySQL} 3.23.25 and above, @strong{MySQL} assumes that the
+value for @code{UMASK} and @code{UMASK_DIR} is in octal if it starts
+with a zero.
 
 @xref{Environment variables}.
 
@@ -36774,6 +36784,10 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
+Fixed that databasename works as second argument to @code{mysqlhotcopy}.
+@item
+@code{UMASK} and @code{UMASK_DIR} can now be specified in octal.
+@item
 Added @code{RIGHT JOIN}. This makes @code{RIGHT} a reserved word.
 @item
 Added @code{@@@@IDENTITY} as a synonym for @code{LAST_INSERT_ID()}.
@@ -41577,6 +41591,10 @@ mail this to @code{mysql@@lists.mysql.com}.
 If @code{mysqld} hangs you can try to use some system tools like
 @code{strace} or @code{/usr/proc/bin/pstack} to examine where
 @code{mysqld} has hung.
+
+@example
+strace /tmp/log libexec/mysqld
+@end example
 
 If @code{mysqld} starts to eat up CPU or memory or if it ``hangs'', you
 can use @code{mysqladmin processlist status} to find out if someone is

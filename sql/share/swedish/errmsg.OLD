@@ -194,5 +194,4 @@
 "Fick nätverksfel vid skrivning till master",
 "Hittar inte ett FULLTEXT index i kolumnlistan",
 "Kan inte exekvera kommandot emedan du har en låst tabell eller an aktiv transaktion",
-#ER_UNKNOWN_SYSTEM_VARIABLE
 "Okänd system variabel '%-.64'",
