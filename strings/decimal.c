@@ -867,7 +867,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     error=E_DEC_TRUNCATED;
   }
 
-  if (scale+from->intg <=0)
+  if (scale+from->intg <0)
   {
     decimal_make_zero(to);
     return E_DEC_OK;
@@ -881,7 +881,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     buf0=from->buf;
     buf1=to->buf;
     to->sign=from->sign;
-    to->intg=min(from->intg, len*DIG_PER_DEC1);
+    to->intg=min(intg0, len)*DIG_PER_DEC1;
   }
 
   if (frac0 > frac1)
@@ -921,8 +921,6 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
     *buf1-=DIG_BASE;
     while (carry && --buf1 >= to->buf)
       ADD(*buf1, *buf1, 0, carry);
-    if (to->buf[0] > from->buf[0])
-      to->intg++;
     if (unlikely(carry))
     {
       /* shifting the number to create space for new digit */
@@ -937,6 +935,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
         buf1[0]=buf1[-1];
       }
       *buf1=1;
+      to->intg++;
     }
   }
   if (scale<0) scale=0;
@@ -2058,6 +2057,7 @@ main()
   test_ro("15.17",1,HALF_UP);
   test_ro("15.4",-1,HALF_UP);
   test_ro("-15.4",-1,HALF_UP);
+  test_ro("5.4",-1,HALF_UP);
   test_ro("15.1",0,HALF_EVEN);
   test_ro("15.5",0,HALF_EVEN);
   test_ro("14.5",0,HALF_EVEN);
