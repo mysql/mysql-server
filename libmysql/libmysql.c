@@ -905,7 +905,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			     uint fields)
 {
-  uint	field,pkt_len;
+  uint	field;
+  ulong pkt_len;
   ulong len;
   uchar *cp;
   char	*to;
@@ -991,7 +992,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   ulong pkt_len,len;
   uchar *pos,*prev_pos;
 
-  if ((pkt_len=(uint) net_safe_read(mysql)) == packet_error)
+  if ((pkt_len=net_safe_read(mysql)) == packet_error)
     return -1;
   if (pkt_len == 1 && mysql->net.read_pos[0] == 254)
     return 1;				/* End of data */
@@ -1453,7 +1454,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
-  uint		pkt_length;
+  ulong		pkt_length;
   NET		*net= &mysql->net;
 #ifdef __WIN__
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
@@ -2135,7 +2136,7 @@ int STDCALL mysql_read_query_result(MYSQL *mysql)
   uchar *pos;
   ulong field_count;
   MYSQL_DATA *fields;
-  uint length;
+  ulong length;
   DBUG_ENTER("mysql_read_query_result");
 
   /* read from the connection which we actually used, which

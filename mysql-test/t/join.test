@@ -1,7 +1,7 @@
 #
 # This failed for lia Perminov
 #
-
+eval_result; # because MAX_TABLES is different on 64-bit system
 drop table if exists t1,t2;
 create table t1 (id int primary key);
 create table t2 (id int);

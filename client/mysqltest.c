@@ -2158,12 +2158,15 @@ static void var_from_env(const char* name, const char* def_val)
 
 static void init_var_hash()
 {
+  VAR* v;
   if (hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
   var_from_env("MYSQL_TEST_DIR", "/tmp");
   var_from_env("BIG_TEST", opt_big_test ? "1" : "0");
+  v=var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "63",0);
+  hash_insert(&var_hash, (byte*)v);
 }
 
 
