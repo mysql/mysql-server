@@ -74,7 +74,6 @@ drop table if exists ``;
 create table t1 (`` int);
 --error 1279
 create table t1 (i int, index `` (i)); 
-drop table if exists t1;
 
 #
 # Test of CREATE ... SELECT with indexes
