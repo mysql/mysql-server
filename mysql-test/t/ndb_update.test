@@ -1,0 +1,22 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Basic test of INSERT in NDB 
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL,
+  c INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (0, 0, 0),(1,1,1);
+UPDATE t1 set b = c;
+select * from t1 order by pk1;
