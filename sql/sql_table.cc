@@ -437,7 +437,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
     if (check_column_name(sql_field->field_name))
     {
-      my_error(ER_WRONG_NAME, MYF(0), ER(ER_COLUMN), sql_field->field_name);
+      my_error(ER_WRONG_NAME_FOR_COLUMN, MYF(0), sql_field->field_name);
       DBUG_RETURN(-1);
     }
 
@@ -888,7 +888,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     if (!key_info->name || check_column_name(key_info->name))
     {
-      my_error(ER_WRONG_NAME, MYF(0), ER(ER_INDEX), key_info->name);
+      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
       DBUG_RETURN(-1);
     }
     if (!(key_info->flags & HA_NULL_PART_KEY))
@@ -1777,7 +1777,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
        check_table_name(src_table,table_ident->table.length)) ||
       table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
   {
-    my_error(ER_WRONG_NAME, MYF(0), ER(ER_TABLE), src_table);
+    my_error(ER_WRONG_NAME_FOR_TABLE, MYF(0), src_table);
     DBUG_RETURN(-1);
   }
 
