@@ -944,7 +944,8 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     break;
   case 2:
   {
-    datext=form->file ? *form->file->bas_ext() : "";
+    datext= form->file ? *form->file->bas_ext() : "";
+    datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
     my_error(err_no,errortype,

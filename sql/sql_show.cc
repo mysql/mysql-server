@@ -181,7 +181,7 @@ int mysqld_show_storage_engines(THD *thd)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_storage_engines");
 
-  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Engine",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
@@ -471,7 +471,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
-  field_list.push_back(item=new Item_empty_string("Type",10));
+  field_list.push_back(item=new Item_empty_string("Engine",10));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;

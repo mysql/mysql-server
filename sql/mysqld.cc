@@ -32,6 +32,9 @@
 #ifdef HAVE_ISAM
 #include "ha_isam.h"
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
+#endif
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -261,7 +264,7 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -370,7 +373,8 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_example_db;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
+ have_ndbcluster, have_example_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -3625,7 +3629,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB, OPT_ISAM, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -4157,6 +4161,10 @@ Disable with --skip-innodb (will save memory).",
   {"isam", OPT_ISAM, "Enable isam (if this version of MySQL supports it). \
 Disable with --skip-isam.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
+Disable with --skip-ndbcluster (will save memory).",
+   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead.",
@@ -4831,6 +4839,7 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
+  {"Handler_discover",         (char*) &ha_discover_count,      SHOW_LONG},
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) &dflt_key_cache_var.global_blocks_used,
@@ -5128,6 +5137,11 @@ static void mysql_init_variables(void)
   have_example_db= SHOW_OPTION_YES;
 #else
   have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  have_ndbcluster=SHOW_OPTION_DISABLED;
+#else
+  have_ndbcluster=SHOW_OPTION_NO;
 #endif
 #ifdef USE_RAID
   have_raid=SHOW_OPTION_YES;
@@ -5597,6 +5611,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_YES;
     else
       have_isam= SHOW_OPTION_DISABLED;
+#endif
+    break;
+  case OPT_NDBCLUSTER:
+#ifdef HAVE_NDBCLUSTER_DB
+    if (opt_ndbcluster)
+      have_ndbcluster=SHOW_OPTION_YES;
+    else
+      have_ndbcluster=SHOW_OPTION_DISABLED;
 #endif
     break;
   case OPT_INNODB:

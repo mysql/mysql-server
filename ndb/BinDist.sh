@@ -27,7 +27,7 @@ bin/flexBench
 bin/select_all
 bin/select_count
 bin/delete_all
-bin/ndbsql
+#bin/ndbsql
 bin/drop_tab
 bin/drop_index
 bin/list_tables
@@ -39,7 +39,7 @@ lib/libNDB_API.a
 lib/libNDB_API.so
 lib/libMGM_API.a
 lib/libMGM_API.so
-lib/libNDB_ODBC.so
+#lib/libNDB_ODBC.so
 lib/libMGM_API_pic.a
 lib/libNDB_API_pic.a
 include/

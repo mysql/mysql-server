@@ -5260,5 +5260,5 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
     DBUG_RETURN(1);
   DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
 	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
-	      1 : 0)
+	      1 : 0);
 }
