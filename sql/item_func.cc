@@ -993,7 +993,8 @@ longlong Item_func_uncompressed_length::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return uint4korr(res->c_ptr());
+  if (res->is_empty()) return 0;
+  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
 }
 
 #endif /* HAVE_COMPRESS */
