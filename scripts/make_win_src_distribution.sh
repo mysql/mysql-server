@@ -246,7 +246,7 @@ done
 #
 # Create project files for ndb
 #
-make -C ndb windoze
+make -C $SOURCE/ndb windoze
 
 #
 # Input directories to be copied recursively
