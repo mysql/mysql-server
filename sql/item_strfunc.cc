@@ -2721,7 +2721,7 @@ String *Item_func_uuid::val_str(String *str)
   {
     ulong tmp=sql_rnd_with_mutex();
     uchar mac[6];
-    unsigned int i;
+    int i;
     if (my_gethwaddr(mac))
     {
       /*
@@ -2731,7 +2731,7 @@ String *Item_func_uuid::val_str(String *str)
         randominit() here
       */
       randominit(&uuid_rand, tmp + (ulong)current_thd, tmp + query_id);
-      for (i=0; i < sizeof(mac); i++)
+      for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
     }
     s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;

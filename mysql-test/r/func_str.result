@@ -624,6 +624,9 @@ Note	1003	select high_priority md5(_latin1'hello') AS `md5('hello')`,sha(_latin1
 SELECT lpad(12345, 5, "#");
 lpad(12345, 5, "#")
 12345
+SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+conv(71, 10, 36)	conv('1Z', 36, 10)
+1Z	71
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
 insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
 create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;

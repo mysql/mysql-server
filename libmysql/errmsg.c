@@ -54,7 +54,7 @@ const char *client_errors[]=
   "Malformed packet",
   "Invalid use of null pointer",
   "Statement not prepared",
-  "Not all parameters data supplied",
+  "Parameters data was not supplied",
   "Data truncated",
   "No parameters exists in the statement",
   "Invalid parameter number",
@@ -72,7 +72,9 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
+  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
+  "Row retrieval was cancelled by mysql_stmt_close() call",
+  "Attempt to read column without prior row fetch"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -110,7 +112,7 @@ const char *client_errors[]=
   "Malformed packet",
   "Invalid use of null pointer",
   "Statement not prepared",
-  "Not all parameters data supplied",
+  "Parameters data was not supplied",
   "Data truncated",
   "No parameters exists in the statement",
   "Invalid parameter number",
@@ -128,7 +130,9 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
+  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
+  "Row retrieval was cancelled by mysql_stmt_close() call",
+  "Attempt to read column without prior row fetch"
 };
 
 #else /* ENGLISH */
@@ -182,7 +186,9 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
+  "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
+  "Row retrieval was cancelled by mysql_stmt_close() call",
+  "Attempt to read column without prior row fetch"
 };
 #endif
 

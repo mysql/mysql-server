@@ -842,8 +842,7 @@ JOIN::optimize()
     for (uint i_h = const_tables; i_h < tables; i_h++)
     {
       TABLE* table_h = join_tab[i_h].table;
-      if (table_h->db_type == DB_TYPE_INNODB)
-	table_h->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+      table_h->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
     }
   }
 #endif
