@@ -616,20 +616,21 @@ static void make_sortkey(register SORTPARAM *param,
     else
     {						// Item
       Item *item=sort_field->item;
+      maybe_null= item->maybe_null;
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
           CHARSET_INFO *cs=item->collation.collation;
 	  char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
 
-	  if ((maybe_null=item->maybe_null))
+	  if (maybe_null)
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
 	  String tmp((char*) to,sort_field->length+4,cs);
 	  String *res=item->val_str(&tmp);
 	  if (!res)
 	  {
-	    if (item->maybe_null)
+	    if (maybe_null)
 	      bzero((char*) to-1,sort_field->length+1);
 	    else
 	    {
@@ -669,20 +670,22 @@ static void make_sortkey(register SORTPARAM *param,
       case INT_RESULT:
 	{
 	  longlong value=item->val_int();
-	  if ((maybe_null=item->maybe_null))
+	  if (maybe_null)
+          {
 	    *to++=1;				/* purecov: inspected */
-	  if (item->null_value)
-	  {
-	    if (item->maybe_null)
-	      bzero((char*) to-1,sort_field->length+1);
-	    else
-	    {
-	      DBUG_PRINT("warning",
-			 ("Got null on something that shouldn't be null"));
-	      bzero((char*) to,sort_field->length);
-	    }
-	    break;
-	  }
+            if (item->null_value)
+            {
+              if (maybe_null)
+                bzero((char*) to-1,sort_field->length+1);
+              else
+              {
+                DBUG_PRINT("warning",
+                           ("Got null on something that shouldn't be null"));
+                bzero((char*) to,sort_field->length);
+              }
+              break;
+            }
+          }
 #if SIZEOF_LONG_LONG > 4
 	  to[7]= (uchar) value;
 	  to[6]= (uchar) (value >> 8);
@@ -703,15 +706,17 @@ static void make_sortkey(register SORTPARAM *param,
       case DECIMAL_RESULT:
         {
           my_decimal dec_buf, *dec_val= item->val_decimal(&dec_buf);
-          if ((maybe_null=item->null_value))
-          { 
-            bzero((char*)to, sort_field->length+1);
-            to++;
-            break;
-          }
-          if ((maybe_null=item->maybe_null))
+          if (maybe_null)
+          {
+            if (item->null_value)
+            { 
+              bzero((char*)to, sort_field->length+1);
+              to++;
+              break;
+            }
             *to++=1;
-          my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, (byte*)to,
+          }
+          my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, (char*)to,
                             item->max_length - (item->decimals ? 1:0),
                             item->decimals);
          break;
@@ -719,14 +724,16 @@ static void make_sortkey(register SORTPARAM *param,
       case REAL_RESULT:
 	{
 	  double value= item->val_real();
-	  if ((maybe_null=item->null_value))
-	  {
-	    bzero((char*) to,sort_field->length+1);
-	    to++;
-	    break;
-	  }
-	  if ((maybe_null=item->maybe_null))
+	  if (maybe_null)
+          {
+            if (item->null_value)
+            {
+              bzero((char*) to,sort_field->length+1);
+              to++;
+              break;
+            }
 	    *to++=1;
+          }
 	  change_double_for_sort(value,(byte*) to);
 	  break;
 	}
