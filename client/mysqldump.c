@@ -288,8 +288,8 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"order-by-primary", OPT_ORDER_BY_PRIMARY,
-   "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful if dump will be loaded into an InnoDB table.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful when dumping a MyISAM table to be loaded into an InnoDB table, but will make the dump itself take considerably longer.",
+   (gptr*) &opt_order_by_primary, (gptr*) &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
@@ -543,9 +543,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
     opt_set_charset= 0;
   }
-  case (int) OPT_ORDER_BY_PRIMARY:
-    opt_order_by_primary = 1;
-    break;
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
@@ -1463,7 +1460,6 @@ static void dumpTable(uint numFields, char *table)
       fputs("\n", md_result_file);
       check_io(md_result_file);
     }
-    fprintf(stderr, "-- [%s]\n", query);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -2141,7 +2137,7 @@ static char *primary_key_fields(const char *table_name)
   MYSQL_ROW  row;
   /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
   char show_keys_buff[15 + 64 * 2 + 3];
-  uint result_length = 0, first_unique_pos = 0;
+  uint result_length = 0;
   char *result = 0;
 
   sprintf(show_keys_buff, "SHOW KEYS FROM %s", table_name);
@@ -2155,18 +2151,18 @@ static char *primary_key_fields(const char *table_name)
     goto cleanup;
   }
 
-  /* Figure out the length of the ORDER BY clause result */
-  while ((row = mysql_fetch_row(res)))
+  /*
+   * Figure out the length of the ORDER BY clause result.
+   * Note that SHOW KEYS is ordered:  a PRIMARY key is always the first
+   * row, and UNIQUE keys come before others.  So we only need to check
+   * the first key, not all keys.
+   */
+  if ((row = mysql_fetch_row(res)) && atoi(row[1]) == 0)
   {
-    if (atoi(row[1]) == 0)      /* Key is unique */
-    {
-      do
-        result_length += strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
-      while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
-
-      break;
-    }
-    ++first_unique_pos;
+    /* Key is unique */
+    do
+      result_length += strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
+    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
   }
 
   /* Build the ORDER BY clause result */
@@ -2178,7 +2174,7 @@ static char *primary_key_fields(const char *table_name)
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
       goto cleanup;
     }
-    mysql_data_seek(res, first_unique_pos);
+    mysql_data_seek(res, 0);
     row = mysql_fetch_row(res);
     end = strmov(result, row[4]);
     while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1)
