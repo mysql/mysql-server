@@ -12,7 +12,7 @@
 "JAH",
 "Ei suuda luua faili '%-.64s' (veakood: %d)",
 "Ei suuda luua tabelit '%-.64s' (veakood: %d)",
-"Ei suuda luua andmebaasi '%-.64s'. (veakood: %d)",
+"Ei suuda luua andmebaasi '%-.64s' (veakood: %d)",
 "Ei suuda luua andmebaasi '%-.64s': andmebaas juba eksisteerib",
 "Ei suuda kustutada andmebaasi '%-.64s': andmebaasi ei eksisteeri",
 "Viga andmebaasi kustutamisel (ei suuda kustutada faili '%-.64s', veakood: %d)",
