@@ -281,7 +281,7 @@ Item_sum_sum_distinct::Item_sum_sum_distinct(Item *item)
 
 
 Item_sum_sum_distinct::Item_sum_sum_distinct(THD *thd,
-                                             Item_sum_sum_distinct &original)
+                                             Item_sum_sum_distinct *original)
   :Item_sum_num(thd, original), sum(0.0), tree(0)
 {
   quick_group= 0;
@@ -297,7 +297,7 @@ Item_sum_sum_distinct::~Item_sum_sum_distinct()
 Item *
 Item_sum_sum_distinct::copy_or_same(THD *thd)
 {
-  return new (&thd->mem_root) Item_sum_sum_distinct(thd, *this);
+  return new (&thd->mem_root) Item_sum_sum_distinct(thd, this);
 }
 
 C_MODE_START

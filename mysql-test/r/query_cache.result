@@ -828,14 +828,14 @@ DROP DATABASE mysqltest;
 SELECT * FROM test.t1;
 a
 USE test;
-drop table t1;
+DROP TABLE t1;
 create table t1 (a int);
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	8
+Qcache_inserts	9
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	6
@@ -848,7 +848,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	9
+Qcache_inserts	10
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7

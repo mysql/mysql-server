@@ -5754,6 +5754,7 @@ simple_ident:
                  (Item*) new Item_field(NullS,NullS,$1.str) :
 	         (Item*) new Item_ref(0,0, NullS,NullS,$1.str);
 	  }
+        }
         | simple_ident_q { $$= $1; }
 	;
 
@@ -5764,7 +5765,7 @@ simple_ident_nospvar:
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
-	      (Item*) new Item_ref(NullS,NullS,$1.str);
+	      (Item*) new Item_ref(0,0,NullS,NullS,$1.str);
 	}
 	| simple_ident_q { $$= $1; }
 	;	
