@@ -2107,8 +2107,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (*(MYSQL_SERVER_SUFFIX))
     strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
   else
-#endif
+    strmov(strend(server_version),"--debug");
+#else
     strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
+#endif
 
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;

@@ -1882,7 +1882,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *table_name= table->real_name;
   char *src_db= thd->db;
   char *src_table= table_ident->table.str;
-  int  err;
+  int  err, res= -1;
+  TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
   /*
@@ -1896,6 +1897,13 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(-1);
   }
+  
+  src_tables_list.db= table_ident->db.str ? table_ident->db.str : thd->db;
+  src_tables_list.real_name= table_ident->table.str;
+  src_tables_list.next= 0;
+  
+  if (lock_and_wait_for_table_name(thd, &src_tables_list))
+    goto err;
 
   if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
     strxmov(src_path, (*tmp_table)->path, reg_ext, NullS);
@@ -1906,7 +1914,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
-      DBUG_RETURN(-1);
+      goto err;
     }
   }
 
@@ -1934,9 +1942,14 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
 
   /* 
     Create a new table by copying from source table
-  */
-  if (my_copy(src_path, dst_path, MYF(MY_WME)))
-    DBUG_RETURN(-1);
+  */  
+#ifndef DBUG_OFF
+  // The code stated below is for test synchronization.test Bug #2385
+  if (test_flags & TEST_SYNCHRONIZATION)
+    sleep(3);
+#endif
+  if (my_copy(src_path, dst_path, MYF(MY_WME|MY_DONT_OVERWRITE_FILE)))
+    goto err;
 
   /*
     As mysql_truncate don't work on a new table at this stage of 
@@ -1952,14 +1965,14 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     {
       (void) rm_temporary_table(create_info->db_type, 
                                 dst_path); /* purecov: inspected */
-      DBUG_RETURN(-1);     /* purecov: inspected */
+      goto err;     /* purecov: inspected */
     }
   }
   else if (err)
   {
     (void) quick_rm_table(create_info->db_type, db, 
                           table_name); /* purecov: inspected */
-    DBUG_RETURN(-1);       /* purecov: inspected */
+    goto err;       /* purecov: inspected */
   }
 
   // Must be written before unlock
@@ -1972,9 +1985,18 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
 			       HA_LEX_CREATE_TMP_TABLE));
     mysql_bin_log.write(&qinfo);
   }
-  DBUG_RETURN(0);
+  res= 0;
+
+err:
+  pthread_mutex_lock(&LOCK_open);
+  unlock_table_name(thd, &src_tables_list);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(res);
   
 table_exists:
+  pthread_mutex_lock(&LOCK_open);
+  unlock_table_name(thd, &src_tables_list);
+  pthread_mutex_unlock(&LOCK_open);
   if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
