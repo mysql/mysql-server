@@ -335,6 +335,14 @@ uint my_instr_mb(struct charset_info_st *,
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
 
+#undef _U
+#undef	_L
+#undef	_NMR
+#undef	_SPC
+#undef	_PNT
+#undef	_CTR
+#undef	_B
+#undef	_X
 
 #define	_U	01	/* Upper case */
 #define	_L	02	/* Lower case */

@@ -298,6 +298,10 @@ SOURCE=.\my_copy.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_crc32.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_create.c
 # End Source File
 # Begin Source File

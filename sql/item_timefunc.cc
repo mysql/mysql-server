@@ -235,7 +235,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	/* Second part */
       case 'f':
 	tmp= (char*) val_end;
-	l_time->second_part= my_strtoll10(val, &tmp, &error);
+	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
 	val= tmp;
 	break;
 
@@ -1219,7 +1219,7 @@ String *Item_func_sec_to_time::val_str(String *str)
 
   sec= (uint) ((ulonglong) seconds % 3600);
   ltime.day= 0;
-  ltime.hour= seconds/3600;
+  ltime.hour= (uint) (seconds/3600);
   ltime.minute= sec/60;
   ltime.second= sec % 60;
 
@@ -1850,9 +1850,8 @@ String *Item_datetime_typecast::val_str(String *str)
   if (!get_arg0_date(&ltime,1) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
 		     &ltime, str))
-  return str;
+    return str;
 
-null_date:
   null_value=1;
   return 0;
 }
@@ -1911,8 +1910,8 @@ String *Item_date_typecast::val_str(String *str)
 String *Item_func_makedate::val_str(String *str)
 {
   TIME l_time;
-  long daynr= args[1]->val_int();
-  long yearnr= args[0]->val_int();
+  long daynr=  (long) args[1]->val_int();
+  long yearnr= (long) args[0]->val_int();
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
@@ -1920,7 +1919,7 @@ String *Item_func_makedate::val_str(String *str)
     goto err;
 
   days= calc_daynr(yearnr,1,1) + daynr - 1;
- // Day number from year 0 to 9999-12-31
+  /* Day number from year 0 to 9999-12-31 */
   if (days >= 0 && days < MAX_DAY_NUMBER)
   {
     null_value=0;
@@ -2124,7 +2123,8 @@ String *Item_func_timediff::val_str(String *str)
   microseconds= l_time1.second_part - l_sign*l_time2.second_part;
   seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
 	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+l_time2.second));
+	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+
+			      l_time2.second));
 
   l_time3.neg= 0;
   if (seconds < 0)
@@ -2145,7 +2145,7 @@ String *Item_func_timediff::val_str(String *str)
   if ((l_time2.neg == l_time1.neg) && l_time1.neg)
     l_time3.neg= l_time3.neg ? 0 : 1;
 
-  calc_time_from_sec(&l_time3, seconds, microseconds);
+  calc_time_from_sec(&l_time3, (long) seconds, microseconds);
 
   if (!make_datetime(l_time1.second_part || l_time2.second_part ?
 		     TIME_MICROSECOND : TIME_ONLY,
@@ -2167,9 +2167,9 @@ String *Item_func_maketime::val_str(String *str)
 {
   TIME ltime;
 
-  long hour= args[0]->val_int();
-  long minute= args[1]->val_int();
-  long second= args[2]->val_int();
+  long hour=   (long) args[0]->val_int();
+  long minute= (long) args[1]->val_int();
+  long second= (long) args[2]->val_int();
 
   if ((null_value=(args[0]->null_value || 
 		   args[1]->null_value ||
@@ -2185,9 +2185,9 @@ String *Item_func_maketime::val_str(String *str)
     ltime.neg= 1;
     hour= -hour;
   }
-  ltime.hour= (ulong)hour;
-  ltime.minute= (ulong)minute;
-  ltime.second= (ulong)second;
+  ltime.hour=   (ulong) hour;
+  ltime.minute= (ulong) minute;
+  ltime.second= (ulong) second;
   make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
   return str;
 }

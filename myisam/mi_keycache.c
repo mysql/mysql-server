@@ -93,6 +93,11 @@ int mi_assign_to_key_cache(MI_INFO *info,
   (void) flush_key_blocks(key_cache, share->kfile, FLUSH_REMOVE);
 
   /*
+    ensure that setting the key cache and changing the multi_key_cache
+    is done atomicly
+  */
+  pthread_mutex_lock(&share->intern_lock);
+  /*
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an myisam function.
   */
@@ -102,6 +107,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
   if (multi_key_cache_set(share->unique_file_name, share->unique_name_length,
 			  share->key_cache))
     error= my_errno;
+  pthread_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }
 

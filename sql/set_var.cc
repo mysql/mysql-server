@@ -1884,7 +1884,7 @@ end:
 
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulong tmp= var->value->val_int();
+  ulong tmp= (ulong) var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 

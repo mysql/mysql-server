@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  These functions are to handle keyblock cacheing
-  for NISAM, MISAM and PISAM databases.
+  These functions handle keyblock cacheing for ISAM and MyISAM tables.
+
   One cache can handle many files.
   It must contain buffers of the same blocksize.
   init_key_cache() should be used to init cache handler.
@@ -282,6 +282,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   if (! keycache->key_cache_inited)
   {
     keycache->key_cache_inited= 1;
+    keycache->in_init= 0;
     pthread_mutex_init(&keycache->cache_lock, MY_MUTEX_INIT_FAST);
   }
 
@@ -2158,9 +2159,6 @@ restart:
       }
     }
   }
-
-  if (type == FLUSH_REMOVE && keycache->action)
-    (*keycache->action)(keycache);
 
 #ifndef DBUG_OFF
   DBUG_EXECUTE("check_keycache",
