@@ -174,62 +174,87 @@ void Item_bool_func2::fix_length_and_dec()
     return;
 
   /* 
-    We allow to convert to Unicode character sets in some cases.
+    We allow to apply automatic character set conversion in some cases.
     The conditions when conversion is possible are:
     - arguments A and B have different charsets
     - A wins according to coercibility rules
-    - character set of A is superset for character set of B
-   
+      (i.e. a column is stronger than a string constant,
+       an explicit COLLATE clause is stronger than a column)
+    - character set of A is either superset for character set of B,
+      or B is a string constant which can be converted into the
+      character set of A without data loss.
+    
     If all of the above is true, then it's possible to convert
     B into the character set of A, and then compare according
     to the collation of A.
   */
 
-  if (args[0] && args[1])
-  {
-    uint strong= 0;
-    uint weak= 0;
-    uint32 dummy_offset;
-    DTCollation coll;
+  uint32 dummy_offset;
+  DTCollation coll;
 
-    if (args[0]->result_type() == STRING_RESULT &&
-        args[1]->result_type() == STRING_RESULT &&
-        String::needs_conversion(0, args[0]->collation.collation,
-                                    args[1]->collation.collation,
-                                    &dummy_offset) &&
-        !coll.set(args[0]->collation, args[1]->collation, TRUE))
+  if (args[0]->result_type() == STRING_RESULT &&
+      args[1]->result_type() == STRING_RESULT &&
+      String::needs_conversion(0, args[0]->collation.collation,
+                                  args[1]->collation.collation,
+                                  &dummy_offset) &&
+      !coll.set(args[0]->collation, args[1]->collation,
+                MY_COLL_ALLOW_SUPERSET_CONV | 
+                MY_COLL_ALLOW_COERCIBLE_CONV))
+  {
+    Item* conv= 0;
+    Item_arena *arena= thd->current_arena, backup;
+    uint strong= coll.strong;
+    uint weak= strong ? 0 : 1;
+    /*
+      In case we're in statement prepare, create conversion item
+      in its memory: it will be reused on each execute.
+    */
+    if (arena->is_stmt_prepare())
+        thd->set_n_backup_item_arena(arena, &backup);
+    if (args[weak]->type() == STRING_ITEM)
     {
-      Item* conv= 0;
-      Item_arena *arena= thd->current_arena, backup;
-      strong= coll.strong;
-      weak= strong ? 0 : 1;
-      /*
-        In case we're in statement prepare, create conversion item
-        in its memory: it will be reused on each execute.
-      */
-      if (arena->is_stmt_prepare())
-          thd->set_n_backup_item_arena(arena, &backup);
-      if (args[weak]->type() == STRING_ITEM)
+      uint conv_errors; 
+      String tmp, cstr, *ostr= args[weak]->val_str(&tmp);
+      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
+                args[strong]->collation.collation, &conv_errors);
+      if (conv_errors)
       {
-        String tmp, cstr;
-        String *ostr= args[weak]->val_str(&tmp);
-        cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-		  args[strong]->collation.collation);
-        conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->collation.derivation);
-	((Item_string*)conv)->str_value.copy();
+        /* 
+          We could not convert a string into the character set
+          of the stronger side of the operation without data loss.
+          It can happen if we tried to combine a column with a string
+          constant, and the column charset does not cover all the
+          characters from the string. Operation cannot be done
+          correctly. Return an error.
+        */
+        my_coll_agg_error(args[0]->collation, args[1]->collation,
+                          func_name());
+        return;
       }
-      else
-      {
-	conv= new Item_func_conv_charset(args[weak],
-                                         args[strong]->collation.collation);
-        conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(thd, 0, &conv);
-      }
-      if (arena->is_stmt_prepare())
-        thd->restore_backup_item_arena(arena, &backup);
-      args[weak]= conv ? conv : args[weak];
+      conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
+                            args[weak]->collation.derivation);
+      ((Item_string*)conv)->str_value.copy();
     }
+    else
+    {
+      if (!(coll.collation->state & MY_CS_UNICODE))
+      {
+        /*
+          Don't allow automatic conversion to non-Unicode charsets,
+          as it potentially loses data.
+        */
+        my_coll_agg_error(args[0]->collation, args[1]->collation,
+                          func_name());
+        return;
+      }
+      conv= new Item_func_conv_charset(args[weak],
+                                       args[strong]->collation.collation);
+      conv->collation.set(args[weak]->collation.derivation);
+      conv->fix_fields(thd, 0, &conv);
+    }
+    if (arena->is_stmt_prepare())
+      thd->restore_backup_item_arena(arena, &backup);
+    args[weak]= conv ? conv : args[weak];
   }
   
   // Make a special case of compare with fields to get nicer DATE comparisons
@@ -1782,14 +1807,13 @@ void Item_func_in::fix_length_and_dec()
       via creating Item_func_conv_charset().
     */
 
-    if (agg_arg_collations_for_comparison(cmp_collation,
-                                          args, arg_count, TRUE))
+    if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count,
+                                          MY_COLL_ALLOW_SUPERSET_CONV))
       return;
     if ((!my_charset_same(args[0]->collation.collation, 
                           cmp_collation.collation) || !const_itm))
     {
-      if (agg_arg_collations_for_comparison(cmp_collation,
-                                            args, arg_count, FALSE))
+      if (agg_arg_collations_for_comparison(cmp_collation, args, arg_count))
         return;
     }
     else
@@ -1808,8 +1832,9 @@ void Item_func_in::fix_length_and_dec()
         {
           Item_string *conv;
           String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
+          uint dummy_errors;
           cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
-                    cmp_collation.collation);
+                    cmp_collation.collation, &dummy_errors);
           conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
                                 arg[0]->collation.derivation);
           conv->str_value.copy();

@@ -4,6 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
+# remember to also change ndb version below and update version.c in ndb
 AM_INIT_AUTOMAKE(mysql, 4.1.8)
 AM_CONFIG_HEADER(config.h)
 
@@ -13,9 +14,9 @@ DOT_FRM_VERSION=6
 SHARED_LIB_VERSION=14:0:0
 
 # ndb version
-NDB_VERSION_MAJOR=3
-NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=3
+NDB_VERSION_MAJOR=4
+NDB_VERSION_MINOR=1
+NDB_VERSION_BUILD=8
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -1142,9 +1143,10 @@ dnl Is this the right match for DEC OSF on alpha?
       fi
       echo "Adding defines for OSF1"
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      ndb_cxxflags_fix="$ndb_cxxflags_fix -I/usr/include.dtk"
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
+      CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
     ;;
   *netware*)
     # No need for curses library so set it to null

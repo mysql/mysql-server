@@ -37,6 +37,16 @@ enum Derivation
   DERIVATION_EXPLICIT= 0
 };
 
+/*
+  Flags for collation aggregation modes:
+  allow conversion to a superset
+  allow conversion of a coercible value (i.e. constant).
+*/
+
+#define MY_COLL_ALLOW_SUPERSET_CONV   1
+#define MY_COLL_ALLOW_COERCIBLE_CONV  2
+
+
 class DTCollation {
 public:
   CHARSET_INFO     *collation;
@@ -72,9 +82,9 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
-  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
-  { set(dt1); return aggregate(dt2, superset_conversion); }
+  bool aggregate(DTCollation &dt, uint flags= 0);
+  bool set(DTCollation &dt1, DTCollation &dt2, uint flags= 0)
+  { set(dt1); return aggregate(dt2, flags); }
   const char *derivation_name() const
   {
     switch(derivation)
