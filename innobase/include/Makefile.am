@@ -54,3 +54,6 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         usr0sess.h usr0sess.ic usr0types.h ut0byte.h ut0byte.ic \
         ut0dbg.h ut0lst.h ut0mem.h ut0mem.ic ut0rnd.h ut0rnd.ic \
         ut0sort.h ut0ut.h ut0ut.ic
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

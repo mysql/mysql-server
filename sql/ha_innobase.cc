@@ -499,6 +499,7 @@ innobase_end(void)
 	DBUG_ENTER("innobase_end");
 
 	err = innobase_shutdown_for_mysql();
+	hash_free(&innobase_open_tables);
 
 	if (err != DB_SUCCESS) {
 
@@ -1214,7 +1215,7 @@ ha_innobase::write_row(
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	int 		error;
 
-  	DBUG_ENTER("write_row");
+  	DBUG_ENTER("ha_innobase::write_row");
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
@@ -1432,7 +1433,7 @@ ha_innobase::update_row(
 	upd_t*		uvect;
 	int		error = 0;
 
-	DBUG_ENTER("update_row");
+	DBUG_ENTER("ha_innobase::update_row");
 
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
@@ -1476,7 +1477,7 @@ ha_innobase::delete_row(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error = 0;
 
-	DBUG_ENTER("update_row");
+	DBUG_ENTER("ha_innobase::delete_row");
 
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);

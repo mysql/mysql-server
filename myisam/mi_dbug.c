@@ -155,6 +155,7 @@ my_bool check_table_is_closed(const char *name, const char *where)
 {
   char filename[FN_REFLEN];
   LIST *pos;
+  DBUG_ENTER("check_table_is_closed");
 
   (void) fn_format(filename,name,"",MI_NAME_IEXT,4+16+32);
   for (pos=myisam_open_list ; pos ; pos=pos->next)
@@ -163,10 +164,14 @@ my_bool check_table_is_closed(const char *name, const char *where)
     MYISAM_SHARE *share=info->s;
     if (!strcmp(share->filename,filename))
     {
-      fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
-      return 1;
+      if (share->last_version)
+      {
+	fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
+	DBUG_PRINT("warning",("Table: %s is open on %s", name,where));
+	DBUG_RETURN(1);
+      }
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 #endif /* EXTRA_DEBUG */

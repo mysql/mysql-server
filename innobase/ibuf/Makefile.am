@@ -22,3 +22,6 @@ libs_LIBRARIES =	libibuf.a
 libibuf_a_SOURCES =	ibuf0ibuf.c
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
