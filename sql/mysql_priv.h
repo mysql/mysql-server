@@ -478,7 +478,7 @@ bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
-void mysql_init_query(THD *thd, bool lexonly=0);
+void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly=0);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);

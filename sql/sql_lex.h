@@ -406,7 +406,7 @@ public:
   int change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   friend int subselect_union_engine::exec();
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -560,7 +560,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -765,7 +765,7 @@ struct st_lex_local: public st_lex
 
 void lex_init(void);
 void lex_free(void);
-LEX *lex_start(THD *thd, uchar *buf,uint length);
+void lex_start(THD *thd, uchar *buf,uint length);
 void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);
