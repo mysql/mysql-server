@@ -5899,12 +5899,15 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLES))
                YYABORT;
            }
-	| OPEN_SYM TABLES opt_db wild
-	  {
-	    LEX *lex= Lex;
-	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
-	    lex->select_lex.db= $3;
-	  }
+        | OPEN_SYM TABLES ext_select_item_list opt_db wild_and_where
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_OPEN_TABLES;
+            lex->select_lex.db= $4;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_OPEN_TABLES))
+              YYABORT;
+          }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
@@ -5980,22 +5983,28 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_WARNS;}
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
-	| opt_var_type STATUS_SYM wild
+        | opt_var_type STATUS_SYM ext_select_item_list wild_and_where
           {
-	    THD *thd= YYTHD;
-	    thd->lex->sql_command= SQLCOM_SHOW_STATUS;
-	    thd->lex->option_type= (enum_var_type) $1;
-	  }	
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_STATUS;
+            lex->option_type= (enum_var_type) $1;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
+              YYABORT;
+          }
         | INNOBASE_SYM STATUS_SYM
           { Lex->sql_command = SQLCOM_SHOW_INNODB_STATUS; WARN_DEPRECATED("SHOW INNODB STATUS", "SHOW ENGINE INNODB STATUS"); }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-	| opt_var_type VARIABLES wild
-	  {
-	    THD *thd= YYTHD;
-	    thd->lex->sql_command= SQLCOM_SHOW_VARIABLES;
-	    thd->lex->option_type= (enum_var_type) $1;
-	  }
+        | opt_var_type  VARIABLES ext_select_item_list wild_and_where
+          {
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_SELECT;
+            lex->orig_sql_command= SQLCOM_SHOW_VARIABLES;
+            lex->option_type= (enum_var_type) $1;
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
+              YYABORT;
+          }
         | charset ext_select_item_list wild_and_where
           {
             LEX *lex= Lex;
@@ -6143,12 +6152,6 @@ opt_db:
 	/* empty */  { $$= 0; }
 	| from_or_in ident { $$= $2.str; };
 
-wild:
-	/* empty */
-	| LIKE TEXT_STRING_sys
-	  { Lex->wild=  new (YYTHD->mem_root) String($2.str, $2.length,
-                                                      system_charset_info); };
-
 opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; };
@@ -6186,7 +6189,10 @@ ext_select_item_list:
         mysql_init_select(lex);
         lex->current_select->parsing_place= SELECT_LIST;
       }
-      /* empty */
+      ext_select_item_list2;
+
+ext_select_item_list2:
+      /* empty */        {}
       | select_item_list {};
 
 
