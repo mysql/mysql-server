@@ -31,7 +31,6 @@ NdbConfig::getPropsForNode(unsigned int node_id,
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 
@@ -111,7 +110,6 @@ NdbConfig::getHostName(unsigned int node_id,
   /**
    * Fetch configuration from management server
    */
-  char buf[255];
   ConfigRetriever cr;
 
 

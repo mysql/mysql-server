@@ -25,10 +25,7 @@
 #include "CPCD.hpp"
 
 #include <pwd.h>
-#include <sys/stat.h>
 #include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 void
 CPCD::Process::print(FILE * f){

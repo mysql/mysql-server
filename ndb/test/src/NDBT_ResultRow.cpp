@@ -66,6 +66,7 @@ NDBT_ResultRow::attributeStore(const char* name){
       return data[i];
   }  
   assert(false);
+  return 0;
 }
 
 NdbOut & 
@@ -189,7 +190,8 @@ NDBT_ResultRow::clone () const {
 
   NDBT_ResultRow * row = new NDBT_ResultRow(m_table, ad[0]);
   row->m_ownData = true;
-  for(Uint32 i = 0; i<m_table.getNoOfColumns(); i++){
+  Uint32 noOfColumns = m_table.getNoOfColumns();
+  for(Uint32 i = 0; i < noOfColumns; i++){
     row->data[i] = data[i]->clone();
   }
   
