@@ -2375,3 +2375,14 @@ DROP DATABASE d1;
 USE test;
 SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
+create table t1 (a varchar(1)) character set utf8 collate utf8_estonian_ci;
+insert into t1 values ('A'),('B'),('C'),('a'),('b'),('c');
+select a, a regexp '[a]' from t1 order by binary a;
+a	a regexp '[a]'
+A	1
+B	0
+C	0
+a	1
+b	0
+c	0
+drop table t1;

@@ -685,3 +685,9 @@ drop table t1;
 select left(1234, 3) + 0;
 left(1234, 3) + 0
 123
+create table t1 (a int not null primary key, b varchar(40), c datetime);
+insert into t1 (a,b,c) values (1,'Tom',now()),(2,'ball games',now()), (3,'Basil',now()), (4,'Dean',now()),(5,'Ellis',now()), (6,'Serg',now()), (7,'Sergei',now()),(8,'Georg',now()),(9,'Salle',now()),(10,'Sinisa',now());
+select count(*) as total, left(c,10) as reg from t1 group by reg order by reg desc limit 0,12;
+total	reg
+10	2004-12-10
+drop table t1;
