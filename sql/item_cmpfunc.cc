@@ -1960,6 +1960,36 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
+
+/*
+  Move SUM items out from item tree and replace with reference
+
+  SYNOPSIS
+  split_sum_func()
+  thd			Thread handler
+  ref_pointer_array	Pointer to array of reference fields
+  fields		All fields in select
+
+  NOTES
+   This function is run on all expression (SELECT list, WHERE, HAVING etc)
+   that have or refer (HAVING) to a SUM expression.
+
+   The split is done to get an unique item for each SUM function
+   so that we can easily find and calculate them.
+   (Calculation done by update_sum_func() and copy_sum_funcs() in
+   sql_select.cc)
+
+   All found SUM items are added FIRST in the fields list and
+   we replace the item with a reference.
+
+   We also replace all functions without side effects (like RAND() or UDF's)
+   that uses columns as arguments.
+   For functions with side effects, we just remember any fields referred
+   by the function to ensure that we get a copy of the field value for the
+   first accepted row. This ensures that we can do things like
+   SELECT a*SUM(b) FROM t1 WHERE a=1
+*/
+
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
                                List<Item> &fields)
 {
@@ -1969,10 +1999,22 @@ void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
   const_item_cache=0;
   while ((item=li++))
   {
-    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    /* with_sum_func is set for items that contains a SUM expression */
+    if (item->type() != SUM_FUNC_ITEM &&
+        (item->with_sum_func ||
+         (item->used_tables() & PSEUDO_TABLE_BITS)))
       item->split_sum_func(thd, ref_pointer_array, fields);
-    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+    else if (item->type() == SUM_FUNC_ITEM ||
+             (item->used_tables() && item->type() != REF_ITEM))
     {
+      /*
+        Replace item with a reference so that we can easily calculate
+        it (in case of sum functions) or copy it (in case of fields)
+
+        The test above is to ensure we don't do a reference for things
+        that are constants or are not yet calculated as in:
+        SELECT RAND() as r1, SUM(a) as r2 FROM t1 HAVING r1 > 1 AND r2 > 0
+      */
       Item **ref= li.ref();
       uint el= fields.elements;
       ref_pointer_array[el]= item;
