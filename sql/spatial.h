@@ -152,142 +152,80 @@ struct MBR
 
 /***************************** Geometry *******************************/
 
-class Geometry;
-
-typedef bool (Geometry::*GF_InitFromText)(Gis_read_stream *, String *);
-typedef bool (Geometry::*GF_GetDataAsText)(String *, const char **);
-typedef uint32 (Geometry::*GF_GetDataSize)() const;
-typedef bool (Geometry::*GF_GetMBR)(MBR *, const char **end) const;
-
-typedef bool (Geometry::*GF_GetD)(double *) const;
-typedef bool (Geometry::*GF_GetD_AND_END)(double *, const char **) const;
-typedef bool (Geometry::*GF_GetI)(int *) const;
-typedef bool (Geometry::*GF_GetUI)(uint32 *) const;
-typedef bool (Geometry::*GF_GetUI_AND_END)(uint32 *, const char **) const;
-typedef bool (Geometry::*GF_GetWS)(String *);
-typedef bool (Geometry::*GF_GetUIWS)(uint32, String *) const;
-
-#define GEOM_METHOD_PRESENT(geom_obj, method)\
-    (geom_obj.m_vmt->method != &Geometry::method)
+struct Geometry_buffer;
 
 class Geometry
 {
 public:
+  static void *operator new(unsigned size_t, void *buffer)
+  {
+    return buffer;
+  }
+
   enum wkbType
   {
-    wkbPoint= 1,
-    wkbLineString= 2,
-    wkbPolygon= 3,
-    wkbMultiPoint= 4,
-    wkbMultiLineString= 5,
-    wkbMultiPolygon= 6,
-    wkbGeometryCollection= 7,
-    wkb_end=8
+    wkb_point= 1,
+    wkb_linestring= 2,
+    wkb_polygon= 3,
+    wkb_multipoint= 4,
+    wkb_multilinestring= 5,
+    wkb_multipolygon= 6,
+    wkb_geometrycollection= 7,
+    wkb_end=7
   };
   enum wkbByteOrder
   {
-    wkbXDR= 0,    /* Big Endian */
-    wkbNDR= 1     /* Little Endian */
+    wkb_xdr= 0,    /* Big Endian */
+    wkb_ndr= 1     /* Little Endian */
   };                                    
 
-  class Gis_class_info
+  class Class_info
   {
   public:
-    GF_InitFromText init_from_wkt;
-    GF_GetDataAsText get_data_as_wkt;
-    GF_GetDataSize get_data_size;
-    GF_GetMBR get_mbr;
-    GF_GetD get_x;
-    GF_GetD get_y;
-    GF_GetD length;
-    GF_GetD_AND_END area;
-
-    GF_GetI is_closed;
-
-    GF_GetUI num_interior_ring;
-    GF_GetUI num_points;
-    GF_GetUI num_geometries;
-    GF_GetUI_AND_END dimension;
-
-    GF_GetWS start_point;
-    GF_GetWS end_point;
-    GF_GetWS exterior_ring;
-    GF_GetWS centroid;
-
-    GF_GetUIWS point_n;
-    GF_GetUIWS interior_ring_n;
-    GF_GetUIWS geometry_n;
-
-    LEX_STRING m_name;
+    LEX_STRING_WITH_INIT m_name;
     int m_type_id;
-    Gis_class_info *m_next_rt;
+    void (*m_create_func)(void *);
+    Class_info(const char *name, int type_id, void(*create_func)(void *));
   };
-  Gis_class_info *m_vmt;
 
-  const Gis_class_info *get_class_info() const { return m_vmt; }
-  uint32 get_data_size() const { return (this->*m_vmt->get_data_size)(); }
-  
-  bool init_from_wkt(Gis_read_stream *trs, String *wkb) 
-  { return (this->*m_vmt->init_from_wkt)(trs, wkb); }
-
-  bool get_data_as_wkt(String *txt, const char **end)
-  { return (this->*m_vmt->get_data_as_wkt)(txt, end); }
-
-  int get_mbr(MBR *mbr, const char **end) const
-  { return (this->*m_vmt->get_mbr)(mbr, end); }
-  bool dimension(uint32 *dim, const char **end) const
-  {
-    return (this->*m_vmt->dimension)(dim, end);
-  }
-
-  bool get_x(double *x) const { return (this->*m_vmt->get_x)(x); }
-  bool get_y(double *y) const { return (this->*m_vmt->get_y)(y); }
-  bool length(double *len) const  { return (this->*m_vmt->length)(len); }
-  bool area(double *ar, const char **end) const
-  {
-    return (this->*m_vmt->area)(ar, end);
-  }
-
-  bool is_closed(int *closed) const
-  { return (this->*m_vmt->is_closed)(closed); }
-
-  bool num_interior_ring(uint32 *n_int_rings) const 
-  { return (this->*m_vmt->num_interior_ring)(n_int_rings); }
-  bool num_points(uint32 *n_points) const
-  { return (this->*m_vmt->num_points)(n_points); }
-
-  bool num_geometries(uint32 *num) const
-  { return (this->*m_vmt->num_geometries)(num); }
-
-  bool start_point(String *point)
-  { return (this->*m_vmt->start_point)(point); }
-  bool end_point(String *point)
-  { return (this->*m_vmt->end_point)(point); }
-  bool exterior_ring(String *ring)
-  { return (this->*m_vmt->exterior_ring)(ring); }
-  bool centroid(String *point)
-  { return (this->*m_vmt->centroid)(point); }
-
-  bool point_n(uint32 num, String *result) const
-  { return (this->*m_vmt->point_n)(num, result); }
-  bool interior_ring_n(uint32 num, String *result) const
-  { return (this->*m_vmt->interior_ring_n)(num, result); }
-  bool geometry_n(uint32 num, String *result) const
-  { return (this->*m_vmt->geometry_n)(num, result); }
+  virtual const Class_info *get_class_info() const=0;
+  virtual uint32 get_data_size() const=0;
+  virtual bool init_from_wkt(Gis_read_stream *trs, String *wkb)=0;
+  virtual bool get_data_as_wkt(String *txt, const char **end) const=0;
+  virtual bool get_mbr(MBR *mbr, const char **end) const=0;
+  virtual bool dimension(uint32 *dim, const char **end) const=0;
+  virtual int get_x(double *x) const { return -1; }
+  virtual int get_y(double *y) const { return -1; }
+  virtual int length(double *len) const  { return -1; }
+  virtual int area(double *ar, const char **end) const { return -1;}
+  virtual int is_closed(int *closed) const { return -1; }
+  virtual int num_interior_ring(uint32 *n_int_rings) const { return -1; }
+  virtual int num_points(uint32 *n_points) const { return -1; }
+  virtual int num_geometries(uint32 *num) const { return -1; }
+  virtual int start_point(String *point) const { return -1; }
+  virtual int end_point(String *point) const { return -1; }
+  virtual int exterior_ring(String *ring) const { return -1; }
+  virtual int centroid(String *point) const { return -1; }
+  virtual int point_n(uint32 num, String *result) const { return -1; }
+  virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
+  virtual int geometry_n(uint32 num, String *result) const { return -1; }
 
 public:
-  int create_from_wkb(const char *data, uint32 data_len);
-  int create_from_wkt(Gis_read_stream *trs, String *wkt, bool init_stream=1);
-  int init(int type_id)
+  static Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer,
+					      int type_id)
   {
-    m_vmt= find_class(type_id);
-    return !m_vmt;
+    Class_info *ci;
+    if (!(ci= find_class((int) type_id)))
+      return NULL;
+    (*ci->m_create_func)((void *)buffer);
+    return (Geometry *)buffer;
   }
-  int new_geometry(const char *name, uint32 len)
-  {
-    m_vmt= find_class(name, len);
-    return !m_vmt;
-  }
+
+  static Geometry *create_from_wkb(Geometry_buffer *buffer,
+				   const char *data, uint32 data_len);
+  static Geometry *create_from_wkt(Geometry_buffer *buffer,
+				   Gis_read_stream *trs, String *wkt,
+				   bool init_stream=1);
   int as_wkt(String *wkt, const char **end)
   {
     uint32 len= get_class_info()->m_name.length;
@@ -313,14 +251,19 @@ public:
   }
 
   bool envelope(String *result) const;
+  static Geometry::Class_info *ci_collection[Geometry::wkb_end];
 
 protected:
-  static Gis_class_info *find_class(int type_id);
-  static Gis_class_info *find_class(const char *name, uint32 len);
+  static Class_info *find_class(int type_id)
+  {
+    return ((type_id < wkb_point) || (type_id > wkb_end)) ?
+      NULL : ci_collection[type_id];
+  }  
+  static Class_info *find_class(const char *name, uint32 len);
   const char *append_points(String *txt, uint32 n_points,
-			    const char *data, uint32 offset);
-  bool create_point(String *result, const char *data);
-  bool create_point(String *result, double x, double y);
+			    const char *data, uint32 offset) const;
+  bool create_point(String *result, const char *data) const;
+  bool create_point(String *result, double x, double y) const;
   const char *get_mbr_for_points(MBR *mbr, const char *data, uint offset)
     const;
 
@@ -340,10 +283,10 @@ class Gis_point: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
-  int get_mbr(MBR *mbr, const char **end) const;
+  bool get_data_as_wkt(String *txt, const char **end) const;
+  bool get_mbr(MBR *mbr, const char **end) const;
   
-  bool get_xy(double *x, double *y) const
+  int get_xy(double *x, double *y) const
   {
     const char *data= m_data;
     if (no_data(data, SIZEOF_STORED_DOUBLE * 2))
@@ -353,7 +296,7 @@ public:
     return 0;
   }
 
-  bool get_x(double *x) const
+  int get_x(double *x) const
   {
     if (no_data(m_data, SIZEOF_STORED_DOUBLE))
       return 1;
@@ -361,7 +304,7 @@ public:
     return 0;
   }
 
-  bool get_y(double *y) const
+  int get_y(double *y) const
   {
     const char *data= m_data;
     if (no_data(data, SIZEOF_STORED_DOUBLE * 2)) return 1;
@@ -375,6 +318,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  const Class_info *get_class_info() const;
 };
 
 
@@ -385,20 +329,21 @@ class Gis_line_string: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool length(double *len) const;
-  bool is_closed(int *closed) const;
-  bool num_points(uint32 *n_points) const;
-  bool start_point(String *point);
-  bool end_point(String *point);
-  bool point_n(uint32 n, String *result);
+  int length(double *len) const;
+  int is_closed(int *closed) const;
+  int num_points(uint32 *n_points) const;
+  int start_point(String *point) const;
+  int end_point(String *point) const;
+  int point_n(uint32 n, String *result) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 1;
     *end= 0;					/* No default end */
     return 0;
   }
+  const Class_info *get_class_info() const;
 };
 
 
@@ -409,20 +354,21 @@ class Gis_polygon: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool area(double *ar, const char **end) const;
-  bool exterior_ring(String *result);
-  bool num_interior_ring(uint32 *n_int_rings) const;
-  bool interior_ring_n(uint32 num, String *result) const;
-  bool centroid_xy(double *x, double *y) const;
-  bool centroid(String *result);
+  int area(double *ar, const char **end) const;
+  int exterior_ring(String *result) const;
+  int num_interior_ring(uint32 *n_int_rings) const;
+  int interior_ring_n(uint32 num, String *result) const;
+  int centroid_xy(double *x, double *y) const;
+  int centroid(String *result) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 2;
     *end= 0;					/* No default end */
     return 0;
   }
+  const Class_info *get_class_info() const;
 };
 
 
@@ -433,38 +379,40 @@ class Gis_multi_point: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool num_geometries(uint32 *num) const;
-  bool geometry_n(uint32 num, String *result) const;
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 0;
     *end= 0;					/* No default end */
     return 0;
   }
+  const Class_info *get_class_info() const;
 };
 
 
 /***************************** MultiLineString *******************************/
 
-class Gis_multi_line_stringg: public Geometry
+class Gis_multi_line_string: public Geometry
 {
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool num_geometries(uint32 *num) const;
-  bool geometry_n(uint32 num, String *result) const;
-  bool length(double *len) const;
-  bool is_closed(int *closed) const;
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
+  int length(double *len) const;
+  int is_closed(int *closed) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 1;
     *end= 0;					/* No default end */
     return 0;
   }
+  const Class_info *get_class_info() const;
 };
 
 
@@ -475,19 +423,19 @@ class Gis_multi_polygon: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool num_geometries(uint32 *num) const;
-  bool geometry_n(uint32 num, String *result) const;
-  bool area(double *ar, const char **end) const;
-  bool centroid(String *result);
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
+  int area(double *ar, const char **end) const;
+  int centroid(String *result) const;
   bool dimension(uint32 *dim, const char **end) const
   {
     *dim= 2;
     *end= 0;					/* No default end */
     return 0;
   }
-
+  const Class_info *get_class_info() const;
 };
 
 
@@ -498,11 +446,18 @@ class Gis_geometry_collection: public Geometry
 public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
-  bool get_data_as_wkt(String *txt, const char **end);
+  bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
-  bool num_geometries(uint32 *num) const;
-  bool geometry_n(uint32 num, String *result) const;
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const;
+  const Class_info *get_class_info() const;
+};
+
+const int geometry_buffer_size= sizeof(Gis_point);
+struct Geometry_buffer
+{
+  void *arr[(geometry_buffer_size - 1)/sizeof(void *) + 1];
 };
 
 #endif
