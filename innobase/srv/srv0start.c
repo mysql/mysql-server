@@ -1023,16 +1023,24 @@ NetWare. */
 
 	mutex_create(&srv_monitor_file_mutex);
 	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
-	srv_monitor_file_name = mem_alloc(
-			strlen(fil_path_to_mysql_datadir) +
-			20 + sizeof "/innodb_status.");
-	sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
-		fil_path_to_mysql_datadir, os_proc_get_number());
-	srv_monitor_file = fopen(srv_monitor_file_name, "w+");
-	if (!srv_monitor_file) {
-		fprintf(stderr, "InnoDB: unable to create %s: %s\n",
-			srv_monitor_file_name, strerror(errno));
-		return(DB_ERROR);
+	if (srv_innodb_status) {
+		srv_monitor_file_name = mem_alloc(
+				strlen(fil_path_to_mysql_datadir) +
+				20 + sizeof "/innodb_status.");
+		sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
+			fil_path_to_mysql_datadir, os_proc_get_number());
+		srv_monitor_file = fopen(srv_monitor_file_name, "w+");
+		if (!srv_monitor_file) {
+			fprintf(stderr, "InnoDB: unable to create %s: %s\n",
+				srv_monitor_file_name, strerror(errno));
+			return(DB_ERROR);
+		}
+	} else {
+		srv_monitor_file_name = NULL;
+		srv_monitor_file = os_file_create_tmpfile();
+		if (!srv_monitor_file) {
+			return(DB_ERROR);
+		}
 	}
 
 	/* Restrict the maximum number of file i/o threads */
@@ -1527,8 +1535,10 @@ innobase_shutdown_for_mysql(void)
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
-		unlink(srv_monitor_file_name);
-		mem_free(srv_monitor_file_name);
+		if (srv_monitor_file_name) {
+			unlink(srv_monitor_file_name);
+			mem_free(srv_monitor_file_name);
+		}
 	}
 
 	mutex_free(&srv_monitor_file_mutex);

@@ -103,6 +103,7 @@ uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
+my_bool innobase_create_status_file		= FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -403,6 +404,30 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/*************************************************************************
+Creates a temporary file. */
+extern "C"
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+{
+	char	filename[FN_REFLEN];
+	File	fd = create_temp_file(filename, NullS, "ib",
+#ifdef __WIN__
+				O_BINARY | O_TRUNC | O_SEQUENTIAL |
+				O_TEMPORARY | O_SHORT_LIVED |
+#endif /* __WIN__ */
+				O_CREAT | O_EXCL | O_RDWR,
+				MYF(MY_WME));
+#ifndef __WIN__
+	if (fd >= 0) {
+		unlink(filename);
+	}
+#endif /* !__WIN__ */
+	return(fd);
 }
 
 /*************************************************************************
@@ -861,6 +886,7 @@ innobase_init(void)
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
+	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
@@ -4270,7 +4296,7 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		/* output the data to a temporary file */
@@ -4330,7 +4356,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
