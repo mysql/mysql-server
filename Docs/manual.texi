@@ -34520,9 +34520,10 @@ or  REPLACE [LOW_PRIORITY | DELAYED]
 @end example
 
 @code{REPLACE} works exactly like @code{INSERT}, except that if an old
-record in the table has the same value as a new record on a unique index,
-the old record is deleted before the new record is inserted.
-@xref{INSERT, , @code{INSERT}}.
+record in the table has the same value as a new record on a @code{UNIQUE}
+index or @code{PRIMARY KEY}, the old record is deleted before the new
+record is inserted.
+@xref{INSERT, ,@code{INSERT}}.
 
 In other words, you can't access the values of the old row from a
 @code{REPLACE} statement.  In some old MySQL versions it appeared that
@@ -34535,6 +34536,10 @@ one row was inserted and then the duplicate was deleted.
 This fact makes it easy to determine whether @code{REPLACE} added
 or replaced a row: check whether the affected-rows value is 1 (added)
 or 2 (replaced).
+
+Note that unless you use a @code{UNIQUE} index or @code{PRIMARY KEY},
+using a @code{REPLACE} command makes no sense, since it would just do
+an @code{INSERT}.
 
 
 @node LOAD DATA, DO, REPLACE, Data Manipulation
