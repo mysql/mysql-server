@@ -369,7 +369,6 @@ typedef struct st_table_list
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */
-  bool          setup_is_done;          /* setup_tables() is done */
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   /* FRMTYPE_ERROR if any type is acceptable */

@@ -1,3 +1,4 @@
+drop table if exists t1;
 CREATE TABLE t1 (x1 int);
  ALTER TABLE t1 CHANGE x1 x2 int;
 CREATE TABLE t2 LIKE t1;

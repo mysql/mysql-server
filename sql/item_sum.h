@@ -167,10 +167,11 @@ private:
   Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item);
 public:
   Item_sum_sum_distinct(Item *item_par);
-  ~Item_sum_sum_distinct();
+  ~Item_sum_sum_distinct() {}
 
   bool setup(THD *thd);
   void clear();
+  void cleanup();
   bool add();
   double val_real();
 
