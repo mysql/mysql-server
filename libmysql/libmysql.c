@@ -1,9 +1,12 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   the Free Software Foundation.
+
+   There are special exceptions to the terms and conditions of the GPL as it
+   is applied to this software. View the full text of the exception in file
+   EXCEPTIONS-CLIENT in the directory of this software distribution.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1288,7 +1291,7 @@ mysql_drop_db(MYSQL *mysql, const char *db)
 
 
 int STDCALL
-mysql_shutdown(MYSQL *mysql, enum enum_shutdown_level shutdown_level)
+mysql_shutdown(MYSQL *mysql, enum mysql_enum_shutdown_level shutdown_level)
 {
   uchar level[1];
   DBUG_ENTER("mysql_shutdown");
@@ -4389,7 +4392,7 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
       if (mysql->status != MYSQL_STATUS_READY)
       {
         /* There is a result set and it belongs to this statement */
-        flush_use_result(mysql);
+        (*mysql->methods->flush_use_result)(mysql);
         mysql->status= MYSQL_STATUS_READY;
       }
     }
@@ -4439,7 +4442,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
           Flush result set of the connection. If it does not belong
           to this statement, set a warning.
         */
-        flush_use_result(mysql);
+        (*mysql->methods->flush_use_result)(mysql);
         if (mysql->unbuffered_fetch_owner)
           *mysql->unbuffered_fetch_owner= TRUE;
         mysql->status= MYSQL_STATUS_READY;

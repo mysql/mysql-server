@@ -434,8 +434,18 @@ void THD::awake(bool prepare_to_die)
       exits the cond in the time between read and broadcast, but that is
       ok since all we want to do is to make the victim thread get out
       of waiting on current_cond.
+      If we see a non-zero current_cond: it cannot be an old value (because
+      then exit_cond() should have run and it can't because we have mutex); so
+      it is the true value but maybe current_mutex is not yet non-zero (we're
+      in the middle of enter_cond() and there is a "memory order
+      inversion"). So we test the mutex too to not lock 0.
+      Note that there is a small chance we fail to kill. If victim has locked
+      current_mutex, and hasn't entered enter_cond(), then we don't know it's
+      going to wait on cond. Then victim goes into its cond "forever" (until
+      we issue a second KILL). True we have set its thd->killed but it may not
+      see it immediately and so may have time to reach the cond_wait().
     */
-    if (mysys_var->current_cond)
+    if (mysys_var->current_cond && mysys_var->current_mutex)
     {
       pthread_mutex_lock(mysys_var->current_mutex);
       pthread_cond_broadcast(mysys_var->current_cond);

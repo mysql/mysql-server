@@ -40,6 +40,7 @@ have disables the InnoDB inlining in this file. */
 #include <m_ctype.h>
 #include <hash.h>
 #include <myisampack.h>
+#include <mysys_err.h>
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
@@ -118,6 +119,7 @@ my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool	innobase_file_per_table			= FALSE;
 my_bool innobase_locks_unsafe_for_binlog        = FALSE;
+my_bool innobase_create_status_file		= FALSE;
 
 static char *internal_innobase_data_file_path	= NULL;
 
@@ -134,6 +136,10 @@ char*	innobase_home 	= NULL;
 char    innodb_dummy_stmt_trx_handle = 'D';
 
 static HASH 	innobase_open_tables;
+
+#ifdef __NETWARE__  	/* some special cleanup for NetWare */
+bool nw_panic = FALSE;
+#endif
 
 static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
@@ -417,6 +423,50 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/*************************************************************************
+Creates a temporary file. */
+extern "C"
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+{
+	char	filename[FN_REFLEN];
+	int	fd2 = -1;
+	File	fd = create_temp_file(filename, NullS, "ib",
+#ifdef __WIN__
+				O_BINARY | O_TRUNC | O_SEQUENTIAL |
+				O_TEMPORARY | O_SHORT_LIVED |
+#endif /* __WIN__ */
+				O_CREAT | O_EXCL | O_RDWR,
+				MYF(MY_WME));
+	if (fd >= 0) {
+#ifndef __WIN__
+		/* On Windows, open files cannot be removed, but files can be
+		created with the O_TEMPORARY flag to the same effect
+		("delete on close"). */
+		unlink(filename);
+#endif /* !__WIN__ */
+		/* Copy the file descriptor, so that the additional resources
+		allocated by create_temp_file() can be freed by invoking
+		my_close().
+
+		Because the file descriptor returned by this function
+		will be passed to fdopen(), it will be closed by invoking
+		fclose(), which in turn will invoke close() instead of
+		my_close(). */
+		fd2 = dup(fd);
+		if (fd2 < 0) {
+			DBUG_PRINT("error",("Got error %d on dup",fd2));
+			my_errno=errno;
+			my_error(EE_OUT_OF_FILERESOURCES,
+				MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
+		}
+		my_close(fd, MYF(MY_WME));
+	}
+	return(fd2);
 }
 
 /*************************************************************************
@@ -912,6 +962,7 @@ innobase_init(void)
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
+	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
 
@@ -982,6 +1033,11 @@ innobase_end(void)
 
 	DBUG_ENTER("innobase_end");
 
+#ifdef __NETWARE__ 	/* some special cleanup for NetWare */
+	if (nw_panic) {
+		set_panic_flag_for_netware();
+	}
+#endif
 	if (innodb_inited)
 	{
 	  innodb_inited= 0;
@@ -4403,7 +4459,7 @@ ha_innobase::update_table_comment(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 	str = NULL;
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		/* output the data to a temporary file */
@@ -4465,7 +4521,7 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-	if (FILE* file = tmpfile()) {
+	if (FILE* file = os_file_create_tmpfile()) {
 		long	flen;
 
 		prebuilt->trx->op_info = (char*)"getting info on foreign keys";

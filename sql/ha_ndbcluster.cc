@@ -542,39 +542,93 @@ int ha_ndbcluster::get_metadata(const char *path)
   // All checks OK, lets use the table
   m_table= (void*)tab;
 
-  DBUG_RETURN(build_index_list());  
+  DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
 }
 
-int ha_ndbcluster::build_index_list()
+
+int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 {
+  int error= 0;
   char *name;
   const char *index_name;
   static const char* unique_suffix= "$unique";
   uint i, name_len;
+  KEY* key_info= tab->key_info;
+  const char **key_name= tab->keynames.type_names;
+  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
   DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
-  for (i= 0; i < table->keys; i++)
+  for (i= 0; i < tab->keys; i++, key_info++, key_name++)
   {
+    index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    m_indextype[i]= idx_type;
-    
+    m_index[i].type= idx_type;
     if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
     {
-      index_name= get_index_name(i);
       name_len= strlen(index_name)+strlen(unique_suffix)+1;
       // Create name for unique index by appending "$unique";     
       if (!(name= my_malloc(name_len, MYF(MY_WME))))
 	DBUG_RETURN(2);
       strxnmov(name, name_len, index_name, unique_suffix, NullS);
-      m_unique_index_name[i]= name;      
+      m_index[i].unique_name= name;
       DBUG_PRINT("info", ("Created unique index name: %s for index %d",
 			  name, i));
     }
+    // Create secondary indexes if in create phase
+    if (phase == ILBP_CREATE)
+    {
+      DBUG_PRINT("info", ("Creating index %u: %s", i, index_name));
+      
+      switch (m_index[i].type){
+	
+      case PRIMARY_KEY_INDEX:
+	// Do nothing, already created
+	break;
+      case PRIMARY_KEY_ORDERED_INDEX:
+	error= create_ordered_index(index_name, key_info);
+	break;
+      case UNIQUE_ORDERED_INDEX:
+	if (!(error= create_ordered_index(index_name, key_info)))
+	  error= create_unique_index(get_unique_index_name(i), key_info);
+	break;
+      case UNIQUE_INDEX:
+	error= create_unique_index(get_unique_index_name(i), key_info);
+	break;
+      case ORDERED_INDEX:
+	error= create_ordered_index(index_name, key_info);
+	break;
+      default:
+	DBUG_ASSERT(false);
+	break;
+      }
+      if (error)
+      {
+	DBUG_PRINT("error", ("Failed to create index %u", i));
+	drop_table();
+	break;
+      }
+    }
+    // Add handles to index objects
+    DBUG_PRINT("info", ("Trying to add handle to index %s", index_name));
+    if ((m_index[i].type != PRIMARY_KEY_INDEX) &&
+	(m_index[i].type != UNIQUE_INDEX))
+    {
+      const NDBINDEX *index= dict->getIndex(index_name, m_tabname);
+      if (!index) DBUG_RETURN(1);
+      m_index[i].index= (void *) index;
+    }
+    if (m_index[i].unique_name)
+    {
+      const NDBINDEX *index= dict->getIndex(m_index[i].unique_name, m_tabname);
+      if (!index) DBUG_RETURN(1);
+      m_index[i].unique_index= (void *) index;
+    }      
+    DBUG_PRINT("info", ("Added handle to index %s", index_name));
   }
-  DBUG_RETURN(0);
+  
+  DBUG_RETURN(error);
 }
-
 
 
 /*
@@ -605,9 +659,11 @@ void ha_ndbcluster::release_metadata()
   // Release index list 
   for (i= 0; i < MAX_KEY; i++)
   {
-    if (m_unique_index_name[i])
-      my_free((char*)m_unique_index_name[i], MYF(0));
-    m_unique_index_name[i]= NULL;
+    if (m_index[i].unique_name)
+      my_free((char*)m_index[i].unique_name, MYF(0));
+    m_index[i].unique_name= NULL;
+    m_index[i].unique_index= NULL;      
+    m_index[i].index= NULL;      
   }
 
   DBUG_VOID_RETURN;
@@ -667,13 +723,13 @@ inline const char* ha_ndbcluster::get_index_name(uint idx_no) const
 
 inline const char* ha_ndbcluster::get_unique_index_name(uint idx_no) const
 {
-  return m_unique_index_name[idx_no];
+  return m_index[idx_no].unique_name;
 }
 
 inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 {
   DBUG_ASSERT(idx_no < MAX_KEY);
-  return m_indextype[idx_no];
+  return m_index[idx_no].type;
 }
 
 
@@ -763,7 +819,8 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   DBUG_PRINT("enter", ("key_len: %u", key_len));
   DBUG_DUMP("key", (char*)key, key_len);
 
-  if (!(op= trans->getNdbOperation(m_tabname)) || op->readTuple() != 0)
+  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) || 
+      op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
 
   if (table->primary_key == MAX_KEY) 
@@ -831,7 +888,8 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     // We have allready retrieved all fields, nothing to complement
     DBUG_RETURN(0);
 
-  if (!(op= trans->getNdbOperation(m_tabname)) || op->readTuple() != 0)
+  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) || 
+      op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
 
     int res;
@@ -882,8 +940,9 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   DBUG_DUMP("key", (char*)key, key_len);
   DBUG_PRINT("enter", ("name: %s", get_unique_index_name(active_index)));
   
-  if (!(op= trans->getNdbIndexOperation(get_unique_index_name(active_index), 
-					m_tabname)) ||
+  if (!(op= trans->getNdbIndexOperation((NDBINDEX *) 
+					m_index[active_index].unique_index, 
+                                        (NDBTAB *) m_table)) ||
       op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
   
@@ -1040,11 +1099,11 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 			bounds[bound],
 			field->field_name));
     DBUG_DUMP("key", (char*)key_ptr, field_len);
-
+    
     if (op->setBound(field->field_name,
 		     bound, 
-		     key_ptr,
-		     field_len) != 0)
+		     field->is_null() ? 0 : key_ptr,
+		     field->is_null() ? 0 : field_len) != 0)
       ERR_RETURN(op->getNdbError());
     
     key_ptr+= field_len;
@@ -1083,7 +1142,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
   
   index_name= get_index_name(active_index);
-  if (!(op= trans->getNdbIndexScanOperation(index_name, m_tabname)))
+  if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
+        				    m_index[active_index].index, 
+					    (NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
 
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
@@ -1146,7 +1207,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
   DBUG_PRINT("info", ("Starting a new filtered scan on %s",
 		      m_tabname));
 
-  if (!(op= trans->getNdbScanOperation(m_tabname)))
+  if (!(op= trans->getNdbScanOperation((NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
                                  get_ndb_lock_type(m_lock.type);
@@ -1217,7 +1278,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
 
-  if (!(op=trans->getNdbScanOperation(m_tabname)))
+  if (!(op=trans->getNdbScanOperation((NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());  
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
                                  get_ndb_lock_type(m_lock.type);
@@ -1281,7 +1342,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 
 int ha_ndbcluster::write_row(byte *record)
 {
-  bool has_auto_increment, auto_increment_field_not_null;
+  bool has_auto_increment;
   uint i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
@@ -1292,11 +1353,9 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   has_auto_increment= (table->next_number_field && record == table->record[0]);
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  if ((has_auto_increment) && (!auto_increment_field_not_null))
-    update_auto_increment();
+  skip_auto_increment= table->auto_increment_field_not_null;
 
-  if (!(op= trans->getNdbOperation(m_tabname)))
+  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
 
   res= (m_use_write) ? op->writeTuple() :op->insertTuple(); 
@@ -1306,13 +1365,17 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->primary_key == MAX_KEY) 
   {
     // Table has hidden primary key
-    Uint64 auto_value= m_ndb->getAutoIncrementValue(m_tabname);
+    Uint64 auto_value= m_ndb->getAutoIncrementValue((NDBTAB *) m_table);
     if (set_hidden_key(op, table->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
   else 
   {
     int res;
+
+    if ((has_auto_increment) && (!skip_auto_increment))
+      update_auto_increment();
+
     if ((res= set_primary_key(op)))
       return res;
   }
@@ -1323,7 +1386,10 @@ int ha_ndbcluster::write_row(byte *record)
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
 	set_ndb_value(op, field, i))
+    {
+      skip_auto_increment= true;
       ERR_RETURN(op->getNdbError());
+    }
   }
 
   /*
@@ -1345,17 +1411,21 @@ int ha_ndbcluster::write_row(byte *record)
 			(int)rows_inserted, (int)bulk_insert_rows)); 
     bulk_insert_not_flushed= false;
     if (trans->execute(NoCommit) != 0)
+    {
+      skip_auto_increment= true;
       DBUG_RETURN(ndb_err(trans));
+    }
   }
-  if ((has_auto_increment) && (auto_increment_field_not_null))
+  if ((has_auto_increment) && (skip_auto_increment))
   {
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
 	       ("Trying to set next auto increment value to %u", next_val));
-    if (m_ndb->setAutoIncrementValue(m_tabname, next_val, true))
+    if (m_ndb->setAutoIncrementValue((NDBTAB *) m_table, next_val, true))
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
   }
+  skip_auto_increment= true;
 
   DBUG_RETURN(0);
 }
@@ -1464,7 +1534,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
   else
   {  
-    if (!(op= trans->getNdbOperation(m_tabname)) ||
+    if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) ||
 	op->updateTuple() != 0)
       ERR_RETURN(trans->getNdbError());  
     
@@ -1542,7 +1612,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   else
   {
     
-    if (!(op=trans->getNdbOperation(m_tabname)) || 
+    if (!(op=trans->getNdbOperation((NDBTAB *) m_table)) || 
 	op->deleteTuple() != 0)
       ERR_RETURN(trans->getNdbError());
     
@@ -2830,50 +2900,10 @@ int ha_ndbcluster::create(const char *name,
   }
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
-  
-  if ((my_errno= build_index_list()))
-    DBUG_RETURN(my_errno);
-  
+
   // Create secondary indexes
-  KEY* key_info= form->key_info;
-  const char** key_name= key_names;
-  for (i= 0; i < form->keys; i++, key_info++, key_name++) 
-  {
-    int error= 0;
-    DBUG_PRINT("info", ("Index %u: %s", i, *key_name));
+  my_errno= build_index_list(form, ILBP_CREATE);
 
-    switch (get_index_type_from_table(i)){
-
-    case PRIMARY_KEY_INDEX:
-      // Do nothing, already created
-      break;
-    case PRIMARY_KEY_ORDERED_INDEX:
-      error= create_ordered_index(*key_name, key_info);
-      break;
-    case UNIQUE_ORDERED_INDEX:
-      if (!(error= create_ordered_index(*key_name, key_info)))
-	error= create_unique_index(get_unique_index_name(i), key_info);
-      break;
-    case UNIQUE_INDEX:
-	error= create_unique_index(get_unique_index_name(i), key_info);
-      break;
-    case ORDERED_INDEX:
-      error= create_ordered_index(*key_name, key_info);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-
-    if (error)
-    {
-      DBUG_PRINT("error", ("Failed to create index %u", i));
-      drop_table();
-      my_errno= error;
-      break;
-    }
-  }
-  
   DBUG_RETURN(my_errno);
 }
 
@@ -2909,6 +2939,7 @@ int ha_ndbcluster::create_index(const char *name,
   DBUG_ENTER("create_index");
   DBUG_PRINT("enter", ("name: %s ", name));
 
+  //  NdbDictionary::Index ndb_index(name);
   NdbDictionary::Index ndb_index(name);
   if (unique)
     ndb_index.setType(NdbDictionary::Index::UniqueHashIndex);
@@ -3049,7 +3080,9 @@ longlong ha_ndbcluster::get_auto_increment()
     rows_to_insert 
     : autoincrement_prefetch;
   Uint64 auto_value= 
-    m_ndb->getAutoIncrementValue(m_tabname, cache_size);
+    (skip_auto_increment) ? 
+    m_ndb->readAutoIncrementValue((NDBTAB *) m_table)
+    : m_ndb->getAutoIncrementValue((NDBTAB *) m_table, cache_size);
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -3065,6 +3098,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ndb(NULL),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
+		//HA_NULL_IN_KEY |
                 HA_NOT_EXACT_COUNT |
                 HA_NO_PREFIX_CHAR_KEYS),
   m_use_write(false),
@@ -3074,6 +3108,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   bulk_insert_rows(1024),
   bulk_insert_not_flushed(false),
   ops_pending(0),
+  skip_auto_increment(true),
   blobs_buffer(0),
   blobs_buffer_size(0)
 { 
@@ -3091,8 +3126,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 
   for (i= 0; i < MAX_KEY; i++)
   {
-    m_indextype[i]= UNDEFINED_INDEX;
-    m_unique_index_name[i]= NULL;      
+    m_index[i].type= UNDEFINED_INDEX;   
+    m_index[i].unique_name= NULL;      
+    m_index[i].unique_index= NULL;      
+    m_index[i].index= NULL;      
   }
 
   DBUG_VOID_RETURN;

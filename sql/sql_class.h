@@ -885,6 +885,12 @@ public:
   void close_active_vio();
 #endif  
   void awake(bool prepare_to_die);
+  /*
+    For enter_cond() / exit_cond() to work the mutex must be got before
+    enter_cond() (in 4.1 an assertion will soon ensure this); this mutex is
+    then released by exit_cond(). Use must be:
+    lock mutex; enter_cond(); your code; exit_cond().
+  */
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
@@ -896,6 +902,13 @@ public:
   }
   inline void exit_cond(const char* old_msg)
   {
+    /*
+      Putting the mutex unlock in exit_cond() ensures that
+      mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
+      locked (if that would not be the case, you'll get a deadlock if someone
+      does a THD::awake() on you).
+    */
+    pthread_mutex_unlock(mysys_var->current_mutex);
     pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
@@ -1003,6 +1016,26 @@ public:
 #define SYSTEM_THREAD_DELAYED_INSERT 1
 #define SYSTEM_THREAD_SLAVE_IO 2
 #define SYSTEM_THREAD_SLAVE_SQL 4
+
+/*
+  Disables binary logging for one thread, and resets it back to what it was
+  before being disabled. 
+  Some functions (like the internal mysql_create_table() when it's called by
+  mysql_alter_table()) must NOT write to the binlog (binlogging is done at the
+  at a later stage of the command already, and must be, for locking reasons);
+  so we internally disable it temporarily by creating the Disable_binlog
+  object and reset the state by destroying the object (don't forget that! or
+  write code so that the object gets automatically destroyed when leaving a
+  block, see example in sql_table.cc).
+*/
+class Disable_binlog {
+private:
+  THD *thd;
+  ulong save_options;
+public:
+  Disable_binlog(THD *thd_arg);
+  ~Disable_binlog();
+};
 
 /*
   Used to hold information about file and file structure in exchainge 

@@ -17,7 +17,6 @@
 #ifndef NDB_SQL_UTIL_HPP
 #define NDB_SQL_UTIL_HPP
 
-#include <string.h>
 #include <ndb_global.h>
 #include <kernel/ndb_limits.h>
 

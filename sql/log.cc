@@ -1782,17 +1782,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
-    This lock will be freed before return!
-
-    The reason for the above is that for enter_cond() / exit_cond() to
-    work the mutex must be got before enter_cond() but releases before
-    exit_cond().
-    If you don't do it this way, you will get a deadlock in THD::awake()
+    This lock will be freed before return! That's required by
+    THD::enter_cond() (see NOTES in sql_class.h).
 */
 
 void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
 {
-  safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
                                         master_or_slave ?
                                         "Has read all relay log; waiting for \
@@ -1800,7 +1795,6 @@ the slave I/O thread to update it" :
                                         "Has sent all binlog to slave; \
 waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
-  pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);
 }
 
@@ -1880,6 +1874,19 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
     max_size= max_size_arg;
   pthread_mutex_unlock(&LOCK_log);
   DBUG_VOID_RETURN;
+}
+
+
+Disable_binlog::Disable_binlog(THD *thd_arg) : 
+  thd(thd_arg), save_options(thd_arg->options)
+{
+  thd_arg->options&= ~OPTION_BIN_LOG;
+}
+
+
+Disable_binlog::~Disable_binlog()
+{
+  thd->options= save_options;
 }
 
 

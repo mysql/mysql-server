@@ -90,7 +90,7 @@ character-set=latin1
 "BLOB kolom '%-.64s' kan niet gebruikt worden bij zoeksleutel specificatie",
 "Te grote kolomlengte voor '%-.64s' (max = %d). Maak hiervoor gebruik van het type BLOB",
 "Er kan slechts 1 autofield zijn en deze moet als zoeksleutel worden gedefinieerd.",
-"%s: klaar voor verbindingen\n",
+"%s: klaar voor verbindingen",
 "%s: Normaal afgesloten \n",
 "%s: Signaal %d. Systeem breekt af!\n",
 "%s: Afsluiten afgerond\n",

@@ -155,3 +155,6 @@ select * from t1 where a like '%ESKA%';
 a
 PPUH PESKA-I Maria Struniarska
 DROP TABLE t1;
+select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
+_cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin
+1

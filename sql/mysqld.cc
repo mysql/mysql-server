@@ -237,10 +237,10 @@ bool opt_help= 0;
 bool opt_verbose= 0;
 
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
-{{&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
- {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
- {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
- {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
+{{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
+ {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
+ {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
+ {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row}};
 
 
 /* Global variables */
@@ -366,7 +366,7 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db;
+  have_example_db, have_archive_db, have_csv_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -1590,6 +1590,8 @@ static void registerwithneb()
 ulong neb_event_callback(struct EventBlock *eblock)
 {
   EventChangeVolStateEnter_s *voldata;
+  extern bool nw_panic;
+
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
@@ -1602,6 +1604,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
     if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
     {
       consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      nw_panic = TRUE;
       kill_server(0);
     }
   }
@@ -1879,9 +1882,11 @@ static void init_signals(void)
   sigaddset(&set,SIGPIPE);
 #endif
   sigaddset(&set,SIGINT);
+#ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
-  sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
+#endif
+  sigaddset(&set,SIGTERM);
 
   /* Fix signals if blocked by parents (can happen on Mac OS X) */
   sigemptyset(&sa.sa_mask);
@@ -1965,11 +1970,13 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #ifdef USE_ONE_SIGNAL_HAND
   (void) sigaddset(&set,THR_SERVER_ALARM);	// For alarms
 #endif
+#ifndef IGNORE_SIGHUP_SIGQUIT
   (void) sigaddset(&set,SIGQUIT);
-  (void) sigaddset(&set,SIGTERM);
 #if THR_CLIENT_ALARM != SIGHUP
   (void) sigaddset(&set,SIGHUP);
 #endif
+#endif
+  (void) sigaddset(&set,SIGTERM);
   (void) sigaddset(&set,SIGTSTP);
 
   /* Save pid to this process (or thread on Linux) */
@@ -2535,7 +2542,8 @@ server.");
   if (opt_error_log)
   {
     if (!log_error_file_ptr[0])
-      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err", 0);
+      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err",
+                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
     else
       fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
 		MY_UNPACK_FILENAME | MY_SAFE_PATH);
@@ -2924,6 +2932,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   printf(ER(ER_READY),my_progname,server_version,
 	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysqld_unix_port),
 	 mysqld_port);
+  if (MYSQL_COMPILATION_COMMENT[0] != '\0')
+    fputs("  " MYSQL_COMPILATION_COMMENT, stdout);
+  putchar('\n');
   fflush(stdout);
 
 #if defined(__NT__) || defined(HAVE_SMEM)
@@ -3941,6 +3952,7 @@ enum options_mysqld
   OPT_INNODB_LOCK_WAIT_TIMEOUT,
   OPT_INNODB_THREAD_CONCURRENCY,
   OPT_INNODB_FORCE_RECOVERY,
+  OPT_INNODB_STATUS_FILE,
   OPT_INNODB_MAX_DIRTY_PAGES_PCT,
   OPT_INNODB_OPEN_FILES,
   OPT_BDB_CACHE_SIZE,
@@ -4170,6 +4182,10 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_max_dirty_pages_pct", OPT_INNODB_MAX_DIRTY_PAGES_PCT,
    "Percentage of dirty pages allowed in bufferpool.", (gptr*) &srv_max_buf_pool_modified_pct,
    (gptr*) &srv_max_buf_pool_modified_pct, 0, GET_ULONG, REQUIRED_ARG, 90, 0, 100, 0, 0, 0},
+  {"innodb_status_file", OPT_INNODB_STATUS_FILE,
+   "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
+   (gptr*) &innobase_create_status_file, (gptr*) &innobase_create_status_file,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"isam", OPT_ISAM, "Enable ISAM (if this version of MySQL supports it). \
 Disable with --skip-isam.",
@@ -5471,6 +5487,11 @@ static void mysql_init_variables(void)
 #else
   have_archive_db= SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_CSV_DB
+  have_csv_db= SHOW_OPTION_YES;
+#else
+  have_csv_db= SHOW_OPTION_NO;
+#endif
 #ifdef HAVE_NDBCLUSTER_DB
   have_ndbcluster=SHOW_OPTION_DISABLED;
 #else
@@ -5598,9 +5619,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:
     max_allowed_packet= atoi(argument);
+    global_system_variables.max_allowed_packet= max_allowed_packet;
     break;
   case OPT_NET_BUFFER_LENGTH:
     net_buffer_length=  atoi(argument);
+    global_system_variables.net_buffer_length= net_buffer_length;
     break;
 #endif
 #include <sslopt-case.h>
