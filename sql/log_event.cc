@@ -991,6 +991,21 @@ int Query_log_event::write_data(IO_CACHE* file)
     *(start++)= catalog_len;
     bmove(start, catalog, catalog_len);
     start+= catalog_len;
+    /*
+      We write a \0 at the end. As we also have written the length, it's
+      apparently useless; but in fact it enables us to just do
+      catalog= a_pointer_to_the_buffer_of_the_read_event
+      later in the slave SQL thread.
+      If we didn't have the \0, we would need to memdup to build the catalog in
+      the slave SQL thread. 
+      And still the interest of having the length too is that in the slave SQL
+      thread we immediately know at which position the catalog ends (no need to
+      search for '\0'. In other words: length saves search, \0 saves mem alloc,
+      at the cost of 1 redundant byte on the disk.
+      Note that this is only a fix until we change 'catalog' to LEX_STRING
+      (then we won't need the \0).
+    */
+    *(start++)= '\0';
   }
   /*
     Here there could be code like
@@ -1029,7 +1044,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   time(&end_time);
   exec_time = (ulong) (end_time  - thd->start_time);
   catalog_len = (catalog) ? (uint32) strlen(catalog) : 0;
-  status_vars_len= 1+4+1+8+1+1+catalog_len;
+  status_vars_len= 1+4+1+8+1+1+catalog_len+1;
   db_len = (db) ? (uint32) strlen(db) : 0;
   /*
     If we don't use flags2 for anything else than options contained in
@@ -1145,7 +1160,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       */
       if (start_dup==end)
         start_dup= ++pos;
-      pos+= catalog_len;
+      pos+= catalog_len+1;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -1435,8 +1450,17 @@ Default database: '%s'",
   } /* End of if (db_ok(... */
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->db= 0;	                        // prevent db from being freed
-  thd->query= 0;			// just to be sure
+  /*
+    Probably we have set thd->query, thd->db, thd->catalog to point to places
+    in the data_buf of this event. Now the event is going to be deleted
+    probably, so data_buf will be freed, so the thd->... listed above will be
+    pointers to freed memory. 
+    So we must set them to 0, so that those bad pointers values are not later
+    used. Note that "cleanup" queries (automatic DO RELEASE_LOCK() and DROP
+    TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
+    TABLE uses the db.table syntax).
+  */
+  thd->db= thd->query= thd->catalog =0;	
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
 #ifdef TO_BE_REMOVED
@@ -1581,8 +1605,12 @@ int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
       cache to the binlog. As the write was started, the transaction had been
       committed on the master, so we lack of information to replay this
       transaction on the slave; all we can do is stop with error.
+      Note: this event could be sent by the master to inform us of the format
+      of its binlog; in other words maybe it is not at its original place when
+      it comes to us; we'll know this by checking log_pos ("artificial" events
+      have log_pos == 0).
     */
-    if (thd->options & OPTION_BEGIN)
+    if (log_pos && (thd->options & OPTION_BEGIN))
     {
       slave_print_error(rli, 0, "\
 Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
@@ -1820,9 +1848,15 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
       the master. That is, just update the *relay log* coordinates; this is done
       by passing log_pos=0 to inc_group_relay_log_pos, like we do in
       Stop_log_event::exec_event().
+      If in a transaction, don't touch group_* coordinates.
     */
-    rli->inc_group_relay_log_pos(0);
-    flush_relay_log_info(rli);
+    if (thd->options & OPTION_BEGIN)
+      rli->inc_event_relay_log_pos();
+    else
+    {
+      rli->inc_group_relay_log_pos(0);
+      flush_relay_log_info(rli);
+    }
     DBUG_RETURN(0);
   }
 
@@ -2336,6 +2370,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   thd->query = 0;				// Should not be needed
   thd->query_error = 0;
 
+  /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
+  rli->future_group_master_log_pos= log_pos; 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file
     to load, even if we are going to ignore and delete it now. So it is
@@ -2453,7 +2489,8 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
-  thd->db= 0;					// prevent db from being freed
+  /* Same reason as in Query_log_event::exec_event() */
+  thd->db= thd->catalog= 0; 
   close_thread_tables(thd);
   if (thd->query_error)
   {
@@ -2610,6 +2647,8 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     COMMIT or ROLLBACK
     In that case, we don't want to touch the coordinates which correspond to
     the beginning of the transaction.
+    Starting from 5.0.0, there also are some rotates from the slave itself, in
+    the relay log.
   */
   if (!(thd->options & OPTION_BEGIN))
   {
@@ -3242,8 +3281,13 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
   */
-  rli->inc_group_relay_log_pos(0);
-  flush_relay_log_info(rli);
+  if (thd->options & OPTION_BEGIN)
+    rli->inc_event_relay_log_pos();
+  else
+  {
+    rli->inc_group_relay_log_pos(0);
+    flush_relay_log_info(rli);
+  }
   return 0;
 }
 #endif /* !MYSQL_CLIENT */

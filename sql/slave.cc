@@ -1213,6 +1213,13 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
+
+  /*
+    Free old description_event_for_queue (that is needed if we are in
+    a reconnection).
+  */
+  delete mi->rli.relay_log.description_event_for_queue;
+  mi->rli.relay_log.description_event_for_queue= 0;
   
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
     errmsg = "Master reported unrecognized MySQL version";
@@ -1263,7 +1270,14 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
     sql_print_error(errmsg);
     return 1;
   }
-  
+
+  /* as we are here, we tried to allocate the event */
+  if (!mi->rli.relay_log.description_event_for_queue)
+  {
+    sql_print_error("Slave I/O thread failed to create a default Format_description_log_event");
+    return 1;
+  }
+
   MYSQL_RES *master_clock_res;
   MYSQL_ROW master_clock_row;
   time_t slave_clock;
@@ -2897,12 +2911,17 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
          type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
     {
       DBUG_PRINT("info", ("event skipped"));
-      rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT || 
-                                    type_code == STOP_EVENT ||
-                                    type_code == FORMAT_DESCRIPTION_EVENT) ?
-                                   LL(0) : ev->log_pos,
-                                   1/* skip lock*/);
-      flush_relay_log_info(rli);
+      if (thd->options & OPTION_BEGIN)
+        rli->inc_event_relay_log_pos();
+      else
+      {
+        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT || 
+                                      type_code == STOP_EVENT ||
+                                      type_code == FORMAT_DESCRIPTION_EVENT) ?
+                                     LL(0) : ev->log_pos,
+                                     1/* skip lock*/);
+        flush_relay_log_info(rli);
+      }
       
       /*
  	Protect against common user error of setting the counter to 1
@@ -2913,7 +2932,19 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
  	  !((type_code == INTVAR_EVENT ||
              type_code == RAND_EVENT || 
              type_code == USER_VAR_EVENT) &&
- 	    rli->slave_skip_counter == 1))
+ 	    rli->slave_skip_counter == 1) &&
+          /*
+            The events from ourselves which have something to do with the relay
+            log itself must be skipped, true, but they mustn't decrement
+            rli->slave_skip_counter, because the user is supposed to not see
+            these events (they are not in the master's binlog) and if we
+            decremented, START SLAVE would for example decrement when it sees
+            the Rotate, so the event which the user probably wanted to skip
+            would not be skipped.
+          */
+          !(ev->server_id == (uint32) ::server_id &&
+            (type_code == ROTATE_EVENT || type_code == STOP_EVENT ||
+             type_code == START_EVENT_V3 || type_code == FORMAT_DESCRIPTION_EVENT)))
         --rli->slave_skip_counter;
       pthread_mutex_unlock(&rli->data_lock);
       delete ev;     
@@ -3420,7 +3451,12 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->query = thd->db = 0; // extra safety
+  /*
+    Some extra safety, which should not been needed (normally, event deletion
+    should already have done these assignments (each event which sets these
+    variables is supposed to set them to 0 before terminating)).
+  */
+  thd->query= thd->db= thd->catalog= 0; 
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
@@ -3888,22 +3924,17 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       relay_log struct does not move (though some members of it can change), so
       we needn't any lock (no rli->data_lock, no log lock).
     */
-    Format_description_log_event* tmp= mi->rli.relay_log.description_event_for_queue;
+    Format_description_log_event* tmp;
     const char* errmsg;
-    if (!(mi->rli.relay_log.description_event_for_queue= (Format_description_log_event*)
+    if (!(tmp= (Format_description_log_event*)
           Log_event::read_log_event(buf, event_len, &errmsg,
-                                    mi->rli.relay_log.description_event_for_queue))) 
+                                    mi->rli.relay_log.description_event_for_queue)))
     {
-      delete tmp;
       error= 2;
       goto err;
     }
-    delete tmp;
-    /*
-      Set 'created' to 0, so that in next relay logs this event does not trigger
-      cleaning actions on the slave in Format_description_log_event::exec_event().
-    */
-    mi->rli.relay_log.description_event_for_queue->created= 0;
+    delete mi->rli.relay_log.description_event_for_queue;
+    mi->rli.relay_log.description_event_for_queue= tmp;
     /* 
        Though this does some conversion to the slave's format, this will
        preserve the master's binlog format version, and number of event types. 

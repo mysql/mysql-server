@@ -1,4 +1,3 @@
--O max_binlog_size=16384
+-O max_relay_log_size=16384
 --innodb
 --log-warnings
-

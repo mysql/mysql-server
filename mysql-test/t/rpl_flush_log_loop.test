@@ -18,5 +18,5 @@ sleep 5;
 flush logs;
 sleep 5;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
