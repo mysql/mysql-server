@@ -107,6 +107,8 @@ my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 
+static char *internal_innobase_data_file_path	= NULL;
+
 /* innodb_flush_log_at_trx_commit can now have 3 values:
 0 : write to the log file once per second and flush it to disk;
 1 : write to the log file at each commit and flush it to disk;
@@ -522,8 +524,14 @@ innobase_init(void)
 	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
 			 current_dir);
 
-	ret = (bool)
-		srv_parse_data_file_paths_and_sizes(innobase_data_file_path,
+	/* Since InnoDB edits the argument in the next call, we make another
+	copy of it: */
+
+	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
+						   MYF(MY_WME));
+
+	ret = (bool) srv_parse_data_file_paths_and_sizes(
+				internal_innobase_data_file_path,
 				&srv_data_file_names,
 				&srv_data_file_sizes,
 				&srv_data_file_is_raw_partition,
