@@ -983,15 +983,14 @@ static int do_add(decimal *from1, decimal *from2, decimal *to)
   return error;
 }
 
-/* to=from1-from2 */
+/* to=from1-from2.
+   if to==0, return -1/0/+1 - the result of the comparison */
 static int do_sub(decimal *from1, decimal *from2, decimal *to)
 {
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
   int frac0=max(frac1, frac2), error;
   dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
-
-  to->sign=from1->sign;
 
   /* let carry:=1 if from2 > from1 */
   start1=buf1=from1->buf; stop1=buf1+intg1;
@@ -1026,10 +1025,18 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
         carry=1;
       else /* short-circuit everything: from1 == from2 */
       {
+        if (to == 0) /* decimal_cmp() */
+          return 0;
         MAKE_ZERO(to);
         return E_DEC_OK;
       }
   }
+
+  if (to == 0) /* decimal_cmp() */
+    return carry == from1->sign ? 1 : -1;
+
+  to->sign=from1->sign;
+
   /* ensure that always from1 > from2 (and intg1 >= intg2) */
   if (carry)
   {
@@ -1107,6 +1114,13 @@ int decimal_sub(decimal *from1, decimal *from2, decimal *to)
   if (likely(from1->sign == from2->sign))
     return do_sub(from1, from2, to);
   return do_add(from1, from2, to);
+}
+
+int decimal_cmp(decimal *from1, decimal *from2)
+{
+  if (likely(from1->sign == from2->sign))
+    return do_sub(from1, from2, 0);
+  return from1->sign > from2->sign ? -1 : 1;
 }
 
 /*
@@ -1685,6 +1699,17 @@ void test_ds(char *s1, char *s2)
   printf("\n");
 }
 
+void test_dc(char *s1, char *s2)
+{
+  char s[100];
+  int res;
+  sprintf(s, "'%s' <=> '%s'", s1, s2);
+  string2decimal(s1, &a, 0);
+  string2decimal(s2, &b, 0);
+  res=decimal_cmp(&a, &b);
+  printf("%-40s => res=%d\n", s, res);
+}
+
 void test_dm(char *s1, char *s2)
 {
   char s[100];
@@ -1899,6 +1924,15 @@ main()
   test_d2b2d("-.000000012345000098765", 30, 20);
   test_d2b2d("1234500009876.5", 30, 5);
 
+  printf("==== decimal_cmp ====\n");
+  test_dc("12","13");
+  test_dc("13","12");
+  test_dc("-10","10");
+  test_dc("10","-10");
+  test_dc("-12","-13");
+  test_dc("0","12");
+  test_dc("-10","0");
+  test_dc("4","4");
   return 0;
 }
 #endif
