@@ -54,7 +54,8 @@ double Item_str_func::val()
 {
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntod(res->charset(),res->ptr(),res->length(),NULL) : 0.0;
+  return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
+			  NULL) : 0.0;
 }
 
 longlong Item_str_func::val_int()
@@ -2771,10 +2772,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 
-	if (len < WKB_HEADER_SIZE + 4 + 8 + 8)
+	if (len < 4 + 2 * POINT_DATA_SIZE)
 	  goto ret;
-	data+=WKB_HEADER_SIZE;
-	len-=WKB_HEADER_SIZE;
 
 	uint32 llen=len;
 	const char *ldata=data;
@@ -2786,10 +2785,6 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(y1,data);
 	data+=8;
 
-	len-= 4 + 8 + 8;
-
-	if (len < n_points * POINT_DATA_SIZE)
-	  goto ret;
 	data+=(n_points-2) * POINT_DATA_SIZE;
 
 	float8get(x2,data);

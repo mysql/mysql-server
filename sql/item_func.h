@@ -813,7 +813,7 @@ public:
   double val()
   {
     String *res;  res=val_str(&str_value);
-    return res ? my_strntod(res->charset(),res->ptr(),res->length(),0) : 0.0;
+    return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),0) : 0.0;
   }
   longlong val_int()
   {

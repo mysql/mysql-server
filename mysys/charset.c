@@ -22,133 +22,26 @@
 #include <my_xml.h>
 
 
-static void set_max_sort_char(CHARSET_INFO *cs);
-static my_bool create_fromuni(CHARSET_INFO *cs);
 
-
-#define MY_CHARSET_INDEX "Index.xml"
-
-const char *charsets_dir= NULL;
-static int charset_initialized=0;
-
-#define MAX_LINE  1024
-
-#define CTYPE_TABLE_SIZE      257
-#define TO_LOWER_TABLE_SIZE   256
-#define TO_UPPER_TABLE_SIZE   256
-#define SORT_ORDER_TABLE_SIZE 256
-#define TO_UNI_TABLE_SIZE     256
-
-
-char *get_charsets_dir(char *buf)
+static void set_max_sort_char(CHARSET_INFO *cs)
 {
-  const char *sharedir= SHAREDIR;
-  DBUG_ENTER("get_charsets_dir");
-
-  if (charsets_dir != NULL)
-    strmake(buf, charsets_dir, FN_REFLEN-1);
-  else
+  uchar max_char;
+  uint  i;
+  
+  if (!cs->sort_order)
+    return;
+  
+  max_char=cs->sort_order[(uchar) cs->max_sort_char];
+  for (i= 0; i < 256; i++)
   {
-    if (test_if_hard_path(sharedir) ||
-	is_prefix(sharedir, DEFAULT_CHARSET_HOME))
-      strxmov(buf, sharedir, "/", CHARSET_DIR, NullS);
-    else
-      strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
-	      NullS);
+    if ((uchar) cs->sort_order[i] > max_char)
+    {
+      max_char=(uchar) cs->sort_order[i];
+      cs->max_sort_char= (char) i;
+    }
   }
-  convert_dirname(buf,buf,NullS);
-  DBUG_PRINT("info",("charsets dir: '%s'", buf));
-  DBUG_RETURN(strend(buf));
 }
 
-
-#define MAX_BUF 1024*16
-
-#ifndef DBUG_OFF
-static void mstr(char *str,const char *src,uint l1,uint l2)
-{
-  l1= l1<l2 ? l1 : l2;
-  memcpy(str,src,l1);
-  str[l1]='\0';
-}
-#endif
-
-
-struct my_cs_file_section_st
-{
-  int        state;
-  const char *str;
-};
-
-#define _CS_MISC	1
-#define _CS_ID		2
-#define _CS_NAME	3
-#define _CS_FAMILY	4
-#define _CS_ORDER	5
-#define _CS_COLNAME	6
-#define _CS_FLAG	7
-#define _CS_CHARSET	8
-#define _CS_COLLATION	9
-#define _CS_UPPERMAP	10
-#define _CS_LOWERMAP	11
-#define _CS_UNIMAP	12
-#define _CS_COLLMAP	13
-#define _CS_CTYPEMAP	14
-
-static struct my_cs_file_section_st sec[] =
-{
-  {_CS_MISC,		"xml"},
-  {_CS_MISC,		"xml.version"},
-  {_CS_MISC,		"xml.encoding"},
-  {_CS_MISC,		"charsets"},
-  {_CS_MISC,		"charsets.max-id"},
-  {_CS_MISC,		"charsets.description"},
-  {_CS_CHARSET,		"charsets.charset"},
-  {_CS_NAME,		"charsets.charset.name"},
-  {_CS_FAMILY,		"charsets.charset.family"},
-  {_CS_MISC,		"charsets.charset.alias"},
-  {_CS_MISC,		"charsets.charset.ctype"},
-  {_CS_CTYPEMAP,	"charsets.charset.ctype.map"},
-  {_CS_MISC,		"charsets.charset.upper"},
-  {_CS_UPPERMAP,	"charsets.charset.upper.map"},
-  {_CS_MISC,		"charsets.charset.lower"},
-  {_CS_LOWERMAP,	"charsets.charset.lower.map"},
-  {_CS_MISC,		"charsets.charset.unicode"},
-  {_CS_UNIMAP,		"charsets.charset.unicode.map"},
-  {_CS_COLLATION,	"charsets.charset.collation"},
-  {_CS_COLNAME,		"charsets.charset.collation.name"},
-  {_CS_ID,		"charsets.charset.collation.id"},
-  {_CS_ORDER,		"charsets.charset.collation.order"},
-  {_CS_FLAG,		"charsets.charset.collation.flag"},
-  {_CS_COLLMAP,		"charsets.charset.collation.map"},
-  {0,	NULL}
-};
-
-static struct my_cs_file_section_st * cs_file_sec(const char *attr, uint len)
-{
-  struct my_cs_file_section_st *s;
-  for (s=sec; s->str; s++)
-  {
-    if (!strncmp(attr,s->str,len))
-      return s;
-  }
-  return NULL;
-}
-
-#define CS_MAX_NM_LEN	32
-
-struct my_cs_file_info 
-{
-  char   csname[CS_MAX_NM_LEN];
-  char   name[CS_MAX_NM_LEN];
-  uchar  ctype[CTYPE_TABLE_SIZE];
-  uchar  to_lower[TO_LOWER_TABLE_SIZE];
-  uchar  to_upper[TO_UPPER_TABLE_SIZE];
-  uchar  sort_order[SORT_ORDER_TABLE_SIZE];
-  uint16 tab_to_uni[TO_UNI_TABLE_SIZE];
-  CHARSET_INFO cs;
-  myf myflags;
-};
 
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
@@ -173,301 +66,6 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
   cs->strntoull   = my_strntoull_8bit;
   cs->strntod     = my_strntod_8bit;
   cs->mbmaxlen    = 1;
-}
-
-
-static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
-{
-  to->number= from->number ? from->number : to->number;
-  to->state|= from->state;
-
-  if (from->csname)
-    to->csname= my_once_strdup(from->csname,MYF(MY_WME));
-  
-  if (from->name)
-    to->name= my_once_strdup(from->name,MYF(MY_WME));
-  
-  if (from->ctype)
-    to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
-				       CTYPE_TABLE_SIZE, MYF(MY_WME));
-  if (from->to_lower)
-    to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
-					  TO_LOWER_TABLE_SIZE, MYF(MY_WME));
-  if (from->to_upper)
-    to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
-					  TO_UPPER_TABLE_SIZE, MYF(MY_WME));
-  if (from->sort_order)
-  {
-    to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
-					    SORT_ORDER_TABLE_SIZE,
-					    MYF(MY_WME));
-    set_max_sort_char(to);
-  }
-  if (from->tab_to_uni)
-  {
-    uint sz=TO_UNI_TABLE_SIZE*sizeof(uint16);
-    to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni, sz,
-					     MYF(MY_WME));
-    create_fromuni(to);
-  }
-}
-
-
-static my_bool simple_cs_is_full(CHARSET_INFO *cs)
-{
-  return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
-	   cs->to_lower) &&
-	  (cs->number && cs->name && cs->sort_order));
-}
-
-
-static int fill_uchar(uchar *a,uint size,const char *str, uint len)
-{
-  uint i= 0;
-  const char *s, *b, *e=str+len;
-  
-  for (s=str ; s < e ; i++)
-  { 
-    for ( ; (s < e) && strchr(" \t\r\n",s[0]); s++) ;
-    b=s;
-    for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
-    if (s == b || i > size)
-      break;
-    a[i]= my_strntoul(my_charset_latin1,b,s-b,NULL,16);
-  }
-  return 0;
-}
-
-static int fill_uint16(uint16 *a,uint size,const char *str, uint len)
-{
-  uint i= 0;
-  const char *s, *b, *e=str+len;
-  for (s=str ; s < e ; i++)
-  { 
-    for ( ; (s < e) && strchr(" \t\r\n",s[0]); s++) ;
-    b=s;
-    for ( ; (s < e) && !strchr(" \t\r\n",s[0]); s++) ;
-    if (s == b || i > size)
-      break;
-    a[i]= my_strntol(my_charset_latin1,b,s-b,NULL,16);
-  }
-  return 0;
-}
-
-
-static int cs_enter(MY_XML_PARSER *st,const char *attr, uint len)
-{
-  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
-  struct my_cs_file_section_st *s= cs_file_sec(attr,len);
-  
-  if ( s && (s->state == _CS_CHARSET))
-  {
-    bzero(&i->cs,sizeof(i->cs));
-  }
-  return MY_XML_OK;
-}
-
-
-static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
-{
-  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
-  struct my_cs_file_section_st *s= cs_file_sec(attr,len);
-  int    state= s ? s->state : 0;
-  
-  if (state == _CS_COLLATION)
-  {
-    if (i->cs.name && (i->cs.number ||
-		       (i->cs.number=get_charset_number(i->cs.name))))
-    {
-      if (!all_charsets[i->cs.number])
-      {
-        if (!(all_charsets[i->cs.number]=
-           (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),i->myflags)))
-          return MY_XML_ERROR;
-        bzero((void*)all_charsets[i->cs.number],sizeof(CHARSET_INFO));
-      }
-      
-      if (!(all_charsets[i->cs.number]->state & MY_CS_COMPILED))
-      {
-        simple_cs_copy_data(all_charsets[i->cs.number],&i->cs);
-        if (simple_cs_is_full(all_charsets[i->cs.number]))
-        {
-          simple_cs_init_functions(all_charsets[i->cs.number]);
-          all_charsets[i->cs.number]->state |= MY_CS_LOADED;
-        }
-      }
-      i->cs.number= 0;
-      i->cs.name= NULL;
-      i->cs.state= 0;
-      i->cs.sort_order= NULL;
-      i->cs.state= 0;
-    }
-  }
-  return MY_XML_OK;
-}
-
-
-static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
-{
-  struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
-  struct my_cs_file_section_st *s;
-  int    state= (s=cs_file_sec(st->attr,strlen(st->attr))) ? s->state : 0;
-  
-#ifndef DBUG_OFF
-  if(0){
-    char   str[1024];
-    mstr(str,attr,len,sizeof(str)-1);
-    printf("VALUE %d %s='%s'\n",state,st->attr,str);
-  }
-#endif
-  
-  switch (state) {
-  case _CS_ID:
-    i->cs.number= my_strntoul(my_charset_latin1,attr,len,(char**)NULL,0);
-    break;
-  case _CS_COLNAME:
-    memcpy(i->name,attr,len=min(len,CS_MAX_NM_LEN-1));
-    i->name[len]='\0';
-    i->cs.name=i->name;
-    break;
-  case _CS_NAME:
-    memcpy(i->csname,attr,len=min(len,CS_MAX_NM_LEN-1));
-    i->csname[len]='\0';
-    i->cs.csname=i->csname;
-    break;
-  case _CS_FLAG:
-    if (!strncmp("primary",attr,len))
-      i->cs.state|= MY_CS_PRIMARY;
-    break;
-  case _CS_UPPERMAP:
-    fill_uchar(i->to_upper,TO_UPPER_TABLE_SIZE,attr,len);
-    i->cs.to_upper=i->to_upper;
-    break;
-  case _CS_LOWERMAP:
-    fill_uchar(i->to_lower,TO_LOWER_TABLE_SIZE,attr,len);
-    i->cs.to_lower=i->to_lower;
-    break;
-  case _CS_UNIMAP:
-    fill_uint16(i->tab_to_uni,TO_UNI_TABLE_SIZE,attr,len);
-    i->cs.tab_to_uni=i->tab_to_uni;
-    break;
-  case _CS_COLLMAP:
-    fill_uchar(i->sort_order,SORT_ORDER_TABLE_SIZE,attr,len);
-    i->cs.sort_order=i->sort_order;
-    break;
-  case _CS_CTYPEMAP:
-    fill_uchar(i->ctype,CTYPE_TABLE_SIZE,attr,len);
-    i->cs.ctype=i->ctype;
-    break;
-  }
-  return MY_XML_OK;
-}
-
-
-static my_bool read_charset_index(const char *filename, myf myflags)
-{
-  char *buf;
-  int  fd;
-  uint len;
-  MY_XML_PARSER p;
-  struct my_cs_file_info i;
-  
-  if (!(buf= (char *)my_malloc(MAX_BUF,myflags)))
-    return FALSE;
-  
-  strmov(get_charsets_dir(buf), filename);
-  
-  if ((fd=my_open(buf,O_RDONLY,myflags)) < 0)
-  {
-    my_free(buf,myflags);
-    return TRUE;
-  }
-  
-  len=read(fd,buf,MAX_BUF);
-  my_xml_parser_create(&p);
-  my_close(fd,myflags);
-  
-  my_xml_set_enter_handler(&p,cs_enter);
-  my_xml_set_value_handler(&p,cs_value);
-  my_xml_set_leave_handler(&p,cs_leave);
-  my_xml_set_user_data(&p,(void*)&i);
-  
-  if (my_xml_parse(&p,buf,len) != MY_XML_OK)
-  {
-#ifdef NOT_YET
-    printf("ERROR at line %d pos %d '%s'\n",
-	   my_xml_error_lineno(&p)+1,
-	   my_xml_error_pos(&p),
-	   my_xml_error_string(&p));
-#endif
-  }
-
-  my_xml_parser_free(&p);
-  my_free(buf, myflags);  
-  return FALSE;
-}
-
-static void set_max_sort_char(CHARSET_INFO *cs)
-{
-  uchar max_char;
-  uint  i;
-  
-  if (!cs->sort_order)
-    return;
-  
-  max_char=cs->sort_order[(uchar) cs->max_sort_char];
-  for (i= 0; i < 256; i++)
-  {
-    if ((uchar) cs->sort_order[i] > max_char)
-    {
-      max_char=(uchar) cs->sort_order[i];
-      cs->max_sort_char= (char) i;
-    }
-  }
-}
-
-static my_bool init_available_charsets(myf myflags)
-{
-  my_bool error=FALSE;
-  /*
-    We have to use charset_initialized to not lock on THR_LOCK_charset
-    inside get_internal_charset...
-  */
-  if (!charset_initialized)
-  {
-    CHARSET_INFO **cs;
-    /*
-      To make things thread safe we are not allowing other threads to interfere
-      while we may changing the cs_info_table
-    */
-    pthread_mutex_lock(&THR_LOCK_charset);
-
-    bzero(&all_charsets,sizeof(all_charsets));
-    init_compiled_charsets(myflags);
-    
-    /* Copy compiled charsets */
-    for (cs=all_charsets; cs < all_charsets+255 ; cs++)
-    {
-      if (*cs)
-        set_max_sort_char(*cs);
-    }
-    error= read_charset_index(MY_CHARSET_INDEX,myflags);
-    charset_initialized=1;
-    pthread_mutex_unlock(&THR_LOCK_charset);
-  }
-  return error;
-}
-
-
-void free_charsets(void)
-{
-  charset_initialized=0;
-}
-
-
-static void get_charset_conf_name(const char *cs_name, char *buf)
-{
-  strxmov(get_charsets_dir(buf), cs_name, ".conf", NullS);
 }
 
 
@@ -563,6 +161,190 @@ static my_bool create_fromuni(CHARSET_INFO *cs)
 }
 
 
+static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+{
+  to->number= from->number ? from->number : to->number;
+  to->state|= from->state;
+
+  if (from->csname)
+    to->csname= my_once_strdup(from->csname,MYF(MY_WME));
+  
+  if (from->name)
+    to->name= my_once_strdup(from->name,MYF(MY_WME));
+  
+  if (from->ctype)
+    to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
+				       MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME));
+  if (from->to_lower)
+    to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
+					  MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME));
+  if (from->to_upper)
+    to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
+					  MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME));
+  if (from->sort_order)
+  {
+    to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
+					    MY_CS_SORT_ORDER_TABLE_SIZE,
+					    MYF(MY_WME));
+    set_max_sort_char(to);
+  }
+  if (from->tab_to_uni)
+  {
+    uint sz= MY_CS_TO_UNI_TABLE_SIZE*sizeof(uint16);
+    to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni, sz,
+					     MYF(MY_WME));
+    create_fromuni(to);
+  }
+}
+
+
+static my_bool simple_cs_is_full(CHARSET_INFO *cs)
+{
+  return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
+	   cs->to_lower) &&
+	  (cs->number && cs->name && cs->sort_order));
+}
+
+
+static int add_collation(CHARSET_INFO *cs)
+{
+  if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
+  {
+    if (!all_charsets[cs->number])
+    {
+      if (!(all_charsets[cs->number]=
+         (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
+        return MY_XML_ERROR;
+      bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
+    }
+      
+    if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
+    {
+      simple_cs_copy_data(all_charsets[cs->number],cs);
+      if (simple_cs_is_full(all_charsets[cs->number]))
+      {
+        simple_cs_init_functions(all_charsets[cs->number]);
+        all_charsets[cs->number]->state |= MY_CS_LOADED;
+      }
+    }
+    cs->number= 0;
+    cs->name= NULL;
+    cs->state= 0;
+    cs->sort_order= NULL;
+    cs->state= 0;
+  }
+  return MY_XML_OK;
+}
+
+
+#define MAX_BUF 1024*16
+#define MY_CHARSET_INDEX "Index.xml"
+
+const char *charsets_dir= NULL;
+static int charset_initialized=0;
+
+
+static my_bool my_read_charset_file(const char *filename, myf myflags)
+{
+  char *buf;
+  int  fd;
+  uint len;
+  
+  if (!(buf= (char *)my_malloc(MAX_BUF,myflags)))
+    return FALSE;
+  
+  if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
+  {
+    my_free(buf,myflags);
+    return TRUE;
+  }
+  len=read(fd,buf,MAX_BUF);
+  my_close(fd,myflags);
+  
+  if (my_parse_charset_xml(buf,len,add_collation))
+  {
+#ifdef NOT_YET
+    printf("ERROR at line %d pos %d '%s'\n",
+	   my_xml_error_lineno(&p)+1,
+	   my_xml_error_pos(&p),
+	   my_xml_error_string(&p));
+#endif
+  }
+  
+  my_free(buf, myflags);  
+  return FALSE;
+}
+
+
+char *get_charsets_dir(char *buf)
+{
+  const char *sharedir= SHAREDIR;
+  DBUG_ENTER("get_charsets_dir");
+
+  if (charsets_dir != NULL)
+    strmake(buf, charsets_dir, FN_REFLEN-1);
+  else
+  {
+    if (test_if_hard_path(sharedir) ||
+	is_prefix(sharedir, DEFAULT_CHARSET_HOME))
+      strxmov(buf, sharedir, "/", CHARSET_DIR, NullS);
+    else
+      strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
+	      NullS);
+  }
+  convert_dirname(buf,buf,NullS);
+  DBUG_PRINT("info",("charsets dir: '%s'", buf));
+  DBUG_RETURN(strend(buf));
+}
+
+static my_bool init_available_charsets(myf myflags)
+{
+  char fname[FN_REFLEN];
+  my_bool error=FALSE;
+  /*
+    We have to use charset_initialized to not lock on THR_LOCK_charset
+    inside get_internal_charset...
+  */
+  if (!charset_initialized)
+  {
+    CHARSET_INFO **cs;
+    /*
+      To make things thread safe we are not allowing other threads to interfere
+      while we may changing the cs_info_table
+    */
+    pthread_mutex_lock(&THR_LOCK_charset);
+
+    bzero(&all_charsets,sizeof(all_charsets));
+    init_compiled_charsets(myflags);
+    
+    /* Copy compiled charsets */
+    for (cs=all_charsets; cs < all_charsets+255 ; cs++)
+    {
+      if (*cs)
+        set_max_sort_char(*cs);
+    }
+    
+    strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
+    error= my_read_charset_file(fname,myflags);
+    charset_initialized=1;
+    pthread_mutex_unlock(&THR_LOCK_charset);
+  }
+  return error;
+}
+
+
+void free_charsets(void)
+{
+  charset_initialized=0;
+}
+
+
+static void get_charset_conf_name(const char *cs_name, char *buf)
+{
+  strxmov(get_charsets_dir(buf), cs_name, ".conf", NullS);
+}
+
+
 uint get_charset_number(const char *charset_name)
 {
   CHARSET_INFO **cs;
@@ -606,8 +388,8 @@ static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 
   if (cs && !(cs->state & (MY_CS_COMPILED | MY_CS_LOADED)))
   {
-     strxmov(buf, cs->csname, ".xml", NullS);
-     read_charset_index(buf,flags);
+     strxmov(get_charsets_dir(buf), cs->csname, ".xml", NullS);
+     my_read_charset_file(buf,flags);
      cs= (cs->state & MY_CS_LOADED) ? cs : NULL;
   }
   pthread_mutex_unlock(&THR_LOCK_charset);
