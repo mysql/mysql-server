@@ -396,9 +396,18 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 
       matched=prefix_len+left;
 
-      for (my_flag=0;left;left--)
-        if ((my_flag= (int) sort_order[*vseg++] - (int) sort_order[*k++]))
-          break;
+      if (sort_order)
+      {
+        for (my_flag=0;left;left--)
+          if ((my_flag= (int) sort_order[*vseg++] - (int) sort_order[*k++]))
+            break;
+      }
+      else
+      {
+        for (my_flag=0;left;left--)
+          if ((my_flag= (int) *vseg++ - (int) *k++))
+            break;
+      }
 
       if (my_flag>0)      /* mismatch */
         break;

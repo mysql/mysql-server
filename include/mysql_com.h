@@ -227,38 +227,34 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 /* Shutdown/kill enums and constants */ 
 
 /* Bits for THD::killable. */
-#define KILLABLE_CONNECT    (unsigned char)(1 << 0)
-#define KILLABLE_TRANS      (unsigned char)(1 << 1)
-#define KILLABLE_LOCK_TABLE (unsigned char)(1 << 2)
-#define KILLABLE_UPDATE     (unsigned char)(1 << 3)
+#define MYSQL_SHUTDOWN_KILLABLE_CONNECT    (unsigned char)(1 << 0)
+#define MYSQL_SHUTDOWN_KILLABLE_TRANS      (unsigned char)(1 << 1)
+#define MYSQL_SHUTDOWN_KILLABLE_LOCK_TABLE (unsigned char)(1 << 2)
+#define MYSQL_SHUTDOWN_KILLABLE_UPDATE     (unsigned char)(1 << 3)
 
-enum enum_shutdown_level {
+enum mysql_enum_shutdown_level {
   /*
     We want levels to be in growing order of hardness (because we use number
     comparisons). Note that DEFAULT does not respect the growing property, but
     it's ok.
   */
-  SHUTDOWN_DEFAULT= 0,
+  SHUTDOWN_DEFAULT = 0,
   /* wait for existing connections to finish */
-  SHUTDOWN_WAIT_CONNECTIONS= KILLABLE_CONNECT,
+  SHUTDOWN_WAIT_CONNECTIONS= MYSQL_SHUTDOWN_KILLABLE_CONNECT,
   /* wait for existing trans to finish */
-  SHUTDOWN_WAIT_TRANSACTIONS= KILLABLE_TRANS,
+  SHUTDOWN_WAIT_TRANSACTIONS= MYSQL_SHUTDOWN_KILLABLE_TRANS,
   /* wait for existing updates to finish (=> no partial MyISAM update) */
-  SHUTDOWN_WAIT_UPDATES= KILLABLE_UPDATE,
+  SHUTDOWN_WAIT_UPDATES= MYSQL_SHUTDOWN_KILLABLE_UPDATE,
   /* flush InnoDB buffers and other storage engines' buffers*/
-  SHUTDOWN_WAIT_ALL_BUFFERS= (KILLABLE_UPDATE << 1),
+  SHUTDOWN_WAIT_ALL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1),
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
-  SHUTDOWN_WAIT_CRITICAL_BUFFERS= (KILLABLE_UPDATE << 1) + 1,
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
 #if MYSQL_VERSION_ID >= 50000
   KILL_QUERY= 254,
 #endif
   KILL_CONNECTION= 255
 };
-
-/* Same value and type (0, enum_shutdown_level) but not same meaning */
-#define NOT_KILLED SHUTDOWN_DEFAULT
-
 
 /* options for mysql_set_option */
 enum enum_mysql_set_option

@@ -1291,7 +1291,7 @@ mysql_drop_db(MYSQL *mysql, const char *db)
 
 
 int STDCALL
-mysql_shutdown(MYSQL *mysql, enum enum_shutdown_level shutdown_level)
+mysql_shutdown(MYSQL *mysql, enum mysql_enum_shutdown_level shutdown_level)
 {
   uchar level[1];
   DBUG_ENTER("mysql_shutdown");
