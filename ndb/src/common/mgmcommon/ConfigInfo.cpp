@@ -708,7 +708,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::INT,
     1 * (1024 * 1024),
-    1 * (1024 * 1024),
+    512 * 1024,
     MAX_INT_RNIL},
 
   {
