@@ -15,24 +15,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Set MYSQL_SERVER_SUFFIX
-  The following code is quite ugly as there is no portable way to set a
+  Set MYSQL_SERVER_SUFFIX_STR
+  The following code is quite ugly as there is no portable way to easily set a
   string to the value of a macro
 */
 
-#if defined(MYSQL_SERVER_SUFFIX_NT)
-#undef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-nt"
-#elif defined(MYSQL_SERVER_SUFFIX_MAX)
-#undef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-max"
-#elif defined(MYSQL_SERVER_SUFFIX_NT_MAX)
-#undef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-nt-max"
-#elif defined(MYSQL_SERVER_SUFFIX_PRO)
-#undef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-pro"
-#elif defined(MYSQL_SERVER_SUFFIX_PRO_NT)
-#undef MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-pro-nt"
+#ifdef MYSQL_SERVER_SUFFIX
+#define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
+#else
+#define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
 #endif

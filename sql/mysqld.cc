@@ -5818,12 +5818,12 @@ static void get_options(int argc,char **argv)
 static void set_server_version(void)
 {
   char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
-                     MYSQL_SERVER_SUFFIX, NullS);
+                     MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifdef EMBEDDED_LIBRARY
   end= strmov(end, "-embedded");
 #endif
 #ifndef DBUG_OFF
-  if (!strstr(MYSQL_SERVER_SUFFIX, "-debug"))
+  if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end= strmov(end, "-debug");
 #endif
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
