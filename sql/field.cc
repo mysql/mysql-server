@@ -2668,7 +2668,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
-  my_bool new_format= (current_thd->variables.new_mode),
+  my_bool new_format= (current_thd->variables.new_mode) || field_length == 19,
           full_year=(field_length == 8 || field_length == 14 || new_format);
   int real_field_length= new_format ? 19 : field_length;
 

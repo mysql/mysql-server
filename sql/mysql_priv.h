@@ -847,8 +847,7 @@ void reset_host_errors(struct in_addr *in);
 bool hostname_cache_init();
 void hostname_cache_free();
 void hostname_cache_refresh(void);
-bool get_interval_info(const char *str,uint length,uint count,
-		       long *values);
+
 /* sql_cache.cc */
 extern bool sql_cache_init();
 extern void sql_cache_free();
