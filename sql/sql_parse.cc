@@ -1001,16 +1001,15 @@ pthread_handler_decl(handle_one_connection,arg)
       net->compress=1;				// Use compression
 
     thd->version= refresh_version;
+    thd->proc_info= 0;
+    thd->set_time();
+    thd->init_for_queries();
     if (sys_init_connect.value_length && !(thd->master_access & SUPER_ACL))
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
 	thd->killed= 1;
     }
-
-    thd->proc_info=0;
-    thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
@@ -3854,7 +3853,6 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
   return 0;
 }
 
-
 /****************************************************************************
   Initialize global thd variables needed for query
 ****************************************************************************/
@@ -3863,33 +3861,30 @@ void
 mysql_init_query(THD *thd, uchar *buf, uint length)
 {
   DBUG_ENTER("mysql_init_query");
-  LEX *lex= thd->lex;
-  lex->unit.init_query();
-  lex->unit.init_select();
-  lex->unit.thd= thd;
-  lex->select_lex.init_query();
-  lex->value_list.empty();
-  lex->param_list.empty();
-  lex->unit.next= lex->unit.master= 
-    lex->unit.link_next= lex->unit.return_to=0;
-  lex->unit.prev= lex->unit.link_prev= 0;
-  lex->unit.slave= lex->unit.global_parameters= lex->current_select=
-    lex->all_selects_list= &lex->select_lex;
-  lex->select_lex.master= &lex->unit;
-  lex->select_lex.prev= &lex->unit.slave;
-  lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
-  lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
-  lex->select_lex.options=0;
-  lex->describe= 0;
-  lex->derived_tables= FALSE;
-  lex->lock_option= TL_READ;
-  lex->found_colon= 0;
-  lex->safe_to_cache_query= 1;
-  lex->time_zone_tables_used= 0;
   lex_start(thd, buf, length);
-  thd->select_number= lex->select_lex.select_number= 1;
-  thd->free_list= 0;
-  thd->total_warn_count=0;			// Warnings for this query
+  mysql_reset_thd_for_next_command(thd);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+ Reset THD part responsible for command processing state.
+
+ DESCRIPTION
+   This needs to be called before execution of every statement
+   (prepared or conventional).
+
+ TODO
+   Make it a method of THD and align its name with the rest of
+   reset/end/start/init methods.
+   Call it after we use THD for queries, not before.
+*/
+
+void mysql_reset_thd_for_next_command(THD *thd)
+{
+  DBUG_ENTER("mysql_reset_thd_for_next_command");
+  thd->select_number= 1;
+  thd->total_warn_count= 0;                     // Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->is_fatal_error= thd->rand_used= thd->time_zone_used= 0;
