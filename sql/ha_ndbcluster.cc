@@ -416,6 +416,7 @@ static inline bool ndb_supported_type(enum_field_types type)
   case MYSQL_TYPE_YEAR:        
   case MYSQL_TYPE_STRING:      
   case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_BLOB:    
   case MYSQL_TYPE_MEDIUM_BLOB:   
@@ -426,7 +427,6 @@ static inline bool ndb_supported_type(enum_field_types type)
     return TRUE;
   case MYSQL_TYPE_NULL:   
   case MYSQL_TYPE_GEOMETRY:
-  case MYSQL_TYPE_VARCHAR:
     break;
   }
   return FALSE;
@@ -1013,6 +1013,24 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
   DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
 }
 
+static void shrink_varchar(Field* field, const byte* & ptr, char* buf)
+{
+  if (field->type() == MYSQL_TYPE_VARCHAR) {
+    Field_varstring* f= (Field_varstring*)field;
+    if (f->length_bytes < 256) {
+      uint pack_len= field->pack_length();
+      DBUG_ASSERT(1 <= pack_len && pack_len <= 256);
+      if (ptr[1] == 0) {
+        buf[0]= ptr[0];
+      } else {
+        DBUG_ASSERT(false);
+        buf[0]= 255;
+      }
+      memmove(buf + 1, ptr + 2, pack_len - 1);
+      ptr= buf;
+    }
+  }
+}
 
 int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
 {
@@ -1024,10 +1042,13 @@ int ha_ndbcluster::set_primary_key(NdbOperation *op, const byte *key)
   for (; key_part != end; key_part++) 
   {
     Field* field= key_part->field;
+    const byte* ptr= key;
+    char buf[256];
+    shrink_varchar(field, ptr, buf);
     if (set_ndb_key(op, field, 
-		    key_part->fieldnr-1, key))
+		    key_part->fieldnr-1, ptr))
       ERR_RETURN(op->getNdbError());
-    key += key_part->length;
+    key += key_part->store_length;
   }
   DBUG_RETURN(0);
 }
@@ -1080,8 +1101,11 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
   
   for (i= 0; key_part != end; key_part++, i++) 
   {
-    if (set_ndb_key(op, key_part->field, i, 
-		    key_part->null_bit ? key_ptr + 1 : key_ptr))
+    Field* field= key_part->field;
+    const byte* ptr= key_part->null_bit ? key_ptr + 1 : key_ptr;
+    char buf[256];
+    shrink_varchar(field, ptr, buf);
+    if (set_ndb_key(op, field, i, ptr))
       ERR_RETURN(m_active_trans->getNdbError());
     key_ptr+= key_part->store_length;
   }
@@ -1542,7 +1566,10 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 	  char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
 	  strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
 	  truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
-          if (op->setBound(truncated_field_name, p.bound_type, p.bound_ptr))
+          const char* ptr= p.bound_ptr;
+          char buf[256];
+          shrink_varchar(field, ptr, buf);
+          if (op->setBound(truncated_field_name, p.bound_type, ptr))
             ERR_RETURN(op->getNdbError());
 	}
       }
@@ -2343,21 +2370,26 @@ void ha_ndbcluster::print_results()
       my_snprintf(buf, sizeof(buf), "Decimal '%-*s'", field->pack_length(), value);
       break;
     }
-    case NdbDictionary::Column::Char:{
+    case NdbDictionary::Column::Char: {
       const char *value= (char*)ptr;
       my_snprintf(buf, sizeof(buf), "Char '%.*s'", field->pack_length(), value);
       break;
     }
-    case NdbDictionary::Column::Varchar:
-    case NdbDictionary::Column::Binary:
-    case NdbDictionary::Column::Varbinary: {
-      const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Var '%.*s'", field->pack_length(), value);
+    case NdbDictionary::Column::Varchar: {
+      uint len= *(uchar*)ptr;
+      const char *value= (char*)ptr + 1;
+      my_snprintf(buf, sizeof(buf), "Varchar (%u)'%.*s'", len, len, value);
       break;
     }
-    case NdbDictionary::Column::Bit: {
+    case NdbDictionary::Column::Binary: {
       const char *value= (char*)ptr;
-      my_snprintf(buf, sizeof(buf), "Bit '%.*s'", field->pack_length(), value);
+      my_snprintf(buf, sizeof(buf), "Binary '%.*s'", field->pack_length(), value);
+      break;
+    }
+    case NdbDictionary::Column::Varbinary: {
+      uint len= *(uchar*)ptr;
+      const char *value= (char*)ptr + 1;
+      my_snprintf(buf, sizeof(buf), "Varbinary (%u)'%.*s'", len, len, value);
       break;
     }
     case NdbDictionary::Column::Datetime: {
@@ -2380,6 +2412,23 @@ void ha_ndbcluster::print_results()
       Uint64 len= 0;
       ndb_blob->getLength(len);
       my_snprintf(buf, sizeof(buf), "Text [len=%u]", (unsigned)len);
+      break;
+    }
+    case NdbDictionary::Column::Bit: {
+      const char *value= (char*)ptr;
+      my_snprintf(buf, sizeof(buf), "Bit '%.*s'", field->pack_length(), value);
+      break;
+    }
+    case NdbDictionary::Column::Longvarchar: {
+      uint len= uint2korr(ptr);
+      const char *value= (char*)ptr + 2;
+      my_snprintf(buf, sizeof(buf), "Longvarchar (%u)'%.*s'", len, len, value);
+      break;
+    }
+    case NdbDictionary::Column::Longvarbinary: {
+      uint len= uint2korr(ptr);
+      const char *value= (char*)ptr + 2;
+      my_snprintf(buf, sizeof(buf), "Longvarbinary (%u)'%.*s'", len, len, value);
       break;
     }
     case NdbDictionary::Column::Undefined:
@@ -3472,14 +3521,34 @@ static int create_ndb_column(NDBCOL &col,
       col.setLength(field->pack_length());
     }
     break;
-  case MYSQL_TYPE_VAR_STRING:
-    if (field->flags & BINARY_FLAG)
-      col.setType(NDBCOL::Varbinary);
-    else {
-      col.setType(NDBCOL::Varchar);
-      col.setCharset(cs);
+  case MYSQL_TYPE_VAR_STRING: // ?
+  case MYSQL_TYPE_VARCHAR:
+    {
+      Field_varstring* f= (Field_varstring*)field;
+      if (f->length_bytes == 1)
+      {
+        if (field->flags & BINARY_FLAG)
+          col.setType(NDBCOL::Varbinary);
+        else {
+          col.setType(NDBCOL::Varchar);
+          col.setCharset(cs);
+        }
+      }
+      else if (f->length_bytes == 2)
+      {
+        if (field->flags & BINARY_FLAG)
+          col.setType(NDBCOL::Longvarbinary);
+        else {
+          col.setType(NDBCOL::Longvarchar);
+          col.setCharset(cs);
+        }
+      }
+      else
+      {
+        return HA_ERR_UNSUPPORTED;
+      }
+      col.setLength(field->field_length);
     }
-    col.setLength(field->pack_length());
     break;
   // Blob types (all come in as MYSQL_TYPE_BLOB)
   mysql_type_tiny_blob:
@@ -3599,7 +3668,7 @@ int ha_ndbcluster::create(const char *name,
   char name2[FN_HEADLEN];
   bool create_from_engine= (info->table_options & HA_CREATE_FROM_ENGINE);
    
-  DBUG_ENTER("create");
+  DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
   fn_format(name2, name, "", "",2);       // Remove the .frm extension
   set_dbname(name2);
@@ -3934,7 +4003,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_table_flags(HA_REC_NOT_IN_SEQ |
 		HA_NULL_IN_KEY |
 		HA_AUTO_PART_KEY |
-                HA_NO_VARCHAR |
 		HA_NO_PREFIX_CHAR_KEYS |
 		HA_NEED_READ_RANGE_BUFFER |
                                 HA_CAN_BIT_FIELD),

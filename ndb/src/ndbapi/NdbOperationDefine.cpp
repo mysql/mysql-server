@@ -406,6 +406,14 @@ int
 NdbOperation::setValue( const NdbColumnImpl* tAttrInfo, 
 			const char* aValuePassed, Uint32 len)
 {
+  DBUG_ENTER("NdbOperation::setValue");
+  DBUG_PRINT("enter", ("col=%s op=%d val=0x%x len=%u",
+                       tAttrInfo->m_name.c_str(),
+                       theOperationType,
+                       aValuePassed, len));
+  if (aValuePassed != NULL)
+    DBUG_DUMP("value", (char*)aValuePassed, len);
+
   int tReturnCode;
   Uint32 tAttrId;
   Uint32 tData;
@@ -421,7 +429,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
         ;
       } else {
         setErrorCodeAbort(4234);
-        return -1;
+        DBUG_RETURN(-1);
       }//if
     } else {
       if (tStatus == GetValue) {
@@ -432,7 +440,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 	// to set values in the tuple by setValue.
 	//--------------------------------------------------------------------
         if (insertATTRINFO(Interpreter::EXIT_OK) == -1){
-          return -1;
+          DBUG_RETURN(-1);
 	}
         theInterpretedSize = theTotalCurrAI_Len - 
           (theInitialReadSize + 5);
@@ -443,47 +451,47 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 	// setValue used in the wrong context. Application coding error.
 	//-------------------------------------------------------------------
         setErrorCodeAbort(4234); //Wrong error code
-        return -1;
+        DBUG_RETURN(-1);
       }//if
       theStatus = SetValueInterpreted;
     }//if
   } else if (tOpType == InsertRequest) {
     if ((theStatus != SetValue) && (theStatus != OperationDefined)) {
       setErrorCodeAbort(4234);
-      return -1;
+      DBUG_RETURN(-1);
     }//if
   } else if (tOpType == ReadRequest || tOpType == ReadExclusive) {
     setErrorCodeAbort(4504);
-    return -1;
+    DBUG_RETURN(-1);
   } else if (tOpType == DeleteRequest) {
     setErrorCodeAbort(4504);
-    return -1;
+    DBUG_RETURN(-1);
   } else if (tOpType == OpenScanRequest || tOpType == OpenRangeScanRequest) {
     setErrorCodeAbort(4228);
-    return -1;
+    DBUG_RETURN(-1);
   } else {
     //---------------------------------------------------------------------
     // setValue with undefined operation type. 
     // Probably application coding error.
     //---------------------------------------------------------------------
     setErrorCodeAbort(4108);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   if (tAttrInfo == NULL) {
     setErrorCodeAbort(4004);      
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   if (tAttrInfo->m_pk) {
     if (theOperationType == InsertRequest) {
-      return equal_impl(tAttrInfo, aValuePassed, len);
+      DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed, len));
     } else {
       setErrorCodeAbort(4202);      
-      return -1;
+      DBUG_RETURN(-1);
     }//if
   }//if
   if (len > 8000) {
     setErrorCodeAbort(4216);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   
   tAttrId = tAttrInfo->m_attrId;
@@ -496,13 +504,13 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
       insertATTRINFO(ahValue);
       // Insert Attribute Id with the value
       // NULL into ATTRINFO part. 
-      return 0;
+      DBUG_RETURN(0);
     } else {
       /***********************************************************************
        * Setting a NULL value on a NOT NULL attribute is not allowed.
        **********************************************************************/
       setErrorCodeAbort(4203);      
-      return -1;
+      DBUG_RETURN(-1);
     }//if
   }//if
   
@@ -522,7 +530,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   const Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
   if (len != sizeInBytes && (len != 0)) {
     setErrorCodeAbort(4209);
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   const Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Including bits in last word
   const Uint32 sizeInWords = sizeInBytes / 4;          // Excluding bits in last word
@@ -550,7 +558,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   tReturnCode = insertATTRINFOloop((Uint32*)aValue, sizeInWords);
   if (tReturnCode == -1) {
-    return tReturnCode;
+    DBUG_RETURN(tReturnCode);
   }//if
   if (bitsInLastWord != 0) {
     tData = *(Uint32*)(aValue + sizeInWords*4);
@@ -559,11 +567,11 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     tData = convertEndian(tData);
     tReturnCode = insertATTRINFO(tData);
     if (tReturnCode == -1) {
-      return tReturnCode;
+      DBUG_RETURN(tReturnCode);
     }//if
   }//if
   theErrorLine++;  
-  return 0;
+  DBUG_RETURN(0);
 }//NdbOperation::setValue()
 
 NdbBlob*
