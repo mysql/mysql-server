@@ -52,3 +52,27 @@ select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [
 xxx
 this is some text: to test - out.reg exp (22/45)
 drop table t1;
+select _latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin;
+_latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin
+1
+select _koi8r  0xFF regexp _koi8r  '[[:lower:]]' COLLATE koi8r_bin;
+_koi8r  0xFF regexp _koi8r  '[[:lower:]]' COLLATE koi8r_bin
+0
+select _latin1 0xFF regexp _latin1 '[[:upper:]]' COLLATE latin1_bin;
+_latin1 0xFF regexp _latin1 '[[:upper:]]' COLLATE latin1_bin
+0
+select _koi8r  0xFF regexp _koi8r  '[[:upper:]]' COLLATE koi8r_bin;
+_koi8r  0xFF regexp _koi8r  '[[:upper:]]' COLLATE koi8r_bin
+1
+select _latin1 0xF7 regexp _latin1 '[[:alpha:]]';
+_latin1 0xF7 regexp _latin1 '[[:alpha:]]'
+0
+select _koi8r  0xF7 regexp _koi8r  '[[:alpha:]]';
+_koi8r  0xF7 regexp _koi8r  '[[:alpha:]]'
+1
+select _latin1'a' regexp _latin1'A' collate latin1_general_ci;
+_latin1'a' regexp _latin1'A' collate latin1_general_ci
+1
+select _latin1'a' regexp _latin1'A' collate latin1_bin;
+_latin1'a' regexp _latin1'A' collate latin1_bin
+0
