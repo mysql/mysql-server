@@ -567,9 +567,9 @@ INSERT INTO t1 (col2) VALUES('-1');
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES('18446744073709551616');
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
-INSERT INTO t1 (col1) VALUES(-9223372036854775809.0);
+INSERT INTO t1 (col1) VALUES(-9223372036854785809.0);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
-INSERT INTO t1 (col1) VALUES(9223372036854775808.0);
+INSERT INTO t1 (col1) VALUES(9223372036854785808.0);
 ERROR 22003: Out of range value adjusted for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES(-1.0);
 ERROR 22003: Out of range value adjusted for column 'col2' at row 1
@@ -601,7 +601,7 @@ Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col1' at row 2
 Warning	1264	Out of range value adjusted for column 'col2' at row 2
-INSERT IGNORE INTO t1 VALUES(-9223372036854775809.0,-1.0),(9223372036854775808.0,18446744073709551616.0);
+INSERT IGNORE INTO t1 VALUES(-9223372036854785809.0,-1.0),(9223372036854785808.0,18446744073709551616.0);
 Warnings:
 Warning	1264	Out of range value adjusted for column 'col1' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
