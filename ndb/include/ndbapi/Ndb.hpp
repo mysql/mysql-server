@@ -51,20 +51,20 @@
 
    The procedure for using transactions is as follows:
    -# Start transaction (instantiate an NdbTransaction object)
-   -# Add and define operations associated with the transaction using the
-      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes.
-   -# Execute transaction
+   -# Add and define operations associated with the transaction using instances of one or more of the
+      NdbOperation, NdbScanOperation, NdbIndexOperation, and NdbIndexScanOperation classes
+   -# Execute transaction (call NdbTransaction::execute())
 
-   The execution can be of two different types, 
+   The operation can be of two different types, 
    <var>Commit</var> or <var>NoCommit</var>.
-   If the execution is of type <var>NoCommit</var>, 
-   then the application program executes part of a transaction,
+   If the operation is of type <var>NoCommit</var>, 
+   then the application program executes the operation part of a transaction,
    but without actually committing the transaction.
-   After executing a <var>NoCommit</var> transaction, the program can continue 
+   After executing a <var>NoCommit</var> operation, the program can continue 
    to add and define more operations to the transaction
    for later execution.
 
-   If the execute is of type <var>Commit</var>, then the transaction is
+   If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
    commited (event if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
@@ -78,15 +78,16 @@
        (typically created using Ndb::startTransaction()).
        At this point, the transaction is only being defined,
        and is not yet sent to the NDB kernel.
-    -# Define operations and add them to the transaction, using 
-       NdbTransaction::getNdbOperation(),
-       NdbTransaction::getNdbScanOperation(),
-       NdbTransaction::getNdbIndexOperation(), or
-       NdbTransaction::getNdbIndexScanOperation(),
-       and methods of the respective NdbOperation class.
+    -# Define operations and add them to the transaction, using one or more of
+       - NdbTransaction::getNdbOperation()
+       - NdbTransaction::getNdbScanOperation()
+       - NdbTransaction::getNdbIndexOperation()
+       - NdbTransaction::getNdbIndexScanOperation()
+       along with the appropriate methods of the respective NdbOperation class 
+       (or one possiblt one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
-    -# Close the transaction (using Ndb::closeTransaction()).
+    -# Close the transaction (call Ndb::closeTransaction()).
   
    For an example of this process, see the program listing in 
    @ref ndbapi_simple.cpp.
