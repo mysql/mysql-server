@@ -19,7 +19,7 @@
 
 #include <my_global.h>
 
-typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP} decimal_round_mode;
+typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR} decimal_round_mode;
 typedef int32 decimal_digit;
 
 typedef struct st_decimal {
@@ -70,10 +70,10 @@ int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode 
 
 /*
   returns the length of the buffer to hold string representation
-  of the decimal
+  of the decimal (including decimal dot, possible sign and \0)
 */
 
-#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 1)
+#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 2)
 
 /* negate a decimal */
 #define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
@@ -91,9 +91,12 @@ int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode 
 #define E_DEC_OK                0
 #define E_DEC_TRUNCATED         1
 #define E_DEC_OVERFLOW          2
-#define E_DEC_DIV_ZERO          3
-#define E_DEC_BAD_NUM           4
-#define E_DEC_OOM               5
+#define E_DEC_DIV_ZERO          4
+#define E_DEC_BAD_NUM           8
+#define E_DEC_OOM              16
+
+#define E_DEC_ERROR            31
+#define E_DEC_FATAL_ERROR      30
 
 #endif
 
