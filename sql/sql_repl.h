@@ -17,9 +17,6 @@
 #ifdef HAVE_REPLICATION
 #include "slave.h"
 
-extern Rpl_filter *binlog_filter;
-extern Rpl_filter *rpl_filter;
-
 typedef struct st_slave_info
 {
   uint32 server_id;
