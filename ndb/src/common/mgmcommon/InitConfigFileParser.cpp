@@ -163,6 +163,30 @@ InitConfigFileParser::parseConfig(FILE * file) {
     return 0;
   }
   
+  for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
+    ctx.type             = InitConfigFileParser::Undefined;
+    ctx.m_currentSection = 0;
+    ctx.m_userDefaults   = 0;
+    ctx.m_currentInfo    = 0;
+    ctx.m_systemDefaults = 0;
+    
+    Vector<ConfigInfo::ConfigRuleSection> tmp;
+    if(!(* ConfigInfo::m_ConfigRules[i].m_configRule)(tmp, ctx,
+						      ConfigInfo::m_ConfigRules[i].m_ruleData))
+      return 0;
+
+    for(size_t j = 0; j<tmp.size(); j++){
+      snprintf(ctx.fname, sizeof(ctx.fname), tmp[j].m_sectionType.c_str());
+      ctx.type             = InitConfigFileParser::Section;
+      ctx.m_currentSection = tmp[j].m_sectionData;
+      ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
+      ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
+      ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
+      if(!storeSection(ctx))
+	return 0;
+    }
+  }
+
   Uint32 nConnections = 0;
   Uint32 nComputers = 0;
   Uint32 nNodes = 0;
@@ -499,28 +523,22 @@ bool
 InitConfigFileParser::storeSection(Context& ctx){
   if(ctx.m_currentSection == NULL)
     return true;
-
   for(int i = strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
   }
-
   snprintf(ctx.pname, sizeof(ctx.pname), ctx.fname);
-  
   char buf[255];
   if(ctx.type == InitConfigFileParser::Section)
     snprintf(buf, sizeof(buf), "%s", ctx.fname);
   if(ctx.type == InitConfigFileParser::DefaultSection)
     snprintf(buf, sizeof(buf), "%s DEFAULT", ctx.fname);
-  
   snprintf(ctx.fname, sizeof(ctx.fname), buf);
   if(ctx.type == InitConfigFileParser::Section){
     for(int i = 0; i<m_info->m_NoOfRules; i++){
       const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
-      if(!strcmp(rule.m_section, "*") || !strcmp(rule.m_section, ctx.fname)){
-	if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData)){
+      if(!strcmp(rule.m_section, "*") || !strcmp(rule.m_section, ctx.fname))
+	if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData))
 	  return false;
-	}
-      }
     }
   }
   
