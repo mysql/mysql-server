@@ -1835,9 +1835,9 @@ buf_page_io_complete(
 		"InnoDB: by dumping, dropping, and reimporting\n"
 		"InnoDB: the corrupt table. You can use CHECK\n"
 		"InnoDB: TABLE to scan your table for corruption.\n"
-		"InnoDB: Look also at section 6.1 of\n"
-		"InnoDB: http://www.innodb.com/ibman.php about\n"
-		"InnoDB: forcing recovery.\n", stderr);
+		"InnoDB: See also "
+		"http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+		"InnoDB: about forcing recovery.\n", stderr);
 			  
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				fputs(

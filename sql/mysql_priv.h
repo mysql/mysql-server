@@ -677,12 +677,15 @@ void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
-int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables,
-                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
-int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
+int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, int mode_flags);
+/* mysql_ha_flush mode_flags bits */
+#define MYSQL_HA_CLOSE_FINAL        0x00
+#define MYSQL_HA_REOPEN_ON_USAGE    0x01
+#define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
@@ -726,6 +729,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);

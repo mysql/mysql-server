@@ -19,7 +19,20 @@
   reads info from a isam-table. Must be first request before doing any furter
   calls to any isamfunktion.  Is used to allow many process use the same
   isamdatabase.
-  */
+*/
+
+/*
+  state.open_count in the .MYI file is used the following way:
+  - For the first change of the file in this process it's incremented with
+    mi_mark_file_change(). (We have a write lock on the file in this case)
+  - In mi_close() it's decremented by _mi_decrement_open_count() if it
+    was incremented in the same process.
+
+  This mean that if we are the only process using the file, the open_count
+  tells us if the MYISAM file wasn't properly closed. (This is true if
+  my_disable_locking is set).
+*/
+
 
 #include "myisamdef.h"
 
@@ -32,12 +45,17 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   MYISAM_SHARE *share=info->s;
   uint flag;
   DBUG_ENTER("mi_lock_database");
-  DBUG_PRINT("info",("lock_type: %d", lock_type));
+  DBUG_PRINT("enter",("lock_type: %d  old lock %d  r_locks: %u  w_locks: %u "
+                      "global_changed:  %d  open_count: %u  name: '%s'",
+                      lock_type, info->lock_type, share->r_locks,
+                      share->w_locks,
+                      share->global_changed, share->state.open_count,
+                      share->index_file_name));
 
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
     DBUG_RETURN(0);
-  if (lock_type == F_EXTRA_LCK)
+  if (lock_type == F_EXTRA_LCK)                 /* Used by TMP tables */
   {
     ++share->w_locks;
     ++share->tot_locks;
@@ -51,7 +69,6 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   {
     switch (lock_type) {
     case F_UNLCK:
-      DBUG_PRINT("info", ("old lock: %d", info->lock_type));
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
       else
@@ -81,7 +98,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
 	  share->state.update_count= info->last_loop= ++info->this_loop;
-	  if (mi_state_info_write(share->kfile, &share->state, 1))
+          if (mi_state_info_write(share->kfile, &share->state, 1))
 	    error=my_errno;
 	  share->changed=0;
 	  if (myisam_flush)
@@ -119,11 +136,17 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       break;
     case F_RDLCK:
       if (info->lock_type == F_WRLCK)
-      {						/* Change RW to READONLY */
+      {
+        /*
+          Change RW to READONLY
+
+          mysqld does not turn write locks to read locks,
+          so we're never here in mysqld.
+        */
 	if (share->w_locks == 1)
 	{
 	  flag=1;
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+          if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
 		      MYF(MY_SEEK_NOT_DONE)))
 	  {
 	    error=my_errno;
@@ -346,9 +369,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 } /* _mi_readinfo */
 
 
-	/* Every isam-function that uppdates the isam-database must! end */
-	/* with this request */
-	/* ARGSUSED */
+/*
+  Every isam-function that uppdates the isam-database MUST end with this
+  request
+*/
 
 int _mi_writeinfo(register MI_INFO *info, uint operation)
 {
@@ -421,6 +445,8 @@ int _mi_mark_file_changed(MI_INFO *info)
 {
   char buff[3];
   register MYISAM_SHARE *share=info->s;
+  DBUG_ENTER("_mi_mark_file_changed");
+
   if (!(share->state.changed & STATE_CHANGED) || ! share->global_changed)
   {
     share->state.changed|=(STATE_CHANGED | STATE_NOT_ANALYZED |
@@ -434,12 +460,12 @@ int _mi_mark_file_changed(MI_INFO *info)
     {
       mi_int2store(buff,share->state.open_count);
       buff[2]=1;				/* Mark that it's changed */
-      return (my_pwrite(share->kfile,buff,sizeof(buff),
-			sizeof(share->state.header),
-			MYF(MY_NABP)));
+      DBUG_RETURN(my_pwrite(share->kfile,buff,sizeof(buff),
+                            sizeof(share->state.header),
+                            MYF(MY_NABP)));
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
