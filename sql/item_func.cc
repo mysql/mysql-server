@@ -102,10 +102,9 @@ eval_const_cond(COND *cond)
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
 
-
-Item_func::Item_func(List<Item> &list)
-  :allowed_arg_cols(1)
+void Item_func::set_arguments(List<Item> &list)
 {
+  allowed_arg_cols= 1;
   arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
@@ -120,6 +119,12 @@ Item_func::Item_func(List<Item> &list)
     }
   }
   list.empty();					// Fields are used
+}
+
+Item_func::Item_func(List<Item> &list)
+  :allowed_arg_cols(1)
+{
+  set_arguments(list);
 }
 
 
