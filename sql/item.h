@@ -41,7 +41,18 @@ public:
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2,
 		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
-
+  const char *coercion_name(enum coercion coer) const
+  {
+    switch(coer)
+    {
+      case COER_COERCIBLE: return "COERCIBLE";
+      case COER_IMPLICIT:  return "IMPLICIT";
+      case COER_EXPLICIT:  return "EXPLICIT";
+      case COER_NOCOLL:    return "NO COLLATION";
+      default: return "UNKNOWN";
+    }
+  }
+  
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
   Item *next;
