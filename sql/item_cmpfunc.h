@@ -153,7 +153,9 @@ class Item_func_not :public Item_bool_func
 public:
   Item_func_not(Item *a) :Item_bool_func(a) {}
   longlong val_int();
+  enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
+  Item *neg_transformer();
 };
 
 class Item_func_not_all :public Item_func_not
@@ -164,6 +166,8 @@ public:
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
+  enum Functype functype() const { return NOT_ALL_FUNC; }
+  const char *func_name() const { return "not_all"; }
 };
 
 class Item_func_eq :public Item_bool_rowready_func2
@@ -175,6 +179,7 @@ public:
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
+  Item *neg_transformer();
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -199,6 +204,7 @@ public:
   enum Functype rev_functype() const { return LE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
+  Item *neg_transformer();
 };
 
 
@@ -211,6 +217,7 @@ public:
   enum Functype rev_functype() const { return LT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
+  Item *neg_transformer();
 };
 
 
@@ -223,6 +230,7 @@ public:
   enum Functype rev_functype() const { return GE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
+  Item *neg_transformer();
 };
 
 
@@ -235,6 +243,7 @@ public:
   enum Functype rev_functype() const { return GT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
+  Item *neg_transformer();
 };
 
 
@@ -247,6 +256,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "<>"; }
+  Item *neg_transformer();
 };
 
 
@@ -690,6 +700,7 @@ public:
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
+  Item *neg_transformer();
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -722,6 +733,7 @@ public:
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   table_map not_null_tables() const { return 0; }
+  Item *neg_transformer();
 };
 
 
@@ -801,7 +813,8 @@ protected:
 
 public:
   /* Item_cond() is only used to create top level items */
-  Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
+  Item_cond(): Item_bool_func(), abort_on_null(1)
+  { const_item_cache=0; }
   Item_cond(Item *i1,Item *i2) 
     :Item_bool_func(), abort_on_null(0)
   {
@@ -809,6 +822,8 @@ public:
     list.push_back(i2);
   }
   Item_cond(THD *thd, Item_cond &item);
+  Item_cond(List<Item> &nlist)
+    :Item_bool_func(), list(nlist), abort_on_null(0) {}
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
@@ -822,8 +837,8 @@ public:
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
-
   bool walk(Item_processor processor, byte *arg);
+  void neg_arguments();
 };
 
 
@@ -833,6 +848,7 @@ public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
+  Item_cond_and(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
@@ -843,6 +859,7 @@ public:
        item->copy_andor_arguments(thd, this);
     return item;
   }
+  Item *neg_transformer();
 };
 
 class Item_cond_or :public Item_cond
@@ -851,6 +868,7 @@ public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   Item_cond_or(THD *thd, Item_cond_or &item) :Item_cond(thd, item) {}
+  Item_cond_or(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
@@ -862,6 +880,7 @@ public:
       item->copy_andor_arguments(thd, this);
     return item;
   }
+  Item *neg_transformer();
 };
 
 

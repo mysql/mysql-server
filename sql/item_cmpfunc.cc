@@ -23,6 +23,7 @@
 
 #include "mysql_priv.h"
 #include <m_ctype.h>
+#include "sql_select.h"
 
 static Item_result item_store_type(Item_result a,Item_result b)
 {
@@ -475,6 +476,7 @@ longlong Item_func_eq::val_int()
   int value= cmp.compare();
   return value == 0 ? 1 : 0;
 }
+
 
 /* Same as Item_func_eq, but NULL = NULL */
 
@@ -1721,6 +1723,19 @@ void Item_cond::print(String *str)
   str->append(')');
 }
 
+
+void Item_cond::neg_arguments()
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))		/* Apply not transformation to the arguments */
+  {
+    Item *new_item= item->neg_transformer();
+    VOID(li.replace(new_item ? new_item : new Item_func_not(item)));
+  }
+}
+
+
 /*
   Evalution of AND(expr, expr, expr ...)
 
@@ -2333,4 +2348,92 @@ longlong Item_cond_xor::val_int()
     }
   }
   return (longlong) result;
+}
+
+/*
+  Apply NOT transformation to the item and return a new one.
+
+  SYNPOSIS
+    neg_transformer()
+
+  DESCRIPTION
+    Transform the item using next rules:
+       a AND b AND ...    -> NOT(a) OR NOT(b) OR ...
+       a OR b OR ...      -> NOT(a) AND NOT(b) AND ...
+       NOT(a)             -> a
+       a = b              -> a != b
+       a != b             -> a = b
+       a < b              -> a >= b
+       a >= b             -> a < b
+       a > b              -> a <= b
+       a <= b             -> a > b
+       IS NULL(a)         -> IS NOT NULL(a)
+       IS NOT NULL(a)     -> IS NULL(a)
+
+  NOTE
+    This method is used in the eliminate_not_funcs() function.
+
+  RETURN
+    New item or
+    NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
+*/
+
+Item *Item_func_not::neg_transformer()		/* NOT(x)  ->  x */
+{
+  /* We should apply negation elimination to the argument of the NOT function */
+  return eliminate_not_funcs(args[0]);
+}
+
+Item *Item_func_eq::neg_transformer()		/* a = b  ->  a != b */
+{
+  return new Item_func_ne(args[0], args[1]);	
+}
+
+Item *Item_func_ne::neg_transformer()		/* a != b  ->  a = b */
+{
+  return new Item_func_eq(args[0], args[1]);
+}
+
+Item *Item_func_lt::neg_transformer()		/* a < b  ->  a >= b */
+{
+  return new Item_func_ge(args[0], args[1]);
+}
+
+Item *Item_func_ge::neg_transformer()		/* a >= b  ->  a < b */
+{
+  return new Item_func_lt(args[0], args[1]);
+}
+
+Item *Item_func_gt::neg_transformer()		/* a > b  ->  a <= b */
+{
+  return new Item_func_le(args[0], args[1]);
+}
+
+Item *Item_func_le::neg_transformer()		/* a <= b  ->  a > b */
+{
+  return new Item_func_gt(args[0], args[1]);
+}
+
+Item *Item_func_isnull::neg_transformer()	/* a IS NULL  ->  a IS NOT NULL */
+{
+  return new Item_func_isnotnull(args[0]);
+}
+
+Item *Item_func_isnotnull::neg_transformer()	/* a IS NOT NULL  ->  a IS NULL */
+{
+  return new Item_func_isnull(args[0]);
+}
+
+Item *Item_cond_and::neg_transformer()		/* NOT(a AND b AND ...)  -> */
+					/* NOT a OR NOT b OR ... */
+{
+  neg_arguments();
+  return new Item_cond_or(list);
+}
+
+Item *Item_cond_or::neg_transformer()		/* NOT(a OR b OR ...)  -> */
+					/* NOT a AND NOT b AND ... */
+{
+  neg_arguments();
+  return new Item_cond_and(list);
 }

@@ -4161,6 +4161,60 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 }
 
 
+/*
+  Eliminate NOT functions from the condition tree.
+
+  SYNPOSIS
+    eliminate_not_funcs()
+    cond	condition tree
+
+  DESCRIPTION
+    Eliminate NOT functions from the condition tree where it's possible.
+    Recursively traverse condition tree to find all NOT functions.
+    Call neg_transformer() method for negated arguments.
+
+  NOTE
+    If neg_transformer() returned a new condition we call fix_fields().
+    We don't delete any items as it's not needed. They will be deleted 
+    later at once.
+
+  RETURN
+    New condition tree
+*/
+
+COND *eliminate_not_funcs(COND *cond)
+{
+  if (!cond)
+    return cond;
+  if (cond->type() == Item::COND_ITEM)		/* OR or AND */
+  {
+    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    Item *item;
+    while ((item= li++))
+    {
+      Item *new_item= eliminate_not_funcs(item);
+      if (item != new_item)
+	VOID(li.replace(new_item));	/* replace item with a new condition */
+    }
+  }
+  else if (cond->type() == Item::FUNC_ITEM &&	/* 'NOT' operation? */
+	   ((Item_func*) cond)->functype() == Item_func::NOT_FUNC)
+  {
+    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer();
+    if (new_cond)
+    {
+      /*
+        Here we can delete the NOT function. Something like: delete cond;
+        But we don't need to do it. All items will be deleted later at once.
+      */
+      new_cond->fix_fields(current_thd, 0, &new_cond);
+      cond= new_cond;
+    }
+  }
+  return cond;
+}
+
+
 static COND *
 optimize_cond(COND *conds,Item::cond_result *cond_value)
 {
@@ -4169,8 +4223,11 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
     *cond_value= Item::COND_TRUE;
     return conds;
   }
-  /* change field = field to field = const for each found field = const */
   DBUG_EXECUTE("where",print_where(conds,"original"););
+  /* eliminate NOT operators */
+  conds= eliminate_not_funcs(conds);
+  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+  /* change field = field to field = const for each found field = const */
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
   /*
     Remove all instances of item == item
