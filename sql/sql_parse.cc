@@ -2580,10 +2580,8 @@ mysql_execute_command(THD *thd)
     select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
-    unit->offset_limit_cnt= select_lex->offset_limit;
-    unit->select_limit_cnt= select_lex->select_limit+select_lex->offset_limit;
-    if (unit->select_limit_cnt < select_lex->select_limit)
-      unit->select_limit_cnt= HA_POS_ERROR;		// No limit
+    unit->set_limit(select_lex->select_limit, select_lex->offset_limit,
+		    select_lex);
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
