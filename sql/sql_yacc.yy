@@ -486,6 +486,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	NEG '~'
 %right	NOT
 %right	BINARY
+%right  DATE_SYM
+%right  TIME_SYM
+%right  DATETIME
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
@@ -1601,6 +1604,9 @@ simple_expr:
           { Select->ftfunc_list.push_back((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
+	| DATE_SYM  expr { $$= new Item_date_typecast($2); }
+	| TIME_SYM  expr { $$= new Item_time_typecast($2); }
+	| DATETIME  expr { $$= new Item_datetime_typecast($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ) }
 	| FUNC_ARG0 '(' ')'
