@@ -20,3 +20,14 @@ create table t1 (a text, b text);
 load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
 select concat('|',a,'|'), concat('|',b,'|') from t1;
 drop table t1;
+
+create table t1 (a int, b char(10));
+load data infile '../../std_data/loaddata3.dat' into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+
+# The empty line last comes from the end line field in the file
+select * from t1;
+drop table t1;
+

@@ -257,6 +257,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     query_cache_invalidate3(thd, tables, 0);
     if (!dont_log_query && mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
                             tmp_table_deleted && !some_tables_deleted);
       mysql_bin_log.write(&qinfo);
@@ -306,10 +307,10 @@ static int sort_keys(KEY *a, KEY *b)
   {
     if (!(b->flags & HA_NOSAME))
       return -1;
-    if ((a->flags ^ b->flags) & HA_NULL_PART_KEY)
+    if ((a->flags ^ b->flags) & (HA_NULL_PART_KEY | HA_END_SPACE_KEY))
     {
       /* Sort NOT NULL keys before other keys */
-      return (a->flags & HA_NULL_PART_KEY) ? 1 : -1;
+      return (a->flags & (HA_NULL_PART_KEY | HA_END_SPACE_KEY)) ? 1 : -1;
     }
     if (a->name == primary_key_name)
       return -1;
@@ -984,8 +985,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     thd->tmp_table_used= 1;
   }
   if (!tmp_table && !no_log && mysql_bin_log.is_open())
-    // Must be written before unlock
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
                           test(create_info->options &
                                HA_LEX_CREATE_TMP_TABLE));
@@ -2072,6 +2073,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     {
       if (mysql_bin_log.is_open())
       {
+        thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
       }
@@ -2454,6 +2456,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     if (mysql_bin_log.is_open())
     {
+      thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
       mysql_bin_log.write(&qinfo);
     }
@@ -2584,6 +2587,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->proc_info="end";
   if (mysql_bin_log.is_open())
   {
+    thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
     mysql_bin_log.write(&qinfo);
   }

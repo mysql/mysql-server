@@ -210,13 +210,13 @@ uint cleanup_dirname(register my_string to, const char *from)
 } /* cleanup_dirname */
 
 
-	/*
-	  On system where you don't have symbolic links, the following
-	  code will allow you to create a file: 
-	  directory-name.lnk that should contain the real path
-	  to the directory.  This will be used if the directory name
-	  doesn't exists
-	*/
+/*
+  On system where you don't have symbolic links, the following
+  code will allow you to create a file: 
+  directory-name.sym that should contain the real path
+  to the directory.  This will be used if the directory name
+  doesn't exists
+*/
 
 
 my_bool my_use_symdir=0;	/* Set this if you want to use symdirs */
@@ -228,16 +228,17 @@ void symdirget(char *dir)
   char *pos=strend(dir);
   if (dir[0] && pos[-1] != FN_DEVCHAR && access(dir, F_OK))
   {
-    FILE *fp;
+    File file;
+    uint length;
     char temp= *(--pos);            /* May be "/" or "\" */
     strmov(pos,".sym");
-    fp = my_fopen(dir, O_RDONLY,MYF(0));
+    file= my_open(dir, O_RDONLY, MYF(0));
     *pos++=temp; *pos=0;	  /* Restore old filename */
-    if (fp)
+    if (file >= 0)
     {
-      if (fgets(buff, sizeof(buff)-1, fp))
+      if ((length= my_read(file, buff, sizeof(buff), MYF(0))) > 0)
       {
-	for (pos=strend(buff);
+	for (pos= buff + length ;
 	     pos > buff && (iscntrl(pos[-1]) || isspace(pos[-1])) ;
 	     pos --);
 
@@ -247,7 +248,7 @@ void symdirget(char *dir)
 
 	strmake(dir,buff, (uint) (pos-buff));
       }
-      my_fclose(fp,MYF(0));
+      my_close(file, MYF(0));
     }
   }
 }

@@ -33,11 +33,9 @@ InnoDB */
 
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_cache.h"
 
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>
-#include <assert.h>
 #include <hash.h>
 #include <myisampack.h>
 
@@ -1860,7 +1858,7 @@ ha_innobase::store_key_val_for_row(
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 
-			ut_a(key_part->key_part_flag & HA_PART_KEY);
+			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
 		        if (is_null) {
 				 buff += key_part->length + 2;
@@ -3345,7 +3343,7 @@ create_index(
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
 
-		/* (The flag HA_PART_KEY denotes in MySQL a column prefix
+		/* (The flag HA_PART_KEY_SEG denotes in MySQL a column prefix
 		field in an index: we only store a specified number of first
 		bytes of the column to the index field.) The flag does not
 		seem to be properly set by MySQL. Let us fall back on testing

@@ -49,9 +49,9 @@ Warnings:
 Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
 Warning	1264	Data truncated for column 'd' at row 3
 Warning	1264	Data truncated for column 'c' at row 4
-Warning	1260	Record count is fewer than the column count at row 5
+Warning	1260	Row 5 doesn't contain data for all columns
 Warning	1264	Data truncated for column 'b' at row 6
-Warning	1261	Record count is more than the column count at row 7
+Warning	1261	Row 7 was truncated; It contained more data than there where input columns
 Warning	1263	Data truncated, out of range for column 'a' at row 8
 select @@warning_count;
 @@warning_count
