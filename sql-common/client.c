@@ -1422,7 +1422,7 @@ static MYSQL_METHODS client_methods=
   cli_read_binary_rows,
   cli_unbuffered_fetch,
   NULL,
-  cli_read_statistic,
+  cli_read_statistics,
   cli_read_query_result,
   cli_read_change_user_result
 #endif

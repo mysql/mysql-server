@@ -234,7 +234,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   delete thd;
 }
 
-static const char * emb_read_statistic(MYSQL *mysql)
+static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   return thd->net.last_error;
@@ -279,7 +279,7 @@ MYSQL_METHODS embedded_methods=
   emb_read_binary_rows,
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
-  emb_read_statistic,
+  emb_read_statistics,
   emb_next_result,
   emb_read_change_user_result
 };
