@@ -262,6 +262,8 @@ my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_secure_auth= 0;
+my_bool opt_short_log_format= 0;
+my_bool opt_log_queries_not_using_indexes= 0;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
@@ -3455,7 +3457,7 @@ enum options
   OPT_SKIP_PRIOR,              OPT_BIG_TABLES,
   OPT_STANDALONE,              OPT_ONE_THREAD,
   OPT_CONSOLE,                 OPT_LOW_PRIORITY_UPDATES,
-  OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,
+  OPT_SKIP_HOST_CACHE,         OPT_SHORT_LOG_FORMAT,
   OPT_FLUSH,                   OPT_SAFE,
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
   OPT_TABLE_TYPE,              OPT_INIT_FILE,
@@ -3562,7 +3564,8 @@ enum options
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
-  OPT_SECURE_AUTH
+  OPT_SECURE_AUTH,
+  OPT_LOG_QUERIES_NOT_USING_INDEXES
 };
 
 
@@ -3769,9 +3772,17 @@ Disable with --skip-bdb (will save memory).",
    "Log slow queries to this log file. Defaults logging to hostname-slow.log file.",
    (gptr*) &opt_slow_logname, (gptr*) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
-  {"log-long-format", OPT_LONG_FORMAT,
-   "Log some extra information to update log.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+  {"log-long-format", '0',
+   "Log some extra information to update log. Please note that this option is deprecated; see --log-short-format option.", 
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-short-format", OPT_SHORT_LOG_FORMAT,
+   "Don't log extra information to update and slow-query logs.",
+   (gptr*) &opt_short_log_format, (gptr*) &opt_short_log_format,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-queries-not-using-indexes", OPT_LOG_QUERIES_NOT_USING_INDEXES,
+   "Log queries that are executed without benefit of any index.",
+   (gptr*) &opt_log_queries_not_using_indexes, (gptr*) &opt_log_queries_not_using_indexes,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slave-updates", OPT_LOG_SLAVE_UPDATES,
    "Tells the slave to log the updates from the slave thread to the binary log. You will need to turn it on if you plan to daisy-chain the slaves.",
    (gptr*) &opt_log_slave_updates, (gptr*) &opt_log_slave_updates, 0, GET_BOOL,
@@ -5166,9 +5177,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_SKIP_RESOLVE:
     opt_specialflag|=SPECIAL_NO_RESOLVE;
     break;
-  case (int) OPT_LONG_FORMAT:
-    opt_specialflag|=SPECIAL_LONG_LOG_FORMAT;
-    break;
   case (int) OPT_SKIP_NETWORKING:
     opt_disable_networking=1;
     mysqld_port=0;
@@ -5508,6 +5516,10 @@ static void get_options(int argc,char **argv)
     keybuff_size= (((KEY_CACHE *) find_named(&key_caches, "default", 7,
 					     &not_used))->size);
   }
+  if (opt_short_log_format)
+    opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
+  if (opt_log_queries_not_using_indexes)
+    opt_specialflag|= SPECIAL_LOG_QUERIES_NOT_USING_INDEXES;
 }
 
 
@@ -5622,14 +5634,16 @@ static uint set_maximum_open_files(uint max_file_limit)
     rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
-      sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
-		      old_cur, max_file_limit);	/* purecov: inspected */
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+			old_cur, max_file_limit); /* purecov: inspected */
       max_file_limit=old_cur;
     }
     else
     {
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      if ((uint) rlimit.rlim_cur != max_file_limit)
+      if ((uint) rlimit.rlim_cur != max_file_limit &&
+	  global_system_variables.log_warnings)
 	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
 			(ulong) rlimit.rlim_cur,
 			max_file_limit); /* purecov: inspected */

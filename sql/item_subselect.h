@@ -64,7 +64,7 @@ public:
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  virtual void init (THD *thd, st_select_lex *select_lex, 
+  virtual void init (st_select_lex *select_lex, 
 		     select_subselect *result);
 
   ~Item_subselect();
@@ -111,7 +111,7 @@ class Item_singlerow_subselect :public Item_subselect
 protected:
   Item_cache *value, **row;
 public:
-  Item_singlerow_subselect(THD *thd, st_select_lex *select_lex);
+  Item_singlerow_subselect(st_select_lex *select_lex);
   Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
 
   subs_type substype() { return SINGLEROW_SUBS; }
@@ -139,7 +139,7 @@ public:
 class Item_maxmin_subselect: public Item_singlerow_subselect
 {
 public:
-  Item_maxmin_subselect(THD *thd, st_select_lex *select_lex, bool max);
+  Item_maxmin_subselect(st_select_lex *select_lex, bool max);
 };
 
 /* exists subselect */
@@ -150,7 +150,7 @@ protected:
   longlong value; /* value of this item (boolean: exists/not-exists) */
 
 public:
-  Item_exists_subselect(THD *thd, st_select_lex *select_lex);
+  Item_exists_subselect(st_select_lex *select_lex);
   Item_exists_subselect(): Item_subselect() {}
 
   subs_type substype() { return EXISTS_SUBS; }
@@ -187,7 +187,7 @@ protected:
 public:
   Item_func_not_all *upper_not; // point on NOT before ALL subquery
 
-  Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
+  Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
 
@@ -215,6 +215,7 @@ public:
   friend class subselect_indexsubquery_engine;
 };
 
+
 /* ALL/ANY/SOME subselect */
 class Item_allany_subselect :public Item_in_subselect
 {
@@ -222,13 +223,14 @@ protected:
   compare_func_creator func;
 
 public:
-  Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
+  Item_allany_subselect(Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
 
   // only ALL subquery has upper not
   subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
 };
+
 
 class subselect_engine: public Sql_alloc
 {
@@ -240,16 +242,19 @@ protected:
   bool maybe_null; /* may be null (first item in select) */
 public:
 
-  subselect_engine(THD *thd, Item_subselect *si, select_subselect *res) 
+  subselect_engine(Item_subselect *si, select_subselect *res)
+    :thd(0)
   {
     result= res;
     item= si;
-    this->thd= thd;
     res_type= STRING_RESULT;
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
-
+  
+  // set_thd should be called before prepare()
+  void set_thd(THD *thd) { this->thd= thd; }
+  THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
@@ -261,6 +266,7 @@ public:
   bool may_be_null() { return maybe_null; };
 };
 
+
 class subselect_single_select_engine: public subselect_engine
 {
   my_bool prepared; /* simple subselect is prepared */
@@ -269,7 +275,7 @@ class subselect_single_select_engine: public subselect_engine
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
-  subselect_single_select_engine(THD *thd, st_select_lex *select,
+  subselect_single_select_engine(st_select_lex *select,
 				 select_subselect *result,
 				 Item_subselect *item);
   int prepare();
@@ -281,12 +287,12 @@ public:
   void exclude();
 };
 
+
 class subselect_union_engine: public subselect_engine
 {
   st_select_lex_unit *unit;  /* corresponding unit structure */
 public:
-  subselect_union_engine(THD *thd,
-			 st_select_lex_unit *u,
+  subselect_union_engine(st_select_lex_unit *u,
 			 select_subselect *result,
 			 Item_subselect *item);
   int prepare();
@@ -298,6 +304,7 @@ public:
   void exclude();
 };
 
+
 struct st_join_table;
 class subselect_uniquesubquery_engine: public subselect_engine
 {
@@ -306,25 +313,30 @@ protected:
   Item *cond;
 public:
 
+  // constructor can assign THD because it will be called after JOIN::prepare
   subselect_uniquesubquery_engine(THD *thd, st_join_table *tab_arg,
 				  Item_subselect *subs, Item *where)
-    :subselect_engine(thd, subs, 0), tab(tab_arg), cond(where)
-  {}
-    
+    :subselect_engine(subs, 0), tab(tab_arg), cond(where)
+  {
+    set_thd(thd);
+  }
+  ~subselect_uniquesubquery_engine();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols() { return 1; }
   bool dependent() { return 1; }
   bool uncacheable() { return 1; }
-  void  exclude();
-  static int end_exec(TABLE *table);
+  void exclude();
 };
+
 
 class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
   bool check_null;
 public:
+
+  // constructor can assign THD because it will be called after JOIN::prepare
   subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
 				 bool chk_null)
