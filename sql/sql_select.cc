@@ -2185,9 +2185,9 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->key_item()->real_item()))->field, 0,
+		    ((Item_field*) (cond_func->key_item()->real_item()))->
+		    field, 0,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
-#endif
                     usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
@@ -3356,8 +3356,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
 					join->unit->select_limit_cnt)) < 0)
-            { /* before reporting "Impossible WHERE" for the whole query
-                 we have to check isn't it only "impossible ON" instead */
+            {
+	      /*
+		Before reporting "Impossible WHERE" for the whole query
+		we have to check isn't it only "impossible ON" instead
+	      */
               sel->cond=orig_cond;
               if (!tab->on_expr ||
                   sel->test_quick_select(tab->keys,
@@ -3365,8 +3368,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
-                                          join->thd->select_limit)) < 0)
-	         DBUG_RETURN(1);			// Impossible WHERE
+                                          join->unit->select_limit_cnt)) < 0)
+		DBUG_RETURN(1);			// Impossible WHERE
             }
             else
 	      sel->cond=orig_cond;
