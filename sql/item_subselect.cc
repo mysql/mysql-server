@@ -252,8 +252,8 @@ int subselect_single_select_engine::prepare()
   if (prepared)
     return 0;
   prepared= 1;
-  SELECT_LEX *save_select= thd->lex.select;
-  thd->lex.select= select_lex;
+  SELECT_LEX_NODE *save_select= thd->lex.current_select;
+  thd->lex.current_select= select_lex;
   if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
 		   select_lex->where,
 		   (ORDER*) select_lex->order_list.first,
@@ -262,7 +262,7 @@ int subselect_single_select_engine::prepare()
 		   (ORDER*) 0, select_lex, 
 		   select_lex->master_unit(), 0))
     return 1;
-  thd->lex.select= save_select;
+  thd->lex.current_select= save_select;
   return 0;
 }
 
@@ -310,7 +310,7 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(join->error?join->error:1);
     }
   }
-  if (select_lex->depended && executed)
+  if (select_lex->dependent && executed)
   {
     if (join->reinit())
       DBUG_RETURN(1);
@@ -319,10 +319,10 @@ int subselect_single_select_engine::exec()
   }
   if (!executed)
   {
-    SELECT_LEX *save_select= join->thd->lex.select;
-    join->thd->lex.select= select_lex;
+    SELECT_LEX_NODE *save_select= join->thd->lex.current_select;
+    join->thd->lex.current_select= select_lex;
     join->exec();
-    join->thd->lex.select= save_select;
+    join->thd->lex.current_select= save_select;
     executed= 1;
     DBUG_RETURN(join->error||thd->fatal_error);
   }
@@ -346,10 +346,10 @@ uint subselect_union_engine::cols()
 
 bool subselect_single_select_engine::depended()
 {
-  return select_lex->depended;
+  return select_lex->dependent;
 }
 
 bool subselect_union_engine::depended()
 {
-  return unit->depended;
+  return unit->dependent;
 }
