@@ -17,6 +17,7 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include <m_ctype.h>
+#include <my_dir.h>
 #include "sql_acl.h"
 #include "slave.h"
 #ifdef HAVE_BERKELEY_DB
@@ -1711,6 +1712,18 @@ int main(int argc, char **argv)
 	     LOG_NEW);
     using_update_log=1;
   }
+
+  //make sure slave thread gets started
+  // if server_id is set, valid master.info is present, and master_host has
+  // not been specified
+  if(server_id && !master_host)
+    {
+      char fname[FN_REFLEN+128];
+      MY_STAT stat_area;
+      fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
+      if(my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
+        master_host = glob_mi.host;
+    }
 
   if (opt_bin_log && !server_id)
   {
