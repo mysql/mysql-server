@@ -561,7 +561,7 @@ Backing up and recovering an InnoDB database
 
 InnoDB transaction model
 
-* InnoDB consinsten read::      
+* InnoDB consistent read::      
 * InnoDB locking reads::        
 * InnoDB Next-key locking::     
 * InnoDB Locks set::            
@@ -6457,19 +6457,18 @@ system-specific sections later in this chapter.
 @end itemize
 
 @node Installing source tree, Compilation problems, Installing source, Installing
-@section Installing from development source tree
+@section Installing from the Development Source Tree
 
 @cindex development source tree
 @cindex BitKeeper tree
 @cindex cvs tree
 
-@strong{CAUTION:} You should only read this section if you are
-interested in helping us test our new code. If you just want to get
-@strong{MySQL} up and running on your system, you should use either
-source or binary distribution.
+@strong{CAUTION:} You should read this section only if you are interested
+in helping us test our new code. If you just want to get @strong{MySQL} up
+and running on your system, you should use a standard release distribution
+(either a source or binary distribution will do).
 
-Below are the instructions to obtain our most recent development
-source tree:
+To obtain our most recent development source tree, use these instructions:
 
 @enumerate
 @item
@@ -6481,62 +6480,76 @@ Download @strong{BitKeeper} from
 Follow the instructions to install it.
 
 @item
-Once @strong{BitKeeper} is installed, if you want to clone 3.23 branch,
-@code{bk clone bk://work.mysql.com:7000 mysql}, and
-@code{bk clone bk://work.mysql.com:7001 mysql-4.0} for 4.0 branch.
-
-The initial download may take a while, depending on the speed of your
-connection.
-
-@item
-You will need GNU autoconf, automake, libtool, and m4 to do the next stage.
-If you get some strange error during the first stage, check that you really
-have libtool installed!
+After @strong{BitKeeper} is installed, use this command if you want to clone
+the @strong{MySQL} 3.23 branch:
 
 @example
-cd mysql
-bk -r edit
-aclocal; autoheader; autoconf;  automake;
-./configure  # Add your favorite options here
-make
+shell> bk clone bk://work.mysql.com:7000 mysql
 @end example
 
-We have a collection of our standard configure scripts in the @file{BUILD/} 
-subdirectory.  If you are lazy, you can use
+To clone the 4.0 branch, use this command instead:
+
+@example
+shell> bk clone bk://work.mysql.com:7001 mysql-4.0
+@end example
+
+The initial download of the source tree may take a while, depending on the
+speed of your connection; be patient.
+
+@item
+You will need GNU @code{autoconf}, @code{automake}, @code{libtool}, and
+@code{m4} to run the next set of commands.
+If you get some strange error during this stage, check that you really
+have @code{libtool} installed!
+
+@example
+shell> cd mysql
+shell> bk -r edit
+shell> aclocal; autoheader; autoconf;  automake;
+shell> ./configure  # Add your favorite options here
+shell> make
+@end example
+
+A collection of our standard configure scripts is located in the
+@file{BUILD/} subdirectory.  If you are lazy, you can use
 @file{BUILD/compile-pentium-debug}.  It will actually work on a lot of
 non-x86 machines despite its name.
 
 @item
-Once the build is done, @code{make install}.  Be careful with this on
-a production machine - this may overwrite your live release binary.  We
-recommend that if you have another installation of @strong{MySQL} that
-you @code{./configure} with different values for @code{prefix},
-@code{tcp-port}, and @code{unix-socket-path}.
+When the build is done, run @code{make install}.  Be careful with this
+on a production machine; the command may overwrite your live release
+installation.  If you have another installation of @strong{MySQL}, we
+recommand that you run @code{./configure} with different values for the
+@code{prefix}, @code{tcp-port}, and @code{unix-socket-path} options than
+those used for your production server.
 
 @item
 Play hard with your new installation and try to make the new features
 crash.  Start by running @code{make test}.  @xref{MySQL test suite}.
 
 @item
-If you have gotten to the @code{make} stage and it does not compile,
-please report it to @email{bugs@@lists.mysql.com}.  If you have
-installed the latest version of the required GNU tools, and they crash
-trying to process our configuration files, please report it also.  However,
-if you execute @code{aclocal} and get @code{command not found}, or a
-similar problem, do not report it, make sure all the needed tools are
-installed and your @code{PATH} variable is set correctly.
+If you have gotten to the @code{make} stage and the distribution does
+not compile, please report it to @email{bugs@@lists.mysql.com}.  If you
+have installed the latest versions of the required GNU tools, and they
+crash trying to process our configuration files, please report that also.
+However, if you execute @code{aclocal} and get a @code{command not found}
+error or a similar problem, do not report it.  Instead, make sure all
+the necessary tools are installed and that your @code{PATH} variable is
+set correctly so your shell can find them.
 
 @item
-After the initial @code{bk clone}, do @code{bk pull} to get the updates.
+After the initial @code{bk clone} operation to get the source tree, you
+should run @code{bk pull} periodically to get the updates.
 
 @item
-You can examine change history of the tree with all the diffs with
+You can examine the change history for the tree with all the diffs by using
 @code{bk sccstool}.  If you see some funny diffs or code that you have a
-question about, do not hesitate and e-mail @email{internals@@lists.mysql.com}.
-Also if you think you have a better idea on how to do something, send an email
-to the same place with a patch. @code{bk diffs} will produce a patch for you
-after you have made changes to the source. If you do not have the time to code
-your idea, just send a description.
+question about, do not hesitate to send e-mail to
+@email{internals@@lists.mysql.com}.  Also, if you think you have a better idea
+on how to do something, send an email to the same address with a patch.
+@code{bk diffs} will produce a patch for you after you have made changes
+to the source. If you do not have the time to code your idea, just send
+a description.
 
 @item
 @strong{BitKeeper} has a nice help utility that you can access via
@@ -25110,14 +25123,14 @@ on the other hand cancels all modifications made by the current
 transaction.
 
 @menu
-* InnoDB consinsten read::      
+* InnoDB consistent read::      
 * InnoDB locking reads::        
 * InnoDB Next-key locking::     
 * InnoDB Locks set::            
 * InnoDB Deadlock detection::   
 @end menu
 
-@node InnoDB consinsten read, InnoDB locking reads, InnoDB transaction model, InnoDB transaction model
+@node InnoDB consistent read, InnoDB locking reads, InnoDB transaction model, InnoDB transaction model
 @subsubsection Consistent read
 
 A consistent read means that InnoDB uses its multiversioning to
@@ -25142,7 +25155,7 @@ on the tables it accesses, and therefore other users are free to
 modify those tables at the same time a consistent read is being performed
 on the table.
 
-@node InnoDB locking reads, InnoDB Next-key locking, InnoDB consinsten read, InnoDB transaction model
+@node InnoDB locking reads, InnoDB Next-key locking, InnoDB consistent read, InnoDB transaction model
 @subsubsection Locking reads
 
 A consistent read is not convenient in some circumstances.
