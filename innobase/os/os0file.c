@@ -521,10 +521,11 @@ try_again:
 		}
 #endif			
 #ifdef UNIV_NON_BUFFERED_IO
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		if (type == OS_LOG_FILE) {
 		        /* Do not use unbuffered i/o to log files because
-		        value 2 denotes that we do not flush the log at every
-		        commit, but only once per second */
+		        to allow group commit to work when MySQL binlogging
+			is used we must separate log file write and log
+			file flush to disk. */
 		} else {
 			if (srv_win_file_flush_method ==
 					SRV_WIN_IO_UNBUFFERED) {

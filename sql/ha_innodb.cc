@@ -872,8 +872,7 @@ innobase_flush_logs(void)
 
   	DBUG_ENTER("innobase_flush_logs");
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-	log_flush_to_disk();
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
   	DBUG_RETURN(result);
 }
@@ -920,7 +919,7 @@ Commits a transaction in an InnoDB database. */
 int
 innobase_commit(
 /*============*/
-			/* out: 0 or error number */
+			/* out: 0 */
 	THD*	thd,	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 	void*	trx_handle)/* in: InnoDB trx handle or
@@ -928,7 +927,6 @@ innobase_commit(
 			that the current SQL statement ended, and we should
 			mark the start of a new statement with a savepoint */
 {
-	int	error	= 0;
 	trx_t*	trx;
 
   	DBUG_ENTER("innobase_commit");
@@ -955,29 +953,27 @@ innobase_commit(
 	innobase_release_stat_resources(trx);
 	trx_mark_sql_stat_end(trx);
 
-#ifndef DBUG_OFF
-	if (error) {
-    		DBUG_PRINT("error", ("error: %d", error));
-    	}
-#endif
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
 	srv_active_wake_master_thread();
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(0);
 }
 
 /*********************************************************************
 This is called when MySQL writes the binlog entry for the current
 transaction. Writes to the InnoDB tablespace info which tells where the
 MySQL binlog entry for the current transaction ended. Also commits the
-transaction inside InnoDB. */
+transaction inside InnoDB but does NOT flush InnoDB log files to disk.
+To flush you have to call innobase_flush_log_to_disk. We have separated
+flushing to eliminate the bottleneck of LOCK_log in log.cc which disabled
+InnoDB's group commit capability. */
 
 int
 innobase_report_binlog_offset_and_commit(
 /*=====================================*/
-                                /* out: 0 or error code */
+                                /* out: 0 */
         THD*    thd,            /* in: user thread */
         void*   trx_handle,     /* in: InnoDB trx handle */
         char*   log_file_name,  /* in: latest binlog file name */
@@ -993,7 +989,39 @@ innobase_report_binlog_offset_and_commit(
 	trx->mysql_log_file_name = log_file_name;  	
 	trx->mysql_log_offset = (ib_longlong)end_offset;
 	
-  	return(innobase_commit(thd, trx_handle));
+	trx->flush_log_later = TRUE;
+
+  	innobase_commit(thd, trx_handle);
+
+	trx->flush_log_later = FALSE;
+
+	return(0);
+}
+
+/*********************************************************************
+This is called after MySQL has written the binlog entry for the current
+transaction. Flushes the InnoDB log files to disk if required. */
+
+int
+innobase_commit_complete(
+/*=====================*/
+                                /* out: 0 */
+        void*   trx_handle)     /* in: InnoDB trx handle */
+{
+	trx_t*	trx;
+
+	if (srv_flush_log_at_trx_commit == 0) {
+
+	        return(0);
+	}
+
+	trx = (trx_t*)trx_handle;
+
+	ut_a(trx != NULL);
+
+  	trx_commit_complete_for_mysql(trx);
+
+	return(0);
 }
 
 /*********************************************************************
@@ -3202,7 +3230,7 @@ ha_innobase::create(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	innobase_table = dict_table_get(norm_name, NULL);
 
@@ -3277,7 +3305,7 @@ ha_innobase::delete_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3347,7 +3375,7 @@ innobase_drop_database(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3419,7 +3447,7 @@ ha_innobase::rename_table(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -3936,7 +3964,7 @@ ha_innobase::extra(
  		case HA_EXTRA_RESET:
   		case HA_EXTRA_RESET_STATE:
 	        	prebuilt->read_just_key = 0;
-	        	break;
+    	        	break;
 		case HA_EXTRA_NO_KEYREAD:
     			prebuilt->read_just_key = 0;
     			break;

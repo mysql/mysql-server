@@ -243,6 +243,9 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   replication. This function also calls the commit of the table
   handler, because the order of transactions in the log of the table
   handler must be the same as in the binlog.
+  NOTE that to eliminate the bottleneck of the group commit, we do not
+  flush the handler log files here, but only later in a call of
+  ha_commit_complete().
 
   arguments:
   thd:           the thread handle of the current connection
@@ -269,10 +272,35 @@ int ha_report_binlog_offset_and_commit(THD *thd,
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
-    trans->innodb_active_trans=0;
   }
 #endif
   return error;
+}
+
+/*
+  Flushes the handler log files (if my.cnf settings do not free us from it)
+  after we have called ha_report_binlog_offset_and_commit(). To eliminate
+  the bottleneck from the group commit, this should be called when
+  LOCK_log has been released in log.cc.
+
+  arguments:
+  thd:           the thread handle of the current connection
+  return value:  always 0
+*/
+
+int ha_commit_complete(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  THD_TRANS *trans;
+  trans = &thd->transaction.all;
+  if (trans->innobase_tid)
+  {
+    innobase_commit_complete(trans->innobase_tid);
+
+    trans->innodb_active_trans=0;
+  }
+#endif
+  return 0;
 }
 
 /*

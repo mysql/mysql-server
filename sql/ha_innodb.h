@@ -211,6 +211,8 @@ int innobase_report_binlog_offset_and_commit(
 	void*	trx_handle,
         char*   log_file_name,
         my_off_t end_offset);
+int innobase_commit_complete(
+        void*   trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
