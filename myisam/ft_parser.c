@@ -83,7 +83,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                  FT_WORD *word, FTB_PARAM *param)
 {
   byte *doc=*start;
-  int mwc;
+  uint mwc, length;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->plusminus=param->pmsign=0;
@@ -120,8 +120,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       param->plusminus=param->pmsign=0;
     }
 
-    mwc=0;
-    for (word->pos=doc; doc<end; doc++)
+    mwc=length=0;
+    for (word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
       if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
@@ -132,8 +132,8 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (((word->len >= ft_min_word_len && !is_stopword(word->pos, word->len))
-         || param->trunc) && word->len < ft_max_word_len)
+    if (((length >= ft_min_word_len && !is_stopword(word->pos, word->len))
+         || param->trunc) && length < ft_max_word_len)
     {
       *start=doc;
       return 1;
@@ -146,7 +146,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                         FT_WORD *word)
 {
   byte *doc=*start;
-  int mwc;
+  uint mwc, length;
   DBUG_ENTER("ft_simple_get_word");
 
   while (doc<end)
@@ -156,8 +156,8 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       if (true_word_char(cs,*doc)) break;
     }
 
-    mwc=0;
-    for(word->pos=doc; doc<end; doc++)
+    mwc=length=0;
+    for(word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
       if (true_word_char(cs,*doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc++)
@@ -165,7 +165,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 
     word->len= (uint)(doc-word->pos) - mwc;
 
-    if (word->len >= ft_min_word_len && word->len < ft_max_word_len &&
+    if (length >= ft_min_word_len && length < ft_max_word_len &&
         !is_stopword(word->pos, word->len))
     {
       *start=doc;
