@@ -578,10 +578,17 @@ int mysql_multi_update_prepare(THD *thd)
   TABLE_LIST *table_list= lex->query_tables;
   List<Item> *fields= &lex->select_lex.item_list;
   TABLE_LIST *tl;
-  table_map tables_for_update= 0, readonly_tables= 0;
+  table_map tables_for_update;
   int res;
   bool update_view= 0;
+  uint  table_count;
+  const bool using_lock_tables= thd->locked_tables != 0;
   DBUG_ENTER("mysql_multi_update_prepare");
+
+  /* open tables and create derived ones, but do not lock and fill them */
+  if (open_tables(thd, table_list, & table_count) ||
+      mysql_handle_derived(lex, &mysql_derived_prepare))
+    DBUG_RETURN(thd->net.report_error ? -1 : 1);
   /*
     Ensure that we have update privilege for all tables and columns in the
     SET part
@@ -606,9 +613,9 @@ int mysql_multi_update_prepare(THD *thd)
     call in setup_tables()).
   */
   if (setup_tables(thd, table_list, &lex->select_lex.where) ||
-      (thd->lex->select_lex.no_wrap_view_item= 1,
+      (lex->select_lex.no_wrap_view_item= 1,
        res= setup_fields(thd, 0, table_list, *fields, 1, 0, 0),
-       thd->lex->select_lex.no_wrap_view_item= 0,
+       lex->select_lex.no_wrap_view_item= 0,
        res))
     DBUG_RETURN(-1);
 
@@ -626,18 +633,10 @@ int mysql_multi_update_prepare(THD *thd)
     DBUG_RETURN(-1);
   }
 
-  {
-    // Find tables used in items
-    List_iterator_fast<Item> it(*fields);
-    Item *item;
-    while ((item= it++))
-    {
-      tables_for_update|= item->used_tables();
-    }
-  }
+  tables_for_update= get_table_map(fields);
 
   /*
-    Count tables and setup timestamp handling
+    Setup timestamp handling and locking mode
   */
   for (tl= table_list; tl ; tl= tl->next_local)
   {
@@ -651,22 +650,43 @@ int mysql_multi_update_prepare(THD *thd)
         table->timestamp_field->query_id == thd->query_id)
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-    if (!tl->updatable || check_key_in_view(thd, tl))
-      readonly_tables|= table->map;
-  }
-  if (tables_for_update & readonly_tables)
-  {
-    // find readonly table/view which cause error
-    for (tl= table_list; tl ; tl= tl->next_local)
+    /* if table will be updated then check that it is unique */
+    if (table->map & tables_for_update)
     {
-      if ((readonly_tables & tl->table->map) &&
-          (tables_for_update & tl->table->map))
+      if (!tl->updatable || check_key_in_view(thd, tl))
       {
-	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
-	DBUG_RETURN(-1);
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
+        DBUG_RETURN(-1);
       }
+
+      /*
+        Multi-update can't be constructed over-union => we always have
+        single SELECT on top and have to check underlaying SELECTs of it
+      */
+      if (lex->select_lex.check_updateable_in_subqueries(tl->db,
+                                                         tl->real_name))
+      {
+        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->real_name);
+        DBUG_RETURN(-1);
+      }
+      DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
+      tl->lock_type= lex->multi_lock_option;
+      tl->updating= 1;
+      }
+    else
+    {
+      DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
+      tl->lock_type= TL_READ;
+      tl->updating= 0;
     }
+    if (!using_lock_tables)
+      tl->table->reginfo.lock_type= tl->lock_type;
   }
+  /* now lock and fill tables */
+  if (lock_tables(thd, table_list, table_count) ||
+      (thd->fill_derived_tables() &&
+       mysql_handle_derived(lex, &mysql_derived_filling)))
+    DBUG_RETURN(thd->net.report_error ? -1 : 1);
   DBUG_RETURN (0);
 }
 
@@ -687,11 +707,6 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   DBUG_ENTER("mysql_multi_update");
-
-  /* QQ: This should be fixed soon to get lower granularity locks */
-  select_lex->set_lock_for_tables(thd->lex->multi_lock_option);
-  if ((res= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(res);
 
   if ((res= mysql_multi_update_prepare(thd)))
     DBUG_RETURN(res);
