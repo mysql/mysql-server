@@ -9592,8 +9592,8 @@ version 4.0;
 @item
 The old C API functions @code{mysql_drop_db}, @code{mysql_create_db} and
 @code{mysql_connect} are not supported anymore, unless one compiles
-MySQL with @code{USE_OLD_FUNCTIONS}.   Instead of doing this, one should
-change the client to use the new 4.0 API.
+MySQL with @code{CFLAGS=-DUSE_OLD_FUNCTIONS}.  Instead of doing this,
+one should change the client to use the new 4.0 API.
 @item
 In the @code{MYSQL_FIELD} structure, @code{length} and @code{max_length} has
 changed from @code{unsigned int} to @code{unsigned long}. This should not
@@ -9616,6 +9616,10 @@ Format of @code{SHOW OPEN TABLE} has changed.
 @item
 Multithreaded clients should use @code{mysql_thread_init()} and
 @code{mysql_thread_end()}. @xref{Threaded clients}.
+@item
+If you want to recompile the perl DBD-MySQL module, you must get
+Msql-Mysql-modules version 1.2218 or newer, because the older DBD modules
+used the deprecated @code{drop_db()} call.
 @end itemize
 
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrading-from-3.23, Upgrade
@@ -9659,6 +9663,10 @@ option @code{--no-named-commands (-g)}. This option can be disabled with
 @code{--enable-named-commands (-G)}. This may cause incompatibility problems in
 some cases, for example in SQL scripts that use named commands without a
 semicolon!  Long format commands still work from the first line.
+
+@item
+Date functions that work on part of dates (like @code{MONTH()}) will now
+return 0 for @code{0000-00-00} dates. (MySQL 3.22 returned @code{NULL}).
 
 @item
 If you are using the @code{german} character sort order, you must repair
@@ -10368,6 +10376,8 @@ You can avoid using @file{libg++.a} by running @code{configure} like this:
 shell> CXX=gcc ./configure
 @end example
 
+If you are running gcc 3.0 and above, you can't use the above trick with
+CXX=gcc, but you have to install libstd++.
 
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
@@ -10950,6 +10960,10 @@ Because Windows doesn't allow you to drop files that are open, you first
 must flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
 @code{MERGE} table before dropping the table.  We will fix this at the same 
 time we introduce @code{VIEW}s.
+@item
+@code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives in
+@code{CREATE TABLE} is ignored on windows, because windows doesn't support
+symbolic links.
 @end table
 
 Here are some open issues for anyone who might want to help us with the Windows
@@ -11184,7 +11198,7 @@ When using the @code{--with-libwrap} configure option, you must also
 include the libraries that @file{libwrap.a} needs:
 
 @example
---with-libwrap="/opt/NUtcpwrapper-7.6/lib/libwrap.a -lnsl -lsocket
+--with-libwrap="/opt/NUtcpwrapper-7.6/ -lnsl -lsocket
 @end example
 
 If you have problems with configure trying to link with @code{-lz} and
@@ -35649,15 +35663,6 @@ indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
 
 @item
-Since @strong{MySQL 4.0} this can be activated explicitly.
-@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
-non-unique indexes for @code{MyISAM} table.
-@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
-indexes. As MySQL does it with special algorithm which is much
-faster then inserting keys one by one, disabling keys could give a
-considerable speedup on bulk inserts.
-
-@item
 @findex mysql_info()
 With the C API function @code{mysql_info()}, you can find out how many
 records were copied, and (when @code{IGNORE} is used) how many records were
@@ -39091,7 +39096,14 @@ they roll back the corresponding SQL statement.
 
 @itemize @bullet
 
-@item @code{SHOW TABLE STATUS} does not give accurate statistics
+@item
+@strong{WARNING:} Do @strong{NOT} convert MySQL system tables from
+MyISAM TO InnoDB tables!  This is not supported; If you do this MySQL
+will not restart until you restore the old system tables from a backup
+or re-generate them with the mysql_install_db script.
+
+@item
+@code{SHOW TABLE STATUS} does not give accurate statistics
 on InnoDB tables, except for the physical size reserved by the table.
 The row count is only a rough estimate used in SQL optimization.
 
@@ -47349,7 +47361,7 @@ chapter or for the proper operation of the programs listed herein.
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
 older Perl installations.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.15.tar.gz, DBI-1.15.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.18.tar.gz, DBI-1.18.tar.gz}
 Perl @code{DBI} module.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.2.tar.gz,KAMXbase1.2.tar.gz}
@@ -47358,7 +47370,7 @@ module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
 extended by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2216.tar.gz, Msql-Mysql-modules-1.2216.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2218.tar.gz, Msql-Mysql-modules-1.2218.tar.gz}
 Perl @code{DBD} module to access mSQL and MySQL databases.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
@@ -47440,9 +47452,6 @@ A C++ database independent library that supports MySQL.
 @cindex Delphi
 @item Delphi
 @itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Contrib/delphi-interface.gz, delphi-interface.gz}
-Delphi interface to @code{libmysql.dll}, by Blestan Tabakov,
-@email{root@@tdg.bis.bg}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/DelphiMySQL2.zip, DelphiMySQL2.zip}
 Delphi interface to @code{libmysql.dll}, by @email{bsilva@@umesd.k12.or.us}.
@@ -48655,6 +48664,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on windows.
 @item
 Added boolean fulltext search code. It should be considered early alpha.
 @item
