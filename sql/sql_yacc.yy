@@ -611,6 +611,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CURSOR_SYM
 %token  ELSEIF_SYM
 %token  ITERATE_SYM
+%token  GOTO_SYM
+%token  LABEL_SYM
 %token  LEAVE_SYM
 %token  LOOP_SYM
 %token  REPEAT_SYM
@@ -1180,13 +1182,16 @@ create:
 	  sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 
-	    lex->sphead->init_strings(YYTHD, lex, $3);
+	    if (sp->check_backpatch(YYTHD))
+	      YYABORT;
+	    sp->init_strings(YYTHD, lex, $3);
 	    lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	    /* Restore flag if it was cleared above */
-	    if (lex->sphead->m_old_cmq)
+	    if (sp->m_old_cmq)
 	      YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
-	    lex->sphead->restore_thd_mem_root(YYTHD);
+	    sp->restore_thd_mem_root(YYTHD);
 	  }
 	| CREATE or_replace algorithm VIEW_SYM table_ident
 	  {
@@ -1286,6 +1291,8 @@ create_function_tail:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 
+	    if (sp->check_backpatch(YYTHD))
+	      YYABORT;
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
 	    sp->init_strings(YYTHD, lex, lex->spname);
 	    /* Restore flag if it was cleared above */
@@ -1816,7 +1823,8 @@ sp_proc_stmt:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp = lex->sphead;
-	    sp_label_t *lab= lex->spcont->find_label($2.str);
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_label_t *lab= ctx->find_label($2.str);
 
 	    if (! lab)
 	    {
@@ -1825,8 +1833,20 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      sp_instr_jump *i= new sp_instr_jump(sp->instructions());
+	      uint ip= sp->instructions();
+	      sp_scope_t sdiff;
+	      sp_instr_jump *i;
+	      sp_instr_hpop *ih;
+	      sp_instr_cpop *ic;
 
+	      ctx->diff_scopes(0, &sdiff);
+	      ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	      sp->push_backpatch(ih, lab);
+	      sp->add_instr(ih);
+	      ic= new sp_instr_cpop(ip++, sdiff.curs);
+	      sp->push_backpatch(ic, lab);
+	      sp->add_instr(ic);
+	      i= new sp_instr_jump(ip);
 	      sp->push_backpatch(i, lab);  /* Jumping forward */
               sp->add_instr(i);
 	    }
@@ -1834,19 +1854,101 @@ sp_proc_stmt:
 	| ITERATE_SYM IDENT
 	  {
 	    LEX *lex= Lex;
-	    sp_label_t *lab= lex->spcont->find_label($2.str);
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_label_t *lab= ctx->find_label($2.str);
 
-	    if (! lab || lab->isbegin)
+	    if (! lab || lab->type != SP_LAB_ITER)
 	    {
 	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE", $2.str);
 	      YYABORT;
 	    }
 	    else
 	    {
-	      uint ip= lex->sphead->instructions();
-	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+	      sp_instr_jump *i;
+	      uint ip= sp->instructions();
+	      sp_scope_t sdiff;
 
-              lex->sphead->add_instr(i);
+	      ctx->diff_scopes(lab->scopes, &sdiff);
+	      if (sdiff.hndlrs)
+	        sp->add_instr(new sp_instr_hpop(ip++, sdiff.hndlrs));
+	      if (sdiff.curs)
+	        sp->add_instr(new sp_instr_cpop(ip++, sdiff.curs));
+	      i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+              sp->add_instr(i);
+	    }
+	  }
+	| LABEL_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_label_t *lab= ctx->find_label($2.str);
+
+	    if (! lab)
+	      lab= ctx->find_glabel($2.str);
+	    if (lab)
+	    {
+	      net_printf(YYTHD, ER_SP_LABEL_REDEFINE, $2.str);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      lab= ctx->push_glabel($2.str, sp->instructions());
+	      lab->type= SP_LAB_GOTO;
+	      lab->scopes= ctx->scopes();
+              sp->backpatch(lab);
+	    }
+	  }
+	| GOTO_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
+	    uint ip= lex->sphead->instructions();
+	    sp_label_t *lab= ctx->find_label($2.str);
+	    sp_scope_t sdiff;
+	    sp_instr_jump *i;
+	    sp_instr_hpop *ih;
+	    sp_instr_cpop *ic;
+
+	    if (! lab)
+	      lab= ctx->find_glabel($2.str);
+
+	    if (! lab)
+	    {
+	      lab= (sp_label_t *)YYTHD->alloc(sizeof(sp_label_t));
+	      lab->name= $2.str;
+	      lab->ip= 0;
+	      lab->type= SP_LAB_REF;
+	      lab->scopes= 0;
+
+	      ctx->diff_scopes(0, &sdiff);
+	      ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	      sp->push_backpatch(ih, lab);
+	      sp->add_instr(ih);
+	      ic= new sp_instr_cpop(ip++, sdiff.curs);
+	      sp->add_instr(ic);
+	      sp->push_backpatch(ic, lab);
+	      i= new sp_instr_jump(ip);
+	      sp->push_backpatch(i, lab);  /* Jumping forward */
+	      sp->add_instr(i);
+	    }
+	    else
+	    {
+	      ctx->diff_scopes(lab->scopes, &sdiff);
+	      if (sdiff.hndlrs)
+	      {
+	        ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	        sp->add_instr(ih);
+	      }
+	      if (sdiff.curs)
+	      {
+	        ic= new sp_instr_cpop(ip++, sdiff.curs);
+	        sp->add_instr(ic);
+	      }
+	      i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+	      sp->add_instr(i);
 	    }
 	  }
 	| OPEN_SYM ident
@@ -2041,7 +2143,8 @@ sp_labeled_control:
 	  IDENT ':'
 	  {
 	    LEX *lex= Lex;
-	    sp_label_t *lab= lex->spcont->find_label($1.str);
+	    sp_pcontext *ctx= lex->spcont;
+	    sp_label_t *lab= ctx->find_label($1.str);
 
 	    if (lab)
 	    {
@@ -2050,8 +2153,10 @@ sp_labeled_control:
 	    }
 	    else
 	    {
-	      lex->spcont->push_label($1.str,
-	                              lex->sphead->instructions());
+	      lab= lex->spcont->push_label($1.str,
+	                                   lex->sphead->instructions());
+	      lab->type= SP_LAB_ITER;
+	      lab->scopes= ctx->scopes();
 	    }
 	  }
 	  sp_unlabeled_control sp_opt_label
@@ -2088,27 +2193,33 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    sp_label_t *lab= lex->spcont->last_label();
 
-	    lab->isbegin= TRUE;
+	    lab->type= SP_LAB_BEGIN;
 	    /* Scope duplicate checking */
 	    lex->spcont->push_scope();
 	  }
 	  sp_decls
+	  {
+	    Lex->spcont->push_handlers($3.hndlrs);
+	  }
 	  sp_proc_stmts
 	  END
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
+	    sp_scope_t scope;
 
-  	    sp->backpatch(ctx->last_label());	/* We always has a label */
+  	    sp->backpatch(ctx->last_label());	/* We always have a label */
 	    ctx->pop_pvar($3.vars);
 	    ctx->pop_cond($3.conds);
+	    ctx->pop_handlers($3.hndlrs);
 	    ctx->pop_cursor($3.curs);
 	    if ($3.hndlrs)
-	      sp->add_instr(new sp_instr_hpop(sp->instructions(),$3.hndlrs));
+	      sp->add_instr(new sp_instr_hpop(sp->instructions(), $3.hndlrs));
 	    if ($3.curs)
 	      sp->add_instr(new sp_instr_cpop(sp->instructions(), $3.curs));
-	    ctx->pop_scope();
+	    ctx->pop_scope(&scope);
+	    ctx->pop_glabel(scope.glab);
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM

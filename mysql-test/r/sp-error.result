@@ -63,6 +63,11 @@ iterate foo;
 end|
 ERROR 42000: ITERATE with no matching label: foo
 create procedure foo()
+begin
+goto foo;
+end|
+ERROR 42000: GOTO with no matching label: foo
+create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
