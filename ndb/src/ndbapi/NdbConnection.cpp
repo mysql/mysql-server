@@ -201,7 +201,9 @@ NdbConnection::restart(){
     } else {
       theNdb->theFirstTransId = tTransid + 1;
     }
+    theCommitStatus = Started;
     theCompletionStatus = NotCompleted;
+    theTransactionIsStarted = false;
     DBUG_RETURN(0);
   }
   DBUG_PRINT("error",("theCompletionStatus != CompletedSuccess"));
