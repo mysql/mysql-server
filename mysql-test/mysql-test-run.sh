@@ -537,6 +537,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  INSTALL_DB="./install_test_db"
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
  NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
+ NDB_MGM="$BASEDIR/ndb/src/mgmclient/ndb_mgm"
 else
 
  # We have a binary installation. Note that this can be both from
@@ -564,6 +565,7 @@ else
  INSTALL_DB="./install_test_db --bin"
  MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
  NDB_TOOLS_DIR="$CLIENT_BINDIR"
+ NDB_MGM="$CLIENT_BINDIR/ndb_mgm"
  if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
@@ -629,6 +631,7 @@ MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --u
 export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
 export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
+export NDB_MGM
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
