@@ -375,7 +375,7 @@ sem_post (sem_t * sem)
 */
 
 int
-sem_post_multiple (sem_t * sem, int count )
+sem_post_multiple (sem_t * sem, unsigned int count)
 {
 #ifdef EXTRA_DEBUG
   if (sem == NULL || *sem == NULL || count <= 0)
@@ -397,7 +397,7 @@ sem_post_multiple (sem_t * sem, int count )
 }
 
 int
-sem_getvalue (sem_t *sem, int *sval)
+sem_getvalue (sem_t *sem, unsigned int *sval)
 {
   errno = ENOSYS;
   return -1;

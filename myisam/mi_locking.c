@@ -219,7 +219,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 
 
 /****************************************************************************
-** The following functions are called by thr_lock() in threaded applications
+  The following functions are called by thr_lock() in threaded applications
 ****************************************************************************/
 
 void mi_get_status(void* param)

@@ -58,7 +58,7 @@
 *  Mountain View, California  94043
 */
 
-int my_rwlock_init( rw_lock_t *rwp, void *arg __attribute__((unused)))
+int my_rwlock_init(rw_lock_t *rwp, void *arg __attribute__((unused)))
 {
   pthread_condattr_t	cond_attr;
 
@@ -74,7 +74,9 @@ int my_rwlock_init( rw_lock_t *rwp, void *arg __attribute__((unused)))
   return( 0 );
 }
 
-int my_rwlock_destroy( rw_lock_t *rwp ) {
+
+int my_rwlock_destroy(rw_lock_t *rwp)
+{
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
   pthread_cond_destroy( &rwp->writers );
@@ -82,11 +84,13 @@ int my_rwlock_destroy( rw_lock_t *rwp ) {
   return( 0 );
 }
 
-int my_rw_rdlock( rw_lock_t *rwp ) {
+
+int my_rw_rdlock(rw_lock_t *rwp)
+{
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers		*/
-  while ( ( rwp->state < 0 ) || rwp->waiters )
+  while (( rwp->state < 0 ) || rwp->waiters)
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;
@@ -95,8 +99,8 @@ int my_rw_rdlock( rw_lock_t *rwp ) {
   return( 0 );
 }
 
-int my_rw_wrlock( rw_lock_t *rwp ) {
-
+int my_rw_wrlock(rw_lock_t *rwp)
+{
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++; /* another writer queued		*/
 
@@ -106,10 +110,12 @@ int my_rw_wrlock( rw_lock_t *rwp ) {
   --rwp->waiters;
   pthread_mutex_unlock( &rwp->lock );
 
-  return( 0 );
+  return(0);
 }
 
-int my_rw_unlock( rw_lock_t *rwp ) {
+
+int my_rw_unlock(rw_lock_t *rwp)
+{
   DBUG_PRINT("rw_unlock",
 	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
   pthread_mutex_lock(&rwp->lock);
@@ -121,7 +127,9 @@ int my_rw_unlock( rw_lock_t *rwp ) {
       pthread_cond_signal( &rwp->writers );
     else
       pthread_cond_broadcast( &rwp->readers );
-  } else {
+  }
+  else
+  {
     if ( --rwp->state == 0 )	/* no more readers	*/
       pthread_cond_signal( &rwp->writers );
   }

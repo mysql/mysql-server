@@ -33,20 +33,29 @@
 
 C_MODE_START
 
-#ifndef __WIN__
+#ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>
 #else
 
+#ifdef __WIN__
 typedef HANDLE sem_t;
+#else
+typedef struct {
+  pthread_mutex_t mutex;
+  pthread_cond_t  cond;
+  uint            count;
+} sem_t;
+#endif
+
 int sem_init(sem_t * sem, int pshared, unsigned int value);
 int sem_destroy(sem_t * sem);
 int sem_trywait(sem_t * sem);
 int sem_wait(sem_t * sem);
 int sem_post(sem_t * sem);
-int sem_post_multiple(sem_t * sem,int count);
-int sem_getvalue(sem_t * sem, int * sval);
+int sem_post_multiple(sem_t * sem, unsigned int count);
+int sem_getvalue(sem_t * sem, unsigned int * sval);
 
-#endif /* __WIN__ */
+#endif
 
 C_MODE_END
 #endif /* !_my_semaphore_h_ */
