@@ -49,6 +49,12 @@ os_event_create(
 			TRUE,		/* Manual reset */
 			FALSE,		/* Initial state nonsignaled */
 			name);
+	if (!event) {
+	        fprintf(stderr,
+"InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
+		  (ulint)GetLastError());
+	}
+
 	ut_a(event);
 
 	return(event);

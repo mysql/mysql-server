@@ -2278,7 +2278,7 @@ consecutive_loop:
 				    	ut_print_timestamp(stderr);
 				    	fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n");
-					page_print(combined_buf + len2);
+					buf_page_print(combined_buf + len2);
 				    	fprintf(stderr,
 "InnoDB: ERROR: The page to be written seems corrupt!\n");
 				}
