@@ -2234,7 +2234,9 @@ mysql_execute_command(THD *thd)
   /* Locked closure of all tables */
   TABLE_LIST *locked_tables= NULL;
   /* Saved variable value */
+#ifdef HAVE_INNOBASE_DB
   my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
+#endif
   DBUG_ENTER("mysql_execute_command");
 
   /*
@@ -2330,7 +2332,9 @@ mysql_execute_command(THD *thd)
 	{
 	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
 	  {
+#ifdef HAVE_INNOBASE_DB
 	    thd->variables.innodb_table_locks= FALSE;
+#endif
 	    sp_open_and_lock_tables(thd, locked_tables);
 	  }
 	}
@@ -4346,7 +4350,9 @@ cleanup:
 
   if (locked_tables)
   {
+#ifdef HAVE_INNOBASE_DB
     thd->variables.innodb_table_locks= old_innodb_table_locks;
+#endif
     if (thd->locked_tables)
       sp_unlock_tables(thd);
   }
