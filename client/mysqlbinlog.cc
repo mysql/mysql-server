@@ -125,7 +125,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 2.0 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -141,7 +141,6 @@ Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
 the mysql command line client\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
   my_print_help(my_long_options);
-  putchar('\n');
   my_print_variables(my_long_options);
 }
 
