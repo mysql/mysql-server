@@ -33,6 +33,12 @@ char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
        nr	Errno
        MyFlags	Flags
        ...	variable list
+   NOTE
+    The following subset of printf format is supported:
+    "%[0-9.-]*l?[sdu]", where all length flags are parsed but ignored.
+
+    Additionally "%.*s" is supported and "%.*[ud]" is correctly parsed but
+    the length value is ignored.
 */
 
 int my_error(int nr,myf MyFlags, ...)
@@ -43,7 +49,10 @@ int my_error(int nr,myf MyFlags, ...)
   reg2 char	*endpos;
   char		* par;
   char		ebuff[ERRMSGSIZE+20];
+  int           prec_chars; /* output precision */
+  my_bool       prec_supplied;
   DBUG_ENTER("my_error");
+  LINT_INIT(prec_chars); /* protected by prec_supplied */
 
   va_start(ap,MyFlags);
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
@@ -59,7 +68,6 @@ int my_error(int nr,myf MyFlags, ...)
     if (tpos[0] != '%')
     {
       *endpos++= *tpos++;	/* Copy ordinary char */
-      olen++;
       continue;
     }
     if (*++tpos == '%')		/* test if %% */
@@ -68,43 +76,71 @@ int my_error(int nr,myf MyFlags, ...)
     }
     else
     {
-      /* Skipp if max size is used (to be compatible with printf) */
-      while (my_isdigit(&my_charset_latin1, *tpos) || *tpos == '.' || *tpos == '-')
-	tpos++;
-      if (*tpos == 'l')				/* Skipp 'l' argument */
-	tpos++;
+      /*
+        Skip size/precision flags to be compatible with printf.
+        The only size/precision flag supported is "%.*s".
+        If "%.*u" or "%.*d" are encountered, the precision number is read
+        from the variable argument list but its value is ignored.
+      */
+      prec_supplied= 0;
+      if (*tpos== '.')
+      {
+        tpos++;
+        olen--;
+        if (*tpos == '*')
+        {
+          tpos++;
+          olen--;
+          prec_chars= va_arg(ap, int); /* get length parameter */
+          prec_supplied= 1;
+        }
+      }
+
+      if (!prec_supplied)
+      {
+        while (my_isdigit(&my_charset_latin1, *tpos) || *tpos == '.' ||
+               *tpos == '-')
+	  tpos++;
+
+        if (*tpos == 'l')				/* Skip 'l' argument */
+	  tpos++;
+      }
+
       if (*tpos == 's')				/* String parameter */
       {
-	par = va_arg(ap, char *);
-	plen = (uint) strlen(par);
+	par= va_arg(ap, char *);
+	plen= (uint) strlen(par);
+        if (prec_supplied && prec_chars > 0)
+          plen= min((uint)prec_chars, plen);
 	if (olen + plen < ERRMSGSIZE+2)		/* Replace if possible */
 	{
-	  endpos=strmov(endpos,par);
-	  tpos++;
-	  olen+=plen-2;
-	  continue;
+          strmake(endpos, par, plen);
+          endpos+= plen;
+          tpos++;
+          olen+= plen-2;
+          continue;
 	}
       }
       else if (*tpos == 'd' || *tpos == 'u')	/* Integer parameter */
       {
 	register int iarg;
-	iarg = va_arg(ap, int);
+	iarg= va_arg(ap, int);
 	if (*tpos == 'd')
-	  plen= (uint) (int2str((long) iarg,endpos, -10) - endpos);
+	  plen= (uint) (int10_to_str((long) iarg, endpos, -10) - endpos);
 	else
-	  plen= (uint) (int2str((long) (uint) iarg,endpos,10)- endpos);
+	  plen= (uint) (int10_to_str((long) (uint) iarg, endpos, 10) - endpos);
 	if (olen + plen < ERRMSGSIZE+2) /* Replace parameter if possible */
 	{
-	  endpos+=plen;
+	  endpos+= plen;
 	  tpos++;
-	  olen+=plen-2;
+	  olen+= plen-2;
 	  continue;
 	}
       }
     }
-    *endpos++='%';		/* % used as % or unknown code */
+    *endpos++= '%';		/* % used as % or unknown code */
   }
-  *endpos='\0';			/* End of errmessage */
+  *endpos= '\0';			/* End of errmessage */
   va_end(ap);
   DBUG_RETURN((*error_handler_hook)(nr, ebuff, MyFlags));
 }

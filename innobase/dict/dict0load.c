@@ -51,7 +51,7 @@ dict_get_first_table_name_in_db(
 	
 	mtr_start(&mtr);
 
-	sys_tables = dict_table_get_low((char *) "SYS_TABLES");
+	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 
 	tuple = dtuple_create(heap, 1);
@@ -127,7 +127,7 @@ dict_print(void)
 
 	mtr_start(&mtr);
 
-	sys_tables = dict_table_get_low((char *) "SYS_TABLES");
+	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
@@ -207,13 +207,12 @@ dict_check_tablespaces_or_store_max_id(
 	ulint		space_id;
 	ulint		max_space_id	= 0;
 	mtr_t		mtr;
-	char		name[OS_FILE_MAX_PATH];
 	
 	mutex_enter(&(dict_sys->mutex));
 
 	mtr_start(&mtr);
 
-	sys_tables = dict_table_get_low((char *) "SYS_TABLES");
+	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
@@ -247,9 +246,7 @@ loop:
 
 		/* We found one */
 
-		ut_a(len < OS_FILE_MAX_PATH - 10);
-		ut_memcpy(name, field, len);
-		name[len] = '\0';
+		char*	name = mem_strdupl(field, len);
 
 		field = rec_get_nth_field(rec, 9, &len);
 		ut_a(len == 4);
@@ -267,7 +264,9 @@ loop:
 			fil_space_for_table_exists_in_mem(space_id, name,
 								TRUE, TRUE);
 		}
-		
+
+		mem_free(name);
+
 		if (space_id > max_space_id) {
 			max_space_id = space_id;
 		}
@@ -312,7 +311,7 @@ dict_load_columns(
 
 	mtr_start(&mtr);
 
-	sys_columns = dict_table_get_low((char*) "SYS_COLUMNS");
+	sys_columns = dict_table_get_low("SYS_COLUMNS");
 	sys_index = UT_LIST_GET_FIRST(sys_columns->indexes);
 
 	tuple = dtuple_create(heap, 1);
@@ -342,7 +341,7 @@ dict_load_columns(
 		ut_ad(len == 4);
 		ut_a(i == mach_read_from_4(field));
 
-		ut_a(0 == ut_strcmp((char*) "NAME",
+		ut_a(0 == ut_strcmp("NAME",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_columns), 4))->name));
@@ -368,7 +367,7 @@ dict_load_columns(
 		field = rec_get_nth_field(rec, 7, &len);
 		col_len = mach_read_from_4(field);
 
-		ut_a(0 == ut_strcmp((char*) "PREC",
+		ut_a(0 == ut_strcmp("PREC",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_columns), 8))->name));
@@ -438,7 +437,7 @@ dict_load_fields(
 
 	mtr_start(&mtr);
 
-	sys_fields = dict_table_get_low((char*) "SYS_FIELDS");
+	sys_fields = dict_table_get_low("SYS_FIELDS");
 	sys_index = UT_LIST_GET_FIRST(sys_fields->indexes);
 
 	tuple = dtuple_create(heap, 1);
@@ -489,7 +488,7 @@ dict_load_fields(
 		        prefix_len = 0;
 		}
 
-		ut_a(0 == ut_strcmp((char*) "COL_NAME",
+		ut_a(0 == ut_strcmp("COL_NAME",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_fields), 4))->name));
@@ -551,7 +550,7 @@ dict_load_indexes(
 	
 	mtr_start(&mtr);
 
-	sys_indexes = dict_table_get_low((char*) "SYS_INDEXES");
+	sys_indexes = dict_table_get_low("SYS_INDEXES");
 	sys_index = UT_LIST_GET_FIRST(sys_indexes->indexes);
 
 	tuple = dtuple_create(heap, 1);
@@ -594,7 +593,7 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(0 == ut_strcmp((char*) "NAME",
+		ut_a(0 == ut_strcmp("NAME",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_indexes), 4))->name));
@@ -611,7 +610,7 @@ dict_load_indexes(
 		field = rec_get_nth_field(rec, 7, &len);
 		space = mach_read_from_4(field);
 
-		ut_a(0 == ut_strcmp((char*) "PAGE_NO",
+		ut_a(0 == ut_strcmp("PAGE_NO",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_indexes), 8))->name));
@@ -654,7 +653,7 @@ dict_load_indexes(
 		    && ((type & DICT_CLUSTERED)
 		        || ((table == dict_sys->sys_tables)
 		            && (name_len == (sizeof "ID_IND") - 1)
-			    && (0 == ut_memcmp(name_buf, (char*) "ID_IND",
+			    && (0 == ut_memcmp(name_buf, "ID_IND",
 							name_len))))) {
 
 			/* The index was created in memory already at booting
@@ -721,7 +720,7 @@ dict_load_table(
 	
 	mtr_start(&mtr);
 
-	sys_tables = dict_table_get_low((char *) "SYS_TABLES");
+	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 
 	tuple = dtuple_create(heap, 1);
@@ -757,7 +756,7 @@ dict_load_table(
 		return(NULL);
 	}
 
-	ut_a(0 == ut_strcmp((char *) "SPACE",
+	ut_a(0 == ut_strcmp("SPACE",
 		dict_field_get_col(
 		dict_index_get_nth_field(
 			dict_table_get_first_index(sys_tables), 9))->name));
@@ -782,7 +781,7 @@ dict_load_table(
 		}
 	}
 
-	ut_a(0 == ut_strcmp((char *) "N_COLS",
+	ut_a(0 == ut_strcmp("N_COLS",
 		dict_field_get_col(
 		dict_index_get_nth_field(
 			dict_table_get_first_index(sys_tables), 4))->name));
@@ -794,7 +793,7 @@ dict_load_table(
 
 	table->ibd_file_missing = ibd_file_missing;
 
-	ut_a(0 == ut_strcmp((char *) "ID",
+	ut_a(0 == ut_strcmp("ID",
 		dict_field_get_col(
 		dict_index_get_nth_field(
 			dict_table_get_first_index(sys_tables), 3))->name));
@@ -983,7 +982,7 @@ static
 void
 dict_load_foreign_cols(
 /*===================*/
-	char*		id,	/* in: foreign constraint id as a null-
+	const char*	id,	/* in: foreign constraint id as a null-
 				terminated string */
 	dict_foreign_t*	foreign)/* in: foreign constraint object */
 {
@@ -1009,7 +1008,7 @@ dict_load_foreign_cols(
 					foreign->n_fields * sizeof(void*));
 	mtr_start(&mtr);
 
-	sys_foreign_cols = dict_table_get_low((char *) "SYS_FOREIGN_COLS");
+	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
 	sys_index = UT_LIST_GET_FIRST(sys_foreign_cols->indexes);
 
 	tuple = dtuple_create(foreign->heap, 1);
@@ -1056,9 +1055,9 @@ static
 ulint
 dict_load_foreign(
 /*==============*/
-			/* out: DB_SUCCESS or error code */
-	char*	id)	/* in: foreign constraint id as a null-terminated
-			string */
+				/* out: DB_SUCCESS or error code */
+	const char*	id)	/* in: foreign constraint id as a
+				null-terminated string */
 {	
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1081,7 +1080,7 @@ dict_load_foreign(
 	
 	mtr_start(&mtr);
 
-	sys_foreign = dict_table_get_low((char *) "SYS_FOREIGN");
+	sys_foreign = dict_table_get_low("SYS_FOREIGN");
 	sys_index = UT_LIST_GET_FIRST(sys_foreign->indexes);
 
 	tuple = dtuple_create(heap2, 1);
@@ -1207,7 +1206,7 @@ dict_load_foreigns(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	sys_foreign = dict_table_get_low((char *) "SYS_FOREIGN");
+	sys_foreign = dict_table_get_low("SYS_FOREIGN");
 
 	if (sys_foreign == NULL) {
 		/* No foreign keys defined yet in this database */

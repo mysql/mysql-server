@@ -368,6 +368,10 @@ SOURCE="..\sql-common\pack.c"
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql-common\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\libmysql\password.c
 # End Source File
 # Begin Source File
@@ -585,6 +589,10 @@ SOURCE=..\sql\thr_malloc.cpp
 # Begin Source File
 
 SOURCE=..\sql\time.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\tztime.cpp
 # End Source File
 # Begin Source File
 

@@ -223,14 +223,12 @@ in the free list to the frames.
 
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
-#ifdef UNIV_DEBUG
-static ulint	buf_dbg_counter	= 0; /* This is used to insert validation
+ulint		buf_dbg_counter	= 0; /* This is used to insert validation
 					operations in excution in the
 					debug version */
 ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
-#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
@@ -719,7 +717,9 @@ buf_awe_map_page_to_frame(
 {
 	buf_block_t*	bck;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 
 	if (block->frame) {
@@ -1727,12 +1727,10 @@ buf_page_create(
 
 	/* If we get here, the page was not in buf_pool: init it there */
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "Creating space %lu page %lu to buffer\n",
 			(ulong) space, (ulong) offset);
 	}
-#endif /* UNIV_DEBUG */
 
 	block = free_block;
 	
@@ -1883,11 +1881,9 @@ buf_page_io_complete(
 
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
 
-#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has read ", stderr);
 		}
-#endif /* UNIV_DEBUG */
 	} else {
 		ut_ad(io_type == BUF_IO_WRITE);
 
@@ -1900,21 +1896,17 @@ buf_page_io_complete(
 
 		buf_pool->n_pages_written++;
 
-#ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fputs("Has written ", stderr);
 		}
-#endif /* UNIV_DEBUG */
 	}
 	
 	mutex_exit(&(buf_pool->mutex));
 
-#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr, "page space %lu page no %lu\n",
 			(ulong) block->space, (ulong) block->offset);
 	}
-#endif /* UNIV_DEBUG */
 }
 
 /*************************************************************************
@@ -1943,7 +1935,6 @@ buf_pool_invalidate(void)
 	mutex_exit(&(buf_pool->mutex));
 }
 
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer buf_pool data structure. */
 
@@ -2143,7 +2134,6 @@ buf_print(void)
 
 	ut_a(buf_validate());
 }	
-#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Returns the number of pending buf pool ios. */

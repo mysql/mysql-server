@@ -18,7 +18,6 @@
 #define NdbConnection_H
 
 #include <ndb_types.h>
-#include <AttrType.hpp>
 #include <NdbError.hpp>
 
 class NdbConnection;
@@ -29,6 +28,7 @@ class NdbIndexOperation;
 class NdbApiSignal;
 class Ndb;
 class NdbScanReceiver;
+class NdbBlob;
 
 
 /**
@@ -39,6 +39,35 @@ class NdbScanReceiver;
  * See @ref secAsync for more information.
  */
 typedef void (* NdbAsynchCallback)(int, NdbConnection*, void*);
+
+/**
+ * Commit type of transaction
+ */
+enum AbortOption {      
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  CommitIfFailFree = 0,         
+  CommitAsMuchAsPossible = 2,   ///< Commit transaction with as many 
+  TryCommit = 0,                ///< <i>Missing explanation</i>
+#endif
+  AbortOnError = 0,             ///< Abort transaction on failed operation
+  IgnoreError = 2               ///< Transaction continues on failed operation
+};
+  
+typedef AbortOption CommitType;
+
+
+/**
+ * Execution type of transaction
+ */
+enum ExecType { 
+  NoExecTypeDef = -1,           ///< Erroneous type (Used for debugging only)
+  Prepare,                      ///< <i>Missing explanation</i>
+  NoCommit,                     ///< Execute the transaction as far as it has
+                                ///< been defined, but do not yet commit it
+  Commit,                       ///< Execute and try to commit the transaction
+  Rollback                      ///< Rollback transaction
+};
+
 
 /**
  * @class NdbConnection
@@ -132,6 +161,7 @@ class NdbConnection
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbScanReceiver;
+  friend class NdbBlob;
  
 public:
 
@@ -419,6 +449,14 @@ public:
    * @return  The commit status of the transaction, i.e. one of
    *          { NotStarted, Started, TimeOut, Committed, Aborted, NeedAbort } 
    */
+  enum CommitStatusType { 
+    NotStarted,                   ///< Transaction not yet started
+    Started,                      ///< <i>Missing explanation</i>
+    Committed,                    ///< Transaction has been committed
+    Aborted,                      ///< Transaction has been aborted
+    NeedAbort                     ///< <i>Missing explanation</i>
+  };
+
   CommitStatusType commitStatus();
 
   /** @} *********************************************************************/
@@ -500,6 +538,10 @@ private:
   ~NdbConnection();
 
   void init();           // Initialize connection object for new transaction
+
+  int executeNoBlobs(ExecType execType, 
+	             AbortOption abortOption = AbortOnError,
+	             int force = 0 );
   
   /**
    * Set Connected node id 
@@ -515,8 +557,17 @@ private:
   Uint32        getBuddyConPtr();                 // Gets Buddy Con Ptr
   NdbConnection* next();			  // Returns the next pointer
   void		next(NdbConnection*);		  // Sets the next pointer
-  ConStatusType Status();			  // Read the status information
-  void		Status(ConStatusType);	          // Set the status information
+
+  enum ConStatusType { 
+    NotConnected,
+    Connecting,
+    Connected,
+    DisConnecting,
+    ConnectFailure
+  };
+  ConStatusType Status();                 // Read the status information
+  void		Status(ConStatusType);	  // Set the status information
+
   Uint32        get_send_size();                  // Get size to send
   void          set_send_size(Uint32);            // Set size to send;
   
@@ -580,10 +631,12 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
-  NdbOperation* getNdbOperation(class NdbTableImpl* aTable);
+  NdbOperation* getNdbOperation(class NdbTableImpl* aTable,
+                                NdbOperation* aNextOp = 0);
   NdbScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
-                                          class NdbTableImpl* aTable);
+                                          class NdbTableImpl* aTable,
+                                          NdbOperation* aNextOp = 0);
   
   void		handleExecuteCompletion();
   
@@ -595,6 +648,18 @@ private:
   Uint32 theId;
 
   // Keeps track of what the send method should do.
+  enum SendStatusType { 
+    NotInit,  
+    InitState,  
+    sendOperations,  
+    sendCompleted, 
+    sendCOMMITstate, 
+    sendABORT, 
+    sendABORTfail, 
+    sendTC_ROLLBACK,  
+    sendTC_COMMIT, 
+    sendTC_OP       
+  };
   SendStatusType theSendStatus; 
   NdbAsynchCallback  theCallbackFunction;    // Pointer to the callback function
   void*              theCallbackObject;      // The callback object pointer
@@ -628,12 +693,18 @@ private:
   Uint64	theTransactionId;			// theTransactionId of the transaction
   Uint32	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
   ConStatusType	theStatus;				// The status of the connection		
-
-  CompletionStatus theCompletionStatus;			// The Completion status of the transaction
+  enum CompletionStatus { 
+    NotCompleted,
+    CompletedSuccess,
+    CompletedFailure,
+    DefinitionFailure
+  } theCompletionStatus;	  // The Completion status of the transaction
   CommitStatusType theCommitStatus;			// The commit status of the transaction
   Uint32	theMagicNumber;				// Magic Number to verify correct object
 
   Uint32	thePriority;				// Transaction Priority
+
+  enum ReturnType {  ReturnSuccess,  ReturnFailure };
   ReturnType    theReturnStatus;			// Did we have any read/update/delete failing
 							// to find the tuple.
   bool theTransactionIsStarted; 
@@ -641,7 +712,12 @@ private:
   bool theSimpleState;
   Uint8 m_abortOption;           // Type of commit
 
-  ListState     theListState;
+  enum ListState {  
+    NotInList, 
+    InPreparedList, 
+    InSendList, 
+    InCompletedList 
+  } theListState;
 
   Uint32 theDBnode;       // The database node we are connected to  
   Uint32 theNodeSequence; // The sequence no of the db node
@@ -662,6 +738,8 @@ private:
                                             // nextScanResult.
   NdbOperation* theScanningOp; // The operation actually performing the scan
   Uint32 theBuddyConPtr;
+  // optim: any blobs
+  bool theBlobFlag;
 
   static void sendTC_COMMIT_ACK(NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
@@ -686,6 +764,10 @@ NdbConnection::set_send_size(Uint32 send_size)
 {
   return;
 }
+
+#ifdef NDB_NO_DROPPED_SIGNAL
+#include <stdlib.h>
+#endif
 
 inline
 int
@@ -830,7 +912,7 @@ Parameters:     aStatus:  The status.
 Remark:         Sets Connect status. 
 ******************************************************************************/
 inline
-ConStatusType			
+NdbConnection::ConStatusType			
 NdbConnection::Status()
 {
   return theStatus;
@@ -848,6 +930,7 @@ NdbConnection::Status( ConStatusType aStatus )
 {
   theStatus = aStatus;
 }
+
 
 /******************************************************************************
  void    	setGCI();

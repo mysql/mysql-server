@@ -29,7 +29,6 @@ Adjust:  971114  UABMNST   First version.
 ******************************************************************************/
 #include "API.hpp"
 #include "NdbApiSignal.hpp"
-#include <AttrType.hpp>
 
 /**
  * The following include includes

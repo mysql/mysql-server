@@ -1,0 +1,201 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists test2;
+drop database if exists test3;
+create database test2 character set latin2;
+set @@character_set_server=latin5;
+create database test3;
+
+--- --master--
+show create database test2;
+Database	Create Database
+test2	CREATE DATABASE `test2` /*!40100 DEFAULT CHARACTER SET latin2 */
+show create database test3;
+Database	Create Database
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET latin5 */
+
+--- --slave--
+show create database test2;
+Database	Create Database
+test2	CREATE DATABASE `test2` /*!40100 DEFAULT CHARACTER SET latin2 */
+show create database test3;
+Database	Create Database
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET latin5 */
+set @@collation_server=armscii8_bin;
+drop database test3;
+create database test3;
+
+--- --master--
+show create database test3;
+Database	Create Database
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+
+--- --slave--
+show create database test3;
+Database	Create Database
+test3	CREATE DATABASE `test3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+use test2;
+create table t1 (a int auto_increment primary key, b varchar(100));
+set character_set_client=cp850, collation_connection=latin2_croatian_ci;
+insert into t1 (b) values(@@character_set_server);
+insert into t1 (b) values(@@collation_server);
+insert into t1 (b) values(@@character_set_client);
+insert into t1 (b) values(@@character_set_connection);
+insert into t1 (b) values(@@collation_connection);
+
+--- --master--
+select * from t1 order by a;
+a	b
+1	armscii8
+2	armscii8_bin
+3	cp850
+4	latin2
+5	latin2_croatian_ci
+
+--- --slave--
+select * from test2.t1 order by a;
+a	b
+1	armscii8
+2	armscii8_bin
+3	cp850
+4	latin2
+5	latin2_croatian_ci
+set character_set_client=latin1, collation_connection=latin1_german1_ci;
+truncate table t1;
+insert into t1 (b) values(@@collation_connection);
+insert into t1 (b) values(LEAST("Müller","Muffler"));
+set collation_connection=latin1_german2_ci;
+insert into t1 (b) values(@@collation_connection);
+insert into t1 (b) values(LEAST("Müller","Muffler"));
+
+--- --master--
+select * from t1 order by a;
+a	b
+1	latin1_german1_ci
+2	Muffler
+3	latin1_german2_ci
+4	Müller
+
+--- --slave--
+select * from test2.t1 order by a;
+a	b
+1	latin1_german1_ci
+2	Muffler
+3	latin1_german2_ci
+4	Müller
+load data infile '../../std_data/words.dat' into table t1 (b);
+set @a= _cp850 'Müller' collate cp850_general_ci;
+truncate table t1;
+insert into t1 (b) values(collation(@a));
+
+--- --master--
+select * from t1 order by a;
+a	b
+1	cp850_general_ci
+
+--- --slave--
+select * from test2.t1 order by a;
+a	b
+1	cp850_general_ci
+drop database test2;
+drop database test3;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; drop database if exists test2
+master-bin.000001	143	Query	1	143	use `test`; drop database if exists test3
+master-bin.000001	207	Query	1	207	use `test`; create database test2 character set latin2
+master-bin.000001	284	Query	1	284	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=30
+master-bin.000001	418	Query	1	418	use `test`; create database test3
+master-bin.000001	474	Query	1	474	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
+master-bin.000001	608	Query	1	608	use `test`; drop database test3
+master-bin.000001	662	Query	1	662	use `test`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=8,COLLATION_SERVER=64
+master-bin.000001	796	Query	1	796	use `test`; create database test3
+master-bin.000001	852	Query	1	852	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=8,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	987	Query	1	987	use `test2`; create table t1 (a int auto_increment primary key, b varchar(100))
+master-bin.000001	1089	Query	1	1089	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1225	Intvar	1	1225	INSERT_ID=1
+master-bin.000001	1253	Query	1	1253	use `test2`; insert into t1 (b) values(@@character_set_server)
+master-bin.000001	1338	Query	1	1338	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1474	Intvar	1	1474	INSERT_ID=2
+master-bin.000001	1502	Query	1	1502	use `test2`; insert into t1 (b) values(@@collation_server)
+master-bin.000001	1583	Query	1	1583	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1719	Intvar	1	1719	INSERT_ID=3
+master-bin.000001	1747	Query	1	1747	use `test2`; insert into t1 (b) values(@@character_set_client)
+master-bin.000001	1832	Query	1	1832	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	1968	Intvar	1	1968	INSERT_ID=4
+master-bin.000001	1996	Query	1	1996	use `test2`; insert into t1 (b) values(@@character_set_connection)
+master-bin.000001	2085	Query	1	2085	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=4,COLLATION_CONNECTION=27,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2221	Intvar	1	2221	INSERT_ID=5
+master-bin.000001	2249	Query	1	2249	use `test2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	2334	Query	1	2334	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2469	Query	1	2469	use `test2`; truncate table t1
+master-bin.000001	2522	Query	1	2522	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2657	Intvar	1	2657	INSERT_ID=1
+master-bin.000001	2685	Query	1	2685	use `test2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	2770	Query	1	2770	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=5,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	2905	Intvar	1	2905	INSERT_ID=2
+master-bin.000001	2933	Query	1	2933	use `test2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	3021	Query	1	3021	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3157	Intvar	1	3157	INSERT_ID=3
+master-bin.000001	3185	Query	1	3185	use `test2`; insert into t1 (b) values(@@collation_connection)
+master-bin.000001	3270	Query	1	3270	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3406	Intvar	1	3406	INSERT_ID=4
+master-bin.000001	3434	Query	1	3434	use `test2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
+master-bin.000001	3522	Query	1	3522	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	3658	Intvar	1	3658	INSERT_ID=74
+master-bin.000001	3686	Create_file	1	3686	db=test2;table=t1;file_id=1;block_len=581
+master-bin.000001	4354	Query	1	4354	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	4490	Intvar	1	4490	INSERT_ID=5
+master-bin.000001	4518	Exec_load	1	4518	;file_id=1
+master-bin.000001	4541	Query	1	4541	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	4677	Query	1	4677	use `test2`; truncate table t1
+master-bin.000001	4730	Query	1	4730	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	4866	Intvar	1	4866	INSERT_ID=1
+master-bin.000001	4894	User var	1	4894	@`a`=_cp850 0x4DFC6C6C6572 COLLATE cp850_general_ci
+master-bin.000001	4934	Query	1	4934	use `test2`; insert into t1 (b) values(collation(@a))
+master-bin.000001	5010	Query	1	5010	use `test2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	5146	Query	1	5146	use `test2`; drop database test2
+master-bin.000001	5201	Query	1	5201	SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
+master-bin.000001	5332	Query	1	5332	drop database test3
+set global character_set_server=latin2;
+ERROR HY000: Binary logging and replication forbid changing the global server character set or collation
+set global character_set_server=latin2;
+ERROR HY000: Binary logging and replication forbid changing the global server character set or collation
+set one_shot @@character_set_server=latin5;
+set @@max_join_size=1000;
+select @@character_set_server;
+@@character_set_server
+latin5
+select @@character_set_server;
+@@character_set_server
+latin1
+set @@character_set_server=latin5;
+select @@character_set_server;
+@@character_set_server
+latin5
+select @@character_set_server;
+@@character_set_server
+latin5
+set one_shot max_join_size=10;
+ERROR HY000: The SET ONE_SHOT syntax is reserved for purposes internal to the MySQL server
+set character_set_client=9999999;
+ERROR 42000: Unknown character set: '9999999'
+set collation_server=9999998;
+ERROR HY000: Unknown collation: '9999998'
+use test;
+CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255));
+SET CHARACTER_SET_CLIENT=koi8r,
+CHARACTER_SET_CONNECTION=cp1251, 
+CHARACTER_SET_RESULTS=koi8r;
+INSERT INTO t1 (c1, c2) VALUES ('îÕ, ÚÁ ÒÙÂÁÌËÕ','îÕ, ÚÁ ÒÙÂÁÌËÕ');
+select hex(c1), hex(c2) from t1;
+hex(c1)	hex(c2)
+CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
+select hex(c1), hex(c2) from t1;
+hex(c1)	hex(c2)
+CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
+drop table t1;

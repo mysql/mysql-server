@@ -119,8 +119,8 @@ rw_lock_create_func(
 	lock->cfile_name = cfile_name;
 	lock->cline = cline;
 
-	lock->last_s_file_name = (char *) "not yet reserved";
-	lock->last_x_file_name = (char *) "not yet reserved";
+	lock->last_s_file_name = "not yet reserved";
+	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
 
@@ -171,7 +171,6 @@ rw_lock_free(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the rw-lock has been initialized and that there are no
 simultaneous shared and exclusive locks. */
@@ -199,7 +198,6 @@ rw_lock_validate(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
@@ -593,7 +591,7 @@ rw_lock_add_debug_info(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		pass,		/* in: pass value */
 	ulint		lock_type,	/* in: lock type */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line)		/* in: line where requested */
 {
 	rw_lock_debug_t*	info;

@@ -7,8 +7,8 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
 ('Full-text search in MySQL', 'implements vector space model');
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	a	1	a	A	NULL	NULL	NULL	YES	FULLTEXT	
-t1	1	a	2	b	A	NULL	NULL	NULL	YES	FULLTEXT	
+t1	1	a	1	a	NULL	NULL	NULL	NULL	YES	FULLTEXT	
+t1	1	a	2	b	NULL	NULL	NULL	NULL	YES	FULLTEXT	
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Only MyISAM tables	support collections
@@ -223,7 +223,7 @@ id
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t2	1	tig	1	ticket	A	NULL	NULL	NULL	YES	BTREE	
-t2	1	tix	1	inhalt	A	NULL	NULL	NULL	YES	FULLTEXT	
+t2	1	tix	1	inhalt	NULL	NULL	NULL	NULL	YES	FULLTEXT	
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -253,11 +253,11 @@ KEY tig (ticket),
 fulltext index tix (inhalt)
 );
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
-ERROR HY000: Wrong arguments to AGAINST
+ERROR HY000: Incorrect arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
 ERROR HY000: Can't find FULLTEXT index matching the column list
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
-ERROR HY000: Wrong arguments to MATCH
+ERROR HY000: Incorrect arguments to MATCH
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 id int(11)  auto_increment,
@@ -362,4 +362,15 @@ aus Osnabrück	latin1_german2_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
 aus Osnabrück	latin1_german2_ci
+DROP TABLE t1;
+CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
+insert into t1 (s) values ('pära para para'),('para para para');
+select * from t1 where match(s) against('para' in boolean mode);
+s
+pära para para
+para para para
+select * from t1 where match(s) against('par*' in boolean mode);
+s
+pära para para
+para para para
 DROP TABLE t1;

@@ -169,6 +169,13 @@ void
 os_io_init_simple(void);
 /*===================*/
 /***************************************************************************
+Creates a temporary file. In case of error, causes abnormal termination. */
+
+FILE*
+os_file_create_tmpfile(void);
+/*========================*/
+				/* out: temporary file handle (never NULL) */
+/***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'

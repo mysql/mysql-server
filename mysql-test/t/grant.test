@@ -5,6 +5,8 @@
 drop table if exists t1;
 --enable_warnings
 
+SET NAMES binary;
+
 #
 # Test that SSL options works properly
 #

@@ -17,6 +17,8 @@
 
 #include "myisamdef.h"
 
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 #include "rt_mbr.h"
 
@@ -24,7 +26,7 @@
 #define CONTAIN_CMP(amin, amax, bmin, bmax) ((bmin > amin)  || (bmax <  amax))
 #define WITHIN_CMP(amin, amax, bmin, bmax) ((amin > bmin)  || (amax <  bmax))
 #define DISJOINT_CMP(amin, amax, bmin, bmax) ((amin <= bmax) && (bmin <= amax))
-#define EQUAL_CMP(amix, amax, bmin, bmax) ((amix != bmin) || (amax != bmax))
+#define EQUAL_CMP(amin, amax, bmin, bmax) ((amin != bmin) || (amax != bmax))
 
 #define FCMP(A, B) ((int)(A) - (int)(B))
 #define p_inc(A, B, X)  {A += X; B += X;}
@@ -61,12 +63,9 @@
   type amin, amax, bmin, bmax; \
   amin = korr_func(a); \
   bmin = korr_func(b); \
-  p_inc(a, b, len); \
-  amax = korr_func(a); \
-  bmax = korr_func(b); \
+  amax = korr_func(a+len); \
+  bmax = korr_func(b+len); \
   RT_CMP(nextflag); \
-  p_inc(a, b, len); \
-  break; \
 }
 
 #define RT_CMP_GET(type, get_func, len, nextflag) \
@@ -74,12 +73,9 @@
   type amin, amax, bmin, bmax; \
   get_func(amin, a); \
   get_func(bmin, b); \
-  p_inc(a, b, len); \
-  get_func(amax, a); \
-  get_func(bmax, b); \
+  get_func(amax, a+len); \
+  get_func(bmax, b+len); \
   RT_CMP(nextflag); \
-  p_inc(a, b, len); \
-  break; \
 }
 
 /*
@@ -98,54 +94,55 @@ int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
 {
   for (; (int) key_length > 0; keyseg += 2 )
   {
-    key_length -= keyseg->length * 2;
-
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin,amax,bmin,bmax;
-        amin = (int)*((signed char *)a);
-        bmin = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amax = (int)*((signed char *)a);
-        bmax = (int)*((signed char *)b);
-        RT_CMP(nextflag);
-        p_inc(a, b, 1);
-        break;
-      }
+      RT_CMP_KORR(int8, mi_sint1korr, 1, nextflag);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_CMP_KORR(uint8, mi_uint1korr, 1, nextflag);
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_CMP_KORR(int16, mi_sint2korr, 2, nextflag);
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_CMP_KORR(uint16, mi_uint2korr, 2, nextflag);
+      break;
     case HA_KEYTYPE_INT24:
       RT_CMP_KORR(int32, mi_sint3korr, 3, nextflag);
+      break;
     case HA_KEYTYPE_UINT24:
       RT_CMP_KORR(uint32, mi_uint3korr, 3, nextflag);
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_CMP_KORR(int32, mi_sint4korr, 4, nextflag);
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_CMP_KORR(uint32, mi_uint4korr, 4, nextflag);
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_CMP_KORR(longlong, mi_sint8korr, 8, nextflag)
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_CMP_KORR(ulonglong, mi_uint8korr, 8, nextflag)
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_CMP_GET(float, mi_float4get, 4, nextflag);
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_CMP_GET(double, mi_float8get, 8, nextflag);
+      break;
     case HA_KEYTYPE_END:
       goto end;
+    default:
+      return 1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
+    b+= keyseg_length;
   }
 
 end:
@@ -165,22 +162,16 @@ end:
 { \
   type amin, amax; \
   amin = korr_func(a); \
-  a += len; \
-  amax = korr_func(a); \
-  a += len; \
+  amax = korr_func(a+len); \
   res *= (cast(amax) - cast(amin)); \
-  break; \
 }
 
 #define RT_VOL_GET(type, get_func, len, cast) \
 { \
   type amin, amax; \
   get_func(amin, a); \
-  a += len; \
-  get_func(amax, a); \
-  a += len; \
+  get_func(amax, a+len); \
   res *= (cast(amax) - cast(amin)); \
-  break; \
 }
 
 /*
@@ -191,53 +182,55 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   double res = 1;
   for (; (int)key_length > 0; keyseg += 2)
   {
-    key_length -= keyseg->length * 2;
-    
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax;
-        amin = (int)*((signed char *)a);
-        a += 1;
-        amax = (int)*((signed char *)a);
-        a += 1;
-        res *= ((double)amax - (double)amin);
-        break;
-      }
+      RT_VOL_KORR(int8, mi_sint1korr, 1, (double));
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_VOL_KORR(uint8, mi_uint1korr, 1, (double));
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_VOL_KORR(int16, mi_sint2korr, 2, (double));
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_VOL_KORR(uint16, mi_uint2korr, 2, (double));
+      break;
     case HA_KEYTYPE_INT24:
       RT_VOL_KORR(int32, mi_sint3korr, 3, (double));
+      break;
     case HA_KEYTYPE_UINT24:
       RT_VOL_KORR(uint32, mi_uint3korr, 3, (double));
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_VOL_KORR(int32, mi_sint4korr, 4, (double));
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_VOL_KORR(uint32, mi_uint4korr, 4, (double));
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_VOL_KORR(longlong, mi_sint8korr, 8, (double));
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_VOL_KORR(longlong, mi_sint8korr, 8, ulonglong2double);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_VOL_GET(float, mi_float4get, 4, (double));
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_VOL_GET(double, mi_float8get, 8, (double));
+      break;
     case HA_KEYTYPE_END:
       key_length = 0;
       break;
+    default:
+      return -1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
   }
   return res;
 }
@@ -246,81 +239,78 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
 { \
   type amin, amax; \
   amin = korr_func(a); \
-  a += len; \
-  amax = korr_func(a); \
-  a += len; \
+  amax = korr_func(a+len); \
   *res++ = cast(amin); \
   *res++ = cast(amax); \
-  break; \
 }
 
 #define RT_D_MBR_GET(type, get_func, len, cast) \
 { \
   type amin, amax; \
   get_func(amin, a); \
-  a += len; \
-  get_func(amax, a); \
-  a += len; \
+  get_func(amax, a+len); \
   *res++ = cast(amin); \
   *res++ = cast(amax); \
-  break; \
 }
 
+
 /*
- Creates an MBR as an array of doubles.
+  Creates an MBR as an array of doubles.
 */
+
 int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
 {
   for (; (int)key_length > 0; keyseg += 2)
   {
-    key_length -= keyseg->length * 2;
-    
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax;
-        amin = (int)*((signed char *)a);
-        a += 1;
-        amax = (int)*((signed char *)a);
-        a += 1;
-        *res++ = (double)amin;
-        *res++ = (double)amax;
-        break;
-      }
+      RT_D_MBR_KORR(int8, mi_sint1korr, 1, (double));
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_D_MBR_KORR(uint8, mi_uint1korr, 1, (double));
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_D_MBR_KORR(int16, mi_sint2korr, 2, (double));
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_D_MBR_KORR(uint16, mi_uint2korr, 2, (double));
+      break;
     case HA_KEYTYPE_INT24:
       RT_D_MBR_KORR(int32, mi_sint3korr, 3, (double));
+      break;
     case HA_KEYTYPE_UINT24:
       RT_D_MBR_KORR(uint32, mi_uint3korr, 3, (double));
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_D_MBR_KORR(int32, mi_sint4korr, 4, (double));
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_D_MBR_KORR(uint32, mi_uint4korr, 4, (double));
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_D_MBR_KORR(longlong, mi_sint8korr, 8, (double));
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_D_MBR_KORR(longlong, mi_sint8korr, 8, ulonglong2double);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_D_MBR_GET(float, mi_float4get, 4, (double));
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_D_MBR_GET(double, mi_float8get, 8, (double));
+      break;
     case HA_KEYTYPE_END:
       key_length = 0;
       break;
+    default:
+      return 1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
   }
   return 0;
 }
@@ -330,17 +320,12 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
   type amin, amax, bmin, bmax; \
   amin = korr_func(a); \
   bmin = korr_func(b); \
-  p_inc(a, b, len); \
-  amax = korr_func(a); \
-  bmax = korr_func(b); \
-  p_inc(a, b, len); \
+  amax = korr_func(a+len); \
+  bmax = korr_func(b+len); \
   amin = min(amin, bmin); \
   amax = max(amax, bmax); \
   store_func(c, amin); \
-  c += len; \
-  store_func(c, amax); \
-  c += len; \
-  break; \
+  store_func(c+len, amax); \
 }
 
 #define RT_COMB_GET(type, get_func, store_func, len) \
@@ -348,17 +333,12 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
   type amin, amax, bmin, bmax; \
   get_func(amin, a); \
   get_func(bmin, b); \
-  p_inc(a, b, len); \
-  get_func(amax, a); \
-  get_func(bmax, b); \
-  p_inc(a, b, len); \
+  get_func(amax, a+len); \
+  get_func(bmax, b+len); \
   amin = min(amin, bmin); \
   amax = max(amax, bmax); \
   store_func(c, amin); \
-  c += len; \
-  store_func(c, amax); \
-  c += len; \
-  break; \
+  store_func(c+len, amax); \
 }
 
 /*
@@ -370,81 +350,75 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
 int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c, 
 		       uint key_length)
 {
-
   for ( ; (int) key_length > 0 ; keyseg += 2)
   {
-    key_length -= keyseg->length * 2;
-    
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax, bmin, bmax;
-        amin = (int)*((signed char *)a);
-        bmin = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amax = (int)*((signed char *)a);
-        bmax = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amin = min(amin, bmin);
-        amax = max(amax, bmax);
-        *((signed char*)c) = amin;
-        c += 1;
-        *((signed char*)c) = amax;
-        c += 1;
-        break;
-      }
+      RT_COMB_KORR(int8, mi_sint1korr, mi_int1store, 1);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_COMB_KORR(uint8, mi_uint1korr, mi_int1store, 1);
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_COMB_KORR(int16, mi_sint2korr, mi_int2store, 2);
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_COMB_KORR(uint16, mi_uint2korr, mi_int2store, 2);
+      break;
     case HA_KEYTYPE_INT24:
       RT_COMB_KORR(int32, mi_sint3korr, mi_int3store, 3);
+      break;
     case HA_KEYTYPE_UINT24:
       RT_COMB_KORR(uint32, mi_uint3korr, mi_int3store, 3);
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_COMB_KORR(int32, mi_sint4korr, mi_int4store, 4);
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_COMB_KORR(uint32, mi_uint4korr, mi_int4store, 4);
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_COMB_KORR(longlong, mi_sint8korr, mi_int8store, 8);
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_COMB_KORR(ulonglong, mi_uint8korr, mi_int8store, 8);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_COMB_GET(float, mi_float4get, mi_float4store, 4);
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_COMB_GET(double, mi_float8get, mi_float8store, 8);
+      break;
     case HA_KEYTYPE_END:
       return 0;
+    default:
+      return 1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
+    b+= keyseg_length;
+    c+= keyseg_length;
   }
   return 0;
 }
+
 
 #define RT_OVL_AREA_KORR(type, korr_func, len) \
 { \
   type amin, amax, bmin, bmax; \
   amin = korr_func(a); \
   bmin = korr_func(b); \
-  p_inc(a, b, len); \
-  amax = korr_func(a); \
-  bmax = korr_func(b); \
-  p_inc(a, b, len); \
+  amax = korr_func(a+len); \
+  bmax = korr_func(b+len); \
   amin = max(amin, bmin); \
   amax = min(amax, bmax); \
   if (amin >= amax) \
     return 0; \
   res *= amax - amin; \
-  break; \
 }
 
 #define RT_OVL_AREA_GET(type, get_func, len) \
@@ -452,16 +426,13 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
   type amin, amax, bmin, bmax; \
   get_func(amin, a); \
   get_func(bmin, b); \
-  p_inc(a, b, len); \
-  get_func(amax, a); \
-  get_func(bmax, b); \
-  p_inc(a, b, len); \
+  get_func(amax, a+len); \
+  get_func(bmax, b+len); \
   amin = max(amin, bmin); \
   amax = min(amax, bmax); \
   if (amin >= amax)  \
     return 0; \
   res *= amax - amin; \
-  break; \
 }
 
 /*
@@ -473,58 +444,55 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   double res = 1;
   for (; (int) key_length > 0 ; keyseg += 2)
   {
-    key_length -= keyseg->length * 2;
-    
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return -1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax, bmin, bmax;
-        amin = (int)*((signed char *)a);
-        bmin = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amax = (int)*((signed char *)a);
-        bmax = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amin = max(amin, bmin);
-        amax = min(amax, bmax);
-        if (amin >= amax) 
-          return 0;
-        res *= amax - amin;
-        break;
-      }
+      RT_OVL_AREA_KORR(int8, mi_sint1korr, 1);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_OVL_AREA_KORR(uint8, mi_uint1korr, 1);
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_OVL_AREA_KORR(int16, mi_sint2korr, 2);
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_OVL_AREA_KORR(uint16, mi_uint2korr, 2);
+      break;
     case HA_KEYTYPE_INT24:
       RT_OVL_AREA_KORR(int32, mi_sint3korr, 3);
+      break;
     case HA_KEYTYPE_UINT24:
       RT_OVL_AREA_KORR(uint32, mi_uint3korr, 3);
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_OVL_AREA_KORR(int32, mi_sint4korr, 4);
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_OVL_AREA_KORR(uint32, mi_uint4korr, 4);
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_OVL_AREA_KORR(longlong, mi_sint8korr, 8);
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_OVL_AREA_KORR(longlong, mi_sint8korr, 8);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_OVL_AREA_GET(float, mi_float4get, 4);
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_OVL_AREA_GET(double, mi_float8get, 8);
+      break;
     case HA_KEYTYPE_END:
       return res;
+    default:
+      return -1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
+    b+= keyseg_length;
   }
   return res;
 }
@@ -534,13 +502,10 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
    type amin, amax, bmin, bmax; \
    amin = korr_func(a); \
    bmin = korr_func(b); \
-   p_inc(a, b, len); \
-   amax = korr_func(a); \
-   bmax = korr_func(b); \
-   p_inc(a, b, len); \
+   amax = korr_func(a+len); \
+   bmax = korr_func(b+len); \
    a_area *= (((double)amax) - ((double)amin)); \
    *ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
-   break; \
 }
 
 #define RT_AREA_INC_GET(type, get_func, len)\
@@ -548,13 +513,10 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
    type amin, amax, bmin, bmax; \
    get_func(amin, a); \
    get_func(bmin, b); \
-   p_inc(a, b, len); \
-   get_func(amax, a); \
-   get_func(bmax, b); \
-   p_inc(a, b, len); \
+   get_func(amax, a+len); \
+   get_func(bmax, b+len); \
    a_area *= (((double)amax) - ((double)amin)); \
    *ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
-   break; \
 }
 
 /*
@@ -563,69 +525,158 @@ Calculates MBR_AREA(a+b) - MBR_AREA(a)
 double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
                           uint key_length, double *ab_area)
 {
-  double a_area = 1;
+  double a_area= 1.0;
   
-  *ab_area = 1;
+  *ab_area= 1.0;
   for (; (int)key_length > 0; keyseg += 2)
   {
-    key_length -= keyseg->length * 2;
-    
-    /* Handle NULL part */
-    if (keyseg->null_bit)
-    {
+    uint32 keyseg_length;
+
+    if (keyseg->null_bit)                       /* Handle NULL part */
       return -1;
-    }
 
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax, bmin, bmax;
-        amin = (int)*((signed char *)a);
-        bmin = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        amax = (int)*((signed char *)a);
-        bmax = (int)*((signed char *)b);
-        p_inc(a, b, 1);
-        a_area *= (((double)amax) - ((double)amin));
-        *ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin));
-        break;
-      }
+      RT_AREA_INC_KORR(int8, mi_sint1korr, 1);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_AREA_INC_KORR(uint8, mi_uint1korr, 1);
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_AREA_INC_KORR(int16, mi_sint2korr, 2);
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_AREA_INC_KORR(uint16, mi_uint2korr, 2);
+      break;
     case HA_KEYTYPE_INT24:
       RT_AREA_INC_KORR(int32, mi_sint3korr, 3);
+      break;
     case HA_KEYTYPE_UINT24:
       RT_AREA_INC_KORR(int32, mi_uint3korr, 3);
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_AREA_INC_KORR(int32, mi_sint4korr, 4);
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_AREA_INC_KORR(uint32, mi_uint4korr, 4);
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_AREA_INC_KORR(longlong, mi_sint8korr, 8);
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_AREA_INC_KORR(longlong, mi_sint8korr, 8);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_AREA_INC_GET(float, mi_float4get, 4);
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_AREA_INC_GET(double, mi_float8get, 8);
+      break;
     case HA_KEYTYPE_END:
       return *ab_area - a_area;
+    default:
+      return -1;
     }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
+    b+= keyseg_length;
   }
   return *ab_area - a_area;
 }
+
+#define RT_PERIM_INC_KORR(type, korr_func, len) \
+{ \
+   type amin, amax, bmin, bmax; \
+   amin = korr_func(a); \
+   bmin = korr_func(b); \
+   amax = korr_func(a+len); \
+   bmax = korr_func(b+len); \
+   a_perim+= (((double)amax) - ((double)amin)); \
+   *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+}
+
+#define RT_PERIM_INC_GET(type, get_func, len)\
+{\
+   type amin, amax, bmin, bmax; \
+   get_func(amin, a); \
+   get_func(bmin, b); \
+   get_func(amax, a+len); \
+   get_func(bmax, b+len); \
+   a_perim+= (((double)amax) - ((double)amin)); \
+   *ab_perim+= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+}
+
+/*
+Calculates MBR_PERIMETER(a+b) - MBR_PERIMETER(a)
+*/
+double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
+				uint key_length, double *ab_perim)
+{
+  double a_perim = 0.0;
+  
+  *ab_perim= 0.0;
+  for (; (int)key_length > 0; keyseg += 2)
+  {
+    uint32 keyseg_length;
+
+    if (keyseg->null_bit)                       /* Handle NULL part */
+      return -1;
+
+    switch ((enum ha_base_keytype) keyseg->type) {
+    case HA_KEYTYPE_INT8:
+      RT_PERIM_INC_KORR(int8, mi_sint1korr, 1);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_PERIM_INC_KORR(uint8, mi_uint1korr, 1);
+      break;
+    case HA_KEYTYPE_SHORT_INT:
+      RT_PERIM_INC_KORR(int16, mi_sint2korr, 2);
+      break;
+    case HA_KEYTYPE_USHORT_INT:
+      RT_PERIM_INC_KORR(uint16, mi_uint2korr, 2);
+      break;
+    case HA_KEYTYPE_INT24:
+      RT_PERIM_INC_KORR(int32, mi_sint3korr, 3);
+      break;
+    case HA_KEYTYPE_UINT24:
+      RT_PERIM_INC_KORR(int32, mi_uint3korr, 3);
+      break;
+    case HA_KEYTYPE_LONG_INT:
+      RT_PERIM_INC_KORR(int32, mi_sint4korr, 4);
+      break;
+    case HA_KEYTYPE_ULONG_INT:
+      RT_PERIM_INC_KORR(uint32, mi_uint4korr, 4);
+      break;
+#ifdef HAVE_LONG_LONG
+    case HA_KEYTYPE_LONGLONG:
+      RT_PERIM_INC_KORR(longlong, mi_sint8korr, 8);
+      break;
+    case HA_KEYTYPE_ULONGLONG:
+      RT_PERIM_INC_KORR(longlong, mi_sint8korr, 8);
+      break;
+#endif
+    case HA_KEYTYPE_FLOAT:
+      RT_PERIM_INC_GET(float, mi_float4get, 4);
+      break;
+    case HA_KEYTYPE_DOUBLE:
+      RT_PERIM_INC_GET(double, mi_float8get, 8);
+      break;
+    case HA_KEYTYPE_END:
+      return *ab_perim - a_perim;
+    default:
+      return -1;
+    }
+    keyseg_length= keyseg->length * 2;
+    key_length-= keyseg_length;
+    a+= keyseg_length;
+    b+= keyseg_length;
+  }
+  return *ab_perim - a_perim;
+}
+
 
 #define RT_PAGE_MBR_KORR(type, korr_func, store_func, len) \
 { \
@@ -647,7 +698,6 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   store_func(c, amax); \
   c += len; \
   inc += 2 * len; \
-  break; \
 }
 
 #define RT_PAGE_MBR_GET(type, get_func, store_func, len) \
@@ -670,7 +720,6 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   store_func(c, amax); \
   c += len; \
   inc += 2 * len; \
-  break; \
 }
 
 /*
@@ -698,62 +747,51 @@ int rtree_page_mbr(MI_INFO *info, HA_KEYSEG *keyseg, uchar *page_buf,
     k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
 
     switch ((enum ha_base_keytype) keyseg->type) {
-    case HA_KEYTYPE_TEXT:
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_VARTEXT:
-    case HA_KEYTYPE_VARBINARY:
-    case HA_KEYTYPE_NUM:
-    default:
-      return 1;
-      break;
     case HA_KEYTYPE_INT8:
-      {
-        int amin, amax, bmin, bmax;
-        amin = (int)*((signed char *)(k + inc));
-        amax = (int)*((signed char *)(k + inc + 1));
-        k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
-        for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag))
-        {
-          bmin = (int)*((signed char *)(k + inc));
-          bmax = (int)*((signed char *)(k + inc + 1));
-
-          if (amin > bmin)
-            amin = bmin;
-          if (amax < bmax)
-            amax = bmax;
-        }
-        *((signed char*)c) = amin;
-        c += 1;
-        *((signed char*)c) = amax;
-        c += 1;
-        inc += 1 * 2;
-        break;
-      }
+      RT_PAGE_MBR_KORR(int8, mi_sint1korr, mi_int1store, 1);
+      break;
+    case HA_KEYTYPE_BINARY:
+      RT_PAGE_MBR_KORR(uint8, mi_uint1korr, mi_int1store, 1);
+      break;
     case HA_KEYTYPE_SHORT_INT:
       RT_PAGE_MBR_KORR(int16, mi_sint2korr, mi_int2store, 2);
+      break;
     case HA_KEYTYPE_USHORT_INT:
       RT_PAGE_MBR_KORR(uint16, mi_uint2korr, mi_int2store, 2);
+      break;
     case HA_KEYTYPE_INT24:
       RT_PAGE_MBR_KORR(int32, mi_sint3korr, mi_int3store, 3);
+      break;
     case HA_KEYTYPE_UINT24:
       RT_PAGE_MBR_KORR(uint32, mi_uint3korr, mi_int3store, 3);
+      break;
     case HA_KEYTYPE_LONG_INT:
       RT_PAGE_MBR_KORR(int32, mi_sint4korr, mi_int4store, 4);
+      break;
     case HA_KEYTYPE_ULONG_INT:
       RT_PAGE_MBR_KORR(uint32, mi_uint4korr, mi_int4store, 4);
+      break;
 #ifdef HAVE_LONG_LONG
     case HA_KEYTYPE_LONGLONG:
       RT_PAGE_MBR_KORR(longlong, mi_sint8korr, mi_int8store, 8);
+      break;
     case HA_KEYTYPE_ULONGLONG:
       RT_PAGE_MBR_KORR(ulonglong, mi_uint8korr, mi_int8store, 8);
+      break;
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_PAGE_MBR_GET(float, mi_float4get, mi_float4store, 4);
+      break;
     case HA_KEYTYPE_DOUBLE:
       RT_PAGE_MBR_GET(double, mi_float8get, mi_float8store, 8);
+      break;
     case HA_KEYTYPE_END:
       return 0;
+    default:
+      return 1;
     }
   }
   return 0;
 }
+
+#endif /*HAVE_RTREE_KEYS*/
