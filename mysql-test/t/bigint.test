@@ -22,7 +22,7 @@ select -(0-3),round(-(0-3)), round(9999999999999999999);
 #
 
 create table t1 (a bigint unsigned not null, primary key(a));
-insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE);
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE), (18446744073709551613), (18446744073709551612);
 select * from t1;
 select * from t1 where a=18446744073709551615;
 # select * from t1 where a='18446744073709551615';
@@ -58,10 +58,12 @@ drop table t1;
 #
 # Item_uint::save_to_field()
 # BUG#1845
+# This can't be fixed in MySQL 4.0 without loosing precisions for bigints
 #
 
 CREATE TABLE t1 ( quantity decimal(60,0));
 insert into t1 values (10000000000000000000);
+insert into t1 values (10000000000000000000.0);
 insert into t1 values ('10000000000000000000');
 select * from t1;
 drop table t1;
