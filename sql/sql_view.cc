@@ -339,8 +339,6 @@ static File_option view_parameters[]=
   FILE_OPTIONS_STRING}
 };
 
-static const uint required_view_parameters= 6;
-
 static LEX_STRING view_file_type[]= {{(char*)"VIEW", 4}};
 
 
@@ -604,8 +602,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       /* move SP to main LEX */
       sp_merge_funs(old_lex, lex);
-      if (lex->spfuns.array.buffer)
-        hash_free(&lex->spfuns);
       if (old_lex->proc_table == 0 &&
           (old_lex->proc_table=
            (TABLE_LIST*)thd->calloc(sizeof(TABLE_LIST))) != 0)
@@ -619,6 +615,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         include_proc_table= 1;
       }
     }
+    if (lex->spfuns.array.buffer)
+      hash_free(&lex->spfuns);
 
     old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
