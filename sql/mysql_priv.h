@@ -763,6 +763,8 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 void free_items(Item *item);
 void cleanup_items(Item *item);
 
+#define MY_DB_OPT_FILE "db.opt"
+bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 
 /*
   External variables
