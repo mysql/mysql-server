@@ -324,4 +324,4 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
 
 #define shared_memory_buffer_length 16000
-#define default_shared_memory_base_name "MYSQL";
+#define default_shared_memory_base_name "MYSQL"

@@ -117,7 +117,7 @@
   do the following:
  */
 #if !defined(_XOPEN_SOURCE_EXTENDED) && ! defined(__cplusplus)
-#define _XOPEN_SOURCE_EXTENDED
+#define _XOPEN_SOURCE_EXTENDED 1
 #endif
 
 /* Fix type of socklen as this is depending on the above define */
