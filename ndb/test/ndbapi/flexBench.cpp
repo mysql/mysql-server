@@ -279,6 +279,8 @@ tellThreads(ThreadData* pt, StartType what)
     pt[i].threadStart = what;
 }
 
+static Ndb_cluster_connection *g_cluster_connection= 0;
+
 NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
 {
   ndb_init();
@@ -326,8 +328,16 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
   
   NdbThread_SetConcurrencyLevel(tNoOfThreads + 2);
 
+  Ndb_cluster_connection con;
+  if(con.connect(12, 5, 1) != 0)
+  {
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+
+  g_cluster_connection= &con;
+
   Ndb* pNdb;
-  pNdb = new Ndb( "TEST_DB" );  
+  pNdb = new Ndb(&con, "TEST_DB" );  
   pNdb->init();
 
   tNodeId = pNdb->getNodeId();
@@ -605,7 +615,7 @@ static void* flexBenchThread(void* pArg)
   attrValue = (int*)malloc(nReadBuffSize) ;
   attrRefValue = (int*)malloc(nRefBuffSize) ;
   pOps = (NdbOperation**)malloc(tNoOfTables*sizeof(NdbOperation*)) ;
-  pNdb = new Ndb( "TEST_DB" );
+  pNdb = new Ndb(g_cluster_connection, "TEST_DB" );
   
   if(!attrValue || !attrRefValue || !pOps || !pNdb){
     // Check allocations to make sure we got all the memory we asked for
