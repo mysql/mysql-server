@@ -140,6 +140,12 @@ transaction safe, replication safe.
 
 Write wildcard, not wild card or wild-card.
 
+Use "indexes", not "indices": Adding indexes to a table will improve the
+performance of SELECT statements.
+Exception: when returning to array elements, use "indices": The elements
+of the array may be accessed using numeric indices, where the index
+values ranges from 0 to n.
+
 Write "heavy-load production systems" (used as an adjective),
 but "...used under heavy load" (used on its own).
 
@@ -252,4 +258,3 @@ Paul, I think we should also decide whether to write Version or version, and in 
 After a semicolon, don't use uppercase. It is NOT the start of a new sentence!
 
 It's "unstable", not "instable". ;-)
-

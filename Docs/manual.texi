@@ -49084,7 +49084,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Query cache disabled in mysqldump.
+Query cache disabled in @code{mysqldump}.
 @item
 Fixed problem on Windows 98 that made sending of results very slow.
 @item
@@ -49258,7 +49258,7 @@ output.
 Fixed bug when @code{HANDLER} was used with some unsupported table type.
 @item
 @code{mysqldump} now puts @code{ALTER TABLE tbl_name DISABLE KEYS} and
-@code{ALTER TABLE tbl_name DISABLE KEYS} in the sql dump.
+@code{ALTER TABLE tbl_name ENABLE KEYS} in the sql dump.
 @item
 Added @code{mysql_fix_extensions} script.
 @item
