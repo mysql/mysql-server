@@ -68,6 +68,9 @@ public:
     virtual void println_statistics(const BaseString &s) = 0;
   };
 
+  // some compilers need all of this
+  class Allocated_resources;
+  friend class Allocated_resources;
   class Allocated_resources {
   public:
     Allocated_resources(class MgmtSrvr &m);
