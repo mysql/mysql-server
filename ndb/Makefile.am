@@ -1,4 +1,4 @@
-SUBDIRS = src test tools . include
+SUBDIRS = src tools . include $(ndb_opt_test_subdirs)
 EXTRA_DIST = config
 
 include $(top_srcdir)/ndb/config/common.mk.am
