@@ -293,3 +293,4 @@ myisam/test1.MYI
 .vimrc
 */.pure
 */*_pure_*warnings
+include/widec.h
