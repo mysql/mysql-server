@@ -1282,7 +1282,13 @@ ha_innobase::open(
 		  The column is the row id in the automatical generation case,
 		  and it will never be updated anyway.
 		*/
-		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
+	       
+		if (key_used_on_scan != MAX_KEY) {
+	                fprintf(stderr,
+"InnoDB: Warning: table %s key_used_on_scan is %lu even though there is no\n"
+"InnoDB: primary key inside InnoDB.\n",
+				name, (ulint)key_used_on_scan);
+		}
 	}
 
 	auto_inc_counter_for_this_stat = 0;
@@ -4185,9 +4191,12 @@ static void free_share(INNOBASE_SHARE *share)
 
 /*********************************************************************
 Converts a MySQL table lock stored in the 'lock' field of the handle to
-a proper type before storing the lock. MySQL also calls this when it
-releases a lock. */
-
+a proper type before storing pointer to the lock into an array of pointers.
+MySQL also calls this if it wants to reset some table locks to a not-locked
+state during the processing of an SQL query. An example is that during a
+SELECT the read lock is released early on the 'const' tables where we only
+fetch one row. MySQL does not call this when it releases all locks at the
+end of an SQL statement. */
 
 THR_LOCK_DATA**
 ha_innobase::store_lock(
