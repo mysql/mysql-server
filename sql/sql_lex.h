@@ -305,7 +305,8 @@ protected:
   ulong found_rows_for_union;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
-    executed; // already executed
+    executed, // already executed
+    cleaned;
 
 public:
   // list of fields which points to temporary table for union

@@ -988,6 +988,7 @@ void st_select_lex_unit::init_query()
   union_result= 0;
   table= 0;
   fake_select_lex= 0;
+  cleaned= 0;
 }
 
 void st_select_lex::init_query()

@@ -204,6 +204,8 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       table->file->info(HA_STATUS_VARIABLE);
     }
 
+    if (!lex->describe)
+      unit->cleanup();
     if (res)
       free_tmp_table(thd, table);
     else
