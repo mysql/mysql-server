@@ -256,7 +256,7 @@ set_ulimit(const BaseString & pair){
 
 void
 CPCD::Process::do_exec() {
-  
+  size_t i; 
   setup_environment(m_env.c_str());
 
   char **argv = BaseString::argify(m_path.c_str(), m_args.c_str());
@@ -272,7 +272,7 @@ CPCD::Process::do_exec() {
 
   Vector<BaseString> ulimit;
   m_ulimit.split(ulimit);
-  for(size_t i = 0; i<ulimit.size(); i++){
+  for(i = 0; i<ulimit.size(); i++){
     if(ulimit[i].trim().length() > 0 && set_ulimit(ulimit[i]) != 0){
       _exit(1);
     }
@@ -286,7 +286,7 @@ CPCD::Process::do_exec() {
   
   BaseString * redirects[] = { &m_stdin, &m_stdout, &m_stderr };
   int fds[3];
-  for(int i = 0; i<3; i++){
+  for(i = 0; i<3; i++){
     if(redirects[i]->empty()){
 #ifndef DEBUG
       dup2(fd, i);
@@ -319,7 +319,7 @@ CPCD::Process::do_exec() {
   }
 
   /* Close all filedescriptors */
-  for(int i = STDERR_FILENO+1; i < getdtablesize(); i++)
+  for(i = STDERR_FILENO+1; i < getdtablesize(); i++)
     close(i);
 
   execv(m_path.c_str(), argv);
