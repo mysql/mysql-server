@@ -1242,13 +1242,12 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   {
     /* 
        The tables must be marked "updating" so that tables_ok() takes them into
-       account in tests.
+       account in tests.  It's ok to leave 'updating' set after tables_ok.
     */
-    tables.updating=1;
+    tables.updating= 1;
     /* Thanks to bzero, tables.next==0 */
     if (!tables_ok(0, &tables))
       DBUG_RETURN(0);
-    tables.updating=0;
   }
 #endif
 
@@ -2138,10 +2137,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
        The tables must be marked "updating" so that tables_ok() takes them into
        account in tests.
     */
-    tables[0].updating=tables[1].updating=tables[2].updating=1;
+    tables[0].updating= tables[1].updating= tables[2].updating= 1;
     if (!tables_ok(0, tables))
       DBUG_RETURN(0);
-    tables[0].updating=tables[1].updating=tables[2].updating=0;
   }
 #endif
 
@@ -2319,10 +2317,9 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
        The tables must be marked "updating" so that tables_ok() takes them into
        account in tests.
     */
-    tables[0].updating=tables[1].updating=1;
+    tables[0].updating= tables[1].updating= 1;
     if (!tables_ok(0, tables))
       DBUG_RETURN(0);
-    tables[0].updating=tables[1].updating=0;
   }
 #endif
 
