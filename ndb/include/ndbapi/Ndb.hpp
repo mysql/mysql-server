@@ -1586,7 +1586,6 @@ private:
 /******************************************************************************
  *	These are the private variables in this class.	
  *****************************************************************************/
-  NdbObjectIdMap*       theNdbObjectIdMap;
   Ndb_cluster_connection   *m_ndb_cluster_connection;
 
   NdbConnection**       thePreparedTransactionsArray;
@@ -1637,10 +1636,6 @@ private:
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node
   
-  Uint32   theNoOfDBnodes;  // The number of DB nodes  
-  Uint32 * theDBnodes;      // The node number of the DB nodes
-  Uint8    *the_release_ind;// 1 indicates to release all connections to node 
-  
   Uint64               the_last_check_time;
   Uint64               theFirstTransId;
   
@@ -1663,10 +1658,6 @@ private:
     InitConfigError
   } theInitState;
 
-  // Ensure good distribution of connects
-  Uint32		theCurrentConnectIndex;
-  Uint32		theCurrentConnectCounter;
-  
   /**
    * Computes fragement id for primary key
    *
@@ -1692,7 +1683,7 @@ private:
     Uint32 noOfFragments;
     Uint32 * fragment2PrimaryNodeMap;
     
-    void init(Uint32 noOfNodes, Uint32 nodeIds[]);
+    void init(Uint32 noOfNodes, Uint8 nodeIds[]);
     void release();
   } startTransactionNodeSelectionData;
   
