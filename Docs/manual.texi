@@ -42007,7 +42007,7 @@ a stand-alone server without modifying any code.
 * mysql_server_end::            @code{mysql_server_end()}
 @end menu
 
-@node mysql_server_init, mysql_server_end, C Embedded Server functions, C Embedded Server functions
+@node mysql_server_init, mysql_server_end, C Embedded Server func, C Embedded Server func
 @subsubsection @code{mysql_server_init()}
 
 @findex @code{mysql_server_init()}
@@ -42068,7 +42068,7 @@ int main(void) @{
 
 0 if ok, 1 if an error occurred.
 
-@node mysql_server_end,  , mysql_server_init, C Embedded Server functions
+@node mysql_server_end,  , mysql_server_init, C Embedded Server func
 @subsubsection @code{mysql_server_end()}
 
 @findex @code{mysql_server_end()}
