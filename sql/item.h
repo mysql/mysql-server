@@ -920,7 +920,7 @@ public:
 class Item_cache_str: public Item_cache
 {
   char buffer[80];
-  String *value;
+  String *value, value_buff;
 public:
   Item_cache_str(): Item_cache() { }
   
