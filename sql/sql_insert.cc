@@ -535,6 +535,7 @@ public:
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;
+    thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
     pthread_cond_init(&cond,NULL);

@@ -2099,6 +2099,7 @@ int main(int argc, char **argv)
   (void) pthread_attr_setdetachstate(&connection_attrib,
 				     PTHREAD_CREATE_DETACHED);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
     /* Retrieve used stack size;  Needed for checking stack overflows */
     size_t stack_size;
@@ -2110,6 +2111,7 @@ int main(int argc, char **argv)
       thread_stack= stack_size;
     }
   }
+#endif
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
