@@ -1384,8 +1384,10 @@ lock_table_has(
 /*============= FUNCTIONS FOR ANALYZING RECORD LOCK QUEUE ================*/
 
 /*************************************************************************
-Checks if a transaction has a GRANTED explicit non-gap lock on rec, stronger
-or equal to mode. */
+Checks if a transaction has a GRANTED explicit lock on rec, where the gap
+flag or the insert intention flag is not set, stronger or equal to mode.
+Note that locks on the supremum of a page are a special case here, since
+they are always gap type locks, even if the gap flag is not set in them. */
 UNIV_INLINE
 lock_t*
 lock_rec_has_expl(
@@ -1406,9 +1408,9 @@ lock_rec_has_expl(
 		if (lock->trx == trx
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)
 		    && !lock_get_wait(lock)
-		    && !lock_rec_get_insert_intention(lock) /* we play safe */
-		    && !(lock_rec_get_gap(lock)
-					|| page_rec_is_supremum(rec))) {
+		    && !lock_rec_get_insert_intention(lock)
+		    && !lock_rec_get_gap(lock)) {
+
 		    	return(lock);
 		}
 
@@ -1808,7 +1810,8 @@ This is a fast routine for locking a record in the most common cases:
 there are no explicit locks on the page, or there is just one lock, owned
 by this transaction, and of the right type_mode. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
-explicit locks. */
+explicit locks. This function sets a normal next-key lock, or in the case of
+a page supremum record, a gap type lock. */
 UNIV_INLINE
 ibool
 lock_rec_lock_fast(
@@ -1861,7 +1864,8 @@ lock_rec_lock_fast(
 /*************************************************************************
 This is the general, and slower, routine for locking a record. This is a
 low-level function which does NOT look at implicit locks! Checks lock
-compatibility within explicit locks. */
+compatibility within explicit locks. This function sets a normal next-key
+lock, or in the case of a page supremum record, a gap type lock. */
 static
 ulint
 lock_rec_lock_slow(
@@ -1918,7 +1922,8 @@ lock_rec_lock_slow(
 Tries to lock the specified record in the mode requested. If not immediately
 possible, enqueues a waiting lock request. This is a low-level function
 which does NOT look at implicit locks! Checks lock compatibility within
-explicit locks. */
+explicit locks. This function sets a normal next-key lock, or in the case
+of a page supremum record, a gap type lock. */
 
 ulint
 lock_rec_lock(
