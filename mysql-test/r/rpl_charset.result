@@ -207,3 +207,10 @@ select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 drop table t1;
+create table `t1` (
+`pk` varchar(10) not null default '', 
+primary key (`pk`)
+) engine=myisam default charset=latin1;
+set @p=_latin1 'test';
+update t1 set pk='test' where pk=@p;
+drop table t1;
