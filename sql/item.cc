@@ -1150,6 +1150,12 @@ bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, 
   return 0;
 }
 
+void Item_default_value::print(String *str)
+{
+  str->append("default(");
+  arg->print(str);
+  str->append(')');
+}
 
 /*
   If item is a const function, calculate it and return a const item
