@@ -1574,8 +1574,37 @@ fi
 MYSQL_PTHREAD_YIELD
 
 ######################################################################
-# For readline-4.0 (We simply move the mimimum amount of stuff from
-# the readline configure.in here)
+# For readline/libedit (We simply move the mimimum amount of stuff from
+# the readline/libedit configure.in here)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_AWK
+AC_PROG_INSTALL
+
+dnl Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(limits.h malloc.h sys/ioctl.h unistd.h sys/cdefs.h sys/types.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_SIZE_T
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+AC_PROG_GCC_TRADITIONAL
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(re_comp regcomp strdup strerror strstr strtol)
+
+AC_CHECK_HEADERS(vis.h)
+AC_CHECK_FUNCS(strlcat strlcpy)
+AC_CHECK_FUNCS(issetugid)
+AC_CHECK_FUNCS(fgetln)
+AC_CHECK_FUNCS(getline flockfile)
+
+# from old readline settting:
 
 MAKE_SHELL=/bin/sh
 AC_SUBST(MAKE_SHELL)
@@ -1605,7 +1634,7 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
-# End of readline stuff
+# End of readline/libedit stuff
 #########################################################################
 
 dnl Checks for library functions.
@@ -1989,20 +2018,56 @@ AC_SUBST(bench_dirs)
 AC_ARG_WITH(readline,
     [  --without-readline      Use system readline instead of bundled copy.],
     [ with_readline=$withval ],
-    [ with_readline=yes ]
+    [ with_readline=undefined ]
     )
-if test "$with_readline" = "yes"
+    
+AC_ARG_WITH(libedit,
+    [  --without-libedit       Use system libedit instead of bundled copy.],
+    [ with_libedit=$withval ],
+    [ with_libedit=undefined ]
+    )
+
+compile_readline= no
+compile_libedit= no
+
+if [test "$with_libedit" = "yes"] && [test "$with_readline" = "yes"]
 then
-  readline_dir="readline"
-  readline_link="\$(top_builddir)/readline/libreadline.a"
-else
-  # This requires readline to be in a standard place. Mosty for linux
-  # there readline may be a shared library.
-  readline_dir=""
-  readline_link="-lreadline"
+    AC_MSG_ERROR([You can not use --with-readline and --with-libedit at the same time, please choose one of it])
 fi
+
+mkdir include/readline
+
+if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
+then
+    readline_dir="cmd-line-utils/libedit"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
+    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
+    compile_libedit=yes
+    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
+elif test "$with_readline" = "yes"
+then
+    readline_dir="cmd-line-utils/readline"
+    readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
+    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
+    compile_readline=yes
+    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
+else
+    MYSQL_CHECK_LIBEDIT_INTERFACE
+    MYSQL_CHECK_NEW_RL_INTERFACE
+    if ["$mysql_cv_new_rl_interface"="yes"] || [test "$mysql_cv_libedit_interface"="no"]
+    then
+        readline_dir=""
+        readline_link="-lreadline"
+    else
+        readline_dir=""
+        readline_link="-ledit"
+    fi
+    readline_h_ln_cmd=""
+fi
+
 AC_SUBST(readline_dir)
 AC_SUBST(readline_link)
+AC_SUBST(readline_h_ln_cmd)
 
 
 dnl In order to add new charset, you must add charset name to
@@ -2381,12 +2446,23 @@ AC_SUBST(GXX)
 #AC_SUBST(TOOLS_LIBS)
 
 # Output results
+
+if test "$compile_readline" = "yes"
+then
+    AC_OUTPUT(cmd-line-utils/readline/Makefile)
+fi
+
+if test "$compile_libedit" = "yes"
+then
+    AC_OUTPUT(cmd-line-utils/libedit/Makefile)
+fi
+
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile \
- man/Makefile BUILD/Makefile readline/Makefile vio/Makefile \
+ man/Makefile BUILD/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
  libmysql/Makefile client/Makefile \
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile \
