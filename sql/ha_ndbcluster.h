@@ -244,7 +244,7 @@ class ha_ndbcluster: public handler
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
-  bool m_use_local_query_cache;
+  ulong m_query_cache_type;
 
   void set_rec_per_key();
   void records_update();
