@@ -23164,10 +23164,12 @@ to the log file (by default named @file{'hostname'.log}).  This log can
 be very useful when you suspect an error in a client and want to know
 exactly what @code{mysqld} thought the client sent to it.
 
-By default, the @code{mysql.server} script starts the MySQL
-server with the @code{-l} option.  If you need better performance when
-you start using MySQL in a production environment, you can
-remove the @code{-l} option from @code{mysql.server} or change it to
+@c Note: this instance of "safe_mysql" should not be changed to "mysqld_safe"
+@c because it's a 3.23.x-specific command
+Older versions of the @code{mysql.server} script (from MySQL 3.23.4 to 3.23.8)
+pass @code{safe_mysqld} a @code{--log} option.  If you need better performance
+when you start using MySQL in a production environment, you can remove the
+@code{--log} option from @code{mysql.server} or change it to
 @code{--log-bin}.
 
 The entries in this log are written as @code{mysqld} receives the questions.
