@@ -1,0 +1,90 @@
+.TH MYSQLD_MULTI  1 "20 December 2000" 
+.SH NAME 
+mysqld_multi  - is meant for managing several mysqld processes running in different UNIX sockets and TCP/IP ports. 
+.SH USAGE 
+mysqld_multi [OPTIONS] {start|stop|report} [GNR,GNR,GNR...]
+.SH SYNOPSIS 
+.B mysqld_multi  
+.RB [ --config-file=... ] 
+.RB [ --example  ] 
+.RB [ --help  ] 
+.RB [ --log=...  ] 
+.RB [ --mysqladmin=...  ] 
+.RB [ --mysqld=...  ] 
+.RB [ --no-log  ] 
+.RB [ --password=... ] 
+.RB [ --tcp-ip  ] 
+.RB [ --user=...  ] 
+.RB [ --version  ] 
+.SH DESCRIPTION 
+.TP
+.BR mysqld_multi 
+.TP
+.BR --config-file=...
+Alternative config file. NOTE: This will not affect this program\'s own options (group [mysqld_multi]), but only groups [mysqld#]. Without this option everything will be searched from the ordinary my.cnf file. 
+.TP
+.BR --example 
+Give an example of a config file. 
+.TP
+.BR --help 
+Print this help and exit. 
+.TP
+.BR --log=... 
+Log file. Full path to and the name for the log file. NOTE: If the file exists, everything will be appended. 
+.TP
+.BR --mysqladmin=... 
+mysqladmin binary to be used for a server shutdown. 
+.TP
+.BR --mysqld=... 
+mysqld binary to be used. Note that you can give safe_mysqld to this option also. The options are passed to mysqld. Just make sure you have mysqld in your environment variable PATH or fix safe_mysqld. 
+.TP
+.BR --no-log 
+Print to stdout instead of the log file. By default the log file is turned on. 
+.TP
+.BR --password=...
+Password for user for mysqladmin. 
+.TP
+.BR --tcp-ip 
+Connect to the MySQL server(s) via the TCP/IP port instead of the UNIX socket. This affects stopping and reporting. If a socket file is missing, the server may still be running, but can be accessed only via the TCP/IP port. By default connecting is done via the UNIX socket. 
+.TP
+.BR --user=... 
+MySQL user for mysqladmin. 
+.TP
+.BR --version 
+Print the version number and exit. 
+.SH NOTE 
+Please see the mysql manual for more detailed information on this.
+
+
+
+.SH "SEE ALSO" 
+
+isamchk (1),
+isamlog (1),
+mysqlaccess (1),
+mysqladmin (1),
+mysqlbug (1),
+mysqld (1),
+mysqldump (1),
+mysqlshow (1),
+msql2mysql (1),
+perror (1),
+replace (1),
+safe_mysqld (1),
+which1 (1),
+zap (1),
+
+.SH AUTHOR 
+
+Ver 1.0, distribution 3.23.29a
+Michael (Monty) Widenius (monty@tcx.se),
+TCX Datakonsult AB (http://www.tcx.se).
+This software comes with no warranty.
+Manual page by L. (Kill-9) Pedersen 
+(kill-9@kill-9.dk), Mercurmedia Data Model Architect /
+system developer (http://www.mercurmedia.com)
+
+
+.\" end of man page
+
+

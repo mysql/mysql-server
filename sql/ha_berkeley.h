@@ -53,7 +53,8 @@ class ha_berkeley: public handler
   ulong alloced_rec_buff_length;
   ulong changed_rows;
   uint primary_key,last_dup_key, hidden_primary_key, version;
-  bool fixed_length_row, fixed_length_primary_key, key_read;
+  u_int32_t lock_on_read;
+  bool fixed_length_row, fixed_length_primary_key, key_read, using_ignore;
   bool	fix_rec_buff_for_blob(ulong length);
   byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
@@ -157,7 +158,8 @@ class ha_berkeley: public handler
 };
 
 extern bool berkeley_skip, berkeley_shared_data;
-extern u_int32_t berkeley_init_flags,berkeley_lock_type,berkeley_lock_types[];
+extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
+                 berkeley_lock_types[];
 extern ulong berkeley_cache_size, berkeley_max_lock;
 extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 extern long berkeley_lock_scan_time;
