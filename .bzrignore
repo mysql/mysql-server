@@ -447,3 +447,4 @@ vio/test-sslserver
 vio/viotest-ssl
 sql-bench/test-transactions
 libmysqld/sql_do.cc
+extra/mysql_install
