@@ -309,11 +309,12 @@ catchsigs(bool ignore){
     SIGPIPE
   };
 
-  for(size_t i = 0; i < sizeof(signals_shutdown)/sizeof(signals_shutdown[0]); i++)
+  size_t i;
+  for(i = 0; i < sizeof(signals_shutdown)/sizeof(signals_shutdown[0]); i++)
     handler_register(signals_shutdown[i], handler_shutdown, ignore);
-  for(size_t i = 0; i < sizeof(signals_error)/sizeof(signals_error[0]); i++)
+  for(i = 0; i < sizeof(signals_error)/sizeof(signals_error[0]); i++)
     handler_register(signals_error[i], handler_error, ignore);
-  for(size_t i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
+  for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
     handler_register(signals_ignore[i], SIG_IGN, ignore);
 }
 
