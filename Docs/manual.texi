@@ -29340,6 +29340,15 @@ will be converted to @code{'0000-00-00'} because @code{'45'} is not a legal
 month.
 
 @item
+The MySQL server only performs basic checking on the validity of a date:
+days @code{00-31}, months @code{00-12}, years @code{1000-9999}.
+Any date not within this range will revert to @code{0000-00-00}.
+Please note that this still allows you to store invalid dates such as
+@code{2002-04-31}. It allows web applications to store data from a form
+without further checking. To ensure a date is valid, perform a check in
+your application.
+
+@item
 Year values specified as two digits are ambiguous, because the century is
 unknown.  MySQL interprets 2-digit year values using the following
 rules:
