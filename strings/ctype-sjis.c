@@ -232,9 +232,12 @@ static int my_strnncoll_sjis_internal(CHARSET_INFO *cs,
 
 static int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
 			      const uchar *a, uint a_length, 
-			      const uchar *b, uint b_length)
+			      const uchar *b, uint b_length,
+                              my_bool b_is_prefix)
 {
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
+  if (b_is_prefix && a_length > b_length)
+    a_length= b_length;
   return res ? res : (int) (a_length - b_length);
 }
 

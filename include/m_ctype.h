@@ -104,7 +104,7 @@ typedef struct my_collation_handler_st
 {
   /* Collation routines */
   int     (*strnncoll)(struct charset_info_st *,
-		       const uchar *, uint, const uchar *, uint);
+		       const uchar *, uint, const uchar *, uint, my_bool);
   int     (*strnncollsp)(struct charset_info_st *,
 		       const uchar *, uint, const uchar *, uint);
   int     (*strnxfrm)(struct charset_info_st *,
@@ -251,7 +251,7 @@ extern CHARSET_INFO my_charset_cp1250_czech_ci;
 extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, uint, const uchar *,
 			       uint); 
 extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, uint,
-				const uchar *, uint);
+				const uchar *, uint, my_bool);
 
 extern int  my_strnncollsp_simple(CHARSET_INFO *, const uchar *, uint,
 				const uchar *, uint);
@@ -385,7 +385,7 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 #define my_binary_compare(s)	      ((s)->state  & MY_CS_BINSORT)
 #define use_strnxfrm(s)               ((s)->state  & MY_CS_STRNXFRM)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->coll->strnxfrm((s), (a), (b), (c), (d)))
-#define my_strnncoll(s, a, b, c, d)   ((s)->coll->strnncoll((s), (a), (b), (c), (d)))
+#define my_strnncoll(s, a, b, c, d) ((s)->coll->strnncoll((s), (a), (b), (c), (d), 0))
 #define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
    ((s)->coll->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h), (i), (j)))
 #define my_wildcmp(cs,s,se,w,we,e,o,m)	((cs)->coll->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
