@@ -243,27 +243,36 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
     if (!s)
       it= new Item_null();
     else
-      switch (sp_map_result_type(pv->type))
-      {
+    {
+      /*
+        Length of data can be calculated as:
+        pointer_to_next_not_null_object - s -1
+        where the last -1 is to remove the end \0
+      */
+      uint len;
+      MYSQL_ROW next= row+fldcount+1;
+      while (!*next)                             // Skip nulls
+        next++;
+      len= (*next -s)-1;
+      switch (sp_map_result_type(pv->type)) {
       case INT_RESULT:
 	it= new Item_int(s);
 	break;
       case REAL_RESULT:
-        it= new Item_float(s, strlen(s));
+        it= new Item_float(s, len);
 	break;
       case DECIMAL_RESULT:
-        it= new Item_decimal(s, strlen(s), thd->db_charset);
+        it= new Item_decimal(s, len, thd->db_charset);
         break;
       case STRING_RESULT:
-	{
-	  uint len= strlen(s);
-	  it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
-	  break;
-	}
+        /* TODO: Document why we do an extra copy of the string 's' here */
+        it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+        break;
       case ROW_RESULT:
       default:
         DBUG_ASSERT(0);
       }
+    }
     thd->spcont->set_item(pv->offset, it);
   }
   if (fldcount < m_prot->get_field_count())

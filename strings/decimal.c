@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#line __LINE__ "decimal.c"
+#line 18 "decimal.c"
 
 /*
 =======================================================================
@@ -107,14 +107,29 @@
 #include <m_string.h>
 #include <decimal.h>
 
+/*
+  Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
+  So one "decimal_digit" is
+
+      0 < decimal_digit <= DIG_MAX < DIG_BASE
+
+  in the struct st_decimal:
+
+    intg is the number of *decimal* digits (NOT number of decimal_digit's !)
+         before the point
+    frac - number of decimal digits after the point
+    buf is an array of decimal_digit's
+    len is the length of buf (length of allocated space) in decimal_digit's,
+        not in bytes
+*/
 typedef decimal_digit dec1;
 typedef longlong      dec2;
 
 #define DIG_PER_DEC1 9
 #define DIG_MASK     100000000
 #define DIG_BASE     1000000000
-#define DIG_MAX      999999999
-#define DIG_BASE2    LL(1000000000000000000)
+#define DIG_MAX      (DIG_BASE-1)
+#define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
@@ -743,12 +758,12 @@ int decimal_shift(decimal *dec, int shift)
   Convert string to decimal
 
   SYNOPSIS
-    str2decl()
-      from    - value to convert
+    internal_str2decl()
+      from    - value to convert. Doesn't have to be \0 terminated!
       to      - decimal where where the result will be stored
                 to->buf and to->len must be set.
-      end     - if not NULL, *end will be set to the char where
-                conversion ended
+      end     - Pointer to pointer to end of string. Will on return be
+		set to the char after the last used character
       fixed   - use to->intg, to->frac as limits for input number
 
   NOTE
@@ -757,31 +772,36 @@ int decimal_shift(decimal *dec, int shift)
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW/E_DEC_BAD_NUM/E_DEC_OOM
+    In case of E_DEC_FATAL_ERROR *to is set to decimal zero
+    (to make error handling easier)
 */
 
-static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
+int internal_str2dec(const char *from, decimal *to, char **end, my_bool fixed)
 {
-  char *s=from, *s1, *endp;
+  const char *s= from, *s1, *endp, *end_of_string= *end;
   int i, intg, frac, error, intg1, frac1;
   dec1 x,*buf;
-  LINT_INIT(error);
   sanity(to);
 
-  while (my_isspace(&my_charset_latin1, *s))
+  error= E_DEC_BAD_NUM;                         /* In case of bad number */
+  while (s < end_of_string && my_isspace(&my_charset_latin1, *s))
     s++;
+  if (s == end_of_string)
+    goto fatal_error;
+
   if ((to->sign= (*s == '-')))
     s++;
   else if (*s == '+')
     s++;
 
   s1=s;
-  while (my_isdigit(&my_charset_latin1, *s))
+  while (s < end_of_string && my_isdigit(&my_charset_latin1, *s))
     s++;
   intg=s-s1;
-  if (*s=='.')
+  if (s < end_of_string && *s=='.')
   {
     endp= s+1;
-    while (my_isdigit(&my_charset_latin1, *endp))
+    while (s < end_of_string && my_isdigit(&my_charset_latin1, *endp))
       endp++;
     frac= endp - s - 1;
   }
@@ -791,12 +811,12 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
     endp= s;
   }
 
-  if (end)
-    *end= endp;
+  *end= (char*) endp;
 
   if (frac+intg == 0)
-    return E_DEC_BAD_NUM;
+    goto fatal_error;
 
+  error= 0;
   if (fixed)
   {
     if (frac > to->frac)
@@ -812,7 +832,10 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
     intg1=ROUND_UP(intg);
     frac1=ROUND_UP(frac);
     if (intg1+frac1 > to->len)
-      return E_DEC_OOM;
+    {
+      error= E_DEC_OOM;
+      goto fatal_error;
+    }
   }
   else
   {
@@ -861,35 +884,42 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
   }
   if (i)
     *buf=x*powers10[DIG_PER_DEC1-i];
-  if (*endp == 'e' || *endp == 'E')
+
+  /* Handle exponent */
+  if (endp+1 < end_of_string && (*endp == 'e' || *endp == 'E'))
   {
-    long exp= strtol(endp + 1, &endp, 10);
+    int str_error;
+    longlong exp= my_strtoll10(endp+1, (char**) &end_of_string, &str_error);
 
-    if (end)
-      *end= endp;
-
-    if (exp > INT_MAX/2)
-      return E_DEC_OVERFLOW;
-    if (exp < INT_MIN/2 && error != E_DEC_OVERFLOW)
-      return E_DEC_TRUNCATED;
-
-    if(error != E_DEC_OVERFLOW)
-      error= decimal_shift(to, exp);
+    if (end_of_string != endp +1)               /* If at least one digit */
+    {
+      *end= (char*) end_of_string;
+      if (str_error > 0)
+      {
+        error= E_DEC_BAD_NUM;
+        goto fatal_error;
+      }
+      if (exp > INT_MAX/2 || (str_error == 0 && exp < 0))
+      {
+        error= E_DEC_OVERFLOW;
+        goto fatal_error;
+      }
+      if (exp < INT_MIN/2 && error != E_DEC_OVERFLOW)
+      {
+        error= E_DEC_TRUNCATED;
+        goto fatal_error;
+      }
+      if (error != E_DEC_OVERFLOW)
+        error= decimal_shift(to, (int) exp);
+    }
   }
+  return error;
 
+fatal_error:
+  decimal_make_zero(to);
   return error;
 }
 
-
-int string2decimal(char *from, decimal *to, char **end)
-{
-  return str2dec(from, to, end, 0);
-}
-
-int string2decimal_fixed(char *from, decimal *to, char **end)
-{
-  return str2dec(from, to, end, 1);
-}
 
 /*
   Convert decimal to double
@@ -932,9 +962,10 @@ int decimal2double(decimal *from, double *to)
 int double2decimal(double from, decimal *to)
 {
   /* TODO: fix it, when we'll have dtoa */
-  char s[400];
+  char s[400], *end;
   sprintf(s, "%f", from);
-  return string2decimal(s, to, 0);
+  end= strend(s);
+  return string2decimal(s, to, &end);
 }
 
 static int ull2dec(ulonglong from, decimal *to)
@@ -1057,6 +1088,68 @@ int decimal2longlong(decimal *from, longlong *to)
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
+
+  DESCRIPTION
+    for storage decimal numbers are converted to the "binary" format.
+
+    This format has the following properties:
+      1. length of the binary representation depends on the {precision, scale}
+      as provided by the caller and NOT on the intg/frac of the decimal to
+      convert.
+      2. binary representations of the same {precision, scale} can be compared
+      with memcmp - with the same result as decimal_cmp() of the original
+      decimals (not taking into account possible precision loss during
+      conversion).
+
+    This binary format is as follows:
+      1. First the number is converted to have a requested precision and scale.
+      2. Every full DIG_PER_DEC1 digits of intg part are stored in 4 bytes
+         as is
+      3. The first intg % DIG_PER_DEC1 digits are stored in the reduced
+         number of bytes (enough bytes to store this number of digits -
+         see dig2bytes)
+      4. same for frac - full decimal_digit's are stored as is,
+         the last frac % DIG_PER_DEC1 digits - in the reduced number of bytes.
+      5. If the number is negative - every byte is inversed.
+      5. The very first bit of the resulting byte array is inverted (because
+         memcmp compares unsigned bytes, see property 2 above)
+
+    Example:
+
+      1234567890.1234
+
+    internally is represented as 3 decimal_digit's
+
+      1 234567890 123400000
+
+    (assuming we want a binary representation with precision=14, scale=4)
+    in hex it's
+
+      00-00-00-01  0D-FB-38-D2  07-5A-EF-40
+
+    now, middle decimal_digit is full - it stores 9 decimal digits. It goes
+    into binary representation as is:
+
+
+      ...........  0D-FB-38-D2 ............
+
+    First decimal_digit has only one decimal digit. We can store one digit in
+    one byte, no need to waste four:
+
+                01 0D-FB-38-D2 ............
+
+    now, last digit. It's 123400000. We can store 1234 in two bytes:
+
+                01 0D-FB-38-D2 04-D2
+
+    So, we've packed 12 bytes number in 7 bytes.
+    And now we invert the highest bit to get the final result:
+
+                81 0D FB 38 D2 04 D2
+
+    And for -1234567890.1234 it would be
+
+                7E F2 04 37 2D FB 2D
 */
 int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
@@ -1398,6 +1491,11 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
         (*buf1)++;
       else
         *(++buf1)=DIG_BASE;
+    }
+    else if (frac0+intg0==0)
+    {
+      decimal_make_zero(to);
+      return E_DEC_OK;
     }
   }
   else
@@ -2160,13 +2258,13 @@ void check_result_code(int actual, int want)
 {
   if (actual != want)
   {
-    printf("\n^^^^^^^^^^^^^ mast return %d\n", want);
+    printf("\n^^^^^^^^^^^^^ must return %d\n", want);
     exit(1);
   }
 }
 
 
-void print_decimal(decimal *d, char *orig, int actual, int want)
+void print_decimal(decimal *d, const char *orig, int actual, int want)
 {
   char s[100];
   int slen=sizeof(s);
@@ -2218,38 +2316,41 @@ void test_d2s()
   dump_decimal(&a); printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 }
 
-void test_s2d(char *s, char *orig, int ex)
+void test_s2d(const char *s, const char *orig, int ex)
 {
-  char s1[100];
+  char s1[100], *end;
   int res;
   sprintf(s1, "'%s'", s);
+  end= strend(s);
   printf("len=%2d %-30s => res=%d    ", a.len, s1,
-         (res= string2decimal(s, &a, 0)));
+         (res= string2decimal(s, &a, &end)));
   print_decimal(&a, orig, res, ex);
   printf("\n");
 }
 
-void test_d2f(char *s, int ex)
+void test_d2f(const char *s, int ex)
 {
-  char s1[100];
+  char s1[100], *end;
   double x;
   int res;
 
   sprintf(s1, "'%s'", s);
-  string2decimal(s, &a, 0);
+  end= strend(s);
+  string2decimal(s, &a, &end);
   res=decimal2double(&a, &x);
   if (full) dump_decimal(&a);
   printf("%-40s => res=%d    %.*g\n", s1, res, a.intg+a.frac, x);
   check_result_code(res, ex);
 }
 
-void test_d2b2d(char *str, int p, int s, char *orig, int ex)
+void test_d2b2d(const char *str, int p, int s, const char *orig, int ex)
 {
-  char s1[100], buf[100];
+  char s1[100], buf[100], *end;
   int res, i, size=decimal_bin_size(p, s);
 
   sprintf(s1, "'%s'", str);
-  string2decimal(str, &a, 0);
+  end= strend(str);
+  string2decimal(str, &a, &end);
   res=decimal2bin(&a, buf, p, s);
   printf("%-31s {%2d, %2d} => res=%d size=%-2d ", s1, p, s, res, size);
   if (full)
@@ -2263,6 +2364,7 @@ void test_d2b2d(char *str, int p, int s, char *orig, int ex)
   print_decimal(&a, orig, res, ex);
   printf("\n");
 }
+
 void test_f2d(double from, int ex)
 {
   int res;
@@ -2273,7 +2375,7 @@ void test_f2d(double from, int ex)
   printf("\n");
 }
 
-void test_ull2d(ulonglong from, char *orig, int ex)
+void test_ull2d(ulonglong from, const char *orig, int ex)
 {
   char s[100];
   int res;
@@ -2285,7 +2387,7 @@ void test_ull2d(ulonglong from, char *orig, int ex)
   printf("\n");
 }
 
-void test_ll2d(longlong from, char *orig, int ex)
+void test_ll2d(longlong from, const char *orig, int ex)
 {
   char s[100];
   int res;
@@ -2297,13 +2399,14 @@ void test_ll2d(longlong from, char *orig, int ex)
   printf("\n");
 }
 
-void test_d2ull(char *s, char *orig, int ex)
+void test_d2ull(const char *s, const char *orig, int ex)
 {
-  char s1[100];
+  char s1[100], *end;
   ulonglong x;
   int res;
 
-  string2decimal(s, &a, 0);
+  end= strend(s);
+  string2decimal(s, &a, &end);
   res=decimal2ulonglong(&a, &x);
   if (full) dump_decimal(&a);
   longlong10_to_str(x,s1,10);
@@ -2316,13 +2419,14 @@ void test_d2ull(char *s, char *orig, int ex)
   }
 }
 
-void test_d2ll(char *s, char *orig, int ex)
+void test_d2ll(const char *s, const char *orig, int ex)
 {
-  char s1[100];
+  char s1[100], *end;
   longlong x;
   int res;
 
-  string2decimal(s, &a, 0);
+  end= strend(s);
+  string2decimal(s, &a, &end);
   res=decimal2longlong(&a, &x);
   if (full) dump_decimal(&a);
   longlong10_to_str(x,s1,-10);
@@ -2335,39 +2439,45 @@ void test_d2ll(char *s, char *orig, int ex)
   }
 }
 
-void test_da(char *s1, char *s2, char *orig, int ex)
+void test_da(const char *s1, const char *s2, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' + '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_add(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
   print_decimal(&c, orig, res, ex);
   printf("\n");
 }
 
-void test_ds(char *s1, char *s2, char *orig, int ex)
+void test_ds(const char *s1, const char *s2, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' - '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_sub(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
   print_decimal(&c, orig, res, ex);
   printf("\n");
 }
 
-void test_dc(char *s1, char *s2, int orig)
+void test_dc(const char *s1, const char *s2, int orig)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' <=> '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_cmp(&a, &b);
   printf("%-40s => res=%d\n", s, res);
   if (orig != res)
@@ -2377,26 +2487,30 @@ void test_dc(char *s1, char *s2, int orig)
   }
 }
 
-void test_dm(char *s1, char *s2, char *orig, int ex)
+void test_dm(const char *s1, const char *s2, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' * '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_mul(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
   print_decimal(&c, orig, res, ex);
   printf("\n");
 }
 
-void test_dv(char *s1, char *s2, char *orig, int ex)
+void test_dv(const char *s1, const char *s2, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' / '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_div(&a, &b, &c, 5);
   printf("%-40s => res=%d    ", s, res);
   check_result_code(res, ex);
@@ -2407,13 +2521,15 @@ void test_dv(char *s1, char *s2, char *orig, int ex)
   printf("\n");
 }
 
-void test_md(char *s1, char *s2, char *orig, int ex)
+void test_md(const char *s1, const char *s2, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' %% '%s'", s1, s2);
-  string2decimal(s1, &a, 0);
-  string2decimal(s2, &b, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
   res=decimal_mod(&a, &b, &c);
   printf("%-40s => res=%d    ", s, res);
   check_result_code(res, ex);
@@ -2424,14 +2540,17 @@ void test_md(char *s1, char *s2, char *orig, int ex)
   printf("\n");
 }
 
-char *round_mode[]={"TRUNCATE", "HALF_EVEN", "HALF_UP", "CEILING", "FLOOR"};
+const char *round_mode[]=
+{"TRUNCATE", "HALF_EVEN", "HALF_UP", "CEILING", "FLOOR"};
 
-void test_ro(char *s1, int n, decimal_round_mode mode, char *orig, int ex)
+void test_ro(const char *s1, int n, decimal_round_mode mode, const char *orig,
+             int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s', %d, %s", s1, n, round_mode[mode]);
-  string2decimal(s1, &a, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
   res=decimal_round(&a, &b, n, mode);
   printf("%-40s => res=%d    ", s, res);
   print_decimal(&b, orig, res, ex);
@@ -2439,7 +2558,7 @@ void test_ro(char *s1, int n, decimal_round_mode mode, char *orig, int ex)
 }
 
 
-void test_mx(int precision, int frac, char *orig)
+void test_mx(int precision, int frac, const char *orig)
 {
   char s[100];
   sprintf(s, "%d, %d", precision, frac);
@@ -2450,15 +2569,17 @@ void test_mx(int precision, int frac, char *orig)
 }
 
 
-void test_pr(char *s1, int prec, int dec, char filler, char *orig, int ex)
+void test_pr(const char *s1, int prec, int dec, char filler, const char *orig,
+             int ex)
 {
-  char s[100];
+  char s[100], *end;
   char s2[100];
   int slen= sizeof(s2);
   int res;
 
   sprintf(s, "'%s', %d, %d, '%c'", s1, prec, dec, filler);
-  string2decimal(s1, &a, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
   res= decimal2string(&a, s2, &slen, prec, dec, filler);
   printf("%-40s => res=%d    '%s'", s, res, s2);
   check_result_code(res, ex);
@@ -2471,12 +2592,13 @@ void test_pr(char *s1, int prec, int dec, char filler, char *orig, int ex)
 }
 
 
-void test_sh(char *s1, int shift, char *orig, int ex)
+void test_sh(const char *s1, int shift, const char *orig, int ex)
 {
-  char s[100];
+  char s[100], *end;
   int res;
   sprintf(s, "'%s' %s %d", s1, ((shift < 0) ? ">>" : "<<"), abs(shift));
-  string2decimal(s1, &a, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
   res= decimal_shift(&a, shift);
   printf("%-40s => res=%d    ", s, res);
   print_decimal(&a, orig, res, ex);
@@ -2484,12 +2606,13 @@ void test_sh(char *s1, int shift, char *orig, int ex)
 }
 
 
-void test_fr(char *s1, char *orig)
+void test_fr(const char *s1, const char *orig)
 {
-  char s[100];
+  char s[100], *end;
   sprintf(s, "'%s'", s1);
   printf("%-40s =>          ", s);
-  string2decimal(s1, &a, 0);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
   decimal_optimize_fraction(&a);
   print_decimal(&a, orig, 0, 0);
   printf("\n");
@@ -2625,11 +2748,12 @@ int main()
   test_md("234.567","10.555","2.357", 0);
   test_md("-234.567","10.555","-2.357", 0);
   test_md("234.567","-10.555","2.357", 0);
-  if (full)
+  c.buf[1]=0x3ABECA;
+  test_md("99999999999999999999999999999999999999","3","0", 0);
+  if (c.buf[1] != 0x3ABECA)
   {
-    c.buf[1]=0x3ABECA;
-    test_md("99999999999999999999999999999999999999","3","0", 0);
-    printf("%X\n", c.buf[1]);
+    printf("%X - overflow\n", c.buf[1]);
+    exit(1);
   }
 
   printf("==== decimal2bin/bin2decimal ====\n");
@@ -2699,6 +2823,16 @@ int main()
   test_ro("-15.1",0,FLOOR,"-16", 0);
   test_ro("999999999999999999999.999", 0, CEILING,"1000000000000000000000", 0);
   test_ro("-999999999999999999999.999", 0, FLOOR,"-1000000000000000000000", 0);
+
+  b.buf[0]=DIG_BASE+1;
+  b.buf++;
+  test_ro(".3", 0, HALF_UP, "0", 0);
+  b.buf--;
+  if (b.buf[0] != DIG_BASE+1)
+  {
+    printf("%d - underflow\n", b.buf[0]);
+    exit(1);
+  }
 
   printf("==== max_decimal ====\n");
   test_mx(1,1,"0.9");

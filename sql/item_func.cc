@@ -714,15 +714,14 @@ void Item_num_op::find_num_type(void)
   SYNOPSIS
     Item_func_num1::find_num_type()
 */
+
 void Item_func_num1::find_num_type()
 {
   DBUG_ENTER("Item_func_num1::find_num_type");
   DBUG_PRINT("info", ("name %s", func_name()));
-  switch(hybrid_type= args[0]->result_type())
-  {
+  switch (hybrid_type= args[0]->result_type()) {
   case INT_RESULT:
-    unsigned_flag=args[0]->unsigned_flag;
-    hybrid_type= INT_RESULT;
+    unsigned_flag= args[0]->unsigned_flag;
     break;
   case STRING_RESULT:
   case REAL_RESULT:
@@ -730,7 +729,6 @@ void Item_func_num1::find_num_type()
     max_length= float_length(decimals);
     break;
   case DECIMAL_RESULT:
-    hybrid_type= DECIMAL_RESULT;
     break;
   default:
     DBUG_ASSERT(0);
@@ -761,13 +759,12 @@ void Item_func_numhybrid::fix_length_and_dec()
 String *Item_func_numhybrid::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  switch (hybrid_type)
-  {
+  switch (hybrid_type) {
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value, *val;
     if (!(val= decimal_op(&decimal_value)))
-      return 0;
+      return 0;                                 // null is set
     my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, FALSE, val);
     my_decimal2string(E_DEC_FATAL_ERROR, val, 0, 0, 0, str);
     break;
@@ -785,7 +782,7 @@ String *Item_func_numhybrid::val_str(String *str)
   }
   case REAL_RESULT:
   {
-    double nr=real_op();
+    double nr= real_op();
     if (null_value)
       return 0; /* purecov: inspected */
     str->set(nr,decimals,&my_charset_bin);
@@ -801,14 +798,13 @@ String *Item_func_numhybrid::val_str(String *str)
 double Item_func_numhybrid::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  switch (hybrid_type)
-  {
+  switch (hybrid_type) {
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value, *val;
-    if (!(val= decimal_op(&decimal_value)))
-      return 0.0;
     double result;
+    if (!(val= decimal_op(&decimal_value)))
+      return 0.0;                               // null is set
     my_decimal2double(E_DEC_FATAL_ERROR, val, &result);
     return result;
   }
@@ -826,13 +822,12 @@ double Item_func_numhybrid::val_real()
 longlong Item_func_numhybrid::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  switch (hybrid_type)
-  {
+  switch (hybrid_type) {
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value, *val;
     if (!(val= decimal_op(&decimal_value)))
-      return 0;
+      return 0;                                 // null is set
     longlong result;
     my_decimal2int(E_DEC_FATAL_ERROR, val, unsigned_flag, &result);
     return result;
@@ -852,8 +847,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 {
   my_decimal *val= decimal_value;
   DBUG_ASSERT(fixed == 1);
-  switch (hybrid_type)
-  {
+  switch (hybrid_type) {
   case DECIMAL_RESULT:
     val= decimal_op(decimal_value);
     break;
@@ -949,14 +943,29 @@ longlong Item_func_plus::int_op()
 }
 
 
+/*
+  Calculate plus of two decimail's
+
+  SYNOPSIS
+    decimal_op()
+    decimal_value	Buffer that can be used to store result
+
+  RETURN
+   0	Value was NULL;  In this case null_value is set
+   #	Value of operation as a decimal
+*/
+
 my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
 {
-  my_decimal value1, *val1= args[0]->val_decimal(&value1);
+  my_decimal value1, *val1;
+  my_decimal value2, *val2;
+  val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
     return 0;
-  my_decimal value2, *val2= args[1]->val_decimal(&value2);
-  if ((null_value= args[1]->null_value) ||
-      my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1, val2) > 1)
+  val2= args[1]->val_decimal(&value2);
+  if ((null_value= (args[1]->null_value ||
+                    my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                   val2) > 1)))
     return 0;
   return decimal_value;
 }
@@ -1008,14 +1017,20 @@ longlong Item_func_minus::int_op()
 }
 
 
+/* See Item_func_plus::decimal_op for comments */
+
 my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
 {
-  my_decimal value1, *val1= args[0]->val_decimal(&value1);
+  my_decimal value1, *val1;
+  my_decimal value2, *val2= 
+
+  val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
     return 0;
-  my_decimal value2, *val2= args[1]->val_decimal(&value2);
-  if ((null_value= args[1]->null_value) ||
-      my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1, val2) > 1)
+  val2= args[1]->val_decimal(&value2);
+  if ((null_value= (args[1]->null_value ||
+                    my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                   val2) > 1)))
     return 0;
   return decimal_value;
 }
@@ -1041,14 +1056,19 @@ longlong Item_func_mul::int_op()
 }
 
 
+/* See Item_func_plus::decimal_op for comments */
+
 my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
 {
-  my_decimal value1, *val1= args[0]->val_decimal(&value1);
+  my_decimal value1, *val1;
+  my_decimal value2, *val2;
+  val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
     return 0;
-  my_decimal value2, *val2= args[1]->val_decimal(&value2);
-  if ((null_value= args[1]->null_value) ||
-      my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1, val2) > 1)
+  val2= args[1]->val_decimal(&value2);
+  if ((null_value= (args[1]->null_value ||
+                    my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
+                                   val2) > 1)))
     return 0;
   return decimal_value;
 }
@@ -1081,21 +1101,24 @@ double Item_func_div::real_op()
 
 my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
 {
-  my_decimal value1, *val1= args[0]->val_decimal(&value1);
+  my_decimal value1, *val1;
+  my_decimal value2, *val2;
+
+  val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
     return 0;
-  my_decimal value2, *val2= args[1]->val_decimal(&value2);
+  val2= args[1]->val_decimal(&value2);
   if ((null_value= args[1]->null_value))
     return 0;
   switch (my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
-                         val1, val2, DECIMAL_DIV_SCALE_INCREASE))
-  {
+                         val1, val2, DECIMAL_DIV_SCALE_INCREASE)) {
   case E_DEC_TRUNCATED:
   case E_DEC_OK:
     return decimal_value;
   case E_DEC_DIV_ZERO:
     signal_divide_by_null();
   default:
+    null_value= 1;                              // Safety
     return 0;
   }
 }
@@ -1115,8 +1138,7 @@ void Item_func_div::fix_length_and_dec()
 {
   DBUG_ENTER("Item_func_div::fix_length_and_dec");
   Item_num_op::fix_length_and_dec();
-  switch(hybrid_type)
-  {
+  switch(hybrid_type) {
   case REAL_RESULT:
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+2;
@@ -1148,7 +1170,7 @@ longlong Item_func_int_div::val_int()
   DBUG_ASSERT(fixed == 1);
   longlong value=args[0]->val_int();
   longlong val2=args[1]->val_int();
-  if (args[0]->null_value || args[1]->null_value)
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return 0;
   if (val2 == 0)
   {
@@ -1158,19 +1180,6 @@ longlong Item_func_int_div::val_int()
   return (unsigned_flag ?
 	  (ulonglong) value / (ulonglong) val2 :
 	  value / val2);
-}
-
-
-String *Item_func_int_div::val_str(String*str)
-{
-  longlong nr= val_int();
-  if (null_value)
-    return 0; /* purecov: inspected */
-  if (!unsigned_flag)
-    str->set(nr,&my_charset_bin);
-  else
-    str->set((ulonglong) nr,&my_charset_bin);
-  return str;
 }
 
 
@@ -1215,21 +1224,24 @@ double Item_func_mod::real_op()
 
 my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value)
 {
-  my_decimal value1, *val1= args[0]->val_decimal(&value1);
+  my_decimal value1, *val1;
+  my_decimal value2, *val2;
+
+  val1= args[0]->val_decimal(&value1);
   if ((null_value= args[0]->null_value))
     return 0;
-  my_decimal value2, *val2= args[1]->val_decimal(&value2);
+  val2= args[1]->val_decimal(&value2);
   if ((null_value= args[1]->null_value))
     return 0;
   switch (my_decimal_mod(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
-                         val1, val2))
-  {
+                         val1, val2)) {
   case E_DEC_TRUNCATED:
   case E_DEC_OK:
     return decimal_value;
   case E_DEC_DIV_ZERO:
     signal_divide_by_null();
   default:
+    null_value= 1;
     return 0;
   }
 }
@@ -1279,24 +1291,23 @@ void Item_func_neg::fix_num_length_and_dec()
 }
 
 
-void Item_func_signproc::fix_length_and_dec()
+void Item_func_neg::fix_length_and_dec()
 {
-  DBUG_ENTER("Item_func_signproc::fix_length_and_dec");
+  DBUG_ENTER("Item_func_neg::fix_length_and_dec");
   Item_func_num1::fix_length_and_dec();
+
+  /*
+    If this is in integer context keep the context as integer if possible
+    (This is how multiplication and other integer functions works)
+  */
   if (hybrid_type == INT_RESULT &&
       args[0]->type() == INT_ITEM &&
       ((ulonglong) ((Item_uint*) args[0])->value >=
        (ulonglong) LONGLONG_MIN))
   {
     /*
-      If this is in integer context keep the context as integer
-      (This is how multiplication and other integer functions works)
-
-      We must however do a special case in the case where the argument
-      is a unsigned bigint constant as in this case the only safe
-      number to convert in integer context is 9223372036854775808.
-      (This is needed because the lex parser doesn't anymore handle
-      signed integers)
+      Ensure that result is converted to DECIMAL, as longlong can't hold
+      the negated number
     */
     hybrid_type= DECIMAL_RESULT;
     DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
@@ -1618,9 +1629,9 @@ double Item_func_ceiling::real_op()
 my_decimal *Item_func_ceiling::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= args[0]->null_value))
-    return 0;
-  if (my_decimal_ceiling(E_DEC_FATAL_ERROR, value, decimal_value) > 1)
+  if ((null_value= (args[0]->null_value ||
+                    my_decimal_ceiling(E_DEC_FATAL_ERROR, value,
+                                       decimal_value) > 1)))
     return 0;
   return decimal_value;
 }
@@ -1653,9 +1664,9 @@ double Item_func_floor::real_op()
 my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 {
   my_decimal val, *value= args[0]->val_decimal(&val);
-  if ((null_value= args[0]->null_value))
-    return 0;
-  if (my_decimal_floor(E_DEC_FATAL_ERROR, value, decimal_value) > 1)
+  if ((null_value= (args[0]->null_value ||
+                    my_decimal_floor(E_DEC_FATAL_ERROR, value,
+                                     decimal_value) > 1)))
     return 0;
   return decimal_value;
 }
@@ -1732,7 +1743,7 @@ longlong Item_func_round::int_op()
   if (truncate)
   {
     if (unsigned_flag)
-      tmp2= floor(((double)((ulonglong)value))/tmp)*tmp;
+      tmp2= floor(ulonglong2double(value)/tmp)*tmp;
     else if (value >= 0)
       tmp2= floor(((double)value)/tmp)*tmp;
     else
@@ -1750,10 +1761,9 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value)
   int dec=(int) args[1]->val_int();
   if (dec > 0)
     decimals= dec; // to get correct output
-  if ((null_value= args[0]->null_value || args[1]->null_value))
-    return 0;
-  if (my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
-                       decimal_value) > 1)
+  if ((null_value= (args[0]->null_value || args[1]->null_value ||
+                    my_decimal_round(E_DEC_FATAL_ERROR, value, dec, truncate,
+                                     decimal_value) > 1)))
     return 0;
   return decimal_value;
 }
@@ -2125,9 +2135,11 @@ longlong Item_func_field::val_int()
   else if (cmp_type == INT_RESULT)
   {
     longlong val= args[0]->val_int();
+    if (args[0]->is_null())
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_int())
+      if (val == args[i]->val_int() && ! args[i]->is_null())
  	return (longlong) (i);
     }
   }
@@ -2140,18 +2152,18 @@ longlong Item_func_field::val_int()
     for (uint i=1; i < arg_count; i++)
     {
       dec_arg= args[i]->val_decimal(&dec_arg_buf);
-      if (args[i]->is_null())
-        continue;
-      if (!my_decimal_cmp(dec_arg, dec))
+      if (!args[i]->is_null() && !my_decimal_cmp(dec_arg, dec))
         return (longlong) (i);
     }
   }
   else
   {
     double val= args[0]->val_real();
+    if (args[0]->is_null())
+      return 0;
     for (uint i=1; i < arg_count ; i++)
     {
-      if (val == args[i]->val_real())
+      if (val == args[i]->val_real() && ! args[i]->is_null())
  	return (longlong) (i);
     }
   }
@@ -2589,6 +2601,10 @@ String *udf_handler::val_str(String *str,String *save_str)
 }
 
 
+/*
+  For the moment, UDF functions are returning DECIMAL values as strings
+*/
+
 my_decimal *udf_handler::val_decimal(my_bool *null_value, my_decimal *dec_buf)
 {
   char buf[DECIMAL_MAX_STR_LENGTH+1], *end;
@@ -2609,8 +2625,8 @@ my_decimal *udf_handler::val_decimal(my_bool *null_value, my_decimal *dec_buf)
     *null_value= 1;
     return 0;
   }
-  buf[res_length]= 0;
-  str2my_decimal(E_DEC_FATAL_ERROR, buf, dec_buf, &end);
+  end= res+ res_length;
+  str2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf, &end);
   return dec_buf;
 }
 
@@ -2664,9 +2680,9 @@ String *Item_func_udf_int::val_str(String *str)
 longlong Item_func_udf_decimal::val_int()
 {
   my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  longlong result;
   if (null_value)
     return 0;
-  longlong result;
   my_decimal2int(E_DEC_FATAL_ERROR, dec, unsigned_flag, &result);
   return result;
 }
@@ -2675,9 +2691,9 @@ longlong Item_func_udf_decimal::val_int()
 double Item_func_udf_decimal::val_real()
 {
   my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  double result;
   if (null_value)
     return 0.0;
-  double result;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &result);
   return result;
 }
@@ -2823,7 +2839,7 @@ void item_user_lock_release(User_level_lock *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1, FALSE);
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(), 0, FALSE);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }

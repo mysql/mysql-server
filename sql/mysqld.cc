@@ -54,7 +54,8 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
-#if defined(NOT_ENOUGH_TESTED) && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
+#if defined(NOT_ENOUGH_TESTED) \
+  && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
 #define OPT_NDB_SHM_DEFAULT 1
 #else
 #define OPT_NDB_SHM_DEFAULT 0
@@ -147,11 +148,11 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#ifdef __NETWARE__
 #define zVOLSTATE_ACTIVE 6
 #define zVOLSTATE_DEACTIVE 2
 #define zVOLSTATE_MAINTENANCE 3
 
-#ifdef __NETWARE__
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
@@ -245,6 +246,10 @@ const char *sql_mode_names[] =
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names, NULL };
+const char *tc_heuristic_recover_names[]= { "COMMIT", "ROLLBACK", NullS };
+TYPELIB tc_heuristic_recover_typelib=
+  { array_elements(tc_heuristic_recover_names)-1,"",
+    tc_heuristic_recover_names, NULL };
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 #if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
@@ -305,14 +310,13 @@ my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
-my_bool opt_innodb_safe_binlog= 0;
 my_bool opt_large_pages= 0;
-uint   opt_large_page_size= 0;
+uint    opt_large_page_size= 0;
 my_bool opt_old_style_user_limits= 0;
 /*
-  True if there is at least one per-hour limit for some user, so we should check
-  them before each query (and possibly reset counters when hour is changed).
-  False otherwise.
+  True if there is at least one per-hour limit for some user, so we should
+  check them before each query (and possibly reset counters when hour is
+  changed). False otherwise.
 */
 volatile bool mqh_used = 0;
 my_bool sp_automatic_privileges= 1;
@@ -320,7 +324,7 @@ my_bool sp_automatic_privileges= 1;
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
-uint opt_crash_binlog_innodb;
+uint tc_heuristic_recover= 0;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
 ulong back_log, connect_timeout, concurrency;
@@ -332,7 +336,7 @@ ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version, flush_version;	/* Increments on each reload */
-ulong query_id;
+query_id_t query_id;
 ulong aborted_threads, killed_threads, aborted_connects;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -389,6 +393,7 @@ Le_creator le_creator;
 
 
 FILE *bootstrap_file;
+int bootstrap_error;
 
 I_List<i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -450,7 +455,7 @@ static my_bool opt_do_pstack, opt_noacl, opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
 static char *opt_logname, *opt_update_logname, *opt_binlog_index_name;
-static char *opt_slow_logname;
+static char *opt_slow_logname, *opt_tc_log_file, *opt_tc_heuristic_recover;
 static char *mysql_home_ptr, *pidfile_name_ptr;
 static char **defaults_argv;
 static char *opt_bin_logname;
@@ -532,7 +537,7 @@ static char *get_relative_path(const char *path);
 static void fix_paths(void);
 extern "C" pthread_handler_decl(handle_connections_sockets,arg);
 extern "C" pthread_handler_decl(kill_server_thread,arg);
-static int bootstrap(FILE *file);
+static void bootstrap(FILE *file);
 static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
@@ -969,11 +974,14 @@ void clean_up(bool print_message)
   item_user_lock_free();
   lex_free();				/* Free some memory */
   set_var_free();
+  free_charsets();
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
     udf_free();
 #endif
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
+  if (tc_log)
+    tc_log->close();
   delete_elements(&key_caches, (void (*)(const char*, gptr)) free_key_cache);
   multi_keycache_free();
   end_thr_alarm(1);			/* Free allocated memory */
@@ -1581,11 +1589,11 @@ void mysql_down_server_cb(void *, void *)
 
 // destroy callback resources
 void mysql_cb_destroy(void *)
-{  
-  UnRegisterEventNotification(eh);  // cleanup down event notification    	  
+{
+  UnRegisterEventNotification(eh);  // cleanup down event notification
   NX_UNWRAP_INTERFACE(ref);
-  /* Deregister NSS volume deactivation event */  
-  NX_UNWRAP_INTERFACE(refneb);  	
+  /* Deregister NSS volume deactivation event */
+  NX_UNWRAP_INTERFACE(refneb);
   if (neb_consumer_id)
     UnRegisterConsumer(neb_consumer_id, NULL);
 }
@@ -1708,7 +1716,6 @@ ulong neb_event_callback(struct EventBlock *eblock)
       nw_panic = TRUE;
       event_flag= TRUE;
       kill_server(0);
- 
     }
   }
   return 0;
@@ -1766,7 +1773,7 @@ static void getvolumeID(BYTE *volumeName)
   datavolid.clockSeqLow= info.vol.volumeID.clockSeqLow;
   /* This is guranteed to be 6-byte length (but sizeof() would be better) */
   memcpy(datavolid.node, info.vol.volumeID.node, (unsigned int) 6);
-		
+
 exit:
   if (rootKey)
     zClose(rootKey);
@@ -2179,8 +2186,8 @@ static void check_data_home(const char *path)
 
 
 /*
-  All global error messages are sent here where the first one is stored for
-  the client
+  All global error messages are sent here where the first one is stored
+  for the client
 */
 
 
@@ -2216,7 +2223,7 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
                            (thd->lex->current_select ?
                             thd->lex->current_select->no_error : 0),
                            (int) thd->is_fatal_error));
-                           
+
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
@@ -2306,44 +2313,13 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { 
+const char *load_default_groups[]= {
 #ifdef HAVE_NDBCLUSTER_DB
 "mysql_cluster",
 #endif
-"mysqld","server",MYSQL_BASE_VERSION,0,0};
+"mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
-
-bool open_log(MYSQL_LOG *log, const char *hostname,
-	      const char *opt_name, const char *extension,
-	      const char *index_file_name,
-	      enum_log_type type, bool read_append,
-	      bool no_auto_events, ulong max_size)
-{
-  char tmp[FN_REFLEN];
-  if (!opt_name || !opt_name[0])
-  {
-    /*
-      TODO: The following should be using fn_format();  We just need to
-      first change fn_format() to cut the file name if it's too long.
-    */
-    strmake(tmp,hostname,FN_REFLEN-5);
-    strmov(fn_ext(tmp),extension);
-    opt_name=tmp;
-  }
-  // get rid of extension if the log is binary to avoid problems
-  if (type == LOG_BIN)
-  {
-    char *p = fn_ext(opt_name);
-    uint length=(uint) (p-opt_name);
-    strmake(tmp,opt_name,min(length,FN_REFLEN));
-    opt_name=tmp;
-  }
-  return log->open(opt_name, type, 0, index_file_name,
-		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-		   no_auto_events, max_size, 0);
-}
-
 
 /*
   Initialize one of the global date/time format variables
@@ -2352,7 +2328,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
     init_global_datetime_format()
     format_type		What kind of format should be supported
     var_ptr		Pointer to variable that should be updated
-  
+
   NOTES
     The default value is taken from either opt_date_time_formats[] or
     the ISO format (ANSI SQL)
@@ -2635,8 +2611,7 @@ static int init_server_components()
 #endif
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, glob_hostname, opt_logname, ".log", NullS,
-	     LOG_NORMAL, 0, 0, 0);
+    mysql_log.open_query_log(opt_logname);
   if (opt_update_log)
   {
     /*
@@ -2689,57 +2664,15 @@ version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
 with --log-bin instead.");
     }
   }
-  if (opt_slow_log)
-    open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
- 	     NullS, LOG_NORMAL, 0, 0, 0);
+  if (opt_log_slave_updates && !opt_bin_log)
+  {
+      sql_print_warning("You need to use --log-bin to make "
+                        "--log-slave-updates work.");
+      unireg_abort(1);
+  }
 
-  if (opt_bin_log)
-  {
-    /* If we fail to open binlog, it's going to hinder our recovery, so die */
-    if (open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-		 opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size))
-      unireg_abort(1);
-    using_update_log=1;
-#ifdef HAVE_REPLICATION
-    if (expire_logs_days)
-    {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-	mysql_bin_log.purge_logs_before_date(purge_time);
-    }
-#endif
-    if (!opt_bin_logname && !opt_binlog_index_name)
-    {
-      /*
-        User didn't give us info to name the binlog index file.
-        Picking `hostname`-bin.index like did in 4.x, causes replication to
-        fail if the hostname is changed later. So, we would like to instead
-        require a name. But as we don't want to break many existing setups, we
-        only give warning, not error.
-      */
-      sql_print_warning("\
-No argument was provided to --log-bin, and --log-bin-index was not used; \
-so replication may break when this MySQL server acts as a master and \
-has his hostname changed!! Please use '--log-bin=%s' to avoid \
-this problem.",
-                        mysql_bin_log.get_name());
-    }
-  }
-  else
-  {
-    if (opt_log_slave_updates)
-    {
-      sql_print_error("\
-You need to use --log-bin=# to make --log-slave-updates work.");
-      unireg_abort(1);
-    }
-    if (opt_binlog_index_name)
-    {
-      sql_print_error("\
-You need to use --log-bin=# to make --log-bin-index work.");
-      unireg_abort(1);
-    }
-  }
+  if (opt_slow_log)
+    mysql_slow_log.open_slow_log(opt_slow_logname);
 
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
@@ -2771,39 +2704,33 @@ server.");
     }
   }
 
-  if (opt_innodb_safe_binlog)
+  if (opt_bin_log)
   {
-    if (have_innodb != SHOW_OPTION_YES)
-      sql_print_warning("--innodb-safe-binlog is meaningful only if "
-                      "the InnoDB storage engine is enabled in the server.");
-#ifdef HAVE_INNOBASE_DB
-    if (innobase_flush_log_at_trx_commit != 1)
-    {
-      sql_print_warning("--innodb-safe-binlog is meaningful only if "
-                      "innodb_flush_log_at_trx_commit is 1; now setting it "
-                      "to 1.");
-      innobase_flush_log_at_trx_commit= 1;
-    }
-    if (innobase_unix_file_flush_method)
+    char buf[FN_REFLEN];
+    const char *ln;
+    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
+    if (!opt_bin_logname && !opt_binlog_index_name)
     {
       /*
-        This option has so many values that it's hard to know which value is
-        good (especially "littlesync", and on Windows... see
-        srv/srv0start.c).
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
       */
-      sql_print_warning("--innodb-safe-binlog requires that "
-                      "the innodb_flush_method actually synchronizes the "
-                      "InnoDB log to disk; it is your responsibility "
-                      "to verify that the method you chose does it.");
+      sql_print_warning("No argument was provided to --log-bin, and "
+                        "--log-bin-index was not used; so replication "
+                        "may break when this MySQL server acts as a "
+                        "master and has his hostname changed!! Please "
+                        "use '--log-bin=%s' to avoid this problem.", ln);
     }
-    if (sync_binlog_period != 1)
+    if (ln == buf)
     {
-      sql_print_warning("--innodb-safe-binlog is meaningful only if "
-                      "the global sync_binlog variable is 1; now setting it "
-                      "to 1.");
-      sync_binlog_period= 1;
+      my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
+      opt_bin_logname=my_strdup(buf, MYF(0));
     }
-#endif
+    mysql_bin_log.open_index_file(opt_binlog_index_name, ln);
+    using_update_log=1;
   }
 
   if (ha_init())
@@ -2811,20 +2738,32 @@ server.");
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
+  tc_log= total_ha_2pc > 1 ? opt_bin_log  ?
+                 (TC_LOG *)&mysql_bin_log :
+                 (TC_LOG *)&tc_log_mmap   :
+                 (TC_LOG *)&tc_log_dummy;
+
+  if (tc_log->open(opt_tc_log_file))
+  {
+    sql_print_error("Can't init tc log");
+    unireg_abort(1);
+  }
+
+  if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
+                                        WRITE_CACHE, 0, max_binlog_size, 0))
+      unireg_abort(1);
+
+#ifdef HAVE_REPLICATION
+  if (opt_bin_log && expire_logs_days)
+  {
+    long purge_time= time(0) - expire_logs_days*24*60*60;
+    if (purge_time >= 0)
+      mysql_bin_log.purge_logs_before_date(purge_time);
+  }
+#endif
+
   if (opt_myisam_log)
     (void) mi_log(1);
-
-  /*
-    Now that InnoDB is initialized, we can know the last good binlog position
-    and cut the binlog if needed. This function does nothing if there was no
-    crash recovery by InnoDB.
-  */
-  if (opt_innodb_safe_binlog)
-  {
-    /* not fatal if fails (but print errors) */
-    mysql_bin_log.cut_spurious_tail();
-  }
-  mysql_bin_log.report_pos_in_innodb();
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
@@ -3142,9 +3081,9 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (opt_bootstrap)
   {
-    int error=bootstrap(stdin);
+    bootstrap(stdin);
     end_thr_alarm(1);				// Don't allow alarms
-    unireg_abort(error ? 1 : 0);
+    unireg_abort(bootstrap_error ? 1 : 0);
   }
   if (opt_init_file)
   {
@@ -3332,10 +3271,10 @@ int main(int argc, char **argv)
   /* When several instances are running on the same machine, we
      need to have an  unique  named  hEventShudown  through the
      application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
-  */ 
+  */
   int10_to_str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
                                                   "MySQLShutdown"), 10);
-  
+
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
 
@@ -3434,7 +3373,7 @@ int main(int argc, char **argv)
   create MySQL privilege tables without having to start a full MySQL server.
 */
 
-static int bootstrap(FILE *file)
+static void bootstrap(FILE *file)
 {
   int error= 0;
   DBUG_ENTER("bootstrap");
@@ -3454,7 +3393,8 @@ static int bootstrap(FILE *file)
 		     (void*) thd))
   {
     sql_print_warning("Can't create thread to handle bootstrap");
-    DBUG_RETURN(-1);
+    bootstrap_error=-1;
+    DBUG_VOID_RETURN;
   }
   /* Wait for thread to die */
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -3469,13 +3409,7 @@ static int bootstrap(FILE *file)
   handle_bootstrap((void *)thd);
 #endif
 
-  error= thd->is_fatal_error;
-#ifndef EMBEDDED_LIBRARY
-  net_end(&thd->net);
-#endif
-  thd->cleanup();
-  delete thd;
-  DBUG_RETURN(error);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3486,7 +3420,7 @@ static bool read_init_file(char *file_name)
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
     return(1);
-  bootstrap(file);				/* Ignore errors from this */
+  bootstrap(file);
   (void) my_fclose(file,MYF(MY_WME));
   return 0;
 }
@@ -3965,7 +3899,7 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
     /*
        it can be after shutdown command
     */
-    if (abort_loop) 
+    if (abort_loop)
       goto error;
 
     HANDLE handle_client_file_map= 0;
@@ -4145,7 +4079,7 @@ enum options_mysqld
   OPT_MASTER_HOST,             OPT_MASTER_USER,
   OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
   OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
-  OPT_MASTER_RETRY_COUNT,
+  OPT_MASTER_RETRY_COUNT,      OPT_LOG_TC, OPT_LOG_TC_SIZE,
   OPT_MASTER_SSL,              OPT_MASTER_SSL_KEY,
   OPT_MASTER_SSL_CERT,         OPT_MASTER_SSL_CAPATH,
   OPT_MASTER_SSL_CIPHER,       OPT_MASTER_SSL_CA,
@@ -4159,7 +4093,7 @@ enum options_mysqld
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
   OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
-  OPT_DISCONNECT_SLAVE_EVENT_COUNT,
+  OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_INNODB_DATA_HOME_DIR,
   OPT_INNODB_DATA_FILE_PATH,
@@ -4583,6 +4517,14 @@ Disable with --skip-isam.",
    "Log slow queries to this log file. Defaults logging to hostname-slow.log file.",
    (gptr*) &opt_slow_logname, (gptr*) &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
+  {"log-tc", OPT_LOG_TC,
+   "Path to transaction coordinator log (used for transactions that affect "
+   "more than one storage engine, when binary log is disabled)",
+   (gptr*) &opt_tc_log_file, (gptr*) &opt_tc_log_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-tc-size", OPT_LOG_TC_SIZE, "Size of transaction coordinator log.",
+   (gptr*) &opt_tc_log_size, (gptr*) &opt_tc_log_size, 0, GET_ULONG,
+   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ~0, 0, TC_LOG_PAGE_SIZE, 0},
   {"log-update", OPT_UPDATE_LOG,
    "The update log is deprecated since version 5.0, is replaced by the binary \
 log and this option justs turns on --log-bin instead.",
@@ -4929,6 +4871,10 @@ log and this option does nothing anymore.",
   {"symbolic-links", 's', "Enable symbolic link support.",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+  {"tc-heuristic-recover", OPT_TC_HEURISTIC_RECOVER,
+   "Decision to use in heuristic recover process. Possible values are COMMIT or ROLLBACK",
+   (gptr*) &opt_tc_heuristic_recover, (gptr*) &opt_tc_heuristic_recover,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"temp-pool", OPT_TEMP_POOL,
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
@@ -4999,12 +4945,6 @@ log and this option does nothing anymore.",
    "The number of seconds the mysqld server is waiting for a connect packet before responding with 'Bad handshake'.",
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
-#ifdef HAVE_REPLICATION
-  {"crash_binlog_innodb", OPT_CRASH_BINLOG_INNODB,
-   "Used only for testing, to crash when writing Nth event to binlog.",
-   (gptr*) &opt_crash_binlog_innodb, (gptr*) &opt_crash_binlog_innodb,
-   0, GET_UINT, REQUIRED_ARG, 0, 0, ~(uint)0, 0, 1, 0},
-#endif
   { "date_format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
     (gptr*) &opt_date_time_formats[MYSQL_TIMESTAMP_DATE],
@@ -5125,26 +5065,6 @@ log and this option does nothing anymore.",
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
    GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
-#ifdef HAVE_REPLICATION
-  /*
-    Disabled for the 4.1.3 release. Disabling just this paragraph of code is
-    enough, as then user can't set it to 1 so it will always be ignored in the
-    rest of code.
-  */
-#if MYSQL_VERSION_ID >= 40103
-  /*
-    innodb_safe_binlog is not a variable, just an option. Does not make
-    sense to make it a variable, as it is only used at startup (and so the
-    value would be lost at next startup, so setting it on the fly would have no
-    effect).
-  */
-  {"innodb_safe_binlog", OPT_INNODB_SAFE_BINLOG,
-   "After a crash recovery by InnoDB, truncate the binary log after the last "
-   "not-rolled-back statement/transaction.",
-   (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
-   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
-#endif
-#endif
   {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
    "Count of spin-loop rounds in InnoDB mutexes",
    (gptr*) &srv_n_spin_wait_rounds,
@@ -5546,12 +5466,9 @@ struct show_var_st status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
-  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received),
-   SHOW_LONG_STATUS},
-  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent),
-   SHOW_LONG_STATUS},
-  {"Com_admin_commands",       (char*) offsetof(STATUS_VAR, com_other),
-   SHOW_LONG_STATUS},
+  {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONG_STATUS},
+  {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONG_STATUS},
+  {"Com_admin_commands",       (char*) offsetof(STATUS_VAR, com_other), SHOW_LONG_STATUS},
   {"Com_alter_db",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB]), SHOW_LONG_STATUS},
   {"Com_alter_table",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
   {"Com_analyze",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]), SHOW_LONG_STATUS},
@@ -5638,62 +5555,45 @@ struct show_var_st status_vars[]= {
   {"Com_unlock_tables",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_TABLES]), SHOW_LONG_STATUS},
   {"Com_update",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE]), SHOW_LONG_STATUS},
   {"Com_update_multi",	       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE_MULTI]), SHOW_LONG_STATUS},
+  {"Com_xa_commit",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_COMMIT]),SHOW_LONG_STATUS},
+  {"Com_xa_end",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_END]),SHOW_LONG_STATUS},
+  {"Com_xa_prepare",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_PREPARE]),SHOW_LONG_STATUS},
+  {"Com_xa_recover",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_RECOVER]),SHOW_LONG_STATUS},
+  {"Com_xa_rollback",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_ROLLBACK]),SHOW_LONG_STATUS},
+  {"Com_xa_start",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_XA_START]),SHOW_LONG_STATUS},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
-  {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR,
-						created_tmp_disk_tables),
-   SHOW_LONG_STATUS},
+  {"Created_tmp_disk_tables",  (char*) offsetof(STATUS_VAR, created_tmp_disk_tables), SHOW_LONG_STATUS},
   {"Created_tmp_files",	       (char*) &my_tmp_file_created,	SHOW_LONG},
-  {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR,
-						created_tmp_tables),
-   SHOW_LONG_STATUS},
+  {"Created_tmp_tables",       (char*) offsetof(STATUS_VAR, created_tmp_tables), SHOW_LONG_STATUS},
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_CONST},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_CONST},
-  {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count),
-   SHOW_LONG_STATUS},
-  {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count),
-   SHOW_LONG_STATUS},
-  {"Handler_discover",         (char*) &ha_discover_count,      SHOW_LONG},
-  {"Handler_read_first",       (char*) offsetof(STATUS_VAR,
-						ha_read_first_count),
-   SHOW_LONG_STATUS},
-  {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count),
-   SHOW_LONG_STATUS},
-  {"Handler_read_next",        (char*) offsetof(STATUS_VAR,
-						ha_read_next_count),
-   SHOW_LONG_STATUS},
-  {"Handler_read_prev",        (char*) offsetof(STATUS_VAR,
-						ha_read_prev_count),
-   SHOW_LONG_STATUS},
-  {"Handler_read_rnd",         (char*) offsetof(STATUS_VAR, ha_read_rnd_count),
-   SHOW_LONG_STATUS},
-  {"Handler_read_rnd_next",    (char*) offsetof(STATUS_VAR,
-						ha_read_rnd_next_count),
-   SHOW_LONG_STATUS},
-  {"Handler_rollback",         (char*) offsetof(STATUS_VAR, ha_rollback_count),
-   SHOW_LONG_STATUS},
-  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count),
-   SHOW_LONG_STATUS},
-  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count),
-   SHOW_LONG_STATUS},
+  {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
+  {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
+  {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
+  {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
+  {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
+  {"Handler_read_key",         (char*) offsetof(STATUS_VAR, ha_read_key_count), SHOW_LONG_STATUS},
+  {"Handler_read_next",        (char*) offsetof(STATUS_VAR, ha_read_next_count), SHOW_LONG_STATUS},
+  {"Handler_read_prev",        (char*) offsetof(STATUS_VAR, ha_read_prev_count), SHOW_LONG_STATUS},
+  {"Handler_read_rnd",         (char*) offsetof(STATUS_VAR, ha_read_rnd_count), SHOW_LONG_STATUS},
+  {"Handler_read_rnd_next",    (char*) offsetof(STATUS_VAR, ha_read_rnd_next_count), SHOW_LONG_STATUS},
+  {"Handler_rollback",         (char*) offsetof(STATUS_VAR, ha_rollback_count), SHOW_LONG_STATUS},
+  {"Handler_savepoint",        (char*) offsetof(STATUS_VAR, ha_savepoint_count), SHOW_LONG_STATUS},
+  {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
+  {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
+  {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
 #ifdef HAVE_INNOBASE_DB
   {"Innodb_",                  (char*) &innodb_status_variables, SHOW_VARS},
 #endif /*HAVE_INNOBASE_DB*/
-  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
-   SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused,
-   SHOW_KEY_CACHE_CONST_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
-   SHOW_KEY_CACHE_CONST_LONG},
-  {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests,
-   SHOW_KEY_CACHE_LONG},
-  {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read,
-   SHOW_KEY_CACHE_LONG},
-  {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests,
-   SHOW_KEY_CACHE_LONG},
-  {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
-   SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed, SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused, SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used, SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests, SHOW_KEY_CACHE_LONG},
+  {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read, SHOW_KEY_CACHE_LONG},
+  {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests, SHOW_KEY_CACHE_LONG},
+  {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write, SHOW_KEY_CACHE_LONG},
   {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
 #ifdef HAVE_NDBCLUSTER_DB
@@ -5703,53 +5603,32 @@ struct show_var_st status_vars[]= {
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
   {"Open_tables",              (char*) 0,                       SHOW_OPENTABLES},
-  {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables),
-   SHOW_LONG_STATUS},
+  {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
 #ifdef HAVE_QUERY_CACHE
-  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,
-   SHOW_LONG_CONST},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory,
-   SHOW_LONG_CONST},
+  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_CONST},
+  {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_CONST},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
   {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
   {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes, SHOW_LONG},
   {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_CONST},
-  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,
-   SHOW_LONG_CONST},
+  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_CONST},
 #endif /*HAVE_QUERY_CACHE*/
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
   {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
-  {"Select_full_join",         (char*) offsetof(STATUS_VAR,
-						select_full_join_count),
-   SHOW_LONG_STATUS},
-  {"Select_full_range_join",   (char*) offsetof(STATUS_VAR,
-						select_full_range_join_count),
-   SHOW_LONG_STATUS},
-  {"Select_range",             (char*) offsetof(STATUS_VAR,
-						select_range_count),
-   SHOW_LONG_STATUS},
-  {"Select_range_check",       (char*) offsetof(STATUS_VAR,
-						select_range_check_count),
-   SHOW_LONG_STATUS},
-  {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count),
-   SHOW_LONG_STATUS},
+  {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONG_STATUS},
+  {"Select_full_range_join",   (char*) offsetof(STATUS_VAR, select_full_range_join_count), SHOW_LONG_STATUS},
+  {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count), SHOW_LONG_STATUS},
+  {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONG_STATUS},
+  {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count), SHOW_LONG_STATUS},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
   {"Slave_running",            (char*) 0, SHOW_SLAVE_RUNNING},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
-  {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count),
-   SHOW_LONG_STATUS},
-  {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR,
-						filesort_merge_passes),
-   SHOW_LONG_STATUS},
-  {"Sort_range",	       (char*) offsetof(STATUS_VAR,
-						filesort_range_count),
-   SHOW_LONG_STATUS},
-  {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows),
-   SHOW_LONG_STATUS},
-  {"Sort_scan",		       (char*) offsetof(STATUS_VAR,
-						filesort_scan_count),
-   SHOW_LONG_STATUS},
+  {"Slow_queries",             (char*) offsetof(STATUS_VAR, long_query_count), SHOW_LONG_STATUS},
+  {"Sort_merge_passes",	       (char*) offsetof(STATUS_VAR, filesort_merge_passes), SHOW_LONG_STATUS},
+  {"Sort_range",	       (char*) offsetof(STATUS_VAR, filesort_range_count), SHOW_LONG_STATUS},
+  {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONG_STATUS},
+  {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONG_STATUS},
 #ifdef HAVE_OPENSSL
   {"Ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
   {"Ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
@@ -5777,6 +5656,9 @@ struct show_var_st status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+  {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
+  {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
+  {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
@@ -5869,7 +5751,8 @@ static void mysql_init_variables(void)
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
-  opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname=0;
+  opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
+  opt_tc_log_file= "tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
@@ -6585,6 +6468,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
     }
     ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
+    break;
+  }
+  case OPT_TC_HEURISTIC_RECOVER:
+  {
+    if ((tc_heuristic_recover=find_type(argument,
+                                        &tc_heuristic_recover_typelib, 2)) <=0)
+    {
+      fprintf(stderr, "Unknown option to tc-heuristic-recover: %s\n",argument);
+      exit(1);
+    }
     break;
   }
   case OPT_SQL_MODE:
