@@ -7305,7 +7305,7 @@ programs.
 When MySQL is compiled using MIT-pthreads, system locking is
 disabled by default for performance reasons.  You can tell the server to use
 system locking with the @code{--external-locking} option.  This is only
-needed if you want to be able to run two MySQL server against the same
+needed if you want to be able to run two MySQL servers against the same
 data files (not recommended).
 
 @item
@@ -8136,9 +8136,9 @@ before.  In particular, you will need @code{REPLICATION SLAVE}
 The startup parameters @code{myisam_max_extra_sort_file_size} and
 @code{myisam_max_extra_sort_file_size} are now given in bytes
 (was megabytes before 4.0.3).
-External system locking of MyISAM/ISAM files is now turned of by default.
-One can turn this on by doing @code{--external-locking}. (For most users
-this is never needed).
+External system locking of @code{MyISAM}/@code{ISAM} files is now turned
+off by default.  One can turn this on with @code{--external-locking}.
+(For most users this is never needed).
 @item
 The following startup variables/options have been renamed:
 @multitable @columnfractions .50 .50
@@ -50491,7 +50491,7 @@ if the first @code{SELECT} has this option and if there is global @code{LIMIT}
 for the entire statement. For the moment, this requires using parentheses for
 individual @code{SELECT} queries within the statement.
 @item
-Fixed bug in @code{SQL_CALC_FOUND_ROWS} and LIMIT.
+Fixed bug in @code{SQL_CALC_FOUND_ROWS} and @code{LIMIT}.
 @item
 Don't give an error for @code{CREATE TABLE ...(... VARCHAR(0))}.
 @item
