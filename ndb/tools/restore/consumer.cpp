@@ -71,7 +71,10 @@ BackupConsumer::create_table_string(const TableS & table,
     case NdbDictionary::Column::Datetime:
       pos += sprintf(buf+pos, "%s", "datetime");
       break;
-    case NdbDictionary::Column::Timespec:
+    case NdbDictionary::Column::Date:
+      pos += sprintf(buf+pos, "%s", "date");
+      break;
+    case NdbDictionary::Column::Time:
       pos += sprintf(buf+pos, "%s", "time");
       break;
     case NdbDictionary::Column::Undefined:
