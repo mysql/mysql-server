@@ -302,13 +302,11 @@ void Start_log_event::print(FILE* file, bool short_form, char* last_db)
     return;
 
   print_header(file);
-  fprintf(file, "\tStart: binlog v %d, server v %s", binlog_version,
+  fprintf(file, "\tStart: binlog v %d, server v %s created ", binlog_version,
 	  server_version);
+  print_timestamp(file);
   if (created)
-  {
-    fprintf(file, " created ");
-    print_timestamp(file, &created);
-  }
+    fprintf(file," at startup");
   fputc('\n', file);
   fflush(file);
 }
