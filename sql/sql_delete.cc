@@ -51,6 +51,12 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (setup_conds(thd, delete_table_list, &conds) || 
       setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
