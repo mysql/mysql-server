@@ -80,6 +80,18 @@ int mysql_create_view(THD *thd,
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  /*
+    Privilege check for view creation:
+    - user have CREATE VIEW privilege on view table
+    - have some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
+    underlying tables used on top of SELECT list (because it can be
+    (theoretically) updated, so it is enough to have UPDATE privilege on
+    them, for example)
+    - have SELECT privilege on columns used in expressions of VIEW select
+    - for columns of underly tables used on top of SELECT list also will be
+    checked that we have not more privileges on correspondent column of view
+    table (i.e. user will not get some privileges by view creation)
+  */
   if (check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
                    0, 0) ||
       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0))
@@ -89,7 +101,7 @@ int mysql_create_view(THD *thd,
     for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
     {
       /*
-        Ensure that we have some privilage on this table, more strict check
+        Ensure that we have some privileges on this table, more strict check
         will be done on column level after preparation,
       */
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
@@ -103,16 +115,20 @@ int mysql_create_view(THD *thd,
                         tbl->real_name);
         DBUG_RETURN(-1);
       }
-      /* mark this table as table which will be checked after preparation */
+      /*
+        Mark this table as a table which will be checked after the prepare
+        phase
+      */
       tbl->table_in_first_from_clause= 1;
 
       /*
-        We need to check only SELECT_ACL for all normal fields, fields
-        where we need any privilege will be marked later
+        We need to check only SELECT_ACL for all normal fields, fields for
+        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
+        checked later
       */
       tbl->grant.want_privilege= SELECT_ACL;
       /*
-        Make sure that all rights are loaded to table 'grant' field.
+        Make sure that all rights are loaded to the TABLE::grant field.
 
         tbl->real_name will be correct name of table because VIEWs are
         not opened yet.
@@ -140,7 +156,7 @@ int mysql_create_view(THD *thd,
     }
   }
   /*
-    Mark fields for special privilege check (any privilege)
+    Mark fields for special privilege check ("any" privilege)
   */
   for (sl= select_lex; sl; sl= sl->next_select())
   {
@@ -169,14 +185,14 @@ int mysql_create_view(THD *thd,
     }
 
     /*
-      Copy privileges of underlaying VIEWs which was filled by
+      Copy the privileges of the underlying VIEWs which were filled by
       fill_effective_table_privileges
-      (they was not copied in derived tables processing)
+      (they were not copied at derived tables processing)
     */
     tbl->table->grant.privilege= tbl->grant.privilege;
   }
 
-  // prepare select to resolve all fields
+  /* prepare select to resolve all fields */
   lex->view_prepare_mode= 1;
   if (unit->prepare(thd, 0, 0))
   {
@@ -227,7 +243,7 @@ int mysql_create_view(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
-    Compare/check grants on view with grants of underlaying tables
+    Compare/check grants on view with grants of underlying tables
   */
   for (sl= select_lex; sl; sl= sl->next_select())
   {
@@ -245,7 +261,7 @@ int mysql_create_view(THD *thd,
       if ((fld= item->filed_for_view_update()))
       {
         /*
-          Do we have more privilegeson view field then underlying table field
+          Do we have more privileges on view field then underlying table field?
         */
         if ((~fld->have_privileges & priv))
         {
@@ -354,7 +370,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   LEX_STRING dir, file;
   DBUG_ENTER("mysql_register_view");
 
-  // print query
+  /* print query */
   str.length(0);
   {
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
@@ -365,7 +381,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   str.append('\0');
   DBUG_PRINT("VIEW", ("View: %s", str.ptr()));
 
-  // print file name
+  /* print file name */
   (void) my_snprintf(dir_buff, FN_REFLEN, "%s/%s/",
 		     mysql_data_home, view->db);
   unpack_filename(dir_buff, dir_buff);
@@ -379,7 +395,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if (!view->timestamp.str)
     view->timestamp.str= view->timestamp_buffer;
 
-  // check old .frm
+  /* check old .frm */
   {
     char path_buff[FN_REFLEN];
     LEX_STRING path;
@@ -411,7 +427,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       /*
         read revision number
 
-        TODO: read dependense list, too, to process cascade/restrict
+        TODO: read dependence list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
       if (parser->parse((gptr)view, &thd->mem_root,
@@ -429,7 +445,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       }
     }
   }
-  // fill structure
+  /* fill structure */
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query;
@@ -451,7 +467,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if ((view->updatable_view= (can_be_merged &&
                               view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
   {
-    // TODO: change here when we will support UNIONs
+    /* TODO: change here when we will support UNIONs */
     for (TABLE_LIST *tbl= (TABLE_LIST *)thd->lex->select_lex.table_list.first;
 	 tbl;
 	 tbl= tbl->next_local)
@@ -500,7 +516,6 @@ loop_out:
   RETURN
     0 ok
     1 error
-
 */
 
 my_bool
@@ -644,7 +659,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
     /*
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
-      underlaying tables
+      underlying tables
     */
     if ((old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
     {
@@ -694,7 +709,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     /*
       check MERGE algorithm ability
       - algorithm is not explicit TEMPORARY TABLE
-      - VIEW SELECT allow marging
+      - VIEW SELECT allow merging
       - VIEW used in subquery or command support MERGE algorithm
     */
     if (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
@@ -712,9 +727,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
 
       table->ancestor= view_tables;
 
-      /*
-        next table should include SELECT_LEX under this table SELECT_LEX
-      */
+      /* next table should include SELECT_LEX under this table SELECT_LEX */
       table->ancestor->select_lex= table->select_lex;
 
       /*
@@ -753,7 +766,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         }
       }
 
-      /* Store WHERE clause for postprocessing in setup_ancestor */
+      /* Store WHERE clause for post-processing in setup_ancestor */
       table->where= view_select->where;
 
       /*
@@ -905,6 +918,13 @@ frm_type_enum mysql_frm_type(char *path)
     thd     thread handler
     view    view for check with opened table
 
+  DESCRIPTION
+    check that undertlaying table of viey contain one of following:
+      1) primary key of underlying table
+      2) unique key underlying table with fields for which NULL value is
+         impossible
+      3) all fields of underlying table
+
   RETURN
     FALSE   OK
     TRUE    view do not contain key or all fields
@@ -976,7 +996,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
           0 == NO     ; Don't give any errors
           1 == YES    ; Give always an error
           2 == LIMIT1 ; Give an error if this is used with LIMIT 1
-                        This is used to protect against gui programs that
+                        This is used to protect against GUI programs that
                         uses LIMIT 1 to update just the current row. This
                         doesn't work reliable if the view doesn't have a
                         unique key or if the view doesn't use all fields in

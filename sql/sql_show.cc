@@ -762,7 +762,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         /*
-          Altough TIMESTAMP fields can't contain NULL as its value they
+          Although TIMESTAMP fields can't contain NULL as its value they
           will accept NULL if you will try to insert such value and will
           convert it to current TIMESTAMP. So YES here means that NULL 
           is allowed for assignment but can't be returned.
@@ -781,7 +781,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         {
           /*
             We have NOW() as default value but we use CURRENT_TIMESTAMP form
-            because it is more SQL standard comatible
+            because it is more SQL standard compatible
           */
           protocol->store("CURRENT_TIMESTAMP", system_charset_info);
         }
@@ -1213,7 +1213,7 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 
 /*
   Go through all character combinations and ensure that sql_lex.cc can
-  parse it as an identifer.
+  parse it as an identifier.
 
   SYNOPSIS
   require_quotes()

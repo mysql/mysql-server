@@ -169,7 +169,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   outparam->db_record_offset=1;
   if (db_create_options & HA_OPTION_LONG_BLOB_PTR)
     outparam->blob_ptr_size=portable_sizeof_char_ptr;
-  /* Set temporaryly a good value for db_low_byte_first */
+  /* Set temporarily a good value for db_low_byte_first */
   outparam->db_low_byte_first=test(outparam->db_type != DB_TYPE_ISAM);
   error=4;
   outparam->max_rows=uint4korr(head+18);
@@ -710,7 +710,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     outparam->blob_field=
       (Field_blob**) (outparam->field+outparam->fields); // Point at null ptr
 
-  /* The table struct is now initialzed;  Open the table */
+  /* The table struct is now initialized;  Open the table */
   error=2;
   if (db_stat)
   {
@@ -759,7 +759,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   my_pthread_setspecific_ptr(THR_MALLOC,old_root);
   frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
   delete outparam->file;
-  outparam->file=0;				// For easyer errorchecking
+  outparam->file=0;				// For easier errorchecking
   outparam->db_stat=0;
   hash_free(&outparam->name_hash);
   free_root(&outparam->mem_root,MYF(0));
@@ -788,7 +788,7 @@ int closefrm(register TABLE *table)
     table->fields=0;
   }
   delete table->file;
-  table->file=0;				/* For easyer errorchecking */
+  table->file=0;				/* For easier errorchecking */
   hash_free(&table->name_hash);
   free_root(&table->mem_root,MYF(0));
   DBUG_RETURN(error);
@@ -985,7 +985,7 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
 
 	/*
 	** fix a str_type to a array type
-	** typeparts sepearated with some char. differents types are separated
+	** typeparts separated with some char. differents types are separated
 	** with a '\0'
 	*/
 
@@ -1072,7 +1072,7 @@ static uint find_field(TABLE *form,uint start,uint length)
 }
 
 
-	/* Check that the integer is in the internvall */
+	/* Check that the integer is in the internal */
 
 int set_zone(register int nr, int min_zone, int max_zone)
 {
@@ -1136,7 +1136,7 @@ void append_unescaped(String *res, const char *pos, uint length)
       res->append('n');
       break;
     case '\r':
-      res->append('\\');		/* This gives better readbility */
+      res->append('\\');		/* This gives better readability */
       res->append('r');
       break;
     case '\\':
@@ -1555,15 +1555,17 @@ void st_table_list::restore_want_privilege()
     thd		- thread handler
     conds       - condition of this JOIN
 
+  DESCRIPTION
+    It is:
+    - preparing translation table for view columns (fix_fields() for every
+    call and creation for first call)
+    - preparing WHERE, ON and CHECK OPTION condition (fix_fields() for every
+    call and merging for first call).
+    If there are underlying view(s) procedure first will be called for them.
+
   RETURN
     0 - OK
     1 - error
-
-  TODO: for several substituted table last set up table (or maybe subtree,
-  it depends on future join implementation) will contain all fields of VIEW
-  (to be able call fix_fields() for them. All other will looks like empty
-  (without fields) for name resolving, but substituted expressions will
-  return correct used tables mask.
 */
 
 bool st_table_list::setup_ancestor(THD *thd, Item **conds)
@@ -1700,7 +1702,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
         {
           /*
             Store WHERE condition to ON expression for outer join, because
-            we can't use WHERE to correctly execute jeft joins on VIEWs and
+            we can't use WHERE to correctly execute left joins on VIEWs and
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
@@ -1714,7 +1716,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
         {
           /*
             Store WHERE condition to ON expression for outer join, because
-            we can't use WHERE to correctly execute jeft joins on VIEWs and
+            we can't use WHERE to correctly execute left joins on VIEWs and
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
