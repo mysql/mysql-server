@@ -289,7 +289,7 @@ inline THD *_current_thd(void)
 
 #define prepare_execute(A) ((A)->command == COM_EXECUTE)
 
-int mysql_create_db(THD *thd, char *db, uint create_info, bool silent);
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info, bool silent);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
