@@ -24,8 +24,6 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-#include "opt_ft.h"
-
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
@@ -89,7 +87,7 @@ static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 static int sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
 static int sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records);
-static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last);
+static int flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last);
 static int end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static int end_send_group(JOIN *join, JOIN_TAB *join_tab,bool end_of_records);
 static int end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
@@ -182,7 +180,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit);
   else
@@ -309,7 +306,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(tables_list) ||
+  if (setup_tables(tables_list, 0) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -939,8 +936,10 @@ JOIN::optimize()
     as in other cases the join is done before the sort.
   */
   if (const_tables != tables &&
-      (order || group_list) && join_tab[const_tables].type != JT_ALL &&
+      (order || group_list) && 
+      join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
+      join_tab[const_tables].type != JT_REF_OR_NULL &&
       (order && simple_order || group_list && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
@@ -1094,7 +1093,7 @@ JOIN::reinit()
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   
-  if (setup_tables(tables_list))
+  if (setup_tables(tables_list, 1))
     DBUG_RETURN(1);
   
   /* Reset of sum functions */
@@ -1590,12 +1589,7 @@ JOIN::cleanup()
       JOIN_TAB *tab, *end;
       for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
+	tab->cleanup();
       }
     }
     tmp_join->tmp_join= 0;
@@ -1659,13 +1653,14 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	  goto err;
 	}
       }
-      free_join= 0;
     }
+    free_join= 0;
     join->select_options= select_options;
   }
   else
   {
-    join= new JOIN(thd, fields, select_options, result);
+    if (!(join= new JOIN(thd, fields, select_options, result)))
+	DBUG_RETURN(-1);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,
@@ -1726,8 +1721,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
-	== 1)
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+					 limit)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -2210,7 +2205,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level,
+add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 	      Field *field,bool eq_func,Item **value, uint num_values,
 	      table_map usable_tables)
 {
@@ -2277,6 +2272,17 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 	  (*value)->result_type() != STRING_RESULT &&
 	  field->cmp_type() != (*value)->result_type())
 	return;
+      
+      /*
+        We can't use indexes if the effective collation
+        of the operation differ from the field collation.
+      */
+      if (field->result_type() == STRING_RESULT &&
+	  (*value)->result_type() == STRING_RESULT &&
+	  field->cmp_type() == STRING_RESULT &&
+	  ((Field_str*)field)->charset() != cond->compare_collation())
+	return;
+
     }
   }
   DBUG_ASSERT(num_values == 1);
@@ -3441,7 +3447,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
-    j->null_ref_key= null_ref_key;
+    j->ref.null_ref_key= null_ref_key;
   }
   else if (ref_key == j->ref.key_copy)
   {
@@ -3921,6 +3927,41 @@ bool error_if_full_join(JOIN *join)
 
 
 /*
+  cleanup JOIN_TAB
+
+  SYNOPSIS
+    JOIN_TAB::cleanup()
+*/
+
+void JOIN_TAB::cleanup()
+{
+  delete select;
+  select= 0;
+  delete quick;
+  quick= 0;
+  x_free(cache.buff);
+  cache.buff= 0;
+  if (table)
+  {
+    if (table->key_read)
+    {
+      table->key_read= 0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    /* Don't free index if we are using read_record */
+    if (!read_record.table)
+      table->file->index_end();
+    /*
+      We need to reset this for next select
+      (Tested in part_of_refkey)
+    */
+    table->reginfo.join_tab= 0;
+  }
+  end_read_record(&read_record);
+}
+
+
+/*
   Free resources of given join
 
   SYNOPSIS
@@ -3954,11 +3995,6 @@ JOIN::join_free(bool full)
       {
 	if (tab->table)
 	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
@@ -3969,29 +4005,7 @@ JOIN::join_free(bool full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
-	if (tab->table)
-	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
-	  /* Don't free index if we are using read_record */
-	  if (!tab->read_record.table)
-	    tab->table->file->index_end();
-	  /*
-	    We need to reset this for next select
-	    (Tested in part_of_refkey)
-	  */
-	  tab->table->reginfo.join_tab= 0;
-	}
-	end_read_record(&tab->read_record);
+	tab->cleanup();
       }
       table= 0;
     }
@@ -5237,17 +5251,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
     {
       Item *new_item=remove_eq_conds(item,&tmp_cond_value);
       if (!new_item)
-      {
-#ifdef DELETE_ITEMS
-	delete item;				// This may be shared
-#endif
 	li.remove();
-      }
       else if (item != new_item)
       {
-#ifdef DELETE_ITEMS
-	delete item;				// This may be shared
-#endif
 	VOID(li.replace(new_item));
 	should_fix_fields=1;
       }
@@ -6604,14 +6610,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
 
 static int
-flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
+flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
 {
   int error;
   READ_RECORD *info;
 
   if (!join_tab->cache.records)
     return 0;				/* Nothing to do */
-  if (skipp_last)
+  if (skip_last)
     (void) store_record_in_cache(&join_tab->cache); // Must save this for later
   if (join_tab->use_quick == 2)
   {
@@ -6645,21 +6651,21 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
     }
     SQL_SELECT *select=join_tab->select;
     if (!error && (!join_tab->cache.select ||
-		   !join_tab->cache.select->skipp_record()))
+		   !join_tab->cache.select->skip_record()))
     {
       uint i;
       reset_cache(&join_tab->cache);
-      for (i=(join_tab->cache.records- (skipp_last ? 1 : 0)) ; i-- > 0 ;)
+      for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
       {
 	read_cached_record(join_tab);
-	if (!select || !select->skipp_record())
+	if (!select || !select->skip_record())
 	  if ((error=(join_tab->next_select)(join,join_tab+1,0)) < 0)
 	    return error; /* purecov: inspected */
       }
     }
   } while (!(error=info->read_record(info)));
 
-  if (skipp_last)
+  if (skip_last)
     read_cached_record(join_tab);		// Restore current record
   reset_cache(&join_tab->cache);
   join_tab->cache.records=0; join_tab->cache.ptr_record= (uint) ~0;
@@ -7066,12 +7072,12 @@ join_read_always_key_or_null(JOIN_TAB *tab)
   int res;
 
   /* First read according to key which is NOT NULL */
-  *tab->null_ref_key=0;
+  *tab->ref.null_ref_key= 0;			// Clear null byte
   if ((res= join_read_always_key(tab)) >= 0)
     return res;
 
   /* Then read key with null value */
-  *tab->null_ref_key= 1;
+  *tab->ref.null_ref_key= 1;			// Set null byte
   return safe_index_read(tab);
 }
 
@@ -7085,10 +7091,10 @@ join_read_next_same_or_null(READ_RECORD *info)
   JOIN_TAB *tab= info->table->reginfo.join_tab;
 
   /* Test if we have already done a read after null key */
-  if (*tab->null_ref_key)
+  if (*tab->ref.null_ref_key)
     return -1;					// All keys read
-  *tab->null_ref_key= 1;			// Read null key
-  return safe_index_read(tab);
+  *tab->ref.null_ref_key= 1;			// Set null byte
+  return safe_index_read(tab);			// then read null keys
 }
 
 
@@ -8061,8 +8067,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick=get_ft_or_quick_select_for_ref(tab->join->thd,
-							 table, tab)))
+      if (!(select->quick= tab->type == JT_FT ?
+			   new FT_SELECT(thd, table, tab->ref.key) :
+			   get_quick_select_for_ref(thd, table, &tab->ref)))
 	goto err;
     }
   }
@@ -8070,9 +8077,12 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
-  tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
-  delete select;				// filesort did select
-  tab->select=0;
+  tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
+  if (select)
+  {
+    select->cleanup();				// filesort did select
+    tab->select= 0;
+  }
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
@@ -9155,7 +9165,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      if (!(item= new Item_field(thd, *((Item_field*) pos))))
+      if (!(item= new Item_field(thd, ((Item_field*) pos))))
 	goto err;
       pos= item;
       if (item->field->flags & BLOB_FLAG)
@@ -10056,20 +10066,23 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl;
        sl= sl->next_select())
   {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
+
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex->select_lex)==sl)?
-			       ((thd->lex->all_selects_list != sl)?"PRIMARY":
-				"SIMPLE"):
+			       ((thd->lex->all_selects_list != sl) ? 
+				primary_key_name : "SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT SUBQUERY":
-				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
+				 (uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT UNION":
-				 sl->uncacheable?"UNCACHEABLE UNION":
+				 uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
 			      result);
     if (res)
