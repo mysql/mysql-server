@@ -320,7 +320,7 @@ bool mysql_change_db(THD *thd,const char *name)
   uint db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(length=stripp_sp(dbname)))
+  if (!dbname || !(length=strip_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */

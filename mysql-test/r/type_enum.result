@@ -1614,3 +1614,11 @@ field
 429001
 429002
 429003
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('','a','b') NOT NULL default ''
+) TYPE=MyISAM
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('','a','b') NOT NULL default 'b'
+) TYPE=MyISAM

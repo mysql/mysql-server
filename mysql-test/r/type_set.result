@@ -1,0 +1,8 @@
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` set('','a','b') NOT NULL default ''
+) TYPE=MyISAM
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` set('','a','b') NOT NULL default 'b'
+) TYPE=MyISAM

@@ -494,7 +494,7 @@ extern int my_sortncmp(const char *s,uint s_len, const char *t,uint t_len);
 extern WF_PACK *wf_comp(my_string str);
 extern int wf_test(struct wild_file_pack *wf_pack,const char *name);
 extern void wf_end(struct wild_file_pack *buffer);
-extern size_s stripp_sp(my_string str);
+extern size_s strip_sp(my_string str);
 extern void get_date(my_string to,int timeflag,time_t use_time);
 extern void soundex(my_string out_pntr, my_string in_pntr,pbool remove_garbage);
 extern int init_record_cache(RECORD_CACHE *info,uint cachesize,File file,
