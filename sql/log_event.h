@@ -300,10 +300,10 @@ public:
   int get_data_size()
   {
     return table_name_len + 2 + db_len + 2 + fname_len
-      + sizeof(thread_id) // thread_id
-      + sizeof(exec_time) // exec_time
-      + sizeof(skip_lines)
-      + sizeof(field_block_len)
+      + 4 // thread_id
+      + 4 // exec_time
+      + 4 // skip_lines
+      + 4 // field block len
       + sizeof(sql_ex) + field_block_len + num_fields*sizeof(uchar) ;
       ;
   }
