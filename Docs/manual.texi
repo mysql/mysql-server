@@ -368,25 +368,8 @@ your own database, table, and column names, perhaps like this:
 mysql> SELECT author_name FROM biblio_db.author_list;
 @end example
 
-SQL statements may be written in uppercase or lowercase.  When this manual
-shows a SQL statement, uppercase is used for particular keywords if those
-keywords are under discussion (to emphasize them) and lowercase is used for
-the rest of the statement.  For example, you might see the following in a
-discussion of the @code{SELECT} statement:
-
-@example
-mysql> SELECT count(*) FROM tbl_name;
-@end example
-
-On the other hand, in a discussion of the @code{COUNT()} function, the
-same statement would be written like this:
-
-@example
-mysql> select COUNT(*) from tbl_name;
-@end example
-
-If no particular emphasis is intended, all keywords are written uniformly
-in uppercase.
+Keywords in SQL statements may be written in uppercase or lowercase.  This
+manual uses uppercase.
 
 In syntax descriptions, square brackets (@samp{[} and @samp{]}) are used
 to indicate optional words or clauses:
@@ -903,9 +886,9 @@ doesn't have any problems with dates until the year 2030:
 mysql> DROP TABLE IF EXISTS y2k;
 Query OK, 0 rows affected (0.01 sec)
 
-mysql> CREATE TABLE y2k (date date,
-    ->                   date_time datetime,
-    ->                   time_stamp timestamp);
+mysql> CREATE TABLE y2k (date DATE,
+    ->                   date_time DATETIME,
+    ->                   time_stamp TIMESTAMP);
 Query OK, 0 rows affected (0.00 sec)
 
 mysql> INSERT INTO y2k VALUES
@@ -20198,7 +20181,7 @@ mysql> SHOW GRANTS FOR root@@localhost;
 Shows a @code{CREATE TABLE} statement that will create the given table:
 
 @example
-mysql> show create table t\G
+mysql> SHOW CREATE TABLE t\G
 *************************** 1. row ***************************
        Table: t
 Create Table: CREATE TABLE t (
@@ -21479,7 +21462,7 @@ You can check which table types are supported by doing the following
 query:
 
 @example
-mysql> show variables like "have_%";
+mysql> SHOW VARIABLES LIKE "have_%";
 +---------------+-------+
 | Variable_name | Value |
 +---------------+-------+
@@ -21940,7 +21923,7 @@ use     (\u)    Use another database.
                 Takes database name as argument.
 @end example
 
-From the above, pager only works in Unix.
+The @code{pager} command works only in Unix.
 
 @cindex status command
 The @code{status} command gives you some information about the
@@ -21989,7 +21972,7 @@ includes new lines, is often much easier to be read with vertical
 output.
 
 @example
-mysql> select * from mails where length(txt) < 300 limit 300,1\G
+mysql> SELECT * FROM mails WHERE LENGTH(txt) < 300 lIMIT 300,1\G
 *************************** 1. row ***************************
   msg_nro: 3068
      date: 2000-03-01 23:29:50
@@ -24884,7 +24867,7 @@ If your problem is with some explicit MySQL function, you can
 always time this in the MySQL client:
 
 @example
-mysql> select benchmark(1000000,1+1);
+mysql> SELECT BENCHMARK(1000000,1+1);
 +------------------------+
 | benchmark(1000000,1+1) |
 +------------------------+
@@ -26149,7 +26132,7 @@ once in a while.
 This can be done with the following code:
 @example
 mysql> LOCK TABLES real_table WRITE, insert_table WRITE;
-mysql> insert into real_table select * from insert_table;
+mysql> INSERT INTO real_table SELECT * FROM insert_table;
 mysql> TRUNCATE TABLE insert_table;
 mysql> UNLOCK TABLES;
 @end example
@@ -26511,8 +26494,8 @@ to @code{LIKE} is a constant string that doesn't start with a wild-card
 character.  For example, the following @code{SELECT} statements use indexes:
 
 @example
-mysql> select * from tbl_name where key_col LIKE "Patrick%";
-mysql> select * from tbl_name where key_col LIKE "Pat%_ck%";
+mysql> SELECT * FROM tbl_name WHERE key_col LIKE "Patrick%";
+mysql> SELECT * FROM tbl_name WHERE key_col LIKE "Pat%_ck%";
 @end example
 
 In the first statement, only rows with @code{"Patrick" <= key_col <
@@ -26521,8 +26504,8 @@ In the first statement, only rows with @code{"Patrick" <= key_col <
 
 The following @code{SELECT} statements will not use indexes:
 @example
-mysql> select * from tbl_name where key_col LIKE "%Patrick%";
-mysql> select * from tbl_name where key_col LIKE other_col;
+mysql> SELECT * FROM tbl_name WHERE key_col LIKE "%Patrick%";
+mysql> SELECT * FROM tbl_name WHERE key_col LIKE other_col;
 @end example
 
 In the first statement, the @code{LIKE} value begins with a wild-card
@@ -28000,7 +27983,7 @@ Note that if the identifier is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
 
 @example
-mysql> SELECT * from `select` where `select`.id > 100;
+mysql> SELECT * FROM `select` WHERE `select`.id > 100;
 @end example
 
 In previous versions of MySQL, the name rules are as follows:
@@ -28181,10 +28164,10 @@ to end of line} and @code{/* in-line or multiple-line */} comment
 styles:
 
 @example
-mysql> select 1+1;     # This comment continues to the end of line
-mysql> select 1+1;     -- This comment continues to the end of line
-mysql> select 1 /* this is an in-line comment */ + 1;
-mysql> select 1+
+mysql> SELECT 1+1;     # This comment continues to the end of line
+mysql> SELECT 1+1;     -- This comment continues to the end of line
+mysql> SELECT 1 /* this is an in-line comment */ + 1;
+mysql> SELECT 1+
 /*
 this is a
 multiple-line comment
@@ -29518,8 +29501,8 @@ column are used when sorting.  The default value of @code{max_sort_length} is
 @code{TEXT} values by specifying the column position or by using an alias:
 
 @example
-mysql> SELECT id,substring(blob_col,1,100) FROM tbl_name GROUP BY 2;
-mysql> SELECT id,substring(blob_col,1,100) AS b FROM tbl_name GROUP BY b;
+mysql> SELECT id,SUBSTRING(blob_col,1,100) FROM tbl_name GROUP BY 2;
+mysql> SELECT id,SUBSTRING(blob_col,1,100) AS b FROM tbl_name GROUP BY b;
 @end example
 
 @item
@@ -30035,15 +30018,15 @@ mysql> SELECT 0 = 'x6';
 @item =
 Equal:
 @example
-mysql> select 1 = 0;
+mysql> SELECT 1 = 0;
         -> 0
-mysql> select '0' = 0;
+mysql> SELECT '0' = 0;
         -> 1
-mysql> select '0.0' = 0;
+mysql> SELECT '0.0' = 0;
         -> 1
-mysql> select '0.01' = 0;
+mysql> SELECT '0.01' = 0;
         -> 0
-mysql> select '.01' = 0.01;
+mysql> SELECT '.01' = 0.01;
         -> 1
 @end example
 
@@ -30055,11 +30038,11 @@ mysql> select '.01' = 0.01;
 @itemx !=
 Not equal:
 @example
-mysql> select '.01' <> '0.01';
+mysql> SELECT '.01' <> '0.01';
         -> 1
-mysql> select .01 <> '0.01';
+mysql> SELECT .01 <> '0.01';
         -> 0
-mysql> select 'zapp' <> 'zappp';
+mysql> SELECT 'zapp' <> 'zappp';
         -> 1
 @end example
 
@@ -30068,7 +30051,7 @@ mysql> select 'zapp' <> 'zappp';
 @item <=
 Less than or equal:
 @example
-mysql> select 0.1 <= 2;
+mysql> SELECT 0.1 <= 2;
         -> 1
 @end example
 
@@ -30077,7 +30060,7 @@ mysql> select 0.1 <= 2;
 @item <
 Less than:
 @example
-mysql> select 2 < 2;
+mysql> SELECT 2 < 2;
         -> 0
 @end example
 
@@ -30086,7 +30069,7 @@ mysql> select 2 < 2;
 @item >=
 Greater than or equal:
 @example
-mysql> select 2 >= 2;
+mysql> SELECT 2 >= 2;
         -> 1
 @end example
 
@@ -30095,7 +30078,7 @@ mysql> select 2 >= 2;
 @item >
 Greater than:
 @example
-mysql> select 2 > 2;
+mysql> SELECT 2 > 2;
         -> 0
 @end example
 
@@ -30104,7 +30087,7 @@ mysql> select 2 > 2;
 @item <=>
 NULL safe equal:
 @example
-mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
+mysql> SELECT 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
         -> 1 1 0
 @end example
 
@@ -30115,9 +30098,9 @@ mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
 @itemx IS NOT NULL
 Test whether or not a value is or is not @code{NULL}:
 @example
-mysql> select 1 IS NULL, 0 IS NULL, NULL IS NULL;
+mysql> SELECT 1 IS NULL, 0 IS NULL, NULL IS NULL;
         -> 0 0 1
-mysql> select 1 IS NOT NULL, 0 IS NOT NULL, NULL IS NOT NULL;
+mysql> SELECT 1 IS NOT NULL, 0 IS NOT NULL, NULL IS NOT NULL;
         -> 1 1 0
 @end example
 
@@ -30174,13 +30157,13 @@ Otherwise, a floating-point (real) comparison is done.
 @end itemize
 
 @example
-mysql> select 1 BETWEEN 2 AND 3;
+mysql> SELECT 1 BETWEEN 2 AND 3;
         -> 0
-mysql> select 'b' BETWEEN 'a' AND 'c';
+mysql> SELECT 'b' BETWEEN 'a' AND 'c';
         -> 1
-mysql> select 2 BETWEEN 2 AND '3';
+mysql> SELECT 2 BETWEEN 2 AND '3';
         -> 1
-mysql> select 2 BETWEEN 2 AND 'x-3';
+mysql> SELECT 2 BETWEEN 2 AND 'x-3';
         -> 0
 @end example
 
@@ -30199,9 +30182,9 @@ is a case-sensitive string expression, the string comparison is performed in
 case-sensitive fashion:
 
 @example
-mysql> select 2 IN (0,3,5,'wefwf');
+mysql> SELECT 2 IN (0,3,5,'wefwf');
         -> 0
-mysql> select 'wefwf' IN (0,3,5,'wefwf');
+mysql> SELECT 'wefwf' IN (0,3,5,'wefwf');
         -> 1
 @end example
 
@@ -30214,9 +30197,9 @@ Same as @code{NOT (expr IN (value,...))}.
 If @code{expr} is @code{NULL}, @code{ISNULL()} returns @code{1}, otherwise
 it returns @code{0}:
 @example
-mysql> select ISNULL(1+1);
+mysql> SELECT ISNULL(1+1);
         -> 0
-mysql> select ISNULL(1/0);
+mysql> SELECT ISNULL(1/0);
         -> 1
 @end example
 
@@ -30229,9 +30212,9 @@ false!
 Returns first non-@code{NULL} element in list:
 
 @example
-mysql> select COALESCE(NULL,1);
+mysql> SELECT COALESCE(NULL,1);
         -> 1
-mysql> select COALESCE(NULL,NULL,NULL);
+mysql> SELECT COALESCE(NULL,NULL,NULL);
         -> NULL
 @end example
 
@@ -30243,11 +30226,11 @@ and so on. All arguments are treated as integers.  It is required that
 to work correctly. This is because a binary search is used (very fast):
 
 @example
-mysql> select INTERVAL(23, 1, 15, 17, 30, 44, 200);
+mysql> SELECT INTERVAL(23, 1, 15, 17, 30, 44, 200);
         -> 3
-mysql> select INTERVAL(10, 1, 10, 100, 1000);
+mysql> SELECT INTERVAL(10, 1, 10, 100, 1000);
         -> 2
-mysql> select INTERVAL(22, 23, 30, 44, 200);
+mysql> SELECT INTERVAL(22, 23, 30, 44, 200);
         -> 0
 @end example
 @end table
@@ -30257,7 +30240,7 @@ operators (@code{=}, @code{<>}..., but not @code{LIKE}) end space will
 be ignored.
 
 @example
-mysql> select "a" ="A ";
+mysql> SELECT "a" ="A ";
         -> 1
 @end example
 
