@@ -324,3 +324,14 @@ SELECT @@global.global.key_buffer_size;
 SELECT @@global.session.key_buffer_size;
 --error 1064
 SELECT @@global.local.key_buffer_size;
+
+# BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
+set @tstlw = @@log_warnings;
+show global variables like 'log_warnings';
+set global log_warnings = 0;
+show global variables like 'log_warnings';
+set global log_warnings = 42;
+show global variables like 'log_warnings';
+set global log_warnings = @tstlw;
+show global variables like 'log_warnings';
+

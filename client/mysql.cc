@@ -84,7 +84,6 @@ extern "C" {
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #elif !defined(__NETWARE__)
-#undef __P // readline-4.2 declares own __P
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
