@@ -46793,6 +46793,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.44::                Changes in release 3.23.44
 * News-3.23.43::                Changes in release 3.23.43
 * News-3.23.42::                Changes in release 3.23.42
 * News-3.23.41::                Changes in release 3.23.41
@@ -46840,7 +46841,17 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.43, News-3.23.42, News-3.23.x, News-3.23.x
+@node News-3.23.44, News-3.23.43, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.44
+@itemize @bullet
+@item
+When using replications, aborted queries that contained @code{%} could cause
+a core dum.
+@item
+TCP_NODELAY was not used on some systems. (Speed problem).
+@end itemize
+
+@node News-3.23.43, News-3.23.42, News-3.23.44, News-3.23.x
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
 @item

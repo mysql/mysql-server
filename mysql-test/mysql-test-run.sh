@@ -273,8 +273,7 @@ DASH72=`$ECHO '-----------------------------------------------------------------
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- if [ -e "$BASEDIR/client/.libs/mysqltest" ] ; then
-   [ -e "$BASEDIR/client/.libs/lt-mysqltest" ] || $BASEDIR/client/mysqltest -V
+ if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
    MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
  else
    MYSQL_TEST="$BASEDIR/client/mysqltest"
@@ -350,7 +349,7 @@ prompt_user ()
  read unused
 }
 
-# We can't use diff -u as this isn't portable
+# We can't use diff -u or diff -a as these are not portable
 
 show_failed_diff ()
 {
@@ -367,7 +366,7 @@ show_failed_diff ()
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -c -a $result_file $reject_file
+    $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
