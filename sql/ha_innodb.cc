@@ -31,6 +31,7 @@ have disables the InnoDB inlining in this file. */
 #include <assert.h>
 #include <hash.h>
 #include <myisampack.h>
+#include <mysys_err.h>
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
@@ -419,6 +420,7 @@ innobase_mysql_tmpfile(void)
 			/* out: temporary file descriptor, or < 0 on error */
 {
 	char	filename[FN_REFLEN];
+	int	fd2 = -1;
 	File	fd = create_temp_file(filename, NullS, "ib",
 #ifdef __WIN__
 				O_BINARY | O_TRUNC | O_SEQUENTIAL |
@@ -426,12 +428,31 @@ innobase_mysql_tmpfile(void)
 #endif /* __WIN__ */
 				O_CREAT | O_EXCL | O_RDWR,
 				MYF(MY_WME));
-#ifndef __WIN__
 	if (fd >= 0) {
+#ifndef __WIN__
+		/* On Windows, open files cannot be removed, but files can be
+		created with the O_TEMPORARY flag to the same effect
+		("delete on close"). */
 		unlink(filename);
-	}
 #endif /* !__WIN__ */
-	return(fd);
+		/* Copy the file descriptor, so that the additional resources
+		allocated by create_temp_file() can be freed by invoking
+		my_close().
+
+		Because the file descriptor returned by this function
+		will be passed to fdopen(), it will be closed by invoking
+		fclose(), which in turn will invoke close() instead of
+		my_close(). */
+		fd2 = dup(fd);
+		if (fd2 < 0) {
+			DBUG_PRINT("error",("Got error %d on dup",fd2));
+			my_errno=errno;
+			my_error(EE_OUT_OF_FILERESOURCES,
+				MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
+		}
+		my_close(fd, MYF(MY_WME));
+	}
+	return(fd2);
 }
 
 /*************************************************************************
