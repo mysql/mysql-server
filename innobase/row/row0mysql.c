@@ -92,6 +92,19 @@ row_mysql_is_system_table(
 	    || 0 == strcmp(name + 6, "user")
 	    || 0 == strcmp(name + 6, "db"));
 }
+
+/***********************************************************************
+Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
+static
+void
+row_mysql_delay_if_needed(void)
+/*===========================*/
+{
+	if (srv_dml_needed_delay) {
+		os_thread_sleep(srv_dml_needed_delay);
+	}
+}
+
 /***********************************************************************
 Reads a MySQL format variable-length field (like VARCHAR) length and
 returns pointer to the field data. */
@@ -873,6 +886,8 @@ row_insert_for_mysql(
 
 	trx->op_info = "inserting";
 
+	row_mysql_delay_if_needed();
+
 	trx_start_if_not_started(trx);
 
 	if (node == NULL) {
@@ -1087,6 +1102,8 @@ row_update_for_mysql(
 	}
 
 	trx->op_info = "updating or deleting";
+
+	row_mysql_delay_if_needed();
 
 	trx_start_if_not_started(trx);
 
