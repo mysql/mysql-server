@@ -1903,7 +1903,7 @@ err:
   return 0;
 }
 
-double Item_func_match::val()
+double Item_func_match_nl::val()
 {
   if (ft_handler==NULL)
     init_search(1);
@@ -1922,7 +1922,7 @@ double Item_func_match::val()
   /* we'll have to find ft_relevance manually in ft_handler array */
 
   int a,b,c;
-  FT_DOC  *docs=ft_handler->doc;
+  FT_DOC  *docs=((FT_DOCLIST *)ft_handler)->doc;
   my_off_t docid=table->file->row_position();
 
   if ((null_value=(docid==HA_OFFSET_ERROR)))
@@ -1930,7 +1930,7 @@ double Item_func_match::val()
 
   // Assuming docs[] is sorted by dpos...
 
-  for (a=0, b=ft_handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
+  for (a=0, b=((FT_DOCLIST *)ft_handler)->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
   {
     if (docs[c].dpos > docid)
       b=c;
@@ -1941,7 +1941,6 @@ double Item_func_match::val()
     return docs[a].weight;
   else
     return 0.0;
-
 }
 
 void Item_func_match::init_search(bool no_order)
@@ -1962,16 +1961,14 @@ void Item_func_match::init_search(bool no_order)
   char tmp1[FT_QUERY_MAXLEN];
   String tmp2(tmp1,sizeof(tmp1));
 
-  // MATCH ... AGAINST (NULL) is meaningless, but possible 
+  // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp=key_item()->val_str(&tmp2)))
   {
     ft_tmp=&tmp2;
     tmp2.set("",0);
   }
 
-  ft_handler=(FT_DOCLIST *)
-     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length(),
-                              join_key && !no_order);
+  ft_handler_init(ft_tmp->ptr(), ft_tmp->length(), join_key && !no_order);
 
   if (join_key)
   {
@@ -2023,7 +2020,6 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   table=((Item_field *)fields.head())->field->table;
   return 0;
 }
-
 
 bool Item_func_match::fix_index()
 {

@@ -863,30 +863,40 @@ public:
   uint key;
   bool join_key;
   Item_func_match *master;
-  FT_DOCLIST *ft_handler;
+  void * ft_handler;
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
-  fields(a), table(0),  join_key(0), master(0), ft_handler(0) {}
+       fields(a), table(0),  join_key(0), master(0), ft_handler(0) {}
   ~Item_func_match()
   {
-    if (!master)
+    if (!master && ft_handler)
     {
-      if (ft_handler)
-      {
-	ft_close_search(ft_handler);
-        if(join_key)
-          table->file->ft_handler=0;
-      }
+      ft_handler_close();
+      if(join_key)
+	table->file->ft_handler=0;
     }
   }
-  const char *func_name() const { return "match"; }
+  virtual int ft_handler_init(const byte *key, uint keylen, bool presort)
+                                 { return 1; }
+  virtual int ft_handler_close() { return 1; }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
   bool fix_fields(THD *thd,struct st_table_list *tlist);
   bool eq(const Item *) const;
-  double val();
   longlong val_int() { return val()!=0.0; }
 
   bool fix_index();
   void init_search(bool no_order);
 };
+
+class Item_func_match_nl :public Item_func_match
+{
+public:
+  Item_func_match_nl(List<Item> &a, Item *b): Item_func_match(a,b) {}
+  const char *func_name() const { return "match_NL"; }
+  double val();
+  int ft_handler_init(const byte *query, uint querylen, bool presort)
+       { ft_handler=table->file->ft_init_ext(key, query, querylen, presort); }
+  int ft_handler_close() { ft_close_search(ft_handler); ft_handler=0; }
+};
+
