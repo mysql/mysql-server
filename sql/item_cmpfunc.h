@@ -82,7 +82,7 @@ public:
   Item_bool_func() :Item_int_func() {}
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
-  Item_bool_func(THD *thd, Item_bool_func &item) :Item_int_func(thd, item) {}
+  Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
@@ -197,10 +197,18 @@ public:
 
 class Item_bool_rowready_func2 :public Item_bool_func2
 {
+  Item *orig_a, *orig_b; /* propagate_const can change parameters */
 public:
-  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b)
+  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b),
+    orig_a(a), orig_b(b)
   {
     allowed_arg_cols= a->cols();
+  }
+  void cleanup()
+  {
+    Item_bool_func2::cleanup();
+    tmp_arg[0]= orig_a;
+    tmp_arg[1]= orig_b;
   }
 };
 
@@ -705,10 +713,6 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in()
-  {
-    cleanup(); /* This is not called by Item::~Item() */
-  }
   void cleanup()
   {
     delete array;
@@ -885,10 +889,9 @@ public:
     list.push_back(i1);
     list.push_back(i2);
   }
-  Item_cond(THD *thd, Item_cond &item);
+  Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
 
@@ -911,7 +914,7 @@ class Item_cond_and :public Item_cond
 public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
+  Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
   Item_cond_and(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
@@ -919,7 +922,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
-    if((item= new Item_cond_and(thd, *this)))
+    if((item= new Item_cond_and(thd, this)))
        item->copy_andor_arguments(thd, this);
     return item;
   }
@@ -931,7 +934,7 @@ class Item_cond_or :public Item_cond
 public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_or(THD *thd, Item_cond_or &item) :Item_cond(thd, item) {}
+  Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
   Item_cond_or(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
@@ -940,7 +943,7 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;
-    if((item= new Item_cond_or(thd, *this)))
+    if((item= new Item_cond_or(thd, this)))
       item->copy_andor_arguments(thd, this);
     return item;
   }

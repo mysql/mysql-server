@@ -124,8 +124,8 @@ public:
      top AND/OR ctructure of WHERE clause to protect it of
      optimisation changes in prepared statements
   */
-  Item(THD *thd, Item &item);
-  virtual ~Item() { name=0; cleanup(); }		/*lint -e1509 */
+  Item(THD *thd, Item *item);
+  virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup() { fixed=0; }
@@ -227,6 +227,11 @@ public:
   
   /* Used in sql_select.cc:eliminate_not_funcs() */
   virtual Item *neg_transformer() { return NULL; }
+  void delete_self()
+  {
+    cleanup();
+    delete this;
+  }
 };
 
 
@@ -240,7 +245,7 @@ public:
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par);
-  Item_ident::Item_ident(THD *thd, Item_ident &item);
+  Item_ident::Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
 
   bool remove_dependence_processor(byte * arg);
@@ -259,7 +264,7 @@ public:
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
-  Item_field(THD *thd, Item_field &item);
+  Item_field(THD *thd, Item_field *item);
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -290,6 +295,7 @@ public:
   bool get_time(TIME *ltime);
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
+  void cleanup();
   friend class Item_default_value;
   friend class Item_insert_value;
 };
@@ -498,7 +504,6 @@ public:
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
-  ~Item_string() {}
   enum Type type() const { return STRING_ITEM; }
   double val()
   { 
@@ -565,7 +570,6 @@ class Item_varbinary :public Item
 {
 public:
   Item_varbinary(const char *str,uint str_length);
-  ~Item_varbinary() {}
   enum Type type() const { return VARBIN_ITEM; }
   double val() { return (double) Item_varbinary::val_int(); }
   longlong val_int();
@@ -582,8 +586,8 @@ public:
   Field *result_field;				/* Save result here */
   Item_result_field() :result_field(0) {}
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
-  Item_result_field(THD *thd, Item_result_field &item):
-    Item(thd, item), result_field(item.result_field)
+  Item_result_field(THD *thd, Item_result_field *item):
+    Item(thd, item), result_field(item->result_field)
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
   Field *get_tmp_table_field() { return result_field; }
@@ -602,20 +606,25 @@ public:
 class Item_ref :public Item_ident
 {
 public:
-  Field *result_field;				/* Save result here */
+  Field *result_field;			 /* Save result here */
   Item **ref;
-  Item_ref(const char *db_par, const char *table_name_par,
-	   const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),ref(0) {}
-  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
+  Item **hook_ptr;                       /* These two to restore  */
+  Item *orig_item;                       /* things in 'cleanup()' */
+  Item_ref(Item **hook, Item *original,const char *db_par,
+	   const char *table_name_par, const char *field_name_par)
+    :Item_ident(db_par,table_name_par,field_name_par),ref(0), hook_ptr(hook),
+    orig_item(original) {}
+  Item_ref(Item **item, Item **hook, 
+	   const char *table_name_par, const char *field_name_par)
+    :Item_ident(NullS,table_name_par,field_name_par),
+    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
   // Constructor need to process subselect with temporary tables (see Item)
-  Item_ref(THD *thd, Item_ref &item)
-    :Item_ident(thd, item), ref(item.ref) {}
+  Item_ref(THD *thd, Item_ref *item, Item **hook)
+    :Item_ident(thd, item), ref(item->ref), 
+    hook_ptr(hook), orig_item(hook ? *hook : 0) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
-  ~Item_ref() { if (ref && (*ref) && (*ref) != this) delete *ref; }
   double val()
   {
     double tmp=(*ref)->val_result();
@@ -660,6 +669,7 @@ public:
   }
   Item *real_item() { return *ref; }
   void print(String *str);
+  void cleanup();
 };
 
 class Item_in_subselect;
@@ -670,7 +680,7 @@ protected:
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
 		       const char *table_name_par, const char *field_name_par):
-    Item_ref(item, table_name_par, field_name_par), owner(master) {}
+    Item_ref(item, NULL, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);
@@ -734,7 +744,6 @@ public:
     name=item->name;
     cached_field_type= item->field_type();
   }
-  ~Item_copy_string() { delete item; }
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return cached_field_type; }
@@ -984,6 +993,11 @@ public:
   bool check_cols(uint c);
   bool null_inside();
   void bring_value();
+  void cleanup()
+  {
+    Item_cache::cleanup();
+    values= 0;
+  }
 };
 
 
@@ -994,6 +1008,7 @@ class Item_type_holder: public Item
 {
 protected:
   Item_result item_type;
+  Item_result orig_type;
   Field *field_example;
 public:
   Item_type_holder(THD*, Item*);
@@ -1005,6 +1020,11 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  void cleanup()
+  {
+    Item::cleanup();
+    item_type= orig_type;
+  }
 };
 
 
