@@ -3853,31 +3853,31 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client write event";
       goto errorconn;
     }
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create client read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_read= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server read event";
       goto errorconn;
     }
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_wrote= CreateEvent(0, FALSE, FALSE, tmp)) == 0)
     {
       errmsg= "Could not create server write event";
       goto errorconn;
     }
     strmov(suffix_pos, "CONNECTION_CLOSED");
-    if ((event_conn_closed= CreateEvent(0,TRUE,FALSE,tmp)) == 0)
+    if ((event_conn_closed= CreateEvent(0, TRUE , FALSE, tmp)) == 0)
     {
       errmsg= "Could not create closed connection event";
       goto errorconn;
@@ -3900,14 +3900,14 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       goto errorconn;
     }
     if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
-						   handle_client_file_map,
-						   handle_client_map,
-						   event_client_wrote,
-						   event_client_read,
-						   event_server_wrote,
-						   event_server_read,
+                                                   handle_client_file_map,
+                                                   handle_client_map,
+                                                   event_client_wrote,
+                                                   event_client_read,
+                                                   event_server_wrote,
+                                                   event_server_read,
                                                    event_conn_closed)) ||
-	my_net_init(&thd->net, thd->net.vio))
+                        my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
       errmsg= 0;
@@ -3927,13 +3927,20 @@ errorconn:
 	      NullS);
       sql_perror(buff);
     }
-    if (handle_client_file_map) CloseHandle(handle_client_file_map);
-    if (handle_client_map)	UnmapViewOfFile(handle_client_map);
-    if (event_server_wrote)	CloseHandle(event_server_wrote);
-    if (event_server_read)	CloseHandle(event_server_read);
-    if (event_client_wrote)	CloseHandle(event_client_wrote);
-    if (event_client_read)	CloseHandle(event_client_read);
-    if (event_conn_closed)	CloseHandle(event_conn_closed);
+    if (handle_client_file_map) 
+      CloseHandle(handle_client_file_map);
+    if (handle_client_map)
+      UnmapViewOfFile(handle_client_map);
+    if (event_server_wrote)
+      CloseHandle(event_server_wrote);
+    if (event_server_read)
+      CloseHandle(event_server_read);
+    if (event_client_wrote)
+      CloseHandle(event_client_wrote);
+    if (event_client_read)
+      CloseHandle(event_client_read);
+    if (event_conn_closed)
+      CloseHandle(event_conn_closed);
     delete thd;
   }
 

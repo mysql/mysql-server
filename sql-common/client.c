@@ -525,9 +525,9 @@ err2:
   if (error_allow == 0)
   {
     net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
-					 event_server_wrote,
+                                         event_server_wrote,
                                          event_server_read,event_client_wrote,
-					 event_client_read,event_conn_closed);
+                                         event_client_read,event_conn_closed);
   }
   else
   {
