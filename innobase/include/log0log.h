@@ -513,6 +513,15 @@ log_print(
 /*======*/
 	char*	buf,	/* in/out: buffer where to print */
 	char*	buf_end);/* in: buffer end */
+/**********************************************************
+Peeks the current lsn. */
+
+ibool
+log_peek_lsn(
+/*=========*/
+			/* out: TRUE if success, FALSE if could not get the
+			log system mutex */
+	dulint*	lsn);	/* out: if returns TRUE, current lsn is here */
 /**************************************************************************
 Refreshes the statistics used to print per-second averages. */
 
@@ -785,6 +794,11 @@ struct log_struct{
 					called */
 
 	/* Fields involved in checkpoints */
+	ulint		log_group_capacity; /* capacity of the log group; if
+					the checkpoint age exceeds this, it is
+					a serious error because it is possible
+					we will then overwrite log and spoil
+					crash recovery */
 	ulint		max_modified_age_async;
 					/* when this recommended value for lsn
 					- buf_pool_get_oldest_modification()
