@@ -4377,25 +4377,39 @@ COND *eliminate_not_funcs(THD *thd, COND *cond)
 static COND *
 optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
 {
+  SELECT_LEX *select= thd->lex->current_select;
   DBUG_ENTER("optimize_cond");
-  if (!conds)
+  if (conds)
+  {
+    DBUG_EXECUTE("where", print_where(conds, "original"););
+    /* Eliminate NOT operators; in case of PS/SP do it once */
+    if (thd->current_arena->is_first_stmt_execute())
+    {
+      Item_arena *arena= thd->current_arena, backup;
+      thd->set_n_backup_item_arena(arena, &backup);
+      conds= eliminate_not_funcs(thd, conds);
+      select->prep_where= conds->copy_andor_structure(thd);
+      thd->restore_backup_item_arena(arena, &backup);
+    }
+    else
+      conds= eliminate_not_funcs(thd, conds);
+    DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+
+    /* change field = field to field = const for each found field = const */
+    propagate_cond_constants((I_List<COND_CMP> *) 0, conds, conds);
+    /*
+      Remove all instances of item == item
+      Remove all and-levels where CONST item != CONST item
+    */
+    DBUG_EXECUTE("where", print_where(conds, "after const change"););
+    conds= remove_eq_conds(thd, conds, cond_value);
+    DBUG_EXECUTE("info", print_where(conds, "after remove"););
+  }
+  else
   {
     *cond_value= Item::COND_TRUE;
-    DBUG_RETURN(conds);
+    select->prep_where= 0;
   }
-  DBUG_EXECUTE("where",print_where(conds,"original"););
-  /* eliminate NOT operators */
-  conds= eliminate_not_funcs(thd, conds);
-  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
-  /* change field = field to field = const for each found field = const */
-  propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
-  /*
-    Remove all instances of item == item
-    Remove all and-levels where CONST item != CONST item
-  */
-  DBUG_EXECUTE("where",print_where(conds,"after const change"););
-  conds= remove_eq_conds(thd, conds, cond_value) ;
-  DBUG_EXECUTE("info",print_where(conds,"after remove"););
   DBUG_RETURN(conds);
 }
 

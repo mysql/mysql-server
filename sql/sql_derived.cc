@@ -151,7 +151,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     if it is preparation PS only then we do not need real data and we
     can skip execution (and parameters is not defined, too)
   */
-  if (!thd->current_statement)
+  if (! thd->current_arena->is_stmt_prepare())
   {
     if (is_union)
     {
