@@ -1,0 +1,9 @@
+#! /bin/sh
+
+for d in test-*; do
+cd $d
+echo -n $d | sed -e s/test-//
+echo -n "...."
+../../client/mysql-test $@ < run.test
+cd ..
+done

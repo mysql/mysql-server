@@ -1,0 +1,12 @@
+This directory contains a set of test cases for replication. To get it
+to work on your system, install this version of MySQL on the master and on
+the slave, configure them according to the Replication HOWTO in the manual,
+modify include/master-slave.inc to specify correct connection parameters
+for the master and the slave and do
+
+sh run-all-tests
+
+If you would like to add your own test case, create a directory
+test-your-test-case-name, write your own run.test following the examples
+in the other test cases. Note that you can create the files containing
+the expected output ( master files) by running mysql-test --record < run.test
