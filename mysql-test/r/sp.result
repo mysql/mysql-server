@@ -1947,6 +1947,26 @@ select bug6022(5)|
 bug6022(5)
 0
 drop function bug6022|
+drop procedure if exists bug6029|
+create procedure bug6029()
+begin
+declare exit handler for 1136  select '1136';
+declare exit handler for sqlstate '23000'  select 'sqlstate 23000';
+declare continue handler for sqlexception  select 'sqlexception';
+insert into t3 values (1);
+insert into t3 values (1,2);
+end|
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (1)|
+call bug6029()|
+sqlstate 23000
+sqlstate 23000
+delete from t3|
+call bug6029()|
+1136
+1136
+drop procedure bug6029|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
