@@ -42534,6 +42534,9 @@ For more information on Object Oriented Programming
 @uref{http://language.perl.com/info/documentation.html}
 @end example
 
+Note that if you want to use transactions with Perl, you need to have
+@code{Msql-Mysql-modules} version 1.2216 or newer.
+
 Installation instructions for @strong{MySQL} Perl support are given in
 @ref{Perl support}.
 
@@ -46234,7 +46237,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added support for symbolic links to @code{MyISAM} tables.
+Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
+now enabled by default for Windows.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
