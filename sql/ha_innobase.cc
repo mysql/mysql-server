@@ -287,6 +287,26 @@ innobase_parse_data_file_paths_and_sizes(void)
 		        str++;
 		}
 
+		if (size >= 4096) {
+		  fprintf(stderr,
+		     "InnoDB: error: data file size must not be >= 4096M\n");
+		  return(FALSE);
+		}
+
+	        if (strlen(str) >= 6
+			   && *str == 'n'
+			   && *(str + 1) == 'e' 
+		           && *(str + 2) == 'w') {
+		  str += 3;
+		}
+
+	        if (strlen(str) >= 3
+			   && *str == 'r'
+			   && *(str + 1) == 'a' 
+		           && *(str + 2) == 'w') {
+		  str += 3;
+		}
+
 		if (size == 0) {
 			return(FALSE);
 		}
@@ -301,8 +321,9 @@ innobase_parse_data_file_paths_and_sizes(void)
 		}
 	}
 
-	srv_data_file_names = (char**) ut_malloc(i * sizeof(void*));
+	srv_data_file_names = (char**)ut_malloc(i * sizeof(void*));
 	srv_data_file_sizes = (ulint*)ut_malloc(i * sizeof(ulint));
+	srv_data_file_is_raw_partition = (ulint*)ut_malloc(i * sizeof(ulint));
 
 	srv_n_data_files = i;
 
@@ -335,6 +356,27 @@ innobase_parse_data_file_paths_and_sizes(void)
 			str++;
 		} else {
 		        str++;
+		}
+
+		srv_data_file_is_raw_partition[i] = 0;
+
+	        if (strlen(str) >= 6
+			   && *str == 'n'
+			   && *(str + 1) == 'e' 
+		           && *(str + 2) == 'w') {
+		  str += 3;
+		  srv_data_file_is_raw_partition[i] = SRV_NEW_RAW;
+		}
+
+	        if (strlen(str) >= 3
+			   && *str == 'r'
+			   && *(str + 1) == 'a' 
+		           && *(str + 2) == 'w') {
+		  str += 3;
+		  
+		  if (srv_data_file_is_raw_partition[i] == 0) {
+		    srv_data_file_is_raw_partition[i] = SRV_OLD_RAW;
+		  }		  
 		}
 
 		srv_data_file_names[i] = path;
@@ -464,6 +506,7 @@ innobase_init(void)
 	ret = innobase_parse_data_file_paths_and_sizes();
 
 	if (ret == FALSE) {
+	  fprintf(stderr, "InnoDB: syntax error in innodb_data_file_path\n");
 	  DBUG_RETURN(TRUE);
 	}
 
