@@ -738,6 +738,16 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (1,0,NULL,NULL),(2,0,NULL,NULL);
 SELECT DISTINCT REF_ID FROM t1 WHERE ID= (SELECT DISTINCT REF_ID FROM t1 WHERE ID=2);
 DROP TABLE t1;
+
+
+#
+# correct behavoiur for function from reduced subselect
+#
+create table t1(City VARCHAR(30),Location geometry);
+insert into t1 values("Paris",GeomFromText('POINT(2.33 48.87)'));
+select City from t1 where (select intersects(GeomFromText(AsText(Location)),GeomFromText('Polygon((2 50, 2.5 50, 2.5 47, 2 47, 2 50))'))=0);
+drop table t1;
+
 #
 # reduced subselect in ORDER BY & GROUP BY clauses
 #
