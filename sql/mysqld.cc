@@ -384,9 +384,6 @@ static bool read_init_file(char *file_name);
 #ifdef __NT__
 static pthread_handler_decl(handle_connections_namedpipes,arg);
 #endif
-#ifdef __WIN__
-static int get_service_parameters();
-#endif
 extern pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
@@ -1647,14 +1644,6 @@ int main(int argc, char **argv)
     mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
   set_options();
-#ifdef __WIN__
-  /* service parameters can be overwritten by options */
-  if (get_service_parameters())
-  {
-    my_message( 0, "Can't read MySQL service parameters", MYF(0) );
-    exit( 1 );
-  }
-#endif
   get_options(argc,argv);
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
