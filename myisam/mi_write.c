@@ -18,6 +18,7 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
+#include <assert.h>
 
 #ifdef	__WIN__
 #include <errno.h>
@@ -124,7 +125,7 @@ int mi_write(MI_INFO *info, byte *record)
       else
       {
         if (share->keyinfo[i].ck_insert(info,i,buff,
-        			_mi_make_key(info,i,buff,record,filepos)))
+			_mi_make_key(info,i,buff,record,filepos)))
         {
           if (local_lock_tree)
             rw_unlock(&share->key_root_lock[i]);
@@ -264,13 +265,32 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
   else
     comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
 
+  error=_mi_ck_real_write_btree(info, keyinfo, key, key_length,
+                                root, comp_flag);
+  if (info->ft1_to_ft2)
+  {
+    if (!error)
+      error= _mi_ft_convert_to_ft2(info, keynr, key);
+    delete_dynamic(info->ft1_to_ft2);
+    my_free(info->ft1_to_ft2, MYF(0));
+    info->ft1_to_ft2=0;
+  }
+  DBUG_RETURN(error);
+} /* _mi_ck_write_btree */
+
+int _mi_ck_real_write_btree(MI_INFO *info, MI_KEYDEF *keyinfo,
+    uchar *key, uint key_length, my_off_t *root, uint comp_flag)
+{
+  int error;
+  DBUG_ENTER("_mi_ck_real_write_btree");
+  /* key_length parameter is used only if comp_flag is SEARCH_FIND */
   if (*root == HA_OFFSET_ERROR ||
       (error=w_search(info, keyinfo, comp_flag, key, key_length,
 		      *root, (uchar *) 0, (uchar*) 0,
 		      (my_off_t) 0, 1)) > 0)
     error=_mi_enlarge_root(info,keyinfo,key,root);
   DBUG_RETURN(error);
-} /* _mi_ck_write_btree */
+} /* _mi_ck_real_write_btree */
 
 
 	/* Make a new root with key as only pointer */
@@ -359,13 +379,11 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         keyinfo=&info->s->ft2_keyinfo;
         key+=off;
         keypos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
-        if ((error=w_search(info, keyinfo, comp_flag, key, HA_FT_WLEN, root,
-                            (uchar *) 0, (uchar*) 0, (my_off_t) 0, 1)) > 0)
-        {
-          error=_mi_enlarge_root(info, keyinfo, key, &root);
-          _mi_dpointer(info, keypos+HA_FT_WLEN, root);
-        }
+        error=_mi_ck_real_write_btree(info, keyinfo, key, 0,
+                                      &root, comp_flag);
+        _mi_dpointer(info, keypos+HA_FT_WLEN, root);
         subkeys--; /* should there be underflow protection ? */
+        DBUG_ASSERT(subkeys < 0);
         ft_intXstore(keypos, subkeys);
         if (!error)
           error=_mi_write_keypage(info,keyinfo,page,temp_buff);
@@ -410,7 +428,6 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 	       uchar *key, uchar *anc_buff, uchar *key_pos, uchar *key_buff,
                uchar *father_buff, uchar *father_key_pos, my_off_t father_page,
 	       my_bool insert_last)
-
 {
   uint a_length,nod_flag;
   int t_length;
@@ -464,8 +481,56 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   a_length+=t_length;
   mi_putint(anc_buff,a_length,nod_flag);
   if (a_length <= keyinfo->block_length)
-    DBUG_RETURN(0);				/* There is room on page */
+  {
+    if (keyinfo->block_length - a_length < 32 &&
+        keyinfo->flag & HA_FULLTEXT && key_pos == endpos &&
+        info->s->base.key_reflength <= info->s->base.rec_reflength &&
+        info->s->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
+    {
+      /*
+        Normal word. One-level tree. Page is almost full.
+        Let's consider converting.
+        We'll compare 'key' and the first key at anc_buff
+       */
+      uchar *a=key, *b=anc_buff+2+nod_flag;
+      uint alen, blen, ft2len=info->s->ft2_keyinfo.keylength;
+      /* the very first key on the page is always unpacked */
+      DBUG_ASSERT((*b & 128) == 0);
+#if HA_FT_MAXLEN >= 127
+      blen= mi_uint2korr(b); b+=2;
+#else
+      blen= *b++;
+#endif
+      get_key_length(alen,a);
+      DBUG_ASSERT(info->ft1_to_ft2==0);
+      if (alen == blen &&
+          mi_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0)==0)
+      {
+        /* yup. converting */
+        info->ft1_to_ft2=(DYNAMIC_ARRAY *)
+          my_malloc(sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
+        my_init_dynamic_array(info->ft1_to_ft2, ft2len, 300, 50);
 
+        /*
+          now, adding all keys from the page to dynarray
+          if the page is a leaf (if not keys will be deleted later)
+        */
+        if (!nod_flag)
+        {
+          /* let's leave the first key on the page, though, because
+             we cannot easily dispatch an empty page here */
+          b+=blen+ft2len+2;
+          for (a=anc_buff+a_length ; b < a ; b+=ft2len+2)
+            insert_dynamic(info->ft1_to_ft2, b);
+
+          /* fixing the page's length - it contains only one key now */
+          mi_putint(anc_buff,2+blen+ft2len+2,0);
+        }
+        /* the rest will be done when we're back from recursion */
+      }
+    }
+    DBUG_RETURN(0);				/* There is room on page */
+  }
   /* Page is full */
   if (nod_flag)
     insert_last=0;

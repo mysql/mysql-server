@@ -222,7 +222,8 @@ struct st_myisam_info {
   MI_BLOB     *blobs;			/* Pointer to blobs */
   MI_BIT_BUFF  bit_buff;
   /* accumulate indexfile changes between write's */
-  TREE	      *bulk_insert;
+  TREE	        *bulk_insert;
+  DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
   char *filename;			/* parameter to open filename */
   uchar *buff,				/* Temp area for key */
 	*lastkey,*lastkey2;		/* Last used search key */
@@ -464,6 +465,9 @@ extern int _mi_delete_static_record(MI_INFO *info);
 extern int _mi_cmp_static_record(MI_INFO *info,const byte *record);
 extern int _mi_read_rnd_static_record(MI_INFO*, byte *,my_off_t, my_bool);
 extern int _mi_ck_write(MI_INFO *info,uint keynr,uchar *key,uint length);
+extern int _mi_ck_real_write_btree(MI_INFO *info, MI_KEYDEF *keyinfo,
+                                   uchar *key, uint key_length,
+                                   my_off_t *root, uint comp_flag);
 extern int _mi_enlarge_root(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key, my_off_t *root);
 extern int _mi_insert(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 		      uchar *anc_buff,uchar *key_pos,uchar *key_buff,

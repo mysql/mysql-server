@@ -128,7 +128,7 @@ class SQL_SELECT :public Sql_alloc {
   SQL_SELECT();
   ~SQL_SELECT();
   bool check_quick(bool force_quick_range=0, ha_rows limit = HA_POS_ERROR)
-  { return test_quick_select(~0L,0,limit, force_quick_range) < 0; }
+  { return test_quick_select(key_map(~0),0,limit, force_quick_range) < 0; }
   inline bool skipp_record() { return cond ? cond->val_int() == 0 : 0; }
   int test_quick_select(key_map keys,table_map prev_tables,ha_rows limit,
 			bool force_quick_range=0);

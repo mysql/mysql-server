@@ -683,7 +683,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             The following test is false when the key in the key tree is
             converted (for example to upper case)
           */
-          if (field->part_of_key & ((key_map) 1 << idx))
+          if (field->part_of_key.is_set(idx))
           {
             table->key_read= 1;
             table->file->extra(HA_EXTRA_KEYREAD);
@@ -696,7 +696,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   return 0;
 }
 
-        
+
 /*
   Check whether found key is in range specified by conditions
 
@@ -707,7 +707,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
     field       in:     Field used the MIN/MAX expression
     cond        in:     WHERE condition
     range_fl    in:     Says whether there is a condition to to be checked
-    prefix_len  in:     Length of the constant part of the key 
+    prefix_len  in:     Length of the constant part of the key
 
   RETURN
     0        ok
