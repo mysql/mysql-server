@@ -529,21 +529,38 @@ table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 t2	ALL	a	NULL	NULL	NULL	4	Using where
 drop table t1,t2;
+create table t1 (a int, b int);
+insert into t1 values (1, 4);
+insert into t1 values (10, 40);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+insert into t1 values (10, 41);
+insert into t1 values (1, 4);
+insert into t1 values (10, 43);
+insert into t1 values (1, 4);
+select a, MAX(b), INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000) from t1 group by a;
 a	MAX(b)	INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000)
 1	4	2
 10	43	6
+select a, MAX(b), CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end from t1 group by a;
 a	MAX(b)	CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end
 1	4	4
 10	43	43
+select a, MAX(b), FIELD(MAX(b), '43', '4', '5') from t1 group by a;
 a	MAX(b)	FIELD(MAX(b), '43', '4', '5')
 1	4	2
 10	43	1
+select a, MAX(b), CONCAT_WS(MAX(b), '43', '4', '5') from t1 group by a;
 a	MAX(b)	CONCAT_WS(MAX(b), '43', '4', '5')
 1	4	434445
 10	43	43434435
+select a, MAX(b), ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f') from t1 group by a;
 a	MAX(b)	ELT(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f')
 1	4	d
 10	43	NULL
+select a, MAX(b), MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h') from t1 group by a;
 a	MAX(b)	MAKE_SET(MAX(b), 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h')
 1	4	c
 10	43	a,b,d,f
+drop table t1;
