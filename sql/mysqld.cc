@@ -383,7 +383,7 @@ enum db_type default_table_type=DB_TYPE_MYISAM;
 #undef	 getpid
 #include <process.h>
 HANDLE hEventShutdown;
-static char *event_name;
+static char shutdown_event_name[40];
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
 #endif
@@ -640,10 +640,6 @@ void kill_mysql(void)
     {
       DBUG_PRINT("error",("Got error: %ld from SetEvent",GetLastError()));
     }
-    // or:
-    // HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
-    // SetEvent(hEventShutdown);
-    // CloseHandle(hEvent);
   }
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
@@ -1993,7 +1989,7 @@ The server will not act as a slave.");
   (void) thr_setconcurrency(concurrency);	// 10 by default
 #ifdef __WIN__			        //IRENA
   {
-    hEventShutdown=CreateEvent(0, FALSE, FALSE, "MySqlShutdown");
+    hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
       sql_print_error("Warning: Can't create thread to handle shutdown requests");
@@ -2182,6 +2178,14 @@ bool default_service_handling(char **argv,
 
 int main(int argc, char **argv)
 {
+
+  /* When several instances are running on the same machine, we
+     need to have an  unique  named  hEventShudown  through the
+     application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
+  */ 
+  int2str((int) GetCurrentProcessId(),strmov(shutdown_event_name,
+          "MySQLShutdown"), 10);
+  
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];
@@ -2196,10 +2200,9 @@ int main(int argc, char **argv)
       if (Service.IsService(argv[1]))
       {
         /* start an optional service */
-        event_name=		argv[1];
-	load_default_groups[0]= argv[1];
+        load_default_groups[0]= argv[1];
         start_mode= 1;
-        Service.Init(event_name, mysql_service);
+        Service.Init(argv[1], mysql_service);
         return 0;
       }
     }
@@ -2218,9 +2221,8 @@ int main(int argc, char **argv)
 	use_opt_args=1;
 	opt_argc=argc;
 	opt_argv=argv;
-	event_name= argv[2];
 	start_mode= 1;
-	Service.Init(event_name, mysql_service);
+	Service.Init(argv[2], mysql_service);
 	return 0;
       }
     }
@@ -2240,7 +2242,6 @@ int main(int argc, char **argv)
     {
       /* start the default service */
       start_mode= 1;
-      event_name= "MySqlShutdown";
       Service.Init(MYSQL_SERVICENAME, mysql_service);
       return 0;
     }
