@@ -771,6 +771,24 @@ int ha_savepoint(THD *thd, char *savepoint_name)
   DBUG_RETURN(error);
 }
 
+
+int ha_start_consistent_snapshot(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if ((have_innodb == SHOW_OPTION_YES) &&
+      !innobase_start_trx_and_assign_read_view(thd))
+    return 0;
+#endif
+  /*
+    Same idea as when one wants to CREATE TABLE in one engine which does not
+    exist:
+  */
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+               ER_NO_CONS_READ_ENGINE, ER(ER_NO_CONS_READ_ENGINE));
+  return 0;
+}
+
+
 bool ha_flush_logs()
 {
   bool result=0;

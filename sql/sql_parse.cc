@@ -3076,6 +3076,12 @@ purposes internal to the MySQL server", MYF(0));
   }
 
   case SQLCOM_UNLOCK_TABLES:
+    /*
+      It is critical for mysqldump --single-transaction --master-data that
+      UNLOCK TABLES does not implicitely commit a connection which has only
+      done FLUSH TABLES WITH READ LOCK + BEGIN. If this assumption becomes
+      false, mysqldump will not work.
+    */
     unlock_locked_tables(thd);
     if (thd->options & OPTION_TABLE_LOCK)
     {
@@ -3462,7 +3468,9 @@ purposes internal to the MySQL server", MYF(0));
       thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
 		     OPTION_BEGIN);
       thd->server_status|= SERVER_STATUS_IN_TRANS;
-      send_ok(thd);
+      if (!(lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) ||
+          !(res= ha_start_consistent_snapshot(thd)))
+        send_ok(thd);
     }
     break;
   case SQLCOM_COMMIT:
