@@ -25,14 +25,14 @@ bin_PROGRAMS =		myisamchk myisamlog myisampack
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
 myisamlog_DEPENDENCIES=	$(LIBRARIES)
 myisampack_DEPENDENCIES=$(LIBRARIES)
-noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 #ft_test1 ft_eval ft_dump
+noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 ft_dump #ft_test1 ft_eval
 noinst_HEADERS =	myisamdef.h fulltext.h ftdefs.h ft_test1.h ft_eval.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test2_DEPENDENCIES=	$(LIBRARIES)
 mi_test3_DEPENDENCIES=	$(LIBRARIES)
 #ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ft_eval_DEPENDENCIES=	$(LIBRARIES)
-#ft_dump_DEPENDENCIES=	$(LIBRARIES)
+ft_dump_DEPENDENCIES=	$(LIBRARIES)
 libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \

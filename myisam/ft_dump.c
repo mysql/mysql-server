@@ -38,10 +38,6 @@ int main(int argc,char *argv[])
   MI_INFO *info;
   char buf[MAX], buf2[MAX], buf_maxlen[MAX], buf_min_gws[MAX];
   ulong total=0, maxlen=0, uniq=0, max_doc_cnt=0;
-#ifdef EVAL_RUN
-  uint	       cnt;
-  double       sum, sum2, suml;
-#endif /* EVAL_RUN */
   struct { MI_INFO *info; } aio0, *aio=&aio0; /* for GWS_IN_USE */
 
   MY_INIT(argv[0]);
@@ -72,6 +68,7 @@ int main(int argc,char *argv[])
 
   if (query)
   {
+#if 0
     FT_DOCLIST *result;
     int i;
 
@@ -88,6 +85,9 @@ int main(int argc,char *argv[])
       printf("%9qx %20.7f\n",result->doc[i].dpos,result->doc[i].weight);
 
     ft_nlq_close_search(result);
+#else
+    printf("-e option is disabled\n");
+#endif
   }
   else
   {
@@ -99,18 +99,10 @@ int main(int argc,char *argv[])
       keylen=*(info->lastkey);
 
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-#ifdef EVAL_RUN
-      mi_float4get(weight,info->lastkey+keylen+2);
-#else /* EVAL_RUN */
       mi_float4get(weight,info->lastkey+keylen+1);
-#endif /* EVAL_RUN */
 #else
 #error
 #endif
-
-#ifdef EVAL_RUN
-      cnt=*(byte *)(info->lastkey+keylen);
-#endif /* EVAL_RUN */
 
       snprintf(buf,MAX,"%.*s",(int) keylen,info->lastkey+1);
       casedn_str(buf);
@@ -119,11 +111,6 @@ int main(int argc,char *argv[])
       if (count || stats)
       {
         doc_cnt++;
-#ifdef EVAL_RUN
-        sum +=cnt;
-        sum2+=cnt*cnt;
-        suml+=cnt*log(cnt);
-#endif /* EVAL_RUN */
         if (strcmp(buf, buf2))
         {
           if (*buf2)
@@ -145,9 +132,6 @@ int main(int argc,char *argv[])
             }
           }
           strcpy(buf2, buf);
-#ifdef EVAL_RUN
-          sum=sum2=suml=
-#endif /* EVAL_RUN */
           doc_cnt=0;
         }
       }
