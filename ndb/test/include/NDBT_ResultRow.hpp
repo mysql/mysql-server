@@ -27,7 +27,7 @@ public:
   const NdbRecAttr * attributeStore(int i) const ;
   const NdbRecAttr * attributeStore(const char* name) const ;
   
-  BaseString c_str();
+  BaseString c_str() const ;
 
   NdbOut & header (NdbOut &) const;
   friend NdbOut & operator << (NdbOut&, const NDBT_ResultRow &);
@@ -36,6 +36,11 @@ public:
    * Make copy of NDBT_ResultRow 
    */
   NDBT_ResultRow * clone() const;
+
+  bool operator==(const NDBT_ResultRow&) const ;
+  bool operator!=(const NDBT_ResultRow& other) const { 
+    return ! (*this == other);
+  }
   
 private:
   int cols;
