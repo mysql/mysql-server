@@ -299,27 +299,3 @@ ut_str_catenate(
 
 	return(str);
 }
-
-/**************************************************************************
-Return a copy of the given string. The returned string must be freed
-using mem_free. */
-
-char*
-ut_strdup(
-/*======*/
-			/* out, own: cnull-terminated string */
-	char*	str)	/* in: null-terminated string */
-{
-	ulint	len;
-	char*	copy;
-
-	len = ut_strlen(str);
-
-	copy = mem_alloc(len + 1);
-
-	ut_memcpy(copy, str, len);
-
-	copy[len] = 0;
-
-	return(copy);
-}
