@@ -25,6 +25,14 @@
 
 extern const char *raid_type_string[];
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+const char *my_raid_type(int raid_type);
+#ifdef __cplusplus
+}
+#endif
+
 #if defined(USE_RAID)
 
 #ifdef __GNUC__
@@ -83,9 +91,6 @@ extern "C" {
   int my_raid_chsize(File fd, my_off_t newlength, myf MyFlags);
   int my_raid_close(File, myf MyFlags);
   int my_raid_fstat(int Filedes, struct stat *buf,  myf MyFlags);
-
-  const char *my_raid_type(int raid_type);
-
 #ifdef __cplusplus
 }
 
