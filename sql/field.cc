@@ -5725,12 +5725,12 @@ void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 {
   uint f_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint char_length= length / field_charset->mbmaxlen;
-  char_length= my_charpos(field_charset, ptr, ptr + length_bytes,
-                          char_length);
+  char *pos= ptr+length_bytes;
+  char_length= my_charpos(field_charset, pos, pos + f_length, char_length);
   set_if_smaller(f_length, char_length);
   /* Key is always stored with 2 bytes */
   int2store(buff,f_length);
-  memcpy(buff+HA_KEY_BLOB_LENGTH, ptr+length_bytes, f_length);
+  memcpy(buff+HA_KEY_BLOB_LENGTH, pos, f_length);
   if (f_length < length)
   {
     /*
