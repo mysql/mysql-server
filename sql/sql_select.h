@@ -147,7 +147,7 @@ class JOIN {
   uint	   tables,const_tables;
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
-  table_map const_table_map;
+  table_map const_table_map,outer_join;
   ha_rows  send_records,found_records;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;

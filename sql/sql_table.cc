@@ -620,7 +620,10 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
     Field *field=create_tmp_field(&tmp_table,item,item->type(),
 				  (Item_result_field***) 0, &tmp_field,0,0);
-    if (!field || !(cr_field=new create_field(field,1)))
+    if (!field ||
+	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
+					   ((Item_field *)item)->field : NULL)
+				    )))
       DBUG_RETURN(0);
     extra_fields->push_back(cr_field);
   }
@@ -833,9 +836,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   {
     char table_name[NAME_LEN*2+2];
     char* db = (table->db) ? table->db : thd->db;
+    bool fatal_error=0;
     strxmov(table_name,db ? db : "",".",table->name,NullS);
 
+    if (operator_func == &handler::repair || operator_func == &handler::check)
+      thd->open_options|= HA_OPEN_FOR_REPAIR;
     table->table = open_ltable(thd, table, lock_type);
+    thd->open_options&= ~HA_OPEN_FOR_REPAIR;
     packet->length(0);
     if (operator_func == &handler::restore)
     {
@@ -909,6 +916,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     case HA_ADMIN_CORRUPT:
       net_store_data(packet, "error");
       net_store_data(packet, "Corrupt");
+      fatal_error=1;
       break;
 
     case HA_ADMIN_INVALID:
@@ -919,8 +927,11 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       net_store_data(packet, "error");
       net_store_data(packet, "Unknown - internal error during operation");
+      fatal_error=1;
       break;
     }
+    if (fatal_error)
+      table->table->flush_version=0;	// Force close of table
     close_thread_tables(thd);
     if (my_net_write(&thd->net, (char*) packet->ptr(),
 		     packet->length()))
@@ -1150,7 +1161,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     else
     {						// Use old field value
-      create_list.push_back(def=new create_field(field));
+      create_list.push_back(def=new create_field(field,field));
       if (def->sql_type == FIELD_TYPE_TIMESTAMP)
 	use_timestamp=1;
 

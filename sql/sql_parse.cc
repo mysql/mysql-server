@@ -807,13 +807,15 @@ bool do_command(THD *thd)
     send_error(net,0);				// End of memory ?
 
   time_t start_of_query=thd->start_time;
-  thd->set_time();
+  thd->end_time();				// Set start time
   /* If not reading from backup and if the query took too long */
-  if (!thd->user_time &&
-      (ulong) (thd->start_time - start_of_query) > long_query_time)
+  if (!thd->user_time)
   {
-    long_query_count++;
-    mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
+    if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time)
+    {
+      long_query_count++;
+      mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
+    }
   }
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;

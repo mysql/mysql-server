@@ -399,6 +399,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
   if (join.const_tables && !thd->locked_tables)
     mysql_unlock_some_tables(thd, join.table,join.const_tables);
+  if (!conds && join.outer_join)
+  {
+    /* Handle the case where we have an OUTER JOIN without a WHERE */
+    conds=new Item_int((longlong) 1,1);	// Always true
+  }
   select=make_select(*join.table, join.const_table_map,
 		     join.const_table_map,conds,&error);
   if (error)
@@ -856,6 +861,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     }
   }
   stat_vector[i]=0;
+  join->outer_join=outer_join;
 
   /*
   ** If outer join: Re-arrange tables in stat_vector so that outer join
@@ -1553,12 +1559,14 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       double best,best_time,records;
       best=best_time=records=DBL_MAX;
       KEYUSE *best_key=0;
+      uint best_max_key_part=0;
 
       if (s->keyuse)
       {						/* Use key if possible */
 	TABLE *table=s->table;
 	KEYUSE *keyuse,*start_key=0;
 	double best_records=DBL_MAX;
+	uint max_key_part=0;
 
 	/* Test how we can use keys */
 	rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  /* Assumed records/key */
@@ -1576,34 +1584,34 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
             uint keypart=keyuse->keypart;
 	    do
 	    {
-              if(!ft_key)
+              if (!ft_key)
               {
-	      table_map map;
-	      if (!(rest_tables & keyuse->used_tables))
-	      {
-		found_part|= (key_part_map) 1 << keypart;
-		found_ref|= keyuse->used_tables;
-	      }
-	      /*
-	      ** If we find a ref, assume this table matches a proportional
-	      ** part of this table.
-	      ** For example 100 records matching this table with 5000 records
-	      ** gives 5000/100 = 50 records per key
-	      ** Constant tables are ignored and to avoid bad matches,
-	      ** we don't make rec less than 100.
-	      */
-	      if (keyuse->used_tables &
-		  (map=(keyuse->used_tables & ~join->const_table_map)))
-	      {
-		uint tablenr;
-		for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
-		if (map == 1)			// Only one table
+		table_map map;
+		if (!(rest_tables & keyuse->used_tables))
 		{
-		  TABLE *tmp_table=join->all_tables[tablenr];
-		  if (rec > tmp_table->file->records && rec > 100)
-		    rec=max(tmp_table->file->records,100);
+		  found_part|= (key_part_map) 1 << keypart;
+		  found_ref|= keyuse->used_tables;
 		}
-	      }
+		/*
+		** If we find a ref, assume this table matches a proportional
+		** part of this table.
+		** For example 100 records matching a table with 5000 records
+		** gives 5000/100 = 50 records per key
+		** Constant tables are ignored and to avoid bad matches,
+		** we don't make rec less than 100.
+		*/
+		if (keyuse->used_tables &
+		    (map=(keyuse->used_tables & ~join->const_table_map)))
+		{
+		  uint tablenr;
+		  for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
+		  if (map == 1)			// Only one table
+		  {
+		    TABLE *tmp_table=join->all_tables[tablenr];
+		    if (rec > tmp_table->file->records && rec > 100)
+		      rec=max(tmp_table->file->records,100);
+		  }
+		}
               }
 	      keyuse++;
 	    } while (keyuse->table == table && keyuse->key == key &&
@@ -1637,6 +1645,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  */
 	  if (found_part == PREV_BITS(uint,keyinfo->key_parts))
 	  {				/* use eq key */
+	    max_key_part= (uint) ~0;
 	    if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
 	    {
 	      tmp=prev_record_reads(join,found_ref);
@@ -1686,7 +1695,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    if ((found_part & 1) &&
 		!(table->file->option_flag() & HA_ONLY_WHOLE_INDEX))
 	    {
-	      uint max_key_part=max_part_bit(found_part);
+	      max_key_part=max_part_bit(found_part);
 	      /* Check if quick_range could determinate how many rows we
 		 will match */
 
@@ -1754,11 +1763,19 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    best=tmp;
 	    best_records=records;
 	    best_key=start_key;
+	    best_max_key_part=max_key_part;
 	  }
 	}
 	records=best_records;
       }
-      if (records >= s->found_records || best > s->read_time)
+
+      /*
+	Don't test table scan if it can't be better.
+	Prefer key lookup if we would use the same key for scanning.
+      */
+      if ((records >= s->found_records || best > s->read_time) &&
+	  !(s->quick && best_key && s->quick->index == best_key->key &&
+	    best_max_key_part >= s->table->quick_key_parts[best_key->key]))
       {						// Check full join
 	if (s->on_expr)
 	{
@@ -1775,6 +1792,10 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->found_records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
 	{
+	  /*
+	    If the table has a range (s->quick is set) make_join_select()
+	    will ensure that this will be used
+	  */
 	  best=tmp;
 	  records=s->found_records;
 	  best_key=0;
@@ -2193,6 +2214,14 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       table_map current_map= tab->table->map;
       used_tables|=current_map;
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);
+      if (!tmp && tab->quick)
+      {						// Outer join
+	/*
+	  Hack to handle the case where we only refer to a table
+	  in the ON part of an OUTER JOIN.
+	*/
+	tmp=new Item_int((longlong) 1,1);	// Always true
+      }
       if (tmp)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
@@ -2204,6 +2233,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	sel->head=tab->table;
 	if (tab->quick)
 	{
+	  /* Use quick key read if it's a constant and it's not used
+	     with key reading */
 	  if (tab->needed_reg == 0 && tab->type != JT_EQ_REF &&
 	      (tab->type != JT_REF ||
 	       (uint) tab->ref.key == tab->quick->index))
@@ -2231,19 +2262,23 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    DBUG_RETURN(1);				// Impossible range
 	  /*
 	    We plan to scan all rows.
-	    Check again if we should use an index instead if
-	    we could have used an column from a previous table in
-	    the index or if we are using limit and this is the first table
+	    Check again if we should use an index.
+	    We could have used an column from a previous table in
+	    the index if we are using limit and this is the first table
 	  */
 
 	  if ((tab->keys & ~ tab->const_keys && i > 0) ||
 	      tab->const_keys && i == join->const_tables &&
 	      join->thd->select_limit < join->best_positions[i].records_read)
 	  {
+	    /* Join with outer join condition */
+	    COND *orig_cond=sel->cond;
+	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
 				       join->thd->select_limit) < 0)
-	    DBUG_RETURN(1);				// Impossible range
+	      DBUG_RETURN(1);				// Impossible range
+	    sel->cond=orig_cond;
 	  }
 	  else
 	  {

@@ -509,7 +509,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
-	table_to_table_list table_to_table opt_table_list
+	table_to_table_list table_to_table opt_table_list opt_as
 	END_OF_INPUT
 
 %type <NONE>
@@ -673,12 +673,16 @@ create2:
 	| opt_create_table_options create3 {}
 
 create3:
-	/* empty*/ {}
-	| opt_duplicate SELECT_SYM
+	/* empty */ {}
+	| opt_duplicate opt_as SELECT_SYM
           {
 	    mysql_init_select(Lex);
           }
           select_options select_item_list opt_select_from {}
+
+opt_as:
+	/* empty */ {}
+	| AS	    {}
 
 opt_table_options:
 	/* empty */	 { $$= 0; }

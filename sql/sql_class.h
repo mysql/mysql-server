@@ -287,7 +287,7 @@ public:
   long  dbug_thread_id;
   pthread_t  real_id;
   uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
-  uint  server_status;
+  uint  server_status,open_options;
   char	     scramble[9];
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
@@ -300,6 +300,7 @@ public:
   bool store_globals();
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void	set_time()    { if (!user_time) time_after_lock=time(&start_time); }
+  inline void	end_time()    { time(&start_time); }
   inline void	set_time(time_t t) { time_after_lock=start_time=t; user_time=1; }
   inline void	lock_time()   { time(&time_after_lock); }
   inline void	insert_id(ulonglong id)
