@@ -2297,17 +2297,16 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                              cs);
       table->field[4]->store((longlong) count);
       field->sql_type(type);
-      table->field[11]->store(type.ptr(), type.length(), cs);		
+      table->field[14]->store(type.ptr(), type.length(), cs);		
       tmp_buff= strchr(type.ptr(),'(');
-      table->field[5]->store(type.ptr(),
+      table->field[7]->store(type.ptr(),
                              (tmp_buff ? tmp_buff - type.ptr() :
                               type.length()), cs);
-
       if (show_table->timestamp_field == field &&
           field->unireg_check != Field::TIMESTAMP_UN_FIELD)
       {
-        table->field[15]->store("CURRENT_TIMESTAMP", 17, cs);
-        table->field[15]->set_notnull();
+        table->field[5]->store("CURRENT_TIMESTAMP", 17, cs);
+        table->field[5]->set_notnull();
       }
       else if (field->unireg_check != Field::NEXT_NUMBER &&
                !field->is_null() &&
@@ -2318,46 +2317,77 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
         field->val_str(&type);
         uint dummy_errors;
         def.copy(type.ptr(), type.length(), type.charset(), cs, &dummy_errors);
-        table->field[15]->store(def.ptr(), def.length(), def.charset());
-        table->field[15]->set_notnull();
+        table->field[5]->store(def.ptr(), def.length(), def.charset());
+        table->field[5]->set_notnull();
       }
       else if (field->unireg_check == Field::NEXT_NUMBER ||
                field->maybe_null())
-        table->field[15]->set_null();                // Null as default
+        table->field[5]->set_null();                // Null as default
       else
       {
-        table->field[15]->store("",0, cs);
-        table->field[15]->set_notnull();
+        table->field[5]->store("",0, cs);
+        table->field[5]->set_notnull();
       }
-		
       pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                    field->type() != FIELD_TYPE_TIMESTAMP ?
                    "" : "YES");
-      table->field[13]->store((const char*) pos,
-                              strlen((const char*) pos), cs);
+      table->field[6]->store((const char*) pos,
+                             strlen((const char*) pos), cs);
       if (field->has_charset())
-      {
-        table->field[6]->store((longlong) field->field_length/
+        table->field[8]->store((longlong) field->field_length/
                                field->charset()->mbmaxlen);
+      else
+        table->field[8]->store((longlong) field->field_length);
+      table->field[9]->store((longlong) field->field_length);
+
+      {
+        uint dec =field->decimals();
+        switch (field->type()) {
+        case FIELD_TYPE_DECIMAL:
+        {
+          uint int_part=field->field_length - (dec  ? dec + 1 : 0);
+          table->field[10]->store((longlong) (int_part + dec - 1));
+          table->field[10]->set_notnull();
+          table->field[11]->store((longlong) field->decimals());
+          table->field[11]->set_notnull();
+        }
+        break;
+        case FIELD_TYPE_TINY:
+        case FIELD_TYPE_SHORT:
+        case FIELD_TYPE_LONG:
+        case FIELD_TYPE_LONGLONG:
+        case FIELD_TYPE_INT24:
+        case FIELD_TYPE_FLOAT:  
+        case FIELD_TYPE_DOUBLE:
+        {
+          table->field[10]->store((longlong) field->field_length);
+          table->field[10]->set_notnull();
+          if (dec != NOT_FIXED_DEC)
+          {
+            table->field[11]->store((longlong) dec);
+            table->field[11]->set_notnull();
+          }
+        }
+        break;
+        default:
+          break;
+        }
       }
-      table->field[7]->store((longlong) field->field_length); 
-      table->field[8]->store((longlong) field->pack_length());
-      table->field[9]->store((longlong) field->decimals());
       if (field->has_charset())
       {
         pos=(byte*) field->charset()->csname;
-        table->field[10]->store((const char*) pos,
-                                strlen((const char*) pos), cs);
-        table->field[10]->set_notnull();
-        pos=(byte*) field->charset()->name;
         table->field[12]->store((const char*) pos,
                                 strlen((const char*) pos), cs);
         table->field[12]->set_notnull();
+        pos=(byte*) field->charset()->name;
+        table->field[13]->store((const char*) pos,
+                                strlen((const char*) pos), cs);
+        table->field[13]->set_notnull();
       }
       pos=(byte*) ((field->flags & PRI_KEY_FLAG) ? "PRI" :
                    (field->flags & UNIQUE_KEY_FLAG) ? "UNI" :
                    (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
-      table->field[14]->store((const char*) pos,
+      table->field[15]->store((const char*) pos,
                               strlen((const char*) pos), cs);
       char *end=tmp;
       if (field->unireg_check == Field::NEXT_NUMBER)
@@ -2511,45 +2541,46 @@ void store_schema_proc(THD *thd, TABLE *table,
     {
       table->field[3]->store(tmp_string.ptr(), tmp_string.length(), cs);
       tmp_string.length(0);
+      get_field(thd->mem_root, proc_table->field[3], &tmp_string);
+      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[0], &tmp_string);
       table->field[2]->store(tmp_string.ptr(), tmp_string.length(), cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[2], &tmp_string);
       table->field[4]->store(tmp_string.ptr(), tmp_string.length(), cs);
       tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[3], &tmp_string);
-      table->field[0]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[5], &tmp_string);
-      table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[6], &tmp_string);
-      table->field[10]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[7], &tmp_string);
-      table->field[15]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[9], &tmp_string);
-      table->field[6]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[6]->store("SQL", 3, cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[10], &tmp_string);
-      table->field[8]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[8]->store("SQL", 3, cs);
       tmp_string.length(0);
-      get_field(thd->mem_root, proc_table->field[11], &tmp_string);
-      table->field[5]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      get_field(thd->mem_root, proc_table->field[6], &tmp_string);
+      table->field[11]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      tmp_string.length(0);
+      get_field(thd->mem_root, proc_table->field[5], &tmp_string);
+      table->field[12]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      tmp_string.length(0);
+      get_field(thd->mem_root, proc_table->field[7], &tmp_string);
+      table->field[14]->store(tmp_string.ptr(), tmp_string.length(), cs);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[12])->get_time(&time);
-      table->field[14]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[15]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       bzero((char *)&time, sizeof(time));
       ((Field_timestamp *) proc_table->field[13])->get_time(&time);
-      table->field[13]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[16]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[14], &tmp_string);
-      table->field[16]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
       tmp_string.length(0);
       get_field(thd->mem_root, proc_table->field[15], &tmp_string);
-      table->field[17]->store(tmp_string.ptr(), tmp_string.length(), cs);
-      table->field[7]->store("SQL", 3, cs);
-      table->field[9]->store("SQL", 3, cs);
+      table->field[18]->store(tmp_string.ptr(), tmp_string.length(), cs);
+      tmp_string.length(0);
+      get_field(thd->mem_root, proc_table->field[11], &tmp_string);
+      table->field[19]->store(tmp_string.ptr(), tmp_string.length(), cs);
       table->file->write_row(table->record[0]);
     }
   }
@@ -2785,11 +2816,11 @@ static int get_schema_key_column_usage_record(THD *thd,
           restore_record(table, default_values);
           table->field[1]->store(base_name, strlen(base_name), cs);
           table->field[2]->store(key_info->name, strlen(key_info->name), cs);
-          table->field[3]->store(base_name, strlen(base_name), cs);
-          table->field[4]->store(file_name, strlen(file_name), cs);
-          table->field[5]->store(key_part->field->field_name, 
+          table->field[4]->store(base_name, strlen(base_name), cs);
+          table->field[5]->store(file_name, strlen(file_name), cs);
+          table->field[6]->store(key_part->field->field_name, 
                                  strlen(key_part->field->field_name), cs);
-          table->field[6]->store((longlong) f_idx);
+          table->field[7]->store((longlong) f_idx);
           table->file->write_row(table->record[0]);
         }
       }
@@ -2812,18 +2843,18 @@ static int get_schema_key_column_usage_record(THD *thd,
         table->field[1]->store(base_name, strlen(base_name), cs);
         table->field[2]->store(f_key_info->forein_id->str,
                                f_key_info->forein_id->length, cs);
-        table->field[3]->store(base_name, strlen(base_name), cs);
-        table->field[4]->store(file_name, strlen(file_name), cs);
-        table->field[5]->store(f_info->str, f_info->length, cs);
-        table->field[6]->store((longlong) f_idx);
-        table->field[7]->store(f_key_info->referenced_db->str,
+        table->field[4]->store(base_name, strlen(base_name), cs);
+        table->field[5]->store(file_name, strlen(file_name), cs);
+        table->field[6]->store(f_info->str, f_info->length, cs);
+        table->field[7]->store((longlong) f_idx);
+        table->field[8]->store(f_key_info->referenced_db->str,
                                f_key_info->referenced_db->length, cs);
-        table->field[7]->set_notnull();
-        table->field[8]->store(f_key_info->referenced_table->str,
-                               f_key_info->referenced_table->length, cs);
-        table->field[8]->set_notnull();
-        table->field[9]->store(r_info->str, r_info->length, cs);
         table->field[9]->set_notnull();
+        table->field[10]->store(f_key_info->referenced_table->str,
+                               f_key_info->referenced_table->length, cs);
+        table->field[9]->set_notnull();
+        table->field[10]->store(r_info->str, r_info->length, cs);
+        table->field[10]->set_notnull();
         table->file->write_row(table->record[0]);
       }
     }
@@ -3035,24 +3066,46 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 
 int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  ST_FIELD_INFO *field_info= &schema_table->fields_info[3];
-  int count= 2;
-  for ( ; field_info->field_name; field_info++)
+  int fields_arr[]= {3, 14, 13, 6, 15, 5, 16, 17, 18, -1};
+  int *field_num= fields_arr;
+  ST_FIELD_INFO *field_info;
+  for (; *field_num >= 0; field_num++)
   {
-    count++;
-    if (field_info->old_name)
+    field_info= &schema_table->fields_info[*field_num];
+    if (!thd->lex->verbose && (*field_num == 13 ||
+                               *field_num == 17 ||
+                               *field_num == 18))
+      continue;
+    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    if (field)
     {
-      if (!thd->lex->verbose && (count == 12 ||count == 17 || count == 18))
-	continue;
-      Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
-      if (field)
-      {
-        field->set_name(field_info->old_name,
-                        strlen(field_info->old_name),
-                        system_charset_info);
-        if (add_item_to_list(thd, field))
-          return 1;
-      }
+      field->set_name(field_info->old_name,
+                      strlen(field_info->old_name),
+                      system_charset_info);
+      if (add_item_to_list(thd, field))
+        return 1;
+    }
+  }
+  return 0;
+}
+
+
+int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+{
+  int fields_arr[]= {2, 3, 4, 19, 16, 15, 14, 18, -1};
+  int *field_num= fields_arr;
+  ST_FIELD_INFO *field_info;
+  for (; *field_num >= 0; field_num++)
+  {
+    field_info= &schema_table->fields_info[*field_num];
+    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    if (field)
+    {
+      field->set_name(field_info->old_name,
+                      strlen(field_info->old_name),
+                      system_charset_info);
+      if (add_item_to_list(thd, field))
+        return 1;
     }
   }
   return 0;
@@ -3197,6 +3250,7 @@ ST_FIELD_INFO schema_fields_info[]=
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
   {"DEFAULT_CHARACTER_SET_NAME", 60, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3210,7 +3264,7 @@ ST_FIELD_INFO tables_fields_info[]=
   {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Engine"},
   {"VERSION", 21 , MYSQL_TYPE_LONG, 0, 1, "Version"},
   {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format"},
-  {"ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
+  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
   {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Avg_row_length"},
   {"DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Data_length"},
   {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, "Max_data_length"},
@@ -3223,7 +3277,7 @@ ST_FIELD_INFO tables_fields_info[]=
   {"COLLATION", 60, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"CREATE_OPTIONS", 255, MYSQL_TYPE_STRING, 0, 1, "Create_options"},
-  {"COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"TABLE_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3235,20 +3289,20 @@ ST_FIELD_INFO columns_fields_info[]=
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Field"},
   {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
+  {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
   {"DATA_TYPE", 40, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
-  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
-  {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
+  {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
+  {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"CHARACTER_SET_NAME", 40, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"TYPE", 40, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"COLLATION_NAME", 40, MYSQL_TYPE_STRING, 0, 1, "Collation"},
-  {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
-  {"KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key"},
-  {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
+  {"COLUMN_TYPE", 40, MYSQL_TYPE_STRING, 0, 0, "Type"},
+  {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key"},
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
   {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges"},
-  {"COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"COLUMN_COMMENT", 255, MYSQL_TYPE_STRING, 0, 0, "Comment"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3256,9 +3310,9 @@ ST_FIELD_INFO columns_fields_info[]=
 ST_FIELD_INFO charsets_fields_info[]=
 {
   {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"Description", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
+  {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"DEFAULT_COLLATE_NAME", 60, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
-  {"Maxlen", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
+  {"MAXLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3266,11 +3320,11 @@ ST_FIELD_INFO charsets_fields_info[]=
 ST_FIELD_INFO collation_fields_info[]=
 {
   {"COLLATION_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Collation"},
-  {"Charset", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"Id", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
-  {"Default", 30 ,MYSQL_TYPE_STRING, 0, 0, "Default"},
-  {"Compiled", 30 ,MYSQL_TYPE_STRING, 0, 0, "Compiled"},
-  {"Sortlen", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
+  {"CHARSET", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
+  {"ID", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
+  {"DEFAULT", 30 ,MYSQL_TYPE_STRING, 0, 0, "Default"},
+  {"COMPILED", 30 ,MYSQL_TYPE_STRING, 0, 0, "Compiled"},
+  {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3290,19 +3344,21 @@ ST_FIELD_INFO proc_fields_info[]=
   {"ROUTINE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Db"},
   {"ROUTINE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Name"},
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
-  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_BODY", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARAMETER_STYLE", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"IS_DETERMINISTIC", 3, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_DATA_ACCESS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Modified"},
-  {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Created"},
   {"SECURITY_TYPE", 7, MYSQL_TYPE_STRING, 0, 0, "Security_type"},
+  {"CREATED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Created"},
+  {"LAST_ALTERED", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, "Modified"},
   {"SQL_MODE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ROUTINE_COMMENT", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Comment"},
+  {"DEFINER", 77, MYSQL_TYPE_STRING, 0, 0, "Definer"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3404,6 +3460,7 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"CONSTRAINT_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CONSTRAINT_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
@@ -3444,7 +3501,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
    create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1},
   {"ROUTINES", proc_fields_info, create_schema_table, 
-    fill_schema_proc, make_old_format, 0, -1, -1},
+    fill_schema_proc, make_proc_old_format, 0, -1, -1},
   {"STATISTICS", stat_fields_info, create_schema_table, 
     get_all_tables, make_old_format, get_schema_stat_record, 1, 2},
   {"VIEWS", view_fields_info, create_schema_table, 
@@ -3460,7 +3517,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_constarints_record, 3, 4},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_key_column_usage_record, 3, 4},
+    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
    get_all_tables, make_table_names_old_format, 0, 1, 2},
   {0, 0, 0, 0, 0, 0, 0, 0}
