@@ -21,6 +21,7 @@
 #include "sql_repl.h"
 #include "sql_acl.h"
 #include "log_event.h"
+#include <my_dir.h>
 
 extern const char* any_db;
 extern pthread_handler_decl(handle_slave,arg);
