@@ -551,7 +551,7 @@ innobase_init(void)
 
 	if (!innobase_data_file_path)
 	{
-	  fprinf(stderr,
+	  fprintf(stderr,
        "Cannot initialize InnoDB as 'innodb_data_file_path' is not set.\n"
        "If you do not want to use transactional InnoDB tables, add a line\n"
        "skip-innodb\n"
