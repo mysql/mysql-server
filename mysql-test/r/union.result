@@ -924,3 +924,15 @@ a
 1
 2
 2
+set sql_select_limit=1;
+select 1 union select 2;
+1
+1
+(select 1) union (select 2);
+1
+1
+(select 1) union (select 2) union (select 3) limit 2;
+1
+1
+2
+set sql_select_limit=default;
