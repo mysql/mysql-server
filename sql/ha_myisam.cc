@@ -689,7 +689,7 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 	  we don't want to update the key statistics based of only a few rows.
 	*/
 	if (file->state->records == 0 &&
-	    rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT)
+	    (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
 	  mi_disable_non_unique_index(file,rows);
         else
         {
