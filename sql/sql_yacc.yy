@@ -1796,6 +1796,7 @@ optimize:
 opt_no_write_to_binlog:
 	/* empty */        { $$= 0; }
 	| NO_WRITE_TO_BINLOG  { $$= 1; }
+	| LOCAL_SYM  { $$= 1; }
 	;
 
 rename:
