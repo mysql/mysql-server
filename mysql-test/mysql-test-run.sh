@@ -12,7 +12,7 @@
 DB=test
 DBPASSWD=
 VERBOSE=""
-NO_MANAGER=""
+USE_MANAGER=0
 TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
 #++
@@ -163,9 +163,8 @@ while test $# -gt 0; do
      --ssl-ca=$BASEDIR/SSL/cacert.pem \
      --ssl-cert=$BASEDIR/SSL/server-cert.pem \
      --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
-    --no-manager)
-     NO_MANAGER=1
-     ;;
+    --no-manager | --skip-manager) USE_MANAGER=0 ;;
+    --manager)                     USE_MANAGER=1 ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -538,11 +537,12 @@ abort_if_failed()
 
 start_manager()
 {
- if [ -n "$NO_MANAGER" ] ; then
+ if [ $USE_MANAGER = 0 ] ; then
   echo "Manager disabled, skipping manager start. Tests requiring manager will\
  be skipped"
   return
  fi
+ $ECHO "Starting MySQL Manager"
  MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
  -o $MYSQL_MANAGER_PW_FILE`
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
@@ -560,7 +560,7 @@ start_manager()
 
 stop_manager()
 {
- if [ -n "$NO_MANAGER" ] ; then
+ if [ $USE_MANAGER = 0 ] ; then
   return
  fi
  $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT -u$MYSQL_MANAGER_USER \
@@ -573,7 +573,7 @@ manager_launch()
 {
   ident=$1
   shift
-  if [ -n "$NO_MANAGER" ] ; then
+  if [ $USE_MANAGER = 0 ] ; then
    $@  >$CUR_MYERR 2>&1  &
    sleep 2 #hack 
    return
@@ -593,7 +593,7 @@ manager_term()
 {
   ident=$1
   shift
-  if [ -n "$NO_MANAGER" ] ; then
+  if [ $USE_MANAGER = 0 ] ; then
    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
    connect_timeout=5 shutdown >/dev/null 2>&1
    return
@@ -864,7 +864,7 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ -z "$NO_MANAGER" ] ; then
+ if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
  fi 
  
@@ -1040,7 +1040,6 @@ then
   $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
   $ECHO "Installing Test Databases"
   mysql_install_db
-  $ECHO "Starting MySQL Manager"
   start_manager
 #do not automagically start deamons if we are in gdb or running only one test
 #case
