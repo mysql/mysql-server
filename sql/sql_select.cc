@@ -70,8 +70,10 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc,
 			    SELECT_LEX_UNIT *unit);
-static COND *optimize_cond(COND *conds,Item::cond_result *cond_value);
-static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
+static COND *optimize_cond(THD *thd, COND *conds,
+			   Item::cond_result *cond_value);
+static COND *remove_eq_conds(THD *thd, COND *cond, 
+			     Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -286,6 +288,10 @@ JOIN::prepare(Item ***rref_pointer_array,
 {
   DBUG_ENTER("JOIN::prepare");
 
+  // to prevent double initialization on EXPLAIN
+  if (optimized)
+    DBUG_RETURN(0);
+
   conds= conds_init;
   order= order_init;
   group_list= group_init;
@@ -315,8 +321,9 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->where="having clause";
     thd->allow_sum_func=1;
     select_lex->having_fix_field= 1;
-    bool having_fix_rc= (having->fix_fields(thd, tables_list, &having) ||
-			 having->check_cols(1));
+    bool having_fix_rc= !having->fixed &&
+      (having->fix_fields(thd, tables_list, &having) ||
+       having->check_cols(1));
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
@@ -518,7 +525,7 @@ JOIN::optimize()
   }
 #endif
 
-  conds= optimize_cond(conds,&cond_value);
+  conds= optimize_cond(thd, conds,&cond_value);
   if (thd->net.report_error)
   {
     error= 1;
@@ -1421,9 +1428,14 @@ JOIN::exec()
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
 	else					// This should never happen
+	{
 	  if (!(curr_table->select->cond=
-		new Item_cond_and(curr_table->select->cond, sort_table_cond)))
+		new Item_cond_and(curr_table->select->cond,
+				  sort_table_cond)) ||
+	      curr_table->select->cond->fix_fields(thd, tables_list,
+						   &curr_table->select->cond))
 	    DBUG_VOID_RETURN;
+	}
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
@@ -4341,6 +4353,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 
   SYNPOSIS
     eliminate_not_funcs()
+    thd		thread handler
     cond	condition tree
 
   DESCRIPTION
@@ -4357,7 +4370,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
     New condition tree
 */
 
-COND *eliminate_not_funcs(COND *cond)
+COND *eliminate_not_funcs(THD *thd, COND *cond)
 {
   if (!cond)
     return cond;
@@ -4367,7 +4380,7 @@ COND *eliminate_not_funcs(COND *cond)
     Item *item;
     while ((item= li++))
     {
-      Item *new_item= eliminate_not_funcs(item);
+      Item *new_item= eliminate_not_funcs(thd, item);
       if (item != new_item)
 	VOID(li.replace(new_item));	/* replace item with a new condition */
     }
@@ -4375,14 +4388,13 @@ COND *eliminate_not_funcs(COND *cond)
   else if (cond->type() == Item::FUNC_ITEM &&	/* 'NOT' operation? */
 	   ((Item_func*) cond)->functype() == Item_func::NOT_FUNC)
   {
-    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer();
+    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer(thd);
     if (new_cond)
     {
       /*
         Here we can delete the NOT function. Something like: delete cond;
         But we don't need to do it. All items will be deleted later at once.
       */
-      new_cond->fix_fields(current_thd, 0, &new_cond);
       cond= new_cond;
     }
   }
@@ -4391,7 +4403,7 @@ COND *eliminate_not_funcs(COND *cond)
 
 
 static COND *
-optimize_cond(COND *conds,Item::cond_result *cond_value)
+optimize_cond(THD *thd, COND *conds, Item::cond_result *cond_value)
 {
   DBUG_ENTER("optimize_cond");
   if (!conds)
@@ -4401,7 +4413,7 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
   }
   DBUG_EXECUTE("where",print_where(conds,"original"););
   /* eliminate NOT operators */
-  conds= eliminate_not_funcs(conds);
+  conds= eliminate_not_funcs(thd, conds);
   DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
   /* change field = field to field = const for each found field = const */
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
@@ -4410,7 +4422,7 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
     Remove all and-levels where CONST item != CONST item
   */
   DBUG_EXECUTE("where",print_where(conds,"after const change"););
-  conds=remove_eq_conds(conds,cond_value) ;
+  conds= remove_eq_conds(thd, conds, cond_value) ;
   DBUG_EXECUTE("info",print_where(conds,"after remove"););
   DBUG_RETURN(conds);
 }
@@ -4425,7 +4437,7 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
 */
 
 static COND *
-remove_eq_conds(COND *cond,Item::cond_result *cond_value)
+remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -4439,7 +4451,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=remove_eq_conds(item,&tmp_cond_value);
+      Item *new_item=remove_eq_conds(thd, item, &tmp_cond_value);
       if (!new_item)
 	li.remove();
       else if (item != new_item)
@@ -4473,7 +4485,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       }
     }
     if (should_fix_fields)
-      cond->fix_fields(current_thd,0, &cond);
+      cond->update_used_tables();
 
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)
@@ -4500,7 +4512,6 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 
     Item_func_isnull *func=(Item_func_isnull*) cond;
     Item **args= func->arguments();
-    THD *thd=current_thd;
     if (args[0]->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) args[0])->field;
@@ -5005,7 +5016,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+	  ((Item_sum*) item)->args[i]= new Item_field(new_field, 1);
 	}
       }
     }
@@ -6761,7 +6772,7 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 
 
 static COND *
-make_cond_for_table(COND *cond,table_map tables,table_map used_table)
+make_cond_for_table(COND *cond, table_map tables, table_map used_table)
 {
   if (used_table && !(cond->used_tables() & used_table))
     return (COND*) 0;				// Already checked
@@ -6787,8 +6798,8 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
       case 1:
 	return new_cond->argument_list()->head();
       default:
-	new_cond->used_tables_cache=((Item_cond*) cond)->used_tables_cache &
-	  tables;
+	if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
+	  return (COND*) 0;
 	return new_cond;
       }
     }
@@ -6806,7 +6817,8 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      new_cond->used_tables_cache=((Item_cond_or*) cond)->used_tables_cache;
+      if (new_cond->fix_fields(current_thd, 0, (Item**)&new_cond))
+	return (COND*) 0;
       new_cond->top_level_item();
       return new_cond;
     }
@@ -7310,8 +7322,10 @@ static bool fix_having(JOIN *join, Item **having)
     if (!table->select->cond)
       table->select->cond=sort_table_cond;
     else					// This should never happen
-      if (!(table->select->cond=new Item_cond_and(table->select->cond,
-						  sort_table_cond)))
+      if (!(table->select->cond= new Item_cond_and(table->select->cond,
+						   sort_table_cond)) ||
+	  table->select->cond->fix_fields(join->thd, join->tanles_list,
+					  &table->select->cond))
 	return 1;
     table->select_cond=table->select->cond;
     table->select_cond->top_level_item();
@@ -7930,10 +7944,15 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   }
   order->in_field_list=0;
   Item *it= *order->item;
-  if (it->fix_fields(thd, tables, order->item) ||
-      //'it' ressigned because fix_field can change it
-      (it= *order->item)->check_cols(1) ||
-      thd->is_fatal_error)
+  /*
+    we check it->fixed because Item_func_group_concat can put
+    arguments for which fix_fields already was called
+  */
+  if (!it->fixed &&
+      (it->fix_fields(thd, tables, order->item) ||
+       //'it' ressigned because fix_field can change it
+       (it= *order->item)->check_cols(1) ||
+       thd->is_fatal_error))
     return 1;					// Wrong field 
   uint el= all_fields.elements;
   all_fields.push_front(it);		        // Add new field to field list
@@ -8584,7 +8603,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
 	  item_field= ((Item_sum*) item)->result_item(field);
 	else
-	  item_field= (Item*) new Item_field(field);
+	  item_field= (Item*) new Item_field(field, 1);
 	if (!item_field)
 	  return TRUE;				// Fatal error
 	item_field->name= item->name;		/*lint -e613 */
@@ -8759,7 +8778,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
 			      fieldnr-1];
     Item *value=join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field),value));
+    cond->add(new Item_func_equal(new Item_field(field, 1), value));
   }
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);

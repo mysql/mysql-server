@@ -151,7 +151,11 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 
 
   if (is_union)
-    res= mysql_union(thd, lex, derived_result, unit);
+  {
+    // execute union without clean up
+    if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK)))
+      res= unit->exec();
+  }
   else
   {
     unit->offset_limit_cnt= first_select->offset_limit;
