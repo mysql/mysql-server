@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WAIT_FOR_USER_TO_FIX_PANIC	60	/* in seconds */
 #define MY_WAIT_GIVE_USER_A_MESSAGE	10	/* Every 10 times of prev */
 #define MIN_COMPRESS_LENGTH		50	/* Don't compress small bl. */
+#define DFLT_INIT_HITS  3
 
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
@@ -510,13 +511,13 @@ typedef struct st_key_cache* KEY_CACHE_HANDLE;
 
 /* Key cache variable structure */
 /*
-   The structure contains the parameters of a key cache that can
-   be set and undated by regular set global statements.
-   It also contains read-only statistics parameters.
-   If the corresponding key cache data structure has been already
-   created the variable contains the key cache handle.
-   The variables are put into a named list called key_caches.
-   At present the variables are only added to this list.
+  The structure contains the parameters of a key cache that can
+  be set and undated by regular set global statements.
+  It also contains read-only statistics parameters.
+  If the corresponding key cache data structure has been already
+  created the variable contains the key cache handle.
+  The variables are put into a named list called key_caches.
+  At present the variables are only added to this list.
 */   
 typedef struct st_key_cache_var
 {
@@ -532,16 +533,16 @@ typedef struct st_key_cache_var
   ulong cache_r_requests;        /* number of read requests (read hits)      */
   ulong cache_read;              /* number of reads from files to the cache  */
   int blocks;                    /* max number of blocks in the cache        */
+  my_bool in_init;		 /* Set to 1 in MySQL during init/resize     */
   struct st_key_cache_asmt *assign_list; /* list of assignments to the cache */
   int assignments;               /* number of not completed assignments      */
   void (*action)(void *);        /* optional call back function              */
   void *extra_info;              /* ptr to extra info                        */
 } KEY_CACHE_VAR;
 
-#define DEFAULT_KEY_CACHE_NAME "default"
+
 extern KEY_CACHE_HANDLE *dflt_keycache;
 extern KEY_CACHE_VAR dflt_key_cache_var;
-#define DFLT_INIT_HITS  3
 
 #include <my_alloc.h>
 
@@ -701,7 +702,15 @@ extern int key_cache_write(KEY_CACHE_HANDLE keycache,
 			   uint block_length,int force_write);
 extern int flush_key_blocks(KEY_CACHE_HANDLE keycache,
                             int file, enum flush_type type);
-extern void end_key_cache(KEY_CACHE_HANDLE *pkeycache,my_bool cleanup);
+extern void end_key_cache(KEY_CACHE_HANDLE keycache, my_bool cleanup);
+extern my_bool multi_keycache_init(void);
+extern void multi_keycache_free(void);
+extern KEY_CACHE_HANDLE *multi_key_cache_search(byte *key, uint length);
+extern my_bool multi_key_cache_set(const byte *key, uint length,
+				   KEY_CACHE_HANDLE *key_cache);
+extern void multi_key_cache_change(KEY_CACHE_HANDLE *old_data,
+				   KEY_CACHE_HANDLE *new_data);
+
 extern sig_handler my_set_alarm_variable(int signo);
 extern void my_string_ptr_sort(void *base,uint items,size_s size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,

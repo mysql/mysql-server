@@ -30,11 +30,6 @@ class set_var;
 typedef struct system_variables SV;
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
-extern ulonglong dflt_key_buff_size;
-extern uint dflt_key_cache_block_size;
-extern uint dflt_key_cache_division_limit;
-extern uint dflt_key_cache_age_threshold;
-
 enum enum_var_type
 {
   OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
@@ -546,73 +541,40 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+
 class sys_var_key_cache_param :public sys_var
 {
 protected:
-  uint offset;
+  size_t offset;
 public:
-  sys_var_key_cache_param(const char *name_arg)
-    :sys_var(name_arg)
-  {
-    offset= 0;
-  }
+  sys_var_key_cache_param(const char *name_arg, size_t offset_arg)
+    :sys_var(name_arg), offset(offset_arg)
+  {}
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  bool check_default(enum_var_type type) { return 1; }
+  bool is_struct() { return 1; }
 };
+
 
 class sys_var_key_buffer_size :public sys_var_key_cache_param
 {
 public:
   sys_var_key_buffer_size(const char *name_arg)
-    :sys_var_key_cache_param(name_arg)
-  {
-    offset= offsetof(KEY_CACHE_VAR, buff_size);
-  }
+    :sys_var_key_cache_param(name_arg, offsetof(KEY_CACHE_VAR, buff_size))
+  {}
   bool update(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_LONGLONG; }
-  bool check_default(enum_var_type type) { return 1; }
-  bool is_struct() { return 1; }
 };
 
-class sys_var_key_cache_block_size :public sys_var_key_cache_param
-{
-public:
-  sys_var_key_cache_block_size(const char *name_arg)
-    :sys_var_key_cache_param(name_arg)
-  {
-    offset= offsetof(KEY_CACHE_VAR, block_size);
-  }
-  bool update(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_LONG; }
-  bool check_default(enum_var_type type) { return 1; }
-  bool is_struct() { return 1; }
-};
 
-class sys_var_key_cache_division_limit :public sys_var_key_cache_param
+class sys_var_key_cache_long :public sys_var_key_cache_param
 {
 public:
-  sys_var_key_cache_division_limit(const char *name_arg)
-    :sys_var_key_cache_param(name_arg)
-  {
-    offset= offsetof(KEY_CACHE_VAR, division_limit);
-  }
+  sys_var_key_cache_long(const char *name_arg, size_t offset_arg)
+    :sys_var_key_cache_param(name_arg, offset_arg)
+  {}
   bool update(THD *thd, set_var *var);
   SHOW_TYPE type() { return SHOW_LONG; }
-  bool check_default(enum_var_type type) { return 1; }
-  bool is_struct() { return 1; }
-};
-
-class sys_var_key_cache_age_threshold :public sys_var_key_cache_param
-{
-public:
-  sys_var_key_cache_age_threshold(const char *name_arg)
-    :sys_var_key_cache_param(name_arg)
-  {
-    offset= offsetof(KEY_CACHE_VAR, age_threshold);
-  }
-  bool update(THD *thd, set_var *var);
-  SHOW_TYPE type() { return SHOW_LONG; }
-  bool check_default(enum_var_type type) { return 1; }
-  bool is_struct() { return 1; }
 };
 
 
@@ -781,7 +743,7 @@ public:
 	     uint name_length_arg, gptr data_arg)
     :name_length(name_length_arg), data(data_arg)
   {
-    name= my_memdup((byte*) name_arg, name_length, MYF(MY_WME));
+    name= my_strdup_with_length((byte*) name_arg, name_length, MYF(MY_WME));
     links->push_back(this);
   }
   inline bool cmp(const char *name_cmp, uint length)
@@ -792,11 +754,16 @@ public:
   {
     my_free((char*) name, MYF(0));
   }
+  friend bool process_key_caches(int (* func) (const char *name,
+					       KEY_CACHE_VAR *));
+  friend void delete_elements(I_List<NAMED_LIST> *list,
+			      void (*free_element)(const char*, gptr));
 };
 
 /* updated in sql_acl.cc */
 
 extern sys_var_thd_bool sys_old_passwords;
+extern LEX_STRING default_key_cache_base;
 
 /* For sql_yacc */
 struct sys_var_with_base
@@ -819,9 +786,8 @@ extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 		NAMED_LIST **found);
-void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr));
 
 /* key_cache functions */
+KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name);
 KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length);
-void free_key_cache(gptr key_cache);
-bool process_key_caches(int (* func) (KEY_CACHE_VAR *));
+void free_key_cache(const char *name, KEY_CACHE_VAR *key_cache);

@@ -56,30 +56,6 @@ typedef struct st_filesort_info
 } FILESORT_INFO;
 
 
-/* Table key cache assignment descriptor */
-/*
-   In future the similar structure is to be used for
-   an assignment of an index to a key cache: the index name will be added.
-   The name of the database catalog will be added as well.
-   The descriptors for the current assignments are put in the
-   assignment cache: assign_cache. If a table is not found in the cache
-   it is considered assigned to the default key cache.
-*/
-typedef struct st_key_cache_asmt
-{
-  char *db_name;                        /* db the table belongs to            */ 
-  char *table_name;                     /* the name of the table              */
-  char *table_key;                      /* key for the assignment cache       */
-  uint key_length;	                /* the length of this key             */
-  struct st_key_cache_var *key_cache;   /* reference to the key cache         */
-  struct st_key_cache_asmt **prev;      /* links in the chain all assignments */ 
-  struct st_key_cache_asmt *next;       /* to this cache                      */
-  struct st_my_thread_var *queue;       /* queue of requests for assignment   */
-  uint requests;                        /* number of current requests         */
-  bool to_reassign;                     /* marked when reassigning all cache  */
-  bool triggered;                       /* marked when assignment is triggered*/
-} KEY_CACHE_ASMT;
-
 /* Table cache entry struct */
 
 class Field_timestamp;
@@ -87,13 +63,11 @@ class Field_blob;
 
 struct st_table {
   handler *file;
-  KEY_CACHE_VAR *key_cache;      /* Ref to the key cache the table assigned to*/
-  KEY_CACHE_ASMT *key_cache_asmt;/* Only when opened for key cache assignment */ 
-  Field **field;			/* Pointer to fields                  */
+  Field **field;			/* Pointer to fields */
   Field_blob **blob_field;		/* Pointer to blob fields */
   HASH	name_hash;			/* hash of field names */
   byte *record[2];			/* Pointer to records */
-  byte *default_values;          /* Record with default values for INSERT     */
+  byte *default_values;          	/* Default values for INSERT */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
   uint fields;				/* field count */
   uint reclength;			/* Recordlength */

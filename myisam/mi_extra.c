@@ -329,7 +329,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(*share->keycache,share->kfile,FLUSH_KEEP);
+      flush_key_blocks(*share->key_cache, share->kfile, FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
 #endif
@@ -361,9 +361,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_PRELOAD_BUFFER_SIZE:
     info->preload_buff_size= *((ulong *) extra_arg); 
-    break;
-  case HA_EXTRA_SET_KEY_CACHE:
-    share->reg_keycache= share->keycache= (KEY_CACHE_HANDLE *) extra_arg;
     break;
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:

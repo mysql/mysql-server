@@ -1134,7 +1134,8 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
     int4store(fileinfo+34,create_info->avg_row_length);
-    fileinfo[38]= create_info->table_charset?create_info->table_charset->number:0;
+    fileinfo[38]= (create_info->default_table_charset ?
+		   create_info->default_table_charset->number : 0);
     fileinfo[40]= (uchar) create_info->row_type;
     fileinfo[41]= (uchar) create_info->raid_type;
     fileinfo[42]= (uchar) create_info->raid_chunks;
@@ -1165,7 +1166,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->raid_type=table->raid_type;
   create_info->raid_chunks=table->raid_chunks;
   create_info->raid_chunksize=table->raid_chunksize;
-  create_info->table_charset=table->table_charset;
+  create_info->default_table_charset=table->table_charset;
+  create_info->table_charset= 0;
   DBUG_VOID_RETURN;
 }
 

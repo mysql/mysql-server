@@ -225,7 +225,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   if (flags & FT_EXPAND && ft_query_expansion_limit)
   {
     QUEUE best;
-    init_queue(&best,ft_query_expansion_limit,0,0, &FT_DOC_cmp, 0);
+    init_queue(&best,ft_query_expansion_limit,0,0, (queue_compare) &FT_DOC_cmp,
+	       0);
     tree_walk(&aio.dtree, (tree_walk_action) &walk_and_push,
               &best, left_root_right);
     while (best.elements)

@@ -1088,10 +1088,20 @@ mysql_refresh(MYSQL *mysql,uint options)
 int STDCALL
 mysql_kill(MYSQL *mysql,ulong pid)
 {
-  char buff[12];
+  char buff[4];
   DBUG_ENTER("mysql_kill");
   int4store(buff,pid);
-  DBUG_RETURN(simple_command(mysql,COM_PROCESS_KILL,buff,4,0));
+  DBUG_RETURN(simple_command(mysql,COM_PROCESS_KILL,buff,sizeof(buff),0));
+}
+
+
+int STDCALL
+mysql_set_server_option(MYSQL *mysql, enum enum_mysql_set_option option)
+{
+  char buff[2];
+  DBUG_ENTER("mysql_set_server_option");
+  int2store(buff, (uint) option);
+  DBUG_RETURN(simple_command(mysql, COM_SET_OPTION, buff, sizeof(buff), 0));
 }
 
 

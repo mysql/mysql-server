@@ -539,7 +539,7 @@ t1	CREATE TABLE `t1` (
   `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
   `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default '',
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select SUBSTR('abcdefg',3,2);
 SUBSTR('abcdefg',3,2)

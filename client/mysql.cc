@@ -2571,7 +2571,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
-			  connect_flag | CLIENT_MULTI_QUERIES))
+			  connect_flag | CLIENT_MULTI_STATEMENTS))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
