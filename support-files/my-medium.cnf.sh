@@ -36,13 +36,29 @@ set-variable	= myisam_sort_buffer_size=8M
 log-bin
 server-id	= 1
 
+# Point the following paths to different dedicated disks
+#tmpdir		= /tmp/		
+#log-update 	= /path-to-dedicated-directory/hostname
+
 # Uncomment the following if you are using BDB tables
 #set-variable	= bdb_cache_size=4M
 #set-variable	= bdb_max_lock=10000
 
-# Point the following paths to different dedicated disks
-#tmpdir		= /tmp/		
-#log-update 	= /path-to-dedicated-directory/hostname
+# Uncomment the following if you are using Innobase tables
+#innobase_data_home_dir = @datadir@
+#innobase_log_group_home_dir = @datadir@
+#innobase_log_arch_dir = @datadir@
+#innobase_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
+#set-variable = innobase_mirrored_log_groups=1
+#set-variable = innobase_log_files_in_group=3
+#set-variable = innobase_log_file_size=5M
+#set-variable = innobase_log_buffer_size=8M
+#innobase_flush_log_at_trx_commit=1
+#innobase_log_archive=0
+#set-variable = innobase_buffer_pool_size=16M
+#set-variable = innobase_additional_mem_pool_size=2M
+#set-variable = innobase_file_io_threads=4
+#set-variable = innobase_lock_wait_timeout=50
 
 [mysqldump]
 quick
