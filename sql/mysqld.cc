@@ -2544,6 +2544,36 @@ server.");
     }
   }
 
+  if (opt_innodb_safe_binlog)
+  {
+    if (innobase_flush_log_at_trx_commit != 1)
+    {
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+                      "innodb_flush_log_at_trx_commit is 1; now setting it "
+                      "to 1.");
+      innobase_flush_log_at_trx_commit= 1;
+    }
+    if (innobase_unix_file_flush_method)
+    {
+      /*
+        This option has so many values that it's hard to know which value is
+        good (especially "littlesync", and on Windows... see
+        srv/srv0start.c).
+      */
+      sql_print_error("Warning: --innodb-safe-binlog requires that "
+                      "the innodb_flush_method actually synchronizes the "
+                      "InnoDB log to disk; it is your responsibility "
+                      "to verify that the method you chose does it.");
+    }
+    if (sync_binlog_period != 1)
+    {
+      sql_print_error("Warning: --innodb-safe-binlog is meaningful only if "
+                      "the global sync_binlog variable is 1; now setting it "
+                      "to 1.");
+      sync_binlog_period= 1;
+    }
+  }
+
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -2558,8 +2588,10 @@ server.");
     crash recovery by InnoDB.
   */
   if (opt_innodb_safe_binlog)
+  {
     /* not fatal if fails (but print errors) */
     mysql_bin_log.cut_spurious_tail();
+  }
   mysql_bin_log.report_pos_in_innodb();
 
   /* call ha_init_key_cache() on all key caches to init them */
@@ -4612,7 +4644,7 @@ replicating a LOAD DATA INFILE command.",
   */
   {"innodb_safe_binlog", OPT_INNODB_SAFE_BINLOG,
    "After a crash recovery by InnoDB, truncate the binary log to the last \
-InnoDB committed transaction. Use only if this server updates only InnoDB \
+InnoDB committed transaction. Use only if this server updates ONLY InnoDB \
 tables.",
    (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},

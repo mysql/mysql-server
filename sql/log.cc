@@ -2059,7 +2059,7 @@ bool MYSQL_LOG::cut_spurious_tail()
   */
   char *name= ha_innobase::get_mysql_bin_log_name();
   ulonglong pos= ha_innobase::get_mysql_bin_log_pos();
-  if (name[0] == 0 || pos == (ulonglong)(-1))
+  if (name[0] == 0 || pos == ULONGLONG_MAX)
   {
     DBUG_PRINT("info", ("InnoDB has not set binlog info"));
     DBUG_RETURN(0);
