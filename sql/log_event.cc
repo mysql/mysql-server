@@ -1897,6 +1897,7 @@ transaction.");
 #endif
 
   memcpy(log_name, new_log_ident, ident_len+1);
+  rli->notify_group_master_log_name_update();
   rli->group_master_log_pos = pos;
   rli->event_relay_log_pos += get_event_len();
   rli->group_relay_log_pos = rli->event_relay_log_pos;

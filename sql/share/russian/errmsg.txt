@@ -279,3 +279,6 @@
 "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started."
 "Сервер запущен в режиме --secure-auth (безопасной авторизации), но для пользователя '%s@%s' пароль сохранён в старом формате; необходимо обновить формат пароля"
 "Поле или ссылка '%-.64s%s%-.64s%s%-.64s' из SELECTа #%d была найдена в SELECTе #%d",
+"Wrong parameter or combination of parameters for START SLAVE UNTIL"
+"It is recommended to run with --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL, otherwise you are not safe in case of unexpected slave's mysqld restart"
+"SQL thread is not to be started so UNTIL options are ignored"

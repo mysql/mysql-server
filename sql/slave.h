@@ -233,9 +233,55 @@ typedef struct st_relay_log_info
   bool inited;
   volatile bool abort_slave, slave_running;
 
+  /* 
+     Condition and its parameters from START SLAVE UNTIL clause.
+     
+     UNTIL condition is tested with is_until_satisfied() method that is 
+     called by exec_relay_log_event(). is_until_satisfied() caches the result
+     of the comparison of log names because log names don't change very often;
+     this cache is invalidated by parts of code which change log names with
+     notify_*_log_name_updated() methods. (They need to be called only if SQL
+     thread is running).
+   */
+  
+  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS} until_condition;
+  char until_log_name[FN_REFLEN];
+  ulonglong until_log_pos;
+  /* extension extracted from log_name and converted to int */
+  ulong until_log_name_extension;   
+  /* 
+     Cached result of comparison of until_log_name and current log name
+     -2 means unitialised, -1,0,1 are comarison results 
+  */
+  enum 
+  { 
+    UNTIL_LOG_NAMES_CMP_UNKNOWN= -2, UNTIL_LOG_NAMES_CMP_LESS= -1,
+    UNTIL_LOG_NAMES_CMP_EQUAL= 0, UNTIL_LOG_NAMES_CMP_GREATER= 1
+  } until_log_names_cmp_result;
+  
   st_relay_log_info();
   ~st_relay_log_info();
 
+  /*
+    Invalidate cached until_log_name and group_relay_log_name comparison 
+    result. Should be called after any update of group_realy_log_name if
+    there chances that sql_thread is running.
+  */
+  inline void notify_group_relay_log_name_update()
+  {
+    if (until_condition==UNTIL_RELAY_POS)
+      until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
+  }
+
+  /*
+    The same as previous but for group_master_log_name. 
+  */
+  inline void notify_group_master_log_name_update()
+  {
+    if (until_condition==UNTIL_MASTER_POS)
+      until_log_names_cmp_result= UNTIL_LOG_NAMES_CMP_UNKNOWN;
+  }
+  
   inline void inc_event_relay_log_pos(ulonglong val)
   {
     event_relay_log_pos+= val;
@@ -249,6 +295,9 @@ typedef struct st_relay_log_info
     group_relay_log_pos= event_relay_log_pos;
     strmake(group_relay_log_name,event_relay_log_name,
             sizeof(group_relay_log_name)-1);
+
+    notify_group_relay_log_name_update();
+        
     /*
       If the slave does not support transactions and replicates a transaction,
       users should not trust group_master_log_pos (which they can display with
@@ -268,6 +317,10 @@ typedef struct st_relay_log_info
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
+
+  /* Check if UNTIL condition is satisfied. See slave.cc for more. */
+  bool is_until_satisfied();
+  
 } RELAY_LOG_INFO;
 
 
@@ -457,6 +510,7 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
+void clear_until_condition(RELAY_LOG_INFO* rli);
 void clear_last_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
