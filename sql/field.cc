@@ -5081,7 +5081,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     wkb_type= uint4korr(from + WKB_HEADER_SIZE);
     if (wkb_type < (uint32) Geometry::wkb_point ||
 	wkb_type > (uint32) Geometry::wkb_end)
-      return 1;
+      return -1;
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -5094,7 +5094,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 
 err:
   bzero(ptr, Field_blob::pack_length());  
-  return 1;
+  return -1;
 }
 
 #endif /*HAVE_SPATIAL*/
