@@ -250,8 +250,11 @@ row_undo_ins_parse_undo_rec(
 	ut_ad(type == TRX_UNDO_INSERT_REC);
 	node->rec_type = type;
 
-	/* NOTE that the table has to be explicitly released later */
 	node->table = dict_table_get_on_id(table_id, node->trx);
+
+	if (node->table == NULL) {
+	  return;
+	}
 
 	clust_index = dict_table_get_first_index(node->table);
 	
@@ -280,7 +283,11 @@ row_undo_ins(
 
 	row_undo_ins_parse_undo_rec(node, thr);
 
-	found = row_undo_search_clust_to_pcur(node, thr);
+	if (node->table == NULL) {
+	  found = FALSE;
+	} else {
+	  found = row_undo_search_clust_to_pcur(node, thr);
+	}
 
 	if (!found) {
 		return(DB_SUCCESS);

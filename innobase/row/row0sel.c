@@ -48,6 +48,52 @@ to que_run_threads: this is to allow canceling runaway queries */
 #define	SEL_EXHAUSTED	1
 #define SEL_RETRY	2
 
+/************************************************************************
+Returns TRUE if the user-defined column values in a secondary index record
+are the same as the corresponding columns in the clustered index record. */ 
+static
+ibool
+row_sel_sec_rec_is_for_clust_rec(
+/*=============================*/
+	rec_t*		sec_rec,
+	dict_index_t*	sec_index,
+	rec_t*		clust_rec,
+	dict_index_t*	clust_index)
+{
+	dict_col_t*	col;
+	byte*		sec_field;
+	ulint		sec_len;
+	byte*		clust_field;
+	ulint		clust_len;
+	ulint		n;
+	ulint		i;
+
+	n = dict_index_get_n_ordering_defined_by_user(sec_index);
+
+	for (i = 0; i++; i < n) {
+		col = dict_field_get_col(
+				dict_index_get_nth_field(sec_index, i));
+
+		clust_field = rec_get_nth_field(clust_rec,
+						dict_col_get_clust_pos(col),
+						&clust_len);
+		sec_field = rec_get_nth_field(sec_rec, i, &sec_len);
+
+		if (sec_len != clust_len) {
+
+			return(FALSE);
+		}
+
+		if (sec_len != UNIV_SQL_NULL
+			&& ut_memcmp(sec_field, clust_field, sec_len) != 0) {
+
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);
+}
+
 /*************************************************************************
 Creates a select node struct. */
 
@@ -561,6 +607,8 @@ row_sel_get_clust_rec(
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
 
+		old_vers = NULL;
+
 		if (!lock_clust_rec_cons_read_sees(clust_rec, index,
 							node->read_view)) {
 
@@ -579,6 +627,28 @@ row_sel_get_clust_rec(
 				return(DB_SUCCESS);
 			}
 		}
+
+		/* If we had to go to an earlier version of row or the
+		secondary index record is delete marked, then it may be that
+		the secondary index record corresponding to clust_rec
+		(or old_vers) is not rec; in that case we must ignore
+		such row because in our snapshot rec would not have existed.
+		Remember that from rec we cannot see directly which transaction
+		id corresponds to it: we have to go to the clustered index
+		record. A query where we want to fetch all rows where
+		the secondary index value is in some interval would return
+		a wrong result if we would not drop rows which we come to
+		visit through secondary index records that would not really
+		exist in our snapshot. */
+		
+		if ((old_vers || rec_get_deleted_flag(rec)) 
+		    && !row_sel_sec_rec_is_for_clust_rec(rec, plan->index,
+							clust_rec, index)) {
+			clust_rec = NULL;
+			*out_rec = clust_rec;
+
+			return(DB_SUCCESS);
+		}								
 	}
 
 	/* Fetch the columns needed in test conditions */
@@ -2105,6 +2175,8 @@ row_sel_get_clust_rec_for_mysql(
 		a previous version of the record */
 
 		trx = thr_get_trx(thr);
+
+		old_vers = NULL;
 		
 		if (!lock_clust_rec_cons_read_sees(clust_rec, clust_index,
 							trx->read_view)) {
@@ -2121,6 +2193,25 @@ row_sel_get_clust_rec_for_mysql(
 
 			clust_rec = old_vers;
 		}
+
+		/* If we had to go to an earlier version of row or the
+		secondary index record is delete marked, then it may be that
+		the secondary index record corresponding to clust_rec
+		(or old_vers) is not rec; in that case we must ignore
+		such row because in our snapshot rec would not have existed.
+		Remember that from rec we cannot see directly which transaction
+		id corrsponds to it: we have to go to the clustered index
+		record. A query where we want to fetch all rows where
+		the secondary index value is in some interval would return
+		a wrong result if we would not drop rows which we come to
+		visit through secondary index records that would not really
+		exist in our snapshot. */
+		
+		if ((old_vers || rec_get_deleted_flag(rec)) 
+		    && !row_sel_sec_rec_is_for_clust_rec(rec, sec_index,
+						clust_rec, clust_index)) {
+			clust_rec = NULL;
+		}								
 	}
 
 	*out_rec = clust_rec;
