@@ -18925,7 +18925,7 @@ ANALYZE TABLE tbl_name[,tbl_name...]
 @end example
 
 Analyse and store the key distribution for the table.  During the
-analyse the table is locked with a read lock.  This works on
+analysis, the table is locked with a read lock.  This works on
 @code{MyISAM} and @code{BDB} tables.
 
 This is equivalent to running @code{myisamchk -a} on the table.
@@ -18961,7 +18961,7 @@ the table will not be analysed again.
 @cindex caches, clearing
 
 @example
-FLUSH flush_option [,flush_option]
+FLUSH flush_option [,flush_option] ...
 @end example
 
 You should use the @code{FLUSH} command if you want to clear some of the
@@ -18983,7 +18983,8 @@ Flushing the host tables allows the host to attempt to connect
 again. @xref{Blocked host}. You can start @code{mysqld} with
 @code{-O max_connection_errors=999999999} to avoid this error message.
 
-@item @code{DES_KEY_FILE} @tab Reloads the des keys from the file specified with @code{--des-key-file}.
+@item @code{DES_KEY_FILE} @tab Reloads the DES keys from the file that was
+specified with the @code{--des-key-file} option at server startup time.
 
 @item @code{LOGS} @tab Closes and reopens all log files.
 If you have specified the update log file or a binary log file without
@@ -18996,11 +18997,13 @@ signal to the @code{mysqld} server.
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
 
-@item @code{QUERY CACHE} @tab Defragment the query cache to better utilise its memory.  This command will not remove any queries from the cache.
+@item @code{QUERY CACHE} @tab Defragment the query cache to better utilise its
+memory.  This command will not remove any queries from the cache, unlike
+@code{RESET QUERY CACHE}.
 
 @item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed. This also flushes the query cache.
 
-@item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flushes only the given tables.
+@item @code{[TABLE | TABLES] tbl_name [,tbl_name...]} @tab Flushes only the given tables.
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
@@ -19012,32 +19015,31 @@ utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload},
 or @code{flush-tables} commands.
 
 Take also a look at the @code{RESET} command used with replication.
-@xref{RESET}.
+@xref{RESET, , @code{RESET}}.
 
 @node RESET, KILL, FLUSH, Database Administration
 @subsection @code{RESET} Syntax
 
 @example
-FLUSH flush_option [,flush_option]
+RESET reset_option [,reset_option] ...
 @end example
 
 The @code{RESET} command is used to clear things. It also acts as an stronger
-version of the @code{FLUSH} command.  @xref{FLUSH}.
+version of the @code{FLUSH} command.  @xref{FLUSH, , @code{FLUSH}}.
+
+To execute @code{RESET}, you must have the @strong{reload} privilege.
 
 @multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
 
-@item @code{MASTER}
-@tab Deletes all binary logs listed in the index file, resetting the binlog
+@item @code{MASTER} @tab Deletes all binary logs listed in the index file, resetting the binlog
 index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
 
-@item @code{SLAVE}
-@tab Makes the slave forget its replication position in the master
+@item @code{SLAVE} @tab Makes the slave forget its replication position in the master
 logs. In pre 3.23.26 versions the command was called
 @code{FLUSH SLAVE}(Slave)
 
-@item @code{QUERY CACHE}
-@tab Removes all query results from the query cache.
+@item @code{QUERY CACHE} @tab Removes all query results from the query cache.
 @end multitable
 
 @node KILL, SHOW, RESET, Database Administration
@@ -35543,7 +35545,7 @@ column, the numbers will start from 1 again.
 @findex RENAME TABLE
 
 @example
-RENAME TABLE tbl_name TO new_table_name[, tbl_name2 TO new_table_name2,...]
+RENAME TABLE tbl_name TO new_tbl_name[, tbl_name2 TO new_tbl_name2,...]
 @end example
 
 The rename is done atomically, which means that no other thread can
@@ -35568,15 +35570,15 @@ As long as two databases are on the same disk you can also rename
 from one database to another:
 
 @example
-RENAME TABLE current_database.table_name TO other_database.table_name;
+RENAME TABLE current_db.tbl_name TO other_db.tbl_name;
 @end example
 
 When you execute @code{RENAME}, you can't have any locked tables or
-active transactions.  You must also have the @code{ALTER} and @code{DROP}
-privilege on the original table and @code{CREATE} and @code{INSERT}
-privilege on the new table.
+active transactions.  You must also have the @strong{alter} and @strong{drop}
+privileges on the original table, and the @strong{create} and @strong{insert}
+privileges on the new table.
 
-If MySQL encounters any errors in a multiple table rename, it
+If MySQL encounters any errors in a multiple-table rename, it
 will do a reverse rename for all renamed tables to get everything back
 to the original state.
 
@@ -35966,11 +35968,12 @@ tables.
 @node SET TRANSACTION,  , LOCK TABLES, Transactional Commands
 @subsection @code{SET TRANSACTION} Syntax
 
+@findex SET TRANSACTION
 @findex ISOLATION LEVEL
 
 @example
 SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
-[READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE]
+[READ UNCOMMITTED  READ COMMITTED | REPEATABLE READ | SERIALIZABLE]
 @end example
 
 Sets the transaction isolation level for the global, whole session or
@@ -39572,9 +39575,9 @@ MyISAM tables.
 The optimiser needs to know an approximation of the number of rows in
 the table.  MySQL solves this by counting inserts and
 maintaining this in a separate segment in each BDB table.  If you don't
-do a lot of @code{DELETE} or @code{ROLLBACK}:s this number should be
-accurate enough for the MySQL optimiser, but as MySQL
-only store the number on close, it may be wrong if MySQL dies
+issue a lot of @code{DELETE} or @code{ROLLBACK} statements, this number
+should be accurate enough for the MySQL optimiser, but as MySQL
+only stores the number on close, it may be incorrect if MySQL dies
 unexpectedly. It should not be fatal even if this number is not 100 %
 correct.  One can update the number of rows by executing @code{ANALYZE
 TABLE} or @code{OPTIMIZE TABLE}. @xref{ANALYZE TABLE} . @xref{OPTIMIZE
@@ -51067,7 +51070,7 @@ against a number.
 Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added
 @code{-C, --check-only-changed} option to @code{myisamchk}.
 @item
-Added @code{ANALYZE table_name} to update key statistics for tables.
+Added @code{ANALYZE tbl_name} to update key statistics for tables.
 @item
 Changed binary items @code{0x...} to be regarded as integers by default.
 @item
