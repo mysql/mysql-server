@@ -52,6 +52,7 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
+#include <m_string.h>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG

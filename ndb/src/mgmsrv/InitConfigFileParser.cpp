@@ -21,6 +21,7 @@
 #include "MgmtErrorReporter.hpp"
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
+#include <m_string.h>
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);

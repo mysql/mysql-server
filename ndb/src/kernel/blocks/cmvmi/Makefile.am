@@ -21,4 +21,4 @@ libcmvmi.dsp: Makefile \
 	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LIBRARIES)
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/ndb/config/win-sources $@ $(libcmvmi_a_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LIB $(LDADD)

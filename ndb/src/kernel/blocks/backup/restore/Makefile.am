@@ -18,13 +18,13 @@ ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@
 windoze-dsp: ndb_restore.dsp
 
 ndb_restore.dsp: Makefile \
-               $(top_srcdir)/ndb/config/win-lib.am \
+               $(top_srcdir)/ndb/config/win-prg.am \
                $(top_srcdir)/ndb/config/win-name \
                $(top_srcdir)/ndb/config/win-includes \
                $(top_srcdir)/ndb/config/win-sources \
                $(top_srcdir)/ndb/config/win-libraries
-	cat $(top_srcdir)/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ $(ndbtools_PROGRAMS)
 	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_restore_SOURCES)
-	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
