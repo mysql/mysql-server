@@ -29,8 +29,8 @@ skip-locking
 set-variable	= key_buffer=256M
 set-variable	= max_allowed_packet=1M
 set-variable	= table_cache=256
-set-variable	= sort_buffer=1M
-set-variable	= record_buffer=1M
+set-variable	= sort_buffer_size=1M
+set-variable	= read_buffer_size=1M
 set-variable	= myisam_sort_buffer_size=64M
 set-variable	= thread_cache=8
 # Try number of CPU's*2 for thread_concurrency
@@ -53,7 +53,36 @@ log-bin
 # but will not function as a master if omitted
 server-id	= 1
 
-# Replication Slave Server (comment out master section to use this)
+# Replication Slave (comment out master section to use this)
+#
+# To configure this host as a replication slave, you can choose between
+# two methods :
+#
+# 1) Use the CHANGE MASTER TO command (fully described in our manual) -
+#    the syntax is:
+#
+#    CHANGE MASTER TO MASTER_HOST=<host>, MASTER_PORT=<port>,
+#    MASTER_USER=<user>, MASTER_PASSWORD=<password> ;
+#
+#    where you replace <host>, <user>, <password> by quoted strings and
+#    <port> by the master's port number (3306 by default).
+#
+#    Example:
+#
+#    CHANGE MASTER TO MASTER_HOST='125.564.12.1', MASTER_PORT=3306,
+#    MASTER_USER='joe', MASTER_PASSWORD='secret';
+#
+# OR
+#
+# 2) Set the variables below. However, in case you choose this method, then
+#    start replication for the first time (even unsuccessfully, for example
+#    if you mistyped the password in master-password and the slave fails to
+#    connect), the slave will create a master.info file, and any later
+#    change in this file to the variables' values below will be ignored and
+#    overridden by the content of the master.info file, unless you shutdown
+#    the slave server, delete master.info and restart the slaver server.
+#    For that reason, you may want to leave the lines below untouched
+#    (commented) and instead use CHANGE MASTER TO (see above)
 #
 # required unique id between 2 and 2^32 - 1
 # (and different from the master)
@@ -113,13 +142,13 @@ no-auto-rehash
 
 [isamchk]
 set-variable	= key_buffer=128M
-set-variable	= sort_buffer=128M
+set-variable	= sort_buffer_size=128M
 set-variable	= read_buffer=2M
 set-variable	= write_buffer=2M
 
 [myisamchk]
 set-variable	= key_buffer=128M
-set-variable	= sort_buffer=128M
+set-variable	= sort_buffer_size=128M
 set-variable	= read_buffer=2M
 set-variable	= write_buffer=2M
 

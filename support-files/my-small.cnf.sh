@@ -29,10 +29,18 @@ socket		= @MYSQL_UNIX_ADDR@
 skip-locking
 set-variable	= key_buffer=16K
 set-variable	= max_allowed_packet=1M
-set-variable	= thread_stack=64K
 set-variable	= table_cache=4
-set-variable	= sort_buffer=64K
+set-variable	= sort_buffer_size=64K
 set-variable	= net_buffer_length=2K
+set-variable	= thread_stack=64K
+
+# Don't listen on a TCP/IP port at all. This can be a security enhancement,
+# if all processes that need to connect to mysqld run on the same host.
+# All interaction with mysqld must be made via Unix sockets or named pipes.
+# Note that using this option without enabling named pipes on Windows
+# (via the "pipe" option) will render mysqld useless!
+# 
+#skip-networking
 server-id	= 1
 
 # Uncomment the following if you want to log updates
@@ -67,11 +75,11 @@ no-auto-rehash
 
 [isamchk]
 set-variable	= key_buffer=8M
-set-variable	= sort_buffer=8M
+set-variable	= sort_buffer_size=8M
 
 [myisamchk]
 set-variable	= key_buffer=8M
-set-variable	= sort_buffer=8M
+set-variable	= sort_buffer_size=8M
 
 [mysqlhotcopy]
 interactive-timeout
