@@ -94,7 +94,7 @@
 #define CFG_LOGLEVEL_INFO         256
 #define CFG_LOGLEVEL_WARNING      257
 #define CFG_LOGLEVEL_ERROR        258
-#define CFG_LOGLEVEL_GREP         259
+#define CFG_LOGLEVEL_CONGESTION   259
 #define CFG_LOGLEVEL_DEBUG        260
 #define CFG_LOGLEVEL_BACKUP       261
 #define CFG_MAX_LOGLEVEL          261

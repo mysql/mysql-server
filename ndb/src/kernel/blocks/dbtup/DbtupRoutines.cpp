@@ -363,25 +363,25 @@ Dbtup::readFixedSizeTHManyWordNotNULL(Uint32* outBuffer,
     ljam();
     Tablerec* regTabPtr = tabptr.p;
     Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
+    uchar* dstPtr = (uchar*)&outBuffer[indexBuf];
+    const uchar* srcPtr = (uchar*)&tTupleHeader[readOffset];
     Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
     ndbrequire(i < regTabPtr->noOfCharsets);
     CHARSET_INFO* cs = regTabPtr->charsetArray[i];
-    Uint32 xmul = cs->strxfrm_multiply;
-    if (xmul == 0)
-      xmul = 1;
-    Uint32 dstLen = xmul * srcBytes;
-    Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
-    if (maxIndexBuf <= maxRead) {
-      ljam();
-      uchar* dstPtr = (uchar*)&outBuffer[indexBuf];
-      const uchar* srcPtr = (uchar*)&tTupleHeader[readOffset];
-      const char* ssrcPtr = (const char*)srcPtr;
-      // could verify data format optionally
-      if (true ||
-          (*cs->cset->well_formed_len)(cs, ssrcPtr, ssrcPtr + srcBytes, ZNIL) == srcBytes) {
+    Uint32 typeId = AttributeDescriptor::getType(attrDescriptor);
+    Uint32 lb, len;
+    bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+    if (ok) {
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+        xmul = 1;
+      // see comment in DbtcMain.cpp
+      Uint32 dstLen = xmul * (srcBytes - lb);
+      Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
+      if (maxIndexBuf <= maxRead) {
         ljam();
-        // normalize
-        Uint32 n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+        int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+        ndbrequire(n != -1);
         while ((n & 3) != 0) {
           dstPtr[n++] = 0;
         }
@@ -393,11 +393,11 @@ Dbtup::readFixedSizeTHManyWordNotNULL(Uint32* outBuffer,
         return true;
       } else {
         ljam();
-        terrorCode = ZTUPLE_CORRUPTED_ERROR;
+        terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
       }
     } else {
       ljam();
-      terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+      terrorCode = ZTUPLE_CORRUPTED_ERROR;
     }
   }
   return false;
@@ -814,10 +814,15 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
         // not const in MySQL
         CHARSET_INFO* cs = regTabPtr->charsetArray[i];
         const char* ssrc = (const char*)&inBuffer[tInBufIndex + 1];
+        Uint32 lb, len;
+        if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len)) {
+          ljam();
+          terrorCode = ZINVALID_CHAR_FORMAT;
+          return false;
+        }
 	// fast fix bug#7340
         if (typeId != NDB_TYPE_TEXT &&
-	    (*cs->cset->well_formed_len)(cs, ssrc, ssrc+bytes, ZNIL) != bytes)
-	{
+	    (*cs->cset->well_formed_len)(cs, ssrc + lb, ssrc + lb + len, ZNIL) != len) {
           ljam();
           terrorCode = ZINVALID_CHAR_FORMAT;
           return false;

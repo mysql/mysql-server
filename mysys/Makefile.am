@@ -66,6 +66,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
+			-DDEFAULT_HOME_ENV=MYSQL_HOME \
                         @DEFS@
 
 libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@

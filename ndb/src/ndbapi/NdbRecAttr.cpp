@@ -224,9 +224,11 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 	j = r.arraySize();
 	break;
       case NdbDictionary::Column::Varchar:
-	ndbrecattr_print_string(out,"Varchar", r.aRef()+ 2,
-				ntohs(r.u_short_value()));
-	j = r.arraySize();
+        {
+          unsigned len = *(const unsigned char*)r.aRef();
+          ndbrecattr_print_string(out,"Varchar", r.aRef()+1,len);
+          j = r.arraySize();
+        }
 	break;
       case NdbDictionary::Column::Float:
 	out << r.float_value();
@@ -253,6 +255,13 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           unsigned n = r.arraySize() - sizeof(*h);
           for (unsigned k = 0; k < n && k < h->length; k++)
             out.print("%c", (int)p[k]);
+          j = r.arraySize();
+        }
+        break;
+      case NdbDictionary::Column::Longvarchar:
+        {
+          unsigned len = uint2korr(r.aRef());
+          ndbrecattr_print_string(out,"Longvarchar", r.aRef()+2,len);
           j = r.arraySize();
         }
         break;

@@ -585,6 +585,13 @@ NdbDictionary::Event::Event(const char * name)
   setName(name);
 }
 
+NdbDictionary::Event::Event(const char * name, const Table& table)
+  : m_impl(* new NdbEventImpl(* this))
+{
+  setName(name);
+  setTable(table);
+}
+
 NdbDictionary::Event::Event(NdbEventImpl & impl)
   : m_impl(impl) 
 {
@@ -604,10 +611,28 @@ NdbDictionary::Event::setName(const char * name)
   m_impl.setName(name);
 }
 
+const char *
+NdbDictionary::Event::getName() const
+{
+  return m_impl.getName();
+}
+
+void 
+NdbDictionary::Event::setTable(const Table& table)
+{
+  m_impl.setTable(table);
+}
+
 void 
 NdbDictionary::Event::setTable(const char * table)
 {
   m_impl.setTable(table);
+}
+
+const char*
+NdbDictionary::Event::getTableName() const
+{
+  return m_impl.getTableName();
 }
 
 void
@@ -617,9 +642,15 @@ NdbDictionary::Event::addTableEvent(const TableEvent t)
 }
 
 void
-NdbDictionary::Event::setDurability(const EventDurability d)
+NdbDictionary::Event::setDurability(EventDurability d)
 {
   m_impl.setDurability(d);
+}
+
+NdbDictionary::Event::EventDurability
+NdbDictionary::Event::getDurability() const
+{
+  return m_impl.getDurability();
 }
 
 void
@@ -647,6 +678,11 @@ NdbDictionary::Event::addEventColumns(int n, const char ** names)
 {
   for (int i = 0; i < n; i++)
     addEventColumn(names[i]);
+}
+
+int NdbDictionary::Event::getNoOfEventColumns() const
+{
+  return m_impl.getNoOfEventColumns();
 }
 
 NdbDictionary::Object::Status
@@ -920,8 +956,8 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Datetime:
     out << "Datetime";
     break;
-  case NdbDictionary::Column::Timespec:
-    out << "Timespec";
+  case NdbDictionary::Column::Date:
+    out << "Date";
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
@@ -931,11 +967,20 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
         << ";" << col.getStripeSize() << ";" << csname << ")";
     break;
+  case NdbDictionary::Column::Time:
+    out << "Time";
+    break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
     break;
   case NdbDictionary::Column::Bit:
     out << "Bit(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Longvarchar:
+    out << "Longvarchar(" << col.getLength() << ";" << csname << ")";
+    break;
+  case NdbDictionary::Column::Longvarbinary:
+    out << "Longvarbinary(" << col.getLength() << ")";
     break;
   default:
     out << "Type" << (Uint32)col.getType();

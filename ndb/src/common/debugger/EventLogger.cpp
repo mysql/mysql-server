@@ -41,79 +41,75 @@ EventLoggerBase::~EventLoggerBase()
  */
 const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   // CONNECTION
-  { EventReport::Connected,           LogLevel::llConnection, 8, Logger::LL_INFO },
-  { EventReport::Disconnected,        LogLevel::llConnection, 8, Logger::LL_ALERT },
-  { EventReport::CommunicationClosed, LogLevel::llConnection, 8, Logger::LL_INFO },
-  { EventReport::CommunicationOpened, LogLevel::llConnection, 8, Logger::LL_INFO },
-  { EventReport::ConnectedApiVersion, LogLevel::llConnection, 8, Logger::LL_INFO },
+  { NDB_LE_Connected,           LogLevel::llConnection, 8, Logger::LL_INFO },
+  { NDB_LE_Disconnected,        LogLevel::llConnection, 8, Logger::LL_ALERT },
+  { NDB_LE_CommunicationClosed, LogLevel::llConnection, 8, Logger::LL_INFO },
+  { NDB_LE_CommunicationOpened, LogLevel::llConnection, 8, Logger::LL_INFO },
+  { NDB_LE_ConnectedApiVersion, LogLevel::llConnection, 8, Logger::LL_INFO },
   // CHECKPOINT
-  { EventReport::GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO },
-  { EventReport::GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO },
-  { EventReport::LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO },
-  { EventReport::LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO },
-  { EventReport::LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT },
-  { EventReport::LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO },
-  { EventReport::UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO },
+  { NDB_LE_GlobalCheckpointStarted, LogLevel::llCheckpoint,  9, Logger::LL_INFO },
+  { NDB_LE_GlobalCheckpointCompleted,LogLevel::llCheckpoint,10, Logger::LL_INFO },
+  { NDB_LE_LocalCheckpointStarted,  LogLevel::llCheckpoint,  7, Logger::LL_INFO },
+  { NDB_LE_LocalCheckpointCompleted,LogLevel::llCheckpoint,  8, Logger::LL_INFO },
+  { NDB_LE_LCPStoppedInCalcKeepGci, LogLevel::llCheckpoint,  0, Logger::LL_ALERT },
+  { NDB_LE_LCPFragmentCompleted,    LogLevel::llCheckpoint, 11, Logger::LL_INFO },
+  { NDB_LE_UndoLogBlocked,          LogLevel::llCheckpoint,  7, Logger::LL_INFO },
 
   // STARTUP
-  { EventReport::NDBStartStarted,          LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { EventReport::NDBStartCompleted,        LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { EventReport::STTORRYRecieved,          LogLevel::llStartUp,15, Logger::LL_INFO },
-  { EventReport::StartPhaseCompleted,      LogLevel::llStartUp, 4, Logger::LL_INFO },
-  { EventReport::CM_REGCONF,               LogLevel::llStartUp, 3, Logger::LL_INFO },
-  { EventReport::CM_REGREF,                LogLevel::llStartUp, 8, Logger::LL_INFO },
-  { EventReport::FIND_NEIGHBOURS,          LogLevel::llStartUp, 8, Logger::LL_INFO },
-  { EventReport::NDBStopStarted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { EventReport::NDBStopAborted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
-  { EventReport::StartREDOLog,             LogLevel::llStartUp, 10, Logger::LL_INFO },
-  { EventReport::StartLog,                 LogLevel::llStartUp, 10, Logger::LL_INFO },
-  { EventReport::UNDORecordsExecuted,      LogLevel::llStartUp, 15, Logger::LL_INFO },
+  { NDB_LE_NDBStartStarted,          LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { NDB_LE_NDBStartCompleted,        LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { NDB_LE_STTORRYRecieved,          LogLevel::llStartUp,15, Logger::LL_INFO },
+  { NDB_LE_StartPhaseCompleted,      LogLevel::llStartUp, 4, Logger::LL_INFO },
+  { NDB_LE_CM_REGCONF,               LogLevel::llStartUp, 3, Logger::LL_INFO },
+  { NDB_LE_CM_REGREF,                LogLevel::llStartUp, 8, Logger::LL_INFO },
+  { NDB_LE_FIND_NEIGHBOURS,          LogLevel::llStartUp, 8, Logger::LL_INFO },
+  { NDB_LE_NDBStopStarted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { NDB_LE_NDBStopAborted,           LogLevel::llStartUp, 1, Logger::LL_INFO },
+  { NDB_LE_StartREDOLog,             LogLevel::llStartUp, 10, Logger::LL_INFO },
+  { NDB_LE_StartLog,                 LogLevel::llStartUp, 10, Logger::LL_INFO },
+  { NDB_LE_UNDORecordsExecuted,      LogLevel::llStartUp, 15, Logger::LL_INFO },
   
   // NODERESTART
-  { EventReport::NR_CopyDict,            LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { EventReport::NR_CopyDistr,           LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { EventReport::NR_CopyFragsStarted,    LogLevel::llNodeRestart,  8, Logger::LL_INFO },
-  { EventReport::NR_CopyFragDone,        LogLevel::llNodeRestart, 10, Logger::LL_INFO },
-  { EventReport::NR_CopyFragsCompleted,  LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { NDB_LE_NR_CopyDict,            LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { NDB_LE_NR_CopyDistr,           LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { NDB_LE_NR_CopyFragsStarted,    LogLevel::llNodeRestart,  8, Logger::LL_INFO },
+  { NDB_LE_NR_CopyFragDone,        LogLevel::llNodeRestart, 10, Logger::LL_INFO },
+  { NDB_LE_NR_CopyFragsCompleted,  LogLevel::llNodeRestart,  8, Logger::LL_INFO },
 
-  { EventReport::NodeFailCompleted,      LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
-  { EventReport::NODE_FAILREP,           LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
-  { EventReport::ArbitState,		 LogLevel::llNodeRestart,  6, Logger::LL_INFO },
-  { EventReport::ArbitResult,		 LogLevel::llNodeRestart,  2, Logger::LL_ALERT},
-  { EventReport::GCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { EventReport::GCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { EventReport::LCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
-  { EventReport::LCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { NDB_LE_NodeFailCompleted,      LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
+  { NDB_LE_NODE_FAILREP,           LogLevel::llNodeRestart,  8, Logger::LL_ALERT},
+  { NDB_LE_ArbitState,		 LogLevel::llNodeRestart,  6, Logger::LL_INFO },
+  { NDB_LE_ArbitResult,		 LogLevel::llNodeRestart,  2, Logger::LL_ALERT},
+  { NDB_LE_GCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { NDB_LE_GCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { NDB_LE_LCP_TakeoverStarted,    LogLevel::llNodeRestart,  7, Logger::LL_INFO },
+  { NDB_LE_LCP_TakeoverCompleted,  LogLevel::llNodeRestart,  7, Logger::LL_INFO },
 
   // STATISTIC
-  { EventReport::TransReportCounters,     LogLevel::llStatistic, 8, Logger::LL_INFO },
-  { EventReport::OperationReportCounters, LogLevel::llStatistic, 8, Logger::LL_INFO }, 
-  { EventReport::TableCreated,            LogLevel::llStatistic, 7, Logger::LL_INFO },
-  { EventReport::JobStatistic,            LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { EventReport::SendBytesStatistic,      LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { EventReport::ReceiveBytesStatistic,   LogLevel::llStatistic, 9, Logger::LL_INFO },
-  { EventReport::MemoryUsage,             LogLevel::llStatistic, 5, Logger::LL_INFO },
+  { NDB_LE_TransReportCounters,     LogLevel::llStatistic, 8, Logger::LL_INFO },
+  { NDB_LE_OperationReportCounters, LogLevel::llStatistic, 8, Logger::LL_INFO }, 
+  { NDB_LE_TableCreated,            LogLevel::llStatistic, 7, Logger::LL_INFO },
+  { NDB_LE_JobStatistic,            LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { NDB_LE_SendBytesStatistic,      LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { NDB_LE_ReceiveBytesStatistic,   LogLevel::llStatistic, 9, Logger::LL_INFO },
+  { NDB_LE_MemoryUsage,             LogLevel::llStatistic, 5, Logger::LL_INFO },
 
   // ERROR
-  { EventReport::TransporterError,   LogLevel::llError, 2, Logger::LL_ERROR   },
-  { EventReport::TransporterWarning, LogLevel::llError, 8, Logger::LL_WARNING },
-  { EventReport::MissedHeartbeat,    LogLevel::llError, 8, Logger::LL_WARNING },
-  { EventReport::DeadDueToHeartbeat, LogLevel::llError, 8, Logger::LL_ALERT   },
-  { EventReport::WarningEvent,       LogLevel::llError, 2, Logger::LL_WARNING },
+  { NDB_LE_TransporterError,   LogLevel::llError, 2, Logger::LL_ERROR   },
+  { NDB_LE_TransporterWarning, LogLevel::llError, 8, Logger::LL_WARNING },
+  { NDB_LE_MissedHeartbeat,    LogLevel::llError, 8, Logger::LL_WARNING },
+  { NDB_LE_DeadDueToHeartbeat, LogLevel::llError, 8, Logger::LL_ALERT   },
+  { NDB_LE_WarningEvent,       LogLevel::llError, 2, Logger::LL_WARNING },
   // INFO
-  { EventReport::SentHeartbeat,     LogLevel::llInfo, 12, Logger::LL_INFO },
-  { EventReport::CreateLogBytes,    LogLevel::llInfo, 11, Logger::LL_INFO },
-  { EventReport::InfoEvent,         LogLevel::llInfo,  2, Logger::LL_INFO },
-
-  //Global replication
-  { EventReport::GrepSubscriptionInfo,  LogLevel::llGrep, 7, Logger::LL_INFO},
-  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, Logger::LL_ALERT},
+  { NDB_LE_SentHeartbeat,     LogLevel::llInfo, 12, Logger::LL_INFO },
+  { NDB_LE_CreateLogBytes,    LogLevel::llInfo, 11, Logger::LL_INFO },
+  { NDB_LE_InfoEvent,         LogLevel::llInfo,  2, Logger::LL_INFO },
 
   // Backup
-  { EventReport::BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
-  { EventReport::BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
-  { EventReport::BackupFailedToStart, LogLevel::llBackup, 7, Logger::LL_ALERT},
-  { EventReport::BackupAborted, LogLevel::llBackup, 7, Logger::LL_ALERT }
+  { NDB_LE_BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { NDB_LE_BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { NDB_LE_BackupFailedToStart, LogLevel::llBackup, 7, Logger::LL_ALERT},
+  { NDB_LE_BackupAborted, LogLevel::llBackup, 7, Logger::LL_ALERT }
 };
 
 const Uint32 EventLoggerBase::matrixSize = sizeof(EventLoggerBase::matrix)/
@@ -132,15 +128,15 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     theNodeId[0] = 0;
   }
 
-  EventReport::EventType eventType = (EventReport::EventType)type;
+  Ndb_logevent_type eventType = (Ndb_logevent_type)type;
   switch (eventType){
-  case EventReport::Connected:
+  case NDB_LE_Connected:
     BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u Connected",
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::ConnectedApiVersion:
+  case NDB_LE_ConnectedApiVersion:
     BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u: API version %d.%d.%d",
 	       theNodeId,
@@ -149,13 +145,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       getMinor(theData[2]),
 	       getBuild(theData[2]));
   break;
-  case EventReport::Disconnected:
+  case NDB_LE_Disconnected:
     BaseString::snprintf(m_text, m_text_len, 
 	       "%sNode %u Disconnected", 
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::CommunicationClosed:
+  case NDB_LE_CommunicationClosed:
     //-----------------------------------------------------------------------
     // REPORT communication to node closed.
     //-----------------------------------------------------------------------
@@ -164,7 +160,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::CommunicationOpened:
+  case NDB_LE_CommunicationOpened:
     //-----------------------------------------------------------------------
     // REPORT communication to node opened.
     //-----------------------------------------------------------------------
@@ -173,7 +169,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::NDBStartStarted:
+  case NDB_LE_NDBStartStarted:
     //-----------------------------------------------------------------------
     // Start of NDB has been initiated.
     //-----------------------------------------------------------------------
@@ -184,18 +180,18 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       getMinor(theData[1]),
 	       getBuild(theData[1]));
   break;
-  case EventReport::NDBStopStarted:
+  case NDB_LE_NDBStopStarted:
     BaseString::snprintf(m_text, m_text_len,
 	       "%s%s shutdown initiated", 
 	       theNodeId, 
 	       (theData[1] == 1 ? "Cluster" : "Node"));
   break;
-  case EventReport::NDBStopAborted:
+  case NDB_LE_NDBStopAborted:
     BaseString::snprintf(m_text, m_text_len,
 	       "%sNode shutdown aborted",
 	       theNodeId);
   break;
-  case EventReport::NDBStartCompleted:
+  case NDB_LE_NDBStartCompleted:
     //-----------------------------------------------------------------------
     // Start of NDB has been completed.
     //-----------------------------------------------------------------------
@@ -207,7 +203,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       getBuild(theData[1]));
 
   break;
-  case EventReport::STTORRYRecieved:
+  case NDB_LE_STTORRYRecieved:
     //-----------------------------------------------------------------------
     // STTORRY recevied after restart finished.
     //-----------------------------------------------------------------------
@@ -215,7 +211,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       "%sSTTORRY received after restart finished",
 	       theNodeId);
   break;
-  case EventReport::StartPhaseCompleted:{
+  case NDB_LE_StartPhaseCompleted:{
     //-----------------------------------------------------------------------
     // REPORT Start phase completed.
     //-----------------------------------------------------------------------
@@ -253,7 +249,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     return m_text;
     break;
   }
-  case EventReport::CM_REGCONF:
+  case NDB_LE_CM_REGCONF:
     BaseString::snprintf(m_text, m_text_len, 
 	       "%sCM_REGCONF president = %u, own Node = %u, our dynamic id = %u"
 	       , 
@@ -262,7 +258,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[3]);
   break;
-  case EventReport::CM_REGREF:
+  case NDB_LE_CM_REGREF:
   {
     const char* line = "";
     switch (theData[3]) {
@@ -294,7 +290,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       line);
   }
   break;
-  case EventReport::FIND_NEIGHBOURS:
+  case NDB_LE_FIND_NEIGHBOURS:
     //-----------------------------------------------------------------------
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
@@ -308,7 +304,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2], 
 	       theData[3]);
   break;
-  case EventReport::NodeFailCompleted:
+  case NDB_LE_NodeFailCompleted:
     //-----------------------------------------------------------------------
     // REPORT Node failure phase completed.
     //-----------------------------------------------------------------------
@@ -345,7 +341,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 		 line);
     }
     break;
-  case EventReport::NODE_FAILREP:
+  case NDB_LE_NODE_FAILREP:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode %u has failed. The Node state at failure "
@@ -355,7 +351,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2]); 
 
   break;
-  case EventReport::ArbitState:
+  case NDB_LE_ArbitState:
     //-----------------------------------------------------------------------
     // REPORT arbitrator found or lost.
     //-----------------------------------------------------------------------
@@ -407,7 +403,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       }
     }
     break;
-  case EventReport::ArbitResult:
+  case NDB_LE_ArbitResult:
     //-----------------------------------------------------------------------
     // REPORT arbitration result (the failures may not reach us).
     //-----------------------------------------------------------------------
@@ -470,7 +466,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
       }
     }
     break;
-  case EventReport::GlobalCheckpointStarted:
+  case NDB_LE_GlobalCheckpointStarted:
     //-----------------------------------------------------------------------
     // This event reports that a global checkpoint has been started and this
     // node is the master of this global checkpoint.
@@ -481,7 +477,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::GlobalCheckpointCompleted:
+  case NDB_LE_GlobalCheckpointCompleted:
     //-----------------------------------------------------------------------
     // This event reports that a global checkpoint has been completed on this
     // node and the node is the master of this global checkpoint.
@@ -491,7 +487,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::LocalCheckpointStarted:
+  case NDB_LE_LocalCheckpointStarted:
     //-----------------------------------------------------------------------
     // This event reports that a local checkpoint has been started and this
     // node is the master of this local checkpoint.
@@ -505,7 +501,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2], 
 	       theData[3]);
     break;
-  case EventReport::LocalCheckpointCompleted:
+  case NDB_LE_LocalCheckpointCompleted:
     //-----------------------------------------------------------------------
     // This event reports that a local checkpoint has been completed on this
     // node and the node is the master of this local checkpoint.
@@ -516,7 +512,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::TableCreated:
+  case NDB_LE_TableCreated:
     //-----------------------------------------------------------------------
     // This event reports that a table has been created.
     //-----------------------------------------------------------------------
@@ -525,13 +521,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::LCPStoppedInCalcKeepGci:
+  case NDB_LE_LCPStoppedInCalcKeepGci:
     if (theData[1] == 0)
       BaseString::snprintf(m_text, m_text_len, 
 		 "%sLocal Checkpoint stopped in CALCULATED_KEEP_GCI",
 		 theNodeId);
     break;
-  case EventReport::NR_CopyDict:
+  case NDB_LE_NR_CopyDict:
     //-----------------------------------------------------------------------
     // REPORT Node Restart completed copy of dictionary information.
     //-----------------------------------------------------------------------
@@ -540,7 +536,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       "%sNode restart completed copy of dictionary information",
 	       theNodeId);
     break;
-  case EventReport::NR_CopyDistr:
+  case NDB_LE_NR_CopyDistr:
     //-----------------------------------------------------------------------
     // REPORT Node Restart completed copy of distribution information.
     //-----------------------------------------------------------------------
@@ -549,7 +545,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       "%sNode restart completed copy of distribution information",
 	       theNodeId);
     break;
-  case EventReport::NR_CopyFragsStarted:
+  case NDB_LE_NR_CopyFragsStarted:
     //-----------------------------------------------------------------------
     // REPORT Node Restart is starting to copy the fragments.
     //-----------------------------------------------------------------------
@@ -560,7 +556,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::NR_CopyFragDone:
+  case NDB_LE_NR_CopyFragDone:
     //-----------------------------------------------------------------------
     // REPORT Node Restart copied a fragment.
     //-----------------------------------------------------------------------
@@ -573,7 +569,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3], 
 	       theData[1]);
   break;
-  case EventReport::NR_CopyFragsCompleted:
+  case NDB_LE_NR_CopyFragsCompleted:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode restart completed copying the fragments "
@@ -581,7 +577,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::LCPFragmentCompleted:
+  case NDB_LE_LCPFragmentCompleted:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTable ID = %u, fragment ID = %u has completed LCP "
@@ -591,7 +587,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3], 
 	       theData[1]);
     break;
-  case EventReport::TransReportCounters:
+  case NDB_LE_TransReportCounters:
     // -------------------------------------------------------------------  
     // Report information about transaction activity once per 10 seconds.
     // ------------------------------------------------------------------- 
@@ -614,13 +610,13 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[9],
 	       theData[10]);
     break;
-  case EventReport::OperationReportCounters:
+  case NDB_LE_OperationReportCounters:
     BaseString::snprintf(m_text, m_text_len,
 	       "%sOperations=%u",
 	       theNodeId, 
 	       theData[1]);
     break;
-  case EventReport::UndoLogBlocked:
+  case NDB_LE_UndoLogBlocked:
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
@@ -631,8 +627,8 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[2]);
   break;
-  case EventReport::TransporterError:
-  case EventReport::TransporterWarning:
+  case NDB_LE_TransporterError:
+  case NDB_LE_TransporterWarning:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sTransporter to node %d reported error 0x%x",
@@ -640,7 +636,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[2]);
   break;
-  case EventReport::MissedHeartbeat:
+  case NDB_LE_MissedHeartbeat:
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
@@ -651,7 +647,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[2]);
   break;
-  case EventReport::DeadDueToHeartbeat:
+  case NDB_LE_DeadDueToHeartbeat:
     //-----------------------------------------------------------------------
     // REPORT Undo Logging blocked due to buffer near to overflow.
     //-----------------------------------------------------------------------
@@ -661,14 +657,14 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::JobStatistic:
+  case NDB_LE_JobStatistic:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean loop Counter in doJob last 8192 times = %u",
 	       theNodeId,
 	       theData[1]);
     break;
-  case EventReport::SendBytesStatistic:
+  case NDB_LE_SendBytesStatistic:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean send size to Node = %d last 4096 sends = %u bytes",
@@ -676,7 +672,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[2]);
     break;
-  case EventReport::ReceiveBytesStatistic:
+  case NDB_LE_ReceiveBytesStatistic:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sMean receive size to Node = %d last 4096 sends = %u bytes",
@@ -684,14 +680,14 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[1],
 	       theData[2]);
   break;
-  case EventReport::SentHeartbeat:
+  case NDB_LE_SentHeartbeat:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode Sent Heartbeat to node = %d",
 	       theNodeId,
 	       theData[1]);
   break;
-  case EventReport::CreateLogBytes:
+  case NDB_LE_CreateLogBytes:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLog part %u, log file %u, MB %u",
@@ -700,7 +696,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[2],
 	       theData[3]);
   break;
-  case EventReport::StartLog:
+  case NDB_LE_StartLog:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sLog part %u, start MB %u, stop MB %u, last GCI, log exec %u",
@@ -710,7 +706,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3],
 	       theData[4]);
   break;
-  case EventReport::StartREDOLog:
+  case NDB_LE_StartREDOLog:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%sNode: %d StartLog: [GCI Keep: %d LastCompleted: %d NewestRestorable: %d]",
@@ -720,7 +716,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3],
 	       theData[4]);
   break;
-  case EventReport::UNDORecordsExecuted:{
+  case NDB_LE_UNDORecordsExecuted:{
     const char* line = "";
     if (theData[1] == DBTUP){
       line = "DBTUP";
@@ -745,42 +741,42 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[11]);
   }
     break;
-  case EventReport::InfoEvent:
+  case NDB_LE_InfoEvent:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
-  case EventReport::WarningEvent:
+  case NDB_LE_WarningEvent:
     BaseString::snprintf(m_text, 
 	       m_text_len, 
 	       "%s%s",
 	       theNodeId,
 	       (char *)&theData[1]);
   break;
-  case EventReport::GCP_TakeoverStarted:
+  case NDB_LE_GCP_TakeoverStarted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sGCP Take over started", theNodeId);
   break;
-  case EventReport::GCP_TakeoverCompleted:
+  case NDB_LE_GCP_TakeoverCompleted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sGCP Take over completed", theNodeId);
   break;
-  case EventReport::LCP_TakeoverStarted:
+  case NDB_LE_LCP_TakeoverStarted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sLCP Take over started", theNodeId);
   break;
-  case EventReport::LCP_TakeoverCompleted:
+  case NDB_LE_LCP_TakeoverCompleted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sLCP Take over completed (state = %d)", 
 	       theNodeId, theData[1]);
   break;
-  case EventReport::MemoryUsage:{
+  case NDB_LE_MemoryUsage:{
     const int gth = theData[1];
     const int size = theData[2];
     const int used = theData[3];
@@ -798,7 +794,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       );
     break;
   }
-  case EventReport::GrepSubscriptionInfo : 
+  case NDB_LE_GrepSubscriptionInfo : 
   {   
     GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
     switch(event) {
@@ -1019,7 +1015,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     break;
   }
   
-  case EventReport::GrepSubscriptionAlert : 
+  case NDB_LE_GrepSubscriptionAlert : 
   {
     GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
     switch(event) 
@@ -1265,19 +1261,19 @@ EventLogger::getText(char * m_text, size_t m_text_len,
     break;
   }
 
-  case EventReport::BackupStarted:
+  case NDB_LE_BackupStarted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %d started from node %d", 
 	       theNodeId, theData[2], refToNode(theData[1]));
   break;
-  case EventReport::BackupFailedToStart:
+  case NDB_LE_BackupFailedToStart:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup request from %d failed to start. Error: %d", 
 	       theNodeId, refToNode(theData[1]), theData[2]);
   break;
-  case EventReport::BackupCompleted:
+  case NDB_LE_BackupCompleted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %u started from node %u completed\n" 
@@ -1288,7 +1284,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 	       theData[3], theData[4], theData[6], theData[8],
 	       theData[5], theData[7]);
   break;
-  case EventReport::BackupAborted:
+  case NDB_LE_BackupAborted:
     BaseString::snprintf(m_text,
 	       m_text_len,
 	       "%sBackup %d started from %d has been aborted. Error: %d",

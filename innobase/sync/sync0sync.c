@@ -368,7 +368,7 @@ mutex_spin_wait(
 {
   ulint    index; /* index of the reserved wait cell */
   ulint    i;     /* spin round count */
-  ib_longlong lstart_time, lfinish_time; /* for timing os_wait */
+  ib_longlong lstart_time = 0, lfinish_time; /* for timing os_wait */
   ulint ltime_diff;
   ulint sec;
   ulint ms;

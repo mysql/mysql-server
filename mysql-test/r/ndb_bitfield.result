@@ -143,7 +143,7 @@ create table t1 (
 pk1 bit(9) not null primary key,
 b int
 ) engine=ndbcluster;
-ERROR HY000: Can't create table './test/t1.frm' (errno: 743)
+ERROR HY000: Can't create table './test/t1.frm' (errno: 739)
 create table t1 (
 pk1 int not null primary key,
 b bit(9),

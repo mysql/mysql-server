@@ -280,7 +280,11 @@ insert into t1 values (1),(2),(3);
 
 select count(*) from t1 group by s1 having s1 is null;
 
+# prepared statements prints warnings too early
+--disable_ps_protocol
 select s1*0 as s1 from t1 group by s1 having s1 <> 0;
+--enable_ps_protocol
+
 # ANSI requires: 3 rows
 # MySQL returns: 0 rows - because of GROUP BY name resolution
 

@@ -375,7 +375,7 @@ int ha_tina::find_current_row(byte *buf)
   }
   next_position= (end_ptr - share->mapped_file)+1;
   /* Maybe use \N for null? */
-  memset(buf, 0, table->null_bytes); /* We do not implement nulls! */
+  memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
 
   DBUG_RETURN(0);
 }

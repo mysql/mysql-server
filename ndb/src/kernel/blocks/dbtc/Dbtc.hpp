@@ -1446,7 +1446,7 @@ private:
   void gcpTcfinished(Signal* signal);
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
-  Uint32 handle_special_hash(Uint32 dstHash[4], 
+  bool handle_special_hash(Uint32 dstHash[4], 
 			     Uint32* src, Uint32 srcLen, 
 			     Uint32 tabPtrI, bool distr);
   
@@ -1702,7 +1702,7 @@ private:
 	c_scan_count = c_range_scan_count = 0; 
     }
     Uint32 report(Signal* signal){
-      signal->theData[0] = EventReport::TransReportCounters;
+      signal->theData[0] = NDB_LE_TransReportCounters;
       signal->theData[1] = ctransCount;
       signal->theData[2] = ccommitCount;
       signal->theData[3] = creadCount;

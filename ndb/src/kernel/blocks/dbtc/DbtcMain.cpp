@@ -1920,7 +1920,6 @@ void Dbtc::packKeyData000Lab(Signal* signal,
 			     Uint32 totalLen) 
 {
   CacheRecord * const regCachePtr = cachePtr.p;
-  UintR Tmp;
 
   jam();
   Uint32 len = 0;
@@ -2314,7 +2313,7 @@ void Dbtc::hash(Signal* signal)
   }//if
 }//Dbtc::hash()
 
-Uint32
+bool
 Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen, 
 			  Uint32 tabPtrI,
 			  bool distr)
@@ -2349,17 +2348,27 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
 	dstWords = srcWords;
       } else {
 	jam();
+        Uint32 typeId =
+          AttributeDescriptor::getType(keyAttr.attributeDescriptor);
+        Uint32 lb, len;
+        bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+        ndbrequire(ok);
 	Uint32 xmul = cs->strxfrm_multiply;
 	if (xmul == 0)
 	  xmul = 1;
-	Uint32 dstLen = xmul * srcBytes;
+        /*
+         * Varchar is really Char.  End spaces do not matter.  To get
+         * same hash we blank-pad to maximum length via strnxfrm.
+         * TODO use MySQL charset-aware hash function instead
+         */
+	Uint32 dstLen = xmul * (srcBytes - lb);
 	ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-	uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+	int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+        ndbrequire(n != -1);
 	while ((n & 3) != 0) {
 	  dstPtr[n++] = 0;
 	}
 	dstWords = (n >> 2);
-	
       }
       dstPos += dstWords;
       srcPos += srcWords;
@@ -2418,6 +2427,7 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
     md5_hash(tmp, (Uint64*)dst, dstPos);
     dstHash[1] = tmp[1];
   }
+  return true;  // success
 }
 
 /*
@@ -8635,14 +8645,16 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
-  if (apiConnectptr.i >= capiConnectFilesize ||
-      tabptr.i >= ctabrecFilesize) {
+  if (apiConnectptr.i >= capiConnectFilesize)
+  {
     jam();
     warningHandlerLab(signal);
     return;
   }//if
+
   ptrAss(apiConnectptr, apiConnectRecord);
   ApiConnectRecord * transP = apiConnectptr.p;
+
   if (transP->apiConnectstate != CS_CONNECTED) {
     jam();
     // could be left over from TCKEYREQ rollback
@@ -8656,9 +8668,16 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     } else {
       jam();
       errCode = ZSTATE_ERROR;
-      goto SCAN_TAB_error;
+      goto SCAN_TAB_error_no_state_change;
     }
   }
+
+  if(tabptr.i >= ctabrecFilesize)
+  {
+    errCode = ZUNKNOWN_TABLE_ERROR;
+    goto SCAN_TAB_error;
+  }
+
   ptrAss(tabptr, tableRecord);
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
@@ -8755,8 +8774,18 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
  
- SCAN_TAB_error:
+SCAN_TAB_error:
   jam();
+  /**
+   * Prepare for up coming ATTRINFO/KEYINFO
+   */
+  transP->apiConnectstate = CS_ABORTING;
+  transP->abortState = AS_IDLE;
+  transP->transid[0] = transid1;
+  transP->transid[1] = transid2;
+ 
+SCAN_TAB_error_no_state_change:
+  
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
   ref->apiConnectPtr = transP->ndbapiConnect;
   ref->transId1 = transid1;

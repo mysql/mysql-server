@@ -52,6 +52,7 @@ typedef struct charset_info_st CHARSET_INFO;
  * -# Dropping secondary indexes (Dictionary::dropIndex)
  *
  * NdbDictionary has several help (inner) classes to support this:
+ * -# NdbDictionary::Dictionary the dictionary handling dictionary objects
  * -# NdbDictionary::Table for creating tables
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
@@ -149,14 +150,20 @@ public:
   
   /**
    * @class Column
-   * @brief Represents an column in an NDB Cluster table
+   * @brief Represents a column in an NDB Cluster table
    *
-   * Each column has a type. The type of a column is determind by a number 
+   * Each column has a type. The type of a column is determined by a number 
    * of type specifiers.
    * The type specifiers are:
    * - Builtin type
    * - Array length or max length
-   * - Precision and scale
+   * - Precision and scale (not used yet)
+   * - Character set for string types
+   * - Inline and part sizes for blobs
+   *
+   * Types in general correspond to MySQL types and their variants.
+   * Data formats are same as in MySQL.  NDB API provides no support for
+   * constructing such formats.  NDB kernel checks them however.
    */
   class Column {
   public:
@@ -179,14 +186,17 @@ public:
       Double = NDB_TYPE_DOUBLE,        ///< 64-bit float. 8 byte float, can be used in array
       Decimal = NDB_TYPE_DECIMAL,       ///< Precision, Scale are applicable
       Char = NDB_TYPE_CHAR,          ///< Len. A fixed array of 1-byte chars
-      Varchar = NDB_TYPE_VARCHAR,       ///< Max len
+      Varchar = NDB_TYPE_VARCHAR,       ///< Length bytes: 1, Max: 255
       Binary = NDB_TYPE_BINARY,        ///< Len
-      Varbinary = NDB_TYPE_VARBINARY,     ///< Max len
+      Varbinary = NDB_TYPE_VARBINARY,     ///< Length bytes: 1, Max: 255
       Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Timespec = NDB_TYPE_TIMESPEC,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
+      Date = NDB_TYPE_DATE,            ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
-      Text = NDB_TYPE_TEXT,         ///< Text blob,
-      Bit = NDB_TYPE_BIT           ///< Bit, length specifies no of bits
+      Text = NDB_TYPE_TEXT,         ///< Text blob
+      Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
+      Longvarchar = NDB_TYPE_LONG_VARCHAR,  ///< Length bytes: 2, little-endian
+      Longvarbinary = NDB_TYPE_LONG_VARBINARY, ///< Length bytes: 2, little-endian
+      Time = NDB_TYPE_TIME         ///< Time without date
     };
 
     /** 
@@ -621,7 +631,7 @@ public:
      * Assignment operator, deep copy
      * @param  table  Table to be copied
      */
-    Table& operator=(const Table&);
+    Table& operator=(const Table& table);
 
     /**
      * Name of table
@@ -901,6 +911,9 @@ public:
    */
   class Event : public Object  {
   public:
+    /**
+     * Specifies the type of database operations an Event listens to
+     */
     enum TableEvent { 
       TE_INSERT=1, ///< Insert event on table
       TE_DELETE=2, ///< Delete event on table
@@ -908,6 +921,10 @@ public:
       TE_ALL=7     ///< Any/all event on table (not relevant when 
                    ///< events are received)
     };
+    /**
+     *  Specifies the durability of an event
+     * (future version may supply other types)
+     */
     enum EventDurability { 
       ED_UNDEFINED
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -922,23 +939,56 @@ public:
       // All API's can use it,
       // But's its removed when ndb is restarted
 #endif
-      ,ED_PERMANENT    ///< All API's can use it,
-                       ///< It's still defined after a restart
+      ,ED_PERMANENT    ///< All API's can use it.
+                       ///< It's still defined after a cluster system restart
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 3
 #endif
     };
-    
+
+    /**
+     *  Constructor
+     *  @param  name  Name of event
+     */
     Event(const char *name);
+    /**
+     *  Constructor
+     *  @param  name  Name of event
+     *  @param  table Reference retrieved from NdbDictionary
+     */
+    Event(const char *name, const NdbDictionary::Table& table);
     virtual ~Event();
     /**
      * Set unique identifier for the event
      */
     void setName(const char *name);
     /**
+     * Get unique identifier for the event
+     */
+    const char *getName() const;
+    /**
+     * Define table on which events should be detected
+     *
+     * @note calling this method will default to detection
+     *       of events on all columns. Calling subsequent
+     *       addEventColumn calls will override this.
+     *
+     * @param table reference retrieved from NdbDictionary
+     */
+    void setTable(const NdbDictionary::Table& table);
+    /**
      * Set table for which events should be detected
+     *
+     * @note preferred way is using setTable(const NdbDictionary::Table&)
+     *       or constructor with table object parameter
      */
     void setTable(const char *tableName);
+    /**
+     * Get table name for events
+     *
+     * @return table name
+     */
+    const char* getTableName() const;
     /**
      * Add type of event that should be detected
      */
@@ -946,7 +996,11 @@ public:
     /**
      * Set durability of the event
      */
-    void setDurability(const EventDurability ed);
+    void setDurability(EventDurability);
+    /**
+     * Get durability of the event
+     */
+    EventDurability getDurability() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
 #endif
@@ -963,7 +1017,7 @@ public:
      *
      * @param columnName Column name
      *
-     * @note errors will mot be detected until createEvent() is called
+     * @note errors will not be detected until createEvent() is called
      */
     void addEventColumn(const char * columnName);
     /**
@@ -976,6 +1030,13 @@ public:
      *       NdbDictionary::Dictionary::createEvent() is called
      */
     void addEventColumns(int n, const char ** columnNames);
+
+    /**
+     * Get no of columns defined in an Event
+     *
+     * @return Number of columns, -1 on error
+     */
+    int getNoOfEventColumns() const;
 
     /**
      * Get object status
@@ -1058,6 +1119,13 @@ public:
 
     /**
      * Fetch list of all objects, optionally restricted to given type.
+     *
+     * @param list   List of objects returned in the dictionary
+     * @param type   Restrict returned list to only contain objects of
+     *               this type
+     *
+     * @return       -1 if error.
+     *
      */
     int listObjects(List & list, Object::Type type = Object::TypeUndefined);
     int listObjects(List & list,
@@ -1110,10 +1178,10 @@ public:
     
     /**
      * Create event given defined Event instance
-     * @param Event to create
+     * @param event Event to create
      * @return 0 if successful otherwise -1.
      */
-    int createEvent(const Event &);
+    int createEvent(const Event &event);
 
     /**
      * Drop event with given name
@@ -1141,17 +1209,17 @@ public:
 
     /**
      * Create defined table given defined Table instance
-     * @param Table Table to create
+     * @param table Table to create
      * @return 0 if successful otherwise -1.
      */
-    int createTable(const Table &);
+    int createTable(const Table &table);
 
     /**
      * Drop table given retrieved Table instance
-     * @param Table Table to drop
+     * @param table Table to drop
      * @return 0 if successful otherwise -1.
      */
-    int dropTable(Table &);
+    int dropTable(Table & table);
 
     /**
      * Drop table given table name
@@ -1160,16 +1228,16 @@ public:
      */
     int dropTable(const char * name);
     
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Alter defined table given defined Table instance
-     * @param Table Table to alter
+     * @param table Table to alter
      * @return  -2 (incompatible version) <br>
      *          -1 general error          <br>
      *           0 success                 
      */
-    int alterTable(const Table &);
+    int alterTable(const Table &table);
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**
      * Invalidate cached table object
      * @param name  Name of table to invalidate
@@ -1178,9 +1246,12 @@ public:
 #endif
 
     /**
-     * Remove table/index from local cache
+     * Remove table from local cache
      */
     void removeCachedTable(const char * table);
+    /**
+     * Remove index from local cache
+     */
     void removeCachedIndex(const char * index, const char * table);
 
     
@@ -1196,10 +1267,10 @@ public:
     
     /**
      * Create index given defined Index instance
-     * @param Index to create
+     * @param index Index to create
      * @return 0 if successful otherwise -1.
      */
-    int createIndex(const Index &);
+    int createIndex(const Index &index);
 
     /**
      * Drop index with given name

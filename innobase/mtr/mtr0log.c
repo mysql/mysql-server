@@ -443,7 +443,8 @@ mlog_open_and_write_index(
 			type = dict_col_get_type(dict_field_get_col(field));
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
-			if (len == 0 && dtype_get_len(type) > 255) {
+			if (len == 0 && (dtype_get_len(type) > 255
+				|| dtype_get_mtype(type) == DATA_BLOB)) {
 				/* variable-length field
 				with maximum length > 255 */
 				len = 0x7fff;

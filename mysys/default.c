@@ -45,23 +45,8 @@ char *defaults_extra_file=0;
 
 /* Which directories are searched for options (and in which order) */
 
-const char *default_directories[]= {
-#ifdef __WIN__
-"C:/",
-#elif defined(__NETWARE__)
-"sys:/etc/",
-#else
-"/etc/",
-#endif
-#ifdef DATADIR
-DATADIR,
-#endif
-"",					/* Place for defaults_extra_dir */
-#if !defined(__WIN__) && !defined(__NETWARE__)
-"~/",
-#endif
-NullS,
-};
+#define MAX_DEFAULT_DIRS 4
+const char *default_directories[MAX_DEFAULT_DIRS + 1];
 
 #ifdef __WIN__
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
@@ -89,6 +74,7 @@ static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
 					const char *config_file);
+static void init_default_directories();
 
 static char *remove_end_comment(char *ptr);
 
@@ -319,6 +305,7 @@ int load_defaults(const char *conf_file, const char **groups,
   struct handle_option_ctx ctx;
   DBUG_ENTER("load_defaults");
 
+  init_default_directories();
   init_alloc_root(&alloc,512,0);
   if (*argc >= 2 && !strcmp(argv[0][1],"--no-defaults"))
   {
@@ -652,6 +639,7 @@ void print_defaults(const char *conf_file, const char **groups)
   char name[FN_REFLEN], **ext;
   const char **dirs;
 
+  init_default_directories();
   puts("\nDefault options are read from the following files in the given order:");
 
   if (dirname_length(conf_file))
@@ -714,3 +702,23 @@ void print_defaults(const char *conf_file, const char **groups)
 }
 
 #include <help_end.h>
+
+static void init_default_directories()
+{
+  const char *env, **ptr= default_directories;
+
+#ifdef __WIN__
+  *ptr++= "C:/";
+#elif defined(__NETWARE__)
+  *ptr++= "sys:/etc/";
+#else
+  *ptr++= "/etc/";
+#endif
+  if ((env= getenv(STRINGIFY_ARG(DEFAULT_HOME_ENV))))
+    *ptr++= env;
+  *ptr++= "";			/* Place for defaults_extra_file */
+#if !defined(__WIN__) && !defined(__NETWARE__)
+  *ptr++= "~/";;
+#endif
+  *ptr= 0;			/* end marker */
+}

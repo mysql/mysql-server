@@ -1768,7 +1768,7 @@ ha_innobase::open(
 	fields when packed actually became 1 byte longer, when we also
 	stored the string length as the first byte. */
 
-	upd_and_key_val_buff_len = table->reclength + table->max_key_length
+	upd_and_key_val_buff_len = table->s->reclength + table->s->max_key_length
 							+ MAX_REF_PARTS * 3;
 	if (!(mysql_byte*) my_multi_malloc(MYF(MY_WME),
 				     &upd_buff, upd_and_key_val_buff_len,
@@ -1820,11 +1820,11 @@ ha_innobase::open(
 
 	innobase_prebuilt = row_create_prebuilt(ib_table);
 
-	((row_prebuilt_t*)innobase_prebuilt)->mysql_row_len = table->reclength;
+	((row_prebuilt_t*)innobase_prebuilt)->mysql_row_len = table->s->reclength;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 
- 	primary_key = table->primary_key;
+ 	primary_key = table->s->primary_key;
 	key_used_on_scan = primary_key;
 
 	/* Allocate a buffer for a 'row reference'. A row reference is
@@ -1995,7 +1995,7 @@ reset_null_bits(
 	TABLE*	table,	/* in: MySQL table object */
 	char*	record)	/* in: a row in MySQL format */
 {
-	bzero(record, table->null_bytes);
+	bzero(record, table->s->null_bytes);
 }
 
 extern "C" {
@@ -2349,7 +2349,7 @@ build_template(
 		the clustered index */
 	}
 
-	n_fields = (ulint)table->fields; /* number of columns */
+	n_fields = (ulint)table->s->fields; /* number of columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
@@ -2358,7 +2358,7 @@ build_template(
 	}
 
 	prebuilt->template_type = templ_type;
-	prebuilt->null_bitmap_len = table->null_bytes;
+	prebuilt->null_bitmap_len = table->s->null_bytes;
 
 	prebuilt->templ_contains_blob = FALSE;
 
@@ -2725,7 +2725,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	uint		i;
 
-	n_fields = table->fields;
+	n_fields = table->s->fields;
 
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
@@ -3215,7 +3215,7 @@ ha_innobase::change_active_index(
 
 	active_index = keynr;
 
-	if (keynr != MAX_KEY && table->keys > 0) {
+	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + active_index;
 
 		prebuilt->index = dict_table_get_index_noninline(
@@ -3635,7 +3635,7 @@ create_table_def(
   	DBUG_ENTER("create_table_def");
   	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
-	n_cols = form->fields;
+	n_cols = form->s->fields;
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
@@ -3727,7 +3727,7 @@ create_index(
 
     	ind_type = 0;
 
-    	if (key_num == form->primary_key) {
+    	if (key_num == form->s->primary_key) {
 		ind_type = ind_type | DICT_CLUSTERED;
 	}
 
@@ -3750,7 +3750,7 @@ create_index(
 		the length of the key part versus the column. */
 		
 		field = NULL;
-		for (j = 0; j < form->fields; j++) {
+		for (j = 0; j < form->s->fields; j++) {
 
 			field = form->field[j];
 
@@ -3763,7 +3763,7 @@ create_index(
 			}
 		}
 
-		ut_a(j < form->fields);
+		ut_a(j < form->s->fields);
 
 		col_type = get_innobase_type_from_mysql_type(key_part->field);
 
@@ -3857,7 +3857,7 @@ ha_innobase::create(
 
 	DBUG_ASSERT(thd != NULL);
 
-	if (form->fields > 1000) {
+	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
@@ -3907,7 +3907,7 @@ ha_innobase::create(
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		!(form->db_options_in_use & HA_OPTION_PACK_RECORD));
+		form->s->row_type != ROW_TYPE_REDUNDANT);
 
   	if (error) {
 		innobase_commit_low(trx);
@@ -3921,8 +3921,8 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	primary_key_no= (table->primary_key != MAX_KEY ?
-			 (int) table->primary_key : 
+	primary_key_no= (table->s->primary_key != MAX_KEY ?
+			 (int) table->s->primary_key : 
 			 -1);
 
 	/* Our function row_get_mysql_key_number_for_index assumes
@@ -3932,7 +3932,7 @@ ha_innobase::create(
 
 	/* Create the keys */
 
-	if (form->keys == 0 || primary_key_no == -1) {
+	if (form->s->keys == 0 || primary_key_no == -1) {
 		/* Create an index which is used as the clustered index;
 		order the rows by their row id which is internally generated
 		by InnoDB */
@@ -3965,7 +3965,7 @@ ha_innobase::create(
       		}
       	}
 
-	for (i = 0; i < form->keys; i++) {
+	for (i = 0; i < form->s->keys; i++) {
 
 		if (i != (uint) primary_key_no) {
 
@@ -4330,11 +4330,11 @@ ha_innobase::records_in_range(
 	KEY*		key;
 	dict_index_t*	index;
 	mysql_byte*	key_val_buff2 	= (mysql_byte*) my_malloc(
-						  table->reclength
-      						+ table->max_key_length + 100,
+						  table->s->reclength
+      						+ table->s->max_key_length + 100,
 								MYF(MY_WME));
-	ulint		buff2_len = table->reclength
-      						+ table->max_key_length + 100;
+	ulint		buff2_len = table->s->reclength
+      						+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
 	ib_longlong	n_rows;
@@ -4491,7 +4491,7 @@ ha_innobase::read_time(
 	ha_rows total_rows;
 	double  time_for_scan;
   
-	if (index != table->primary_key)
+	if (index != table->s->primary_key)
 	  return handler::read_time(index, ranges, rows); // Not clustered
 
 	if (rows <= 2)
@@ -4610,7 +4610,7 @@ ha_innobase::info(
 			index = dict_table_get_next_index_noninline(index);
 		}
 
-		for (i = 0; i < table->keys; i++) {
+		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
 				ut_print_timestamp(stderr);
 			        fprintf(stderr,
@@ -5803,7 +5803,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	}
 
   	(void) extra(HA_EXTRA_KEYREAD);
-  	index_init(table->next_number_index);
+  	index_init(table->s->next_number_index);
 
 	/* We use an exclusive lock when we read the max key value from the
   	auto-increment column index. This is because then build_template will
@@ -5838,7 +5838,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
   	} else {
 		/* Initialize to max(col) + 1 */
     		auto_inc = (longlong) table->next_number_field->
-                        	val_int_offset(table->rec_buff_length) + 1;
+                        	val_int_offset(table->s->rec_buff_length) + 1;
   	}
 
 	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
@@ -5925,9 +5925,9 @@ ha_innobase::cmp_ref(
 
 	/* Do type-aware comparison of Primary Key members. PK members
 	are always NOT NULL, so no checks for NULL are performed */
-	KEY_PART_INFO *key_part= table->key_info[table->primary_key].key_part;
+	KEY_PART_INFO *key_part= table->key_info[table->s->primary_key].key_part;
 	KEY_PART_INFO *key_part_end= 
-	  key_part + table->key_info[table->primary_key].key_parts;
+	  key_part + table->key_info[table->s->primary_key].key_parts;
 	for (; key_part != key_part_end; ++key_part) {
 		field = key_part->field;
 		mysql_type = field->type();

@@ -206,7 +206,7 @@ void Dbdict::packTableIntoPages(Signal* signal, Uint32 tableId, Uint32 pageId)
 		 8 * ZSIZE_OF_PAGES_IN_WORDS);
 
   w.first();
-  packTableIntoPagesImpl(w, tablePtr);
+  packTableIntoPagesImpl(w, tablePtr, signal);
     
   Uint32 wordsOfTable = w.getWordsUsed();
   Uint32 pagesUsed = 
@@ -235,7 +235,8 @@ void Dbdict::packTableIntoPages(Signal* signal, Uint32 tableId, Uint32 pageId)
 
 void
 Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
-			       TableRecordPtr tablePtr){
+			       TableRecordPtr tablePtr,
+			       Signal* signal){
   
   w.add(DictTabInfo::TableName, tablePtr.p->tableName);
   w.add(DictTabInfo::TableId, tablePtr.i);
@@ -257,7 +258,31 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::TableKValue, tablePtr.p->kValue);
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
-  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  
+  if(!signal)
+  {
+    w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  }
+  else
+  {
+    Uint32 * theData = signal->getDataPtrSend();
+    CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
+    req->senderRef = 0;
+    req->senderData = RNIL;
+    req->fragmentationType = tablePtr.p->fragmentType;
+    req->noOfFragments = 0;
+    req->fragmentNode = 0;
+    req->primaryTableId = tablePtr.i;
+    EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
+		   CreateFragmentationReq::SignalLength);
+    if(signal->theData[0] == 0)
+    {
+      Uint16 *data = (Uint16*)&signal->theData[25];
+      Uint32 count = 2 + data[0] * data[1];
+      w.add(DictTabInfo::FragmentDataLen, 2*count);
+      w.add(DictTabInfo::FragmentData, data, 2*count);
+    }
+  }
   
   if (tablePtr.p->primaryTableId != RNIL){
     TableRecordPtr primTab;
@@ -4827,9 +4852,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    /**
-     * Ignore incoming old-style type and recompute it.
-     */
+    // compute attribute size and array size
     bool translateOk = attrDesc.translateExtType();
     tabRequire(translateOk, CreateTableRef::Inconsistency);
 
@@ -5699,7 +5722,10 @@ void Dbdict::sendGET_TABLEID_REF(Signal* signal,
 void Dbdict::execGET_TABINFOREQ(Signal* signal) 
 {
   jamEntry();
-  if(!assembleFragments(signal)) { return; }  
+  if(!assembleFragments(signal)) 
+  { 
+    return;
+  }  
 
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
 
@@ -7849,7 +7875,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
 	break;
       case ZALREADYEXIST:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::EventExists;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::EventNameExists;
 	break;
       default:
 	jam();

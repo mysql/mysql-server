@@ -1092,7 +1092,17 @@ NdbTransaction::getNdbIndexScanOperation(const char* anIndexName,
 {
   NdbIndexImpl* index = 
     theNdb->theDictionary->getIndex(anIndexName, aTableName);
+  if (index == 0)
+  {
+    setOperationErrorCodeAbort(theNdb->theDictionary->getNdbError().code);
+    return 0;
+  }
   NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
+  if (table == 0)
+  {
+    setOperationErrorCodeAbort(theNdb->theDictionary->getNdbError().code);
+    return 0;
+  }
 
   return getNdbIndexScanOperation(index, table);
 }
@@ -1111,7 +1121,7 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       }
       return tOp;
     } else {
-      setOperationErrorCodeAbort(theNdb->theError.code);
+      setOperationErrorCodeAbort(4271);
       return NULL;
     }//if
   } 
@@ -1121,14 +1131,32 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
 }//NdbTransaction::getNdbIndexScanOperation()
 
 NdbIndexScanOperation* 
+NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index)
+{ 
+  if (index)
+  {
+    const NdbDictionary::Table *table=
+      theNdb->theDictionary->getTable(index->getTable());
+
+    if (table)
+      return getNdbIndexScanOperation(index, table);
+
+    setOperationErrorCodeAbort(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+  setOperationErrorCodeAbort(4271);
+  return NULL;
+}
+
+NdbIndexScanOperation* 
 NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index,
 					const NdbDictionary::Table * table)
 {
   if (index && table)
     return getNdbIndexScanOperation(& NdbIndexImpl::getImpl(*index),
 				    & NdbTableImpl::getImpl(*table));
-  else
-    return NULL;
+  setOperationErrorCodeAbort(4271);
+  return NULL;
 }//NdbTransaction::getNdbIndexScanOperation()
 
 /*****************************************************************************
@@ -1218,6 +1246,12 @@ NdbTransaction::getNdbIndexOperation(const char* anIndexName,
     NdbTableImpl * table = theNdb->theDictionary->getTable(aTableName);
     NdbIndexImpl * index;
 
+    if (table == 0)
+    {
+      setOperationErrorCodeAbort(theNdb->theDictionary->getNdbError().code);
+      return NULL;
+    }
+
     if (table->m_frm.get_data())
     {
       // This unique index is defined from SQL level
@@ -1240,8 +1274,7 @@ NdbTransaction::getNdbIndexOperation(const char* anIndexName,
       return NULL;
     }
 
-    // table == 0
-    setOperationErrorCodeAbort(theNdb->theError.code);
+    setOperationErrorCodeAbort(4243);
     return NULL;
   } 
   
@@ -1304,14 +1337,33 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
 }//NdbTransaction::getNdbIndexOperation()
 
 NdbIndexOperation* 
+NdbTransaction::getNdbIndexOperation(const NdbDictionary::Index * index)
+{ 
+  if (index)
+  {
+    const NdbDictionary::Table *table=
+      theNdb->theDictionary->getTable(index->getTable());
+
+    if (table)
+      return getNdbIndexOperation(index, table);
+
+    setOperationErrorCodeAbort(theNdb->theDictionary->getNdbError().code);
+    return NULL;
+  }
+  setOperationErrorCodeAbort(4271);
+  return NULL;
+}
+
+NdbIndexOperation* 
 NdbTransaction::getNdbIndexOperation(const NdbDictionary::Index * index,
 				    const NdbDictionary::Table * table)
 {
   if (index && table)
     return getNdbIndexOperation(& NdbIndexImpl::getImpl(*index),
 				& NdbTableImpl::getImpl(*table));
-  else
-    return NULL;
+  
+  setOperationErrorCodeAbort(4271);
+  return NULL;
 }//NdbTransaction::getNdbIndexOperation()
 
 

@@ -118,7 +118,7 @@ bool mysql_create_view(THD *thd,
       if (check_some_access(thd, VIEW_ANY_ACL, tbl))
       {
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->priv_user, thd->host_or_ip, tbl->real_name);
+                 "ANY", thd->priv_user, thd->host_or_ip, tbl->table_name);
         DBUG_RETURN(TRUE);
       }
       /*
@@ -136,11 +136,11 @@ bool mysql_create_view(THD *thd,
       /*
         Make sure that all rights are loaded to the TABLE::grant field.
 
-        tbl->real_name will be correct name of table because VIEWs are
+        tbl->table_name will be correct name of table because VIEWs are
         not opened yet.
       */
       fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->real_name);
+                                      tbl->table_name);
     }
   }
 
@@ -187,7 +187,7 @@ bool mysql_create_view(THD *thd,
   for (tbl= tables; tbl; tbl= tbl->next_global)
   {
     /* is this table temporary and is not view? */
-    if (tbl->table->tmp_table != NO_TMP_TABLE && !tbl->view &&
+    if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->view &&
         !tbl->schema_table)
     {
       my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
@@ -198,7 +198,7 @@ bool mysql_create_view(THD *thd,
     /* is this table view and the same view which we creates now? */
     if (tbl->view &&
         strcmp(tbl->view_db.str, view->db) == 0 &&
-        strcmp(tbl->view_name.str, view->real_name) == 0)
+        strcmp(tbl->view_name.str, view->table_name) == 0)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
       res= TRUE;
@@ -272,24 +272,24 @@ bool mysql_create_view(THD *thd,
     List_iterator_fast<Item> it(sl->item_list);
     Item *item;
     fill_effective_table_privileges(thd, &view->grant, db,
-                                    view->real_name);
+                                    view->table_name);
     while ((item= it++))
     {
       Item_field *fld;
       uint priv= (get_column_grant(thd, &view->grant, db,
-                                    view->real_name, item->name) &
+                                    view->table_name, item->name) &
                   VIEW_ANY_ACL);
       if ((fld= item->filed_for_view_update()))
       {
         /*
           Do we have more privileges on view field then underlying table field?
         */
-        if (!fld->field->table->tmp_table && (~fld->have_privileges & priv))
+        if (!fld->field->table->s->tmp_table && (~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
                    "create view", thd->priv_user, thd->host_or_ip, item->name,
-                   view->real_name);
+                   view->table_name);
           DBUG_RETURN(TRUE);
         }
       }
@@ -404,7 +404,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   dir.length= strlen(dir_buff);
 
   file.str= file_buff;
-  file.length= (strxnmov(file_buff, FN_REFLEN, view->real_name, reg_ext,
+  file.length= (strxnmov(file_buff, FN_REFLEN, view->table_name, reg_ext,
                          NullS) - file_buff);
   /* init timestamp */
   if (!view->timestamp.str)
@@ -435,7 +435,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
           strncmp("VIEW", parser->type()->str, parser->type()->length))
       {
         my_error(ER_WRONG_OBJECT, MYF(0),
-                 (view->db ? view->db : thd->db), view->real_name, "VIEW");
+                 (view->db ? view->db : thd->db), view->table_name, "VIEW");
         DBUG_RETURN(-1);
       }
 
@@ -518,7 +518,7 @@ loop_out:
       !((TABLE_LIST*)lex->select_lex.table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
 				lex->query_tables->db,
-				lex->query_tables->real_name))
+				lex->query_tables->table_name))
   {
     view->updatable_view= 0;
   }
@@ -526,7 +526,7 @@ loop_out:
   if (view->with_check != VIEW_CHECK_NONE &&
       !view->updatable_view)
   {
-    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->real_name);
+    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->table_name);
     DBUG_RETURN(-1);
   }
 
@@ -598,8 +598,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
   */
   table->view_db.str= table->db;
   table->view_db.length= table->db_length;
-  table->view_name.str= table->real_name;
-  table->view_name.length= table->real_name_length;
+  table->view_name.str= table->table_name;
+  table->view_name.length= table->table_name_length;
 
   /*TODO: md5 test here and warning if it is differ */
 
@@ -669,8 +669,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         TABLE_LIST *table= old_lex->proc_table;
         table->db= (char*)"mysql";
         table->db_length= 5;
-        table->real_name= table->alias= (char*)"proc";
-        table->real_name_length= 4;
+        table->table_name= table->alias= (char*)"proc";
+        table->table_name_length= 4;
         table->cacheable_table= 1;
         old_lex->add_to_query_tables(table);
       }
@@ -678,18 +678,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     /* cleanup LEX */
     if (lex->spfuns.array.buffer)
       hash_free(&lex->spfuns);
-
-    /*
-      mark to avoid temporary table using and put view reference and find
-      last view table
-    */
-    for (tbl= view_tables;
-         tbl;
-         tbl= (view_tables_tail= tbl)->next_global)
-    {
-      tbl->skip_temporary= 1;
-      tbl->belong_to_view= top_view;
-    }
 
     /*
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
@@ -708,6 +696,18 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
+    }
+
+    /*
+      mark to avoid temporary table using and put view reference and find
+      last view table
+    */
+    for (tbl= view_tables;
+         tbl;
+         tbl= (view_tables_tail= tbl)->next_global)
+    {
+      tbl->skip_temporary= 1;
+      tbl->belong_to_view= top_view;
     }
 
     /* move SQL_NO_CACHE & Co to whole query */
@@ -889,13 +889,13 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   for (view= views; view; view= view->next_local)
   {
     strxnmov(path, FN_REFLEN, mysql_data_home, "/", view->db, "/",
-             view->real_name, reg_ext, NullS);
+             view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (access(path, F_OK) || (type= (mysql_frm_type(path) != FRMTYPE_VIEW)))
     {
       char name[FN_REFLEN];
-      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->real_name);
+      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
       if (thd->lex->drop_if_exists)
       {
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -905,7 +905,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	continue;
       }
       if (type)
-        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->real_name, "VIEW");
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
       else
         my_error(ER_BAD_TABLE_ERROR, MYF(0), name);
       goto err;
@@ -998,7 +998,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   if (view->belong_to_view)
     view= view->belong_to_view;
   trans= view->field_translation;
-  key_info_end= (key_info= table->key_info)+ table->keys;
+  key_info_end= (key_info= table->key_info)+ table->s->keys;
 
   elements_in_view= view->view->select_lex.item_list.elements;
   DBUG_ASSERT(table != 0 && view->field_translation != 0);

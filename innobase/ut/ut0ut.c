@@ -74,18 +74,18 @@ ut_time(void)
 }
 
 /**************************************************************
-Returns system time. We do not specify the format of the time returned:
-the only way to manipulate it is to use the function ut_difftime. */
+Returns system time. */
 
 void
-ut_usectime(ulint* sec, ulint* ms)
-/*=========*/
+ut_usectime(
+/*========*/
+	ulint*	sec,	/* out: seconds since the Epoch */
+	ulint*	ms)	/* out: microseconds since the Epoch+*sec */
 {
-  struct timeval tv;
-  gettimeofday(&tv,NULL);
-  *sec = (ulint) tv.tv_sec;
-  *ms  = (ulint) tv.tv_usec;
-  return;
+	struct timeval	tv;
+	gettimeofday(&tv,NULL);
+	*sec = (ulint) tv.tv_sec;
+	*ms  = (ulint) tv.tv_usec;
 }
 
 /**************************************************************

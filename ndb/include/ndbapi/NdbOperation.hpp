@@ -966,6 +966,7 @@ protected:
 #include <stdlib.h>
 #endif
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
 inline
 int
@@ -1214,5 +1215,7 @@ NdbOperation::setValue(Uint32 anAttrId, double aPar)
 {
   return setValue(anAttrId, (const char*)&aPar, (Uint32)8);
 }
+
+#endif // doxygen
 
 #endif

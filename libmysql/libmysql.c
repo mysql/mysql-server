@@ -1865,12 +1865,14 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
   uint field_count, param_count;
+  ulong packet_length;
   MYSQL_DATA *fields_data;
-  DBUG_ENTER("read_prepare_result");
+  DBUG_ENTER("cli_read_prepare_result");
 
   mysql= mysql->last_used_con;
-  if (net_safe_read(mysql) == packet_error)
+  if ((packet_length= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
+  mysql->warning_count= 0;
 
   pos= (uchar*) mysql->net.read_pos;
   stmt->stmt_id= uint4korr(pos+1); pos+= 5;
@@ -1878,6 +1880,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   field_count=   uint2korr(pos);   pos+= 2;
   /* Number of placeholders in the statement */
   param_count=   uint2korr(pos);   pos+= 2;
+  if (packet_length >= 12)
+    mysql->warning_count= uint2korr(pos+1);
 
   if (param_count != 0)
   {
@@ -1894,7 +1898,6 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
-    mysql->extra_info= net_field_length_ll(&pos);
     if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
     if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
@@ -1902,9 +1905,10 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);
   }
-  stmt->field_count=  (uint) field_count;
+  stmt->field_count=  field_count;
   stmt->param_count=  (ulong) param_count;
-  mysql->warning_count= 0;
+  DBUG_PRINT("exit",("field_count: %u  param_count: %u  warning_count: %u",
+                     field_count, param_count, (uint) mysql->warning_count));
 
   DBUG_RETURN(0);
 }

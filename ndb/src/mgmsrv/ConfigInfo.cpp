@@ -1106,6 +1106,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "15" },
 
   {
+    CFG_LOGLEVEL_CONGESTION,
+    "LogLevelCongestion",
+    DB_TOKEN,
+    "Congestion info printed on stdout",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "15" },
+
+  {
     CFG_LOGLEVEL_ERROR,
     "LogLevelError",
     DB_TOKEN,

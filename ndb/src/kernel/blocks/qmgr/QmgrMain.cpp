@@ -608,7 +608,7 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 // Send this as an EVENT REPORT to inform about hearing about
 // other NDB node proclaiming to be president.
 /*--------------------------------------------------------------*/
-  signal->theData[0] = EventReport::CM_REGCONF;
+  signal->theData[0] = NDB_LE_CM_REGCONF;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = cpresident;
   signal->theData[3] = TdynamicId;
@@ -734,7 +734,7 @@ void Qmgr::execCM_REGREF(Signal* signal)
 // Send this as an EVENT REPORT to inform about hearing about
 // other NDB node proclaiming not to be president.
 /*--------------------------------------------------------------*/
-  signal->theData[0] = EventReport::CM_REGREF;
+  signal->theData[0] = NDB_LE_CM_REGREF;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = TaddNodeno;
 //-----------------------------------------
@@ -1303,7 +1303,7 @@ void Qmgr::findNeighbours(Signal* signal)
     }//if
   }//if
 
-  signal->theData[0] = EventReport::FIND_NEIGHBOURS;
+  signal->theData[0] = NDB_LE_FIND_NEIGHBOURS;
   signal->theData[1] = getOwnNodeId();
   signal->theData[2] = cneighbourl;
   signal->theData[3] = cneighbourh;
@@ -1529,7 +1529,7 @@ void Qmgr::sendHeartbeat(Signal* signal)
 
   sendSignal(localNodePtr.p->blockRef, GSN_CM_HEARTBEAT, signal, 1, JBA);
 #ifdef VM_TRACE
-  signal->theData[0] = EventReport::SentHeartbeat;
+  signal->theData[0] = NDB_LE_SentHeartbeat;
   signal->theData[1] = localNodePtr.i;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);  
 #endif
@@ -1555,7 +1555,7 @@ void Qmgr::checkHeartbeat(Signal* signal)
   ndbrequire(getNodeInfo(nodePtr.i).m_type == NodeInfo::DB);
 
   if(nodePtr.p->alarmCount > 2){
-    signal->theData[0] = EventReport::MissedHeartbeat;
+    signal->theData[0] = NDB_LE_MissedHeartbeat;
     signal->theData[1] = nodePtr.i;
     signal->theData[2] = nodePtr.p->alarmCount - 1;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -1567,7 +1567,7 @@ void Qmgr::checkHeartbeat(Signal* signal)
      * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR THREE CONSECUTIVE HEARTBEAT 
      * PERIODS. THUS WE DECLARE HIM DOWN.
      *----------------------------------------------------------------------*/
-    signal->theData[0] = EventReport::DeadDueToHeartbeat;
+    signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
     signal->theData[1] = nodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -1596,7 +1596,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal)
       TnodePtr.p->alarmCount ++;
       
       if(TnodePtr.p->alarmCount > 2){
-	signal->theData[0] = EventReport::MissedHeartbeat;
+	signal->theData[0] = NDB_LE_MissedHeartbeat;
 	signal->theData[1] = nodeId;
 	signal->theData[2] = TnodePtr.p->alarmCount - 1;
 	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -1611,7 +1611,7 @@ void Qmgr::apiHbHandlingLab(Signal* signal)
 	/*------------------------------------------------------------------*/
 	/* We call node_failed to release all connections for this api node */
 	/*------------------------------------------------------------------*/
-	signal->theData[0] = EventReport::DeadDueToHeartbeat;
+	signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
 	signal->theData[1] = nodeId;
 	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
@@ -3067,7 +3067,7 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     jam();
     return;
   }
-  reportArbitEvent(signal, EventReport::ArbitState);
+  reportArbitEvent(signal, NDB_LE_ArbitState);
   arbitRec.node = 0;
   switch (arbitRec.state) {
   case ARBIT_NULL:              // should not happen
@@ -3238,7 +3238,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     arbitRec.newstate = true;
     break;
   }
-  reportArbitEvent(signal, EventReport::ArbitResult);
+  reportArbitEvent(signal, NDB_LE_ArbitResult);
   switch (arbitRec.state) {
   default:
     jam();
@@ -3265,7 +3265,7 @@ Qmgr::startArbitThread(Signal* signal)
   jam();
   ndbrequire(cpresident == getOwnNodeId());
   arbitRec.code = ArbitCode::ThreadStart;
-  reportArbitEvent(signal, EventReport::ArbitState);
+  reportArbitEvent(signal, NDB_LE_ArbitState);
   signal->theData[1] = ++arbitRec.thread;
   runArbitThread(signal);
 }
@@ -3509,7 +3509,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     arbitRec.node = sd->node;
     arbitRec.ticket = sd->ticket;
     arbitRec.code = sd->code;
-    reportArbitEvent(signal, EventReport::ArbitState);
+    reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
     if (sd->code == ArbitCode::PrepAtrun) {
@@ -3596,7 +3596,7 @@ Qmgr::stateArbitStart(Signal* signal)
   }
   if (arbitRec.recvCount) {
     jam();
-    reportArbitEvent(signal, EventReport::ArbitState);
+    reportArbitEvent(signal, NDB_LE_ArbitState);
     if (arbitRec.code == ArbitCode::ApiStart) {
       jam();
       arbitRec.state = ARBIT_RUN;
@@ -3610,7 +3610,7 @@ Qmgr::stateArbitStart(Signal* signal)
   if (arbitRec.getTimediff() > getArbitTimeout()) {
     jam();
     arbitRec.code = ArbitCode::ErrTimeout;
-    reportArbitEvent(signal, EventReport::ArbitState);
+    reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_INIT;
     arbitRec.newstate = true;
     return;
@@ -3717,7 +3717,7 @@ Qmgr::stateArbitChoose(Signal* signal)
   }
   if (arbitRec.recvCount) {
     jam();
-    reportArbitEvent(signal, EventReport::ArbitResult);
+    reportArbitEvent(signal, NDB_LE_ArbitResult);
     if (arbitRec.code == ArbitCode::WinChoose) {
       jam();
       sendCommitFailReq(signal);        // start commit of failed nodes
@@ -3733,7 +3733,7 @@ Qmgr::stateArbitChoose(Signal* signal)
   if (arbitRec.getTimediff() > getArbitTimeout()) {
     jam();
     arbitRec.code = ArbitCode::ErrTimeout;
-    reportArbitEvent(signal, EventReport::ArbitState);
+    reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_CRASH;
     arbitRec.newstate = true;
     stateArbitCrash(signal);		// do it at once
@@ -3834,7 +3834,7 @@ Qmgr::computeArbitNdbMask(NodeBitmask& aMask)
  * where sender (word 0) is event type.
  */
 void
-Qmgr::reportArbitEvent(Signal* signal, EventReport::EventType type)
+Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type)
 {
   ArbitSignalData* sd = (ArbitSignalData*)&signal->theData[0];
   sd->sender = type;
