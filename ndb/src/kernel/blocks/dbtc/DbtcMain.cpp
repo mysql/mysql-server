@@ -6721,7 +6721,8 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
 
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
-  for (Uint32 tindex = 0; tindex < tnoOfNodes; tindex++) {
+  Uint32 tindex;
+  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
     jam();
     hostptr.i = cdata[tindex];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -6838,8 +6839,7 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       }//if
     }//for
   }//if
-
-  for (Uint32 tindex = 0; tindex < tnoOfNodes; tindex++) {
+  for (tindex = 0; tindex < tnoOfNodes; tindex++) {
     jam();
     hostptr.i = cdata[tindex];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);

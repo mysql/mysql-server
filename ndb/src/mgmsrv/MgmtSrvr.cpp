@@ -250,14 +250,12 @@ MgmtSrvr::startEventLog()
   }
   ndb_mgm_destroy_iterator(iter);
   
-  if(logdest.length()==0) {
+  if(logdest.length() == 0 || logdest == "") {
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  
   if(!g_EventLogger.addHandler(logdest)) {
-    ndbout << "ERROR: cannot parse \"" << logdest << "\"" << endl;
-    exit(1);
+    ndbout << "Warning: could not add log destination \"" << logdest.c_str() << "\"" << endl;
   }
 }
 
@@ -1088,13 +1086,13 @@ MgmtSrvr::version(int * stopCount, bool abort,
 
   m_versionRec.callback = callback;
   m_versionRec.inUse = true ;
-  
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  Uint32 i; 
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM) {
       m_versionRec.callback(i, NDB_VERSION, this,0);
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB) {
       node = theFacade->theClusterMgr->getNodeInfo(i);
       version = node.m_info.m_version;
@@ -1105,7 +1103,7 @@ MgmtSrvr::version(int * stopCount, bool abort,
       
     }
   }
-  for(Uint32 i = 0; i<MAX_NODES; i++) {
+  for(i = 0; i<MAX_NODES; i++) {
     if (getNodeType(i) == NDB_MGM_NODE_TYPE_API) {
       return sendVersionReq(i);   
     }
@@ -1565,7 +1563,8 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 				     const SetLogLevelOrd & ll, 
 				     bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1596,7 +1595,7 @@ MgmtSrvr::setEventReportingLevelImpl(int processId,
 
   EventSubscribeReq * dst = 
     CAST_PTR(EventSubscribeReq, signal->getDataPtrSend());
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
@@ -1625,7 +1624,8 @@ int
 MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 			  bool isResend) 
 {
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  Uint32 i;
+  for(i = 0; i<ll.noOfEntries; i++){
     // Save log level for the cluster log
     if (!isResend) {
       NodeLogLevel* n = NULL;
@@ -1656,7 +1656,7 @@ MgmtSrvr::setNodeLogLevel(int processId, const SetLogLevelOrd & ll,
 
   SetLogLevelOrd * dst = CAST_PTR(SetLogLevelOrd, signal->getDataPtrSend());
 
-  for(Uint32 i = 0; i<ll.noOfEntries; i++){
+  for(i = 0; i<ll.noOfEntries; i++){
     dst->theCategories[i] = ll.theCategories[i];
     dst->theLevels[i] = ll.theLevels[i];
   }
@@ -1800,7 +1800,7 @@ MgmtSrvr::setSignalLoggingMode(int processId, LogMode mode,
     logSpec = TestOrd::InputOutputSignals;
     break;
   default:
-    NDB_ASSERT(false, "Unexpected value, MgmtSrvr::setSignalLoggingMode");
+    assert("Unexpected value, MgmtSrvr::setSignalLoggingMode" == 0);
   }
 
   NdbApiSignal* signal = getSignal();

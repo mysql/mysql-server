@@ -215,7 +215,6 @@ protected:
     T** tList = theList;
     int i;
     theList = new T*[aSize+theCurrentSize];
-    REQUIRE(theList != 0, "Allocate in Pool.hpp failed");
     // allocate full list
     for (i = 0; i < theTop; i++) {
       theList[i] = tList[i];

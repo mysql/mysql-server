@@ -153,6 +153,7 @@ public:
    * (Run operator NdbOut<< on every element)
    */
   void print(NdbOut & out){
+#ifdef VM_TRACE
     out << "FirstFree = " << firstFree << endl;
     for(Uint32 i = 0; i<size; i++){
 #ifdef ARRAY_GUARD
@@ -164,6 +165,7 @@ public:
       out << i << ": " << theArray[i] << " ";
     }
     out << endl;
+#endif
   }
 
 #ifdef DEBUG

@@ -25,7 +25,7 @@
 class NDBT_Attribute : public NdbDictionary::Column {
 public:
   NDBT_Attribute(const char* _name,
-		 Column::Type _type,
+		 NdbDictionary::Column::Type _type,
 		 int _length = 1,
 		 bool _pk = false, 
 		 bool _nullable = false):
