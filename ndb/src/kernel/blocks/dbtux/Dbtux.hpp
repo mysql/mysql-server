@@ -587,7 +587,10 @@ private:
   void execSTTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   // utils
+  void setKeyAttrs(const Frag& frag);
+  void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, TableData keyData);
   void copyAttrs(Data dst, ConstData src, CopyPar& copyPar);
+  void copyAttrs(const Frag& frag, TableData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
 
   /*
    * DbtuxMeta.cpp
@@ -657,7 +660,7 @@ private:
   /*
    * DbtuxCmp.cpp
    */
-  int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned size2 = MaxAttrDataSize);
+  int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, ConstData data2, unsigned maxlen2 = MaxAttrDataSize);
   int cmpSearchKey(const Frag& frag, unsigned& start, TableData data1, TableData data2);
   int cmpScanBound(const Frag& frag, const BoundPar boundPar);
 
@@ -702,23 +705,25 @@ private:
   Uint32 c_internalStartPhase;
   Uint32 c_typeOfStart;
 
-  // buffer for scan bounds and keyinfo (primary key)
-  Data c_dataBuffer;
-
-  // array of index key attribute ids in AttributeHeader format
+  /*
+   * Array of index key attribute ids in AttributeHeader format.
+   * Includes fixed attribute sizes.  This is global data set at
+   * operation start and is not passed as a parameter.
+   */
   Data c_keyAttrs;
 
-  // search key data as pointers to TUP storage
+  // buffer for search key data as pointers to TUP storage
   TableData c_searchKey;
 
-  // current entry key data as pointers to TUP storage
+  // buffer for current entry key data as pointers to TUP storage
   TableData c_entryKey;
+
+  // buffer for scan bounds and keyinfo (primary key)
+  Data c_dataBuffer;
 
   // inlined utils
   DescEnt& getDescEnt(Uint32 descPage, Uint32 descOff);
   Uint32 getTupAddr(const Frag& frag, TreeEnt ent);
-  void setKeyAttrs(const Frag& frag, Data keyAttrs);
-  void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, ConstData keyAttrs, TableData keyData);
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
 };
@@ -1255,34 +1260,6 @@ Dbtux::getTupAddr(const Frag& frag, TreeEnt ent)
   c_tup->tuxGetTupAddr(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupAddr);
   jamEntry();
   return tupAddr;
-}
-
-inline void
-Dbtux::setKeyAttrs(const Frag& frag, Data keyAttrs)
-{
-  const unsigned numAttrs = frag.m_numAttrs;
-  const DescEnt& descEnt = getDescEnt(frag.m_descPage, frag.m_descOff);
-  for (unsigned i = 0; i < numAttrs; i++) {
-    const DescAttr& descAttr = descEnt.m_descAttr[i];
-    Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
-    keyAttrs.ah() = AttributeHeader(descAttr.m_primaryAttrId, size);
-    keyAttrs += 1;
-  }
-}
-
-inline void
-Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, ConstData keyAttrs, TableData keyData)
-{
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[ent.m_fragBit];
-  const TupLoc tupLoc = ent.m_tupLoc;
-  const Uint32 tupVersion = ent.m_tupVersion;
-  ndbrequire(start < frag.m_numAttrs);
-  const unsigned numAttrs = frag.m_numAttrs - start;
-  // start applies to both keys and output data
-  keyAttrs += start;
-  keyData += start;
-  c_tup->tuxReadAttrs(tableFragPtrI, tupLoc.m_pageId, tupLoc.m_pageOffset, tupVersion, numAttrs, keyAttrs, keyData);
-  jamEntry();
 }
 
 inline unsigned

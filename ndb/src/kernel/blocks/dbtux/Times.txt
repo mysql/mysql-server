@@ -46,4 +46,7 @@ optim 9         mc02/a  43 ms   67 ms    54 pct
 optim 10        mc02/a  44 ms   65 ms    46 pct
                 mc02/b  53 ms   88 ms    66 pct
 
+optim 11        mc02/a  43 ms   63 ms    46 pct
+                mc02/b  52 ms   86 ms    63 pct
+
 vim: set et:
