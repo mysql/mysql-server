@@ -1,4 +1,4 @@
--include ../../Defs.mk
+-include .defs.mk
 #NDB_OS = OS_YOU_ARE_RUNNING_ON
 #You need to set the NDB_OS variable here  (LINUX, SOLARIS, MACOSX)
 #NDB_OS = LINUX

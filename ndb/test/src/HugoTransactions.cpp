@@ -794,6 +794,18 @@ HugoTransactions::scanUpdateRecords3(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     }
+
+    const NdbError err = pTrans->getNdbError();    
+    if( check == -1 ) {
+      pNdb->closeTransaction(pTrans);
+      ERR(err);
+      if (err.status == NdbError::TemporaryError){
+	NdbSleep_MilliSleep(50);
+	goto restart;
+      }
+      return NDBT_FAILED;
+    }
+    
     pNdb->closeTransaction(pTrans);
     
     g_info << rows << " rows have been updated" << endl;

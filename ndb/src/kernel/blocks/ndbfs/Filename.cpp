@@ -184,7 +184,7 @@ Filename::set(BlockReference blockReference,
   strcat(theName, fileExtension[type]);
   
   if(dir == true){
-    for(Uint32 l = strlen(theName) - 1; l >= 0; l--){
+    for(int l = strlen(theName) - 1; l >= 0; l--){
       if(theName[l] == DIR_SEPARATOR[0]){
 	theName[l] = 0;
 	break;
