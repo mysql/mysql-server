@@ -56,7 +56,7 @@ NdbConnection::receiveSCAN_TABREF(NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
-    theScanningOp->theError.code = ref->errorCode;
+    theScanningOp->setErrorCode(ref->errorCode);
     theScanningOp->execCLOSE_SCAN_REP();
     if(!ref->closeNeeded){
       return 0;
