@@ -340,7 +340,6 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
   signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
-  signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
   **  Run in interactive mode like the ingres/postgres monitor
