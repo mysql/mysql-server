@@ -129,6 +129,10 @@ bfill((A)->null_flags,(A)->null_bytes,255);\
  */
 #define MIN_TURBOBM_PATTERN_LEN 3
 
+/* Defines for binary logging */
+
+#define BIN_LOG_HEADER_SIZE	4
+
 	/* Include prototypes for unireg */
 
 #include "mysqld_error.h"

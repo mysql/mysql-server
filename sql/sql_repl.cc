@@ -154,6 +154,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 		 const char **errmsg)
 {
   File file;
+  DBUG_ENTER("open_binlog");
 
   if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
       init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
@@ -164,7 +165,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
   }
   if (check_binlog_magic(log,errmsg))
     goto err;
-  return file;
+  DBUG_RETURN(file);
 
 err:
   if (file >= 0)
@@ -172,7 +173,7 @@ err:
     my_close(file,MYF(0));
     end_io_cache(log);
   }
-  return -1;
+  DBUG_RETURN(-1);
 }
 
 
@@ -628,7 +629,8 @@ int reset_slave(MASTER_INFO* mi)
   char fname[FN_REFLEN];
   int restart_thread_mask = 0,error=0;
   const char* errmsg=0;
-  
+  DBUG_ENTER("reset_slave");
+
   lock_slave_threads(mi);
   init_thread_mask(&restart_thread_mask,mi,0 /* not inverse */);
   if ((error=terminate_slave_threads(mi,restart_thread_mask,1 /*skip lock*/))
@@ -649,14 +651,14 @@ int reset_slave(MASTER_INFO* mi)
     goto err;
   }
   if (restart_thread_mask)
-      error=start_slave_threads(0 /* mutex not needed*/,
-			  1 /* wait for start*/,
-			  mi,master_info_file,relay_log_info_file,
-				restart_thread_mask);
+    error=start_slave_threads(0 /* mutex not needed */,
+			      1 /* wait for start*/,
+			      mi,master_info_file,relay_log_info_file,
+			      restart_thread_mask);
   // TODO: fix error messages so they get to the client
 err:
   unlock_slave_threads(mi);
-  return error;
+  DBUG_RETURN(error);
 }
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
