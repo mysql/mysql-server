@@ -377,8 +377,8 @@ system("cd $pwd/$host; perl $ENV{HOME}/my_md5sum $tar_file_lite > ${tar_file_lit
 #
 # Unpack the binary distribution
 #
-if ($opt_stage <= 4 && !$opt_no_test)
 $global_step= "extract binary distribution";
+if ($opt_stage <= 4 && !$opt_no_test)
 {
   log_timestamp("START");
   rm_all(<$pwd/$host/test/*>);
@@ -396,8 +396,8 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 #
 # Run the test suite
 #
-if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 $global_step= "tests in default mode";
+if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   log_timestamp("START");
   my $flags= "";
