@@ -32,17 +32,16 @@
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
+  my_off_t offset = (pos - info->pos_in_file);
   DBUG_ENTER("my_b_seek");
   DBUG_PRINT("enter",("pos: %lu", (ulong) pos));
 
   if (info->type == READ_CACHE)
   {
-    byte* try_pos=info->read_pos + (pos - info->pos_in_file);
-    if (try_pos >= info->buffer &&
-	try_pos <= info->read_end)
+    if ((ulonglong) offset < (ulonglong) (info->read_end - info->buffer))
     {
-      /* The position is in the current buffer; Reuse it */
-      info->read_pos = try_pos;
+      /* The read is in the current buffer; Reuse it */
+      info->read_pos = info->buffer + offset;
       DBUG_VOID_RETURN;
     }
     else
@@ -53,17 +52,14 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   }
   else if (info->type == WRITE_CACHE)
   {
-    byte* try_pos;
     /* If write is in current buffer, reuse it */
-    try_pos = info->write_pos + (pos - info->pos_in_file);
-    if (try_pos >= info->write_buffer &&
-	try_pos <= info->write_end)
+    if ((ulonglong) offset <
+	(ulonglong) (info->write_end - info->write_buffer))
     {
-      info->write_pos = try_pos;
+      info->write_pos = info->write_buffer + offset;
       DBUG_VOID_RETURN;
     }
-    else
-      flush_io_cache(info);
+    flush_io_cache(info);
   }
   info->pos_in_file=pos;
   info->seek_not_done=1;

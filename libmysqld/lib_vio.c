@@ -110,7 +110,7 @@ int vio_read(Vio * vio, gptr buf, int size)
   vio->reading = 1;
   if (vio->where_in_packet >= vio->end_of_packet)
   {
-    dbug_assert(vio->packets);
+    DBUG_ASSERT(vio->packets);
     vio->where_in_packet = vio->packets + sizeof(char *) + 4;
     vio->end_of_packet = vio->where_in_packet +
       			 uint4korr(vio->packets + sizeof(char *));

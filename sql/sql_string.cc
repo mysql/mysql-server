@@ -779,10 +779,10 @@ int wild_compare(const char *str,const char *str_end,
       {
 	while (str != str_end && *str != cmp)
 	  str++;
-	if (str++ == str_end) 
+	if (str++ == str_end)
 	{ 
-	  DBUG_RETURN(-1) 
-	};
+	  DBUG_RETURN(-1);
+	}
 	{
 	  int tmp=wild_compare(str,str_end,wildstr,wildend,escape);
 	  if (tmp <= 0)
