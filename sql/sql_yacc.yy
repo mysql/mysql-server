@@ -885,12 +885,7 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| CHARSET EQ DEFAULT
-	  {
-	    Lex->create_info.table_charset=NULL;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
-	  }
-	| CHARSET EQ charset
+	| CHARSET EQ charset_or_nocharset
 	  { 
 	    Lex->create_info.table_charset=Lex->charset;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
@@ -1139,6 +1134,10 @@ charset:
 	  }
 	};
 
+charset_or_nocharset:
+	charset
+	| DEFAULT {Lex->charset=NULL; }
+
 opt_binary:
 	/* empty */		{ Lex->charset=NULL; }
 	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
@@ -1146,7 +1145,7 @@ opt_binary:
 
 default_charset:
 	/* empty */			{ Lex->charset=NULL; }
-	| DEFAULT CHAR_SYM SET charset ;
+	| DEFAULT CHAR_SYM SET charset_or_nocharset ;
 
 references:
 	REFERENCES table_ident
@@ -1270,7 +1269,16 @@ alter:
           lex->simple_alter=1;
 	}
 	alter_list;
- 
+
+	| ALTER DATABASE ident default_charset
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command=SQLCOM_ALTER_DB;
+	    lex->name=$3.str;
+	    lex->create_info.table_charset=lex->charset;
+	  }
+
+
 alter_list:
         | alter_list_item
 	| alter_list ',' alter_list_item;
