@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.5";
+$VER = "2.6";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -153,29 +153,64 @@ sub main
 
   $ignored = ($mail_no_from_f + $mail_no_subject_f + $mail_no_txt_f +
 	      $mail_too_big + $mail_duplicates + $mail_fixed);
-  print "Mails inserted:\t\t\t\t\t$mail_inserted\n\n";
+  print "################################ Mail Report #################################\n\n";
+  print "Mails inserted:\t\t\t\t\t$mail_inserted\n";
+  print "---------------                                ";
+  print "=" . "=" x length("$mail_inserted") . "=\n\n";
   if ($ignored)
   {
     print "Ignored mails\n";
     print "-------------\n";
-    $mail_no_from_f ?
-      print "Reason: mail without \"From:\" -field:\t\t$mail_no_from_f\n" :
+    if ($mail_no_from_f)
+    {
+      print "Reason: mail without \"From:\" -field:\t\t$mail_no_from_f\n";
+    }
+    else
+    {
       print "";
-    $mail_no_txt_f ?
-      print "Reason: mail without message:\t\t\t$mail_no_txt_f\n" :
+    }
+    if ($mail_no_txt_f)
+    {
+      print "Reason: mail without message:\t\t\t$mail_no_txt_f\n";
+    }
+    else
+    {
       print "";
-    $mail_no_subject_f ?
-      print "Reason: mail without subject:\t\t\t$mail_no_subject_f\n" :
+    }
+    if ($mail_no_subject_f)
+    {
+      print "Reason: mail without subject:\t\t\t$mail_no_subject_f\n";
+    }
+    else
+    {
       print "";
-    $mail_too_big ?
-      print "Reason: mail too big (over $opt_max_mail_size bytes):\t$mail_too_big\n" :
+    }
+    if ($mail_too_big)
+    {
+      print "Reason: mail too big, over $opt_max_mail_size bytes:\t\t";
+      print $mail_too_big;
+      print " (see --max_mail_size=#)\n";
+    }
+    else
+    {
       print "";
-    $mail_duplicates ?
-      print "Reason: duplicate mail, or in db already:\t$mail_duplicates\n" :
+    }
+    if ($mail_duplicates)
+    {
+      print "Reason: duplicate mail, or in db already:\t$mail_duplicates\n";
+    }
+    else
+    {
       print "";
-    $mail_fixed ?
-      print "Reason: mail was an unsubscribe - mail:\t\t$mail_fixed\n" :
+    }
+    if ($mail_fixed)
+    {
+      print "Reason: mail was an unsubscribe - mail:\t\t$mail_fixed\n";
+    }
+    else
+    {
       print "";
+    }
     print "                                               ";
     print "=" . "=" x length("$ignored") . "=\n";
     print "Total number of ignored mails:\t\t\t$ignored\n\n";
@@ -187,6 +222,7 @@ sub main
   print "% Ignored: ";
   print sprintf("%.1f", (($ignored / ($mail_inserted + $ignored)) * 100));
   print "%)\n";
+  print "################################ End Report ##################################\n";
   exit(0);
 }
 
@@ -291,7 +327,7 @@ sub process_mail_file
       $values{$type} .= "\n" . $_;
       $check--;
     }
-    elsif (/^From .* \d\d:\d\d:\d\d\s\d\d\d\d$/ ||
+    elsif (/^From .* \d\d:\d\d:\d\d\s\d\d\d\d/ ||
            /^From .* \d\d\d\d\s\d\d:\d\d:\d\d/)
     {
       $values{'hash'} = checksum("$values{'message'}");
