@@ -1465,7 +1465,10 @@ String *Item_func_rpad::val_str(String *str)
     goto err;
   null_value=0;
   if (count <= (int32) (res_length=res->length()))
-    return (res);				// String to pad is big enough
+  {						// String to pad is big enough
+    res->length(count);				// Shorten result if longer
+    return (res);
+  }
   length_pad= rpad->length();
   if ((ulong) count > max_allowed_packet || args[2]->null_value || !length_pad)
     goto err;
@@ -1521,7 +1524,10 @@ String *Item_func_lpad::val_str(String *str)
     goto err;
   null_value=0;
   if (count <= (res_length=res->length()))
-    return (res);				// String to pad is big enough
+  {						// String to pad is big enough
+    res->length(count);				// Shorten result if longer
+    return (res);
+  }
   length_pad= lpad->length();
   if (count > max_allowed_packet || args[2]->null_value || !length_pad)
     goto err;

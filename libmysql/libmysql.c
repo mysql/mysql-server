@@ -531,8 +531,8 @@ static void read_user_name(char *name)
 
 static void read_user_name(char *name)
 {
-  char *str=getenv("USER");
-  strmov(name,str ? str : "ODBC");	 /* ODBC will send user variable */
+  char *str=getenv("USER");		/* ODBC will send user variable */
+  strmake(name,str ? str : "ODBC", USERNAME_LENGTH);
 }
 
 #endif
@@ -1149,8 +1149,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,uint client_flag)
 {
-  char		buff[NAME_LEN+100],charset_name_buff[16],*end,*host_info,
-		*charset_name;
+  char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
+  char		*end,*host_info,*charset_name;
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;

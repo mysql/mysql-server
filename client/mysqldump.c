@@ -660,11 +660,10 @@ static uint getTableStructure(char *table, char* db)
     strpos=strend(insert_pat);
     while ((row=mysql_fetch_row(tableRes)))
     {
-      ulong *lengths=mysql_fetch_lengths(tableRes);
       if (init)
       {
         if (cFlag)
-  		strpos=strmov(strpos,", ");
+	  strpos=strmov(strpos,", ");
       }
       init=1;
       if (cFlag)
