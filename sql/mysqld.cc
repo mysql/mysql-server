@@ -1120,8 +1120,8 @@ terribly wrong\n");
 	    *(ebp+17) : *(ebp+1));
     if (new_ebp <= ebp )
     {
-      fprintf(stderr, "New value of ebp failed sanity check\
-terminating backtrace\n");
+      fprintf(stderr, "\
+New value of ebp failed sanity check terminating backtrace\n");
       return;
     }
     ebp = new_ebp;
