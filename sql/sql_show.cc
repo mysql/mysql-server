@@ -1217,6 +1217,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       case SHOW_RPL_STATUS:
 	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
 	break;
+#ifndef EMBEDDED_LIBRARY
       case SHOW_SLAVE_RUNNING:
       {
 	LOCK_ACTIVE_MI;
@@ -1226,6 +1227,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	UNLOCK_ACTIVE_MI;
 	break;
       }
+#endif
       case SHOW_OPENTABLES:
         net_store_data(&packet2,(uint32) cached_tables());
         break;
