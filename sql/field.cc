@@ -3734,10 +3734,9 @@ void Field_datetime::sql_type(String &res) const
 
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  field_charset=cs;
   int error= 0;
 #ifdef USE_TIS620
-  if (!binary_flag) {
+  if (!binary()) {
     ThNormalize((uchar *)ptr, field_length, (uchar *)from, length);
     if (length < field_length) {
       bfill(ptr + length, field_length - length, ' ');
@@ -3828,9 +3827,6 @@ String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 
 int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 {
-  if (binary_flag)
-    return memcmp(a_ptr,b_ptr,field_length);
-  else
     return my_strnncoll(field_charset,
 			(const uchar*)a_ptr,field_length,
 			(const uchar*)b_ptr,field_length);
@@ -3838,7 +3834,7 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-  if (binary_flag)
+  if (binary())
     memcpy((byte*) to,(byte*) ptr,(size_t) length);
   else
   {
@@ -3868,7 +3864,7 @@ void Field_string::sql_type(String &res) const
 			     "varchar" : "char"),
 			    (int) field_length));
   res.length((uint) length);
-  if (binary_flag)
+  if (binary())
     res.append(" binary");
   else
   {
@@ -3904,7 +3900,7 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
   uint a_length= (uint) (uchar) *a++;
   uint b_length= (uint) (uchar) *b++;
 
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -3923,7 +3919,7 @@ int Field_string::pack_cmp(const char *b, uint length)
     end--;
   uint a_length = (uint) (end - ptr);
 
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(ptr,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -3956,9 +3952,8 @@ uint Field_string::max_packed_col_length(uint max_length)
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
-  field_charset=cs;
 #ifdef USE_TIS620
-  if (!binary_flag)
+  if (!binary())
   {
     ThNormalize((uchar *) ptr+2, field_length, (uchar *) from, length);
   }
@@ -4036,10 +4031,7 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
   uint a_length=uint2korr(a_ptr);
   uint b_length=uint2korr(b_ptr);
   int diff;
-  if (binary_flag)
-    diff=memcmp(a_ptr+2,b_ptr+2,min(a_length,b_length));
-  else
-    diff=my_strnncoll(field_charset,
+  diff=my_strnncoll(field_charset,
 		      (const uchar*)a_ptr+2,min(a_length,b_length),
 		      (const uchar*)b_ptr+2,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
@@ -4048,7 +4040,7 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=uint2korr(ptr);
-  if (binary_flag)
+  if (binary())
     memcpy((byte*) to,(byte*) ptr+2,(size_t) tot_length);
   else
   {
@@ -4080,7 +4072,7 @@ void Field_varstring::sql_type(String &res) const
 			   ((char*) res.ptr(),"varchar(%u)",
 			    field_length));
   res.length((uint) length);
-  if (binary_flag)
+  if (binary())
     res.append(" binary");
   else
   {
@@ -4137,7 +4129,7 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
     a_length= (uint) (uchar) *a++;
     b_length= (uint) (uchar) *b++;
   }
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -4160,7 +4152,7 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
   {
     b_length= (uint) (uchar) *b++;
   }
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -4192,15 +4184,13 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
 		       struct st_table *table_arg,uint blob_pack_length,
-		       bool binary_arg, CHARSET_INFO *cs)
+		       CHARSET_INFO *cs)
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
-   packlength(blob_pack_length),binary_flag(binary_arg), geom_flag(true)
+   packlength(blob_pack_length), geom_flag(true)
 {
   flags|= BLOB_FLAG;
-  if (binary_arg)
-    flags|=BINARY_FLAG;
   if (table)
     table->blob_fields++;
 }
@@ -4289,7 +4279,6 @@ uint32 Field_blob::get_length(const char *pos)
 
 int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  field_charset=cs;
   if (!len)
   {
     bzero(ptr,Field_blob::pack_length());
@@ -4303,7 +4292,7 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
     if (table->copy_blobs || len <= MAX_FIELD_WIDTH)
     {						// Must make a copy
 #ifdef USE_TIS620
-      if (!binary_flag)
+      if (!binary())
       {
 	/* If there isn't enough memory, use original string */
 	if ((th_ptr=(char * ) my_malloc(sizeof(char) * len,MYF(0))))
@@ -4390,13 +4379,9 @@ String *Field_blob::val_str(String *val_buffer __attribute__((unused)),
 int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
 		    uint32 b_length)
 {
-  int diff;
-  if (binary_flag)
-    diff=memcmp(a,b,min(a_length,b_length));
-  else
-    diff=my_strnncoll(field_charset,
-		      (const uchar*)a,min(a_length,b_length),
-		      (const uchar*)b,min(a_length,b_length));
+  int diff=my_strnncoll(field_charset,
+			(const uchar*)a,min(a_length,b_length),
+			(const uchar*)b,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -4542,7 +4527,7 @@ void Field_blob::sort_string(char *to,uint length)
     if (blob_length > length)
       blob_length=length;
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
-    if (binary_flag)
+    if (binary())
     {
       memcpy(to,blob,blob_length);
       to+=blob_length;
@@ -4579,8 +4564,8 @@ void Field_blob::sql_type(String &res) const
   case 4:  str="long"; break;
   }
   res.set(str,(uint) strlen(str),default_charset_info);
-  res.append(binary_flag ? "blob" : "text");
-  if (!binary_flag)
+  res.append(binary() ? "blob" : "text");
+  if (!binary())
   {
     res.append(" character set ");
     res.append(field_charset->name);
@@ -4640,7 +4625,7 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
     a_length= (uint) (uchar) *a++;
     b_length= (uint) (uchar) *b++;
   }
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -4668,7 +4653,7 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
   {
     b_length= (uint) (uchar) *b++;
   }
-  if (binary_flag)
+  if (binary())
   {
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
@@ -5187,6 +5172,7 @@ Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
 		  enum_field_types field_type,
+		  CHARSET_INFO *field_charset,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
 		  const char *field_name,
@@ -5201,9 +5187,7 @@ Field *make_field(char *ptr, uint32 field_length,
   {
     if (!f_is_packed(pack_flag))
       return new Field_string(ptr,field_length,null_pos,null_bit,
-			      unireg_check, field_name, table,
-			      f_is_binary(pack_flag) != 0,
-			      default_charset_info);
+			      unireg_check, field_name, table, field_charset);
 
     uint pack_length=calc_pack_length((enum_field_types)
 				      f_packtype(pack_flag),
@@ -5212,12 +5196,11 @@ Field *make_field(char *ptr, uint32 field_length,
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length,f_is_binary(pack_flag) != 0,
-			    default_charset_info);
+			    pack_length, field_charset);
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
-			    pack_length,f_is_binary(pack_flag) != 0);
+			    pack_length);
 
     if (interval)
     {

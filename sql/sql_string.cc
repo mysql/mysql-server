@@ -521,12 +521,23 @@ int sortcmp(const String *x,const String *y)
 #endif /* USE_STRCOLL */
     x_len-=len;					// For easy end space test
     y_len-=len;
-    while (len--)
+    if (x->str_charset->sort_order)
     {
-      if (x->str_charset->sort_order[(uchar) *s++] != 
+      while (len--)
+      {
+        if (x->str_charset->sort_order[(uchar) *s++] != 
           x->str_charset->sort_order[(uchar) *t++])
-        return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
-                (int) x->str_charset->sort_order[(uchar) t[-1]]);
+            return ((int) x->str_charset->sort_order[(uchar) s[-1]] -
+                  (int) x->str_charset->sort_order[(uchar) t[-1]]);
+      }
+    }
+    else
+    {
+      while (len--)
+      {
+        if (*s++ != *t++)
+            return ((int) s[-1] - (int) t[-1]);
+      }
     }
 #ifndef CMP_ENDSPACE
     /* Don't compare end space in strings */

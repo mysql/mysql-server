@@ -349,7 +349,7 @@ void field_str::add()
     if (length > max_length)
       max_length = length;
 
-    if (item->binary)
+    if (item->binary())
     {
       if (stringcmp(res, &min_arg) < 0)
 	min_arg.copy(*res);
@@ -738,7 +738,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   {
     if (must_be_blob)
     {
-      if (item->binary)
+      if (item->binary())
 	answer->append("TINYBLOB", 8);
       else
 	answer->append("TINYTEXT", 8);
@@ -756,21 +756,21 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   }
   else if (max_length < (1L << 16))
   {
-    if (item->binary)
+    if (item->binary())
       answer->append("BLOB", 4);
     else
       answer->append("TEXT", 4);
   }
   else if (max_length < (1L << 24))
   {
-    if (item->binary)
+    if (item->binary())
       answer->append("MEDIUMBLOB", 10);
     else
       answer->append("MEDIUMTEXT", 10);
   }
   else
   {
-    if (item->binary)
+    if (item->binary())
       answer->append("LONGBLOB", 8);
     else
       answer->append("LONGTEXT", 8);
