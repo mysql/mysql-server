@@ -2885,4 +2885,6 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 }
 
 template class Vector<SigMatch>;
+#if __SUNPRO_CC != 0x560
 template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);
+#endif
