@@ -46,4 +46,8 @@ sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen);
 int
 sp_drop_function(THD *thd, char *name, uint namelen);
 
+// QQ Temporary until the function call detection in sql_lex has been reworked.
+bool
+sp_function_exists(THD *thd, LEX_STRING *name);
+
 #endif /* _SP_H_ */

@@ -26,7 +26,7 @@ class sp_rcontext : public Sql_alloc
  public:
 
   sp_rcontext(uint size)
-    : m_count(0), m_size(size)
+    : m_count(0), m_size(size), m_result(NULL)
   {
     m_frame = (Item **)sql_alloc(size * sizeof(Item*));
     m_outs = (int *)sql_alloc(size * sizeof(int));
@@ -70,12 +70,25 @@ class sp_rcontext : public Sql_alloc
     return m_outs[idx];
   }
 
+  inline void
+  set_result(Item *it)
+  {
+    m_result= it;
+  }
+
+  inline Item *
+  get_result()
+  {
+    return m_result;
+  }
+
 private:
 
   uint m_count;
   uint m_size;
   Item **m_frame;
   int  *m_outs;
+  Item *m_result;		// For FUNCTIONs
 
 }; // class sp_rcontext : public Sql_alloc
 
