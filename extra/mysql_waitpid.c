@@ -5,9 +5,9 @@
 #include <my_global.h>
 #include <my_getopt.h>
 
-static const char *VER= "1.0";
+static const char *VER= "1.1";
 static char *progname;
-static int verbose= 0;
+static my_bool verbose;
 
 void usage(void);
 
@@ -18,8 +18,8 @@ static struct my_option my_long_options[] =
   {"help", 'I', "Synonym for -?.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"verbose", 'v',
-   "Be more verbose. Give a warning, if kill can't handle signal 0.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Be more verbose. Give a warning, if kill can't handle signal 0.", 
+   (gptr*) &verbose, (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
   if (!argv[0] || !argv[1] || (pid= atoi(argv[0])) <= 0 ||
       (t= atoi(argv[1])) <= 0)
     usage();
-  for (; t >= 0; t--)
+  for (; t > 0; t--)
   {
     if (kill((pid_t) pid, sig))
     {
