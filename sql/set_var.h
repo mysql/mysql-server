@@ -35,7 +35,7 @@ enum enum_var_type
   OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
 };
 
-typedef bool (*sys_check_func)(THD *,  set_var *);
+typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
 typedef void (*sys_after_update_func)(THD *,enum_var_type);
 typedef void (*sys_set_default_func)(THD *, enum_var_type);
@@ -143,10 +143,7 @@ public:
     :sys_var(name_arg), check_func(check_func_arg),
     update_func(update_func_arg),set_default_func(set_default_func_arg)
   {}
-  bool check(THD *thd, set_var *var)
-  {
-    return check_func ? (*check_func)(thd, var) : 0;
-  }
+  bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var)
   {
     return (*update_func)(thd, var);
