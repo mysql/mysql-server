@@ -42,34 +42,22 @@ class NdbBlob;
 typedef void (* NdbAsynchCallback)(int, NdbTransaction*, void*);
 #endif
 
-/**
- * Commit type of transaction
- */
-enum AbortOption {      
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  CommitIfFailFree = 0,         
-  CommitAsMuchAsPossible = 2,   ///< Commit transaction with as many 
-  TryCommit = 0,                ///< <i>Missing explanation</i>
-#endif
-  AbortOnError = 0,             ///< Abort transaction on failed operation
-  AO_IgnoreError = 2            ///< Transaction continues on failed operation
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+enum AbortOption {
+  CommitIfFailFree= 0,         
+  TryCommit= 0,
+  AbortOnError= 0,
+  CommitAsMuchAsPossible= 2,
+  AO_IgnoreError= 2
 };
-  
-typedef AbortOption CommitType;
-
-
-/**
- * Execution type of transaction
- */
 enum ExecType { 
-  NoExecTypeDef = -1,           ///< Erroneous type (Used for debugging only)
-  Prepare,                      ///< <i>Missing explanation</i>
-  NoCommit,                     ///< Execute the transaction as far as it has
-                                ///< been defined, but do not yet commit it
-  Commit,                       ///< Execute and try to commit the transaction
-  Rollback                      ///< Rollback transaction
+  NoExecTypeDef = -1,
+  Prepare,
+  NoCommit,
+  Commit,
+  Rollback
 };
-
+#endif
 
 /**
  * @class NdbTransaction
@@ -99,17 +87,17 @@ enum ExecType {
  * before calling execute().
  *
  * A call to execute() uses one out of three types of execution:
- *  -# ExecType::NoCommit  Executes operations without committing them.
- *  -# ExecType::Commit	   Executes remaining operation and commits the 
+ *  -# NdbTransaction::NoCommit  Executes operations without committing them.
+ *  -# NdbTransaction::Commit    Executes remaining operation and commits the 
  *        	           complete transaction
- *  -# ExecType::Rollback  Rollbacks the entire transaction.
+ *  -# NdbTransaction::Rollback  Rollbacks the entire transaction.
  *
  * execute() is equipped with an extra error handling parameter. 
  * There are two alternatives:
- * -# AbortOption::AbortOnError (default).
+ * -# NdbTransaction::AbortOnError (default).
  *    The transaction is aborted if there are any error during the
  *    execution
- * -# AbortOption::IgnoreError
+ * -# NdbTransaction::AO_IgnoreError
  *    Continue execution of transaction even if operation fails
  *
  */
@@ -141,6 +129,7 @@ enum ExecType {
  *    primary key since it came along from the scanned tuple.
  *
  */
+
 class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -153,6 +142,44 @@ class NdbTransaction
 #endif
 
 public:
+
+  /**
+   * Commit type of transaction
+   */
+  enum AbortOption {
+    AbortOnError=               ///< Abort transaction on failed operation
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::AbortOnError
+#endif
+    ,AO_IgnoreError=            ///< Transaction continues on failed operation
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::AO_IgnoreError
+#endif
+  };
+
+  /**
+   * Execution type of transaction
+   */
+  enum ExecType {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    NoExecTypeDef=
+    ::NoExecTypeDef,            ///< Erroneous type (Used for debugging only)
+    Prepare= ::Prepare,         ///< <i>Missing explanation</i>
+#endif
+    NoCommit=                   ///< Execute the transaction as far as it has
+                                ///< been defined, but do not yet commit it
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::NoCommit
+#endif
+    ,Commit=                    ///< Execute and try to commit the transaction
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::Commit
+#endif
+    ,Rollback                   ///< Rollback transaction
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = ::Rollback
+#endif
+  };
 
   /**
    * Get an NdbOperation for a table.
@@ -281,9 +308,15 @@ public:
    *                          the send.
    * @return 0 if successful otherwise -1.
    */
-  int execute(ExecType execType, 
+  int execute(ExecType execType,
 	      AbortOption abortOption = AbortOnError,
 	      int force = 0 );
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int execute(::ExecType execType,
+	      ::AbortOption abortOption = ::AbortOnError,
+	      int force = 0 )
+  { return execute ((ExecType)execType,(AbortOption)abortOption,force); }
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   // to be documented later
@@ -314,6 +347,14 @@ public:
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
 			    AbortOption abortOption = AbortOnError);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  void executeAsynchPrepare(::ExecType       execType,
+			    NdbAsynchCallback callback,
+			    void*             anyObject,
+			    ::AbortOption abortOption = ::AbortOnError)
+  { executeAsynchPrepare((ExecType)execType, callback, anyObject,
+			 (AbortOption)abortOption); }
+#endif
 
   /**
    * Prepare and send an asynchronous transaction.
@@ -332,6 +373,14 @@ public:
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
 		     AbortOption abortOption = AbortOnError);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  void executeAsynch(::ExecType         aTypeOfExec,
+		     NdbAsynchCallback   aCallback,
+		     void*               anyObject,
+		     ::AbortOption abortOption= ::AbortOnError)
+  { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
+		  (AbortOption)abortOption); }
+#endif
 #endif
   /**
    * Refresh
