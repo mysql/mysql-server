@@ -2433,7 +2433,6 @@ row_truncate_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	ulint		err;
-	ibool		locked_dictionary	= FALSE;
 	mem_heap_t*	heap;
 	byte*		buf;
 	dtuple_t*	tuple;
@@ -2451,13 +2450,15 @@ operations could try to access non-existent pages.
 
 1) SQL queries, INSERT, SELECT, ...: we must get an exclusive MySQL table lock
 on the table before we can do TRUNCATE TABLE. Then there are no running
-queries on the table.
+queries on the table. This is guaranteed, because in
+ha_innobase::store_lock(), we do not weaken the TL_WRITE lock requested
+by MySQL when executing SQLCOM_TRUNCATE.
 2) Purge and rollback: we assign a new table id for the table. Since purge and
 rollback look for the table based on the table id, they see the table as
 'dropped' and discard their operations.
 3) Insert buffer: TRUNCATE TABLE is analogous to DROP TABLE, so we do not
 have to remove insert buffer records, as the insert buffer works at a low
-level.  If a freed page is later reallocated, the allocator will remove
+level. If a freed page is later reallocated, the allocator will remove
 the ibuf entries for it.
 
 TODO: when we truncate *.ibd files (analogous to DISCARD TABLESPACE), we
@@ -2465,10 +2466,10 @@ will have to remove we remove all entries for the table in the insert
 buffer tree!
 
 4) Linear readahead and random readahead: we use the same method as in 3) to
-discard ongoing operations.  (This will only be relevant for TRUNCATE TABLE
+discard ongoing operations. (This will only be relevant for TRUNCATE TABLE
 by DISCARD TABLESPACE.)
 5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
-do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
+do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 
 	static const char renumber_tablespace_proc[] =
 	"PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
@@ -2516,14 +2517,11 @@ do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
-		/* Prevent foreign key checks etc. while we are truncating the
-		table */
+	ut_a(trx->dict_operation_lock_mode == 0);
+	/* Prevent foreign key checks etc. while we are truncating the
+	table */
 
-		row_mysql_lock_data_dictionary(trx);
-
-		locked_dictionary = TRUE;
-	}
+	row_mysql_lock_data_dictionary(trx);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -2551,8 +2549,8 @@ do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
 
 		fputs("  Cannot truncate table ", ef);
 		ut_print_name(ef, trx, table->name);
-		fputs("\n"
-			"because it is referenced by ", ef);
+		fputs(" by DROP+CREATE\n"
+			"InnoDB: because it is referenced by ", ef);
 		ut_print_name(ef, trx, foreign->foreign_table_name);
 		putc('\n', ef);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -2569,10 +2567,10 @@ do not allow the TRUNCATE.  We also reserve the data dictionary latch. */
 
 	if (table->n_foreign_key_checks_running > 0) {
 		ut_print_timestamp(stderr);
-		fputs("	 InnoDB: You are trying to truncate table ", stderr);
+		fputs("	 InnoDB: Cannot truncate table ", stderr);
 		ut_print_name(stderr, trx, table->name);
-		fputs("\n"
-"InnoDB: though there is a foreign key check running on it.\n",
+		fputs(" by DROP+CREATE\n"
+"InnoDB: because there is a foreign key check running on it.\n",
 			stderr);
 		err = DB_ERROR;
 
@@ -2686,9 +2684,7 @@ fputs("	 InnoDB: Unable to assign a new identifier to table ", stderr);
 
 funct_exit:
 
-	if (locked_dictionary) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
+	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
 
