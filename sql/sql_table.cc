@@ -19,6 +19,9 @@
 
 #include "mysql_priv.h"
 #include <hash.h>
+#ifdef HAVE_BERKELEY_DB
+#include <ha_berkeley.h>
+#endif
 #include <myisam.h>
 #ifdef HAVE_BERKELEY_DB
 #include <ha_berkeley.h>

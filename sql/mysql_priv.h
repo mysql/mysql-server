@@ -524,6 +524,7 @@ bool rm_temporary_table(enum db_type base, char *path);
 bool send_fields(THD *thd,List<Item> &item,uint send_field_count);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
+bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_thread_tables(THD *thd,bool locked=0);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
