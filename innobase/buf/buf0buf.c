@@ -418,6 +418,15 @@ buf_pool_init(
 	ut_a(max_size == curr_size);
 	ut_a(srv_use_awe || n_frames == max_size);
 	
+	if (n_frames > curr_size) {
+	        fprintf(stderr,
+"InnoDB: AWE: Error: you must specify in my.cnf .._awe_mem_mb larger\n"
+"InnoDB: than .._buffer_pool_size. Now the former is %lu pages,\n"
+"InnoDB: the latter %lu pages.\n", curr_size, n_frames);
+
+		return(NULL);
+	}
+
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
 	/* 1. Initialize general fields
