@@ -28,21 +28,25 @@
 static const char *any_db="*any*";	// Special symbol for check_access
 
 
-int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t)
 {
-  SELECT_LEX *sl=s;
+  /*
+    TODO: make derived tables with union inside (now only 1 SELECT may be
+    procesed)
+  */
+  SELECT_LEX *sl= (SELECT_LEX*)s->slave;
   List<Item> item_list;
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables=(TABLE_LIST *)sl->table_list.first;
+  TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   DBUG_ENTER("mysql_derived");
   
   if (tables)
-    res=check_table_access(thd,SELECT_ACL, tables);
+    res= check_table_access(thd,SELECT_ACL, tables);
   else
-    res=check_access(thd, SELECT_ACL, any_db);
+    res= check_access(thd, SELECT_ACL, any_db);
   if (res)
     DBUG_RETURN(-1);
 
@@ -52,7 +56,7 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
   {
     if (cursor->derived)
     {
-      res=mysql_derived(thd,lex,(SELECT_LEX *)cursor->derived,cursor);
+      res=mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived, cursor);
       if (res) DBUG_RETURN(res);
     }
   }
@@ -103,9 +107,8 @@ int mysql_derived(THD *thd, LEX *lex,SELECT_LEX *s, TABLE_LIST *t)
 	{
 	  t->real_name=table->real_name;
 	  t->table=table;
-	  sl->prev->next=sl->next;
+	  sl->exclude();
 	  t->derived=(SELECT_LEX *)0; // just in case ...
-	  if (!sl->next) lex->last_select = sl;
 	}
       }
       delete derived_result;
