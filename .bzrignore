@@ -513,3 +513,6 @@ innobase/stamp-h1
 myisam/rt_test.MYD
 myisam/rt_test.MYI
 stamp-h1
+libmysqld/sql_help.cc
+scripts/fill_func_tables
+scripts/fill_func_tables.sql
