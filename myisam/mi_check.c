@@ -3833,7 +3833,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
       return 0;
   }
 err:
-  mi_check_print_error(param,"%d when updateing keyfile",my_errno);
+  mi_check_print_error(param,"%d when updating keyfile",my_errno);
   return 1;
 }
 
