@@ -29,6 +29,9 @@
 /* Do we have FIONREAD */
 #undef FIONREAD_IN_SYS_IOCTL
 
+/* Do we need to define _GNU_SOURCE */
+#undef _GNU_SOURCE
+
 /* atomic_add() from <asm/atomic.h> (Linux only) */
 #undef HAVE_ATOMIC_ADD
 
