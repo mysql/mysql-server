@@ -225,7 +225,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     return 1;
   }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
-				 passwd, thd->scramble, &thd->priv_user,
+				 passwd, thd->scramble,
+                                 &thd->priv_user, &thd->priv_host,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur);
