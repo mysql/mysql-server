@@ -361,6 +361,8 @@ protected:
 		  my_bool using_transactions);
   void invalidate(CHANGED_TABLE_LIST *tables_used);
   void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
+  void invalidate(THD *thd, const char *key, uint32  key_length,
+		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
   void invalidate(char *db);

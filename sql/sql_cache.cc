@@ -708,11 +708,11 @@ Query_cache::Query_cache(ulong query_cache_limit,
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size)),
    initialized(0)
 {
-  ulong min_needed=(ALIGN_SIZE(sizeof(Query_cache_block)) +
-		    ALIGN_SIZE(sizeof(Query_cache_block_table)) +
-		    ALIGN_SIZE(sizeof(Query_cache_query)) + 3);
+  ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
+		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
+		     ALIGN_SIZE(sizeof(Query_cache_query)) + 3);
   set_if_bigger(min_allocation_unit,min_needed);
-  this->min_allocation_unit = ALIGN_SIZE(min_allocation_unit);
+  this->min_allocation_unit= ALIGN_SIZE(min_allocation_unit);
   set_if_bigger(this->min_result_data_size,min_allocation_unit);
 }
 
@@ -723,7 +723,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
 			query_cache_size_arg));
   free_cache(0);
-  query_cache_size=query_cache_size_arg;
+  query_cache_size= query_cache_size_arg;
   DBUG_RETURN(init_cache());
 }
 
@@ -1104,6 +1104,28 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
   DBUG_VOID_RETURN;
 }
 
+void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
+			     my_bool using_transactions)
+{
+  DBUG_ENTER("Query_cache::invalidate (key)");
+  
+  if (query_cache_size > 0)
+  {
+    using_transactions = using_transactions &&
+      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    if (using_transactions) // used for innodb => has_transactions() is TRUE
+      thd->add_changed_table(key, key_length);
+    else
+    {
+      STRUCT_LOCK(&structure_guard_mutex);
+      if (query_cache_size > 0)
+	invalidate_table((byte*)key, key_length);
+      STRUCT_UNLOCK(&structure_guard_mutex);  
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
 /*
   Remove all cached queries that uses the given database
 */
@@ -1356,8 +1378,15 @@ ulong Query_cache::init_cache()
 
   VOID(hash_init(&queries,def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
+#ifndef __WIN__
   VOID(hash_init(&tables,def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
+#else
+  // windows case insensitive file names work around
+  VOID(hash_init(&tables,def_table_hash_size, 0, 0,
+		 query_cache_table_get_key, 0,
+		 (lower_case_table_names?0:HASH_CASE_INSENSITIVE)));  
+#endif
 
   queries_in_cache = 0;
   queries_blocks = 0;
@@ -2827,7 +2856,6 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
 			     filename) -key) + 1);
 }
-
 
 /****************************************************************************
   Functions to be used when debugging
