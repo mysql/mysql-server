@@ -469,7 +469,7 @@ static ulong get_sort(uint count,...)
     uint chars= 0;
     uint wild_pos= 0;           /* first wildcard position */
 
-    if (start= str)
+    if ((start= str))
     {
       for (; *str ; str++)
       {
