@@ -2041,6 +2041,7 @@ String *Item_func_conv_charset::val_str(String *str)
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
+  set_charset(conv_charset);
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
   set_charset(conv_charset, COER_IMPLICIT);
 }
@@ -2114,25 +2115,6 @@ outp:
 }
 
 
-bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
-{
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  used_tables_cache=0;
-  const_item_cache=1;
-
-  if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 1;
-  maybe_null=args[0]->maybe_null;
-  const_item_cache=args[0]->const_item();
-  set_charset(conv_charset);
-  fix_length_and_dec();
-  fixed= 1;
-  return 0;
-}
-
-
 void Item_func_conv_charset3::fix_length_and_dec()
 {
   max_length = args[0]->max_length;
@@ -2147,24 +2129,11 @@ String *Item_func_set_collation::val_str(String *str)
   return str;
 }
 
-bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
+void Item_func_set_collation::fix_length_and_dec()
 {
   CHARSET_INFO *set_collation;
-  String tmp, *str;
   const char *colname;
-  char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  used_tables_cache=0;
-  const_item_cache=1;
-
-  if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error if flag is set!
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 1;
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1))
-    return 2;
-  maybe_null=args[0]->maybe_null || args[1]->maybe_null;
-
-  str= args[1]->val_str(&tmp);
+  String tmp, *str= args[1]->val_str(&tmp);
   colname= str->c_ptr();
   if (!strncmp(colname,"BINARY",6))
     set_collation= get_charset_by_csname(args[0]->charset()->csname,
@@ -2175,23 +2144,19 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   if (!set_collation)
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), str->c_ptr());
-    return 1;
+    return;
   }
   
   if (!my_charset_same(args[0]->charset(),set_collation))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
       set_collation->name,args[0]->charset()->csname);
-    return 1;
+    return;
   }
   set_charset(set_collation, COER_EXPLICIT);
-  with_sum_func= with_sum_func || args[0]->with_sum_func;
-  used_tables_cache=args[0]->used_tables();
-  const_item_cache=args[0]->const_item();
-  fix_length_and_dec();
-  fixed= 1;
-  return 0;
+  max_length= args[0]->max_length;
 }
+
 
 bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
 {
