@@ -1845,8 +1845,9 @@ ok:
   DBUG_RETURN(0);
 
 err:
-  /* Hide "Unknown column" error */
-  if (thd->net.last_errno == ER_BAD_FIELD_ERROR)
+  /* Hide "Unknown column" or "Unknown function" error */
+  if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
+      thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
   {
     thd->clear_error();
     my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);

@@ -5464,10 +5464,9 @@ ER_WARN_VIEW_WITHOUT_KEY
 	serbian "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 	ukr "View, що оновлюеться, не м╕стить повного ключа таблиц╕(ь), що викор╕стана в ньюому"
 ER_VIEW_INVALID  
-	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
-	rus "View '%-.64s.%-.64s' ссылается на несуществующие таблицы или столбцы"
+	eng "View '%-.64s.%-.64s' references invalid table(s) or column(s) or function(s)"
+	rus "View '%-.64s.%-.64s' ссылается на несуществующие таблицы или столбцы или функции"
 	serbian "Can't drop a %s from within another stored routine"
-	ukr "View '%-.64s.%-.64s' посила╓тся на не╕снуюч╕ таблиц╕ або стовбц╕"
 ER_SP_NO_DROP_SP  
 	eng "Can't drop a %s from within another stored routine"
 	serbian "GOTO is not allowed in a stored procedure handler"
