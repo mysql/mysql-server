@@ -27,7 +27,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 all:			$(targets) txt_files
 
 txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
-			INSTALL-BINARY
+			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(BUILD_SOURCES)
 	touch $(BUILD_SOURCES)
@@ -253,6 +253,9 @@ INSTALL-BINARY:	mysql.info $(GT)
 
 ../COPYING.LIB:		mysql.info $(GT)
 	perl -w $(GT) mysql.info "LGPL license" "Function Index" > $@
+
+../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
+	perl -w $(GT) mysql.info "Mac OS X installation" "Netware installation" > $@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
