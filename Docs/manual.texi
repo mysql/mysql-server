@@ -49312,6 +49312,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed a bug when GROUP BY had 2 or more fields of which at least one can 
+have NULL values 
+@item
 Use @code{Turbo Boyer-Moore} algorithm to speed up @code{LIKE "%keyword%"}
 searches.
 @item
