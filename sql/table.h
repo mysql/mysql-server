@@ -281,7 +281,7 @@ typedef struct st_table_list
   void calc_md5(char *buffer);
   void set_ancestor();
   int view_check_option(THD *thd, bool ignore_failure);
-  bool setup_ancestor(THD *thd, Item **conds);
+  bool setup_ancestor(THD *thd, Item **conds, uint8 check_option);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
   inline st_table_list *next_independent()
