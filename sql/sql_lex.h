@@ -619,6 +619,7 @@ typedef struct st_lex
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
+  bool subqueries;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
