@@ -84,6 +84,7 @@ CREATE TABLE user (
   Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+  Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   ssl_cipher BLOB NOT NULL,
   x509_issuer BLOB NOT NULL,
@@ -98,9 +99,9 @@ CHARACTER SET utf8 COLLATE utf8_bin
 comment='Users and global privileges';
 
 
-INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
-REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('localhost'   ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+INSERT INTO user VALUES ('@HOSTNAME@%' ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
+REPLACE INTO user VALUES ('127.0.0.1'  ,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0);
 INSERT  INTO user (host,user) VALUES ('localhost','');
 INSERT  INTO user (host,user) VALUES ('@HOSTNAME@%','');
 
@@ -147,11 +148,11 @@ comment='Column privileges';
 
 CREATE TABLE help_topic (
   help_topic_id int unsigned not null,
-  name varchar(64) not null,
+  name char(64) not null,
   help_category_id smallint unsigned not null,
   description text not null,
   example text not null,
-  url varchar(128) not null,
+  url char(128) not null,
   primary key (help_topic_id),
   unique index (name)
 ) engine=MyISAM
@@ -161,9 +162,9 @@ comment='help topics';
   
 CREATE TABLE help_category (
   help_category_id smallint unsigned not null,
-  name varchar(64) not null,
+  name char(64) not null,
   parent_category_id smallint unsigned null,
-  url varchar(128) not null,
+  url char(128) not null,
   primary key (help_category_id),unique index (name)
 ) engine=MyISAM
 CHARACTER SET utf8
@@ -172,7 +173,7 @@ comment='help categories';
 
 CREATE TABLE help_keyword (
   help_keyword_id int unsigned not null,
-  name varchar(64) not null,
+  name char(64) not null,
   primary key (help_keyword_id),unique index (name)
 ) engine=MyISAM
 CHARACTER SET utf8
