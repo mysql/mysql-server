@@ -671,6 +671,7 @@ static SYMBOL sql_functions[] = {
   { "UCASE",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},
   { "UNCOMPRESS",	F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompress)},
   { "UNCOMPRESSED_LENGTH", F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_uncompressed_length)},
+  { "UNHEX",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_unhex)},
   { "UNIQUE_USERS",	SYM(UNIQUE_USERS)},
   { "UNIX_TIMESTAMP",	SYM(UNIX_TIMESTAMP)},
   { "UPPER",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ucase)},

@@ -18,6 +18,10 @@
 /* thus to get the current time we should use the system function
    with the highest possible resolution */
 
+#ifdef __NETWARE__
+#include <nks/time.h>
+#endif
+
 #include "mysys_priv.h"
 ulonglong my_getsystime()
 {
@@ -31,6 +35,10 @@ ulonglong my_getsystime()
   struct _timeb tb;
   _ftime(&tb);
   return (ulonglong)tb.time*10000000+(ulonglong)tb.millitm*10000;
+#elif defined(__NETWARE__)
+  NXTime_t tm;
+  NXGetTime(NX_SINCE_1970, NX_NSECONDS, &tm);
+  return (ulonglong)tm/100;
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;

@@ -2231,7 +2231,7 @@ String *Item_func_hex::val_str(String *str)
   null_value=0;
   tmp_value.length(res->length()*2);
   for (from=res->ptr(), end=from+res->length(), to= (char*) tmp_value.ptr();
-       from != end ;
+       from < end ;
        from++, to+=2)
   {
     uint tmp=(uint) (uchar) *from;
@@ -2241,6 +2241,48 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
+int inline hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
+}
+
+String *Item_func_unhex::val_str(String *str)
+{
+  /* Convert given hex string to a binary string */
+  String *res= args[0]->val_str(str);
+  const char *from=res->ptr(), *end;
+  char *to;
+  int r;
+  if (!res || tmp_value.alloc((1+res->length())/2))
+  {
+    null_value=1;
+    return 0;
+  }
+  null_value=0;
+  tmp_value.length((1+res->length())/2);
+  to= (char*) tmp_value.ptr();
+  if (res->length() % 2)
+  {
+    *to++= r= hexchar_to_int(*from++);
+    if ((null_value= (r == -1)))
+      return 0;
+  }
+  for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
+  {
+    *to= (r= hexchar_to_int(from[0])) << 4;
+    if ((null_value= (r == -1)))
+      return 0;
+    *to|= r= hexchar_to_int(from[1]);
+    if ((null_value= (r == -1)))
+      return 0;
+  }
+  return &tmp_value;
+}
 
 void Item_func_binary::print(String *str)
 {
