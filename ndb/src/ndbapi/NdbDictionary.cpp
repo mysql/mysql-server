@@ -824,10 +824,9 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 }
 
 int
-NdbDictionary::Dictionary::listObjects(const List& list,
-				       Object::Type type) const
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
-  return m_impl.listObjects(*(List*)&list, type);
+  return m_impl.listObjects(list, type);
 }
 
 int
@@ -842,10 +841,15 @@ NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
 }
 
 int
-NdbDictionary::Dictionary::listIndexes(const List& list,
+NdbDictionary::Dictionary::listIndexes(List& list,
 				       const char * tableName) const
 {
-  return listIndexes(*(List *)&list, tableName);
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
 }
 
 const struct NdbError & 
