@@ -3234,16 +3234,6 @@ unsent_create_error:
     if ((res= open_and_lock_tables(thd, all_tables)))
       break;
 
-    if (!first_table->table)
-    {
-      DBUG_ASSERT(first_table->view &&
-                  first_table->ancestor && first_table->ancestor->next_local);
-      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
-               first_table->view_db.str, first_table->view_name.str);
-      res= FALSE;
-      break;
-    }
-
     if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
