@@ -900,3 +900,13 @@ drop view v1;
 #
 -- error 1060
 create view v1 (a,a) as select 'a','a';
+
+#
+# SP variables inside view test
+#
+delimiter //;
+create procedure p11 () begin declare v int; create view v1 as select v; end;//
+delimiter ;//
+-- error 1350
+call p11();
+drop procedure p11;

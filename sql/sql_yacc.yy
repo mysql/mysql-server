@@ -1987,7 +1987,8 @@ sp_elseifs:
 sp_case:
 	  expr THEN_SYM
 	  {
-	    sp_head *sp= Lex->sphead;
+            LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
 	    sp_instr_jump_if_not *i;
@@ -2005,6 +2006,7 @@ sp_case:
 	      Item *expr= new Item_func_eq(var, $1);
 
 	      i= new sp_instr_jump_if_not(ip, expr);
+              lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
             sp->add_instr(i);
@@ -6170,6 +6172,7 @@ simple_ident:
 				  $1.str);
 	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
+            lex->variables_used= 1;
 	  }
 	  else
 	  {
