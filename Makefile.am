@@ -22,7 +22,7 @@ TAR =			gtar
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
-			@thread_dirs@ @pstack_dirs@ @sql_client_dirs@ \
+			@thread_dirs@ @pstack_dirs@ vio @sql_client_dirs@ \
 			@sql_server_dirs@ @libmysqld_dirs@ scripts tests man \
 			@bench_dirs@ support-files @fs_dirs@
 

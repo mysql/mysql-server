@@ -14,20 +14,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES =		-I$(srcdir)/../include -I../include \
-			@OPENSSL_INCLUDES@
-LDADD =			libvio.la
-pkglib_LTLIBRARIES =	libvio.la
+INCLUDES =		-I$(srcdir)/../include -I../include $(openssl_includes)
+LDADD =			libvio.a $(openssl_libs)
+pkglib_LIBRARIES =	libvio.a
 noinst_PROGRAMS	=	
 noinst_HEADERS =	
-libvio_la_SOURCES =			\
-			Vio.cc			VioAcceptorFd.cc	\
-			VioConnectorFd.cc	VioFd.cc		\
-			VioHandle.cc		VioSSL.cc		\
-			VioSSLFactoriesFd.cc	VioSocket.cc		\
-			auto.cc			hostnamexx.cc		\
-			vdbug.cc		version.cc		\
-			vmem.cc			violitexx.cc
+libvio_a_SOURCES =	vio.c viosocket.c viossl.c viosslfactories.c
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \

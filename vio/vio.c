@@ -23,10 +23,11 @@
 
 #define DONT_MAP_VIO
 #include <global.h>
+#include <mysql_com.h>
+#include <violite.h>
 
 #include <errno.h>
 #include <assert.h>
-#include <vio.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
@@ -58,14 +59,14 @@
 
 
 /*
- * Helper to fill most of the st_vio* with defaults.
+ * Helper to fill most of the Vio* with defaults.
  */
 
-void vio_reset(st_vio* vio, enum enum_vio_type type,
+void vio_reset(Vio* vio, enum enum_vio_type type,
 		      my_socket sd, HANDLE hPipe,
 		      my_bool localhost)
 {
-  bzero((char*) vio, sizeof(st_vio));
+  bzero((char*) vio, sizeof(Vio));
   vio->type	= type;
   vio->sd	= sd;
   vio->hPipe	= hPipe;
@@ -102,12 +103,12 @@ if(type == VIO_TYPE_SSL){
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
 
-st_vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
+Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 {
-  st_vio *vio;
+  Vio *vio;
   DBUG_ENTER("vio_new");
   DBUG_PRINT("enter", ("sd=%d", sd));
-  if ((vio = (st_vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
+  if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_reset(vio, type, sd, 0, localhost);
     sprintf(vio->desc,
@@ -134,11 +135,11 @@ st_vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 
 #ifdef __WIN__
 
-st_vio *vio_new_win32pipe(HANDLE hPipe)
+Vio *vio_new_win32pipe(HANDLE hPipe)
 {
-  st_vio *vio;
+  Vio *vio;
   DBUG_ENTER("vio_new_handle");
-  if ((vio = (st_vio*) my_malloc(sizeof(st_vio),MYF(MY_WME))))
+  if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
   {
     vio_reset(vio, VIO_TYPE_NAMEDPIPE, 0, hPipe, TRUE);
     strmov(vio->desc, "named pipe");
