@@ -948,11 +948,12 @@ frm_type_enum mysql_frm_type(char *path)
   {
     DBUG_RETURN(FRMTYPE_ERROR);
   }
-  length= my_read(file, (byte*) header, 10, MYF(MY_WME));
+  length= my_read(file, (byte*) header, sizeof(header), MYF(MY_WME));
   my_close(file, MYF(MY_WME));
   if (length == (int) MY_FILE_ERROR)
     DBUG_RETURN(FRMTYPE_ERROR);
-  if (!strncmp(header, "TYPE=VIEW\n", 10))
+  if (length < (int) sizeof(header) ||
+      !strncmp(header, "TYPE=VIEW\n", sizeof(header)))
     DBUG_RETURN(FRMTYPE_VIEW);
   DBUG_RETURN(FRMTYPE_TABLE);                   // Is probably a .frm table
 }

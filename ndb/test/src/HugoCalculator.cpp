@@ -18,6 +18,22 @@
 #include <NDBT.hpp>
 #include <Base64.hpp>
 
+static
+Uint32
+myRand(Uint64 * seed)
+{
+  const Uint64 mul= 0x5deece66dull;
+  const Uint64 add= 0xb;
+  Uint64 loc_result = *seed * mul + add;
+
+  * seed= loc_result;
+  return loc_result >> 1;
+}
+
+static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                             "abcdefghijklmnopqrstuvwxyz"
+                             "0123456789+/";
+
 /* *************************************************************
  * HugoCalculator
  *
@@ -72,60 +88,49 @@ HugoCalculator::Int64 calcValue(int record, int attrib, int updates) const;
 HugoCalculator::float calcValue(int record, int attrib, int updates) const;
 HugoCalculator::double calcValue(int record, int attrib, int updates) const;
 #endif
+
 const char* 
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
 			  int updates, 
 			  char* buf,
 			  int len) const {
-
+  Uint64 seed;
   const NdbDictionary::Column* attr = m_tab.getColumn(attrib);
   Uint32 val;
   do
   {
     if (attrib == m_idCol)
     {
-      *((Uint32*)buf)= record;
+      val= record;
+      memcpy(buf, &val, 4);
       return buf;
     }
     
     // If this is the update column
     if (attrib == m_updatesCol)
     {
-      *((Uint32*)buf)= updates;
+      val= updates;
+      memcpy(buf, &val, 4);
       return buf;
     }
     
     if (attr->getPrimaryKey())
     {
-      srand(record + attrib);
-      val = (record + attrib);
+      seed = record + attrib;
     }
     else
     {
-      srand(record + attrib + updates);
-      val = rand();
+      seed = record + attrib + updates;
     }
   } while (0);
   
+  val = myRand(&seed);  
+  
   if(attr->getNullable() && (((val >> 16) & 255) > 220))
     return NULL;
-  
-  memcpy(buf, &val, (len > 4 ? 4 : len));
-  int pos= 4;
-  while(pos + 4 < len)
-  {
-    val= rand();
-    memcpy(buf+pos, &val, 4);
-    pos++;
-  }
 
-  if(pos < len)
-  { 
-    val= rand();
-    memcpy(buf+pos, &val, (len - pos));
-  }
-
+  int pos= 0;
   switch(attr->getType()){
   case NdbDictionary::Column::Tinyint:
   case NdbDictionary::Column::Tinyunsigned:
@@ -144,15 +149,24 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Datetime:
   case NdbDictionary::Column::Time:
   case NdbDictionary::Column::Date:
-    break;
   case NdbDictionary::Column::Bit:
-  {
-    Uint32 bits= attr->getLength();
-    Uint32 tmp = bits >> 5;
-    Uint32 size = bits & 31;
-    ((Uint32*)buf)[tmp] &= ((1 << size) - 1);
+    while (len > 4)
+    {
+      memcpy(buf+pos, &val, 4);
+      pos += 4;
+      len -= 4;
+      val= myRand(&seed);
+    }
+    
+    memcpy(buf+pos, &val, len);
+    if(attr->getType() == NdbDictionary::Column::Bit)
+    {
+      Uint32 bits= attr->getLength();
+      Uint32 tmp = bits >> 5;
+      Uint32 size = bits & 31;
+      ((Uint32*)buf)[tmp] &= ((1 << size) - 1);
+    }
     break;
-  }
   case NdbDictionary::Column::Varbinary:
   case NdbDictionary::Column::Varchar:
   case NdbDictionary::Column::Text:
@@ -160,9 +174,21 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Longvarchar:
   case NdbDictionary::Column::Longvarbinary:
   {
-    BaseString tmp;
-    base64_encode(buf, len, tmp);
-    memcpy(buf, tmp.c_str(), len);
+    char* ptr= (char*)&val;
+    while(len >= 4)
+    {
+      len -= 4;
+      buf[pos++] = base64_table[ptr[0] & 0x3f];
+      buf[pos++] = base64_table[ptr[1] & 0x3f];
+      buf[pos++] = base64_table[ptr[2] & 0x3f];
+      buf[pos++] = base64_table[ptr[3] & 0x3f];
+      val= myRand(&seed);
+    }
+    
+    for(; len; len--, pos++)
+      buf[pos] = base64_table[ptr[len] & 0x3f];
+
+    pos--;
     break;
   }
   case NdbDictionary::Column::Blob:

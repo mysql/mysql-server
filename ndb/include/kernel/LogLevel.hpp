@@ -147,7 +147,7 @@ LogLevel::set_max(const LogLevel & org){
   return * this;
 }
 
-#include <signaldata/EventSubscribeReq.hpp>
+#include "signaldata/EventSubscribeReq.hpp"
 
 inline
 LogLevel&

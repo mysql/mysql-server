@@ -17,12 +17,12 @@
 #ifndef EVENTLOGGER_H
 #define EVENTLOGGER_H
 
-#include <Logger.hpp>
-#include <FileLogHandler.hpp>
-#include <GrepError.hpp>
-#include <kernel_types.h>
+#include <logger/Logger.hpp>
+#include <logger/FileLogHandler.hpp>
+#include "GrepError.hpp"
+#include <kernel/kernel_types.h>
 #include <kernel/LogLevel.hpp>
-#include <signaldata/EventReport.hpp>
+#include <kernel/signaldata/EventReport.hpp>
 
 class EventLoggerBase {
 public:
@@ -39,11 +39,14 @@ public:
    * threshold - is in range [0-15]
    * severity  - DEBUG to ALERT (Type of log message)
    */  
+  typedef void (* EventTextFunction)(char *,size_t,const Uint32*);
+
   struct EventRepLogLevelMatrix {
-    Ndb_logevent_type        eventType;
-    LogLevel::EventCategory   eventCategory;
-    Uint32                        threshold;
-    Logger::LoggerLevel            severity;
+    Ndb_logevent_type       eventType;
+    LogLevel::EventCategory eventCategory;
+    Uint32                  threshold;
+    Logger::LoggerLevel     severity;
+    EventTextFunction       textF;
   };
 
   static const EventRepLogLevelMatrix matrix[];
@@ -51,7 +54,8 @@ public:
   static int event_lookup(int eventType,
 			  LogLevel::EventCategory &cat,
 			  Uint32 &threshold, 
-			  Logger::LoggerLevel &severity);
+			  Logger::LoggerLevel &severity,
+			  EventTextFunction &textF);
 };
 
 /**
@@ -130,17 +134,18 @@ public:
    * @param nodeId the node id of event origin.
    */
   virtual void log(int, const Uint32*, NodeId = 0,const class LogLevel * = 0);
+
   
   /**
    * Returns the event text for the specified event report type.
    *
-   * @param type the event type.
+   * @param textF print function for the event
    * @param theData the event data.
    * @param nodeId a node id.
    * @return the event report text.
    */
   static const char* getText(char * dst, size_t dst_len,
-			     int type,
+			     EventTextFunction textF,
 			     const Uint32* theData, NodeId nodeId = 0);
   
   /**

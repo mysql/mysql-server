@@ -1418,7 +1418,12 @@ not always make sense; please check the manual before using it).";
     values of these 2 are never used (new connections don't use them).
     We don't test equality of global collation_database either as it's is
     going to be deprecated (made read-only) in 4.1 very soon.
+    We don't do it for <3.23.57 because masters <3.23.50 hang on
+    SELECT @@unknown_var (BUG#7965 - see changelog of 3.23.50).
   */
+  if (strncmp(mi->rli.relay_log.description_event_for_queue->server_version,
+              "3.23.57",7) < 0)
+    goto err;
   if (!mysql_real_query(mysql, "SELECT @@GLOBAL.COLLATION_SERVER", 32) &&
       (master_res= mysql_store_result(mysql)))
   {
@@ -1455,6 +1460,7 @@ be equal for replication to work";
     mysql_free_result(master_res);
   }
 
+err:
   if (errmsg)
   {
     sql_print_error(errmsg);

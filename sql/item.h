@@ -888,9 +888,10 @@ public:
   double val_real()
   {
     DBUG_ASSERT(fixed == 1);
-    int err;
+    int err_not_used;
+    char *end_not_used;
     return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), (char**) 0, &err);
+		      str_value.length(), &end_not_used, &err_not_used);
   }
   longlong val_int()
   {
@@ -1241,10 +1242,11 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   double val_real()
   {
-    int err;
+    int err_not_used;
+    char *end_not_used;
     return (null_value ? 0.0 :
 	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		       str_value.length(),NULL,&err));
+		       str_value.length(), &end_not_used, &err_not_used));
   }
   longlong val_int()
   { 

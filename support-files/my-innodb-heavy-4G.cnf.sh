@@ -189,7 +189,7 @@ tmp_table_size = 64M
 # Enable binary logging. This is required for acting as a MASTER in a
 # replication configuration. You also need the binary log if you need
 # the ability to do point in time recovery from your latest backup.
-log_bin
+log-bin=mysql-bin
 
 # If you're using replication with chained slaves (A->B->C), you need to
 # enable this option on server B. It enables logging of updates done by
