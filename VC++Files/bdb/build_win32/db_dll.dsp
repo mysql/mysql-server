@@ -7,23 +7,23 @@
 CFG=db_dll - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_dll.mak".
-!MESSAGE 
+!MESSAGE
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f "db_dll.mak" CFG="db_dll - Win32 Debug Static"
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "db_dll - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "db_dll - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "db_dll - Win32 Release Static" (based on\
  "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "db_dll - Win32 Debug Static" (based on\
  "Win32 (x86) Dynamic-Link Library")
-!MESSAGE 
+!MESSAGE
 
 # Begin Project
 # PROP Scc_ProjName ""
@@ -141,7 +141,7 @@ LINK32=link.exe
 # ADD BASE LINK32 /nologo /base:"0x13000000" /subsystem:windows /dll /pdb:none /debug /machine:I386 /out:"Debug/libdb32d.dll" /fixed:no
 # ADD LINK32 /nologo /base:"0x13000000" /subsystem:windows /dll /pdb:none /debug /machine:I386 /out:"Debug/libdb32d.dll" /fixed:no
 
-!ENDIF 
+!ENDIF
 
 # Begin Target
 
