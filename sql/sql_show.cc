@@ -1413,12 +1413,12 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         goto err;                               /* purecov: inspected */
     }
   }
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(mutex);
   send_eof(&thd->net);
   DBUG_RETURN(0);
 
  err:
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(mutex);
   DBUG_RETURN(1);
 }
 
