@@ -1238,7 +1238,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		      USE_WHOLE_KEY);
       }
       sort_info.dupp++;
-      if (!(rep_quick & T_FORCE_UNIQUENESS))
+      if ((param->testflag & (T_FORCE_UNIQUENESS|T_QUICK)) == T_QUICK)
       {
         param->testflag|=T_RETRY_WITHOUT_QUICK;
 	param->error_printed=1;
@@ -3210,7 +3210,7 @@ static int sort_delete_record(MI_SORT_PARAM *sort_param)
   MI_INFO *info=sort_info->info;
   DBUG_ENTER("sort_delete_record");
 
-  if (!(param->testflag & T_FORCE_UNIQUENESS))
+  if ((param->testflag & (T_FORCE_UNIQUENESS|T_QUICK)) == T_QUICK)
   {
     mi_check_print_error(param,
 			 "Quick-recover aborted; Run recovery without switch -q or with switch -qq");
