@@ -3556,7 +3556,14 @@ static void get_options(int argc,char **argv)
   int c,option_index=0;
 
   myisam_delay_key_write=1;			// Allow use of this
+#ifndef HAVE_purify
   my_use_symdir=1;				// Use internal symbolic links
+#else
+  /* Symlinks gives too many warnings with purify */
+  my_disable_symlinks=1;
+  my_use_symdir=0;
+  have_symlink=SHOW_OPTION_DISABLED;
+#endif
 
   optind = 0;   // setup in case getopt() was called previously
   while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvWI?",
