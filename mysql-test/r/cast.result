@@ -40,3 +40,6 @@ cast("1:2:3" as TIME) = "1:02:03"
 select cast(NULL as DATE);
 cast(NULL as DATE)
 NULL
+select cast(NULL as BINARY);
+cast(NULL as BINARY)
+NULL
