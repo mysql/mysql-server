@@ -3242,7 +3242,18 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     }
     break;
   case FIELD_TYPE_TIMESTAMP:
+#if MYSQL_VERSION_ID < 40100
+    /*
+      When in in --new mode, we should create TIMESTAMP(19) fields by default;
+      otherwise we will have problems with ALTER TABLE changing lengths of
+      existing TIMESTAMP fields to 19 and adding new fields with length 14.
+    */
+    if (thd->variables.new_mode)
+      new_field->length= 19;
+    else if (!length)
+#else
     if (!length)
+#endif
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
     else if (new_field->length != 19)
     {
