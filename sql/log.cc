@@ -149,11 +149,11 @@ void MYSQL_LOG::init(enum_log_type log_type_arg)
 
 void MYSQL_LOG::close_index()
 {
-  if(index_file >= 0)
-    {
-      my_close(index_file, MYF(0));
-      index_file = -1;
-    }
+  if (index_file >= 0)
+  {
+    my_close(index_file, MYF(0));
+    index_file = -1;
+  }
 }
 
 void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
