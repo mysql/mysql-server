@@ -1812,7 +1812,7 @@ install: all		# modified by MySQL configure' \
     AC_DEFINE(HAVE_mit_thread)
     MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
     AC_SUBST(MT_INCLUDES)
-    MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
+    MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread"
     AC_SUBST(MT_LD_ADD)
     LIBS="$MT_LD_ADD $LIBS"
     echo ""
