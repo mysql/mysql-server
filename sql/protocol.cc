@@ -359,7 +359,9 @@ send_eof(THD *thd, bool no_flush)
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       uchar buff[5];
-      uint tmp= min(thd->total_warn_count, 65535);
+      /* Don't send warn count during SP execution, as the warn_list
+         is cleared between substatements, and mysqltest gets confused */
+      uint tmp= (thd->spcont ? 0 : min(thd->total_warn_count, 65535));
       buff[0]=254;
       int2store(buff+1, tmp);
       /*
