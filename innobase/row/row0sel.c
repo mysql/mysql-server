@@ -2145,12 +2145,16 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
  		if (dtype_get_mysql_type(dfield_get_type(dfield))
-					== DATA_MYSQL_TRUE_VARCHAR) {
+					== DATA_MYSQL_TRUE_VARCHAR
+		    && dfield_get_type(dfield)->mtype != DATA_INT) {
 			/* In a MySQL key value format, a true VARCHAR is
 			always preceded by 2 bytes of a length field.
 			dfield_get_type(dfield)->len returns the maximum
 			'payload' len in bytes. That does not include the
-			2 bytes that tell the actual data length. */
+			2 bytes that tell the actual data length.
+
+			We added the check != DATA_INT to make sure we do
+			not treat MySQL ENUM or SET as a true VARCHAR! */
 
 			data_len += 2;
 			data_field_len += 2;

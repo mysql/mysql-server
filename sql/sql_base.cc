@@ -692,11 +692,11 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
 
 /*
-  Test that table is unique
+  Test that table is unique (It's only exists once in the table list)
 
   SYNOPSIS
     unique_table()
-    table                 table which should be chaked
+    table                 table which should be checked
     table_list            list of tables
 
   NOTE: to exclude derived tables from check we use following mechanism:
