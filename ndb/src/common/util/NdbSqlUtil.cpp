@@ -795,14 +795,18 @@ NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const vo
 
 // like
 
+static const int ndb_wild_prefix = '\\';
+static const int ndb_wild_one = '_';
+static const int ndb_wild_many = '%';
+
 int
 NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const char* v1 = (const char*)p1;
   const char* v2 = (const char*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-  int k = (cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, wild_prefix, wild_one, wild_many);
-  return k;
+  int k = (cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+  return k == 0 ? 0 : +1;
 }
 
 int
@@ -825,8 +829,8 @@ NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const voi
       const char* w1 = (const char*)v1 + lb;
       const char* w2 = (const char*)v2 + lb;
       CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, wild_prefix, wild_one, wild_many);
-      return k;
+      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+      return k == 0 ? 0 : +1;
     }
   }
   return -1;
@@ -852,8 +856,8 @@ NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const
       const char* w1 = (const char*)v1 + lb;
       const char* w2 = (const char*)v2 + lb;
       CHARSET_INFO* cs = (CHARSET_INFO*)(info);
-      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, wild_prefix, wild_one, wild_many);
-      return k;
+      int k = (cs->coll->wildcmp)(cs, w1, w1 + m1, w2, w2 + m2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
+      return k == 0 ? 0 : +1;
     }
   }
   return -1;
