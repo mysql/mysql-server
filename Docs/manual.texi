@@ -4512,7 +4512,7 @@ Delayed insert handler has pending inserts to a table.
 
 @item
 @code{FLUSH TABLES}
-@end enumerate
+@end itemize
 
 @item
 Before MySQL Version 3.23.2 an @code{UPDATE} that updated a key with
@@ -17859,7 +17859,7 @@ The command returns a table with the following columns:
 @example
 CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 
-option = QUICK | FAST | MEDIUM | EXTEND | CHANGED
+option = QUICK | FAST | MEDIUM | EXTENDED | CHANGED
 @end example
 
 @code{CHECK TABLE} only works on @code{MyISAM} tables. On
