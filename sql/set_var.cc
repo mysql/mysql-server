@@ -926,6 +926,7 @@ struct show_var_st init_vars[]= {
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
 #ifdef HAVE_REPLICATION
   {sys_relay_log_purge.name,  (char*) &sys_relay_log_purge,         SHOW_SYS},
+  {"relay_log_space_limit",  (char*) &relay_log_space_limit,        SHOW_LONGLONG},
 #endif
   {sys_rpl_recovery_rank.name,(char*) &sys_rpl_recovery_rank,       SHOW_SYS},
   {"secure_auth",             (char*) &sys_secure_auth,             SHOW_SYS},

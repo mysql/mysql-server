@@ -370,6 +370,15 @@ show create table t1;
 drop table t1;
 
 #
+# Bug#9129
+#
+create table t1 (a char character set latin2);
+insert into t1 values (null);
+select charset(a), collation(a), coercibility(a) from t1;
+drop table t1;
+select charset(null), collation(null), coercibility(null);
+
+#
 # test for SUBSTR
 #
 select SUBSTR('abcdefg',3,2);

@@ -179,3 +179,13 @@ insert into t1 (id_str) values ("test");
 update t1 set id_str = concat(id_str, id) where id = last_insert_id();
 select * from t1;
 drop table t1;
+
+#
+# Bug #8942: a problem with update and partial key part
+#
+
+create table t1 (a int, b char(255), key(a, b(20)));
+insert into t1 values (0, '1');
+update t1 set b = b + 1 where a = 0;
+select * from t1;
+drop table t1;
