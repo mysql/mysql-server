@@ -99,7 +99,6 @@ public:
 
   // Restores lex in 'thd' from our copy, but keeps some status from the
   // one in 'thd', like ptr, tables, fields, etc.
-  // If 'delete_lex' is true, we delete the current lex.
   void
   restore_lex(THD *thd);
 
@@ -162,6 +161,7 @@ private:
   MEM_ROOT m_thd_root;		// Temp. store for thd's mem_root
   Item *m_free_list;		// Where the items go
   THD *m_thd;			// Set if we have reset mem_root
+
   LEX_STRING m_name;
   LEX_STRING m_defstr;
   LEX_STRING m_comment;

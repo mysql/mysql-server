@@ -497,9 +497,19 @@ typedef struct st_lex
   sp_head *sphead;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
-  List<char> spfuns;		/* Called functions */
+  HASH spfuns;		/* Called functions */
 
-  st_lex() {}
+  st_lex()
+  {
+    bzero((char *)&spfuns, sizeof(spfuns));
+  }
+  
+  ~st_lex()
+  {
+    if (spfuns.array.buffer)
+      hash_free(&spfuns);
+  }
+
   inline void uncacheable()
   {
     safe_to_cache_query= 0;
