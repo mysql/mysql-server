@@ -40,14 +40,6 @@ extern const key_map key_map_empty;
 extern const key_map key_map_full;
 extern const char *primary_key_name;
 
-/* 
-  Portable time_t replacement. 
-  Should be signed and hold seconds for 1902-2038 range.
-*/
-typedef long my_time_t;
-#define MY_TIME_T_MAX LONG_MAX
-#define MY_TIME_T_MIN LONG_MIN
-
 #include "mysql_com.h"
 #include <violite.h>
 #include "unireg.h"
