@@ -74,6 +74,7 @@ Docs/safe-mysql.xml
 Docs/tex.fmt
 Docs/texi2dvi.out
 INSTALL-SOURCE
+INSTALL-WIN-SOURCE
 Logs/*
 MIRRORS
 Makefile
@@ -482,6 +483,7 @@ mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/mysql-test-run
 mysql-test/r/*.reject
+mysql-test/r/index_merge_load.result
 mysql-test/r/rpl000001.eval
 mysql-test/r/rpl000002.eval
 mysql-test/r/rpl000014.eval
@@ -492,6 +494,7 @@ mysql-test/r/slave-running.eval
 mysql-test/r/slave-stopped.eval
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
+mysql-test/t/index_merge.load
 mysql-test/var/*
 mysql.kdevprj
 mysql.proj
@@ -646,5 +649,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-mysql-test/r/index_merge_load.result
-mysql-test/t/index_merge.load
