@@ -1270,6 +1270,7 @@ opt_binary:
 	    YYABORT;
 	  }
 	}
+	| COLLATE_SYM charset_name	{ Lex->charset=$2; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 opt_primary:
