@@ -217,15 +217,16 @@ echo
 echo -e " TEST\t\t\tUSER\tSYSTEM\tELAPSED\t%CPU\t     RESULT"
 echo $DASH72
 
-for tf in $TESTDIR/*
+for tf in $TESTDIR/*.test
 do
+ if [ -f $tf ] ; then
     mytime=`$TIME -f $TIME_FORMAT $MYSQL_TEST < $tf 2>&1`
     res=$?
 
     tf=`basename $tf`
 
-    [ $res = 1 ] && mytime=`echo -ne $mytime | cut -b 39-` && mytime=${mytime// /\\t}
-    $SETCOLOR_NORMAL && echo -ne "$tf\t\t$mytime"
+    [ $res = 1 ] && mytime=`echo -ne $mytime | cut -b 39-`  
+    $SETCOLOR_NORMAL && echo -ne "$tf\t$mytime"
     [ $res = 1 ] && fail_inc && echo_fail 
     [ $res != 1 ] && pass_inc && echo_pass
 
@@ -240,6 +241,7 @@ do
 	$SETCOLOR_SUCCESS && echo_ok
 	echo
     fi
+  fi  
 done
 
 echo $DASH72
