@@ -10976,7 +10976,7 @@ static void test_view_insert()
   MYSQL_STMT *insert_stmt, *select_stmt;
   int rc, i;
   MYSQL_BIND      bind[1];
-  long            my_val = 0L;
+  int             my_val = 0;
   ulong           my_length = 0L;
   long            my_null = 0L;
   const char *query=

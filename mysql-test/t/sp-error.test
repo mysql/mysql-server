@@ -680,6 +680,15 @@ begin
 end|
 
 
+#
+# BUG#NNNN: New bug synopsis
+#
+#--disable_warnings
+#drop procedure if exists bugNNNN|
+#--enable_warnings
+#create procedure bugNNNN...
+
+
 drop table t1|
 
 delimiter ;|

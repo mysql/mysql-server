@@ -24,7 +24,6 @@ load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
 load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
 # simple query to show more in second binlog
 insert into t1 values ("Alas");
 flush logs;
@@ -61,7 +60,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --position=119 $MYSQL_TEST_DIR/var/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --position=232 $MYSQL_TEST_DIR/var/log/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -93,7 +92,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=119 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQL_TEST_DIR/var/tmp/ --read-from-remote-server --position=232 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
 --disable_query_log

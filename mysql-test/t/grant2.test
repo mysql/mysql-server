@@ -17,6 +17,36 @@ delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 
 
+grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
+create user mysqltest_2@localhost;
+connect (user_a,localhost,mysqltest_1,,);
+connection user_a;
+grant select on `my\_1`.* to mysqltest_2@localhost;
+--error 1132
+grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
+disconnect user_a;
+connection default;
+grant update on mysql.* to mysqltest_1@localhost;
+connect (user_b,localhost,mysqltest_1,,);
+connection user_b;
+grant select on `my\_1`.* to mysqltest_2@localhost identified by 'pass';
+--error 1211
+grant select on `my\_1`.* to mysqltest_3@localhost;
+disconnect user_b;
+connection default;
+grant insert on mysql.* to mysqltest_1@localhost;
+connect (user_c,localhost,mysqltest_1,,);
+connection user_c;
+grant select on `my\_1`.* to mysqltest_3@localhost;
+grant select on `my\_1`.* to mysqltest_4@localhost identified by 'pass';
+disconnect user_c;
+connection default;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
 #
 # wild_compare fun
 #
@@ -26,9 +56,11 @@ connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
 select current_user;
+--error 1211
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;
+
 #
 # NO_AUTO_CREATE_USER mode
 #
@@ -36,11 +68,13 @@ set @@sql_mode='NO_AUTO_CREATE_USER';
 select @@sql_mode;
 --error 1211
 grant select on `my\_1`.* to mysqltest_4@localhost with grant option;
+--error 1211
 grant select on `my\_1`.* to mysqltest_4@localhost identified by 'mypass'
 with grant option;
 disconnect user1;
 connection default;
 show grants for mysqltest_1@localhost;
+--error 1141
 show grants for mysqltest_2@localhost;
 --error 1141
 show grants for mysqltest_3@localhost;
@@ -82,9 +116,9 @@ create table t1 (a int, b int);
 grant select (a) on t1 to mysqltest_1@localhost with grant option;
 connect (mrugly, localhost, mysqltest_1,,mysqltest);
 connection mrugly;
---error 1143
+--error 1211
 grant select (a,b) on t1 to mysqltest_2@localhost;
---error 1142
+--error 1211
 grant select on t1 to mysqltest_3@localhost;
 disconnect mrugly;
 

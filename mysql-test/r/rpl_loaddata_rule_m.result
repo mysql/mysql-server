@@ -10,8 +10,10 @@ create database mysqltest;
 create table t1(a int, b int, unique(b));
 use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	198	drop database if exists mysqltest
-master-bin.000001	198	Query	1	292	create database mysqltest
+master-bin.000001	#	Query	1	#	drop database if exists mysqltest
+master-bin.000001	#	Query	1	#	create database mysqltest
+master-bin.000001	#	Begin_load_query	1	#	;file_id=1;block_len=12
+master-bin.000001	#	Execute_load_query	1	#	use `mysqltest`; load data infile '../../std_data/rpl_loaddata.dat' into table test.t1 ;file_id=1
 drop database mysqltest;
