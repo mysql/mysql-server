@@ -179,7 +179,7 @@
 "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column",
 "Key '%-.64s' doesn't exist in table '%-.64s'",
 "Can't open table",
-"The storage enginge for the table doesn't support %s",
+"The storage engine for the table doesn't support %s",
 "You are not allowed to execute this command in a transaction",
 "Got error %d during COMMIT",
 "Got error %d during ROLLBACK",
