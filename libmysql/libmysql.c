@@ -207,6 +207,9 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
     errno = s_err;
     return(-1);					/* but return an error... */
   }
+  if (res && result > 0)
+    result=res=0; // We did it in select() !!!
+  
   return((res) ? res : result);					/* It's all good! */
 #endif
 }
