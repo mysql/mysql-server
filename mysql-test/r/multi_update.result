@@ -191,7 +191,7 @@ n	d	unix_timestamp(t)
 1	10	1038401397
 2	20	1038401397
 UPDATE t1,t2 SET 1=2 WHERE t1.n=t2.n;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1=2 WHERE t1.n=t2.n' at line 1
 drop table t1,t2;
 set timestamp=0;
 set sql_safe_updates=0;
