@@ -380,7 +380,7 @@ longlong Item_func_time_to_sec::val_int()
 static bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *t)
 {
-  long array[4],value;
+  long array[5],value;
   const char *str;
   uint32 length;
   LINT_INIT(value);  LINT_INIT(str); LINT_INIT(length);

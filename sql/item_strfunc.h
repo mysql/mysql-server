@@ -372,29 +372,13 @@ public:
 
 class Item_func_elt :public Item_str_func
 {
-  Item *item;
-
 public:
-  Item_func_elt(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
-  ~Item_func_elt() { delete item; }
+  Item_func_elt(List<Item> &list) :Item_str_func(list) {}
   double val();
   longlong val_int();
   String *val_str(String *str);
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
-  {
-    return (item->fix_fields(thd, tlist, &item) ||
-	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
-  }
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void fix_length_and_dec();
-  void update_used_tables();
   const char *func_name() const { return "elt"; }
-  bool walk(Item_processor processor, byte *arg)
-  {
-    return item->walk(processor, arg) ||
-      Item_str_func::walk(processor, arg);
-  }
 };
 
 
