@@ -1076,20 +1076,20 @@ create:
           ;
 
 create2:
- 	'(' create2a {}
-	| opt_create_table_options create3 {}
-	| LIKE table_ident
-      	  {
-      	    LEX *lex=Lex;
-     	    if (!(lex->name= (char *)$2))
+        '(' create2a {}
+        | opt_create_table_options create3 {}
+        | LIKE table_ident
+          {
+            LEX *lex=Lex;
+            if (!(lex->name= (char *)$2))
               YYABORT;
-    	  }
-	| '(' LIKE table_ident ')'
-      	  {
-      	    LEX *lex=Lex;
-     	    if (!(lex->name= (char *)$3))
+          }
+        | '(' LIKE table_ident ')'
+          {
+            LEX *lex=Lex;
+            if (!(lex->name= (char *)$3))
               YYABORT;
-    	  }
+          }
         ;
 
 create2a:
@@ -5232,6 +5232,7 @@ keyword:
 	| TIME_SYM		{}
 	| TYPE_SYM		{}
 	| TYPES_SYM		{}
+        | UDF_RETURNS_SYM       {}
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}
