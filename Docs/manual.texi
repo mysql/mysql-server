@@ -20904,7 +20904,7 @@ Your program has a wrong path to where the character sets are stored.
 This can be fixed by using the @code{--character-sets-dir}
 option to the program in question.
 @item
-The character set is a multi-byte-character set that can't be loaded
+The character set is a multi-byte character set that can't be loaded
 dynamically.  In this case you have to recompile the program with the
 support for the character set.
 @item
@@ -37077,7 +37077,8 @@ You can set the default global isolation level for @code{mysqld} with
 
 As of Version 3.23.23, MySQL has support for full-text indexing
 and searching.  Full-text indexes in MySQL are an index of type
-@code{FULLTEXT}.  @code{FULLTEXT} indexes can be created from @code{VARCHAR}
+@code{FULLTEXT}.  @code{FULLTEXT} indexes are used with MyISAM tables
+and can be created from @code{VARCHAR}
 and @code{TEXT} columns at @code{CREATE TABLE} time or added later with
 @code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, it will be
 much faster to load your data into a table that has no @code{FULLTEXT}
@@ -47556,7 +47557,7 @@ You can check which tables you have in the current database with
 @node Cannot initialize character set, Not enough file handles, Cannot find table, Common errors
 @appendixsubsec @code{Can't initialize character set xxx} error
 
-@cindex multibyte character sets
+@cindex multi-byte character sets
 
 If you get an error like:
 
