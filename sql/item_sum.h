@@ -402,18 +402,20 @@ class Item_sum_hybrid :public Item_sum
   enum_field_types hybrid_field_type;
   int cmp_sign;
   table_map used_table_cache;
+  bool was_values;  // was checked at least some values (for max/min only)
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
     :Item_sum(item_par), sum(0.0), sum_int(0),
     hybrid_type(INT_RESULT), hybrid_field_type(FIELD_TYPE_LONGLONG),
-    cmp_sign(sign), used_table_cache(~(table_map) 0)
+    cmp_sign(sign), used_table_cache(~(table_map) 0), was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item):
     Item_sum(thd, item), value(item->value),
     sum(item->sum), sum_int(item->sum_int), hybrid_type(item->hybrid_type),
     hybrid_field_type(item->hybrid_field_type),cmp_sign(item->cmp_sign), 
-    used_table_cache(item->used_table_cache)
+    used_table_cache(item->used_table_cache),
+    was_values(TRUE)
     { collation.set(item->collation); }
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
@@ -433,6 +435,8 @@ class Item_sum_hybrid :public Item_sum
   void min_max_update_real_field();
   void min_max_update_int_field();
   void cleanup();
+  bool any_value() { return was_values; }
+  void no_rows_in_result();
 };
 
 
