@@ -164,41 +164,35 @@ int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
   uint key_length;
-  int cmp;
+  int cmp, cmp2;
 
   if (!(old_word=oldlist=_mi_ft_parserecord(info, keynr, keybuf, oldrec)))
     goto err0;
   if (!(new_word=newlist=_mi_ft_parserecord(info, keynr, keybuf, newrec)))
     goto err1;
 
+  error=0;
   while(old_word->pos && new_word->pos)
   {
     cmp=_mi_compare_text(default_charset_info,
 	                 (uchar*) old_word->pos,old_word->len,
 			 (uchar*) new_word->pos,new_word->len,0);
-    if (cmp==0)
-      cmp=sgn(old_word->weight-new_word->weight);
-    else
-      cmp=sgn(cmp);
+    cmp2= cmp ? 0 : (abs(old_word->weight - new_word->weight) > 1.e-5);
 
-    switch (cmp) {
-    case -1:
+    if (cmp < 0 || cmp2)
+    {
       key_length=_ft_make_key(info,keynr,keybuf,old_word,pos);
       if ((error=_mi_ck_delete(info,keynr,(uchar*) keybuf,key_length)))
         goto err2;
-      old_word++;
-      break;
-    case 0:
-      old_word++;
-      new_word++;
-      break;
-    case 1:
+    }
+    if (cmp > 0 || cmp2)
+    {
       key_length=_ft_make_key(info,keynr,keybuf,new_word,pos);
       if ((error=_mi_ck_write(info,keynr,(uchar*) keybuf,key_length)))
         goto err2;
-      new_word++;
-      break;
-   }
+    }
+    if (cmp<=0) old_word++;
+    if (cmp>=0) new_word++;
  }
  if (old_word->pos)
    error=_mi_ft_erase(info,keynr,keybuf,old_word,pos);
