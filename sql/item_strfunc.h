@@ -635,7 +635,7 @@ public:
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
-  void print(String *str) { print_op(str); }
+  void print(String *str);
 };
 
 class Item_func_charset :public Item_str_func

@@ -113,8 +113,8 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if ((open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(-1);
+  if ((error= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(error);
   thd->proc_info="init";
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);

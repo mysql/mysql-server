@@ -897,10 +897,10 @@ static int mysql_test_insert(Prepared_statement *stmt,
      tables & preparation procedure
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
-  if (open_and_lock_tables(thd, table_list))
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
     thd->free_temporary_memory_pool_for_ps_preparing();
-    DBUG_RETURN(-1);
+    DBUG_RETURN(res);
   }
 
   if ((values= its++))
@@ -969,9 +969,7 @@ static int mysql_test_update(Prepared_statement *stmt,
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
 
-  if (open_and_lock_tables(thd, table_list))
-    res= -1;
-  else
+  if (!(res= open_and_lock_tables(thd, table_list)))
   {
     if (!(res= mysql_prepare_update(thd, table_list,
 				    &select->where,
@@ -1030,9 +1028,7 @@ static int mysql_test_delete(Prepared_statement *stmt,
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
 
-  if (open_and_lock_tables(thd, table_list))
-    res= -1;
-  else
+  if (!(res= open_and_lock_tables(thd, table_list)))
   {
     res= mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
@@ -1065,6 +1061,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
+  int res;
 
   DBUG_ENTER("mysql_test_select");
 
@@ -1084,11 +1081,11 @@ static int mysql_test_select(Prepared_statement *stmt,
      tables & preparation procedure
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
-  if (open_and_lock_tables(thd, tables))
+  if ((res= open_and_lock_tables(thd, tables)))
   {
-    send_error(thd);
     goto err;
   }
+  res= 1;
 
   thd->used_tables= 0;                        // Updated by setup_fields
 
@@ -1126,7 +1123,7 @@ err_prep:
   unit->cleanup();
 err:
   thd->free_temporary_memory_pool_for_ps_preparing();
-  DBUG_RETURN(1);
+  DBUG_RETURN(res);
 }
 
 
