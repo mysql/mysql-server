@@ -381,6 +381,8 @@ btr_pcur_move_to_next_page(
 	btr_leaf_page_release(page, cursor->latch_mode, mtr);
 	
 	page_cur_set_before_first(next_page, btr_pcur_get_page_cur(cursor));
+
+	page_check_dir(next_page);
 }
 
 /*************************************************************

@@ -22,7 +22,7 @@
 #endif
 
 #include "mysql_priv.h"
-#include "slave.h" // for wait_for_master_pos
+#include "slave.h"				// for wait_for_master_pos
 #include <m_ctype.h>
 #include <hash.h>
 #include <time.h>
@@ -31,13 +31,16 @@
 #include <zlib.h>
 #endif
 
-static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fname)
+
+static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
+			      const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
   	   c1.collation->name,c1.derivation_name(),
 	   c2.collation->name,c2.derivation_name(),
 	   fname);
 }
+
 
 static void my_coll_agg_error(DTCollation &c1, 
 			       DTCollation &c2,
@@ -51,11 +54,12 @@ static void my_coll_agg_error(DTCollation &c1,
 	   fname);
 }
 
-static void my_coll_agg_error(Item** args, uint ac, const char *fname)
+
+static void my_coll_agg_error(Item** args, uint count, const char *fname)
 {
-  if (2 == ac)
+  if (count == 2)
     my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
-  else if (3 == ac)
+  else if (count == 3)
     my_coll_agg_error(args[0]->collation,
 		      args[1]->collation,
 		      args[2]->collation,
@@ -64,30 +68,32 @@ static void my_coll_agg_error(Item** args, uint ac, const char *fname)
     my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
 }
 
-bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint ac)
+
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
 {
   uint i;
   c.set(av[0]->collation);
-  for (i= 1; i < ac; i++)
+  for (i= 1; i < count; i++)
   {
     if (c.aggregate(av[i]->collation))
     {
-      my_coll_agg_error(av, ac, func_name());
+      my_coll_agg_error(av, count, func_name());
       return TRUE;
     }
   }
   return FALSE;
 }
 
+
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
-						  Item **av, uint ac)
+						  Item **av, uint count)
 {
-  if (agg_arg_collations(c, av, ac))
+  if (agg_arg_collations(c, av, count))
     return TRUE;
   
   if (c.derivation == DERIVATION_NONE)
   {
-    my_coll_agg_error(av, ac, func_name());
+    my_coll_agg_error(av, count, func_name());
     return TRUE;
   }
   return FALSE;
@@ -101,6 +107,7 @@ eval_const_cond(COND *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
+
 
 void Item_func::set_arguments(List<Item> &list)
 {
@@ -168,7 +175,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  used_tables_cache=0;
+  used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (thd && check_stack_overrun(thd,buff))
@@ -187,8 +194,9 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	maybe_null=1;
       
       with_sum_func= with_sum_func || item->with_sum_func;
-      used_tables_cache|=item->used_tables();
-      const_item_cache&= item->const_item();
+      used_tables_cache|=     item->used_tables();
+      not_null_tables_cache|= item->not_null_tables();
+      const_item_cache&=      item->const_item();
     }
   }
   fix_length_and_dec();
@@ -248,6 +256,13 @@ table_map Item_func::used_tables() const
 {
   return used_tables_cache;
 }
+
+
+table_map Item_func::not_null_tables() const
+{
+  return not_null_tables_cache;
+}
+
 
 void Item_func::print(String *str)
 {
@@ -592,6 +607,7 @@ double Item_func_neg::val()
   return -value;
 }
 
+
 longlong Item_func_neg::val_int()
 {
   longlong value=args[0]->val_int();
@@ -599,13 +615,31 @@ longlong Item_func_neg::val_int()
   return -value;
 }
 
+
 void Item_func_neg::fix_length_and_dec()
 {
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
-  hybrid_type= args[0]->result_type() == INT_RESULT && !args[0]->unsigned_flag ?
-    INT_RESULT : REAL_RESULT;
+  hybrid_type= REAL_RESULT;
+  if (args[0]->result_type() == INT_RESULT)
+  {
+    /*
+      If this is in integer context keep the context as integer
+      (This is how multiplication and other integer functions works)
+
+      We must however do a special case in the case where the argument
+      is a unsigned bigint constant as in this case the only safe
+      number to convert in integer context is 9223372036854775808.
+      (This is needed because the lex parser doesn't anymore handle
+      signed integers)
+    */
+    if (args[0]->type() != INT_ITEM ||
+	((ulonglong) ((Item_uint*) args[0])->value <=
+	 (ulonglong) LONGLONG_MIN))
+      hybrid_type= INT_RESULT;
+  }
 }
+
 
 double Item_func_abs::val()
 {
@@ -614,6 +648,7 @@ double Item_func_abs::val()
   return fabs(value);
 }
 
+
 longlong Item_func_abs::val_int()
 {
   longlong value=args[0]->val_int();
@@ -621,12 +656,19 @@ longlong Item_func_abs::val_int()
   return value >= 0 ? value : -value;
 }
 
+
 void Item_func_abs::fix_length_and_dec()
 {
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
-  hybrid_type= args[0]->result_type() == INT_RESULT ? INT_RESULT : REAL_RESULT;
+  hybrid_type= REAL_RESULT;
+  if (args[0]->result_type() == INT_RESULT)
+  {
+    hybrid_type= INT_RESULT;
+    unsigned_flag= 1;
+  }
 }
+
 
 /* Gateway to natural LOG function */
 double Item_func_ln::val()
@@ -1057,6 +1099,7 @@ longlong Item_func_crc32::val_int()
   return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
 }
 
+
 longlong Item_func_uncompressed_length::val_int()
 {
   String *res= args[0]->val_str(&value);
@@ -1069,8 +1112,8 @@ longlong Item_func_uncompressed_length::val_int()
   if (res->is_empty()) return 0;
   return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
 }
-
 #endif /* HAVE_COMPRESS */
+
 
 longlong Item_func_length::val_int()
 {
@@ -1084,6 +1127,7 @@ longlong Item_func_length::val_int()
   return (longlong) res->length();
 }
 
+
 longlong Item_func_char_length::val_int()
 {
   String *res=args[0]->val_str(&value);
@@ -1096,6 +1140,7 @@ longlong Item_func_char_length::val_int()
   return (longlong) res->numchars();
 }
 
+
 longlong Item_func_coercibility::val_int()
 {
   if (args[0]->null_value)
@@ -1107,11 +1152,13 @@ longlong Item_func_coercibility::val_int()
   return (longlong) args[0]->collation.derivation;
 }
 
+
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
   agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
+
 
 longlong Item_func_locate::val_int()
 {
@@ -1211,6 +1258,7 @@ longlong Item_func_field::val_int()
   }
   return 0;
 }
+
 
 void Item_func_field::fix_length_and_dec()
 {
@@ -2082,6 +2130,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
+  entry->type= cached_result_type;
   entry->update_query_id=thd->query_id;
   return 0;
 }
@@ -2640,6 +2689,9 @@ double Item_func_match::val()
   DBUG_ENTER("Item_func_match::val");
   if (ft_handler == NULL)
     DBUG_RETURN(-1.0);
+
+  if (table->null_row) /* NULL row from an outer join */
+    return 0.0;
 
   if (join_key)
   {

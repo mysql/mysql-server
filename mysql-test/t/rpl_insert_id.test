@@ -4,6 +4,7 @@
 # We also check how the foreign_key_check variable is replicated
 
 source include/master-slave.inc;
+source include/have_innodb.inc
 connection master;
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
@@ -21,8 +22,10 @@ connection master;
 #are replicated the same way
 drop table t1;
 drop table t2;
-create table t1(a int auto_increment, key(a));
-create table t2(b int auto_increment, c int, key(b));
+--disable_warnings
+create table t1(a int auto_increment, key(a)) type=innodb;
+create table t2(b int auto_increment, c int, key(b), foreign key(b) references t1(a)) type=innodb;
+--enable_warnings
 SET FOREIGN_KEY_CHECKS=0;
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);

@@ -1,6 +1,7 @@
 # Initialise
 --disable_warnings
 drop table if exists t1;
+drop database if exists mysqltest;
 --enable_warnings
 
 --error 1051;
@@ -17,7 +18,6 @@ select * from t1;
 # now test for a bug in drop database - it is important that the name
 # of the table is the same as the name of the database - in the original
 # code this triggered a bug
-drop database if exists mysqltest;
 create database mysqltest;
 drop database if exists mysqltest;
 create database mysqltest;
@@ -29,7 +29,6 @@ create database mysqltest;
 drop database mysqltest;
 
 # test drop/create database and FLUSH TABLES WITH READ LOCK
-drop database if exists mysqltest;
 flush tables with read lock;
 --error 1209,1223;
 create database mysqltest;

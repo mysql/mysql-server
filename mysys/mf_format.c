@@ -105,7 +105,7 @@ my_string fn_format(my_string to, const char *name, const char *dir,
     strmov(buff,to);
     (void) my_readlink(to, buff, MYF(0));
   }
-  DBUG_RETURN (to);
+  DBUG_RETURN(to);
 } /* fn_format */
 
 

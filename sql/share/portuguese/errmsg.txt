@@ -238,6 +238,7 @@
 "Uso/localização errada de '%s'",
 "Esta versão de MySQL não suporta ainda '%s'",
 "Obteve fatal error %d: '%-.128s' a partir do master quando lendo dados do binary log",
+"Slave SQL thread ignored the query because of replicate-*-table rules",
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
 "Error de cardinalidade (mais/menos que %d colunas)",

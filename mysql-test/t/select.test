@@ -1527,10 +1527,24 @@ select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 25
 #
 # Test of left join.
 #
+insert into t2 (fld1, companynr) values (999999,99);
 
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
+select count(*) from t2 left join t4 using (companynr) where t4.companynr is not null;
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
+delete from t2 where fld1=999999;
+
+#
+# Test left join optimization
+
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
+# Following can't be optimized
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 
 #
 # Joins with forms.
@@ -1821,3 +1835,23 @@ CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) TYPE=M
 INSERT INTO t2 VALUES (2517), (2518), (2519), (2520), (2521), (2522);
 select * from t1, t2 WHERE t1.t2_id = t2.id and t1.t2_id > 0   order by t1.id   LIMIT 0, 5;
 drop table t1,t2;
+
+#
+# outer join, impossible on condition, where, and usable key for range
+#
+create table t1 (id1 int NOT NULL);
+create table t2 (id2 int NOT NULL);
+create table t3 (id3 int NOT NULL);
+create table t4 (id4 int NOT NULL, id44 int NOT NULL, KEY (id4));
+
+insert into t1 values (1);
+insert into t1 values (2);
+insert into t2 values (1);
+insert into t4 values (1,1);
+
+explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
+left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
+select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
+left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
+
+drop table t1,t2,t3,t4;

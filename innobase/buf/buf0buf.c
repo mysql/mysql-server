@@ -34,6 +34,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "log0recv.h"
+#include "log0log.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 
@@ -231,12 +232,12 @@ ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 
 /************************************************************************
 Calculates a page checksum which is stored to the page when it is written
-to a file. Note that we must be careful to calculate the same value
-on 32-bit and 64-bit architectures. */
+to a file. Note that we must be careful to calculate the same value on
+32-bit and 64-bit architectures. */
 
 ulint
-buf_calc_page_checksum(
-/*===================*/
+buf_calc_page_new_checksum(
+/*=======================*/
 		       /* out: checksum */
 	byte*    page) /* in: buffer page */
 {
@@ -244,12 +245,39 @@ buf_calc_page_checksum(
 
 	/* Since the fields FIL_PAGE_FILE_FLUSH_LSN and ..._ARCH_LOG_NO
 	are written outside the buffer pool to the first pages of data
-	files, we have to skip them in page checksum calculation */
+	files, we have to skip them in the page checksum calculation.
+	We must also skip the field FIL_PAGE_SPACE_OR_CHKSUM where the
+	checksum is stored, and also the last 8 bytes of page because
+	there we store the old formula checksum. */
+  	
+  	checksum = ut_fold_binary(page + FIL_PAGE_OFFSET,
+				 FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+  		   + ut_fold_binary(page + FIL_PAGE_DATA, 
+				           UNIV_PAGE_SIZE - FIL_PAGE_DATA
+				           - FIL_PAGE_END_LSN_OLD_CHKSUM);
+  	checksum = checksum & 0xFFFFFFFF;
+
+  	return(checksum);
+}
+
+/************************************************************************
+In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
+looked at the first few bytes of the page. This calculates that old
+checksum. 
+NOTE: we must first store the new formula checksum to
+FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
+because this takes that field as an input! */
+
+ulint
+buf_calc_page_old_checksum(
+/*=======================*/
+		       /* out: checksum */
+	byte*    page) /* in: buffer page */
+{
+  	ulint checksum;
   	
   	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
-  		+ ut_fold_binary(page + FIL_PAGE_DATA,
-				UNIV_PAGE_SIZE - FIL_PAGE_DATA
-				- FIL_PAGE_END_LSN);
+
   	checksum = checksum & 0xFFFFFFFF;
 
   	return(checksum);
@@ -265,25 +293,67 @@ buf_page_is_corrupted(
 	byte*	read_buf)	/* in: a database page */
 {
 	ulint	checksum;
+	ulint	old_checksum;
+	ulint	checksum_field;
+	ulint	old_checksum_field;
+	dulint	current_lsn;
 
-	checksum = buf_calc_page_checksum(read_buf);
+	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
+	     != mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
 
-	/* Note that InnoDB initializes empty pages to zero, and
-	early versions of InnoDB did not store page checksum to
-	the 4 most significant bytes of the page lsn field at the
-	end of a page: */
-	
-	if ((mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
-		    		!= mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN + 4))
-		|| (checksum != mach_read_from_4(read_buf
-                                        + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN)
-		    && mach_read_from_4(read_buf + FIL_PAGE_LSN)
-			    	!= mach_read_from_4(read_buf
-                                        + UNIV_PAGE_SIZE
-						- FIL_PAGE_END_LSN))) {
+		/* Stored log sequence numbers at the start and the end
+		of page do not match */
+
 		return(TRUE);
+	}
+
+#ifndef UNIV_HOTBACKUP
+	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
+		if (ut_dulint_cmp(current_lsn,
+				  mach_read_from_8(read_buf + FIL_PAGE_LSN))
+				 < 0) {
+			ut_print_timestamp(stderr);
+
+			fprintf(stderr,
+"  InnoDB: Error: page %lu log sequence number %lu %lu\n"
+"InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
+"InnoDB: Your database may be corrupt.\n",
+		        mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+			ut_dulint_get_high(
+				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+			ut_dulint_get_low(
+				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+			ut_dulint_get_high(current_lsn),
+			ut_dulint_get_low(current_lsn));
+		}
+	}
+#endif
+	old_checksum = buf_calc_page_old_checksum(read_buf);
+
+	old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+	/* There are 2 valid formulas for old_checksum_field:
+	1. Very old versions of InnoDB only stored 8 byte lsn to the start
+	and the end of the page.
+	2. Newer InnoDB versions store the old formula checksum there. */
+	
+	if (old_checksum_field != mach_read_from_4(read_buf + FIL_PAGE_LSN)
+	    && old_checksum_field != old_checksum) {
+
+		return(TRUE);
+	}
+
+	checksum = buf_calc_page_new_checksum(read_buf);
+	checksum_field = mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
+
+	/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
+	(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
+
+	if (checksum_field != 0 && checksum_field != checksum) {
+
+	        return(TRUE);
 	}
 
 	return(FALSE);
@@ -299,6 +369,7 @@ buf_page_print(
 {
 	dict_index_t*	index;
 	ulint		checksum;
+	ulint		old_checksum;
 	char*		buf;
 	
 	buf = mem_alloc(4 * UNIV_PAGE_SIZE);
@@ -313,19 +384,23 @@ buf_page_print(
 
 	mem_free(buf);
 
-	checksum = buf_calc_page_checksum(read_buf);
+	checksum = buf_calc_page_new_checksum(read_buf);
+	old_checksum = buf_calc_page_old_checksum(read_buf);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Page checksum %lu stored checksum %lu\n",
-			checksum, mach_read_from_4(read_buf
-                                        + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN)); 
+	fprintf(stderr, 
+"  InnoDB: Page checksum %lu, prior-to-4.0.14-form checksum %lu\n"
+"InnoDB: stored checksum %lu, prior-to-4.0.14-form stored checksum %lu\n",
+			checksum, old_checksum,
+			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
+			mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN_OLD_CHKSUM));
 	fprintf(stderr,
 	"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn at page end %lu\n",
 		mach_read_from_4(read_buf + FIL_PAGE_LSN),
 		mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
 		mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN + 4));
+					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4));
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
 	    == TRX_UNDO_INSERT) {
 	    	fprintf(stderr,

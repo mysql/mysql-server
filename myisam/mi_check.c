@@ -881,7 +881,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	if (_mi_rec_unpack(info,record,info->rec_buff,block_info.rec_len) ==
 	    MY_FILE_ERROR)
 	{
-	  mi_check_print_error(param,"Found wrong record at %s", llstr(start_recpos,llbuff));
+	  mi_check_print_error(param,"Found wrong record at %s",
+			       llstr(start_recpos,llbuff));
 	  got_error=1;
 	}
 	else
@@ -3698,10 +3699,13 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     uint i, key_parts= mi_uint2korr(share->state.header.key_parts);
     share->state.rec_per_key_rows=info->state->records;
     share->state.changed&= ~STATE_NOT_ANALYZED;
-    for (i=0; i<key_parts; i++)
+    if (info->state->records)
     {
-      if (!(share->state.rec_per_key_part[i]=param->rec_per_key_part[i]))
-        share->state.changed|= STATE_NOT_ANALYZED;
+      for (i=0; i<key_parts; i++)
+      {
+        if (!(share->state.rec_per_key_part[i]=param->rec_per_key_part[i]))
+          share->state.changed|= STATE_NOT_ANALYZED;
+      }
     }
   }
   if (update & (UPDATE_STAT | UPDATE_SORT | UPDATE_TIME | UPDATE_AUTO_INC))
@@ -3748,6 +3752,7 @@ err:
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair_only)
 {
+  byte *record;
   if (!info->s->base.auto_key ||
       !(((ulonglong) 1 << (info->s->base.auto_key-1)
 	 & info->s->state.key_map)))
@@ -3761,13 +3766,24 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
   if (!(param->testflag & T_SILENT) &&
       !(param->testflag & T_REP))
     printf("Updating MyISAM file: %s\n", param->isam_file_name);
-  /* We have to use keyread here as a normal read uses info->rec_buff */
+  /*
+    We have to use an allocated buffer instead of info->rec_buff as 
+    _mi_put_key_in_record() may use info->rec_buff
+  */
+  if (!(record= (byte*) my_malloc((uint) info->s->base.pack_reclength,
+				  MYF(0))))
+  {
+    mi_check_print_error(param,"Not enough memory for extra record");
+    return;
+  }
+
   mi_extra(info,HA_EXTRA_KEYREAD,0);
-  if (mi_rlast(info,info->rec_buff, info->s->base.auto_key-1))
+  if (mi_rlast(info, record, info->s->base.auto_key-1))
   {
     if (my_errno != HA_ERR_END_OF_FILE)
     {
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
+      my_free((char*) record, MYF(0));
       mi_check_print_error(param,"%d when reading last record",my_errno);
       return;
     }
@@ -3779,10 +3795,11 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     ulonglong auto_increment= (repair_only ? info->s->state.auto_increment :
 			       param->auto_increment_value);
     info->s->state.auto_increment=0;
-    update_auto_increment(info,info->rec_buff);
+    update_auto_increment(info, record);
     set_if_bigger(info->s->state.auto_increment,auto_increment);
   }
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
+  my_free((char*) record, MYF(0));
   update_state_info(param, info, UPDATE_AUTO_INC);
   return;
 }

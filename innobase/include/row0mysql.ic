@@ -58,7 +58,8 @@ row_mysql_store_col_in_innobase_format(
 /*===================================*/
 	dfield_t*	dfield,		/* in/out: dfield */
 	byte*		buf,		/* in/out: buffer for the converted
-					value */
+					value; this must be at least col_len
+					long! */
 	byte*		mysql_data,	/* in: MySQL column value, not
 					SQL NULL; NOTE that dfield may also
 					get a pointer to mysql_data,
@@ -96,7 +97,6 @@ row_mysql_store_col_in_innobase_format(
 		while (col_len > 0 && ptr[col_len - 1] == ' ') {
 			col_len--;
 		} 
-
 	} else if (type == DATA_BLOB) {
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
 	}

@@ -91,6 +91,7 @@ int mysql_update(THD *thd,
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
+  tables.alias= table_list->alias;
 
   if (setup_tables(update_table_list) ||
       setup_conds(thd,update_table_list,&conds) ||

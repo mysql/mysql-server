@@ -83,10 +83,6 @@ x-lock also has an explicit non-gap record x-lock. Therefore, as locks are
 released, we can grant locks to waiting lock requests purely by looking at
 the explicit lock requests in the queue.
 
-RULE 2: Granted non-gap locks on a record are always ahead in the queue
--------
-of waiting non-gap locks on a record.
-
 RULE 3: Different transactions cannot have conflicting granted non-gap locks
 -------
 on a record at the same time. However, they can have conflicting granted gap
@@ -356,7 +352,7 @@ lock_mutex_enter_kernel(void)
 }
 
 /*************************************************************************
-Releses the kernel mutex. This function is used in this module to allow
+Releases the kernel mutex. This function is used in this module to allow
 monitoring the contention degree on the kernel mutex caused by the lock
 operations. */
 UNIV_INLINE
@@ -515,6 +511,53 @@ lock_rec_mutex_own_all(void)
 #endif
 
 /*************************************************************************
+Checks that a transaction id is sensible, i.e., not in the future. */
+
+ibool
+lock_check_trx_id_sanity(
+/*=====================*/
+					/* out: TRUE if ok */
+	dulint		trx_id,		/* in: trx id */
+	rec_t*		rec,		/* in: user record */
+	dict_index_t*	index,		/* in: clustered index */
+	ibool		has_kernel_mutex)/* in: TRUE if the caller owns the
+					kernel mutex */
+{
+	char	err_buf[500];
+	ibool	is_ok		= TRUE;
+	
+	if (!has_kernel_mutex) {
+		mutex_enter(&kernel_mutex);
+	}
+
+	/* A sanity check: the trx_id in rec must be smaller than the global
+	trx id counter */
+
+	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
+		rec_sprintf(err_buf, 400, rec);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"InnoDB: Error: transaction id associated with record\n%s\n"
+"InnoDB: in table %s index %s\n"
+"InnoDB: is %lu %lu which is higher than the global trx id counter %lu %lu!\n"
+"InnoDB: The table is corrupt. You have to do dump + drop + reimport.\n",
+			       err_buf, index->table_name, index->name,
+			       ut_dulint_get_high(trx_id),
+			       ut_dulint_get_low(trx_id),
+			       ut_dulint_get_high(trx_sys->max_trx_id),
+			       ut_dulint_get_low(trx_sys->max_trx_id));
+
+		is_ok = FALSE;
+	}
+	
+	if (!has_kernel_mutex) {
+		mutex_exit(&kernel_mutex);
+	}
+
+	return(is_ok);
+}
+
+/*************************************************************************
 Checks that a record is seen in a consistent read. */
 
 ibool
@@ -531,6 +574,10 @@ lock_clust_rec_cons_read_sees(
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(page_rec_is_user_rec(rec));
+
+	/* NOTE that we call this function while holding the search
+	system latch. To obey the latching order we must NOT reserve the
+	kernel mutex here! */
 
 	trx_id = row_get_rec_trx_id(rec, index);
 	
@@ -562,9 +609,15 @@ lock_sec_rec_cons_read_sees(
 	read_view_t*	view)	/* in: consistent read view */
 {
 	dulint	max_trx_id;
-
+	
+	UT_NOT_USED(index);
+	
 	ut_ad(!(index->type & DICT_CLUSTERED));
 	ut_ad(page_rec_is_user_rec(rec));
+
+	/* NOTE that we might call this function while holding the search
+	system latch. To obey the latching order we must NOT reserve the
+	kernel mutex here! */
 
 	if (recv_recovery_is_on()) {
 
@@ -1569,6 +1622,15 @@ lock_sec_rec_some_has_impl_off_kernel(
 	/* Ok, in this case it is possible that some transaction has an
 	implicit x-lock. We have to look in the clustered index. */
 			
+	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page), rec, index,
+								     TRUE)) {
+		buf_page_print(page);
+		
+		/* The page is corrupt: try to avoid a crash by returning
+		NULL */
+		return(NULL);
+	}
+
 	return(row_vers_impl_x_locked_off_kernel(rec, index));
 }
 
@@ -2565,7 +2627,7 @@ lock_move_rec_list_start(
 	ulint		heap_no;
 	ulint		type_mode;
 
-	ut_ad(new_page);
+	ut_a(new_page);
 
 	lock_mutex_enter_kernel();
 
@@ -3028,7 +3090,7 @@ lock_deadlock_recursive(
 				we return LOCK_VICTIM_IS_START */
 {
 	lock_t*	lock;
-	ulint	bit_no;
+	ulint	bit_no		= ULINT_UNDEFINED;
 	trx_t*	lock_trx;
 	char*	err_buf;
 	ulint	ret;
@@ -3067,6 +3129,7 @@ lock_deadlock_recursive(
 			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
 		} else {
 			ut_ad(lock_get_type(lock) == LOCK_REC);
+			ut_a(bit_no != ULINT_UNDEFINED);
 
 			lock = lock_rec_get_prev(lock, bit_no);
 		}
@@ -4205,7 +4268,6 @@ lock_rec_queue_validate(
 {
 	trx_t*	impl_trx;	
 	lock_t*	lock;
-	ibool	is_waiting;
 	
 	ut_a(rec);
 
@@ -4266,8 +4328,6 @@ lock_rec_queue_validate(
 		}
 	}
 
-	is_waiting = FALSE;
-
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
@@ -4280,8 +4340,6 @@ lock_rec_queue_validate(
 		}
 
 		if (!lock_rec_get_gap(lock) && !lock_get_wait(lock)) {
-
-			ut_a(!is_waiting);
 		
 			if (lock_get_mode(lock) == LOCK_S) {
 				ut_a(!lock_rec_other_has_expl_req(LOCK_X,
@@ -4293,7 +4351,6 @@ lock_rec_queue_validate(
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
-			is_waiting = TRUE;
 			ut_a(lock_rec_has_to_wait_in_queue(lock));
 		}
 

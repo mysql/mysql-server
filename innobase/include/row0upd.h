@@ -114,13 +114,15 @@ row_upd_index_write_log(
 			closed within this function */
 	mtr_t*	mtr);	/* in: mtr into whose log to write */
 /***************************************************************
-Returns TRUE if row update changes size of some field in index. */
+Returns TRUE if row update changes size of some field in index or if some
+field to be updated is stored externally in rec or update. */
 
 ibool
-row_upd_changes_field_size(
-/*=======================*/
+row_upd_changes_field_size_or_external(
+/*===================================*/
 				/* out: TRUE if the update changes the size of
-				some field in index */		
+				some field in index or the field is external
+				in rec or update */
 	rec_t*		rec,	/* in: record in clustered index */
 	dict_index_t*	index,	/* in: clustered index */
 	upd_t*		update);/* in: update vector */
@@ -175,16 +177,10 @@ row_upd_index_replace_new_col_vals(
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
 	dict_index_t*	index,	/* in: index; NOTE that may also be a
 				non-clustered index */
-	upd_t*		update);	/* in: update vector */
-/***************************************************************
-Replaces the new column values stored in the update vector to the
-clustered index entry given. */
-
-void
-row_upd_clust_index_replace_new_col_vals(
-/*=====================================*/
-	dtuple_t*	entry,	/* in/out: index entry where replaced */
-	upd_t*		update);	/* in: update vector */
+	upd_t*		update,	/* in: update vector */
+	mem_heap_t*	heap);	/* in: memory heap to which we allocate and
+				copy the new values, set this as NULL if you
+				do not want allocation */
 /***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -358,9 +354,9 @@ struct upd_node_struct{
 				externally in the clustered index record of
 				row */
 	ulint		n_ext_vec;/* number of fields in ext_vec */
-	mem_heap_t*	heap;	/* memory heap used as auxiliary storage for
-				row; this must be emptied after a successful
-				update if node->row != NULL */
+	mem_heap_t*	heap;	/* memory heap used as auxiliary storage;
+				this must be emptied after a successful
+				update */
 	/*----------------------*/
 	sym_node_t*	table_sym;/* table node in symbol table */
 	que_node_t*	col_assign_list;

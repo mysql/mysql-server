@@ -215,3 +215,10 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 SET SESSION table_type=default;
 drop table t1;
+
+#
+# Bug # 801
+#
+
+create table t1 select x'4132';
+drop table t1;

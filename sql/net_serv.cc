@@ -28,6 +28,9 @@
   Read packets are reallocated dynamicly when reading big packets.
   Each logical packet has the following pre-info:
   3 byte length & 1 byte package-number.
+
+  This file needs to be written in C as it's used by the libmysql client as a
+  C file.
 */
 
 /*

@@ -1,3 +1,6 @@
+select @@collation_connection;
+@@collation_connection
+latin1_german2_ci
 drop table if exists t1;
 create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
@@ -196,6 +199,9 @@ strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 select strcmp('u','öa'),strcmp('u','ö');
 strcmp('u','öa')	strcmp('u','ö')
 1	1
+select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
+strcmp('sä', 'ßa')	strcmp('aä', 'äx')
+-1	-1
 create table t1 (a varchar(10), key(a), fulltext (a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
