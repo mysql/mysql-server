@@ -44830,6 +44830,13 @@ The SQL Console is a standalone java application that allows you to connect to a
 graphical user interface. The SQL Console uses JDBC to connect to the database
 systems and, therefore, with proper JDBC drivers, you can use this utility to
 connect to some of the most popular database systems. 
+@item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mmc.zip, MySQL MMC}
+MySQL MMC is a GUI Management Tool developed using kdevelop
+with a very good interface completely like Microsoft
+Enterprise Tool (for Sql Server) or Sybase Central. We
+can use it to manage server, database, table, index,
+users and to edit table data in grid or execute Sql
+by Query Analysis.
 @end itemize
 
 @cindex Web clients
