@@ -27,10 +27,9 @@
 #include <m_string.h>
 
 /*
-  TODO: Currently there are some mysql-connection specific functions.
-  As we are going to suppost different types of connections, we shouldn't
-  have them here in future. To avoid it we could put such
-  connection-specific functions to the Command-derived class instead.
+  Note:  As we are going to suppost different types of connections,
+  we shouldn't have connection-specific functions. To avoid it we could
+  put such functions to the Command-derived class instead.
   The command could be easily constructed for a specific connection if
   we would provide a special factory for each connection.
 */

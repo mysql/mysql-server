@@ -56,5 +56,9 @@ extern unsigned long net_write_timeout;
 */
 extern unsigned long net_retry_count;
 
+extern unsigned int test_flags;
+extern unsigned long bytes_sent, bytes_received;
+extern unsigned long mysqld_net_retry_count;
+extern unsigned long open_files_limit;
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_PRIV_H

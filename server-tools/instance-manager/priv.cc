@@ -32,3 +32,8 @@ unsigned long net_write_timeout= 60;            // same as in mysqld
 
 unsigned long net_retry_count= 10;              // same as in mysqld
 
+/* needed by net_serv.cc */
+unsigned int test_flags= 0;
+unsigned long bytes_sent = 0L, bytes_received = 0L;
+unsigned long mysqld_net_retry_count = 10L;
+unsigned long open_files_limit;
