@@ -173,7 +173,17 @@ public:
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
+  /* 
+    Returns true if this is constant (during query execution, i.e. its value
+    will not change until next fix_fields) and its value is known.
+  */
   virtual bool const_item() const { return used_tables() == 0; }
+  /* 
+    Returns true if this is constant but its value may be not known yet.
+    (Can be used for parameters of prep. stmts or of stored procedures.)
+  */
+  virtual bool const_during_execution() const 
+  { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
@@ -318,6 +328,7 @@ public:
 class Item_param :public Item
 {
 public:    
+  bool value_is_set;
   longlong int_value;
   double   real_value;
   TIME     ltime;
@@ -336,6 +347,7 @@ public:
     item_result_type = STRING_RESULT;
     item_is_time= false;
     long_data_supplied= false;
+    value_is_set= 0;
   }
   enum Type type() const { return item_type; }
   double val();
@@ -363,6 +375,13 @@ public:
   String *query_val_str(String *str);
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   Item *new_item() { return new Item_param(pos_in_query); }
+  /* 
+    If value for parameter was not set we treat it as non-const 
+    so noone will use parameters value in fix_fields still 
+    parameter is constant during execution.
+  */
+  virtual table_map used_tables() const
+  { return value_is_set ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str) { str->append('?'); }
 };
 
