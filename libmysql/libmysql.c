@@ -1872,15 +1872,18 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 				       options->ssl_capath,
 				       options->ssl_cipher)))
     {
-      /* TODO: Change to SSL error */
-      net->last_errno= CR_SERVER_LOST;
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
       strmov(net->last_error,ER(net->last_errno));    
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    /* TODO:  Add proper error checking here, with return error message */
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
-	       mysql->net.vio, (long) (mysql->options.connect_timeout));
+    if(sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),
+	        mysql->net.vio, (long) (mysql->options.connect_timeout)))
+    {
+      net->last_errno= CR_SSL_CONNECTION_ERROR;
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;    
+    }
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
