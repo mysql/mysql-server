@@ -92,7 +92,9 @@ public:
       Bit = NDB_TYPE_BIT,
       Longvarchar = NDB_TYPE_LONG_VARCHAR,
       Longvarbinary = NDB_TYPE_LONG_VARBINARY,
-      Time = NDB_TYPE_TIME
+      Time = NDB_TYPE_TIME,
+      Year = NDB_TYPE_YEAR,
+      Timestamp = NDB_TYPE_TIMESTAMP
     };
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
@@ -161,6 +163,8 @@ private:
   static Cmp cmpLongvarchar;
   static Cmp cmpLongvarbinary;
   static Cmp cmpTime;
+  static Cmp cmpYear;
+  static Cmp cmpTimestamp;
 };
 
 #endif
