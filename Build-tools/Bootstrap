@@ -99,6 +99,8 @@ if (defined $opt_build_command)
 print_help("") if ($opt_help);
 defined($REPO=$ARGV[0]) || print_help("Please enter the BK repository to be used!");
 
+$subject= "Bootstrap of $REPO failed" if $opt_mail;
+
 &logger("Starting build");
 &abort("The directory \"$REPO\" could not be found!") if (!-d $REPO);
 &logger("Using $REPO as the BK parent repository");
