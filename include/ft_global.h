@@ -57,9 +57,12 @@ extern const char *ft_boolean_syntax;
 int ft_init_stopwords(void);
 void ft_free_stopwords(void);
 
-#define FT_NL  0
-#define FT_BOOL 1
-FT_INFO *ft_init_search(uint,void *, uint, byte *, uint, my_bool);
+#define FT_NL     0   /* this MUST be 0, see ft_init_search() */
+#define FT_BOOL   1   /* this MUST be 1, see ft_init_search() */
+#define FT_SORTED 2
+#define FT_EXPAND 4   /* query expansion */
+
+FT_INFO *ft_init_search(uint,void *, uint, byte *, uint);
 
 #ifdef  __cplusplus
 }

@@ -271,8 +271,7 @@ public:
   }
   virtual int ft_init()
     { return -1; }
-  virtual FT_INFO *ft_init_ext(uint mode,uint inx,const byte *key, uint keylen,
-			    bool presort)
+  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
     { return NULL; }
   virtual int ft_read(byte *buf) { return -1; }
   virtual int rnd_init(bool scan=1)=0;
