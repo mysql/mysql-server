@@ -140,7 +140,7 @@ int initgroups(const char *,unsigned int);
 typedef fp_except fp_except_t;
 #endif
 
-  /* We can't handle floating point expections with threads, so disable
+  /* We can't handle floating point exceptions with threads, so disable
      this on freebsd
   */
 
@@ -4044,7 +4044,7 @@ this value; if zero (the default): when the size exceeds max_binlog_size. \
    (gptr*) &max_system_variables.range_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, RANGE_ALLOC_BLOCK_SIZE, 1024, ~0L, 0, 1024, 0},
   {"read-only", OPT_READONLY,
-   "Make all tables readonly, with the expections for replications (slave) threads and users with the SUPER privilege",
+   "Make all tables readonly, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
    (gptr*) &opt_readonly,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
