@@ -1,7 +1,6 @@
-.TH SAFE_MYSQLD	  1 "19 December 2000"
+.TH SAFE_MYSQLD	  1 "19 December 2000" "safe_mysqld (mysql)" mysql.com
 .SH NAME
-.BR safe_mysqld
-is the recommended way to start a mysqld daemon on Unix. safe_mysqld adds some safety features such as restarting the server when an error occurs and logging run-time information to a log file. 
+safe_mysqld \- start the mysqld daemon on Unix.
 .SH SYNOPSIS
 .B safe_mysqld
 .RB [ \-\-basedir=\fP\fIpath\fP ]
@@ -21,6 +20,9 @@ is the recommended way to start a mysqld daemon on Unix. safe_mysqld adds some s
 .RB [ \-\-timezone=# ]
 .RB [ \-\-user=# ]
 .SH DESCRIPTION
+safe_mysqld adds some safety features such as restarting the server when an
+error occurs and logging run-time information to a log file.
+.BR
 .TP 
 .BR \-\-basedir=\fP\fIpath \fP
 .TP 

@@ -41,9 +41,11 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
     byte* try_rc_pos;
     try_rc_pos = info->rc_pos + (pos - info->pos_in_file);
     if (try_rc_pos >= info->buffer && try_rc_pos <= info->rc_end)
+    {
       info->rc_pos = try_rc_pos;
-    else
-      flush_io_cache(info);
+      return;
+    }
+    flush_io_cache(info);
   }
   info->pos_in_file=pos;
   info->seek_not_done=1;
