@@ -1114,7 +1114,7 @@ void Item_sum_count_distinct::make_unique()
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  SELECT_LEX *select_lex= current_lex->current_select;
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;
     
@@ -1607,7 +1607,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
   original= 0;
   quick_group= 0;
   mark_as_sum_func();
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  SELECT_LEX *select_lex= current_lex->current_select;
   order= 0;
     
   arg_show_fields= arg_count_field= is_select->elements;
@@ -1786,7 +1786,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
-  SELECT_LEX *select_lex= current_lex->current_select->select_lex();
+  SELECT_LEX *select_lex= current_lex->current_select;
 
   if (select_lex->linkage == GLOBAL_OPTIONS_TYPE)
     return 1;

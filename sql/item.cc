@@ -23,7 +23,7 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX_NODE *current,
+static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item);
 
 /*****************************************************************************
@@ -809,7 +809,7 @@ bool Item_ref_null_helper::get_date(TIME *ltime, bool fuzzydate)
     item - item which should be marked
 */
 
-static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX_NODE *current,
+static void mark_as_dependent(SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
   // store pointer on SELECT_LEX from wich item is dependent
@@ -1413,7 +1413,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (((*ref)->with_sum_func && name &&
        (depended_from ||
 	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	  thd->lex.current_select->select_lex()->having_fix_field))) ||
+	  thd->lex.current_select->having_fix_field))) ||
       !(*ref)->fixed)
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 

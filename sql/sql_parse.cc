@@ -3474,10 +3474,10 @@ mysql_init_query(THD *thd)
   lex->select_lex.init_query();
   lex->value_list.empty();
   lex->param_list.empty();
-  lex->unit.next= lex->unit.master= lex->unit.return_to= 
-    lex->unit.link_next= 0;
+  lex->unit.next= lex->unit.master= 
+    lex->unit.link_next= lex->unit.return_to=0;
   lex->unit.prev= lex->unit.link_prev= 0;
-  lex->unit.global_parameters= lex->unit.slave= lex->current_select=
+  lex->unit.slave= lex->unit.global_parameters= lex->current_select=
     lex->all_selects_list= &lex->select_lex;
   lex->select_lex.master= &lex->unit;
   lex->select_lex.prev= &lex->unit.slave;
@@ -3506,10 +3506,9 @@ mysql_init_query(THD *thd)
 void
 mysql_init_select(LEX *lex)
 {
-  SELECT_LEX *select_lex= lex->current_select->select_lex();
+  SELECT_LEX *select_lex= lex->current_select;
   select_lex->init_select();
-  select_lex->master_unit()->select_limit= select_lex->select_limit=
-    lex->thd->variables.select_limit;
+  select_lex->select_limit= lex->thd->variables.select_limit;
   if (select_lex == &lex->select_lex)
   {
     lex->exchange= 0;
@@ -3537,17 +3536,32 @@ mysql_new_select(LEX *lex, bool move_down)
     unit->init_query();
     unit->init_select();
     unit->thd= lex->thd;
-    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
-      unit->include_neighbour(lex->current_select);
-    else
-      unit->include_down(lex->current_select);
+    unit->include_down(lex->current_select);
     unit->link_next= 0;
     unit->link_prev= 0;
     unit->return_to= lex->current_select;
     select_lex->include_down(unit);
   }
   else
+  {
     select_lex->include_neighbour(lex->current_select);
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    SELECT_LEX *fake= unit->fake_select_lex;
+    if (!fake)
+    {
+      /*
+	as far as we included SELECT_LEX for UNION unit should have
+	fake SELECT_LEX for UNION processing
+      */
+      fake= unit->fake_select_lex= new SELECT_LEX();
+      fake->include_standalone(unit,
+			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
+      fake->select_number= INT_MAX;
+      fake->make_empty_select();
+      fake->linkage= GLOBAL_OPTIONS_TYPE;
+      fake->select_limit= lex->thd->variables.select_limit;
+    }
+  }
 
   select_lex->master_unit()->global_parameters= select_lex;
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);

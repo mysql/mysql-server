@@ -318,7 +318,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   {
     Item_subselect *subselect;
     if ((subselect= select_lex->master_unit()->item) &&
-	!select_lex->fake_select)
+	select_lex->linkage != GLOBAL_OPTIONS_TYPE)
     {
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
@@ -5713,7 +5713,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	else 
 	{
 	  join->do_send_rows= 0;
-	  join->unit->select_limit= HA_POS_ERROR;
+	  if (join->unit->fake_select_lex)
+	    join->unit->fake_select_lex->select_limit= HA_POS_ERROR;
 	  DBUG_RETURN(0);
 	}
       }

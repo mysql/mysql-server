@@ -118,6 +118,12 @@ enum olap_type
        subselects or derived tables) for ordinary select_lex
    - list of all select_lex (for group operation like correcting list of opened
      tables)
+   - if unit contain several selects (union) then it have special 
+     select_lex called fake_select_lex. It used for storing global parameters
+     and executing union. subqueries of global ORDER BY clause will be
+     attached to this fake_select_lex, which will allow them correctly
+     resolve fields of 'upper' union and other more outer selects. 
+
    for example for following query:
 
    select *
@@ -138,6 +144,7 @@ enum olap_type
 
 
      main unit
+     fake0
      select1 select2 select3
      |^^     |^
     s|||     ||master
@@ -146,7 +153,8 @@ enum olap_type
     v|||master                         slave   ||
     e||+-------------------------+             ||
      V|            neighbor      |             V|
-     unit 1.1<==================>unit1.2       unit2.1
+     unit1.1<+==================>unit1.2       unit2.1
+     fake1.1                                   fake2.1
      select1.1.1 select 1.1.2    select1.2.1   select2.1.1 select2.1.2
                                                |^
                                                ||
@@ -158,13 +166,14 @@ enum olap_type
    relation in main unit will be following:
                           
          main unit
-         |^^^
-         ||||
-         |||+------------------------------+
-         ||+--------------+                |
-    slave||master         |                |
-         V|      neighbor |       neighbor |
-         select1<========>select2<========>select3
+         |^^^^|fake_select_lex
+         |||||+--------------------------------------------+
+         ||||+--------------------------------------------+|
+         |||+------------------------------+              ||
+         ||+--------------+                |              ||
+    slave||master         |                |              ||
+         V|      neighbor |       neighbor |        master|V
+         select1<========>select2<========>select3        fake0
 
     list of all select_lex will be following (as it will be constructed by
     parser):
@@ -199,17 +208,6 @@ public:
 
   ulong options;
   enum sub_select_type linkage;
-  SQL_LIST order_list;                /* ORDER clause */
-  List<List_item>     expr_list;
-  List<List_item>     when_list;      /* WHEN clause (expression) */
-  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
-  // Arrays of pointers to top elements of all_fields list
-  Item **ref_pointer_array;
-
-  uint select_items;    /* number of items in select_list */
-  uint cond_count;      /* number of arguments of and/or/xor in where/having */
-  enum_parsing_place parsing_place; /* where we are parsing expression */
-  bool with_sum_func;   /* sum function indicator */
   bool dependent;	/* dependent from outer select subselect */
   bool uncacheable;     /* result of this query can't be cached */
   bool no_table_names_allowed; /* used for global order by */
@@ -226,18 +224,13 @@ public:
   virtual void init_select();
   void include_down(st_select_lex_node *upper);
   void include_neighbour(st_select_lex_node *before);
+  void include_standalone(st_select_lex_node *sel, st_select_lex_node **ref);
   void include_global(st_select_lex_node **plink);
   void exclude();
 
-  virtual st_select_lex* select_lex();
-  virtual bool add_item_to_list(THD *thd, Item *item);
-  bool add_order_to_list(THD *thd, Item *item, bool asc);
-  virtual bool add_group_to_list(THD *thd, Item *item, bool asc);
-  virtual bool add_ftfunc_to_list(Item_func_match *func);
-
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
-  virtual st_select_lex_node* return_after_parsing()= 0;
+  virtual st_select_lex* return_after_parsing()= 0;
 
   virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
@@ -247,16 +240,7 @@ public:
   virtual List<String>* get_use_index();
   virtual List<String>* get_ignore_index();
   virtual ulong get_table_join_options();
-  virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
-					LEX_STRING *alias,
-					ulong table_options,
-					thr_lock_type flags= TL_UNLOCK,
-					List<String> *use_index= 0,
-					List<String> *ignore_index= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
-  void mark_as_dependent(st_select_lex *last);
-
-  bool test_limit();
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
@@ -293,14 +277,17 @@ public:
     Pointer to 'last' select or pointer to unit where stored
     global parameters for union
   */
-  st_select_lex_node *global_parameters;
+  st_select_lex *global_parameters;
   //node on wich we should return current_select pointer after parsing subquery
-  st_select_lex_node *return_to;
+  st_select_lex *return_to;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if union used in subselect, point to subselect item */
   Item_subselect *item;
+  /* thread handler */
   THD *thd;
+  /* fake SELECT_LEX for union processing */
+  st_select_lex *fake_select_lex;
 
   uint union_option;
 
@@ -312,11 +299,10 @@ public:
   st_select_lex* first_select() { return (st_select_lex*) slave; }
   st_select_lex* first_select_in_union() 
   { 
-    return (slave && slave->linkage == GLOBAL_OPTIONS_TYPE) ?
-      (st_select_lex*) slave->next : (st_select_lex*) slave;
+    return (st_select_lex*) slave;
   }
   st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
-  st_select_lex_node* return_after_parsing() { return return_to; }
+  st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
 
   /* UNION methods */
@@ -354,6 +340,19 @@ public:
   List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
   const char *type; /* type of select for EXPLAIN */
+
+  SQL_LIST order_list;                /* ORDER clause */
+  List<List_item>     expr_list;
+  List<List_item>     when_list;      /* WHEN clause (expression) */
+  ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  // Arrays of pointers to top elements of all_fields list
+  Item **ref_pointer_array;
+
+  uint select_items;    /* number of items in select_list */
+  uint cond_count;      /* number of arguments of and/or/xor in where/having */
+  enum_parsing_place parsing_place; /* where we are parsing expression */
+  bool with_sum_func;   /* sum function indicator */
+
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
@@ -369,8 +368,6 @@ public:
      before passing to handle_select)
   */
   bool insert_select;
-  /* TRUE for fake select, which used in UNION processing */
-  bool fake_select;
 
   void init_query();
   void init_select();
@@ -389,31 +386,33 @@ public:
   {
     return &link_next;
   }
-  st_select_lex_node* return_after_parsing()
+  st_select_lex* return_after_parsing()
   {
     return master_unit()->return_after_parsing();
   }
+
+  void mark_as_dependent(st_select_lex *last);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
   uint get_in_sum_expr();
 
-  st_select_lex* select_lex();
   bool add_item_to_list(THD *thd, Item *item);
   bool add_group_to_list(THD *thd, Item *item, bool asc);
   bool add_ftfunc_to_list(Item_func_match *func);
-
-  TABLE_LIST* get_table_list();
-  List<Item>* get_item_list();
-  List<String>* get_use_index();
-  List<String>* get_ignore_index();
-  ulong get_table_join_options();
+  bool add_order_to_list(THD *thd, Item *item, bool asc);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
 				List<String> *use_index= 0,
 				List<String> *ignore_index= 0);
+
+  TABLE_LIST* get_table_list();
+  List<Item>* get_item_list();
+  List<String>* get_use_index();
+  List<String>* get_ignore_index();
+  ulong get_table_join_options();
   void set_lock_for_tables(thr_lock_type lock_type);
   inline void init_order()
   {
@@ -422,15 +421,14 @@ public:
     order_list.next= (byte**) &order_list.first;
   }
   
+  bool test_limit();
+
   friend void mysql_init_query(THD *thd);
-  st_select_lex(struct st_lex *lex);
-  st_select_lex() :fake_select(0) {}
-  void make_empty_select(st_select_lex *last_select)
+  st_select_lex() {}
+  void make_empty_select()
   {
-    select_number=INT_MAX;
     init_query();
     init_select();
-    include_neighbour(last_select);
   }
 };
 typedef class st_select_lex SELECT_LEX;
@@ -445,7 +443,7 @@ typedef struct st_lex
   SELECT_LEX_UNIT unit;                         /* most upper unit */
   SELECT_LEX select_lex;                        /* first SELECT_LEX */
   /* current SELECT_LEX in parsing */
-  SELECT_LEX_NODE *current_select;
+  SELECT_LEX *current_select;
   /* list of all SELECT_LEX */
   SELECT_LEX *all_selects_list;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
@@ -517,7 +515,7 @@ typedef struct st_lex
       but we should merk all subselects as uncacheable from current till
       most upper
     */
-    SELECT_LEX_NODE *sl;
+    SELECT_LEX *sl;
     SELECT_LEX_UNIT *un;
     for (sl= current_select, un= sl->master_unit();
 	 un != &unit;

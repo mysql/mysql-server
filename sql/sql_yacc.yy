@@ -1835,7 +1835,7 @@ table_to_table:
 	table_ident TO_SYM table_ident
 	{
 	  LEX *lex=Lex;	  
-	  SELECT_LEX_NODE *sl= lex->current_select;
+	  SELECT_LEX *sl= lex->current_select;
 	  if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
 				     TL_IGNORE) ||
 	      !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
@@ -1871,7 +1871,7 @@ preload_keys:
 	;
 
 preload_keys_spec:
-	keys_or_index { Select->select_lex()->interval_list.empty(); }
+	keys_or_index { Select->interval_list.empty(); }
 	preload_key_list_or_empty 
 	{
 	  LEX *lex=Lex;
@@ -1907,7 +1907,7 @@ select_init:
 	'(' SELECT_SYM select_part2 ')'
 	  {
 	    LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select->select_lex();
+            SELECT_LEX * sel= lex->current_select;
 	    if (sel->set_braces(1))
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
@@ -1921,14 +1921,14 @@ select_init:
 	  }
             /* select in braces, can't contain global parameters */
             sel->master_unit()->global_parameters=
-               sel->master_unit();
+               sel->master_unit()->fake_select_lex;
           } union_opt;
 
 select_init2:
 	select_part2
         {
 	  LEX *lex= Lex;
-          SELECT_LEX * sel= lex->current_select->select_lex();
+          SELECT_LEX * sel= lex->current_select;
           if (lex->current_select->set_braces(0))
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
@@ -1947,7 +1947,7 @@ select_init2:
 select_part2:
 	{
 	  LEX *lex=Lex;
-	  SELECT_LEX * sel= lex->current_select->select_lex();
+	  SELECT_LEX * sel= lex->current_select;
 	  if (lex->current_select == &lex->select_lex)
 	    lex->lock_option= TL_READ; /* Only for global SELECT */
 	  if (sel->linkage != UNION_TYPE)
@@ -2038,7 +2038,7 @@ select_item_list:
 	    THD *thd= YYTHD;
 	    if (add_item_to_list(thd, new Item_field(NULL, NULL, "*")))
 	      YYABORT;
-	    (thd->lex.current_select->select_lex()->with_wild)++;
+	    (thd->lex.current_select->with_wild)++;
 	  };
 
 
@@ -2668,9 +2668,9 @@ sum_expr:
 	| COUNT_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_count($3); }
 	| COUNT_SYM '(' DISTINCT
-	  { Select->select_lex()->in_sum_expr++; }
+	  { Select->in_sum_expr++; }
 	   expr_list
-	  { Select->select_lex()->in_sum_expr--; }
+	  { Select->in_sum_expr--; }
 	  ')'
 	  { $$=new Item_sum_count_distinct(* $5); }
 	| GROUP_UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' in_sum_expr ')'
@@ -2726,7 +2726,7 @@ in_sum_expr:
 	}
 	expr
 	{
-	  Select->select_lex()->in_sum_expr--;
+	  Select->in_sum_expr--;
 	  $$= $3;
 	};
 
@@ -2780,13 +2780,13 @@ when_list:
 when_list2:
 	expr THEN_SYM expr
 	  {
-	    SELECT_LEX_NODE *sel=Select;
+	    SELECT_LEX *sel=Select;
 	    sel->when_list.head()->push_back($1);
 	    sel->when_list.head()->push_back($3);
 	}
 	| when_list2 WHEN_SYM expr THEN_SYM expr
 	  {
-	    SELECT_LEX_NODE *sel=Select;
+	    SELECT_LEX *sel=Select;
 	    sel->when_list.head()->push_back($3);
 	    sel->when_list.head()->push_back($5);
 	  };
@@ -2803,7 +2803,7 @@ join_table_list:
 	| join_table_list normal_join join_table_list
 	  USING 
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$3->db; sel->table2=$3->alias;
 	  }
@@ -2814,7 +2814,7 @@ join_table_list:
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table_list
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
@@ -2830,7 +2830,7 @@ join_table_list:
 	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
@@ -2853,14 +2853,14 @@ normal_join:
 
 join_table:
 	{
-	  SELECT_LEX *sel= Select->select_lex();
+	  SELECT_LEX *sel= Select;
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
 	  sel->table_join_options= 0;
 	}
         table_ident opt_table_alias opt_key_definition
 	{
 	  LEX *lex= Lex;
-	  SELECT_LEX_NODE *sel= lex->current_select;
+	  SELECT_LEX *sel= lex->current_select;
 	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3,
 					   sel->get_table_join_options(),
 					   lex->lock_option,
@@ -2910,28 +2910,28 @@ opt_key_definition:
 	/* empty */	{}
 	| USE_SYM    key_usage_list
           {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	  }
 	| FORCE_SYM key_usage_list
           {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
 	  }
 	| IGNORE_SYM key_usage_list
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->ignore_index= *$2;
 	    sel->ignore_index_ptr= &sel->ignore_index;
 	  };
 
 key_usage_list:
-	key_or_index { Select->select_lex()->interval_list.empty(); }
+	key_or_index { Select->interval_list.empty(); }
         '(' key_list_or_empty ')'
-        { $$= &Select->select_lex()->interval_list; }
+        { $$= &Select->interval_list; }
 	;
 
 key_list_or_empty:
@@ -2941,22 +2941,22 @@ key_list_or_empty:
 
 key_usage_list2:
 	key_usage_list2 ',' ident
-        { Select->select_lex()->
+        { Select->
 	    interval_list.push_back(new String((const char*) $3.str, $3.length,
 				    system_charset_info)); }
 	| ident
-        { Select->select_lex()->
+        { Select->
 	    interval_list.push_back(new String((const char*) $1.str, $1.length,
 				    system_charset_info)); }
 	| PRIMARY_SYM
-        { Select->select_lex()->
+        { Select->
 	    interval_list.push_back(new String("PRIMARY", 7,
 				    system_charset_info)); };
 
 using_list:
 	ident
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    if (!($$= new Item_func_eq(new Item_field(sel->db1, sel->table1,
 						      $1.str),
 				       new Item_field(sel->db2, sel->table2,
@@ -2965,7 +2965,7 @@ using_list:
 	  }
 	| using_list ',' ident
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(sel->db1,sel->table1,$3.str), new Item_field(sel->db2,sel->table2,$3.str)), $1)))
 	      YYABORT;
 	  };
@@ -3001,10 +3001,10 @@ opt_all:
 	;
 
 where_clause:
-	/* empty */  { Select->select_lex()->where= 0; }
+	/* empty */  { Select->where= 0; }
 	| WHERE expr
 	  {
-	    Select->select_lex()->where= $2;
+	    Select->where= $2;
 	    if ($2)
 	      $2->top_level_item();
 	  }
@@ -3014,11 +3014,11 @@ having_clause:
 	/* empty */
 	| HAVING
 	  {
-	    Select->select_lex()->parsing_place= SELECT_LEX_NODE::IN_HAVING;
+	    Select->parsing_place= SELECT_LEX_NODE::IN_HAVING;
           }
 	  expr
 	  {
-	    SELECT_LEX *sel= Select->select_lex();
+	    SELECT_LEX *sel= Select;
 	    sel->having= $3;
 	    sel->parsing_place= SELECT_LEX_NODE::NO_MATTER;
 	    if ($3)
@@ -3056,7 +3056,7 @@ olap_opt:
 		       "global union parameters");
 	      YYABORT;
 	    }
-	    lex->current_select->select_lex()->olap= CUBE_TYPE;
+	    lex->current_select->olap= CUBE_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
 	    YYABORT;	/* To be deleted in 5.1 */
 	  }
@@ -3069,7 +3069,7 @@ olap_opt:
 		       "global union parameters");
 	      YYABORT;
 	    }
-	    lex->current_select->select_lex()->olap= ROLLUP_TYPE;
+	    lex->current_select->olap= ROLLUP_TYPE;
 	  }
 	;
 
@@ -3086,7 +3086,7 @@ order_clause:
         {
 	  LEX *lex=Lex;
 	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	      lex->current_select->select_lex()->olap !=
+	      lex->current_select->olap !=
 	      UNSPECIFIED_OLAP_TYPE)
 	  {
 	    net_printf(lex->thd, ER_WRONG_USAGE,
@@ -3111,7 +3111,7 @@ order_dir:
 opt_limit_clause_init:
 	/* empty */
 	{
-	  SELECT_LEX_NODE *sel= Select;
+	  SELECT_LEX *sel= Select;
           sel->offset_limit= 0L;
           sel->select_limit= Lex->thd->variables.select_limit;
 	}
@@ -3130,19 +3130,19 @@ limit_clause:
 limit_options:
 	ULONG_NUM
 	  {
-            SELECT_LEX_NODE *sel= Select;
+            SELECT_LEX *sel= Select;
             sel->select_limit= $1;
             sel->offset_limit= 0L;
 	  }
 	| ULONG_NUM ',' ULONG_NUM
 	  {
-	    SELECT_LEX_NODE *sel= Select;
+	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $3;
 	    sel->offset_limit= $1;
 	  }
 	| ULONG_NUM OFFSET_SYM ULONG_NUM
 	  {
-	    SELECT_LEX_NODE *sel= Select;
+	    SELECT_LEX *sel= Select;
 	    sel->select_limit= $1;
 	    sel->offset_limit= $3;
 	  }
@@ -4117,14 +4117,14 @@ table_wild:
 	ident '.' '*' 
 	{
 	  $$ = new Item_field(NullS,$1.str,"*");
-	  Lex->current_select->select_lex()->with_wild++;
+	  Lex->current_select->with_wild++;
 	}
 	| ident '.' ident '.' '*'
 	{
 	  $$ = new Item_field((YYTHD->client_capabilities &
    			     CLIENT_NO_SCHEMA ? NullS : $1.str),
 			     $3.str,"*");
-	  Lex->current_select->select_lex()->with_wild++;
+	  Lex->current_select->with_wild++;
 	}
 	;
 
@@ -4134,7 +4134,7 @@ order_ident:
 simple_ident:
 	ident
 	{
-	  SELECT_LEX_NODE *sel=Select;
+	  SELECT_LEX *sel=Select;
 	  $$= (sel->parsing_place != SELECT_LEX_NODE::IN_HAVING ||
 	       sel->get_in_sum_expr() > 0) ?
               (Item*) new Item_field(NullS,NullS,$1.str) :
@@ -4144,7 +4144,7 @@ simple_ident:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  SELECT_LEX_NODE *sel= lex->current_select;
+	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
 	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
@@ -4160,7 +4160,7 @@ simple_ident:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  SELECT_LEX_NODE *sel= lex->current_select;
+	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
 	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
@@ -4176,7 +4176,7 @@ simple_ident:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= &thd->lex;
-	  SELECT_LEX_NODE *sel= lex->current_select;
+	  SELECT_LEX *sel= lex->current_select;
 	  if (sel->no_table_names_allowed)
 	  {
 	    my_printf_error(ER_TABLENAME_NOT_ALLOWED_HERE, 
@@ -4858,7 +4858,7 @@ opt_table:
 	'*'
 	  {
 	    LEX *lex= Lex;
-	    lex->current_select->select_lex()->db= lex->thd->db;
+	    lex->current_select->db= lex->thd->db;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -4870,7 +4870,7 @@ opt_table:
 	| ident '.' '*'
 	  {
 	    LEX *lex= Lex;
-	    lex->current_select->select_lex()->db = $1.str;
+	    lex->current_select->db = $1.str;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -4882,7 +4882,7 @@ opt_table:
 	| '*' '.' '*'
 	  {
 	    LEX *lex= Lex;
-	    lex->current_select->select_lex()->db = NULL;
+	    lex->current_select->db = NULL;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -5077,11 +5077,12 @@ optional_order_or_limit:
 	    THD *thd= YYTHD;
 	    LEX *lex= &thd->lex;
 	    DBUG_ASSERT(lex->current_select->linkage != GLOBAL_OPTIONS_TYPE);
-	    SELECT_LEX *sel= lex->current_select->select_lex();
+	    SELECT_LEX *sel= lex->current_select;
 	    SELECT_LEX_UNIT *unit= sel->master_unit();
-	    unit->global_parameters= unit;
-	    unit->no_table_names_allowed= 1;
-	    lex->current_select= unit;
+	    SELECT_LEX *fake= unit->fake_select_lex;
+	    unit->global_parameters= fake;
+	    fake->no_table_names_allowed= 1;
+	    lex->current_select= fake;
 	    thd->where= "global ORDER clause";
 	  }
 	order_or_limit

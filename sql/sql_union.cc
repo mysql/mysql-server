@@ -115,7 +115,7 @@ bool select_union::flush()
 int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				bool tables_and_fields_initied)
 {
-  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -241,7 +241,7 @@ err:
 int st_select_lex_unit::exec()
 {
   int do_print_slow= 0;
-  SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
+  SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
   DBUG_ENTER("st_select_lex_unit::exec");
 
@@ -318,8 +318,7 @@ int st_select_lex_unit::exec()
 
   /* Send result to 'result' */
 
-  // to correct ORDER BY reference resolving
-  thd->lex.current_select= select_cursor;
+
   res= -1;
   {
     List<Item_func_match> empty_list;
@@ -327,8 +326,7 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
-      SELECT_LEX *fake_select  = new SELECT_LEX(&thd->lex);
-      fake_select->fake_select= 1;
+      thd->lex.current_select= fake_select_lex;
       offset_limit_cnt= (select_cursor->braces ?
 			 global_parameters->offset_limit : 0);
       select_limit_cnt= (select_cursor->braces ?
@@ -338,19 +336,19 @@ int st_select_lex_unit::exec()
 	select_limit_cnt= HA_POS_ERROR;		// no limit
       if (select_limit_cnt == HA_POS_ERROR)
 	thd->options&= ~OPTION_FOUND_ROWS;
-      fake_select->ftfunc_list= &empty_list;
-      fake_select->table_list.link_in_list((byte *)&result_table_list,
-					   (byte **)&result_table_list.next);
-      res= mysql_select(thd, &ref_pointer_array, &result_table_list,
+      fake_select_lex->ftfunc_list= &empty_list;
+      fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
+					       (byte **)
+					       &result_table_list.next);
+      res= mysql_select(thd, &fake_select_lex->ref_pointer_array,
+			&result_table_list,
 			0, item_list, NULL,
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, fake_select, 0);
+			thd->options, result, this, fake_select_lex, 0);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
-      fake_select->exclude();
-      delete fake_select;
       /*
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently
