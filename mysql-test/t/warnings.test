@@ -97,6 +97,19 @@ update t1 set b=a;
 select @@warning_count;
 --enable_ps_protocol
 
+# Bug#9072
+set max_error_count=0;
+show variables like 'max_error_count';
+update t1 set b='hi';
+--disable_ps_protocol
+select @@warning_count;
+--enable_ps_protocol
+show warnings;
+set max_error_count=65535;
+show variables like 'max_error_count';
+set max_error_count=10;
+show variables like 'max_error_count';
+
 #
 # Test for handler type
 #
