@@ -1582,6 +1582,11 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 }
 
 
+/*
+  TODO: This needs to be fixed for multi-byte character set where numbers
+  are stored in more than one byte
+*/
+
 String *Item_func_format::val_str(String *str)
 {
   double nr	=args[0]->val();
@@ -1590,7 +1595,8 @@ String *Item_func_format::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
-  str->set(nr,decimals,default_charset());
+  /* Here default_charset() is right as this is not an automatic conversion */
+  str->set(nr,decimals, default_charset());
 #ifdef HAVE_ISNAN
   if (isnan(nr))
     return str;
@@ -1839,14 +1845,11 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
       str->length(length);
       return str;
     }
-    else
-    {
-      if (tmp_value->alloc(length))
-	return 0;
-      (void) tmp_value->copy(*res);
-      tmp_value->length(length);
-      return tmp_value;
-    }
+    if (tmp_value->alloc(length))
+      return 0;
+    (void) tmp_value->copy(*res);
+    tmp_value->length(length);
+    return tmp_value;
   }
   res->length(length);
   return res;
@@ -1947,7 +1950,7 @@ String *Item_func_rpad::val_str(String *str)
   int32 count= (int32) args[1]->val_int();
   int32 byte_count= count * collation.collation->mbmaxlen;
   String *res =args[0]->val_str(str);
-  String *rpad = args[2]->val_str(str);
+  String *rpad = args[2]->val_str(&rpad_str);
 
   if (!res || args[1]->null_value || !rpad || count < 0)
     goto err;
@@ -2384,6 +2387,10 @@ String* Item_func_export_set::val_str(String* str)
     null_value=1;
     return 0;
   }
+  /*
+    Arg count can only be 3, 4 or 5 here. This is guaranteed from the
+    grammar for EXPORT_SET()
+  */
   switch(arg_count) {
   case 5:
     num_set_values = (uint) args[4]->val_int();
@@ -2513,7 +2520,7 @@ String *Item_func_quote::val_str(String *str)
   new_length= arg_length+2; /* for beginning and ending ' signs */
 
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, *from);
+    new_length+= get_esc_bit(escmask, (uchar) *from);
 
   /*
     We have to use realloc() instead of alloc() as we want to keep the

@@ -967,7 +967,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
 #endif
 	  break;
 	case 27:
-	  options->max_allowed_packet= atoi(opt_arg);
+          if (opt_arg)
+	    options->max_allowed_packet= atoi(opt_arg);
 	  break;
         case 28:		/* protocol */
           if ((options->protocol = find_type(opt_arg,

@@ -344,7 +344,7 @@ void Item_singlerow_subselect::bring_value()
   exec();
 }
 
-double Item_singlerow_subselect::val () 
+double Item_singlerow_subselect::val() 
 {
   if (!exec() && !value->null_value)
   {
@@ -358,7 +358,7 @@ double Item_singlerow_subselect::val ()
   }
 }
 
-longlong Item_singlerow_subselect::val_int () 
+longlong Item_singlerow_subselect::val_int() 
 {
   if (!exec() && !value->null_value)
   {
@@ -466,7 +466,7 @@ void Item_exists_subselect::fix_length_and_dec()
    max_columns= engine->cols();
 }
 
-double Item_exists_subselect::val () 
+double Item_exists_subselect::val()
 {
   if (exec())
   {
@@ -476,7 +476,7 @@ double Item_exists_subselect::val ()
   return (double) value;
 }
 
-longlong Item_exists_subselect::val_int () 
+longlong Item_exists_subselect::val_int() 
 {
   if (exec())
   {
@@ -493,11 +493,11 @@ String *Item_exists_subselect::val_str(String *str)
     reset();
     return 0;
   }
-  str->set(value,default_charset());
+  str->set(value,&my_charset_bin);
   return str;
 }
 
-double Item_in_subselect::val () 
+double Item_in_subselect::val()
 {
   if (exec())
   {
@@ -510,7 +510,7 @@ double Item_in_subselect::val ()
   return (double) value;
 }
 
-longlong Item_in_subselect::val_int () 
+longlong Item_in_subselect::val_int() 
 {
   if (exec())
   {
@@ -536,7 +536,7 @@ String *Item_in_subselect::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(value,default_charset());
+  str->set(value, &my_charset_bin);
   return str;
 }
 

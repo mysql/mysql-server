@@ -74,14 +74,21 @@ typedef struct my_stat
 
 #endif /* USE_MY_STAT_STRUCT */
 
-typedef struct fileinfo		/* Struct returned from my_dir & my_stat */
+/* Struct describing one file returned from my_dir */
+typedef struct fileinfo
 {
   char			*name;
-  MY_STAT		mystat;
+  MY_STAT		*mystat;
 } FILEINFO;
 
 typedef struct st_my_dir	/* Struct returned from my_dir */
 {
+  /*
+    These members are just copies of parts of DYNAMIC_ARRAY structure, 
+    which is allocated right after the end of MY_DIR structure (MEM_ROOT
+    for storing names is also resides there). We've left them here because
+    we don't want to change code that uses my_dir.
+  */
   struct fileinfo	*dir_entry;
   uint			number_off_files;
 } MY_DIR;

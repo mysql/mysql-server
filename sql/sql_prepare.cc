@@ -545,7 +545,7 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
 
   if (check_access(thd,privilege,table_list->db,
                    &table_list->grant.privilege,0,0) || 
-      (grant_option && check_grant(thd,privilege,table_list)))
+      (grant_option && check_grant(thd,privilege,table_list,0,0)))
     DBUG_RETURN(1); 
 #endif  
   if (open_and_lock_tables(thd, table_list))
@@ -600,7 +600,7 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_access(thd,UPDATE_ACL,table_list->db,
                    &table_list->grant.privilege,0,0) || 
-      (grant_option && check_grant(thd,UPDATE_ACL,table_list)))
+      (grant_option && check_grant(thd,UPDATE_ACL,table_list,0,0)))
     DBUG_RETURN(1);
 #endif
   if (open_and_lock_tables(thd, table_list))

@@ -260,7 +260,7 @@ export PATH
 
 # If we want to compile with RAID using gcc 3, we need to use
 # gcc instead of g++ to avoid linking problems (RAID code is written in C++)
-if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+test -z $CXX && test -z $CC && if gcc -v 2>&1 | grep 'gcc version 3' > /dev/null 2>&1
 then
 	export CXX="gcc"
 fi
@@ -443,11 +443,12 @@ fi
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
 
 %files server
-%defattr(755 root, root)
+%defattr(-,root,root,0755)
 
-%doc %attr(644, root, root) COPYING README
-%doc %attr(644, root, root) Docs/manual.{html,ps,texi,txt} Docs/manual_toc.html
-%doc %attr(644, root, root) support-files/my-*.cnf
+%doc COPYING README
+%doc Docs/manual.{html,ps,texi,txt}
+%doc Docs/manual_toc.html
+%doc support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -500,6 +501,7 @@ fi
 %attr(755, root, root) %{_datadir}/mysql/
 
 %files client
+%defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
@@ -527,7 +529,7 @@ fi
 /sbin/ldconfig
 
 %files devel
-%defattr(644 root, root)
+%defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -548,11 +550,12 @@ fi
 %{_libdir}/mysql/libvio.a
 
 %files shared
-%defattr(755 root, root)
+%defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
 
 %files bench
+%defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/sql-bench
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysqlmanager
@@ -560,15 +563,25 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlmanagerc
 
 %files Max
+%defattr(-, root, root, 0755)
 %attr(755, root, root) %{_sbindir}/mysqld-max
 %attr(644, root, root) %{_libdir}/mysql/mysqld-max.sym
 
 %files embedded
+%defattr(-, root, root, 0755)
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Fri Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
+
+- fixed file permissions (BUG 1672)
+
+* Thu Dec 11 2003 Lenz Grimmer <lenz@mysql.com>
+
+- made testing for gcc3 a bit more robust
+
 * Fri Dec 05 2003 Lenz Grimmer <lenz@mysql.com>
 
 - added missing file mysql_create_system_tables to the server subpackage

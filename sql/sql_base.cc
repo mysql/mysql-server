@@ -513,8 +513,8 @@ void close_temporary_tables(THD *thd)
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
     /* The -1 is to remove last ',' */
+    thd->clear_error();
     Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
-    qinfo.error_code=0;
     mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
@@ -1752,6 +1752,19 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   const char *table_name=item->table_name;
   const char *name=item->field_name;
   uint length=(uint) strlen(name);
+  char name_buff[NAME_LEN+1];
+
+  if (db && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparision.
+      We can't do this in Item_field as this would change the
+      'name' of the item which may be used in the select list
+    */
+    strmake(name_buff, db, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db= name_buff;
+  }
 
   if (table_name && table_name[0])
   {						/* Qualified field */
@@ -1969,7 +1982,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   while ( wild_num && (item= it++))
   {    
     if (item->type() == Item::FIELD_ITEM && ((Item_field*) item)->field_name &&
-	((Item_field*) item)->field_name[0] == '*')
+	((Item_field*) item)->field_name[0] == '*' &&
+	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
       if (insert_fields(thd,tables,((Item_field*) item)->db_name,

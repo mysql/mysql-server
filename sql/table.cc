@@ -507,14 +507,17 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
 	/*
-	  If the UNIQUE key don't have NULL columns, declare this as
-	  a primary key.
+	  If the UNIQUE key doesn't have NULL columns and is not a part key
+	  declare this as a primary key.
 	*/
 	primary_key=key;
 	for (i=0 ; i < keyinfo->key_parts ;i++)
 	{
-	  if (!key_part[i].fieldnr ||
-	      outparam->field[key_part[i].fieldnr-1]->null_ptr)
+	  uint fieldnr= key_part[i].fieldnr;
+	  if (!fieldnr ||
+	      outparam->field[fieldnr-1]->null_ptr ||
+	      outparam->field[fieldnr-1]->key_length() !=
+	      key_part[i].length)
 	  {
 	    primary_key=MAX_KEY;		// Can't be used
 	    break;
@@ -554,6 +557,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
 	    key_part->store_length+=HA_KEY_BLOB_LENGTH;
 	    keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
+	    /*
+	      Mark that there may be many matching values for one key
+	      combination ('a', 'a ', 'a  '...)
+	    */
+	    if (!(field->flags & BINARY_FLAG))
+	      keyinfo->flags|= HA_END_SPACE_KEY;
 	  }
 	  if (i == 0 && key != primary_key)
 	    field->flags |=
@@ -591,7 +600,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  }
 	  if (field->key_length() != key_part->length)
 	  {
-	    key_part->key_part_flag|= HA_PART_KEY;
+	    key_part->key_part_flag|= HA_PART_KEY_SEG;
 	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
 	      field=key_part->field=field->new_field(&outparam->mem_root,
@@ -605,7 +614,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    as we need to test for NULL = NULL.
 	  */
 	  if (field->real_maybe_null())
-	    key_part->key_part_flag|= HA_PART_KEY;
+	    key_part->key_part_flag|= HA_PART_KEY_SEG;
 	}
 	else
 	{					// Error: shorten key
@@ -1237,14 +1246,17 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
   field->val_str(&str,&str);
-  if (!(length= str.length()))
+  length= str.length();
+  if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
-  return strmake_root(mem, str.ptr(), length);
+  memcpy(to,str.ptr(),(uint) length);
+  to[length]=0;
+  return to;
 }
 
 

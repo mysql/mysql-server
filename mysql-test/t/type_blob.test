@@ -308,3 +308,52 @@ drop table t1;
 create table t1 select load_file('../../std_data/words.dat');
 show full fields from t1;
 drop table t1;
+
+#
+# Test blob's with end space (Bug #1651)
+#
+
+create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
+insert into t1 (txt) values ('Chevy'), ('Chevy ');
+select * from t1 where txt='Chevy';
+select * from t1 where txt='Chevy ';
+select * from t1 where txt='Chevy ' or txt='Chevy';
+select * from t1 where txt='Chevy' or txt='Chevy ';
+select * from t1 where id='1' or id='2';
+insert into t1 (txt) values('Ford');
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt='Ford';
+select * from t1 where txt='Chevy' or txt='Chevy ';
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt=' Chevy';
+select * from t1 where txt in ('Chevy ','Chevy');
+select * from t1 where txt in ('Chevy');
+select * from t1 where txt between 'Chevy' and 'Chevy';
+select * from t1 where txt between 'Chevy' and 'Chevy' or txt='Chevy ';
+select * from t1 where txt between 'Chevy' and 'Chevy ';
+select * from t1 where txt < 'Chevy ';
+select * from t1 where txt <= 'Chevy';
+select * from t1 where txt > 'Chevy';
+select * from t1 where txt >= 'Chevy';
+drop table t1;
+
+create table t1 (id integer primary key auto_increment, txt text, unique index txt_index (txt (20)));
+insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
+select * from t1 where txt='Chevy' or txt is NULL;
+select * from t1 where txt='Chevy ';
+select * from t1 where txt='Chevy ' or txt='Chevy';
+select * from t1 where txt='Chevy' or txt='Chevy ';
+select * from t1 where id='1' or id='2';
+insert into t1 (txt) values('Ford');
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt='Ford';
+select * from t1 where txt='Chevy' or txt='Chevy ';
+select * from t1 where txt='Chevy' or txt='Chevy ' or txt=' Chevy';
+select * from t1 where txt in ('Chevy ','Chevy');
+select * from t1 where txt in ('Chevy');
+select * from t1 where txt between 'Chevy' and 'Chevy';
+select * from t1 where txt between 'Chevy' and 'Chevy' or txt='Chevy ';
+select * from t1 where txt between 'Chevy' and 'Chevy ';
+select * from t1 where txt < 'Chevy ';
+select * from t1 where txt < 'Chevy ' or txt is NULL;
+select * from t1 where txt <= 'Chevy';
+select * from t1 where txt > 'Chevy';
+select * from t1 where txt >= 'Chevy';
+drop table t1;

@@ -102,6 +102,14 @@ void Item::print_item_w_name(String *str)
 }
 
 
+Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
+		       const char *field_name_par)
+  :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par),
+   depended_from(0)
+{
+  name = (char*) field_name_par;
+}
+
 // Constructor used by Item_field & Item_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident &item):
   Item(thd, item),
@@ -676,10 +684,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, default_charset());
+    str->set(int_value, &my_charset_bin);
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, default_charset());
+    str->set(real_value, 2, &my_charset_bin);
     return str;
   default:
     return (String*) &str_value;
@@ -1764,12 +1772,11 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT && b == STRING_RESULT)
     return STRING_RESULT;
-  else if (a == INT_RESULT && b == INT_RESULT)
+  if (a == INT_RESULT && b == INT_RESULT)
     return INT_RESULT;
   else if (a == ROW_RESULT || b == ROW_RESULT)
     return ROW_RESULT;
-  else
-    return REAL_RESULT;
+  return REAL_RESULT;
 }
 
 

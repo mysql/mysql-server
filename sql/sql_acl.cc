@@ -697,6 +697,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	If cipher name is specified, we compare it to actual cipher in
 	use.
       */
+      X509 *cert;
       if (vio_type(vio) != VIO_TYPE_SSL ||
 	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
@@ -717,7 +718,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(ssl);
+      if (!(cert= SSL_get_peer_certificate(ssl)))
+      {
+	user_access=NO_ACCESS;
+	break;
+      }
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
@@ -1246,6 +1251,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
+  thd->clear_error();
   Query_log_event qinfo(thd, buff, query_length, 0);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
@@ -1317,11 +1323,11 @@ static const char *calc_ip(const char *ip, long *val, char end)
 static void update_hostname(acl_host_and_ip *host, const char *hostname)
 {
   host->hostname=(char*) hostname;		// This will not be modified!
-  if (hostname &&
+  if (!hostname ||
       (!(hostname=calc_ip(hostname,&host->ip,'/')) ||
        !(hostname=calc_ip(hostname+1,&host->ip_mask,'\0'))))
   {
-    host->ip=host->ip_mask=0;			// Not a masked ip
+    host->ip= host->ip_mask=0;			// Not a masked ip
   }
 }
 

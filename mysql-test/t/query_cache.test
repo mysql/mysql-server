@@ -254,10 +254,14 @@ select * from mysqltest.t1 where i is null;
 #
 # drop db
 #
+create table t1(a int);
+select * from t1;
+show status like "Qcache_queries_in_cache";
 select * from mysqltest.t1;
 show status like "Qcache_queries_in_cache";
 drop database mysqltest;
 show status like "Qcache_queries_in_cache";
+drop table t1;
 
 #
 # Charset convertion (cp1251_koi8 always present)

@@ -3,14 +3,12 @@
 # Do-rpm - compile RPM packages out of a source tarball and move the
 # resulting RPM packages into the current directory.
 #
-# The script currently assumes the following environment (which should exist
-# like that, if the Do-compile script was used to build the binary
-# distribution)
+# The script currently assumes the following environment:
 #
 # - there must be a source distribution (mysql-<version>.tar.gz)
 #   in the current directory
-# - there must be a spec file (mysql-<version>.spec) in the directory
-#   $HOME/<hostname>/mysql-<version>/support-files/
+# - You must provide the name of an RPM spec file (mysql-<version>.spec) 
+#   as the argument
 #
 # Use the "--help" option for more info!
 #
@@ -35,7 +33,10 @@ $opt_log= undef;
 $opt_mail= "";
 $opt_verbose= undef;
 
+# Set a dummy version until we know the correct one
+$VERSION= "x.y.z";
 $MAJOR= $MINOR= $RELEASE= 0;
+$SUFFIX= "";
 
 GetOptions(
 	"cc=s",
@@ -50,7 +51,9 @@ GetOptions(
 	"verbose|v",
 ) || &print_help;
 
-defined($VERSION=$ARGV[0]) || print_help("Please provide the MySQL version!");
+&print_help("") if ($opt_help);
+
+defined($SPECFILE=$ARGV[0]) || print_help("Please provide the spec file name!");
 
 # Include helper functions
 $PWD= cwd();
@@ -63,6 +66,30 @@ else
 {
 	die "ERROR: $LOGGER cannot be found!\n";
 }
+
+$subject= "RPM build for $SPECFILE failed" if $opt_mail;
+
+# Open the spec file and extract the version number
+open(SPEC, $SPECFILE) or &abort("Unable to open \"$ARGV[0]\": $!");
+@spec= <SPEC>;
+close SPEC;
+
+foreach (@spec)
+{
+	if (m/^%define\s*mysql_version\s*(.*)/)
+	{
+		$VERSION= $1;
+		($MAJOR, $MINOR, $RELEASE)= split(/\./,$VERSION);
+		($RELEASE, $SUFFIX)= split(/\-/,$RELEASE);
+		$SUFFIX= "-" . $SUFFIX if ($SUFFIX);
+	}
+}
+
+$HOST= hostname();
+$HOST=~ /^([^.-]*)/;
+$HOST= $1;
+$LOGFILE= "$PWD/Logs/Do-rpm-$HOST-$MAJOR.$MINOR.log";
+&logger("Using spec file for version: $VERSION");
 
 #
 # Override predefined Log file name
@@ -81,14 +108,6 @@ if (defined $opt_log)
 		}
 	}
 }
-
-($MAJOR, $MINOR, $RELEASE)= split(/\./, $VERSION);
-$HOST= hostname();
-$HOST=~ /^([^.-]*)/;
-$HOST= $1;
-$LOGFILE= "$PWD/Logs/Do-rpm-$HOST-$MAJOR.$MINOR.log";
-
-&print_help("") if ($opt_help);
 
 #
 # Newer RPM versions ship with a separate tool "rpmbuild" to build RPMs
@@ -120,8 +139,7 @@ chomp($SOURCEDIR= `$RPM --eval "%{_sourcedir}" 2> /dev/null`);
 chomp($SPECDIR= `$RPM --eval "%{_specdir}" 2> /dev/null`);
 chomp($SRCRPMDIR= `$RPM --eval "%{_srcrpmdir}" 2> /dev/null`);
 
-$SOURCEFILE= "mysql-$VERSION.tar.gz";
-$SPECFILE= "$PWD/$HOST/mysql-$VERSION/support-files/mysql-$VERSION.spec";
+$SOURCEFILE= glob "mysql*-$VERSION.tar.gz";
 
 &logger("Starting RPM build of MySQL-$VERSION on $HOST");
 
@@ -134,10 +152,13 @@ foreach $file ($SOURCEFILE, $SPECFILE)
 # Install source and spec file
 #
 &logger("Copying SOURCE and SPEC file to build directories.");
-copy($SOURCEFILE, $SOURCEDIR)
-or &abort("Unable to copy $SOURCEFILE to $SOURCEDIR!");
-copy($SPECFILE, $SPECDIR)
-or &abort("Unable to copy $SPECFILE to $SPECDIR!");
+unless ($opt_dry_run)
+{
+	copy($SOURCEFILE, $SOURCEDIR)
+	or &abort("Unable to copy $SOURCEFILE to $SOURCEDIR!");
+	copy($SPECFILE, $SPECDIR)
+	or &abort("Unable to copy $SPECFILE to $SPECDIR!");
+}
 
 #
 # Set environment variables - these are being used in the
@@ -168,11 +189,13 @@ $command.= basename($SPECFILE);
 $command= "mv";
 $command.= " -v " if ($opt_verbose);
 $command.= "$SRCRPMDIR/MySQL*$VERSION*.src.rpm $PWD";
+&logger("Moving source RPM to current dir.");
 &run_command($command, "Error moving source RPM!");
 
 $command= "mv";
 $command.= " -v " if ($opt_verbose);
-$command.= "$RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
+$command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
+&logger("Moving binary RPMs to current dir.");
 &run_command($command, "Error moving binary RPMs!");
 
 #
@@ -181,11 +204,14 @@ $command.= "$RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
 if ($opt_clean)
 {
 	&logger("Removing spec file and source package");
-	unlink("$SPECDIR/" . basename($SPECFILE));
-	unlink("$SOURCEDIR/$SOURCEFILE");
+	unless ($opt_dry_run)
+	{
+		unlink("$SPECDIR/" . basename($SPECFILE));
+		unlink("$SOURCEDIR/$SOURCEFILE");
+	}
 }
 
-&logger("SUCCESS: RPM files successfully created.") if (!$opt_dry_run);
+&logger("SUCCESS: RPM files successfully created.") unless ($opt_dry_run);
 exit 0;
 
 sub print_help
@@ -198,11 +224,14 @@ sub print_help
 	}
 	print <<EOF;
 
-Usage: Do-rpm <options> <version>
+Usage: Do-rpm [options] <specfile>
 
-Creates a binary RPM package out of a MySQL source distribution and moves the
-resulting RPMs into the current directory.  <version> is the MySQL version
-number (e.g. 4.0.11-gamma)
+Creates a binary RPM package out of a MySQL source distribution and moves
+the resulting RPMs into the current directory. <specfile> is the MySQL RPM
+spec file to use (e.g. mysql-4.0.17.spec).
+
+This script expects to find the required MySQL source distribution
+(mysql-<version>.tar.gz) in the current directory.
 
 Options:
 
@@ -221,6 +250,10 @@ Options:
                               Note that the \@-Sign needs to be quoted!
                               Example: --mail=user\\\@domain.com
 -v, --verbose                 Verbose execution
+
+Example:
+
+  Do-rpm -cv mysql-4.0.17.spec
 
 EOF
 	exit 1;
