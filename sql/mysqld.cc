@@ -1607,6 +1607,7 @@ static void init_signals(void)
     sa.sa_handler=handle_segfault;
 #endif
     sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
 #ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
 #endif
