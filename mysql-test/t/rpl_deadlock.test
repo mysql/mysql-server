@@ -1,0 +1,107 @@
+# See if slave restarts the transaction after failing on an InnoDB deadlock error.
+
+# Note: testing what happens when too many retries is possible, but
+# needs large waits when running with --debug, so we don't do it.
+# The same way, this test may not test what is expected when run
+# under Valgrind, timings are too short then (with --valgrind I
+# (Guilhem) have seen the test manage to provoke lock wait timeout
+# error but not deadlock error; that is ok as code deals with the two
+# errors in exactly the same way.
+
+source include/have_innodb.inc;
+source include/master-slave.inc;
+
+connection master;
+create table t1 (a int not null, key(a)) engine=innodb;
+create table t2 (a int not null, key(a)) engine=innodb;
+create table t3 (a int) engine=innodb;
+create table t4 (a int) engine=innodb;
+sync_slave_with_master;
+
+show create table t1;
+show create table t2;
+stop slave;
+
+# 1) Test deadlock
+
+connection master;
+begin;
+# Let's keep BEGIN and the locked statement in two different relay logs.
+let $1=200;
+disable_query_log;
+while ($1)
+{
+ eval insert into t3 values( $1 );
+ dec $1;
+}
+enable_query_log;
+insert into t3 select * from t2 for update;
+insert into t1 values(1);
+commit;
+save_master_pos;
+
+connection slave;
+begin;
+# Let's make our transaction large so that it's slave who is chosen as
+# victim
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t4 values( $1 );
+ dec $1;
+}
+enable_query_log;
+select * from t1 for update;
+start slave;
+--sleep 3; # hope that slave is blocked now
+insert into t2 values(22); # provoke deadlock, slave should be victim
+commit;
+sync_with_master;
+select * from t1; # check that slave succeeded finally
+select * from t2;
+# check that no error is reported
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+show slave status;
+
+# 2) Test lock wait timeout
+
+stop slave;
+change master to master_log_pos=401; # the BEGIN log event
+begin;
+select * from t2 for update; # hold lock
+start slave;
+--sleep 10; # slave should have blocked, and be retrying
+commit;
+sync_with_master;
+select * from t1; # check that slave succeeded finally
+select * from t2;
+# check that no error is reported
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+show slave status;
+
+# Now we repeat 2), but with BEGIN in the same relay log as
+# COMMIT (to see if seeking into hot log is ok).
+
+set global max_relay_log_size=0;
+
+# This is really copy-paste of 2) of above
+stop slave;
+change master to master_log_pos=401;
+begin;
+select * from t2 for update;
+start slave;
+--sleep 10;
+commit;
+sync_with_master;
+select * from t1;
+select * from t2;
+--replace_column 1 # 8 # 9 # 23 # 33 #
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+show slave status;
+
+connection master;
+drop table t1,t2;
+sync_slave_with_master;
