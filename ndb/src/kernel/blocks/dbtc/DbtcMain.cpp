@@ -5937,7 +5937,6 @@ int Dbtc::releaseAndAbort(Signal* signal)
       signal->theData[2] = apiConnectptr.p->transid[0];
       signal->theData[3] = apiConnectptr.p->transid[1];
       sendSignal(tblockref, GSN_ABORT, signal, 4, JBB);
-      return 1;
     } else {
       jam();
       signal->theData[0] = tcConnectptr.i;
