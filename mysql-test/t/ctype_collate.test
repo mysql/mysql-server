@@ -148,3 +148,11 @@ SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 SET CHARACTER SET 'DEFAULT';
 
 DROP TABLE t1;
+
+CREATE TABLE t1 
+(s1 CHAR(5) COLLATE latin1_german1_ci,
+ s2 CHAR(5) COLLATE latin1_swedish_ci);
+--error 1265
+SELECT * FROM t1 WHERE s1 = s2;
+DROP TABLE t1;
+		 
