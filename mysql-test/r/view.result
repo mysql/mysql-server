@@ -983,10 +983,10 @@ create view v1 as select * from t1;
 drop table t1;
 create table t1 (col1 char(5),newcol2 char(5));
 insert into v1 values('a','aa');
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
 drop table t1;
 select * from v1;
-ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
 drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
@@ -1217,11 +1217,11 @@ create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
 select * from v1;
-ERROR 42000: FUNCTION test.x1 does not exist
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s)
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	9	Fixed	0	0	0	21474836479	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
-v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	FUNCTION test.x1 does not exist
+v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s)
 drop view v1;
 drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
@@ -1655,7 +1655,7 @@ test.t1	check	status	OK
 drop table t1;
 check table v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	error	View 'test.v1' references invalid table(s) or column(s)
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s) or function(s)
 drop view v1;
 create table t1 (a int);
 create table t2 (a int);
