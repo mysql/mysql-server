@@ -211,7 +211,7 @@ int main(int argc, char** argv)
 					 globalTransporterRegistry.get_localNodeId(),
 					 globalTransporterRegistry.m_transporter_interface[i].m_remote_nodeId,
 					 CFG_CONNECTION_SERVER_PORT,
-					 globalTransporterRegistry.m_transporter_interface[i].m_service_port,
+					 globalTransporterRegistry.m_transporter_interface[i].m_s_service_port,
 					 &mgm_reply);
 
 

@@ -50,6 +50,11 @@
 #define test_use_count(A) {}
 #endif
 
+/*
+  Convert double value to #rows. Currently this does floor(), and we 
+  might consider using round() instead.
+*/
+#define double2rows(x) ((ha_rows)(x))
 
 static int sel_cmp(Field *f,char *a,char *b,uint8 a_flag,uint8 b_flag);
 
@@ -720,7 +725,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   key_part_info= head->key_info[index].key_part;
   my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
-  /* 'thd' is not accessible in QUICK_RANGE_SELECT::get_next_init(). */
+  /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   multi_range_bufsiz= thd->variables.read_rnd_buff_size;
   multi_range_count= thd->variables.multi_range_count;
   multi_range_length= 0;
@@ -743,9 +748,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
-
-  if ((error= get_next_init()))
-    DBUG_RETURN(error);
 
   if (file->inited == handler::NONE)
     DBUG_RETURN(error= file->ha_index_init(index));
@@ -912,7 +914,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
     if (file->extra(HA_EXTRA_KEYREAD) ||
-        file->extra(HA_EXTRA_RETRIEVE_ALL_COLS) |
+        file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
         init() || reset())
     {
       DBUG_RETURN(1);
@@ -937,7 +939,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   if (file->extra(HA_EXTRA_KEYREAD) ||
-      file->extra(HA_EXTRA_RETRIEVE_ALL_COLS) ||
+      file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY) ||
       init() || reset())
   {
     file->close();
@@ -1628,6 +1630,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
 		      keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
+  DBUG_PRINT("info", ("records=%lu", (ulong)head->file->records));
   delete quick;
   quick=0;
   needed_reg.clear_all();
@@ -1874,6 +1877,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 double get_sweep_read_cost(const PARAM *param, ha_rows records)
 {
   double result;
+  DBUG_ENTER("get_sweep_read_cost");
   if (param->table->file->primary_key_is_clustered())
   {
     result= param->table->file->read_time(param->table->s->primary_key,
@@ -1912,7 +1916,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
     }
   }
   DBUG_PRINT("info",("returning cost=%g", result));
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -2393,35 +2397,20 @@ typedef struct
 {
   const PARAM *param;
   MY_BITMAP covered_fields; /* union of fields covered by all scans */
-
-  /* TRUE if covered_fields is a superset of needed_fields */
-  bool is_covering;
-
-  double index_scan_costs; /* SUM(cost of 'index-only' scans) */
-  double total_cost;
   /*
     Fraction of table records that satisfies conditions of all scans.
     This is the number of full records that will be retrieved if a
     non-index_only index intersection will be employed.
   */
-  double records_fract;
+  double out_rows;
+  /* TRUE if covered_fields is a superset of needed_fields */
+  bool is_covering;
+
   ha_rows index_records; /* sum(#records to look in indexes) */
+  double index_scan_costs; /* SUM(cost of 'index-only' scans) */
+  double total_cost;
 } ROR_INTERSECT_INFO;
 
-
-/*
-  Re-initialize an allocated intersect info to contain zero scans.
-  SYNOPSIS
-    info Intersection info structure to re-initialize.
-*/
-
-static void ror_intersect_reinit(ROR_INTERSECT_INFO *info)
-{
-  info->is_covering= FALSE;
-  info->index_scan_costs= 0.0f;
-  info->records_fract= 1.0f;
-  bitmap_clear_all(&info->covered_fields);
-}
 
 /*
   Allocate a ROR_INTERSECT_INFO and initialize it to contain zero scans.
@@ -2429,7 +2418,6 @@ static void ror_intersect_reinit(ROR_INTERSECT_INFO *info)
   SYNOPSIS
     ror_intersect_init()
       param         Parameter from test_quick_select
-      is_index_only If TRUE, set ROR_INTERSECT_INFO to be covering
 
   RETURN
     allocated structure
@@ -2437,7 +2425,7 @@ static void ror_intersect_reinit(ROR_INTERSECT_INFO *info)
 */
 
 static
-ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
+ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
 {
   ROR_INTERSECT_INFO *info;
   uchar* buf;
@@ -2450,46 +2438,39 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
   if (bitmap_init(&info->covered_fields, buf, param->fields_bitmap_size*8,
                   FALSE))
     return NULL;
-  ror_intersect_reinit(info);
+  info->is_covering= FALSE;
+  info->index_scan_costs= 0.0;
+  info->index_records= 0;
+  info->out_rows= param->table->file->records;
+  bitmap_clear_all(&info->covered_fields);
   return info;
 }
 
-
+void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
+{
+  dst->param= src->param;
+  memcpy(dst->covered_fields.bitmap, src->covered_fields.bitmap, 
+         src->covered_fields.bitmap_size);
+  dst->out_rows= src->out_rows;
+  dst->is_covering= src->is_covering;
+  dst->index_records= src->index_records;
+  dst->index_scan_costs= src->index_scan_costs;
+  dst->total_cost= src->total_cost;
+}
 /*
-  Check if adding a ROR scan to a ROR-intersection reduces its cost of
-  ROR-intersection and if yes, update parameters of ROR-intersection,
-  including its cost.
+  Get selectivity of a ROR scan wrt ROR-intersection.
 
   SYNOPSIS
-    ror_intersect_add()
-      param        Parameter from test_quick_select
-      info         ROR-intersection structure to add the scan to.
-      ror_scan     ROR scan info to add.
-      is_cpk_scan  If TRUE, add the scan as CPK scan (this can be inferred
-                   from other parameters and is passed separately only to
-                   avoid duplicating the inference code)
-
+    ror_scan_selectivity()
+      info  ROR-interection 
+      scan  ROR scan
+      
   NOTES
-    Adding a ROR scan to ROR-intersect "makes sense" iff the cost of ROR-
-    intersection decreases. The cost of ROR-intersection is caclulated as
-    follows:
-
-    cost= SUM_i(key_scan_cost_i) + cost_of_full_rows_retrieval
-
-    if (union of indexes used covers all needed fields)
-      cost_of_full_rows_retrieval= 0;
-    else
-    {
-      cost_of_full_rows_retrieval=
-        cost_of_sweep_read(E(rows_to_retrieve), rows_in_table);
-    }
-
-    E(rows_to_retrieve) is caclulated as follows:
     Suppose we have a condition on several keys
     cond=k_11=c_11 AND k_12=c_12 AND ...  // parts of first key
          k_21=c_21 AND k_22=c_22 AND ...  // parts of second key
           ...
-         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1)
+         k_n1=c_n1 AND k_n3=c_n3 AND ...  (1) //parts of the key used by *scan
 
     where k_ij may be the same as any k_pq (i.e. keys may have common parts).
 
@@ -2563,38 +2544,30 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param, bool is_index_only)
     and reduce adjacent fractions.
 
   RETURN
-    TRUE   ROR scan added to ROR-intersection, cost updated.
-    FALSE  It doesn't make sense to add this ROR scan to this ROR-intersection.
+    Selectivity of given ROR scan.
+    
 */
 
-bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
-                       ROR_SCAN_INFO* ror_scan, bool is_cpk_scan=FALSE)
+static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info, 
+                                   const ROR_SCAN_INFO *scan)
 {
-  int i;
-  SEL_ARG *sel_arg;
-  KEY_PART_INFO *key_part=
-    info->param->table->key_info[ror_scan->keynr].key_part;
   double selectivity_mult= 1.0;
+  KEY_PART_INFO *key_part= info->param->table->key_info[scan->keynr].key_part;
   byte key_val[MAX_KEY_LENGTH+MAX_FIELD_WIDTH]; /* key values tuple */
-
-  DBUG_ENTER("ror_intersect_add");
-  DBUG_PRINT("info", ("Current selectivity= %g", info->records_fract));
-  DBUG_PRINT("info", ("Adding scan on %s",
-                      info->param->table->key_info[ror_scan->keynr].name));
-  SEL_ARG *tuple_arg= NULL;
   char *key_ptr= (char*) key_val;
-  bool cur_covered, prev_covered=
-     bitmap_is_set(&info->covered_fields, key_part->fieldnr);
-
-  ha_rows prev_records= param->table->file->records;
+  SEL_ARG *sel_arg, *tuple_arg= NULL;
+  bool cur_covered;
+  bool prev_covered= bitmap_is_set(&info->covered_fields, key_part->fieldnr);
   key_range min_range;
   key_range max_range;
   min_range.key= (byte*) key_val;
   min_range.flag= HA_READ_KEY_EXACT;
   max_range.key= (byte*) key_val;
   max_range.flag= HA_READ_AFTER_KEY;
-
-  for(i= 0, sel_arg= ror_scan->sel_arg; sel_arg;
+  ha_rows prev_records= info->param->table->file->records;
+  int i;
+  DBUG_ENTER("ror_intersect_selectivity");
+  for(i= 0, sel_arg= scan->sel_arg; sel_arg;
       i++, sel_arg= sel_arg->next_key_part)
   {
     cur_covered= bitmap_is_set(&info->covered_fields, (key_part + i)->fieldnr);
@@ -2604,7 +2577,7 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
       {
         if (!tuple_arg)
         {
-          tuple_arg= ror_scan->sel_arg;
+          tuple_arg= scan->sel_arg;
           tuple_arg->store_min(key_part->length, &key_ptr, 0);
         }
         while (tuple_arg->next_key_part != sel_arg)
@@ -2615,10 +2588,8 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
       }
       ha_rows records;
       min_range.length= max_range.length= ((char*) key_ptr - (char*) key_val);
-      records= param->table->file->
-                 records_in_range(ror_scan->keynr,
-                                  &min_range,
-                                  &max_range);
+      records= info->param->table->file->
+                 records_in_range(scan->keynr, &min_range, &max_range);
       if (cur_covered)
       {
         /* uncovered -> covered */
@@ -2637,49 +2608,105 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
   }
   if (!prev_covered)
   {
-    double tmp= rows2double(param->table->quick_rows[ror_scan->keynr]) /
+    double tmp= rows2double(info->param->table->quick_rows[scan->keynr]) /
                 rows2double(prev_records);
     DBUG_PRINT("info", ("Selectivity multiplier: %g", tmp));
     selectivity_mult *= tmp;
   }
+  DBUG_PRINT("info", ("Returning multiplier: %g", selectivity_mult));
+  DBUG_RETURN(selectivity_mult);
+}
 
+/*
+  Check if adding a ROR scan to a ROR-intersection reduces its cost of
+  ROR-intersection and if yes, update parameters of ROR-intersection,
+  including its cost.
+
+  SYNOPSIS
+    ror_intersect_add()
+      param        Parameter from test_quick_select
+      info         ROR-intersection structure to add the scan to.
+      ror_scan     ROR scan info to add.
+      is_cpk_scan  If TRUE, add the scan as CPK scan (this can be inferred
+                   from other parameters and is passed separately only to
+                   avoid duplicating the inference code)
+
+  NOTES
+    Adding a ROR scan to ROR-intersect "makes sense" iff the cost of ROR-
+    intersection decreases. The cost of ROR-intersection is calculated as
+    follows:
+
+    cost= SUM_i(key_scan_cost_i) + cost_of_full_rows_retrieval
+
+    When we add a scan the first increases and the second decreases.
+
+    cost_of_full_rows_retrieval=
+      (union of indexes used covers all needed fields) ?
+        cost_of_sweep_read(E(rows_to_retrieve), rows_in_table) :
+        0
+
+    E(rows_to_retrieve) = #rows_in_table * ror_scan_selectivity(null, scan1) *
+                           ror_scan_selectivity({scan1}, scan2) * ... *
+                           ror_scan_selectivity({scan1,...}, scanN). 
+  RETURN
+    TRUE   ROR scan added to ROR-intersection, cost updated.
+    FALSE  It doesn't make sense to add this ROR scan to this ROR-intersection.
+*/
+
+static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
+                       ROR_SCAN_INFO* ror_scan, bool is_cpk_scan)
+{
+  double selectivity_mult= 1.0;
+
+  DBUG_ENTER("ror_intersect_add");
+  DBUG_PRINT("info", ("Current out_rows= %g", info->out_rows));
+  DBUG_PRINT("info", ("Adding scan on %s",
+                      info->param->table->key_info[ror_scan->keynr].name));
+  DBUG_PRINT("info", ("is_cpk_scan=%d",is_cpk_scan));
+
+  selectivity_mult = ror_scan_selectivity(info, ror_scan);
   if (selectivity_mult == 1.0)
   {
     /* Don't add this scan if it doesn't improve selectivity. */
     DBUG_PRINT("info", ("The scan doesn't improve selectivity."));
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
-
-  info->records_fract *= selectivity_mult;
-  ha_rows cur_scan_records= info->param->table->quick_rows[ror_scan->keynr];
+  
+  info->out_rows *= selectivity_mult;
+  DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
+  
   if (is_cpk_scan)
   {
-    info->index_scan_costs += rows2double(cur_scan_records)*
+    /*
+      CPK scan is used to filter out rows. We apply filtering for 
+      each record of every scan. Assuming 1/TIME_FOR_COMPARE_ROWID
+      per check this gives us:
+    */
+    info->index_scan_costs += rows2double(info->index_records) / 
                               TIME_FOR_COMPARE_ROWID;
   }
   else
   {
-    info->index_records += cur_scan_records;
+    info->index_records += info->param->table->quick_rows[ror_scan->keynr];
     info->index_scan_costs += ror_scan->index_read_cost;
     bitmap_union(&info->covered_fields, &ror_scan->covered_fields);
-  }
-
-  if (!info->is_covering && bitmap_is_subset(&info->param->needed_fields,
-                                             &info->covered_fields))
-  {
-    DBUG_PRINT("info", ("ROR-intersect is covering now"));
-    info->is_covering= TRUE;
+    if (!info->is_covering && bitmap_is_subset(&info->param->needed_fields,
+                                               &info->covered_fields))
+    {
+      DBUG_PRINT("info", ("ROR-intersect is covering now"));
+      info->is_covering= TRUE;
+    }
   }
 
   info->total_cost= info->index_scan_costs;
+  DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
   if (!info->is_covering)
   {
-    ha_rows table_recs= info->param->table->file->records;
-    info->total_cost +=
-      get_sweep_read_cost(info->param,
-                          (ha_rows)(info->records_fract*table_recs));
+    info->total_cost += 
+      get_sweep_read_cost(info->param, double2rows(info->out_rows));
+    DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
   }
-  DBUG_PRINT("info", ("New selectivity= %g", info->records_fract));
+  DBUG_PRINT("info", ("New out_rows= %g", info->out_rows));
   DBUG_PRINT("info", ("New cost= %g, %scovering", info->total_cost,
                       info->is_covering?"" : "non-"));
   DBUG_RETURN(TRUE);
@@ -2701,9 +2728,13 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
                        a covering ROR-intersection)
 
   NOTES
-    get_key_scans_params must be called before for the same SEL_TREE before
-    this function can be called.
+    get_key_scans_params must be called before this function can be called.
+    
+    When this function is called by ROR-union construction algorithm it
+    assumes it is building an uncovered ROR-intersection (and thus # of full
+    records to be retrieved is wrong here). This is a hack.
 
+  IMPLEMENTATION
     The approximate best non-covering plan search algorithm is as follows:
 
     find_min_ror_intersection_scan()
@@ -2717,11 +2748,11 @@ bool ror_intersect_add(const PARAM *param, ROR_INTERSECT_INFO *info,
       min_scan= make_scan(S);
       while (R is not empty)
       {
-        if (!selectivity(S + first(R) < selectivity(S)))
+        firstR= R - first(R);
+        if (!selectivity(S + firstR < selectivity(S)))
           continue;
-
+          
         S= S + first(R);
-        R= R - first(R);
         if (cost(S) < min_cost)
         {
           min_cost= cost(S);
@@ -2752,15 +2783,15 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           bool *are_all_covering)
 {
   uint idx;
-  double min_cost= read_time;
+  double min_cost= DBL_MAX;
   DBUG_ENTER("get_best_ror_intersect");
 
   if ((tree->n_ror_scans < 2) || !param->table->file->records)
     DBUG_RETURN(NULL);
 
   /*
-    Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of them.
-    Also find and save clustered PK scan if there is one.
+    Step1: Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of 
+    them. Also find and save clustered PK scan if there is one.
   */
   ROR_SCAN_INFO **cur_ror_scan;
   ROR_SCAN_INFO *cpk_scan= NULL;
@@ -2796,8 +2827,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           tree->ror_scans_end););
   /*
     Ok, [ror_scans, ror_scans_end) is array of ptrs to initialized
-    ROR_SCAN_INFOs.
-    Now, get a minimal key scan using an approximate algorithm.
+    ROR_SCAN_INFO's.
+    Step 2: Get best ROR-intersection using an approximate algorithm.
   */
   qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
         (qsort_cmp)cmp_ror_scan_info);
@@ -2814,45 +2845,41 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
-  ROR_INTERSECT_INFO *intersect;
-  if (!(intersect= ror_intersect_init(param, FALSE)))
+  ROR_INTERSECT_INFO *intersect, *intersect_best;
+  if (!(intersect= ror_intersect_init(param)) || 
+      !(intersect_best= ror_intersect_init(param)))
     return NULL;
 
-  /* [intersect_scans, intersect_scans_best) will hold the best combination */
+  /* [intersect_scans,intersect_scans_best) will hold the best intersection */
   ROR_SCAN_INFO **intersect_scans_best;
-  ha_rows       best_rows;
-  bool          is_best_covering;
-  double        best_index_scan_costs;
-  LINT_INIT(best_rows);       /* protected by intersect_scans_best */
-  LINT_INIT(is_best_covering);
-  LINT_INIT(best_index_scan_costs);
-
   cur_ror_scan= tree->ror_scans;
-  /* Start with one scan */
   intersect_scans_best= intersect_scans;
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering)
   {
-    /* S= S + first(R); */
-    if (ror_intersect_add(param, intersect, *cur_ror_scan))
-      *(intersect_scans_end++)= *cur_ror_scan;
-    /* R= R - first(R); */
-    cur_ror_scan++;
+    /* S= S + first(R);  R= R - first(R); */
+    if (!ror_intersect_add(intersect, *cur_ror_scan, false))
+    {
+      cur_ror_scan++;
+      continue;
+    }
+    
+    *(intersect_scans_end++)= *(cur_ror_scan++);
 
     if (intersect->total_cost < min_cost)
     {
       /* Local minimum found, save it */
-      min_cost= intersect->total_cost;
-      best_rows= (ha_rows)(intersect->records_fract*
-                           rows2double(param->table->file->records));
-      /* Prevent divisons by zero */
-      if (!best_rows)
-        best_rows= 1;
-      is_best_covering= intersect->is_covering;
+      ror_intersect_cpy(intersect_best, intersect);
       intersect_scans_best= intersect_scans_end;
-      best_index_scan_costs= intersect->index_scan_costs;
+      min_cost = intersect->total_cost;
     }
   }
 
+  if (intersect_scans_best == intersect_scans)
+  {
+    DBUG_PRINT("info", ("None of scans increase selectivity"));
+    DBUG_RETURN(NULL);
+  }
+    
   DBUG_EXECUTE("info",print_ror_scans_arr(param->table,
                                           "best ROR-intersection",
                                           intersect_scans,
@@ -2860,48 +2887,26 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
 
   *are_all_covering= intersect->is_covering;
   uint best_num= intersect_scans_best - intersect_scans;
+  ror_intersect_cpy(intersect, intersect_best);
+
   /*
     Ok, found the best ROR-intersection of non-CPK key scans.
-    Check if we should add a CPK scan.
-
-    If the obtained ROR-intersection is covering, it doesn't make sense
-    to add CPK scan - Clustered PK contains all fields and if we're doing
-    CPK scan doing other CPK scans will only add more overhead.
+    Check if we should add a CPK scan. If the obtained ROR-intersection is 
+    covering, it doesn't make sense to add CPK scan.
   */
   if (cpk_scan && !intersect->is_covering)
   {
-    /*
-      Handle the special case: ROR-intersect(PRIMARY, key1) is
-      the best, but cost(range(key1)) > cost(best_non_ror_range_scan)
-    */
-    if (best_num == 0)
-    {
-      cur_ror_scan= tree->ror_scans;
-      intersect_scans_end= intersect_scans;
-      ror_intersect_reinit(intersect);
-      if (!ror_intersect_add(param, intersect, *cur_ror_scan))
-        DBUG_RETURN(NULL); /* shouldn't happen actually */
-      *(intersect_scans_end++)= *cur_ror_scan;
-      best_num++;
-    }
-
-    if (ror_intersect_add(param, intersect, cpk_scan))
+    if (ror_intersect_add(intersect, cpk_scan, TRUE) && 
+        (intersect->total_cost < min_cost))
     {
       cpk_scan_used= TRUE;
-      min_cost= intersect->total_cost;
-      best_rows= (ha_rows)(intersect->records_fract*
-                           rows2double(param->table->file->records));
-      /* Prevent divisons by zero */
-      if (!best_rows)
-        best_rows= 1;
-      is_best_covering= intersect->is_covering;
-      best_index_scan_costs= intersect->index_scan_costs;
+      intersect_best= intersect; //just set pointer here
     }
   }
 
   /* Ok, return ROR-intersect plan if we have found one */
   TRP_ROR_INTERSECT *trp= NULL;
-  if (best_num > 1 || cpk_scan_used)
+  if (min_cost < read_time && (cpk_scan_used || best_num > 1))
   {
     if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
       DBUG_RETURN(trp);
@@ -2911,14 +2916,18 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
       DBUG_RETURN(NULL);
     memcpy(trp->first_scan, intersect_scans, best_num*sizeof(ROR_SCAN_INFO*));
     trp->last_scan=  trp->first_scan + best_num;
-    trp->is_covering= is_best_covering;
-    trp->read_cost= min_cost;
+    trp->is_covering= intersect_best->is_covering;
+    trp->read_cost= intersect_best->total_cost;
+    /* Prevent divisons by zero */
+    ha_rows best_rows = double2rows(intersect_best->out_rows);
+    if (!best_rows)
+      best_rows= 1;
     trp->records= best_rows;
-    trp->index_scan_costs= best_index_scan_costs;
-    trp->cpk_scan= cpk_scan;
-    DBUG_PRINT("info",
-               ("Returning non-covering ROR-intersect plan: cost %g, records %lu",
-                trp->read_cost, (ulong) trp->records));
+    trp->index_scan_costs= intersect_best->index_scan_costs;
+    trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
+    DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
+                        "cost %g, records %lu",
+                        trp->read_cost, (ulong) trp->records));
   }
   DBUG_RETURN(trp);
 }
@@ -3145,8 +3154,9 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                                        found_records) +
 			 cpu_cost;
 
-      DBUG_PRINT("info",("read_time: %g  found_read_time: %g",
-                         read_time, found_read_time));
+      DBUG_PRINT("info",("key %s: found_read_time: %g (cur. read_time: %g)",
+                         param->table->key_info[keynr].name, found_read_time,
+                         read_time));
 
       if (read_time > found_read_time && found_records != HA_POS_ERROR
           /*|| read_time == DBL_MAX*/ )
@@ -5621,7 +5631,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
 
   /* We're going to just read rowids. */
-  head->file->extra(HA_EXTRA_KEYREAD);
+  if (head->file->extra(HA_EXTRA_KEYREAD))
+    DBUG_RETURN(1);
 
   /*
     Make innodb retrieve all PK member fields, so
@@ -5630,7 +5641,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     (This also creates a deficiency - it is possible that we will retrieve
      parts of key that are not used by current query at all.)
   */
-  head->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+  if (head->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY))
+    DBUG_RETURN(1);
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
@@ -5640,9 +5652,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     We reuse the same instance of handler so we need to call both init and 
     reset here.
   */
-  if (cur_quick->init())
+  if (cur_quick->init() || cur_quick->reset())
     DBUG_RETURN(1);
-  cur_quick->reset();
 
   unique= new Unique(refpos_order_cmp, (void *)head->file,
                      head->file->ref_length,
@@ -5660,10 +5671,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
       if (cur_quick->file->inited != handler::NONE) 
         cur_quick->file->ha_index_end();
-      if (cur_quick->init())
+      if (cur_quick->init() || cur_quick->reset())
         DBUG_RETURN(1);
-      /* QUICK_RANGE_SELECT::reset never fails */
-      cur_quick->reset();
     }
 
     if (result)
@@ -5730,9 +5739,8 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
     if (pk_quick_select)
     {
       doing_pk_scan= TRUE;
-      if ((result= pk_quick_select->init()))
+      if ((result= pk_quick_select->init()) || (result= pk_quick_select->reset()))
         DBUG_RETURN(result);
-      pk_quick_select->reset();
       DBUG_RETURN(pk_quick_select->get_next());
     }
   }
@@ -5893,28 +5901,15 @@ int QUICK_ROR_UNION_SELECT::get_next()
   DBUG_RETURN(error);
 }
 
-
-/*
-  Initialize data structures needed by get_next().
-
-  SYNOPSIS
-    QUICK_RANGE_SELECT::get_next_init()
-
-  DESCRIPTION
-    This is called from get_next() at its first call for an object.
-    It allocates memory buffers and sets size variables.
-
-  RETURN
-    0           OK.
-    != 0        Error.
-*/
-
-int QUICK_RANGE_SELECT::get_next_init(void)
+int QUICK_RANGE_SELECT::reset()
 {
   uint  mrange_bufsiz;
   byte  *mrange_buff;
-  DBUG_ENTER("QUICK_RANGE_SELECT::get_next_init");
-
+  DBUG_ENTER("QUICK_RANGE_SELECT::reset");
+  next=0;
+  range= NULL;
+  cur_range= (QUICK_RANGE**) ranges.buffer;
+  
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {
@@ -5922,15 +5917,8 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     DBUG_RETURN(0);
   }
 
-  /* If the ranges are not yet initialized, wait for the next call. */
-  if (! ranges.elements)
-  {
-    DBUG_RETURN(0);
-  }
-
-  /*
-    Allocate the ranges array.
-  */
+  /* Allocate the ranges array. */
+  DBUG_ASSERT(ranges.elements);
   multi_range_length= min(multi_range_count, ranges.elements);
   DBUG_ASSERT(multi_range_length > 0);
   while (multi_range_length && ! (multi_range= (KEY_MULTI_RANGE*)
@@ -5947,9 +5935,7 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
-  /*
-    Allocate the handler buffer if necessary.
-  */
+  /* Allocate the handler buffer if necessary.  */
   if (file->table_flags() & HA_NEED_READ_RANGE_BUFFER)
   {
     mrange_bufsiz= min(multi_range_bufsiz,
@@ -5977,9 +5963,6 @@ int QUICK_RANGE_SELECT::get_next_init(void)
     multi_range_buff->buffer_end= mrange_buff + mrange_bufsiz;
     multi_range_buff->end_of_used_area= mrange_buff;
   }
-
-  /* Initialize the current QUICK_RANGE pointer. */
-  cur_range= (QUICK_RANGE**) ranges.buffer;
   DBUG_RETURN(0);
 }
 
@@ -7933,10 +7916,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
   result= file->ha_index_init(index);
   result= file->index_last(record);
-  if (quick_prefix_select)
-    quick_prefix_select->reset();
   if (result)
     DBUG_RETURN(result);
+  if (quick_prefix_select && quick_prefix_select->reset())
+    DBUG_RETURN(1);
   /* Save the prefix of the last group. */
   key_copy(last_prefix, record, index_info, group_prefix_len);
 

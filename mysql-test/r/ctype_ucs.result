@@ -528,7 +528,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	95	User var	1	135	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
 master-bin.000001	135	Query	1	218	use `test`; insert into t2 values (@v)
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
-SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
+SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`;
 use test;
 SET TIMESTAMP=10000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -601,4 +601,25 @@ a	b
 a	NULL
 b	NULL
 c	NULL
+drop table t1;
+SET collation_connection='ucs2_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_general_ci	00610009
+ucs2_general_ci	0061
+ucs2_general_ci	00610020
+drop table t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_bin	00610009
+ucs2_bin	0061
+ucs2_bin	00610020
 drop table t1;

@@ -2271,9 +2271,6 @@ row_sel_field_store_in_mysql_format(
 		dest = row_mysql_store_var_len(dest, len);
 		ut_memcpy(dest, data, len);
 
-		/* Pad with trailing spaces */
-		memset(dest + len, ' ', col_len - len); 
-
 		/* ut_ad(col_len >= len + 2); No real var implemented in
 		MySQL yet! */
 		
@@ -2330,11 +2327,6 @@ row_sel_store_mysql_rec(
 		mem_heap_free(prebuilt->blob_heap);
 		prebuilt->blob_heap = NULL;
 	}
-
-	/* MySQL assumes that all columns have the SQL NULL bit set unless it
-	is a nullable column with a non-NULL value */
-
-	memset(mysql_rec, 0xFF, prebuilt->null_bitmap_len);
 
 	for (i = 0; i < prebuilt->n_template; i++) {
 
@@ -2411,7 +2403,45 @@ row_sel_store_mysql_rec(
 				mysql_rec + templ->mysql_col_offset,
 				templ->mysql_col_len, data, len,
 				templ->type, templ->is_unsigned);
-				
+
+			if (templ->type == DATA_VARCHAR
+					|| templ->type == DATA_VARMYSQL
+					|| templ->type == DATA_BINARY) {
+				/* Pad with trailing spaces */
+				data = mysql_rec + templ->mysql_col_offset;
+
+				/* Handle UCS2 strings differently.  As no new
+				collations will be introduced in 4.1, we
+				hardcode the charset-collation codes here.
+				5.0 will use a different approach. */
+				if (templ->charset == 35
+						|| templ->charset == 90
+						|| (templ->charset >= 128
+						&& templ->charset <= 144)) {
+					/* space=0x0020 */
+					ulint	col_len = templ->mysql_col_len;
+
+					ut_a(!(col_len & 1));
+					if (len & 1) {
+						/* A 0x20 has been stripped
+						from the column.
+						Pad it back. */
+						goto pad_0x20;
+					}
+					/* Pad the rest of the string
+					with 0x0020 */
+					while (len < col_len) {
+						data[len++] = 0x00;
+					pad_0x20:
+						data[len++] = 0x20;
+					}
+				} else {
+					/* space=0x20 */
+					memset(data + len, 0x20,
+						templ->mysql_col_len - len);
+				}
+			}
+
 			/* Cleanup */
 			if (extern_field_heap) {
  				mem_heap_free(extern_field_heap);
@@ -2431,6 +2461,8 @@ row_sel_store_mysql_rec(
 		        bug number 154 in the MySQL bug database: GROUP BY
 		        and DISTINCT could treat NULL values inequal. */
 
+			mysql_rec[templ->mysql_null_byte_offset] |=
+					(byte) (templ->mysql_null_bit_mask);
 			if (templ->type == DATA_VARCHAR
 			    || templ->type == DATA_CHAR
 			    || templ->type == DATA_BINARY
@@ -2445,8 +2477,29 @@ row_sel_store_mysql_rec(
 				pad_char = '\0';
 			}
 
-			memset(mysql_rec + templ->mysql_col_offset, pad_char,
-							templ->mysql_col_len);
+			/* Handle UCS2 strings differently.  As no new
+			collations will be introduced in 4.1,
+			we hardcode the charset-collation codes here.
+			5.0 will use a different approach. */
+			if (templ->charset == 35
+					|| templ->charset == 90
+					|| (templ->charset >= 128
+					&& templ->charset <= 144)) {
+				/* There are two bytes per char, so the length
+				has to be an even number. */
+				ut_a(!(templ->mysql_col_len & 1));
+				data = mysql_rec + templ->mysql_col_offset;
+				len = templ->mysql_col_len;
+				/* Pad with 0x0020. */
+				while (len >= 2) {
+					*data++ = 0x00;
+					*data++ = 0x20;
+					len -= 2;
+				}
+			} else {
+				memset(mysql_rec + templ->mysql_col_offset,
+					pad_char, templ->mysql_col_len);
+			}
 		}
 	} 
 
@@ -2749,10 +2802,15 @@ row_sel_pop_cached_row_for_mysql(
 				buf + templ->mysql_col_offset, 
 				cached_rec + templ->mysql_col_offset,
 				templ->mysql_col_len);
-
+			/* Copy NULL bit of the current field from cached_rec 
+			to buf */
 			if (templ->mysql_null_bit_mask)
-				buf[templ->mysql_null_byte_offset] &= 
-					cached_rec[templ->mysql_null_byte_offset];
+			{
+				buf[templ->mysql_null_byte_offset] ^=
+				  (buf[templ->mysql_null_byte_offset] ^
+				   cached_rec[templ->mysql_null_byte_offset]) &
+				  (byte)templ->mysql_null_bit_mask;
+			}
 		}
 	}
 	else

@@ -27,7 +27,7 @@ Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
-BuildPrereq: ncurses-devel
+BuildRequires: ncurses-devel
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
@@ -165,6 +165,7 @@ Optional MySQL server binary that supports additional features like:
  - Archive Storage Engine
  - CSV Storage Engine
  - Example Storage Engine
+ - Federated Storage Engine
  - MyISAM RAID
  - User Defined Functions (UDFs).
 
@@ -283,6 +284,7 @@ BuildMySQL "--enable-shared \
 		--with-archive \
 		--with-csv-storage-engine \
 		--with-example-storage-engine \
+		--with-federated-storage-engine \
 		--with-embedded-server \
 		--with-server-suffix='-Max'"
 
@@ -600,6 +602,14 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Fri Jan 14 2005 Lenz Grimmer <lenz@mysql.com>
+
+- replaced obsoleted "BuildPrereq" with "BuildRequires" instead
+
+* Thu Jan 13 2005 Lenz Grimmer <lenz@mysql.com>
+
+- enabled the "Federated" storage engine for the max binary
+
 * Tue Jan 04 2005 Petr Chardin <petr@mysql.com>
 
 - ISAM and merge storage engines were purged. As well as appropriate

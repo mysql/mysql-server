@@ -4350,7 +4350,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
       }
       tAttr = aRec->nextAttrInTable;
     }
-    ndbrequire(sz == 2 * tabPtr.p->noOfPrimkey);
+    ndbrequire((int)sz == 2 * tabPtr.p->noOfPrimkey);
 
     LinearSectionPtr lsPtr[3];
     lsPtr[0].p = buf;

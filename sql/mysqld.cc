@@ -54,7 +54,7 @@
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
 #define OPT_NDBCLUSTER_DEFAULT 0
-#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
+#if defined(NOT_ENOUGH_TESTED) && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
 #define OPT_NDB_SHM_DEFAULT 1
 #else
 #define OPT_NDB_SHM_DEFAULT 0
@@ -146,6 +146,10 @@ int deny_severity = LOG_WARNING;
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+
+#define zVOLSTATE_ACTIVE 6
+#define zVOLSTATE_DEACTIVE 2
+#define zVOLSTATE_MAINTENANCE 3
 
 #ifdef __NETWARE__
 #include <nks/vm.h>
@@ -391,7 +395,6 @@ struct system_status_var global_status_var;
 
 MY_TMPDIR mysql_tmpdir_list;
 MY_BITMAP temp_pool;
-KEY_CACHE *sql_key_cache;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -1683,7 +1686,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
-  if ((voldata->oldState == 6 && voldata->newState == 2))
+  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
+       voldata->newState == zVOLSTATE_DEACTIVE ||
+       voldata->newState == zVOLSTATE_MAINTENANCE))
   {
     /*
       Ensure that we bring down MySQL server only for MySQL data
@@ -1861,14 +1866,14 @@ We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
-          (ulong) sql_key_cache->key_cache_mem_size);
+          (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", ((ulong) sql_key_cache->key_cache_mem_size +
+bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
@@ -2135,12 +2140,12 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
+	mysql_print_status((THD*) 0);		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, NULL); // Flush logs
-	mysql_print_status((THD*) 0);		// Send debug some info
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
@@ -2694,12 +2699,37 @@ with --log-bin instead.");
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
 #endif
-  }
-  else if (opt_log_slave_updates)
-  {
+    if (!opt_bin_logname && !opt_binlog_index_name)
+    {
+      /*
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
+      */
       sql_print_warning("\
-you need to use --log-bin to make --log-slave-updates work. \
-Now disabling --log-slave-updates.");
+No argument was provided to --log-bin, and --log-bin-index was not used; \
+so replication may break when this MySQL server acts as a master and \
+has his hostname changed!! Please use '--log-bin=%s' to avoid \
+this problem.",
+                        mysql_bin_log.get_name());
+    }
+  }
+  else
+  {
+    if (opt_log_slave_updates)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-slave-updates work.");
+      unireg_abort(1);
+    }
+    if (opt_binlog_index_name)
+    {
+      sql_print_error("\
+You need to use --log-bin=# to make --log-bin-index work.");
+      unireg_abort(1);
+    }
   }
 
 #ifdef HAVE_REPLICATION
@@ -2789,8 +2819,6 @@ server.");
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
-  /* We must set dflt_key_cache in case we are using ISAM tables */
-  dflt_key_cache= sql_key_cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -4418,6 +4446,11 @@ Disable with --skip-large-pages.",
 Disable with --skip-innodb (will save memory).",
    (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, OPT_INNODB_DEFAULT, 0, 0,
    0, 0, 0},
+#ifdef HAVE_INNOBASE_DB
+  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
+Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
+   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
   {"innodb_data_file_path", OPT_INNODB_DATA_FILE_PATH,
    "Path to individual files and their sizes.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -4429,9 +4462,6 @@ Disable with --skip-innodb (will save memory).",
   {"innodb_doublewrite", OPT_INNODB_DOUBLEWRITE, "Enable InnoDB doublewrite buffer (enabled by default). \
 Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_use_doublewrite, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"innodb_checksums", OPT_INNODB_CHECKSUMS, "Enable InnoDB checksums validation (enabled by default). \
-Disable with --skip-innodb-checksums.", (gptr*) &innobase_use_checksums,
-   (gptr*) &innobase_use_checksums, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process.", (gptr*) &innobase_fast_shutdown,
    (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
@@ -4496,14 +4526,16 @@ Disable with --skip-isam.",
   {"log", 'l', "Log connections and queries to file.", (gptr*) &opt_logname,
    (gptr*) &opt_logname, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format.",
+   "Log update queries in binary format. Optional (but strongly recommended "
+   "to avoid replication problems if server's hostname changes) argument "
+   "should be the chosen location for the binary log files.",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
    "File that holds the names for last binary log files.",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-error", OPT_ERROR_LOG_FILE, "Log error file.",
+  {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
    (gptr*) &log_error_file_ptr, (gptr*) &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
@@ -5016,6 +5048,12 @@ log and this option does nothing anymore.",
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    (gptr*) &innobase_buffer_pool_size, (gptr*) &innobase_buffer_pool_size, 0,
    GET_LONG, REQUIRED_ARG, 8*1024*1024L, 1024*1024L, ~0L, 0, 1024*1024L, 0},
+  {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
+   "Number of times a thread is allowed to enter InnoDB within the same \
+    SQL query after it has once got the ticket",
+   (gptr*) &srv_n_free_tickets_to_enter,
+   (gptr*) &srv_n_free_tickets_to_enter,
+   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
   {"innodb_file_io_threads", OPT_INNODB_FILE_IO_THREADS,
    "Number of file I/O threads in InnoDB.", (gptr*) &innobase_file_io_threads,
    (gptr*) &innobase_file_io_threads, 0, GET_LONG, REQUIRED_ARG, 4, 4, 64, 0,
@@ -5049,17 +5087,6 @@ log and this option does nothing anymore.",
    "How many files at the maximum InnoDB keeps open at the same time.",
    (gptr*) &innobase_open_files, (gptr*) &innobase_open_files, 0,
    GET_LONG, REQUIRED_ARG, 300L, 10L, ~0L, 0, 1L, 0},
-  {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
-   "Count of spin-loop rounds in InnoDB mutexes",
-   (gptr*) &srv_n_spin_wait_rounds,
-   (gptr*) &srv_n_spin_wait_rounds,
-   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
-  {"innodb_concurrency_tickets", OPT_INNODB_CONCURRENCY_TICKETS,
-   "Number of times a thread is allowed to enter InnoDB within the same \
-    SQL query after it has once got the ticket",
-   (gptr*) &srv_n_free_tickets_to_enter,
-   (gptr*) &srv_n_free_tickets_to_enter,
-   0, GET_LONG, REQUIRED_ARG, 500L, 1L, ~0L, 0, 1L, 0},
 #ifdef HAVE_REPLICATION
   /*
     Disabled for the 4.1.3 release. Disabling just this paragraph of code is
@@ -5080,6 +5107,11 @@ log and this option does nothing anymore.",
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif
 #endif
+  {"innodb_sync_spin_loops", OPT_INNODB_SYNC_SPIN_LOOPS,
+   "Count of spin-loop rounds in InnoDB mutexes",
+   (gptr*) &srv_n_spin_wait_rounds,
+   (gptr*) &srv_n_spin_wait_rounds,
+   0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
@@ -5609,6 +5641,9 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"Ndb_",                     (char*) &ndb_status_variables,   SHOW_VARS},
+#endif /*HAVE_NDBCLUSTER_DB*/
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_CONST},
@@ -5837,10 +5872,10 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
-  multi_keycache_init();
-  if (!(sql_key_cache= get_or_create_key_cache(default_key_cache_base.str,
+  if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
 					       default_key_cache_base.length)))
     exit(1);
+  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
 
   /* Initialize structures that is used when processing options */
   replicate_rewrite_db.empty();

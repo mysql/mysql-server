@@ -688,7 +688,8 @@ INCLUDE_FILE_PATTERNS  =
 # or name=definition (no spaces). If the definition and the = are 
 # omitted =1 is assumed.
 
-PREDEFINED             = DOXYGEN_SHOULD_SKIP_DEPRECATED \
+PREDEFINED             = DOXYGEN_FIX \
+			 DOXYGEN_SHOULD_SKIP_DEPRECATED \
                          DOXYGEN_SHOULD_SKIP_INTERNAL \
                          protected=private 
 

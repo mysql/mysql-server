@@ -196,6 +196,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 8048: Make TC not choose own node for simple/dirty read
 5041: Crash is receiving simple read from other TC on different node
 
+8050: Send TCKEYREF is operation is non local
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 8040:
@@ -408,6 +410,8 @@ Drop Table/Index:
 4003: Fail next trigger create in TUP
 8033: Fail next trigger create in TC
 8034: Fail next index create in TC
+
+
 
 System Restart:
 ---------------
