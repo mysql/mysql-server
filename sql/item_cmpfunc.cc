@@ -1114,7 +1114,7 @@ int in_vector::find(Item *item)
 
 in_string::in_string(uint elements,qsort_cmp cmp_func)
   :in_vector(elements, sizeof(String), cmp_func),
-   tmp(buff, sizeof(buff), default_charset_info)
+   tmp(buff, sizeof(buff), &my_charset_bin)
 {}
 
 in_string::~in_string()
@@ -1137,7 +1137,7 @@ void in_string::set(uint pos,Item *item)
   {
     CHARSET_INFO *cs;
     if (!(cs= item->charset()))
-      cs= default_charset_info;		// Should never happen for STR items
+      cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
   }
 }
@@ -1840,7 +1840,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!regex_compiled && args[1]->const_item())
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),default_charset_info);
+    String tmp(buff,sizeof(buff),&my_charset_bin);
     String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
@@ -1870,7 +1870,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 longlong Item_func_regex::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),default_charset_info);
+  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
 
   res=args[0]->val_str(&tmp);
   if (args[0]->null_value)
@@ -1881,7 +1881,7 @@ longlong Item_func_regex::val_int()
   if (!regex_is_const)
   {
     char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),default_charset_info);
+    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
     res2= args[1]->val_str(&tmp2);
     if (args[1]->null_value)

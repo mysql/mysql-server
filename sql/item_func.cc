@@ -1545,7 +1545,7 @@ String *udf_handler::val_str(String *str,String *save_str)
     str->length(res_length);
     return str;
   }
-  save_str->set(res, res_length, default_charset_info);
+  save_str->set(res, res_length, str->charset());
   return save_str;
 }
 

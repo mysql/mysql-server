@@ -1162,7 +1162,7 @@ rename_file_ext(const char * from,const char * to,const char * ext)
 char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH];
-  String str(buff,sizeof(buff),default_charset_info);
+  String str(buff,sizeof(buff),&my_charset_bin);
   field->val_str(&str,&str);
   uint length=str.length();
   if (!length)
