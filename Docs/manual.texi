@@ -770,7 +770,7 @@ the @code{BDB} transactional table handler interface in
 tested as the other table types.
 
 @item @code{FULLTEXT} -- Beta
-Full text search works but is not yet widely used.
+Full-text search works but is not yet widely used.
 Important enhancements are being implemented for @code{MySQL} 4.0.
 
 @item @code{MyODBC 2.50} (uses ODBC SDK 2.5) -- Gamma
@@ -4886,7 +4886,7 @@ reads.  This is very useful when you are archiving things.
 @xref{myisampack}.
 
 @item
-MySQL Server has internal support for fulltext search. @xref{Fulltext Search}.
+MySQL Server has internal support for full-text search. @xref{Fulltext Search}.
 
 @item
 You can access many databases from the same connection (depending of course
@@ -18020,7 +18020,7 @@ If you have lots of memory, you should increase the size of
 @item -n or --sort-recover
 Force @code{myisamchk} to use sorting to resolve the keys even if the
 temporary files should be very big.  This will not have any effect if you have
-fulltext keys in the table.
+full-text keys in the table.
 
 @item --character-sets-dir=...
 Directory where character sets are stored.
@@ -36076,7 +36076,7 @@ Empty set (0.00 sec)
 @end example
 
 The search for the word @code{MySQL} produces no results in the above
-example, because that word is present in more than half of rows.  As such,
+example, because that word is present in more than half the rows.  As such,
 it is effectively treated as a stopword (that is, a word with zero semantic
 value).  This is the most desirable behavior -- a natural language query
 should not return every second row from a 1GB table.
@@ -36232,7 +36232,7 @@ threshold.
 
 @item
 Sometimes the search engine maintainer would like to change the operators used
-for boolean fulltext searches. These are defined by the
+for boolean full-text searches. These are defined by the
 @code{ft_boolean_syntax} variable. @xref{SHOW VARIABLES}.
 Still, this variable is read-only, its value is set in
 @file{myisam/ft_static.c}.
@@ -48762,9 +48762,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed bug with indexless boolean fulltext search.
+Fixed bug with indexless boolean full-text search.
 @item
-Fixed bug that sometimes appeared when fulltext search was used
+Fixed bug that sometimes appeared when full-text search was used
 with ``const'' tables.
 @item
 Fixed incorrect error value when doing a @code{SELECT} with an empty HEAP table.
@@ -48777,7 +48777,7 @@ Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimisation.
 @item
 Fixed bug in @code{... HAVING 'GROUP_FUNCTION'(xxx) IS [NOT] NULL}.
 @item
-Fixed bug in truncation operator for boolean fulltext search.
+Fixed bug in truncation operator for boolean full-text search.
 @item
 Allow numeric user id to @code{mysqld --user=#}.
 @item
@@ -48834,9 +48834,9 @@ Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
 @code{INSERT ... SELECT} did a full rollback in case of an error. Fixed
 so that we only roll back the last statement in the current transaction.
 @item
-Fixed bug with empty expression for boolean fulltext search.
+Fixed bug with empty expression for boolean full-text search.
 @item
-Fixed core dump bug in updating fulltext key from/to @code{NULL}.
+Fixed core dump bug in updating full-text key from/to @code{NULL}.
 @item
 ODBC compatibility: Added @code{BIT_LENGTH()}.
 @item
@@ -48914,7 +48914,7 @@ Fixed bug in @code{DELETE ... WHERE ... MATCH ...}.
 Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
 @strong{Note: you must rebuild your tables with
 @code{ALTER TABLE tablename TYPE=MyISAM} to be
-able to use boolean fulltext search}.
+able to use boolean full-text search}.
 @item
 @code{LOCATE()} and @code{INSTR()} are now case sensitive if either
 argument is a binary string.
@@ -48928,7 +48928,7 @@ Changed @code{INSERT INTO ... SELECT} to stop on errors by default.
 @item
 Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on Windows.
 @item
-Added boolean fulltext search code. It should be considered early alpha.
+Added boolean full-text search code. It should be considered early alpha.
 @item
 Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
 the @code{AFTER} keyword.
@@ -48990,7 +48990,7 @@ Speed up all internal list handling.
 @item
 Speed up @code{IS NULL}, @code{ISNULL()} and some other internal primitives.
 @item
-Full text index creation now is much faster.
+Full-text index creation now is much faster.
 @item
 Tree-like cache to speed up bulk inserts and
 @code{myisam_bulk_insert_tree_size} variable.
@@ -50738,7 +50738,7 @@ More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @item
 @code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
-Full text search via the @code{MATCH()} function and @code{FULLTEXT} index type
+Full-text search via the @code{MATCH()} function and @code{FULLTEXT} index type
 (for MyISAM files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
