@@ -176,6 +176,7 @@ static void client_connect()
   {
     myerror("connection failed");    
     mysql_close(mysql);
+    fprintf(stdout,"\n Check the connection options using --help or -?\n");
     exit(0);
   }    
   fprintf(stdout," OK");
@@ -5275,6 +5276,119 @@ static void test_buffers()
   mysql_stmt_close(stmt);
 }
 
+/* 
+ Test the direct query execution in the middle of open stmts 
+*/
+static void test_open_direct()
+{
+  MYSQL_STMT  *stmt;
+  MYSQL_RES   *result;
+  int         rc;
+  
+  myheader("test_open_direct");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_open_direct");
+  myquery(rc);
+
+  rc = mysql_query(mysql,"CREATE TABLE test_open_direct(id int, name char(6))");
+  myquery(rc);
+
+  stmt = mysql_prepare(mysql,"INSERT INTO test_open_direct values(10,'mysql')", 100);
+  mystmt_init(stmt);
+
+  rc = mysql_query(mysql, "SELECT * FROM test_open_direct");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(0 == my_process_result_set(result));
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  fprintf(stdout, "\n total affected rows: %lld", mysql_stmt_affected_rows(stmt));
+  myassert(1 == mysql_stmt_affected_rows(stmt));
+  
+  rc = mysql_query(mysql, "SELECT * FROM test_open_direct");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(1 == my_process_result_set(result));
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  fprintf(stdout, "\n total affected rows: %lld", mysql_stmt_affected_rows(stmt));
+  myassert(1 == mysql_stmt_affected_rows(stmt));
+  
+  rc = mysql_query(mysql, "SELECT * FROM test_open_direct");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(2 == my_process_result_set(result));
+  mysql_stmt_close(stmt);
+}
+
+/*
+  To test fetch without prior bound buffers
+*/
+static void test_fetch_nobuffs()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[4];
+  char       str[4][50];
+  int        rc;
+
+  myheader("test_fetch_nobuffs");
+
+  stmt = mysql_prepare(mysql,"SELECT DATABASE(), CURRENT_USER(), CURRENT_DATE(), CURRENT_TIME()",100);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = 0;
+  while (mysql_fetch(stmt) != MYSQL_NO_DATA)
+    rc++;
+  fprintf(stdout, "\n total rows: %d", rc);
+  myassert(rc == 1);
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= (char *)str[0];
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+  bind[0].buffer_length= sizeof(str[0]);
+  bind[1]= bind[2]= bind[3]= bind[0];
+  bind[1].buffer= (char *)str[1];
+  bind[2].buffer= (char *)str[2];
+  bind[3].buffer= (char *)str[3];
+
+  rc = mysql_bind_result(stmt, bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  rc = 0;
+  while (mysql_fetch(stmt) != MYSQL_NO_DATA)
+  {
+    rc++;
+    fprintf(stdout, "\n CURRENT_DATABASE(): %s(%ld)", str[0]);
+    fprintf(stdout, "\n CURRENT_USER()    : %s(%ld)", str[1]);
+    fprintf(stdout, "\n CURRENT_DATE()    : %s(%ld)", str[2]);
+    fprintf(stdout, "\n CURRENT_TIME()    : %s(%ld)", str[3]);
+  }
+  fprintf(stdout, "\n total rows: %d", rc);
+  myassert(rc == 1);
+
+  mysql_stmt_close(stmt);
+}
+
 static struct my_option myctest_long_options[] =
 {
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -5304,6 +5418,7 @@ static void usage(void)
   /*
    *  show the usage string when the user asks for this
   */    
+  putc('\n',stdout);
   puts("***********************************************************************\n");
   puts("                Test for client-server protocol 4.1");
   puts("                        By Monty & Venu \n");
@@ -5330,7 +5445,7 @@ static void usage(void)
 #endif  
   fprintf(stdout,"\
   -t, --count=...	Execute the test count times.\n");
-  fprintf(stdout,"*********************************************************************\n");
+  puts("***********************************************************************\n");
 }
 
 static my_bool
@@ -5412,7 +5527,9 @@ int main(int argc, char **argv)
     test_count= 1;
    
     start_time= time((time_t *)0);
-    
+   
+    test_fetch_nobuffs();   /* to fecth without prior bound buffers */
+    test_open_direct();     /* direct execution in the middle of open stmts */
     test_fetch_null();      /* to fetch null data */
     test_fetch_date();      /* to fetch date,time and timestamp */
     test_fetch_str();       /* to fetch string to all types */
