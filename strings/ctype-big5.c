@@ -6269,6 +6269,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_big5,
   my_strnncollsp_big5,
   my_strnxfrm_big5,
@@ -6281,6 +6282,7 @@ static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_big5_handler=
 {
+  NULL,			/* init */
   ismbchar_big5,
   mbcharlen_big5,
   my_numchars_mb,
@@ -6321,13 +6323,13 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -6348,13 +6350,13 @@ CHARSET_INFO my_charset_big5_bin=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

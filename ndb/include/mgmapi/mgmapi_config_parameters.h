@@ -74,6 +74,8 @@
 #define CFG_LOGLEVEL_GREP             146
 #define CFG_LOG_DESTINATION           147
 
+#define CFG_DB_DISCLESS               148
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 

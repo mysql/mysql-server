@@ -380,6 +380,7 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,
     my_mbcharlen_8bit,
     my_numchars_8bit,
@@ -420,12 +421,13 @@ CHARSET_INFO my_charset_latin1=
     NULL,		/* sort_order_big*/
     cs_to_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -673,6 +675,7 @@ void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
+  NULL,			/* init */
   my_strnncoll_latin1_de,
   my_strnncollsp_latin1_de,
   my_strnxfrm_latin1_de,
@@ -699,12 +702,13 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  "","",
+  NULL,					/* state_map    */
+  NULL,					/* ident_map    */
   2,					/* strxfrm_multiply */
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
-  0,					/* max_sort_char */
+  247,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -725,13 +729,13 @@ CHARSET_INFO my_charset_latin1_bin=
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  "",
-  "",
+  NULL,					/* state_map    */
+  NULL,					/* ident_map    */
   1,					/* strxfrm_multiply */
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,					/* min_sort_char */
-  0,					/* max_sort_char */
+  255,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };

@@ -9918,6 +9918,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_gbk,
   my_strnncollsp_gbk,
   my_strnxfrm_gbk,
@@ -9930,6 +9931,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_gbk,
   mbcharlen_gbk,
   my_numchars_mb,
@@ -9970,13 +9972,13 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -9996,13 +9998,13 @@ CHARSET_INFO my_charset_gbk_bin=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

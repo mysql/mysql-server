@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
-#include <assert.h> /* for DBUG_ASSERT() */
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -2502,6 +2501,13 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                     mysql->net.sqlstate);
+    /*
+      If there was an error, there are no more pending rows:
+      reset statement status to not hang up in following
+      mysql_stmt_close (it will try to flush result set before
+      closing the statement).
+    */
+    mysql->status= MYSQL_STATUS_READY;
     goto error;
   }
   if (!*row)

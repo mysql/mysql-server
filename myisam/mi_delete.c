@@ -18,7 +18,6 @@
 
 #include "fulltext.h"
 #include "rt_index.h"
-#include <assert.h>
 
 static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
                     uchar *key,uint key_length,my_off_t page,uchar *anc_buff);
