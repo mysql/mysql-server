@@ -20,6 +20,7 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_sys.h>
+#include <mysys_err.h>
 
 static int findopt (char *optpat, uint length,
 		    const struct my_option **opt_res,
@@ -42,17 +43,11 @@ static const char *special_opt_prefix[]=
 
 char *disabled_my_option= (char*) "0";
 
-/* Return error values from handle_options */
+/* This is a flag that can be set in client programs. 0 means that
+   my_getopt will not print error messages, but the client should do
+   it by itself */
 
-#define ERR_UNKNOWN_OPTION        1
-#define ERR_AMBIGUOUS_OPTION      2
-#define ERR_NO_ARGUMENT_ALLOWED   3
-#define ERR_ARGUMENT_REQUIRED     4
-#define ERR_VAR_PREFIX_NOT_UNIQUE 5
-#define ERR_UNKNOWN_VARIABLE      6
-#define ERR_OUT_OF_MEMORY         7
-#define ERR_UNKNOWN_SUFFIX        8
-#define ERR_NO_PTR_TO_VARIABLE	  9
+my_bool my_getopt_print_errors= 1;
 
 
 /* 
@@ -106,9 +101,10 @@ int handle_options(int *argc, char ***argv,
 	    /* the argument must be in next argv */
 	    if (!*++pos)
 	    {
-	      fprintf(stderr, "%s: Option '-O' requires an argument\n",
-		      progname);
-	      return ERR_ARGUMENT_REQUIRED;
+	      if (my_getopt_print_errors)
+		fprintf(stderr, "%s: Option '-O' requires an argument\n",
+			progname);
+	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
 	    (*argc)--;
@@ -128,10 +124,11 @@ int handle_options(int *argc, char ***argv,
 	    cur_arg+= 14;
 	    if (!*cur_arg)
 	    {
-	      fprintf(stderr,
-		      "%s: Option '--set-variable' requires an argument\n",
-		      progname);
-	      return ERR_ARGUMENT_REQUIRED;
+	      if (my_getopt_print_errors)
+		fprintf(stderr,
+			"%s: Option '--set-variable' requires an argument\n",
+			progname);
+	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	  }
 	  else if (cur_arg[14]) /* garbage, or another option. break out */
@@ -141,10 +138,11 @@ int handle_options(int *argc, char ***argv,
 	    /* the argument must be in next argv */
 	    if (!*++pos)
 	    {
-	      fprintf(stderr,
-		      "%s: Option '--set-variable' requires an argument\n",
-		      progname);
-	      return ERR_ARGUMENT_REQUIRED;
+	      if (my_getopt_print_errors)
+		fprintf(stderr,
+			"%s: Option '--set-variable' requires an argument\n",
+			progname);
+	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
 	    (*argc)--;
@@ -200,11 +198,12 @@ int handle_options(int *argc, char ***argv,
 		{
 		  if (opt_found > 1)
 		  {
-		    fprintf(stderr,
-			    "%s: ambiguous option '--%s-%s' (--%s-%s)\n",
-			    progname, special_opt_prefix[i], cur_arg,
-			    special_opt_prefix[i], prev_found);
-		    return ERR_AMBIGUOUS_OPTION;
+		    if (my_getopt_print_errors)
+		      fprintf(stderr,
+			      "%s: ambiguous option '--%s-%s' (--%s-%s)\n",
+			      progname, special_opt_prefix[i], cur_arg,
+			      special_opt_prefix[i], prev_found);
+		    return EXIT_AMBIGUOUS_OPTION;
 		  }
 		  if (i < DISABLE_OPTION_COUNT)
 		    optend= disabled_my_option;
@@ -224,19 +223,21 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (must_be_var)
 	    {
-	      fprintf(stderr,
-		      "%s: %s: unknown variable '%s'\n", progname,
-		      option_is_loose ? "WARNING" : "ERROR", cur_arg);
+	      if (my_getopt_print_errors)
+		fprintf(stderr,
+			"%s: %s: unknown variable '%s'\n", progname,
+			option_is_loose ? "WARNING" : "ERROR", cur_arg);
 	      if (!option_is_loose)
-		return ERR_UNKNOWN_VARIABLE;
+		return EXIT_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
-	      fprintf(stderr,
-		      "%s: %s: unknown option '--%s'\n", progname,
-		      option_is_loose ? "WARNING" : "ERROR", cur_arg);
+	      if (my_getopt_print_errors)
+		fprintf(stderr,
+			"%s: %s: unknown option '--%s'\n", progname,
+			option_is_loose ? "WARNING" : "ERROR", cur_arg);
 	      if (!option_is_loose)
-		return ERR_UNKNOWN_OPTION;
+		return EXIT_UNKNOWN_OPTION;
 	    }
 	    if (option_is_loose)
 	    {
@@ -249,30 +250,34 @@ int handle_options(int *argc, char ***argv,
 	{
 	  if (must_be_var)
 	  {
-	    fprintf(stderr, "%s: variable prefix '%s' is not unique\n",
-		    progname, cur_arg);
-	    return ERR_VAR_PREFIX_NOT_UNIQUE;
+	    if (my_getopt_print_errors)
+	      fprintf(stderr, "%s: variable prefix '%s' is not unique\n",
+		      progname, cur_arg);
+	    return EXIT_VAR_PREFIX_NOT_UNIQUE;
 	  }
 	  else
 	  {
-	    fprintf(stderr, "%s: ambiguous option '--%s' (%s, %s)\n",
-		    progname, cur_arg, prev_found, optp->name);
-	    return ERR_AMBIGUOUS_OPTION;
+	    if (my_getopt_print_errors)
+	      fprintf(stderr, "%s: ambiguous option '--%s' (%s, %s)\n",
+		      progname, cur_arg, prev_found, optp->name);
+	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
 	if (must_be_var && (!optp->value || optp->var_type == GET_BOOL))
 	{
-	  fprintf(stderr, "%s: option '%s' cannot take an argument\n",
-		  progname, optp->name);
-	  return ERR_NO_ARGUMENT_ALLOWED;
+	  if (my_getopt_print_errors)
+	    fprintf(stderr, "%s: option '%s' cannot take an argument\n",
+		    progname, optp->name);
+	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
 	if (optp->arg_type == NO_ARG)
 	{
 	  if (optend && !special_used)
 	  {
-	    fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
-		    progname, optp->name);
-	    return ERR_NO_ARGUMENT_ALLOWED;
+	    if (my_getopt_print_errors)
+	      fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
+		      progname, optp->name);
+	    return EXIT_NO_ARGUMENT_ALLOWED;
 	  }
 	  if (optp->var_type == GET_BOOL)
 	  {
@@ -306,9 +311,10 @@ int handle_options(int *argc, char ***argv,
 	  /* Check if there are more arguments after this one */
 	  if (!*++pos)
 	  {
-	    fprintf(stderr, "%s: option '--%s' requires an argument\n",
-		    progname, optp->name);
-	    return ERR_ARGUMENT_REQUIRED;
+	    if (my_getopt_print_errors)
+	      fprintf(stderr, "%s: option '--%s' requires an argument\n",
+		      progname, optp->name);
+	    return EXIT_ARGUMENT_REQUIRED;
 	  }
 	  argument= *pos;
 	  (*argc)--;
@@ -318,8 +324,9 @@ int handle_options(int *argc, char ***argv,
       }
       else  /* must be short option */
       {
-	for (optend= cur_arg; *optend; optend++, opt_found= 0)
+	for (optend= cur_arg; *optend; optend++)
 	{
+	  opt_found= 0;
 	  for (optp= longopts; optp->id; optp++)
 	  {
 	    if (optp->id == (int) (uchar) *optend)
@@ -347,9 +354,11 @@ int handle_options(int *argc, char ***argv,
 		  /* Check if there are more arguments after this one */
 		  if (!*++pos)
 		  {
-		    fprintf(stderr, "%s: option '-%c' requires an argument\n",
-			    progname, optp->id);
-		    return ERR_ARGUMENT_REQUIRED;
+		    if (my_getopt_print_errors)
+		      fprintf(stderr,
+			      "%s: option '-%c' requires an argument\n",
+			      progname, optp->id);
+		    return EXIT_ARGUMENT_REQUIRED;
 		  }
 		  argument= *pos;
 		  (*argc)--;
@@ -369,9 +378,10 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  if (!opt_found)
 	  {
-	    fprintf(stderr,
-		    "%s: unknown option '-%c'\n", progname, *cur_arg);
-	    return ERR_UNKNOWN_OPTION;
+	    if (my_getopt_print_errors)
+	      fprintf(stderr,
+		      "%s: unknown option '-%c'\n", progname, *optend);
+	    return EXIT_UNKNOWN_OPTION;
 	  }
 	}
 	(*argc)--; /* option handled (short), decrease argument count */
@@ -412,7 +422,7 @@ static int setval (const struct my_option *opts, char *argument,
       opts->u_max_value : opts->value;
 
     if (!result_pos)
-      return ERR_NO_PTR_TO_VARIABLE;
+      return EXIT_NO_PTR_TO_VARIABLE;
 
     switch (opts->var_type) {
     case GET_INT:
@@ -437,13 +447,13 @@ static int setval (const struct my_option *opts, char *argument,
 	my_free((*(char**) result_pos),
 		MYF(MY_WME | MY_FAE));
       if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
-	return ERR_OUT_OF_MEMORY;
+	return EXIT_OUT_OF_MEMORY;
       break;
     default:    /* dummy default to avoid compiler warnings */
       break;
     }
     if (err)
-      return ERR_UNKNOWN_SUFFIX;
+      return EXIT_UNKNOWN_SUFFIX;
   }
   return 0;
 }

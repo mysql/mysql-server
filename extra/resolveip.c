@@ -16,7 +16,7 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
-#define RESOLVE_VERSION "2.1"
+#define RESOLVE_VERSION "2.2"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -94,11 +94,8 @@ static int get_options(int *argc,char ***argv)
   /*  load_defaults("my",load_default_groups,argc,argv); */
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (*argc == 0)
   {
     usage();

@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.05"
+#define DUMP_VERSION "9.06"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -180,7 +180,7 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys",
@@ -360,11 +360,7 @@ static int get_options(int *argc, char ***argv)
   load_defaults("my",load_default_groups,argc,argv);
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
 
   if (opt_delayed)
     opt_lock=0;				/* Can't have lock with delayed */

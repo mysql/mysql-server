@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.3"
+#define IMPORT_VERSION "3.4"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -204,11 +204,8 @@ static int get_options(int *argc, char ***argv)
   int ho_error;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   if (enclosed && opt_enclosed)
   {
     fprintf(stderr, "You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n");

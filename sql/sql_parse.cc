@@ -160,7 +160,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     uc->connections = 1;
     uc->questions=uc->updates=uc->conn_per_hour=0;
     uc->user_resources=*mqh;
-    if (mqh->connections > max_user_connections) 
+    if (max_user_connections && mqh->connections > max_user_connections) 
       uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
     if (hash_insert(&hash_user_connections, (byte*) uc))
@@ -298,7 +298,7 @@ static int check_for_max_user_connections(USER_CONN *uc)
     goto end;
   }
   uc->connections++; 
-if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
+  if (uc->user_resources.connections &&  uc->conn_per_hour++ >= uc->user_resources.connections)
   {
     net_printf(&current_thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_connections",
 	       (long) uc->user_resources.connections);
@@ -317,12 +317,7 @@ static void decrease_user_connections(USER_CONN *uc)
 */
 
   DBUG_ENTER("decrease_user_connections");
-  if (mqh_used)
-  {
-    if (uc->conn_per_hour) 
-      uc->conn_per_hour--;
-  }
-  else if (!--uc->connections)
+  if (!mqh_used && uc->connections && !--uc->connections)
   {
     /* Last connection for user; Delete it */
     (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -1797,6 +1792,7 @@ mysql_execute_command(void)
       tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
       if ((res=open_and_lock_tables(thd,tables)))
 	break;
+      thd->select_limit=HA_POS_ERROR;
       if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) && 
 	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&  ! thd->fatal_error &&
 	  (result=new multi_update(thd,tables,select_lex->item_list,lex->duplicates,
@@ -2746,7 +2742,7 @@ void mysql_init_multi_delete(LEX *lex)
 {
   lex->sql_command =  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit=HA_POS_ERROR;
+  lex->select->select_limit=lex->thd->select_limit=HA_POS_ERROR;
   lex->auxilliary_table_list=lex->select_lex.table_list;
   lex->select->table_list.elements=0; 
   lex->select->table_list.first=0;
