@@ -108,7 +108,9 @@ mlog_close(
 	mtr_t*	mtr,	/* in: mtr */
 	byte*	ptr);	/* in: buffer space from ptr up was not used */
 /************************************************************
-Writes the initial part of a log record. */
+Writes the initial part of a log record (3..11 bytes).
+If the implementation of this function is changed, all
+size parameters to mlog_open() should be adjusted accordingly! */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
