@@ -974,8 +974,11 @@ case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
     CFLAGS="$CFLAGS -DBIG_TABLES"
     CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
+  *) ;;
+esac
+case $SYSTEM_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte compile problem for ndb
-  *solaris2.10*-sparc-no)
+  *solaris*-no)
     ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
     ;;
   *) ;;
@@ -1036,8 +1039,8 @@ case $SYSTEM_TYPE in
     ;;
   *hpux11.*)
     echo "Enabling workarounds for hpux 11"
-    CFLAGS="$CFLAGS -DHPUX11 -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
-    CXXFLAGS="$CXXFLAGS -DHPUX11 -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -1143,9 +1146,10 @@ dnl Is this the right match for DEC OSF on alpha?
       fi
       echo "Adding defines for OSF1"
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      ndb_cxxflags_fix="$ndb_cxxflags_fix -I/usr/include.dtk"
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
+      CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
     ;;
   *netware*)
     # No need for curses library so set it to null
@@ -1916,7 +1920,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
   localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
-  mkstemp mlockall perror poll pread pthread_attr_create clock_gettime \
+  mkstemp mlockall perror poll pread pthread_attr_create \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
@@ -1924,6 +1928,18 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+
+#
+#
+#
+case "$target" in
+ *-*-aix4*)
+	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
+	# and using AC_TRY_RUN is hard when cross-compiling
+    ;;
+ *) AC_CHECK_FUNCS(clock_gettime)
+    ;;
+esac
 
 # isinf() could be a function or a macro (HPUX)
 AC_MSG_CHECKING(for isinf with <math.h>)

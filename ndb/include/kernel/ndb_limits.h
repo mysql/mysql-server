@@ -117,4 +117,9 @@
  */
 #define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
 
+/*
+ * Long signals
+ */
+#define NDB_SECTION_SEGMENT_SZ 60
+
 #endif

@@ -192,6 +192,7 @@ static void init_tmptable_sum_functions(Item_sum **func);
 static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
 static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
@@ -990,13 +991,15 @@ JOIN::optimize()
       if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  alloc_group_fields(this, group_list) ||
-	  make_sum_func_list(all_fields, fields_list, 1))
+          make_sum_func_list(all_fields, fields_list, 1) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       group_list=0;
     }
     else
     {
-      if (make_sum_func_list(all_fields, fields_list, 0))
+      if (make_sum_func_list(all_fields, fields_list, 0) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
@@ -1372,6 +1375,7 @@ JOIN::exec()
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 					1, TRUE) ||
+          setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1459,7 +1463,9 @@ JOIN::exec()
     set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-				      1, TRUE) || thd->is_fatal_error)
+				      1, TRUE) || 
+        setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
+        thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -1652,9 +1658,13 @@ Cursor::init_from_thd(THD *thd)
   /*
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
+
+    We can't just change the thd->mem_root here as we want to keep the things
+    that is already allocated in thd->mem_root for Cursor::fetch()
   */
-  mem_root=       thd->mem_root;
-  init_sql_alloc(&thd->mem_root,
+  main_mem_root=  *thd->mem_root;
+  /* Allocate new memory root for thd */
+  init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 
@@ -1668,7 +1678,7 @@ Cursor::init_from_thd(THD *thd)
   open_tables=    thd->open_tables;
   lock=           thd->lock;
   query_id=       thd->query_id;
-  free_list= thd->free_list;
+  free_list=	  thd->free_list;
   reset_thd(thd);
   /*
     XXX: thd->locked_tables is not changed.
@@ -1769,15 +1779,15 @@ int
 Cursor::fetch(ulong num_rows)
 {
   THD *thd= join->thd;
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;;
+  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   COND *on_expr= *join_tab->on_expr_ref;
   COND *select_cond= join_tab->select_cond;
   READ_RECORD *info= &join_tab->read_record;
-
   int error= 0;
 
   /* save references to memory, allocated during fetch */
   thd->set_n_backup_item_arena(this, &thd->stmt_backup);
+
   join->fetch_limit+= num_rows;
 
   /*
@@ -1841,6 +1851,7 @@ Cursor::fetch(ulong num_rows)
 
   if (thd->net.report_error)
     error= -1;
+
   if (error == -3)                              /* LIMIT clause worked */
     error= 0;
 
@@ -1870,7 +1881,7 @@ Cursor::fetch(ulong num_rows)
     /* free cursor memory */
     free_items(free_list);
     free_list= 0;
-    free_root(&mem_root, MYF(0));
+    free_root(&main_mem_root, MYF(0));
   }
   return error;
 }
@@ -1922,7 +1933,7 @@ Cursor::~Cursor()
     Must be last, as some memory might be allocated for free purposes,
     like in free_tmp_table() (TODO: fix this issue)
   */
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 /*********************************************************************/
@@ -5001,7 +5012,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
-  if (!tmp)
+  if (tmp)
     tmp->quick_fix_field();
   return tmp;
 }
@@ -5275,8 +5286,17 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
+
+	    /*
+              We can't call sel->cond->fix_fields,
+              as it will break tab->on_expr if it's AND condition
+              (fix_fields currently removes extra AND/OR levels).
+              Yet attributes of the just built condition are not needed.
+              Thus we call sel->cond->quick_fix_field for safety.
+	    */
 	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->fix_fields(join->thd, 0, &sel->cond);
+	      sel->cond->quick_fix_field();
+
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -6624,10 +6644,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   List<Item> eq_list;
   Item_func_eq *eq_item= 0;
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
-  {
-    cond= new Item_int((char*) "FALSE",0,1);
-    return cond;
-  } 
+    return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
@@ -6670,9 +6687,14 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   }
 
   if (!cond && !eq_list.head())
+  {
+    if (!eq_item)
+      return new Item_int((longlong) 1,1);
     return eq_item;
+  }
 
-  eq_list.push_back(eq_item);
+  if (eq_item)
+    eq_list.push_back(eq_item);
   if (!cond)
     cond= new Item_cond_and(eq_list);
   else
@@ -7473,7 +7495,7 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    org_field->field_name, table,
                                    org_field->charset());
   else
-    new_field= org_field->new_field(&thd->mem_root, table);
+    new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
     if (modify_item)
@@ -8076,7 +8098,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(&thd->mem_root,table)))
+	if (!(group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -11674,7 +11696,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(&thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
@@ -11793,9 +11815,6 @@ bool JOIN::alloc_func_list()
     before_group_by	Set to 1 if this is called before GROUP BY handling
     recompute           Set to TRUE if sum_funcs must be recomputed
 
-  NOTES
-    Calls ::setup() for all item_sum objects in field_list
-
   RETURN
     0  ok
     1  error
@@ -11816,12 +11835,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
   while ((item=it++))
   {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
-    {
       *func++= (Item_sum*) item;
-      /* let COUNT(DISTINCT) create the temporary table */
-      if (((Item_sum*) item)->setup(thd))
-	DBUG_RETURN(TRUE);
-    }
   }
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
   {
@@ -11965,6 +11979,30 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
 /******************************************************************************
   Code for calculating functions
 ******************************************************************************/
+
+
+/*
+  Call ::setup for all sum functions
+
+  SYNOPSIS
+    setup_sum_funcs()
+    thd           thread handler
+    func_ptr      sum function list
+
+  RETURN
+    FALSE  ok
+    TRUE   error
+*/
+
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
+{
+  Item_sum *func;
+  while ((func= *(func_ptr++)))
+    if (func->setup(thd))
+      return TRUE;
+  return FALSE;
+}
+
 
 static void
 init_tmptable_sum_functions(Item_sum **func_ptr)
@@ -12121,7 +12159,7 @@ bool JOIN::rollup_init()
     return 1;
   rollup.ref_pointer_arrays= (Item***) (rollup.fields + send_group_parts);
   ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
-  rollup.item_null= new (&thd->mem_root) Item_null();
+  rollup.item_null= new (thd->mem_root) Item_null();
 
   /*
     Prepare space for field list for the different levels

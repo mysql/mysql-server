@@ -53,11 +53,9 @@ extern "C" void handler_error(int signum);  // for process signal handling
 void systemInfo(const Configuration & conf,
 		const LogLevel & ll); 
 
-const char programName[] = "NDB Kernel";
-
-NDB_MAIN(ndb_kernel){
-
-  ndb_init();
+int main(int argc, char** argv)
+{
+  NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NDB");

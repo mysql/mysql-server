@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -33,7 +34,6 @@
 #include <ndb_version.h>
 #include <ConfigRetriever.hpp>
 #include <mgmapi_config_parameters.h>
-#include <getarg.h>
 
 #include <NdbAutoPtr.hpp>
 
@@ -97,41 +97,70 @@ bool g_StopServer;
 extern EventLogger g_EventLogger;
 
 extern int global_mgmt_server_check;
-int _print_version = 0;
-#ifndef DBUG_OFF
-const char *debug_option= 0;
-#endif
+static char *opt_connect_str= 0;
 
-struct getargs args[] = {
-  { "version", 'v', arg_flag, &_print_version,
-    "Print ndb_mgmd version",""},
-  { "config-file", 'c', arg_string, &glob.config_filename,
-    "Specify cluster configuration file (default config.ini if available)",
-    "filename"},
-#ifndef DBUG_OFF
-  { "debug", 0, arg_string, &debug_option,
-    "Specify debug options e.g. d:t:i:o,out.trace", "options"},
-#endif
-  { "daemon", 'd', arg_flag, &glob.daemon,
-    "Run ndb_mgmd in daemon mode (default)",""},
-  { NULL, 'l', arg_string, &glob.local_config_filename,
-    "Specify configuration file connect string (default Ndb.cfg if available)",
-    "filename"},
-  { "interactive", 0, arg_flag, &glob.interactive,
-   "Run interactive. Not supported but provided for testing purposes", ""},
-  { "no-nodeid-checks", 0, arg_flag, &g_no_nodeid_checks,
-    "Do not provide any node id checks", ""},
-  { "nodaemon", 0, arg_flag, &glob.non_interactive,
-    "Don't run as daemon, but don't read from stdin", "non-interactive"}
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_mgm"),
+  { "config-file", 'f', "Specify cluster configuration file",
+    (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
+    (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+  { "l", 'l', "Specify configuration file connect string (default Ndb.cfg if available)",
+    (gptr*) &glob.local_config_filename, (gptr*) &glob.local_config_filename, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "interactive", 256, "Run interactive. Not supported but provided for testing purposes",
+    (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-nodeid-checks", 257, "Do not provide any node id checks", 
+    (gptr*) &g_no_nodeid_checks, (gptr*) &g_no_nodeid_checks, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nodaemon", 258, "Don't run as daemon, but don't read from stdin",
+    (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-int num_args = sizeof(args) / sizeof(args[0]);
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS]\n", my_progname);
+}
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
+  short_usage_sub();
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_mgmd.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
 
 /*
  *  MAIN 
  */
-NDB_MAIN(mgmsrv){
-  ndb_init();
+int main(int argc, char** argv)
+{
+  NDB_INIT(argv[0]);
 
   /**
    * OSE specific. Enable shared ownership of file system resources. 
@@ -143,31 +172,20 @@ NDB_MAIN(mgmsrv){
 #endif
 
   global_mgmt_server_check = 1;
+  glob.config_filename= "config.ini";
 
-  int optind = 0;
-  if(getarg(args, num_args, argc, argv, &optind)) {
-    arg_printusage(args, num_args, progname, "");
-    exit(1);
-  }
+  const char *load_default_groups[]= { "ndb_mgmd",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   if (glob.interactive ||
       glob.non_interactive) {
     glob.daemon= 0;
   }
 
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
-
-  if (_print_version) {
-    ndbPrintVersion();
-    exit(0);
-  }
-
-  if(glob.config_filename == NULL) {
-    glob.config_filename= "config.ini";
-  }
   glob.socketServer = new SocketServer();
 
   MgmApiService * mapi = new MgmApiService();

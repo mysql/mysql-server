@@ -1,25 +1,5 @@
 drop table if exists t1;
-drop database if exists mysqltest;
-create table t1 (
-a int not null primary key,
-b tinytext
-) engine=ndbcluster;
-insert into t1 values(1, 'x');
-update t1 set b = 'y';
-select * from t1;
-a	b
-1	y
-delete from t1;
-drop table t1;
-create table t1 (
-a int not null primary key,
-b text not null
-) engine=ndbcluster;
-insert into t1 values(1, '');
-select * from t1;
-a	b
-1	
-drop table t1;
+drop database if exists test2;
 set autocommit=0;
 create table t1 (
 a int not null primary key,
@@ -96,6 +76,53 @@ commit;
 select a from t1 where d is null;
 a
 1
+delete from t1 where a=1;
+delete from t1 where a=2;
+commit;
+select count(*) from t1;
+count(*)
+0
+replace t1 set a=1,b=@b1,c=111,d=@d1;
+replace t1 set a=2,b=@b2,c=222,d=@d2;
+commit;
+explain select * from t1 where a = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+1	2256	b1	3000	dd1
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+2	20000	b2	30000	dd2
+replace t1 set a=1,b=@b2,c=111,d=@d2;
+replace t1 set a=2,b=@b1,c=222,d=@d1;
+commit;
+select a,length(b),substr(b,1+2*9000,2),length(d),substr(d,1+3*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+2*9000,2)	length(d)	substr(d,1+3*9000,3)
+1	20000	b2	30000	dd2
+select a,length(b),substr(b,1+2*900,2),length(d),substr(d,1+3*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+2*900,2)	length(d)	substr(d,1+3*900,3)
+2	2256	b1	3000	dd1
+replace t1 set a=1,b=concat(@b2,@b2),c=111,d=concat(@d2,@d2);
+replace t1 set a=2,b=concat(@b1,@b1),c=222,d=concat(@d1,@d1);
+commit;
+select a,length(b),substr(b,1+4*9000,2),length(d),substr(d,1+6*9000,3)
+from t1 where a=1;
+a	length(b)	substr(b,1+4*9000,2)	length(d)	substr(d,1+6*9000,3)
+1	40000	b2	60000	dd2
+select a,length(b),substr(b,1+4*900,2),length(d),substr(d,1+6*900,3)
+from t1 where a=2;
+a	length(b)	substr(b,1+4*900,2)	length(d)	substr(d,1+6*900,3)
+2	4512	b1	6000	dd1
+replace t1 set a=1,b='xyz',c=111,d=null;
+commit;
+select a,b from t1 where d is null;
+a	b
+1	xyz
 delete from t1 where a=1;
 delete from t1 where a=2;
 commit;
@@ -241,90 +268,6 @@ a	b	c	d
 7	7xb7	777	7xdd7
 8	8xb8	888	8xdd8
 9	9xb9	999	9xdd9
-select * from t1 order by a;
-a	b	c	d
-1	1xb1	111	1xdd1
-2	2xb2	222	2xdd2
-3	3xb3	333	3xdd3
-4	4xb4	444	4xdd4
-5	5xb5	555	5xdd5
-6	6xb6	666	6xdd6
-7	7xb7	777	7xdd7
-8	8xb8	888	8xdd8
-9	9xb9	999	9xdd9
-alter table t1 add x int;
-select * from t1 order by a;
-a	b	c	d	x
-1	1xb1	111	1xdd1	NULL
-2	2xb2	222	2xdd2	NULL
-3	3xb3	333	3xdd3	NULL
-4	4xb4	444	4xdd4	NULL
-5	5xb5	555	5xdd5	NULL
-6	6xb6	666	6xdd6	NULL
-7	7xb7	777	7xdd7	NULL
-8	8xb8	888	8xdd8	NULL
-9	9xb9	999	9xdd9	NULL
-alter table t1 drop x;
-select * from t1 order by a;
-a	b	c	d
-1	1xb1	111	1xdd1
-2	2xb2	222	2xdd2
-3	3xb3	333	3xdd3
-4	4xb4	444	4xdd4
-5	5xb5	555	5xdd5
-6	6xb6	666	6xdd6
-7	7xb7	777	7xdd7
-8	8xb8	888	8xdd8
-9	9xb9	999	9xdd9
-create database mysqltest;
-use mysqltest;
-CREATE TABLE t2 (
-a bigint unsigned NOT NULL PRIMARY KEY,
-b int unsigned not null,
-c int unsigned
-) engine=ndbcluster;
-insert into t2 values (1,1,1),(2,2,2);
-select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
-a	b	c	d	a	b	c
-1	1xb1	111	1xdd1	1	1	1
-2	2xb2	222	2xdd2	2	2	2
-drop table t2;
-use test;
-select * from t1 order by a;
-a	b	c	d
-1	1xb1	111	1xdd1
-2	2xb2	222	2xdd2
-3	3xb3	333	3xdd3
-4	4xb4	444	4xdd4
-5	5xb5	555	5xdd5
-6	6xb6	666	6xdd6
-7	7xb7	777	7xdd7
-8	8xb8	888	8xdd8
-9	9xb9	999	9xdd9
-alter table t1 add x int;
-select * from t1 order by a;
-a	b	c	d	x
-1	1xb1	111	1xdd1	NULL
-2	2xb2	222	2xdd2	NULL
-3	3xb3	333	3xdd3	NULL
-4	4xb4	444	4xdd4	NULL
-5	5xb5	555	5xdd5	NULL
-6	6xb6	666	6xdd6	NULL
-7	7xb7	777	7xdd7	NULL
-8	8xb8	888	8xdd8	NULL
-9	9xb9	999	9xdd9	NULL
-alter table t1 drop x;
-select * from t1 order by a;
-a	b	c	d
-1	1xb1	111	1xdd1
-2	2xb2	222	2xdd2
-3	3xb3	333	3xdd3
-4	4xb4	444	4xdd4
-5	5xb5	555	5xdd5
-6	6xb6	666	6xdd6
-7	7xb7	777	7xdd7
-8	8xb8	888	8xdd8
-9	9xb9	999	9xdd9
 delete from t1 where c >= 100;
 commit;
 select count(*) from t1;
@@ -375,8 +318,128 @@ rollback;
 select count(*) from t1;
 count(*)
 0
+insert into t1 values(1,'b1',111,'dd1');
+insert into t1 values(2,'b2',222,'dd2');
+insert into t1 values(3,'b3',333,'dd3');
+insert into t1 values(4,'b4',444,'dd4');
+insert into t1 values(5,'b5',555,'dd5');
+insert into t1 values(6,'b6',666,'dd6');
+insert into t1 values(7,'b7',777,'dd7');
+insert into t1 values(8,'b8',888,'dd8');
+insert into t1 values(9,'b9',999,'dd9');
+commit;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+alter table t1 add x int;
+select * from t1 order by a;
+a	b	c	d	x
+1	b1	111	dd1	NULL
+2	b2	222	dd2	NULL
+3	b3	333	dd3	NULL
+4	b4	444	dd4	NULL
+5	b5	555	dd5	NULL
+6	b6	666	dd6	NULL
+7	b7	777	dd7	NULL
+8	b8	888	dd8	NULL
+9	b9	999	dd9	NULL
+alter table t1 drop x;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+create database test2;
+use test2;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+insert into t2 values (1,1,1),(2,2,2);
+select * from test.t1,t2 where test.t1.a = t2.a order by test.t1.a;
+a	b	c	d	a	b	c
+1	b1	111	dd1	1	1	1
+2	b2	222	dd2	2	2	2
+drop table t2;
+use test;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
+alter table t1 add x int;
+select * from t1 order by a;
+a	b	c	d	x
+1	b1	111	dd1	NULL
+2	b2	222	dd2	NULL
+3	b3	333	dd3	NULL
+4	b4	444	dd4	NULL
+5	b5	555	dd5	NULL
+6	b6	666	dd6	NULL
+7	b7	777	dd7	NULL
+8	b8	888	dd8	NULL
+9	b9	999	dd9	NULL
+alter table t1 drop x;
+select * from t1 order by a;
+a	b	c	d
+1	b1	111	dd1
+2	b2	222	dd2
+3	b3	333	dd3
+4	b4	444	dd4
+5	b5	555	dd5
+6	b6	666	dd6
+7	b7	777	dd7
+8	b8	888	dd8
+9	b9	999	dd9
 drop table t1;
-drop database mysqltest;
+drop database test2;
+set autocommit=0;
+create table t1 (
+a int not null primary key,
+b tinytext
+) engine=ndbcluster;
+insert into t1 values(1, 'x');
+update t1 set b = 'y';
+select * from t1;
+a	b
+1	y
+delete from t1;
+select * from t1;
+a	b
+commit;
+drop table t1;
+set autocommit=0;
+create table t1 (
+a int not null primary key,
+b text not null
+) engine=ndbcluster;
+insert into t1 values(1, '');
+select * from t1;
+a	b
+1	
+commit;
+drop table t1;
 set autocommit=1;
 use test;
 CREATE TABLE t1 (
@@ -397,6 +460,7 @@ select * from t1 order by a;
 a	b
 1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 2	BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+set autocommit=1;
 alter table t1 engine=myisam;
 select * from t1 order by a;
 a	b

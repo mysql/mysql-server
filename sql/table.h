@@ -260,8 +260,6 @@ typedef struct st_table_list
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
-  /* next_global before adding VIEW tables */
-  st_table_list	*old_next;
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
@@ -315,12 +313,6 @@ typedef struct st_table_list
   void cleanup_items();
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
-  inline st_table_list *next_independent()
-  {
-    if (view)
-      return old_next;
-    return next_global;
-  }
 } TABLE_LIST;
 
 class Item;

@@ -1626,3 +1626,23 @@ Field 3,'Field 4|
 |Field 6|	| 'Field 7'|
 drop view v1;
 drop table t1;
+create database mysqltest;
+create table mysqltest.t1 (a int);
+grant all privileges on mysqltest.* to mysqltest_1@localhost;
+use mysqltest;
+create view v1 as select * from t1;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+drop database mysqltest;
+create table t1 (s1 smallint);
+create view v1 as select * from t1 where 20 < (select (s1) from t1);
+insert into v1 values (30);
+ERROR HY000: The target table v1 of the INSERT is not updatable
+create view v2 as select * from t1;
+create view v3 as select * from t1 where 20 < (select (s1) from v2);
+insert into v3 values (30);
+ERROR HY000: The target table v3 of the INSERT is not updatable
+create view v4 as select * from v2 where 20 < (select (s1) from t1);
+insert into v4 values (30);
+ERROR HY000: You can't specify target table 'v4' for update in FROM clause
+drop view v4, v3, v2, v1;
+drop table t1;

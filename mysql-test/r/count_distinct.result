@@ -53,3 +53,10 @@ select count(distinct f) from t1;
 count(distinct f)
 0
 drop table t1;
+create table t1 (a char(3), b char(20), primary key (a, b));
+insert into t1 values ('ABW', 'Dutch'), ('ABW', 'English');
+select count(distinct a) from t1 group by b;
+count(distinct a)
+1
+1
+drop table t1;

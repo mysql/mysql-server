@@ -509,7 +509,7 @@ void close_temporary_tables(THD *thd)
     */
     query_buf_size+= table->key_length+1;
 
-  if ((query = alloc_root(&thd->mem_root, query_buf_size)))
+  if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
     end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
@@ -595,7 +595,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     {
       if ((!strcmp(table->db, db_name) &&
            !strcmp(table->real_name, table_name)) ||
-          (table->view &&
+          (table->view &&                      // it is VIEW and
+           table->table->table_cache_key &&    // it is not temporary table
            !strcmp(table->table->table_cache_key, db_name) &&
            !strcmp(table->table->table_name, table_name)))
         break;
@@ -620,6 +621,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
 TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
+  DBUG_ENTER("unique_table");
+  DBUG_PRINT("enter", ("table alias: %s", table->alias));
   TABLE_LIST *res;
   const char *d_name= table->db, *t_name= table->real_name;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
@@ -646,13 +649,18 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
       return 0;
     }
   }
-  if ((res= find_table_in_global_list(table_list, d_name, t_name)) &&
-      res->table && res->table == table->table)
+
+  DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
+  for(;;)
   {
-    // we found entry of this table try again.
-    return find_table_in_global_list(res->next_global, d_name, t_name);
+    if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
+        !res->table || res->table != table->table)
+      break;
+    /* if we found entry of this table try again. */
+    table_list= res->next_global;
+    DBUG_PRINT("info", ("found same copy of table"));
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -816,7 +824,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   pthread_mutex_lock(&LOCK_open);
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
-                        &thd->mem_root) ||
+                        thd->mem_root) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
@@ -1136,7 +1144,7 @@ bool reopen_table(TABLE *table,bool locked)
   safe_mutex_assert_owner(&LOCK_open);
 
   if (open_unireg_entry(table->in_use, &tmp, db, table_name,
-			table->table_name, 0, &table->in_use->mem_root))
+			table->table_name, 0, table->in_use->mem_root))
     goto end;
   free_io_cache(table);
 
@@ -1775,7 +1783,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
-  while (!(table= open_table(thd, table_list, &thd->mem_root, &refresh)) &&
+  while (!(table= open_table(thd, table_list, thd->mem_root, &refresh)) &&
          refresh)
     ;
 
@@ -2600,24 +2608,20 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
-  Item *item;
-  DBUG_ENTER("setup_wild");
-
   if (!wild_num)
-    DBUG_RETURN(0);
+    return(0);
 
-  Item_arena *arena= thd->current_arena, backup;
+  Item *item;
+  List_iterator<Item> it(fields);
+  Item_arena *arena, backup;
+  DBUG_ENTER("setup_wild");
 
   /*
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  if (arena->is_conventional())
-    arena= 0;                                   // For easier test later one
-  else
-    thd->set_n_backup_item_arena(arena, &backup);
+  arena= thd->change_arena_if_needed(&backup);
 
-  List_iterator<Item> it(fields);
   while (wild_num && (item= it++))
   {
     if (item->type() == Item::FIELD_ITEM &&
@@ -3006,7 +3010,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
             during cleunup() this item will be put in list to replace
             expression from VIEW
           */
-          thd->nocheck_register_item_tree_change(it->ref(), item, &thd->mem_root);
+          thd->nocheck_register_item_tree_change(it->ref(), item,
+                                                 thd->mem_root);
         }
       }
       /* All fields are used */
@@ -3111,7 +3116,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         }
 
         if (arena)
-	  thd->set_n_backup_item_arena(arena, &backup);
+	  arena= thd->change_arena_if_needed(&backup);
 
         TABLE *t1=tab1->table;
         TABLE *t2=tab2->table;
@@ -3212,7 +3217,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
            embedding->nested_join->join_list.head() == embedded);
   }
 
-  if (arena)
+  if (!thd->current_arena->is_conventional())
   {
     /*
       We are in prepared statement preparation code => we should store
