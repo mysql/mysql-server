@@ -584,8 +584,10 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 
   _ownNodeId= 0;
   NodeId tmp= nodeId;
-  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0)){
-    ndbout << "Unable to obtain requested nodeid " << nodeId;
+  BaseString error_string;
+  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM, 0, 0, error_string)){
+    ndbout << "Unable to obtain requested nodeid: "
+	   << error_string.c_str() << endl;
     exit(-1);
   }
   _ownNodeId = tmp;
@@ -606,17 +608,20 @@ MgmtSrvr::check_start()
 }
 
 bool 
-MgmtSrvr::start()
+MgmtSrvr::start(BaseString &error_string)
 {
   if (_props == NULL) {
-    if (!check_start())
+    if (!check_start()) {
+      error_string.append("MgmtSrvr.cpp: check_start() failed.");
       return false;
+    }
   }
   theFacade = TransporterFacade::start_instance
     (_ownNodeId,(ndb_mgm_configuration*)_config->m_configValues);
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
+    error_string.append("MgmtSrvr.cpp: theFacade is NULL.");
     return false;
   }  
 
@@ -630,6 +635,7 @@ MgmtSrvr::start()
   
   if(_blockNumber == -1){
     DEBUG("MgmtSrvr.cpp: _blockNumber is -1.");
+    error_string.append("MgmtSrvr.cpp: _blockNumber is -1.");
     theFacade->stop_instance();
     theFacade = 0;
     return false;
@@ -2304,7 +2310,8 @@ bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
-			SOCKET_SIZE_TYPE *client_addr_len)
+			SOCKET_SIZE_TYPE *client_addr_len,
+			BaseString &error_string)
 {
   Guard g(&f_node_id_mutex);
 #if 0
@@ -2322,19 +2329,26 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       }
   }
 
+  bool found_matching_id= false;
+  bool found_matching_type= false;
+  bool found_free_node= false;
+  unsigned type_c= 0;
+
   ndb_mgm_configuration_iterator iter(*(ndb_mgm_configuration *)_config->m_configValues,
 				      CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()) {
     unsigned tmp= 0;
     if(iter.get(CFG_NODE_ID, &tmp)) abort();
-    if (connected_nodes.get(tmp))
-      continue;
     if (*nodeId && *nodeId != tmp)
       continue;
-    unsigned type_c;
+    found_matching_id= true;
     if(iter.get(CFG_TYPE_OF_SECTION, &type_c)) abort();
     if(type_c != type)
       continue;
+    found_matching_type= true;
+    if (connected_nodes.get(tmp))
+      continue;
+    found_free_node= true;
     const char *config_hostname = 0;
     if(iter.get(CFG_NODE_HOST, &config_hostname)) abort();
 
@@ -2374,6 +2388,43 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 #endif
     return true;
   }
+
+  BaseString type_string, type_c_string;
+  {
+    const char *alias, *str;
+    alias= ndb_mgm_get_node_type_alias_string(type, &str);
+    type_string.assfmt("%s(%s)", alias, str);
+    alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c, &str);
+    type_c_string.assfmt("%s(%s)", alias, str);
+  }
+
+  if (*nodeId == 0) {
+    if (found_matching_id)
+      if (found_matching_type)
+	if (found_free_node)
+	  error_string.appfmt("Connection done from wrong host %s.",
+			      inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
+	else
+	  error_string.appfmt("No free node id found for %s.", type_string.c_str());
+      else
+	error_string.appfmt("No %s node defined in config file.", type_string.c_str());
+    else
+      error_string.append("No nodes defined in config file.");
+  } else {
+    if (found_matching_id)
+      if (found_matching_type)
+	if (found_free_node)
+	  error_string.appfmt("Connection with id %d done from wrong host %s, expected host XX.",
+			      *nodeId, inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr));
+	else
+	  error_string.appfmt("Id %d already allocated by another node.", *nodeId);
+      else
+	error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
+			    *nodeId, type_c_string.c_str(), type_string.c_str());
+    else
+      error_string.appfmt("No node defined with id=%d in config file.", *nodeId);
+  }
+
   return false;
 }
 

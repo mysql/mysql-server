@@ -139,7 +139,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
 	   objRef, 
 	   programName, 
 	   processId, 
-	   theNameOfTheTraceFile);
+	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>");
 
   // Add trailing blanks to get a fixed lenght of the message
   while (strlen(messptr) <= MESSAGE_LENGTH-3){
@@ -217,8 +217,10 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   /**
    * Format trace file name
    */
-  int file_no= ErrorReporter::get_trace_no();
-  char *theTraceFileName= NdbConfig_TraceFileName(globalData.ownId, file_no);
+  char *theTraceFileName= 0;
+  if (globalData.ownId > 0)
+    theTraceFileName= NdbConfig_TraceFileName(globalData.ownId,
+					      ErrorReporter::get_trace_no());
   NdbAutoPtr<char> tmp_aptr1(theTraceFileName);
   
   // The first 69 bytes is info about the current offset
@@ -291,26 +293,28 @@ WriteMessage(ErrorCategory thrdType, int thrdMessageID,
   fflush(stream);
   fclose(stream);
   
-  // Open the tracefile...
-  FILE *jamStream = fopen(theTraceFileName, "w");
+  if (theTraceFileName) {
+    // Open the tracefile...
+    FILE *jamStream = fopen(theTraceFileName, "w");
   
-  //  ...and "dump the jam" there.
-  //  ErrorReporter::dumpJam(jamStream);
-  if(thrdTheEmulatedJam != 0){
-    dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+    //  ...and "dump the jam" there.
+    //  ErrorReporter::dumpJam(jamStream);
+    if(thrdTheEmulatedJam != 0){
+      dumpJam(jamStream, thrdTheEmulatedJamIndex, thrdTheEmulatedJam);
+    }
+  
+    /* Dont print the jobBuffers until a way to copy them, 
+       like the other variables,
+       is implemented. Otherwise when NDB keeps running, 
+       with this function running
+       in the background, the jobBuffers will change during runtime. And when
+       they're printed here, they will not be correct anymore.
+    */
+    globalScheduler.dumpSignalMemory(jamStream);
+  
+    fclose(jamStream);
   }
-  
-  /* Dont print the jobBuffers until a way to copy them, 
-     like the other variables,
-     is implemented. Otherwise when NDB keeps running, 
-     with this function running
-     in the background, the jobBuffers will change during runtime. And when
-     they're printed here, they will not be correct anymore.
-  */
-  globalScheduler.dumpSignalMemory(jamStream);
-  
-  fclose(jamStream);
-  
+
   return 0;
 }
 
