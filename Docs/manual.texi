@@ -53,7 +53,7 @@
 @end ifset
 
 @c We want the contents at the beginning, where it's supposed to be.
-@setcontentsaftertitlepage
+@setshortcontentsaftertitlepage
 
 @c %**end of header
 
@@ -83,15 +83,8 @@ END-INFO-DIR-ENTRY
 @c printing
 @headings single
 
-@ifclear nusphere
-@everyheading @thispage @| @| @thischapter
-@everyfooting @| @| Version: @value{mysql_version} Printed: @today{}
-@end ifclear
-
-@ifset nusphere
 @oddheading @thischapter @| @| @thispage
 @evenheading @thispage @| @| MySQL Technical Reference for Version @value{mysql_version}
-@end ifset
 
 @end iftex
 
@@ -44849,7 +44842,7 @@ helped to make @strong{MySQL} what it is today.
 @end menu
 
 @node Developers, Contributors, Credits, Credits
-@appendixsubsec Developers at MySQL AB
+@appendixsec Developers at MySQL AB
 
 These are the developers that are or have been employed by @strong{MySQL AB}
 to work on @strong{MySQL}, roughly in the order they started to work with us.
@@ -45039,7 +45032,7 @@ Allan Larsson (The BOSS for TCX DataKonsult AB).
 
 @cindex contributors, list of
 @node Contributors, Supporters, Developers, Credits
-@appendixsubsec Contributors to MySQL
+@appendixsec Contributors to MySQL
 
 Contributors to the @strong{MySQL} distribution are listed here, in
 somewhat random order:
@@ -45271,7 +45264,7 @@ ODBC and VisualC++ interface questions.
 
 @cindex contributing companies, list of
 @node Supporters,  , Contributors, Credits
-@appendixsubsec Supporters to MySQL
+@appendixsec Supporters to MySQL
 
 The following companies has helped us finance development of
 @strong{MySQL} by either paying us for developing a new feature,
@@ -51616,9 +51609,11 @@ All new development is concentrated to @strong{MySQL}.
 
 @node GPL license, LGPL license, Unireg, Top
 @appendix GNU GENERAL PUBLIC LICENSE
-@center Version 2, June 1991
 
-@c This file is intended to be included in another file.
+@cindex GPL, General Public License
+@cindex GPL, GNU General Public License
+
+@center Version 2, June 1991
 
 @display
 Copyright @copyright{} 1989, 1991 Free Software Foundation, Inc.
@@ -51628,7 +51623,7 @@ Everyone is permitted to copy and distribute verbatim copies
 of this license document, but changing it is not allowed.
 @end display
 
-@unnumberedsec Preamble
+@appendixsec Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -51679,9 +51674,10 @@ patent must be licensed for everyone's free use or not licensed at all.
 modification follow.
 
 @iftex
-@unnumberedsec TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+@appendixsec TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 @end iftex
 @ifinfo
+@center GNU GENERAL PUBLIC LICENSE
 @center TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 @end ifinfo
 
@@ -51941,7 +51937,7 @@ POSSIBILITY OF SUCH DAMAGES.
 @end ifinfo
 
 @page
-@unnumberedsec Appendix: How to Apply These Terms to Your New Programs
+@appendixsec How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -52011,8 +52007,10 @@ Public License instead of this License.
 
 @node LGPL license, Placeholder, GPL license, Top
 @appendix GNU LESSER GENERAL PUBLIC LICENSE
+
 @cindex LGPL, Lesser General Public License
 @cindex LGPL, GNU Library General Public License
+
 @center Version 2.1, February 1999
 
 @display
