@@ -1451,9 +1451,9 @@ then
   then
     echo "Starting ndbcluster"
     ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    USE_NDBCLUSTER="--ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
   else
-    USE_NDBCLUSTER="--ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
     echo "Using ndbcluster at $USE_NDBCLUSTER"
   fi
   fi
