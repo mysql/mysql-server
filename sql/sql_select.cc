@@ -7153,11 +7153,24 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	}
 	else
 	{
-          select->quick->file->ha_index_end();
-	  select->quick->index= new_ref_key;
-	  select->quick->init();
+          /*
+            The range optimizer constructed QUICK_RANGE for ref_key, and
+            we want to use instead new_ref_key as the index. We can't
+            just change the index of the quick select, because this may
+            result in an incosistent QUICK_SELECT object. Below we
+            create a new QUICK_SELECT from scratch so that all its
+            parameres are set correctly by the range optimizer.
+           */
+          key_map new_ref_key_map;
+          new_ref_key_map.clear_all();  /* Force the creation of quick select */
+          new_ref_key_map.set_bit(new_ref_key); /* only for new_ref_key.      */
+
+          if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
+                                        (tab->join->select_options & OPTION_FOUND_ROWS) ?
+                                        HA_POS_ERROR : tab->join->unit->select_limit_cnt) <= 0)
+            DBUG_RETURN(0);
 	}
-	ref_key= new_ref_key;
+        ref_key= new_ref_key;
       }
     }
     /* Check if we get the rows in requested sorted order by using the key */
