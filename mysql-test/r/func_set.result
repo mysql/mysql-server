@@ -27,4 +27,4 @@ find_in_set("abc","abc")	find_in_set("ab","abc")	find_in_set("abcd","abc")
 1	0	0
 select interval(null, 1, 10, 100);
 interval(null, 1, 10, 100)
-NULL
+-1
