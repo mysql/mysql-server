@@ -19,22 +19,44 @@ case "$1" in
       ;;
 esac
 
-# Parse arguments to see if caller wants the pid_file somewhere else.
 parse_arguments() {
-  for arg in "$@"; do
-    case $arg in
-      --datadir=*)  DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
+  # We only need to pass arguments through to the server if we don't
+  # handle them here.  So, we collect unrecognized options (passed on
+  # the command line) into the args variable.
+  pick_args=
+  if test "$1" = PICK-ARGS-FROM-ARGV
+  then
+    pick_args=1
+    shift
+  fi
+
+  for arg do
+    case "$arg" in
+      # these get passed explicitly to mysqld
+      --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
+      --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
-      --socket=*)   MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
-      --port=*)     MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
-      --log=*)      log=`echo "$arg" | sed -e "s;--log=;;"` ;;
-      --basedir=*)  MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
-      --user=*)     user=`echo "$arg" | sed -e "s;--user=;;"` ;;
-      --ledir=*)    ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
-      --err-log=*)  err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
+      --user=*)    user=`echo "$arg" | sed -e "s;--user=;;"` ;;
+
+      # these two might have been set in a [safe_mysqld] section of my.cnf
+      # they get passed via environment variables to safe_mysqld
+      --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --port=*)    MYSQL_TCP_PORT=`echo "$arg" | sed -e "s;--port=;;"` ;;
+
+      # safe_mysqld-specific options - must be set in my.cnf ([safe_mysqld])!
+      --ledir=*)   ledir=`echo "$arg" | sed -e "s;--ledir=;;"` ;;
+      --err-log=*) err_log=`echo "$arg" | sed -e "s;--err-log=;;"` ;;
       --open-files=*) open_files=`echo "$arg" | sed -e "s;--open-files=;;"` ;;
-      --core-file-size*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
+      --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
+      *)
+        if test -n "$pick_args"
+        then
+          # This sed command makes sure that any special chars are quoted,
+          # so the arg gets passed exactly to the server.
+          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+        fi
+        ;;
     esac
   done
 }
@@ -60,26 +82,32 @@ else
   ledir=@libexecdir@
 fi
 
-pid_file=$DATADIR/`@HOSTNAME@`.pid
 MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
 MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
-log=$DATADIR/`@HOSTNAME@`.log
-err_log=$DATADIR/`@HOSTNAME@`.err
 user=@MYSQLD_USER@
+
+# these rely on $DATADIR by default, so we'll set them later on
+pid_file=
+err_log=
 
 # Get first arguments from the my.cfg file, groups [mysqld] and [safe_mysqld]
 # and then merge with the command line arguments
-if test -x ./bin/my_print_defaults; then
+if test -x ./bin/my_print_defaults
+then
   print_defaults="./bin/my_print_defaults"
-elif test -x @bindir@/my_print_defaults; then
+elif test -x @bindir@/my_print_defaults
+then
   print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults; then
+elif test -x @bindir@/mysql_print_defaults
+then
   print_defaults="@bindir@/mysql_print_defaults"
 else
   print_defaults="my_print_defaults"
 fi
+
+args=
 parse_arguments `$print_defaults $defaults mysqld safe_mysqld`
-parse_arguments "$@"
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 if test ! -x $ledir/mysqld
 then
@@ -87,23 +115,28 @@ then
   echo "Please do a cd to the mysql installation directory and restart"
   echo "this script from there as follows:"
   echo "./bin/safe_mysqld".
-  exit 1;
+  exit 1
 fi
+
+test -z "$pid_file" && pid_file=$DATADIR/`@HOSTNAME@`.pid
+test -z "$err_log"  && err_log=$DATADIR/`@HOSTNAME@`.err
+
+export MYSQL_UNIX_PORT
+export MYSQL_TCP_PORT
 
 
 NOHUP_NICENESS="nohup"
 if test -w /
 then
   NOHUP_NICENESS=`nohup nice 2>&1`
- if test $? -eq 0 && test x"$NOHUP_NICENESS" != x0 && nice --1 echo foo > /dev/null 2>&1; then
+ if test $? -eq 0 && test x"$NOHUP_NICENESS" != x0 && nice --1 echo foo > /dev/null 2>&1
+ then
     NOHUP_NICENESS="nice --$NOHUP_NICENESS nohup"
   else
     NOHUP_NICENESS="nohup"
   fi
 fi
 
-export MYSQL_UNIX_PORT
-export MYSQL_TCP_PORT
 if test -w /
 then
   # If we are root, change the err log to the right user.
@@ -130,7 +163,7 @@ then
     then    # The pid contains a mysqld process
       echo "A mysqld process already exists"
       echo "A mysqld process already exists at " `date` >> $err_log
-      exit 1;
+      exit 1
     fi
   fi
   rm -f $pid_file
@@ -140,7 +173,7 @@ then
     echo "Fatal error: Can't remove the pid file: $pid_file at " `date` >> $err_log
     echo "Please remove it manually and start $0 again"
     echo "mysqld daemon not started"
-    exit 1;
+    exit 1
   fi
 fi
 
@@ -164,16 +197,17 @@ echo "`date +'%y%m%d %H:%M:%S  mysqld started'`" >> $err_log
 while true
 do
   rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
-  if test "$#" -eq 0
+  if test -z "$args"
   then
-    (trap "" 1 ; exec $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1 )
+    $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
   else
-    (trap "" ; exec $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ "$@" >> $err_log 2>&1 )
+    eval "$NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
   fi
   if test ! -f $pid_file		# This is removed if normal shutdown
   then
-    break;
+    break
   fi
+
   if @IS_LINUX@
   then
     # Test if one process was hanging.
@@ -201,6 +235,7 @@ do
 	I=`expr $I + 1`
     done
   fi
+
   echo "`date +'%y%m%d %H:%M:%S  mysqld restarted'`" | tee -a $err_log
 done
 
