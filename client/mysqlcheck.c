@@ -112,9 +112,8 @@ static void usage(void)
 {
   print_version();
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free");
-  puts("software and you are welcome to modify and redistribute it");
-  puts("under the GPL license.\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
+  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used same time. It works on MyISAM and in some cases on BDB tables.");
