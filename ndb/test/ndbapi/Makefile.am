@@ -11,7 +11,6 @@ flexBench \
 flexHammer \
 flexScan \
 flexTT \
-flexTimedAsynch \
 testBackup \
 testBasic \
 testBasicAsynch \
@@ -31,6 +30,7 @@ testTimeout \
 testTransactions \
 test_event
 
+#flexTimedAsynch
 #testBlobs
 #flex_bench_mysql
 
@@ -42,7 +42,7 @@ flexBench_SOURCES = flexBench.cpp
 flexHammer_SOURCES = flexHammer.cpp
 flexScan_SOURCES = flexScan.cpp
 flexTT_SOURCES = flexTT.cpp
-flexTimedAsynch_SOURCES = flexTimedAsynch.cpp
+#flexTimedAsynch_SOURCES = flexTimedAsynch.cpp
 #flex_bench_mysql_SOURCES = flex_bench_mysql.cpp
 testBackup_SOURCES = testBackup.cpp
 testBasic_SOURCES = testBasic.cpp
