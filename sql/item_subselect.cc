@@ -32,11 +32,22 @@ SUBSELECT TODO:
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
-			       select_subselect *result):
+Item_subselect::Item_subselect():
   Item(), engine_owner(1), value_assigned(0)
 {
-  DBUG_ENTER("Item_subselect::Item_subselect");
+  assign_null();
+  /*
+    item value is NULL if select_subselect not changed this value 
+    (i.e. some rows will be found returned)
+  */
+  null_value= 1;
+}
+
+void Item_subselect::init(THD *thd, st_select_lex *select_lex,
+		     select_subselect *result)
+{
+
+  DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
 
   if (select_lex->next_select())
@@ -45,12 +56,6 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
   else
     engine= new subselect_single_select_engine(thd, select_lex, result,
 					       this);
-  assign_null();
-  /*
-    item value is NULL if select_subselect not changed this value 
-    (i.e. some rows will be found returned)
-  */
-  null_value= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -100,8 +105,9 @@ inline table_map Item_subselect::used_tables() const
 
 Item_singleval_subselect::Item_singleval_subselect(THD *thd,
 						   st_select_lex *select_lex):
-  Item_subselect(thd, select_lex, new select_singleval_subselect(this))
+  Item_subselect()
 {
+  init(thd, select_lex, new select_singleval_subselect(this));
   max_columns= 1;
   maybe_null= 1;
 }
@@ -149,8 +155,9 @@ String *Item_singleval_subselect::val_str (String *str)
 
 Item_exists_subselect::Item_exists_subselect(THD *thd,
 					     st_select_lex *select_lex):
-  Item_subselect(thd, select_lex, new select_exists_subselect(this))
+  Item_subselect()
 {
+  init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= 0; //can't be NULL
   maybe_null= 0; //can't be NULL
