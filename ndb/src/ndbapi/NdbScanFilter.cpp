@@ -414,17 +414,17 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
 		   const void *val, Uint32 len)
 {
   switch(cond){
-  case LE:
+  case COND_LE:
     return m_impl.cond_col_const(Interpreter::LE, ColId, val, len);
-  case LT:
+  case COND_LT:
     return m_impl.cond_col_const(Interpreter::LT, ColId, val, len);
-  case GE:
+  case COND_GE:
     return m_impl.cond_col_const(Interpreter::GE, ColId, val, len);
-  case GT:
+  case COND_GT:
     return m_impl.cond_col_const(Interpreter::GT, ColId, val, len);
-  case EQ:
+  case COND_EQ:
     return m_impl.cond_col_const(Interpreter::EQ, ColId, val, len);
-  case NE:
+  case COND_NE:
     return m_impl.cond_col_const(Interpreter::NE, ColId, val, len);
   }
   return -1;
