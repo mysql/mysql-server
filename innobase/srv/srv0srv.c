@@ -1631,6 +1631,7 @@ srv_init(void)
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		slot = srv_table_get_nth_slot(i);
 		slot->in_use = FALSE;
+		slot->type=0;			/* Avoid purify errors */
 		slot->event = os_event_create(NULL);
 		ut_a(slot->event);
 	}
@@ -1899,7 +1900,6 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	srv_conc_slot_t*	slot	= NULL;
 
 	if (srv_thread_concurrency >= 500) {
 	
@@ -2514,11 +2514,11 @@ loop:
 		can drop tables lazily after there no longer are SELECT
 		queries to them. */
 
-		srv_main_thread_op_info = "doing background drop tables";
+		srv_main_thread_op_info = (char*) "doing background drop tables";
 
 		row_drop_tables_for_mysql_in_background();
 
-		srv_main_thread_op_info = "";
+		srv_main_thread_op_info = (char*) "";
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
@@ -2630,19 +2630,19 @@ background_loop:
 	/* In this loop we run background operations when the server
 	is quiet and we also come here about once in 10 seconds */
 
-	srv_main_thread_op_info = "doing background drop tables";
+	srv_main_thread_op_info = (char*) "doing background drop tables";
 
 	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
 
-	srv_main_thread_op_info = "";
+	srv_main_thread_op_info = (char*) "";
 	
-	srv_main_thread_op_info = "flushing buffer pool pages";
+	srv_main_thread_op_info = (char*) "flushing buffer pool pages";
 
 	/* Flush a few oldest pages to make the checkpoint younger */
 
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 10, ut_dulint_max);
 
-	srv_main_thread_op_info = "making checkpoint";
+	srv_main_thread_op_info = (char*) "making checkpoint";
 
 	/* Make a new checkpoint about once in 10 seconds */
 

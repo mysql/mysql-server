@@ -80,10 +80,10 @@ static int find_uniq_filename(char *name)
   DBUG_RETURN(0);
 }
 
-MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
-			name(0), log_type(LOG_CLOSED),write_error(0),
-			inited(0), file_id(1),no_rotate(0),
-			need_start_event(1),bytes_written(0)
+MYSQL_LOG::MYSQL_LOG()
+  :bytes_written(0), last_time(0), query_start(0), index_file(-1), name(0),
+   file_id(1), open_count(1), log_type(LOG_CLOSED), write_error(0), inited(0),
+   no_rotate(0), need_start_event(1)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -173,8 +173,10 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   File file= -1;
   bool do_magic;
   int open_flags = O_CREAT | O_APPEND | O_BINARY;
+  DBUG_ENTER("MYSQL_LOG::open");
+
   if (!inited && log_type_arg == LOG_BIN && *fn_ext(log_name))
-      no_rotate = 1;
+    no_rotate = 1;
   init(log_type_arg,io_cache_type_arg,no_auto_events_arg);
   
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
@@ -196,6 +198,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
 						&tmp_stat, MYF(0)));
   
+  open_count++;
   if ((file=my_open(log_file_name,open_flags,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
@@ -237,10 +240,10 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     bool error;
     if (do_magic)
     {
-      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4) ||
-	open_index(O_APPEND | O_RDWR | O_CREAT))
+      if (my_b_write(&log_file, (byte*) BINLOG_MAGIC, BIN_LOG_HEADER_SIZE) ||
+	  open_index(O_APPEND | O_RDWR | O_CREAT))
         goto err;
-      bytes_written += 4;
+      bytes_written += BIN_LOG_HEADER_SIZE;
     }
 
     if (need_start_event && !no_auto_events)
@@ -262,7 +265,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       goto err;
     }
   }
-  return;
+  DBUG_VOID_RETURN;
 
 err:
   sql_print_error("Could not use %s for logging (error %d)", log_name,errno);
@@ -271,7 +274,7 @@ err:
   end_io_cache(&log_file);
   x_free(name); name=0;
   log_type=LOG_CLOSED;
-  return;
+  DBUG_VOID_RETURN;
 }
 
 int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
@@ -284,6 +287,7 @@ int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 }
 
 // if log_name is "" we stop at the first entry
+
 int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name,
 			      bool need_mutex)
 {
@@ -294,8 +298,10 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name,
   uint log_name_len = (uint) strlen(log_name);
   IO_CACHE io_cache;
 
-  // mutex needed because we need to make sure the file pointer does not move
-  // from under our feet
+  /*
+    Mutex needed because we need to make sure the file pointer does not move
+    from under our feet
+  */
   if (need_mutex)
     pthread_mutex_lock(&LOCK_index);
   if (init_io_cache(&io_cache, index_file, IO_SIZE, READ_CACHE, (my_off_t) 0,
@@ -304,7 +310,7 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name,
     error = LOG_INFO_SEEK;
     goto err;
   }
-  for(;;)
+  for (;;)
   {
     uint length;
     if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN-1)))
@@ -336,9 +342,12 @@ err:
 
 int MYSQL_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
 {
-  // mutex needed because we need to make sure the file pointer does not move
-  // from under our feet
-  if (index_file < 0) return LOG_INFO_INVALID;
+  /*
+    Mutex needed because we need to make sure the file pointer does not move
+    from under our feet
+  */
+  if (index_file < 0)
+    return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
   IO_CACHE io_cache;
@@ -382,7 +391,7 @@ int MYSQL_LOG::reset_logs(THD* thd)
     goto err;
   }
   
-  for(;;)
+  for (;;)
   {
     my_delete(linfo.log_file_name, MYF(MY_WME));
     if (find_next_log(&linfo))
@@ -490,7 +499,7 @@ err:
 		      rli->linfo.log_file_name);
       goto err2;
     }
-    rli->relay_log_pos = 4;
+    rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
     strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 	    sizeof(rli->relay_log_name));
     flush_relay_log_info(rli);
@@ -550,7 +559,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     my_off_t init_purge_offset= my_b_tell(&io_cache);
     if (!(fname_len=my_b_gets(&io_cache, fname, FN_REFLEN)))
     {
-      if(!io_cache.error)
+      if (!io_cache.error)
 	break;
       error = LOG_INFO_IO;
       goto err;
@@ -993,8 +1002,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
   
   if (is_open())
   {
+    /*
+      We come here when the queries to be logged could not fit into memory
+      and part of the queries are stored in a log file on disk.
+    */
+
     uint length;
-    //QQ: this looks like a bug - why READ_CACHE?
+    /* Read from the file used to cache the queries .*/
     if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     {
       sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
@@ -1003,6 +1017,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     length=my_b_bytes_in_cache(cache);
     do
     {
+      /* Write data to the binary log file */
       if (my_b_write(&log_file, cache->read_pos, length))
       {
 	if (!write_error)
@@ -1168,18 +1183,22 @@ void MYSQL_LOG:: wait_for_update(THD* thd)
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
 					"Slave: waiting for binlog update");
   pthread_cond_wait(&update_cond, &LOCK_log);
-  // this is not a bug - we unlock the mutex for the caller, and expect him
-  // to lock it and then not unlock it upon return. This is a rather odd
-  // way of doing things, but this is the cleanest way I could think of to
-  // solve the race deadlock caused by THD::awake() first acquiring mysys_var
-  // mutex and then the current mutex, while wait_for_update being called with
-  // the current mutex already aquired and THD::exit_cond() trying to acquire
-  // mysys_var mutex. We do need the mutex to be acquired prior to the
-  // invocation of wait_for_update in all cases, so mutex acquisition inside
-  // wait_for_update() is not an option
+  /*
+    This is not a bug:
+    We unlock the mutex for the caller, and expect him to lock it and
+    then not unlock it upon return. This is a rather odd way of doing
+    things, but this is the cleanest way I could think of to solve the
+    race deadlock caused by THD::awake() first acquiring mysys_var
+    mutex and then the current mutex, while wait_for_update being
+    called with the current mutex already aquired and THD::exit_cond()
+    trying to acquire mysys_var mutex. We do need the mutex to be
+    acquired prior to the invocation of wait_for_update in all cases,
+    so mutex acquisition inside wait_for_update() is not an option.
+  */
   pthread_mutex_unlock(&LOCK_log);
   thd->exit_cond(old_msg);
 }  
+
 
 void MYSQL_LOG::close(bool exiting)
 {					// One can't set log_type here!

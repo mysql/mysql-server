@@ -2891,6 +2891,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
+  case FIELD_TYPE_GEOMETRY:
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
