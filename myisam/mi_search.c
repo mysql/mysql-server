@@ -795,9 +795,9 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 	uint length=(uint) (end-a), a_length=length, b_length=length;
 	if (!(nextflag & SEARCH_PREFIX))
 	{
-	  while (a_length && (a[a_length-1] == ' ' || a[a_length-1] == '\t'))
+	  while (a_length && a[a_length-1] == ' ')
 	    a_length--;
-	  while (b_length && (b[b_length-1] == ' ' || b[b_length-1] == '\t'))
+	  while (b_length && b[b_length-1] == ' ')
 	    b_length--;
 	}
         if (piks &&
@@ -849,9 +849,9 @@ int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
 
 	if (!(nextflag & (SEARCH_PREFIX | SEARCH_UPDATE)))
 	{
-	  while (a_length && (a[a_length-1] == ' ' || a[a_length-1] == '\t'))
+	  while (a_length && a[a_length-1] == ' ')
 	    a_length--;
-	  while (b_length && (b[b_length-1] == ' ' || b[b_length-1] == '\t'))
+	  while (b_length && b[b_length-1] == ' ')
 	    b_length--;
 	}
         if (piks &&

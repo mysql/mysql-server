@@ -1858,3 +1858,19 @@ left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 
 drop table t1,t2,t3,t4;
 
+#
+# Bug #2298
+#
+
+create table t1(s varchar(10) not null);
+create table t2(s varchar(10) not null primary key);
+create table t3(s varchar(10) not null primary key);
+insert into t1 values ('one\t'), ('two\t');
+insert into t2 values ('one\r'), ('two\t');
+insert into t3 values ('one '), ('two\t');
+select * from t1 where s = 'one';
+select * from t2 where s = 'one';
+select * from t3 where s = 'one';
+select * from t1,t2 where t1.s = t2.s;
+select * from t2,t3 where t2.s = t3.s;
+drop table t1, t2, t3;
