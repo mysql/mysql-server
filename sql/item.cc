@@ -2629,6 +2629,14 @@ String *Item_type_holder::val_str(String*)
   return 0;
 }
 
+void Item_result_field::cleanup()
+{
+  DBUG_ENTER("Item_result_field::cleanup()");
+  Item::cleanup();
+  result_field= 0;
+  DBUG_VOID_RETURN;
+}
+
 /*****************************************************************************
 ** Instantiate templates
 *****************************************************************************/

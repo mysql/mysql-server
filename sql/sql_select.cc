@@ -4940,7 +4940,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       ((Item_sum*) item)->result_field=0;
       for (i=0 ; i < ((Item_sum*) item)->arg_count ; i++)
       {
-	Item *arg= ((Item_sum*) item)->args[i];
+	Item **argp= ((Item_sum*) item)->args + i;
+	Item *arg= *argp;
 	if (!arg->const_item())
 	{
 	  Field *new_field=
@@ -4956,7 +4957,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+          thd->register_item_tree_change(argp, arg, &thd->mem_root);
+	  *argp= new Item_field(new_field);
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -4964,7 +4966,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            ((Item_sum*) item)->args[i]->maybe_null=1;
+            (*argp)->maybe_null=1;
           }
 	}
       }
