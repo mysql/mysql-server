@@ -491,6 +491,7 @@ extern "C" {
    */
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
+  const char * ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
