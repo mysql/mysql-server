@@ -561,7 +561,7 @@ public:
     Uint32 expectedTransIdAI;
     AttributeBuffer transIdAI; // For accumulating TransId_AI
     
-    TcIndxReq tcIndxReq;
+    TcKeyReq tcIndxReq;
     UintR connectionIndex;
     UintR indexReadTcConnect; //
     
@@ -897,11 +897,11 @@ public:
     UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
     
     Uint8  distributionKeyIndicator;
-    Uint8  distributionGroupIndicator;
-    Uint8  distributionGroupType;
+    Uint8  unused1;
+    Uint8  unused2;
     Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
 
-    Uint8  distributionKey;
+    Uint8  fragmentDistributionKey;  /* DIH generation no */
 
     /**
      * EXECUTION MODE OF OPERATION                    
@@ -925,9 +925,9 @@ public:
     // Second 16 byte cache line in second 64 byte cache
     // line. Diverse use.
     //---------------------------------------------------
-    UintR  distributionGroup;
+    UintR  distributionKey;
     UintR  nextCacheRec;
-    UintR  distributionKeySize;
+    UintR  unused3;
     Uint32 scanInfo;
     
     //---------------------------------------------------

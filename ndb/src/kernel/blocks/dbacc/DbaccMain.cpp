@@ -9272,7 +9272,7 @@ void Dbacc::initFragAdd(Signal* signal,
   }//if
   regFragPtr.p->fragState = ACTIVEFRAG;
   // NOTE: next line must match calculation in Dblqh::execLQHFRAGREQ
-  regFragPtr.p->myfid = (rootFragIndex << (lhFragBits - 1)) | req->fragId;
+  regFragPtr.p->myfid = (req->fragId << 1) | rootFragIndex;
   regFragPtr.p->myroot = rootIndex;
   regFragPtr.p->myTableId = req->tableId;
   ndbrequire(req->kValue == 6);
