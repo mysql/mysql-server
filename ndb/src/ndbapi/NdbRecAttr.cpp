@@ -271,12 +271,24 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 	break;
       case NdbDictionary::Column::Date:
         {
-          uint tmp=uint3korr(r.aRef());
-          int year=(int) ((uint32) tmp/10000L % 10000);
-          int month=(int) ((uint32) tmp/100 % 100);
-          int day=(int) ((uint32) tmp % 100);
+          uint32 tmp=(uint32) uint3korr(r.aRef());
+          int part;
           char buf[40];
-          sprintf(buf, "%04d-%02d-%02d", year, month, day);
+          char *pos=(char*) buf+10;
+          *pos--=0;
+          part=(int) (tmp & 31);
+          *pos--= (char) ('0'+part%10);
+          *pos--= (char) ('0'+part/10);
+          *pos--= '-';
+          part=(int) (tmp >> 5 & 15);
+          *pos--= (char) ('0'+part%10);
+          *pos--= (char) ('0'+part/10);
+          *pos--= '-';
+          part=(int) (tmp >> 9);
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos=   (char) ('0'+part);
           out << buf;
         }
 	break;
