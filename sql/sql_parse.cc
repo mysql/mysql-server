@@ -1765,7 +1765,7 @@ mysql_execute_command(void)
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
       {
 	net_printf(&thd->net,ER_WRONG_TABLE_NAME,lex->name);
-	res=0;
+	res= 1;
 	break;
       }
       if (!select_lex->db)
