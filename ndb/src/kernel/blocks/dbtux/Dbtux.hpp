@@ -102,11 +102,6 @@ private:
   // sizes are in words (Uint32)
   static const unsigned MaxIndexFragments = 2 * NO_OF_FRAG_PER_NODE;
   static const unsigned MaxIndexAttributes = MAX_ATTRIBUTES_IN_INDEX;
-#ifdef VM_TRACE
-  static const unsigned MaxNodeHandles = 10000; // More space for printTree
-#else
-  static const unsigned MaxNodeHandles = 128;   // enough for 1 operation
-#endif
   static const unsigned MaxAttrDataSize = 2048;
 public:
   static const unsigned DescPageSize = 256;
@@ -179,7 +174,7 @@ private:
   };
 
   /*
-   * There is no const variable NullTupLoc since the compiler may not be
+   * There is no const member NullTupLoc since the compiler may not be
    * able to optimize it to TupLoc() constants.  Instead null values are
    * constructed on the stack with TupLoc().
    */
@@ -462,8 +457,7 @@ private:
     Uint16 m_descOff;
     Uint16 m_numAttrs;
     TreeHead m_tree;
-    Uint32 m_nodeList;          // node cache of current operation
-    Uint32 m_nodeFree;          // one node pre-allocated for insert
+    TupLoc m_freeLoc;           // one node pre-allocated for insert
     DLList<ScanOp> m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI[2];
@@ -498,9 +492,8 @@ private:
   // node handles
 
   /*
-   * A tree operation builds a cache of accessed nodes.  This allows
-   * different implementations of index memory access.  The cache is
-   * committed and released at the end of the operation.
+   * A node handle is a reference to a tree node in TUP.  It is used to
+   * operate on the node.  Node handles are allocated on the stack.
    */
   struct NodeHandle;
   friend struct NodeHandle;
@@ -509,11 +502,9 @@ private:
     TupLoc m_loc;               // physical node address
     TreeNode* m_node;           // pointer to node storage
     AccSize m_acc;              // accessed size
-    union {
-    Uint32 m_next;              // next active node under fragment
-    Uint32 nextPool;
-    };
     NodeHandle(Frag& frag);
+    NodeHandle(const NodeHandle& node);
+    NodeHandle& operator=(const NodeHandle& node);
     // getters
     TupLoc getLink(unsigned i);
     unsigned getChilds();       // cannot spell
@@ -521,20 +512,19 @@ private:
     unsigned getOccup();
     int getBalance();
     Uint32 getNodeScan();
-    Data getPref(unsigned i);
-    TreeEnt getEnt(unsigned pos);
-    TreeEnt getMinMax(unsigned i);
     // setters
     void setLink(unsigned i, TupLoc loc);
     void setSide(unsigned i);
     void setOccup(unsigned n);
     void setBalance(int b);
     void setNodeScan(Uint32 scanPtrI);
+    // access other parts of the node
+    Data getPref(unsigned i);
+    TreeEnt getEnt(unsigned pos);
+    TreeEnt getMinMax(unsigned i);
     // for ndbrequire and ndbassert
     void progError(int line, int cause, const char* file);
   };
-  typedef Ptr<NodeHandle> NodeHandlePtr;
-  ArrayPool<NodeHandle> c_nodeHandlePool;
 
   // parameters for methods
   
@@ -563,17 +553,6 @@ private:
     Data m_data;                // set pointer if 0 else copy result to it
     unsigned m_size;            // number of words (set in read keys only)
     ReadPar();
-  };
-
-  /*
-   * Node storage operation.
-   */
-  struct StorePar {
-    TupStoreTh::OpCode m_opCode;// operation code
-    unsigned m_offset;          // data offset in words
-    unsigned m_size;            // number of words
-    Uint32 m_errorCode;         // terrorCode from TUP
-    StorePar();
   };
 
   /*
@@ -649,15 +628,12 @@ private:
   /*
    * DbtuxNode.cpp
    */
-  void seizeNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr);
-  void preallocNode(Signal* signal, Frag& frag, Uint32& errorCode);
-  void findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc);
-  void selectNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc, AccSize acc);
-  void insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
-  void deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr);
-  void accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc);
+  int allocNode(Signal* signal, NodeHandle& node);
+  void accessNode(Signal* signal, NodeHandle& node, AccSize acc);
+  void selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc);
+  void insertNode(Signal* signal, NodeHandle& node, AccSize acc);
+  void deleteNode(Signal* signal, NodeHandle& node);
   void setNodePref(Signal* signal, NodeHandle& node, unsigned i);
-  void commitNodes(Signal* signal, Frag& frag, bool updateOk);
   // node operations
   void nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent);
   void nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent);
@@ -675,8 +651,8 @@ private:
   void treeSearch(Signal* signal, Frag& frag, SearchPar searchPar, TreePos& treePos);
   void treeAdd(Signal* signal, Frag& frag, TreePos treePos, TreeEnt ent);
   void treeRemove(Signal* signal, Frag& frag, TreePos treePos);
-  void treeRotateSingle(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned i);
-  void treeRotateDouble(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned i);
+  void treeRotateSingle(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
+  void treeRotateDouble(Signal* signal, Frag& frag, NodeHandle& node, unsigned i);
 
   /*
    * DbtuxScan.cpp
@@ -1054,8 +1030,7 @@ Dbtux::Frag::Frag(ArrayPool<ScanOp>& scanOpPool) :
   m_descOff(0),
   m_numAttrs(ZNIL),
   m_tree(),
-  m_nodeList(RNIL),
-  m_nodeFree(RNIL),
+  m_freeLoc(),
   m_scanList(scanOpPool),
   m_tupIndexFragPtrI(RNIL)
 {
@@ -1086,9 +1061,27 @@ Dbtux::NodeHandle::NodeHandle(Frag& frag) :
   m_frag(frag),
   m_loc(),
   m_node(0),
-  m_acc(AccNone),
-  m_next(RNIL)
+  m_acc(AccNone)
 {
+}
+
+inline
+Dbtux::NodeHandle::NodeHandle(const NodeHandle& node) :
+  m_frag(node.m_frag),
+  m_loc(node.m_loc),
+  m_node(node.m_node),
+  m_acc(node.m_acc)
+{
+}
+
+inline Dbtux::NodeHandle&
+Dbtux::NodeHandle::operator=(const NodeHandle& node)
+{
+  ndbassert(&m_frag == &node.m_frag);
+  m_loc = node.m_loc;
+  m_node = node.m_node;
+  m_acc = node.m_acc;
+  return *this;
 }
 
 inline Dbtux::TupLoc
@@ -1128,37 +1121,6 @@ Dbtux::NodeHandle::getNodeScan()
   return m_node->m_nodeScan;
 }
 
-inline Dbtux::Data
-Dbtux::NodeHandle::getPref(unsigned i)
-{
-  TreeHead& tree = m_frag.m_tree;
-  ndbrequire(m_acc >= AccPref && i <= 1);
-  return tree.getPref(m_node, i);
-}
-
-inline Dbtux::TreeEnt
-Dbtux::NodeHandle::getEnt(unsigned pos)
-{
-  TreeHead& tree = m_frag.m_tree;
-  TreeEnt* entList = tree.getEntList(m_node);
-  const unsigned occup = m_node->m_occup;
-  ndbrequire(pos < occup);
-  if (pos == 0 || pos == occup - 1) {
-    ndbrequire(m_acc >= AccPref)
-  } else {
-    ndbrequire(m_acc == AccFull)
-  }
-  return entList[(1 + pos) % occup];
-}
-
-inline Dbtux::TreeEnt
-Dbtux::NodeHandle::getMinMax(unsigned i)
-{
-  const unsigned occup = m_node->m_occup;
-  ndbrequire(i <= 1 && occup != 0);
-  return getEnt(i == 0 ? 0 : occup - 1);
-}
-
 inline void
 Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
 {
@@ -1195,6 +1157,37 @@ Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
   m_node->m_nodeScan = scanPtrI;
 }
 
+inline Dbtux::Data
+Dbtux::NodeHandle::getPref(unsigned i)
+{
+  TreeHead& tree = m_frag.m_tree;
+  ndbrequire(m_acc >= AccPref && i <= 1);
+  return tree.getPref(m_node, i);
+}
+
+inline Dbtux::TreeEnt
+Dbtux::NodeHandle::getEnt(unsigned pos)
+{
+  TreeHead& tree = m_frag.m_tree;
+  TreeEnt* entList = tree.getEntList(m_node);
+  const unsigned occup = m_node->m_occup;
+  ndbrequire(pos < occup);
+  if (pos == 0 || pos == occup - 1) {
+    ndbrequire(m_acc >= AccPref)
+  } else {
+    ndbrequire(m_acc == AccFull)
+  }
+  return entList[(1 + pos) % occup];
+}
+
+inline Dbtux::TreeEnt
+Dbtux::NodeHandle::getMinMax(unsigned i)
+{
+  const unsigned occup = m_node->m_occup;
+  ndbrequire(i <= 1 && occup != 0);
+  return getEnt(i == 0 ? 0 : occup - 1);
+}
+
 // parameters for methods
 
 inline
@@ -1214,15 +1207,6 @@ Dbtux::ReadPar::ReadPar() :
   m_count(0),
   m_data(0),
   m_size(0)
-{
-}
-
-inline
-Dbtux::StorePar::StorePar() :
-  m_opCode(TupStoreTh::OpUndefined),
-  m_offset(0),
-  m_size(0),
-  m_errorCode(0)
 {
 }
 

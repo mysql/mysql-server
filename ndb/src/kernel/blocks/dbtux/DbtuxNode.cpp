@@ -18,161 +18,94 @@
 #include "Dbtux.hpp"
 
 /*
- * Node handles.
- *
- * Temporary version between "cache" and "pointer" implementations.
+ * Allocate index node in TUP.
  */
-
-// Dbtux
-
-void
-Dbtux::seizeNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
+int
+Dbtux::allocNode(Signal* signal, NodeHandle& node)
 {
-  if (! c_nodeHandlePool.seize(nodePtr)) {
-    jam();
-    return;
-  }
-  new (nodePtr.p) NodeHandle(frag);
-  nodePtr.p->m_next = frag.m_nodeList;
-  frag.m_nodeList = nodePtr.i;
-}
-
-void
-Dbtux::preallocNode(Signal* signal, Frag& frag, Uint32& errorCode)
-{
-  ndbrequire(frag.m_nodeFree == RNIL);
-  NodeHandlePtr nodePtr;
-  seizeNode(signal, frag, nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  // remove from cache  XXX ugly
-  frag.m_nodeFree = frag.m_nodeList;
-  frag.m_nodeList = nodePtr.p->m_next;
-  // alloc index node in TUP
+  Frag& frag = node.m_frag;
   Uint32 pageId = NullTupLoc.m_pageId;
   Uint32 pageOffset = NullTupLoc.m_pageOffset;
   Uint32* node32 = 0;
-  errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
-  if (errorCode != 0) {
+  int errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  if (errorCode == 0) {
     jam();
-    c_nodeHandlePool.release(nodePtr);
-    frag.m_nodeFree = RNIL;
-    return;
+    node.m_loc = TupLoc(pageId, pageOffset);
+    node.m_node = reinterpret_cast<TreeNode*>(node32);
+    node.m_acc = AccNone;
+    ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
   }
-  nodePtr.p->m_loc = TupLoc(pageId, pageOffset);
-  nodePtr.p->m_node = reinterpret_cast<TreeNode*>(node32);
-  ndbrequire(nodePtr.p->m_loc != NullTupLoc && nodePtr.p->m_node != 0);
-  new (nodePtr.p->m_node) TreeNode();
-#ifdef VM_TRACE
-  TreeHead& tree = frag.m_tree;
-  TreeNode* node = nodePtr.p->m_node;
-  memset(tree.getPref(node, 0), 0xa2, tree.m_prefSize << 2);
-  memset(tree.getPref(node, 1), 0xa2, tree.m_prefSize << 2);
-  TreeEnt* entList = tree.getEntList(node);
-  memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
-#endif
-}
-
-/*
- * Find node in the cache.  XXX too slow, use direct links instead
- */
-void
-Dbtux::findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc)
-{
-  NodeHandlePtr tmpPtr;
-  tmpPtr.i = frag.m_nodeList;
-  while (tmpPtr.i != RNIL) {
-    jam();
-    c_nodeHandlePool.getPtr(tmpPtr);
-    if (tmpPtr.p->m_loc == loc) {
-      jam();
-      nodePtr = tmpPtr;
-      return;
-    }
-    tmpPtr.i = tmpPtr.p->m_next;
-  }
-  nodePtr.i = RNIL;
-  nodePtr.p = 0;
-}
-
-/*
- * Get handle for existing node.
- */
-void
-Dbtux::selectNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupLoc loc, AccSize acc)
-{
-  ndbrequire(loc != NullTupLoc && acc > AccNone);
-  NodeHandlePtr tmpPtr;
-  // search in cache
-  findNode(signal, frag, tmpPtr, loc);
-  if (tmpPtr.i == RNIL) {
-    jam();
-    // add new node
-    seizeNode(signal, frag, tmpPtr);
-    ndbrequire(tmpPtr.i != RNIL);
-    tmpPtr.p->m_loc = loc;
-    Uint32 pageId = loc.m_pageId;
-    Uint32 pageOffset = loc.m_pageOffset;
-    Uint32* node32 = 0;
-    c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
-    tmpPtr.p->m_node = reinterpret_cast<TreeNode*>(node32);
-    ndbrequire(tmpPtr.p->m_loc != NullTupLoc && tmpPtr.p->m_node != 0);
-  }
-  if (tmpPtr.p->m_acc < acc) {
-    jam();
-    accessNode(signal, frag, tmpPtr, acc);
-  }
-  nodePtr = tmpPtr;
-}
-
-/*
- * Create new node in the cache using the pre-allocated node.
- */
-void
-Dbtux::insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc)
-{
-  ndbrequire(acc > AccNone);
-  NodeHandlePtr tmpPtr;
-  // use the pre-allocated node
-  tmpPtr.i = frag.m_nodeFree;
-  frag.m_nodeFree = RNIL;
-  c_nodeHandlePool.getPtr(tmpPtr);
-  // move it to the cache
-  tmpPtr.p->m_next = frag.m_nodeList;
-  frag.m_nodeList = tmpPtr.i;
-  tmpPtr.p->m_acc = acc;
-  nodePtr = tmpPtr;
-}
-
-/*
- * Delete existing node.
- */
-void
-Dbtux::deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
-{
-  NodeHandlePtr tmpPtr = nodePtr;
-  ndbrequire(tmpPtr.p->getOccup() == 0);
-  Uint32 pageId = tmpPtr.p->m_loc.m_pageId;
-  Uint32 pageOffset = tmpPtr.p->m_loc.m_pageOffset;
-  Uint32* node32 = reinterpret_cast<Uint32*>(tmpPtr.p->m_node);
-  c_tup->tuxFreeNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
-  // invalidate handle and storage
-  tmpPtr.p->m_loc = NullTupLoc;
-  tmpPtr.p->m_node = 0;
-  // scans have already been moved by nodePopDown or nodePopUp
+  return errorCode;
 }
 
 /*
  * Access more of the node.
  */
 void
-Dbtux::accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc)
+Dbtux::accessNode(Signal* signal, NodeHandle& node, AccSize acc)
 {
-  NodeHandlePtr tmpPtr = nodePtr;
-  ndbrequire(tmpPtr.p->m_loc != NullTupLoc && tmpPtr.p->m_node != 0);
-  if (tmpPtr.p->m_acc >= acc)
+  ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
+  if (node.m_acc >= acc)
     return;
   // XXX could do prefetch
-  tmpPtr.p->m_acc = acc;
+  node.m_acc = acc;
+}
+
+/*
+ * Set handle to point to existing node.
+ */
+void
+Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
+{
+  Frag& frag = node.m_frag;
+  ndbrequire(loc != NullTupLoc);
+  Uint32 pageId = loc.m_pageId;
+  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32* node32 = 0;
+  c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  node.m_loc = loc;
+  node.m_node = reinterpret_cast<TreeNode*>(node32);
+  node.m_acc = AccNone;
+  ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
+  accessNode(signal, node, acc);
+}
+
+/*
+ * Set handle to point to new node.  Uses the pre-allocated node.
+ */
+void
+Dbtux::insertNode(Signal* signal, NodeHandle& node, AccSize acc)
+{
+  Frag& frag = node.m_frag;
+  TupLoc loc = frag.m_freeLoc;
+  frag.m_freeLoc = NullTupLoc;
+  selectNode(signal, node, loc, acc);
+  new (node.m_node) TreeNode();
+#ifdef VM_TRACE
+  TreeHead& tree = frag.m_tree;
+  memset(tree.getPref(node.m_node, 0), 0xa2, tree.m_prefSize << 2);
+  memset(tree.getPref(node.m_node, 1), 0xa2, tree.m_prefSize << 2);
+  TreeEnt* entList = tree.getEntList(node.m_node);
+  memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
+#endif
+}
+
+/*
+ * Delete existing node.
+ */
+void
+Dbtux::deleteNode(Signal* signal, NodeHandle& node)
+{
+  Frag& frag = node.m_frag;
+  ndbrequire(node.getOccup() == 0);
+  TupLoc loc = node.m_loc;
+  Uint32 pageId = loc.m_pageId;
+  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
+  c_tup->tuxFreeNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  // invalidate handle and storage
+  node.m_loc = NullTupLoc;
+  node.m_node = 0;
 }
 
 /*
@@ -199,25 +132,6 @@ Dbtux::setNodePref(Signal* signal, NodeHandle& node, unsigned i)
   copyPar.m_maxwords = tree.m_prefSize;
   Data pref = node.getPref(i);
   copyAttrs(pref, readPar.m_data, copyPar);
-}
-
-/*
- * Commit and release nodes at the end of an operation.  Used also on
- * error since no changes have been made (updateOk false).
- */
-void
-Dbtux::commitNodes(Signal* signal, Frag& frag, bool updateOk)
-{
-  NodeHandlePtr nodePtr;
-  nodePtr.i = frag.m_nodeList;
-  frag.m_nodeList = RNIL;
-  while (nodePtr.i != RNIL) {
-    c_nodeHandlePool.getPtr(nodePtr);
-    // release
-    NodeHandlePtr tmpPtr = nodePtr;
-    nodePtr.i = nodePtr.p->m_next;
-    c_nodeHandlePool.release(tmpPtr);
-  }
 }
 
 // node operations

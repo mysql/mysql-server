@@ -106,13 +106,11 @@ Dbtux::printTree(Signal* signal, Frag& frag, NdbOut& out)
       signal->theData[1] = 1;
       execDUMP_STATE_ORD(signal);
       if (debugFile != 0) {
-        commitNodes(signal, frag, false);
         printTree(signal, frag, debugOut);
       }
     }
     ndbrequire(false);
   }
-  commitNodes(signal, frag, false);
 }
 
 void
@@ -123,9 +121,9 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     return;
   }
   TreeHead& tree = frag.m_tree;
-  NodeHandlePtr nodePtr;
-  selectNode(signal, frag, nodePtr, loc, AccFull);
-  out << par.m_path << " " << *nodePtr.p << endl;
+  NodeHandle node(frag);
+  selectNode(signal, node, loc, AccFull);
+  out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
   ndbrequire(strlen(par.m_path) + 1 < sizeof(par.m_path));
@@ -134,56 +132,56 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
     cpar[i].m_side = i;
     cpar[i].m_depth = 0;
     cpar[i].m_parent = loc;
-    printNode(signal, frag, out, nodePtr.p->getLink(i), cpar[i]);
+    printNode(signal, frag, out, node.getLink(i), cpar[i]);
     if (! cpar[i].m_ok) {
       par.m_ok = false;
     }
   }
   // check child-parent links
-  if (nodePtr.p->getLink(2) != par.m_parent) {
+  if (node.getLink(2) != par.m_parent) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "parent loc " << hex << nodePtr.p->getLink(2);
+    out << "parent loc " << hex << node.getLink(2);
     out << " should be " << hex << par.m_parent << endl;
   }
-  if (nodePtr.p->getSide() != par.m_side) {
+  if (node.getSide() != par.m_side) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "side " << dec << nodePtr.p->getSide();
+    out << "side " << dec << node.getSide();
     out << " should be " << dec << par.m_side << endl;
   }
   // check balance
   const int balance = -cpar[0].m_depth + cpar[1].m_depth;
-  if (nodePtr.p->getBalance() != balance) {
+  if (node.getBalance() != balance) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "balance " << nodePtr.p->getBalance();
+    out << "balance " << node.getBalance();
     out << " should be " << balance << endl;
   }
-  if (abs(nodePtr.p->getBalance()) > 1) {
+  if (abs(node.getBalance()) > 1) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "balance " << nodePtr.p->getBalance() << " is invalid" << endl;
+    out << "balance " << node.getBalance() << " is invalid" << endl;
   }
   // check occupancy
-  if (nodePtr.p->getOccup() > tree.m_maxOccup) {
+  if (node.getOccup() > tree.m_maxOccup) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "occupancy " << nodePtr.p->getOccup();
+    out << "occupancy " << node.getOccup();
     out << " greater than max " << tree.m_maxOccup << endl;
   }
   // check for occupancy of interior node
-  if (nodePtr.p->getChilds() == 2 && nodePtr.p->getOccup() < tree.m_minOccup) {
+  if (node.getChilds() == 2 && node.getOccup() < tree.m_minOccup) {
     par.m_ok = false;
     out << par.m_path << " *** ";
-    out << "occupancy " << nodePtr.p->getOccup() << " of interior node";
+    out << "occupancy " << node.getOccup() << " of interior node";
     out << " less than min " << tree.m_minOccup << endl;
   }
   // check missed half-leaf/leaf merge
   for (unsigned i = 0; i <= 1; i++) {
-    if (nodePtr.p->getLink(i) != NullTupLoc &&
-        nodePtr.p->getLink(1 - i) == NullTupLoc &&
-        nodePtr.p->getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
+    if (node.getLink(i) != NullTupLoc &&
+        node.getLink(1 - i) == NullTupLoc &&
+        node.getOccup() + cpar[i].m_occup <= tree.m_maxOccup) {
       par.m_ok = false;
       out << par.m_path << " *** ";
       out << "missed merge with child " << i << endl;
@@ -191,7 +189,7 @@ Dbtux::printNode(Signal* signal, Frag& frag, NdbOut& out, TupLoc loc, PrintPar& 
   }
   // return values
   par.m_depth = 1 + max(cpar[0].m_depth, cpar[1].m_depth);
-  par.m_occup = nodePtr.p->getOccup();
+  par.m_occup = node.getOccup();
 }
 
 NdbOut&
