@@ -24,10 +24,8 @@
 #define main main1
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
-#if !defined(__WIN__)
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
-#endif
 #define changeable_vars changeable_vars1
 
 extern "C"
