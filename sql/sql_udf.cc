@@ -378,7 +378,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
 
   rw_wrlock(&THR_LOCK_udf);
-  if ((hash_search(&udf_hash,(byte*) &udf->name, udf->name.length)))
+  if ((hash_search(&udf_hash,(byte*) &udf->name.str, udf->name.length)))
   {
     net_printf(thd, ER_UDF_EXISTS, udf->name);
     goto err;
