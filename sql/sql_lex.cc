@@ -1097,6 +1097,16 @@ void st_select_lex_node::exclude()
   */
 }
 
+
+/*
+  Exclude level of current unit from tree of SELECTs
+
+  SYNOPSYS
+    st_select_lex_unit::exclude_level()
+
+  NOTE: units which belong to current will be brought up on level of
+  currernt unit 
+*/
 void st_select_lex_unit::exclude_level()
 {
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
@@ -1125,6 +1135,30 @@ void st_select_lex_unit::exclude_level()
     (*prev)= next;
 }
 
+
+/*
+  Exclude subtree of current unit from tree of SELECTs
+
+  SYNOPSYS
+    st_select_lex_unit::exclude_tree()
+*/
+void st_select_lex_unit::exclude_tree()
+{
+  SELECT_LEX_UNIT *units= 0, **units_last= &units;
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    if (sl->link_prev && (*sl->link_prev= sl->link_next))
+      sl->link_next->link_prev= sl->link_prev;
+
+    for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
+    {
+      u->exclude_level();
+    }
+  }
+  (*prev)= next;
+}
+
+
 /*
   st_select_lex_node::mark_as_dependent mark all st_select_lex struct from 
   this to 'last' as dependent
@@ -1135,7 +1169,6 @@ void st_select_lex_unit::exclude_level()
 
   NOTE
     'last' should be reachable from this st_select_lex_node
-
 */
 
 void st_select_lex::mark_as_dependent(SELECT_LEX *last)
