@@ -2264,25 +2264,23 @@ void Field_longlong::sql_type(String &res) const
   add_zerofill_and_unsigned(res);
 }
 
+
 /****************************************************************************
-** single precision float
+  single precision float
 ****************************************************************************/
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
+  int error;
   char *end;
-  double nr= my_strntod(cs,(char*) from,len,&end,&err);
-  if (!err && (!current_thd->count_cuted_fields || end-from==len))
+  double nr= my_strntod(cs,(char*) from,len,&end,&error);
+  if (error || ((uint) (end-from) != len && current_thd->count_cuted_fields))
   {
-    return Field_float::store(nr);
-  }
-  else
-  {
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    Field_float::store(nr);
-    return 1;
   }
+  Field_float::store(nr);
+  return error;
 }
 
 
@@ -2562,25 +2560,23 @@ void Field_float::sql_type(String &res) const
   add_zerofill_and_unsigned(res);
 }
 
+
 /****************************************************************************
-** double precision floating point numbers
+  double precision floating point numbers
 ****************************************************************************/
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
+  int error;
   char *end;
-  double nr= my_strntod(cs,(char*) from,len,&end,&err);  
-  if (!err && (!current_thd->count_cuted_fields || end-from==len))
+  double nr= my_strntod(cs,(char*) from, len, &end, &error);
+  if (error || ((uint) (end-from) != len && current_thd->count_cuted_fields))
   {
-    return Field_double::store(nr);
-  }
-  else
-  {
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    Field_double::store(nr);
-    return 1;
   }
+  Field_double::store(nr);
+  return error;
 }
 
 

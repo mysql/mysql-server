@@ -117,6 +117,7 @@ static bool end_active_trans(THD *thd)
 }
 
 
+#ifdef HAVE_REPLICATION
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 {
   return (table_rules_on && tables && !tables_ok(thd,tables) &&
@@ -124,6 +125,7 @@ inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
            !tables_ok(thd,
 		      (TABLE_LIST *)thd->lex->auxilliary_table_list.first)));
 }
+#endif
 
 
 static HASH hash_user_connections;
@@ -3961,6 +3963,8 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
   DBUG_VOID_RETURN;
 }
 
+
+#ifdef HAVE_REPLICATION
 /*
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
@@ -3985,7 +3989,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 
   return error;
 }
-
+#endif
 
 /*****************************************************************************
 ** Store field definition for create

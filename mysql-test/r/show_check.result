@@ -89,8 +89,8 @@ create table t1 (
 test_set set( 'val1', 'val2', 'val3' ) not null default '',
 name char(20) default 'O''Brien' comment 'O''Brien as default',
 c int not null comment 'int column',
-`c-b` int comment 'name with a space',
-`space ` int comment 'name with a space',
+`c-b` int comment 'name with a minus',
+`space 2` int comment 'name with a space',
 ) comment = 'it\'s a table' ;
 show create table t1;
 Table	Create Table
@@ -98,8 +98,8 @@ t1	CREATE TABLE `t1` (
   `test_set` set('val1','val2','val3') NOT NULL default '',
   `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
   `c` int(11) NOT NULL default '0' COMMENT 'int column',
-  `c-b` int(11) default NULL COMMENT 'name with a space',
-  `space ` int(11) default NULL COMMENT 'name with a space'
+  `c-b` int(11) default NULL COMMENT 'name with a minus',
+  `space 2` int(11) default NULL COMMENT 'name with a space'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
 set sql_quote_show_create=0;
 show create table t1;
@@ -108,8 +108,8 @@ t1	CREATE TABLE t1 (
   test_set set('val1','val2','val3') NOT NULL default '',
   name char(20) default 'O''Brien' COMMENT 'O''Brien as default',
   c int(11) NOT NULL default '0' COMMENT 'int column',
-  `c-b` int(11) default NULL COMMENT 'name with a space',
-  `space ` int(11) default NULL COMMENT 'name with a space'
+  `c-b` int(11) default NULL COMMENT 'name with a minus',
+  `space 2` int(11) default NULL COMMENT 'name with a space'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
 set sql_quote_show_create=1;
 show full columns from t1;
@@ -117,8 +117,8 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 test_set	set('val1','val2','val3')	latin1_swedish_ci					select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
 c	int(11)	NULL			0		select,insert,update,references	int column
-c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
-space 	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
+c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
+space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
 drop table t1;
 create table t1 (a int not null, unique aa (a));
 show create table t1;

@@ -352,11 +352,9 @@ drop table t1,t2;
 CREATE TABLE t1 ( a int );
 CREATE TABLE t2 ( a int );
 DELETE t1 FROM t1, t2 AS t3;
---error 1066
 DELETE t4 FROM t1, t1 AS t4;
---error 1066
 DELETE t3 FROM t1 AS t3, t1 AS t4;
-#--error 1066
+--error 1066
 DELETE t1 FROM t1 AS t3, t2 AS t4;
 INSERT INTO t1 values (1),(2);
 INSERT INTO t2 values (1),(2);
