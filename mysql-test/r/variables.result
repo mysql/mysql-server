@@ -44,3 +44,17 @@ c_id	c_name	c_country
 1	Bozo	USA
 4	Mr. Floppy	GB
 drop table t1;
+select @@VERSION=version();
+@@VERSION=version()
+1
+select last_insert_id(345);
+last_insert_id(345)
+345
+select @@IDENTITY,last_insert_id();
+@@IDENTITY	last_insert_id()
+345	345
+select @@identity;
+@@IDENTITY
+345
+select @@unknown_variable;
+Unknown system variable 'unknown_variable'

@@ -30373,6 +30373,9 @@ stored into a temporary table) is calculated in MySQL Version
 @item expr2 or expr3 returns an integer @tab integer
 @end multitable
 
+If expr2 and expr3 are strings, then the result is case sensitive if
+both strings are case sensitive. (Starting from 3.23.51)
+
 @findex CASE
 @item CASE value WHEN [compare-value] THEN result [WHEN [compare-value] THEN result ...] [ELSE result] END
 @item CASE WHEN [condition] THEN result [WHEN [condition] THEN result ...] [ELSE result] END
@@ -35268,6 +35271,9 @@ Note that if you use any other option to @code{ALTER TABLE} than
 if the data wouldn't strictly need to be copied (like when you change the
 name of a column). We plan to fix this in the future, but as one doesn't
 normally do @code{ALTER TABLE} that often this isn't that high on our TODO.
+For MyISAM tables, you can speed up the index recreation part (which is the
+slowest part of the recreation process) by setting the
+@code{myisam_sort_buffer_size} variable to a high value.
 
 @itemize @bullet
 @item
@@ -45806,9 +45812,6 @@ Another common reason to receive the @code{MySQL server has gone away} error
 is because you have issued a ``close'' on your MySQL connection
 and then tried to run a query on the closed connection.
 
-You can check that the MySQL hasn't died by executing
-@code{mysqladmin version} and examining the uptime.
-
 If you have a script, you just have to issue the query again for the client
 to do an automatic reconnection.
 
@@ -45823,6 +45826,15 @@ server.
 to the server, but it didn't get a full answer (or any answer) to the question.
 @end multitable
 
+You will also get this error if someone has kills the running thread with
+@code{kill #threadid#}.
+
+You can check that the MySQL hasn't died by executing @code{mysqladmin
+version} and examining the uptime.  If the problem is that mysqld
+crashed you should concentrate one finding the reason for the crash.
+You should in this case start by checking if issuing the query again
+will kill MySQL again. @xref{Crashing}.
+
 You can also get these errors if you send a query to the server that is
 incorrect or too large. If @code{mysqld} gets a packet that is too large
 or out of order, it assumes that something has gone wrong with the client and
@@ -45833,6 +45845,26 @@ starting @code{mysqld} with the @code{-O max_allowed_packet=#} option
 use more memory only when you issue a big query or when @code{mysqld} must
 return a big result row!
 
+If you want to make a bug report regarding this problem, be sure that
+you include the following information:
+
+@itemize @bullet
+@item
+Include information if MySQL died or not. (You can find this in the
+@code{hostname.err file}. @xref{Crashing}.
+@item
+If a specific query kills @code{mysqld} and the involved tables where
+checked with @code{CHECK TABLE} before you did the query, can you do
+a test case for this? @xref{Reproduceable test case}.
+@item
+What is the value of the @code{wait_timeout} variable in the MySQL server ?
+@code{mysqladmin variables} gives you the value of this
+@item
+Have you tried to run @code{mysqld} with @code{--log} and check if the
+issued query appears in the log ?
+@end itemize
+
+@xref{Asking questions}.
 
 @node Can not connect to server, Blocked host, Gone away, Common errors
 @appendixsubsec @code{Can't connect to [local] MySQL server} Error
@@ -49371,18 +49403,31 @@ not yet 100% confident in this code.
 
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
-
 @itemize @bullet
-@item
-Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
-@item
-Fixed bug in character table converts when used with big ( > 64K) strings.
+Fixed the result from @code{IF()} is case in-sensitive if the 2 and
+third arguments are case sensitive.
 @end itemize
 
 @node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
-
 @itemize @bullet
+@item
+Fixed problem with @code{crash-me} and gcc 3.0.4.
+@item
+Fixed that @code{@@@@unknown_variable} doesn't hang server.
+@item
+Added @code{@@@@VERSION} as a synonym for @code{VERSION()}.
+@item
+@code{SHOW VARIABLES LIKE 'xxx'} is now case insensitive.
+@item
+Fixed timeout for @code{GET_LOCK()} on HPUX with DCE threads.
+@item
+Fixed memory allocation bug in the glibc library used to build Linux
+binaries, which caused mysqld to die in 'free()'.
+@item
+Fixed @code{SIGINT} and @code{SIGQUIT} problems in @code{mysql}.
+@item
+Fixed bug in character table converts when used with big ( > 64K) strings.
 @item
 @code{InnoDB} now retains foreign key constraints through @code{ALTER TABLE}
 and @code{CREATE/DROP INDEX}.

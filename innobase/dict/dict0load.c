@@ -946,6 +946,11 @@ dict_load_foreign(
 	foreign->n_fields = mach_read_from_4(rec_get_nth_field(rec, 5, &len));
 
 	ut_a(len == 4);
+
+	/* We store the type to the bits 24-31 of n_fields */
+	
+	foreign->type = foreign->n_fields >> 24;
+	foreign->n_fields = foreign->n_fields & 0xFFFFFF;
 	
 	foreign->id = mem_heap_alloc(foreign->heap, ut_strlen(id) + 1);
 				

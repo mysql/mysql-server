@@ -570,21 +570,30 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     packet->length(0);
     net_store_data(packet,convert, table->table_name);
-    // a hack - we need to reserve some space for the length before
-    // we know what it is - let's assume that the length of create table
-    // statement will fit into 3 bytes ( 16 MB max :-) )
+    /*
+      A hack - we need to reserve some space for the length before
+      we know what it is - let's assume that the length of create table
+      statement will fit into 3 bytes ( 16 MB max :-) )
+    */
     ulong store_len_offset = packet->length();
     packet->length(store_len_offset + 4);
     if (store_create_info(thd, table, packet))
       DBUG_RETURN(-1);
     ulong create_len = packet->length() - store_len_offset - 4;
     if (create_len > 0x00ffffff) // better readable in HEX ...
-      DBUG_RETURN(1);  // just in case somebody manages to create a table
-    // with *that* much stuff in the definition
+    {
+      /*
+	Just in case somebody manages to create a table
+	with *that* much stuff in the definition
+      */
+      DBUG_RETURN(1);
+    }
 
-    // now we have to store the length in three bytes, even if it would fit
-    // into fewer, so we cannot use net_store_data() anymore,
-    // and do it ourselves
+    /*
+      Now we have to store the length in three bytes, even if it would fit
+      into fewer bytes, so we cannot use net_store_data() anymore,
+      and do it ourselves
+    */
     char* p = (char*)packet->ptr() + store_len_offset;
     *p++ = (char) 253; // The client the length is stored using 3-bytes
     int3store(p, create_len);
@@ -1148,7 +1157,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
   pthread_mutex_lock(&LOCK_status);
   for (i=0; variables[i].name; i++)
   {
-    if (!(wild && wild[0] && wild_compare(variables[i].name,wild)))
+    if (!(wild && wild[0] && wild_case_compare(variables[i].name,wild)))
     {
       packet2.length(0);
       net_store_data(&packet2,convert,variables[i].name);
