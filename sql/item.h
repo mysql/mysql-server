@@ -233,7 +233,7 @@ public:
   Field *tmp_table_field_from_field_type(TABLE *table);
   
   /* Used in sql_select.cc:eliminate_not_funcs() */
-  virtual Item *neg_transformer() { return NULL; }
+  virtual Item *neg_transformer(THD *thd) { return NULL; }
   void delete_self()
   {
     cleanup();
@@ -245,6 +245,7 @@ public:
 class st_select_lex;
 class Item_ident :public Item
 {
+  Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
@@ -254,7 +255,9 @@ public:
 	     const char *field_name_par);
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
-
+  void cleanup();
+  void register_item_tree_changing(Item **ref)
+    { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
 };
 
@@ -264,11 +267,17 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
-  // Item_field() {}
+#ifndef DBUG_OFF
+  bool double_fix;
+#endif
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
+    :Item_ident(db_par,table_name_par,field_name_par),
+     field(0), result_field(0)
+#ifndef DBUG_OFF
+    ,double_fix(0)
+#endif
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
@@ -324,6 +333,7 @@ public:
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
   {
+    DBUG_ASSERT(fixed == 0);
     bool res= Item::fix_fields(thd, list, item);
     max_length=0;
     return res;
@@ -413,7 +423,8 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
-  void cleanup() { fixed= 1; } // to prevent drop fixed flag
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() { fixed= 1; }
   void print(String *str);
 };
 
@@ -422,14 +433,17 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length) :
-    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
-  Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
+    Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) 
+    { fixed= 0; }
+  Item_uint(uint32 i) :Item_int((longlong) i, 10) 
+    { fixed= 0; }
   double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
   int save_in_field(Field *field, bool no_conversions);
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
   {
+    DBUG_ASSERT(fixed == 0);
     bool res= Item::fix_fields(thd, list, item);
     unsigned_flag= 1;
     return res;
@@ -903,7 +917,8 @@ public:
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
-  void cleanup() { fixed= 1; } // to prevent drop fixed flag
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() { fixed= 1; }
   void print(String *str);
 };
 

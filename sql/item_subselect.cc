@@ -102,6 +102,7 @@ Item_subselect::select_transformer(JOIN *join)
 
 bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
   stmt= thd->current_statement;
 
@@ -125,8 +126,10 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 	engine->exclude();
       substitution= 0;
       fixed= 1;
-      thd->where= "checking transformed subquery";
-      int ret= (*ref)->fix_fields(thd, tables, ref);
+      thd->where= "checking transformed subquery";      
+      int ret= 0;
+      if (!(*ref)->fixed)
+	ret= (*ref)->fix_fields(thd, tables, ref);
       // We can't substitute aggregate functions (like (SELECT (max(i)))
       if ((*ref)->with_sum_func)
       {
@@ -651,9 +654,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       select_lex->item_list.empty();
       select_lex->item_list.push_back(item);
 
-      if (item->fix_fields(thd, join->tables_list,
-			   select_lex->item_list.head_ref()))
-	goto err;
+      // fix_fields call for 'item' will be made during new subquery fix_fields
 
       subs= new Item_singlerow_subselect(select_lex);
     }

@@ -2140,7 +2140,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   Item **ref= ref_pointer_array;
   while ((item= it++))
   {
-    if (item->fix_fields(thd, tables, it.ref()) ||
+    if (!item->fixed && item->fix_fields(thd, tables, it.ref()) ||
 	(item= *(it.ref()))->check_cols(1))
       DBUG_RETURN(-1); /* purecov: inspected */
     if (ref)
@@ -2322,7 +2322,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   if (*conds)
   {
     thd->where="where clause";
-    if ((*conds)->fix_fields(thd, tables, conds) || (*conds)->check_cols(1))
+    if (!(*conds)->fixed && (*conds)->fix_fields(thd, tables, conds) ||
+	(*conds)->check_cols(1))
       DBUG_RETURN(1);
     not_null_tables= (*conds)->not_null_tables();
   }
@@ -2334,7 +2335,9 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     {
       /* Make a join an a expression */
       thd->where="on clause";
-      if (table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
+      
+      if (!table->on_expr->fixed &&
+	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
 	DBUG_RETURN(1);
       thd->lex->current_select->cond_count++;

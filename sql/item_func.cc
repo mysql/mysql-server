@@ -199,6 +199,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 bool
 Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
 #ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -215,7 +216,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     {
       Item *item;
       /* We can't yet set item to *arg as fix_fields may change *arg */
-      if ((*arg)->fix_fields(thd, tables, arg) ||
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
 	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
       item= *arg;
@@ -2172,6 +2173,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
@@ -2741,6 +2743,7 @@ void Item_func_match::init_search(bool no_order)
 
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   Item *item;
   LINT_INIT(item);				// Safe as arg_count is > 1
 

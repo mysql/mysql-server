@@ -162,6 +162,7 @@ Item_sum_int::val_str(String *str)
 bool
 Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
@@ -191,6 +192,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 bool
 Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   Item *item= args[0];
   if (!thd->allow_sum_func)
   {
@@ -1116,6 +1118,7 @@ void Item_sum_count_distinct::cleanup()
 bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
 					 Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   if (Item_sum_num::fix_fields(thd, tables, ref))
     return 1;
   return 0;
@@ -1679,6 +1682,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 void Item_func_group_concat::cleanup()
 {
   DBUG_ENTER("Item_func_group_concat::cleanup");
+  Item_sum::cleanup();
   /*
     Free table and tree if they belong to this item (if item have not pointer
     to original item from which was made copy => it own its objects )
@@ -1794,6 +1798,7 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  DBUG_ASSERT(fixed == 0);
   uint i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)

@@ -8206,7 +8206,6 @@ static void test_bug2247()
 }
 
 
-
 static void test_subqueries()
 {
   MYSQL_STMT *stmt;
@@ -8346,6 +8345,37 @@ static void test_bug2248()
   myquery(rc);
 }
 
+static void test_subqueries_ref()
+{
+  MYSQL_STMT *stmt;
+  int rc, i;
+  const char *query= "SELECT a as ccc from t1 where a+1=(SELECT 1+ccc from t1 where ccc+1=a+1 and a=1)";
+
+  myheader("test_subquery_ref");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE t1 (a int);");
+  myquery(rc);
+
+  rc= mysql_query(mysql,
+		  "insert into t1 values (1), (2), (3), (4), (5);");
+  myquery(rc);
+
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt);
+    mystmt(stmt, rc);
+    assert(1 == my_process_stmt_result(stmt));
+  }
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8602,6 +8632,9 @@ int main(int argc, char **argv)
     test_subqueries();	    /* repeatable subqueries */
     test_bad_union();       /* correct setup of UNION */
     test_distinct();	    /* distinct aggregate functions */
+    test_subqueries_ref();  /* outer reference in subqueries converted
+			       Item_field -> Item_ref */
+
 
 
     end_time= time((time_t *)0);
