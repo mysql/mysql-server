@@ -454,8 +454,17 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
-  if (!(table= open_ltable(thd,table_list,table_list->lock_type)))
-    DBUG_RETURN(1);
+  my_bool update=(thd->lex.value_list.elements ? UPDATE_ACL : 0);
+  ulong privilege= (thd->lex.duplicates == DUP_REPLACE ?
+                    INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
+
+  if (check_access(thd,privilege,table_list->db,
+                   &table_list->grant.privilege) || 
+      (grant_option && check_grant(thd,privilege,table_list)) || 
+      open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(1); 
+  
+  table= table_list->table;
 
   if ((values= its++))
   {
@@ -502,7 +511,10 @@ static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
   THD *thd= stmt->thd;
   DBUG_ENTER("mysql_test_upd_fields");
 
-  if (open_and_lock_tables(thd, table_list))
+  if (check_access(thd,UPDATE_ACL,table_list->db,
+                   &table_list->grant.privilege) || 
+      (grant_option && check_grant(thd,UPDATE_ACL,table_list)) || 
+      open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
 
   if (setup_tables(table_list) ||
@@ -544,6 +556,15 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   LEX *lex= &thd->lex;
   select_result *result= thd->lex.result;
   DBUG_ENTER("mysql_test_select_fields");
+
+  ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
+  if (tables)
+  {
+    if (check_table_access(thd, privilege, tables))
+      DBUG_RETURN(1);
+  }
+  else if (check_access(thd, privilege, "*any*"))
+    DBUG_RETURN(1);
 
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables, 0)))
@@ -716,8 +737,8 @@ static void init_stmt_execute(PREP_STMT *stmt)
   TODO: When the new table structure is ready, then have a status bit 
         to indicate the table is altered, and re-do the setup_* 
         and open the tables back.
-  */
-  if (tables)
+  */  
+  for (; tables ; tables= tables->next)
     tables->table= 0; //safety - nasty init
 }
 
