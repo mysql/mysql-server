@@ -91,7 +91,7 @@ public:
     RequestStatus() { m_status = OK; m_errorstring[0] = '\0'; };
 
     /** @brief Sets an errorcode and a printable message */
-    void err(enum RequestStatusCode, char *);
+    void err(enum RequestStatusCode, const char *);
 
     /** @brief Returns the error message */
     char *getErrMsg() { return m_errorstring; };

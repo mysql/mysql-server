@@ -288,8 +288,7 @@ MgmtSrvr::readConfig() {
 
 Config *
 MgmtSrvr::fetchConfig() {
-  ConfigRetriever cr(NDB_VERSION, NODE_TYPE_MGM);
-  cr.setLocalConfigFileName(m_localNdbConfigFilename.c_str());
+  ConfigRetriever cr(m_local_config, NDB_VERSION, NODE_TYPE_MGM);
   struct ndb_mgm_configuration * tmp = cr.getConfig();
   if(tmp != 0){
     Config * conf = new Config();

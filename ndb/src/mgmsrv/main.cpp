@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -70,7 +69,6 @@ struct MgmGlobals {
   bool use_specific_ip;
   char * interface_name;
   int port;
-  int port_stats;
   
   /** The configuration of the cluster */
   Config * cluster_config;
@@ -82,6 +80,7 @@ struct MgmGlobals {
   SocketServer * socketServer;
 };
 
+int g_no_nodeid_checks= 0;
 static MgmGlobals glob;
 
 
@@ -118,7 +117,9 @@ struct getargs args[] = {
     "Specify configuration file connect string (will default use Ndb.cfg if available)",
     "filename" },
   { "interactive", 0, arg_flag, &glob.interactive,
-    "Run interactive. Not supported but provided for testing purposes", "" },
+   "Run interactive. Not supported but provided for testing purposes", "" },
+  { "no-nodeid-checks", 0, arg_flag, &g_no_nodeid_checks,
+    "Do not provide any node id checks", "" },
   { "nodaemon", 0, arg_flag, &glob.non_interactive,
     "Don't run as daemon, but don't read from stdin", "non-interactive" }
 };
@@ -129,6 +130,7 @@ int num_args = sizeof(args) / sizeof(args[0]);
  *  MAIN 
  */
 NDB_MAIN(mgmsrv){
+  ndb_init();
   /**
    * OSE specific. Enable shared ownership of file system resources. 
    * This is needed in order to use the cluster log since the events 
@@ -151,7 +153,6 @@ NDB_MAIN(mgmsrv){
     glob.daemon= 0;
   }
 
-  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
@@ -169,20 +170,22 @@ NDB_MAIN(mgmsrv){
 
   MgmApiService * mapi = new MgmApiService();
 
-  MgmStatService * mstat = new MgmStatService();
-
   /****************************
    * Read configuration files *
    ****************************/
-  if (!readLocalConfig())
+  LocalConfig local_config;
+  if(!local_config.init(0,glob.local_config_filename)){
+    local_config.printError();
     goto error_end;
+  }
+  glob.localNodeId = local_config._ownNodeId;
+
   if (!readGlobalConfig())
     goto error_end;
 
   glob.mgmObject = new MgmtSrvr(glob.localNodeId,
 				BaseString(glob.config_filename),
-				BaseString(glob.local_config_filename == 0 ?
-					   "" : glob.local_config_filename),
+				local_config,
 				glob.cluster_config);
 
   chdir(NdbConfig_get_path(0));
@@ -230,13 +233,6 @@ NDB_MAIN(mgmsrv){
     goto error_end;
   }
   
-  if(!glob.socketServer->setup(mstat, glob.port_stats, glob.interface_name)){
-    ndbout_c("Unable to setup statistic port: %d!\nPlease check if the port"
-	     " is already used.", glob.port_stats);
-    delete mstat;
-    goto error_end;
-  }
-
   if(!glob.mgmObject->check_start()){
     ndbout_c("Unable to check start management server.");
     ndbout_c("Probably caused by illegal initial configuration file.");
@@ -267,10 +263,7 @@ NDB_MAIN(mgmsrv){
   }
 
   //glob.mgmObject->saveConfig();
-
-  mstat->setMgm(glob.mgmObject);
   mapi->setMgm(glob.mgmObject);
-  glob.mgmObject->setStatisticsListner(mstat);
 
   char msg[256];
   snprintf(msg, sizeof(msg),
@@ -278,8 +271,8 @@ NDB_MAIN(mgmsrv){
   ndbout_c(msg);
   g_EventLogger.info(msg);
 
-  snprintf(msg, 256, "Id: %d, Command port: %d, Statistics port: %d",
-	   glob.localNodeId, glob.port, glob.port_stats);
+  snprintf(msg, 256, "Id: %d, Command port: %d",
+	   glob.localNodeId, glob.port);
   ndbout_c(msg);
   g_EventLogger.info(msg);
   
@@ -309,7 +302,6 @@ NDB_MAIN(mgmsrv){
 MgmGlobals::MgmGlobals(){
   // Default values
   port = 0;
-  port_stats = 0;
   config_filename = NULL;
   local_config_filename = NULL;
   interface_name = 0;
@@ -333,37 +325,9 @@ MgmGlobals::~MgmGlobals(){
 }
 
 /**
- * @fn      readLocalConfig
- * @param   glob : Global variables
- * @return  true if success, false otherwise.
- *
- * How to get LOCAL CONFIGURATION FILE:
- * 1. Use local config file name (-l)
- * 2. Use environment NDB_HOME + Ndb.cfg
- *    If NDB_HOME is not set this results in reading from local dir
- */
-static bool
-readLocalConfig(){
-  // Read local config file
-  LocalConfig lc;
-  if(!lc.init(glob.local_config_filename)){
-    lc.printError();
-    return false;
-  }
-  
-  glob.localNodeId = lc._ownNodeId;
-  return true;
-}
-
-
-/**
  * @fn      readGlobalConfig
  * @param   glob : Global variables
  * @return  true if success, false otherwise.
- *
- * How to get the GLOBAL CONFIGURATION:
- * 1. Use config file name (this is a text file)(-c)
- * 2. Use name from line 2 of local config file, ex: file:///c/ndb/Ndb_cfg.bin
  */
 static bool
 readGlobalConfig() {

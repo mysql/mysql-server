@@ -27,6 +27,7 @@
 #include <NDBT.hpp>
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _restartName = NULL;
   int _loops = 1;
