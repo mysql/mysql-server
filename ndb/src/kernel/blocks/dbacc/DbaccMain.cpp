@@ -1817,8 +1817,6 @@ void Dbacc::insertExistElemLab(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::insertelementLab(Signal* signal) 
 {
-  Uint32 tinsKeyLen; // wl-2066 remove
-  
   if (fragrecptr.p->createLcp == ZTRUE) {
     if (remainingUndoPages() < ZMIN_UNDO_PAGES_AT_OPERATION) {
       jam();
@@ -1837,47 +1835,6 @@ void Dbacc::insertelementLab(Signal* signal)
   }//if
   if (fragrecptr.p->keyLength != operationRecPtr.p->tupkeylen) {
     ndbrequire(fragrecptr.p->keyLength == 0);
-  }//if
-  if (true)
-    tinsKeyLen = 0;
-  else if (fragrecptr.p->keyLength != 0) { // wl-2066 remove
-    ndbrequire(operationRecPtr.p->tupkeylen <= 8);
-    for (Uint32 i = 0; i < operationRecPtr.p->tupkeylen; i++) {
-      jam();
-      ckeys[i] = signal->theData[i + 7];
-    }//for
-    tinsKeyLen = operationRecPtr.p->tupkeylen;
-    tinsKeyLen = 0;
-  } else { // wl-2066 remove
-    jam();
-    seizePage(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
-      acckeyref1Lab(signal, tresult);
-      return;
-    }//if
-    operationRecPtr.p->keyinfoPage = spPageptr.i;
-    for (Uint32 i = 0; i < signal->theData[4]; i++) {
-      spPageptr.p->word32[i] = signal->theData[i + 7];
-    }//for
-  
-    getLongKeyPage(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
-      acckeyref1Lab(signal, tresult);
-      return;
-    }//if
-    slkPageptr = glkPageptr;
-    slkCopyPageptr.i = operationRecPtr.p->keyinfoPage;
-    ptrCheckGuard(slkCopyPageptr, cpagesize, page8);
-    tslkKeyLen = operationRecPtr.p->tupkeylen;
-    storeLongKeys(signal);
-    ckeys[0] = (slkPageptr.p->word32[ZPOS_PAGE_ID] << 10) + tslkPageIndex;
-    tinsKeyLen = ZACTIVE_LONG_KEY_LEN;
-    rpPageptr.i = operationRecPtr.p->keyinfoPage;
-    ptrCheckGuard(rpPageptr, cpagesize, page8);
-    releasePage(signal);
-    operationRecPtr.p->keyinfoPage = RNIL;
   }//if
 
   signal->theData[0] = operationRecPtr.p->userptr;
@@ -1902,7 +1859,6 @@ void Dbacc::insertelementLab(Signal* signal)
   idrPageptr = gdiPageptr;
   tidrPageindex = tgdiPageindex;
   tidrForward = ZTRUE;
-  tidrKeyLen = tinsKeyLen;
   idrOperationRecPtr = operationRecPtr;
   clocalkey[0] = localKey;
   operationRecPtr.p->localdata[0] = localKey;
@@ -2875,17 +2831,6 @@ void Dbacc::insertContainer(Signal* signal)
     idrPageptr.p->word32[tidrIndex] = clocalkey[tidrInputIndex];	/* INSERTS LOCALKEY */
     tidrIndex += tidrForward;
   }//for
-  ndbrequire(tidrKeyLen == 0);
-#if 0 // wl-2066 remove
-  guard26 = tidrKeyLen - 1;
-  arrGuard(guard26, 8);
-  for (tidrInputIndex = 0; tidrInputIndex <= guard26; tidrInputIndex++) {
-    dbgWord32(idrPageptr, tidrIndex, ckeys[tidrInputIndex]);
-    arrGuard(tidrIndex, 2048);
-    idrPageptr.p->word32[tidrIndex] = ckeys[tidrInputIndex];	/* INSERTS TUPLE KEY */
-    tidrIndex += tidrForward;
-  }//for
-#endif
   tidrContLen = idrPageptr.p->word32[tidrContainerptr] << 6;
   tidrContLen = tidrContLen >> 6;
   dbgWord32(idrPageptr, tidrContainerptr, (tidrContainerlen << 26) | tidrContLen);
@@ -3219,1215 +3164,6 @@ void Dbacc::seizeRightlist(Signal* signal)
   increaselistcont(signal);
 }//Dbacc::seizeRightlist()
 
-
-//---------------------------------------------------------------------------------
-//  ALLOC_SPECIFIC_LONG_OVERFLOW_PAGE 
-//                                             
-//          DESCRIPTION: ALLOCATES A LONG OVER FLOW PAGE AND PUTS IT IN A SPECIFIED
-//                       DIRINDEX. THIS IS TO SUPPORT AN UNDO_DELETE AFTER AN 
-//                       UNDO_INSERT ON THE SAME LONG KEY IN A LCP.
-//                       UNDO_INSERT ONLY HAVE A REFERENCE TO THE KEY AND TO MAKE 
-//                       IT POSSIBLE TO DELETE THE KEY, THE REFERENCE MUST BE 
-//                       ACCURATE, WHICH MEANS THE KEY MUST BE SAVED ON THE SAME 
-//                       PLACE IT WAS DELETED FROM. 
-//--------------------------------------------------------------------------------- 
-void Dbacc::allocSpecificLongOverflowPage(Signal* signal) 
-{
-  DirRangePtr aloDirRangePtr;
-  DirectoryarrayPtr aloOverflowDirptr;
-
-  if ((cfirstfreepage == RNIL) &&
-      (cfreepage >= cpagesize)) {
-    jam();   
-    zpagesize_error("Dbacc::allocSpecificLongOverflowPage");
-    tresult = ZPAGESIZE_ERROR;
-    return;
-  }
-
-  if ((cfirstfreedir == RNIL) &&
-      (cdirarraysize <= cdirmemory)) {
-    jam();
-    tresult = ZDIRSIZE_ERROR;
-    return;
-  }
-
-  tmpP = taslpDirIndex;
-  aloDirRangePtr.i = fragrecptr.p->overflowdir;
-  tmpP2 = tmpP >> 8;
-  tmpP = tmpP & 0xff;
-  ptrCheckGuard(aloDirRangePtr, cdirrangesize, dirRange);
-  arrGuard(tmpP2, 256);
-
-  if (aloDirRangePtr.p->dirArray[tmpP2] == RNIL) {
-    jam();
-    seizeDirectory(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
-      sendSystemerror(signal);
-      return;
-    }
-    aloDirRangePtr.p->dirArray[tmpP2] = sdDirptr.i;
-  } else {
-    jam();
-    sdDirptr.i = RNIL;
-    ptrNull(sdDirptr);
-  }
-
-  aloOverflowDirptr.i = aloDirRangePtr.p->dirArray[tmpP2];
-  ptrCheckGuard(aloOverflowDirptr, cdirarraysize, directoryarray);
-  seizePage(signal);
-  if (tresult > ZLIMIT_OF_ERROR) {
-    jam();
-    sendSystemerror(signal);
-    return;
-  }//if
-
-  if (aloOverflowDirptr.p->pagep[tmpP] != RNIL) {
-    jam();
-    sendSystemerror(signal);
-    return;
-  }
-
-  aloOverflowDirptr.p->pagep[tmpP] = spPageptr.i;
-  iloPageptr.p = spPageptr.p;
-  iloPageptr.i = spPageptr.i;
-  tiloIndex = taslpDirIndex;
-  initLongOverpage(signal);
-  aslpPageptr.i = spPageptr.i;
-  aslpPageptr.p = spPageptr.p;
-}//Dbacc::allocSpecificLongOverflowPage
-
-/* --------------------------------------------------------------------------------- */
-/*  ALLOC_LONG_OVERFLOW_PAGE                                                         */
-/*          DESCRIPTION:                                                             */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::allocLongOverflowPage(Signal* signal) 
-{
-  DirRangePtr aloDirRangePtr;
-  DirectoryarrayPtr aloOverflowDirptr;
-  OverflowRecordPtr aloOverflowRecPtr;
-  Uint32 taloIndex;
-
-  if ((cfirstfreepage == RNIL) &&
-      (cfreepage >= cpagesize)) {
-    jam(); 
-    zpagesize_error("Dbacc::allocLongOverflowPage");
-    tresult = ZPAGESIZE_ERROR;
-    return;
-  }//if
-  if ((cfirstfreedir == RNIL) &&
-      (cdirarraysize <= cdirmemory)) {
-    jam();
-    tresult = ZDIRSIZE_ERROR;
-    return;
-  }//if
-  if (fragrecptr.p->firstFreeDirindexRec != RNIL) {
-    jam();
-    aloOverflowRecPtr.i = fragrecptr.p->firstFreeDirindexRec;
-    ptrCheckGuard(aloOverflowRecPtr, coverflowrecsize, overflowRecord);
-    troOverflowRecPtr.p = aloOverflowRecPtr.p;
-    takeRecOutOfFreeOverdir(signal);
-    taloIndex = aloOverflowRecPtr.p->dirindex;
-    rorOverflowRecPtr = aloOverflowRecPtr;
-    releaseOverflowRec(signal);
-  } else {
-    jam();
-    taloIndex = fragrecptr.p->lastOverIndex;
-    fragrecptr.p->lastOverIndex++;
-  }//if
-  tmpP = taloIndex;
-  aloDirRangePtr.i = fragrecptr.p->overflowdir;
-  tmpP2 = tmpP >> 8;
-  tmpP = tmpP & 0xff;
-  ptrCheckGuard(aloDirRangePtr, cdirrangesize, dirRange);
-  arrGuard(tmpP2, 256);
-  if (aloDirRangePtr.p->dirArray[tmpP2] == RNIL) {
-    jam();
-    seizeDirectory(signal);
-    ndbrequire(tresult <= ZLIMIT_OF_ERROR);
-    aloDirRangePtr.p->dirArray[tmpP2] = sdDirptr.i;
-  } else {
-    jam();
-    sdDirptr.i = RNIL;
-    ptrNull(sdDirptr);
-  }//if
-  aloOverflowDirptr.i = aloDirRangePtr.p->dirArray[tmpP2];
-  ptrCheckGuard(aloOverflowDirptr, cdirarraysize, directoryarray);
-  seizePage(signal);
-  ndbrequire(tresult <= ZLIMIT_OF_ERROR);
-  aloOverflowDirptr.p->pagep[tmpP] = spPageptr.i;
-  iloPageptr = spPageptr;
-  tiloIndex = taloIndex;
-  initLongOverpage(signal);
-  alpPageptr = spPageptr;
-  ipaPagePtr = spPageptr;
-  tipaArrayPos = 3;
-  insertPageArrayList(signal);
-}//Dbacc::allocLongOverflowPage()
-
-/* --------------------------------------------------------------------------------- */
-/* GET_LONG_KEY_PAGE                                                                 */
-/*          DESCRIPTION: SEARCH FOR A FREE OVERFLOW  PAGE TO STORE A LONG KEY.       */
-/*                       LONG_KEY_PAGE_PTR IS RETURNED.                              */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::getLongKeyPage(Signal* signal) 
-{
-  LongKeyPage *glkPage;
-
-  jam();
-
-  Uint32 tglkLongIndex = 0;
-
-  ndbrequire(operationRecPtr.p->tupkeylen <= ZWORDS_IN_PAGE - ZHEAD_SIZE);
-
-  // Do not look in longKeyPageArray[tglkLongIndex] where the pages are to small.
-  if(operationRecPtr.p->tupkeylen < 128) {
-    jam();
-    tglkLongIndex = 0;
-  } else {
-    jam();
-    tglkLongIndex = (operationRecPtr.p->tupkeylen - 128) / 512;
-  }//if
-
-  // Go through the longKeyPageArray and search for a page.
-  for (; tglkLongIndex <= ZMAX_LONG_KEY_ARRAY_INDEX; tglkLongIndex++) {
-    jam();
-    glkPageptr.i = fragrecptr.p->longKeyPageArray[tglkLongIndex];    
-
-    if (glkPageptr.i != RNIL) {
-      // A page is found.
-      jam();
-      do {
-	ptrCheckGuard(glkPageptr, cpagesize, page8);
-	glkPage = (LongKeyPage *) &glkPageptr.p->word32[0];
-	
-	// Check page if there is enough memory available. Accept only page 
-	// with free_area > tupkeylen, this leaves at least one word for eventually 
-	// an increase in the index area.
-	if (glkPage->header.freeArea > operationRecPtr.p->tupkeylen){
-	  // The page found is OK
-	  jam();
-	  return;
-	} else {
-	  // Not enough space in page, look in the next page if not RNIL,
-	  // otherwise continue with for-loop.
-	  jam();
-	  glkPageptr.i = glkPage->header.nextPage;
-	}
-      }//do
-      while (glkPageptr.i != RNIL);
-    }//if
-  }//for
-
-  // No page with enough space was available, allocate a new page!
-  jam();
-  allocLongOverflowPage(signal);
-  glkPageptr = alpPageptr;
-}//Dbacc::getLongKeyPage()
-
-/* --------------------------------------------------------------------------------- */
-/* INIT_LONG_OVERPAGE                                                                */
-/*         INPUT. ILO_PAGEPTR, POINTER TO AN OVERFLOW PAGE RECORD                    */
-/*         DESCRIPTION: CONTAINERS AND FREE LISTS OF THE PAGE, GET INITIALE VALUE    */
-/*         ACCORDING TO LH3 AND PAGE STRUCTOR DISACRIPTION OF NDBACC BLOCK           */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::initLongOverpage(Signal* signal) 
-{
-  iloPageptr.p->word32[ZPOS_PAGE_ID] = tiloIndex;
-  iloPageptr.p->word32[ZPOS_PAGE_TYPE] = ZLONG_PAGE_TYPE << ZPOS_PAGE_TYPE_BIT;
-  iloPageptr.p->word32[ZPOS_NO_ELEM_IN_PAGE] = 0;
-  iloPageptr.p->word32[ZPOS_OVERFLOWREC] = RNIL;
-  iloPageptr.p->word32[ZPOS_FREE_AREA_IN_PAGE] = ZWORDS_IN_PAGE - ZHEAD_SIZE;
-  iloPageptr.p->word32[ZPOS_LAST_INDEX] = 0;
-  iloPageptr.p->word32[ZPOS_INSERT_INDEX] = ZHEAD_SIZE;
-  iloPageptr.p->word32[ZPOS_ARRAY_POS] = ZDEFAULT_LIST;
-  iloPageptr.p->word32[ZPOS_NEXT_FREE_INDEX] = 0;
-  iloPageptr.p->word32[ZPOS_NEXT_PAGE] = RNIL;
-  iloPageptr.p->word32[ZPOS_PREV_PAGE] = RNIL;
-  iloPageptr.p->word32[12] = 0;
-  iloPageptr.p->word32[13] = 0;
-  iloPageptr.p->word32[14] = 0;
-  iloPageptr.p->word32[15] = 0;
-  // Initialize free indexes
-  for (int i = 1; i < (ZWORDS_IN_PAGE - ZHEAD_SIZE); i++)
-    iloPageptr.p->word32[ZWORDS_IN_PAGE - i] = i + 1;
-}//Dbacc::initLongOverpage()
-
-//--------------------------------------------------------------------------------- 
-// STORE_LONG_KEYS_AT_POS     
-//                                                       
-//          INPUT:       SLKAP_PAGEPTR                                               
-//                       SLKAP_COPY_PAGEPTR                                          
-//                       TSLKAP_KEY_LEN                                              
-//                       TSLKAP_PAGE_INDEX                                           
-//                                                                                   
-//          DESCRIPTION: A LONG ELEMENT IS STORED ON A LONG_KEY_PAGE AT A            
-//                       SPECIFIC POSITION. THIS FUNCTION IS USED BY UNDO_DELETE.    
-//--------------------------------------------------------------------------------- 
-void Dbacc::storeLongKeysAtPos(Signal* signal) 
-{
-  Uint32 tslkapHighestIndex;  
-  Uint32 tslkapLastSize;
-  Uint32 tslkapInsertIndex;
-  Uint32 tslkapIndexIncreaseSize;
-  Uint32 tslkapTmp;
-
-  LongKeyPage *slkapPage;
-
-  jam();
-  slkapPage = (LongKeyPage *) &slkapPageptr.p->word32[0];
-
-#ifdef VM_TRACE
-  checkIndexInLongKeyPage(slkapPageptr.i, "storeLongKeysAtPos");
-#endif
-
-  //  if (csystemRestart != ZTRUE) {
-  if (cundoLogActive != ZTRUE) {
-    //-------------------------------------------------------------
-    // This function is only allowed to be called during 
-    // undolog execution.
-    //-------------------------------------------------------------
-    jam();
-    sendSystemerror(signal);
-    return;
-  }
-
-  if (slkapPage->word32[ZWORDS_IN_PAGE - tslkapPageIndex] >> 16 != 0 ) {
-    //-------------------------------------------------------------
-    // The index should be empty, we have a serious problem. 
-    //-------------------------------------------------------------   
-    jam();
-    sendSystemerror(signal);
-    return;
-  }
-
-  //-------------------------------------------------------------
-  // Calculate some variables to use later.
-  //-------------------------------------------------------------
-  tslkapHighestIndex = slkapPage->header.highestIndex;
-  tslkapPageIndex > tslkapHighestIndex ?
-    tslkapIndexIncreaseSize = tslkapPageIndex - tslkapHighestIndex :
-    tslkapIndexIncreaseSize = 0;
-
-  slkapPage->header.highestIndex += tslkapIndexIncreaseSize;
-  
-  if ((slkapPage->header.freeArea - tslkapIndexIncreaseSize) 
-      < tslkapKeyLen) {
-    //-------------------------------------------------------------
-    // Not enough area in the page, a serious problem. 
-    //-------------------------------------------------------------   
-    jam();
-    sendSystemerror(signal);
-    return;
-  }
-
-  //-------------------------------------------------------------
-  // Fix the free index list. We might put in a key in the 
-  // middle of the list, so we must fix the free list and the 
-  // free index pointers.
-  //-------------------------------------------------------------
-  slkapPage->header.nextFreeIndex = 0;
-  
-  for (Uint32 i = tslkapHighestIndex + tslkapIndexIncreaseSize; i > 0; i--) {
-    if (i == tslkapPageIndex) {
-      // The key index shall not be in the free list.
-      continue;
-    }
-
-    if (slkapPage->word32[ZWORDS_IN_PAGE - i] >> 16 == 0 ) {
-      // Go through all empty indexes.
-      slkapPage->word32[ZWORDS_IN_PAGE - i] = slkapPage->header.nextFreeIndex;
-      arrGuard(i, 2048);
-      slkapPage->header.nextFreeIndex = i;  
-    }
-  }
-    
-  //-------------------------------------------------------------
-  // Decrement the free area in page according to the above 
-  // increase in index size.
-  //-------------------------------------------------------------
-  slkapPage->header.freeArea -= tslkapIndexIncreaseSize;
-
-  tslkapLastSize = ZWORDS_IN_PAGE - slkapPage->header.highestIndex
-    - slkapPage->header.insertPos;
-
-  //-------------------------------------------------------------
-  // Check if we have to reorganize the page.
-  //-------------------------------------------------------------
-  if (tslkapLastSize >= tslkapKeyLen) {
-    jam();
-  } else {
-    jam();
-    relpPageptr.p = slkapPageptr.p;
-    reorgLongPage(signal);
-  }
-
-  //-------------------------------------------------------------
-  // Insert the key and update page attributes.
-  //-------------------------------------------------------------
-  jam();
-  // Increase the number of element in the page. 
-  slkapPage->header.noOfElements++;
-  jam();
-  // Put in the key reference into the index. The reference 
-  // consists of key length and insert position.
-  arrGuard(ZWORDS_IN_PAGE - tslkapPageIndex, 2048);
-  slkapPage->word32[ZWORDS_IN_PAGE - tslkapPageIndex] = 
-    slkapPage->header.insertPos | (tslkapKeyLen << 16);
-  jam();
-  // Increase the key insert position.
-  tslkapInsertIndex = slkapPage->header.insertPos;
-  slkapPage->header.insertPos += tslkapKeyLen;
-  jam();
-  // Decrease the free area.
-  slkapPage->header.freeArea -= tslkapKeyLen;
-  jam();
-
-  // Update pageArrayPos. insertPageArrayList() called from execACC_OVER_REC
-  // needs this value. 
-  if (slkapPage->header.freeArea < 128) {
-    jam();
-    slkapPage->header.pageArrayPos = 4;
-  } else {
-    jam();
-    slkapPage->header.pageArrayPos = (slkapPage->header.freeArea - 128) / 512;
-  }//if
-
-  // Store the actual key at the insert position.
-  Uint32 guard27 = tslkapKeyLen - 1;
-  arrGuard(guard27 + tslkapInsertIndex, 2048);
-  for (tslkapTmp = 0; tslkapTmp <= guard27; tslkapTmp++) {
-    jam();
-    slkapPage->word32[tslkapTmp + tslkapInsertIndex] = slkapCopyPageptr.p->word32[tslkapTmp];
-  }//for
-}//Dbacc::storeLongKeysAtPos
-
-/* --------------------------------------------------------------------------------- */
-/* STORE_LONG_KEYS                                                                   */
-/*       INPUT:          SLK_PAGEPTR                                                 */
-/*                       SLK_COPY_PAGEPTR                                            */
-/*                       TSLK_KEY_LEN                                                */
-/*       OUTPUT:         TSLK_PAGE_INDEX                                             */
-/*                                                                                   */
-/*          DESCRIPTION: A LONG ELEMENT IS STORED ON A LONG_KEY_PAGE.                */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::storeLongKeys(Signal* signal) 
-{
-  Uint32 tslkLastSize;
-  Uint32 tslkInsertIndex;
-  Uint32 tslkArrayPos;
-  Uint32 tslkTmp;
-  Uint32 guard27;
-  LongKeyPage *slkPage;
-
-  jam();
-  slkPage = (LongKeyPage *) &slkPageptr.p->word32[0];
-
-#ifdef VM_TRACE
-  checkIndexInLongKeyPage(slkPageptr.i, "storeLongKeys1");
-#endif
-
-  // Accept only page with free_area > tupkeylen, this leaves at least
-  // one word for eventually an increase in the index area. 
-  ndbrequire(slkPage->header.freeArea > tslkKeyLen);
-
-  dbgWord32(slkPageptr, ZPOS_LAST_INDEX, slkPage->header.highestIndex);
-  dbgWord32(slkPageptr, ZPOS_INSERT_INDEX, slkPage->header.insertPos);
-
-  tslkLastSize = ZWORDS_IN_PAGE - slkPage->header.highestIndex - slkPage->header.insertPos;
-
-  if (tslkLastSize > operationRecPtr.p->tupkeylen) {
-    // WE DO NOT NEED TO REORGANIZE THE PAGE TO INSERT THE NEW KEY. IT FITS INTO THE    
-    // SIZE REMAINING AT THE END. 
-    jam();
-  } else {
-    // THE KEY FITS INTO THE PAGE BUT ONLY AFTER REORGANISING THE PAGE. 
-    jam();
-    relpPageptr.p = slkPageptr.p;
-    reorgLongPage(signal);
-  }//if
-
-  if (slkPage->header.nextFreeIndex == 0) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*  THE PAGE INDEX HAS NO EMPTY SLOTS. WE MUST EXTEND THE PAGE INDEX BY ONE NEW SLOT.*/
-    /* --------------------------------------------------------------------------------- */
-    tslkPageIndex = slkPage->header.highestIndex + 1;
-  } else {
-    jam();
-    tslkPageIndex = slkPage->header.nextFreeIndex;
-  }//if
-
-  if (fragrecptr.p->createLcp == ZTRUE) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*  ON LONG PAGES WE USE A PHYSIOLOGICAL LOGGING SCHEME. THIS MEANS THAT WE ONLY NEED*/
-    /*  TO SPECIFY WHICH INDEX TO DELETE IN ORDER TO UNDO THE CHANGES WE DO. THE         */
-    /*  POSSIBLE REORGANISATION DO NOT CHANGE THE LOGICAL LAYOUT OF THE PAGE.            */
-    /* --------------------------------------------------------------------------------- */
-    datapageptr.p = slkPageptr.p;
-    cundoElemIndex = tslkPageIndex;
-    cundoinfolength = 0;
-    undoWritingProcess(signal);
-  }//if
-
-  if (slkPage->header.nextFreeIndex == 0) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*  THE PAGE INDEX HAS NO EMPTY SLOTS. WE MUST EXTEND THE PAGE INDEX BY ONE NEW SLOT.*/
-    /* --------------------------------------------------------------------------------- */
-    dbgWord32(slkPageptr, ZPOS_LAST_INDEX, slkPage->header.highestIndex + 1);
-    slkPage->header.highestIndex++;
-    ndbrequire(slkPage->header.insertPos < (ZWORDS_IN_PAGE - slkPage->header.highestIndex));
-    // Reset index. We have already checked that we can increase "highestIndex" value 
-    // without overwriting the data part.
-    slkPage->word32[ZWORDS_IN_PAGE - slkPage->header.highestIndex] = 0;
-    dbgWord32(slkPageptr, ZPOS_FREE_AREA_IN_PAGE, slkPage->header.freeArea - 1);
-    slkPage->header.freeArea--;
-  } else {
-    jam();
-    dbgWord32(slkPageptr, ZPOS_NEXT_FREE_INDEX, slkPage->word32[ZWORDS_IN_PAGE - tslkPageIndex]);
-    arrGuard(ZWORDS_IN_PAGE - tslkPageIndex, 2048);
-    arrGuard(slkPage->word32[ZWORDS_IN_PAGE - tslkPageIndex], 2048);
-
-    slkPage->header.nextFreeIndex = slkPage->word32[ZWORDS_IN_PAGE - tslkPageIndex];
-    if(slkPage->header.nextFreeIndex > slkPage->header.highestIndex){
-      slkPage->header.nextFreeIndex = 0;
-      dbgWord32(slkPageptr, ZPOS_NEXT_FREE_INDEX, slkPage->header.nextFreeIndex);
-    }
-  }//if
-
-  dbgWord32(slkPageptr, ZWORDS_IN_PAGE - tslkPageIndex, tslkKeyLen);
-  dbgWord32(slkPageptr, ZWORDS_IN_PAGE - tslkPageIndex, slkPage->header.insertPos);
-  arrGuard(ZWORDS_IN_PAGE - tslkPageIndex, 2048);
-  slkPage->word32[ZWORDS_IN_PAGE - tslkPageIndex] = 
-    slkPage->header.insertPos | (tslkKeyLen << 16);
-  
-  dbgWord32(slkPageptr, ZPOS_INSERT_INDEX, slkPage->header.insertPos);
-  tslkInsertIndex = slkPage->header.insertPos;
-  slkPage->header.insertPos += tslkKeyLen;
-  
-  dbgWord32(slkPageptr, ZPOS_FREE_AREA_IN_PAGE, slkPage->header.freeArea - tslkKeyLen);
-  slkPage->header.freeArea = slkPage->header.freeArea - tslkKeyLen;
-  if (slkPage->header.freeArea < 128) {
-    jam();
-    tslkArrayPos = 4;
-  } else {
-    jam();
-    tslkArrayPos = (slkPage->header.freeArea - 128) / 512;
-  }//if
-
-  if (tslkArrayPos != slkPage->header.pageArrayPos) {
-    jam();
-    if (cundoLogActive != ZTRUE) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WE ONLY HANDLE THE LISTS WHEN WE ARE NOT IN A SYSTEM RESTART.               */
-      /* --------------------------------------------------------------------------------- */
-      rfpPageptr = slkPageptr;
-      trfpArrayPos = slkPage->header.pageArrayPos;
-      removeFromPageArrayList(signal);
-      ipaPagePtr = slkPageptr;
-      tipaArrayPos = tslkArrayPos;
-      slkPage->header.pageArrayPos = tipaArrayPos;
-      if (tslkArrayPos != 4) {
-	jam();
-	/* --------------------------------------------------------------------------------- */
-	/*  THE PAGE WILL STILL BE ON ONE OF THE FREE LISTS SINCE AT LEAST 128 * 4   */
-	/*  BYTES OF FREE SPACE REMAINS ON THE PAGE.                                         */
-	/* --------------------------------------------------------------------------------- */
-	insertPageArrayList(signal);
-      }//if
-    } else {
-      // This should never happen. Should use storeLongKeysAtPos() instead when executing
-      // undolog.
-      ndbrequire(false);
-    }
-  }//if
-  /* --------------------------------------------------------------------------------- */
-  /*       INCREASE THE NUMBER OF ELEMENTS IN THE PAGE.                                */
-  /* --------------------------------------------------------------------------------- */
-  dbgWord32(slkPageptr, ZPOS_NO_ELEM_IN_PAGE, slkPage->header.noOfElements + 1);
-  slkPage->header.noOfElements++;
-
-  guard27 = tslkKeyLen - 1;
-  arrGuard(guard27 + tslkInsertIndex, 2048);
-  for (tslkTmp = 0; tslkTmp <= guard27; tslkTmp++) {
-    dbgWord32(slkPageptr, tslkTmp + tslkInsertIndex, slkCopyPageptr.p->word32[tslkTmp]);
-    slkPage->word32[tslkTmp + tslkInsertIndex] = slkCopyPageptr.p->word32[tslkTmp];
-  }//for
-
-  // Used by abortoperation() in case of an abort.
-  operationRecPtr.p->longPagePtr = slkPageptr.i;
-
-  // This is for an eventual LCP start in the middle of this locked operation.
-  operationRecPtr.p->longKeyPageIndex = tslkPageIndex;
-
-#ifdef VM_TRACE
-  if (cundoLogActive != ZTRUE) checkPageArrayList(signal, "storeLongKeys");
-  checkIndexInLongKeyPage(slkPageptr.i, "storeLongKeys2");
-#endif
-
-}//Dbacc::storeLongKeys()
-
-/* --------------------------------------------------------------------------------- */
-/*  REORGANIZE THE PAGE BY COPYING IT TEMPORARILY TO A NEW AREA AND THEN SIMPLY      */
-/*  PUTTING THE OBJECTS BACK ON THE PAGE IN THE SAME ORDER AS THEY ARE PLACED IN THE */
-/*  INDEX.                                                                           */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::reorgLongPage(Signal* signal) 
-{
-  Uint32 indexStartPos;
-  Uint32 pagePos;
-  Uint32 pagePos2;
-  Uint32 indexNo;
-  Uint32 insertPos;
-  Uint32 indexValue;
-  Uint32 keyLength;
-  Uint32 keyPos;
-  Uint32 keyEndPos;
-  LongKeyPage *reOrgPage;
-
-  ptrGuard(relpPageptr);
-  reOrgPage = (LongKeyPage *) &relpPageptr.p->word32[0];
-
-  dbgWord32(relpPageptr, ZPOS_LAST_INDEX, reOrgPage->header.highestIndex);
-  indexStartPos = ZWORDS_IN_PAGE - reOrgPage->header.highestIndex;
-
-  // Copy key data part of page to a temporary page.
-  for (pagePos = ZHEAD_SIZE; pagePos < indexStartPos; pagePos++) {
-    jam();
-    arrGuard(pagePos, 2048);
-    ckeys[pagePos] = reOrgPage->word32[pagePos];
-  }//for
-
-  insertPos = ZHEAD_SIZE;
-
-  // Walk through all the indexes.
-  for (indexNo = 1; indexNo <= reOrgPage->header.highestIndex; indexNo++) {
-    jam();
-    arrGuard(ZWORDS_IN_PAGE - indexNo, 2048);
-    dbgWord32(relpPageptr, ZWORDS_IN_PAGE - indexNo, reOrgPage->word32[ZWORDS_IN_PAGE - indexNo]);
-    indexValue = reOrgPage->word32[ZWORDS_IN_PAGE - indexNo];
-
-    if ((indexValue >> 16) != 0) {
-      // The index contains a reference to a key. 
-      jam();
-      keyPos = indexValue & 0xffff;
-      keyLength = indexValue >> 16;
-      dbgWord32(relpPageptr, ZWORDS_IN_PAGE - indexNo, insertPos + (keyLength << 16));
-      arrGuard(ZWORDS_IN_PAGE - indexNo, 2048);
-
-      // Refresh the index data with the new key start position in the data part.
-      reOrgPage->word32[ZWORDS_IN_PAGE - indexNo] = insertPos + (keyLength << 16);
-      keyEndPos = keyPos + keyLength;
-      arrGuard(keyEndPos, 2048);
-
-      // Copy the key from  the temporary page
-      // to the insert position at original page.
-      for (pagePos2 = keyPos; pagePos2 < keyEndPos; pagePos2++, insertPos++) {
-        jam();
-        dbgWord32(relpPageptr, insertPos, ckeys[pagePos2]);
-        arrGuard(insertPos, 2048);
-        arrGuard(pagePos2, 2048); 
-        reOrgPage->word32[insertPos] = ckeys[pagePos2];
-      }//for
-    }//if
-  }//for
-  dbgWord32(relpPageptr, ZPOS_INSERT_INDEX, insertPos);
-  reOrgPage->header.insertPos = insertPos;
-}//Dbacc::reorgLongPage()
-
-
-/* --------------------------------------------------------------------------------- */
-/*  DELETE_LONG_KEY                                                                  */
-/*       INPUT:  DLK_PAGEPTR    PAGE POINTER OF DELETED KEY OBJECT                   */
-/*               TDLK_LOGICAL_PAGE_INDEX  LOGICAL PAGE INDEX OF DELETED KEY OBJECT   */
-/*                                                                                   */
-/*          DESCRIPTION: DELETE AN ELEMENT OF A LONG_KEY_PAGE.                       */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::deleteLongKey(Signal* signal) 
-{
-  Uint32 tdlkLastIndex;
-  Uint32 tdlkNextPosition;
-  Uint32 tdlkFreeArea;
-  Uint32 tdlkArrayPos;
-  Uint32 tdlkOldArrayPos;
-  LongKeyPage *dlkPage;
-
-  jam();
-  dlkPage = (LongKeyPage *) &dlkPageptr.p->word32[0];
-
-#ifdef VM_TRACE
-  checkIndexInLongKeyPage(dlkPageptr.i, "deleteLongKey1");
-#endif
- 
-  dbgWord32(dlkPageptr, ZWORDS_IN_PAGE - tdlkLogicalPageIndex, dlkPage->word32[ZWORDS_IN_PAGE - tdlkLogicalPageIndex]  >> 16);
-  dbgWord32(dlkPageptr, ZWORDS_IN_PAGE - tdlkLogicalPageIndex, dlkPage->word32[ZWORDS_IN_PAGE - tdlkLogicalPageIndex] & 0xffff);
-  arrGuard(ZWORDS_IN_PAGE - tdlkLogicalPageIndex, 2048);
-
-  const Uint32 tdlkIndexValue = dlkPage->word32[ZWORDS_IN_PAGE - tdlkLogicalPageIndex];
-  const Uint32 tdlkKeyLen = tdlkIndexValue >> 16;
-  const Uint32 tdlkPhysPageIndex = tdlkIndexValue & 0xffff;
-
-  if (fragrecptr.p->createLcp == ZTRUE) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*       WE LOG THE DELETE LONG KEY BY LOGGING THE DELETED KEY AND ITS LOGICAL INDEX.*/
-    /* --------------------------------------------------------------------------------- */
-    datapageptr.p = dlkPageptr.p;
-    cundoElemIndex = tdlkLogicalPageIndex;
-    cundoinfolength = tdlkKeyLen;
-    undoWritingProcess(signal);
-  }//if
-  /* --------------------------------------------------------------------------------- */
-  /*       DECREASE THE NUMBER OF ELEMENTS IN THE PAGE.                                */
-  /* --------------------------------------------------------------------------------- */
-  dbgWord32(dlkPageptr, ZPOS_NO_ELEM_IN_PAGE, dlkPage->header.noOfElements - 1);
-  dlkPage->header.noOfElements--;
-
-  arrGuard(dlkPage->header.noOfElements, ZMAX_NO_OF_LONGKEYS_IN_PAGE);
-
-  /* --------------------------------------------------------------------------------- */
-  /*       INCREASE THE FREE AREA IN THE PAGE.                                         */
-  /* --------------------------------------------------------------------------------- */
-  dbgWord32(dlkPageptr, ZPOS_FREE_AREA_IN_PAGE, dlkPage->header.freeArea + tdlkKeyLen);
-  dbgWord32(dlkPageptr, ZPOS_LAST_INDEX, dlkPage->header.highestIndex);
-
-  dlkPage->header.freeArea += tdlkKeyLen;
-
-  if (dlkPage->header.noOfElements == 0) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*       THE PAGE IS NOW EMPTY, WE CAN RELEASE IT.                                   */
-    /* --------------------------------------------------------------------------------- */
-    if (dlkPage->header.freeArea != 
-	(ZWORDS_IN_PAGE - ZHEAD_SIZE - dlkPage->header.highestIndex )) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       SOME AREA IN THE PAGE IS STILL LEFT BUT NO ELEMENTS, INCONSISTENT           */
-      /* --------------------------------------------------------------------------------- */
-      sendSystemerror(signal);
-    }//if
-    /* --------------------------------------------------------------------------------- */
-    /*  WE REMOVE THE PAGE FROM THE LIST OF FREE LONG PAGES. THERE IS NO RISK THAT IT    */
-    /*  DID NOT BELONG TO ANY SINCE IT IS NOT ALLOWED TO HAVE THAT LARGE KEYS.           */
-    /* --------------------------------------------------------------------------------- */
-
-    if (cundoLogActive != ZTRUE) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WHEN DELETING KEYS DURING SYSTEM RESTART WE NEED NOT UPDATE THE LISTS.      */
-      /* --------------------------------------------------------------------------------- */
-      // REMOVEFROMLIST is done by releaseLongPage(). EDTJAMO.
-      //           rfpPageptr = dlkPageptr;
-      //           trfpArrayPos = dlkPage->header.pageArrayPos;
-      //           removeFromPageArrayList(signal, "deleteLongKey");
-      rlopPageptr = dlkPageptr;
-      releaseLongPage(signal);
-      return;
-    } else {
-      // Must remove reference to the removed key, otherwise left in index. EDTJAMO.
-      arrGuard(ZWORDS_IN_PAGE - tdlkLogicalPageIndex, 2048);
-      arrGuard(tdlkLogicalPageIndex, 2048);
-
-      tdlkNextPosition = dlkPage->header.nextFreeIndex;
-      dlkPage->header.nextFreeIndex = tdlkLogicalPageIndex;
-      dbgWord32(dlkPageptr, ZWORDS_IN_PAGE - tdlkLogicalPageIndex, tdlkNextPosition);
-      dlkPage->word32[ZWORDS_IN_PAGE - tdlkLogicalPageIndex] = tdlkNextPosition;
-    }
-  } else {
-    /* --------------------------------------------------------------------------------- */
-    /*       THE PAGE IS NOT EMPTY SO WE WILL REMOVE THE KEY OBJECT AND UPDATE THE       */
-    /*       HEADER INFORMATION AND PLACE THE PAGE IN THE PROPER PAGE LIST.              */
-    /* --------------------------------------------------------------------------------- */
-    tdlkLastIndex = dlkPage->header.highestIndex;
-    arrGuard(ZWORDS_IN_PAGE - tdlkLastIndex, 2048);
-    if (tdlkLastIndex == tdlkLogicalPageIndex) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WE DELETE THE LAST PAGE INDEX SO WE NEED TO UPDATE THE VALUE. WE MOVE       */
-      /*       BACKWARDS UNTIL WE EITHER FIND A USED INDEX OR THAT WE COME TO INDEX ZERO.  */
-      /* --------------------------------------------------------------------------------- */
-      tdlkLastIndex--;
-      while( (tdlkLastIndex > 1) && 
-	     (dlkPage->word32[ZWORDS_IN_PAGE - tdlkLastIndex] >> 16) == 0  ) {
-	jam();
-	tdlkLastIndex--;
-      }
-      //-----------------------------------------------------
-      // Reorganize the rest of the index. Set up the free 
-      // list and the free index.
-      //-----------------------------------------------------
-      UintR dlkTmp = tdlkLastIndex;
-      dlkPage->header.nextFreeIndex = 0;
-      while( dlkTmp > 0) {
-	if ( (dlkPage->word32[ZWORDS_IN_PAGE - dlkTmp] >> 16) == 0  ) {
-	  jam();
-	  dlkPage->word32[ZWORDS_IN_PAGE - dlkTmp] = dlkPage->header.nextFreeIndex;
-	  arrGuard(dlkTmp, 2048);
-	  dlkPage->header.nextFreeIndex = dlkTmp;
-	}
-	dlkTmp--;
-      }
-      //-----------------------------------------------------
-      // Update free area in page and last index.
-      //-----------------------------------------------------
-      dbgWord32(dlkPageptr, ZPOS_LAST_INDEX, tdlkLastIndex);
-      dlkPage->header.highestIndex = tdlkLastIndex;
-      dlkPage->header.freeArea = tdlkLogicalPageIndex +
-	dlkPage->header.freeArea - tdlkLastIndex;
-      tdlkNextPosition = 0;
-    } else {
-      if (dlkPage->header.highestIndex > tdlkLogicalPageIndex) {
-        jam();
-        tdlkNextPosition = dlkPage->header.nextFreeIndex;
-        dbgWord32(dlkPageptr, ZPOS_NEXT_FREE_INDEX, tdlkLogicalPageIndex);
-	arrGuard(tdlkLogicalPageIndex, 2048);
-        dlkPage->header.nextFreeIndex = tdlkLogicalPageIndex;
-      } else {
-        jam();
-	/* --------------------------------------------------------------------------------- */
-	/*       LOGICAL PAGE INDEX LARGER THAN LARGEST INDEX, INCONSISTENT.                 */
-	/* --------------------------------------------------------------------------------- */
-        sendSystemerror(signal);
-        return; // Just to keep compiler happy
-      }//if
-    }//if
-    /* --------------------------------------------------------------------------------- */
-    /*       WE INSERT ZERO INTO THE LENGTH PART TO INDICATE A FREE INDEX POSITION.      */
-    /*       WE INSERT A POINTER TO THE NEXT FREE INDEX TO AS TO PUT IT INTO A FREE      */
-    /*       LIST OF INDEX POSITIONS. WE ONLY DO SO IF IT WAS NOT THE LAST INDEX.        */
-    /* --------------------------------------------------------------------------------- */
-    dbgWord32(dlkPageptr, ZWORDS_IN_PAGE - tdlkLogicalPageIndex, tdlkNextPosition);
-    arrGuard(ZWORDS_IN_PAGE - tdlkLogicalPageIndex, 2048);
-    dlkPage->word32[ZWORDS_IN_PAGE - tdlkLogicalPageIndex] = tdlkNextPosition;
-    if (dlkPage->header.insertPos == (tdlkPhysPageIndex + tdlkKeyLen)) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       THIS ENTRY IS THE LAST ON THE PAGE SO WE WILL UPDATE THE INSERT INDEX       */
-      /* --------------------------------------------------------------------------------- */
-      dbgWord32(dlkPageptr, ZPOS_INSERT_INDEX, tdlkPhysPageIndex);
-      dlkPage->header.insertPos = tdlkPhysPageIndex;
-    }//if
-  }//if
-  dbgWord32(dlkPageptr, ZPOS_FREE_AREA_IN_PAGE, dlkPage->header.freeArea);
-  tdlkFreeArea = dlkPage->header.freeArea;
-  ndbrequire(tdlkFreeArea <= (ZWORDS_IN_PAGE - ZHEAD_SIZE));
-  if (tdlkFreeArea < 128) {
-    jam();
-    /* --------------------------------------------------------------------------------- */
-    /*  FREE AREA IS STILL LESS THAN 128 WORDS SO IT SHOULD NOT BE PLACED IN ANY OF THE  */
-    /*  FREE LISTS.                                                                      */
-    /* --------------------------------------------------------------------------------- */
-    dbgWord32(dlkPageptr, ZPOS_ARRAY_POS, dlkPage->header.pageArrayPos);
-    ndbrequire(dlkPage->header.pageArrayPos == 4);
-  } else {
-    jam();
-    // Calculate an eventually new arraypos. 
-    dbgWord32(dlkPageptr, 0, (tdlkFreeArea - 128) / 512);
-    tdlkArrayPos = (tdlkFreeArea - 128) / 512;
-
-    if (cundoLogActive != ZTRUE) {
-      jam();
-      /* --------------------------------------------------------------------------------- */
-      /*       WHEN DELETING KEYS DURING SYSTEM RESTART WE NEED NOT UPDATE THE LISTS.      */
-      /* --------------------------------------------------------------------------------- */
-      dbgWord32(dlkPageptr, ZPOS_ARRAY_POS, dlkPage->header.pageArrayPos);
-      tdlkOldArrayPos = dlkPage->header.pageArrayPos;
-      if (tdlkArrayPos != tdlkOldArrayPos) {
-	jam();
-	/* --------------------------------------------------------------------------------- */
-	/*       THE NEW MEMORY AREA HAS ENABLED THE PAGE TO MOVE TO A NEW FREE PAGE LIST    */
-	/* --------------------------------------------------------------------------------- */
-	rfpPageptr = dlkPageptr;
-	trfpArrayPos = tdlkOldArrayPos;
-	if (tdlkOldArrayPos != 4) {
-	  jam();
-	  /* --------------------------------------------------------------------------------- */
-	  /*  THERE WAS A FREE PAGE LIST TO REMOVE THE PAGE FROM. IF FREE SPACE IS LESS THAN   */
-	  /*  128 BYTES THEN IT IS NOT ON ANY FREE LIST.                                       */
-	  /* --------------------------------------------------------------------------------- */
-	  removeFromPageArrayList(signal);
-	}//if
-	dlkPage->header.pageArrayPos = tdlkArrayPos;
-	ipaPagePtr = dlkPageptr;
-	tipaArrayPos = tdlkArrayPos;
-	insertPageArrayList(signal);
-      }//if
-    } else {
-      // Update pageArrayPos. We are in a SR, executing undolog, insertPageArrayList() called
-      // from execACC_OVER_REC needs this value later.
-      dlkPage->header.pageArrayPos = tdlkArrayPos;
-    }
-  }//if
-#ifdef VM_TRACE
-  if (cundoLogActive != ZTRUE) checkPageArrayList(signal, "deleteLongKey");
-  checkIndexInLongKeyPage(dlkPageptr.i, "deleteLongKey2");
-#endif
-}//Dbacc::deleteLongKey()
-
-
-void Dbacc::checkIndexInLongKeyPage(Uint32 pageId, const char *calledFrom) {
-  Page8Ptr pagePtr;
-  LongKeyPage *page;
-  Uint32 indexNo;
-  Uint32 indexValue;
-  Uint32 keyLength;
-  Uint32 keyPos;
-
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cpagesize, page8);
-  page = (LongKeyPage *) &pagePtr.p->word32[0];
-
-  // Check the header variables.
-  if (page->header.nextFreeIndex > 2048 ||
-      page->header.highestIndex > 2048 ||
-      page->header.insertPos > 2048 ||
-      page->header.freeArea > 2048 ||
-      page->header.noOfElements > 225) {
-   ndbout << " ERROR in checkIndexInLongKeyPage, called from " << calledFrom << endl
-	   << " pagePtr.i = " << pageId << endl;
-    printoutInfoAndShutdown(page);
-  }
-
-  // Walk through all the indexes.
-  for (indexNo = 1; indexNo <= page->header.highestIndex; indexNo++) {
-    jam();
-    indexValue = page->word32[ZWORDS_IN_PAGE - indexNo];
-
-    if ((indexValue >> 16) == 0) {
-      ; // key length is 0, means no key reference at this position in index.
-    } else {
-      // The index contains a reference to a key. 
-      jam();
-      keyPos = indexValue & 0xffff;
-      keyLength = indexValue >> 16;
-      if (keyPos >= ZWORDS_IN_PAGE || keyLength >= ZWORDS_IN_PAGE) {
-	jam();
-	ndbout << " ERROR in checkIndexInLongKeyPage, called from " << calledFrom << endl
-	       << " keyPos = " << keyPos << endl
-	       << " keyLength = " << keyLength << endl
-	       << " page->header.noOfElements = " << page->header.noOfElements << endl
-	       << " page->header.freeArea = " << page->header.freeArea << endl
-	       << " indexNo = " << indexNo << endl
-	       << " page->header.highestIndex = " << page->header.highestIndex << endl;
-	ndbrequire(false);
-      }
-    }
-  }
-}//Dbacc::checkIndexInLongKeyPage
-
-
-/* --------------------------------------------------------------------------------- */
-/*       REMOVE A PAGE FROM THE PAGE ARRAY LIST.                                     */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::removeFromPageArrayList(Signal* signal) 
-{
-  Page8Ptr rfpPrevPageptr;
-  Page8Ptr rfpNextPageptr;
-  LongKeyPage *page;
-  LongKeyPage *prevPage;
-  LongKeyPage *nextPage;
-
-  jam();
-
-#ifdef VM_TRACE
-  checkPageB4Remove(rfpPageptr.i, "removeFromPageArrayList");
-#endif
-
-  page = (LongKeyPage *) &rfpPageptr.p->word32[0];
-
-  if (page->header.prevPage == RNIL) {
-    jam();
-    arrGuard(trfpArrayPos, 4);
-    // This page was first in list, remove reference 
-    // to this page from the start of the list.
-    ndbrequire(fragrecptr.p->longKeyPageArray[trfpArrayPos] == rfpPageptr.i);
-    fragrecptr.p->longKeyPageArray[trfpArrayPos] = page->header.nextPage;
-  } else {
-    jam();
-    rfpPrevPageptr.i = page->header.prevPage;
-    ptrCheckGuard(rfpPrevPageptr, cpagesize, page8);
-    prevPage = (LongKeyPage *) &rfpPrevPageptr.p->word32[0];
-    // This page wasn't first in list, remove reference 
-    // to this page from the previous page.
-    ndbrequire(prevPage->header.nextPage == rfpPageptr.i);
-    prevPage->header.nextPage = page->header.nextPage;
-  }//if
-
-  if (page->header.nextPage != RNIL) {
-    jam();
-    rfpNextPageptr.i = page->header.nextPage;
-    ptrCheckGuard(rfpNextPageptr, cpagesize, page8);
-    nextPage = (LongKeyPage *) &rfpNextPageptr.p->word32[0];
-    // This page wasn't last in list, remove reference
-    // to this page from the next page.
-    ndbrequire(nextPage->header.prevPage == rfpPageptr.i);
-    nextPage->header.prevPage = page->header.prevPage;
-    // Remove reference to next page in list.
-    page->header.nextPage = RNIL;  
-  }//if
-  
-  // This couldn't be set until now.
-  // Remove reference to previous page in list.
-  page->header.prevPage = RNIL;
-
-#ifdef VM_TRACE
-  checkPageArrayList(signal, "removeFromPageArrayList");
-#endif
-}//Dbacc::removeFromPageArrayList()
-
-/* --------------------------------------------------------------------------------- */
-/*       INSERT A PAGE INTO THE PAGE ARRAY LIST.                                     */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::insertPageArrayList(Signal* signal)
-{
-  Page8Ptr ipaNextPagePtr;
-  LongKeyPage *page;
-  LongKeyPage *nextPage;
-
-  jam();
-
-#ifdef VM_TRACE
-  checkPageArrayList(signal, "insertPageArrayList1");
-  checkPageB4Insert(ipaPagePtr.i, "insertPageArrayList1");
-#endif
-
-  page = (LongKeyPage *) &ipaPagePtr.p->word32[0];
-
-  arrGuard(tipaArrayPos, 4);
-
-  if (fragrecptr.p->longKeyPageArray[tipaArrayPos] != RNIL) {
-    jam();
-    ipaNextPagePtr.i = fragrecptr.p->longKeyPageArray[tipaArrayPos];
-    ptrCheckGuard(ipaNextPagePtr, cpagesize, page8);
-    nextPage = (LongKeyPage *) &ipaNextPagePtr.p->word32[0];
-
-    // A page already existed in the list, add reference 
-    // to this page in the next page.
-    nextPage->header.prevPage = ipaPagePtr.i;
-  }//if
-
-  page->header.prevPage = RNIL;
-  page->header.nextPage = fragrecptr.p->longKeyPageArray[tipaArrayPos];
-  page->header.pageArrayPos = tipaArrayPos;
-
-  fragrecptr.p->longKeyPageArray[tipaArrayPos] = ipaPagePtr.i;
-
-#ifdef VM_TRACE
-  checkPageArrayList(signal, "insertPageArrayList2");
-#endif
-}//Dbacc::insertPageArrayList()
-
-// --------------------------------------------------------------------------------- */
-//       Check the page array list.
-// --------------------------------------------------------------------------------- */
-void Dbacc::checkPageArrayList(Signal* signal, const char *calledFrom) 
-{
-  Page8Ptr pagePtr;
-  Uint32 pageArrayIndex;
-  LongKeyPage *page;
-  Uint32 prevPage;
-
-  // Go through the longKeyPageArray and search for a page.
-  for (pageArrayIndex = 0; pageArrayIndex <= ZMAX_LONG_KEY_ARRAY_INDEX; pageArrayIndex++) {
-    jam();
-    pagePtr.i = fragrecptr.p->longKeyPageArray[pageArrayIndex];    
-    prevPage = RNIL;
-
-    if (pagePtr.i != RNIL) {
-      // A page is found.
-      jam();
-      do {
-	ptrCheckGuard(pagePtr, cpagesize, page8);
-	page = (LongKeyPage *) &pagePtr.p->word32[0];
-	
-	if ((page->header.freeArea >= 128) &&
-	    (((page->header.freeArea  - 128) / 512) == page->header.pageArrayPos) &&
-	    (pageArrayIndex == page->header.pageArrayPos) &&
-	    (page->header.prevPage == prevPage)) {
-	  // The page found is OK, test next page.
-	  prevPage = pagePtr.i;
-	  pagePtr.i = page->header.nextPage;
-	  jam();
-	} else {
-	  jam();
-	  ndbout << " ERROR in checkPageArrayList, called from " << calledFrom << endl
-		 << " pagePtr.i = " << pagePtr.i << endl
-		 << " prevPage = " << prevPage << endl
-		 << " pageArrayIndex = " << pageArrayIndex << endl;
-	  printoutInfoAndShutdown(page);
-	}
-      }//do
-      while (pagePtr.i != RNIL);
-    }//if
-  }//for
-}//Dbacc::checkPageArrayList()
-
-// --------------------------------------------------------------------------------- */
-//       Check the page to put into the pageArrayList.
-// --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Insert(Uint32 pageId, const char *calledFrom) {
-  Page8Ptr pagePtr;
-  Uint32 pageArrayIndex;
-  LongKeyPage *page;
-  
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cpagesize, page8);
-  page = (LongKeyPage *) &pagePtr.p->word32[0];
-
-  if ((page->header.nextPage != RNIL) ||
-      (page->header.prevPage != RNIL)) {
-    jam();
-    ndbout << " ERROR in checkPageB4Insert, called from " << calledFrom << endl
-	   << " pagePtr.i = " << pagePtr.i << endl
-	   << " page->header.nextPage = " << page->header.nextPage << endl
-	   << " page->header.prevPage = " << page->header.prevPage << endl;
-    ndbrequire(false);
-  }
-
-  // Page should not be inserted in list if free area is less than 512 byte.
-  if (page->header.freeArea < 128) {
-    jam();
-    ndbout << " ERROR in checkPageB4Insert, called from " << calledFrom << endl
-	   << " Page has to little free area to be in list." << endl
-	   << " pagePtr.i = " << pagePtr.i << endl
-	   << " tipaArrayPos = " << tipaArrayPos << endl;
-    printoutInfoAndShutdown(page);
-  } 
-
-  // Check if position in list is correct
-  if ((((page->header.freeArea  - 128) / 512) != page->header.pageArrayPos) ||
-      (page->header.pageArrayPos != tipaArrayPos)) {
-    ndbout << " ERROR in checkPageB4Insert, called from " << calledFrom << endl
-	   << " Incorrect position in list." << endl
-	   << " pagePtr.i = " << pagePtr.i << endl
-	   << " tipaArrayPos = " << tipaArrayPos << endl;
-    printoutInfoAndShutdown(page);
-  } 
-
-  // Check if page is already in list.
-  for (pageArrayIndex = 0; pageArrayIndex <= ZMAX_LONG_KEY_ARRAY_INDEX; pageArrayIndex++) {
-    jam();
-    pagePtr.i = fragrecptr.p->longKeyPageArray[pageArrayIndex];    
-    
-    if (pagePtr.i != RNIL) {
-      // A page is found.
-      jam();
-      do {
-	ptrCheckGuard(pagePtr, cpagesize, page8);
-	page = (LongKeyPage *) &pagePtr.p->word32[0];
-	if (pagePtr.i == pageId) { 
-	  jam();
-	  ndbout << "ERROR in checkPageB4Insert, called from " << calledFrom << endl
-		 << "Page exists already in list." << endl
-		 << " pagePtr.i = " << pagePtr.i << endl;
-	  printoutInfoAndShutdown(page);
-	}
-	pagePtr.i = page->header.nextPage;
-      }//do
-      while (pagePtr.i != RNIL);
-    }//if
-  }//for
-}//Dbacc::checkPageB4Insert()
-
-// --------------------------------------------------------------------------------- */
-//       Check the page to remove from the pageArrayList.
-// --------------------------------------------------------------------------------- */
-void Dbacc::checkPageB4Remove(Uint32 pageId, const char *calledFrom) {
-  Page8Ptr pagePtr;
-  Uint32 pageArrayIndex;
-  Uint32 noOfOccurrence = 0;
-  Uint32 noOfPagesInList = 0;
-  LongKeyPage *page;
-  
-  LongKeyPage *prevPage;
-  LongKeyPage *nextPage;
-  Page8Ptr rfpPrevPageptr;
-  Page8Ptr rfpNextPageptr;
-
- 
-  pagePtr.i = pageId;
-  ptrCheckGuard(pagePtr, cpagesize, page8);
-  page = (LongKeyPage *) &pagePtr.p->word32[0];
-
-  // Check that page is in list.
-  for (pageArrayIndex = 0; pageArrayIndex <= ZMAX_LONG_KEY_ARRAY_INDEX; pageArrayIndex++) {
-    jam();
-    pagePtr.i = fragrecptr.p->longKeyPageArray[pageArrayIndex];    
-    
-    if (pagePtr.i != RNIL) {
-      // A page is found.
-      jam();
-      do {
-	noOfPagesInList++;
-	ptrCheckGuard(pagePtr, cpagesize, page8);
-	page = (LongKeyPage *) &pagePtr.p->word32[0];
-	if (pagePtr.i == pageId) { 
-	  // Check the consistent in list.
-	  if (page->header.prevPage != RNIL) {
-	    rfpPrevPageptr.i = page->header.prevPage;
-	    ptrCheckGuard(rfpPrevPageptr, cpagesize, page8);
-	    prevPage = (LongKeyPage *) &rfpPrevPageptr.p->word32[0];
-	    if (prevPage->header.nextPage != pageId) {
-	      ndbout << "ERROR: inconsistent in checkPageB4Remove, called from " << calledFrom << endl
-		     << "prevPage->header.nextPage = " << prevPage->header.nextPage << endl
-		     << "pageId = " << pageId << endl;
-	      printoutInfoAndShutdown(page);
-	    }
-	  }
-	  // Check the consistent in list.	  	   
-	  if (page->header.nextPage != RNIL) {
-	    rfpNextPageptr.i = page->header.nextPage;
-	    ptrCheckGuard(rfpNextPageptr, cpagesize, page8);
-	    nextPage = (LongKeyPage *) &rfpNextPageptr.p->word32[0];
-	    if (nextPage->header.prevPage != pageId) {
-	      ndbout << "ERROR: inconsistent in checkPageB4Remove, called from " << calledFrom << endl
-		     << "nextPage->header.prevPage = " << nextPage->header.prevPage << endl
-		     << "pageId = " << pageId << endl;
-	      printoutInfoAndShutdown(page);
-	    }
-	  }
-	  jam();
-	  noOfOccurrence++;
-	}
-	pagePtr.i = page->header.nextPage;
-      }//do
-      while (pagePtr.i != RNIL);
-    }//if
-  }//for
-
-  if (noOfOccurrence != 1) {
-    pagePtr.i = pageId;
-    ptrCheckGuard(pagePtr, cpagesize, page8);
-    page = (LongKeyPage *) &pagePtr.p->word32[0];
-    ndbout << "ERROR in checkPageB4Remove, called from " << calledFrom << endl
-	   << "Page occur " << noOfOccurrence << " times in list" << endl
-	   << "pageId = " << pageId << endl;
-    printoutInfoAndShutdown(page);
-  }
-}//Dbacc::checkPageB4Remove()
-
-
-// --------------------------------------------------------------------------------- */
-//       Printout an error message and shutdown node.
-// --------------------------------------------------------------------------------- */
-void Dbacc::printoutInfoAndShutdown(LongKeyPage *page) {
-  ndbout << " page->header.pageArrayPos = " << page->header.pageArrayPos  << endl
-	 << " ((page->header.freeArea  - 128) / 512) = "
-	 << ((page->header.freeArea  - 128) / 512) << endl
-	 << " page->header.freeArea = " << page->header.freeArea << endl
-	 << " page->header.noOfElements = " << page->header.noOfElements << endl
-	 << " page->header.nextPage = " << page->header.nextPage << endl
-	 << " page->header.prevPage = " << page->header.prevPage << endl
-	 << " page->header.nextFreeIndex = " << page->header.nextFreeIndex << endl
-	 << " page->header.insertPos = " << page->header.insertPos << endl
-	 << " page->header.highestIndex = " << page->header.highestIndex << endl
-	 << " page->header.pageId = " << page->header.pageId << endl;
-  ndbrequire(false);
-}//Dbacc::printoutInfoAndShutdown()
-
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
@@ -4565,13 +3301,12 @@ void Dbacc::getElement(Signal* signal)
   gePageptr = gdiPageptr;
   tgeResult = ZFALSE;
   tgeCompareLen = fragrecptr.p->keyLength;
-  const Uint32 isAccLockReq = operationRecPtr.p->isAccLockReq; // wl-2066 remove
   /*
    * The value seached is
    * - table key for ACCKEYREQ, stored in TUP
    * - local key (1 word) for ACC_LOCKREQ and UNDO, stored in ACC
    */
-  const bool compareLocalKey =
+  const bool searchLocalKey =
     operationRecPtr.p->isAccLockReq || operationRecPtr.p->isUndoLogReq;
 
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + fragrecptr.p->localkeylen);
@@ -4613,181 +3348,43 @@ void Dbacc::getElement(Signal* signal)
       // There is at least one element in this container. Check if it is the element
       // searched for.
       /* --------------------------------------------------------------------------------- */
-      if (true) {
-        do {
-          tgeElementHeader = gePageptr.p->word32[tgeElementptr];
-          tgeRemLen = tgeRemLen - TelemLen;
-          Uint32 hashValuePart;
-          if (ElementHeader::getLocked(tgeElementHeader)) {
-            jam();
-            geTmpOperationRecPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
-            ptrCheckGuard(geTmpOperationRecPtr, coprecsize, operationrec);
-            hashValuePart = geTmpOperationRecPtr.p->hashvaluePart;
-          } else {
-            jam();
-            hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
-          }
-          if (hashValuePart == opHashValuePart) {
-            jam();
-            Uint32 localkey1 = gePageptr.p->word32[tgeElementptr + tgeForward];
-            Uint32 localkey2 = 0;
-            bool found;
-            if (! compareLocalKey) {
-              readTablePk(localkey1);
-              found = (memcmp(Tkeydata, ckeys, fragrecptr.p->keyLength << 2) == 0);
-            } else {
-              found = (localkey1 == Tkeydata[0]);
-            }
-            if (found) {
-              tgeLocked = ElementHeader::getLocked(tgeElementHeader);
-              tgeResult = ZTRUE;
-              operationRecPtr.p->localdata[0] = localkey1;
-              operationRecPtr.p->localdata[1] = localkey2;
-              return;
-            }
-          }
-          if (tgeRemLen <= ZCON_HEAD_SIZE) {
-            break;
-          }
-          tgeElementptr = tgeElementptr + tgeElemStep;
-        } while (true);
-      } else if (tgeCompareLen != 0) { // wl-2066 remove
-	/* --------------------------------------------------------------------------------- */
-	/*       THIS PART IS USED TO SEARCH FOR KEYS WITH FIXED SIZE. THE LOOP TAKES CARE   */
-	/*       OF SEARCHING THROUGH ALL ELEMENTS IN ONE CONTAINER.                         */
-	/* --------------------------------------------------------------------------------- */
-        do {
-          register Uint32 TdataIndex = 0;
-          register Uint32 TgeIndex = 0;
+      do {
+        tgeElementHeader = gePageptr.p->word32[tgeElementptr];
+        tgeRemLen = tgeRemLen - TelemLen;
+        Uint32 hashValuePart;
+        if (ElementHeader::getLocked(tgeElementHeader)) {
           jam();
-          tgeRemLen = tgeRemLen - TelemLen;
-          do {
-            if (gePageptr.p->word32[tgeKeyptr + TgeIndex] != Tkeydata[TdataIndex]) {
-              goto compare_next;
-            }//if
-            TdataIndex++;
-            TgeIndex += tgeForward;
-          } while (TdataIndex < tgeCompareLen);
-	  /* --------------------------------------------------------------------------------- */
-	  /*       WE HAVE FOUND THE ELEMENT. GET THE LOCK INDICATOR AND RETURN FOUND.         */
-	  /* --------------------------------------------------------------------------------- */
+          geTmpOperationRecPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
+          ptrCheckGuard(geTmpOperationRecPtr, coprecsize, operationrec);
+          hashValuePart = geTmpOperationRecPtr.p->hashvaluePart;
+        } else {
           jam();
-#if __ia64 == 1
-#if __INTEL_COMPILER == 810
-          // prevents SIGSEGV under icc -O1
-          ndb_acc_ia64_icc810_dummy_func();
-#endif
-#endif
-          tgeLocked = ElementHeader::getLocked(gePageptr.p->word32[tgeElementptr]);
-          tgeResult = ZTRUE;
-          TdataIndex = tgeElementptr + tgeForward;
-          TgeIndex = TdataIndex + tgeForward;
-          operationRecPtr.p->localdata[0] = gePageptr.p->word32[TdataIndex];
-          operationRecPtr.p->localdata[1] = gePageptr.p->word32[TgeIndex];
-          return;
-	  /* --------------------------------------------------------------------------------- */
-	  /*       COMPARE NEXT ELEMENT                                                        */
-	  /* --------------------------------------------------------------------------------- */
-	compare_next:
-          if (tgeRemLen <= ZCON_HEAD_SIZE) {
-            break;
-          }//if
-          tgeKeyptr = tgeKeyptr + tgeElemStep;
-          tgeElementptr = tgeElementptr + tgeElemStep;
-        } while (1);
-      } else if (! isAccLockReq) { // wl-2066 remove
-        jam();
-	/* --------------------------------------------------------------------------------- */
-	/*       THIS PART IS USED TO SEARCH FOR KEYS WITH VARIABLE LENGTH OR FIXED LENGTH   */
-	/*       GREATER THAN 32 BYTES. IN THIS CASE THE KEY PART IS STORED IN A SPECIAL     */
-	/*       LONG PAGE PART AND THE HASH INDEX CONTAINS A REFERENCE TO THERE PLUS A      */
-	/*       PART OF THE HASH VALUE.                                                     */
-	/* --------------------------------------------------------------------------------- */
-	do {
-          tgeElementHeader = gePageptr.p->word32[tgeElementptr];
-          tgeRemLen = tgeRemLen - TelemLen;
-	  Uint32 hashValuePart;
-          if (ElementHeader::getLocked(tgeElementHeader)) {
-            jam();
-	    /* --------------------------------------------------------------------------------- */
-	    /*       IN THIS CASE THE HASH VALUE PART OF THE ELEMENT HEADER IS STORED IN THE     */
-	    /*       OPERATION THAT OWNS THE LOCK. IN THIS CASE WE MIGHT AS WELL GO AHEAD AND    */
-	    /*       CHECK THE KEY IN THE LONG PAGE.                                             */
-	    /* --------------------------------------------------------------------------------- */
-            geTmpOperationRecPtr.i = 
-	      ElementHeader::getOpPtrI(tgeElementHeader);
-            ptrCheckGuard(geTmpOperationRecPtr, coprecsize, operationrec);
-	    hashValuePart = geTmpOperationRecPtr.p->hashvaluePart;
+          hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
+        }
+        if (hashValuePart == opHashValuePart) {
+          jam();
+          Uint32 localkey1 = gePageptr.p->word32[tgeElementptr + tgeForward];
+          Uint32 localkey2 = 0;
+          bool found;
+          if (! searchLocalKey) {
+            readTablePk(localkey1);
+            found = (memcmp(Tkeydata, ckeys, fragrecptr.p->keyLength << 2) == 0);
           } else {
-            jam();
-	    /* --------------------------------------------------------------------------------- */
-	    /*       IN THIS CASE THE HASH VALUE PART CAN BE CHECKED TO SEE IF THE HASH VALUE    */
-	    /*       GIVES US A REASON TO CONTINUE CHECKING THE FULL KEY.                        */
-	    /* --------------------------------------------------------------------------------- */
-	    hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
-          }//if
-	  
-	  if (hashValuePart == opHashValuePart) {
-            jam();
-	    /* --------------------------------------------------------------------------------- */
-	    /*       IF THE HASH VALUES ARE EQUAL THEN XOR-ING THEM WILL GIVE THE RESULT 0.      */
-	    /* --------------------------------------------------------------------------------- */
-	    /*       WE HAVE FOUND A KEY WITH IDENTICAL HASH VALUE. MOST LIKELY WE HAVE FOUND THE*/
-	    /*       ELEMENT BUT FIRST WE NEED TO PERFORM A KEY COMPARISON.                      */
-	    /* --------------------------------------------------------------------------------- */
-	    tslcPageIndex = gePageptr.p->word32[tgeKeyptr] & 0x3ff;
-            tslcPagedir = gePageptr.p->word32[tgeKeyptr] >> 10;
-	    searchLongKey(signal);
-            if (tslcResult == ZTRUE) {
-              register Uint32 TlocData1, TlocData2;
-              jam();
-	      /* --------------------------------------------------------------------------------- */
-	      /*       WE HAVE FOUND THE ELEMENT. GET THE LOCK INDICATOR AND RETURN FOUND.         */
-	      /* --------------------------------------------------------------------------------- */
-	      tgeLocked = ElementHeader::getLocked(tgeElementHeader);
-              tgeResult = ZTRUE;
-              TlocData1 = tgeElementptr + tgeForward;
-              TlocData2 = TlocData1 + tgeForward;
-              operationRecPtr.p->localdata[0] = gePageptr.p->word32[TlocData1];
-              operationRecPtr.p->localdata[1] = gePageptr.p->word32[TlocData2];
-              return;
-            }//if
+            found = (localkey1 == Tkeydata[0]);
           }
-	  /* --------------------------------------------------------------------------------- */
-	  /*       COMPARE NEXT ELEMENT                                                        */
-	  /* --------------------------------------------------------------------------------- */
-          if (tgeRemLen <= ZCON_HEAD_SIZE) {
-            break;
-          }//if
-          tgeKeyptr = tgeKeyptr + tgeElemStep;
-          tgeElementptr = tgeElementptr + tgeElemStep;
-        } while (1);
-      } else { // wl-2066 remove
-        jam();
-	/* --------------------------------------------------------------------------------- */
-	/*       Search for local key in a lock request                                      */
-	/* --------------------------------------------------------------------------------- */
-        do {
-          tgeRemLen = tgeRemLen - TelemLen;
-          // position of local key word 1
-          Uint32 TdataIndex = tgeElementptr + tgeForward;
-          // XXX assume localkeylen is 1
-          if (gePageptr.p->word32[TdataIndex] == Tkeydata[0]) {
-            jam();
-            tgeLocked = ElementHeader::getLocked(gePageptr.p->word32[tgeElementptr]);
+          if (found) {
+            tgeLocked = ElementHeader::getLocked(tgeElementHeader);
             tgeResult = ZTRUE;
-            // position of local key word 2
-            Uint32 TgeIndex = TdataIndex + tgeForward;
-            operationRecPtr.p->localdata[0] = gePageptr.p->word32[TdataIndex];
-            operationRecPtr.p->localdata[1] = gePageptr.p->word32[TgeIndex];
+            operationRecPtr.p->localdata[0] = localkey1;
+            operationRecPtr.p->localdata[1] = localkey2;
             return;
-          }//if
-          if (tgeRemLen <= ZCON_HEAD_SIZE) {
-            break;
-          }//if
-          tgeElementptr = tgeElementptr + tgeElemStep;
-        } while (1);
-      }//if
+          }
+        }
+        if (tgeRemLen <= ZCON_HEAD_SIZE) {
+          break;
+        }
+        tgeElementptr = tgeElementptr + tgeElemStep;
+      } while (true);
     }//if
     if (tgeRemLen != ZCON_HEAD_SIZE) {
       ACCKEY_error(8); return;
@@ -4816,67 +3413,6 @@ void Dbacc::getElement(Signal* signal)
   } while (1);
   return;
 }//Dbacc::getElement()
-
-/* --------------------------------------------------------------------------------- */
-/* SEARCH_LONG_KEY                                                                   */
-/*       INPUT:                                                                      */
-/*               TSLC_PAGEDIR    PAGE DIRECTORY OF LONG PAGE                         */
-/*               TSLC_PAGE_INDEX PAGE INDEX IN LONG PAGE                             */
-/*               GE_OPERATION_REC_PTR                                                */
-/*       OUTPUT:                                                                     */
-/*               TSLC_RESULT                                                         */
-/*          DESCRIPTION: SEARCH FOR AN ELEMENT IN A LONG_KEY_PAGE.                   */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::searchLongKey(Signal* signal) 
-{
-  DirRangePtr slcOverflowrangeptr;
-  DirectoryarrayPtr slcOverflowDirptr;
-  Page8Ptr slcPageptr;
-  Uint32 tslcIndexValue;
-  Uint32 tslcStartIndex;
-  Uint32 tslcIndex;
-  Uint32 guard30;
-  Uint32* Tkeydata = (Uint32*)&signal->theData[7];
-
-
-  slcOverflowrangeptr.i = fragrecptr.p->overflowdir;
-  ptrCheckGuard(slcOverflowrangeptr, cdirrangesize, dirRange);
-  arrGuard((tslcPagedir >> 8), 256);
-  slcOverflowDirptr.i = slcOverflowrangeptr.p->dirArray[tslcPagedir >> 8];
-  ptrCheckGuard(slcOverflowDirptr, cdirarraysize, directoryarray);
-
-  //  dbgWord32(slcOverflowDirptr, (int) (tslcPagedir & 0xff), slcOverflowDirptr.p->pagep[tslcPagedir & 0xff]);
-
-  slcPageptr.i = slcOverflowDirptr.p->pagep[tslcPagedir & 0xff];
-  ptrCheckGuard(slcPageptr, cpagesize, page8);
-  arrGuard(ZWORDS_IN_PAGE - tslcPageIndex, 2048);
-  dbgWord32(slcPageptr, ZWORDS_IN_PAGE - tslcPageIndex, (int)slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex] & 0xffff);
-  dbgWord32(slcPageptr, ZWORDS_IN_PAGE - tslcPageIndex, slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex] >> 16);
-  tslcIndexValue = slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex];
-  if ((tslcIndexValue >> 16) != operationRecPtr.p->tupkeylen) {
-    jam();
-    tslcResult = ZFALSE;
-    return;
-  }//if
-  tslcStartIndex = tslcIndexValue & 0xffff;
-  guard30 = operationRecPtr.p->tupkeylen - 1;
-  arrGuard(guard30, 2048);
-  arrGuard(guard30 + tslcStartIndex, 2048);
-  for (tslcIndex = 0; tslcIndex <= guard30; tslcIndex++) {
-    dbgWord32(slcPageptr, tslcIndex + tslcStartIndex, slcPageptr.p->word32[tslcIndex + tslcStartIndex]);
-    if (slcPageptr.p->word32[tslcIndex + tslcStartIndex] != Tkeydata[tslcIndex]) {
-      jam();
-      tslcResult = ZFALSE;
-      return;
-    }//if
-  }//for
-  jam();
-  tslcResult = ZTRUE;
-  operationRecPtr.p->longPagePtr = slcPageptr.i;
-  operationRecPtr.p->longKeyPageIndex = tslcPageIndex;
-  arrGuard(tslcPageIndex, ZMAX_NO_OF_LONGKEYS_IN_PAGE);
-  arrGuard(slcPageptr.i, cpagesize);
-}//Dbacc::searchLongKey()
 
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
@@ -4920,13 +3456,6 @@ void Dbacc::commitdelete(Signal* signal, bool systemRestart)
     signal->theData[3] = pageIndex;
     EXECUTE_DIRECT(DBTUP, GSN_TUP_DEALLOCREQ, signal, 4);
     jamEntry();
-  }//if
-  if (fragrecptr.p->keyLength == 0) { // wl-2066 remove
-    jam();
-    tdlkLogicalPageIndex = operationRecPtr.p->longKeyPageIndex;
-    dlkPageptr.i = operationRecPtr.p->longPagePtr;
-    ptrCheckGuard(dlkPageptr, cpagesize, page8);
-    deleteLongKey(signal);
   }//if
   getdirindex(signal);
   tlastPageindex = tgdiPageindex;
@@ -5485,50 +4014,6 @@ void Dbacc::checkoverfreelist(Signal* signal)
     }//if
   }//if
 }//Dbacc::checkoverfreelist()
-
-/* --------------------------------------------------------------------------------- */
-/* RELEASE_LONG_PAGE                                                                 */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::releaseLongPage(Signal* signal) 
-{
-  DirRangePtr rlpOverflowrangeptr;
-  DirectoryarrayPtr rlpOverflowDirptr;
-  Uint32 trlpTmp1;
-  Uint32 trlpTmp2;
-  Uint32 trlpTmp3;
-
-  jam();
-  seizeOverRec(signal);
-  sorOverflowRecPtr.p->dirindex = rlopPageptr.p->word32[ZPOS_PAGE_ID];
-  sorOverflowRecPtr.p->overpage = RNIL;
-  priOverflowRecPtr = sorOverflowRecPtr;
-  putRecInFreeOverdir(signal);
-  trlpTmp1 = sorOverflowRecPtr.p->dirindex;
-  rlpOverflowrangeptr.i = fragrecptr.p->overflowdir;
-  trlpTmp2 = trlpTmp1 >> 8;
-  trlpTmp3 = trlpTmp1 & 0xff;
-  ptrCheckGuard(rlpOverflowrangeptr, cdirrangesize, dirRange);
-  arrGuard(trlpTmp2, 256);
-  rlpOverflowDirptr.i = rlpOverflowrangeptr.p->dirArray[trlpTmp2];
-  ptrCheckGuard(rlpOverflowDirptr, cdirarraysize, directoryarray);
-  rlpOverflowDirptr.p->pagep[trlpTmp3] = RNIL;
-
-  if (cundoLogActive != ZTRUE) {
-    // Remove from page array.
-    trfpArrayPos = rlopPageptr.p->word32[ZPOS_ARRAY_POS];
-    rfpPageptr = rlopPageptr;
-    removeFromPageArrayList(signal);
-  }
-
-  // Reset page header
-  iloPageptr = rlopPageptr;
-  tiloIndex = rlopPageptr.p->word32[ZPOS_PAGE_ID];
-  initLongOverpage(signal);
-
-  rpPageptr = rlopPageptr;
-  releasePage(signal);
-}//Dbacc::releaseLongPage()
-
 
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -6673,17 +5158,8 @@ void Dbacc::expandcontainer(Signal* signal)
   Uint32 texcHashvalue;
   Uint32 texcTmp;
   Uint32 texcIndex;
-  Uint32 texpKeyLen; // wl-2066 remove
   Uint32 guard20;
 
-  texpKeyLen = 0;
-#if 0 // wl-2066 remove
-  texpKeyLen = fragrecptr.p->keyLength;
-  if (texpKeyLen == 0) {
-    jam();
-    texpKeyLen = ZACTIVE_LONG_KEY_LEN;
-  }//if
-#endif
   cexcPrevpageptr = RNIL;
   cexcPrevconptr = 0;
   cexcForward = ZTRUE;
@@ -6770,20 +5246,10 @@ void Dbacc::expandcontainer(Signal* signal)
     clocalkey[texcIndex] = excPageptr.p->word32[texcTmp];
     texcTmp = texcTmp + cexcForward;
   }//for
-#if 0 // wl-2066 remove
-  guard20 = texpKeyLen - 1;
-  for (texcIndex = 0; texcIndex <= guard20; texcIndex++) {
-    arrGuard(texcIndex, 2048);
-    arrGuard(texcTmp, 2048);
-    ckeys[texcIndex] = excPageptr.p->word32[texcTmp];
-    texcTmp = texcTmp + cexcForward;
-  }//for
-#endif
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  tidrKeyLen = texpKeyLen;
   insertElement(signal);
   fragrecptr.p->expReceiveIndex = tidrPageindex;
   fragrecptr.p->expReceivePageptr = idrPageptr.i;
@@ -6865,19 +5331,10 @@ void Dbacc::expandcontainer(Signal* signal)
       clocalkey[texcIndex] = lastPageptr.p->word32[texcTmp];
       texcTmp = texcTmp + tlastForward;
     }//for
-#if 0 // wl-2066 remove
-    for (texcIndex = 0; texcIndex < texpKeyLen; texcIndex++) {
-      arrGuard(texcIndex, 2048);
-      arrGuard(texcTmp, 2048);
-      ckeys[texcIndex] = lastPageptr.p->word32[texcTmp];
-      texcTmp = texcTmp + tlastForward;
-    }//for
-#endif
     tidrPageindex = fragrecptr.p->expReceiveIndex;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
     ptrCheckGuard(idrPageptr, cpagesize, page8);
     tidrForward = fragrecptr.p->expReceiveForward;
-    tidrKeyLen = texpKeyLen;
     insertElement(signal);
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
@@ -7358,20 +5815,12 @@ void Dbacc::shrinkcontainer(Signal* signal)
   Uint32 tshrElementptr;
   Uint32 tshrRemLen;
   Uint32 tshrInc;
-  Uint32 tshrKeyLen = 0; // wl-2066 remove
   Uint32 tshrTmp;
   Uint32 tshrIndex;
   Uint32 guard21;
 
   tshrRemLen = cexcContainerlen - ZCON_HEAD_SIZE;
-#if 0 // wl-2066 remove
-  tshrKeyLen = fragrecptr.p->keyLength;
-  if (tshrKeyLen == 0) {
-    jam();
-    tshrKeyLen = ZACTIVE_LONG_KEY_LEN;
-  }//if
-#endif
-  tshrInc = (ZELEM_HEAD_SIZE + tshrKeyLen) + fragrecptr.p->localkeylen;
+  tshrInc = fragrecptr.p->elementLength;
   if (cexcForward == ZTRUE) {
     jam();
     tshrElementptr = cexcContainerptr + ZCON_HEAD_SIZE;
@@ -7420,20 +5869,10 @@ void Dbacc::shrinkcontainer(Signal* signal)
     clocalkey[tshrIndex] = excPageptr.p->word32[tshrTmp];
     tshrTmp = tshrTmp + cexcForward;
   }//for
-#if 0 // wl-2066 remove
-  guard21 = tshrKeyLen - 1;
-  for (tshrIndex = 0; tshrIndex <= guard21; tshrIndex++) {
-    arrGuard(tshrIndex, 2048);
-    arrGuard(tshrTmp, 2048);
-    ckeys[tshrIndex] = excPageptr.p->word32[tshrTmp];
-    tshrTmp = tshrTmp + cexcForward;
-  }//for
-#endif
   tidrPageindex = fragrecptr.p->expReceiveIndex;
   idrPageptr.i = fragrecptr.p->expReceivePageptr;
   ptrCheckGuard(idrPageptr, cpagesize, page8);
   tidrForward = fragrecptr.p->expReceiveForward;
-  tidrKeyLen = tshrKeyLen;
   insertElement(signal);
   /* --------------------------------------------------------------------------------- */
   /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                                    */
@@ -8161,14 +6600,6 @@ void Dbacc::saveOverPagesLab(Signal* signal)
 	jam();
 	ropPageptr = sopPageptr;
 	releaseOverpage(signal);
-      } else if (((sopPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) == 
-		 ZLONG_PAGE_TYPE)  {
-	//----------------------------------------------------------------------
-	// The long key page is empty, release it.
-	//----------------------------------------------------------------------
-	jam();
-	rlopPageptr = sopPageptr;
-	releaseLongPage(signal);
       } else {
         jam();
 	sendSystemerror(signal);
@@ -8544,66 +6975,63 @@ void Dbacc::lcpCopyPage(Signal* signal)
     }//for
   }//for
   tlcnChecksum = Tchs;
-  if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) != ZLONG_PAGE_TYPE) {
+  if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) == ZNORMAL_PAGE_TYPE) {
     jam();
-    if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) == ZNORMAL_PAGE_TYPE) {
-      jam();
-      /*-----------------------------------------------------------------*/
-      /*       TAKE CARE OF ALL 64 BUFFERS ADDRESSED BY ALGORITHM IN     */
-      /*       FIRST PAGE. IF THEY ARE EMPTY THEY STILL HAVE A CONTAINER */
-      /*       HEADER OF 2 WORDS.                                        */
-      /*-----------------------------------------------------------------*/
-      tlcnConIndex = ZHEAD_SIZE;
-      tlupForward = 1;
-      for (tlcnIndex = 0; tlcnIndex <= ZNO_CONTAINERS - 1; tlcnIndex++) {
-        tlupIndex = tlcnConIndex;
-        tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
-        lcpUpdatePage(signal);
-        tlcnConIndex = tlcnConIndex + ZBUF_SIZE;
-      }//for
-    }//if
     /*-----------------------------------------------------------------*/
-    /*       TAKE CARE OF ALL USED BUFFERS ON THE LEFT SIDE.           */
+    /*       TAKE CARE OF ALL 64 BUFFERS ADDRESSED BY ALGORITHM IN     */
+    /*       FIRST PAGE. IF THEY ARE EMPTY THEY STILL HAVE A CONTAINER */
+    /*       HEADER OF 2 WORDS.                                        */
     /*-----------------------------------------------------------------*/
-    tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 23) & 0x7f;
-    while (tlcnNextContainer < ZEMPTYLIST) {
-      tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
-      tlcnConIndex = tlcnConIndex + ZHEAD_SIZE;
+    tlcnConIndex = ZHEAD_SIZE;
+    tlupForward = 1;
+    for (tlcnIndex = 0; tlcnIndex <= ZNO_CONTAINERS - 1; tlcnIndex++) {
       tlupIndex = tlcnConIndex;
       tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
-      tlupForward = 1;
       lcpUpdatePage(signal);
-      tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
-    }//while
-    if (tlcnNextContainer == ZEMPTYLIST) {
-      jam();
-      /*empty*/;
-    } else {
-      jam();
-      sendSystemerror(signal);
-      return;
-    }//if
-    /*-----------------------------------------------------------------*/
-    /*       TAKE CARE OF ALL USED BUFFERS ON THE RIGHT SIDE.          */
-    /*-----------------------------------------------------------------*/
-    tlupForward = cminusOne;
-    tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 16) & 0x7f;
-    while (tlcnNextContainer < ZEMPTYLIST) {
-      tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
-      tlcnConIndex = tlcnConIndex + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
-      tlupIndex = tlcnConIndex;
-      tlupElemIndex = tlcnConIndex - 1;
-      lcpUpdatePage(signal);
-      tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
-    }//while
-    if (tlcnNextContainer == ZEMPTYLIST) {
-      jam();
-      /*empty*/;
-    } else {
-      jam();
-      sendSystemerror(signal);
-      return;
-    }//if
+      tlcnConIndex = tlcnConIndex + ZBUF_SIZE;
+    }//for
+  }//if
+  /*-----------------------------------------------------------------*/
+  /*       TAKE CARE OF ALL USED BUFFERS ON THE LEFT SIDE.           */
+  /*-----------------------------------------------------------------*/
+  tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 23) & 0x7f;
+  while (tlcnNextContainer < ZEMPTYLIST) {
+    tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
+    tlcnConIndex = tlcnConIndex + ZHEAD_SIZE;
+    tlupIndex = tlcnConIndex;
+    tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
+    tlupForward = 1;
+    lcpUpdatePage(signal);
+    tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
+  }//while
+  if (tlcnNextContainer == ZEMPTYLIST) {
+    jam();
+    /*empty*/;
+  } else {
+    jam();
+    sendSystemerror(signal);
+    return;
+  }//if
+  /*-----------------------------------------------------------------*/
+  /*       TAKE CARE OF ALL USED BUFFERS ON THE RIGHT SIDE.          */
+  /*-----------------------------------------------------------------*/
+  tlupForward = cminusOne;
+  tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 16) & 0x7f;
+  while (tlcnNextContainer < ZEMPTYLIST) {
+    tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
+    tlcnConIndex = tlcnConIndex + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+    tlupIndex = tlcnConIndex;
+    tlupElemIndex = tlcnConIndex - 1;
+    lcpUpdatePage(signal);
+    tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
+  }//while
+  if (tlcnNextContainer == ZEMPTYLIST) {
+    jam();
+    /*empty*/;
+  } else {
+    jam();
+    sendSystemerror(signal);
+    return;
   }//if
   lcnCopyPageptr.p->word32[ZPOS_CHECKSUM] = tlcnChecksum;
 }//Dbacc::lcpCopyPage()
@@ -8664,78 +7092,75 @@ void Dbacc::srCheckPage(Signal* signal)
   Uint32 tlcnIndex;
 
   lupPageptr.p = lcnCopyPageptr.p;
-  if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) != ZLONG_PAGE_TYPE) {
+  if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) == ZNORMAL_PAGE_TYPE) {
     jam();
-    if (((lcnCopyPageptr.p->word32[ZPOS_PAGE_TYPE] >> ZPOS_PAGE_TYPE_BIT) & 3) == ZNORMAL_PAGE_TYPE) {
-      jam();
-      /*-----------------------------------------------------------------*/
-      /*       TAKE CARE OF ALL 64 BUFFERS ADDRESSED BY ALGORITHM IN     */
-      /*       FIRST PAGE. IF THEY ARE EMPTY THEY STILL HAVE A CONTAINER */
-      /*       HEADER OF 2 WORDS.                                        */
-      /*-----------------------------------------------------------------*/
-      tlcnConIndex = ZHEAD_SIZE;
-      tlupForward = 1;
-      for (tlcnIndex = 0; tlcnIndex <= ZNO_CONTAINERS - 1; tlcnIndex++) {
-        tlupIndex = tlcnConIndex;
-        tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
-        srCheckContainer(signal);
-        if (tresult != 0) {
-          jam();
-          return;
-        }//if
-        tlcnConIndex = tlcnConIndex + ZBUF_SIZE;
-      }//for
-    }//if
     /*-----------------------------------------------------------------*/
-    /*       TAKE CARE OF ALL USED BUFFERS ON THE LEFT SIDE.           */
+    /*       TAKE CARE OF ALL 64 BUFFERS ADDRESSED BY ALGORITHM IN     */
+    /*       FIRST PAGE. IF THEY ARE EMPTY THEY STILL HAVE A CONTAINER */
+    /*       HEADER OF 2 WORDS.                                        */
     /*-----------------------------------------------------------------*/
-    tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 23) & 0x7f;
-    while (tlcnNextContainer < ZEMPTYLIST) {
-      tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
-      tlcnConIndex = tlcnConIndex + ZHEAD_SIZE;
+    tlcnConIndex = ZHEAD_SIZE;
+    tlupForward = 1;
+    for (tlcnIndex = 0; tlcnIndex <= ZNO_CONTAINERS - 1; tlcnIndex++) {
       tlupIndex = tlcnConIndex;
       tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
-      tlupForward = 1;
       srCheckContainer(signal);
       if (tresult != 0) {
         jam();
         return;
       }//if
-      tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
-    }//while
-    if (tlcnNextContainer == ZEMPTYLIST) {
+      tlcnConIndex = tlcnConIndex + ZBUF_SIZE;
+    }//for
+  }//if
+  /*-----------------------------------------------------------------*/
+  /*       TAKE CARE OF ALL USED BUFFERS ON THE LEFT SIDE.           */
+  /*-----------------------------------------------------------------*/
+  tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 23) & 0x7f;
+  while (tlcnNextContainer < ZEMPTYLIST) {
+    tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
+    tlcnConIndex = tlcnConIndex + ZHEAD_SIZE;
+    tlupIndex = tlcnConIndex;
+    tlupElemIndex = tlcnConIndex + ZCON_HEAD_SIZE;
+    tlupForward = 1;
+    srCheckContainer(signal);
+    if (tresult != 0) {
       jam();
-      /*empty*/;
-    } else {
-      jam();
-      tresult = 4;
       return;
     }//if
-    /*-----------------------------------------------------------------*/
-    /*       TAKE CARE OF ALL USED BUFFERS ON THE RIGHT SIDE.          */
-    /*-----------------------------------------------------------------*/
-    tlupForward = cminusOne;
-    tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 16) & 0x7f;
-    while (tlcnNextContainer < ZEMPTYLIST) {
-      tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
-      tlcnConIndex = tlcnConIndex + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
-      tlupIndex = tlcnConIndex;
-      tlupElemIndex = tlcnConIndex - 1;
-      srCheckContainer(signal);
-      if (tresult != 0) {
-        jam();
-        return;
-      }//if
-      tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
-    }//while
-    if (tlcnNextContainer == ZEMPTYLIST) {
+    tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
+  }//while
+  if (tlcnNextContainer == ZEMPTYLIST) {
+    jam();
+    /*empty*/;
+  } else {
+    jam();
+    tresult = 4;
+    return;
+  }//if
+  /*-----------------------------------------------------------------*/
+  /*       TAKE CARE OF ALL USED BUFFERS ON THE RIGHT SIDE.          */
+  /*-----------------------------------------------------------------*/
+  tlupForward = cminusOne;
+  tlcnNextContainer = (lcnCopyPageptr.p->word32[ZPOS_EMPTY_LIST] >> 16) & 0x7f;
+  while (tlcnNextContainer < ZEMPTYLIST) {
+    tlcnConIndex = (tlcnNextContainer << ZSHIFT_PLUS) - (tlcnNextContainer << ZSHIFT_MINUS);
+    tlcnConIndex = tlcnConIndex + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+    tlupIndex = tlcnConIndex;
+    tlupElemIndex = tlcnConIndex - 1;
+    srCheckContainer(signal);
+    if (tresult != 0) {
       jam();
-      /*empty*/;
-    } else {
-      jam();
-      tresult = 4;
       return;
     }//if
+    tlcnNextContainer = (lcnCopyPageptr.p->word32[tlcnConIndex] >> 11) & 0x7f;
+  }//while
+  if (tlcnNextContainer == ZEMPTYLIST) {
+    jam();
+    /*empty*/;
+  } else {
+    jam();
+    tresult = 4;
+    return;
   }//if
 }//Dbacc::srCheckPage()
 
@@ -8919,50 +7344,14 @@ void Dbacc::undoWritingProcess(Signal* signal)
         writeUndoDataInfo(signal);
         checkUndoPages(signal);
       }//if
-    } else if (tpageType != ZLONG_PAGE_TYPE) {
+    } else {
       jam();
       /* --------------------------------------------------------------------------- */
       /* ONLY PAGE INFO AND OVERFLOW PAGE INFO CAN BE LOGGED BY THIS ROUTINE. A      */
       /* SERIOUS ERROR.                                                              */
       /* --------------------------------------------------------------------------- */
       sendSystemerror(signal);
-    } else {
-      /* --------------------------------------------------------------------------------- */
-      /*       THIS LOG RECORD IS GENERATED ON A LONG KEY PAGE. THESE PAGES USE LOGICAL    */
-      /*       LOGGING.                                                                    */
-      /* --------------------------------------------------------------------------------- */
-      if (tactivePageDir >= fragrecptr.p->lcpMaxOverDirIndex) {
-        jam();  
-	/* --------------------------------------------------------------------------------- */
-	/*       OBVIOUSLY THE FRAGMENT HAS EXPANDED THE NUMBER OF OVERFLOW PAGES SINCE THE  */
-	/*       START OF THE LOCAL CHECKPOINT. WE NEED NOT LOG ANY UPDATES OF PAGES THAT DID*/
-	/*       NOT EXIST AT START OF LCP.                                                  */
-	/* --------------------------------------------------------------------------------- */
-        /*empty*/;
-      } else {
-        jam();
-	/* --------------------------------------------------------------------------------- */
-	/*       LOGICAL LOGGING OF LONG KEY PAGES CAN EITHER BE UNDO OF AN INSERT OR UNDO   */
-	/*       OF A DELETE KEY. UNDO OF DELETE NEEDS TO LOG THE KEY TO BE REINSERTED WHILE */
-	/*       UNDO OF INSERT ONLY NEEDS TO LOG THE INDEX TO BE DELETED.                   */
-	/* --------------------------------------------------------------------------------- */
-        undopageptr.i = (cundoposition >> ZUNDOPAGEINDEXBITS) & (cundopagesize - 1);
-        ptrAss(undopageptr, undopage);
-        theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
-	tundoindex = theadundoindex + ZUNDOHEADSIZE;
-	if (cundoinfolength == 0) {
-          jam();
-          writeUndoHeader(signal, tactivePageDir, UndoHeader::ZUNDO_INSERT_LONG_KEY);
-        } else {
-          jam();
-          writeUndoHeader(signal, tactivePageDir, UndoHeader::ZUNDO_DELETE_LONG_KEY);
-	  arrGuard(ZWORDS_IN_PAGE - cundoElemIndex, 2048);
-          tundoElemIndex = datapageptr.p->word32[ZWORDS_IN_PAGE - cundoElemIndex] & 0xffff;
-          writeUndoDataInfo(signal);
-        }//if
-        checkUndoPages(signal);
-      }//if
-    }//if
+    }
   } else {
     if (fragrecptr.p->fragState == LCP_SEND_OVER_PAGES) {
       jam();
@@ -8997,46 +7386,7 @@ void Dbacc::undoWritingProcess(Signal* signal)
             checkUndoPages(signal);
           }//if
         }//if
-      } else if (tpageType == ZLONG_PAGE_TYPE) {
-        if (tactivePageDir < fragrecptr.p->lcpDirIndex) {
-          jam();
-	  // -------------------------------------------------------------
-	  // THIS PAGE HAS ALREADY BEEN WRITTEN IN THE LOCAL CHECKPOINT.   
-	  // -------------------------------------------------------------
-        } else {
-          if (tactivePageDir >= fragrecptr.p->lcpMaxOverDirIndex) {
-            jam();
-	    // -------------------------------------------------------------
-	    // OBVIOUSLY THE FRAGMENT HAS EXPANDED THE NUMBER OF OVERFLOW 
-	    // PAGES SINCE THE START OF THE LOCAL CHECKPOINT. WE NEED NOT 
-	    // LOG ANY UPDATES OF PAGES THAT DID NOT EXIST AT START OF LCP.	    
-	    // -------------------------------------------------------------
-	  } else {
-            jam();
-	    // -------------------------------------------------------------
-	    // LOGICAL LOGGING OF LONG KEY PAGES CAN EITHER BE UNDO OF AN 
-	    // INSERT OR UNDO OF A DELETE KEY. UNDO OF DELETE NEEDS TO LOG 
-	    // THE KEY TO BE REINSERTED WHILE UNDO OF INSERT ONLY NEEDS TO 
-	    // LOG THE INDEX TO BE DELETED.                   
-	    // -------------------------------------------------------------
-            undopageptr.i = (cundoposition >> ZUNDOPAGEINDEXBITS) & (cundopagesize - 1);
-            ptrAss(undopageptr, undopage);
-            theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
-	    tundoindex = theadundoindex + ZUNDOHEADSIZE;
-	    if (cundoinfolength == 0) {
-              jam();
-              writeUndoHeader(signal, tactivePageDir, UndoHeader::ZUNDO_INSERT_LONG_KEY);
-            } else {
-              jam();
-              writeUndoHeader(signal, tactivePageDir, UndoHeader::ZUNDO_DELETE_LONG_KEY);
-	      arrGuard(ZWORDS_IN_PAGE - cundoElemIndex, 2048);
-              tundoElemIndex = datapageptr.p->word32[ZWORDS_IN_PAGE - cundoElemIndex] & 0xffff;
-              writeUndoDataInfo(signal);
-            }//if
-            checkUndoPages(signal);
-          }//if
-        }//if
-      }//if
+      }
     }//if
   }//if
 }//Dbacc::undoWritingProcess()
@@ -9121,64 +7471,16 @@ void Dbacc::writeUndoOpInfo(Signal* signal)
   undopageptr.p->undoword[tundoindex + 1] = operationRecPtr.p->hashValue;
   undopageptr.p->undoword[tundoindex + 2] = operationRecPtr.p->tupkeylen;
   tundoindex = tundoindex + 3;
-  if (true) {
-    // log localkey1
-    jam();
-    locPageptr.i = operationRecPtr.p->elementPage;
-    ptrCheckGuard(locPageptr, cpagesize, page8);
-    Uint32 Tforward = operationRecPtr.p->elementIsforward;
-    Uint32 TelemPtr = operationRecPtr.p->elementPointer;
-    TelemPtr += Tforward; // ZELEM_HEAD_SIZE
-    arrGuard(tundoindex+1, 8192);
-    undopageptr.p->undoword[tundoindex] = locPageptr.p->word32[TelemPtr];
-    tundoindex++;
-    cundoinfolength = ZOP_HEAD_INFO_LN + 1;
-  } else if (fragrecptr.p->keyLength != 0) { // wl-2066 remove
-    // Fixed size keys
-    jam();
-    locPageptr.i = operationRecPtr.p->elementPage;
-    ptrCheckGuard(locPageptr, cpagesize, page8);
-    Uint32 Tforward = operationRecPtr.p->elementIsforward;
-    Uint32 TelemPtr = operationRecPtr.p->elementPointer;
-    TelemPtr += Tforward; // ZELEM_HEAD_SIZE
-    TelemPtr += Tforward; // localkey1
-    //--------------------------------------------------------------------------------- 
-    // Now the pointer is at the start of the key part of the element. Now copy from there
-    // to the UNDO log.
-    //--------------------------------------------------------------------------------- 
-    Uint32 keyLen = operationRecPtr.p->tupkeylen;
-    ndbrequire(keyLen <= 8);
-    arrGuard(tundoindex+keyLen, 8192);
-    for (Uint32 twuoiIndex = 0; twuoiIndex < keyLen; twuoiIndex++) {
-      jam();
-      arrGuard(TelemPtr, 2048);
-      undopageptr.p->undoword[tundoindex] = locPageptr.p->word32[TelemPtr];
-      tundoindex++;
-      TelemPtr += Tforward;
-    }//for
-    cundoinfolength = ZOP_HEAD_INFO_LN + operationRecPtr.p->tupkeylen;
-  } else { // wl-2066 remove
-    // Long keys
-    jam();
-
-    arrGuard(operationRecPtr.p->longKeyPageIndex, ZMAX_NO_OF_LONGKEYS_IN_PAGE);
-    locPageptr.i = operationRecPtr.p->longPagePtr;
-    ptrCheckGuard(locPageptr, cpagesize, page8);
-
-    Uint32 indexValue = 
-      locPageptr.p->word32[ZWORDS_IN_PAGE - operationRecPtr.p->longKeyPageIndex];
-    Uint32 keyLen = indexValue >> 16;
-    Uint32 physPageIndex = indexValue & 0xffff;
-    ndbrequire(keyLen == operationRecPtr.p->tupkeylen);
-
-    arrGuard(tundoindex+keyLen, 8192);
-    arrGuard(physPageIndex+keyLen, 2048);
-    for (Uint32 i = 0; i < keyLen; i++){
-      undopageptr.p->undoword[tundoindex + i] = locPageptr.p->word32[physPageIndex+i];
-    }
-    tundoindex = tundoindex + keyLen;    
-    cundoinfolength = ZOP_HEAD_INFO_LN + keyLen;  
-  }//if
+  // log localkey1
+  locPageptr.i = operationRecPtr.p->elementPage;
+  ptrCheckGuard(locPageptr, cpagesize, page8);
+  Uint32 Tforward = operationRecPtr.p->elementIsforward;
+  Uint32 TelemPtr = operationRecPtr.p->elementPointer;
+  TelemPtr += Tforward; // ZELEM_HEAD_SIZE
+  arrGuard(tundoindex+1, 8192);
+  undopageptr.p->undoword[tundoindex] = locPageptr.p->word32[TelemPtr];
+  tundoindex++;
+  cundoinfolength = ZOP_HEAD_INFO_LN + 1;
 }//Dbacc::writeUndoOpInfo()
 
 /* --------------------------------------------------------------------------------- */
@@ -9391,15 +7693,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->loadingFlag = ZFALSE;
   regFragPtr.p->keyLength = req->keyLength;
   ndbrequire(req->keyLength != 0);
-  if (true) {
-    regFragPtr.p->elementLength = ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen;
-  } else if (req->keyLength == 0) { // wl-2066 remove
-    jam();
-    regFragPtr.p->elementLength = (1 + ZELEM_HEAD_SIZE) + regFragPtr.p->localkeylen;
-  } else { // wl-2066 remove
-    jam();
-    regFragPtr.p->elementLength = (ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen) + regFragPtr.p->keyLength;
-  }//if
+  regFragPtr.p->elementLength = ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen;
   Uint32 Tmp1 = (regFragPtr.p->maxp + 1) + regFragPtr.p->p;
   Uint32 Tmp2 = regFragPtr.p->maxloadfactor - regFragPtr.p->minloadfactor;
   Tmp2 = Tmp1 * Tmp2;
@@ -10324,103 +8618,6 @@ void Dbacc::srDoUndoLab(Signal* signal)
     break;
   }
 
-  case UndoHeader::ZUNDO_INSERT_LONG_KEY:{
-    jam();
-    /*---------------------------------------------------------------------*/
-    /* WE WILL UNDO AN INSERT OF A LONG KEY. THIS IS PERFORMED BY DELETING */
-    /* THE LONG KEY.                                                       */
-    /*---------------------------------------------------------------------*/
-    souDirRangePtr.i = fragrecptr.p->overflowdir;
-    tmpP2 = tmpP >> 8;
-    tmpP = tmpP & 0xff;
-    arrGuard(tmpP2, 256);
-    ptrCheckGuard(souDirRangePtr, cdirrangesize, dirRange);
-    souDirptr.i = souDirRangePtr.p->dirArray[tmpP2];
-    ptrCheckGuard(souDirptr, cdirarraysize, directoryarray);
-    dlkPageptr.i = souDirptr.p->pagep[tmpP];
-    ptrCheckGuard(dlkPageptr, cpagesize, page8);
-    tdlkLogicalPageIndex = tundoPageindex;
-    deleteLongKey(signal);
-    break;
-  }
-
-  case UndoHeader::ZUNDO_DELETE_LONG_KEY: {
-    jam();
-    /*----------------------------------------------------------------------*/
-    /*  WE WILL UNDO DELETE OF A LONG KEY. THIS IS PERFORMED BY INSERTING   */
-    /*  IT AGAIN.                                                           */
-    /*----------------------------------------------------------------------*/
-    souDirRangePtr.i = fragrecptr.p->overflowdir;
-    taslpDirIndex = tmpP;
-    tmpP2 = tmpP >> 8;
-    tmpP = tmpP & 0xff;
-    ptrCheckGuard(souDirRangePtr, cdirrangesize, dirRange);
-    arrGuard(tmpP2, 256);
-    souDirptr.i = souDirRangePtr.p->dirArray[tmpP2];
-
-    if(souDirptr.i == RNIL) {
-      //----------------------------------------------------------------
-      // Allocate a directory.
-      //----------------------------------------------------------------
-      jam();
-      seizeDirectory(signal);
-      if (tresult > ZLIMIT_OF_ERROR) {
-	jam();
-	sendSystemerror(signal);
-	return;
-      }
-      souDirRangePtr.p->dirArray[tmpP2] = sdDirptr.i;
-      souDirptr.i = souDirRangePtr.p->dirArray[tmpP2];
-    }
-
-    ptrCheckGuard(souDirptr, cdirarraysize, directoryarray);
-    slkapPageptr.i = souDirptr.p->pagep[tmpP];
-    
-    if(slkapPageptr.i == RNIL) {
-      //----------------------------------------------------------------
-      // The delete operation was probably the last on the page and the 
-      // page was released and not written down to disk. We need to 
-      // allocate a page and put it in the same dirindex as it was in
-      // before it was released.
-      // This is because an eventual UNDO_INSERT on the same key in the
-      // same LCP must be able to find the key and it has only the 
-      // dirindex to go on, the key itself is not saved on disk in a
-      // UNDO_INSERT.
-      //----------------------------------------------------------------
-      jam();
-      allocSpecificLongOverflowPage(signal);
-      slkapPageptr.i = aslpPageptr.i;
-    }
-    
-    ptrCheckGuard(slkapPageptr, cpagesize, page8);
-    seizePage(signal);
-    ndbrequire(tresult <= ZLIMIT_OF_ERROR);
-    
-    slkapCopyPageptr = spPageptr;
-    ndbrequire(cundoinfolength <= 2048);
-    
-    for (Uint32 tmp = 0; tmp < cundoinfolength; tmp++) {
-      dbgWord32(slkapCopyPageptr, tmp, undopageptr.p->undoword[tmpindex]);
-      slkapCopyPageptr.p->word32[tmp] = undopageptr.p->undoword[tmpindex];
-      tmpindex = tmpindex + 1;
-    }//for
-    jam();
-    //----------------------------------------------------------------
-    // We must store the key at the same place it was deleted from.
-    // This is because an eventual UNDO_INSERT on the same key in the
-    // same LCP must be able to find the key and it has only the index
-    // information stored on disk to go on, the key itself is not 
-    // saved on disk in an UNDO_INSERT.
-    //----------------------------------------------------------------
-    tslkapKeyLen = cundoinfolength;
-    tslkapPageIndex = tundoPageindex;
-    storeLongKeysAtPos(signal);
-    
-    rpPageptr = slkapCopyPageptr;
-    releasePage(signal);
-    break;
-  }
-
   case UndoHeader::ZOP_INFO: {
     jam();
     /*---------------------------------------------------------------------*/
@@ -10471,19 +8668,12 @@ void Dbacc::srDoUndoLab(Signal* signal)
     operationRecPtr.p->tupkeylen = tkeylen;
     operationRecPtr.p->fragptr = fragrecptr.i;
 
-    ndbrequire((fragrecptr.p->keyLength == 0) || // wl-2066 change
-	       ((fragrecptr.p->keyLength != 0) &&
-		(fragrecptr.p->keyLength == tkeylen)));
+    ndbrequire(fragrecptr.p->keyLength != 0 &&
+               fragrecptr.p->keyLength == tkeylen);
     
     // Read localkey1 from undo page
     signal->theData[7 + 0] = undopageptr.p->undoword[tmpindex];
     tmpindex = tmpindex + 1;
-#if 0 // wl-2066 remove
-    for (Uint32 tmp = 0; tmp < tkeylen; tmp++) {
-      signal->theData[7+tmp] = undopageptr.p->undoword[tmpindex];
-      tmpindex = tmpindex + 1;
-    }//for
-#endif
     arrGuard((tmpindex - 1), 8192);
     getElement(signal);
     if (tgeResult != ZTRUE) {
@@ -10666,43 +8856,25 @@ void Dbacc::execACC_OVER_REC(Signal* signal)
       ptrCheckGuard(pnoPageidptr, cpagesize, page8);
       tpnoPageType = pnoPageidptr.p->word32[ZPOS_PAGE_TYPE];
       tpnoPageType = (tpnoPageType >> ZPOS_PAGE_TYPE_BIT) & 3;
-      if (tpnoPageType == ZLONG_PAGE_TYPE) {
+      if (pnoPageidptr.p->word32[ZPOS_ALLOC_CONTAINERS] > ZFREE_LIMIT) {
         jam();
-	// This is to clean the list parameters. 
-	pnoPageidptr.p->word32[ZPOS_PREV_PAGE] = RNIL;
-	pnoPageidptr.p->word32[ZPOS_NEXT_PAGE] = RNIL;
-        if (pnoPageidptr.p->word32[ZPOS_ARRAY_POS] != 4) {
-          jam();
-	  /*---------------------------------------------------------------------------*/
-	  /*  THE PAGE WAS A LONG PAGE AND IT BELONGED TO A FREE LIST. PUT IT INTO ONE */
-	  /*  OF THE FREE LIST THEN.                                                   */
-	  /*---------------------------------------------------------------------------*/
-	  // Insert page!
-	  ipaPagePtr = pnoPageidptr;
-          tipaArrayPos = pnoPageidptr.p->word32[ZPOS_ARRAY_POS];
-          insertPageArrayList(signal);
-        }//if
+        dbgWord32(pnoPageidptr, ZPOS_OVERFLOWREC, RNIL);
+        pnoPageidptr.p->word32[ZPOS_OVERFLOWREC] = RNIL;
+        ndbrequire(pnoPageidptr.p->word32[ZPOS_PAGE_ID] == fragrecptr.p->nextAllocPage);
       } else {
-        if (pnoPageidptr.p->word32[ZPOS_ALLOC_CONTAINERS] > ZFREE_LIMIT) {
+        jam();
+        seizeOverRec(signal);
+        sorOverflowRecPtr.p->dirindex = pnoPageidptr.p->word32[ZPOS_PAGE_ID];
+        ndbrequire(sorOverflowRecPtr.p->dirindex == fragrecptr.p->nextAllocPage);
+        dbgWord32(pnoPageidptr, ZPOS_OVERFLOWREC, sorOverflowRecPtr.i);
+        pnoPageidptr.p->word32[ZPOS_OVERFLOWREC] = sorOverflowRecPtr.i;
+        sorOverflowRecPtr.p->overpage = pnoPageidptr.i;
+        porOverflowRecPtr = sorOverflowRecPtr;
+        putOverflowRecInFrag(signal);
+        if (pnoPageidptr.p->word32[ZPOS_ALLOC_CONTAINERS] == 0) {
           jam();
-          dbgWord32(pnoPageidptr, ZPOS_OVERFLOWREC, RNIL);
-          pnoPageidptr.p->word32[ZPOS_OVERFLOWREC] = RNIL;
-          ndbrequire(pnoPageidptr.p->word32[ZPOS_PAGE_ID] == fragrecptr.p->nextAllocPage);
-        } else {
-          jam();
-          seizeOverRec(signal);
-          sorOverflowRecPtr.p->dirindex = pnoPageidptr.p->word32[ZPOS_PAGE_ID];
-          ndbrequire(sorOverflowRecPtr.p->dirindex == fragrecptr.p->nextAllocPage);
-          dbgWord32(pnoPageidptr, ZPOS_OVERFLOWREC, sorOverflowRecPtr.i);
-          pnoPageidptr.p->word32[ZPOS_OVERFLOWREC] = sorOverflowRecPtr.i;
-          sorOverflowRecPtr.p->overpage = pnoPageidptr.i;
-          porOverflowRecPtr = sorOverflowRecPtr;
-          putOverflowRecInFrag(signal);
-          if (pnoPageidptr.p->word32[ZPOS_ALLOC_CONTAINERS] == 0) {
-            jam();
-            ropPageptr = pnoPageidptr;
-            releaseOverpage(signal);
-          }//if
+          ropPageptr = pnoPageidptr;
+          releaseOverpage(signal);
         }//if
       }//if
     }//if
@@ -11525,11 +9697,6 @@ void Dbacc::initScanOpRec(Signal* signal)
   Uint32 tisoTmp;
   Uint32 tisoLocalPtr;
   Uint32 guard24;
-  Uint32 tisoPageIndex;
-  Uint32 tisoPagedir;
-  DirRangePtr tisoOverflowrangeptr;
-  DirectoryarrayPtr tisoOverflowDirptr;
-  Page8Ptr tisoPageptr;
 
   scanPtr.p->scanOpsAllocated++;
 
@@ -11569,43 +9736,7 @@ void Dbacc::initScanOpRec(Signal* signal)
   }//for
   arrGuard(tisoLocalPtr, 2048);
   operationRecPtr.p->keydata[0] = isoPageptr.p->word32[tisoLocalPtr];
-  if (true) {
-    jam();
-    operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-  } else if (fragrecptr.p->keyLength != 0) { // wl-2066 remove
-    jam();
-    operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-    guard24 = fragrecptr.p->keyLength - 1;
-    for (tisoTmp = 0; tisoTmp <= guard24; tisoTmp++) {
-      arrGuard(tisoTmp, 8);
-      arrGuard(tisoLocalPtr, 2048);
-      operationRecPtr.p->keydata[tisoTmp] = isoPageptr.p->word32[tisoLocalPtr];
-      tisoLocalPtr = tisoLocalPtr + tisoIsforward;
-    }//for
-  } else { // wl-2066 remove
-    // Long key handling. Put the long key reference in the operation records.
-    tisoPageIndex = operationRecPtr.p->keydata[0] & 0x3ff;
-    arrGuard(ZWORDS_IN_PAGE - tisoPageIndex, 2048);
-
-    tisoPagedir = operationRecPtr.p->keydata[0] >> 10;
-    arrGuard((tisoPagedir >> 8), 256);
-
-    tisoOverflowrangeptr.i = fragrecptr.p->overflowdir;
-    ptrCheckGuard(tisoOverflowrangeptr, cdirrangesize, dirRange);
-    
-    tisoOverflowDirptr.i = tisoOverflowrangeptr.p->dirArray[tisoPagedir >> 8];
-    ptrCheckGuard(tisoOverflowDirptr, cdirarraysize, directoryarray);
-
-    tisoPageptr.i = tisoOverflowDirptr.p->pagep[tisoPagedir & 0xff];
-    ptrCheckGuard(tisoPageptr, cpagesize, page8);
-
-    operationRecPtr.p->longPagePtr = tisoPageptr.i;
-    operationRecPtr.p->longKeyPageIndex = tisoPageIndex;
-
-    // Read length of key from page
-    Uint32 tmp = tisoPageptr.p->word32[ZWORDS_IN_PAGE - tisoPageIndex];
-    operationRecPtr.p->tupkeylen = tmp >> 16;
-  }
+  operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
 }//Dbacc::initScanOpRec()
 
 /* --------------------------------------------------------------------------------- */
@@ -11800,23 +9931,15 @@ void Dbacc::releaseScanContainer(Signal* signal)
   Uint32 trscElemlens;
   Uint32 trscElemlen;
 
-  if (trscContainerlen < 4) { // wl-2066 do it like in getElement
+  if (trscContainerlen < 4) {
     if (trscContainerlen != ZCON_HEAD_SIZE) {
       jam();
       sendSystemerror(signal);
     }//if
     return;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
-  trscElemlens = trscContainerlen - 2; // wl-2066 use ZCON_HEAD_SIZE
-  if (true) { // wl-2066 use fragrecptr.p->elementLength
-    trscElemlen = (1 + 0) + fragrecptr.p->localkeylen;
-  } else if (fragrecptr.p->keyLength != 0) { // wl-2066 remove
-    jam();
-    trscElemlen = (1 + fragrecptr.p->keyLength) + fragrecptr.p->localkeylen;	/* LENGTH OF THE ELEMENT */
-  } else { // wl-2066 remove
-    jam();
-    trscElemlen = (1 + ZACTIVE_LONG_KEY_LEN) + fragrecptr.p->localkeylen;	/* LENGTH OF THE ELEMENT */
-  }//if
+  trscElemlens = trscContainerlen - ZCON_HEAD_SIZE;
+  trscElemlen = fragrecptr.p->elementLength;
   if (trscIsforward == 1) {
     jam();
     trscElementptr = trscContainerptr + ZCON_HEAD_SIZE;
@@ -11902,21 +10025,12 @@ bool Dbacc::searchScanContainer(Signal* signal)
   Uint32 tsscElemlen;
   Uint32 tsscElemStep;
 
-  if (tsscContainerlen < 4) { // wl-2066 check exact size
+  if (tsscContainerlen < 4) {
     jam();
     return false;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
   }//if
   tsscElemlens = tsscContainerlen - ZCON_HEAD_SIZE;
-  if (true) { // wl-2066 use fragrecptr.p->elementLength
-    tsscElemlen = (ZELEM_HEAD_SIZE + 0) + fragrecptr.p->localkeylen;
-  } else if (fragrecptr.p->keyLength == 0) { // wl-2066 remove
-    jam();
-    tsscElemlen = (ZELEM_HEAD_SIZE + ZACTIVE_LONG_KEY_LEN) + fragrecptr.p->localkeylen;
-  } else { // wl-2066 remove
-    jam();
-    /* LENGTH OF THE ELEMENT */
-    tsscElemlen = (ZELEM_HEAD_SIZE + fragrecptr.p->keyLength) + fragrecptr.p->localkeylen;
-  }//if
+  tsscElemlen = fragrecptr.p->elementLength;
   /* LENGTH OF THE ELEMENT */
   if (tsscIsforward == 1) {
     jam();
@@ -11954,7 +10068,7 @@ bool Dbacc::searchScanContainer(Signal* signal)
   /* THE ELEMENT IS ALREADY SENT. */
   /* SEARCH FOR NEXT ONE */
   tsscElemlens = tsscElemlens - tsscElemlen;
-  if (tsscElemlens > 1) { // wl-2066 loop as in getElement
+  if (tsscElemlens > 1) {
     jam();
     tsscElementptr = tsscElementptr + tsscElemStep;
     goto SCANELEMENTLOOP001;
@@ -11988,158 +10102,35 @@ void Dbacc::sendNextScanConf(Signal* signal)
   fragrecptr.i = operationRecPtr.p->fragptr;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   readTablePk(operationRecPtr.p->localdata[0]);
-  if (fragrecptr.p->keyLength != 0) { // wl-2066 remove if
-    jam();
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = operationRecPtr.i;
-    signal->theData[2] = operationRecPtr.p->fid;
-    signal->theData[3] = operationRecPtr.p->localdata[0];
-    signal->theData[4] = operationRecPtr.p->localdata[1];
-    signal->theData[5] = fragrecptr.p->localkeylen;
-    signal->theData[6] = fragrecptr.p->keyLength;
-    signal->theData[7] = ckeys[0];
-    signal->theData[8] = ckeys[1];
-    signal->theData[9] = ckeys[2];
-    signal->theData[10] = ckeys[3];
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 11);
-    const Uint32 keyLength = fragrecptr.p->keyLength;
-    Uint32 total = 4;
-    while (total < keyLength) {
-      jam();
-      Uint32 length = keyLength - total;
-      if (length > 20)
-        length = 20;
-      signal->theData[0] = scanPtr.p->scanUserptr;
-      signal->theData[1] = operationRecPtr.i; // not used by LQH
-      signal->theData[2] = operationRecPtr.p->fid; // not used by LQH
-      signal->theData[3] = length;
-      memcpy(&signal->theData[4], &ckeys[total], length << 2);
-      EXECUTE_DIRECT(blockNo, GSN_ACC_SCAN_INFO24, signal, 4 + length);
-      // wl-2066 remove GSN_ACC_SCAN_INFO
-      total += length;
-    }//if
-  } else { // wl-2066 remove
-    jam();
-    sendScaninfo(signal);
-    return;
-  }//if
-}//Dbacc::sendNextScanConf()
-
-/* --------------------------------------------------------------------------------- */
-/* SEND_SCANINFO                                                                     */
-/*          DESCRIPTION: SCAN AN ELEMENT OF A LONG_KEY_PAGE.                         */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::sendScaninfo(Signal* signal) 
-{
-  DirRangePtr ssiOverflowrangeptr;
-  DirectoryarrayPtr ssiOverflowDirptr;
-  Page8Ptr ssiPageptr;
-  Uint32 tssiPageIndex;
-  Uint32 tssiPagedir;
-  Uint32 tssiKeyLen;
-  Uint32 tssiStartIndex;
-  Uint32 tssiIndexValue;
-  Uint32 tssiTmp;
-
-  Uint32 blockNo = refToBlock(scanPtr.p->scanUserblockref);
-
-  tssiPageIndex = operationRecPtr.p->keydata[0] & 0x3ff;
-  tssiPagedir = operationRecPtr.p->keydata[0] >> 10;
-  ssiOverflowrangeptr.i = fragrecptr.p->overflowdir;
-  ptrCheckGuard(ssiOverflowrangeptr, cdirrangesize, dirRange);
-  arrGuard((tssiPagedir >> 8), 256);
-  ssiOverflowDirptr.i = ssiOverflowrangeptr.p->dirArray[tssiPagedir >> 8];
-  ptrCheckGuard(ssiOverflowDirptr, cdirarraysize, directoryarray);
-  ssiPageptr.i = ssiOverflowDirptr.p->pagep[tssiPagedir & 0xff];
-  ptrCheckGuard(ssiPageptr, cpagesize, page8);
-  arrGuard(ZWORDS_IN_PAGE - tssiPageIndex, 2048);
-  tssiIndexValue = ssiPageptr.p->word32[ZWORDS_IN_PAGE - tssiPageIndex];
-  tssiStartIndex = tssiIndexValue & 0xffff;
-  tssiKeyLen = tssiIndexValue >> 16;
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = operationRecPtr.i;
   signal->theData[2] = operationRecPtr.p->fid;
   signal->theData[3] = operationRecPtr.p->localdata[0];
   signal->theData[4] = operationRecPtr.p->localdata[1];
   signal->theData[5] = fragrecptr.p->localkeylen;
-  signal->theData[6] = tssiKeyLen;
-  arrGuard(tssiStartIndex + 3, 2048);
-  signal->theData[7] = ssiPageptr.p->word32[tssiStartIndex];
-  signal->theData[8] = ssiPageptr.p->word32[tssiStartIndex + 1];
-  signal->theData[9] = ssiPageptr.p->word32[tssiStartIndex + 2];
-  signal->theData[10] = ssiPageptr.p->word32[tssiStartIndex + 3];
+  signal->theData[6] = fragrecptr.p->keyLength;
+  signal->theData[7] = ckeys[0];
+  signal->theData[8] = ckeys[1];
+  signal->theData[9] = ckeys[2];
+  signal->theData[10] = ckeys[3];
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 11);
-  if (tssiKeyLen > 4) {
-    tssiKeyLen = tssiKeyLen - 4;
-    tssiStartIndex = tssiStartIndex + 4;
-  SSI_LOOP_10:
-    jamEntry();
-    if (tssiKeyLen > ZMAXSCANSIGNALLEN) {
-      jam();
-      signal->theData[0] = scanPtr.p->scanUserptr;
-      signal->theData[1] = operationRecPtr.i;
-      signal->theData[2] = operationRecPtr.p->fid;
-      signal->theData[3] = ZMAXSCANSIGNALLEN;
-      arrGuard(tssiStartIndex + 19, 2048);
-      signal->theData[4] = ssiPageptr.p->word32[tssiStartIndex];
-      signal->theData[5] = ssiPageptr.p->word32[tssiStartIndex + 1];
-      signal->theData[6] = ssiPageptr.p->word32[tssiStartIndex + 2];
-      signal->theData[7] = ssiPageptr.p->word32[tssiStartIndex + 3];
-      signal->theData[8] = ssiPageptr.p->word32[tssiStartIndex + 4];
-      signal->theData[9] = ssiPageptr.p->word32[tssiStartIndex + 5];
-      signal->theData[10] = ssiPageptr.p->word32[tssiStartIndex + 6];
-      signal->theData[11] = ssiPageptr.p->word32[tssiStartIndex + 7];
-      signal->theData[12] = ssiPageptr.p->word32[tssiStartIndex + 8];
-      signal->theData[13] = ssiPageptr.p->word32[tssiStartIndex + 9];
-      signal->theData[14] = ssiPageptr.p->word32[tssiStartIndex + 10];
-      signal->theData[15] = ssiPageptr.p->word32[tssiStartIndex + 11];
-      signal->theData[16] = ssiPageptr.p->word32[tssiStartIndex + 12];
-      signal->theData[17] = ssiPageptr.p->word32[tssiStartIndex + 13];
-      signal->theData[18] = ssiPageptr.p->word32[tssiStartIndex + 14];
-      signal->theData[19] = ssiPageptr.p->word32[tssiStartIndex + 15];
-      signal->theData[20] = ssiPageptr.p->word32[tssiStartIndex + 16];
-      signal->theData[21] = ssiPageptr.p->word32[tssiStartIndex + 17];
-      signal->theData[22] = ssiPageptr.p->word32[tssiStartIndex + 18];
-      signal->theData[23] = ssiPageptr.p->word32[tssiStartIndex + 19];
-      EXECUTE_DIRECT(blockNo, GSN_ACC_SCAN_INFO24, signal, 24);
-      tssiStartIndex = tssiStartIndex + ZMAXSCANSIGNALLEN;
-      tssiKeyLen = tssiKeyLen - ZMAXSCANSIGNALLEN;
-      goto SSI_LOOP_10;
-    } else {
-      jam();
-      ndbrequire((tssiStartIndex + tssiKeyLen) <= 2048);
-      for (tssiTmp = 0; tssiTmp < tssiKeyLen; tssiTmp++) {
-        ckeys[tssiTmp] = ssiPageptr.p->word32[tssiStartIndex + tssiTmp];
-      }//for
-      signal->theData[0] = scanPtr.p->scanUserptr;
-      signal->theData[1] = operationRecPtr.i;
-      signal->theData[2] = operationRecPtr.p->fid;
-      /* LOCAL FRAGMENT IDENTITY */
-      signal->theData[3] = tssiKeyLen;
-      signal->theData[4] = ckeys[0];
-      signal->theData[5] = ckeys[1];
-      signal->theData[6] = ckeys[2];
-      signal->theData[7] = ckeys[3];
-      signal->theData[8] = ckeys[4];
-      signal->theData[9] = ckeys[5];
-      signal->theData[10] = ckeys[6];
-      signal->theData[11] = ckeys[7];
-      signal->theData[12] = ckeys[8];
-      signal->theData[13] = ckeys[9];
-      signal->theData[14] = ckeys[10];
-      signal->theData[15] = ckeys[11];
-      signal->theData[16] = ckeys[12];
-      signal->theData[17] = ckeys[13];
-      signal->theData[18] = ckeys[14];
-      signal->theData[19] = ckeys[15];
-      signal->theData[20] = ckeys[16];
-      signal->theData[21] = ckeys[17];
-      signal->theData[22] = ckeys[18];
-      signal->theData[23] = ckeys[19];
-      EXECUTE_DIRECT(blockNo, GSN_ACC_SCAN_INFO24, signal, 24);
-    }//if
+  const Uint32 keyLength = fragrecptr.p->keyLength;
+  Uint32 total = 4;
+  while (total < keyLength) {
+    jam();
+    Uint32 length = keyLength - total;
+    if (length > 20)
+      length = 20;
+    signal->theData[0] = scanPtr.p->scanUserptr;
+    signal->theData[1] = operationRecPtr.i; // not used by LQH
+    signal->theData[2] = operationRecPtr.p->fid; // not used by LQH
+    signal->theData[3] = length;
+    memcpy(&signal->theData[4], &ckeys[total], length << 2);
+    EXECUTE_DIRECT(blockNo, GSN_ACC_SCAN_INFO24, signal, 4 + length);
+    // wl-2066 remove GSN_ACC_SCAN_INFO
+    total += length;
   }//if
-}//Dbacc::sendScaninfo()
+}//Dbacc::sendNextScanConf()
 
 /*---------------------------------------------------------------------------
  * sendScanHbRep     	      	             	      	             	       
