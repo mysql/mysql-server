@@ -124,7 +124,7 @@ insert into test.t1 values ("h1", x);
 else
 insert into test.t1 values ("h?", x);
 end case;
-create procedure sinisa()
+create procedure into_test()
 begin
 declare x char(16);
 declare y int;
@@ -245,7 +245,7 @@ id	data
 h0	0
 h1	1
 h?	17
-call sinisa();
+call into_test();
 select * from t1;
 id	data
 h0	0
@@ -274,5 +274,5 @@ drop procedure e;
 drop procedure f;
 drop procedure g;
 drop procedure h;
-drop procedure sinisa;
+drop procedure into_test;
 drop table t1;
