@@ -52,7 +52,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
-  if (setup_conds(thd,table_list,&conds) || setup_ftfuncs(thd))
+  if (setup_conds(thd,table_list,&conds) || 
+      setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);
 
   /* Test if the user wants to delete all rows */
@@ -129,7 +130,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
-  init_ftfuncs(thd,1);
+  init_ftfuncs(thd, &thd->lex.select_lex, 1);
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -284,7 +285,11 @@ multi_delete::initialize_tables(JOIN *join)
 				     table->file->ref_length,
 				     MEM_STRIP_BUF_SIZE);
   }
-  init_ftfuncs(thd,1);
+  /*
+    There are (SELECT_LEX*) pointer conversion here global union parameters
+    can't be used in multidelete
+  */
+  init_ftfuncs(thd, (SELECT_LEX*)thd->lex.current_select, 1);
 }
 
 

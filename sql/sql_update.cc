@@ -78,7 +78,7 @@ int mysql_update(THD *thd,
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
   if (setup_tables(table_list) || setup_conds(thd,table_list,&conds)
-                               || setup_ftfuncs(thd))
+                               || setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
@@ -142,7 +142,7 @@ int mysql_update(THD *thd,
       DBUG_RETURN(1);
     }
   }
-  init_ftfuncs(thd,1);
+  init_ftfuncs(thd, &thd->lex.select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
     used_key_is_modified= (!select->quick->unique_key_range() &&
@@ -508,7 +508,14 @@ multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       counter++;
     }
   }
-  init_ftfuncs(thd,1);
+  /*
+    
+    There are (SELECT_LEX*) pointer conversion here global union parameters
+    can't be used in multiupdate
+
+    TODO: check is thd->lex.current_select == &thd->lex.select_lex?
+  */
+  init_ftfuncs(thd, (SELECT_LEX*)thd->lex.current_select, 1);
   error = 0; // Timestamps do not need to be restored, so far ...
   DBUG_RETURN(0);
 }

@@ -147,7 +147,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
-  lex->select_lex.ftfunc_list= &lex->select->ftfunc_list_alloc;
+  lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
@@ -934,7 +934,8 @@ void st_select_lex_node::init_select()
   order_list.first= 0;
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
-  offset_limit= 0; 
+  offset_limit= 0;
+  create_refs= dependent= 0;
 }
 
 void st_select_lex_unit::init_query()
@@ -974,7 +975,7 @@ void st_select_lex::init_select()
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
-  depended= having_fix_field= 0;
+  having_fix_field= 0;
 }
 
 /*
@@ -1040,6 +1041,44 @@ void st_select_lex_node::exclude()
      if (master->slave == this)
        master->slave= next;
   */
+}
+
+bool st_select_lex_node::add_item_to_list(Item *item)
+{
+  return 1;
+}
+
+bool  st_select_lex_node::add_group_to_list(Item *item, bool asc)
+{
+  return 1; 
+}
+
+//why compiler/linker do not allow make it inline?
+bool st_select_lex_node::add_order_to_list(Item *item, bool asc)
+{ 
+  return add_to_list(order_list,item,asc);
+}
+
+bool st_select_lex_node::add_ftfunc_to_list(Item_func_match *func)
+{
+  return 1;
+}
+
+bool st_select_lex_node::set_braces(bool value)      { return 1; }
+bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
+uint st_select_lex_node::get_in_sum_expr()           { return 0; }
+TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
+List<Item>* st_select_lex_node::get_item_list()      { return 0; }
+List<String>* st_select_lex_node::get_use_index()    { return 0; }
+List<String>* st_select_lex_node::get_ignore_index() { return 0; }
+TABLE_LIST *st_select_lex_node::add_table_to_list(Table_ident *table,
+						  LEX_STRING *alias,
+						  bool updating,
+						  thr_lock_type flags,
+						  List<String> *use_index,
+						  List<String> *ignore_index)
+{
+  return 0;
 }
 
 /*
@@ -1118,3 +1157,78 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
   *result= new_table_list;
   return 0;
 }
+
+st_select_lex_unit* st_select_lex_unit::master_unit()
+{
+    return this;
+}
+
+st_select_lex* st_select_lex_unit::outer_select()
+{
+  return (st_select_lex*) master;
+}
+
+
+bool st_select_lex::add_item_to_list(Item *item)
+{
+  return item_list.push_back(item);
+}
+
+bool st_select_lex::add_group_to_list(Item *item, bool asc)
+{
+  return add_to_list(group_list, item, asc);
+}
+
+bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)
+{
+  return !func || ftfunc_list->push_back(func); // end of memory?
+}
+
+st_select_lex_unit* st_select_lex::master_unit()
+{
+  return (st_select_lex_unit*) master;
+}
+
+st_select_lex* st_select_lex::outer_select()
+{
+  return (st_select_lex*) master->get_master();
+}
+
+bool st_select_lex::set_braces(bool value)
+{
+  braces= value;
+  return 0; 
+}
+
+bool st_select_lex::inc_in_sum_expr()
+{
+  in_sum_expr++;
+  return 0;
+}
+
+uint st_select_lex::get_in_sum_expr()
+{
+  return in_sum_expr;
+}
+
+TABLE_LIST* st_select_lex::get_table_list()
+{
+  return (TABLE_LIST*) table_list.first;
+}
+
+List<Item>* st_select_lex::get_item_list()
+{
+  return &item_list;
+}
+
+List<String>* st_select_lex::get_use_index()
+{
+  return use_index_ptr;
+}
+
+List<String>* st_select_lex::get_ignore_index()
+{
+  return ignore_index_ptr;
+}
+
+// There are st_select_lex::add_table_to_list in sql_parse.cc
