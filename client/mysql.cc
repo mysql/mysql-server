@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.21";
+const char *VER="11.22";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1714,7 +1714,7 @@ print_table_data_xml(MYSQL_RES *result)
   mysql_field_seek(result,0);
 
   tee_fputs("<?xml version=\"1.0\"?>\n\n<resultset statement=\"", PAGER);
-  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()) - 1);
+  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()));
   tee_fputs("\">", PAGER);
 
   fields = mysql_fetch_fields(result);
