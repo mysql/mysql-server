@@ -76,8 +76,13 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  mysql->last_error= thd->net.last_error;
-  mysql->net.last_errno= thd->net.last_errno;
+  if ((mysql->net.last_errno= thd->net.last_errno))
+  {
+    memcpy(mysql->net.last_error, thd->net.last_error, 
+	   sizeof(mysql->net.last_error));
+    memcpy(mysql->net.sqlstate, thd->net.sqlstate, 
+	   sizeof(mysql->net.sqlstate));
+  }
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
@@ -292,7 +297,6 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
 {
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
-  mysql->last_error= thd->net.last_error;
 }
 
 void *create_embedded_thd(int client_flag, char *db)

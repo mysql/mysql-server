@@ -83,6 +83,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 #ifdef EMBEDDED_LIBRARY
   net->last_errno= sql_errno;
   strmake(net->last_error, err, sizeof(net->last_error)-1);
+  strmov(net->sqlstate, mysql_errno_to_sqlstate(sql_errno));
 #else
 
   if (net->vio == 0)
@@ -230,6 +231,7 @@ net_printf(THD *thd, uint errcode, ...)
 #else
   net->last_errno= errcode;
   strmake(net->last_error, text_pos, length);
+  strmake(net->sqlstate, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
 #endif
   thd->is_fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;

@@ -144,24 +144,41 @@ static inline int mysql_init_charset(MYSQL *mysql)
 
   if (!mysql->charset)
   {
-    mysql->last_errno=CR_CANT_READ_CHARSET;
-    strmov(mysql->sqlstate, "HY0000");
+    mysql->net.last_errno=CR_CANT_READ_CHARSET;
+    strmov(mysql->net.sqlstate, "HY0000");
     if (mysql->options.charset_dir)
-      sprintf(mysql->last_error,ER(mysql->last_errno),
+      sprintf(mysql->net.last_error,ER(mysql->net.last_errno),
               charset_name ? charset_name : "unknown",
               mysql->options.charset_dir);
     else
     {
       char cs_dir_name[FN_REFLEN];
       get_charsets_dir(cs_dir_name);
-      sprintf(mysql->last_error,ER(mysql->last_errno),
+      sprintf(mysql->net.last_error,ER(mysql->net.last_errno),
               charset_name ? charset_name : "unknown",
               cs_dir_name);
     }
-    return mysql->last_errno;
+    return mysql->net.last_errno;
   }
   return 0;
 }
+
+/**************************************************************************
+  Get column lengths of the current row
+  If one uses mysql_use_result, res->lengths contains the length information,
+  else the lengths are calculated from the offset between pointers.
+**************************************************************************/
+
+static void emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+{ 
+  MYSQL_ROW end;
+
+  for (end=column + field_count; column != end ; column++,to++)
+  {
+    *to= *column ? strlen(*column) : 0;
+  }
+}
+
 
 /*
 ** Note that the mysql argument must be initialized with mysql_init()
@@ -178,6 +195,7 @@ static MYSQL_METHODS embedded_methods=
   emb_advanced_command,
   emb_mysql_store_result,
   emb_mysql_use_result,
+  emb_fetch_lengths
 };
 
 MYSQL * STDCALL
@@ -259,7 +277,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_RETURN(mysql);
 
 error:
-  DBUG_PRINT("error",("message: %u (%s)",mysql->last_errno,mysql->last_error));
+  DBUG_PRINT("error",("message: %u (%s)",mysql->net.last_errno,mysql->net.last_error));
   {
     /* Free alloced memory */
     my_bool free_me=mysql->free_me;
@@ -320,7 +338,7 @@ void STDCALL mysql_close(MYSQL *mysql)
 
 static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
 {
-  if (mysql->last_errno)
+  if (mysql->net.last_errno)
     return -1;
 
   if (mysql->field_count)
@@ -342,7 +360,8 @@ static MYSQL_RES * STDCALL emb_mysql_store_result(MYSQL *mysql)
   MYSQL_RES *result= mysql->result;
   if (!result)
     return 0;
-
+  
+  result->methods= mysql->methods;
   mysql->result= NULL;
   *result->data->prev_ptr= 0;
   result->eof= 1;

@@ -868,7 +868,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
   if (!(column=res->current_row))
     return 0;					/* Something is wrong */
   if (res->data)
-    fetch_lengths(res->lengths, column, res->field_count);
+    (*res->methods->fetch_lengths)(res->lengths, column, res->field_count);
   return res->lengths;
 }
 
@@ -979,6 +979,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
     free_rows(query);
     DBUG_RETURN(NULL);
   }
+  result->methods= mysql->methods;
   result->field_alloc=mysql->field_alloc;
   mysql->fields=0;
   result->field_count = (uint) query->rows;
@@ -1704,6 +1705,7 @@ mysql_prepare_result(MYSQL_STMT *stmt)
 				      MYF(MY_WME | MY_ZEROFILL))))
     return 0;
 
+  result->methods= stmt->mysql->methods;
   result->eof=1;	/* Marker for buffered */
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
@@ -3193,6 +3195,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(1);
   }
+  result->methods= mysql->methods;
   stmt->result_buffered= 1;
   if (!(result->data= read_binary_rows(stmt)))
   {
