@@ -30,7 +30,6 @@
 #include <hash.h>
 #include <ft_global.h>
 #include <assert.h>
-#include <my_bitmap.h>
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };
@@ -3298,7 +3297,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   statistic_increment(created_tmp_tables, &LOCK_status);
 
   if (use_temp_pool)
-    temp_pool_slot = bitmap_set_next(temp_pool, TEMP_POOL_SIZE);
+    temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
     sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix, 
@@ -3336,12 +3335,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       param->group_length : 0,
 		       NullS))
   {
-    bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
+    bitmap_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
-    bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
+    bitmap_clear_bit(&temp_pool, temp_pool_slot);
     my_free((gptr) table,MYF(0)); /* purecov: inspected */
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
@@ -3687,7 +3686,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
  err:
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, temp_pool_slot);
+  bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -3835,7 +3834,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
-  bitmap_clear_bit(temp_pool, TEMP_POOL_SIZE, entry->temp_pool_slot);
+  bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
 
   my_free((gptr) entry,MYF(0));
   thd->proc_info=save_proc_info;

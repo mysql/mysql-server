@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <thr_lock.h>
 #include <my_base.h>			/* Needed by field.h */
+#include <my_bitmap.h>
 #include <violite.h>
 
 #undef write  // remove pthread.h macro definition for EMX
@@ -508,7 +509,7 @@ extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
   	     ha_read_rnd_count, ha_read_rnd_next_count;
-extern uchar temp_pool[TEMP_POOL_SIZE];
+extern BITMAP temp_pool;
 extern bool use_temp_pool;
 extern char f_fyllchar;
 extern uchar *days_in_month;

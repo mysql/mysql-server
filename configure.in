@@ -879,9 +879,9 @@ then
 	  MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
           if expr "$CC" : ".*gcc.*"
           then
-            with_named_thread="-pthread -lnsl"
+            with_named_thread="-pthread -lsocket -lnsl"
           else
-            with_named_thread="-Kthread -lnsl"
+            with_named_thread="-Kthread -lsocket -lnsl"
           fi
           if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
           then
@@ -923,7 +923,7 @@ then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
       MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      with_named_thread="-Kthread -lnsl"
+      with_named_thread="-Kthread -lsocket -lnsl"
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)

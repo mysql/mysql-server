@@ -457,7 +457,8 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.testflag = ((check_opt->flags | T_SILENT | T_FORCE_CREATE) |
+  param.testflag = ((check_opt->flags & ~T_EXTEND) | 
+		    T_SILENT | T_FORCE_CREATE |
 		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   if (check_opt->quick)
     param.opt_rep_quick++;

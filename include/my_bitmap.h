@@ -18,18 +18,29 @@
 #ifndef _my_bitmap_h_
 #define _my_bitmap_h_
 
-#define MY_BIT_NONE ~(uint)0
+#include <my_pthread.h>
+
+#define MY_BIT_NONE (~(uint) 0)
+
+typedef struct st_bitmap
+{
+  uchar *bitmap;
+  uint bitmap_size;
+#ifdef THREAD
+  pthread_mutex_t mutex;
+#endif
+} BITMAP;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-  extern void bitmap_set_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit);
-  extern uint bitmap_set_next(uchar *bitmap, uint bitmap_size);
-  extern void bitmap_clear_bit(uchar *bitmap,uint bitmap_size,uint bitmap_bit);
-
+  extern my_bool bitmap_init(BITMAP *bitmap, uint bitmap_size);
+  extern void bitmap_free(BITMAP *bitmap);
+  extern void bitmap_set_bit(BITMAP *bitmap, uint bitmap_bit);
+  extern uint bitmap_set_next(BITMAP *bitmap);
+  extern void bitmap_clear_bit(BITMAP *bitmap, uint bitmap_bit);
 #ifdef	__cplusplus
 }
 #endif
 
-#endif
+#endif /* _my_bitmap_h_ */

@@ -20,33 +20,58 @@
   We assume that the size of the used bitmap is less than ~(uint) 0
 
   TODO:
-
-  create an unique structure for this that includes the mutex and bitmap size
-  make a init function that will allocate the bitmap and init the mutex
-  make an end function that will free everything
+  Make assembler THREAD safe versions of these using test-and-set instructions
 */
 
 #include "mysys_priv.h"
 #include <my_bitmap.h>
+#include <assert.h>
 
 pthread_mutex_t LOCK_bitmap;
 
-void bitmap_set_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit)
+my_bool bitmap_init(BITMAP *map, uint bitmap_size)
 {
-  if (bitmap_bit < bitmap_size*8)
+  if (!(map->bitmap=(uchar*) my_malloc((bitmap_size+7)/8,MYF(MY_WME))))
+    return 1;
+  dbug_assert(bitmap_size != ~(uint) 0);
+#ifdef THREAD
+  pthread_mutex_init(&map->mutex, NULL);
+#endif
+  map->bitmap_size=bitmap_size;
+  return 0;
+}
+
+void bitmap_free(BITMAP *map)
+{
+  if (map->bitmap)
   {
-    pthread_mutex_lock(&LOCK_bitmap);
-    bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
-    pthread_mutex_unlock(&LOCK_bitmap);
+    my_free((char*) map->bitmap, MYF(0));
+    map->bitmap=0;
+#ifdef THREAD
+    pthread_mutex_destroy(&map->mutex);
+#endif
   }
 }
 
-uint bitmap_set_next(uchar *bitmap, uint bitmap_size)
+void bitmap_set_bit(BITMAP *map, uint bitmap_bit)
 {
+  if (bitmap_bit < map->bitmap_size)
+  {
+    pthread_mutex_lock(&map->mutex);
+    map->bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
+    pthread_mutex_unlock(&map->mutex);
+  }
+}
+
+
+uint bitmap_set_next(BITMAP *map)
+{
+  uchar *bitmap=map->bitmap;
   uint bit_found = MY_BIT_NONE;
+  uint bitmap_size=map->bitmap_size;
   uint i;
 
-  pthread_mutex_lock(&LOCK_bitmap);
+  pthread_mutex_lock(&map->mutex);
   for (i=0; i < bitmap_size ; i++, bitmap++)
   {
     if (*bitmap != 0xff)
@@ -64,18 +89,18 @@ uint bitmap_set_next(uchar *bitmap, uint bitmap_size)
       break;					/* Found bit */
     }
   }
-  pthread_mutex_unlock(&LOCK_bitmap);
+  pthread_mutex_unlock(&map->mutex);
   return bit_found;
 }
 
 
-void bitmap_clear_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit)
+void bitmap_clear_bit(BITMAP *map, uint bitmap_bit)
 {
-  if (bitmap_bit < bitmap_size*8)
+  if (bitmap_bit < map->bitmap_size)
   {
-    pthread_mutex_lock(&LOCK_bitmap);
-    bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
-    pthread_mutex_unlock(&LOCK_bitmap);
+    pthread_mutex_lock(&map->mutex);
+    map->bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
+    pthread_mutex_unlock(&map->mutex);
   }
 }
 

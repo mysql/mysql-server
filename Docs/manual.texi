@@ -41096,6 +41096,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Changed output format of @code{SHOW OPEN TABLES}.
+@item
 Allow @code{SELECT expression LIMIT ...}.
 @item
 Added @code{IDENTITY} as a synonym for @code{AUTO_INCREMENT} (like SyBase).
@@ -41174,6 +41176,8 @@ not yet 100 % confident in this code.
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
+@item
+Removed warnings when running @code{REPAIR TABLE .. EXTENDED}.
 @item
 Fixed core-dump bug when using @code{GROUP BY} on an alias, where
 the alias was the same as an existing column name.
