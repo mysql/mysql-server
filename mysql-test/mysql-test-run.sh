@@ -249,6 +249,7 @@ SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
 
+CLIENT_MYLOG="$MYSQL_TEST_DIR/var/log/client.log"
 SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
 
 export MASTER_MYPORT
@@ -344,7 +345,7 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 #--
 wait_for_server_start ()
 {
-   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w3 --host=$hostname --port=$1  ping >/dev/null 2>&1
+   $MYSQLADMIN --no-defaults -u $DBUSER --silent -O connect_timeout=10 -w3 --host=$hostname --port=$1  ping >> $CLIENT_MYLOG 2>&1
    exit_code=$?
    if [ $exit_code != 0 ]; then
 	echo "Error: Could not start $2, exit code $exit_code";
