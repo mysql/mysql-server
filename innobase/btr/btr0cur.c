@@ -2624,7 +2624,7 @@ btr_estimate_n_rows_in_range(
 				then we estimate all rows are in the range */
 			  
 			        if (n_rows == 0) {
-				        n_rows = index->table->stat_n_rows / 2;
+				        n_rows = index->table->stat_n_rows;
 			        }
 			}
 
