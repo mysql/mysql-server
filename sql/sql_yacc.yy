@@ -1402,6 +1402,9 @@ type:
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
+	| BINARY			{ Lex->length= (char*) "1";
+					  Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
