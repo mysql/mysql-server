@@ -147,7 +147,7 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match)
 
 uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
 {
-  int find,pos,findpos;
+  int find,pos;
   const char *j;
   DBUG_ENTER("find_type2");
   DBUG_PRINT("enter",("x: '%.*s'  lib: 0x%lx", length, x, typelib));
@@ -157,7 +157,7 @@ uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
     DBUG_PRINT("exit",("no count"));
     DBUG_RETURN(0);
   }
-  LINT_INIT(findpos);
+
   for (find=0, pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     if (!my_strnncoll(cs, (const uchar*) x, length,
