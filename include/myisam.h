@@ -255,36 +255,45 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 /* definitions needed for myisamchk.c -- by Sasha Pachev */
 
-#define T_VERBOSE	1
-#define T_SILENT	2
-#define T_DESCRIPT	4
-#define T_EXTEND	8
-#define T_INFO		16
-#define T_REP		32
-#define T_OPT		64		/* Not currently used */
-#define T_FORCE_CREATE	128
-#define T_WRITE_LOOP	256
-#define T_UNPACK	512
-#define T_STATISTICS	1024
-#define T_VERY_SILENT	2048
-#define T_SORT_RECORDS	4096
-#define T_SORT_INDEX	8192
-#define T_WAIT_FOREVER	16384
-#define T_REP_BY_SORT	32768L
-#define T_FAST		65536L
-#define T_READONLY	131072L
-#define T_MEDIUM	T_READONLY*2
-#define T_AUTO_INC	T_MEDIUM*2
-#define T_CHECK		T_AUTO_INC*2
-#define T_UPDATE_STATE		T_CHECK*2
-#define T_CHECK_ONLY_CHANGED	T_UPDATE_STATE*2
-#define T_DONT_CHECK_CHECKSUM	T_CHECK_ONLY_CHANGED*2
-#define T_TRUST_HEADER		T_DONT_CHECK_CHECKSUM*2
-#define T_CREATE_MISSING_KEYS	T_TRUST_HEADER*2
-#define T_SAFE_REPAIR		T_CREATE_MISSING_KEYS*2
-#define T_AUTO_REPAIR   	T_SAFE_REPAIR*2
-#define T_BACKUP_DATA		T_AUTO_REPAIR*2
-#define T_CALC_CHECKSUM		T_BACKUP_DATA*2
+/* entries marked as   "QQ to be removed"   are NOT used to
+ * pass check/repair options to mi_check.c. They are used
+ * internally by myisamchk.c or/and ha_myisam.cc and should NOT
+ * be stored together with other flags. They should be removed
+ * from the following list to make adding of new flags possible.
+ *                                                 -- Sergei */
+
+#define T_VERBOSE               1
+#define T_SILENT                2
+#define T_DESCRIPT              4
+#define T_EXTEND                8
+#define T_INFO                  16
+#define T_REP                   32
+#define T_FORCE_UNIQUENESS      64
+#define T_FORCE_CREATE          128
+#define T_WRITE_LOOP            256
+#define T_UNPACK                512
+#define T_STATISTICS            (1L << 10)
+#define T_VERY_SILENT           (1L << 11)
+#define T_SORT_RECORDS          (1L << 12)     /* QQ to be removed */
+#define T_SORT_INDEX            (1L << 13)     /* QQ to be removed */
+#define T_WAIT_FOREVER          (1L << 14)
+#define T_REP_BY_SORT           (1L << 15)
+#define T_FAST                  (1L << 16)     /* QQ to be removed */
+#define T_READONLY              (1L << 17)     /* QQ to be removed */
+#define T_MEDIUM                (1L << 18)
+#define T_AUTO_INC              (1L << 19)
+#define T_CHECK                 (1L << 20)     /* QQ to be removed */
+#define T_UPDATE_STATE          (1L << 21)
+#define T_CHECK_ONLY_CHANGED    (1L << 22)     /* QQ to be removed */
+#define T_DONT_CHECK_CHECKSUM   (1L << 23)
+#define T_TRUST_HEADER          (1L << 24)
+#define T_CREATE_MISSING_KEYS   (1L << 25)
+#define T_SAFE_REPAIR           (1L << 26)
+#define T_AUTO_REPAIR           (1L << 27)     /* QQ to be removed */
+#define T_BACKUP_DATA           (1L << 28)
+#define T_CALC_CHECKSUM         (1L << 29)
+#define T_QUICK                 (1L << 30)
+#define T_RETRY_WITHOUT_QUICK   (1L << 31)
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
 #define O_NEW_DATA	2
@@ -329,13 +338,12 @@ typedef struct st_mi_check_param
   ha_checksum record_checksum,glob_crc;
   ulong	use_buffers,read_buffer_length,write_buffer_length,
 	sort_buffer_length,sort_key_blocks;
-  uint out_flag,warning_printed,error_printed,
-       opt_rep_quick,verbose;
+  uint out_flag,warning_printed,error_printed,verbose;
   uint opt_sort_key,total_files,max_level;
   uint testflag;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
-  my_bool retry_repair,retry_without_quick, force_sort, calc_checksum;
+  my_bool retry_repair, force_sort, calc_checksum;
   char temp_filename[FN_REFLEN],*isam_file_name,*tmpdir;
   int tmpfile_createflag;
   myf myf_rw;

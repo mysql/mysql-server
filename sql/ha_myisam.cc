@@ -289,7 +289,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     error = chk_key(&param, file);
   if (!error)
   {
-    if ((!check_opt->quick &&
+    if ((!(param.testflag & T_QUICK) &&
 	 ((share->options &
 	   (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ||
 	  (param.testflag & (T_EXTEND | T_MEDIUM)))) ||
@@ -330,7 +330,6 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
     mi_mark_crashed(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
   }
-  check_opt->retry_without_quick=param.retry_without_quick;
 
   thd->proc_info=old_proc_info;
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
@@ -397,8 +396,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   }
 
   tmp_check_opt.init();
-  tmp_check_opt.quick = 1;
-  tmp_check_opt.flags |= T_VERY_SILENT | T_CALC_CHECKSUM;
+  tmp_check_opt.flags |= T_VERY_SILENT | T_CALC_CHECKSUM | T_QUICK;
   DBUG_RETURN(repair(thd, &tmp_check_opt));
 
  err:
@@ -488,24 +486,23 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "repair";
-  param.testflag = ((check_opt->flags & ~(T_EXTEND)) | 
+  param.testflag = ((check_opt->flags & ~(T_EXTEND)) |
 		    T_SILENT | T_FORCE_CREATE |
 		    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
-  if (check_opt->quick)
-    param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   start_records=file->state->records;
   while ((error=repair(thd,param,0)) && param.retry_repair)
   {
     param.retry_repair=0;
-    if (param.retry_without_quick && param.opt_rep_quick)
+    if ((param.testflag & T_RETRY_WITHOUT_QUICK) &&
+        (param.testflag & T_QUICK))
     {
-      param.opt_rep_quick=0;
+      param.testflag&= ~T_RETRY_WITHOUT_QUICK;
       sql_print_error("Warning: Retrying repair of: '%s' without quick",
 		      table->path);
       continue;
     }
-    param.opt_rep_quick=0;			// Safety
+    param.testflag&= ~T_QUICK;
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
@@ -537,8 +534,6 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.op_name = (char*) "optimize";
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
 		    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
-  if (check_opt->quick)
-    param.opt_rep_quick++;
   param.sort_buffer_length=  check_opt->sort_buffer_size;
   return repair(thd,param,1);
 }
@@ -573,7 +568,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
   if (!optimize ||
       ((file->state->del || share->state.split != file->state->records) &&
-       (!param.opt_rep_quick ||
+       (!(param.testflag & T_QUICK) ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ? 
@@ -587,13 +582,15 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       param.testflag|= T_STATISTICS;		// We get this for free
       thd->proc_info="Repair by sorting";
       statistics_done=1;
-      error = mi_repair_by_sort(&param, file, fixed_name, param.opt_rep_quick);
+      error = mi_repair_by_sort(&param, file, fixed_name,
+          param.testflag & T_QUICK);
     }
     else
     {
       thd->proc_info="Repair with keycache";
       param.testflag &= ~T_REP_BY_SORT;
-      error=  mi_repair(&param, file, fixed_name, param.opt_rep_quick);
+      error=  mi_repair(&param, file, fixed_name,
+          param.testflag & T_QUICK);
     }
     param.testflag=testflag;
     optimize_done=1;
@@ -697,11 +694,10 @@ bool ha_myisam::activate_all_index(THD *thd)
     thd->proc_info="Creating index";
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
-    param.testflag = (T_SILENT | T_REP_BY_SORT |
+    param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
 		      T_CREATE_MISSING_KEYS | T_TRUST_HEADER);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  myisam_sort_buffer_size;
-    param.opt_rep_quick++;			// Don't copy data file
     param.tmpdir=mysql_tmpdir;
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
@@ -723,16 +719,16 @@ bool ha_myisam::check_and_repair(THD *thd)
   check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
   // Don't use quick if deleted rows
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
-    check_opt.quick=1;
+    check_opt.flags|=T_QUICK;
   sql_print_error("Warning: Checking table:   '%s'",table->path);
   if ((marked_crashed=mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_error("Warning: Recovering table: '%s'",table->path);
-    check_opt.quick= !check_opt.retry_without_quick && !marked_crashed;
-    check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ?
-		      T_BACKUP_DATA : 0) |
-		     (!(myisam_recover_options & HA_RECOVER_FORCE) ?
-		      T_SAFE_REPAIR : 0)) | T_AUTO_REPAIR;
+    check_opt.flags=
+        (myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0)
+      | (marked_crashed                             ? 0 : T_QUICK)
+      | (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR)
+      | T_AUTO_REPAIR;
     if (repair(thd, &check_opt))
       error=1;
   }
