@@ -21,6 +21,7 @@
 #include "sql_acl.h"
 #include "slave.h"
 #include "sql_repl.h"
+#include "repl_failsafe.h"
 #include "stacktrace.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -1698,6 +1699,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
@@ -1706,6 +1708,7 @@ int main(int argc, char **argv)
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
   (void) pthread_cond_init(&COND_slave_start, NULL);
+  (void) pthread_cond_init(&COND_rpl_status, NULL);
   init_signals();
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
@@ -2652,6 +2655,7 @@ static struct option long_options[] = {
   {"gemini-recovery",	    required_argument, 0, (int) OPT_GEMINI_RECOVER},
   {"gemini-unbuffered-io",  no_argument,       0, (int) OPT_GEMINI_UNBUFFERED_IO},
 #endif
+  {"init-rpl-role", required_argument, 0, (int) OPT_INIT_RPL_ROLE},
   /* We must always support this option to make scripts like mysqltest easier
      to do */
   {"innodb_data_file_path", required_argument, 0,
@@ -3101,6 +3105,8 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
+  {"Rpl_status",               (char*) 0,
+   SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
   {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
   {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
@@ -3548,6 +3554,17 @@ static void get_options(int argc,char **argv)
       opt_log_slave_updates = 1;
       break;
 
+    case (int) OPT_INIT_RPL_ROLE:
+    {
+      int role;
+      if ((role=find_type(optarg, &rpl_role_typelib, 2)) <= 0)
+      {
+	fprintf(stderr, "Unknown replication role: %s\n", optarg);
+	exit(1);
+      }
+      rpl_status = (rpl_role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
+      break;
+    }
     case (int)OPT_REPLICATE_IGNORE_DB:
       {
 	i_string *db = new i_string(optarg);
