@@ -247,3 +247,13 @@ elt(status_wnio,data_podp)
 NULL
 NULL
 DROP TABLE t1;
+CREATE TABLE t1 (
+title text
+) TYPE=MyISAM;
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
+NULL
+</a>..........................
+DROP TABLE t1;
