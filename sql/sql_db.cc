@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include <mysys_err.h>
-#include "sql_acl.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #ifdef __WIN__
@@ -29,11 +28,6 @@
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
-
-const char *known_exts[]=
-{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db", ".ibd", NullS};
-static TYPELIB known_extentions=
-{array_elements(known_exts)-1,"known_exts", known_exts, NULL};
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
 				 const char *db, const char *path,
@@ -231,7 +225,7 @@ void del_dbopt(const char *path)
 }
 
 
-/* 
+/*
   Create database options file:
 
   DESCRIPTION
@@ -250,10 +244,10 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   if (!create->default_table_charset)
     create->default_table_charset= thd->variables.collation_server;
-  
+
   if (put_dbopt(path, create))
     return 1;
-  
+
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
@@ -395,7 +389,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not create database if another thread is holding read lock
+  /* do not create database if another thread is holding read lock */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
@@ -472,7 +466,29 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, query, query_length, 0);
+      Query_log_event qinfo(thd, query, query_length, 0, 
+			    /* suppress_use */ TRUE);
+
+      /*
+	Write should use the database being created as the "current
+        database" and not the threads current database, which is the
+        default. If we do not change the "current database" to the
+        database being created, the CREATE statement will not be
+        replicated when using --binlog-do-db to select databases to be
+        replicated. 
+
+	An example (--binlog-do-db=sisyfos):
+       
+          CREATE DATABASE bob;        # Not replicated
+          USE bob;                    # 'bob' is the current database
+          CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
+                                      # current database.
+          USE sisyfos;                # Will give error on slave since
+                                      # database does not exist.
+      */
+      qinfo.db     = db;
+      qinfo.db_len = strlen(db);
+
       mysql_bin_log.write(&qinfo);
     }
     send_ok(thd, result);
@@ -497,7 +513,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not alter database if another thread is holding read lock
+  /* do not alter database if another thread is holding read lock */
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
@@ -507,14 +523,14 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
-  /* 
+  /*
      Change options if current database is being altered
      TODO: Delete this code
   */
   if (thd->db && !strcmp(thd->db,db))
   {
-    thd->db_charset= (create_info && create_info->default_table_charset) ?
-		     create_info->default_table_charset : 
+    thd->db_charset= create_info->default_table_charset ?
+		     create_info->default_table_charset :
 		     thd->variables.collation_server;
     thd->variables.collation_database= thd->db_charset;
   }
@@ -522,7 +538,17 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
+			  /* suppress_use */ TRUE);
+
+    /*
+      Write should use the database being created as the "current
+      database" and not the threads current database, which is the
+      default.
+    */
+    qinfo.db     = db;
+    qinfo.db_len = strlen(db);
+
     thd->clear_error();
     mysql_bin_log.write(&qinfo);
   }
@@ -552,7 +578,6 @@ exit2:
     -1	Error generated
 */
 
-
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
@@ -564,7 +589,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not drop database if another thread is holding read lock
+  /* do not drop database if another thread is holding read lock */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
@@ -595,12 +620,12 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     pthread_mutex_lock(&LOCK_open);
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
-    
+
     error= -1;
     if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
     {
       ha_drop_database(path);
-      query_cache_invalidate1(db);  
+      query_cache_invalidate1(db);
       error = 0;
     }
   }
@@ -611,7 +636,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
-  if (!silent && deleted>=0 && thd)
+  if (!silent && deleted>=0)
   {
     const char *query;
     ulong query_length;
@@ -630,11 +655,22 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, query, query_length, 0);
+      Query_log_event qinfo(thd, query, query_length, 0, 
+			    /* suppress_use */ TRUE);
+      /*
+        Write should use the database being created as the "current
+        database" and not the threads current database, which is the
+        default.
+      */
+      qinfo.db     = db;
+      qinfo.db_len = strlen(db);
+
       thd->clear_error();
       mysql_bin_log.write(&qinfo);
     }
+    thd->server_status|= SERVER_STATUS_DB_DROPPED;
     send_ok(thd, (ulong) deleted);
+    thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
 
 exit:
@@ -652,7 +688,7 @@ exit:
     have 'if (data_buf) free(data_buf)' data_buf is !=0 so this makes a
     DOUBLE free().
     Side effects of this double free() are, randomly (depends on the machine),
-    when the slave is replicating a DROP DATABASE: 
+    when the slave is replicating a DROP DATABASE:
     - garbage characters in the error message:
     "Error 'Can't drop database 'test2'; database doesn't exist' on query
     'h4zIÅ©'"
@@ -725,7 +761,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1)) < 0)
 	  goto err;
 	if (!(copy_of_path= thd->memdup(newpath, length+1)) ||
-	    !(dir= new (&thd->mem_root) String(copy_of_path, length,
+	    !(dir= new (thd->mem_root) String(copy_of_path, length,
 					       &my_charset_bin)) ||
 	    raid_dirs.push_back(dir))
 	  goto err;
@@ -737,11 +773,11 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     extension= fn_ext(file->name);
     if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
-      if (find_type(extension, &known_extentions,1+2) <= 0)
+      if (find_type(extension, ha_known_exts(),1+2) <= 0)
 	found_other_files++;
       continue;
     }
-    // just for safety we use files_charset_info
+    /* just for safety we use files_charset_info */
     if (db && !my_strcasecmp(files_charset_info,
                              extension, reg_ext))
     {
@@ -876,7 +912,7 @@ bool mysql_change_db(THD *thd, const char *name)
   if (!dbname || !(db_length= strlen(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
-    send_error(thd,ER_NO_DB_ERROR);	/* purecov: inspected */
+    send_error(thd,ER_NO_DB_ERROR);             /* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (check_db_name(dbname))

@@ -30,10 +30,18 @@ void
 Ndb::checkFailedNode()
 {
   DBUG_ENTER("Ndb::checkFailedNode");
-  DBUG_PRINT("enter", ("theNoOfDBnodes: %d", theNoOfDBnodes));
+  Uint32 *the_release_ind= theImpl->the_release_ind;
+  if (the_release_ind[0] == 0)
+  {
+    DBUG_VOID_RETURN;
+  }
+  Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
+  Uint8 *theDBnodes= theImpl->theDBnodes;
 
-  DBUG_ASSERT(theNoOfDBnodes < MAX_NDB_NODES);
-  for (Uint32 i = 0; i < theNoOfDBnodes; i++){
+  DBUG_PRINT("enter", ("theNoOfDBnodes: %d", tNoOfDbNodes));
+
+  DBUG_ASSERT(tNoOfDbNodes < MAX_NDB_NODES);
+  for (Uint32 i = 0; i < tNoOfDbNodes; i++){
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
@@ -55,31 +63,6 @@ Ndb::checkFailedNode()
   }
   DBUG_VOID_RETURN;
 }
-
-#if 0
-void
-NdbImpl::checkInvalidTable(NdbDictionaryImpl * dict){
-  Uint32 sz = m_invalidTables.size();
-  for(Int32 i = sz - 1; i >= 0; i--){
-    NdbTableImpl * tab = m_invalidTables[i];
-    m_invalidTables.erase(i);
-    dict->tableDropped(* tab);
-  }
-}
-
-void
-NdbImpl::checkErrorCode(Uint32 i, NdbTableImpl * tab){
-  switch(i){
-  case 241:
-  case 283:
-  case 284:
-  case 285:
-  case 1225:
-  case 1226:
-    
-  }
-}
-#endif
 
 /***************************************************************************
  * int createConIdleList(int aNrOfCon);

@@ -29,12 +29,6 @@
 #include <io.h>
 #endif
 
-#define tmp_disable_binlog(A)       \
-  ulong save_options= (A)->options; \
-  (A)->options&= ~OPTION_BIN_LOG;
-
-#define reenable_binlog(A)          (A)->options= save_options;
-
 const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
@@ -42,6 +36,7 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    List<create_field> &create,
 				    enum enum_duplicates handle_duplicates,
+                                    bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 
@@ -282,7 +277,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         if (!error)
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      tmp_table_deleted && !some_tables_deleted);
+			      tmp_table_deleted && !some_tables_deleted, 
+			      FALSE);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -392,6 +388,41 @@ void check_duplicates_in_interval(const char *set_or_name,
   }
 }
 
+
+/*
+  Check TYPELIB (set or enum) max and total lengths
+
+  SYNOPSIS
+    calculate_interval_lengths()
+    cs            charset+collation pair of the interval
+    typelib       list of values for the column
+    max_length    length of the longest item
+    tot_length    sum of the item lengths
+
+  DESCRIPTION
+    After this function call:
+    - ENUM uses max_length
+    - SET uses tot_length.
+
+  RETURN VALUES
+    void
+*/
+void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
+                                uint32 *max_length, uint32 *tot_length)
+{
+  const char **pos;
+  uint *len;
+  *max_length= *tot_length= 0;
+  for (pos= interval->type_names, len= interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
+    *tot_length+= length;
+    set_if_bigger(*max_length, (uint32)length);
+  }
+}
+
+
 /*
   Preparation for table creation
 
@@ -453,6 +484,93 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       strmake(strmake(tmp, savecs->csname, sizeof(tmp)-4), "_bin", 4);
       my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
       DBUG_RETURN(-1);
+    }
+
+    if (sql_field->sql_type == FIELD_TYPE_SET ||
+        sql_field->sql_type == FIELD_TYPE_ENUM)
+    {
+      uint32 dummy;
+      CHARSET_INFO *cs= sql_field->charset;
+      TYPELIB *interval= sql_field->interval;
+
+      /*
+        Create typelib from interval_list, and if necessary
+        convert strings from client character set to the
+        column character set.
+      */
+      if (!interval)
+      {
+        interval= sql_field->interval= typelib(sql_field->interval_list);
+        List_iterator<String> it(sql_field->interval_list);
+        String conv, *tmp;
+        for (uint i= 0; (tmp= it++); i++)
+        {
+          if (String::needs_conversion(tmp->length(), tmp->charset(),
+                                       cs, &dummy))
+          {
+            uint cnv_errs;
+            conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+            char *buf= (char*) sql_alloc(conv.length()+1);
+            memcpy(buf, conv.ptr(), conv.length());
+            buf[conv.length()]= '\0';
+            interval->type_names[i]= buf;
+            interval->type_lengths[i]= conv.length();
+          }
+
+          // Strip trailing spaces.
+          uint lengthsp= cs->cset->lengthsp(cs, interval->type_names[i],
+                                            interval->type_lengths[i]);
+          interval->type_lengths[i]= lengthsp;
+          ((uchar *)interval->type_names[i])[lengthsp]= '\0';
+        }
+        sql_field->interval_list.empty(); // Don't need interval_list anymore
+      }
+
+      /*
+        Convert the default value from client character
+        set into the column character set if necessary.
+      */
+      if (sql_field->def)
+      {
+        sql_field->def= 
+          sql_field->def->safe_charset_converter(cs);
+      }
+
+      if (sql_field->sql_type == FIELD_TYPE_SET)
+      {
+        if (sql_field->def)
+        {
+          char *not_used;
+          uint not_used2;
+          bool not_found= 0;
+          String str, *def= sql_field->def->val_str(&str);
+          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
+          (void) find_set(interval, def->ptr(), def->length(),
+                          cs, &not_used, &not_used2, &not_found);
+          if (not_found)
+          {
+            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+            DBUG_RETURN(-1);
+          }
+        }
+        calculate_interval_lengths(cs, interval, &dummy, &sql_field->length);
+        sql_field->length+= (interval->count - 1);
+      }
+      else  /* FIELD_TYPE_ENUM */
+      {
+        if (sql_field->def)
+        {
+          String str, *def= sql_field->def->val_str(&str);
+          def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
+          if (!find_type2(interval, def->ptr(), def->length(), cs))
+          {
+            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+            DBUG_RETURN(-1);
+          }
+        }
+        calculate_interval_lengths(cs, interval, &sql_field->length, &dummy);
+      }
+      set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
     }
 
     sql_field->create_length_to_internal_length();
@@ -814,8 +932,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	DBUG_RETURN(-1);
       }
     }
-    else
-    if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
@@ -835,10 +952,12 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 #endif
     }
 
-    List_iterator<key_part_spec> cols(key->columns);
+    List_iterator<key_part_spec> cols(key->columns), cols2(key->columns);
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
+      key_part_spec *dup_column;
+
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
@@ -853,12 +972,18 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
-      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
-	 ft code anyway, and 0 (set to column width later) for char's.
-	 it has to be correct col width for char's, as char data are not
-	 prefixed with length (unlike blobs, where ft code takes data length
-	 from a data prefix, ignoring column->length).
-      */
+      while ((dup_column= cols2++) != column)
+      {
+        if (!my_strcasecmp(system_charset_info,
+	     	           column->field_name, dup_column->field_name))
+	{
+	  my_printf_error(ER_DUP_FIELDNAME,
+			  ER(ER_DUP_FIELDNAME),MYF(0),
+			  column->field_name);
+	  DBUG_RETURN(-1);
+	}
+      }
+      cols2.rewind();
       if (key->type == Key::FULLTEXT)
       {
 	if ((sql_field->sql_type != FIELD_TYPE_STRING &&
@@ -1292,7 +1417,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    test(create_info->options &
-				 HA_LEX_CREATE_TMP_TABLE));
+				 HA_LEX_CREATE_TMP_TABLE),
+			    FALSE);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -1418,7 +1544,6 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(table);
-  /* Note that leaving the function resets binlogging properties */
 }
 
 
@@ -1734,6 +1859,12 @@ end:
 }
 
 
+/*
+  RETURN VALUES
+    0   Message sent to net (admin operation went ok)
+   -1   Message should be sent by caller 
+        (admin operation or network communication failed)
+*/
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,
 			     const char *operator_name,
@@ -1766,9 +1897,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
+    char* db = table->db;
     bool fatal_error=0;
-    strxmov(table_name,db ? db : "",".",table->real_name,NullS);
+    strxmov(table_name, db, ".", table->real_name, NullS);
 
     thd->open_options|= extra_open_options;
     table->table = open_ltable(thd, table, lock_type);
@@ -1780,9 +1911,13 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (prepare_func)
     {
       switch ((*prepare_func)(thd, table, check_opt)) {
-	case  1: continue; // error, message written to net
-	case -1: goto err; // error, message could be written to net
-	default:	 ; // should be 0 otherwise
+      case  1:           // error, message written to net
+        close_thread_tables(thd);
+        continue;
+      case -1:           // error, message could be written to net
+        goto err;
+      default:           // should be 0 otherwise
+        ;
       }
     }
 
@@ -2139,6 +2274,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     strxmov(src_path, mysql_data_home, "/", src_db, "/", src_table,
 	    reg_ext, NullS);
+    /* Resolve symlinks (for windows) */
+    fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (access(src_path, F_OK))
     {
       my_error(ER_BAD_TABLE_ERROR, MYF(0), src_table);
@@ -2167,6 +2304,7 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     strxmov(dst_path, mysql_data_home, "/", db, "/", table_name,
 	    reg_ext, NullS);
+    fn_format(dst_path, dst_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (!access(dst_path, F_OK))
       goto table_exists;
   }
@@ -2208,7 +2346,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  test(create_info->options &
-			       HA_LEX_CREATE_TMP_TABLE));
+			       HA_LEX_CREATE_TMP_TABLE), 
+			  FALSE);
     mysql_bin_log.write(&qinfo);
   }
   res= 0;
@@ -2319,7 +2458,7 @@ mysql_discard_or_import_tablespace(THD *thd,
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
 err:
@@ -2330,7 +2469,11 @@ err:
     send_ok(thd);
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(error);
+
+  if (error == HA_ERR_ROW_IS_REFERENCED)
+    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+  
+  DBUG_RETURN(-1);
 }
 
 
@@ -2547,7 +2690,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      TABLE_LIST *table_list,
 		      List<create_field> &fields, List<Key> &keys,
 		      uint order_num, ORDER *order,
-		      enum enum_duplicates handle_duplicates,
+		      enum enum_duplicates handle_duplicates, bool ignore,
 		      ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table;
@@ -2706,7 +2849,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       if (do_send_ok)
@@ -3066,7 +3209,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   copied=deleted=0;
   if (!new_table->is_view)
     error=copy_data_between_tables(table,new_table,create_list,
-				   handle_duplicates,
+				   handle_duplicates, ignore,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -3091,7 +3234,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
     /* Remove link to old table and rename the new one */
     close_temporary_table(thd,table->table_cache_key,table_name);
-    if (rename_temporary_table(thd, new_table, new_db, new_alias))
+    /* Should pass the 'new_name' as we store table name in the cache */
+    if (rename_temporary_table(thd, new_table, new_db, new_name))
     {						// Fatal error
       close_temporary_table(thd,new_db,tmp_name);
       my_free((gptr) new_table,MYF(0));
@@ -3101,7 +3245,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -3236,7 +3380,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
@@ -3286,6 +3430,7 @@ static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<create_field> &create,
 			 enum enum_duplicates handle_duplicates,
+                         bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
 			 ha_rows *deleted)
@@ -3305,6 +3450,16 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ulong save_sql_mode;
   DBUG_ENTER("copy_data_between_tables");
 
+  /*
+    Turn off recovery logging since rollback of an alter table is to
+    delete the new table so there is no need to log the changes to it.
+    
+    This needs to be done before external_lock
+  */
+  error= ha_enable_transaction(thd, FALSE);
+  if (error)
+    DBUG_RETURN(-1);
+  
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
@@ -3363,23 +3518,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       goto err;
   };
 
-  /*
-    Turn off recovery logging since rollback of an alter table is to
-    delete the new table so there is no need to log the changes to it.
-  */
-  error= ha_enable_transaction(thd,FALSE);
-  if (error)
-  {
-    error= 1;
-    goto err;
-  }
-
   /* Handler must be told explicitly to retrieve all columns, because
      this function does not set field->query_id in the columns to the
      current query id */
   from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-  if (handle_duplicates == DUP_IGNORE ||
+  if (ignore ||
       handle_duplicates == DUP_REPLACE)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
@@ -3405,7 +3549,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
-      if ((handle_duplicates != DUP_IGNORE &&
+      if ((!ignore &&
 	   handle_duplicates != DUP_REPLACE) ||
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
@@ -3481,7 +3625,7 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,
-                                DUP_ERROR, &lex->alter_info, do_send_ok));
+                                DUP_ERROR, 0, &lex->alter_info, do_send_ok));
 }
 
 

@@ -16,7 +16,6 @@
 
 #include "Suma.hpp"
 
-#include <new>
 #include <Properties.hpp>
 #include <Configuration.hpp>
 
@@ -188,6 +187,6 @@ Suma::~Suma()
 {
 }
 
-BLOCK_FUNCTIONS(Suma);
-BLOCK_FUNCTIONS(SumaParticipant);
+BLOCK_FUNCTIONS(Suma)
+BLOCK_FUNCTIONS(SumaParticipant)
 

@@ -37,7 +37,6 @@ show grants for current_user();
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
 GRANT SELECT, INSERT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
-use mysqltest;
 insert into t1 values (1, 'I can''t change it!');
 update t1 set data='I can change it!' where id = 1;
 ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'mysqltest'
@@ -47,8 +46,20 @@ select * from t1;
 id	data
 1	I can't change it!
 drop table t1;
-drop database mysqltest;
-use test;
 delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
+create table t1 (a int, b int);
+grant select (a) on t1 to mysqltest_1@localhost with grant option;
+grant select (a,b) on t1 to mysqltest_2@localhost;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't1'
+grant select on t1 to mysqltest_3@localhost;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't1'
+drop table t1;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+drop database mysqltest;
+use test;

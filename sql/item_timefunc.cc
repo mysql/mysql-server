@@ -149,6 +149,9 @@ static DATE_TIME_FORMAT time_24hrs_format= {{0}, '\0', 0,
      conversion specifiers that can be used in such sub-patterns is limited.
      Also most of checks are skipped in this case.
 
+     If one adds new format specifiers to this function he should also
+     consider adding them to get_date_time_result_type() function.
+
     RETURN
       0	ok
       1	error
@@ -161,23 +164,24 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 {
   int weekday= 0, yearday= 0, daypart= 0;
   int week_number= -1;
-  CHARSET_INFO *cs= &my_charset_bin;
   int error= 0;
+  int  strict_week_number_year= -1;
+  int frac_part;
   bool usa_time= 0;
   bool sunday_first_n_first_week_non_iso;
   bool strict_week_number;
-  int  strict_week_number_year= -1;
   bool strict_week_number_year_type;
-  int frac_part;
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr + format->format.length;
+  CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
 
-  LINT_INIT(sunday_first_n_first_week_non_iso);
   LINT_INIT(strict_week_number);
-  LINT_INIT(strict_week_number_year_type);
+  /* Remove valgrind varnings when using gcc 3.3 and -O1 */
+  PURIFY_OR_LINT_INIT(strict_week_number_year_type);
+  PURIFY_OR_LINT_INIT(sunday_first_n_first_week_non_iso);
 
   if (!sub_pattern_end)
     bzero((char*) l_time, sizeof(*l_time));
@@ -1593,6 +1597,7 @@ void Item_func_from_unixtime::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals=0;
   max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
   thd->time_zone_used= 1;
 }
 
@@ -1600,50 +1605,47 @@ void Item_func_from_unixtime::fix_length_and_dec()
 String *Item_func_from_unixtime::val_str(String *str)
 {
   TIME time_tmp;
-  my_time_t tmp;
-  
+
   DBUG_ASSERT(fixed == 1);
-  tmp= (time_t) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
-    goto null_date;
-  
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
-  
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
-    goto null_date;
+  {
+    null_value= 1;
+    return 0;
+  }
+
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
   return str;
-
-null_date:
-  null_value=1;
-  return 0;
 }
 
 
 longlong Item_func_from_unixtime::val_int()
 {
   TIME time_tmp;
-  my_time_t tmp;
-  
+
   DBUG_ASSERT(fixed == 1);
 
-  tmp= (time_t) (ulong) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  if (get_date(&time_tmp, 0))
     return 0;
-  
-  current_thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
-  
+
   return (longlong) TIME_to_ulonglong_datetime(&time_tmp);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  my_time_t tmp=(my_time_t) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  ulonglong tmp= (ulonglong)(args[0]->val_int());
+  /*
+    "tmp > TIMESTAMP_MAX_VALUE" check also covers case of negative
+    from_unixtime() argument since tmp is unsigned.
+  */
+  if ((null_value= (args[0]->null_value || tmp > TIMESTAMP_MAX_VALUE)))
     return 1;
-  
-  current_thd->variables.time_zone->gmt_sec_to_TIME(ltime, tmp);
+
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
 
   return 0;
 }
@@ -1654,6 +1656,7 @@ void Item_func_convert_tz::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals= 0;
   max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
 }
 
 
@@ -1665,12 +1668,6 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
     return 1;
 
   tz_tables= thd_arg->lex->time_zone_tables_used;
-
-  if (args[1]->const_item())
-    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
-
-  if (args[2]->const_item())
-    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
 
   return 0;
 }
@@ -1711,13 +1708,19 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   my_time_t my_time_tmp;
   bool not_used;
   String str;
-  
-  if (!args[1]->const_item())
+
+  if (!from_tz_cached)
+  {
     from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
-  
-  if (!args[2]->const_item())
+    from_tz_cached= args[1]->const_item();
+  }
+
+  if (!to_tz_cached)
+  {
     to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
-  
+    to_tz_cached= args[2]->const_item();
+  }
+
   if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
   {
     null_value= 1;
@@ -1736,6 +1739,13 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   
   null_value= 0;
   return 0;
+}
+
+
+void Item_func_convert_tz::cleanup()
+{
+  from_tz_cached= to_tz_cached= 0;
+  Item_date_func::cleanup();
 }
 
 
@@ -2110,19 +2120,24 @@ void Item_char_typecast::print(String *str)
 String *Item_char_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res, *res1;
+  String *res;
   uint32 length;
 
-  if (!charset_conversion && !(res= args[0]->val_str(str)))
+  if (!charset_conversion)
   {
-    null_value= 1;
-    return 0;
+    if (!(res= args[0]->val_str(str)))
+    {
+      null_value= 1;
+      return 0;
+    }
   }
   else
   {
     // Convert character set if differ
-    if (!(res1= args[0]->val_str(&tmp_value)) ||
-	str->copy(res1->ptr(), res1->length(),res1->charset(), cast_cs))
+    uint dummy_errors;
+    if (!(res= args[0]->val_str(&tmp_value)) ||
+	str->copy(res->ptr(), res->length(), res->charset(),
+                  cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
@@ -2131,13 +2146,13 @@ String *Item_char_typecast::val_str(String *str)
   }
 
   res->set_charset(cast_cs);
-  
+
   /*
      Cut the tail if cast with length
      and the result is longer than cast length, e.g.
      CAST('string' AS CHAR(1))
   */
-  if (cast_length >= 0 && 
+  if (cast_length >= 0 &&
       (res->length() > (length= (uint32) res->charpos(cast_length))))
   {						// Safe even if const arg
     if (!res->alloced_length())
@@ -2146,7 +2161,7 @@ String *Item_char_typecast::val_str(String *str)
       res= &str_value;
     }
     res->length((uint) length);
-  } 
+  }
   null_value= 0;
   return res;
 }
@@ -2154,9 +2169,18 @@ String *Item_char_typecast::val_str(String *str)
 void Item_char_typecast::fix_length_and_dec()
 {
   uint32 char_length;
-  charset_conversion= !my_charset_same(args[0]->collation.collation, cast_cs) &&
-		      args[0]->collation.collation != &my_charset_bin &&
-		      cast_cs != &my_charset_bin;
+  /* 
+     We always force character set conversion if cast_cs
+     is a multi-byte character set. It garantees that the
+     result of CAST is a well-formed string.
+     For single-byte character sets we allow just to copy
+     from the argument. A single-byte character sets string
+     is always well-formed. 
+  */
+  charset_conversion= (cast_cs->mbmaxlen > 1) ||
+                      !my_charset_same(args[0]->collation.collation, cast_cs) &&
+                      args[0]->collation.collation != &my_charset_bin &&
+                      cast_cs != &my_charset_bin;
   collation.set(cast_cs, DERIVATION_IMPLICIT);
   char_length= (cast_length >= 0) ? cast_length : 
 	       args[0]->max_length/args[0]->collation.collation->mbmaxlen;
@@ -2181,6 +2205,12 @@ String *Item_datetime_typecast::val_str(String *str)
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
+  /*
+    For MYSQL_TIMESTAMP_TIME value we can have non-zero day part,
+    which we should not lose.
+  */
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
+    ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return res;
 }
@@ -2204,6 +2234,7 @@ String *Item_time_typecast::val_str(String *str)
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
   bool res= get_arg0_date(ltime,1);
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
@@ -2421,8 +2452,7 @@ void Item_func_add_time::print(String *str)
 String *Item_func_timediff::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  longlong seconds;
-  long microseconds;
+  longlong microseconds;
   long days;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
@@ -2446,32 +2476,23 @@ String *Item_func_timediff::val_str(String *str)
 			     (uint) l_time2.month,
 			     (uint) l_time2.day));
 
-  microseconds= l_time1.second_part - l_sign*l_time2.second_part;
-  seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
-	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+
-			      l_time2.second));
+  microseconds= ((longlong)days*86400L +
+                 l_time1.hour*3600L + l_time1.minute*60L + l_time1.second -
+                 (longlong)l_sign*(l_time2.hour*3600L + l_time2.minute*60L +
+                                   l_time2.second))*1000000 +
+                 l_time1.second_part - l_sign*l_time2.second_part;
 
   l_time3.neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    l_time3.neg= 1;
-  }
-  else if (seconds == 0 && microseconds < 0)
+  if (microseconds < 0)
   {
     microseconds= -microseconds;
     l_time3.neg= 1;
   }
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
-  if ((l_time2.neg == l_time1.neg) && l_time1.neg)
+  if ((l_time2.neg == l_time1.neg) && l_time1.neg && microseconds)
     l_time3.neg= l_time3.neg ? 0 : 1;
 
-  calc_time_from_sec(&l_time3, (long) seconds, microseconds);
+  calc_time_from_sec(&l_time3, (long)(microseconds/1000000),
+                               (long)(microseconds%1000000));
 
   if (!make_datetime(l_time1.second_part || l_time2.second_part ?
 		     TIME_MICROSECOND : TIME_ONLY,
@@ -2596,25 +2617,31 @@ void Item_func_get_format::print(String *str)
 
 
 /*
-  check_result_type(s, l) returns DATE/TIME type
-  according to format string
+  Get type of datetime value (DATE/TIME/...) which will be produced
+  according to format string.
 
-  s: DATE/TIME format string
-  l: length of s
-  Result: date_time_format_types value:
-          DATE_TIME_MICROSECOND, DATE_TIME,
-          TIME_MICROSECOND, TIME_ONLY
+  SYNOPSIS
+    get_date_time_result_type()
+      format - format string
+      length - length of format string
 
-  We don't process day format's characters('D', 'd', 'e')
-  because day may be a member of all date/time types.
-  If only day format's character and no time part present
-  the result type is MYSQL_TYPE_DATE
+  NOTE
+    We don't process day format's characters('D', 'd', 'e') because day
+    may be a member of all date/time types.
+
+    Format specifiers supported by this function should be in sync with
+    specifiers supported by extract_date_time() function.
+
+  RETURN VALUE
+    One of date_time_format_types values:
+    DATE_TIME_MICROSECOND, DATE_TIME, DATE_ONLY, TIME_MICROSECOND, TIME_ONLY
 */
 
-date_time_format_types  check_result_type(const char *format, uint length)
+static date_time_format_types
+get_date_time_result_type(const char *format, uint length)
 {
   const char *time_part_frms= "HISThiklrs";
-  const char *date_part_frms= "MUYWabcjmuyw";
+  const char *date_part_frms= "MVUXYWabcjmvuxyw";
   bool date_part_used= 0, time_part_used= 0, frac_second_used= 0;
   
   const char *val= format;
@@ -2625,22 +2652,30 @@ date_time_format_types  check_result_type(const char *format, uint length)
     if (*val == '%' && val+1 != end)
     {
       val++;
-      if ((frac_second_used= (*val == 'f')) ||
-	  (!time_part_used && strchr(time_part_frms, *val)))
+      if (*val == 'f')
+        frac_second_used= time_part_used= 1;
+      else if (!time_part_used && strchr(time_part_frms, *val))
 	time_part_used= 1;
       else if (!date_part_used && strchr(date_part_frms, *val))
 	date_part_used= 1;
-      if (time_part_used && date_part_used && frac_second_used)
+      if (date_part_used && frac_second_used)
+      {
+        /*
+          frac_second_used implies time_part_used, and thus we already
+          have all types of date-time components and can end our search.
+        */
 	return DATE_TIME_MICROSECOND;
+      }
     }
   }
 
+  /* We don't have all three types of date-time components */
+  if (frac_second_used)
+    return TIME_MICROSECOND;
   if (time_part_used)
   {
     if (date_part_used)
       return DATE_TIME;
-    if (frac_second_used)
-      return TIME_MICROSECOND;
     return TIME_ONLY;
   }
   return DATE_ONLY;
@@ -2671,7 +2706,8 @@ void Item_func_str_to_date::fix_length_and_dec()
   if ((const_item= args[1]->const_item()))
   {
     format= args[1]->val_str(&format_str);
-    cached_format_type= check_result_type(format->ptr(), format->length());
+    cached_format_type= get_date_time_result_type(format->ptr(),
+                                                  format->length());
     switch (cached_format_type) {
     case DATE_ONLY:
       cached_timestamp_type= MYSQL_TIMESTAMP_DATE;

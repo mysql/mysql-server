@@ -17,7 +17,19 @@
 #ifndef NDB_IMPL_HPP
 #define NDB_IMPL_HPP
 
-#include <Vector.hpp>
+#include <ndb_global.h>
+#include <Ndb.hpp>
+#include <NdbOut.hpp>
+#include <NdbError.hpp>
+#include <NdbCondition.h>
+#include <NdbReceiver.hpp>
+#include <NdbOperation.hpp>
+#include <kernel/ndb_limits.h>
+
+#include <NdbTick.h>
+
+#include "ndb_cluster_connection_impl.hpp"
+#include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
 
 /**
@@ -25,19 +37,29 @@
  */
 class NdbImpl {
 public:
-  Vector<class NdbTableImpl *> m_invalidTables;
+  NdbImpl(Ndb_cluster_connection *, Ndb&);
+  ~NdbImpl();
 
-  void checkErrorCode(Uint32 i);
-  void checkInvalidTable(class NdbDictionaryImpl * dict);
+  Ndb_cluster_connection_impl &m_ndb_cluster_connection;
+
+  NdbDictionaryImpl m_dictionary;
+
+  // Ensure good distribution of connects
+  Uint32 theCurrentConnectIndex;
+  Ndb_cluster_connection_node_iter m_node_iter;
+
+  NdbObjectIdMap theNdbObjectIdMap;
+
+  Uint32 theNoOfDBnodes; // The number of DB nodes  
+  Uint8 theDBnodes[MAX_NDB_NODES]; // The node number of the DB nodes
+
+ // 1 indicates to release all connections to node 
+  Uint32 the_release_ind[MAX_NDB_NODES];
+
+  NdbWaiter             theWaiter;
+
+  int m_optimized_node_selection;
 };
-
-#include <Ndb.hpp>
-#include <NdbError.hpp>
-#include <NdbCondition.h>
-#include <NdbReceiver.hpp>
-#include <NdbOperation.hpp>
-
-#include <NdbTick.h>
 
 #ifdef VM_TRACE
 #define TRACE_DEBUG(x) ndbout << x << endl;
@@ -57,7 +79,7 @@ public:
 inline
 void *
 Ndb::int2void(Uint32 val){
-  return theNdbObjectIdMap->getObject(val);
+  return theImpl->theNdbObjectIdMap.getObject(val);
 }
 
 inline
@@ -104,71 +126,11 @@ Ndb::checkInitState()
 
 Uint32 convertEndian(Uint32 Data);
 
-enum WaitSignalType { 
-  NO_WAIT           = 0,
-  WAIT_NODE_FAILURE = 1,  // Node failure during wait
-  WAIT_TIMEOUT      = 2,  // Timeout during wait
-
-  WAIT_TC_SEIZE     = 3,
-  WAIT_TC_RELEASE   = 4,
-  WAIT_NDB_TAMPER   = 5,
-  WAIT_SCAN         = 6,
-
-  // DICT stuff
-  WAIT_GET_TAB_INFO_REQ = 11,
-  WAIT_CREATE_TAB_REQ = 12,
-  WAIT_DROP_TAB_REQ = 13,
-  WAIT_ALTER_TAB_REQ = 14,
-  WAIT_CREATE_INDX_REQ = 15,
-  WAIT_DROP_INDX_REQ = 16,
-  WAIT_LIST_TABLES_CONF = 17
-};
-
 enum LockMode { 
   Read, 
   Update,
   Insert,
   Delete 
 };
-
-#include <NdbOut.hpp>
-
-inline
-void
-NdbWaiter::wait(int waitTime)
-{
-  const bool forever = (waitTime == -1);
-  const NDB_TICKS maxTime = NdbTick_CurrentMillisecond() + waitTime;
-  while (1) {
-    if (m_state == NO_WAIT || m_state == WAIT_NODE_FAILURE)
-      break;
-    if (forever) {
-      NdbCondition_Wait(m_condition, (NdbMutex*)m_mutex);
-    } else {
-      if (waitTime <= 0) {
-        m_state = WAIT_TIMEOUT;
-        break;
-      }
-      NdbCondition_WaitTimeout(m_condition, (NdbMutex*)m_mutex, waitTime);
-      waitTime = maxTime - NdbTick_CurrentMillisecond();
-    }
-  }
-}
-
-inline
-void
-NdbWaiter::nodeFail(Uint32 aNodeId){
-  if (m_state != NO_WAIT && m_node == aNodeId){
-    m_state = WAIT_NODE_FAILURE;
-    NdbCondition_Signal(m_condition);
-  }
-}
-
-inline
-void 
-NdbWaiter::signal(Uint32 state){
-  m_state = state;
-  NdbCondition_Signal(m_condition);
-}
 
 #endif

@@ -119,12 +119,13 @@ public:
 
 private:
   enum ErrorCodes {
-    Undefined = 100,
-    IAmNotMaster  = 101,
-    OutOfBackupRecord = 102,
-    OutOfResources = 103,
-    SequenceFailure = 104,
-    BackupDefinitionNotImplemented = 105
+    Undefined = 1300,
+    IAmNotMaster  = 1301,
+    OutOfBackupRecord = 1302,
+    OutOfResources = 1303,
+    SequenceFailure = 1304,
+    BackupDefinitionNotImplemented = 1305,
+    CannotBackupDiskless = 1306
   };
   Uint32 senderData;
   Uint32 errorCode;
@@ -232,13 +233,13 @@ public:
   STATIC_CONST( SignalLength = 3 );
   
   enum RequestType {
-    ClientAbort = 1,
-    BackupComplete = 2,
-    BackupFailure = 3,  // General backup failure coordinator -> slave
-    LogBufferFull = 4,  //                        slave -> coordinator
-    FileOrScanError = 5, //                       slave -> coordinator
-    BackupFailureDueToNodeFail = 6, //             slave -> slave
-    OkToClean = 7                  //             master -> slave
+    ClientAbort = 1321,
+    BackupComplete = 1322,
+    BackupFailure = 1323,  // General backup failure coordinator -> slave
+    LogBufferFull = 1324,  //                        slave -> coordinator
+    FileOrScanError = 1325, //                       slave -> coordinator
+    BackupFailureDueToNodeFail = 1326, //             slave -> slave
+    OkToClean = 1327                  //             master -> slave
   };
 private:
   Uint32 requestType;

@@ -611,7 +611,7 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
   if (a != a_end || b != b_end)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -626,7 +626,7 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
     for ( ; a < a_end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return 0;
@@ -637,7 +637,6 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 				 uchar * dest, uint len,
 				 const uchar * src, uint srclen)
 {
-  const uchar *dest_orig = dest;
   const uchar *de = dest + len;
   const uchar *se = src + srclen;
   for ( ; src < se && dest < de ; src++)
@@ -647,7 +646,9 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
     if ((chr=combo2map[*src]) && dest < de)
       *dest++=chr;
   }
-  return (int) (dest - dest_orig);
+  if (dest < de)
+    bfill(dest, de - dest, ' ');
+  return (int) len;
 }
 
 

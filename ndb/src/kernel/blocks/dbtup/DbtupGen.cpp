@@ -31,7 +31,6 @@
 #include <signaldata/TupKey.hpp>
 
 #include <signaldata/DropTab.hpp>
-#include <new>
 
 #define DEBUG(x) { ndbout << "TUP::" << x << endl; }
 
@@ -215,7 +214,7 @@ Dbtup::~Dbtup()
 
 }//Dbtup::~Dbtup()
 
-BLOCK_FUNCTIONS(Dbtup);
+BLOCK_FUNCTIONS(Dbtup)
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -632,14 +631,11 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_FRAG, &cnoOfFragrec));
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_OP_RECS, &cnoOfOprec));
-
-  // MemorySpaceTuples is specified in 8k pages, divide by 4 for 32k pages
-  Uint32 tmp;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
-  Uint64 pages = (tmp * 2048 + (ZWORDS_ON_PAGE - 1))/ (Uint64)ZWORDS_ON_PAGE;
-  cnoOfPage = (Uint32)pages;
+  
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &cnoOfPage));
   Uint32 noOfTriggers= 0;
   
+  Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
   initPageRangeSize(tmp);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &cnoOfTablerec));

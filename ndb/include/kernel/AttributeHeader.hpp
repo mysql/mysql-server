@@ -17,7 +17,6 @@
 #ifndef ATTRIBUTE_HEADER
 #define ATTRIBUTE_HEADER
 
-#include <new>
 /**
  * @class AttributeHeader
  * @brief Header passed in front of every attribute value in AttrInfo signal

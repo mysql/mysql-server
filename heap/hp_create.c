@@ -41,6 +41,13 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
   {
     HP_KEYDEF *keyinfo;
     DBUG_PRINT("info",("Initializing new table"));
+    
+    /*
+      We have to store sometimes byte* del_link in records,
+      so the record length should be at least sizeof(byte*)
+    */
+    set_if_bigger(reclength, sizeof (byte*));
+    
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
       bzero((char*) &keyinfo->block,sizeof(keyinfo->block));
@@ -116,22 +123,24 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	keyseg->flag=     0;
 	keyseg->null_bit= 0;
 	keyseg++;
-	
-	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*), 
+
+	init_tree(&keyinfo->rb_tree, 0, 0, sizeof(byte*),
 		  (qsort_cmp2)keys_compare, 1, NULL, NULL);
 	keyinfo->delete_key= hp_rb_delete_key;
 	keyinfo->write_key= hp_rb_write_key;
       }
       else
       {
-	init_block(&keyinfo->block, sizeof(HASH_INFO), min_records, 
+	init_block(&keyinfo->block, sizeof(HASH_INFO), min_records,
 		   max_records);
 	keyinfo->delete_key= hp_delete_key;
 	keyinfo->write_key= hp_write_key;
+        keyinfo->hash_buckets= 0;
       }
     }
     share->min_records= min_records;
     share->max_records= max_records;
+    share->max_table_size= create_info->max_table_size;
     share->data_length= share->index_length= 0;
     share->reclength= reclength;
     share->blength= 1;

@@ -29,7 +29,7 @@ int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
 uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 			const char *from, uint32 from_length,
-			CHARSET_INFO *from_cs);
+			CHARSET_INFO *from_cs, uint *errors);
 
 class String
 {
@@ -73,7 +73,7 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr_arg,size_t size)
     {}
-  static void operator delete(void *ptr_arg,size_t size, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
     {}
   ~String() { free(); }
 
@@ -182,6 +182,11 @@ public:
   {
     if (&s != this)
     {
+      /*
+        It is forbidden to do assignments like 
+        some_string = substring_of_that_string
+       */
+      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
       Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
       alloced=0;
@@ -199,7 +204,7 @@ public:
 		    CHARSET_INFO *cs);
   bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
-	    CHARSET_INFO *csto);
+	    CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
   bool append(const char *s,uint32 arg_length);
@@ -313,4 +318,9 @@ public:
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s);
+
+  inline bool uses_buffer_owned_by(const String *s) const
+  {
+    return (s->alloced && Ptr >= s->Ptr && Ptr < s->Ptr + s->str_length);
+  }
 };

@@ -1,0 +1,146 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+drop table if exists `Ｔ１０`;
+drop table if exists `Ｔ１１`;
+drop table if exists `Ｔ１２`;
+SET NAMES utf8;
+SET character_set_database = utf8;
+CREATE TABLE `Ｔ１` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ１０` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ１１` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ１２` (`Ｃ１` char(5), INDEX(`Ｃ１`)) DEFAULT CHARSET = utf8 engine = bdb;
+INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ２` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ３` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+INSERT INTO `Ｔ４` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ５` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ６` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+INSERT INTO `Ｔ７` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ８` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ９` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵ'),('ｱｲｳｴ'),('ｱｲｳ'),('ｱｲ'),('ｱ'),('');
+INSERT INTO `Ｔ１１` VALUES ('あいうえお'),('あいうえ'),('あいう'),('あい'),('あ'),('');
+INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡'),('龔龖龗龞'),('龔龖龗'),('龔龖'),('龔'),('');
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ１`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+ｱ	3
+ｱｲ	6
+ｱｲｳ	9
+ｱｲｳｴ	12
+ｱｲｳｴｵ	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ２`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+あ	3
+あい	6
+あいう	9
+あいうえ	12
+あいうえお	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ３`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+龔	3
+龔龖	6
+龔龖龗	9
+龔龖龗龞	12
+龔龖龗龞龡	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ４`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+ｱ	3
+ｱｲ	6
+ｱｲｳ	9
+ｱｲｳｴ	12
+ｱｲｳｴｵ	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ５`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+あ	3
+あい	6
+あいう	9
+あいうえ	12
+あいうえお	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ６`;
+Ｃ１	LENGTH(`Ｃ１`)
+	0
+龔	3
+龔龖	6
+龔龖龗	9
+龔龖龗龞	12
+龔龖龗龞龡	15
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ７`;
+Ｃ１	LENGTH(`Ｃ１`)
+ｱｲｳｴｵ	15
+ｱｲｳｴ	12
+ｱｲｳ	9
+ｱｲ	6
+ｱ	3
+	0
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ８`;
+Ｃ１	LENGTH(`Ｃ１`)
+あいうえお	15
+あいうえ	12
+あいう	9
+あい	6
+あ	3
+	0
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ９`;
+Ｃ１	LENGTH(`Ｃ１`)
+龔龖龗龞龡	15
+龔龖龗龞	12
+龔龖龗	9
+龔龖	6
+龔	3
+	0
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ１０`;
+Ｃ１	LENGTH(`Ｃ１`)
+ｱｲｳｴｵ	15
+ｱｲｳｴ	12
+ｱｲｳ	9
+ｱｲ	6
+ｱ	3
+	0
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ１１`;
+Ｃ１	LENGTH(`Ｃ１`)
+あいうえお	15
+あいうえ	12
+あいう	9
+あい	6
+あ	3
+	0
+SELECT `Ｃ１`, LENGTH(`Ｃ１`) FROM `Ｔ１２`;
+Ｃ１	LENGTH(`Ｃ１`)
+龔龖龗龞龡	15
+龔龖龗龞	12
+龔龖龗	9
+龔龖	6
+龔	3
+	0
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;
+DROP TABLE `Ｔ１０`;
+DROP TABLE `Ｔ１１`;
+DROP TABLE `Ｔ１２`;

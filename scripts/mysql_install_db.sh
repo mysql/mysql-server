@@ -98,9 +98,9 @@ else
   if test -x "$basedir/libexec/mysqld"
   then
     execdir="$basedir/libexec"
-  elif test -x "@libexecdir@/mysqld"
+  elif test -x "$basedir/sbin/mysqld"
   then
-    execdir="@libexecdir@"
+    execdir="$basedir/sbin"
   else
     execdir="$basedir/bin"
   fi
@@ -213,7 +213,7 @@ then
 fi
 mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
 --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
---skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M"
+--skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M --net_buffer_length=16K"
 if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \
    | eval "$mysqld_install_cmd_line" 
 then

@@ -214,6 +214,7 @@ extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
 		my_cache_read;
 extern ulong	my_blocks_used, my_blocks_changed;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
+extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
 
 					/* Point to current my_message() */
@@ -657,6 +658,7 @@ extern int init_io_cache(IO_CACHE *info,File file,uint cachesize,
 extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 			       my_off_t seek_offset,pbool use_async_io,
 			       pbool clear_cache);
+extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
 #ifdef THREAD
 extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);
@@ -737,6 +739,8 @@ extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
+extern void get_defaults_files(int argc, char **argv,
+                               char **defaults, char **extra_defaults);
 extern int load_defaults(const char *conf_file, const char **groups,
 			 int *argc, char ***argv);
 extern void free_defaults(char **argv);

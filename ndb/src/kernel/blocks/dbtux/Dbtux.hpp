@@ -17,7 +17,6 @@
 #ifndef DBTUX_H
 #define DBTUX_H
 
-#include <new>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
 #include <AttributeDescriptor.hpp>
@@ -575,6 +574,7 @@ private:
   void execDROP_TAB_REQ(Signal* signal);
   bool allocDescEnt(IndexPtr indexPtr);
   void freeDescEnt(IndexPtr indexPtr);
+  void abortAddFragOp(Signal* signal);
   void dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData);
 
   /*
@@ -684,6 +684,7 @@ private:
   friend class NdbOut& operator<<(NdbOut&, const ScanOp&);
   friend class NdbOut& operator<<(NdbOut&, const Index&);
   friend class NdbOut& operator<<(NdbOut&, const Frag&);
+  friend class NdbOut& operator<<(NdbOut&, const FragOp&);
   friend class NdbOut& operator<<(NdbOut&, const NodeHandle&);
   FILE* debugFile;
   NdbOut debugOut;
@@ -1064,7 +1065,7 @@ Dbtux::Index::Index() :
     m_fragId[i] = ZNIL;
     m_fragPtrI[i] = RNIL;
   };
-};
+}
 
 // Dbtux::Frag
 
@@ -1101,7 +1102,7 @@ Dbtux::FragOp::FragOp() :
   m_fragNo(ZNIL),
   m_numAttrsRecvd(ZNIL)
 {
-};
+}
 
 // Dbtux::NodeHandle
 

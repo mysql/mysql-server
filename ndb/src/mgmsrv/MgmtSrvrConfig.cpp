@@ -272,30 +272,20 @@ MgmtSrvr::saveConfig(const Config *conf) {
 
 Config *
 MgmtSrvr::readConfig() {
-  Config *conf = NULL;
-  if(m_configFilename.length() != 0) {
-    /* Use config file */
-    InitConfigFileParser parser;
-    conf = parser.parseConfig(m_configFilename.c_str());
-    
-    if(conf == NULL) {
-      /* Try to get configuration from other MGM server */
-      return fetchConfig();
-    }
-  }
+  Config *conf;
+  InitConfigFileParser parser;
+  conf = parser.parseConfig(m_configFilename.c_str());
   return conf;
 }
 
 Config *
 MgmtSrvr::fetchConfig() {
-  ConfigRetriever cr(m_local_config, NDB_VERSION, NODE_TYPE_MGM);
-  struct ndb_mgm_configuration * tmp = cr.getConfig();
+  struct ndb_mgm_configuration * tmp = m_config_retriever->getConfig();
   if(tmp != 0){
     Config * conf = new Config();
     conf->m_configValues = tmp;
     return conf;
   }
-  
   return 0;
 }
 

@@ -303,6 +303,7 @@ public:
    *
    * @deprecated do not use!
    */
+#ifndef NDB_WIN32
   inline int	createTable(	const char* aTableName, 
 				Uint32 aTableSize, 
 				KeyType aTupleKey,
@@ -324,6 +325,7 @@ public:
                        aMemoryType, 
                        (aStoredTable == 1 ? true : false));
   }
+#endif
 
   /**
    * Add a new attribute to a database table.
@@ -565,7 +567,8 @@ convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
   case NdbDictionary::Column::Unsigned:
     return UnSigned;
   case NdbDictionary::Column::Float:
-  case NdbDictionary::Column::Decimal:
+  case NdbDictionary::Column::Olddecimal:
+  case NdbDictionary::Column::Olddecimalunsigned:
   case NdbDictionary::Column::Double:
     return Float;
   case NdbDictionary::Column::Char:
@@ -573,9 +576,6 @@ convertColumnTypeToAttrType(NdbDictionary::Column::Type _type)
   case NdbDictionary::Column::Binary:
   case NdbDictionary::Column::Varbinary:
     return String;
-  case NdbDictionary::Column::Datetime:
-  case NdbDictionary::Column::Timespec:
-  case NdbDictionary::Column::Undefined:
   default:
     return NoAttrTypeDef;
   }

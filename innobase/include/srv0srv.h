@@ -111,6 +111,7 @@ extern ibool	srv_use_doublewrite_buf;
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
+extern ulint	srv_max_purge_lag;
 extern ibool	srv_use_awe;
 extern ibool	srv_use_adaptive_hash_indexes;
 

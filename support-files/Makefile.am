@@ -27,7 +27,8 @@ EXTRA_DIST =		mysql.spec.sh \
 			mysql.server.sh \
 			binary-configure.sh \
 			magic \
-			MySQL-shared-compat.spec.sh
+			MySQL-shared-compat.spec.sh \
+			ndb-config-2-node.ini.sh
 
 SUBDIRS = MacOSX
 
@@ -38,7 +39,8 @@ pkgdata_DATA =		my-small.cnf \
       my-innodb-heavy-4G.cnf \
 			mysql-log-rotate \
 			mysql-@VERSION@.spec \
-			MySQL-shared-compat.spec
+			MySQL-shared-compat.spec \
+			ndb-config-2-node.ini
 
 pkgdata_SCRIPTS =	mysql.server
 
@@ -52,7 +54,8 @@ CLEANFILES =		my-small.cnf \
 			mysql-log-rotate \
 			mysql.server \
 			binary-configure \
-			MySQL-shared-compat.spec
+			MySQL-shared-compat.spec \
+			ndb-config-2-node.ini
 
 mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@

@@ -219,7 +219,7 @@ main(int argc, const char ** argv){
       fflush(g_report_file);
     }    
 
-    if(g_mode_bench || (g_mode_regression && result)){
+    if(test_case.m_report || g_mode_bench || (g_mode_regression && result)){
       BaseString tmp;
       tmp.assfmt("result.%d", test_no);
       if(rename("result", tmp.c_str()) != 0){
@@ -228,7 +228,7 @@ main(int argc, const char ** argv){
 	goto end;
       }
     }
-
+    
     if(g_mode_interactive && result){
       g_logger.info
 	("Encountered failed test in interactive mode - terminating");
@@ -275,6 +275,7 @@ parse_args(int argc, const char** argv){
     int tmp = Logger::LL_WARNING - g_verbosity;
     tmp = (tmp < Logger::LL_DEBUG ? Logger::LL_DEBUG : tmp);
     g_logger.disable(Logger::LL_ALL);
+    g_logger.enable(Logger::LL_ON);
     g_logger.enable((Logger::LoggerLevel)tmp, Logger::LL_ALERT);
   }
 
@@ -459,7 +460,7 @@ setup_config(atrt_config& config){
 	proc.m_type = atrt_process::NDB_MGM;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_mgmd");
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
-	proc.m_proc.m_args = "--nodaemon -c initconfig.txt";
+	proc.m_proc.m_args = "--nodaemon -f config.ini";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
 	connect_string.appfmt("host=%s:%d;", 
 			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
@@ -538,15 +539,19 @@ connect_ndb_mgm(atrt_process & proc){
   }
   BaseString tmp = proc.m_hostname;
   tmp.appfmt(":%d", proc.m_ndb_mgm_port);
-  time_t start = time(0);
-  const time_t max_connect_time = 30;
-  do {
-    if(ndb_mgm_connect(handle, tmp.c_str()) != -1){
-      proc.m_ndb_mgm_handle = handle;
-      return true;
-    }
-    sleep(1);
-  } while(time(0) < (start + max_connect_time));
+
+  if (ndb_mgm_set_connectstring(handle,tmp.c_str()))
+  {
+    g_logger.critical("Unable to create parse connectstring");
+    return false;
+  }
+
+  if(ndb_mgm_connect(handle, 30, 1, 0) != -1)
+  {
+    proc.m_ndb_mgm_handle = handle;
+    return true;
+  }
+
   g_logger.critical("Unable to connect to ndb mgm %s", tmp.c_str());
   return false;
 }
@@ -903,6 +908,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     tc.m_max_time = 60000;
   else
     tc.m_max_time = atoi(mt);
+
+  if(p.get("type", &mt) && strcmp(mt, "bench") == 0)
+    tc.m_report= true;
+  else
+    tc.m_report= false;
   
   return true;
 }

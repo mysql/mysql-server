@@ -72,6 +72,8 @@
 #define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))
 #define OUTER_REF_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-2))
 #define RAND_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-1))
+#define PSEUDO_TABLE_BITS (PARAM_TABLE_BIT | OUTER_REF_TABLE_BIT | \
+                           RAND_TABLE_BIT)
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
 
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)

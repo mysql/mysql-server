@@ -334,6 +334,17 @@ typedef struct st_mysql_parameters
 */
 int STDCALL mysql_server_init(int argc, char **argv, char **groups);
 void STDCALL mysql_server_end(void);
+/*
+  mysql_server_init/end need to be called when using libmysqld or
+  libmysqlclient (exactly, mysql_server_init() is called by mysql_init() so
+  you don't need to call it explicitely; but you need to call
+  mysql_server_end() to free memory). The names are a bit misleading
+  (mysql_SERVER* to be used when using libmysqlCLIENT). So we add more general
+  names which suit well whether you're using libmysqld or libmysqlclient. We
+  intend to promote these aliases over the mysql_server* ones.
+*/
+#define mysql_library_init mysql_server_init
+#define mysql_library_end mysql_server_end
 
 MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void);
 
@@ -490,6 +501,8 @@ MYSQL_RES *     STDCALL mysql_list_fields(MYSQL *mysql, const char *table,
 					  const char *wild);
 unsigned long	STDCALL mysql_escape_string(char *to,const char *from,
 					    unsigned long from_length);
+unsigned long	STDCALL mysql_hex_string(char *to,const char *from,
+                                         unsigned long from_length);
 unsigned long STDCALL mysql_real_escape_string(MYSQL *mysql,
 					       char *to,const char *from,
 					       unsigned long length);
@@ -642,23 +655,6 @@ typedef struct st_mysql_methods
 #endif
 } MYSQL_METHODS;
 
-#ifdef HAVE_DEPRECATED_411_API
-/* Deprecated calls (since MySQL 4.1.2) */
-
-/* Use mysql_stmt_init + mysql_stmt_prepare instead */
-MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,
-				   unsigned long length);
-#define mysql_execute mysql_stmt_execute
-#define mysql_fetch mysql_stmt_fetch
-#define mysql_fetch_column mysql_stmt_fetch_column
-#define mysql_bind_param mysql_stmt_bind_param
-#define mysql_bind_result mysql_stmt_bind_result
-#define mysql_param_count mysql_stmt_param_count
-#define mysql_param_result mysql_stmt_param_metadata
-#define mysql_get_metadata mysql_stmt_result_metadata
-#define mysql_send_long_data mysql_stmt_send_long_data
-
-#endif /* HAVE_DEPRECATED_411_API */
 
 MYSQL_STMT * STDCALL mysql_stmt_init(MYSQL *mysql);
 int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,

@@ -23,13 +23,14 @@ struct uca_item_st
 #define MY_UCA_PSHIFT	8
 #endif
 
+static char *pname[]= {"", "2", "3"};
+
 int main(int ac, char **av)
 {
   char str[256];
   char *weights[64];
   struct uca_item_st uca[64*1024];
-  size_t code, page, w;
-  int pagemaxlen[MY_UCA_NPAGES];
+  size_t code, w;
   int pageloaded[MY_UCA_NPAGES];
   
   bzero(uca, sizeof(uca));
@@ -155,14 +156,20 @@ int main(int ac, char **av)
   printf("#define MY_UCA_CMASK  %d\n",MY_UCA_CMASK);
   printf("#define MY_UCA_PSHIFT %d\n",MY_UCA_PSHIFT);
   
-  for (w=0; w<1; w++)
+  for (w=0; w<3; w++)
   {
+    size_t page;
+    int pagemaxlen[MY_UCA_NPAGES];
+
     for (page=0; page < MY_UCA_NPAGES; page++)
     {
       size_t offs;
       size_t maxnum= 0;
       size_t nchars= 0;
       size_t mchars;
+      size_t ndefs= 0;
+      
+      pagemaxlen[page]= 0;
       
       /*
         Skip this page if no weights were loaded
@@ -183,15 +190,36 @@ int main(int ac, char **av)
         code= page*MY_UCA_NCHARS+offs;
         
         /* Calculate only non-zero weights */
-        num=0;
-        for (i=0; i < uca[code].num; i++)
+        for (num=0, i=0; i < uca[code].num; i++)
           if (uca[code].weight[w][i])
             num++;
         
         maxnum= maxnum < num ? num : maxnum;
+        
+        /* Check if default weight */
+        if (w == 1 && num == 1)
+        {
+          /* 0020 0000 ... */
+          if (uca[code].weight[w][0] == 0x0020)
+            ndefs++;
+        }
+        else if (w == 2 && num == 1)
+        {
+          /* 0002 0000 ... */
+          if (uca[code].weight[w][0] == 0x0002)
+            ndefs++;
+        }
       } 
       maxnum++;
       
+      /*
+        If the page have only default weights
+        then no needs to dump it, skip.
+      */
+      if (ndefs == MY_UCA_NCHARS)
+      {
+        continue;
+      }
       switch (maxnum)
       {
         case 0: mchars= 8; break;
@@ -210,8 +238,8 @@ int main(int ac, char **av)
       */
       
       
-      printf("uint16 page%03Xdata[]= { /* %04X (%d weights per char) */\n",
-              page, page*MY_UCA_NCHARS, maxnum);
+      printf("uint16 page%03Xdata%s[]= { /* %04X (%d weights per char) */\n",
+              page, pname[w], page*MY_UCA_NCHARS, maxnum);
       
       for (offs=0; offs < MY_UCA_NCHARS; offs++)
       {
@@ -234,7 +262,17 @@ int main(int ac, char **av)
         
         for (i=0; i < maxnum; i++)
         {
-          printf("0x%04X",(int)weight[i]);
+          /* 
+            Invert weights for secondary level to
+            sort upper case letters before their
+            lower case counter part.
+          */
+          int tmp= weight[i];
+          if (w == 2 && tmp)
+            tmp= (int)(0x20 - weight[i]);
+          
+          
+          printf("0x%04X", tmp);
           if ((offs+1 != MY_UCA_NCHARS) || (i+1!=maxnum))
             printf(",");
           nchars++;
@@ -251,25 +289,28 @@ int main(int ac, char **av)
       }
       printf("};\n\n");
     }
+
+    printf("uchar uca_length%s[%d]={\n", pname[w], MY_UCA_NPAGES);
+    for (page=0; page < MY_UCA_NPAGES; page++)
+    {
+      printf("%d%s%s",pagemaxlen[page],page<MY_UCA_NPAGES-1?",":"",(page+1) % 16 ? "":"\n");
+    }
+    printf("};\n");
+
+
+    printf("uint16 *uca_weight%s[%d]={\n", pname[w], MY_UCA_NPAGES);
+    for (page=0; page < MY_UCA_NPAGES; page++)
+    {
+      const char *comma= page < MY_UCA_NPAGES-1 ? "," : "";
+      const char *nline= (page+1) % 4 ? "" : "\n";
+      if (!pagemaxlen[page])
+        printf("NULL       %s%s%s", w ? " ": "",  comma , nline);
+      else
+        printf("page%03Xdata%s%s%s", page, pname[w], comma, nline);
+    }
+    printf("};\n");
   }
 
-  printf("uchar ucal[%d]={\n",MY_UCA_NPAGES);
-  for (page=0; page < MY_UCA_NPAGES; page++)
-  {
-    printf("%d%s%s",pagemaxlen[page],page<MY_UCA_NPAGES-1?",":"",(page+1) % 16 ? "":"\n");
-  }
-  printf("};\n");
-  
-  
-  printf("uint16 *ucaw[%d]={\n",MY_UCA_NPAGES);
-  for (page=0; page < MY_UCA_NPAGES; page++)
-  {
-    if (!pageloaded[page])
-      printf("NULL       %s%s",page<MY_UCA_NPAGES-1?",":"", (page+1) % 4 ? "":"\n");
-    else
-      printf("page%03Xdata%s%s",page,page<MY_UCA_NPAGES-1?",":"", (page+1) % 4 ? "":"\n");
-  }
-  printf("};\n");
   
   printf("int main(void){ return 0;};\n");
   return 0;

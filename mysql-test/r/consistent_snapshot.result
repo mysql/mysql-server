@@ -1,0 +1,15 @@
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+start transaction with consistent snapshot;
+insert into t1 values(1);
+select * from t1;
+a
+commit;
+delete from t1;
+start transaction;
+insert into t1 values(1);
+select * from t1;
+a
+1
+commit;
+drop table t1;

@@ -1,0 +1,641 @@
+SET NAMES sjis;
+SET character_set_database = sjis;
+DROP TABLE IF EXISTS `±±±`;
+DROP TABLE IF EXISTS `≤≤≤`;
+DROP TABLE IF EXISTS `≥≥≥`;
+DROP TABLE IF EXISTS `¥¥¥`;
+DROP TABLE IF EXISTS `µµµ`;
+DROP TABLE IF EXISTS `Ç†Ç†Ç†`;
+DROP TABLE IF EXISTS `Ç¢Ç¢Ç¢`;
+DROP TABLE IF EXISTS `Ç§Ç§Ç§`;
+DROP TABLE IF EXISTS `Ç¶Ç¶Ç¶`;
+DROP TABLE IF EXISTS `Ç®Ç®Ç®`;
+DROP TABLE IF EXISTS `É\É\É\`;
+DROP TABLE IF EXISTS `è\è\è\`;
+DROP TABLE IF EXISTS `ï\ï\ï\`;
+DROP TABLE IF EXISTS `ó\ó\ó\`;
+DROP TABLE IF EXISTS `ç\ç\ç\`;
+CREATE TABLE `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = ujis engine=INNODB;
+CREATE TABLE `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `≥≥≥`(`∏∏∏` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `Ç§Ç§Ç§`(`Ç≠Ç≠Ç≠` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TABLE IF NOT EXISTS `ï\ï\ï\`(`ê\ê\ê\`char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `¥¥¥`(`πππ` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `µµµ`(`∫∫∫` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶`(`ÇØÇØÇØ` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `Ç®Ç®Ç®`(`Ç±Ç±Ç±` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `ó\ó\ó\`(`ì\ì\ì\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+CREATE TEMPORARY TABLE `ç\ç\ç\`(`î\î\î\` char(1)) DEFAULT CHARSET = sjis engine=INNODB;
+DESC `±±±`;
+Field	Type	Null	Key	Default	Extra
+∂∂∂	char(1)	YES		NULL	
+DESC `≤≤≤`;
+Field	Type	Null	Key	Default	Extra
+∑∑∑	char(1)	YES		NULL	
+DESC `≥≥≥`;
+Field	Type	Null	Key	Default	Extra
+∏∏∏	char(1)	YES		NULL	
+DESC `¥¥¥`;
+Field	Type	Null	Key	Default	Extra
+πππ	char(1)	YES		NULL	
+DESC `µµµ`;
+Field	Type	Null	Key	Default	Extra
+∫∫∫	char(1)	YES		NULL	
+DESC `Ç†Ç†Ç†`;
+Field	Type	Null	Key	Default	Extra
+Ç©Ç©Ç©	char(1)	YES		NULL	
+DESC `Ç¢Ç¢Ç¢`;
+Field	Type	Null	Key	Default	Extra
+Ç´Ç´Ç´	char(1)	YES		NULL	
+DESC `Ç§Ç§Ç§`;
+Field	Type	Null	Key	Default	Extra
+Ç≠Ç≠Ç≠	char(1)	YES		NULL	
+DESC `Ç¶Ç¶Ç¶`;
+Field	Type	Null	Key	Default	Extra
+ÇØÇØÇØ	char(1)	YES		NULL	
+DESC `Ç®Ç®Ç®`;
+Field	Type	Null	Key	Default	Extra
+Ç±Ç±Ç±	char(1)	YES		NULL	
+DESC `É\É\É\`;
+Field	Type	Null	Key	Default	Extra
+â\â\â\	char(1)	YES		NULL	
+DESC `è\è\è\`;
+Field	Type	Null	Key	Default	Extra
+é\é\é\	char(1)	YES		NULL	
+DESC `ï\ï\ï\`;
+Field	Type	Null	Key	Default	Extra
+ê\ê\ê\	char(1)	YES		NULL	
+DESC `ó\ó\ó\`;
+Field	Type	Null	Key	Default	Extra
+ì\ì\ì\	char(1)	YES		NULL	
+DESC `ç\ç\ç\`;
+Field	Type	Null	Key	Default	Extra
+î\î\î\	char(1)	YES		NULL	
+SHOW CREATE TABLE `±±±`;
+Table	Create Table
+±±±	CREATE TABLE `±±±` (
+  `∂∂∂` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+SHOW CREATE TABLE `≤≤≤`;
+Table	Create Table
+≤≤≤	CREATE TABLE `≤≤≤` (
+  `∑∑∑` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ujis
+SHOW CREATE TABLE `≥≥≥`;
+Table	Create Table
+≥≥≥	CREATE TABLE `≥≥≥` (
+  `∏∏∏` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `¥¥¥`;
+Table	Create Table
+¥¥¥	CREATE TEMPORARY TABLE `¥¥¥` (
+  `πππ` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `µµµ`;
+Table	Create Table
+µµµ	CREATE TEMPORARY TABLE `µµµ` (
+  `∫∫∫` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç†Ç†Ç†`;
+Table	Create Table
+Ç†Ç†Ç†	CREATE TABLE `Ç†Ç†Ç†` (
+  `Ç©Ç©Ç©` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¢Ç¢Ç¢`;
+Table	Create Table
+Ç¢Ç¢Ç¢	CREATE TABLE `Ç¢Ç¢Ç¢` (
+  `Ç´Ç´Ç´` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç§Ç§Ç§`;
+Table	Create Table
+Ç§Ç§Ç§	CREATE TABLE `Ç§Ç§Ç§` (
+  `Ç≠Ç≠Ç≠` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¶Ç¶Ç¶`;
+Table	Create Table
+Ç¶Ç¶Ç¶	CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶` (
+  `ÇØÇØÇØ` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç®Ç®Ç®`;
+Table	Create Table
+Ç®Ç®Ç®	CREATE TEMPORARY TABLE `Ç®Ç®Ç®` (
+  `Ç±Ç±Ç±` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `É\É\É\`;
+Table	Create Table
+É\É\É\	CREATE TABLE `É\É\É\` (
+  `â\â\â\` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `è\è\è\`;
+Table	Create Table
+è\è\è\	CREATE TABLE `è\è\è\` (
+  `é\é\é\` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ï\ï\ï\`;
+Table	Create Table
+ï\ï\ï\	CREATE TABLE `ï\ï\ï\` (
+  `ê\ê\ê\` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ó\ó\ó\`;
+Table	Create Table
+ó\ó\ó\	CREATE TEMPORARY TABLE `ó\ó\ó\` (
+  `ì\ì\ì\` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ç\ç\ç\`;
+Table	Create Table
+ç\ç\ç\	CREATE TEMPORARY TABLE `ç\ç\ç\` (
+  `î\î\î\` char(1) default NULL
+) ENGINE=InnoDB DEFAULT CHARSET=sjis
+DROP TABLE `±±±`;
+DROP TABLE `≤≤≤`;
+DROP TABLE `≥≥≥`;
+DROP TABLE `¥¥¥`;
+DROP TABLE `µµµ`;
+DROP TABLE `Ç†Ç†Ç†`;
+DROP TABLE `Ç¢Ç¢Ç¢`;
+DROP TABLE `Ç§Ç§Ç§`;
+DROP TABLE `Ç¶Ç¶Ç¶`;
+DROP TABLE `Ç®Ç®Ç®`;
+DROP TABLE `É\É\É\`;
+DROP TABLE `è\è\è\`;
+DROP TABLE `ï\ï\ï\`;
+DROP TABLE `ó\ó\ó\`;
+DROP TABLE `ç\ç\ç\`;
+CREATE TABLE `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `≥≥≥`(`∏∏∏` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `Ç§Ç§Ç§`(`Ç≠Ç≠Ç≠` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TABLE IF NOT EXISTS `ï\ï\ï\`(`ê\ê\ê\`char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `¥¥¥`(`πππ` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `µµµ`(`∫∫∫` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶`(`ÇØÇØÇØ` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `Ç®Ç®Ç®`(`Ç±Ç±Ç±` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `ó\ó\ó\`(`ì\ì\ì\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+CREATE TEMPORARY TABLE `ç\ç\ç\`(`î\î\î\` char(1)) DEFAULT CHARSET = sjis engine=MyISAM;
+DESC `±±±`;
+Field	Type	Null	Key	Default	Extra
+∂∂∂	char(1)	YES		NULL	
+DESC `≤≤≤`;
+Field	Type	Null	Key	Default	Extra
+∑∑∑	char(1)	YES		NULL	
+DESC `≥≥≥`;
+Field	Type	Null	Key	Default	Extra
+∏∏∏	char(1)	YES		NULL	
+DESC `¥¥¥`;
+Field	Type	Null	Key	Default	Extra
+πππ	char(1)	YES		NULL	
+DESC `µµµ`;
+Field	Type	Null	Key	Default	Extra
+∫∫∫	char(1)	YES		NULL	
+DESC `Ç†Ç†Ç†`;
+Field	Type	Null	Key	Default	Extra
+Ç©Ç©Ç©	char(1)	YES		NULL	
+DESC `Ç¢Ç¢Ç¢`;
+Field	Type	Null	Key	Default	Extra
+Ç´Ç´Ç´	char(1)	YES		NULL	
+DESC `Ç§Ç§Ç§`;
+Field	Type	Null	Key	Default	Extra
+Ç≠Ç≠Ç≠	char(1)	YES		NULL	
+DESC `Ç¶Ç¶Ç¶`;
+Field	Type	Null	Key	Default	Extra
+ÇØÇØÇØ	char(1)	YES		NULL	
+DESC `Ç®Ç®Ç®`;
+Field	Type	Null	Key	Default	Extra
+Ç±Ç±Ç±	char(1)	YES		NULL	
+DESC `É\É\É\`;
+Field	Type	Null	Key	Default	Extra
+â\â\â\	char(1)	YES		NULL	
+DESC `è\è\è\`;
+Field	Type	Null	Key	Default	Extra
+é\é\é\	char(1)	YES		NULL	
+DESC `ï\ï\ï\`;
+Field	Type	Null	Key	Default	Extra
+ê\ê\ê\	char(1)	YES		NULL	
+DESC `ó\ó\ó\`;
+Field	Type	Null	Key	Default	Extra
+ì\ì\ì\	char(1)	YES		NULL	
+DESC `ç\ç\ç\`;
+Field	Type	Null	Key	Default	Extra
+î\î\î\	char(1)	YES		NULL	
+SHOW CREATE TABLE `±±±`;
+Table	Create Table
+±±±	CREATE TABLE `±±±` (
+  `∂∂∂` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≤≤≤`;
+Table	Create Table
+≤≤≤	CREATE TABLE `≤≤≤` (
+  `∑∑∑` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≥≥≥`;
+Table	Create Table
+≥≥≥	CREATE TABLE `≥≥≥` (
+  `∏∏∏` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `¥¥¥`;
+Table	Create Table
+¥¥¥	CREATE TEMPORARY TABLE `¥¥¥` (
+  `πππ` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `µµµ`;
+Table	Create Table
+µµµ	CREATE TEMPORARY TABLE `µµµ` (
+  `∫∫∫` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç†Ç†Ç†`;
+Table	Create Table
+Ç†Ç†Ç†	CREATE TABLE `Ç†Ç†Ç†` (
+  `Ç©Ç©Ç©` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¢Ç¢Ç¢`;
+Table	Create Table
+Ç¢Ç¢Ç¢	CREATE TABLE `Ç¢Ç¢Ç¢` (
+  `Ç´Ç´Ç´` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç§Ç§Ç§`;
+Table	Create Table
+Ç§Ç§Ç§	CREATE TABLE `Ç§Ç§Ç§` (
+  `Ç≠Ç≠Ç≠` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¶Ç¶Ç¶`;
+Table	Create Table
+Ç¶Ç¶Ç¶	CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶` (
+  `ÇØÇØÇØ` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç®Ç®Ç®`;
+Table	Create Table
+Ç®Ç®Ç®	CREATE TEMPORARY TABLE `Ç®Ç®Ç®` (
+  `Ç±Ç±Ç±` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `É\É\É\`;
+Table	Create Table
+É\É\É\	CREATE TABLE `É\É\É\` (
+  `â\â\â\` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `è\è\è\`;
+Table	Create Table
+è\è\è\	CREATE TABLE `è\è\è\` (
+  `é\é\é\` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ï\ï\ï\`;
+Table	Create Table
+ï\ï\ï\	CREATE TABLE `ï\ï\ï\` (
+  `ê\ê\ê\` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ó\ó\ó\`;
+Table	Create Table
+ó\ó\ó\	CREATE TEMPORARY TABLE `ó\ó\ó\` (
+  `ì\ì\ì\` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ç\ç\ç\`;
+Table	Create Table
+ç\ç\ç\	CREATE TEMPORARY TABLE `ç\ç\ç\` (
+  `î\î\î\` char(1) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis
+DROP TABLE `±±±`;
+DROP TABLE `≤≤≤`;
+DROP TABLE `≥≥≥`;
+DROP TABLE `¥¥¥`;
+DROP TABLE `µµµ`;
+DROP TABLE `Ç†Ç†Ç†`;
+DROP TABLE `Ç¢Ç¢Ç¢`;
+DROP TABLE `Ç§Ç§Ç§`;
+DROP TABLE `Ç¶Ç¶Ç¶`;
+DROP TABLE `Ç®Ç®Ç®`;
+DROP TABLE `É\É\É\`;
+DROP TABLE `è\è\è\`;
+DROP TABLE `ï\ï\ï\`;
+DROP TABLE `ó\ó\ó\`;
+DROP TABLE `ç\ç\ç\`;
+CREATE TABLE `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `≥≥≥`(`∏∏∏` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `Ç§Ç§Ç§`(`Ç≠Ç≠Ç≠` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TABLE IF NOT EXISTS `ï\ï\ï\`(`ê\ê\ê\`char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `¥¥¥`(`πππ` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `µµµ`(`∫∫∫` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶`(`ÇØÇØÇØ` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `Ç®Ç®Ç®`(`Ç±Ç±Ç±` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `ó\ó\ó\`(`ì\ì\ì\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+CREATE TEMPORARY TABLE `ç\ç\ç\`(`î\î\î\` char(1)) DEFAULT CHARSET = sjis engine=HEAP;
+DESC `±±±`;
+Field	Type	Null	Key	Default	Extra
+∂∂∂	char(1)	YES		NULL	
+DESC `≤≤≤`;
+Field	Type	Null	Key	Default	Extra
+∑∑∑	char(1)	YES		NULL	
+DESC `≥≥≥`;
+Field	Type	Null	Key	Default	Extra
+∏∏∏	char(1)	YES		NULL	
+DESC `¥¥¥`;
+Field	Type	Null	Key	Default	Extra
+πππ	char(1)	YES		NULL	
+DESC `µµµ`;
+Field	Type	Null	Key	Default	Extra
+∫∫∫	char(1)	YES		NULL	
+DESC `Ç†Ç†Ç†`;
+Field	Type	Null	Key	Default	Extra
+Ç©Ç©Ç©	char(1)	YES		NULL	
+DESC `Ç¢Ç¢Ç¢`;
+Field	Type	Null	Key	Default	Extra
+Ç´Ç´Ç´	char(1)	YES		NULL	
+DESC `Ç§Ç§Ç§`;
+Field	Type	Null	Key	Default	Extra
+Ç≠Ç≠Ç≠	char(1)	YES		NULL	
+DESC `Ç¶Ç¶Ç¶`;
+Field	Type	Null	Key	Default	Extra
+ÇØÇØÇØ	char(1)	YES		NULL	
+DESC `Ç®Ç®Ç®`;
+Field	Type	Null	Key	Default	Extra
+Ç±Ç±Ç±	char(1)	YES		NULL	
+DESC `É\É\É\`;
+Field	Type	Null	Key	Default	Extra
+â\â\â\	char(1)	YES		NULL	
+DESC `è\è\è\`;
+Field	Type	Null	Key	Default	Extra
+é\é\é\	char(1)	YES		NULL	
+DESC `ï\ï\ï\`;
+Field	Type	Null	Key	Default	Extra
+ê\ê\ê\	char(1)	YES		NULL	
+DESC `ó\ó\ó\`;
+Field	Type	Null	Key	Default	Extra
+ì\ì\ì\	char(1)	YES		NULL	
+DESC `ç\ç\ç\`;
+Field	Type	Null	Key	Default	Extra
+î\î\î\	char(1)	YES		NULL	
+SHOW CREATE TABLE `±±±`;
+Table	Create Table
+±±±	CREATE TABLE `±±±` (
+  `∂∂∂` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≤≤≤`;
+Table	Create Table
+≤≤≤	CREATE TABLE `≤≤≤` (
+  `∑∑∑` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≥≥≥`;
+Table	Create Table
+≥≥≥	CREATE TABLE `≥≥≥` (
+  `∏∏∏` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `¥¥¥`;
+Table	Create Table
+¥¥¥	CREATE TEMPORARY TABLE `¥¥¥` (
+  `πππ` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `µµµ`;
+Table	Create Table
+µµµ	CREATE TEMPORARY TABLE `µµµ` (
+  `∫∫∫` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç†Ç†Ç†`;
+Table	Create Table
+Ç†Ç†Ç†	CREATE TABLE `Ç†Ç†Ç†` (
+  `Ç©Ç©Ç©` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¢Ç¢Ç¢`;
+Table	Create Table
+Ç¢Ç¢Ç¢	CREATE TABLE `Ç¢Ç¢Ç¢` (
+  `Ç´Ç´Ç´` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç§Ç§Ç§`;
+Table	Create Table
+Ç§Ç§Ç§	CREATE TABLE `Ç§Ç§Ç§` (
+  `Ç≠Ç≠Ç≠` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¶Ç¶Ç¶`;
+Table	Create Table
+Ç¶Ç¶Ç¶	CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶` (
+  `ÇØÇØÇØ` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç®Ç®Ç®`;
+Table	Create Table
+Ç®Ç®Ç®	CREATE TEMPORARY TABLE `Ç®Ç®Ç®` (
+  `Ç±Ç±Ç±` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `É\É\É\`;
+Table	Create Table
+É\É\É\	CREATE TABLE `É\É\É\` (
+  `â\â\â\` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `è\è\è\`;
+Table	Create Table
+è\è\è\	CREATE TABLE `è\è\è\` (
+  `é\é\é\` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ï\ï\ï\`;
+Table	Create Table
+ï\ï\ï\	CREATE TABLE `ï\ï\ï\` (
+  `ê\ê\ê\` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ó\ó\ó\`;
+Table	Create Table
+ó\ó\ó\	CREATE TEMPORARY TABLE `ó\ó\ó\` (
+  `ì\ì\ì\` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ç\ç\ç\`;
+Table	Create Table
+ç\ç\ç\	CREATE TEMPORARY TABLE `ç\ç\ç\` (
+  `î\î\î\` char(1) default NULL
+) ENGINE=HEAP DEFAULT CHARSET=sjis
+DROP TABLE `±±±`;
+DROP TABLE `≤≤≤`;
+DROP TABLE `≥≥≥`;
+DROP TABLE `¥¥¥`;
+DROP TABLE `µµµ`;
+DROP TABLE `Ç†Ç†Ç†`;
+DROP TABLE `Ç¢Ç¢Ç¢`;
+DROP TABLE `Ç§Ç§Ç§`;
+DROP TABLE `Ç¶Ç¶Ç¶`;
+DROP TABLE `Ç®Ç®Ç®`;
+DROP TABLE `É\É\É\`;
+DROP TABLE `è\è\è\`;
+DROP TABLE `ï\ï\ï\`;
+DROP TABLE `ó\ó\ó\`;
+DROP TABLE `ç\ç\ç\`;
+CREATE TABLE `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `±±±`(`∂∂∂` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `≤≤≤`(`∑∑∑` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `Ç†Ç†Ç†`(`Ç©Ç©Ç©` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `Ç¢Ç¢Ç¢`(`Ç´Ç´Ç´` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `É\É\É\`(`â\â\â\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `è\è\è\`(`é\é\é\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `≥≥≥`(`∏∏∏` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `Ç§Ç§Ç§`(`Ç≠Ç≠Ç≠` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TABLE IF NOT EXISTS `ï\ï\ï\`(`ê\ê\ê\`char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `¥¥¥`(`πππ` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `µµµ`(`∫∫∫` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶`(`ÇØÇØÇØ` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `Ç®Ç®Ç®`(`Ç±Ç±Ç±` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `ó\ó\ó\`(`ì\ì\ì\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+CREATE TEMPORARY TABLE `ç\ç\ç\`(`î\î\î\` char(1)) DEFAULT CHARSET = sjis engine=BDB;
+DESC `±±±`;
+Field	Type	Null	Key	Default	Extra
+∂∂∂	char(1)	YES		NULL	
+DESC `≤≤≤`;
+Field	Type	Null	Key	Default	Extra
+∑∑∑	char(1)	YES		NULL	
+DESC `≥≥≥`;
+Field	Type	Null	Key	Default	Extra
+∏∏∏	char(1)	YES		NULL	
+DESC `¥¥¥`;
+Field	Type	Null	Key	Default	Extra
+πππ	char(1)	YES		NULL	
+DESC `µµµ`;
+Field	Type	Null	Key	Default	Extra
+∫∫∫	char(1)	YES		NULL	
+DESC `Ç†Ç†Ç†`;
+Field	Type	Null	Key	Default	Extra
+Ç©Ç©Ç©	char(1)	YES		NULL	
+DESC `Ç¢Ç¢Ç¢`;
+Field	Type	Null	Key	Default	Extra
+Ç´Ç´Ç´	char(1)	YES		NULL	
+DESC `Ç§Ç§Ç§`;
+Field	Type	Null	Key	Default	Extra
+Ç≠Ç≠Ç≠	char(1)	YES		NULL	
+DESC `Ç¶Ç¶Ç¶`;
+Field	Type	Null	Key	Default	Extra
+ÇØÇØÇØ	char(1)	YES		NULL	
+DESC `Ç®Ç®Ç®`;
+Field	Type	Null	Key	Default	Extra
+Ç±Ç±Ç±	char(1)	YES		NULL	
+DESC `É\É\É\`;
+Field	Type	Null	Key	Default	Extra
+â\â\â\	char(1)	YES		NULL	
+DESC `è\è\è\`;
+Field	Type	Null	Key	Default	Extra
+é\é\é\	char(1)	YES		NULL	
+DESC `ï\ï\ï\`;
+Field	Type	Null	Key	Default	Extra
+ê\ê\ê\	char(1)	YES		NULL	
+DESC `ó\ó\ó\`;
+Field	Type	Null	Key	Default	Extra
+ì\ì\ì\	char(1)	YES		NULL	
+DESC `ç\ç\ç\`;
+Field	Type	Null	Key	Default	Extra
+î\î\î\	char(1)	YES		NULL	
+SHOW CREATE TABLE `±±±`;
+Table	Create Table
+±±±	CREATE TABLE `±±±` (
+  `∂∂∂` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≤≤≤`;
+Table	Create Table
+≤≤≤	CREATE TABLE `≤≤≤` (
+  `∑∑∑` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `≥≥≥`;
+Table	Create Table
+≥≥≥	CREATE TABLE `≥≥≥` (
+  `∏∏∏` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `¥¥¥`;
+Table	Create Table
+¥¥¥	CREATE TEMPORARY TABLE `¥¥¥` (
+  `πππ` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `µµµ`;
+Table	Create Table
+µµµ	CREATE TEMPORARY TABLE `µµµ` (
+  `∫∫∫` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç†Ç†Ç†`;
+Table	Create Table
+Ç†Ç†Ç†	CREATE TABLE `Ç†Ç†Ç†` (
+  `Ç©Ç©Ç©` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¢Ç¢Ç¢`;
+Table	Create Table
+Ç¢Ç¢Ç¢	CREATE TABLE `Ç¢Ç¢Ç¢` (
+  `Ç´Ç´Ç´` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç§Ç§Ç§`;
+Table	Create Table
+Ç§Ç§Ç§	CREATE TABLE `Ç§Ç§Ç§` (
+  `Ç≠Ç≠Ç≠` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç¶Ç¶Ç¶`;
+Table	Create Table
+Ç¶Ç¶Ç¶	CREATE TEMPORARY TABLE `Ç¶Ç¶Ç¶` (
+  `ÇØÇØÇØ` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `Ç®Ç®Ç®`;
+Table	Create Table
+Ç®Ç®Ç®	CREATE TEMPORARY TABLE `Ç®Ç®Ç®` (
+  `Ç±Ç±Ç±` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `É\É\É\`;
+Table	Create Table
+É\É\É\	CREATE TABLE `É\É\É\` (
+  `â\â\â\` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `è\è\è\`;
+Table	Create Table
+è\è\è\	CREATE TABLE `è\è\è\` (
+  `é\é\é\` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ï\ï\ï\`;
+Table	Create Table
+ï\ï\ï\	CREATE TABLE `ï\ï\ï\` (
+  `ê\ê\ê\` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ó\ó\ó\`;
+Table	Create Table
+ó\ó\ó\	CREATE TEMPORARY TABLE `ó\ó\ó\` (
+  `ì\ì\ì\` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+SHOW CREATE TABLE `ç\ç\ç\`;
+Table	Create Table
+ç\ç\ç\	CREATE TEMPORARY TABLE `ç\ç\ç\` (
+  `î\î\î\` char(1) default NULL
+) ENGINE=BerkeleyDB DEFAULT CHARSET=sjis
+DROP TABLE `±±±`;
+DROP TABLE `≤≤≤`;
+DROP TABLE `≥≥≥`;
+DROP TABLE `¥¥¥`;
+DROP TABLE `µµµ`;
+DROP TABLE `Ç†Ç†Ç†`;
+DROP TABLE `Ç¢Ç¢Ç¢`;
+DROP TABLE `Ç§Ç§Ç§`;
+DROP TABLE `Ç¶Ç¶Ç¶`;
+DROP TABLE `Ç®Ç®Ç®`;
+DROP TABLE `É\É\É\`;
+DROP TABLE `è\è\è\`;
+DROP TABLE `ï\ï\ï\`;
+DROP TABLE `ó\ó\ó\`;
+DROP TABLE `ç\ç\ç\`;

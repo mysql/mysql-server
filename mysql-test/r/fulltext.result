@@ -148,6 +148,9 @@ select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN B
 a	b
 select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
 a	b
+select * from t1 where MATCH a,b AGAINST ('+collections -supp* -foobar*' IN BOOLEAN MODE);
+a	b
+Full-text indexes	are called collections
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 a	b
 select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
@@ -190,6 +193,14 @@ a
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
 a
 aaa10 bbb20
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
 drop table t1;
 CREATE TABLE t1 (
 id int(11),
@@ -330,6 +341,9 @@ t1_id	name	t2_id	t1_id	name
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
 t2_id	t1_id	name
 drop table t1,t2;
+create table t1 (a text, fulltext key (a));
+insert into t1 select "xxxx yyyy zzzz";
+drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 (t text character set utf8 not null, fulltext(t));
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');
@@ -352,10 +366,15 @@ t	collation(t)
 aus Osnabrück	utf8_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
-t	collation(t)	MATCH t AGAINST ('Osnabruck')
-aus Osnabrück	utf8_general_ci	1.591139793396
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
+aus Osnabrück	utf8_general_ci	1.591140
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
+Warnings:
+Warning	1265	Data truncated for column 't' at row 3
+Warning	1265	Data truncated for column 't' at row 4
+Warning	1265	Data truncated for column 't' at row 5
+Warning	1265	Data truncated for column 't' at row 6
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 t	collation(t)
 aus Osnabrück	latin1_german2_ci
@@ -373,4 +392,32 @@ select * from t1 where match(s) against('par*' in boolean mode);
 s
 pära para para
 para para para
+DROP TABLE t1;
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
+INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
+SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
+MATCH(a) AGAINST ('nosuchword')
+0
+DROP TABLE t1;
+create table t1 (a int primary key, b text, fulltext(b));
+create table t2 (a int, b text);
+insert t1 values (1, "aaaa"), (2, "bbbb");
+insert t2 values (10, "aaaa"), (2, "cccc");
+replace t1 select * from t2;
+drop table t1, t2;
+CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t));
+SET NAMES latin1;
+INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
+SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
+COUNT(*)
+1
 DROP TABLE t1;

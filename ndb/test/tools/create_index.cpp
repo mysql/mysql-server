@@ -30,7 +30,7 @@ main(int argc, const char** argv){
 
   const char* _dbname = "TEST_DB";
   int _help = 0;
-  int _ordered, _pk;
+  int _ordered = 0, _pk = 1;
 
   struct getargs args[] = {
     { "database", 'd', arg_string, &_dbname, "dbname", 

@@ -49,9 +49,12 @@
 
 #include <NdbAutoPtr.hpp>
 
+#include <ndberror.h>
+
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
+#include <m_string.h>
 
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
@@ -67,12 +70,7 @@ void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->logLevelThreadRun();
-  
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 
@@ -80,12 +78,7 @@ void *
 MgmtSrvr::signalRecvThread_C(void *m) 
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->signalRecvThreadRun();
-
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 
@@ -123,15 +116,14 @@ MgmtSrvr::signalRecvThreadRun()
   while(!_isStopThread) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(siglist, handler, signal, DEFAULT_TIMEOUT)) {
+    if(m_signalRecvQueue.waitFor(siglist, &handler, &signal, DEFAULT_TIMEOUT)) {
       if(handler->function != 0)
 	(this->*handler->function)(signal);
     }
   }
-};
+}
 
-
-EventLogger g_EventLogger;
+extern EventLogger g_eventLogger;
 
 static NdbOut&
 operator<<(NdbOut& out, const LogLevel & ll)
@@ -151,7 +143,7 @@ MgmtSrvr::logLevelThreadRun()
      * Handle started nodes
      */
     EventSubscribeReq req;
-    req = m_statisticsListner.m_clients[0].m_logLevel;
+    req = m_event_listner[0].m_logLevel;
     req.blockRef = _ownReference;
 
     SetLogLevelOrd ord;
@@ -197,7 +189,7 @@ MgmtSrvr::logLevelThreadRun()
 void
 MgmtSrvr::startEventLog() 
 {
-  g_EventLogger.setCategory("MgmSrvr");
+  g_eventLogger.setCategory("MgmSrvr");
 
   ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
     ((ndb_mgm_configuration*)_config->m_configValues, CFG_SECTION_NODE);
@@ -223,8 +215,9 @@ MgmtSrvr::startEventLog()
     logdest.assfmt("FILE:filename=%s,maxsize=1000000,maxfiles=6", 
 		   clusterLog);
   }
-  if(!g_EventLogger.addHandler(logdest)) {
-    ndbout << "Warning: could not add log destination \"" << logdest.c_str() << "\"" << endl;
+  if(!g_eventLogger.addHandler(logdest)) {
+    ndbout << "Warning: could not add log destination \""
+	   << logdest.c_str() << "\"" << endl;
   }
 }
 
@@ -242,38 +235,29 @@ public:
 };
 
 bool
-MgmtSrvr::setEventLogFilter(int severity) 
+MgmtSrvr::setEventLogFilter(int severity, int enable)
 {
-  bool enabled = true;
   Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
-  if (g_EventLogger.isEnable(level)) {
-    g_EventLogger.disable(level);
-    enabled = false;
+  if (enable > 0) {
+    g_eventLogger.enable(level);
+  } else if (enable == 0) {
+    g_eventLogger.disable(level);
+  } else if (g_eventLogger.isEnable(level)) {
+    g_eventLogger.disable(level);
   } else {
-    g_EventLogger.enable(level);
+    g_eventLogger.enable(level);
   }
-
-  return enabled;
+  return g_eventLogger.isEnable(level);
 }
 
 bool 
 MgmtSrvr::isEventLogFilterEnabled(int severity) 
 {
-  return g_EventLogger.isEnable((Logger::LoggerLevel)severity);
+  return g_eventLogger.isEnable((Logger::LoggerLevel)severity);
 }
 
 static ErrorItem errorTable[] = 
 {
-  {200, "Backup undefined error"},
-  {202, "Backup failed to allocate buffers (check configuration)"}, 
-  {203, "Backup failed to setup fs buffers (check configuration)"},
-  {204, "Backup failed to allocate tables (check configuration)"},
-  {205, "Backup failed to insert file header (check configuration)"},
-  {206, "Backup failed to insert table list (check configuration)"},	
-  {207, "Backup failed to allocate table memory (check configuration)"},
-  {208, "Backup failed to allocate file record (check configuration)"},
-  {209, "Backup failed to allocate attribute record (check configuration)"},
-
   {MgmtSrvr::NO_CONTACT_WITH_PROCESS, "No contact with the process (dead ?)."},
   {MgmtSrvr::PROCESS_NOT_CONFIGURED, "The process is not configured."},
   {MgmtSrvr::WRONG_PROCESS_TYPE, 
@@ -399,21 +383,28 @@ MgmtSrvr::getPort() const {
 }
 
 /* Constructor */
-MgmtSrvr::MgmtSrvr(NodeId nodeId,
-		   const BaseString &configFilename,
-		   LocalConfig &local_config,
-		   Config * config):
+int MgmtSrvr::init()
+{
+  if ( _ownNodeId > 0)
+    return 0;
+  return -1;
+}
+
+MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
+		   const char *config_filename,
+		   const char *connect_string) :
   _blockNumber(1), // Hard coded block number since it makes it easy to send
                    // signals to other management servers.
+  m_socket_server(socket_server),
   _ownReference(0),
-  m_local_config(local_config),
-  m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  m_statisticsListner(this)
+  m_event_listner(this)
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
+
+  _ownNodeId= 0;
 
   _config     = NULL;
 
@@ -425,12 +416,48 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   theFacade = 0;
 
   m_newConfig = NULL;
-  m_configFilename = configFilename;
+  if (config_filename)
+    m_configFilename.assign(config_filename);
+  else
+    m_configFilename.assign("config.ini");
 
   m_nextConfigGenerationNumber = 0;
 
-  _config = (config == 0 ? readConfig() : config);
-  
+  m_config_retriever= new ConfigRetriever(connect_string,
+					  NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
+  // if connect_string explicitly given or
+  // no config filename is given then
+  // first try to allocate nodeid from another management server
+  if ((connect_string || config_filename == NULL) &&
+      (m_config_retriever->do_connect(0,0,0) == 0))
+  {
+    int tmp_nodeid= 0;
+    tmp_nodeid= m_config_retriever->allocNodeId(0 /*retry*/,0 /*delay*/);
+    if (tmp_nodeid == 0)
+    {
+      ndbout_c(m_config_retriever->getErrorString());
+      exit(-1);
+    }
+    // read config from other managent server
+    _config= fetchConfig();
+    if (_config == 0)
+    {
+      ndbout << m_config_retriever->getErrorString() << endl;
+      exit(-1);
+    }
+    _ownNodeId= tmp_nodeid;
+  }
+
+  if (_ownNodeId == 0)
+  {
+    // read config locally
+    _config= readConfig();
+    if (_config == 0) {
+      ndbout << "Unable to read config file" << endl;
+      exit(-1);
+    }
+  }
+
   theMgmtWaitForResponseCondPtr = NdbCondition_Create();
 
   m_configMutex = NdbMutex_Create();
@@ -442,9 +469,11 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
     m_connect_address[i].s_addr= 0;
   }
+
   {
-    ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
-      (config->m_configValues, CFG_SECTION_NODE);
+    ndb_mgm_configuration_iterator
+      *iter = ndb_mgm_create_configuration_iterator(_config->m_configValues,
+						    CFG_SECTION_NODE);
     for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
       unsigned type, id;
       if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0)
@@ -477,69 +506,51 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   }
 
   _props = NULL;
-  _ownNodeId= 0;
-  NodeId tmp= nodeId;
   BaseString error_string;
-#if 0
-  char my_hostname[256];
-  struct sockaddr_in tmp_addr;
-  SOCKET_SIZE_TYPE addrlen= sizeof(tmp_addr);
-  if (!g_no_nodeid_checks) {
-    if (gethostname(my_hostname, sizeof(my_hostname))) {
-      ndbout << "error: gethostname() - " << strerror(errno) << endl;
-      exit(-1);
-    }
-    if (Ndb_getInAddr(&(((sockaddr_in*)&tmp_addr)->sin_addr),my_hostname)) {
-      ndbout << "error: Ndb_getInAddr(" << my_hostname << ") - " 
-	     << strerror(errno) << endl;
-      exit(-1);
-    }
-  }
-  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
-		     (struct sockaddr *)&tmp_addr,
-		     &addrlen, error_string)){
-    ndbout << "Unable to obtain requested nodeid: "
-	   << error_string.c_str() << endl;
-    exit(-1);
-  }
-#else
-  if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
-		     0, 0, error_string)){
-    ndbout << "Unable to obtain requested nodeid: "
-	   << error_string.c_str() << endl;
-    exit(-1);
-  }
-#endif
-  _ownNodeId = tmp;
 
-
-  {
-    DBUG_PRINT("info", ("verifyConfig"));
-    ConfigRetriever cr(m_local_config, NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
-    if (!cr.verifyConfig(config->m_configValues, _ownNodeId)) {
-      ndbout << cr.getErrorString() << endl;
-      exit(-1);
-    }
-  }
-
-  {
-    MgmStatService::StatListener se;
-    se.m_socket = -1;
-    for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
-      se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
-    }
-    se.m_logLevel.setLogLevel(LogLevel::llError, 15);
-    se.m_logLevel.setLogLevel(LogLevel::llBackup, 15);
-    m_statisticsListner.m_clients.push_back(se);
-    m_statisticsListner.m_logLevel = se.m_logLevel;
-  }
-  
   if ((m_node_id_mutex = NdbMutex_Create()) == 0)
   {
     ndbout << "mutex creation failed line = " << __LINE__ << endl;
     exit(-1);
   }
 
+  if (_ownNodeId == 0) // we did not get node id from other server
+  {
+    NodeId tmp= m_config_retriever->get_configuration_nodeid();
+
+    if (!alloc_node_id(&tmp, NDB_MGM_NODE_TYPE_MGM,
+		       0, 0, error_string)){
+      ndbout << "Unable to obtain requested nodeid: "
+	     << error_string.c_str() << endl;
+      exit(-1);
+    }
+    _ownNodeId = tmp;
+  }
+
+  {
+    DBUG_PRINT("info", ("verifyConfig"));
+    if (!m_config_retriever->verifyConfig(_config->m_configValues,
+					  _ownNodeId))
+    {
+      ndbout << m_config_retriever->getErrorString() << endl;
+      exit(-1);
+    }
+  }
+
+  // Setup clusterlog as client[0] in m_event_listner
+  {
+    Ndb_mgmd_event_service::Event_listener se;
+    se.m_socket = NDB_INVALID_SOCKET;
+    for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
+      se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
+    }
+    se.m_logLevel.setLogLevel(LogLevel::llError, 15);
+    se.m_logLevel.setLogLevel(LogLevel::llConnection, 8);
+    se.m_logLevel.setLogLevel(LogLevel::llBackup, 15);
+    m_event_listner.m_clients.push_back(se);
+    m_event_listner.m_logLevel = se.m_logLevel;
+  }
+  
   DBUG_VOID_RETURN;
 }
 
@@ -656,6 +667,8 @@ MgmtSrvr::~MgmtSrvr()
     NdbThread_WaitFor(m_signalRecvThread, &res);
     NdbThread_Destroy(&m_signalRecvThread);
   }
+  if (m_config_retriever)
+    delete m_config_retriever;
 }
 
 //****************************************************************************
@@ -1829,18 +1842,21 @@ MgmtSrvr::dumpState(int processId, const Uint32 args[], Uint32 no)
 //****************************************************************************
 //****************************************************************************
 
-const char* MgmtSrvr::getErrorText(int errorCode) 
+const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 {
-  static char text[255];
 
   for (int i = 0; i < noOfErrorCodes; ++i) {
     if (errorCode == errorTable[i]._errorCode) {
-      return errorTable[i]._errorText;
+      BaseString::snprintf(buf, buf_sz, errorTable[i]._errorText);
+      buf[buf_sz-1]= 0;
+      return buf;
     }
   }
-  
-  BaseString::snprintf(text, 255, "Unknown management server error code %d", errorCode);
-  return text;
+
+  ndb_error_string(errorCode, buf, buf_sz);
+  buf[buf_sz-1]= 0;
+
+  return buf;
 }
 
 void 
@@ -1963,7 +1979,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   }
 
   default:
-    g_EventLogger.error("Unknown signal received. SignalNumber: "
+    g_eventLogger.error("Unknown signal received. SignalNumber: "
 			"%i from (%d, %x)",
 			gsn,
 			refToNode(signal->theSendersBlockRef),
@@ -2039,7 +2055,7 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
   
  error:
   if(errCode != 0){
-    g_EventLogger.error("Unexpected signal received. SignalNumber: %i from %d",
+    g_eventLogger.error("Unexpected signal received. SignalNumber: %i from %d",
 			GSN_STOP_REF, nodeId);
   }
 }
@@ -2047,21 +2063,18 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
 void
 MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
 {
+  DBUG_ENTER("MgmtSrvr::handleStatus");
+  Uint32 theData[25];
+  theData[1] = nodeId;
   if (alive) {
     m_started_nodes.push_back(nodeId);
-    Uint32 theData[25];
     theData[0] = EventReport::Connected;
-    theData[1] = nodeId;
-    eventReport(_ownNodeId, theData);
   } else {
     handleStopReply(nodeId, 0);
-    
-    Uint32 theData[25];
     theData[0] = EventReport::Disconnected;
-    theData[1] = nodeId;
-    
-    eventReport(_ownNodeId, theData);
   }
+  eventReport(_ownNodeId, theData);
+  DBUG_VOID_RETURN;
 }
 
 //****************************************************************************
@@ -2082,8 +2095,11 @@ void
 MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				 bool alive, bool nfComplete)
 {
+  DBUG_ENTER("MgmtSrvr::nodeStatusNotification");
+  DBUG_PRINT("enter",("nodeid= %d, alive= %d, nfComplete= %d", nodeId, alive, nfComplete));
   if(!(!alive && nfComplete))
     ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive);
+  DBUG_VOID_RETURN;
 }
 
 enum ndb_mgm_node_type 
@@ -2093,6 +2109,25 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
     return (enum ndb_mgm_node_type)-1;
   
   return nodeTypes[nodeId];
+}
+
+void
+MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
+{
+  if (theFacade && theFacade->theClusterMgr) 
+  {
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
+      {
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	if (node.connected)
+	{
+	  connected_nodes.bitOR(node.m_state.m_connected_nodes);
+	}
+      }
+    }
+  }
 }
 
 bool
@@ -2107,7 +2142,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 		       *nodeId, type, client_addr));
   if (g_no_nodeid_checks) {
     if (*nodeId == 0) {
-      error_string.appfmt("no-nodeid-ckecks set in manegment server.\n"
+      error_string.appfmt("no-nodeid-checks set in management server.\n"
 			  "node id must be set explicitly in connectstring");
       DBUG_RETURN(false);
     }
@@ -2116,16 +2151,11 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   Guard g(m_node_id_mutex);
   int no_mgm= 0;
   NodeBitmask connected_nodes(m_reserved_nodes);
-  for(Uint32 i = 0; i < MAX_NODES; i++)
+  get_connected_nodes(connected_nodes);
   {
-    if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB &&
-	theFacade && theFacade->theClusterMgr) {
-      const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
-      if (node.connected) {
-	connected_nodes.bitOR(node.m_state.m_connected_nodes);
-      }
-    } else if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
-      no_mgm++;
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_MGM)
+	no_mgm++;
   }
   bool found_matching_id= false;
   bool found_matching_type= false;
@@ -2184,6 +2214,18 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (*nodeId != 0 ||
 	type != NDB_MGM_NODE_TYPE_MGM ||
 	no_mgm == 1) { // any match is ok
+
+      if (config_hostname == 0 &&
+	  *nodeId == 0 &&
+	  type != NDB_MGM_NODE_TYPE_MGM)
+      {
+	if (!id_found) // only set if not set earlier
+	  id_found= tmp;
+	continue; /* continue looking for a nodeid with specified
+		   * hostname
+		   */
+      }
+      assert(id_found == 0);
       id_found= tmp;
       break;
     }
@@ -2228,6 +2270,10 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 	m_connect_address[id_found].s_addr= 0;
     }
     m_reserved_nodes.set(id_found);
+    char tmp_str[128];
+    m_reserved_nodes.getText(tmp_str);
+    g_eventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, m_reserved_nodes %s.",
+		       id_found, get_connect_address(id_found), tmp_str);
     DBUG_RETURN(true);
   }
 
@@ -2252,8 +2298,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       if (found_matching_type)
 	if (found_free_node)
 	  error_string.appfmt("Connection done from wrong host ip %s.",
-			      inet_ntoa(((struct sockaddr_in *)
-					 (client_addr))->sin_addr));
+			      (client_addr)?
+			        inet_ntoa(((struct sockaddr_in *)
+					 (client_addr))->sin_addr):"");
 	else
 	  error_string.appfmt("No free node id found for %s.",
 			      type_string.c_str());
@@ -2284,6 +2331,36 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       error_string.appfmt("No node defined with id=%d in config file.",
 			  *nodeId);
   }
+
+  g_eventLogger.warning("Allocate nodeid (%d) failed. Connection from ip %s. "
+			"Returned error string \"%s\"",
+			*nodeId,
+			client_addr != 0 ? inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr) : "<none>",
+			error_string.c_str());
+
+  NodeBitmask connected_nodes2;
+  get_connected_nodes(connected_nodes2);
+  {
+    BaseString tmp_connected, tmp_not_connected;
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (connected_nodes2.get(i))
+      {
+	if (!m_reserved_nodes.get(i))
+	  tmp_connected.appfmt(" %d", i);
+      }
+      else if (m_reserved_nodes.get(i))
+      {
+	tmp_not_connected.appfmt(" %d", i);
+      }
+    }
+    if (tmp_connected.length() > 0)
+      g_eventLogger.info("Mgmt server state: node id's %s connected but not reserved", 
+			 tmp_connected.c_str());
+    if (tmp_not_connected.length() > 0)
+      g_eventLogger.info("Mgmt server state: node id's %s not connected but reserved",
+			 tmp_not_connected.c_str());
+  }
   DBUG_RETURN(false);
 }
 
@@ -2313,16 +2390,16 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
   
   EventReport::EventType type = eventReport->getEventType();
   // Log event
-  g_EventLogger.log(type, theData, nodeId, 
-		    &m_statisticsListner.m_clients[0].m_logLevel);  
-  m_statisticsListner.log(type, theData, nodeId);
+  g_eventLogger.log(type, theData, nodeId, 
+		    &m_event_listner[0].m_logLevel);  
+  m_event_listner.log(type, theData, nodeId);
 }
 
 /***************************************************************************
  * Backup
  ***************************************************************************/
 int
-MgmtSrvr::startBackup(Uint32& backupId, bool waitCompleted)
+MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 {
   bool next;
   NodeId nodeId = 0;
@@ -2344,11 +2421,16 @@ MgmtSrvr::startBackup(Uint32& backupId, bool waitCompleted)
   req->backupDataLen = 0;
 
   int result;
-  if (waitCompleted) {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_COMPLETED, signal, true);
+  if (waitCompleted == 2) {
+    result = sendRecSignal(nodeId, WAIT_BACKUP_COMPLETED,
+			   signal, true, 30*60*1000 /*30 secs*/);
+  }
+  else if (waitCompleted == 1) {
+    result = sendRecSignal(nodeId, WAIT_BACKUP_STARTED,
+			   signal, true, 5*60*1000 /*5 mins*/);
   }
   else {
-    result = sendRecSignal(nodeId, WAIT_BACKUP_STARTED, signal, true);
+    result = sendRecSignal(nodeId, NO_WAIT, signal, true);
   }
   if (result == -1) {
     return SEND_OR_RECEIVE_FAILED;
@@ -2427,18 +2509,31 @@ MgmtSrvr::abortBackup(Uint32 backupId)
 void
 MgmtSrvr::backupCallback(BackupEvent & event)
 {
+  DBUG_ENTER("MgmtSrvr::backupCallback");
   m_lastBackupEvent = event;
   switch(event.Event){
   case BackupEvent::BackupFailedToStart:
+    DBUG_PRINT("info",("BackupEvent::BackupFailedToStart"));
+    theWaitState = NO_WAIT;
+    break;
   case BackupEvent::BackupAborted:
+    DBUG_PRINT("info",("BackupEvent::BackupAborted"));
+    theWaitState = NO_WAIT;
+    break;
   case BackupEvent::BackupCompleted:
+    DBUG_PRINT("info",("BackupEvent::BackupCompleted"));
     theWaitState = NO_WAIT;
     break;
   case BackupEvent::BackupStarted:
     if(theWaitState == WAIT_BACKUP_STARTED)
+    {
+      DBUG_PRINT("info",("BackupEvent::BackupStarted NO_WAIT"));
       theWaitState = NO_WAIT;
+    } else {
+      DBUG_PRINT("info",("BackupEvent::BackupStarted"));
+    }
   }
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2532,16 +2627,32 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
 {
   Guard g(m_mgmsrv.m_node_id_mutex);
   if (!m_reserved_nodes.isclear()) {
+    m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
     // node has been reserved, force update signal to ndb nodes
     global_flag_send_heartbeat_now= 1;
+
+    char tmp_str[128];
+    m_mgmsrv.m_reserved_nodes.getText(tmp_str);
+    g_eventLogger.info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
+		       get_nodeid(), tmp_str);
   }
-  m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
 }
 
 void
 MgmtSrvr::Allocated_resources::reserve_node(NodeId id)
 {
   m_reserved_nodes.set(id);
+}
+
+NodeId
+MgmtSrvr::Allocated_resources::get_nodeid() const
+{
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if (m_reserved_nodes.get(i))
+      return i;
+  }
+  return 0;
 }
 
 int
@@ -2586,7 +2697,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
   int p_type;
   unsigned val_32;
-  unsigned long long val_64;
+  Uint64 val_64;
   const char * val_char;
   do {
     p_type = 0;
@@ -2648,9 +2759,9 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
 template class Vector<SigMatch>;
 #if __SUNPRO_CC != 0x560
-template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbApiSignal*&, unsigned);
+template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch**, NdbApiSignal**, unsigned);
 #endif
 
 template class MutexVector<unsigned short>;
-template class MutexVector<MgmStatService::StatListener>;
+template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class MutexVector<EventSubscribeReq>;

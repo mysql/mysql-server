@@ -81,7 +81,6 @@ class ha_myisam: public handler
   int index_first(byte * buf);
   int index_last(byte * buf);
   int index_next_same(byte *buf, const byte *key, uint keylen);
-  int index_end() { ft_handler=NULL; return 0; }
   int ft_init()
   {
     if (!ft_handler)
@@ -89,8 +88,12 @@ class ha_myisam: public handler
     ft_handler->please->reinit_search(ft_handler);
     return 0;
   }
-  FT_INFO *ft_init_ext(uint flags, uint inx,const byte *key, uint keylen)
-  { return ft_init_search(flags,file,inx,(byte*) key,keylen, table->record[0]); }
+  FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
+  {
+    return ft_init_search(flags,file,inx,
+                          (byte *)key->ptr(), key->length(), key->charset(),
+                          table->record[0]);
+  }
   int ft_read(byte *buf);
   int rnd_init(bool scan);
   int rnd_next(byte *buf);

@@ -30,6 +30,8 @@ public:
   int closeTransaction(Ndb*);
   NdbConnection* getTransaction();
   void refresh();
+
+  void setTransactionId(Uint64);
   
   int pkInsertRecord(Ndb*,
 		     int recordNo,
@@ -98,7 +100,7 @@ protected:
   struct RsPair { NdbResultSet* m_result_set; int records; };
   Vector<RsPair> m_result_sets;
   Vector<RsPair> m_executed_result_sets;
-private:
+
   NdbConnection* pTrans;
 };
 

@@ -143,7 +143,7 @@ int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
                 uint passwd_len);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user,
-                           char *password);
+                           char *password, uint password_len);
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
 int mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,

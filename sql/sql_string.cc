@@ -121,12 +121,13 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 bool String::set(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
+  uint dummy_errors;
 
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
     uint32 len= my_sprintf(buff,(buff, "%.14g",num));// Enough for a DATETIME
-    return copy(buff, len, &my_charset_latin1, cs);
+    return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
@@ -141,7 +142,8 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs);
+    uint dummy_errors;
+    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs, &dummy_errors);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -191,7 +193,8 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs);
+  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs,
+              &dummy_errors);
 #endif
 }
 
@@ -331,19 +334,24 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
 	/* Copy with charset convertion */
 
 bool String::copy(const char *str, uint32 arg_length,
-		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs, uint *errors)
 {
   uint32 offset;
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
+  {
+    *errors= 0;
     return copy(str, arg_length, to_cs);
+  }
   if ((from_cs == &my_charset_bin) && offset)
+  {
+    *errors= 0;
     return copy_aligned(str, arg_length, offset, to_cs);
-  
+  }
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
     return TRUE;
   str_length=copy_and_convert((char*) Ptr, new_length, to_cs,
-			      str, arg_length, from_cs);
+                              str, arg_length, from_cs, errors);
   str_charset=to_cs;
   return FALSE;
 }
@@ -375,7 +383,8 @@ bool String::set_ascii(const char *str, uint32 arg_length)
     set(str, arg_length, str_charset);
     return 0;
   }
-  return copy(str, arg_length, &my_charset_latin1, str_charset);
+  uint dummy_errors;
+  return copy(str, arg_length, &my_charset_latin1, str_charset, &dummy_errors);
 }
 
 
@@ -429,10 +438,12 @@ bool String::append(const char *s,uint32 arg_length)
   if (str_charset->mbminlen > 1)
   {
     uint32 add_length=arg_length * str_charset->mbmaxlen;
+    uint dummy_errors;
     if (realloc(str_length+ add_length))
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
-				  s, arg_length, &my_charset_latin1);
+				  s, arg_length, &my_charset_latin1,
+                                  &dummy_errors);
     return FALSE;
   }
 
@@ -469,10 +480,11 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
   if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
   {
     uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    uint dummy_errors;
     if (realloc(str_length + add_length)) 
       return TRUE;
     str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
-				  s, arg_length, cs);
+				  s, arg_length, cs, &dummy_errors);
   }
   else
   {
@@ -769,7 +781,8 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 
 uint32
 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-		 const char *from, uint32 from_length, CHARSET_INFO *from_cs)
+                 const char *from, uint32 from_length, CHARSET_INFO *from_cs,
+                 uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -780,6 +793,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 	       const uchar *) = from_cs->cset->mb_wc;
   int (*wc_mb)(struct charset_info_st *, my_wc_t, uchar *s, uchar *e)=
     to_cs->cset->wc_mb;
+  uint error_count= 0;
 
   while (1)
   {
@@ -788,6 +802,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
       from+= cnvres;
     else if (cnvres == MY_CS_ILSEQ)
     {
+      error_count++;
       from++;
       wc= '?';
     }
@@ -799,12 +814,14 @@ outp:
       to+= cnvres;
     else if (cnvres == MY_CS_ILUNI && wc != '?')
     {
+      error_count++;
       wc= '?';
       goto outp;
     }
     else
       break;
   }
+  *errors= error_count;
   return (uint32) (to - to_start);
 }
 

@@ -394,10 +394,19 @@ os_file_lock(
 	lk.l_start = lk.l_len = 0;
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 		fprintf(stderr,
-			"InnoDB: Unable to lock %s, error: %d", name, errno);
+			"InnoDB: Unable to lock %s, error: %d\n", name, errno);
+
+		if (errno == EAGAIN || errno == EACCES) {
+			fprintf(stderr,
+"InnoDB: Check that you do not already have another mysqld process\n"
+"InnoDB: using the same InnoDB data or log files.\n");
+		}
+
 		close(fd);
+
 		return(-1);
 	}
+
 	return(0);
 }
 #endif /* USE_FILE_LOCK */
@@ -477,7 +486,7 @@ os_io_init_simple(void)
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_HOTBACKUP) && !defined(__NETWARE__)
 /*************************************************************************
 Creates a temporary file. This function is defined in ha_innodb.cc. */
 
@@ -485,7 +494,7 @@ int
 innobase_mysql_tmpfile(void);
 /*========================*/
 			/* out: temporary file descriptor, or < 0 on error */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !__NETWARE__ */
 
 /***************************************************************************
 Creates a temporary file. */
@@ -495,9 +504,12 @@ os_file_create_tmpfile(void)
 /*========================*/
 			/* out: temporary file handle, or NULL on error */
 {
+#ifdef __NETWARE__
+	FILE*	file	= tmpfile();
+#else /* __NETWARE__ */
 	FILE*	file	= NULL;
 	int	fd	= -1;
-#ifdef UNIV_HOTBACKUP
+# ifdef UNIV_HOTBACKUP
 	int	tries;
 	for (tries = 10; tries--; ) {
 		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
@@ -506,15 +518,15 @@ os_file_create_tmpfile(void)
 		}
 
 		fd = open(name,
-# ifdef __WIN__
+#  ifdef __WIN__
 			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
-# endif /* __WIN__ */
+#  endif /* __WIN__ */
 			O_CREAT | O_EXCL | O_RDWR,
 			S_IREAD | S_IWRITE);
 		if (fd >= 0) {
-# ifndef __WIN__
+#  ifndef __WIN__
 			unlink(name);
-# endif /* !__WIN__ */
+#  endif /* !__WIN__ */
 			free(name);
 			break;
 		}
@@ -525,22 +537,25 @@ os_file_create_tmpfile(void)
 			name);
 		free(name);
 	}
-#else /* UNIV_HOTBACKUP */
+# else /* UNIV_HOTBACKUP */
 	fd = innobase_mysql_tmpfile();
-#endif /* UNIV_HOTBACKUP */
+# endif /* UNIV_HOTBACKUP */
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
+#endif /* __NETWARE__ */
 
 	if (!file) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Error: unable to create temporary file;"
 			" errno: %d\n", errno);
+#ifndef __NETWARE__
 		if (fd >= 0) {
 			close(fd);
 		}
+#endif /* !__NETWARE__ */
 	}
 
 	return(file);
@@ -685,12 +700,12 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 		} else if (lpFindFileData->dwFileAttributes
 						& FILE_ATTRIBUTE_DIRECTORY) {
 		        info->type = OS_FILE_TYPE_DIR;
-		} else if (lpFindFileData->dwFileAttributes
-						& FILE_ATTRIBUTE_NORMAL) {
-/* TODO: are FILE_ATTRIBUTE_NORMAL files really all normal files? */	
-			info->type = OS_FILE_TYPE_FILE;
 		} else {
-			info->type = OS_FILE_TYPE_UNKNOWN;
+			/* It is probably safest to assume that all other
+			file types are normal. Better to check them rather
+			than blindly skip them. */
+
+			info->type = OS_FILE_TYPE_FILE;
 		}
 	}
 
@@ -711,13 +726,41 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 	char*		full_path;
 	int		ret;
 	struct stat	statinfo;
+#ifdef HAVE_READDIR_R
+	char		dirent_buf[sizeof(struct dirent) + _POSIX_PATH_MAX +
+								100];
+			/* In /mysys/my_lib.c, _POSIX_PATH_MAX + 1 is used as
+			the max file name len; but in most standards, the
+			length is NAME_MAX; we add 100 to be even safer */
+#endif
+
 next_file:
-	ent = readdir(dir);
+
+#ifdef HAVE_READDIR_R
+	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
+
+	if (ret != 0) {
+		fprintf(stderr,
+"InnoDB: cannot read directory %s, error %lu\n", dirname, (ulong)ret);
+
+		return(-1);
+	}
 
 	if (ent == NULL) {
+		/* End of directory */
+		
 		return(1);
 	}
 
+	ut_a(strlen(ent->d_name) < _POSIX_PATH_MAX + 100 - 1);
+#else
+	ent = readdir(dir);
+
+	if (ent == NULL) {
+
+		return(1);
+	}
+#endif
 	ut_a(strlen(ent->d_name) < OS_FILE_MAX_PATH);
 
 	if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
@@ -780,7 +823,7 @@ os_file_create_directory(
     
 	rcode = CreateDirectory(pathname, NULL);
 	if (!(rcode != 0 ||
-		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
+	   (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
 		/* failure */
 		os_file_handle_error(pathname, "CreateDirectory");
 
@@ -864,8 +907,9 @@ try_again:
 
 	file = CreateFile(name,
 			access,
-			FILE_SHARE_READ,/* file can be read also by other
-					processes */
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+					/* file can be read ansd written also
+					by other processes */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -970,7 +1014,7 @@ os_file_create_simple_no_error_handling(
 	DWORD		create_flag;
 	DWORD		access;
 	DWORD		attributes	= 0;
-	DWORD		share_mode	= FILE_SHARE_READ;
+	DWORD		share_mode	= FILE_SHARE_READ | FILE_SHARE_WRITE;
 	
 	ut_a(name);
 
@@ -1293,7 +1337,7 @@ loop:
 		return(TRUE);
 	}
 
-	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* the file does not exist, this not an error */
 
 		return(TRUE);
@@ -1354,7 +1398,7 @@ loop:
 		return(TRUE);
 	}
 
-	if (GetLastError() == ERROR_PATH_NOT_FOUND) {
+	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* If the file does not exist, we classify this as a 'mild'
 		error and return */
 
@@ -1726,7 +1770,33 @@ os_file_flush(
 #else
 	int	ret;
 
-#ifdef HAVE_FDATASYNC
+#if defined(HAVE_DARWIN_THREADS)
+# ifndef F_FULLFSYNC
+	/* The following definition is from the Mac OS X 10.3 <sys/fcntl.h> */
+#  define F_FULLFSYNC 51 /* fsync + ask the drive to flush to the media */
+# elif F_FULLFSYNC != 51
+#  error "F_FULLFSYNC != 51: ABI incompatibility with Mac OS X 10.3"
+# endif
+	/* Apple has disabled fsync() for internal disk drives in OS X. That
+	caused corruption for a user when he tested a power outage. Let us in
+	OS X use a nonstandard flush method recommended by an Apple
+	engineer. */
+
+	if (!srv_have_fullfsync) {
+		/* If we are not on an operating system that supports this,
+		then fall back to a plain fsync. */ 
+
+		ret = fsync(file);
+	} else {
+		ret = fcntl(file, F_FULLFSYNC, NULL);
+
+		if (ret) {
+			/* If we are not on a file system that supports this,
+			then fall back to a plain fsync. */ 
+			ret = fsync(file);
+		}
+	}
+#elif HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
 /*	fprintf(stderr, "Flushing to file %p\n", file); */
@@ -1813,6 +1883,7 @@ os_file_pread(
 	return(n_bytes);
 #else
 	{
+	off_t	ret_offset;
 	ssize_t	ret;
 	ulint	i;
 
@@ -1821,12 +1892,12 @@ os_file_pread(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = read(file, buf, (ssize_t)n);
@@ -1899,6 +1970,7 @@ os_file_pwrite(
         return(ret);
 #else
 	{
+	off_t	ret_offset;
 	ulint	i;
 
 	/* Protect the seek / write operation with a mutex */
@@ -1906,12 +1978,12 @@ os_file_pwrite(
 	
 	os_mutex_enter(os_file_seek_mutexes[i]);
 
-	ret = lseek(file, offs, 0);
+	ret_offset = lseek(file, offs, SEEK_SET);
 
-	if (ret < 0) {
+	if (ret_offset < 0) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
-		return(ret);
+		return(-1);
 	}
 	
 	ret = write(file, buf, (ssize_t)n);

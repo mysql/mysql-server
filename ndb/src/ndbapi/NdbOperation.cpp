@@ -78,7 +78,8 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   m_tcReqGSN(GSN_TCKEYREQ),
   m_keyInfoGSN(GSN_KEYINFO),
   m_attrInfoGSN(GSN_ATTRINFO),
-  theBlobList(NULL)
+  theBlobList(NULL),
+  m_abortOption(-1)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
@@ -167,6 +168,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection){
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
   theBlobList = NULL;
+  m_abortOption = -1;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)

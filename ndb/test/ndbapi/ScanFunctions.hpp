@@ -286,36 +286,36 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   attr = new Attrib;
   attr->numAttribs = 0;
   attriblist.push_back(attr);
-
-  for(int i = 1; i < pTab->getNoOfColumns(); i++){
+  int i;
+  for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = i;
     for(int a = 0; a<i; a++)
       attr->attribs[a] = a;
     attriblist.push_back(attr);
   }
-  for(int i = pTab->getNoOfColumns()-1; i > 0; i--){
+  for(i = pTab->getNoOfColumns()-1; i > 0; i--){
     attr = new Attrib;
     attr->numAttribs = i;
     for(int a = 0; a<i; a++)
       attr->attribs[a] = a;
     attriblist.push_back(attr);
   }
-  for(int i = pTab->getNoOfColumns(); i > 0;  i--){
+  for(i = pTab->getNoOfColumns(); i > 0;  i--){
     attr = new Attrib;
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
     attriblist.push_back(attr); 
   }  
-  for(int i = 1; i < pTab->getNoOfColumns(); i++){
+  for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
     attriblist.push_back(attr); 
   }  
-  for(int i = 1; i < pTab->getNoOfColumns(); i++){
+  for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = 2;
     for(int a = 0; a<2; a++){
@@ -345,11 +345,11 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   attriblist.push_back(attr);  
 
 #if 1
-  for(size_t i = 0; i < attriblist.size(); i++){
+  for(size_t j = 0; j < attriblist.size(); j++){
 
-    g_info << attriblist[i]->numAttribs << ": " ;
-    for(int a = 0; a < attriblist[i]->numAttribs; a++)
-      g_info << attriblist[i]->attribs[a] << ", ";
+    g_info << attriblist[j]->numAttribs << ": " ;
+    for(int a = 0; a < attriblist[j]->numAttribs; a++)
+      g_info << attriblist[j]->attribs[a] << ", ";
     g_info << endl;
   }
 #endif

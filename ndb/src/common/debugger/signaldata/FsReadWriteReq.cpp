@@ -31,7 +31,7 @@ printFSREADWRITEREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " UserReference: H\'%.8x", sig->userReference);
 
   fprintf(output, " Operation flag: H\'%.8x (", sig->operationFlag);
-  if (sig->getSyncFlag(sig->operationFlag) == true)
+  if (sig->getSyncFlag(sig->operationFlag))
     fprintf(output, "Sync,");
   else
     fprintf(output, "No sync,");

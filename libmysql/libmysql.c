@@ -158,7 +158,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef EMBEDDED_LIBRARY
-    result= init_embedded_server(argc, argv, groups);
+    if (argc > -1)
+       result= init_embedded_server(argc, argv, groups);
 #endif
   }
 #ifdef THREAD
@@ -851,6 +852,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 err:
   /* free up memory allocated with _init, usually */
   (*options->local_infile_end)(li_ptr);
+  my_free(buf, MYF(0));
   DBUG_RETURN(result);
 }
 
@@ -1503,7 +1505,7 @@ ulong STDCALL mysql_thread_id(MYSQL *mysql)
 
 const char * STDCALL mysql_character_set_name(MYSQL *mysql)
 {
-  return mysql->charset->name;
+  return mysql->charset->csname;
 }
 
 
@@ -1563,7 +1565,8 @@ void my_net_local_init(NET *net)
   trailing '. The caller must supply whichever of those is desired.
 */
 
-ulong mysql_hex_string(char *to, const char *from, ulong length)
+ulong STDCALL
+mysql_hex_string(char *to, const char *from, ulong length)
 {
   char *to0= to;
   const char *end;
@@ -1752,6 +1755,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 */
 #define MAX_DATETIME_REP_LENGTH 12
 
+#define MAX_DOUBLE_STRING_REP_LENGTH 331
 
 /**************** Misc utility functions ****************************/
 
@@ -1783,6 +1787,18 @@ static my_bool my_realloc_str(NET *net, ulong length)
   DBUG_RETURN(res);
 }
 
+
+/* Clear possible error statee of struct NET */
+
+static void net_clear_error(NET *net)
+{
+  if (net->last_errno)
+  {
+    net->last_errno= 0;
+    net->last_error[0]= '\0';
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
 
 /*
   Set statement error code, sqlstate, and error message
@@ -1885,22 +1901,6 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-#ifdef HAVE_DEPRECATED_411_API
-MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
-                                   unsigned long query_length)
-{
-  MYSQL_STMT *stmt;
-  DBUG_ENTER("mysql_prepare");
-
-  stmt= mysql_stmt_init(mysql);
-  if (stmt && mysql_stmt_prepare(stmt, query, query_length))
-  {
-    mysql_stmt_close(stmt);
-    DBUG_RETURN(0);
-  }
-  DBUG_RETURN(stmt);
-}
-#endif
 
 /*
   Allocate memory and init prepared statement structure.
@@ -2153,12 +2153,12 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   DESCRIPTION
     This function should be used after mysql_stmt_execute().
     You can safely check that prepared statement has a result set by calling
-    mysql_stmt_num_fields(): if number of fields is not zero, you can call
+    mysql_stmt_field_count(): if number of fields is not zero, you can call
     this function to get fields metadata.
     Next steps you may want to make:
     - find out number of columns in result set by calling
       mysql_num_fields(res) (the same value is returned by
-      mysql_stmt_num_fields)
+      mysql_stmt_field_count())
     - fetch metadata for any column with mysql_fetch_field,
       mysql_fetch_field_direct, mysql_fetch_fields, mysql_field_seek.
     - free returned MYSQL_RES structure with mysql_free_result.
@@ -2477,6 +2477,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     if (!stmt->bind_param_done)
     {
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+    {
+      set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
       DBUG_RETURN(1);
     }
 
@@ -2990,7 +2995,7 @@ static my_bool int_is_null_false= 0;
     values and mysql_stmt_execute() the statement.
 
     See also: mysql_stmt_send_long_data() for sending long text/blob
-    data in pieces, examples in tests/client_test.c.
+    data in pieces, examples in tests/mysql_client_test.c.
     Next steps you might want to make:
     - execute statement with mysql_stmt_execute(),
     - reset statement using mysql_stmt_reset() or reprepare it with
@@ -3265,12 +3270,18 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
     tm->second= (uint) to[7];
     tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
     tm->year= tm->month= 0;
+    if (tm->day)
+    {
+      /* Convert days to hours at once */
+      tm->hour+= tm->day*24;
+      tm->day= 0;
+    }
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
 
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_TIME;
+    set_zero_time(tm, MYSQL_TIMESTAMP_TIME);
 }
 
 static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
@@ -3295,12 +3306,12 @@ static void read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
     else
       tm->hour= tm->minute= tm->second= 0;
     tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
 
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATETIME);
 }
 
 static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
@@ -3317,12 +3328,12 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
     tm->hour= tm->minute= tm->second= 0;
     tm->second_part= 0;
     tm->neg= 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATE;
 
     *pos+= length;
   }
   else
-    set_zero_time(tm);
-  tm->time_type= MYSQL_TIMESTAMP_DATE;
+    set_zero_time(tm, MYSQL_TIMESTAMP_DATE);
 }
 
 
@@ -3379,14 +3390,17 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_FLOAT:
   {
+    char *end_not_used;
     float data = (float) my_strntod(&my_charset_latin1, value, length,
-                                    NULL, &err);
+                                    &end_not_used, &err);
     floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(&my_charset_latin1, value, length, NULL, &err);
+    char *end_not_used;
+    double data= my_strntod(&my_charset_latin1, value, length, &end_not_used,
+                            &err);
     doublestore(buffer, data);
     break;
   }
@@ -3558,7 +3572,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       floating point -> string conversion nicely, honor all typecodes
       and param->offset possibly set in mysql_stmt_fetch_column
     */
-    char buff[331];
+    char buff[MAX_DOUBLE_STRING_REP_LENGTH];
     char *end;
     /* TODO: move this to a header shared between client and server. */
 #define NOT_FIXED_DEC  31
@@ -3671,8 +3685,8 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_INT24: /* mediumint is sent as 4 bytes int */
   case MYSQL_TYPE_LONG:
   {
-    long value= sint4korr(*row);
-    longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
+    int32 value= sint4korr(*row);
+    longlong data= field_is_unsigned ? (longlong) (uint32) value :
                                        (longlong) value;
     fetch_long_with_conversion(param, field, data);
     *row+= 4;
@@ -3890,11 +3904,10 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
   if (!bind_count)
   {
-    if ((int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE)
-    {
-      set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    }
-    DBUG_RETURN(0);
+    int errorcode= (int) stmt->state < (int) MYSQL_STMT_PREPARE_DONE ?
+                   CR_NO_PREPARE_STMT : CR_NO_STMT_METADATA;
+    set_stmt_error(stmt, errorcode, unknown_sqlstate);
+    DBUG_RETURN(1);
   }
 
   /*
@@ -3992,32 +4005,43 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     switch (field->type) {
     case MYSQL_TYPE_NULL: /* for dummy binds */
       param->pack_length= 0;
+      field->max_length= 0;
       break;
     case MYSQL_TYPE_TINY:
       param->pack_length= 1;
+      field->max_length= 4;                     /* as in '-127' */
       break;
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_SHORT:
       param->pack_length= 2;
+      field->max_length= 6;                     /* as in '-32767' */
       break;
     case MYSQL_TYPE_INT24:
+      field->max_length= 9;  /* as in '16777216' or in '-8388607' */
+      param->pack_length= 4;
+      break;
     case MYSQL_TYPE_LONG:
+      field->max_length= 11;                    /* '-2147483647' */
       param->pack_length= 4;
       break;
     case MYSQL_TYPE_LONGLONG:
+      field->max_length= 21;                    /* '18446744073709551616' */
       param->pack_length= 8;
       break;
     case MYSQL_TYPE_FLOAT:
       param->pack_length= 4;
+      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_DOUBLE:
       param->pack_length= 8;
+      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       param->skip_result= skip_result_with_length;
+      field->max_length= MAX_DATE_STRING_REP_LENGTH;
       break;
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_ENUM:
@@ -4275,7 +4299,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   row+= (stmt->field_count+9)/8;		/* skip null bits */
   bit= 4;					/* first 2 bits are reserved */
 
-  /* Go throw all fields and calculate metadata */
+  /* Go through all fields and calculate metadata */
   for (bind= stmt->bind, end= bind + stmt->field_count, field= stmt->fields ;
        bind < end ;
        bind++, field++)
@@ -4410,6 +4434,12 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
   for (; tmp && row; --row, tmp= tmp->next)
     ;
   stmt->data_cursor= tmp;
+  if (!row && tmp)
+  {
+       /*  Rewind the counter */
+    stmt->read_row_func= stmt_read_row_buffered;
+    stmt->state= MYSQL_STMT_EXECUTE_DONE;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -4491,6 +4521,11 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   if (mysql)
   {
     mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+    /*
+      Clear NET error state: if the following commands come through
+      successfully, connection will still be usable for other commands.
+    */
+    net_clear_error(&mysql->net);
     if ((int) stmt->state > (int) MYSQL_STMT_INIT_DONE)
     {
       char buff[MYSQL_STMT_HEADER];             /* 4 bytes - stmt id */

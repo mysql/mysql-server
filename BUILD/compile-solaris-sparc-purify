@@ -1,15 +1,35 @@
 #! /bin/sh
 
+mode=""
+cxxfilt=""
+
+# For g++ 3.X, the PurifyPlus tools needs a program named "cxxfilt",
+# "c++file" or similar. It is part of libtool. If not found, you can
+# specify the path to it.
+
 while test $# -gt 0
 do
   case "$1" in
-   --debug) EXTRA_CONFIG_FLAGS=--with-debug; shift ;;
-  -h | --help ) cat <<EOF; exit 0 ;;
-Usage: $0 [-h|-n] [configure-options]
-  --debug		Compile with DBUG enabled
+    --debug) EXTRA_CONFIG_FLAGS=--with-debug ;;
+    --purify)   mode=purify ;;
+    --purecov*) mode=purecov ;;
+    --quantify) mode=quantify ;;
+    --cxxfilt)  shift ; cxxfilt=$1 ;;
+    -h | --help ) cat <<EOF; exit 0 ;;
+Usage: $0 [ options ]
+
+Where the 'options' are
+
+  --debug               Compile with DBUG enabled
+  --purify              Only prepare for Purify
+  --purecov             Only prepare for PureCover
+  --quantify            Only prepare for Quantify
+  --cxxfilt <cxxfilt>   Path to cxxfilt/c++filt program 
+                        This program is needed for gcc 3.X 
 EOF
-   *)  echo "No such option '$1'" ; exit ;;
+   *)  echo "No such option '$1'" ; exit 1 ;;
   esac
+  shift
 done
 
 gmake -k clean || true 
@@ -22,9 +42,70 @@ CFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-sub
 
 gmake -j 4
 
-cd sql ; mv mysqld mysqld-org ;
-make CXXLD="purify -best-effort g++"  mysqld ; mv mysqld mysqld-purify
-make CXXLD="quantify -best-effort g++"  mysqld ; mv mysqld mysqld-quantify
-make CXXLD="purecov -best-effort g++"  mysqld ; mv mysqld mysqld-purecov
-mv mysqld-org mysqld
+# ----------------------------------------------------------------------
+
+#set -x
+
+purifying_binaries ()
+{
+  while test $1
+  do
+    dir=$1
+    shift
+    target=$1
+    shift
+    binary=$1
+    shift
+
+    opts=""
+    if [ -n "$cxxfilt" ] ; then
+      opts="$opts -demangle-program=$cxxfilt"
+    fi
+    opts="$opts -best-effort"
+
+    back=`pwd`
+    cd $dir
+
+    # Because of libtool magic, the target and binary
+    # created might not be the same. To trigger rebuild,
+    # we need to move them both.
+
+    mv $binary $binary-old
+    if [ -f $target ] ; then
+      mv $target $target-old
+    fi
+
+    if [ -n "$mode" -a $mode = purify ] ; then
+      gmake CCLD="purify   $opts gcc"  CXXLD="purify   $opts g++"  $target
+      mv $binary $binary-purify
+    fi
+
+    if [ -n "$mode" -a $mode = quantify ] ; then
+      gmake CCLD="quantify $opts gcc"  CXXLD="quantify $opts g++"  $target
+      mv $binary $binary-quantify
+    fi
+
+    if [ -n "$mode" -a $mode = purecov ] ; then
+      gmake CCLD="purecov  $opts gcc"  CXXLD="purecov  $opts g++"  $target
+      mv $binary $binary-purecov
+    fi
+
+    mv $binary-old $binary
+    if [ -f $target-old ] ; then
+      mv $target-old $target
+    fi
+
+    cd $back
+ done
+}
+
+
+purifying_binaries \
+  sql                mysqld                     mysqld \
+  client             mysqltest                  .libs/mysqltest \
+  tests              mysql_client_test          mysql_client_test \
+  libmysqld/examples mysqltest_embedded         mysqltest_embedded \
+  libmysqld/examples mysql_client_test_embedded mysql_client_test_embedded
+
+# ----------------------------------------------------------------------
 

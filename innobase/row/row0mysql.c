@@ -308,7 +308,8 @@ handle_new_error:
 
 		return(TRUE);
 
-	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT) {
+	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT
+		   || err == DB_LOCK_TABLE_FULL) {
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
@@ -416,7 +417,7 @@ row_create_prebuilt(
 	prebuilt->sel_graph = NULL;
 
 	prebuilt->search_tuple = dtuple_create(heap,
-						dict_table_get_n_cols(table));
+					2 * dict_table_get_n_cols(table));
 	
 	clust_index = dict_table_get_first_index(table);
 
@@ -779,8 +780,13 @@ int
 row_lock_table_for_mysql(
 /*=====================*/
 					/* out: error code or DB_SUCCESS */
-	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in the MySQL
+	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in the MySQL
 					table handle */
+	dict_table_t*	table,		/* in: table to lock, or NULL
+					if prebuilt->table should be
+					locked as LOCK_TABLE_EXP |
+					prebuilt->select_lock_type */
+	ulint		mode)		/* in: lock mode of table */
 {
 	trx_t*		trx 		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -813,8 +819,12 @@ run_again:
 
 	trx_start_if_not_started(trx);
 
-	err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
-		prebuilt->select_lock_type, thr);
+	if (table) {
+		err = lock_table(0, table, mode, thr);
+	} else {
+		err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
+			prebuilt->select_lock_type, thr);
+	}
 
 	trx->error_state = err;
 
@@ -859,7 +869,21 @@ row_insert_for_mysql(
 	
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -1077,6 +1101,20 @@ row_update_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 	
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -1795,20 +1833,19 @@ row_drop_table_for_mysql_in_background(
 
 	trx = trx_allocate_for_background();
 
+	/* If the original transaction was dropping a table referenced by
+	foreign keys, we must set the following to be able to drop the
+	table: */
+
+	trx->check_foreigns = FALSE;
+
 /*	fputs("InnoDB: Error: Dropping table ", stderr);
 	ut_print_name(stderr, name);
 	fputs(" in background drop list\n", stderr); */
 
-  	/* Drop the table in InnoDB */
+  	/* Try to drop the table in InnoDB */
 
   	error = row_drop_table_for_mysql(name, trx, FALSE);
-
-	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: Dropping table ", stderr);
-		ut_print_name(stderr, trx, name);
-		fputs(" in background drop list failed\n", stderr);
-	}
   	
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -1820,7 +1857,7 @@ row_drop_table_for_mysql_in_background(
 
   	trx_free_for_background(trx);
 
-	return(DB_SUCCESS);
+	return(error);
 }
 
 /*************************************************************************
@@ -1854,6 +1891,7 @@ loop:
 	mutex_exit(&kernel_mutex);
 
 	if (drop == NULL) {
+		/* All tables dropped */
 
 		return(n_tables + n_tables_dropped);
 	}
@@ -1868,16 +1906,16 @@ loop:
 
 	        goto already_dropped;
 	}
-
-	if (table->n_mysql_handles_opened > 0
-				|| table->n_foreign_key_checks_running > 0) {
+							
+	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
+							drop->table_name)) {
+		/* If the DROP fails for some table, we return, and let the
+		main thread retry later */
 
 		return(n_tables + n_tables_dropped);
 	}
 
 	n_tables_dropped++;
-							
-	row_drop_table_for_mysql_in_background(drop->table_name);
 
 already_dropped:
 	mutex_enter(&kernel_mutex);
@@ -1921,21 +1959,21 @@ row_get_background_drop_list_len_low(void)
 }
 
 /*************************************************************************
-Adds a table to the list of tables which the master thread drops in
-background. We need this on Unix because in ALTER TABLE MySQL may call
-drop table even if the table has running queries on it. */
+If a table is not yet in the drop list, adds the table to the list of tables
+which the master thread drops in background. We need this on Unix because in
+ALTER TABLE MySQL may call drop table even if the table has running queries on
+it. Also, if there are running foreign key checks on the table, we drop the
+table lazily. */
 static
-void
+ibool
 row_add_table_to_background_drop_list(
 /*==================================*/
+				/* out: TRUE if the table was not yet in the
+				drop list, and was added there */
 	dict_table_t*	table)	/* in: table */
 {
 	row_mysql_drop_t*	drop;
 	
-	drop = mem_alloc(sizeof(row_mysql_drop_t));
-
-	drop->table_name = mem_strdup(table->name);
-
 	mutex_enter(&kernel_mutex);
 
 	if (!row_mysql_drop_list_inited) {
@@ -1943,7 +1981,26 @@ row_add_table_to_background_drop_list(
 		UT_LIST_INIT(row_mysql_drop_list);
 		row_mysql_drop_list_inited = TRUE;
 	}
+	
+	/* Look if the table already is in the drop list */
+	drop = UT_LIST_GET_FIRST(row_mysql_drop_list);
 
+	while (drop != NULL) {
+		if (strcmp(drop->table_name, table->name) == 0) {
+			/* Already in the list */
+			
+			mutex_exit(&kernel_mutex);
+
+			return(FALSE);
+		}
+
+		drop = UT_LIST_GET_NEXT(row_mysql_drop_list, drop);
+	}
+
+	drop = mem_alloc(sizeof(row_mysql_drop_t));
+
+	drop->table_name = mem_strdup(table->name);
+ 
 	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
 	
 /*	fputs("InnoDB: Adding table ", stderr);
@@ -1951,14 +2008,32 @@ row_add_table_to_background_drop_list(
 	fputs(" to background drop list\n", stderr); */
 
 	mutex_exit(&kernel_mutex);
+
+	return(TRUE);
 }
 
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
-the table. Also the flag table->ibd_file_missing is set TRUE.
+the table. Also the flag table->ibd_file_missing is set TRUE. */
 
-How do we prevent crashes caused by ongoing operations on the table? Old
+int
+row_discard_tablespace_for_mysql(
+/*=============================*/
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx)	/* in: transaction handle */
+{
+	dict_foreign_t*	foreign;
+	dulint		new_id;
+	dict_table_t*	table;
+	que_thr_t*	thr;
+	que_t*		graph			= NULL;
+	ibool		success;
+	ulint		err;
+	char*		buf;
+
+/* How do we prevent crashes caused by ongoing operations on the table? Old
 operations could try to access non-existent pages.
 
 1) SQL queries, INSERT, SELECT, ...: we must get an exclusive MySQL table lock
@@ -1974,22 +2049,9 @@ tablespace mem object with IMPORT TABLESPACE later, then the tablespace will
 have the same id, but the tablespace_version field in the mem object is
 different, and ongoing old insert buffer page merges get discarded.
 4) Linear readahead and random readahead: we use the same method as in 3) to
-discard ongoing operations. */
-
-int
-row_discard_tablespace_for_mysql(
-/*=============================*/
-				/* out: error code or DB_SUCCESS */
-	const char*	name,	/* in: table name */
-	trx_t*		trx)	/* in: transaction handle */
-{
-	dulint		new_id;
-	dict_table_t*	table;
-	que_thr_t*	thr;
-	que_t*		graph			= NULL;
-	ibool		success;
-	ulint		err;
-	char*		buf;
+discard ongoing operations.
+5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
+do not allow the discard. We also reserve the data dictionary latch. */
 
 	static const char discard_tablespace_proc1[] =
 	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
@@ -2050,6 +2112,54 @@ row_discard_tablespace_for_mysql(
 		goto funct_exit;
 	}
 
+	if (table->n_foreign_key_checks_running > 0) {
+
+	        ut_print_timestamp(stderr);
+		fputs("	 InnoDB: You are trying to DISCARD table ", stderr);
+		ut_print_name(stderr, trx, table->name);
+		fputs("\n"
+		 "InnoDB: though there is a foreign key check running on it.\n"
+		 "InnoDB: Cannot discard the table.\n",
+			stderr);
+
+		err = DB_ERROR;
+
+		goto funct_exit;
+	}
+
+	/* Check if the table is referenced by foreign key constraints from
+	some other table (not the table itself) */
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	
+	while (foreign && foreign->foreign_table == table) {
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	if (foreign && trx->check_foreigns) {
+
+		FILE*	ef	= dict_foreign_err_file;
+
+		/* We only allow discarding a referenced table if
+		FOREIGN_KEY_CHECKS is set to 0 */
+
+		err = DB_CANNOT_DROP_CONSTRAINT;
+
+		mutex_enter(&dict_foreign_err_mutex);
+		rewind(ef);
+		ut_print_timestamp(ef);
+
+		fputs("  Cannot DISCARD table ", ef);
+		ut_print_name(ef, trx, name);
+		fputs("\n"
+			"because it is referenced by ", ef);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
+		putc('\n', ef);
+		mutex_exit(&dict_foreign_err_mutex);
+
+		goto funct_exit;
+	}
+
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
 	buf = mem_alloc((sizeof discard_tablespace_proc1) +
@@ -2066,6 +2176,10 @@ row_discard_tablespace_for_mysql(
 	graph = pars_sql(buf);
 
 	ut_a(graph);
+
+	/* Remove any locks there are on the table or its records */
+	
+	lock_reset_all_on_table(table);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -2217,8 +2331,8 @@ row_import_tablespace_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
-	success = fil_open_single_table_tablespace(table->space, table->name);
-
+	success = fil_open_single_table_tablespace(TRUE, table->space,
+								table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
@@ -2226,7 +2340,7 @@ row_import_tablespace_for_mysql(
 		if (table->ibd_file_missing) {
 			ut_print_timestamp(stderr);
 			fputs(
-"  InnoDB: cannot find of open in the database directory the .ibd file of\n"
+"  InnoDB: cannot find or open in the database directory the .ibd file of\n"
 "InnoDB: table ", stderr);
 			ut_print_name(stderr, trx, name);
 			fputs("\n"
@@ -2248,7 +2362,7 @@ funct_exit:
 }
 
 /*************************************************************************
-Drops a table for MySQL.  If the name of the table to be dropped is equal
+Drops a table for MySQL. If the name of the table to be dropped is equal
 with one of the predefined magic table names, then this also stops printing
 the corresponding monitor output by the master thread. */
 
@@ -2314,7 +2428,8 @@ row_drop_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = table_name;\n"	
+	"	WHERE FOR_NAME = table_name\n"
+        "             AND TO_BINARY(FOR_NAME) = TO_BINARY(table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"		found := 0;\n"
 	"	ELSE"
@@ -2481,36 +2596,60 @@ row_drop_table_for_mysql(
 	}
 
 	if (table->n_mysql_handles_opened > 0) {
+		ibool	added;
 
-	        ut_print_timestamp(stderr);
-		fputs("	 InnoDB: Warning: MySQL is trying to drop table ",
+		added = row_add_table_to_background_drop_list(table);
+
+	        if (added) {
+			ut_print_timestamp(stderr);
+fputs("	 InnoDB: Warning: MySQL is trying to drop table ", stderr);
+			ut_print_name(stderr, trx, table->name);
+			fputs("\n"
+"InnoDB: though there are still open handles to it.\n"
+"InnoDB: Adding the table to the background drop queue.\n",
 			stderr);
-		ut_print_name(stderr, trx, table->name);
-		fputs("\n"
-		  "InnoDB: though there are still open handles to it.\n"
-		  "InnoDB: Adding the table to the background drop queue.\n",
-			stderr);
+			
+			/* We return DB_SUCCESS to MySQL though the drop will
+			happen lazily later */
 
-		row_add_table_to_background_drop_list(table);
-
-		err = DB_SUCCESS;
+			err = DB_SUCCESS;
+		} else {
+			/* The table is already in the background drop list */
+			err = DB_ERROR;
+		}
 
 		goto funct_exit;
 	}
 
+	/* TODO: could we replace the counter n_foreign_key_checks_running
+	with lock checks on the table? Acquire here an exclusive lock on the
+	table, and rewrite lock0lock.c and the lock wait in srv0srv.c so that
+	they can cope with the table having been dropped here? Foreign key
+	checks take an IS or IX lock on the table. */
+
 	if (table->n_foreign_key_checks_running > 0) {
 
-	        ut_print_timestamp(stderr);
-		fputs("	 InnoDB: You are trying to drop table ", stderr);
-		ut_print_name(stderr, trx, table->name);
-		fputs("\n"
-		 "InnoDB: though there is a foreign key check running on it.\n"
-		 "InnoDB: Adding the table to the background drop queue.\n",
+		ibool	added;
+
+		added = row_add_table_to_background_drop_list(table);
+
+		if (added) {
+	        	ut_print_timestamp(stderr);
+fputs("	 InnoDB: You are trying to drop table ", stderr);
+			ut_print_name(stderr, trx, table->name);
+			fputs("\n"
+"InnoDB: though there is a foreign key check running on it.\n"
+"InnoDB: Adding the table to the background drop queue.\n",
 			stderr);
 
-		row_add_table_to_background_drop_list(table);
+			/* We return DB_SUCCESS to MySQL though the drop will
+			happen lazily later */
 
-		err = DB_SUCCESS;
+			err = DB_SUCCESS;
+		} else {
+			/* The table is already in the background drop list */
+			err = DB_ERROR;
+		}
 
 		goto funct_exit;
 	}
@@ -2769,7 +2908,8 @@ row_rename_table_for_mysql(
 	"WHILE found = 1 LOOP\n"
 	"	SELECT ID INTO foreign_id\n"
 	"	FROM SYS_FOREIGN\n"
-	"	WHERE FOR_NAME = old_table_name;\n"	
+	"	WHERE FOR_NAME = old_table_name\n"
+	"	      AND TO_BINARY(FOR_NAME) = TO_BINARY(old_table_name);\n"
 	"	IF (SQL % NOTFOUND) THEN\n"
 	"	 found := 0;\n"
 	"	ELSE\n"
@@ -2802,7 +2942,8 @@ row_rename_table_for_mysql(
 	"	END IF;\n"
 	"END LOOP;\n"
 	"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
-	"WHERE REF_NAME = old_table_name;\n";
+	"WHERE REF_NAME = old_table_name\n"
+	"      AND TO_BINARY(REF_NAME) = TO_BINARY(old_table_name);\n";
 	static const char str5[] =
 	"END;\n";
 
@@ -3012,7 +3153,11 @@ row_rename_table_for_mysql(
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
 	    		ut_print_timestamp(stderr);
-                fputs("  InnoDB: Error: table ", stderr);
+			fputs(
+     "  InnoDB: Error; possible reasons:\n"
+     "InnoDB: 1) Table rename would cause two FOREIGN KEY constraints\n"
+     "InnoDB: to have the same internal name in case-insensitive comparison.\n"
+     "InnoDB: 2) table ", stderr);
                 ut_print_name(stderr, trx, new_name);
                 fputs(" exists in the InnoDB internal data\n"
      "InnoDB: dictionary though MySQL is trying rename table ", stderr);
@@ -3266,6 +3411,20 @@ row_check_table_for_mysql(
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
 	ulint		ret 		= DB_SUCCESS;
 	ulint		old_isolation_level;
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
 
 	prebuilt->trx->op_info = "checking table";
 

@@ -2,6 +2,8 @@
 --disable_warnings
 drop table if exists t1;
 drop database if exists mysqltest;
+# If earlier test failed
+drop database if exists client_test_db;
 --enable_warnings
 
 --error 1051;

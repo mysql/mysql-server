@@ -41,4 +41,4 @@ printNF_COMPLETE_REP(FILE * output,
 	  sig->from);
   
   return true;
-};
+}

@@ -1,0 +1,17 @@
+help
+all status
+1 status
+2 status
+all clusterlog connection=8
+all clusterlog startup=7
+all clusterlog checkpoint=7
+all clusterlog noderestart=15
+all clusterlog statistics=7
+all clusterlog error=7
+all clusterlog info=7
+all clusterlog backup=15
+clusterlog off
+clusterlog toggle
+clusterlog off
+clusterlog off all
+clusterlog on all

@@ -156,7 +156,7 @@ dict_index_build_internal_non_clust(
 	dict_index_t*	index);	/* in: user representation of a non-clustered
 				index */	
 /**************************************************************************
-Removes a foreign constraint struct from the dictionet cache. */
+Removes a foreign constraint struct from the dictionary cache. */
 static
 void
 dict_foreign_remove_from_cache(
@@ -606,7 +606,7 @@ dict_table_get_on_id(
 	dict_table_t*	table;
 	
 	if (ut_dulint_cmp(table_id, DICT_FIELDS_ID) <= 0
-	   || trx->dict_operation) {
+	   || trx->dict_operation_lock_mode == RW_X_LATCH) {
 		/* It is a system table which will always exist in the table
 		cache: we avoid acquiring the dictionary mutex, because
 		if we are doing a rollback to handle an error in TABLE
@@ -2266,8 +2266,8 @@ dict_foreign_add_to_cache(
 
 /*************************************************************************
 Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
+'string' where characters are compared without case sensitivity, and
+only outside `` or "" quotes. Stops also at '\0'. */
 
 const char*
 dict_scan_to(
@@ -2276,31 +2276,34 @@ dict_scan_to(
 	const char*	ptr,	/* in: scan from */
 	const char*	string)	/* in: look for this */
 {
-	ibool	success;
-	ulint	i;
-loop:
-	if (*ptr == '\0') {
-		return(ptr);
-	}
+	char	quote	= '\0';
 
-	success = TRUE;
-	
-	for (i = 0; i < ut_strlen(string); i++) {
-		if (toupper((ulint)(ptr[i])) != toupper((ulint)(string[i]))) {
-			success = FALSE;
-
+	for (; *ptr; ptr++) {
+		if (*ptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or the keyword. */
+			quote = '\0';
+		} else if (quote) {
+			/* Within quotes: do nothing. */
+		} else if (*ptr == '`' || *ptr == '"') {
+			/* Starting quote: remember the quote character. */
+			quote = *ptr;
+		} else {
+			/* Outside quotes: look for the keyword. */
+			ulint	i;
+			for (i = 0; string[i]; i++) {
+				if (toupper((ulint)(ptr[i]))
+					!= toupper((ulint)(string[i]))) {
+					goto nomatch;
+				}
+			}
 			break;
+		nomatch:
+			;
 		}
 	}
 
-	if (success) {
-
-		return(ptr);
-	}
-
-	ptr++;
-
-	goto loop;
+	return(ptr);
 }
 
 /*************************************************************************
@@ -2361,6 +2364,8 @@ dict_scan_id(
 	ulint		len	= 0;
 	const char*	s;
 	char*		d;
+	ulint		id_len;
+	byte*		b;
 
 	*id = NULL;
 
@@ -2422,6 +2427,28 @@ dict_scan_id(
 		*id = s;
 	}
 
+	if (heap && !quote) {
+		/* EMS MySQL Manager sometimes adds characters 0xA0 (in
+		latin1, a 'non-breakable space') to the end of a table name.
+		But isspace(0xA0) is not true, which confuses our foreign key
+		parser. After the UTF-8 conversion in ha_innodb.cc, bytes 0xC2
+		and 0xA0 are at the end of the string.
+
+		TODO: we should lex the string using thd->charset_info, and
+		my_isspace(). Only after that, convert id names to UTF-8. */
+
+		b = (byte*)(*id);
+		id_len = strlen(b);
+		
+		if (id_len >= 3 && b[id_len - 1] == 0xA0
+			       && b[id_len - 2] == 0xC2) {
+
+			/* Strip the 2 last bytes */
+
+			b[id_len - 2] = '\0';
+		}
+	}
+
 	return(ptr);
 }
 
@@ -2476,7 +2503,7 @@ dict_scan_col(
 }
 
 /*************************************************************************
-Scans the referenced table name from an SQL string. */
+Scans a table name from an SQL string. */
 static
 const char*
 dict_scan_table_name(
@@ -2487,7 +2514,7 @@ dict_scan_table_name(
 	const char*	name,	/* in: foreign key table name */
 	ibool*		success,/* out: TRUE if ok name found */
 	mem_heap_t*	heap,	/* in: heap where to allocate the id */
-	const char**	ref_name)/* out,own: the referenced table name;
+	const char**	ref_name)/* out,own: the table name;
 				NULL if no name was scannable */
 {
 	const char*	database_name	= NULL;
@@ -2644,7 +2671,8 @@ scan_more:
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'
-		    || (0 == memcmp("-- ", sptr, 3))) {
+                           || (sptr[0] == '-' && sptr[1] == '-' &&
+                               sptr[2] == ' ')) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
@@ -2868,22 +2896,22 @@ loop:
 	constraint_name = NULL;
 
 	if (ptr1 < ptr2) {
-		/* The user has specified a constraint name. Pick it so
+		/* The user may have specified a constraint name. Pick it so
 		that we can store 'databasename/constraintname' as the id of
-		the id of the constraint to system tables. */
+		of the constraint to system tables. */
 		ptr = ptr1;
 
 		ptr = dict_accept(ptr, "CONSTRAINT", &success);
 
 		ut_a(success);
 
-		if (!isspace(*ptr)) {
+		if (!isspace(*ptr) && *ptr != '"' && *ptr != '`') {
 	        	goto loop;
 		}
 
-		do {
+		while (isspace(*ptr)) {
 			ptr++;
-		} while (isspace(*ptr));
+		}
 
 		/* read constraint name unless got "CONSTRAINT FOREIGN" */
 		if (ptr != ptr2) {
@@ -2907,6 +2935,10 @@ loop:
 
 	ptr = dict_accept(ptr, "FOREIGN", &success);		
 	
+	if (!success) {
+		goto loop;
+	}
+
 	if (!isspace(*ptr)) {
 	        goto loop;
 	}

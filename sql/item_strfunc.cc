@@ -25,7 +25,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include <m_ctype.h>
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
@@ -64,10 +63,11 @@ double Item_str_func::val()
   DBUG_ASSERT(fixed == 1);
   int err;
   char buff[64];
+  char *end_not_used;
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
   res= val_str(&tmp);
   return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			  NULL, &err) : 0.0;
+			  &end_not_used, &err) : 0.0;
 }
 
 longlong Item_str_func::val_int()
@@ -276,7 +276,8 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (res->alloced_length() >= res->length()+res2->length())
+      if (!args[0]->const_item() && 
+          res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -346,7 +347,7 @@ void Item_func_concat::fix_length_and_dec()
 {
   max_length=0;
 
-  if (agg_arg_collations(collation, args, arg_count))
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -532,7 +533,7 @@ String *Item_func_concat_ws::val_str(String *str)
   uint i;
 
   null_value=0;
-  if (!(sep_str= separator->val_str(&tmp_sep_str)))
+  if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
     goto null;
 
   use_as_buff= &tmp_value;
@@ -541,7 +542,7 @@ String *Item_func_concat_ws::val_str(String *str)
 
   // Skip until non-null argument is found.
   // If not, return the empty string
-  for (i=0; i < arg_count; i++)
+  for (i=1; i < arg_count; i++)
     if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
@@ -635,67 +636,30 @@ null:
   return 0;
 }
 
-void Item_func_concat_ws::split_sum_func(THD *thd, Item **ref_pointer_array,
-					 List<Item> &fields)
-{
-  if (separator->with_sum_func && separator->type() != SUM_FUNC_ITEM)
-    separator->split_sum_func(thd, ref_pointer_array, fields);
-  else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    Item *new_item= new Item_ref(ref_pointer_array + el, 0, separator->name);
-    fields.push_front(separator);
-    ref_pointer_array[el]= separator;
-    thd->change_item_tree(&separator, new_item);
-  }
-  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
-}
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  collation.set(separator->collation);
-  max_length=separator->max_length*(arg_count-1);
-  for (uint i=0 ; i < arg_count ; i++)
-  {
-    DTCollation tmp(collation.collation, collation.derivation);
+  max_length=0;
+
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
+    return;
+
+  /*
+     arg_count cannot be less than 2,
+     it is done on parser level in sql_yacc.yy
+     so, (arg_count - 2) is safe here.
+  */
+  max_length= args[0]->max_length * (arg_count - 2);
+  for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      collation.set(tmp); // Restore the previous value
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  used_tables_cache|=     separator->used_tables();
-  not_null_tables_cache&= separator->not_null_tables();
-  const_item_cache&=	  separator->const_item();
-  with_sum_func=	  with_sum_func || separator->with_sum_func;
 }
 
-void Item_func_concat_ws::update_used_tables()
-{
-  Item_func::update_used_tables();
-  separator->update_used_tables();
-  used_tables_cache|=separator->used_tables();
-  const_item_cache&=separator->const_item();
-}
-
-void Item_func_concat_ws::print(String *str)
-{
-  str->append("concat_ws(", 10);
-  separator->print(str);
-  if (arg_count)
-  {
-    str->append(',');
-    print_args(str, 0);
-  }
-  str->append(')');
-}
 
 String *Item_func_reverse::val_str(String *str)
 {
@@ -885,7 +849,7 @@ void Item_func_replace::fix_length_and_dec()
     maybe_null=1;
   }
   
-  if (agg_arg_collations_for_comparison(collation, args, 3))
+  if (agg_arg_charsets(collation, args, 3, MY_COLL_CMP_CONV))
     return;
 }
 
@@ -930,11 +894,13 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
-  if (collation.set(args[0]->collation, args[3]->collation))
-  {
-      my_coll_agg_error(args[0]->collation, args[3]->collation, func_name());
-      return;
-  }
+  Item *cargs[2];
+  cargs[0]= args[0];
+  cargs[1]= args[3];
+  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
+    return;
+  args[0]= cargs[0];
+  args[3]= cargs[1];
   max_length=args[0]->max_length+args[3]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
   {
@@ -990,8 +956,9 @@ String *Item_func_left::val_str(String *str)
   if (res->length() <= (uint) length ||
       res->length() <= (char_pos= res->charpos(length)))
     return res;
-  str_value.set(*res, 0, char_pos);
-  return &str_value;
+
+  tmp_value.set(*res, 0, char_pos);
+  return &tmp_value;
 }
 
 
@@ -1100,7 +1067,7 @@ void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
 
-  if (agg_arg_collations_for_comparison(collation, args, 2))
+  if (agg_arg_charsets(collation, args, 2, MY_COLL_CMP_CONV))
     return;
 }
 
@@ -1337,9 +1304,18 @@ String *Item_func_trim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
+  String *remove_str; /* The string to remove from res. */
+
+  if (arg_count == 2)
+  {
+    remove_str= args[1]->val_str(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+  }
+  else
+    remove_str= &remove; /* Default value. */
 
   if (!remove_str || (remove_length=remove_str->length()) == 0 ||
       remove_length > res->length())
@@ -1392,10 +1368,14 @@ void Item_func_trim::fix_length_and_dec()
     remove.set_ascii(" ",1);
   }
   else
-  if (collation.set(args[1]->collation, args[0]->collation) ||
-      collation.derivation == DERIVATION_NONE)
   {
-    my_coll_agg_error(args[1]->collation, args[0]->collation, func_name());
+    Item *cargs[2];
+    cargs[0]= args[1];
+    cargs[1]= args[0];
+    if (agg_arg_charsets(collation, cargs, 2, MY_COLL_CMP_CONV))
+      return;
+    args[0]= cargs[1];
+    args[1]= cargs[0];
   }
 }
 
@@ -1584,9 +1564,14 @@ void Item_func_soundex::fix_length_and_dec()
   else return 0
 */
 
-static char get_scode(CHARSET_INFO *cs,char *ptr)
+static char soundex_toupper(char ch)
 {
-  uchar ch=my_toupper(cs,*ptr);
+  return (ch >= 'a' && ch <= 'z') ? ch - 'a' + 'A' : ch;
+}
+
+static char get_scode(char *ptr)
+{
+  uchar ch= soundex_toupper(*ptr);
   if (ch < 'A' || ch > 'Z')
   {
 					// Thread extended alfa (country spec)
@@ -1616,8 +1601,8 @@ String *Item_func_soundex::val_str(String *str)
     from++; /* purecov: inspected */
   if (from == end)
     return &my_empty_string;		// No alpha characters.
-  *to++ = my_toupper(cs,*from);		// Copy first letter
-  last_ch = get_scode(cs,from);		// code of the first letter
+  *to++ = soundex_toupper(*from);	// Copy first letter
+  last_ch = get_scode(from);		// code of the first letter
 					// for the first 'double-letter check.
 					// Loop on input letters until
 					// end of input (null) or output
@@ -1626,7 +1611,7 @@ String *Item_func_soundex::val_str(String *str)
   {
     if (!my_isalpha(cs,*from))
       continue;
-    ch=get_scode(cs,from);
+    ch=get_scode(from);
     if ((ch != '0') && (ch != last_ch)) // if not skipped or double
     {
        *to++ = ch;			// letter, copy to output
@@ -1661,7 +1646,8 @@ String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   double nr	=args[0]->val();
-  uint32 diff,length,str_length;
+  int diff;
+  uint32 length, str_length;
   uint dec;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1686,9 +1672,12 @@ String *Item_func_format::val_str(String *str)
       pos[0]= pos[-(int) diff];
     while (diff)
     {
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
       pos[0]=',';
       pos--;
       diff--;
@@ -1716,7 +1705,7 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
 
-  if (agg_arg_collations(collation, args+1, arg_count-1))
+  if (agg_arg_charsets(collation, args+1, arg_count-1, MY_COLL_ALLOW_CONV))
     return;
 
   for (uint i= 1 ; i < arg_count ; i++)
@@ -1774,16 +1763,7 @@ String *Item_func_elt::val_str(String *str)
 void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(thd, ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    thd->change_item_tree(&item, new_item);
-  }
+  item->split_sum_func2(thd, ref_pointer_array, fields, &item);
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
@@ -1792,7 +1772,7 @@ void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
 
-  if (agg_arg_collations(collation, args, arg_count))
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
     return;
   
   for (uint i=0 ; i < arg_count ; i++)
@@ -1888,6 +1868,7 @@ String *Item_func_char::val_str(String *str)
   {
     int32 num=(int32) args[i]->val_int();
     if (!args[i]->null_value)
+    {
 #ifdef USE_MB
       if (use_mb(collation.collation))
       {
@@ -1903,7 +1884,9 @@ b1:        str->append((char)(num>>8));
       }
 #endif
       str->append((char)num);
+    }
   }
+  str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
   return str;
 }
@@ -2000,12 +1983,13 @@ err:
 
 void Item_func_rpad::fix_length_and_dec()
 {
-  if (collation.set(args[0]->collation, args[2]->collation))
-  {
-    my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
+  Item *cargs[2];
+  cargs[0]= args[0];
+  cargs[1]= args[2];
+  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
     return;
-  }
-  
+  args[0]= cargs[0];
+  args[2]= cargs[1];
   if (args[1]->const_item())
   {
     uint32 length= (uint32) args[1]->val_int() * collation.collation->mbmaxlen;
@@ -2084,11 +2068,13 @@ String *Item_func_rpad::val_str(String *str)
 
 void Item_func_lpad::fix_length_and_dec()
 {
-  if (collation.set(args[0]->collation, args[2]->collation))
-  {
-    my_coll_agg_error(args[0]->collation, args[2]->collation, func_name());
+  Item *cargs[2];
+  cargs[0]= args[0];
+  cargs[1]= args[2];
+  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
     return;
-  }
+  args[0]= cargs[0];
+  args[2]= cargs[1];
   
   if (args[1]->const_item())
   {
@@ -2182,6 +2168,7 @@ String *Item_func_conv::val_str(String *str)
     return 0;
   }
   null_value=0;
+  unsigned_flag= !(from_base < 0);
   if (from_base < 0)
     dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
   else
@@ -2197,13 +2184,14 @@ String *Item_func_conv_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *arg= args[0]->val_str(str);
+  uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
   null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
-                             conv_charset);
+                             conv_charset, &dummy_errors);
   return null_value ? 0 : &str_value;
 }
 
@@ -2286,11 +2274,12 @@ String *Item_func_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->csname,strlen(res->charset()->csname),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 
@@ -2298,11 +2287,12 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
+  uint dummy_errors;
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    &my_charset_latin1, collation.collation);
+	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
 }
 
@@ -2344,17 +2334,6 @@ String *Item_func_hex::val_str(String *str)
   }
   return &tmp_value;
 }
-
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
 
   /* Convert given hex string to a binary string */
 
@@ -2508,6 +2487,9 @@ String* Item_func_export_set::val_str(String* str)
   case 3:
     sep_buf.set(",", 1, default_charset());
     sep = &sep_buf;
+    break;
+  default:
+    DBUG_ASSERT(0); // cannot happen
   }
   null_value=0;
 
@@ -2529,7 +2511,8 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  if (agg_arg_collations(collation, args+1, min(4,arg_count)-1))
+  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1),
+                       MY_COLL_ALLOW_CONV)
     return;
 }
 
@@ -2586,9 +2569,12 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     This function is very useful when you want to generate SQL statements
 
-    RETURN VALUES
+  NOTE
+    QUOTE(NULL) returns the string 'NULL' (4 letters, without quotes).
+
+  RETURN VALUES
     str		Quoted string
-    NULL	Argument to QUOTE() was NULL or out of memory.
+    NULL	Out of memory.
 */
 
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
@@ -2613,25 +2599,25 @@ String *Item_func_quote::val_str(String *str)
   String *arg= args[0]->val_str(str);
   uint arg_length, new_length;
   if (!arg)					// Null argument
-    goto null;
+  {
+    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
+    null_value= 0;
+    return str;
+  }
+
   arg_length= arg->length();
   new_length= arg_length+2; /* for beginning and ending ' signs */
 
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
     new_length+= get_esc_bit(escmask, (uchar) *from);
 
-  /*
-    We have to use realloc() instead of alloc() as we want to keep the
-    old result in str
-  */
-  if (str->realloc(new_length))
+  if (tmp_value.alloc(new_length))
     goto null;
 
   /*
-    As 'arg' and 'str' may be the same string, we must replace characters
-    from the end to the beginning
+    We replace characters from the end to the beginning
   */
-  to= (char*) str->ptr() + new_length - 1;
+  to= (char*) tmp_value.ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2659,10 +2645,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  str->length(new_length);
-  str->set_charset(collation.collation);
+  tmp_value.length(new_length);
+  tmp_value.set_charset(collation.collation);
   null_value= 0;
-  return str;
+  return &tmp_value;
 
 null:
   null_value= 1;

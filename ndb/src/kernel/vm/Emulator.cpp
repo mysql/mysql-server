@@ -33,7 +33,6 @@
 #include <NdbOut.hpp>
 #include <NdbMutex.h>
 #include <NdbSleep.h>
-#include <new>
 
 extern "C" {
   extern void (* ndb_new_handler)();
@@ -69,6 +68,7 @@ EmulatorData::EmulatorData(){
   theThreadConfig  = 0;
   theSimBlockList  = 0;
   theShutdownMutex = 0;
+  m_socket_server = 0;
 }
 
 void
@@ -84,6 +84,7 @@ EmulatorData::create(){
   theWatchDog      = new WatchDog();
   theThreadConfig  = new ThreadConfig();
   theSimBlockList  = new SimBlockList();
+  m_socket_server  = new SocketServer();
 
   theShutdownMutex = NdbMutex_Create();
 
@@ -100,7 +101,8 @@ EmulatorData::destroy(){
     delete theThreadConfig; theThreadConfig = 0;
   if(theSimBlockList)
     delete theSimBlockList; theSimBlockList = 0;
-  
+  if(m_socket_server)
+    delete m_socket_server; m_socket_server = 0;
   NdbMem_Destroy();
 }
 
@@ -179,12 +181,14 @@ NdbShutdown(NdbShutdownType type,
       exit(-1);
 #endif
     }
-    
+
+#ifndef NDB_WIN32
     if (simulate_error_during_shutdown) {
       kill(getpid(), simulate_error_during_shutdown);
       while(true)
 	NdbSleep_MilliSleep(10);
     }
+#endif
 
     globalEmulatorData.theWatchDog->doStop();
     
@@ -194,9 +198,22 @@ NdbShutdown(NdbShutdownType type,
       fclose(outputStream);
 #endif
     
+    /**
+     * Stop all transporter connection attempts and accepts
+     */
+    globalEmulatorData.m_socket_server->stopServer();
+    globalEmulatorData.m_socket_server->stopSessions();
+    globalTransporterRegistry.stop_clients();
+
+    /**
+     * Stop transporter communication with other nodes
+     */
     globalTransporterRegistry.stopSending();
     globalTransporterRegistry.stopReceiving();
     
+    /**
+     * Remove all transporters
+     */
     globalTransporterRegistry.removeAll();
     
 #ifdef VM_TRACE

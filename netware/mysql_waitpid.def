@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
 #SCREENNAME "MySQL Tool - Wait for a Program to Terminate"
-COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
+COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Tool - Wait for a Program to Terminate"
 VERSION 4, 0
 STACKSIZE 65536

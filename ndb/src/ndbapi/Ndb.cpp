@@ -22,7 +22,7 @@ Name:          Ndb.cpp
 ******************************************************************************/
 
 #include <ndb_global.h>
-#include <pthread.h>
+
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
@@ -46,7 +46,6 @@ Connect to any node which has no connection at the moment.
 NdbConnection* Ndb::doConnect(Uint32 tConNode) 
 {
   Uint32        tNode;
-  Uint32        i = 0;;
   Uint32        tAnyAlive = 0;
   int TretCode;
 
@@ -65,38 +64,51 @@ NdbConnection* Ndb::doConnect(Uint32 tConNode)
 // We will connect to any node. Make sure that we have connections to all
 // nodes.
 //****************************************************************************
-  Uint32 tNoOfDbNodes = theNoOfDBnodes;
-  i = theCurrentConnectIndex;
-  UintR Tcount = 0;
-  do {
-    if (i >= tNoOfDbNodes) {
-      i = 0;
-    }//if
-    Tcount++;
-    tNode = theDBnodes[i];
-    TretCode = NDB_connect(tNode);
-    if ((TretCode == 1) || (TretCode == 2)) {
+  if (theImpl->m_optimized_node_selection)
+  {
+    Ndb_cluster_connection_node_iter &node_iter= 
+      theImpl->m_node_iter;
+    theImpl->m_ndb_cluster_connection.init_get_next_node(node_iter);
+    while ((tNode= theImpl->m_ndb_cluster_connection.get_next_node(node_iter)))
+    {
+      TretCode= NDB_connect(tNode);
+      if ((TretCode == 1) ||
+	  (TretCode == 2))
+      {
 //****************************************************************************
 // We have connections now to the desired node. Return
 //****************************************************************************
-      if (theCurrentConnectIndex == i) {
-        theCurrentConnectCounter++;
-        if (theCurrentConnectCounter == 8) {
-	  theCurrentConnectCounter = 1;
-	  theCurrentConnectIndex++;
-	}//if
-      } else {
-	// Set to 2 because we have already connected to a node 
-	// when we get here.
-        theCurrentConnectCounter = 2;
-        theCurrentConnectIndex = i;
+	return getConnectedNdbConnection(tNode);
+      } else if (TretCode != 0) {
+	tAnyAlive= 1;
       }//if
-      return getConnectedNdbConnection(tNode);
-    } else if (TretCode != 0) {
-      tAnyAlive = 1;
-    }//if
-    i++;
-  } while (Tcount < tNoOfDbNodes);
+    }
+  }
+  else // just do a regular round robin
+  {
+    Uint32 tNoOfDbNodes= theImpl->theNoOfDBnodes;
+    Uint32 &theCurrentConnectIndex= theImpl->theCurrentConnectIndex;
+    UintR Tcount = 0;
+    do {
+      theCurrentConnectIndex++;
+      if (theCurrentConnectIndex >= tNoOfDbNodes)
+	theCurrentConnectIndex = 0;
+
+      Tcount++;
+      tNode= theImpl->theDBnodes[theCurrentConnectIndex];
+      TretCode= NDB_connect(tNode);
+      if ((TretCode == 1) ||
+	  (TretCode == 2))
+      {
+//****************************************************************************
+// We have connections now to the desired node. Return
+//****************************************************************************
+	return getConnectedNdbConnection(tNode);
+      } else if (TretCode != 0) {
+	tAnyAlive= 1;
+      }//if
+    } while (Tcount < tNoOfDbNodes);
+  }
 //****************************************************************************
 // We were unable to find a free connection. If no node alive we will report
 // error code for cluster failure otherwise connection failure.
@@ -161,8 +173,8 @@ Ndb::NDB_connect(Uint32 tNode)
       tReturnCode = tp->sendSignal(tSignal, tNode);  
       releaseSignal(tSignal); 
       if (tReturnCode != -1) {
-        theWaiter.m_node = tNode;  
-        theWaiter.m_state = WAIT_TC_SEIZE;  
+        theImpl->theWaiter.m_node = tNode;  
+        theImpl->theWaiter.m_state = WAIT_TC_SEIZE;  
         tReturnCode = receiveResponse(); 
       }//if
     } else {
@@ -211,8 +223,9 @@ Ndb::doDisconnect()
   NdbConnection* tNdbCon;
   CHECK_STATUS_MACRO_VOID;
 
-  DBUG_PRINT("info", ("theNoOfDBnodes=%d", theNoOfDBnodes));
-  Uint32 tNoOfDbNodes = theNoOfDBnodes;
+  Uint32 tNoOfDbNodes = theImpl->theNoOfDBnodes;
+  Uint8 *theDBnodes= theImpl->theDBnodes;
+  DBUG_PRINT("info", ("theNoOfDBnodes=%d", tNoOfDbNodes));
   UintR i;
   for (i = 0; i < tNoOfDbNodes; i++) {
     Uint32 tNode = theDBnodes[i];
@@ -254,50 +267,28 @@ Ndb::waitUntilReady(int timeout)
     DBUG_RETURN(-1);
   }
 
-  do {
-    if ((id = theNode) != 0) {
-      unsigned int foundAliveNode = 0;
-      TransporterFacade *tp = TransporterFacade::instance();
-      tp->lock_mutex();
-      for (unsigned int i = 0; i < theNoOfDBnodes; i++) {
-	const NodeId nodeId = theDBnodes[i];
-	//************************************************
-	// If any node is answering, ndb is answering
-	//************************************************
-	if (tp->get_node_alive(nodeId) != 0) {
-	  foundAliveNode++;
-	}//if
-      }//for
-      
-      tp->unlock_mutex();
-      if (foundAliveNode == theNoOfDBnodes) {
-	DBUG_RETURN(0);
-      }//if
-      if (foundAliveNode > 0) {
-	noChecksSinceFirstAliveFound++;
-      }//if
-      if (noChecksSinceFirstAliveFound > 30) {
-	DBUG_RETURN(0);
-      }//if
-    }//if theNode != 0
+  while (theNode == 0) {
     if (secondsCounter >= timeout)
-      break;
+    {
+      theError.code = 4269;
+      DBUG_RETURN(-1);
+    }
     NdbSleep_MilliSleep(100);
     milliCounter += 100;
     if (milliCounter >= 1000) {
       secondsCounter++;
       milliCounter = 0;
     }//if
-  } while (1);
-  if (id == 0) {
-    theError.code = 4269;
+  }
+
+  if (theImpl->m_ndb_cluster_connection.wait_until_ready
+      (timeout-secondsCounter,30) < 0)
+  {
+    theError.code = 4009;
     DBUG_RETURN(-1);
   }
-  if (noChecksSinceFirstAliveFound > 0) {
-    DBUG_RETURN(0);
-  }//if
-  theError.code = 4009;
-  DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************************
@@ -322,8 +313,8 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
    */
     Uint32 nodeId;
     if(keyData != 0) {
-      Uint32 fragmentId = computeFragmentId(keyData, keyLen);
-      nodeId     = guessPrimaryNode(fragmentId);
+      nodeId = 0; // guess not supported
+      // nodeId = m_ndb_cluster_connection->guess_primary_node(keyData, keyLen);
     } else {
       nodeId = 0;
     }//if
@@ -384,44 +375,6 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
   }//if
 }//Ndb::hupp()
 
-NdbConnection* 
-Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
-{
-
-  char DGroup[4];
-  if ((keyData == NULL) ||
-      (type > 1)) {
-    theError.code = 4118;
-    return NULL;
-  }//if
-  if (theInitState == Initialised) {
-    theError.code = 0;
-    checkFailedNode();
-  /**
-   * If the user supplied key data
-   * We will make a qualified quess to which node is the primary for the
-   * the fragment and contact that node
-   */
-    Uint32 fragmentId;
-    if (type == 0) {
-      DGroup[0] = keyData[0];
-      DGroup[1] = keyData[1];
-      DGroup[2] = 0x30;
-      DGroup[3] = 0x30;
-      fragmentId = computeFragmentId(&DGroup[0], 4);
-    } else {
-      Uint32 hashValue = ((keyData[0] - 0x30) * 10) + (keyData[1] - 0x30);
-      fragmentId = getFragmentId(hashValue);    
-    }//if
-    Uint32 nodeId     = guessPrimaryNode(fragmentId);
-    NdbConnection* trans= startTransactionLocal(aPriority, nodeId);
-    DBUG_PRINT("exit", ("start DGroup trans: 0x%x transid: 0x%llx",
-			trans, trans ? trans->getTransactionId() : 0));
-    return trans;
-  } else {
-    return NULL;
-  }//if
-}//Ndb::startTransaction()
 
 NdbConnection* 
 Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
@@ -1021,118 +974,6 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
   return ~0;
 }
 
-static const Uint32 MAX_KEY_LEN_64_WORDS = 4;
-static const Uint32 MAX_KEY_LEN_32_WORDS = 8;
-static const Uint32 MAX_KEY_LEN_BYTES    = 32;
-
-Uint32
-Ndb::computeFragmentId(const char * keyData, Uint32 keyLen)
-{
-  Uint64 tempData[MAX_KEY_LEN_64_WORDS];
-  
-  const Uint32 usedKeyLen = (keyLen + 3) >> 2; // In words
-  const char * usedKeyData = 0;
-  
-  /**
-   * If   key data buffer is not aligned (on 64 bit boundary)
-   *   or key len is not a multiple of 4
-   * Use temp data
-   */
-  if(((((UintPtr)keyData) & 7) == 0) && ((keyLen & 3) == 0)) {
-    usedKeyData = keyData;
-  } else {
-    memcpy(&tempData[0], keyData, keyLen);
-    const int slack = keyLen & 3;
-    if(slack > 0) {
-      memset(&((char *)&tempData[0])[keyLen], 0, (4 - slack));
-    }//if
-    usedKeyData = (char *)&tempData[0];
-  }//if
-  
-  Uint32 hashValue = md5_hash((Uint64 *)usedKeyData, usedKeyLen);
-
-  hashValue >>= startTransactionNodeSelectionData.kValue;
-  return getFragmentId(hashValue);
-}//Ndb::computeFragmentId()
-
-Uint32
-Ndb::getFragmentId(Uint32 hashValue)
-{
-  Uint32 fragmentId = hashValue &
-    startTransactionNodeSelectionData.hashValueMask;
-  if(fragmentId < startTransactionNodeSelectionData.hashpointerValue) {
-    fragmentId = hashValue &
-                 ((startTransactionNodeSelectionData.hashValueMask << 1) + 1);
-  }//if
-  return fragmentId;
-}
-
-Uint32
-Ndb::guessPrimaryNode(Uint32 fragmentId){
-  //ASSERT(((fragmentId > 0) && fragmentId <
-  // startTransactionNodeSelectionData.noOfFragments), "Invalid fragementId");
-
-  return startTransactionNodeSelectionData.fragment2PrimaryNodeMap[fragmentId];
-}
-
-void
-Ndb::StartTransactionNodeSelectionData::init(Uint32 noOfNodes,
-                                             Uint32 nodeIds[]) {
-  kValue           = 6;
-  noOfFragments    = 2 * noOfNodes;
-
-  /**
-   * Compute hashValueMask and hashpointerValue
-   */
-  {
-    Uint32 topBit = (1 << 31);
-    for(int i = 31; i>=0; i--){
-      if((noOfFragments & topBit) != 0)
-	break;
-      topBit >>= 1;
-    }
-    hashValueMask    = topBit - 1;
-    hashpointerValue = noOfFragments - (hashValueMask + 1);
-  }
-  
-  /**
-   * This initialization depends on
-   * the fact that:
-   *  primary node for fragment i = i % noOfNodes
-   *
-   * This algorithm should be implemented in Dbdih
-   */
-  {
-    if (fragment2PrimaryNodeMap != 0)
-      abort();
-
-    fragment2PrimaryNodeMap = new Uint32[noOfFragments];
-    Uint32 i;  
-    for(i = 0; i<noOfNodes; i++){
-      fragment2PrimaryNodeMap[i] = nodeIds[i];
-    }
-    
-    // Sort them (bubble sort)
-    for(i = 0; i<noOfNodes-1; i++)
-      for(Uint32 j = i+1; j<noOfNodes; j++)
-	if(fragment2PrimaryNodeMap[i] > fragment2PrimaryNodeMap[j]){
-	  Uint32 tmp = fragment2PrimaryNodeMap[i];
-	  fragment2PrimaryNodeMap[i] = fragment2PrimaryNodeMap[j];
-	  fragment2PrimaryNodeMap[j] = tmp;
-	}
-    
-    for(i = 0; i<noOfNodes; i++){
-      fragment2PrimaryNodeMap[i+noOfNodes] = fragment2PrimaryNodeMap[i];
-    }
-  }
-}
-
-void
-Ndb::StartTransactionNodeSelectionData::release(){
-  delete [] fragment2PrimaryNodeMap;
-  fragment2PrimaryNodeMap = 0;
-}
-
 Uint32
 convertEndian(Uint32 Data)
 {
@@ -1386,6 +1227,7 @@ Ndb::printState(const char* fmt, ...)
   va_end(ap);
   NdbMutex_Lock(ndb_print_state_mutex);
   bool dups = false;
+  unsigned i;
   ndbout << buf << " ndb=" << hex << this << dec;
 #ifndef NDB_WIN32
   ndbout << " thread=" << (int)pthread_self();
@@ -1406,21 +1248,21 @@ Ndb::printState(const char* fmt, ...)
     ndbout << "!! DUPS !!" << endl;
     dups = true;
   }
-  for (unsigned i = 0; i < theNoOfPreparedTransactions; i++)
+  for (i = 0; i < theNoOfPreparedTransactions; i++)
     thePreparedTransactionsArray[i]->printState();
   ndbout << "sent: " << theNoOfSentTransactions<< endl;
   if (checkdups(theSentTransactionsArray, theNoOfSentTransactions)) {
     ndbout << "!! DUPS !!" << endl;
     dups = true;
   }
-  for (unsigned i = 0; i < theNoOfSentTransactions; i++)
+  for (i = 0; i < theNoOfSentTransactions; i++)
     theSentTransactionsArray[i]->printState();
   ndbout << "completed: " << theNoOfCompletedTransactions<< endl;
   if (checkdups(theCompletedTransactionsArray, theNoOfCompletedTransactions)) {
     ndbout << "!! DUPS !!" << endl;
     dups = true;
   }
-  for (unsigned i = 0; i < theNoOfCompletedTransactions; i++)
+  for (i = 0; i < theNoOfCompletedTransactions; i++)
     theCompletedTransactionsArray[i]->printState();
   NdbMutex_Unlock(ndb_print_state_mutex);
 }

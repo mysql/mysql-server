@@ -30,13 +30,14 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   fprintf(output, " apiConnectPtr: H\'%.8x", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Keyinfo: %u Holdlock: %u, RangeScan: %u\n",
+  fprintf(output, "  Parallellism: %u, Batch: %u LockMode: %u, Keyinfo: %u Holdlock: %u, RangeScan: %u ReadCommitted: %u\n",
 	  sig->getParallelism(requestInfo), 
 	  sig->getScanBatch(requestInfo), 
 	  sig->getLockMode(requestInfo), 
+	  sig->getKeyinfoFlag(requestInfo),
 	  sig->getHoldLockFlag(requestInfo), 
 	  sig->getRangeScanFlag(requestInfo),
-	  sig->getKeyinfoFlag(requestInfo));
+	  sig->getReadCommittedFlag(requestInfo));
   
   Uint32 keyLen = (sig->attrLenKeyLen >> 16);
   Uint32 attrLen = (sig->attrLenKeyLen & 0xFFFF);

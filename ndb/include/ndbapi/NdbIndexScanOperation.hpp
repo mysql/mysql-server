@@ -113,7 +113,7 @@ public:
    * Reset bounds and put operation in list that will be
    *   sent on next execute
    */
-  int reset_bounds();
+  int reset_bounds(bool forceSend = false);
   
   bool getSorted() const { return m_ordered; }
 private:
@@ -127,8 +127,8 @@ private:
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
 
   void fix_get_values();
-  int next_result_ordered(bool fetchAllowed);
-  int send_next_scan_ordered(Uint32 idx);
+  int next_result_ordered(bool fetchAllowed, bool forceSend = false);
+  int send_next_scan_ordered(Uint32 idx, bool forceSend = false);
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
 
   Uint32 m_sort_columns;

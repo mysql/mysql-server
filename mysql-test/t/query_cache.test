@@ -561,6 +561,17 @@ unlock table;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
 
+#
+# hiding real table stored in query cache by temporary table
+#
+CREATE TABLE t1 (id INT PRIMARY KEY);
+insert into t1 values (1),(2),(3);
+select * from t1;
+create temporary table t1 (a int not null auto_increment
+primary key);
+select * from t1;
+drop table t1;
+drop table t1;
 
 #
 # Test character set related variables:

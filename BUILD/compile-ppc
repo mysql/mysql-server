@@ -1,0 +1,10 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$ppc_cflags $fast_cflags"
+extra_configs="$static_link"
+strip=yes
+
+. "$path/FINISH.sh"

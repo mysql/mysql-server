@@ -206,7 +206,7 @@ unique index (name) \
 print "Filling online help tables with contents...\n";
 # Generate the path for "fill_help_tables.sql" file which is in different folder. 
 $fill_help_table=$0;
-$fill_help_table =~ s/scripts[\\\/]mysql_fix_privilege_tables.pl/support-files\\fill_help_tables.sql/;
+$fill_help_table =~ s/scripts[\\\/]mysql_fix_privilege_tables.pl/share\\fill_help_tables.sql/;
 
 #read all content from the sql file which contains recordsfor help tables.
 open(fileIN,$fill_help_table) or die("Cannot open $fill_help_table: $!");

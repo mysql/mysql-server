@@ -166,6 +166,8 @@ select date,format,cast(str_to_date(date, format) as datetime) as datetime from 
 select date,format,DATE(str_to_date(date, format)) as date2 from t1;
 select date,format,TIME(str_to_date(date, format)) as time from t1;
 select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
+# Test small bug in %f handling
+select concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'));
 
 # Test wrong dates or converion specifiers
 

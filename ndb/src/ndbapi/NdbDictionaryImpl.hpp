@@ -28,7 +28,7 @@
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
 #include <Ndb.hpp>
-#include "NdbImpl.hpp"
+#include "NdbWaiter.hpp"
 #include "DictCache.hpp"
 
 class NdbDictObjectImpl {
@@ -321,7 +321,7 @@ private:
   friend class Ndb;
   static void execSignal(void* dictImpl, 
 			 class NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]);
+			 struct LinearSectionPtr ptr[3]);
   
   static void execNodeStatus(void* dictImpl, Uint32, 
 			     bool alive, bool nfCompleted);  
@@ -637,11 +637,9 @@ NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
       return 0;
     }
   }
-  if (do_add_blob_tables &&
-      info->m_table_impl->m_noOfBlobs &&
-      addBlobTables(*(info->m_table_impl))) {
-    return 0;
-  }
+  if (do_add_blob_tables && info->m_table_impl->m_noOfBlobs)
+    addBlobTables(*(info->m_table_impl));
+  
   return info; // autoincrement already initialized
 }
 

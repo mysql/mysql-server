@@ -135,7 +135,8 @@ drop table t1,t2;
 create table t1 (c int);
 insert into t1 values(1),(2);
 create table t2 select * from t1;
-!$1060 create table t3 select * from t1, t2; # Should give an error
+--error 1060
+create table t3 select * from t1, t2; # Should give an error
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 show full columns from t3;
 drop table t1,t2,t3;

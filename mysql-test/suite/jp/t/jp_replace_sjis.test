@@ -1,0 +1,129 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `‚s‚P`;
+drop table if exists `‚s‚Q`;
+drop table if exists `‚s‚R`;
+drop table if exists `‚s‚S`;
+drop table if exists `‚s‚T`;
+drop table if exists `‚s‚U`;
+drop table if exists `‚s‚V`;
+drop table if exists `‚s‚W`;
+drop table if exists `‚s‚X`;
+drop table if exists `‚s‚P‚O`;
+drop table if exists `‚s‚P‚P`;
+drop table if exists `‚s‚P‚Q`;
+--enable_warnings
+
+#
+# Test REPLACE() function with Japanese characters in sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `‚s‚P` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚Q` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚R` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `‚s‚S` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚T` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚U` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `‚s‚V` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚W` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚X` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `‚s‚P‚O` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚P` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `‚s‚P‚Q` (`‚b‚P` char(5)) DEFAULT CHARSET = sjis engine = bdb;
+
+INSERT INTO `‚s‚P` VALUES ('±²³´µ');
+INSERT INTO `‚s‚Q` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚R` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚S` VALUES ('±²³´µ');
+INSERT INTO `‚s‚T` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚U` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚V` VALUES ('±²³´µ');
+INSERT INTO `‚s‚W` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚X` VALUES ('ƒ\\•\—\\');
+INSERT INTO `‚s‚P‚O` VALUES ('±²³´µ');
+INSERT INTO `‚s‚P‚P` VALUES ('‚ ‚¢‚¤‚¦‚¨');
+INSERT INTO `‚s‚P‚Q` VALUES ('ƒ\\•\—\\');
+
+#InnoDB
+SELECT REPLACE(`‚b‚P`,'±','±±') FROM `‚s‚P`;
+SELECT REPLACE(`‚b‚P`,'²','²²') FROM `‚s‚P`;
+SELECT REPLACE(`‚b‚P`,'³','³³') FROM `‚s‚P`;
+SELECT REPLACE(`‚b‚P`,'´','´´') FROM `‚s‚P`;
+SELECT REPLACE(`‚b‚P`,'µ','µµ') FROM `‚s‚P`;
+SELECT REPLACE(`‚b‚P`,'‚ ','‚ ‚ ') FROM `‚s‚Q`;
+SELECT REPLACE(`‚b‚P`,'‚¢','‚¢‚¢') FROM `‚s‚Q`;
+SELECT REPLACE(`‚b‚P`,'‚¤','‚¤‚¤') FROM `‚s‚Q`;
+SELECT REPLACE(`‚b‚P`,'‚¦','‚¦‚¦') FROM `‚s‚Q`;
+SELECT REPLACE(`‚b‚P`,'‚¨','‚¨‚¨') FROM `‚s‚Q`;
+SELECT REPLACE(`‚b‚P`,'ƒ\','ƒ\ƒ\') FROM `‚s‚R`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚R`;
+SELECT REPLACE(`‚b‚P`,'•\','•\•\') FROM `‚s‚R`;
+SELECT REPLACE(`‚b‚P`,'—\','—\—\') FROM `‚s‚R`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚R`;
+
+#MyISAM
+SELECT REPLACE(`‚b‚P`,'±','±±') FROM `‚s‚S`;
+SELECT REPLACE(`‚b‚P`,'²','²²') FROM `‚s‚S`;
+SELECT REPLACE(`‚b‚P`,'³','³³') FROM `‚s‚S`;
+SELECT REPLACE(`‚b‚P`,'´','´´') FROM `‚s‚S`;
+SELECT REPLACE(`‚b‚P`,'µ','µµ') FROM `‚s‚S`;
+SELECT REPLACE(`‚b‚P`,'‚ ','‚ ‚ ') FROM `‚s‚T`;
+SELECT REPLACE(`‚b‚P`,'‚¢','‚¢‚¢') FROM `‚s‚T`;
+SELECT REPLACE(`‚b‚P`,'‚¤','‚¤‚¤') FROM `‚s‚T`;
+SELECT REPLACE(`‚b‚P`,'‚¦','‚¦‚¦') FROM `‚s‚T`;
+SELECT REPLACE(`‚b‚P`,'‚¨','‚¨‚¨') FROM `‚s‚T`;
+SELECT REPLACE(`‚b‚P`,'ƒ\','ƒ\ƒ\') FROM `‚s‚U`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚U`;
+SELECT REPLACE(`‚b‚P`,'•\','•\•\') FROM `‚s‚U`;
+SELECT REPLACE(`‚b‚P`,'—\','—\—\') FROM `‚s‚U`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚U`;
+
+#HEAP
+SELECT REPLACE(`‚b‚P`,'±','±±') FROM `‚s‚V`;
+SELECT REPLACE(`‚b‚P`,'²','²²') FROM `‚s‚V`;
+SELECT REPLACE(`‚b‚P`,'³','³³') FROM `‚s‚V`;
+SELECT REPLACE(`‚b‚P`,'´','´´') FROM `‚s‚V`;
+SELECT REPLACE(`‚b‚P`,'µ','µµ') FROM `‚s‚V`;
+SELECT REPLACE(`‚b‚P`,'‚ ','‚ ‚ ') FROM `‚s‚W`;
+SELECT REPLACE(`‚b‚P`,'‚¢','‚¢‚¢') FROM `‚s‚W`;
+SELECT REPLACE(`‚b‚P`,'‚¤','‚¤‚¤') FROM `‚s‚W`;
+SELECT REPLACE(`‚b‚P`,'‚¦','‚¦‚¦') FROM `‚s‚W`;
+SELECT REPLACE(`‚b‚P`,'‚¨','‚¨‚¨') FROM `‚s‚W`;
+SELECT REPLACE(`‚b‚P`,'ƒ\','ƒ\ƒ\') FROM `‚s‚X`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚X`;
+SELECT REPLACE(`‚b‚P`,'•\','•\•\') FROM `‚s‚X`;
+SELECT REPLACE(`‚b‚P`,'—\','—\—\') FROM `‚s‚X`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚X`;
+
+#BDB
+SELECT REPLACE(`‚b‚P`,'±','±±') FROM `‚s‚P‚O`;
+SELECT REPLACE(`‚b‚P`,'²','²²') FROM `‚s‚P‚O`;
+SELECT REPLACE(`‚b‚P`,'³','³³') FROM `‚s‚P‚O`;
+SELECT REPLACE(`‚b‚P`,'´','´´') FROM `‚s‚P‚O`;
+SELECT REPLACE(`‚b‚P`,'µ','µµ') FROM `‚s‚P‚O`;
+SELECT REPLACE(`‚b‚P`,'‚ ','‚ ‚ ') FROM `‚s‚P‚P`;
+SELECT REPLACE(`‚b‚P`,'‚¢','‚¢‚¢') FROM `‚s‚P‚P`;
+SELECT REPLACE(`‚b‚P`,'‚¤','‚¤‚¤') FROM `‚s‚P‚P`;
+SELECT REPLACE(`‚b‚P`,'‚¦','‚¦‚¦') FROM `‚s‚P‚P`;
+SELECT REPLACE(`‚b‚P`,'‚¨','‚¨‚¨') FROM `‚s‚P‚P`;
+SELECT REPLACE(`‚b‚P`,'ƒ\','ƒ\ƒ\') FROM `‚s‚P‚Q`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚P‚Q`;
+SELECT REPLACE(`‚b‚P`,'•\','•\•\') FROM `‚s‚P‚Q`;
+SELECT REPLACE(`‚b‚P`,'—\','—\—\') FROM `‚s‚P‚Q`;
+SELECT REPLACE(`‚b‚P`,'\','\\') FROM `‚s‚P‚Q`;
+
+DROP TABLE `‚s‚P`;
+DROP TABLE `‚s‚Q`;
+DROP TABLE `‚s‚R`;
+DROP TABLE `‚s‚S`;
+DROP TABLE `‚s‚T`;
+DROP TABLE `‚s‚U`;
+DROP TABLE `‚s‚V`;
+DROP TABLE `‚s‚W`;
+DROP TABLE `‚s‚X`;
+DROP TABLE `‚s‚P‚O`;
+DROP TABLE `‚s‚P‚P`;
+DROP TABLE `‚s‚P‚Q`;

@@ -123,15 +123,15 @@ chkerror(char const* fmt, ...)
 
 // alignment of addresses and data sizes
 
-static bool isAligned(unsigned x)
+static bool isAligned(UintPtr x)
 {
     return ((x & 3) == 0);
 }
 static bool isAligned(char* p)
 {
-    return isAligned(unsigned(p));
+    return isAligned(UintPtr(p));
 }
-static unsigned toAligned(unsigned x)
+static unsigned toAligned(UintPtr x)
 {
     while (! isAligned(x))
 	x++;
@@ -223,10 +223,10 @@ testcase(int flag)
     noRandom = ! (flag & 8);
     ndbout << (noRandom ? "simple sizes" : "randomize sizes") << endl;
 
-    int smax = 0, stot = 0;
+    int smax = 0, stot = 0, i;
     if (xverbose)
       ndbout << "- define table " << tab << endl;
-    for (int i = 0; i < attrcnt; i++) {
+    for (i = 0; i < attrcnt; i++) {
 	col& c = ccol[i];
 	memset(&c, 0, sizeof(c));
 	sprintf(c.aAttrName, "C%d", i);
@@ -266,7 +266,7 @@ testcase(int flag)
 	return ndberror("getNdbSchemaOp");
     if (top->createTable(tab) < 0)
 	return ndberror("createTable");
-    for (int i = 0; i < attrcnt; i++) {
+    for (i = 0; i < attrcnt; i++) {
 	col& c = ccol[i];
 	if (top->createAttribute(
 	    c.aAttrName,
@@ -299,7 +299,7 @@ testcase(int flag)
 	    return ndberror("getNdbOperation key=%d", key);
 	if (op->deleteTuple() < 0)
 	    return ndberror("deleteTuple key=%d", key);
-	for (int i = 0; i < attrcnt; i++) {
+	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
 		if (op->equal(c.aAttrName, (char*)&key, sizeof(key)) < 0)
@@ -329,7 +329,7 @@ testcase(int flag)
 	    return ndberror("getNdbOperation key=%d", key);
 	if (op->insertTuple() < 0)
 	    return ndberror("insertTuple key=%d", key);
-	for (int i = 0; i < attrcnt; i++) {
+	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
 		if (op->equal(c.aAttrName, (char*)&key, sizeof(key)) < 0)
@@ -362,7 +362,7 @@ testcase(int flag)
 	    return ndberror("getNdbOperation key=%d", key);
 	if (op->readTuple() < 0)
 	    return ndberror("readTuple key=%d", key);
-	for (int i = 0; i < attrcnt; i++) {
+	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
 		if (op->equal(c.aAttrName, (char*)&key, sizeof(key)) < 0)
@@ -371,7 +371,7 @@ testcase(int flag)
 		if (xverbose) {
 		  char tmp[20];
 		  if (useBuf)
-		    sprintf(tmp, "0x%x", int(c.buf + off));
+		    sprintf(tmp, "0x%p", c.buf + off);
 		  else
 		    strcpy(tmp, "ndbapi");
 		  ndbout << "--- column " << i << " addr=" << tmp << endl;
@@ -388,23 +388,24 @@ testcase(int flag)
 	}
 	if (con->execute(Commit) != 0)
 	    return ndberror("execute key=%d", key);
-	for (int i = 0; i < attrcnt; i++) {
+	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
 	    } else if (useBuf) {
-		for (int j = 0; j < off; j++) {
+                int j;
+		for (j = 0; j < off; j++) {
 		    if (c.buf[j] != 'B') {
 			return chkerror("mismatch before key=%d col=%d pos=%d ok=%02x bad=%02x",
 			    key, i, j, 'B', c.buf[j]);
 		    }
 		}
-		for (int j = 0; j < c.aArraySize; j++) {
+		for (j = 0; j < c.aArraySize; j++) {
 		    if (c.buf[j + off] != byteVal(key, i, j)) {
 			return chkerror("mismatch key=%d col=%d pos=%d ok=%02x bad=%02x",
 			    key, i, j, byteVal(key, i, j), c.buf[j]);
 		    }
 		}
-		for (int j = c.aArraySize + off; j < c.bufsiz; j++) {
+		for (j = c.aArraySize + off; j < c.bufsiz; j++) {
 		    if (c.buf[j] != 'B') {
 			return chkerror("mismatch after key=%d col=%d pos=%d ok=%02x bad=%02x",
 			    key, i, j, 'B', c.buf[j]);
@@ -431,7 +432,8 @@ testcase(int flag)
     if (xverbose)
       ndbout << "- scan" << endl;
     char found[MaxOper];
-    for (int k = 0; k < opercnt; k++)
+    int k;
+    for (k = 0; k < opercnt; k++)
 	found[k] = 0;
     for (key = 0; key < opercnt; key++) {
 	int off = makeOff(key);
@@ -459,7 +461,7 @@ testcase(int flag)
 	    if (op->interpret_exit_ok() < 0)
 		return ndberror("interpret_exit_ok");
 	}
-	for (int i = 0; i < attrcnt; i++) {
+	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
 		if (op->getValue(c.aAttrName, (char*)&newkey) < 0)
@@ -468,7 +470,7 @@ testcase(int flag)
 		if (xverbose) {
 		  char tmp[20];
 		  if (useBuf)
-		    sprintf(tmp, "0x%x", int(c.buf + off));
+		    sprintf(tmp, "0x%p", c.buf + off);
 		  else
 		    strcpy(tmp, "ndbapi");
 		  ndbout << "--- column " << i << " addr=" << tmp << endl;
@@ -489,22 +491,23 @@ testcase(int flag)
 	while ((ret = rs->nextResult()) == 0) {
 	    if (key != newkey)
 		return ndberror("unexpected key=%d newkey=%d", key, newkey);
-	    for (int i = 1; i < attrcnt; i++) {
+	    for (i = 1; i < attrcnt; i++) {
 		col& c = ccol[i];
 		if (useBuf) {
-		    for (int j = 0; j < off; j++) {
+                    int j;
+		    for (j = 0; j < off; j++) {
 			if (c.buf[j] != 'C') {
 			    return chkerror("mismatch before key=%d col=%d pos=%d ok=%02x bad=%02x",
 				key, i, j, 'C', c.buf[j]);
 			}
 		    }
-		    for (int j = 0; j < c.aArraySize; j++) {
+		    for (j = 0; j < c.aArraySize; j++) {
 			if (c.buf[j + off] != byteVal(key, i, j)) {
 			    return chkerror("mismatch key=%d col=%d pos=%d ok=%02x bad=%02x",
 				key, i, j, byteVal(key, i, j), c.buf[j]);
 			}
 		    }
-		    for (int j = c.aArraySize + off; j < c.bufsiz; j++) {
+		    for (j = c.aArraySize + off; j < c.bufsiz; j++) {
 			if (c.buf[j] != 'C') {
 			    return chkerror("mismatch after key=%d col=%d pos=%d ok=%02x bad=%02x",
 				key, i, j, 'C', c.buf[j]);
@@ -533,7 +536,7 @@ testcase(int flag)
     }
     con = 0;
     op = 0;
-    for (int k = 0; k < opercnt; k++)
+    for (k = 0; k < opercnt; k++)
 	if (! found[k])
 	    return ndberror("key %d not found", k);
     ndbout << "scanned " << key << endl;
@@ -545,6 +548,7 @@ testcase(int flag)
 
 NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuffers", 65535)
 {
+    int i;
     ndb_init();
     while (++argv, --argc > 0) {
 	char const* p = argv[0];
@@ -602,7 +606,7 @@ NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuff
 	}
     }
     unsigned ok = true;
-    for (int i = 1; 0 == loopcnt || i <= loopcnt; i++) {
+    for (i = 1; 0 == loopcnt || i <= loopcnt; i++) {
 	ndbout << "=== loop " << i << " ===" << endl;
 	for (int flag = 0; flag < (1<<testbits); flag++) {
 	    if (testcase(flag) < 0) {

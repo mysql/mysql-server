@@ -194,6 +194,8 @@ dnl Define zlib paths to point at bundled zlib
 AC_DEFUN([MYSQL_USE_BUNDLED_ZLIB], [
 ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
 ZLIB_LIBS="\$(top_builddir)/zlib/libz.la"
+dnl Omit -L$pkglibdir as it's always in the list of mysql_config deps.
+ZLIB_DEPS="-lz"
 zlib_dir="zlib"
 AC_SUBST([zlib_dir])
 mysql_cv_compress="yes"
@@ -208,7 +210,7 @@ INCLUDES="$INCLUDES $ZLIB_INCLUDES"
 LIBS="$LIBS $ZLIB_LIBS"
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
-    [int link_test() { return compress(0, (unsigned long*) 0, "", 0); }],
+    [return compress(0, (unsigned long*) 0, "", 0);],
     [mysql_cv_compress="yes"
     AC_MSG_RESULT([ok])],
     [mysql_cv_compress="no"])
@@ -235,8 +237,13 @@ dnl   $prefix/lib. If zlib headers or binaries weren't found at $prefix, the
 dnl   macro bails out with error.
 dnl 
 dnl If the library was found, this function #defines HAVE_COMPRESS
-dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include) and
-dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
+dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include),
+dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz) and ZLIB_DEPS which is
+dnl used in mysql_config and is always the same as ZLIB_LIBS except to
+dnl when we use the bundled zlib. In the latter case ZLIB_LIBS points to the
+dnl build dir ($top_builddir/zlib), while mysql_config must point to the
+dnl installation dir ($pkglibdir), so ZLIB_DEPS is set to point to
+dnl $pkglibdir.
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
 AC_MSG_CHECKING([for zlib compression library])
@@ -285,7 +292,11 @@ case $SYSTEM_TYPE in
         ;;
     esac
     if test "$mysql_cv_compress" = "yes"; then
+      if test "x$ZLIB_DEPS" = "x"; then
+        ZLIB_DEPS="$ZLIB_LIBS"
+      fi
       AC_SUBST([ZLIB_LIBS])
+      AC_SUBST([ZLIB_DEPS])
       AC_SUBST([ZLIB_INCLUDES])
       AC_DEFINE([HAVE_COMPRESS], [1], [Define to enable compression support])
     fi
@@ -1039,7 +1050,6 @@ AC_MSG_CHECKING(for OpenSSL)
       echo "You can't use the --all-static link option when using openssl."
       exit 1
     fi
-    NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   else
     AC_MSG_RESULT(no)
 	if test ! -z "$openssl_includes"
@@ -1599,11 +1609,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
-  AC_ARG_WITH([ndb-shm],
-              [
-  --with-ndb-shm        Include the NDB Cluster shared memory transporter],
-              [ndb_shm="$withval"],
-              [ndb_shm=no])
   AC_ARG_WITH([ndb-test],
               [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
@@ -1614,28 +1619,30 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
               [ndb_docs="$withval"],
               [ndb_docs=no])
+  AC_ARG_WITH([ndb-port],
+              [
+  --with-ndb-port       Port for NDB Cluster management server],
+              [ndb_port="$withval"],
+              [ndb_port="default"])
   AC_ARG_WITH([ndb-port-base],
               [
-  --with-ndb-port-base  Base port for NDB Cluster],
+  --with-ndb-port-base  Base port for NDB Cluster transporters],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
-                                                                                
+  AC_ARG_WITH([ndb-debug],
+              [
+  --without-ndb-debug   Disable special ndb debug features],
+              [ndb_debug="$withval"],
+              [ndb_debug="default"])
+  AC_ARG_WITH([ndb-ccflags],
+              [
+  --with-ndb-ccflags    Extra CC options for ndb compile],
+              [ndb_cxxflags_fix="$ndb_cxxflags_fix $withval"],
+              [ndb_cxxflags_fix=$ndb_cxxflags_fix])
+
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
                                                                                 
-  have_ndb_shm=no
-  case "$ndb_shm" in
-    yes )
-      AC_MSG_RESULT([-- including shared memory transporter])
-      AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
-                [Including Ndb Cluster DB shared memory transporter])
-      have_ndb_shm="yes"
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including shared memory transporter])
-      ;;
-  esac
-
   have_ndb_test=no
   case "$ndb_test" in
     yes )
@@ -1658,6 +1665,24 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
+  case "$ndb_debug" in
+    yes )
+      AC_MSG_RESULT([-- including ndb extra debug options])
+      have_ndb_debug="yes"
+      ;;
+    full )
+      AC_MSG_RESULT([-- including ndb extra extra debug options])
+      have_ndb_debug="full"
+      ;;
+    no )
+      AC_MSG_RESULT([-- not including ndb extra debug options])
+      have_ndb_debug="no"
+      ;;
+    * )
+      have_ndb_debug="default"
+      ;;
+  esac
+
   AC_MSG_RESULT([done.])
 ])
 
@@ -1673,6 +1698,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   have_ndbcluster=no
   ndbcluster_includes=
   ndbcluster_libs=
+  ndb_mgmclient_libs=
   case "$ndbcluster" in
     yes )
       AC_MSG_RESULT([Using NDB Cluster])
@@ -1681,6 +1707,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
       ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
       ndbcluster_system_libs=""
+      ndb_mgmclient_libs="\$(top_builddir)/ndb/src/mgmclient/libndbmgmclient.la"
       MYSQL_CHECK_NDB_OPTIONS
       ;;
     * )
@@ -1692,6 +1719,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
+  AC_SUBST(ndb_mgmclient_libs)
 ])
                                                                                 
 dnl ---------------------------------------------------------------------------

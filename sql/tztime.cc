@@ -1773,7 +1773,13 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
   {
-    sql_print_error("Can't find description of time zone.");
+#ifdef EXTRA_DEBUG    
+    /*
+      Most probably user has mistyped time zone name, so no need to bark here
+      unless we need it for debugging.
+    */
+    sql_print_error("Can't find description of time zone '%s'", tz_name_buff);
+#endif
     goto end;
   }
 
@@ -1794,7 +1800,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   if (table->file->index_read(table->record[0], (byte*)table->field[0]->ptr,
                               0, HA_READ_KEY_EXACT))
   {
-    sql_print_error("Can't find description of time zone.");
+    sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
   }
 
@@ -1825,7 +1831,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   {
     ttid= (uint)table->field[1]->val_int();
 
-    if (ttid > TZ_MAX_TYPES)
+    if (ttid >= TZ_MAX_TYPES)
     {
       sql_print_error("Error while loading time zone description from "
                       "mysql.time_zone_transition_type table: too big "

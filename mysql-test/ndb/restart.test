@@ -1,0 +1,12 @@
+clusterlog off all
+clusterlog on
+clusterlog on alert
+all clusterlog connection=0
+sleep 1
+1 restart
+sleep 5
+all clusterlog connection=8
+sleep 1
+1 restart
+sleep 5
+clusterlog on all

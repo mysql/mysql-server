@@ -1,0 +1,219 @@
+--character_set sjis
+--disable_warnings
+drop table if exists `ÇsÇP`;
+drop table if exists `ÇsÇQ`;
+drop table if exists `ÇsÇR`;
+drop table if exists `ÇsÇS`;
+drop table if exists `ÇsÇT`;
+drop table if exists `ÇsÇU`;
+drop table if exists `ÇsÇV`;
+drop table if exists `ÇsÇW`;
+drop table if exists `ÇsÇX`;
+drop table if exists `ÇsÇPÇO`;
+--enable_warnings
+
+#
+# Test TRIM() function with Japanese characters sjis encoding
+#
+
+SET NAMES sjis;
+SET character_set_database = sjis;
+
+CREATE TABLE `ÇsÇP` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇQ` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇR` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = innodb;
+CREATE TABLE `ÇsÇS` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇT` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇU` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = myisam;
+CREATE TABLE `ÇsÇV` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `ÇsÇW` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `ÇsÇX` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = heap;
+CREATE TABLE `ÇsÇPÇO` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇPÇP` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+CREATE TABLE `ÇsÇPÇQ` (`ÇbÇP` char(12), INDEX(`ÇbÇP`)) DEFAULT CHARSET = sjis engine = bdb;
+
+# Nothing to trim
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ');
+# Test data for TRIM(TRAILING [remstr] FROM str)
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ∂');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ∂∂');
+INSERT INTO `ÇsÇP` VALUES ('±≤≥¥µ∂∂∂');
+# Test data for TRIM(LEADING [remstr] FROM str)
+INSERT INTO `ÇsÇP` VALUES ('∂±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇP` VALUES ('∂∂∂±≤≥¥µ');
+# Test data for TRIM(BOTH [remstr] FROM str)
+INSERT INTO `ÇsÇP` VALUES ('∂∂∂±≤≥¥µ∂∂∂');
+# Test data for TRIM without [remstr] (remove spaces) 
+INSERT INTO `ÇsÇP` VALUES ('   ±≤≥¥µ   ');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©');
+INSERT INTO `ÇsÇQ` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇQ` VALUES ('Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇQ` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇQ` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\ñ\');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\ñ\ñ\');
+INSERT INTO `ÇsÇR` VALUES ('É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇR` VALUES ('ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇR` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇR` VALUES ('   É\è\ï\ó\ç\   ');
+
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ∂');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ∂∂');
+INSERT INTO `ÇsÇS` VALUES ('±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇS` VALUES ('∂±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('∂∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇS` VALUES ('∂∂∂±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇS` VALUES ('   ±≤≥¥µ   ');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©');
+INSERT INTO `ÇsÇT` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇT` VALUES ('Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇT` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇT` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\ñ\');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\ñ\ñ\');
+INSERT INTO `ÇsÇU` VALUES ('É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇU` VALUES ('ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇU` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇU` VALUES ('   É\è\ï\ó\ç\   ');
+
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ∂');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ∂∂');
+INSERT INTO `ÇsÇV` VALUES ('±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇV` VALUES ('∂±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('∂∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇV` VALUES ('∂∂∂±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇV` VALUES ('   ±≤≥¥µ   ');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©');
+INSERT INTO `ÇsÇW` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇW` VALUES ('Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇW` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇW` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\ñ\');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\ñ\ñ\');
+INSERT INTO `ÇsÇX` VALUES ('É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇX` VALUES ('ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇX` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇX` VALUES ('   É\è\ï\ó\ç\   ');
+
+INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ');
+INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ∂');
+INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ∂∂');
+INSERT INTO `ÇsÇPÇO` VALUES ('±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇPÇO` VALUES ('∂±≤≥¥µ');
+INSERT INTO `ÇsÇPÇO` VALUES ('∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇPÇO` VALUES ('∂∂∂±≤≥¥µ');
+INSERT INTO `ÇsÇPÇO` VALUES ('∂∂∂±≤≥¥µ∂∂∂');
+INSERT INTO `ÇsÇPÇO` VALUES ('   ±≤≥¥µ   ');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®');
+INSERT INTO `ÇsÇPÇP` VALUES ('Ç©Ç©Ç©Ç†Ç¢Ç§Ç¶Ç®Ç©Ç©Ç©');
+INSERT INTO `ÇsÇPÇP` VALUES ('   Ç†Ç¢Ç§Ç¶Ç®   ');
+INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\ñ\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\ñ\ñ\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('ñ\ñ\ñ\É\è\ï\ó\ç\ñ\ñ\ñ\');
+INSERT INTO `ÇsÇPÇQ` VALUES ('   É\è\ï\ó\ç\   ');
+
+#InnoDB
+SELECT `ÇbÇP`,TRIM(TRAILING '∂' FROM `ÇbÇP`) FROM `ÇsÇP`;
+SELECT `ÇbÇP`,TRIM(LEADING '∂' FROM `ÇbÇP`) FROM `ÇsÇP`;
+SELECT `ÇbÇP`,TRIM(BOTH '∂' FROM `ÇbÇP`) FROM `ÇsÇP`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇP`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇQ`;
+SELECT `ÇbÇP`,TRIM(LEADING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇQ`;
+SELECT `ÇbÇP`,TRIM(BOTH 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇQ`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇQ`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'ñ\'FROM `ÇbÇP`) FROM `ÇsÇR`;
+SELECT `ÇbÇP`,TRIM(LEADING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇR`;
+SELECT `ÇbÇP`,TRIM(BOTH 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇR`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇR`;
+
+#MyISAM
+SELECT `ÇbÇP`,TRIM(TRAILING '∂' FROM `ÇbÇP`) FROM `ÇsÇS`;
+SELECT `ÇbÇP`,TRIM(LEADING '∂' FROM `ÇbÇP`) FROM `ÇsÇS`;
+SELECT `ÇbÇP`,TRIM(BOTH '∂' FROM `ÇbÇP`) FROM `ÇsÇS`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇS`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇT`;
+SELECT `ÇbÇP`,TRIM(LEADING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇT`;
+SELECT `ÇbÇP`,TRIM(BOTH 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇT`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇT`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇU`;
+SELECT `ÇbÇP`,TRIM(LEADING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇU`;
+SELECT `ÇbÇP`,TRIM(BOTH 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇU`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇU`;
+
+#HEAP
+SELECT `ÇbÇP`,TRIM(TRAILING '∂' FROM `ÇbÇP`) FROM `ÇsÇV`;
+SELECT `ÇbÇP`,TRIM(LEADING '∂' FROM `ÇbÇP`) FROM `ÇsÇV`;
+SELECT `ÇbÇP`,TRIM(BOTH '∂' FROM `ÇbÇP`) FROM `ÇsÇV`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇV`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇW`;
+SELECT `ÇbÇP`,TRIM(LEADING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇW`;
+SELECT `ÇbÇP`,TRIM(BOTH 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇW`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇW`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇX`;
+SELECT `ÇbÇP`,TRIM(LEADING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇX`;
+SELECT `ÇbÇP`,TRIM(BOTH 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇX`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇX`;
+
+#BDB
+SELECT `ÇbÇP`,TRIM(TRAILING '∂' FROM `ÇbÇP`) FROM `ÇsÇPÇO`;
+SELECT `ÇbÇP`,TRIM(LEADING '∂' FROM `ÇbÇP`) FROM `ÇsÇPÇO`;
+SELECT `ÇbÇP`,TRIM(BOTH '∂' FROM `ÇbÇP`) FROM `ÇsÇPÇO`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇPÇO`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇPÇP`;
+SELECT `ÇbÇP`,TRIM(LEADING 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇPÇP`;
+SELECT `ÇbÇP`,TRIM(BOTH 'Ç©' FROM `ÇbÇP`) FROM `ÇsÇPÇP`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇPÇP`;
+SELECT `ÇbÇP`,TRIM(TRAILING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇPÇQ`;
+SELECT `ÇbÇP`,TRIM(LEADING 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇPÇQ`;
+SELECT `ÇbÇP`,TRIM(BOTH 'ñ\' FROM `ÇbÇP`) FROM `ÇsÇPÇQ`;
+SELECT `ÇbÇP`,TRIM(`ÇbÇP`) FROM `ÇsÇPÇQ`;
+
+DROP TABLE `ÇsÇP`;
+DROP TABLE `ÇsÇQ`;
+DROP TABLE `ÇsÇR`;
+DROP TABLE `ÇsÇS`;
+DROP TABLE `ÇsÇT`;
+DROP TABLE `ÇsÇU`;
+DROP TABLE `ÇsÇV`;
+DROP TABLE `ÇsÇW`;
+DROP TABLE `ÇsÇX`;
+DROP TABLE `ÇsÇPÇO`;
+DROP TABLE `ÇsÇPÇP`;
+DROP TABLE `ÇsÇPÇQ`;

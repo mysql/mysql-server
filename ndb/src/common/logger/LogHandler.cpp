@@ -24,7 +24,13 @@
 LogHandler::LogHandler() : 
   m_pDateTimeFormat("%d-%.2d-%.2d %.2d:%.2d:%.2d"),
   m_errorCode(0)
-{  
+{
+  m_max_repeat_frequency= 3; // repeat messages maximum every 3 seconds
+  m_count_repeated_messages= 0;
+  m_last_category[0]= 0;
+  m_last_message[0]= 0;
+  m_last_log_time= 0;
+  m_now= 0;
 }
 
 LogHandler::~LogHandler()
@@ -34,11 +40,53 @@ LogHandler::~LogHandler()
 void 
 LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
 		   const char* pMsg)
-{	
+{
+  time_t now;
+  now= ::time((time_t*)NULL);
+
+  if (level != m_last_level ||
+      strcmp(pCategory, m_last_category) ||
+      strcmp(pMsg, m_last_message))
+  {
+    if (m_count_repeated_messages > 0) // print that message
+      append_impl(m_last_category, m_last_level, m_last_message);
+
+    m_last_level= level;
+    strncpy(m_last_category, pCategory, sizeof(m_last_category));
+    strncpy(m_last_message, pMsg, sizeof(m_last_message));
+  }
+  else // repeated message
+  {
+    if (now < m_last_log_time+m_max_repeat_frequency)
+    {
+      m_count_repeated_messages++;
+      m_now= now;
+      return;
+    }
+  }
+
+  m_now= now;
+
+  append_impl(pCategory, level, pMsg);
+  m_last_log_time= now;
+}
+
+void 
+LogHandler::append_impl(const char* pCategory, Logger::LoggerLevel level,
+			const char* pMsg)
+{
   writeHeader(pCategory, level);
-  writeMessage(pMsg);
+  if (m_count_repeated_messages <= 1)
+    writeMessage(pMsg);
+  else
+  {
+    BaseString str(pMsg);
+    str.appfmt(" - Repeated %d times", m_count_repeated_messages);
+    writeMessage(str.c_str());
+  }
+  m_count_repeated_messages= 0;
   writeFooter();
-}	
+}
 
 const char* 
 LogHandler::getDefaultHeader(char* pStr, const char* pCategory, 
@@ -76,12 +124,10 @@ char*
 LogHandler::getTimeAsString(char* pStr) const 
 {
   struct tm* tm_now;
-  time_t now;
-  now = ::time((time_t*)NULL);
 #ifdef NDB_WIN32
-  tm_now = localtime(&now);
+  tm_now = localtime(&m_now);
 #else
-  tm_now = ::localtime(&now); //uses the "current" timezone
+  tm_now = ::localtime(&m_now); //uses the "current" timezone
 #endif
 
   BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
@@ -117,10 +163,9 @@ LogHandler::parseParams(const BaseString &_params) {
   _params.split(v_args, ",");
   for(size_t i=0; i < v_args.size(); i++) {
     Vector<BaseString> v_param_value;
-
-    v_args[i].split(v_param_value, "=", 2);
-    if(v_param_value.size() == 2 &&
-       !setParam(v_param_value[0], v_param_value[1]))
+    if(v_args[i].split(v_param_value, "=", 2) != 2)
+      ret = false;
+    else if (!setParam(v_param_value[0], v_param_value[1]))
       ret = false;
   }
 

@@ -106,7 +106,7 @@ longlong Item_func_not::val_int()
   DBUG_ASSERT(fixed == 1);
   double value=args[0]->val();
   null_value=args[0]->null_value;
-  return !null_value && value == 0 ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
 }
 
 /*
@@ -117,13 +117,23 @@ longlong Item_func_not_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   double value= args[0]->val();
-  if (abort_on_null)
-  {
-    null_value= 0;
-    return (args[0]->null_value || value == 0) ? 1 : 0;
-  }
+
+  /*
+    return TRUE if there was records in underlaying select in max/min
+    optimisation (ALL subquery)
+  */
+  if (empty_underlying_subquery())
+    return 1;
+
   null_value= args[0]->null_value;
-  return (!null_value && value == 0) ? 1 : 0;
+  return ((!null_value && value == 0) ? 1 : 0);
+}
+
+
+bool Item_func_not_all::empty_underlying_subquery()
+{
+  return ((test_sum_item && !test_sum_item->any_value()) ||
+          (test_sub_item && !test_sub_item->any_value()));
 }
 
 void Item_func_not_all::print(String *str)
@@ -133,6 +143,30 @@ void Item_func_not_all::print(String *str)
   else
     args[0]->print(str);
 }
+
+
+/*
+  Special NOP (No OPeration) for ALL subquery it is like  Item_func_not_all
+  (return TRUE if underlaying sudquery do not return rows) but if subquery
+  returns some rows it return same value as argument (TRUE/FALSE).
+*/
+
+longlong Item_func_nop_all::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  double value= args[0]->val();
+
+  /*
+    return FALSE if there was records in underlaying select in max/min
+    optimisation (SAME/ANY subquery)
+  */
+  if (empty_underlying_subquery())
+    return 0;
+
+  null_value= args[0]->null_value;
+  return (null_value || value == 0) ? 0 : 1;
+}
+
 
 /*
   Convert a constant expression or string to an integer.
@@ -173,64 +207,11 @@ void Item_bool_func2::fix_length_and_dec()
   if (!args[0] || !args[1])
     return;
 
-  /* 
-    We allow to convert to Unicode character sets in some cases.
-    The conditions when conversion is possible are:
-    - arguments A and B have different charsets
-    - A wins according to coercibility rules
-    - character set of A is superset for character set of B
-   
-    If all of the above is true, then it's possible to convert
-    B into the character set of A, and then compare according
-    to the collation of A.
-  */
-
-  if (args[0] && args[1])
-  {
-    uint strong= 0;
-    uint weak= 0;
-    uint32 dummy_offset;
-    DTCollation coll;
-
-    if (args[0]->result_type() == STRING_RESULT &&
-        args[1]->result_type() == STRING_RESULT &&
-        String::needs_conversion(0, args[0]->collation.collation,
-                                    args[1]->collation.collation,
-                                    &dummy_offset) &&
-        !coll.set(args[0]->collation, args[1]->collation, TRUE))
-    {
-      Item* conv= 0;
-      Item_arena *arena= thd->current_arena, backup;
-      strong= coll.strong;
-      weak= strong ? 0 : 1;
-      /*
-        In case we're in statement prepare, create conversion item
-        in its memory: it will be reused on each execute.
-      */
-      if (arena->is_stmt_prepare())
-          thd->set_n_backup_item_arena(arena, &backup);
-      if (args[weak]->type() == STRING_ITEM)
-      {
-        String tmp, cstr;
-        String *ostr= args[weak]->val_str(&tmp);
-        cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-		  args[strong]->collation.collation);
-        conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->collation.derivation);
-	((Item_string*)conv)->str_value.copy();
-      }
-      else
-      {
-	conv= new Item_func_conv_charset(args[weak],
-                                         args[strong]->collation.collation);
-        conv->collation.set(args[weak]->collation.derivation);
-        conv->fix_fields(thd, 0, &conv);
-      }
-      if (arena->is_stmt_prepare())
-        thd->restore_backup_item_arena(arena, &backup);
-      args[weak]= conv ? conv : args[weak];
-    }
-  }
+  DTCollation coll;
+  if (args[0]->result_type() == STRING_RESULT &&
+      args[1]->result_type() == STRING_RESULT &&
+      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV))
+    return;
   
   // Make a special case of compare with fields to get nicer DATE comparisons
 
@@ -284,7 +265,7 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       comparators= 0;
       return 1;
     }
-    if (!(comparators= (Arg_comparator *) sql_alloc(sizeof(Arg_comparator)*n)))
+    if (!(comparators= new Arg_comparator[n]))
       return 1;
     for (uint i=0; i < n; i++)
     {
@@ -788,7 +769,7 @@ void Item_func_interval::fix_length_and_dec()
   maybe_null= 0;
   max_length= 2;
   used_tables_cache|= row->used_tables();
-  not_null_tables_cache&= row->not_null_tables();
+  not_null_tables_cache= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
   const_item_cache&= row->const_item();
 }
@@ -846,7 +827,7 @@ void Item_func_between::fix_length_and_dec()
     return;
   agg_cmp_type(&cmp_type, args, 3);
   if (cmp_type == STRING_RESULT &&
-      agg_arg_collations_for_comparison(cmp_collation, args, 3))
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
     return;
 
   /*
@@ -962,7 +943,7 @@ Item_func_ifnull::fix_length_and_dec()
   decimals=max(args[0]->decimals,args[1]->decimals);
   agg_result_type(&cached_result_type, args, 2);
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
   
@@ -1058,7 +1039,7 @@ Item_func_if::fix_length_and_dec()
     agg_result_type(&cached_result_type, args+1, 2);
     if (cached_result_type == STRING_RESULT)
     {
-      if (agg_arg_collations(collation, args+1, 2))
+      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV))
       return;
     }
     else
@@ -1112,6 +1093,9 @@ Item_func_nullif::fix_length_and_dec()
     max_length=args[0]->max_length;
     decimals=args[0]->decimals;
     agg_result_type(&cached_result_type, args, 2);
+    if (cached_result_type == STRING_RESULT &&
+        agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV))
+      return;
   }
 }
 
@@ -1329,7 +1313,7 @@ void Item_func_case::fix_length_and_dec()
   
   agg_result_type(&cached_result_type, agg, nagg);
   if ((cached_result_type == STRING_RESULT) &&
-      agg_arg_collations(collation, agg, nagg))
+      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV))
     return;
   
   
@@ -1345,7 +1329,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     agg_cmp_type(&cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
-        agg_arg_collations_for_comparison(cmp_collation, agg, nagg))
+        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
     return;
   }
   
@@ -1452,7 +1436,7 @@ void Item_func_coalesce::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   if (cached_result_type == STRING_RESULT)
-    agg_arg_collations(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV);
   else if (cached_result_type != REAL_RESULT)
     decimals= 0;
 }
@@ -1518,7 +1502,11 @@ void in_string::set(uint pos,Item *item)
   String *str=((String*) base)+pos;
   String *res=item->val_str(str);
   if (res && res != str)
+  {
+    if (res->uses_buffer_owned_by(str))
+      res->copy();
     *str= *res;
+  }
   if (!str->charset())
   {
     CHARSET_INFO *cs;
@@ -1540,6 +1528,12 @@ in_row::in_row(uint elements, Item * item)
   size= sizeof(cmp_item_row);
   compare= (qsort2_cmp) cmp_row;
   tmp.store_value(item);
+  /*
+    We need to reset these as otherwise we will call sort() with
+    uninitialized (even if not used) elements
+  */
+  used_count= elements;
+  collation= 0;
 }
 
 in_row::~in_row()
@@ -1764,63 +1758,13 @@ void Item_func_in::fix_length_and_dec()
   
   agg_cmp_type(&cmp_type, args, arg_count);
 
+  if (cmp_type == STRING_RESULT &&
+      agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV))
+    return;
+
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
     const_itm&= arg[0]->const_item();
 
-
-  if (cmp_type == STRING_RESULT)
-  {
-    /*
-      We allow consts character set conversion for
-
-        item IN (const1, const2, const3, ...)
-
-      if item is in a superset for all arguments,
-      and if it is a stong side according to coercibility rules.
-   
-      TODO: add covnersion for non-constant IN values
-      via creating Item_func_conv_charset().
-    */
-
-    if (agg_arg_collations_for_comparison(cmp_collation,
-                                          args, arg_count, TRUE))
-      return;
-    if ((!my_charset_same(args[0]->collation.collation, 
-                          cmp_collation.collation) || !const_itm))
-    {
-      if (agg_arg_collations_for_comparison(cmp_collation,
-                                            args, arg_count, FALSE))
-        return;
-    }
-    else
-    {
-      /* 
-         Conversion is possible:
-         All IN arguments are constants.
-      */
-      Item_arena *arena= thd->current_arena, backup;
-      if (arena->is_stmt_prepare())
-        thd->set_n_backup_item_arena(arena, &backup);
-      for (arg= args+1, arg_end= args+arg_count; arg < arg_end; arg++)
-      {
-        if (!my_charset_same(cmp_collation.collation,
-                             arg[0]->collation.collation))
-        {
-          Item_string *conv;
-          String tmp, cstr, *ostr= arg[0]->val_str(&tmp);
-          cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(),
-                    cmp_collation.collation);
-          conv= new Item_string(cstr.ptr(),cstr.length(), cstr.charset(),
-                                arg[0]->collation.derivation);
-          conv->str_value.copy();
-          arg[0]= conv;
-        }
-      }
-      if (arena->is_stmt_prepare())
-        thd->restore_backup_item_arena(arena, &backup);
-    }
-  }
-  
   /*
     Row item with NULLs inside can return NULL or FALSE => 
     they can't be processed as static
@@ -2025,30 +1969,33 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
+
+/*
+  Move SUM items out from item tree and replace with reference
+
+  SYNOPSIS
+    split_sum_func()
+    thd			Thread handler
+    ref_pointer_array	Pointer to array of reference fields
+    fields		All fields in select
+
+  NOTES
+   This function is run on all expression (SELECT list, WHERE, HAVING etc)
+   that have or refer (HAVING) to a SUM expression.
+
+   The split is done to get an unique item for each SUM function
+   so that we can easily find and calculate them.
+   (Calculation done by update_sum_func() and copy_sum_funcs() in
+   sql_select.cc)
+*/
+
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);
   Item *item;
-  used_tables_cache=0;
-  const_item_cache=0;
-  while ((item=li++))
-  {
-    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(thd, ref_pointer_array, fields);
-    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-    {
-      Item **ref= li.ref();
-      uint el= fields.elements;
-      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-      fields.push_front(item);
-      ref_pointer_array[el]= item;
-      thd->change_item_tree(ref, new_item);
-    }
-    item->update_used_tables();
-    used_tables_cache|=item->used_tables();
-    const_item_cache&=item->const_item();
-  }
+  while ((item= li++))
+    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref());
 }
 
 
@@ -2391,14 +2338,16 @@ bool
 Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  if (args[0]->fix_fields(thd, tables, args) || args[0]->check_cols(1) ||
-      args[1]->fix_fields(thd,tables, args + 1) || args[1]->check_cols(1))
+  if ((!args[0]->fixed &&
+       args[0]->fix_fields(thd, tables, args)) || args[0]->check_cols(1) ||
+      (!args[1]->fixed && 
+       args[1]->fix_fields(thd,tables, args + 1)) || args[1]->check_cols(1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   max_length= 1;
   decimals= 0;
 
-  if (agg_arg_collations(cmp_collation, args, 2))
+  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV))
     return 1;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
@@ -2416,11 +2365,12 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       return 0;
     }
     int error;
-    if ((error=regcomp(&preg,res->c_ptr(),
-		       (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		       REG_EXTENDED | REG_NOSUB :
-		       REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		       cmp_collation.collation)))
+    if ((error= regcomp(&preg,res->c_ptr(),
+                        ((cmp_collation.collation->state &
+                          (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                         REG_EXTENDED | REG_NOSUB :
+                         REG_EXTENDED | REG_NOSUB | REG_ICASE),
+                        cmp_collation.collation)))
     {
       (void) regerror(error,&preg,buff,sizeof(buff));
       my_printf_error(ER_REGEXP_ERROR,ER(ER_REGEXP_ERROR),MYF(0),buff);
@@ -2468,10 +2418,11 @@ longlong Item_func_regex::val_int()
 	regex_compiled=0;
       }
       if (regcomp(&preg,res2->c_ptr(),
-		  (cmp_collation.collation->state & MY_CS_BINSORT) ?
-		  REG_EXTENDED | REG_NOSUB :
-		  REG_EXTENDED | REG_NOSUB | REG_ICASE,
-		  cmp_collation.collation))
+                  ((cmp_collation.collation->state &
+                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE),
+                   cmp_collation.collation))
       {
 	null_value=1;
 	return 0;

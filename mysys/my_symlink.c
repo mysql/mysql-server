@@ -26,9 +26,11 @@
 /*
   Reads the content of a symbolic link
   If the file is not a symbolic link, return the original file name in to.
-  Returns: 0 if table was a symlink,
-           1 if table was a normal file
-	   -1 on error.
+
+  RETURN
+    0  If filename was a symlink,    (to will be set to value of symlink)
+    1  If filename was a normal file (to will be set to filename)
+   -1  on error.
 */
 
 int my_readlink(char *to, const char *filename, myf MyFlags)
@@ -58,6 +60,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags)
   }
   else
     to[length]=0;
+  DBUG_PRINT("exit" ,("result: %d", result));
   DBUG_RETURN(result);
 #endif /* HAVE_READLINK */
 }

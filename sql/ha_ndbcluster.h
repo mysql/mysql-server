@@ -26,7 +26,6 @@
 #endif
 
 #include <ndbapi_limits.h>
-#include <ndb_types.h>
 
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
@@ -53,6 +52,7 @@ typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
   void *index;
   void *unique_index;
+  unsigned char *unique_index_attrid_map;
 } NDB_INDEX_DATA;
 
 typedef struct st_ndbcluster_share {
@@ -119,15 +119,14 @@ class ha_ndbcluster: public handler
   int reset();
   int external_lock(THD *thd, int lock_type);
   int start_stmt(THD *thd);
-  const char * table_type() const { return("ndbcluster");}
+  const char * table_type() const;
   const char ** bas_ext() const;
-  ulong table_flags(void) const { return m_table_flags; }
+  ulong table_flags(void) const;
   ulong index_flags(uint idx, uint part, bool all_parts) const;
-  uint max_supported_record_length() const { return NDB_MAX_TUPLE_SIZE; };
-  uint max_supported_keys() const { return MAX_KEY;  }
-  uint max_supported_key_parts() const 
-    { return NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; };
-  uint max_supported_key_length() const { return NDB_MAX_KEY_SIZE;};
+  uint max_supported_record_length() const;
+  uint max_supported_keys() const;
+  uint max_supported_key_parts() const;
+  uint max_supported_key_length() const;
 
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
@@ -136,28 +135,9 @@ class ha_ndbcluster: public handler
 			     THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
 
-  bool low_byte_first() const
-    { 
-#ifdef WORDS_BIGENDIAN
-      return FALSE;
-#else
-      return TRUE;
-#endif
-    }
-  bool has_transactions()  { return TRUE; }
-
-  const char* index_type(uint key_number) {
-    switch (get_index_type(key_number)) {
-    case ORDERED_INDEX:
-    case UNIQUE_ORDERED_INDEX:
-    case PRIMARY_KEY_ORDERED_INDEX:
-      return "BTREE";
-    case UNIQUE_INDEX:
-    case PRIMARY_KEY_INDEX:
-    default:
-      return "HASH";
-    }
-  }
+  bool low_byte_first() const;
+  bool has_transactions();
+  const char* index_type(uint key_number);
 
   double scan_time();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
@@ -166,10 +146,10 @@ class ha_ndbcluster: public handler
 
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
-  uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }
+  uint8 table_cache_type();
     
  private:
-  int alter_table_name(const char *from, const char *to);
+  int alter_table_name(const char *to);
   int drop_table();
   int create_index(const char *name, KEY *key_info, bool unique);
   int create_ordered_index(const char *name, KEY *key_info);
@@ -181,9 +161,11 @@ class ha_ndbcluster: public handler
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  
+  int check_index_fields_not_null(uint index_no);
+
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
+  int peek_row();
   int unique_index_read(const byte *key, uint key_len, 
 			byte *buf);
   int ordered_index_scan(const key_range *start_key,
@@ -229,7 +211,6 @@ class ha_ndbcluster: public handler
 
   NdbConnection *m_active_trans;
   NdbResultSet *m_active_cursor;
-  Ndb *m_ndb;
   void *m_table;
   void *m_table_info;
   char m_dbname[FN_HEADLEN];
@@ -243,20 +224,29 @@ class ha_ndbcluster: public handler
   typedef union { NdbRecAttr *rec; NdbBlob *blob; void *ptr; } NdbValue;
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   bool m_use_write;
-  bool m_ignore_dup_key_not_supported;
-  bool retrieve_all_fields;
-  ha_rows rows_to_insert;
-  ha_rows rows_inserted;
-  ha_rows bulk_insert_rows;
-  bool bulk_insert_not_flushed;
-  ha_rows ops_pending;
-  bool skip_auto_increment;
-  bool blobs_pending;
+  bool m_ignore_dup_key;
+  bool m_primary_key_update;
+  bool m_retrieve_all_fields;
+  bool m_retrieve_primary_key;
+  ha_rows m_rows_to_insert;
+  ha_rows m_rows_inserted;
+  ha_rows m_bulk_insert_rows;
+  bool m_bulk_insert_not_flushed;
+  ha_rows m_ops_pending;
+  bool m_skip_auto_increment;
+  bool m_blobs_pending;
   // memory for blobs in one tuple
-  char *blobs_buffer;
-  uint32 blobs_buffer_size;
-  uint dupkey;
+  char *m_blobs_buffer;
+  uint32 m_blobs_buffer_size;
+  uint m_dupkey;
+  // set from thread variables at external lock
+  bool m_ha_not_exact_count;
+  bool m_force_send;
+  ha_rows m_autoincrement_prefetch;
+  bool m_transaction_on;
+  bool m_use_local_query_cache;
 
+  Ndb *get_ndb();
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
@@ -265,6 +255,8 @@ class ha_ndbcluster: public handler
   void no_uncommitted_rows_reset(THD *);
 
   friend int execute_no_commit(ha_ndbcluster*, NdbConnection*);
+  friend int execute_commit(ha_ndbcluster*, NdbConnection*);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbConnection*);
 };
 
 bool ndbcluster_init(void);

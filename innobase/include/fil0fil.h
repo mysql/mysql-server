@@ -364,19 +364,29 @@ fil_create_new_single_table_tablespace(
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 /************************************************************************
-Tries to open a single-table tablespace and checks the space id is right in
-it. If does not succeed, prints an error message to the .err log. This
-function is used to open the tablespace when we load a table definition
-to the dictionary cache. NOTE that we assume this operation is used under the
-protection of the dictionary mutex, so that two users cannot race here. */
+Tries to open a single-table tablespace and optionally checks the space id is
+right in it. If does not succeed, prints an error message to the .err log. This
+function is used to open a tablespace when we start up mysqld, and also in
+IMPORT TABLESPACE.
+NOTE that we assume this operation is used either at the database startup
+or under the protection of the dictionary mutex, so that two users cannot
+race here. This operation does not leave the file associated with the
+tablespace open, but closes it after we have looked at the space id in it. */
 
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-				/* out: TRUE if success */
-	ulint		id,	/* in: space id */
-	const char*	name);	/* in: table name in the
-				databasename/tablename format */
+					/* out: TRUE if success */
+	ibool		check_space_id,	/* in: should we check that the space
+					id in the file is right; we assume
+					that this function runs much faster
+					if no check is made, since accessing
+					the file inode probably is much
+					faster (the OS caches them) than
+					accessing the first page of the file */
+	ulint		id,		/* in: space id */
+	const char*	name);		/* in: table name in the
+					databasename/tablename format */
 /************************************************************************
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
@@ -478,7 +488,7 @@ fil_extend_space_to_desired_size(
 	ulint*	actual_size,	/* out: size of the space after extension;
 				if we ran out of disk space this may be lower
 				than the desired size */
-	ulint	space_id,	/* in: space id, must be != 0 */
+	ulint	space_id,	/* in: space id */
 	ulint	size_after_extend);/* in: desired size in pages after the
 				extension; if the current space size is bigger
 				than this already, the function does nothing */

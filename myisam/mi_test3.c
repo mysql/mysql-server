@@ -40,7 +40,7 @@
 #endif
 
 
-const char *filename= "test3.MSI";
+const char *filename= "test3";
 uint tests=10,forks=10,key_cacheing=0,use_log=0;
 
 static void get_options(int argc, char *argv[]);
@@ -363,7 +363,7 @@ int test_write(MI_INFO *file,int id,int lock_type)
   }
 
   sprintf(record.id,"%7d",getpid());
-  strmov(record.text,"Testing...");
+  strnmov(record.text,"Testing...", sizeof(record.text));
 
   tries=(uint) rnd(100)+10;
   for (i=count=0 ; i < tries ; i++)

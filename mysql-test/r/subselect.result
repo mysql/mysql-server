@@ -55,7 +55,7 @@ SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
 SELECT (SELECT 1), a;
-ERROR 42S22: Unknown column 'a' in 'checking transformed subquery'
+ERROR 42S22: Unknown column 'a' in 'field list'
 SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 a
 1
@@ -269,7 +269,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
-Note	1003	select test.t3.a AS `a` from test.t3 where (test.t3.a >= (select min(test.t2.b) from test.t2))
+Note	1003	select test.t3.a AS `a` from test.t3 where <nop>((test.t3.a >= (select min(test.t2.b) from test.t2)))
 select * from t3 where a >= all (select b from t2);
 a
 7
@@ -999,7 +999,9 @@ drop table t1, t2;
 CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
+select * from t1;
+i
+1
 drop table t1;
 CREATE TABLE t1 (a int(1));
 EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
@@ -1084,7 +1086,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) NOT NULL default '0',
-  `(SELECT a)` bigint(20) default NULL
+  `(SELECT a)` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
@@ -1102,7 +1104,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) default NULL
+  `a` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int);
@@ -1186,11 +1188,12 @@ PRIMARY KEY  (`i`)
 ) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
-ERROR HY000: Invalid use of group function
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 ERROR 42S02: Unknown table 't' in field list
+select * from t1;
+i
+1
 drop table t1;
 CREATE TABLE t1 (
 id int(11) default NULL
@@ -1485,6 +1488,65 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
 Note	1003	select test.t3.a AS `a` from test.t3 where <not>((test.t3.a < (select max(test.t2.b) from test.t2)))
+select * from t3 where a >= some (select b from t2);
+a
+explain extended select * from t3 where a >= some (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <nop>((test.t3.a >= (select min(test.t2.b) from test.t2)))
+select * from t3 where a >= all (select b from t2 group by 1);
+a
+6
+7
+3
+explain extended select * from t3 where a >= all (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <not>((test.t3.a < <max>(select test.t2.b AS `b` from test.t2 group by test.t2.b)))
+select * from t3 where a >= some (select b from t2 group by 1);
+a
+explain extended select * from t3 where a >= some (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3 where <nop>((test.t3.a >= <min>(select test.t2.b AS `b` from test.t2 group by test.t2.b)))
+select * from t3 where NULL >= any (select b from t2);
+a
+explain extended select * from t3 where NULL >= any (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= any (select b from t2 group by 1);
+a
+explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= some (select b from t2);
+a
+explain extended select * from t3 where NULL >= some (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
+select * from t3 where NULL >= some (select b from t2 group by 1);
+a
+explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+Warnings:
+Note	1003	select test.t3.a AS `a` from test.t3
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
@@ -1987,3 +2049,222 @@ ac
 700
 NULL
 drop tables t1,t2;
+create table t1 (a int not null, b int not null, c int, primary key (a,b));
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+set @b:= 0;
+explain select sum(a) from t1 where b > @b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	3	Using where; Using index
+set @a:= (select sum(a) from t1 where b > @b);
+explain select a from t1 where c=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+do @a:= (select sum(a) from t1 where b > @b);
+explain select a from t1 where c=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
+set @got_val= (SELECT 1 FROM (SELECT 'A' as my_col) as T1 ) ;
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1,1),(1,2),(1,3),(2,4),(2,5);
+insert into t2 values (1,3),(2,1);
+select distinct a,b, (select max(b) from t2 where t1.b=t2.a) from t1 order by t1.b;
+a	b	(select max(b) from t2 where t1.b=t2.a)
+1	1	3
+1	2	1
+1	3	NULL
+2	4	NULL
+2	5	NULL
+drop table t1, t2;
+create table t1 (id int);
+create table t2 (id int, body text, fulltext (body));
+insert into t1 values(1),(2),(3);
+insert into t2 values (1,'test'), (2,'mysql'), (3,'test'), (4,'test');
+select count(distinct id) from t1 where id in (select id from t2 where match(body) against ('mysql' in boolean mode));
+count(distinct id)
+1
+drop table t2,t1;
+create table t1 (s1 int,s2 int);
+insert into t1 values (20,15);
+select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
+s1	s2
+drop table t1;
+create table t1 (s1 int);
+insert into t1 values (1),(null);
+select * from t1 where s1 < all (select s1 from t1);
+s1
+select s1, s1 < all (select s1 from t1) from t1;
+s1	s1 < all (select s1 from t1)
+1	0
+NULL	NULL
+drop table t1;
+CREATE TABLE t1 (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL default 'Asia',
+Region char(26) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+IndepYear smallint(6) default NULL,
+Population int(11) NOT NULL default '0',
+LifeExpectancy float(3,1) default NULL,
+GNP float(10,2) default NULL,
+GNPOld float(10,2) default NULL,
+LocalName char(45) NOT NULL default '',
+GovernmentForm char(45) NOT NULL default '',
+HeadOfState char(60) default NULL,
+Capital int(11) default NULL,
+Code2 char(2) NOT NULL default ''
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
+INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
+INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');
+INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','Micronesia/Caribbean',16.00,0,0,NULL,0.00,NULL,'United States Minor Outlying Islands','Dependent Territory of the US','George W. Bush',NULL,'UM');
+/*!40000 ALTER TABLE t1 ENABLE KEYS */;
+SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
+c
+Oceania
+drop table t1;
+create table t1 (a1 int);
+create table t2 (b1 int);
+select * from t1 where a2 > any(select b1 from t2);
+ERROR 42S22: Unknown column 'a2' in 'scalar IN/ALL/ANY subquery'
+select * from t1 where a1 > any(select b1 from t2);
+a1
+drop table t1,t2;
+create table t1 (a integer, b integer);
+select (select * from t1) = (select 1,2);
+(select * from t1) = (select 1,2)
+NULL
+select (select 1,2) = (select * from t1);
+(select 1,2) = (select * from t1)
+NULL
+select  row(1,2) = ANY (select * from t1);
+row(1,2) = ANY (select * from t1)
+0
+select  row(1,2) != ALL (select * from t1);
+row(1,2) != ALL (select * from t1)
+1
+drop table t1;
+create table t1 (a integer, b integer);
+select row(1,(2,2)) in (select * from t1 );
+ERROR 21000: Operand should contain 2 column(s)
+select row(1,(2,2)) = (select * from t1 );
+ERROR 21000: Operand should contain 2 column(s)
+select (select * from t1) = row(1,(2,2));
+ERROR 21000: Operand should contain 1 column(s)
+drop table t1;
+create  table t1 (a integer);
+insert into t1 values (1);
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
+xx	1 = ALL (  select 1 from t1 where 1 = xx )
+1	1
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+drop table t1;
+CREATE TABLE t1 (
+categoryId int(11) NOT NULL,
+courseId int(11) NOT NULL,
+startDate datetime NOT NULL,
+endDate datetime NOT NULL,
+createDate datetime NOT NULL,
+modifyDate timestamp NOT NULL,
+attributes text NOT NULL
+);
+INSERT INTO t1 VALUES (1,41,'2004-02-09','2010-01-01','2004-02-09','2004-02-09',''),
+(1,86,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(1,87,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(2,52,'2004-03-15','2004-10-01','2004-03-15','2004-09-17',''),
+(2,53,'2004-03-16','2004-10-01','2004-03-16','2004-09-17',''),
+(2,88,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(2,89,'2004-08-16','2004-08-16','2004-08-16','2004-08-16',''),
+(3,51,'2004-02-09','2010-01-01','2004-02-09','2004-02-09',''),
+(5,12,'2004-02-18','2010-01-01','2004-02-18','2004-02-18','');
+CREATE TABLE t2 (
+userId int(11) NOT NULL,
+courseId int(11) NOT NULL,
+date datetime NOT NULL
+);
+INSERT INTO t2 VALUES (5141,71,'2003-11-18'),
+(5141,72,'2003-11-25'),(5141,41,'2004-08-06'),
+(5141,52,'2004-08-06'),(5141,53,'2004-08-06'),
+(5141,12,'2004-08-06'),(5141,86,'2004-10-21'),
+(5141,87,'2004-10-21'),(5141,88,'2004-10-21'),
+(5141,89,'2004-10-22'),(5141,51,'2004-10-26');
+CREATE TABLE t3 (
+groupId int(11) NOT NULL,
+parentId int(11) NOT NULL,
+startDate datetime NOT NULL,
+endDate datetime NOT NULL,
+createDate datetime NOT NULL,
+modifyDate timestamp NOT NULL,
+ordering int(11)
+);
+INSERT INTO t3 VALUES (12,9,'1000-01-01','3999-12-31','2004-01-29','2004-01-29',NULL);
+CREATE TABLE t4 (
+id int(11) NOT NULL,
+groupTypeId int(11) NOT NULL,
+groupKey varchar(50) NOT NULL,
+name text,
+ordering int(11),
+description text,
+createDate datetime NOT NULL,
+modifyDate timestamp NOT NULL
+);
+INSERT INTO t4 VALUES (9,5,'stationer','stationer',0,'Stationer','2004-01-29','2004-01-29'),
+(12,5,'group2','group2',0,'group2','2004-01-29','2004-01-29');
+CREATE TABLE t5 (
+userId int(11) NOT NULL,
+groupId int(11) NOT NULL,
+createDate datetime NOT NULL,
+modifyDate timestamp NOT NULL
+);
+INSERT INTO t5 VALUES (5141,12,'2004-08-06','2004-08-06');
+select
+count(distinct t2.userid) pass,
+groupstuff.*,
+count(t2.courseid) crse,
+t1.categoryid, 
+t2.courseid,
+date_format(date, '%b%y') as colhead
+from t2   
+join t1 on t2.courseid=t1.courseid  
+join
+(
+select 
+t5.userid,  
+parentid,  
+parentgroup,  
+childid,  
+groupname,  
+grouptypeid  
+from t5 
+join 
+(
+select t4.id as parentid,  
+t4.name as parentgroup,  
+t4.id as childid,  
+t4.name as groupname,  
+t4.grouptypeid  
+from   t4  
+) as gin on t5.groupid=gin.childid 
+) as groupstuff on t2.userid = groupstuff.userid 
+group by 
+groupstuff.groupname, colhead , t2.courseid;
+pass	userid	parentid	parentgroup	childid	groupname	grouptypeid	crse	categoryid	courseid	colhead
+1	5141	12	group2	12	group2	5	1	5	12	Aug04
+1	5141	12	group2	12	group2	5	1	1	41	Aug04
+1	5141	12	group2	12	group2	5	1	2	52	Aug04
+1	5141	12	group2	12	group2	5	1	2	53	Aug04
+1	5141	12	group2	12	group2	5	1	3	51	Oct04
+1	5141	12	group2	12	group2	5	1	1	86	Oct04
+1	5141	12	group2	12	group2	5	1	1	87	Oct04
+1	5141	12	group2	12	group2	5	1	2	88	Oct04
+1	5141	12	group2	12	group2	5	1	2	89	Oct04
+drop table if exists t1, t2, t3, t4, t5;

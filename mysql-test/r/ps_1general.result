@@ -1,4 +1,6 @@
-use test;
+drop table if exists t5, t6, t7, t8;
+drop database if exists mysqltest ;
+drop database if exists client_test_db;
 test_sequence
 ------ basic tests ------
 drop table if exists t1, t9 ;
@@ -290,7 +292,7 @@ execute stmt4;
 prepare stmt4 from ' show full processlist ';
 execute stmt4;
 Id	User	Host	db	Command	Time	State	Info
-number	root	localhost	test	Query	0	NULL	show full processlist
+number	root	localhost	test	Query	time	NULL	show full processlist
 prepare stmt4 from ' show grants for user ';
 prepare stmt4 from ' show create table t2 ';
 ERROR HY000: This command is not supported in the prepared statement protocol yet
@@ -467,15 +469,15 @@ ERROR HY000: This command is not supported in the prepared statement protocol ye
 prepare stmt1 from ' explain select a from t1 order by b ';
 execute stmt1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32801	0	8
+def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8
 def					type	253	10	3	N	1	31	8
 def					possible_keys	253	4096	0	Y	0	31	8
 def					key	253	64	0	Y	0	31	8
-def					key_len	8	3	0	Y	32800	0	8
+def					key_len	8	3	0	Y	32928	0	63
 def					ref	253	1024	0	Y	0	31	8
-def					rows	8	10	1	N	32801	0	8
+def					rows	8	10	1	N	32929	0	63
 def					Extra	253	255	14	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
@@ -483,15 +485,15 @@ SET @arg00=1 ;
 prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
 execute stmt1 using @arg00;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					id	8	3	1	N	32801	0	8
+def					id	8	3	1	N	32929	0	63
 def					select_type	253	19	6	N	1	31	8
 def					table	253	64	2	N	1	31	8
 def					type	253	10	5	N	1	31	8
 def					possible_keys	253	4096	7	Y	0	31	8
 def					key	253	64	7	Y	0	31	8
-def					key_len	8	3	1	Y	32800	0	8
+def					key_len	8	3	1	Y	32928	0	63
 def					ref	253	1024	0	Y	0	31	8
-def					rows	8	10	1	N	32801	0	8
+def					rows	8	10	1	N	32929	0	63
 def					Extra	253	255	27	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
@@ -558,7 +560,6 @@ execute stmt3;
 ERROR 42S01: Table 'new_t2' already exists
 rename table new_t2 to t2;
 drop table t2;
-drop table if exists t5, t6, t7, t8 ;
 prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
 create table t5 (a int) ;
 execute stmt1 ;
@@ -810,46 +811,49 @@ test_sequence
 ------ grant/revoke/drop affects a parallel session test ------
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
-grant usage on test.* to second_user@localhost
+create database mysqltest;
+use mysqltest;
+use test;
+grant usage on mysqltest.* to second_user@localhost
 identified by 'looser' ;
-grant select on test.t9 to second_user@localhost
+grant select on mysqltest.t9 to second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 select current_user();
 current_user()
 second_user@localhost
 show grants for current_user();
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 prepare s_t9 from 'select c1 as my_col 
                                  from t9 where c1= 1' ;
 execute s_t9 ;
 my_col
 1
 select a as my_col from t1;
-ERROR 42000: select command denied to user 'second_user'@'localhost' for table 't1'
-grant select on test.t1 to second_user@localhost
+ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'
+grant select on mysqltest.t1 to second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t1` TO 'second_user'@'localhost'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
-drop table t9 ;
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
+drop table mysqltest.t9 ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t1` TO 'second_user'@'localhost'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t1` TO 'second_user'@'localhost'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
 prepare s_t1 from 'select a as my_col from t1' ;
 execute s_t1 ;
 my_col
@@ -858,19 +862,19 @@ my_col
 3
 4
 execute s_t9 ;
-ERROR 42S02: Table 'test.t9' doesn't exist
-revoke all privileges on test.t1 from second_user@localhost
+ERROR 42S02: Table 'mysqltest.t9' doesn't exist
+revoke all privileges on mysqltest.t1 from second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
-GRANT SELECT ON `test`.`t9` TO 'second_user'@'localhost'
+GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 execute s_t1 ;
-ERROR 42000: select command denied to user 'second_user'@'localhost' for table 't1'
+ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'
 revoke all privileges, grant option from second_user@localhost ;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
@@ -879,4 +883,5 @@ drop user second_user@localhost ;
 commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
-drop table t1 ;
+drop table t1,t9 ;
+drop database mysqltest;

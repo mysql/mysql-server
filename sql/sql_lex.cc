@@ -123,6 +123,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
+  lex->update_list.empty();
   lex->param_list.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
@@ -135,7 +136,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->select_lex.options= 0;
   lex->describe= 0;
-  lex->derived_tables= FALSE;
+  lex->subqueries= lex->derived_tables= FALSE;
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
@@ -157,11 +158,16 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
   lex->duplicates= DUP_ERROR;
+  lex->ignore= 0;
+  lex->proc_list.first= 0;
 }
 
 void lex_end(LEX *lex)
 {
-  lex->select_lex.expr_list.delete_elements();	// If error when parsing sql-varargs
+  for (SELECT_LEX *sl= lex->all_selects_list;
+       sl;
+       sl= sl->next_select_in_list())
+    sl->expr_list.delete_elements();	// If error when parsing sql-varargs
   x_free(lex->yacc_yyss);
   x_free(lex->yacc_yyvs);
 }
@@ -289,7 +295,18 @@ static char *get_text(LEX *lex)
       found_escape=1;
       if (lex->ptr == lex->end_of_query)
 	return 0;
-      yySkip();
+#ifdef USE_MB
+      int l;
+      if (use_mb(cs) &&
+          (l = my_ismbchar(cs,
+                           (const char *)lex->ptr,
+                           (const char *)lex->end_of_query))) {
+          lex->ptr += l;
+          continue;
+      }
+      else
+#endif
+        yySkip();
     }
     else if (c == sep)
     {
@@ -317,6 +334,10 @@ static char *get_text(LEX *lex)
       else
       {
 	uchar *to;
+
+        /* Re-use found_escape for tracking state of escapes */
+        found_escape= 0;
+
 	for (to=start ; str != end ; str++)
 	{
 #ifdef USE_MB
@@ -330,7 +351,7 @@ static char *get_text(LEX *lex)
 	      continue;
 	  }
 #endif
-	  if (*str == '\\' && str+1 != end)
+	  if (!found_escape && *str == '\\' && str+1 != end)
 	  {
 	    switch(*++str) {
 	    case 'n':
@@ -356,15 +377,20 @@ static char *get_text(LEX *lex)
 	      *to++= '\\';		// remember prefix for wildcard
 	      /* Fall through */
 	    default:
-	      *to++ = *str;
+              found_escape= 1;
+              str--;
 	      break;
 	    }
 	  }
-	  else if (*str == sep)
-	    *to++= *str++;		// Two ' or "
+	  else if (!found_escape && *str == sep)
+          {
+            found_escape= 1;
+          }
 	  else
+          {
 	    *to++ = *str;
-
+            found_escape= 0;
+          }
 	}
 	*to=0;
 	lex->yytoklen=(uint) (to-start);
@@ -909,6 +935,7 @@ int yylex(void *arg, void *yythd)
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
             (thd->command != COM_PREPARE))
         {
+	  lex->safe_to_cache_query=0;
           lex->found_colon=(char*)lex->ptr;
           thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
@@ -1681,9 +1708,6 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
-  if (!thd)
-    thd= current_thd;
-
   if (explicit_limit)
   {
     str->append(" limit ", 7);
@@ -1717,8 +1741,8 @@ st_lex::st_lex()
     global_first	Save first global table here
     local_first		Save first local table here
 
-  NORES
-   global_first & local_first are used to save result for link_first_table_back
+  NOTES
+    This function assumes that outer select list is non-empty.
 
   RETURN
     global list without first table
@@ -1728,25 +1752,25 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 				       TABLE_LIST **global_first,
 				       TABLE_LIST **local_first)
 {
+  DBUG_ASSERT(select_lex.table_list.first != 0);
+  /*
+    Save pointers to first elements of global table list and list
+    of tables used in outer select. It does not harm if these lists
+    are the same.
+  */
   *global_first= tables;
   *local_first= (TABLE_LIST*)select_lex.table_list.first;
-  /*
-    Exclude from global table list
-  */
+
+  /* Exclude first elements from these lists */
+  select_lex.table_list.first= (byte*) (*local_first)->next;
   tables= tables->next;
-  /*
-    and from local list if it is not the same
-  */
-  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
-				(byte*) (*local_first)->next :
-				(byte*) tables);
   (*global_first)->next= 0;
   return tables;
 }
 
 
 /*
-  Link table back that was unlinked with unlink_first_table()
+  Link table which was unlinked with unlink_first_table() back.
 
   SYNOPSIS
     link_first_table_back()
@@ -1762,16 +1786,7 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
 					  TABLE_LIST *local_first)
 {
   global_first->next= tables;
-  if (&select_lex != all_selects_list)
-  {
-    /*
-      we do not touch local table 'next' field => we need just
-      put the table in the list
-    */
-    select_lex.table_list.first= (byte*) local_first;
-  }
-  else
-    select_lex.table_list.first= (byte*) global_first;
+  select_lex.table_list.first= (byte*) local_first;
   return global_first;
 }
 

@@ -261,22 +261,6 @@ cmp_whole_field(
 "InnoDB: comparison!\n");
 		}		   
 
-		/* MySQL does not pad the ends of strings with spaces in a
-		comparison. That would cause a foreign key check to fail for
-		non-latin1 character sets if we have different length columns.
-		To prevent that we remove trailing spaces here before doing
-		the comparison. NOTE that if we in the future map more MySQL
-		types to DATA_MYSQL or DATA_VARMYSQL, we have to change this
-		code. */
-
-		while (a_length > 0 && a[a_length - 1] == ' ') {
-		      a_length--;
-		}
-
-		while (b_length > 0 && b[b_length - 1] == ' ') {
-		      b_length--;
-		}
-
 		return(innobase_mysql_cmp(
 				(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
 				(uint)dtype_get_charset_coll(type->prtype),

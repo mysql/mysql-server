@@ -645,6 +645,7 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 --disable_warnings
 alter table t1 engine=bdb;
+--enable_warnings
 select * from t1 where b like 'foob%';
 drop table t1;
 
@@ -659,3 +660,41 @@ create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
 show create table t2;
 drop table t2;
 drop table t1;
+
+#
+# Bug #6787 LIKE not working properly with _ and utf8 data
+#
+select 'c' like '\_' as want0; 
+
+#
+# Bug #7730 Server crash using soundex on an utf8 table
+#
+create table t1 (id integer, a varchar(100) character set utf8 collate utf8_unicode_ci);
+insert into t1 values (1, 'Test');
+select * from t1 where soundex(a) = soundex('Test');
+select * from t1 where soundex(a) = soundex('TEST');
+select * from t1 where soundex(a) = soundex('test');
+drop table t1;
+
+
+SET collation_connection='utf8_general_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='utf8_bin';
+-- source include/ctype_filesort.inc
+
+#
+# Bug #7874 CONCAT() gives wrong results mixing
+# latin1 field and utf8 string literals
+#
+CREATE TABLE t1 (
+	user varchar(255) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('one'),('two');
+SELECT CHARSET('a');
+SELECT user, CONCAT('<', user, '>') AS c FROM t1;
+DROP TABLE t1;
+
+#
+# Bug#8385: utf8_general_ci treats Cyrillic letters I and SHORT I as the same
+#
+select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);

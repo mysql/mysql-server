@@ -165,11 +165,13 @@ bool berkeley_init(void)
   {
     db_env->close(db_env,0); /* purecov: inspected */
     db_env=0; /* purecov: inspected */
+    goto err;
   }
 
   (void) hash_init(&bdb_open_tables,system_charset_info,32,0,0,
 		   (hash_get_key) bdb_get_key,0,0);
   pthread_mutex_init(&bdb_mutex,MY_MUTEX_INIT_FAST);
+err:
   DBUG_RETURN(db_env == 0);
 }
 
@@ -234,13 +236,13 @@ int berkeley_show_logs(Protocol *protocol)
 {
   char **all_logs, **free_logs, **a, **f;
   int error=1;
-  MEM_ROOT show_logs_root;
-  MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  MEM_ROOT **root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,THR_MALLOC);
+  MEM_ROOT show_logs_root, *old_mem_root= *root_ptr;
   DBUG_ENTER("berkeley_show_logs");
 
   init_sql_alloc(&show_logs_root, BDB_LOG_ALLOC_BLOCK_SIZE,
 		 BDB_LOG_ALLOC_BLOCK_SIZE);
-  my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
+  *root_ptr= &show_logs_root;
 
   if ((error= db_env->log_archive(db_env, &all_logs,
 				  DB_ARCH_ABS | DB_ARCH_LOG)) ||
@@ -277,14 +279,16 @@ int berkeley_show_logs(Protocol *protocol)
   }
 err:
   free_root(&show_logs_root,MYF(0));
-  my_pthread_setspecific_ptr(THR_MALLOC,old_root);
+  *root_ptr= old_mem_root;
   DBUG_RETURN(error);
 }
+
 
 static void berkeley_print_error(const char *db_errpfx, char *buffer)
 {
   sql_print_error("%s:  %s",db_errpfx,buffer); /* purecov: tested */
 }
+
 
 static void berkeley_noticecall(DB_ENV *db_env, db_notices notice)
 {

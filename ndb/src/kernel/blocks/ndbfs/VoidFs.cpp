@@ -196,5 +196,5 @@ VoidFs::execDUMP_STATE_ORD(Signal* signal)
 
 
 
-BLOCK_FUNCTIONS(VoidFs);
+BLOCK_FUNCTIONS(VoidFs)
 

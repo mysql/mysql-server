@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
-#include "sql_acl.h"
 #include "repl_failsafe.h"
 #include <my_dir.h>
 
@@ -752,8 +751,9 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
           String def(tmp1,sizeof(tmp1), system_charset_info);
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type);
+          uint dummy_errors;
           def.copy(type.ptr(), type.length(), type.charset(), 
-                   system_charset_info);
+                   system_charset_info, &dummy_errors);
           protocol->store(def.ptr(), def.length(), def.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
@@ -817,6 +817,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   }
 
+  buffer.length(0);
   if (store_create_info(thd, table, &buffer))
     DBUG_RETURN(-1);
 
@@ -830,9 +831,6 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
   protocol->store(table->table_name, system_charset_info);
-  buffer.length(0);
-  if (store_create_info(thd, table, &buffer))
-    DBUG_RETURN(-1);
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
   if (protocol->write())
     DBUG_RETURN(1);
@@ -1027,7 +1025,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       /* Check if we have a key part that only uses part of the field */
       if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
           key_part->length != table->field[key_part->fieldnr-1]->key_length()))
-        protocol->store_tiny((longlong) key_part->length);
+        protocol->store_tiny((longlong) key_part->length / 
+                             key_part->field->charset()->mbmaxlen);
       else
         protocol->store_null();
       protocol->store_null();                   // No pack_information yet
@@ -1080,7 +1079,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   restore_record(table,default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list,2))
     DBUG_VOID_RETURN;
-  net_flush(&thd->net);
+  thd->protocol->flush();
   DBUG_VOID_RETURN;
 }
 
@@ -1097,13 +1096,11 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   if (store_create_info(thd, table, packet))
     DBUG_RETURN(-1);
 
-  //if (protocol->convert)
-  //  protocol->convert->convert((char*) packet->ptr(), packet->length());
   if (fd < 0)
   {
     if (protocol->write())
       DBUG_RETURN(-1);
-    net_flush(&thd->net);
+    protocol->flush();
   }
   else
   {
@@ -1170,6 +1167,15 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   {
     uchar chr= (uchar) *name;
     length= my_mbcharlen(system_charset_info, chr);
+    /*
+      my_mbcharlen can retur 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!length)
+      length= 1;
     if (length == 1 && chr == (uchar) quote_char)
       packet->append(&quote_char, 1, system_charset_info);
     packet->append(name, length, packet->charset());
@@ -1338,9 +1344,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 	if (type.length())
 	{
 	  String def_val;
+          uint dummy_errors;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
-		       system_charset_info);
+		       system_charset_info, &dummy_errors);
           append_unescaped(packet, def_val.ptr(), def_val.length());
 	}
         else
@@ -1398,14 +1405,18 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
 	!limited_mysql_mode && !foreign_db_mode)
     {
-      if (table->db_type == DB_TYPE_HEAP &&
-	  key_info->algorithm == HA_KEY_ALG_BTREE)
+      if (key_info->algorithm == HA_KEY_ALG_BTREE)
 	packet->append(" TYPE BTREE", 11);
+      
+      if (key_info->algorithm == HA_KEY_ALG_HASH)
+	packet->append(" TYPE HASH", 10);
       
       // +BAR: send USING only in non-default case: non-spatial rtree
       if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
 	  !(key_info->flags & HA_SPATIAL))
 	packet->append(" TYPE RTREE", 11);
+
+      // No need to send TYPE FULLTEXT, it is sent as FULLTEXT KEY
     }
     packet->append(" (", 2);
 
@@ -2056,7 +2067,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
       case SHOW_KEY_CACHE_CONST_LONG:
-	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
+	value= (value-(char*) &dflt_key_cache_var)+ (char*) dflt_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;
       case SHOW_UNDEF:				// Show never happen

@@ -18,7 +18,6 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -252,13 +251,19 @@ void free_io_cache(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
-	/* Close all tables which aren't in use by any thread */
+/*
+  Close all tables which aren't in use by any thread
+
+  THD can be NULL, but then if_wait_for_refresh must be FALSE
+  and tables must be NULL.
+*/
 
 bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 			 TABLE_LIST *tables)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
+  DBUG_ASSERT(thd || (!if_wait_for_refresh && !tables));
 
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tables)
@@ -334,7 +339,6 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)
   {
-    THD *thd=current_thd;
     pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= 0;
     thd->mysys_var->current_cond= 0;
@@ -499,7 +503,7 @@ void close_temporary_tables(THD *thd)
     */
     query_buf_size+= table->key_length+1;
 
-  if ((query = alloc_root(&thd->mem_root, query_buf_size)))
+  if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
     end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
@@ -524,7 +528,7 @@ void close_temporary_tables(THD *thd)
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();
-    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
     /*
       Imagine the thread had created a temp table, then was doing a SELECT, and
       the SELECT was killed. Then it's not clever to mark the statement above as
@@ -806,8 +810,9 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 
   for (table=thd->temporary_tables; table ; table=table->next)
   {
-    if (table->key_length == key_length+8 &&
-	!memcmp(table->table_cache_key,key,key_length+8))
+    if (table->key_length == key_length + TMP_TABLE_KEY_EXTRA &&
+	!memcmp(table->table_cache_key, key,
+                key_length + TMP_TABLE_KEY_EXTRA))
     {
       if (table->query_id == thd->query_id)
       {
@@ -1440,7 +1445,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0);
+        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }
@@ -1696,6 +1701,34 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   DBUG_ENTER("open_and_lock_tables");
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
+    DBUG_RETURN(-1);				/* purecov: inspected */
+  relink_tables_for_derived(thd);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
+}
+
+
+/*
+  Open all tables in list and process derived tables
+
+  SYNOPSIS
+    open_normal_and_derived_tables
+    thd		- thread handler
+    tables	- list of tables for open&locking
+
+  RETURN
+    FALSE - ok
+    TRUE  - error
+
+  NOTE 
+    This is to be used on prepare stage when you don't read any
+    data from the tables.
+*/
+
+int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables)
+{
+  uint counter;
+  DBUG_ENTER("open_normal_and_derived_tables");
+  if (open_tables(thd, tables, &counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
   relink_tables_for_derived(thd);
   DBUG_RETURN(mysql_handle_derived(thd->lex));
@@ -2040,13 +2073,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
-      if (report_error)
-      {
-	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			table_name, thd->where);
-      }
-      else
-	return (Field*) not_found_field;
+      my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+                      table_name, thd->where);
     }
     else
       if (report_error)
@@ -2305,23 +2333,20 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
-  bool is_stmt_prepare;
   DBUG_ENTER("setup_wild");
   if (!wild_num)
     DBUG_RETURN(0);
 
-  Item_arena *arena= thd->current_arena, backup;
-
+  reg2 Item *item;
+  List_iterator<Item> it(fields);
+  Item_arena *arena, backup;
   /*
     If we are in preparing prepared statement phase then we have change
     temporary mem_root to statement mem root to save changes of SELECT list
   */
-  if ((is_stmt_prepare= arena->is_stmt_prepare()))
-    thd->set_n_backup_item_arena(arena, &backup);
+  arena= thd->change_arena_if_needed(&backup);
 
-  reg2 Item *item;
-  List_iterator<Item> it(fields);
-  while ( wild_num && (item= it++))
+  while (wild_num && (item= it++))
   {    
     if (item->type() == Item::FIELD_ITEM &&
         ((Item_field*) item)->field_name &&
@@ -2343,7 +2368,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
                              ((Item_field*) item)->table_name, &it))
       {
-        if (is_stmt_prepare)
+        if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
@@ -2359,7 +2384,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
       wild_num--;
     }
   }
-  if (is_stmt_prepare)
+  if (arena)
     thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(0);
 }
@@ -2379,6 +2404,20 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   thd->set_query_id=set_query_id;
   thd->allow_sum_func= allow_sum_func;
   thd->where="field list";
+
+  /*
+    To prevent fail on forward lookup we fill it with zerows,
+    then if we got pointer on zero after find_item_in_list we will know
+    that it is forward lookup.
+
+    There is other way to solve problem: fill array with pointers to list,
+    but it will be slower.
+
+    TODO: remove it when (if) we made one list for allfields and
+    ref_pointer_array
+  */
+  if (ref_pointer_array)
+    bzero(ref_pointer_array, sizeof(Item *) * fields.elements);
 
   Item **ref= ref_pointer_array;
   while ((item= it++))
@@ -2588,11 +2627,10 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
-  Item_arena *arena= thd->current_arena, backup;
-  bool is_stmt_prepare= arena->is_stmt_prepare();
+  Item_arena *arena= 0, backup;
   DBUG_ENTER("setup_conds");
+
   thd->set_query_id=1;
-  
   thd->lex->current_select->cond_count= 0;
   if (*conds)
   {
@@ -2627,12 +2665,14 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (is_stmt_prepare)
-	  thd->set_n_backup_item_arena(arena, &backup);
+        arena= thd->change_arena_if_needed(&backup);
 	*conds= and_conds(*conds, table->on_expr);
 	table->on_expr=0;
-	if (is_stmt_prepare)
+	if (arena)
+        {
 	  thd->restore_backup_item_arena(arena, &backup);
+          arena= 0;                             // Safety if goto err
+        }
 	if ((*conds) && !(*conds)->fixed &&
 	    (*conds)->fix_fields(thd, tables, conds))
 	  DBUG_RETURN(1);
@@ -2640,8 +2680,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     }
     if (table->natural_join)
     {
-      if (is_stmt_prepare)
-	thd->set_n_backup_item_arena(arena, &backup);
+      arena= thd->change_arena_if_needed(&backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
       TABLE *t2= table->natural_join->table;
@@ -2682,11 +2721,12 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           *conds= and_conds(*conds, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (is_stmt_prepare)
+          if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           if (*conds && !(*conds)->fixed)
           {
-            if ((*conds)->fix_fields(thd, tables, conds))
+            if (!(*conds)->fixed && 
+                (*conds)->fix_fields(thd, tables, conds))
               DBUG_RETURN(1);
           }
         }
@@ -2694,21 +2734,25 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
         {
           table->on_expr= and_conds(table->on_expr, cond_and);
           // fix_fields() should be made with temporary memory pool
-          if (is_stmt_prepare)
+          if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           if (table->on_expr && !table->on_expr->fixed)
           {
-            if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+            if (!table->on_expr->fixed && 
+                table->on_expr->fix_fields(thd, tables, &table->on_expr))
              DBUG_RETURN(1);
           }
         }
       }
-      else if (is_stmt_prepare)
+      else if (arena)
+      {
         thd->restore_backup_item_arena(arena, &backup);
+        arena= 0;                               // Safety if goto err
+      }
     }
   }
 
-  if (is_stmt_prepare)
+  if (thd->current_arena->is_stmt_prepare())
   {
     /*
       We are in prepared statement preparation code => we should store
@@ -2721,8 +2765,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_RETURN(test(thd->net.report_error));
 
 err:
-  if (is_stmt_prepare)
-      thd->restore_backup_item_arena(arena, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(1);
 }
 
@@ -2824,8 +2868,18 @@ static void mysql_rm_tmp_tables(void)
 ** and afterwards delete those marked unused.
 */
 
-void remove_db_from_cache(const my_string db)
+void remove_db_from_cache(const char *db)
 {
+  char name_buff[NAME_LEN+1];
+  if (db && lower_case_table_names)
+  {
+    /*
+      convert database to lower case for comparision.
+    */
+    strmake(name_buff, db, sizeof(name_buff)-1);
+    my_casedn_str(files_charset_info, name_buff);
+    db= name_buff;
+  }
   for (uint idx=0 ; idx < open_cache.records ; idx++)
   {
     TABLE *table=(TABLE*) hash_element(&open_cache,idx);

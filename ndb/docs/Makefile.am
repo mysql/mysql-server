@@ -38,7 +38,7 @@ ndbapidoc: ndbapi.pdf
 
 ndbapi.pdf: $(noinst_HEADERS)
 	@set -x; \
-	export NDB_RELEASE=$(NDB_RELEASE) \
+	export NDB_RELEASE=$(NDB_RELEASE); \
 	@RM@ -f ndbapi.pdf ndbapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
@@ -62,7 +62,7 @@ mgmapidoc: mgmapi.pdf
 
 mgmapi.pdf: $(noinst_HEADERS)
 	@set -x; \
-	export NDB_RELEASE=$(NDB_RELEASE) \
+	export NDB_RELEASE=$(NDB_RELEASE); \
 	@RM@ -f mgmapi.pdf mgmapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
@@ -100,3 +100,5 @@ odbcdoc: DUMMY
 testdoc: DUMMY
 	mkdir -p $(OUTDIR)
 	cd $(top_srcdir)/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
+
+windoze-dsp:

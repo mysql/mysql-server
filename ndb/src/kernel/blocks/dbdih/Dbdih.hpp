@@ -147,7 +147,6 @@ public:
     Uint32 nfConnect;
     Uint32 table;
     Uint32 userpointer;
-    Uint32 nodeCount;
     BlockReference userblockref;
   };
   typedef Ptr<ConnectRecord> ConnectRecordPtr;
@@ -1469,7 +1468,7 @@ private:
   Uint32 c_blockCommitNo;
 
   bool getBlockCommit() const {
-    return c_blockCommit == true || cgckptflag == true;
+    return c_blockCommit || cgckptflag;
   }
 
   /**

@@ -119,7 +119,7 @@ by one. */
 /* Definition for inline version */
 
 #ifdef __WIN__
-#define UNIV_INLINE  	__inline
+#define UNIV_INLINE	__inline
 #else
 /* config.h contains the right def for 'inline' for the current compiler */
 #if (__GNUC__ == 2)

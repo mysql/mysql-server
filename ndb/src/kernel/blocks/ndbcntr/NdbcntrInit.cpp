@@ -114,4 +114,4 @@ Ndbcntr::~Ndbcntr()
 
 }//Ndbcntr::~Ndbcntr()
 
-BLOCK_FUNCTIONS(Ndbcntr);
+BLOCK_FUNCTIONS(Ndbcntr)

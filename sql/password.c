@@ -211,12 +211,13 @@ check_scramble_323(const char *scrambled, const char *message,
   ulong hash_message[2];
   char buff[16],*to,extra;                      /* Big enough for check */
   const char *pos;
-  
+
   hash_password(hash_message, message, SCRAMBLE_LENGTH_323);
   randominit(&rand_st,hash_pass[0] ^ hash_message[0],
              hash_pass[1] ^ hash_message[1]);
   to=buff;
-  for (pos=scrambled ; *pos ; pos++)
+  DBUG_ASSERT(sizeof(buff) > SCRAMBLE_LENGTH_323);
+  for (pos=scrambled ; *pos && to < buff+sizeof(buff) ; pos++)
     *to++=(char) (floor(my_rnd(&rand_st)*31)+64);
   if (pos-scrambled != SCRAMBLE_LENGTH_323)
     return 1;

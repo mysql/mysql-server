@@ -1,0 +1,7 @@
+#!/bin/sh
+
+dst=$1
+shift
+
+sed -e "s/@name@/`echo $1 | sed 's/\.[l]*a//g'`/g" $dst > /tmp/$dst.$$
+mv /tmp/$dst.$$ $dst

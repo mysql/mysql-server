@@ -824,7 +824,8 @@ Suma::execUTIL_SEQUENCE_CONF(Signal* signal)
     return;
   }
 
-  Uint32 subId = conf->sequenceValue[0];
+  Uint64 subId;
+  memcpy(&subId,conf->sequenceValue,8);
   Uint32 subData = conf->senderData;
 
   SubscriberPtr subbPtr;
@@ -832,8 +833,8 @@ Suma::execUTIL_SEQUENCE_CONF(Signal* signal)
   
 
   CreateSubscriptionIdConf * subconf = (CreateSubscriptionIdConf*)conf;
-  subconf->subscriptionId = subId;
-  subconf->subscriptionKey =(getOwnNodeId() << 16) | (subId & 0xFFFF);
+  subconf->subscriptionId = (Uint32)subId;
+  subconf->subscriptionKey =(getOwnNodeId() << 16) | (Uint32)(subId & 0xFFFF);
   subconf->subscriberData = subbPtr.p->m_senderData;
   
   sendSignal(subbPtr.p->m_subscriberRef, GSN_CREATE_SUBID_CONF, signal,
@@ -1888,7 +1889,7 @@ SumaParticipant::SyncRecord::nextScan(Signal* signal){
   req->requestInfo = 0;
   req->savePointId = 0;
   ScanFragReq::setLockMode(req->requestInfo, 0);
-  ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
+  ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
@@ -3471,10 +3472,10 @@ SumaParticipant::completeSubRemoveReq(Signal* signal, SubscriptionPtr subPtr) {
    */
 #if 0
   ndbout_c("c_subscriptionPool.getSize() %d c_subscriptionPool.getNoOfFree()%d",
-	   c_subscriptionPool.getSize(),c_subscriptionPool.getNoOfFree()+1);
+	   c_subscriptionPool.getSize(),c_subscriptionPool.getNoOfFree());
 #endif
 
-  if(c_subscriptionPool.getSize() == c_subscriptionPool.getNoOfFree()+1) {
+  if(c_subscriptionPool.getSize() == c_subscriptionPool.getNoOfFree()) {
     jam();
 #if 0
     ndbout_c("SUB_REMOVE_REQ:Clearing c_tables");
@@ -3553,7 +3554,7 @@ Suma::Restart::Restart(Suma& s) : suma(s) {
     c_okToStart[i]      = false;
     c_waitingToStart[i] = false;
   }
-};
+}
 
 void
 Suma::Restart::resetNode(Uint32 sumaRef)

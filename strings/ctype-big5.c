@@ -271,7 +271,7 @@ static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)),
   if (!res && a_length != b_length)
   {
     const uchar *end;
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -286,7 +286,7 @@ static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)),
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;
@@ -298,6 +298,7 @@ static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
                      const uchar * src, uint srclen)
 {
   uint16 e;
+  uint dstlen= len;
 
   len = srclen;
   while (len--)
@@ -312,7 +313,9 @@ static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
     } else
       *dest++ = sort_order_big5[(uchar) *src++];
   }
-  return srclen;
+  if (dstlen > srclen)
+    bfill(dest, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 #if 0

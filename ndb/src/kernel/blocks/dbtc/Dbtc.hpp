@@ -1054,9 +1054,8 @@ public:
     // Id of the ScanRecord this fragment scan belongs to
     Uint32 scanRec;
 
-    // The maximum number of operations that can be scanned before 
-    // returning to TC
-    Uint16 scanFragConcurrency;
+    // The value of fragmentCompleted in the last received SCAN_FRAGCONF
+    Uint8 m_scan_frag_conf_status;
 
     inline void startFragTimer(Uint32 timeVal){
       scanFragTimer = timeVal;
@@ -1193,8 +1192,10 @@ public:
     // Number of operation records per scanned fragment
     // Number of operations in first batch
     // Max number of bytes per batch
-    Uint16 noOprecPerFrag;
-    Uint16 first_batch_size;
+    union {
+      Uint16 first_batch_size_rows;
+      Uint16 batch_size_rows;
+    };
     Uint32 batch_byte_size;
 
     Uint32 scanRequestInfo; // ScanFrag format

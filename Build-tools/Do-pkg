@@ -31,6 +31,7 @@ $opt_help= undef;
 $opt_log= undef;
 $opt_mail= "";
 $opt_skip_dmg= undef;
+$opt_skip_prefpane= undef;
 $opt_skip_si= undef;
 $opt_suffix= undef;
 $opt_verbose= undef;
@@ -41,6 +42,7 @@ GetOptions(
 	"help|h",
 	"log|l:s",
 	"mail|m=s",
+	"skip-prefpane|p",
 	"skip-dmg|skip-disk-image|s",
 	"skip-si|skip-startup-item",
 	"suffix=s",
@@ -82,9 +84,10 @@ $HOST=~ /^([^.-]*)/;
 $HOST= $1;
 $LOGFILE= "$PWD/Logs/$HOST-$MAJOR.$MINOR$SUFFIX.log";
 $BUILDDIR= "$PWD/$HOST";
+$PREFPANE= "$PWD/mysql-administrator/source/mac/PreferencePane/build/MySQL.prefPane";
 $SRCBASEDIR= <$BUILDDIR/mysql*-$VERSION>;
 $SUPFILEDIR= <$SRCBASEDIR/support-files/MacOSX>;
-$TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc.tar.gz>;
+$TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc*.tar.gz>;
 $TAR =~ /.*\/$NAME(.*)\.tar\.gz$/;
 $ARCH= $1;
 $NAME= $NAME . $ARCH;
@@ -219,6 +222,19 @@ unless ($opt_skip_si)
 	&run_command($command, "Error while building package $SI_NAME.pkg!");
 }
 
+#
+# Include the MySQL Preference Pane
+#
+unless ($opt_skip_prefpane)
+{
+	&abort("Could not find PrefPane helper application. Did you compile and install it?")
+		unless (-f "$PREFPANE/Contents/Resources/mahelper");
+	&logger("Including $PREFPANE in $PKGDEST");
+	&run_command("mkdir $PKGDEST/MySQL.prefPane", "Could not create $PKGDEST/MySQL.prefPane!");
+	&run_command("ditto $PREFPANE $PKGDEST/MySQL.prefPane", "Could not copy $PREFPANE into $PKGDEST!");
+	&run_command("chown -R root:wheel $PKGDEST/MySQL.prefPane", "Cannot chown $PKGDEST/MySQL.prefPane!");
+}
+
 if ($opt_skip_dmg)
 {
 	&logger("SUCCESS: Package $PKGDEST/$NAME.pkg created");
@@ -254,6 +270,7 @@ chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f3 -d" "`) if (!$opt_d
 &logger("Copying $PKGDEST/$NAME.pkg to Disk image /Volumes/$NAME");
 &run_command("ditto $PKGDEST /Volumes/$NAME", "Could not copy $PKGDEST to /Volumes/$NAME!");
 &run_command("ditto $SUPFILEDIR/ReadMe.txt /Volumes/$NAME", "Could not copy $SPFILEDIR/ReadMe.txt to /Volumes/$NAME!");
+&run_command("chown root:wheel /Volumes/$NAME/ReadMe.txt", "Could not fix ownerships of /Volumes/$NAME/ReadMe.txt!");
 chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f1 -d" "`) if (!$opt_dry_run);
 &abort("/Volumes/$NAME not attached!") if (!$mountpoint && !$opt_dry_run);
 &logger("Unmounting $mountpoint");
@@ -302,6 +319,7 @@ Options:
                                      if logging is enabled)
                                      Note that the \@-Sign needs to be quoted!
                                      Example: --mail=user\\\@domain.com
+-p, --skip-prefpane                  Skip including the PreferencePane
 -s, --skip-disk-image, --skip-dmg    Just build the PKGs, don't put it into a
                                      disk image afterwards
     --skip-startup-item, --skip-si   Skip the creation of the StartupItem PKG

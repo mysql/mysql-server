@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -33,7 +34,6 @@
 #include <ndb_version.h>
 #include <ConfigRetriever.hpp>
 #include <mgmapi_config_parameters.h>
-#include <getarg.h>
 
 #include <NdbAutoPtr.hpp>
 
@@ -62,16 +62,12 @@ struct MgmGlobals {
   int non_interactive;
   int interactive;
   const char * config_filename;
-  const char * local_config_filename;
   
   /** Stuff found in environment or in local config  */
   NodeId localNodeId;
   bool use_specific_ip;
   char * interface_name;
   int port;
-  
-  /** The configuration of the cluster */
-  Config * cluster_config;
   
   /** The Mgmt Server */
   MgmtSrvr * mgmObject;
@@ -83,55 +79,94 @@ struct MgmGlobals {
 int g_no_nodeid_checks= 0;
 static MgmGlobals glob;
 
-
 /******************************************************************************
  * Function prototypes
  ******************************************************************************/
-static bool readLocalConfig();
-static bool readGlobalConfig();
-
 /**
  * Global variables
  */
 bool g_StopServer;
-extern EventLogger g_EventLogger;
+extern EventLogger g_eventLogger;
 
 extern int global_mgmt_server_check;
-int _print_version = 0;
-#ifndef DBUG_OFF
-const char *debug_option= 0;
-#endif
 
-struct getargs args[] = {
-  { "version", 'v', arg_flag, &_print_version,
-    "Print ndb_mgmd version",""},
-  { "config-file", 'c', arg_string, &glob.config_filename,
-    "Specify cluster configuration file (default config.ini if available)",
-    "filename"},
-#ifndef DBUG_OFF
-  { "debug", 0, arg_string, &debug_option,
-    "Specify debug options e.g. d:t:i:o,out.trace", "options"},
-#endif
-  { "daemon", 'd', arg_flag, &glob.daemon,
-    "Run ndb_mgmd in daemon mode (default)",""},
-  { NULL, 'l', arg_string, &glob.local_config_filename,
-    "Specify configuration file connect string (default Ndb.cfg if available)",
-    "filename"},
-  { "interactive", 0, arg_flag, &glob.interactive,
-   "Run interactive. Not supported but provided for testing purposes", ""},
-  { "no-nodeid-checks", 0, arg_flag, &g_no_nodeid_checks,
-    "Do not provide any node id checks", ""},
-  { "nodaemon", 0, arg_flag, &glob.non_interactive,
-    "Don't run as daemon, but don't read from stdin", "non-interactive"}
+enum ndb_mgmd_options {
+  OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
+  OPT_NO_NODEID_CHECKS,
+  OPT_NO_DAEMON
 };
+NDB_STD_OPTS_VARS;
 
-int num_args = sizeof(args) / sizeof(args[0]);
+#if NDB_VERSION_MAJOR <= 4
+#undef OPT_NDB_CONNECTSTRING
+#define OPT_NDB_CONNECTSTRING 1023
+#else
+
+#endif
+
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_mgmd"),
+  { "config-file", 'f', "Specify cluster configuration file",
+    (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
+    (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+  { "interactive", OPT_INTERACTIVE,
+    "Run interactive. Not supported but provided for testing purposes",
+    (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
+    "Do not provide any node id checks", 
+    (gptr*) &g_no_nodeid_checks, (gptr*) &g_no_nodeid_checks, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nodaemon", OPT_NO_DAEMON,
+    "Don't run as daemon, but don't read from stdin",
+    (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+#if NDB_VERSION_MAJOR <= 4
+  { "config-file", 'c',
+    "-c provided for backwards compatability, will be removed in 5.0."
+    " Use -f instead",
+    (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS]\n", my_progname);
+}
+static void usage()
+{
+  short_usage_sub();
+  ndb_std_print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  ndb_std_get_one_option(optid, opt, argument ? argument :
+			 "d:t:O,/tmp/ndb_mgmd.trace");
+#if NDB_VERSION_MAJOR <= 4
+  switch (optid) {
+  case 'c':
+    printf("Warning: -c will be removed in 5.0, use -f instead\n");
+    break;
+  }
+#endif
+  return 0;
+}
 
 /*
  *  MAIN 
  */
-NDB_MAIN(mgmsrv){
-  ndb_init();
+int main(int argc, char** argv)
+{
+  NDB_INIT(argv[0]);
 
   /**
    * OSE specific. Enable shared ownership of file system resources. 
@@ -144,57 +179,32 @@ NDB_MAIN(mgmsrv){
 
   global_mgmt_server_check = 1;
 
-  int optind = 0;
-  if(getarg(args, num_args, argc, argv, &optind)) {
-    arg_printusage(args, num_args, progname, "");
-    exit(1);
-  }
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
   if (glob.interactive ||
       glob.non_interactive) {
     glob.daemon= 0;
   }
 
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
-
-  if (_print_version) {
-    ndbPrintVersion();
-    exit(0);
-  }
-
-  if(glob.config_filename == NULL) {
-    glob.config_filename= "config.ini";
-  }
   glob.socketServer = new SocketServer();
 
   MgmApiService * mapi = new MgmApiService();
 
-  /****************************
-   * Read configuration files *
-   ****************************/
-  LocalConfig local_config;
-  if(!local_config.init(0,glob.local_config_filename)){
-    local_config.printError();
-    goto error_end;
-  }
-  glob.localNodeId = local_config._ownNodeId;
+  glob.mgmObject = new MgmtSrvr(glob.socketServer,
+				glob.config_filename,
+				opt_connect_str);
 
-  if (!readGlobalConfig())
+  if (glob.mgmObject->init())
     goto error_end;
 
-  glob.mgmObject = new MgmtSrvr(glob.localNodeId,
-				BaseString(glob.config_filename),
-				local_config,
-				glob.cluster_config);
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
-  chdir(NdbConfig_get_path(0));
-
-  glob.cluster_config = 0;
   glob.localNodeId= glob.mgmObject->getOwnNodeId();
-
   if (glob.localNodeId == 0) {
     goto error_end;
   }
@@ -253,7 +263,9 @@ NDB_MAIN(mgmsrv){
     }
   }
 
+#ifndef NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
+#endif
   {
     BaseString error_string;
     if(!glob.mgmObject->start(error_string)){
@@ -271,12 +283,12 @@ NDB_MAIN(mgmsrv){
   BaseString::snprintf(msg, sizeof(msg),
 	   "NDB Cluster Management Server. %s", NDB_VERSION_STRING);
   ndbout_c(msg);
-  g_EventLogger.info(msg);
+  g_eventLogger.info(msg);
 
   BaseString::snprintf(msg, 256, "Id: %d, Command port: %d",
 	   glob.localNodeId, glob.port);
   ndbout_c(msg);
-  g_EventLogger.info(msg);
+  g_eventLogger.info(msg);
   
   g_StopServer = false;
   glob.socketServer->startServer();
@@ -292,10 +304,10 @@ NDB_MAIN(mgmsrv){
 	NdbSleep_MilliSleep(500);
     }
   
-  g_EventLogger.info("Shutting down server...");
+  g_eventLogger.info("Shutting down server...");
   glob.socketServer->stopServer();
   glob.socketServer->stopSessions();
-  g_EventLogger.info("Shutdown complete");
+  g_eventLogger.info("Shutdown complete");
   return 0;
  error_end:
   return 1;
@@ -305,9 +317,7 @@ MgmGlobals::MgmGlobals(){
   // Default values
   port = 0;
   config_filename = NULL;
-  local_config_filename = NULL;
   interface_name = 0;
-  cluster_config = 0;
   daemon = 1;
   non_interactive = 0;
   interactive = 0;
@@ -320,27 +330,6 @@ MgmGlobals::~MgmGlobals(){
     delete socketServer;
   if (mgmObject)
     delete mgmObject;
-  if (cluster_config) 
-    delete cluster_config;
   if (interface_name)
     free(interface_name);
-}
-
-/**
- * @fn      readGlobalConfig
- * @param   glob : Global variables
- * @return  true if success, false otherwise.
- */
-static bool
-readGlobalConfig() {
-  if(glob.config_filename == NULL)
-    return false;
-
-  /* Use config file */
-  InitConfigFileParser parser;
-  glob.cluster_config = parser.parseConfig(glob.config_filename);
-  if(glob.cluster_config == 0){
-    return false;
-  }
-  return true;
 }

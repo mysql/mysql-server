@@ -44,7 +44,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
-static bool one_database=0, to_last_remote_log= 0;
+static bool one_database=0, to_last_remote_log= 0, disable_log_bin= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -204,7 +204,7 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
   
   for (;;)
   {
-    uint packet_len = my_net_read(net);
+    ulong packet_len = my_net_read(net);
     if (packet_len == 0)
     {
       if (my_net_write(net, "", 0) || net_flush(net))
@@ -226,7 +226,13 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
       return -1;
     }
     
-    if (my_write(file, (byte*) net->read_pos, packet_len,MYF(MY_WME|MY_NABP)))
+    if (packet_len > UINT_MAX)
+    {
+      sql_print_error("Illegal length of packet read from net");
+      return -1;
+    }
+    if (my_write(file, (byte*) net->read_pos, 
+		 (uint) packet_len, MYF(MY_WME|MY_NABP)))
       return -1;
   }
   
@@ -432,6 +438,13 @@ static struct my_option my_long_options[] =
   {"database", 'd', "List entries for just this database (local log only).",
    (gptr*) &database, (gptr*) &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"disable-log-bin", 'D', "Disable binary log. This is useful, if you "
+    "enabled --to-last-log and are sending the output to the same MySQL server. "
+    "This way you could avoid an endless loop. You would also like to use it "
+    "when restoring after a crash to avoid duplication of the statements you "
+    "already have. NOTE: you will need a SUPER privilege to use this option.",
+   (gptr*) &disable_log_bin, (gptr*) &disable_log_bin, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force-read", 'f', "Force reading unknown binlog events.",
    (gptr*) &force_opt, (gptr*) &force_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -674,7 +687,7 @@ static int parse_args(int *argc, char*** argv)
 
 static MYSQL* safe_connect()
 {
-  MYSQL *local_mysql = mysql_init(NULL);
+  MYSQL *local_mysql= mysql_init(NULL);
 
   if (!local_mysql)
     die("Failed on mysql_init");
@@ -682,8 +695,12 @@ static MYSQL* safe_connect()
   if (opt_protocol)
     mysql_options(local_mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
-    die("failed on connect: %s", mysql_error(local_mysql));
-
+  {
+    char errmsg[256];
+    strmake(errmsg, mysql_error(local_mysql), sizeof(errmsg)-1);
+    mysql_close(local_mysql);
+    die("failed on connect: %s", errmsg);
+  }
   return local_mysql;
 }
 
@@ -705,9 +722,10 @@ static int check_master_version(MYSQL* mysql)
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
   {
+    char errmsg[256];
+    strmake(errmsg, mysql_error(mysql), sizeof(errmsg)-1);
     mysql_close(mysql);
-    die("Error checking master version: %s",
-		    mysql_error(mysql));
+    die("Error checking master version: %s", errmsg);
   }
   if (!(row = mysql_fetch_row(res)))
   {
@@ -747,7 +765,8 @@ static int dump_remote_log_entries(const char* logname)
 {
   char buf[128];
   char last_db[FN_REFLEN+1] = "";
-  uint len, logname_len;
+  ulong len;
+  uint logname_len;
   NET* net;
   int old_format;
   int error= 0;
@@ -770,7 +789,15 @@ static int dump_remote_log_entries(const char* logname)
   */
   int4store(buf, (uint32)start_position);
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
-  logname_len = (uint) strlen(logname);
+
+  size_s tlen = strlen(logname);
+  if (tlen > UINT_MAX) 
+  {
+    fprintf(stderr,"Log name too long\n");
+    error= 1;
+    goto err;
+  }
+  logname_len = (uint) tlen;
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname, logname_len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
@@ -1053,6 +1080,11 @@ int main(int argc, char** argv)
 
   fprintf(result_file,
 	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
+
+  if (disable_log_bin)
+    fprintf(result_file,
+            "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
+
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) && !stop_passed ; )
   {
@@ -1066,6 +1098,9 @@ int main(int argc, char** argv)
     // For next log, --start-position does not apply
     start_position= BIN_LOG_HEADER_SIZE;
   }
+
+  if (disable_log_bin)
+    fprintf(result_file, "/*!32316 SET SQL_LOG_BIN=@OLD_SQL_LOG_BIN*/;\n");
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);

@@ -20,7 +20,6 @@
 #include "repl_failsafe.h"
 #include "sql_repl.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "log_event.h"
 #include <mysql.h>
 
@@ -92,7 +91,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  thd->mem_root.free=thd->mem_root.used=0;	
+  thd->mem_root->free= thd->mem_root->used= 0;
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->options|= OPTION_BIG_SELECTS;
 
@@ -921,8 +920,8 @@ int load_master_data(THD* thd)
         */
         int error;
 
-        if (init_master_info(active_mi, master_info_file, relay_log_info_file,
-			     0))
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 
+			     0, (SLAVE_IO | SLAVE_SQL)))
           send_error(thd, ER_MASTER_INFO);
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));

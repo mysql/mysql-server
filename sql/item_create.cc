@@ -365,25 +365,26 @@ Item *create_func_sin(Item* a)
 
 Item *create_func_sha(Item* a)
 {
-  return new Item_func_sha(a);  
+  return new Item_func_sha(a);
 }
-    
+
 Item *create_func_space(Item *a)
 {
   CHARSET_INFO *cs= current_thd->variables.collation_connection;
   Item *sp;
-  
+
   if (cs->mbminlen > 1)
   {
+    uint dummy_errors;
     sp= new Item_string("",0,cs);
     if (sp)
-      sp->str_value.copy(" ",1,&my_charset_latin1,cs);
+      sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
   }
   else
   {
     sp= new Item_string(" ",1,cs);
   }
-  return new Item_func_repeat(sp, a);
+  return sp ? new Item_func_repeat(sp, a) : 0;
 }
 
 Item *create_func_soundex(Item* a)

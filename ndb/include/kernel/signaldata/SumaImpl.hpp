@@ -159,12 +159,12 @@ public:
   Uint32 subscriberRef;
 };
 inline bool SubStartRef::isTemporary() const
-{ return (errorCode &  SubStartRef::Temporary) > 0; };
+{ return (errorCode &  SubStartRef::Temporary) > 0; }
 inline void SubStartRef::setTemporary()
-{ errorCode |=  SubStartRef::Temporary; };
+{ errorCode |=  SubStartRef::Temporary; }
 inline SubStartRef::ErrorCode SubStartRef::setTemporary(ErrorCode ec)
 { return (SubStartRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubStartRef::Temporary)); };
+    (errorCode = ((Uint32) ec | (Uint32)SubStartRef::Temporary)); }
 
 class SubStartConf {
   /**
@@ -239,12 +239,12 @@ public:
   };
 };
 inline bool SubStopRef::isTemporary() const
-{ return (errorCode &  SubStopRef::Temporary) > 0; };
+{ return (errorCode &  SubStopRef::Temporary) > 0; }
 inline void SubStopRef::setTemporary()
-{ errorCode |=  SubStopRef::Temporary; };
+{ errorCode |=  SubStopRef::Temporary; }
 inline SubStopRef::ErrorCode SubStopRef::setTemporary(ErrorCode ec)
 { return (SubStopRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubStopRef::Temporary)); };
+    (errorCode = ((Uint32) ec | (Uint32)SubStopRef::Temporary)); }
 
 class SubStopConf {
   /**
@@ -515,12 +515,12 @@ public:
   };
 };
 inline bool SubRemoveRef::isTemporary() const
-{ return (err &  SubRemoveRef::Temporary) > 0; };
+{ return (err &  SubRemoveRef::Temporary) > 0; }
 inline void SubRemoveRef::setTemporary()
-{ err |=  SubRemoveRef::Temporary; };
+{ err |=  SubRemoveRef::Temporary; }
 inline SubRemoveRef::ErrorCode SubRemoveRef::setTemporary(ErrorCode ec)
 { return (SubRemoveRef::ErrorCode) 
-    (errorCode = ((Uint32) ec | (Uint32)SubRemoveRef::Temporary)); };
+    (errorCode = ((Uint32) ec | (Uint32)SubRemoveRef::Temporary)); }
 
 class SubRemoveConf {
   /**

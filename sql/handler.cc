@@ -109,6 +109,9 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
+static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
+uint known_extensions_id= 0;
+
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
   THD *thd=current_thd;
@@ -275,6 +278,16 @@ int ha_init()
       opt_using_transactions=1;
   }
 #endif
+#ifdef HAVE_ARCHIVE_DB
+  if (have_archive_db == SHOW_OPTION_YES)
+  {
+    if (archive_db_init())
+    {
+      have_archive_db= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+  }
+#endif
   return error;
 }
 
@@ -305,6 +318,10 @@ int ha_panic(enum ha_panic_function flag)
 #ifdef HAVE_NDBCLUSTER_DB
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  if (have_archive_db == SHOW_OPTION_YES)
+    error|= archive_db_end();
 #endif
   return error;
 } /* ha_panic */
@@ -581,6 +598,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+    /*
+      As rollback can be 30 times slower than insert in InnoDB, and user may
+      not know there's rollback (if it's because of a dupl row), better warn.
+    */
+    const char *save_proc_info= thd->proc_info;
+    thd->proc_info= "Rolling back";
 #ifdef HAVE_NDBCLUSTER_DB
     if (trans->ndb_tid)
     {
@@ -652,6 +675,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
       statistic_increment(ha_rollback_count,&LOCK_status);
+    thd->proc_info= save_proc_info;
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -713,7 +737,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
-        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
         if (mysql_bin_log.write(&qinfo))
           error= 1;
       }
@@ -751,7 +775,7 @@ int ha_savepoint(THD *thd, char *savepoint_name)
       innobase_savepoint(thd,savepoint_name,
                          my_b_tell(&thd->transaction.trans_log));
 #endif
-      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE, FALSE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }
@@ -763,6 +787,25 @@ int ha_savepoint(THD *thd, char *savepoint_name)
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
+
+
+int ha_start_consistent_snapshot(THD *thd)
+{
+#ifdef HAVE_INNOBASE_DB
+  if ((have_innodb == SHOW_OPTION_YES) &&
+      !innobase_start_trx_and_assign_read_view(thd))
+    return 0;
+#endif
+  /*
+    Same idea as when one wants to CREATE TABLE in one engine which does not
+    exist:
+  */
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+               "This MySQL server does not support any "
+               "consistent-read capable storage engine");
+  return 0;
+}
+
 
 bool ha_flush_logs()
 {
@@ -924,8 +967,10 @@ int handler::read_first_row(byte * buf, uint primary_key)
   /*
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
+    TODO remove the test for HA_READ_ORDER
   */
-  if (deleted < 10 || primary_key >= MAX_KEY)
+  if (deleted < 10 || primary_key >= MAX_KEY ||
+      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
     (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
@@ -1052,6 +1097,9 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_KEY;
     break;
   }
+  case HA_ERR_NULL_IN_SPATIAL:
+    textno= ER_UNKNOWN_ERROR;
+    DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
@@ -1165,7 +1213,8 @@ uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
-  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
+  if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE ||
+      error == HA_ERR_NULL_IN_SPATIAL)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
   DBUG_RETURN(table->file->errkey);
 }
@@ -1633,3 +1682,64 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+
+/*
+  Returns a list of all known extensions.
+
+  SYNOPSIS
+    ha_known_exts()
+ 
+  NOTES
+    No mutexes, worst case race is a minor surplus memory allocation
+    We have to recreate the extension map if mysqld is restarted (for example
+    within libmysqld)
+
+  RETURN VALUE
+    pointer		pointer to TYPELIB structure
+*/
+
+TYPELIB *ha_known_exts(void)
+{
+  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
+  {
+    show_table_type_st *types;
+    List<char> found_exts;
+    List_iterator_fast<char> it(found_exts);
+    const char **ext, *old_ext;
+
+    known_extensions_id= mysys_usage_id;
+    found_exts.push_back((char*) ".db");
+    for (types= sys_table_types; types->type; types++)
+    {      
+      if (*types->value == SHOW_OPTION_YES)
+      {
+	handler *file= get_new_handler(0,(enum db_type) types->db_type);
+	for (ext= file->bas_ext(); *ext; ext++)
+	{
+	  while ((old_ext= it++))
+          {
+	    if (!strcmp(old_ext, *ext))
+	      break;
+          }
+	  if (!old_ext)
+	    found_exts.push_back((char *) *ext);
+
+	  it.rewind();
+	}
+	delete file;
+      }
+    }
+    ext= (const char **) my_once_alloc(sizeof(char *)*
+                                       (found_exts.elements+1),
+                                       MYF(MY_WME | MY_FAE));
+    
+    DBUG_ASSERT(ext);
+    known_extensions.count= found_exts.elements;
+    known_extensions.type_names= ext;
+
+    while ((old_ext= it++))
+      *ext++= old_ext;
+    *ext= 0;
+  }
+  return &known_extensions;
+}

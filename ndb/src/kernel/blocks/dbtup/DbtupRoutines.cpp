@@ -706,7 +706,10 @@ Dbtup::checkUpdateOfPrimaryKey(Uint32* updateBuffer, Tablerec* const regTabPtr)
   tOutBufIndex = 0;
   tMaxRead = MAX_KEY_SIZE_IN_WORDS;
 
+  bool tmp = tXfrmFlag;
+  tXfrmFlag = false;
   ndbrequire((this->*f)(&keyReadBuffer[0], ahOut, attrDescriptor, attributeOffset));
+  tXfrmFlag = tmp;
   ndbrequire(tOutBufIndex == ahOut->getDataSize());
   if (ahIn.getDataSize() != ahOut->getDataSize()) {
     ljam();

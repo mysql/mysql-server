@@ -373,6 +373,9 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
          Note that Rotate_log_event::exec_event() does not call this function,
          so there is no chance that a fake rotate event resets
          last_master_timestamp.
+         Note that we update without mutex (probably ok - except in some very
+         rare cases, only consequence is that value may take some time to
+         display in Seconds_Behind_Master - not critical).
       */
       rli->last_master_timestamp= when;
     }
@@ -780,7 +783,8 @@ void Query_log_event::pack_info(Protocol *protocol)
   if (!(buf= my_malloc(9 + db_len + q_len, MYF(MY_WME))))
     return;
   pos= buf;    
-  if (db && db_len)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) 
+      && db && db_len)
   {
     pos= strmov(buf, "use `");
     memcpy(pos, db, db_len);
@@ -872,9 +876,12 @@ int Query_log_event::write_data(IO_CACHE* file)
 
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
-	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+				 ulong query_length, bool using_trans,
+				 bool suppress_use)
+  :Log_event(thd_arg, 
+	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
+	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
+	     using_trans),
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
    error_code(thd_arg->killed ?
@@ -949,14 +956,20 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 
   bool different_db= 1;
 
-  if (db && last_db)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F))
   {
-    if (different_db= memcmp(last_db, db, db_len + 1))
-      memcpy(last_db, db, db_len + 1);
+    if (db && last_db) 
+    {
+      if (different_db= memcmp(last_db, db, db_len + 1))
+        memcpy(last_db, db, db_len + 1);
+    }
+    
+    if (db && db[0] && different_db) 
+    {
+      fprintf(file, "use %s;\n", db);
+    }
   }
-  
-  if (db && db[0] && different_db)
-    fprintf(file, "use %s;\n", db);
+
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
   *end++='\n';
@@ -977,7 +990,8 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   int expected_error,actual_error= 0;
-  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
+  thd->db_length= db_len;
+  thd->db= (char*) rewrite_db(db, &thd->db_length);
 
   /*
     InnoDB internally stores the master log position it has processed so far;
@@ -995,11 +1009,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    /*
-      We cannot use db_len from event to fill thd->db_length, because
-      rewrite_db() may have changed db.
-    */ 
-    thd->db_length= thd->db ? strlen(thd->db) : 0;
     thd->query_length= q_len;
     thd->query = (char*)query;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -1007,7 +1016,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 
-    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
     if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
@@ -1037,6 +1045,10 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
       goto end;
     }
 
+    /* If the query was not ignored, it is printed to the general log */
+    if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
+      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and none of them should be ignored.
@@ -1057,7 +1069,7 @@ Default database: '%s'. Query: '%s'",
 			expected_error,
 			actual_error ? thd->net.last_error: "no error",
 			actual_error,
-			print_slave_db_safe(db), query);
+			print_slave_db_safe(thd->db), query);
       thd->query_error= 1;
     }
     /*
@@ -1078,7 +1090,7 @@ Default database: '%s'. Query: '%s'",
 			"Error '%s' on query. Default database: '%s'. Query: '%s'",
 			(actual_error ? thd->net.last_error :
 			 "unexpected success or fatal error"),
-			print_slave_db_safe(db), query);
+			print_slave_db_safe(thd->db), query);
       thd->query_error= 1;
     }
   } /* End of if (db_ok(... */
@@ -1090,7 +1102,7 @@ end:
   thd->query_length= thd->db_length =0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   /*
     If there was an error we stop. Otherwise we increment positions. Note that
     we will not increment group* positions if we are just after a SET
@@ -1409,8 +1421,10 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       const char *db_arg, const char *table_name_arg,
 			       List<Item> &fields_arg,
 			       enum enum_duplicates handle_dup,
-			       bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
+			       bool ignore, bool using_trans)
+  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
+	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+   thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
@@ -1445,9 +1459,6 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   sql_ex.empty_flags= 0;
 
   switch (handle_dup) {
-  case DUP_IGNORE:
-    sql_ex.opt_flags|= IGNORE_FLAG;
-    break;
   case DUP_REPLACE:
     sql_ex.opt_flags|= REPLACE_FLAG;
     break;
@@ -1455,6 +1466,8 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   case DUP_ERROR:
     break;	
   }
+  if (ignore)
+    sql_ex.opt_flags|= IGNORE_FLAG;
 
   if (!ex->field_term->length())
     sql_ex.empty_flags |= FIELD_TERM_EMPTY;
@@ -1600,6 +1613,9 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
             commented ? "# " : "",
             db);
 
+  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+    fprintf(file,"%sSET @@session.pseudo_thread_id=%lu;\n",
+            commented ? "# " : "", (ulong)thread_id);
   fprintf(file, "%sLOAD DATA ",
           commented ? "# " : "");
   if (check_fname_outside_temp_buf())
@@ -1659,16 +1675,22 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
 
 /*
   Load_log_event::set_fields()
+
+  Note that this function can not use the member variable 
+  for the database, since LOAD DATA INFILE on the slave
+  can be for a different database than the current one.
+  This is the reason for the affected_db argument to this method.
 */
 
 #ifndef MYSQL_CLIENT
-void Load_log_event::set_fields(List<Item> &field_list)
+void Load_log_event::set_fields(const char* affected_db, 
+				List<Item> &field_list)
 {
   uint i;
   const char* field = fields;
   for (i= 0; i < num_fields; i++)
   {
-    field_list.push_back(new Item_field(db, table_name, field));	  
+    field_list.push_back(new Item_field(affected_db, table_name, field));
     field+= field_lens[i]  + 1;
   }
 }
@@ -1706,7 +1728,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 			       bool use_rli_only_for_errors)
 {
   char *load_data_query= 0;
-  thd->db= (char*) rewrite_db(db); // thd->db_length is set later if needed
+  thd->db_length= db_len;
+  thd->db= (char*) rewrite_db(db, &thd->db_length);
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -1741,7 +1764,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->db_length= thd->db ? strlen(thd->db) : 0;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1771,6 +1793,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup;
+      bool ignore= 0;
       /*
         Make a simplified LOAD DATA INFILE query, for the information of the
         user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
@@ -1787,21 +1810,24 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
-        handle_dup= DUP_IGNORE;
+      {
+        ignore= 1;
+        handle_dup= DUP_ERROR;
+      }
       else
       {
         /*
 	  When replication is running fine, if it was DUP_ERROR on the
-          master then we could choose DUP_IGNORE here, because if DUP_ERROR
+          master then we could choose IGNORE here, because if DUP_ERROR
           suceeded on master, and data is identical on the master and slave,
-          then there should be no uniqueness errors on slave, so DUP_IGNORE is
+          then there should be no uniqueness errors on slave, so IGNORE is
           the same as DUP_ERROR. But in the unlikely case of uniqueness errors
           (because the data on the master and slave happen to be different
 	  (user error or bug), we want LOAD DATA to print an error message on
 	  the slave to discover the problem.
 
           If reading from net (a 3.23 master), mysql_load() will change this
-          to DUP_IGNORE.
+          to IGNORE.
         */
         handle_dup= DUP_ERROR;
       }
@@ -1824,7 +1850,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      set_fields(field_list);
+      set_fields(thd->db,field_list);
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {
@@ -1835,19 +1861,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	*/
 	thd->net.pkt_nr = net->pkt_nr;
       }
-      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
+      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, ignore, net != 0,
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
       {
 	/* log_pos is the position of the LOAD event in the master log */
-	sql_print_error("\
-Slave: load data infile on table '%s' at log position %s in log \
-'%s' produced %ld warning(s). Default database: '%s'",
-                        (char*) table_name,
-                        llstr(log_pos,llbuff), RPL_LOG_NAME, 
-			(ulong) thd->cuted_fields,
-                        print_slave_db_safe(db));
+        sql_print_warning("Slave: load data infile on table '%s' at "
+                          "log position %s in log '%s' produced %ld "
+                          "warning(s). Default database: '%s'",
+                          (char*) table_name,
+                          llstr(log_pos,llbuff), RPL_LOG_NAME, 
+                          (ulong) thd->cuted_fields,
+                          print_slave_db_safe(thd->db));
       }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
@@ -1865,6 +1891,7 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
+  char *save_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;
   thd->query= 0;
@@ -1887,17 +1914,17 @@ Slave: load data infile on table '%s' at log position %s in log \
     }
     slave_print_error(rli,sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      err, (char*)table_name, print_slave_db_safe(db));
-    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+		      err, (char*)table_name, print_slave_db_safe(save_db));
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
-  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
+  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 	    
   if (thd->is_fatal_error)
   {
     slave_print_error(rli,ER_UNKNOWN_ERROR, "\
 Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-		      (char*)table_name, print_slave_db_safe(db));
+		      (char*)table_name, print_slave_db_safe(save_db));
     return 1;
   }
 
@@ -2438,7 +2465,7 @@ void User_var_log_event::print(FILE* file, bool short_form, char* last_db)
         */
         fprintf(file, ":=???;\n");
       else
-        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, hex_str, cs->name);
+        fprintf(file, ":=_%s %s COLLATE `%s`;\n", cs->csname, hex_str, cs->name);
       my_afree(hex_str);
     }
       break;
@@ -2504,8 +2531,13 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     0 can be passed as last argument (reference on item)
   */
   e.fix_fields(thd, 0, 0);
-  e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
-  free_root(&thd->mem_root,0);
+  /*
+    A variable can just be considered as a table with
+    a single record and with a single column. Thus, like
+    a column value, it could always have IMPLICIT derivation.
+   */
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT);
+  free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos(get_event_len());
   return 0;
@@ -2726,8 +2758,9 @@ Create_file_log_event::
 Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      const char* db_arg, const char* table_name_arg,
 		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
+                      bool ignore,
 		      char* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
+  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup, ignore,
 		  using_trans),
    fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
@@ -2839,7 +2872,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    Load_log_event::print(file, short_form, last_db, !check_fname_outside_temp_buf());
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
        SHOW BINLOG EVENTS we don't.

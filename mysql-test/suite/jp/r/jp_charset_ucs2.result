@@ -1,0 +1,306 @@
+drop table if exists `£Ô£±`;
+drop table if exists `£Ô£²`;
+drop table if exists `£Ô£³`;
+drop table if exists `£Ô£´`;
+drop table if exists `£Ô£µ`;
+drop table if exists `£Ô£¶`;
+drop table if exists `£Ô£·`;
+drop table if exists `£Ô£¸`;
+drop table if exists `£Ô£¹`;
+drop table if exists `£Ô£±£°`;
+drop table if exists `£Ô£±£±`;
+drop table if exists `£Ô£±£²`;
+SET NAMES ujis;
+SET character_set_database = ucs2;
+CREATE TABLE `£Ô£±` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Ô£²` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Ô£³` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = innodb;
+CREATE TABLE `£Ô£´` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Ô£µ` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Ô£¶` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = myisam;
+CREATE TABLE `£Ô£·` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = heap;
+CREATE TABLE `£Ô£¸` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = heap;
+CREATE TABLE `£Ô£¹` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = heap;
+CREATE TABLE `£Ô£±£°` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Ô£±£±` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = bdb;
+CREATE TABLE `£Ô£±£²` (`£Ã£±` char(20)) DEFAULT CHARSET = ucs2 engine = bdb;
+INSERT INTO `£Ô£±` VALUES
+('PQRSTUVWXYZ[\\]^_')
+,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
+,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
+,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
+,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
+INSERT INTO `£Ô£²` VALUES
+('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
+,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
+,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
+,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
+,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
+,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
+,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
+INSERT INTO `£Ô£³` VALUES
+('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
+,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
+,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
+,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
+,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
+,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
+,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
+INSERT INTO `£Ô£´` VALUES
+('PQRSTUVWXYZ[\\]^_')
+,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
+,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
+,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
+,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
+INSERT INTO `£Ô£µ` VALUES
+('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
+,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
+,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
+,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
+,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
+,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
+,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
+INSERT INTO `£Ô£¶` VALUES
+('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
+,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
+,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
+,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
+,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
+,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
+,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
+INSERT INTO `£Ô£·` VALUES
+('PQRSTUVWXYZ[\\]^_')
+,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
+,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
+,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
+,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
+INSERT INTO `£Ô£¸` VALUES
+('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
+,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
+,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
+,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
+,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
+,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
+,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
+INSERT INTO `£Ô£¹` VALUES
+('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
+,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
+,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
+,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
+,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
+,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
+,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
+INSERT INTO `£Ô£±£°` VALUES
+('PQRSTUVWXYZ[\\]^_')
+,(' Ž¡Ž¢Ž£Ž¤Ž¥Ž¦Ž§Ž¨Ž©ŽªŽ«Ž¬Ž­Ž®Ž¯')
+,('Ž°Ž±Ž²Ž³Ž´ŽµŽ¶Ž·Ž¸Ž¹ŽºŽ»Ž¼Ž½Ž¾Ž¿')
+,('ŽÀŽÁŽÂŽÃŽÄŽÅŽÆŽÇŽÈŽÉŽÊŽËŽÌŽÍŽÎŽÏ')
+,('ŽÐŽÑŽÒŽÓŽÔŽÕŽÖŽ×ŽØŽÙŽÚŽÛŽÜŽÝŽÞŽß');
+INSERT INTO `£Ô£±£±` VALUES
+('¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿¡À¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç')
+,('¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ð¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û')
+,('¡¦¤¡¤¢¤£¤¤¤¥¤¦¤§¤¨¤©¤ª¤«¤¬¤­¤®¤¯¤°¤±¤²¤³')
+,('¡¦¥¡¥¢¥£¥¤¥¥¥¦¥§¥¨¥©¥ª¥«¥¬¥­¥®¥¯¥°¥±¥²¥³')
+,('¡¦°¡°¢°£°¤°¥°¦°§°¨°©°ª°«°¬°­°®°¯°°°±°²°³')
+,('¡¦Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨Ð©ÐªÐ«Ð¬Ð­Ð®Ð¯Ð°Ð±Ð²Ð³')
+,('¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³');
+INSERT INTO `£Ô£±£²` VALUES
+('¡¦¢µ¢¶¢·¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦')
+,('°´°µ°¶°·°¸°¹°º°»°¼°½°¾°¿°À°Á°Â°Ã°Ä°Å°Æ°Ç')
+,('°È°É°Ê°Ë°Ì°Í°Î°Ï°Ð°Ñ°Ò°Ó°Ô°Õ°Ö°×°Ø°Ù°Ú°Û')
+,('°Ü°Ý°Þ°ß°à°á°â°ã°ä°å°æ°ç°è°é°ê°ë°ì°í°î°ï')
+,('¡¦í¡í¢í£í¤í¥í¦í§í¨í©íªí«í¬í­í®í¯í°í±í²í³')
+,('í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ')
+,('íÈíÉíÊíËíÌíÍíÎíÏíÐíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ');
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£±`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£²`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£³`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£±`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£±`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£±`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£±`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£²`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£²`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£²`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£²`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£³`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£³`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£³`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£³`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£´`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£µ`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£¶`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£´`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£´`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£´`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£´`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£µ`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£µ`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£µ`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£µ`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£¶`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£¶`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£¶`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£¶`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£·`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£¸`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£¹`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£·`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£·`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£·`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£·`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£¸`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£¸`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£¸`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£¸`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£¹`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£¹`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£¹`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£¹`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£±£°`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£±£±`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(`£Ã£±`) FROM `£Ô£±£²`;
+CHARSET(`£Ã£±`)
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£±£°`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£±£°`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£±£°`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£±£°`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£±£±`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£±£±`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£±£±`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£±£±`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING utf8)) FROM `£Ô£±£²`;
+CHARSET(CONVERT(`£Ã£±` USING utf8))
+utf8
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ucs2)) FROM `£Ô£±£²`;
+CHARSET(CONVERT(`£Ã£±` USING ucs2))
+ucs2
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING sjis)) FROM `£Ô£±£²`;
+CHARSET(CONVERT(`£Ã£±` USING sjis))
+sjis
+SELECT DISTINCT CHARSET(CONVERT(`£Ã£±` USING ujis)) FROM `£Ô£±£²`;
+CHARSET(CONVERT(`£Ã£±` USING ujis))
+ujis
+drop table `£Ô£±`;
+drop table `£Ô£²`;
+drop table `£Ô£³`;
+drop table `£Ô£´`;
+drop table `£Ô£µ`;
+drop table `£Ô£¶`;
+drop table `£Ô£·`;
+drop table `£Ô£¸`;
+drop table `£Ô£¹`;
+drop table `£Ô£±£°`;
+drop table `£Ô£±£±`;
+drop table `£Ô£±£²`;

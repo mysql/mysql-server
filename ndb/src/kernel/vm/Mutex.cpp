@@ -19,48 +19,51 @@
 #include "Mutex.hpp"
 #include <signaldata/UtilLock.hpp>
 
-MutexManager::MutexManager(class SimulatedBlock & block) 
+SimulatedBlock::MutexManager::MutexManager(class SimulatedBlock & block) 
   : m_block(block),
     m_activeMutexes(m_mutexPool) {
 }
   
 bool
-MutexManager::setSize(Uint32 maxNoOfActiveMutexes){
+SimulatedBlock::MutexManager::setSize(Uint32 maxNoOfActiveMutexes){
   return m_mutexPool.setSize(maxNoOfActiveMutexes);
 }
 
 Uint32
-MutexManager::getSize() const {
+SimulatedBlock::MutexManager::getSize() const {
   return m_mutexPool.getSize();
 }
 
 bool
-MutexManager::seize(ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::seize(ActiveMutexPtr& ptr){
   return m_activeMutexes.seize(ptr);
 }
 
 void
-MutexManager::release(Uint32 activeMutexPtrI){
+SimulatedBlock::MutexManager::release(Uint32 activeMutexPtrI){
   m_activeMutexes.release(activeMutexPtrI);
 }
 
 void
-MutexManager::getPtr(ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::getPtr(ActiveMutexPtr& ptr){
   m_activeMutexes.getPtr(ptr);
 }
 
 BlockReference
-MutexManager::reference() const { 
+SimulatedBlock::MutexManager::reference() const { 
   return m_block.reference(); 
 }
 
 void
-MutexManager::progError(int line, int err_code, const char* extra) {
+SimulatedBlock::MutexManager::progError(int line, 
+					int err_code, 
+					const char* extra)
+{
   m_block.progError(line, err_code, extra); 
 }
 
 void
-MutexManager::create(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::create(Signal* signal, ActiveMutexPtr& ptr){
   
   UtilCreateLockReq * req = (UtilCreateLockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
@@ -78,7 +81,7 @@ MutexManager::create(Signal* signal, ActiveMutexPtr& ptr){
 }
 
 void
-MutexManager::execUTIL_CREATE_LOCK_REF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_CREATE_LOCK_REF(Signal* signal){
 
   UtilCreateLockRef * ref = (UtilCreateLockRef*)signal->getDataPtr();
   ActiveMutexPtr ptr;
@@ -91,7 +94,7 @@ MutexManager::execUTIL_CREATE_LOCK_REF(Signal* signal){
 }
 
 void 
-MutexManager::execUTIL_CREATE_LOCK_CONF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_CREATE_LOCK_CONF(Signal* signal){
 
   UtilCreateLockConf * conf = (UtilCreateLockConf*)signal->getDataPtr();
   ActiveMutexPtr ptr;
@@ -105,7 +108,7 @@ MutexManager::execUTIL_CREATE_LOCK_CONF(Signal* signal){
 
 
 void
-MutexManager::destroy(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::destroy(Signal* signal, ActiveMutexPtr& ptr){
 
   UtilDestroyLockReq * req = (UtilDestroyLockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
@@ -123,7 +126,7 @@ MutexManager::destroy(Signal* signal, ActiveMutexPtr& ptr){
 }
 
 void
-MutexManager::execUTIL_DESTORY_LOCK_REF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_DESTORY_LOCK_REF(Signal* signal){
   UtilDestroyLockRef * ref = (UtilDestroyLockRef*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, ref->senderData);
@@ -135,7 +138,7 @@ MutexManager::execUTIL_DESTORY_LOCK_REF(Signal* signal){
 }
 
 void
-MutexManager::execUTIL_DESTORY_LOCK_CONF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_DESTORY_LOCK_CONF(Signal* signal){
   UtilDestroyLockConf * conf = (UtilDestroyLockConf*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, conf->senderData);
@@ -148,7 +151,7 @@ MutexManager::execUTIL_DESTORY_LOCK_CONF(Signal* signal){
 
 
 void 
-MutexManager::lock(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::lock(Signal* signal, ActiveMutexPtr& ptr){
 
   UtilLockReq * req = (UtilLockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
@@ -166,7 +169,7 @@ MutexManager::lock(Signal* signal, ActiveMutexPtr& ptr){
 }
 
 void 
-MutexManager::trylock(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::trylock(Signal* signal, ActiveMutexPtr& ptr){
 
   UtilLockReq * req = (UtilLockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
@@ -184,7 +187,7 @@ MutexManager::trylock(Signal* signal, ActiveMutexPtr& ptr){
 }
 
 void
-MutexManager::execUTIL_LOCK_REF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_LOCK_REF(Signal* signal){
   UtilLockRef * ref = (UtilLockRef*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, ref->senderData);
@@ -196,7 +199,7 @@ MutexManager::execUTIL_LOCK_REF(Signal* signal){
 }
 
 void
-MutexManager::execUTIL_LOCK_CONF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_LOCK_CONF(Signal* signal){
   UtilLockConf * conf = (UtilLockConf*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, conf->senderData);
@@ -210,7 +213,7 @@ MutexManager::execUTIL_LOCK_CONF(Signal* signal){
 }
 
 void 
-MutexManager::unlock(Signal* signal, ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::unlock(Signal* signal, ActiveMutexPtr& ptr){
   UtilUnlockReq * req = (UtilUnlockReq*)signal->getDataPtrSend();
   req->senderData = ptr.i;
   req->senderRef = m_block.reference();
@@ -227,7 +230,7 @@ MutexManager::unlock(Signal* signal, ActiveMutexPtr& ptr){
 }
 
 void
-MutexManager::execUTIL_UNLOCK_REF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_UNLOCK_REF(Signal* signal){
   UtilUnlockRef * ref = (UtilUnlockRef*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, ref->senderData);
@@ -239,7 +242,7 @@ MutexManager::execUTIL_UNLOCK_REF(Signal* signal){
 }
 
 void
-MutexManager::execUTIL_UNLOCK_CONF(Signal* signal){
+SimulatedBlock::MutexManager::execUTIL_UNLOCK_CONF(Signal* signal){
   UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtr();
   ActiveMutexPtr ptr;
   m_activeMutexes.getPtr(ptr, conf->senderData);
@@ -251,8 +254,9 @@ MutexManager::execUTIL_UNLOCK_CONF(Signal* signal){
 }
 
 void
-Mutex::release(MutexManager& mgr, Uint32 activePtrI, Uint32 mutexId){
-  MutexManager::ActiveMutexPtr ptr;
+Mutex::release(SimulatedBlock::MutexManager& mgr, 
+	       Uint32 activePtrI, Uint32 mutexId){
+  SimulatedBlock::MutexManager::ActiveMutexPtr ptr;
   ptr.i = activePtrI;
   mgr.getPtr(ptr);
   if(ptr.p->m_gsn == 0 && ptr.p->m_mutexId == mutexId){
@@ -272,7 +276,8 @@ Mutex::unlock(){
   if(!m_ptr.isNull()){
     m_mgr.getPtr(m_ptr);
     if(m_ptr.p->m_mutexId == m_mutexId){
-      Callback c = { &SimulatedBlock::ignoreMutexUnlockCallback, m_ptr.i };
+      SimulatedBlock::Callback c = 
+	{ &SimulatedBlock::ignoreMutexUnlockCallback, m_ptr.i };
       m_ptr.p->m_callback = c;
       m_mgr.unlock(m_signal, m_ptr);
       m_ptr.setNull(); // Remove reference

@@ -619,7 +619,7 @@ UtilTransactions::addRowToInsert(Ndb* pNdb,
 int 
 UtilTransactions::scanReadRecords(Ndb* pNdb,
 				  int parallelism,
-				  bool exclusive,
+				  NdbOperation::LockMode lm,
 				  int records,
 				  int noAttribs,
 				  int *attrib_list,
@@ -669,10 +669,7 @@ UtilTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs = pOp->readTuples(exclusive ? 
-					NdbScanOperation::LM_Exclusive :
-					NdbScanOperation::LM_Read,
-					0, parallelism);
+    NdbResultSet * rs = pOp->readTuples(lm, 0, parallelism);
     if( rs == 0 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
@@ -761,7 +758,7 @@ int
 UtilTransactions::selectCount(Ndb* pNdb, 
 			      int parallelism,
 			      int* count_rows,
-			      ScanLock lock,
+			      NdbOperation::LockMode lm,
 			      NdbConnection* pTrans){
   
   int                  retryAttempt = 0;
@@ -785,19 +782,7 @@ UtilTransactions::selectCount(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    NdbResultSet * rs;
-    switch(lock){
-    case SL_ReadHold:
-      rs = pOp->readTuples(NdbScanOperation::LM_Read);
-      break;
-    case SL_Exclusive:
-      rs = pOp->readTuples(NdbScanOperation::LM_Exclusive);
-      break;
-    case SL_Read:
-    default:
-      rs = pOp->readTuples(NdbScanOperation::LM_CommittedRead);
-    }
-    
+    NdbResultSet * rs = pOp->readTuples(lm);
     if( rs == 0) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);

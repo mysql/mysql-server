@@ -541,7 +541,7 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
 
   tc1= buf;
   if ((len1 + len2 +2) > (int) sizeof(buf))
-    tc1= (uchar*) malloc(len1+len2);
+    tc1= (uchar*) malloc(len1+len2+2);
   tc2= tc1 + len1+1;
   memcpy((char*) tc1, (char*) s1, len1);
   tc1[len1]= 0;		/* if length(s1)> len1, need to put 'end of string' */
@@ -562,17 +562,13 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 			  const uchar *b0, uint b_length)
 {
   uchar	buf[80] ;
-  uchar *end, *a, *b;
+  uchar *end, *a, *b, *alloced= NULL;
   uint length;
   int res= 0;
-  int alloced= 0;
   
   a= buf;
   if ((a_length + b_length +2) > (int) sizeof(buf))
-  {
-    a= (uchar*) malloc(a_length+b_length);
-    alloced= 1;
-  }
+    alloced= a= (uchar*) malloc(a_length+b_length+2);
   
   b= a + a_length+1;
   memcpy((char*) a, (char*) a0, a_length);
@@ -593,7 +589,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -609,7 +605,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
     {
       if (*a != ' ')
       {
-	res= ((int) *a - (int) ' ') ^ swap;
+	res= (*a < ' ') ? -swap : swap;
 	goto ret;
       }
     }
@@ -618,7 +614,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 ret:
   
   if (alloced)
-    free(a);
+    free(alloced);
   return res;
 }
 
@@ -635,9 +631,13 @@ int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
 {
+  uint dstlen= len;
   len= (uint) (strmake((char*) dest, (char*) src, min(len, srclen)) -
 	       (char*) dest);
-  return (int) thai2sortable(dest, len);
+  len= thai2sortable(dest, len);
+  if (dstlen > len)
+    bfill(dest + len, dstlen - len, ' ');
+  return dstlen;
 }
 
 

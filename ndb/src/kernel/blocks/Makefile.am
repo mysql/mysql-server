@@ -15,3 +15,5 @@ SUBDIRS = \
         suma            \
         grep		\
 	dbtux
+
+windoze-dsp:

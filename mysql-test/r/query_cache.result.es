@@ -791,11 +791,24 @@ Qcache_queries_in_cache	1
 unlock table;
 drop table t1,t2;
 set query_cache_wlock_invalidate=default;
+CREATE TABLE t1 (id INT PRIMARY KEY);
+insert into t1 values (1),(2),(3);
+select * from t1;
+id
+1
+2
+3
+create temporary table t1 (a int not null auto_increment
+primary key);
+select * from t1;
+a
+drop table t1;
+drop table t1;
 SET NAMES koi8r;
 CREATE TABLE t1 (a char(1) character set koi8r);
 INSERT INTO t1 VALUES (_koi8r'á'),(_koi8r'Á');
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð±	'Ð‘'='Ð±'
+a	Â	'â'='Â'
 á	Â	1
 Á	Â	1
 show status like "Qcache_hits";
@@ -806,7 +819,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 set collation_connection=koi8r_bin;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð±	'Ð‘'='Ð±'
+a	Â	'â'='Â'
 á	Â	0
 Á	Â	0
 show status like "Qcache_hits";
@@ -817,7 +830,7 @@ Variable_name	Value
 Qcache_queries_in_cache	2
 set character_set_client=cp1251;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð’	'Ð²'='Ð’'
+a	÷	'×'='÷'
 á	÷	0
 Á	÷	0
 show status like "Qcache_hits";
@@ -828,7 +841,7 @@ Variable_name	Value
 Qcache_queries_in_cache	3
 set character_set_results=cp1251;
 SELECT a,'Â','â'='Â' FROM t1;
-a	Ð’	'Ð²'='Ð’'
+a	Â	'â'='Â'
 À	Â	0
 à	Â	0
 show status like "Qcache_hits";
@@ -901,6 +914,8 @@ set group_concat_max_len=10;
 select group_concat(a) FROM t1 group by b;
 group_concat(a)
 1234567890
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 set group_concat_max_len=1024;
 select group_concat(a) FROM t1 group by b;
 group_concat(a)

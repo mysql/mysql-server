@@ -5,9 +5,9 @@
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
---error 0,1141
+--error 0,1141,1147
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
---error 0,1141
+--error 0,1141,1147
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 --enable_warnings
@@ -431,3 +431,20 @@ update t1,t2 set t1.col1 = (select max(col1) from t1) where t1.col1 = t2.col1;
 -- error 1093
 delete t1 from t1,t2 where t1.col1 < (select max(col1) from t1) and t1.col1 = t2.col1;
 drop table t1,t2;
+
+# Test for BUG#5837 - delete with outer join and const tables
+--disable_warnings
+create table t1 (
+  aclid bigint not null primary key, 
+  status tinyint(1) not null 
+) engine = innodb;
+
+create table t2 (
+  refid bigint not null primary key, 
+  aclid bigint, index idx_acl(aclid) 
+) engine = innodb;
+--enable_warnings
+insert into t2 values(1,null);
+delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
+drop table t1, t2;
+

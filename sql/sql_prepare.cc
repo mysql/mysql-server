@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #ifdef EMBEDDED_LIBRARY
@@ -153,6 +152,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
   char buff[9];
+  DBUG_ENTER("send_prep_stmt");
+
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
@@ -161,12 +162,11 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
   */
-  return my_net_write(net, buff, sizeof(buff)) || 
-         (stmt->param_count &&
-          stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list, 0)) ||
-         net_flush(net);
-  return 0;
+  DBUG_RETURN(my_net_write(net, buff, sizeof(buff)) || 
+              (stmt->param_count &&
+               stmt->thd->protocol_simple.send_fields((List<Item> *)
+                                                      &stmt->lex->param_list,
+                                                      0)));
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
@@ -348,12 +348,6 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
 
     tm.neg= (bool) to[0];
     day= (uint) sint4korr(to+1);
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions,
-      which are called when time value is converted to string.
-    */
     tm.hour=   (uint) to[5] + day * 24;
     tm.minute= (uint) to[6];
     tm.second= (uint) to[7];
@@ -368,7 +362,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
     tm.day= tm.year= tm.month= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -387,11 +381,6 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.year=   (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day=    (uint) to[3];
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
     if (length > 4)
     {
       tm.hour=   (uint) to[4];
@@ -404,7 +393,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -418,11 +407,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
   if (length >= 4)
   {
     uchar *to= *pos;
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
+
     tm.year=  (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day= (uint) to[3];
@@ -432,7 +417,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.neg= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
                   MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -441,8 +426,17 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
 #else/*!EMBEDDED_LIBRARY*/
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
-  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
-  param->set_time(to, MYSQL_TIMESTAMP_TIME,
+  MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
+  tm.hour+= tm.day * 24;
+  tm.day= tm.year= tm.month= 0;
+  if (tm.hour > 838)
+  {
+    /* TODO: add warning 'Data truncated' here */
+    tm.hour= 838;
+    tm.minute= 59;
+    tm.second= 59;
+  }
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
@@ -903,8 +897,12 @@ static int mysql_test_insert(Prepared_statement *stmt,
   /*
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
+     Note that this is done without locks (should not be needed as we will not
+     access any data here)
+     If we would use locks, then we have to ensure we are not using
+     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_and_lock_tables(thd, table_list))
+  if (open_normal_and_derived_tables(thd, table_list))
   {
     DBUG_RETURN(-1);
   }
@@ -914,14 +912,15 @@ static int mysql_test_insert(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
 
+    table_list->table->insert_values=(byte *)1; // don't allocate insert_values
     if ((res= mysql_prepare_insert(thd, table_list, insert_table_list,
 				   table_list->table, fields, values,
 				   update_fields, update_values, duplic)))
       goto error;
-    
+
     value_count= values->elements;
     its.rewind();
-   
+
     while ((values= its++))
     {
       counter++;
@@ -940,6 +939,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
   res= 0;
 error:
   lex->unit.cleanup();
+  table_list->table->insert_values=0;
   DBUG_RETURN(res);
 }
 
@@ -1064,7 +1064,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     DBUG_RETURN(1);
 #endif
 
-  if (!lex->result && !(lex->result= new (&stmt->mem_root) select_send))
+  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
     send_error(thd);
     goto err;
@@ -1088,7 +1088,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   {
     if (lex->describe)
     {
-      if (send_prep_stmt(stmt, 0))
+      if (send_prep_stmt(stmt, 0) || thd->protocol->flush())
         goto err_prep;
     }
     else
@@ -1106,11 +1106,8 @@ static int mysql_test_select(Prepared_statement *stmt,
         prepared in unit->prepare call above.
       */
       if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-          lex->result->send_fields(fields, 0)
-#ifndef EMBEDDED_LIBRARY
-          || net_flush(&thd->net)
-#endif
-         )
+          lex->result->send_fields(fields, 0) ||
+          thd->protocol->flush())
         goto err_prep;
     }
   }
@@ -1352,7 +1349,7 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
 {
   int res;
   LEX *lex= stmt->lex;
-  if ((res= insert_select_precheck(stmt->thd, tables)))
+  if ((res= insert_precheck(stmt->thd, tables)))
     return res;
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
@@ -1389,7 +1386,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
-
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
@@ -1442,6 +1438,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     break;
 
   case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
     break;
 
@@ -1474,7 +1471,8 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     goto error;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol? 0 : send_prep_stmt(stmt, 0));
+    DBUG_RETURN(text_protocol? 0 : (send_prep_stmt(stmt, 0) ||
+                                    thd->protocol->flush()));
 error:
   if (res < 0)
     send_error(thd, thd->killed ? ER_SERVER_SHUTDOWN : 0);
@@ -1504,7 +1502,7 @@ static bool init_param_array(Prepared_statement *stmt)
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
     stmt->param_array= (Item_param **)
-                       alloc_root(&stmt->thd->mem_root,
+                       alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
     {
@@ -1520,7 +1518,6 @@ static bool init_param_array(Prepared_statement *stmt)
   }
   return 0;
 }
-
 
 /*
   Given a query string with parameter markers, create a Prepared Statement
@@ -1570,7 +1567,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (char*)name->str,
+    if (!(stmt->name.str= memdup_root(stmt->mem_root, (char*)name->str,
                                       name->length)))
     {
       delete stmt;
@@ -1599,7 +1596,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     DBUG_RETURN(1);
   }
 
-  mysql_log.write(thd, COM_PREPARE, "%s", packet);
+  mysql_log.write(thd, COM_PREPARE, "[%lu] %s", stmt->id, packet);
 
   thd->current_arena= stmt;
   mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
@@ -1609,7 +1606,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
-         init_param_array(stmt);
+         thd->net.report_error || init_param_array(stmt);
   /*
     While doing context analysis of the query (in send_prepare_results) we
     allocate a lot of additional memory: for open tables, JOINs, derived
@@ -1640,7 +1637,9 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     stmt= NULL;
-    /* error is sent inside yyparse/send_prepare_results */
+    if (thd->net.report_error)
+      send_error(thd);
+    /* otherwise the error is sent inside yyparse/send_prepare_results */
   }
   else
   {
@@ -1797,6 +1796,9 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
+  mysql_log.write(thd, COM_EXECUTE, "[%lu] %s", stmt->id,
+                  expanded_query.length() ? expanded_query.c_ptr() :
+                                            stmt->query);
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt, &expanded_query, TRUE);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol

@@ -20,4 +20,20 @@ commit;
 a
 1
 unlock tables;
+commit;
+begin;
+insert into t1 values(10);
+flush tables with read lock;
+commit;
+unlock tables;
+flush tables with read lock;
+unlock tables;
+begin;
+select * from t1;
+a
+1
+10
+show create database test;
+Database	Create Database
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
 drop table t1;

@@ -80,6 +80,7 @@ static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
+               bool ignore,
 	       bool read_file_from_client,thr_lock_type lock_type)
 {
   char name[FN_REFLEN];
@@ -165,7 +166,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   /* We can't give an error in the middle when using LOCAL files */
   if (read_file_from_client && handle_duplicates == DUP_ERROR)
-    handle_duplicates=DUP_IGNORE;
+    ignore= 1;
 
 #ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
@@ -216,6 +217,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   COPY_INFO info;
   bzero((char*) &info,sizeof(info));
+  info.ignore= ignore;
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
@@ -237,6 +239,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.db = db;
     lf_info.table_name = table_list->real_name;
     lf_info.fields = &fields;
+    lf_info.ignore= ignore;
     lf_info.handle_dup = handle_duplicates;
     lf_info.wrote_create_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
@@ -267,7 +270,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     table->next_number_field=table->found_next_number_field;
-    if (handle_duplicates == DUP_IGNORE ||
+    if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     ha_enable_transaction(thd, FALSE); 

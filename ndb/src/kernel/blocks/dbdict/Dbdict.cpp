@@ -239,7 +239,11 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   
   w.add(DictTabInfo::TableName, tablePtr.p->tableName);
   w.add(DictTabInfo::TableId, tablePtr.i);
+#ifdef HAVE_TABLE_REORG
   w.add(DictTabInfo::SecondTableId, tablePtr.p->secondTable);
+#else
+  w.add(DictTabInfo::SecondTableId, (Uint32)0);
+#endif
   w.add(DictTabInfo::TableVersion, tablePtr.p->tableVersion);
   w.add(DictTabInfo::NoOfKeyAttr, tablePtr.p->noOfPrimkey);
   w.add(DictTabInfo::NoOfAttributes, tablePtr.p->noOfAttributes);
@@ -528,7 +532,7 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
   Uint32 sz = tabInfoPtr.sz + ZPAGE_HEADER_SIZE;
 
   c_writeTableRecord.noOfPages = DIV(sz, ZSIZE_OF_PAGES_IN_WORDS);
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback = * callback;
 
   c_writeTableRecord.pageId = 0;
@@ -647,7 +651,7 @@ void Dbdict::closeWriteTableConf(Signal* signal,
   case WriteTableRecord::WRITE_RESTART_FROM_OWN :
     ndbrequire(false);
     break;
-  case WriteTableRecord::CALLBACK:
+  case WriteTableRecord::TWR_CALLBACK:
     jam();
     execute(signal, c_writeTableRecord.m_callback, 0);
     return;
@@ -1188,7 +1192,7 @@ Dbdict::~Dbdict()
 {
 }//Dbdict::~Dbdict()
 
-BLOCK_FUNCTIONS(Dbdict);
+BLOCK_FUNCTIONS(Dbdict)
 
 void Dbdict::initCommonData() 
 {
@@ -1436,6 +1440,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     jam();
     return RNIL;
   }//if
+#ifdef HAVE_TABLE_REORG
   bool secondFound = false;
   for (tablePtr.i = firstTablePtr.i + 1; tablePtr.i < tabSize ; tablePtr.i++) {
     jam();
@@ -1455,6 +1460,7 @@ Uint32 Dbdict::getFreeTableRecord(Uint32 primaryTableId)
     firstTablePtr.p->tabState = TableRecord::NOT_DEFINED;
     return RNIL;
   }//if
+#endif
   return firstTablePtr.i;
 }//Dbdict::getFreeTableRecord()
 
@@ -2381,7 +2387,7 @@ Dbdict::restartCreateTab_readTableConf(Signal* signal,
   ndbrequire(c_writeTableRecord.tableWriteState == WriteTableRecord::IDLE);
   c_writeTableRecord.noOfPages = c_readTableRecord.noOfPages;
   c_writeTableRecord.pageId = c_readTableRecord.pageId;
-  c_writeTableRecord.tableWriteState = WriteTableRecord::CALLBACK;
+  c_writeTableRecord.tableWriteState = WriteTableRecord::TWR_CALLBACK;
   c_writeTableRecord.m_callback.m_callbackData = callbackData;
   c_writeTableRecord.m_callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
@@ -3661,9 +3667,8 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
   req->tableId = tabPtr.i;
   req->tableVersion = tabEntry->m_tableVersion + 1;
   
-  sendSignal(rg, GSN_CREATE_TAB_REQ, signal, 
-	     CreateTabReq::SignalLength, JBB);
-  
+  sendFragmentedSignal(rg, GSN_CREATE_TAB_REQ, signal, 
+		       CreateTabReq::SignalLength, JBB);
 
   return;
 }
@@ -4624,7 +4629,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
       jam();
       tablePtr.p->tabState = TableRecord::DEFINING;
     }//if
-
+#ifdef HAVE_TABLE_REORG
 /* ---------------------------------------------------------------- */
 // Get id of second table id and check that table doesn't already exist
 // and set up links between first and second table.
@@ -4638,7 +4643,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     secondTablePtr.p->tabState = TableRecord::REORG_TABLE_PREPARED;
     secondTablePtr.p->secondTable = tablePtr.i;
     tablePtr.p->secondTable = secondTablePtr.i;
-
+#endif
 /* ---------------------------------------------------------------- */
 // Set table version
 /* ---------------------------------------------------------------- */
@@ -5536,10 +5541,12 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
     nextAttrRecord = attrPtr.p->nextAttrInTable;
     c_attributeRecordPool.release(attrPtr);
   }//if
+#ifdef HAVE_TABLE_REORG
   Uint32 secondTableId = tablePtr.p->secondTable;
   initialiseTableRecord(tablePtr);
   c_tableRecordPool.getPtr(tablePtr, secondTableId);
   initialiseTableRecord(tablePtr);
+#endif
   return; 
 }//releaseTableObject()
 
@@ -6046,11 +6053,21 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_CREATE_INDX_REQ,
-            signal, signal->getLength(), JBB);
-        return;
+	
+	releaseSections(signal);
+	OpCreateIndex opBusy;
+	opPtr.p = &opBusy;
+	opPtr.p->save(req);
+	opPtr.p->m_isMaster = (senderRef == reference());
+	opPtr.p->key = 0;
+	opPtr.p->m_requestType = CreateIndxReq::RT_DICT_PREPARE;
+	opPtr.p->m_errorCode = CreateIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	createIndex_sendReply(signal, opPtr, true);
+	return;
       }
+      
       // forward initial request plus operation key to all
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
@@ -6581,10 +6598,9 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_DROP_INDX_REQ,
-            signal, signal->getLength(), JBB);
-        return;
+
+	err = DropIndxRef::NotMaster;
+	goto error;
       }
       // forward initial request plus operation key to all
       Uint32 indexId= req->getIndexId();
@@ -6672,6 +6688,7 @@ error:
   opPtr.p->save(req);
   opPtr.p->m_errorCode = (DropIndxRef::ErrorCode)err;
   opPtr.p->m_errorLine = __LINE__;
+  opPtr.p->m_errorNode = c_masterNodeId;
   dropIndex_sendReply(signal, opPtr, true);
 }
 
@@ -9110,9 +9127,15 @@ Dbdict::execALTER_INDX_REQ(Signal* signal)
       jam();
       if (! isLocal && getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_ALTER_INDX_REQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpAlterIndex opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = AlterIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	alterIndex_sendReply(signal, opPtr, true);
         return;
       }
       // forward initial request plus operation key to all
@@ -9790,9 +9813,15 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_BUILDINDXREQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpBuildIndex opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = BuildIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	buildIndex_sendReply(signal, opPtr, true);
         return;
       }
       // forward initial request plus operation key to all
@@ -10208,6 +10237,7 @@ Dbdict::buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr,
   rep->setIndexId(opPtr.p->m_request.getIndexId());
   if (sendRef) {
     rep->setErrorCode(opPtr.p->m_errorCode);
+    rep->masterNodeId = opPtr.p->m_errorNode;
     gsn = GSN_BUILDINDXREF;
     length = BuildIndxRef::SignalLength;
   }
@@ -10256,9 +10286,15 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
       jam();
       if (! isLocal && getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_CREATE_TRIG_REQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpCreateTrigger opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = CreateTrigRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	createTrigger_sendReply(signal,  opPtr, true);
         return;
       }
       // forward initial request plus operation key to all

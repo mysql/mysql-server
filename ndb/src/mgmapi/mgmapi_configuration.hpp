@@ -21,7 +21,7 @@ struct ndb_mgm_configuration_iterator {
   int find(int param, unsigned value);
 
   int get(int param, unsigned * value) const ;
-  int get(int param, unsigned long long * value) const ;
+  int get(int param, Uint64 * value) const ;
   int get(int param, const char ** value) const ;
 
   //

@@ -84,7 +84,9 @@ static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info,
 					 IO_CACHE *to_file,
 					 char* key, uint sort_length,
 					 uint count);
-inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file, byte *bufs);
+static inline int
+my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, byte *bufs);
+
 /*
   Creates a index of sorted keys
 
@@ -160,7 +162,10 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
     {
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
 			     maxbuffer/2))
+      {
 	my_free((gptr) sort_keys,MYF(0));
+        sort_keys= 0;
+      }
       else
 	break;
     }
@@ -625,7 +630,8 @@ static int NEAR_F write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
 } /* write_keys */
 
 
-inline int my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, byte *bufs)
+static inline int
+my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, byte *bufs)
 {
   int err;
   uint16 len = _mi_keylength(info->keyinfo, (uchar*) bufs);

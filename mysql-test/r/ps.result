@@ -106,12 +106,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 set @fvar= 123.4567;
 prepare stmt1 from @fvar;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
-set @str1 = 'select ?';
-set @str2 = convert(@str1 using ucs2);
-prepare stmt1 from @str2;
-execute stmt1 using @ivar;
-?
-1234
 drop table t1,t2;
 PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
 set @var='A';
@@ -456,3 +450,35 @@ PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVIN
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+prepare stmt from "select ? is null, ? is not null, ?";
+select @no_such_var is null, @no_such_var is not null, @no_such_var;
+@no_such_var is null	@no_such_var is not null	@no_such_var
+1	0	NULL
+execute stmt using @no_such_var, @no_such_var, @no_such_var;
+? is null	? is not null	?
+1	0	NULL
+set @var='abc';
+select @var is null, @var is not null, @var;
+@var is null	@var is not null	@var
+0	1	abc
+execute stmt using @var, @var, @var;
+? is null	? is not null	?
+0	1	abc
+set @var=null;
+select @var is null, @var is not null, @var;
+@var is null	@var is not null	@var
+1	0	NULL
+execute stmt using @var, @var, @var;
+? is null	? is not null	?
+1	0	NULL
+create table t1 (pnum char(3));
+create table t2 (pnum char(3));
+prepare stmt from "select pnum from t2 having pnum in (select 'p1' from t1)";
+execute stmt;
+pnum
+execute stmt;
+pnum
+execute stmt;
+pnum
+deallocate prepare stmt;
+drop table t1, t2;

@@ -26,6 +26,7 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#include "rt_index.h"
 
 #ifndef USE_RAID
 #define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
@@ -656,6 +657,15 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
         if (chk_index_down(param,info,&info->s->ft2_keyinfo,record,
                            temp_buff,&tmp_keys,key_checksum,1))
           goto err;
+        if (tmp_keys + subkeys)
+        {
+          mi_check_print_error(param,
+                               "Number of words in the 2nd level tree "
+                               "does not match the number in the header. "
+                               "Parent word in on the page %s, offset %u",
+                               llstr(page,llbuff), (uint) (old_keypos-buff));
+          goto err;
+        }
         (*keys)+=tmp_keys-1;
         continue;
       }
@@ -1456,6 +1466,14 @@ static int writekeys(MI_CHECK *param, register MI_INFO *info, byte *buff,
         if (_mi_ft_add(info,i,(char*) key,buff,filepos))
 	  goto err;
       }
+#ifdef HAVE_SPATIAL
+      else if (info->s->keyinfo[i].flag & HA_SPATIAL)
+      {
+	uint key_length=_mi_make_key(info,i,key,buff,filepos);
+	if (rtree_insert(info, i, key, key_length))
+	  goto err;
+      }
+#endif /*HAVE_SPATIAL*/
       else
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
@@ -2037,7 +2055,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param.keyinfo->seg->charset->mbmaxlen;
       sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_max_word_len_for_sort+1);
+        (ha_rows) (sort_info.filelength/ft_min_word_len+1);
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
@@ -3978,7 +3996,8 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
                                   key->seg->charset->mbmaxlen;
     key_maxlength+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
   }
-  return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
+  return (key->flag & HA_SPATIAL) ||
+          (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
 	   (ulonglong) myisam_max_temp_length));
 }

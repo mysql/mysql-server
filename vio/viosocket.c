@@ -142,23 +142,29 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
   int r=0;
   DBUG_ENTER("vio_fastsend");
 
-#ifdef IPTOS_THROUGHPUT
+#if defined(IPTOS_THROUGHPUT) && !defined(__EMX__)
   {
-#ifndef __EMX__
     int tos = IPTOS_THROUGHPUT;
-    if (!setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos)))
-#endif				/* !__EMX__ */
-    {
-      int nodelay = 1;
-      if (setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (void *) &nodelay,
-		     sizeof(nodelay))) {
-	DBUG_PRINT("warning",
-		   ("Couldn't set socket option for fast send"));
-	r= -1;
-      }
-    }
+    r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
-#endif	/* IPTOS_THROUGHPUT */
+#endif                                    /* IPTOS_THROUGHPUT && !__EMX__ */
+  if (!r)
+  {
+#ifdef __WIN__
+    BOOL nodelay= 1;
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (const char*) &nodelay,
+                  sizeof(nodelay));
+#else
+    int nodelay = 1;
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY, (void*) &nodelay,
+                  sizeof(nodelay));
+#endif                                          /* __WIN__ */
+  }
+  if (r)
+  {
+    DBUG_PRINT("warning", ("Couldn't set socket option for fast send"));
+    r= -1;
+  }
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
@@ -266,11 +272,23 @@ my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 }
 
 
+/*
+  Get in_addr for a TCP/IP connection
+
+  SYNOPSIS
+    vio_in_addr()
+    vio		vio handle
+    in		put in_addr here
+
+  NOTES
+    one must call vio_peer_addr() before calling this one
+*/
+
 void vio_in_addr(Vio *vio, struct in_addr *in)
 {
   DBUG_ENTER("vio_in_addr");
   if (vio->localhost)
-    bzero((char*) in, sizeof(*in));	/* This should never be executed */
+    bzero((char*) in, sizeof(*in));
   else
     *in=vio->remote.sin_addr;
   DBUG_VOID_RETURN;
@@ -381,10 +399,21 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
   {
     if (vio->shared_memory_remain == 0)
     {
-      if (WaitForSingleObject(vio->event_server_wrote,vio->net->read_timeout*1000)  != WAIT_OBJECT_0)
+      HANDLE events[2];
+      events[0]= vio->event_server_wrote;
+      events[1]= vio->event_conn_closed;
+      /*
+        WaitForMultipleObjects can return next values:
+         WAIT_OBJECT_0+0 - event from vio->event_server_wrote
+         WAIT_OBJECT_0+1 - event from vio->event_conn_closed. We can't read anything
+         WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
+      */
+      if (WaitForMultipleObjects(2, (HANDLE*)&events,FALSE,
+                                 vio->net->read_timeout*1000) != WAIT_OBJECT_0)
       {
         DBUG_RETURN(-1);
       };
+
       vio->shared_memory_pos = vio->handle_map;
       vio->shared_memory_remain = uint4korr((ulong*)vio->shared_memory_pos);
       vio->shared_memory_pos+=4;
@@ -429,7 +458,8 @@ int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
   current_postion = buf;
   while (remain != 0)
   {
-    if (WaitForSingleObject(vio->event_server_read,vio->net->write_timeout*1000) != WAIT_OBJECT_0)
+    if (WaitForSingleObject(vio->event_server_read, vio->net->write_timeout*1000) 
+                            != WAIT_OBJECT_0)
     {
       DBUG_RETURN(-1);
     };
@@ -454,17 +484,29 @@ int vio_close_shared_memory(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close_shared_memory");
-  r=UnmapViewOfFile(vio->handle_map) || CloseHandle(vio->event_server_wrote) ||
-    CloseHandle(vio->event_server_read) || CloseHandle(vio->event_client_wrote) ||
-    CloseHandle(vio->event_client_read) || CloseHandle(vio->handle_file_map);
-  if (r)
+  if (vio->type != VIO_CLOSED)
   {
-    DBUG_PRINT("vio_error", ("close() failed, error: %d",r));
-    /* FIXME: error handling (not critical for MySQL) */
+    /*
+      Set event_conn_closed for notification of both client and server that
+      connection is closed
+    */
+    SetEvent(vio->event_conn_closed);
+    /*
+      Close all handlers. UnmapViewOfFile and CloseHandle return non-zero
+      result if they are success.
+    */
+    r= UnmapViewOfFile(vio->handle_map) || CloseHandle(vio->event_server_wrote) ||
+       CloseHandle(vio->event_server_read) || CloseHandle(vio->event_client_wrote) ||
+       CloseHandle(vio->event_client_read) || CloseHandle(vio->handle_file_map);
+    if (!r)
+    {
+      DBUG_PRINT("vio_error", ("close() failed, error: %d",r));
+      /* FIXME: error handling (not critical for MySQL) */
+    }
   }
   vio->type= VIO_CLOSED;
   vio->sd=   -1;
-  DBUG_RETURN(r);
+  DBUG_RETURN(!r);
 }
 #endif /* HAVE_SMEM */
 #endif /* __WIN__ */
