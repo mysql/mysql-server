@@ -23,16 +23,20 @@
 #endif
 
 #include "mysql_priv.h"
+#include "mysql.h"
+#include "sp_head.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 
-sp_rcontext::sp_rcontext(uint fsize, uint hmax)
-  : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0)
+sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
+  : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
+    m_hfound(-1), m_ccount(0)
 {
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_outs= (int *)sql_alloc(fsize * sizeof(int));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
   m_hstack= (uint *)sql_alloc(hmax * sizeof(uint));
+  m_cstack= (sp_cursor **)sql_alloc(cmax * sizeof(sp_cursor *));
   m_saved.empty();
 }
 
@@ -92,4 +96,142 @@ sp_rcontext::restore_variables(uint fp)
 
   while (i-- > fp)
     m_frame[i]= m_saved.pop();
+}
+
+void
+sp_rcontext::push_cursor(LEX *lex)
+{
+  m_cstack[m_ccount++]= new sp_cursor(lex);
+}
+
+void
+sp_rcontext::pop_cursors(uint count)
+{
+  while (count--)
+  {
+    delete m_cstack[--m_ccount];
+  }
+}
+
+
+/*
+ *
+ *  sp_cursor
+ *
+ */
+
+// We have split this in two to make it easy for sp_instr_copen
+// to reuse the sp_instr::exec_stmt() code.
+LEX *
+sp_cursor::pre_open(THD *thd)
+{
+  int res;
+
+  if (m_isopen)
+  {
+    send_error(thd, ER_SP_CURSOR_ALREADY_OPEN);
+    return NULL;
+  }
+
+  bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  init_alloc_root(&m_mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  if ((m_prot= new Protocol_cursor(thd, &m_mem_root)) == NULL)
+    return NULL;
+
+  m_oprot= thd->protocol;	// Save the original protocol
+  thd->protocol= m_prot;
+
+  m_ovio= thd->net.vio;		// Prevent send_eof()
+  thd->net.vio= 0;
+  return m_lex;
+}
+
+void
+sp_cursor::post_open(THD *thd, my_bool isopen)
+{
+  thd->net.vio= m_ovio;		// Restore the originals
+  thd->protocol= m_oprot;
+  m_isopen= isopen;
+  m_current_row= m_prot->data;
+}
+
+int
+sp_cursor::close(THD *thd)
+{
+  if (! m_isopen)
+  {
+    send_error(thd, ER_SP_CURSOR_NOT_OPEN);
+    return -1;
+  }
+  destroy();
+  return 0;
+}
+
+void
+sp_cursor::destroy()
+{
+  delete m_prot;
+  m_prot= NULL;
+  free_root(&m_mem_root, MYF(0));
+  bzero((char *)&m_mem_root, sizeof(m_mem_root));
+  m_isopen= FALSE;
+}
+
+int
+sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
+{
+  List_iterator_fast<struct sp_pvar> li(*vars);
+  sp_pvar_t *pv;
+  MYSQL_ROW row;
+  uint fldcount;
+  MYSQL_FIELD *fields= m_prot->fields;
+
+  if (! m_isopen)
+  {
+    send_error(thd, ER_SP_CURSOR_NOT_OPEN);
+    return -1;
+  }
+
+  if (m_current_row == NULL)
+  {
+    send_error(thd, ER_SP_FETCH_NO_DATA);
+    return -1;
+  }
+
+  row= m_current_row->data;
+  for (fldcount= 0 ; (pv= li++) ; fldcount++)
+  {
+    Item *it;
+    const char *s;
+
+    if (fldcount >= m_prot->get_field_count())
+    {
+      send_error(thd, ER_SP_WRONG_NO_OF_FETCH_ARGS);
+      return -1;
+    }
+    s= row[fldcount];
+    switch (sp_map_result_type(pv->type))
+    {
+    case INT_RESULT:
+      it= new Item_int(s);
+      break;
+    case REAL_RESULT:
+      it= new Item_real(s, strlen(s));
+      break;
+    default:
+      {
+	uint len= strlen(s);
+	it= new Item_string(thd->strmake(s, len), len, thd->db_charset);
+	break;
+      }
+    }
+    thd->spcont->set_item(pv->offset, it);
+  }
+  if (fldcount < m_prot->get_field_count())
+  {
+    send_error(thd, ER_SP_WRONG_NO_OF_FETCH_ARGS);
+    return -1;
+  }
+  m_current_row= m_current_row->next;
+  return 0;
 }

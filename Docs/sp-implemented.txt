@@ -8,8 +8,7 @@ Summary of Not Yet Implemented:
   - Access control
   - Routine characteristics (mostly used for external languages)
   - SQL-99 COMMIT (related to BEGIN/END)
-  - DECLARE CURSOR ...
-  - FOR-loops (as it requires cursors)
+  - FOR-loops
   - CASCADE/RESTRICT for ALTER and DROP
   - ALTER/DROP METHOD (as it implies User Defined Types)
   - SIGNAL and RESIGNAL, and UNDO handlers
@@ -25,6 +24,7 @@ Summary of what's implemented:
   - "Non-query" FUNCTIONs only
   - Prepared SP caching
   - CONDITIONs and HANDLERs
+  - Simple read-only CURSORs.
 
 List of what's implemented:
 
@@ -86,6 +86,11 @@ List of what's implemented:
       The semantics of CONDITIONs is expanded to allow catching MySQL error
       codes as well. UNDO handlers are not implemented (since we don't have
       SQL-99 style transaction control yet).
+    - Simple read-only CURSORs are implemented, but not yet any of the
+      optional arguments to DECLARE (SCROLL, SENSITIVE, etc) or FETCH
+      (NEXT, PRIOR, etc). Cursors are ASENSITIVE, READ-ONLY, non-SCROLLing.
+      (The additional syntax will be added for completeness, but for the
+       most part unsupported with the current underlying cursor mechanism.)
 
 Closed questions:
 

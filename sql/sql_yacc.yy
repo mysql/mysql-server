@@ -86,7 +86,8 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
   struct sp_cond_type *spcondtype;
-  struct { int vars, conds, hndlrs; } spblock;
+  struct { int vars, conds, hndlrs, curs; } spblock;
+  struct st_lex *lex;
 }
 
 %{
@@ -749,6 +750,7 @@ END_OF_INPUT
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
 %type <spcondtype> sp_cond sp_hcond
 %type <spblock> sp_decls sp_decl
+%type <lex> sp_cursor_stmt
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -1190,13 +1192,14 @@ sp_proc_stmts:
 sp_decls:
 	  /* Empty */
 	  {
-	    $$.vars= $$.conds= $$.hndlrs= 0;
+	    $$.vars= $$.conds= $$.hndlrs= $$.curs= 0;
 	  }
 	| sp_decls sp_decl ';'
 	  {
 	    $$.vars= $1.vars + $2.vars;
 	    $$.conds= $1.conds + $2.conds;
 	    $$.hndlrs= $1.hndlrs + $2.hndlrs;
+	    $$.curs= $1.curs + $2.curs;
 	  }
 	;
 
@@ -1223,12 +1226,12 @@ sp_decl:
 	      }
 	    }
 	    $$.vars= $2;
-	    $$.conds= $$.hndlrs= 0;
+	    $$.conds= $$.hndlrs= $$.curs= 0;
 	  }
 	| DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
 	  {
 	    YYTHD->lex->spcont->push_cond(&$2, $5);
-	    $$.vars= $$.hndlrs= 0;
+	    $$.vars= $$.hndlrs= $$.curs= 0;
 	    $$.conds= 1;
 	  }
 	| DECLARE_SYM sp_handler_type HANDLER_SYM FOR_SYM
@@ -1261,14 +1264,49 @@ sp_decl:
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
-	    $$.vars= $$.conds= 0;
+	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
 	  }
-/* QQ Not yet
 	| DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
 	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_instr_cpush *i= new sp_instr_cpush(sp->instructions(), $5);
+
+	    sp->add_instr(i);
+	    lex->spcont->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
-	  }*/
+	    $$.curs= 1;
+	  }
+	;
+
+sp_cursor_stmt:
+	  {
+	    Lex->sphead->reset_lex(YYTHD);
+
+	    /* We use statement here just be able to get a better
+	       error message. Using 'select' works too, but will then
+	       result in a generic "syntax error" if a non-select
+	       statement is given. */
+	  }
+	  statement
+	  {
+	    LEX *lex= Lex;
+
+	    if (lex->sql_command != SQLCOM_SELECT)
+	    {
+	      send_error(YYTHD, ER_SP_BAD_CURSOR_QUERY);
+	      YYABORT;
+	    }
+	    if (lex->result)
+	    {
+	      send_error(YYTHD, ER_SP_BAD_CURSOR_SELECT);
+	      YYABORT;
+	    }
+	    lex->sp_lex_in_use= TRUE;
+	    $$= lex;
+	    lex->sphead->restore_lex(YYTHD);
+	  }
 	;
 
 sp_handler_type:
@@ -1507,11 +1545,96 @@ sp_proc_stmt:
 	    }
 	  }
 	| OPEN_SYM ident
-	  {}
-	| FETCH_SYM ident INTO select_var_list_init
-	  {}
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    uint offset;
+	    sp_instr_copen *i;
+
+	    if (! lex->spcont->find_cursor(&$2, &offset))
+	    {
+	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      YYABORT;
+	    }
+	    i= new sp_instr_copen(sp->instructions(), offset);
+	    sp->add_instr(i);
+	  }
+	| FETCH_SYM ident INTO
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    uint offset;
+	    sp_instr_cfetch *i;
+
+	    if (! lex->spcont->find_cursor(&$2, &offset))
+	    {
+	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      YYABORT;
+	    }
+	    i= new sp_instr_cfetch(sp->instructions(), offset);
+	    sp->add_instr(i);
+	  }
+	  sp_fetch_list
+	  { }
 	| CLOSE_SYM ident
-	  {}
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    uint offset;
+	    sp_instr_cclose *i;
+
+	    if (! lex->spcont->find_cursor(&$2, &offset))
+	    {
+	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
+	      YYABORT;
+	    }
+	    i= new sp_instr_cclose(sp->instructions(), offset);
+	    sp->add_instr(i);
+	  }
+	;
+
+sp_fetch_list:
+	  ident
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *spc= lex->spcont;
+	    sp_pvar_t *spv;
+
+	    if (!spc || !(spv = spc->find_pvar(&$1)))
+	    {
+	      net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $1.str);
+	      YYABORT;
+	    }
+	    else
+	    { /* An SP local variable */
+	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
+
+	      i->add_to_varlist(spv);
+	      spv->isset= TRUE;
+	    }
+	  }
+	|
+	  sp_fetch_list ',' ident
+	  {
+	    LEX *lex= Lex;
+	    sp_head *sp= lex->sphead;
+	    sp_pcontext *spc= lex->spcont;
+	    sp_pvar_t *spv;
+
+	    if (!spc || !(spv = spc->find_pvar(&$3)))
+	    {
+	      net_printf(YYTHD, ER_SP_UNDECLARED_VAR, $3.str);
+	      YYABORT;
+	    }
+	    else
+	    { /* An SP local variable */
+	      sp_instr_cfetch *i= (sp_instr_cfetch *)sp->last_instruction();
+
+	      i->add_to_varlist(spv);
+	      spv->isset= TRUE;
+	    }
+	  }
 	;
 
 sp_if:
@@ -1650,11 +1773,11 @@ sp_unlabeled_control:
   	    sp->backpatch(ctx->pop_label());
 	    ctx->pop_pvar($3.vars);
 	    ctx->pop_cond($3.conds);
+	    ctx->pop_cursor($3.curs);
 	    if ($3.hndlrs)
-	    {
-	      sp_instr_hpop *i= new sp_instr_hpop(sp->instructions(),$3.hndlrs);
-	      sp->add_instr(i);
-	    }
+	      sp->add_instr(new sp_instr_hpop(sp->instructions(),$3.hndlrs));
+	    if ($3.curs)
+	      sp->add_instr(new sp_instr_cpop(sp->instructions(), $3.curs));
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM
@@ -4240,7 +4363,7 @@ select_var_ident:
 	     sp_pvar_t *t;
 	     if (!(t=lex->spcont->find_pvar(&$1)))
 	     {
-	       send_error(lex->thd, ER_SYNTAX_ERROR);
+	       send_error(lex->thd, ER_SP_UNDECLARED_VAR);
 	       YYABORT;
 	     }
 	     if (! lex->result)
