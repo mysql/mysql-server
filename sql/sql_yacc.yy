@@ -1041,11 +1041,20 @@ sp_proc_stmt:
 	  statement
 	  {
 	    LEX *lex= Lex;
-	    sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
 
-	    i->set_lex(lex);
-	    lex->sphead->add_instr(i);
-	    lex->sphead->restore_lex(YYTHD);
+	    if (lex->sql_command == SQLCOM_SELECT && !lex->result)
+	    {
+	      send_error(YYTHD, ER_SP_BADSELECT);
+	      YYABORT;
+	    }
+	    else
+	    {
+	      sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+
+	      i->set_lex(lex);
+	      lex->sphead->add_instr(i);
+	      lex->sphead->restore_lex(YYTHD);
+	    }
           }
 	| IF sp_if END IF {}
 	| CASE_SYM WHEN_SYM
@@ -1096,7 +1105,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_LEAVE_MISMATCH);
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE");
 	      YYABORT;
 	    }
 	    else
@@ -1114,7 +1123,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_ITERATE_MISMATCH);
+	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE");
 	      YYABORT;
 	    }
 	    else
