@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.14"
+#define DUMP_VERSION "8.15"
 
 #include <global.h>
 #include <my_sys.h>
@@ -274,12 +274,12 @@ puts("\
 
 static void write_heder(FILE *sql_file, char *db_name)
 {
-  fprintf(sql_file, "# MySQL dump %s\n#\n", DUMP_VERSION);
-  fprintf(sql_file, "# Host: %s    Database: %s\n",
+  fprintf(sql_file, "-- MySQL dump %s\n#\n", DUMP_VERSION);
+  fprintf(sql_file, "-- Host: %s    Database: %s\n",
 	  current_host ? current_host : "localhost", db_name ? db_name : "");
-  fputs("#--------------------------------------------------------\n",
+  fputs("---------------------------------------------------------\n",
   sql_file);
-  fprintf(sql_file, "# Server version\t%s\n",
+  fprintf(sql_file, "-- Server version\t%s\n",
 	  mysql_get_server_info(&mysql_connection));
   return;
 } /* write_heder */
@@ -515,7 +515,7 @@ static int dbConnect(char *host, char *user,char *passwd)
   DBUG_ENTER("dbConnect");
   if (verbose)
   {
-    fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
+    fprintf(stderr, "-- Connecting to %s...\n", host ? host : "localhost");
   }
   mysql_init(&mysql_connection);
   if (opt_compress)
@@ -542,7 +542,7 @@ static int dbConnect(char *host, char *user,char *passwd)
 static void dbDisconnect(char *host)
 {
   if (verbose)
-    fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
+    fprintf(stderr, "-- Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
 } /* dbDisconnect */
 
@@ -608,7 +608,7 @@ static uint getTableStructure(char *table, char* db)
   delayed= opt_delayed ? " DELAYED " : "";
 
   if (verbose)
-    fprintf(stderr, "# Retrieving table structure for table %s...\n", table);
+    fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", opt_quoted);
   table_name=quote_name(table,table_buff);
@@ -837,7 +837,7 @@ static uint getTableStructure(char *table, char* db)
 	  {					/* If old MySQL version */
 	    if (verbose)
 	      fprintf(stderr,
-		      "# Warning: Couldn't get status information for table '%s' (%s)\n",
+		      "-- Warning: Couldn't get status information for table '%s' (%s)\n",
 		      table,mysql_error(sock));
 	  }
         }
@@ -934,7 +934,7 @@ static void dumpTable(uint numFields, char *table)
   ulong		rownr, row_break, total_length, init_length;
 
   if (verbose)
-    fprintf(stderr, "# Sending SELECT query...\n");
+    fprintf(stderr, "-- Sending SELECT query...\n");
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
@@ -977,10 +977,10 @@ static void dumpTable(uint numFields, char *table)
     sprintf(query, "SELECT * FROM %s", quote_name(table,table_buff));
     if (where)
     {
-      fprintf(result_file,"# WHERE:  %s\n",where);
+      fprintf(result_file,"-- WHERE:  %s\n",where);
       strxmov(strend(query), " WHERE ",where,NullS);
     }
-    fputs("#\n\n", result_file);
+    fputs("\n\n", result_file);
 
     if (mysql_query(sock, query))
     {
@@ -997,7 +997,7 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
     if (verbose)
-      fprintf(stderr, "# Retrieving rows...\n");
+      fprintf(stderr, "-- Retrieving rows...\n");
     if (mysql_num_fields(res) != numFields)
     {
       fprintf(stderr,"%s: Error in field count for table: '%s' !  Aborting.\n",

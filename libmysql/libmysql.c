@@ -322,17 +322,9 @@ net_safe_read(MYSQL *mysql)
     if (len > 3)
     {
       char *pos=(char*) net->read_pos+1;
-      if (mysql->protocol_version > 9)
-      {						/* New client protocol */
-	net->last_errno=uint2korr(pos);
-	pos+=2;
-	len-=2;
-      }
-      else
-      {
-	net->last_errno=CR_UNKNOWN_ERROR;
-	len--;
-      }
+      net->last_errno=uint2korr(pos);
+      pos+=2;
+      len-=2;
       (void) strmake(net->last_error,(char*) pos,
 		     min(len,sizeof(net->last_error)-1));
     }
@@ -1404,6 +1396,7 @@ mysql_ssl_clear(MYSQL *mysql)
 ** If host == 0 then use localhost
 **************************************************************************/
 
+#ifdef USE_OLD_FUNCTIONS
 MYSQL * STDCALL
 mysql_connect(MYSQL *mysql,const char *host,
 	      const char *user, const char *passwd)
@@ -1420,6 +1413,7 @@ mysql_connect(MYSQL *mysql,const char *host,
     DBUG_RETURN(res);
   }
 }
+#endif
 
 
 /*
@@ -1651,8 +1645,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_DUMP("packet",(char*) net->read_pos,10);
   DBUG_PRINT("info",("mysql protocol version %d, server=%d",
 		     PROTOCOL_VERSION, mysql->protocol_version));
-  if (mysql->protocol_version != PROTOCOL_VERSION &&
-      mysql->protocol_version != PROTOCOL_VERSION-1)
+  if (mysql->protocol_version != PROTOCOL_VERSION)
   {
     net->last_errno= CR_VERSION_ERROR;
     sprintf(net->last_error, ER(CR_VERSION_ERROR), mysql->protocol_version,
@@ -2547,6 +2540,7 @@ mysql_list_processes(MYSQL *mysql)
 }
 
 
+#ifdef USE_OLD_FUNCTIONS
 int  STDCALL
 mysql_create_db(MYSQL *mysql, const char *db)
 {
@@ -2563,6 +2557,7 @@ mysql_drop_db(MYSQL *mysql, const char *db)
   DBUG_PRINT("enter",("db: %s",db));
   DBUG_RETURN(simple_command(mysql,COM_DROP_DB,db,(uint) strlen(db),0));
 }
+#endif
 
 
 int STDCALL
