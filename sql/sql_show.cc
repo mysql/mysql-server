@@ -2857,12 +2857,12 @@ void store_constraints(TABLE *table, const char*db, const char *tname,
 }
 
 
-static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
+static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
 {
-  DBUG_ENTER("get_schema_constarints_record");
+  DBUG_ENTER("get_schema_constraints_record");
   if (!res && !tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
@@ -3647,7 +3647,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1},
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_constarints_record, 3, 4},
+    get_all_tables, 0, get_schema_constraints_record, 3, 4},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
     get_all_tables, 0, get_schema_key_column_usage_record, 4, 5},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
