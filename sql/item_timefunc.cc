@@ -2519,7 +2519,6 @@ longlong Item_func_timestamp_diff::val_int()
     uint year;
     uint year_beg, year_end, month_beg, month_end;
     uint diff_days= (uint) (seconds/86400L);
-    uint diff_months= 0;
     uint diff_years= 0;
     if (neg == -1)
     {
