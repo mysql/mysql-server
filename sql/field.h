@@ -1101,10 +1101,10 @@ bool test_if_int(const char *str,int length);
 #define FIELDFLAG_NUMBER		2
 #define FIELDFLAG_ZEROFILL		4
 #define FIELDFLAG_PACK			120	// Bits used for packing
-#define FIELDFLAG_INTERVAL		256
-#define FIELDFLAG_BITFIELD		512	// mangled with dec!
-#define FIELDFLAG_BLOB			1024	// mangled with dec!
-#define FIELDFLAG_GEOM			2048
+#define FIELDFLAG_INTERVAL		256     // mangled with decimals!
+#define FIELDFLAG_BITFIELD		512	// mangled with decimals!
+#define FIELDFLAG_BLOB			1024	// mangled with decimals!
+#define FIELDFLAG_GEOM			2048    // mangled with decimals!
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
@@ -1128,10 +1128,10 @@ bool test_if_int(const char *str,int length);
 #define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
 #define f_is_alpha(x)		(!f_is_num(x))
 #define f_is_binary(x)		((x) & FIELDFLAG_BINARY)
-#define f_is_enum(x)	((x) & FIELDFLAG_INTERVAL)
-#define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
+#define f_is_enum(x)            (((x) & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL)
+#define f_is_bitfield(x)        (((x) & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
-#define f_is_geom(x)		((x) & FIELDFLAG_GEOM)
+#define f_is_geom(x)		(((x) & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM)
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
