@@ -232,7 +232,6 @@ public:
   String *val_str(String*);
   void make_field(Send_field *field);
   Item *new_item() { return new Item_uint(name,max_length); }
-  bool save_in_field(Field *field, bool no_conversions);
   bool fix_fields(THD *thd,struct st_table_list *table_list)
   {
     unsigned_flag= 1;
