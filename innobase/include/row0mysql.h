@@ -447,6 +447,8 @@ struct mysql_row_templ_struct {
 					zero if column cannot be NULL */
 	ulint	type;			/* column type in Innobase mtype
 					numbers DATA_CHAR... */
+	ulint	charset;		/* MySQL charset-collation code
+					of the column, or zero */
 	ulint	is_unsigned;		/* if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */

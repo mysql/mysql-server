@@ -182,3 +182,18 @@ f
 9.999
 9.999
 drop table if exists t1;
+create table t1 (c char(20));
+insert into t1 values (5e-28);
+select * from t1;
+c
+5e-28
+drop table t1;
+create table t1 (c char(6));
+insert into t1 values (2e5),(2e6),(2e-4),(2e-5);
+select * from t1;
+c
+200000
+2e+06
+0.0002
+2e-05
+drop table t1;
