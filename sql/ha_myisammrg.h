@@ -69,7 +69,7 @@ class ha_myisammrg: public handler
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  ha_rows ha_myisammrg::records_in_range(int inx,
+  ha_rows records_in_range(int inx,
 				    const byte *start_key,uint start_key_len,
 				    enum ha_rkey_function start_search_flag,
 				    const byte *end_key,uint end_key_len,
