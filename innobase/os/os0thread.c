@@ -32,24 +32,20 @@ os_thread_get_curr_id(void)
 
 	pthr = pthread_self();
 
-#ifdef UNIV_HPUX	
+#ifdef HPUX	
 	/* TODO: in the future we have to change os_thread_id
-	   to pthread_t; the following cast may work in a wrong way on some
-	   systems if pthread_t is a struct; this is just a quick fix
-	   for HP-UX to eliminate a compiler warning */
+	to pthread_t! */
 
+	/* In HP-UX a pthread_t seems to be a struct of three fields:
+	field1, field2, field3, and the first probably determines (?)
+	the thread identity. */
 
-	/* The below typecast trick will certainly not work if this assertion
-	   fails */
-
-	ut_a(sizeof(pthread_t) >= sizeof(os_thread_id_t));
-
-	return(*(os_thread_id_t*)((void*) (&pthr)));
+	return((os_thread_id_t)(pthr.field1));
 #else
 	/* TODO: define os_thread_id_t in Unix as the same as pthread_t
-	   and compare them with appropriate Posix pthread functions!
-	   The following typecast will not work if pthread_t is not
-	   an integer or a pointer to a unique object for the thread! */
+	and compare them with appropriate Posix pthread functions!
+	The following typecast will not work if pthread_t is not
+	an integer or a pointer to a unique object for the thread! */
 
 	return((os_thread_id_t)pthr);
 #endif
