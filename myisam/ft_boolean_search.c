@@ -205,6 +205,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   int r;
   uint off;
   int subkeys;
+  my_bool can_go_down;
   MI_INFO *info=ftb->info;
 
   if (init_search)
@@ -221,6 +222,24 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     r=_mi_search(info, ftbw->keyinfo, (uchar*) ftbw->word+ftbw->off,
                    USE_WHOLE_KEY, SEARCH_BIGGER, ftbw->key_root);
   }
+
+  can_go_down=(!ftbw->off && (init_search || (ftbw->flags & FTB_FLAG_TRUNC)));
+  /* Skip rows inserted by concurrent insert */
+  while (!r)
+  {
+    if (can_go_down)
+    {
+      /* going down ? */
+      off=info->lastkey_length-HA_FT_WLEN-info->s->base.rec_reflength;
+      subkeys=ft_sintXkorr(info->lastkey+off);
+    }
+    if (subkeys<0 || info->lastpos < info->state->data_file_length)
+      break;
+    r= _mi_search_next(info, ftbw->keyinfo, info->lastkey,
+                       info->lastkey_length,
+		       SEARCH_BIGGER, ftbw->key_root);
+  }
+
   if (!r && !ftbw->off)
   {
     r= mi_compare_text(ftb->charset,
@@ -263,12 +282,12 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   if (!ftbw->off && (init_search || (ftbw->flags & FTB_FLAG_TRUNC)))
   {
     /* going down ? */
-    get_key_full_length_rdonly(off, info->lastkey);
-    subkeys=ft_sintXkorr(info->lastkey+off);
     if (subkeys<0)
     {
-      /* yep, going down, to the second-level tree */
-      /* TODO here: subkey-based optimization */
+      /*
+	yep, going down, to the second-level tree
+	TODO here: subkey-based optimization
+      */
       ftbw->off=off;
       ftbw->key_root=info->lastpos;
       ftbw->keyinfo=& info->s->ft2_keyinfo;

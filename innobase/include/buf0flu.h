@@ -97,6 +97,7 @@ buf_flush_ready_for_replace(
 				/* out: TRUE if can replace immediately */
 	buf_block_t*	block);	/* in: buffer control block, must be in state
 				BUF_BLOCK_FILE_PAGE and in the LRU list */
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the flush list. */
 
@@ -104,6 +105,7 @@ ibool
 buf_flush_validate(void);
 /*====================*/
 		/* out: TRUE if ok */
+#endif /* UNIV_DEBUG */
 
 /* When buf_flush_free_margin is called, it tries to make this many blocks
 available to replacement in the free list and at the end of the LRU list (to

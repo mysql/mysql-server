@@ -196,12 +196,7 @@ mem_heap_create_block(
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
 
 	block->free_block = NULL;
-
-	if (init_block != NULL) {
-		block->init_block = TRUE;
-	} else {
-		block->init_block = FALSE;
-	}
+	block->init_block = (init_block != NULL);
 
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 

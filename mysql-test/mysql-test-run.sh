@@ -244,9 +244,9 @@ while test $# -gt 0; do
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
-      USE_NDBCLUSTER="--with-ndbcluster" ;;
+      USE_NDBCLUSTER="--ndbcluster" ;;
     --ndbconnectstring=*)
-      USE_NDBCLUSTER="--with-ndbcluster" ;
+      USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
@@ -1040,7 +1040,7 @@ start_slave()
           --core --init-rpl-role=slave \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --skip-innodb --skip-slave-start \
+          --skip-innodb --skip-ndbcluster --skip-slave-start \
           --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
           --report-host=127.0.0.1 --report-user=root \
           --report-port=$slave_port \
@@ -1421,6 +1421,7 @@ then
   fi
 
   # Remove files that can cause problems
+  $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
@@ -1436,7 +1437,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/install_ndbcluster --initial --data-dir=$MASTER_MYDDIR || exit 1
+    ./ndb/install_ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
     export NDB_CONNECTSTRING=`cat Ndb.cfg`
   else
     export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"

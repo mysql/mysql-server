@@ -48,22 +48,7 @@ esac
 
 if [ -z "$NDB_ODBC" ]
 then
-  val=N
-  if [ -f /usr/include/sqlext.h -o -f /usr/local/include/sqlext.h ]
-  then
-	  val=Y
-  fi
-  case $NDB_OS in
-  LINUX)
-	NDB_ODBC=$val
-	;;
-  MACOSX)
-	NDB_ODBC=$val
-	;;
-  *)
-        NDB_ODBC=N
-	;;
-  esac
+  NDB_ODBC=N
 fi
 
 

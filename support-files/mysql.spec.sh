@@ -23,6 +23,7 @@ Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
+BuildPrereq: ncurses-devel
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
@@ -577,6 +578,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added ncurses-devel to the build prerequisites (BUG 3377)
+
 * Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
 
 - when using gcc, _always_ use CXX=gcc 

@@ -1426,7 +1426,7 @@ fsp_alloc_free_page(
 						hint % FSP_EXTENT_SIZE, mtr);
 	if (free == ULINT_UNDEFINED) {
 
-		ut_print_buf(((byte*)descr) - 500, 1000);
+		ut_print_buf(stderr, ((byte*)descr) - 500, 1000);
 
 		ut_error;
 	}
@@ -1507,11 +1507,10 @@ fsp_free_page(
 	xdes_t*		descr;
 	ulint		state;
 	ulint		frag_n_used;
-	char		buf[1000];
 	
 	ut_ad(mtr);
 
-/*	printf("Freeing page %lu in space %lu\n", page, space); */
+/*	fprintf(stderr, "Freeing page %lu in space %lu\n", page, space); */
 
 	header = fsp_get_space_header(space, mtr);
 
@@ -1524,9 +1523,9 @@ fsp_free_page(
 "InnoDB: Error: File space extent descriptor of page %lu has state %lu\n",
 								(ulong) page,
 								(ulong) state);
-		ut_sprintf_buf(buf, ((byte*)descr) - 50, 200);
-
-		fprintf(stderr, "InnoDB: Dump of descriptor: %s\n", buf);
+		fputs("InnoDB: Dump of descriptor: ", stderr);
+		ut_print_buf(stderr, ((byte*)descr) - 50, 200);
+		putc('\n', stderr);
 		
 		if (state == XDES_FREE) {
 			/* We put here some fault tolerance: if the page
@@ -1538,14 +1537,12 @@ fsp_free_page(
 		ut_error;
 	}
 
-	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
-								== TRUE) {
+	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)) {
 		fprintf(stderr,
-"InnoDB: Error: File space extent descriptor of page %lu says it is free\n",
-							       (ulong) page);
-		ut_sprintf_buf(buf, ((byte*)descr) - 50, 200);
-
-		fprintf(stderr, "InnoDB: Dump of descriptor: %s\n", buf);
+"InnoDB: Error: File space extent descriptor of page %lu says it is free\n"
+"InnoDB: Dump of descriptor: ", (ulong) page);
+		ut_print_buf(stderr, ((byte*)descr) - 50, 200);
+		putc('\n', stderr);
 
 		/* We put here some fault tolerance: if the page
 		is already free, return without doing anything! */
@@ -1603,7 +1600,7 @@ fsp_free_extent(
 
 	if (xdes_get_state(descr, mtr) == XDES_FREE) {
 
-		ut_print_buf(((byte*)descr) - 500, 1000);
+		ut_print_buf(stderr, (byte*)descr - 500, 1000);
 
 		ut_error;
 	}
@@ -2949,7 +2946,6 @@ fseg_free_page_low(
 	dulint	descr_id;
 	dulint	seg_id;
 	ulint	i;
-	char	errbuf[200];
 	
 	ut_ad(seg_inode && mtr);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) ==
@@ -2963,22 +2959,22 @@ fseg_free_page_low(
 	descr = xdes_get_descriptor(space, page, mtr);
 
 	ut_a(descr);
-	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
-							!= FALSE) {
-		ut_sprintf_buf(errbuf, descr, 40);
-		fprintf(stderr,
-"InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
+	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)) {
+		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
+			stderr);
+		ut_print_buf(stderr, descr, 40);
 
-		fprintf(stderr,
+		fprintf(stderr, "\n"
 "InnoDB: Serious error! InnoDB is trying to free page %lu\n"
 "InnoDB: though it is already marked as free in the tablespace!\n"
 "InnoDB: The tablespace free space info is corrupt.\n"
 "InnoDB: You may need to dump your InnoDB tables and recreate the whole\n"
 "InnoDB: database!\n", (ulong) page);
-
-		fprintf(stderr,
+	crash:
+		fputs(
 "InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
-"InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
+"InnoDB: of http://www.innodb.com/ibman.php about forcing recovery.\n",
+			stderr);
 		ut_error;
 	}
 		
@@ -3018,12 +3014,12 @@ fseg_free_page_low(
 		   ut_dulint_get_low(seg_id));
 */
 	if (0 != ut_dulint_cmp(descr_id, seg_id)) {
-		ut_sprintf_buf(errbuf, descr, 40);
-		fprintf(stderr,
-"InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
-		ut_sprintf_buf(errbuf, seg_inode, 40);
-		fprintf(stderr,
-"InnoDB: Dump of the segment inode: %s\n", errbuf);
+		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
+			stderr);
+		ut_print_buf(stderr, descr, 40);
+		fputs("\nInnoDB: Dump of the segment inode: ", stderr);
+		ut_print_buf(stderr, seg_inode, 40);
+		putc('\n', stderr);
 
 	        fprintf(stderr,
 "InnoDB: Serious error: InnoDB is trying to free space %lu page %lu,\n"
@@ -3034,11 +3030,7 @@ fseg_free_page_low(
 		   (ulong) ut_dulint_get_low(descr_id),
 		   (ulong) ut_dulint_get_high(seg_id),
 		   (ulong) ut_dulint_get_low(seg_id));
-
-		fprintf(stderr,
-"InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
-"InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
-		   ut_error;
+		goto crash;
 	}
 
 	not_full_n_used = mtr_read_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
@@ -3484,7 +3476,8 @@ fseg_validate_low(
 
 	return(TRUE);
 }
-	
+
+#ifdef UNIV_DEBUG
 /***********************************************************************
 Validates a segment. */
 
@@ -3509,6 +3502,7 @@ fseg_validate(
 
 	return(ret);
 }
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Writes info of a segment. */
@@ -3543,7 +3537,7 @@ fseg_print_low(
 
 	seg_id_low = ut_dulint_get_low(d_var);
 	seg_id_high = ut_dulint_get_high(d_var);
-	
+ 
 	n_used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED,
 							MLOG_4BYTES, mtr); 
 	n_frag = fseg_get_n_frag_pages(inode, mtr);
@@ -3551,17 +3545,16 @@ fseg_print_low(
 	n_not_full = flst_get_len(inode + FSEG_NOT_FULL, mtr);
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
-	printf(
-    "SEGMENT id %lu %lu space %lu; page %lu; res %lu used %lu; full ext %lu\n",
-		(ulong) seg_id_high, (ulong) seg_id_low, (ulong) space,
-                (ulong) page_no, (ulong) reserved, (ulong) used,
-                (ulong) n_full);
-	printf(
-    "fragm pages %lu; free extents %lu; not full extents %lu: pages %lu\n",
+	fprintf(stderr,
+"SEGMENT id %lu %lu space %lu; page %lu; res %lu used %lu; full ext %lu\n"
+"fragm pages %lu; free extents %lu; not full extents %lu: pages %lu\n",
+		(ulong) seg_id_high, (ulong) seg_id_low, (ulong) space, (ulong) page_no,
+		(ulong) reserved, (ulong) used, (ulong) n_full,
 		(ulong) n_frag, (ulong) n_free, (ulong) n_not_full,
                 (ulong) n_used);
 }
 
+#ifdef UNIV_DEBUG
 /***********************************************************************
 Writes info of a segment. */
 
@@ -3582,6 +3575,7 @@ fseg_print(
 
 	fseg_print_low(inode, mtr);
 }
+#endif /* UNIV_DEBUG */
 
 /***********************************************************************
 Validates the file space system and its segments. */
@@ -3862,16 +3856,15 @@ fsp_print(
 	seg_id_low = ut_dulint_get_low(d_var);
 	seg_id_high = ut_dulint_get_high(d_var);
 
-	printf("FILE SPACE INFO: id %lu\n", (ulong) space);
-
-	printf("size %lu, free limit %lu, free extents %lu\n",
-	       (ulong) size, (ulong) free_limit, (ulong) n_free);
-	printf(
-	"not full frag extents %lu: used pages %lu, full frag extents %lu\n",
-		(ulong) n_free_frag, (ulong) frag_n_used, (ulong) n_full_frag);
-
-	printf("first seg id not used %lu %lu\n", (ulong) seg_id_high,
-	       (ulong) seg_id_low);
+	fprintf(stderr,
+"FILE SPACE INFO: id %lu\n"
+"size %lu, free limit %lu, free extents %lu\n"
+"not full frag extents %lu: used pages %lu, full frag extents %lu\n"
+"first seg id not used %lu %lu\n",
+		(long) space,
+		(ulong) size, (ulong) free_limit, (ulong) n_free,
+		(ulong) n_free_frag, (ulong) frag_n_used, (ulong) n_full_frag,
+		(ulong) seg_id_high, (ulong) seg_id_low);
 
 	mtr_commit(&mtr);	
 
@@ -3950,5 +3943,5 @@ fsp_print(
 	
 	mtr_commit(&mtr2);
 
-	printf("NUMBER of file segments: %lu\n", (ulong) n_segs);
+	fprintf(stderr, "NUMBER of file segments: %lu\n", (ulong) n_segs);
 }
