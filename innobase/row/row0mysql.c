@@ -6,7 +6,7 @@ Contains also create table and other data dictionary operations.
 
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
-
+  
 #include "row0mysql.h"
 
 #ifdef UNIV_NONINL
