@@ -49275,8 +49275,6 @@ directory.
 @item
 New configure option --without-query-cache. 
 @item
-Memory allocation strategy for 'root memory' changed. Block size now grows 
-=======
 Fixed bug in phrase operator @code{"..."} in boolean full-text search.
 @item
 Fixed bug that caused duplicated rows when using truncation operator
