@@ -605,7 +605,7 @@ int my_strnncollsp_czech(CHARSET_INFO * cs,
 }
 
 
-CHARSET_INFO my_charset_czech =
+CHARSET_INFO my_charset_latin2_czech_ci =
 {
     2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */

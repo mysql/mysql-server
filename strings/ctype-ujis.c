@@ -8425,7 +8425,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
   return MY_CS_ILUNI;
 }
 
-CHARSET_INFO my_charset_ujis =
+CHARSET_INFO my_charset_ujis_japanese_ci =
 {
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */

@@ -428,7 +428,7 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
   return dest - dest_orig;
 }
 
-CHARSET_INFO my_charset_latin1_de =
+CHARSET_INFO my_charset_latin1_german2_ci =
 {
     31,0,0,				/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */

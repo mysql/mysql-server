@@ -4468,7 +4468,7 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-CHARSET_INFO my_charset_sjis =
+CHARSET_INFO my_charset_sjis_japanese_ci =
 {
     13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */

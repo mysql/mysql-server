@@ -220,6 +220,8 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
       i->cs.state|= MY_CS_PRIMARY;
     else if (!strncmp("binary",attr,len))
       i->cs.state|= MY_CS_BINSORT;
+    else if (!strncmp("compiled",attr,len))
+      i->cs.state|= MY_CS_COMPILED;
     break;
   case _CS_UPPERMAP:
     fill_uchar(i->to_upper,MY_CS_TO_UPPER_TABLE_SIZE,attr,len);
