@@ -614,14 +614,14 @@ extern double		my_atof(const char*);
 #define LONGLONG_MAX	((long long) 0x7FFFFFFFFFFFFFFFLL)
 #endif
 
-#if defined(HAVE_LONG_LONG) && !defined(ULONLONG_MAX)
+#if defined(HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)
 /* First check for ANSI C99 definition: */
 #ifdef ULLONG_MAX
 #define ULONGLONG_MAX  ULLONG_MAX
 #else
 #define ULONGLONG_MAX ((unsigned long long)(~0ULL))
 #endif
-#endif /* defined (HAVE_LONG_LONG) && !defined(ULONLONG_MAX)*/
+#endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
 #if SIZEOF_LONG == 4
 #define INT_MIN32	(long) 0x80000000L
