@@ -565,7 +565,8 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
 int ha_discover(THD* thd, const char* dbname, const char* name,
 		const void** frmblob, uint* frmlen);
-int ha_list_tables(THD* thd, HASH *tables, const char* db);
+int ha_find_files(THD *thd,const char *db,const char *path,
+		  const char *wild, bool dir);
 int ha_table_exists(THD* thd, const char* db, const char* name);
-int ha_can_discover(THD* thd, const char* name);
+
 

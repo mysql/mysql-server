@@ -358,59 +358,34 @@ int mysqld_show_column_types(THD *thd)
 }
 
 
-
-/*
-   Ask all engines if they can provide a list of available tables.
-   Returns a list of available tables.
-*/
-
-int 
-mysql_discover_tables(THD *thd, HASH *ha_tables, const char *db, bool dir)
-{
-  DBUG_ENTER("mysql_discover_files");
-  
-  if (dir)    
-    DBUG_RETURN(0); // Discover of directories(databases) not supported yet
-  
-  // Get list of files in storage engine
-  if (ha_list_tables(thd, ha_tables, db))
-    DBUG_RETURN(-1);
-
-  DBUG_PRINT("info",("discovered: %d files", ha_tables->records));
-  DBUG_RETURN(0);
-}
-
-
-/*
-  List all files or directories in a given location
-  Returns
-   files - list of files where wild card has been applied
-   all_files - list of all files
-   dsc_files - list of files which are discoverable
-*/
-
 int
-mysql_list_files(THD *thd, const char *db, const char *path, const char *wild, 
-		 bool dir, List<char> *files, HASH *all_files, HASH* dsc_files)
+mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
+                 const char *wild, bool dir)
 {
   uint i;
-  char *ext, **dsc_ext;
+  char *ext;
   MY_DIR *dirp;
   FILEINFO *file;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
   TABLE_LIST table_list;
-  DBUG_ENTER("mysql_list_files");
+  DBUG_ENTER("mysql_find_files");
+
+  if (wild && !wild[0])
+    wild=0;
+
+  if (ha_find_files(thd,db,path,wild,dir))
+    DBUG_RETURN(-1);
 
   bzero((char*) &table_list,sizeof(table_list));
-  
+
   if (!(dirp = my_dir(path,MYF(MY_WME | (dir ? MY_WANT_STAT : 0)))))
     DBUG_RETURN(-1);
 
-  for (i= 0; i < (uint)dirp->number_off_files; i++)
+  for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
   {
-    file= dirp->dir_entry+i;
+    file=dirp->dir_entry+i;
     if (dir)
     {                                           /* Return databases */
 #ifdef USE_SYMDIR
@@ -420,7 +395,7 @@ mysql_list_files(THD *thd, const char *db, const char *path, const char *wild,
 	/* Only show the sym file if it points to a directory */
 	char buff[FN_REFLEN], *end;
 	MY_STAT status;
-        *ext= 0;                                 /* Remove extension */
+        *ext=0;                                 /* Remove extension */
 	unpack_dirname(buff, file->name);
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
@@ -439,36 +414,11 @@ mysql_list_files(THD *thd, const char *db, const char *path, const char *wild,
     }
     else
     {
-      // Don't process temp files
-      if (is_prefix(file->name, tmp_file_prefix))
-	continue;
-
-      ext= fn_ext(file->name);
-      // Check for  files that indicates the table can be discovered
-      if (ha_can_discover(thd, file->name))
-      {
-	DBUG_PRINT("info", ("Discoverable file found: %s", file->name));
-	*ext= 0;
-	if (my_hash_insert(dsc_files, (byte*)thd->strdup(file->name)))
-	{
-	  my_dirend(dirp);
-	  DBUG_RETURN(-1);
-	}
-	continue;
-      }
-
-      // Return only .frm files
-      if (my_strcasecmp(system_charset_info, ext,reg_ext))
-	continue;
-      *ext=0;	  
-
-      // Insert into list of all .frm files
-      if (my_hash_insert(all_files, (byte*)thd->strdup(file->name)))
-      {
-	my_dirend(dirp);
-	DBUG_RETURN(-1);
-      }
-
+        // Return only .frm files which aren't temp files.
+      if (my_strcasecmp(system_charset_info, ext=fn_ext(file->name),reg_ext) ||
+          is_prefix(file->name,tmp_file_prefix))
+        continue;
+      *ext=0;
       if (wild)
       {
 	if (lower_case_table_names)
@@ -497,112 +447,9 @@ mysql_list_files(THD *thd, const char *db, const char *path, const char *wild,
       DBUG_RETURN(-1);
     }
   }
+  DBUG_PRINT("info",("found: %d files", files->elements));
   my_dirend(dirp);
   DBUG_RETURN(0);
-}
-
-extern "C" byte* ha_tables_get_key(const char *entry, uint *length,
-				   my_bool not_used __attribute__((unused)))
-{
-  *length= strlen(entry);
-  return (byte*) entry;
-}
-
-
-int
-mysql_find_files(THD *thd,List<char> *files, const char *db,
-		 const char *path, const char *wild, bool dir)
-{
-  int error= -1;
-  uint i;
-  bool discovery_performed= false;
-  DBUG_ENTER("mysql_find_files");
-  DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
-	     db, path, wild, dir));
-
-  if (wild && !wild[0])
-    wild=0;
-
-  HASH ha_tables, all_files, dsc_files;
-  if (hash_init(&ha_tables,system_charset_info,32,0,0,
-		(hash_get_key) ha_tables_get_key,0,0) || 
-      hash_init(&all_files,system_charset_info,32,0,0,
-		(hash_get_key) ha_tables_get_key,0,0) ||
-      hash_init(&dsc_files,system_charset_info,32,0,0,
-		(hash_get_key) ha_tables_get_key,0,0))
-    goto err_end;
-    
-  if (mysql_discover_tables(thd, &ha_tables, db, dir))
-    goto err_end;
-
-  if (mysql_list_files(thd, db, path, wild, dir,
-		       files, &all_files, &dsc_files))
-    goto err_end;
-
-  /*
-    Discovery part 1
-    Loop through handler files and see if any of them should be discovered
-  */
-  for (i= 0; i < ha_tables.records; i++)
-  {
-    const char *name = hash_element(&ha_tables, i);
-    if (hash_search(&all_files, name, strlen(name)))
-      continue;
-    
-    // Table was in handler, but not in list of all tables
-    DBUG_PRINT("info", ("Table to discover[%d]: %s", i, name));
-    pthread_mutex_lock(&LOCK_open);
-    ha_create_table_from_engine(thd, db, name, true);
-    pthread_mutex_unlock(&LOCK_open);      
-    discovery_performed= true;
-  }
-
-  /*
-    Discovery part2
-    Loop through dsc files and see if any of them need to be deleted
-  */
-  for (i= 0; i < dsc_files.records; i++)
-  {
-    const char *name = hash_element(&dsc_files, i);
-    if (hash_search(&ha_tables, name, strlen(name)))
-      continue;
-
-    //  Table was only on disk and not in handler
-    DBUG_PRINT("info", ("Table[%d]: %s only exists on disk", i, name));
-
-    // Verify that handler agrees table is gone.
-    if (ha_table_exists(thd, db, name) == 0)
-    {
-      // Delete the table and all related files
-      TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.db= (char*) db;
-      table_list.real_name=(char*)name;
-      (void)mysql_rm_table_part2_with_lock(thd, &table_list, 
-					   /* if_exists */ true, 
-					   /* drop_temporary */ false, 
-					   /* dont_log_query*/ true);
-      discovery_performed= true;
-    }
-  }
-  
-  if (discovery_performed)
-  {
-    // Call mysql_list_files one more time to get an updated list    
-    DBUG_PRINT("info", ("Calling mysql_list_files one more time"));
-    files->empty();
-    if (mysql_list_files(thd, db, path, wild, dir,
-			 files, &all_files, &dsc_files))
-      goto err_end;    
-  }
-
-  DBUG_PRINT("info",("found: %d files", files->elements));
-  error = 0;
-err_end:
-  hash_free(&ha_tables);
-  hash_free(&all_files);
-  hash_free(&dsc_files);
-  DBUG_RETURN(error);
 }
 
 
