@@ -254,15 +254,30 @@ void Item_in_subselect::select_transformer(st_select_lex *select_lex,
     }
     else
       item= (Item*) sl->item_list.pop();
-    sl->item_list.empty();
-    sl->item_list.push_back(new Item_int(1));
+
     left_expr= new Item_outer_select_context_saver(left_expr);
-    item= new Item_asterisk_remover(item);
-    if (sl->where)
-      sl->where= new Item_cond_and(sl->where,
-				   new Item_func_eq(item, left_expr));
+
+    if (sl->having || sl->with_sum_func || sl->group_list.first)
+    {
+      sl->item_list.push_back(item);
+      item= new Item_ref(sl->item_list.head_ref(), 0, "<result>");
+      if (sl->having)
+	sl->having= new Item_cond_and(sl->having, 
+				      new Item_func_eq(item, left_expr));
+      else
+	sl->having= new Item_func_eq(item, left_expr);
+    }
     else
-      sl->where= new Item_func_eq(item, left_expr);
+    {
+      sl->item_list.empty();
+      sl->item_list.push_back(new Item_int(1));
+      item= new Item_asterisk_remover(item);
+      if (sl->where)
+	sl->where= new Item_cond_and(sl->where,
+				     new Item_func_eq(item, left_expr));
+      else
+	sl->where= new Item_func_eq(item, left_expr);
+    }
   }
   DBUG_VOID_RETURN;
 }

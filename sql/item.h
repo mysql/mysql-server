@@ -116,11 +116,10 @@ public:
 */
 class Item_outer_select_context_saver :public Item_wrapper
 {
-  Item *item;
 public:
-  Item_outer_select_context_saver(Item *i):
-    item(i)
+  Item_outer_select_context_saver(Item *i)
   {
+    item= i;
   }
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
 };
@@ -130,11 +129,10 @@ public:
 */
 class Item_asterisk_remover :public Item_wrapper
 {
-  Item *item;
 public:
-  Item_asterisk_remover(Item *i):
-    item(i)
+  Item_asterisk_remover(Item *i)
   {
+    item= i;
   }
   bool fix_fields(THD *, struct st_table_list *, Item ** ref);
 };

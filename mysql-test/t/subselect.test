@@ -120,4 +120,9 @@ SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL 
 -- error 1240
 SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 EXPLAIN SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1);
+-- error 1054
+SELECT 1 IN (SELECT 1 FROM searchconthardwarefr3 HAVING a);
+SELECT * from searchconthardwarefr3 where topic IN (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
+SELECT * from searchconthardwarefr3 where topic IN (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
+SELECT * from searchconthardwarefr3 where topic IN (SELECT SUM(topic) FROM searchconthardwarefr3);
 drop table searchconthardwarefr3;

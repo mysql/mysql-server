@@ -934,7 +934,8 @@ void st_select_lex_node::init_select()
   order_list.first= 0;
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
-  offset_limit= 0; 
+  offset_limit= 0;
+  with_sum_func= 0;
 }
 
 void st_select_lex_unit::init_query()
