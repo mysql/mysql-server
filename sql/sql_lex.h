@@ -258,7 +258,7 @@ public:
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
     depended, /* depended from outer select subselect */
     /* TRUE when having fix field called in processing of this SELECT */
-    having_fix_field;e
+    having_fix_field;
 
   void init_query();
   void init_select();
