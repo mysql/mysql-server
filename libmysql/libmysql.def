@@ -107,6 +107,10 @@ EXPORTS
 	my_print_variables
 	getopt_ull_limit_value
 	getopt_compare_strings
+	load_defaults
+	free_defaults
+	my_path
+
 
 	
 	
