@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_PWGEN_VERSION "1.1"
+#define MANAGER_PWGEN_VERSION "1.2"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -72,7 +72,6 @@ void usage()
   printf("Generates a password file to be used by mysqltest.\n\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   my_print_help(my_long_options);
-  putchar('\n');
   my_print_variables(my_long_options);
 }
 
