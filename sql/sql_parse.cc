@@ -2758,8 +2758,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (table->table.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length) ||
+  if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);

@@ -192,6 +192,11 @@ update grant_test.test set b=3 where b=1
 Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
 update grant_test.test set b=b+1
 Error in execute: select command denied to user: 'grant_user@localhost' for column 'b' in table 'test'
+grant SELECT on *.* to grant_user@localhost
+Connecting grant_user
+update grant_test.test set b=b+1
+revoke SELECT on *.* from grant_user@localhost
+Connecting grant_user
 select * from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 grant select on grant_test.test to grant_user@localhost
