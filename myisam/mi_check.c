@@ -97,6 +97,26 @@ void myisamchk_init(MI_CHECK *param)
   param->start_check_pos=0;
 }
 
+	/* Check the status flags for the table */
+
+int chk_status(MI_CHECK *param, register MI_INFO *info)
+{
+  MYISAM_SHARE *share=info->s;
+  if (mi_is_crashed_on_repair(info))
+    mi_check_print_warning(param,
+			   "Table is marked as crashed and last repair failed");
+  else if (mi_is_crashed(info))
+    mi_check_print_warning(param,
+			   "Table is marked as crashed");
+  if (share->state.open_count)
+  {
+    mi_check_print_warning(param,
+			   "%d clients is using or hasn't closed the table properly",
+			   share->state.open_count);
+  }
+  return 0;
+}
+
 	/* Check delete links */
 
 int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
