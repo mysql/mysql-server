@@ -44,7 +44,7 @@ noinst_HEADERS = btr0btr.h btr0btr.ic btr0cur.h btr0cur.ic \
         row0types.h row0uins.h row0uins.ic row0umod.h row0umod.ic \
         row0undo.h row0undo.ic row0upd.h row0upd.ic row0vers.h \
         row0vers.ic srv0que.h srv0srv.h srv0srv.ic srv0start.h \
-        sync0arr.h sync0arr.ic sync0ipm.h sync0ipm.ic sync0rw.h \
+        sync0arr.h sync0arr.ic sync0rw.h \
         sync0rw.ic sync0sync.h sync0sync.ic sync0types.h \
         thr0loc.h thr0loc.ic trx0purge.h trx0purge.ic trx0rec.h \
         trx0rec.ic trx0roll.h trx0roll.ic trx0rseg.h trx0rseg.ic \
