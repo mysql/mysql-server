@@ -21,7 +21,38 @@
 
 #include <stdio.h>
 
-extern void _print_csinfo(CHARSET_INFO *cs);
+static void _print_array(uint8 *data, uint size)
+{
+  uint i;
+  for (i = 0; i < size; ++i)
+  {
+    if (i == 0 || i % 16 == size % 16) printf("  ");
+    printf(" %02x", data[i]);
+    if ((i+1) % 16 == size % 16) printf("\n");
+  }
+}
+
+static void _print_csinfo(CHARSET_INFO *cs)
+{
+  printf("%s #%d\n", cs->name, cs->number);
+  printf("ctype:\n"); _print_array(cs->ctype, 257);
+  printf("to_lower:\n"); _print_array(cs->to_lower, 256);
+  printf("to_upper:\n"); _print_array(cs->to_upper, 256);
+  printf("sort_order:\n"); _print_array(cs->sort_order, 256);
+  printf("collate:    %3s (%d, %p, %p, %p)\n",
+         cs->strxfrm_multiply ? "yes" : "no",
+         cs->strxfrm_multiply,
+         cs->strnncoll,
+         cs->strnxfrm,
+         cs->like_range);
+  printf("multi-byte: %3s (%d, %p, %p, %p)\n",
+         cs->mbmaxlen ? "yes" : "no",
+         cs->mbmaxlen,
+         cs->ismbchar,
+         cs->ismbhead,
+         cs->mbcharlen);
+}
+
 
 int main(int argc, char **argv) {
   const char *the_set = MYSQL_CHARSET;
