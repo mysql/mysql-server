@@ -2064,8 +2064,6 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
 		 << " scanLocalFragid="<<TscanPtr.p->scanLocalFragid
 		 << endl;
 	  ndbout << " scanSchemaVersion="<<TscanPtr.p->scanSchemaVersion
-		 << "  scanSearchCondFalseCount="<<
-	    TscanPtr.p->scanSearchCondFalseCount
 		 << "  scanStoredProcId="<<TscanPtr.p->scanStoredProcId
 		 << "  scanTcrec="<<TscanPtr.p->scanTcrec
 		 << endl;
@@ -7099,14 +7097,26 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
       sendScanFragConf(signal, ZFALSE);
     } else {
       jam();
+      /*
+      We came here after releasing locks after receiving SCAN_NEXTREQ from TC. We only
+      come here when scanHoldLock == ZTRUE
+      */
       continueScanNextReqLab(signal);
     }//if
-  } else {
-    ndbrequire(scanptr.p->scanReleaseCounter <=
-               scanptr.p->scanCompletedOperations);
+  } else if (scanptr.p->scanReleaseCounter < scanptr.p->scanCompletedOperations) {
     jam();
     scanptr.p->scanReleaseCounter++;     
     scanReleaseLocksLab(signal);
+  } else {
+    jam();
+    /*
+    We come here when we have been scanning for a long time and not been able
+    to find scanConcurrentOperations records to return. We needed to release
+    the record we didn't want, but now we are returning all found records to
+    the API.
+    */
+    scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    sendScanFragConf(signal, ZFALSE);
   }//if
 }//Dblqh::scanLockReleasedLab()
 
@@ -8000,28 +8010,28 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     scanReleaseLocksLab(signal);
     return;
   }//if
+  Uint32 time_passed= tcConnectptr.p->tcTimer - cLqhTimeOutCount;
+  if (scanptr.p->scanCompletedOperations > 0) {
+    if (time_passed > 1) {
   /* -----------------------------------------------------------------------
    *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
    *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
-   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. WE SELECT 20 TUPLES 
-   *  WHICH SHOULD BE ROUGHLY 10 MS OF LOCK HOLD TIME.
+   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
+   *  send the found tuples to the API.
    * ----------------------------------------------------------------------- */
-  scanptr.p->scanSearchCondFalseCount++;
-#if 0
-  // MASV Uncomment this feature since it forgets 
-  // to release on operation record in DBACC
-  // This is the quick fix and should be changed in 
-  // the future
-  if (scanptr.p->scanSearchCondFalseCount > 20) {
-    if (scanptr.p->scanCompletedOperations > 0) {
-      jam();
-      scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
-      sendScanFragConf(signal, ZFALSE);
+      scanptr.p->scanReleaseCounter = scanptr.p->scanCompletedOperations + 1;
+      scanReleaseLocksLab(signal);
       return;
-    }//if
-  }//if
-#endif
-
+    }
+  } else {
+    if (time_passed > 10) {
+      jam();
+      signal->theData[0]= scanptr.i;
+      signal->theData[1]= tcConnectptr.p->transid[0];
+      signal->theData[2]= tcConnectptr.p->transid[1];
+      execSCAN_HBREP(signal);
+    }
+  }
   scanptr.p->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
   scanNextLoopLab(signal);
 }//Dblqh::scanTupkeyRefLab()
@@ -8179,7 +8189,6 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanLockMode = scanLockMode;
   scanptr.p->readCommitted = readCommitted;
   scanptr.p->rangeScan = idx;
-  scanptr.p->scanSearchCondFalseCount = 0;
   scanptr.p->scanState = ScanRecord::SCAN_FREE;
   scanptr.p->scanFlag = ZFALSE;
   scanptr.p->scanLocalref[0] = 0;
@@ -8480,7 +8489,6 @@ void Dblqh::sendKeyinfo20(Signal* signal,
  * ------------------------------------------------------------------------ */
 void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted) 
 {
-  scanptr.p->scanSearchCondFalseCount = 0;
   scanptr.p->scanTcWaiting = ZFALSE;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 
@@ -17956,11 +17964,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanAiLength,
 	      sp.p->scanCompletedOperations,
 	      sp.p->scanConcurrentOperations);
-    infoEvent(" errCnt=%d, localFid=%d, schV=%d, searcCondFalseC=%d",
+    infoEvent(" errCnt=%d, localFid=%d, schV=%d",
 	      sp.p->scanErrorCounter,
 	      sp.p->scanLocalFragid,
-	      sp.p->scanSchemaVersion,
-	      sp.p->scanSearchCondFalseCount);
+	      sp.p->scanSchemaVersion);
     infoEvent(" stpid=%d, flag=%d, lhold=%d, lmode=%d, num=%d",
 	      sp.p->scanStoredProcId,
 	      sp.p->scanFlag,
