@@ -3316,6 +3316,7 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
   }
   else
     DBUG_PRINT("exit", ("stmt doesn't contain any resultset"));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3419,6 +3420,28 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 {
   return stmt_close(stmt, 0);
+}
+
+/*
+  Reset the statement buffers in server
+*/
+
+my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
+{
+  char buff[MYSQL_STMT_HEADER];
+  MYSQL *mysql;
+  DBUG_ENTER("mysql_stmt_reset");
+  DBUG_ASSERT(stmt != 0);
+  
+  mysql= stmt->mysql->last_used_con;
+  int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
+  if (advanced_command(mysql, COM_RESET_STMT,buff,MYSQL_STMT_HEADER,0,0,1))
+  {
+    set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno, 
+                    mysql->net.sqlstate);
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 
 /*

@@ -98,6 +98,7 @@ EXPORTS
 	mysql_stat
 	mysql_stmt_affected_rows
 	mysql_stmt_close
+	mysql_stmt_reset
 	mysql_stmt_data_seek
 	mysql_stmt_errno
 	mysql_stmt_error
