@@ -2,9 +2,9 @@ drop table if exists t1;
 create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
-grant select on test.* to ssl_user2@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/Email=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/Email=abstract.mysql.developer@mysql.com";
 flush privileges;
 select * from t1;
 f1
