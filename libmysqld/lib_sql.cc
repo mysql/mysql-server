@@ -219,12 +219,13 @@ static my_bool emb_mysql_read_query_result(MYSQL *mysql)
 static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
+  char header[4];
+  int4store(header, stmt->stmt_id);
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
-			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
-			   1) ||
+                           header, sizeof(header), 1) ||
       emb_mysql_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
