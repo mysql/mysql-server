@@ -710,10 +710,11 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         /*
-          Altough TIMESTAMP fields can't contain NULL as its value they
+          Even if TIMESTAMP field can't contain NULL as its value it
           will accept NULL if you will try to insert such value and will
-          convert it to current TIMESTAMP. So YES here means that NULL 
-          is allowed for assignment but can't be returned.
+          convert NULL value to current TIMESTAMP. So YES here means
+          that NULL is allowed for assignment (but may be won't be
+          returned).
         */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -1285,7 +1286,14 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
-
+    else if (field->type() == FIELD_TYPE_TIMESTAMP)
+    {
+      /*
+        TIMESTAMP field require explicit NULL flag, because unlike
+        all other fields they are treated as NOT NULL by default.
+      */
+      packet->append(" NULL", 5);
+    }
 
     /* 
       Again we are using CURRENT_TIMESTAMP instead of NOW because it is
