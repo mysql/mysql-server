@@ -2010,6 +2010,11 @@ try_again:
 
 		return(TRUE);
 	}
+
+	fprintf(stderr,
+"InnoDB: Error: tried to read %lu bytes at offset %lu %lu.\n"
+"InnoDB: Was only able to read %ld.\n", (ulong)n, (ulong)offset_high,
+					(ulong)offset, (long)ret);
 #endif	
 #ifdef __WIN__
 error_handling:
