@@ -357,18 +357,15 @@ public:
 };
 
 
-class Item_func_int_div :public Item_func
+class Item_func_int_div :public Item_int_func
 {
 public:
-  Item_func_int_div(Item *a,Item *b) :Item_func(a,b)
+  Item_func_int_div(Item *a,Item *b) :Item_int_func(a,b)
   {}
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   longlong val_int();
-  String *val_str(String*str);
   const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
   void print(String *str) { print_op(str); }
-  enum Item_result result_type () const { return INT_RESULT; }
 };
 
 
@@ -384,23 +381,15 @@ public:
 };
 
 
-class Item_func_signproc :public Item_func_num1
+class Item_func_neg :public Item_func_num1
 {
 public:
-  Item_func_signproc(Item *a) :Item_func_num1(a) {}
-  Item_func_signproc(Item *a, Item *b) :Item_func_num1(a, b) {}
-  void fix_length_and_dec();
-};
-
-
-class Item_func_neg :public Item_func_signproc
-{
-public:
-  Item_func_neg(Item *a) :Item_func_signproc(a) {}
+  Item_func_neg(Item *a) :Item_func_num1(a) {}
   double real_op();
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
+  void fix_length_and_dec();
   void fix_num_length_and_dec();
 };
 

@@ -2674,7 +2674,6 @@ Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Note	1265	Data truncated for column 'c12' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
 c1	1
@@ -2725,7 +2724,6 @@ Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Note	1265	Data truncated for column 'c12' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
 c1	-1
