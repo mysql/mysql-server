@@ -599,6 +599,18 @@ create view t3 (c) as select sub1(1);
 create table t4(f1 int, KEY f1_key (f1));
 drop table t1;
 drop function sub1;
+select table_name from information_schema.views
+where table_schema='test';
+table_name
+Warnings:
+Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
+select table_name from information_schema.views
+where table_schema='test';
+table_name
+Warnings:
+Warning	1356	View 'test.t2' references invalid table(s) or column(s) or function(s)
+Warning	1356	View 'test.t3' references invalid table(s) or column(s) or function(s)
 select column_name from information_schema.columns
 where table_schema='test';
 column_name
