@@ -674,7 +674,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list union_option
-	precision subselect_start opt_and
+	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 END_OF_INPUT
 
@@ -927,10 +927,9 @@ create_database_options:
 create_database_option:
 	  COLLATE_SYM collation_name_or_default	
 	  { Lex->create_info.table_charset=$2; }
-	| opt_default CHAR_SYM SET charset_name_or_default
-	  { Lex->create_info.table_charset=$4; }
-	| opt_default CHARSET charset_name_or_default
-	  { Lex->create_info.table_charset=$3; };
+	| opt_default charset charset_name_or_default
+	  { Lex->create_info.table_charset=$3; }
+	;
 
 opt_table_options:
 	/* empty */	 { $$= 0; }
@@ -989,14 +988,9 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| opt_default CHARSET opt_equal charset_name_or_default
+	| opt_default charset opt_equal charset_name_or_default
 	  {
 	    Lex->create_info.table_charset= $4;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
-	  }
-	| opt_default CHAR_SYM SET opt_equal charset_name_or_default
-	  {
-	    Lex->create_info.table_charset= $5;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| COLLATE_SYM opt_equal collation_name_or_default
@@ -1301,6 +1295,10 @@ attribute:
 	  }
 	;
 
+charset:
+	CHAR_SYM SET	{}
+	| CHARSET	{}
+	;
 
 charset_name:
 	ident_or_text
@@ -1352,7 +1350,7 @@ opt_binary:
 	    YYABORT;
 	  }
 	}
-	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
+	| charset charset_name	{ Lex->charset=$2; } ;
 
 opt_primary:
 	/* empty */
@@ -3543,7 +3541,7 @@ show_param:
 	    thd->lex.sql_command= SQLCOM_SHOW_VARIABLES;
 	    thd->lex.option_type= (enum_var_type) $1;
 	  }
-	| CHAR_SYM SET wild
+	| charset wild
 	  { Lex->sql_command= SQLCOM_SHOW_CHARSETS; }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
@@ -4215,12 +4213,12 @@ option_value:
 						find_sys_var("tx_isolation"),
 						new Item_int((int32) $4)));
 	  }
-	| CHAR_SYM SET opt_equal set_expr_or_default
+	| charset opt_equal set_expr_or_default
 	{
 	  LEX *lex=Lex;
 	  lex->var_list.push_back(new set_var(lex->option_type,
 					      find_sys_var("convert_character_set"),
-					      $4));
+					      $3));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
