@@ -28,7 +28,7 @@ select * from t1;
 connection master;
 flush logs;
 drop table if exists t2;
-create table t2(m int not null primary key);
+create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 save_master_pos;
 flush logs;
@@ -44,7 +44,8 @@ insert into t2 values(1234);
 #same value on the master
 connection master;
 save_master_pos;
-insert into t2 values(1234);
+set insert_id=1234;
+insert into t2 values(NULL);
 connection slave;
 sync_with_master;
 

@@ -1,7 +1,6 @@
-.TH SAFE_MYSQLD	  1 "19 December 2000"
+.TH SAFE_MYSQLD	  1 "19 December 2000" "safe_mysqld (mysql)" mysql.com
 .SH NAME
-.BR mysqld_safe
-is the recommended way to start a mysqld daemon on Unix. mysqld_safe adds some safety features such as restarting the server when an error occurs and logging run-time information to a log file. 
+mysqld_safe \- start the mysqld daemon on Unix.
 .SH SYNOPSIS
 .B mysqld_safe
 .RB [ \-\-basedir=\fP\fIpath\fP ]
@@ -21,17 +20,18 @@ is the recommended way to start a mysqld daemon on Unix. mysqld_safe adds some s
 .RB [ \-\-timezone=# ]
 .RB [ \-\-user=# ]
 .SH DESCRIPTION
+mysqld_safe adds some safety features such as restarting the server when an
+error occurs and logging run-time information to a log file.
+.BR
 .TP 
 .BR \-\-basedir=\fP\fIpath \fP
 .TP 
-.BR \-\-core\-file\-size=# 
+.BR \-\-core\-file\-size=#
+Size of the core file mysqld should be able to create. Passed to ulimit \-c.
 .TP 
 .BR \-\-defaults\-extra\-file=\fP\fIpath \fP
 .TP 
 .BR \-\-defaults\-file=\fP\fIpath \fP
-.TP 
-.BR \-\-open\-files=# 
-Size of the core file mysqld should be able to create. Passed to ulimit \-c. 
 .TP 
 .BR \-\-datadir=\fP\fIpath \fP
 .TP 
@@ -76,8 +76,8 @@ which1 (1),
 zap (1),
 .SH AUTHOR
 Ver 1.0, distribution 3.23.29a
-Michael (Monty) Widenius (monty@tcx.se),
-TCX Datakonsult AB (http://www.tcx.se).
+Michael (Monty) Widenius (monty@mysql.com),
+MySQL AB (http://www.mysql.com).
 This software comes with no warranty.
 Manual page by L. (Kill-9) Pedersen 
 (kill-9@kill\-9.dk), Mercurmedia Data Model Architect /

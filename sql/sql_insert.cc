@@ -1126,7 +1126,7 @@ bool delayed_insert::handle_inserts(void)
 {
   int error;
   uint max_rows;
-  bool using_ignore=0;
+  bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
@@ -1151,7 +1151,13 @@ bool delayed_insert::handle_inserts(void)
     max_rows= ~0;				// Do as much as possible
   }
 
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  /*
+    We can't use row caching when using the binary log because if
+    we get a crash, then binary log will contain rows that are not yet
+    written to disk, which will cause problems in replication.
+  */
+  if (!using_bin_log)
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
   pthread_mutex_lock(&mutex);
   while ((row=rows.get()))
   {
@@ -1188,7 +1194,7 @@ bool delayed_insert::handle_inserts(void)
     if (row->query && row->log_query)
     {
       mysql_update_log.write(&thd,row->query, row->query_length);
-      if (mysql_bin_log.is_open())
+      if (using_bin_log)
       {
 	thd.query_length = row->query_length;
 	Query_log_event qinfo(&thd, row->query);
@@ -1224,7 +1230,8 @@ bool delayed_insert::handle_inserts(void)
 	  /* This should never happen */
 	  sql_print_error(ER(ER_DELAYED_CANT_CHANGE_LOCK),table->real_name);
 	}
-	table->file->extra(HA_EXTRA_WRITE_CACHE);
+	if (!using_bin_log)
+	  table->file->extra(HA_EXTRA_WRITE_CACHE);
 	pthread_mutex_lock(&mutex);
 	thd.proc_info="insert";
       }
