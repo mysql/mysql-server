@@ -401,7 +401,10 @@ int st_select_lex_unit::exec()
 	*/
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
 					      result)))
+	{
+	  fake_select_lex->table_list.empty();
 	  DBUG_RETURN(-1);
+	}
 
 	/*
 	  Fake st_select_lex should have item list for correctref_array
@@ -427,6 +430,8 @@ int st_select_lex_unit::exec()
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
 			options_tmp | SELECT_NO_UNLOCK,
 			result, this, fake_select_lex);
+
+      fake_select_lex->table_list.empty();
       if (!res)
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
       /*
