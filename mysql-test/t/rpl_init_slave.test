@@ -1,0 +1,26 @@
+source include/master-slave.inc;
+
+#
+# Test of init_slave variable
+#
+
+save_master_pos;
+connection slave;
+sleep 1;
+show variables like 'init_slave';
+show variables like 'max_connections';
+sync_with_master;
+reset master;
+connection master;
+show variables like 'init_slave';
+show variables like 'max_connections';
+save_master_pos;
+connection slave;
+sync_with_master;
+set global init_connect="set @c=1";
+show variables like 'init_connect';
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;

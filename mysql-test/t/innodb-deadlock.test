@@ -12,7 +12,7 @@ drop table if exists t1,t2;
 #
 
 connection con1;
-create table t1 (id integer, x integer) type=INNODB;
+create table t1 (id integer, x integer) engine=INNODB;
 insert into t1 values(0, 0);
 set autocommit=0;
 SELECT * from t1 where id = 0 FOR UPDATE;
@@ -44,8 +44,8 @@ drop table t1;
 #
 
 connection con1;
-create table t1 (id integer, x integer) type=INNODB;
-create table t2 (b integer, a integer) type=INNODB;
+create table t1 (id integer, x integer) engine=INNODB;
+create table t2 (b integer, a integer) engine=INNODB;
 insert into t1 values(0, 0), (300, 300);
 insert into t2 values(0, 10), (1, 20), (2, 30);
 commit;
@@ -77,8 +77,8 @@ select * from t1;
 commit;
 
 drop table t1, t2;
-create table t1 (id integer, x integer) type=INNODB;
-create table t2 (b integer, a integer) type=INNODB;
+create table t1 (id integer, x integer) engine=INNODB;
+create table t2 (b integer, a integer) engine=INNODB;
 insert into t1 values(0, 0), (300, 300);
 insert into t2 values(0, 0), (1, 20), (2, 30);
 commit;

@@ -22,3 +22,12 @@ CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
 --exec $MYSQL_DUMP --skip-all -X test t1
 DROP TABLE t1;
+
+#
+# Bug #1994
+#
+
+CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
+INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
+--exec $MYSQL_DUMP test t1
+DROP TABLE t1;

@@ -1037,6 +1037,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           SEL_IMERGE *min_imerge= NULL;
           double  min_imerge_read_time;
           ha_rows min_imerge_records;
+	  LINT_INIT(min_imerge_records); // Protected by min_imerge
           
           if (!head->used_keys.is_clear_all())
           {           

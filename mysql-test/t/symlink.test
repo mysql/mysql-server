@@ -41,7 +41,7 @@ drop table t2;
 # 
 
 disable_query_log;
-eval create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="$MYSQL_TEST_DIR/var/tmp" index directory="$MYSQL_TEST_DIR/var/run";
+eval create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="$MYSQL_TEST_DIR/var/tmp" index directory="$MYSQL_TEST_DIR/var/run";
 enable_query_log;
 
 insert into t9 select * from t1;
@@ -66,23 +66,23 @@ drop table t1;
 
 disable_query_log;
 --error 1103,1103
-create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="tmp";
+create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="tmp";
 
 # Check that we cannot link over a table from another database.
 
 create database mysqltest;
 
 --error 1,1
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="/this-dir-does-not-exist";
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
 
 --error 1103,1103
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="not-hard-path";
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 
 --error 1,1
-eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="$MYSQL_TEST_DIR/var/run";
+eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="$MYSQL_TEST_DIR/var/run";
 
 --error 1,1
-eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="$MYSQL_TEST_DIR/var/tmp";
+eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="$MYSQL_TEST_DIR/var/tmp";
 enable_query_log;
 
 # Check moving table t9 from default database to mysqltest;

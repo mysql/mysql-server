@@ -470,6 +470,7 @@ fi
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
+%attr(755, root, root) %{_bindir}/mysql_create_system_tables
 %attr(755, root, root) %{_bindir}/mysql_explain_log
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
@@ -568,6 +569,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Fri Dec 05 2003 Lenz Grimmer <lenz@mysql.com>
+
+- added missing file mysql_create_system_tables to the server subpackage
+
 * Fri Nov 21 2003 Lenz Grimmer <lenz@mysql.com>
 
 - removed dependency on MySQL-client from the MySQL-devel subpackage

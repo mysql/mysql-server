@@ -197,50 +197,45 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_SIGINT		1024	/* Allow sigint on threads */
 
 /* options for select set by the yacc parser (stored in lex->options) */
-#define SELECT_DISTINCT		1
-#define SELECT_STRAIGHT_JOIN	2
-#define SELECT_DESCRIBE		4
-#define SELECT_SMALL_RESULT	8
-#define SELECT_BIG_RESULT	16
-#define OPTION_FOUND_ROWS	32
-#define OPTION_TO_QUERY_CACHE   64
-#define SELECT_NO_JOIN_CACHE	256		/* Intern */
-
-#define OPTION_BIG_TABLES	512		/* for SQL OPTION */
-#define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
-#define OPTION_LOG_OFF		2048
-#define OPTION_UPDATE_LOG	4096		/* update log flag */
-#define TMP_TABLE_ALL_COLUMNS	8192
-#define OPTION_WARNINGS		16384
-#define OPTION_AUTO_IS_NULL	32768
-#define OPTION_FOUND_COMMENT	65536L
-#define OPTION_SAFE_UPDATES	OPTION_FOUND_COMMENT*2
-#define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
-#define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
-#define OPTION_NOT_AUTOCOMMIT	OPTION_BIN_LOG*2
-#define OPTION_BEGIN		OPTION_NOT_AUTOCOMMIT*2
-#define OPTION_TABLE_LOCK	OPTION_BEGIN*2
-#define OPTION_QUICK		OPTION_TABLE_LOCK*2
-#define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
-#define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
-
-/* options for UNION set by the yacc parser (stored in unit->union_option) */
-#define UNION_ALL		1
+#define SELECT_DISTINCT		(1L << 0)
+#define SELECT_STRAIGHT_JOIN	(1L << 1)
+#define SELECT_DESCRIBE		(1L << 2)
+#define SELECT_SMALL_RESULT	(1L << 3)
+#define SELECT_BIG_RESULT	(1L << 4)
+#define OPTION_FOUND_ROWS	(1L << 5)
+#define OPTION_TO_QUERY_CACHE   (1L << 6)
+#define SELECT_NO_JOIN_CACHE	(1L << 7)       /* Intern */
+#define OPTION_BIG_TABLES       (1L << 8)       /* for SQL OPTION */
+#define OPTION_BIG_SELECTS      (1L << 9)       /* for SQL OPTION */
+#define OPTION_LOG_OFF          (1L << 10)
+#define OPTION_UPDATE_LOG       (1L << 11)      /* update log flag */
+#define TMP_TABLE_ALL_COLUMNS   (1L << 12)
+#define OPTION_WARNINGS         (1L << 13)
+#define OPTION_AUTO_IS_NULL     (1L << 14)
+#define OPTION_FOUND_COMMENT    (1L << 15)
+#define OPTION_SAFE_UPDATES     (1L << 16)
+#define OPTION_BUFFER_RESULT    (1L << 17)
+#define OPTION_BIN_LOG          (1L << 18)
+#define OPTION_NOT_AUTOCOMMIT   (1L << 19)
+#define OPTION_BEGIN            (1L << 20)
+#define OPTION_TABLE_LOCK       (1L << 21)
+#define OPTION_QUICK            (1L << 22)
+#define OPTION_QUOTE_SHOW_CREATE (1L << 23)
+#define OPTION_INTERNAL_SUBTRANSACTIONS (1L << 24)
 
 /* Set if we are updating a non-transaction safe table */
-#define OPTION_STATUS_NO_TRANS_UPDATE 	OPTION_INTERNAL_SUBTRANSACTIONS*2
+#define OPTION_STATUS_NO_TRANS_UPDATE   (1L << 25)
 
-/* The following is set when parsing the query */
-#define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
-#define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
 /* The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
-#define OPTION_NO_FOREIGN_KEY_CHECKS	QUERY_NO_GOOD_INDEX_USED*2
+#define OPTION_NO_FOREIGN_KEY_CHECKS    (1L << 26)
 /* The following speeds up inserts to InnoDB tables by suppressing unique
    key checks in some cases */
-#define OPTION_RELAXED_UNIQUE_CHECKS	OPTION_NO_FOREIGN_KEY_CHECKS*2
-#define SELECT_NO_UNLOCK	((ulong) OPTION_RELAXED_UNIQUE_CHECKS*2)
-/* NOTE: we have now used up all 32 bits of the OPTION flag! */
+#define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
+#define SELECT_NO_UNLOCK                (1L << 28)
+
+/* options for UNION set by the yacc parser (stored in unit->union_option) */
+#define UNION_ALL               1
 
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
@@ -579,6 +574,8 @@ bool wait_for_tables(THD *thd);
 bool table_is_used(TABLE *table, bool wait_for_name_lock);
 bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex);
 extern const Field *not_found_field;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    TABLE_LIST **where, bool report_error);
@@ -871,7 +868,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t      LOCK_grant;
+extern rw_lock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;

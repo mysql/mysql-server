@@ -106,8 +106,8 @@ static int my_uni_ucs2 (CHARSET_INFO *cs __attribute__((unused)) ,
   if ( r+2 > e ) 
     return MY_CS_TOOSMALL;
   
-  r[0]=wc >> 8;
-  r[1]=wc & 0xFF;
+  r[0]= (uchar) (wc >> 8);
+  r[1]= (uchar) (wc & 0xFF);
   return 2;
 }
 
@@ -862,7 +862,7 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
     s+=cnv;
     if (wc > (int) (uchar) 'e' || !wc)
       break;					/* Can't be part of double */
-    *b++=wc;
+    *b++= (char) wc;
   }
   *b= 0;
   
