@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#line __LINE__ "decimal.c"
+#line 18 "decimal.c"
 
 /*
 =======================================================================
@@ -107,14 +107,29 @@
 #include <m_string.h>
 #include <decimal.h>
 
+/*
+  Internally decimal numbers are stored base 10^9 (see DIG_BASE below)
+  So one "decimal_digit" is
+
+      0 < decimal_digit <= DIG_MAX < DIG_BASE
+
+  in the struct st_decimal:
+
+    intg is the number of *decimal* digits (NOT number of decimal_digit's !)
+         before the point
+    frac - number of decimal digits after the point
+    buf is an array of decimal_digit's
+    len is the length of buf (length of allocated space) in decimal_digit's,
+        not in bytes
+*/
 typedef decimal_digit dec1;
 typedef longlong      dec2;
 
 #define DIG_PER_DEC1 9
 #define DIG_MASK     100000000
 #define DIG_BASE     1000000000
-#define DIG_MAX      999999999
-#define DIG_BASE2    LL(1000000000000000000)
+#define DIG_MAX      (DIG_BASE-1)
+#define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
@@ -1073,6 +1088,68 @@ int decimal2longlong(decimal *from, longlong *to)
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
+
+  DESCRIPTION
+    for storage decimal numbers are converted to the "binary" format.
+
+    This format has the following properties:
+      1. length of the binary representation depends on the {precision, scale}
+      as provided by the caller and NOT on the intg/frac of the decimal to
+      convert.
+      2. binary representations of the same {precision, scale} can be compared
+      with memcmp - with the same result as decimal_cmp() of the original
+      decimals (not taking into account possible precision loss during
+      conversion).
+
+    This binary format is as follows:
+      1. First the number is converted to have a requested precision and scale.
+      2. Every full DIG_PER_DEC1 digits of intg part are stored in 4 bytes
+         as is
+      3. The first intg % DIG_PER_DEC1 digits are stored in the reduced
+         number of bytes (enough bytes to store this number of digits -
+         see dig2bytes)
+      4. same for frac - full decimal_digit's are stored as is,
+         the last frac % DIG_PER_DEC1 digits - in the reduced number of bytes.
+      5. If the number is negative - every byte is inversed.
+      5. The very first bit of the resulting byte array is inverted (because
+         memcmp compares unsigned bytes, see property 2 above)
+
+    Example:
+
+      1234567890.1234
+
+    internally is represented as 3 decimal_digit's
+
+      1 234567890 123400000
+
+    (assuming we want a binary representation with precision=14, scale=4)
+    in hex it's
+
+      00-00-00-01  0D-FB-38-D2  07-5A-EF-40
+
+    now, middle decimal_digit is full - it stores 9 decimal digits. It goes
+    into binary representation as is:
+
+
+      ...........  0D-FB-38-D2 ............
+
+    First decimal_digit has only one decimal digit. We can store one digit in
+    one byte, no need to waste four:
+
+                01 0D-FB-38-D2 ............
+
+    now, last digit. It's 123400000. We can store 1234 in two bytes:
+
+                01 0D-FB-38-D2 04-D2
+
+    So, we've packed 12 bytes number in 7 bytes.
+    And now we invert the highest bit to get the final result:
+
+                81 0D FB 38 D2 04 D2
+
+    And for -1234567890.1234 it would be
+
+                7E F2 04 37 2D FB 2D
 */
 int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
@@ -1414,6 +1491,11 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
         (*buf1)++;
       else
         *(++buf1)=DIG_BASE;
+    }
+    else if (frac0+intg0==0)
+    {
+      decimal_make_zero(to);
+      return E_DEC_OK;
     }
   }
   else
@@ -2666,11 +2748,12 @@ int main()
   test_md("234.567","10.555","2.357", 0);
   test_md("-234.567","10.555","-2.357", 0);
   test_md("234.567","-10.555","2.357", 0);
-  if (full)
+  c.buf[1]=0x3ABECA;
+  test_md("99999999999999999999999999999999999999","3","0", 0);
+  if (c.buf[1] != 0x3ABECA)
   {
-    c.buf[1]=0x3ABECA;
-    test_md("99999999999999999999999999999999999999","3","0", 0);
-    printf("%X\n", c.buf[1]);
+    printf("%X - overflow\n", c.buf[1]);
+    exit(1);
   }
 
   printf("==== decimal2bin/bin2decimal ====\n");
@@ -2740,6 +2823,16 @@ int main()
   test_ro("-15.1",0,FLOOR,"-16", 0);
   test_ro("999999999999999999999.999", 0, CEILING,"1000000000000000000000", 0);
   test_ro("-999999999999999999999.999", 0, FLOOR,"-1000000000000000000000", 0);
+
+  b.buf[0]=DIG_BASE+1;
+  b.buf++;
+  test_ro(".3", 0, HALF_UP, "0", 0);
+  b.buf--;
+  if (b.buf[0] != DIG_BASE+1)
+  {
+    printf("%d - underflow\n", b.buf[0]);
+    exit(1);
+  }
 
   printf("==== max_decimal ====\n");
   test_mx(1,1,"0.9");

@@ -80,6 +80,7 @@ class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
   void unlog(ulong cookie, my_xid xid)  { }
 };
 
+#ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
   private:
@@ -103,7 +104,8 @@ class TC_LOG_MMAP: public TC_LOG
 
   char logname[FN_REFLEN];
   File fd;
-  uint file_length, npages, inited;
+  my_off_t file_length;
+  uint npages, inited;
   uchar *data;
   struct st_page *pages, *syncing, *active, *pool, *pool_last;
   /*
@@ -128,6 +130,9 @@ class TC_LOG_MMAP: public TC_LOG
   int sync();
   int overflow();
 };
+#else
+#define TC_LOG_MMAP TC_LOG_DUMMY
+#endif
 
 extern TC_LOG *tc_log;
 extern TC_LOG_MMAP tc_log_mmap;
