@@ -40,28 +40,28 @@
 #include <violite.h>
 #include <my_pthread.h>
 
-#define MNGD_VERSION "1.0"
-#define MNGD_GREETING "MySQL Server Management Daemon v.1.0"
+#define MANAGER_VERSION "1.0"
+#define MANAGER_GREETING "MySQL Server Management Daemon v.1.0"
 
 #define LOG_ERR  1
 #define LOG_WARN 2
 #define LOG_INFO 3
 #define LOG_DEBUG 4
 
-#ifndef MNGD_PORT
-#define MNGD_PORT  23546
+#ifndef MANAGER_PORT
+#define MANAGER_PORT  23546
 #endif
 
-#ifndef MNGD_MAX_CMD_LEN
-#define MNGD_MAX_CMD_LEN 16384
+#ifndef MANAGER_MAX_CMD_LEN
+#define MANAGER_MAX_CMD_LEN 16384
 #endif
 
-#ifndef MNGD_LOG_FILE
-#define MNGD_LOG_FILE "/var/log/mysqlmanager.log"
+#ifndef MANAGER_LOG_FILE
+#define MANAGER_LOG_FILE "/var/log/mysqlmanager.log"
 #endif
 
-#ifndef MNGD_BACK_LOG
-#define MNGD_BACK_LOG 50
+#ifndef MANAGER_BACK_LOG
+#define MANAGER_BACK_LOG 50
 #endif
 
 #ifndef MAX_USER_NAME
@@ -73,17 +73,18 @@
    set by the user
 */
 
-uint manager_port = MNGD_PORT;
+uint manager_port = MANAGER_PORT;
 FILE* errfp;
-const char* manager_log_file = MNGD_LOG_FILE;
-pthread_mutex_t lock_log, lock_shutdown;
+const char* manager_log_file = MANAGER_LOG_FILE;
+pthread_mutex_t lock_log,lock_shutdown,lock_exec_hash;
 int manager_sock = -1;
 struct sockaddr_in manager_addr;
 ulong manager_bind_addr = INADDR_ANY;
-int manager_back_log = MNGD_BACK_LOG;
+int manager_back_log = MANAGER_BACK_LOG;
 int in_shutdown = 0, shutdown_requested=0;
-const char* manager_greeting = MNGD_GREETING;
-uint manager_max_cmd_len = MNGD_MAX_CMD_LEN;
+const char* manager_greeting = MANAGER_GREETING;
+uint manager_max_cmd_len = MANAGER_MAX_CMD_LEN;
+int one_thread = 0; /* for debugging */
 
 /* messages */
 
@@ -98,7 +99,6 @@ uint manager_max_cmd_len = MNGD_MAX_CMD_LEN;
 #define MSG_CLIENT_ERR   450
 #define MSG_INTERNAL_ERR 500
 
-
 /* access flags */
 
 #define PRIV_SHUTDOWN 1
@@ -112,9 +112,18 @@ struct manager_thd
   int fatal,finished;
 };
 
-struct manager_thd* manager_thd_new(Vio* vio);
-void manager_thd_free(struct manager_thd* thd);
+HASH exec_hash;
 
+static struct manager_thd* manager_thd_new(Vio* vio);
+static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end);
+static void manager_exec_print(Vio* vio,struct manager_exec* e);
+static void manager_thd_free(struct manager_thd* thd);
+static void manager_exec_free(void* e);
+static char* arg_strmov(char* dest, const char* src, int n);
+static byte* get_exec_key(const byte* e, uint* len,
+			  my_bool __attribute__((unused)) t);
+static uint tokenize_args(char* arg_start,char** arg_end);
+static void init_arg_array(char* arg_str,char** args,uint arg_count);
 typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 
 
@@ -124,6 +133,20 @@ struct manager_cmd
   const char* help;
   manager_cmd_handler handler_func;
   int len;
+};
+
+struct manager_exec
+{
+  char* ident;
+  int ident_len;
+  const char* error;
+  char* bin_path;
+  char** args;
+  char con_user[16];
+  char con_pass[16];
+  int con_port;
+  char con_sock[FN_REFLEN];
+  char* data_buf; 
 };
 
 #define HANDLE_DECL(com) static int handle_ ## com (struct manager_thd* thd,\
@@ -138,12 +161,16 @@ HANDLE_NOARG_DECL(ping);
 HANDLE_NOARG_DECL(quit);
 HANDLE_NOARG_DECL(help);
 HANDLE_NOARG_DECL(shutdown);
+HANDLE_DECL(def_exec);
+HANDLE_NOARG_DECL(show_exec);
 
 struct manager_cmd commands[] =
 {
   {"ping", "Check if this server is alive", handle_ping,4},
   {"quit", "Finish session", handle_quit,4},
   {"shutdown", "Shutdown this server", handle_shutdown,8},
+  {"def_exec", "Define executable entry", handle_def_exec,8},
+  {"show_exec","Show defined executable entries",handle_show_exec,9},
   {"help", "Print this message", handle_help,4},
   {0,0,0,0}
 };
@@ -158,6 +185,7 @@ struct option long_options[] =
   {"tcp-backlog", required_argument, 0, 'B'},
   {"greeting", required_argument, 0, 'g'},
   {"max-command-len",required_argument,0,'m'},
+  {"one-thread",no_argument,0,'d'},
   {"version", no_argument, 0, 'V'},
   {0, 0, 0, 0}
 };
@@ -190,6 +218,7 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
  commands");
     return 1;
   }
+  for (;p<buf_end && isspace(*p);p++);
   return cmd->handler_func(thd,p,buf_end);
 }
 
@@ -236,6 +265,78 @@ HANDLE_NOARG_DECL(shutdown)
   thd->finished=1;
   shutdown_requested = 1;
   return 0;
+}
+
+HANDLE_DECL(def_exec)
+{
+  struct manager_exec* e=0;
+  const char* error=0;
+  if (!(e=manager_exec_new(args_start,args_end)))
+  {
+    error="Out of memory";
+    goto err;
+  }
+  if (e->error)
+  {
+    error=e->error;
+    goto err;
+  }
+  pthread_mutex_lock(&lock_exec_hash);
+  hash_insert(&exec_hash,(byte*)e);
+  pthread_mutex_unlock(&lock_exec_hash);
+  client_msg(thd->vio,MSG_OK,"Exec definition created");
+  return 0;
+err:
+  client_msg(thd->vio,MSG_CLIENT_ERR,error);
+  if (e)
+    manager_exec_free(e);
+  return 1;
+}
+
+HANDLE_NOARG_DECL(show_exec)
+{
+  uint i;
+  client_msg_pre(thd->vio,MSG_INFO,"Exec_def\tArguments");
+  pthread_mutex_lock(&lock_exec_hash);
+  for (i=0;i<exec_hash.records;i++)
+  {
+    struct manager_exec* e=(struct manager_exec*)hash_element(&exec_hash,i);
+    manager_exec_print(thd->vio,e);
+  }
+  pthread_mutex_unlock(&lock_exec_hash);
+  client_msg(thd->vio,MSG_INFO,"End");
+  return 0;
+}
+
+static char* arg_strmov(char* dest, const char* src, int n)
+{
+  char* dest_end = dest+n-1;
+  char c;
+  for (;dest<dest_end && (c=*src++);)
+  {
+    if (c=='%')
+      *dest++='%';
+    *dest++=c;
+  }
+  return dest;
+}
+
+static void manager_exec_print(Vio* vio,struct manager_exec* e)
+{
+  char buf[MAX_CLIENT_MSG_LEN];
+  char* p=buf,*buf_end=buf+sizeof(buf);
+  char** args=e->args;
+  
+  p=arg_strmov(p,e->ident,(int)(buf_end-p)-2);
+  *p++='\t';
+  for(;p<buf_end && *args;args++)
+  {
+    p=arg_strmov(p,*args,(int)(buf_end-p)-2);
+    *p++='\t';
+  }
+  *p=0;
+  client_msg_pre(vio,MSG_INFO,buf);
+  return;
 }
 
 static int authenticate(struct manager_thd* thd)
@@ -323,6 +424,8 @@ LOG_MSG_FUNC(info,INFO)
 
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(debug,DEBUG)
+#else
+inline void log_debug(char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_connection,arg)
@@ -439,7 +542,7 @@ struct manager_thd* manager_thd_new(Vio* vio)
   return tmp;
 }
 
-void manager_thd_free(struct manager_thd* thd)
+static void manager_thd_free(struct manager_thd* thd)
 {
   if (thd->vio)
     vio_close(thd->vio);
@@ -466,11 +569,11 @@ static void clean_up()
 
 static void print_version(void)
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,MNGD_VERSION,
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,MANAGER_VERSION,
 	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
-void usage()
+static void usage()
 {
   print_version();
   printf("MySQL AB, by Sasha\n");
@@ -493,16 +596,19 @@ void usage()
   -V, --version            Output version information and exit.\n\n");
 }
 
-int parse_args(int argc, char **argv)
+static int parse_args(int argc, char **argv)
 {
   int c, option_index = 0;
-  while ((c=getopt_long(argc,argv,"P:?#:Vl:b:B:g:m:",
+  while ((c=getopt_long(argc,argv,"P:?#:Vl:b:B:g:m:d",
 			long_options,&option_index)) != EOF)
   {
     switch (c)
       {
       case '#':
 	DBUG_PUSH(optarg ? optarg : "d:t:O,/tmp/mysqlmgrd.trace");
+	break;
+      case 'd':
+	one_thread=1;
 	break;
       case 'P':
 	manager_port=atoi(optarg);
@@ -535,7 +641,7 @@ int parse_args(int argc, char **argv)
   return 0;
 }
 
-int init_server()
+static int init_server()
 {
   int arg=1;
   log_info("Started");
@@ -554,7 +660,7 @@ int init_server()
   return 0;
 }
 
-int run_server_loop()
+static int run_server_loop()
 {
   pthread_t th;
   struct manager_thd *thd;
@@ -598,7 +704,13 @@ int run_server_loop()
     }
     if (shutdown_requested)
       break;
-    if (pthread_create(&th,0,process_connection,(void*)thd))
+    if (one_thread)
+    {
+      process_connection((void*)thd);
+      manager_thd_free(thd);
+      continue;
+    }
+    else if (pthread_create(&th,0,process_connection,(void*)thd))
     {
       client_msg(vio,MSG_INTERNAL_ERR,"Could not create thread, errno=%d",
 		 errno);
@@ -609,7 +721,7 @@ int run_server_loop()
   return 0;
 }
 
-FILE* open_log_stream()
+static FILE* open_log_stream()
 {
   FILE* fp;
   if (!(fp=fopen(manager_log_file,"a")))
@@ -617,7 +729,131 @@ FILE* open_log_stream()
   return fp;
 }
 
-int daemonize()
+static byte* get_exec_key(const byte* e, uint* len,
+			 my_bool __attribute__((unused)) t)
+{
+  register const char* key;
+  key = ((struct manager_exec*)e)->ident;
+  *len = ((struct manager_exec*)e)->ident_len;
+  return (byte*)key;
+}
+
+static void init_arg_array(char* arg_str,char** args,uint arg_count)
+{
+  char* p = arg_str;
+  for (;arg_count>0;arg_count--)
+  {
+    *args++=p;
+    p += strlen(p)+1;
+  }
+  *args=0;
+}
+
+static uint tokenize_args(char* arg_start,char** arg_end)
+{
+  char* p, *p_write,*p_end;
+  uint arg_count=0;
+  int quoted=0,escaped=0,last_space=0;
+  p_end=*arg_end;
+  p_write=p=arg_start;
+  for(;p<p_end;p++)
+  {
+    char c = *p;
+    switch (c)
+    {
+    case ' ':
+    case '\r':
+    case '\n':  
+      if (!quoted)
+      {
+	if (!last_space)
+	{
+	  *p_write++=0;
+	  arg_count++;
+	  last_space=1;
+	}
+      }
+      else
+	*p_write++=c;
+      escaped=0;
+      break;
+    case '"':
+      if (!escaped)
+	quoted=!quoted;
+      else
+	*p_write++=c;
+      last_space=0;
+      escaped=0;
+      break;
+    case '\\':
+      if (!escaped)
+	escaped=1;
+      else
+      {
+	*p_write++=c;
+	escaped=0;
+      }
+      last_space=0;
+      break;
+    default:
+      escaped=last_space=0;
+      *p_write++=c;
+      break;
+    }
+  }
+  if (!last_space && p_write>arg_start)
+    arg_count++;
+  *p_write=0;
+  *arg_end=p_write;
+  log_debug("arg_count=%d,arg_start='%s'",arg_count,arg_start);
+  return arg_count;
+}
+
+
+static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
+{
+  struct manager_exec* tmp;
+  char* first_arg;
+  uint arg_len,num_args;
+  num_args=tokenize_args(arg_start,&arg_end);
+  arg_len=(uint)(arg_end-arg_start)+1; /* include \0 terminator*/
+  if (!(tmp=(struct manager_exec*)my_malloc(sizeof(*tmp)+arg_len+
+					    sizeof(char*)*num_args,MYF(0))))
+    return 0;
+  if (num_args<2)
+  {
+    tmp->error="Too few arguments";
+    return tmp;
+  }
+  tmp->data_buf=(char*)tmp+sizeof(*tmp);
+  memcpy(tmp->data_buf,arg_start,arg_len);
+  tmp->args=(char**)(tmp->data_buf+arg_len);
+  tmp->ident=tmp->data_buf;
+  tmp->ident_len=strlen(tmp->ident);
+  first_arg=tmp->ident+tmp->ident_len+1;
+  init_arg_array(first_arg,tmp->args,num_args-1);
+  strmov(tmp->con_user,"root");
+  tmp->con_pass[0]=0;
+  tmp->con_sock[0]=0;
+  tmp->con_port=MYSQL_PORT;
+  tmp->bin_path=tmp->args[0];
+  tmp->error=0;
+  return tmp;
+}
+
+
+static void manager_exec_free(void* e)
+{
+  my_free(e,MYF(0));
+}
+
+static void init_globals()
+{
+  if (hash_init(&exec_hash,1024,0,0,get_exec_key,manager_exec_free,MYF(0)))
+    die("Exec hash initialization failed");
+}
+
+static int daemonize()
 {
   switch (fork())
     {
@@ -625,8 +861,10 @@ int daemonize()
       die("Cannot fork");
     case 0:
       errfp = open_log_stream();
+      init_globals();
       close(0);
       close(1);
+      close(2);
       init_server();
       run_server_loop();
       clean_up();
@@ -644,8 +882,24 @@ int main(int argc, char** argv)
   parse_args(argc,argv);
   pthread_mutex_init(&lock_log,0);
   pthread_mutex_init(&lock_shutdown,0);
-  return daemonize();
+  pthread_mutex_init(&lock_exec_hash,0);
+  if (one_thread)
+  {
+    init_globals();
+    init_server();
+    run_server_loop();
+    clean_up();
+    return 0;
+  }
+  else
+    return daemonize();
 }
+
+
+
+
+
+
 
 
 
