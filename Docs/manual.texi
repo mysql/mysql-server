@@ -36313,23 +36313,37 @@ the configuration file @file{my.cnf}. @xref{Option files}.
 The only required parameter to use InnoDB is @code{innodb_data_file_path},
 but you should set others if you want to get a better performance.
 
-Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
+Suppose you have a Windows NT computer with 128 MB RAM and a single 10 GB
 hard disk.  Below is an example of possible configuration parameters in
 @file{my.cnf} for InnoDB:
 
 @example
-innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
+[mysqld]
+# You can write your other MySQL server options here
+# ...
+#
 innodb_data_home_dir = c:\ibdata
-set-variable = innodb_mirrored_log_groups=1
+#                                            Data files must be able to
+#                                            hold your data and indexes
+innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory
+set-variable = innodb_buffer_pool_size=70M
+set-variable = innodb_additional_mem_pool_size=10M
 innodb_log_group_home_dir = c:\iblogs
-set-variable = innodb_log_files_in_group=3
-set-variable = innodb_log_file_size=30M
-set-variable = innodb_log_buffer_size=8M
-innodb_flush_log_at_trx_commit=1
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
 innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
-set-variable = innodb_buffer_pool_size=80M
-set-variable = innodb_additional_mem_pool_size=10M
+set-variable = innodb_log_files_in_group=3
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
+set-variable = innodb_log_file_size=10M
+set-variable = innodb_log_buffer_size=8M
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
+innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
@@ -36340,27 +36354,44 @@ to be >= 10 MB.
 InnoDB does not create directories:
 you have to create them yourself.
 
-Suppose you have a Linux machine with 512 MB RAM and
+Suppose you have a Linux computer with 512 MB RAM and
 three 20 GB hard disks (at directory paths @file{/},
 @file{/dr2} and @file{/dr3}).
 Below is an example of possible configuration parameters in @file{my.cnf} for
 InnoDB:
 
 @example
-innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+[mysqld]
+# You can write your other MySQL server options here
+# ...
+#
 innodb_data_home_dir = /
-set-variable = innodb_mirrored_log_groups=1
-innodb_log_group_home_dir = /dr3
-set-variable = innodb_log_files_in_group=3
-set-variable = innodb_log_file_size=50M
-set-variable = innodb_log_buffer_size=8M
-innodb_flush_log_at_trx_commit=1
+#                                            Data files must be able to
+#                                            hold your data and indexes
+innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+#                                            Set buffer pool size to 50 - 80 %
+#                                            of your computer's memory
+set-variable = innodb_buffer_pool_size=350M
+set-variable = innodb_additional_mem_pool_size=20M
+innodb_log_group_home_dir = /dr3/iblogs
+#                                            .._log_arch_dir must be the same
+#                                            as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 innodb_log_archive=0
-set-variable = innodb_buffer_pool_size=400M
-set-variable = innodb_additional_mem_pool_size=20M
+set-variable = innodb_log_files_in_group=3
+#                                            Set the log file size to about
+#                                            15 % of the buffer pool size
+set-variable = innodb_log_file_size=50M
+set-variable = innodb_log_buffer_size=8M
+#                                            Set ..flush_log_at_trx_commit to
+#                                            0 if you can afford losing
+#                                            a few last transactions 
+innodb_flush_log_at_trx_commit=1
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
+#innodb_flush_method=fdatasync
+#innodb_fast_shutdown=1
+#set-variable = innodb_thread_concurrency=5
 @end example
 
 Note that we have placed the two data files on different disks.
@@ -36373,6 +36404,10 @@ formed by the data files from bottom up. In some cases it will
 improve the performance of the database if all data is not placed
 on the same physical disk. Putting log files on a different disk from
 data is very often beneficial for performance.
+
+The combined size of the log files MUST be < 4G in a 32-bit computer,
+and to make recovery reasonably fast you should keep the combined size
+smaller than the buffer pool size.
 
 The meanings of the configuration parameters are the following:
 
@@ -36397,7 +36432,9 @@ Number of log files in the log group. InnoDB writes to the files in a
 circular fashion. Value 3 is recommended here.
 @item @code{innodb_log_file_size} @tab 
 Size of each log file in a log group in megabytes. Sensible values range
-from 1M to the size of the buffer pool specified below. The bigger the
+from 1M to 1/nth of the size of the buffer pool specified below, where
+n is the number of log files in the log group.
+The bigger the
 value, the less checkpoint flush activity is needed in the buffer pool,
 saving disk i/o. But bigger log files also mean that recovery will be
 slower in case of a crash. File size restriction as for a data file.
@@ -37100,7 +37137,8 @@ to zero. InnoDB tries to flush the log anyway once in a second,
 though the flush is not guaranteed.
 
 @strong{4.}
-Make your log files big, even as big as the buffer pool. When InnoDB
+Make your log files big, the combined size
+even as big as the buffer pool. When InnoDB
 has written the log files full, it has to write the modified contents
 of the buffer pool to disk in a checkpoint. Small log files will cause many
 unnecessary disk writes. The drawback in big log files is that recovery
