@@ -122,3 +122,13 @@ delete from (select * from t1);
 -- error 1064
 insert into  (select * from t1) values (5);
 drop table t1;
+
+#
+# deived tables with subquery inside all by one table
+#
+create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
+);
+insert into t1 VALUES(1,1,1), (2,2,1);
+select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+drop table t1;
