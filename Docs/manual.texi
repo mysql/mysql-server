@@ -271,7 +271,7 @@ If you have a hard time finding information in the manual, you can try
 our searchable PHP version at @uref{http://www.mysql.com/doc/}.
 
 If you have any suggestions concerning additions or corrections to this
-manual, please send them to the manual team at @email{docs@@mysql.com}.
+manual, please send them to the documentation team at @email{docs@@mysql.com}.
 
 @cindex manual, available formats
 @cindex Texinfo
@@ -1271,7 +1271,7 @@ For more information on the @code{MySQL} trademark policy, refer to
 If you are interested in any of the @code{MySQL AB} jobs listed in our
 jobs section (@uref{http://www.mysql.com/development/jobs/}),
 please send an e-mail to @email{jobs@@mysql.com}.
-Please do not send your cv as an attachment, but rather as plain text
+Please do not send your CV as an attachment, but rather as plain text
 at the end of your email.
 
 For general discussion amongst our many users, please direct your
@@ -1873,7 +1873,7 @@ update-heavy systems.
 
 @item
 A convenience feature for Database Administrators is that
-mysqld parameters (startup options) can soon be set without
+@code{mysqld} parameters (startup options) can soon be set without
 taking down the servers.
 
 @item
@@ -1956,7 +1956,7 @@ any time.
 
 Some of the current @code{MySQL Portal} categories:
 
-@itemize @bullet
+@table @strong
 @item Partners
 Find @code{MySQL AB} partners worldwide.
 
@@ -1970,8 +1970,8 @@ This information can give you an idea of who uses the @code{MySQL}
 database software and how @code{MySQL Server} can fulfill
 requirements.
 
-Do let us know about @emph{your} site or success story too!
-@uref{http://www.mysql.com/feedback/testimonial.php}.
+Let us know about @emph{your} site or success story, too!
+Visit @uref{http://www.mysql.com/feedback/testimonial.php}.
 
 @item Software
 Find, buy, download several applications and wrappers that make
@@ -1983,7 +1983,7 @@ software packages that contain the @code{MySQL} software.
 
 @item Service Providers
 Companies providing @code{MySQL}-related services.
-@end itemize
+@end table
 
 
 @node Questions,  , Portals, MySQL Information Sources
@@ -13646,7 +13646,7 @@ Which returns:
 |  2 | cat     |
 |  3 | penguin |
 |  4 | lax     |
-|  5 | whale    |
+|  5 | whale   |
 +----+---------+
 @end example
 
@@ -14053,6 +14053,8 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 
 @node Configuring MySQL, Privilege system, MySQL Database Administration, MySQL Database Administration
 @section Configuring MySQL
+
+@c FIX: add section intro
 
 
 @menu
@@ -16349,6 +16351,8 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @node User Account Management, Disaster Prevention, Privilege system, MySQL Database Administration
 @section MySQL User Account Management
 
+@c FIX: add section intro
+
 @menu
 * GRANT::                       @code{GRANT} and @code{REVOKE} Syntax
 * User names::                  MySQL User Names and Passwords
@@ -17369,6 +17373,8 @@ options can be mixed.
 
 @node Disaster Prevention, Database Administration, User Account Management, MySQL Database Administration
 @section Disaster Prevention and Recovery
+
+@c FIX: add section intro
 
 @menu
 * Backup::                      Database Backups
@@ -23175,7 +23181,7 @@ and then take a backup and remove @file{mysql.old}.
 * Replication Problems::        Troubleshooting Replication
 @end menu
 
-This chapter describes the various replication features in MySQL.
+This section describes the various replication features in MySQL.
 It serves as a reference to the options available with replication.
 You will be introduced to replication and learn how to implement it.
 Towards the end, there are some frequently asked questions and descriptions
