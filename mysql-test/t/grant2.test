@@ -6,13 +6,21 @@ SET NAMES binary;
 #
 
 
+# prepare playground before tests
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+
 #
 # wild_compare fun
 #
 
-delete from mysql.user where user like 'mysqltest\_%';
-delete from mysql.db where user like 'mysqltest\_%';
-flush privileges;
 grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
@@ -31,3 +39,33 @@ delete from mysql.user where user like 'mysqltest\_%';
 delete from mysql.db where user like 'mysqltest\_%';
 flush privileges;
 
+
+#
+# Bug #6173: One can circumvent missing UPDATE privilege if he has SELECT
+# and INSERT privilege for table with primary key
+#
+create database mysqltest;
+grant INSERT, SELECT on mysqltest.* to mysqltest_1@localhost;
+flush privileges;
+use mysqltest;
+create table t1 (id int primary key, data varchar(255));
+
+connect (mrbad, localhost, mysqltest_1,,);
+connection mrbad;
+show grants for current_user();
+use mysqltest;
+insert into t1 values (1, 'I can''t change it!');
+--error 1044
+update t1 set data='I can change it!' where id = 1;
+# This should not be allowed since it too require UPDATE privilege.
+--error 1044
+insert into t1 values (1, 'XXX') on duplicate key update data= 'I can change it!';
+select * from t1;
+
+connection default;
+drop table t1;
+drop database mysqltest;
+use test;
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
