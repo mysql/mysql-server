@@ -251,3 +251,4 @@
 "Help database is corrupt or does not exist",
 "Циклiчне посилання на пiдзапит",
 "Converting column '%s' from %s to %s"
+"Посилання '%-.64s' не пiдтримуется (%s)",

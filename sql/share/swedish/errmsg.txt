@@ -246,3 +246,4 @@
 "Hjälp databasen finns inte eller är skadad",
 "Syklisk referens i subselect",
 "Konvertar kolumn '%s' från %s till %s"
+"Reference '%-.64s' not supported (%s)",

@@ -1152,6 +1152,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (thd)
     thd->cond_count+=list.elements;
   fix_length_and_dec();
+  fixed= 1;
   return 0;
 }
 
@@ -1425,6 +1426,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   }
   else
     maybe_null=1;
+  fixed= 1;
   return 0;
 }
 
