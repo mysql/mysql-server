@@ -1,0 +1,13 @@
+slave stop;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+stop slave;
+create table t1 (a int);
+reset slave;
+start slave;
+select master_pos_wait('master-bin.001',5000,45)=-1;
+master_pos_wait('master-bin.001',5000,45)=-1
+0

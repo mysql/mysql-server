@@ -645,6 +645,8 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
   */
   pthread_mutex_lock(&rli->log_space_lock);
   rli->log_space_total -= rli->relay_log_pos;
+  //tell the I/O thread to take the relay_log_space_limit into account
+  rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
   pthread_cond_broadcast(&rli->log_space_cond);
   
