@@ -30,7 +30,7 @@ EXTRA_DIST = makelist.sh np/unvis.c np/strlcpy.c np/vis.c np/vis.h np/strlcat.c 
 
 CLEANFILES = makelist common.h emacs.h vi.h fcns.h help.h fcns.c help.c
 
-DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR '-D__RCSID(x)=' '-D__COPYRIGHT(x)=' '-D__RENAME(x)=' '-D_DIAGASSERT(x)='
+DEFS = -DUNDEF_THREADS_HACK -DHAVE_CONFIG_H -DNO_KILL_INTR 
 
 SUFFIXES = .sh
 
