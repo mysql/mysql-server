@@ -305,3 +305,6 @@ sessionThread_C(void* _sc){
   NdbThread_Exit(0);
   return 0;
 }
+
+template class MutexVector<SocketServer::ServiceInstance>;
+template class MutexVector<SocketServer::SessionInstance>;

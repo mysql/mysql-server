@@ -213,3 +213,6 @@ Backup::~Backup()
 
 BLOCK_FUNCTIONS(Backup);
 
+template class ArrayPool<Backup::Page32>;
+template class ArrayPool<Backup::Attribute>;
+template class ArrayPool<Backup::Fragment>;

@@ -347,3 +347,4 @@ Operate::evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & pp){
   return true;
 }
 
+template class Vector<const ParserRow<SimpleCpcClient::ParserDummy>*>;
