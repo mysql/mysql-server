@@ -3589,7 +3589,6 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
 	    Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null(), copies;
-  uint field_length=field->pack_length()+maybe_null;
   bool optimize_range;
   SEL_ARG *tree;
   char *str, *str2;
@@ -3639,6 +3638,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
     String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     uint length,offset,min_length,max_length;
+    uint field_length= field->pack_length()+maybe_null;
 
     if (!optimize_range)
       DBUG_RETURN(0);				// Can't optimize this
@@ -3683,21 +3683,23 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     length+=offset;
     if (!(min_str= (char*) alloc_root(param->mem_root, length*2)))
       DBUG_RETURN(0);
+
     max_str=min_str+length;
     if (maybe_null)
       max_str[0]= min_str[0]=0;
 
+    field_length-= maybe_null;
     like_error= my_like_range(field->charset(),
 			      res->ptr(), res->length(),
 			      ((Item_func_like*)(param->cond))->escape,
 			      wild_one, wild_many,
-			      field_length-maybe_null,
+			      field_length,
 			      min_str+offset, max_str+offset,
 			      &min_length, &max_length);
     if (like_error)				// Can't optimize with LIKE
       DBUG_RETURN(0);
 
-    if (offset != maybe_null)			// Blob
+    if (offset != maybe_null)			// BLOB or VARCHAR
     {
       int2store(min_str+maybe_null,min_length);
       int2store(max_str+maybe_null,max_length);
@@ -7664,7 +7666,8 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
    have_max(have_max_arg), seen_first_key(FALSE),
    min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
-   key_infix_len(key_infix_len_arg)
+   key_infix_len(key_infix_len_arg), min_functions_it(NULL),
+   max_functions_it(NULL)
 {
   head=       table;
   file=       head->file;
@@ -7773,16 +7776,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
       if (!(min_functions_it= new List_iterator<Item_sum>(*min_functions)))
         return 1;
     }
-    else
-      min_functions_it= NULL;
 
     if (have_max)
     {
       if (!(max_functions_it= new List_iterator<Item_sum>(*max_functions)))
         return 1;
     }
-    else
-      max_functions_it= NULL;
   }
   else
     min_max_ranges.elements= 0;
@@ -7799,6 +7798,8 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
+  delete min_functions_it;
+  delete max_functions_it;
   delete quick_prefix_select;
   DBUG_VOID_RETURN; 
 }

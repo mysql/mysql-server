@@ -31,7 +31,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
 static bool compare_record(TABLE *table, ulong query_id)
 {
-  if (!table->s->blob_fields)
+  if (table->s->blob_fields + table->s->varchar_fields == 0)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,

@@ -415,6 +415,8 @@ or row lock! */
 /*------------------------------------- Insert buffer tree */
 #define	SYNC_IBUF_BITMAP_MUTEX	351
 #define	SYNC_IBUF_BITMAP	350
+/*------------------------------------- MySQL query cache mutex */
+/*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/
 #define	SYNC_KERNEL		300
 #define SYNC_REC_LOCK		299
