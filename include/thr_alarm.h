@@ -38,24 +38,23 @@ extern "C" {
 #define THR_SERVER_ALARM SIGALRM
 #endif
 
-#if defined(DONT_USE_THR_ALARM)
+#if defined(DONT_USE_THR_ALARM) || !defined(THREAD)
 
 #define USE_ALARM_THREAD
 #undef USE_ONE_SIGNAL_HAND
 
-typedef struct st_thr_alarm_entry
-{
-  uint crono;
-} thr_alarm_entry;
+typedef my_bool thr_alarm_t;
+typedef my_bool ALARM;
 
-#define thr_alarm_init(A)   (A)->crono=0
-#define thr_alarm_in_use(A) (A)->crono
+#define thr_alarm_init(A) (*(A))=0
+#define thr_alarm_in_use(A) (*(A) != 0)
+#define thr_end_alarm(A)
+#define thr_alarm(A,B,C) ((*(A)=1)-1)
+/* The following should maybe be (*(A)) */
+#define thr_got_alarm(A) 0 
 #define init_thr_alarm(A)
 #define thr_alarm_kill(A)
 #define end_thr_alarm()
-#define thr_alarm(A,B) (((A)->crono=1)-1)
-#define thr_got_alarm(A) (A)->crono
-#define thr_end_alarm(A)
 
 #else
 #if defined(__WIN__)

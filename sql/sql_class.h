@@ -288,6 +288,7 @@ public:
   uint	     current_tablenr,tmp_table,cond_count,col_access;
   uint	     server_status,open_options;
   uint32     query_length;
+  uint32     db_length;
   enum_tx_isolation tx_isolation, session_tx_isolation;
   char	     scramble[9];
   uint8	     query_cache_type;		// type of query cache processing
@@ -400,6 +401,13 @@ public:
   { return strmake_root(&mem_root,str,size); }
   inline char *memdup(const char *str, uint size)
   { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
 };
 
 

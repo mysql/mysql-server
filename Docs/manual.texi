@@ -10200,7 +10200,7 @@ because it can't compile @code{.S} (assembler) files.
 The following configure line should work:
 
 @example
-CFLAGS="-DHPUX -I/opt/dce/include" CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions -fno-rtti" CXX=gcc ./configure --with-pthread --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-DHPUX -I/opt/dce/include -fpic" CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions -fno-rtti" CXX=gcc ./configure --with-pthread --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
 @end example
 
 If you are compiling @code{gcc} 2.95 yourself, you should NOT link it with
@@ -22679,10 +22679,13 @@ file is written in the data directory.
 If you supply an extension to @code{--log-bin=filename.extension}, the
 extension will be silenty removed.
 
-To the binary log filename @code{mysqld} will append an extension that is a
-number that is incremented each time you execute @code{mysqladmin
-refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
-statement or restart the server. 
+To the binary log filename @code{mysqld} will append an extension that
+is a number that is incremented each time you execute @code{mysqladmin
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH
+LOGS} statement or restart the server. A new binary log will also
+automaticly be created when it reaches @code{max_bin_log_size}. You can
+delete all not active binary log files with the @code{RESET MASTER}
+command. @xref{RESET}.
 
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:
@@ -35523,11 +35526,11 @@ dynamic content.
 
 Following are some performance data for the query cache
 (We got these by running the MySQL benchmark suite on a Linux Alpha
-2x500 MHz with 2GB RAM and a 64MB query cache).
+2x500 MHz with 2GB RAM and a 64MB query cache):
 
 @itemize @bullet
 @item
-If want to disable the query cache code set @code{query_cache_size=0}.
+If you want to disable the query cache code set @code{query_cache_size=0}.
 By disabling the query cache code there is no noticeable overhead.
 @item
 If all of the queries you're preforming are simple (such as selecting a
@@ -35578,7 +35581,7 @@ found rows is also stored in the cache.
 If a table changes (@code{INSERT}, @code{UPDATE}, @code{DELETE},
 @code{TRUNCATE}, @code{ALTER} or @code{DROP TABLE|DATABASE}),
 then all cached queries that used this table (possibly through a
-MRG_MyISAM table!) become invalid and are removed from the cache.
+@code{MRG_MyISAM} table!) become invalid and are removed from the cache.
 
 Currently all @code{InnoDB} tables are invalidated on @code{COMMIT},
 in the future this will be changed so only tables changed in the
@@ -35695,17 +35698,29 @@ You can monitor query cache performance in @code{SHOW STATUS}:
 @item @code{Qcache_inserts}
  @tab Number of queries added to the cache.
 @item @code{Qcache_hits}
- @tab Number of cache hits
+ @tab Number of cache hits.
 @item @code{Qcache_not_cached}
  @tab Number of non-cached queries
- (not cachable, or due to SQL_QUERY_CACHE_TYPE)
+ (not cachable, or due to @code{SQL_QUERY_CACHE_TYPE}).
 @item @code{Qcache_free_memory}
  @tab Amount of free memory for query cache.
+@item @code{Qcache_total_blocks}
+ @tab Total number of blocks in query cache.
+@item @code{Qcache_free_blocks}
+ @tab Number of free memory blocks in query cache.
 @end multitable
 
-Please note:
 Total number of queries =
 @code{Qcache_inserts} + @code{Qcache_hits} + @code{Qcache_not_cached}.
+
+The query cache uses variable length blocks, so @code{Qcache_total_blocks}
+and @code{Qcache_free_blocks} may indicate query cache memory fragmentation.
+After @code{FLUSH QUERY CACHE} only a single (big) free block remains.
+
+Note: Every query needs a minimum of two blocks (one for the query text
+and one or more for the query results). Also, every table that is used
+by a query needs one block, but if two or more queries use same table
+only one block needs to be allocated.
 
 
 @node Table types, Clients, Reference, Top
@@ -48083,6 +48098,12 @@ not yet 100% confident in this code.
 @node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
+@item
+InnoDB now supports @code{NULL} in keys.
+@item
+Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
+@item
+Added 'DO expression' command.
 @item
 Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
 @item

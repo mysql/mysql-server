@@ -752,8 +752,20 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     /* Check if another thread is processing the same query? */
     thd->query[thd->query_length] = (char) flags;
+    if (thd->db_length)
+    {
+      memcpy(thd->query+thd->query_length+1, thd->db, thd->db_length);
+      DBUG_PRINT("qcache", ("database : %s length %u",
+			    thd->db, thd->db_length)); 
+    }
+    else
+    {
+      DBUG_PRINT("qcache", ("No active database"));
+    }
+      
     Query_cache_block *competitor = (Query_cache_block *)
-      hash_search(&queries, (byte*) thd->query, thd->query_length+1);
+      hash_search(&queries, (byte*) thd->query,
+		  thd->query_length+1+thd->db_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx, flags %x", (ulong) competitor,
 			flags));
     if (competitor == 0)
@@ -761,7 +773,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       /* Query is not in cache and no one is working with it; Store it */
       thd->query[thd->query_length] = (char) flags;
       Query_cache_block *query_block;
-      query_block= write_block_data(thd->query_length+1,
+      query_block= write_block_data(thd->query_length+1+thd->db_length,
 				    (gptr) thd->query,
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, tables, 1);
@@ -894,10 +906,21 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     flags |= (byte) thd->convert_set->number();
     DBUG_ASSERT(thd->convert_set->number() < 128);
   }
-
   sql[query_length] = (char) flags;
+  if (thd->db_length)
+  {
+    memcpy(sql+query_length+1, thd->db, thd->db_length);
+    DBUG_PRINT("qcache", ("database : %s length %u",
+			  thd->db, thd->db_length));
+  }
+  else
+  {
+    DBUG_PRINT("qcache", ("No active database"));
+  }
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
-						   query_length+1);
+						   query_length+1+
+						   thd->db_length);
+  
   sql[query_length] = '\0';
 
   /* Quick abort on unlocked data */
@@ -2450,10 +2473,21 @@ my_bool Query_cache::move_by_type(byte **border,
 
     Query_cache_block_table *nlist_root = new_block->table(0);
     nlist_root->n = 0;
-    nlist_root->next = (tnext == list_root ? nlist_root : tnext);
-    nlist_root->prev = (tprev == list_root ? nlist_root: tnext);
-    tnext->prev = nlist_root;
-    tprev->next = nlist_root;
+    if (tnext == list_root)
+    {
+      nlist_root->next = nlist_root;
+      nlist_root->prev = nlist_root;
+    }
+    else
+    {
+      nlist_root->next = tnext;
+      tnext->prev = nlist_root;
+    }
+    if (tprev != list_root)
+    {
+      nlist_root->prev = tnext;
+      tprev->next = nlist_root;
+    }
     for (;tnext != nlist_root; tnext=tnext->next)
       tnext->parent = new_block->table();
     *border += len;
@@ -2592,10 +2626,21 @@ void Query_cache::relink(Query_cache_block *oblock,
 			 Query_cache_block *next, Query_cache_block *prev,
 			 Query_cache_block *pnext, Query_cache_block *pprev)
 {
-  nblock->prev = (prev == oblock ? nblock : prev); //check pointer to himself
-  nblock->next = (next == oblock ? nblock : next);
-  prev->next=nblock;
-  next->prev=nblock;
+  if (prev == oblock) //check pointer to himself
+  {
+    nblock->prev = nblock;
+    nblock->next = nblock;
+  }
+  else
+  {
+    nblock->prev = prev;
+    prev->next=nblock;
+  }
+  if (next != oblock)
+  {
+    nblock->next = next;
+    next->prev=nblock;
+  }
   nblock->pprev = pprev; // Physical pointer to himself have only 1 free block
   nblock->pnext = pnext;
   pprev->pnext=nblock;
