@@ -8,7 +8,7 @@ SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVI
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1);
 -- error 1245
 SELECT (SELECT a) as a;
-drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -57,11 +57,11 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 -- error 1240
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
-create table attend (patient_uq int, clinic_uq int, index i1 (clinic_uq));
-create table clinic( uq int primary key, name char(25));
-insert into clinic values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
-insert into attend values (1,1),(1,2),(2,2),(1,3);
-select * from attend where exists (select * from clinic where uq = clinic_uq);
+create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
+create table t7( uq int primary key, name char(25));
+insert into t7 values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta");
+insert into t6 values (1,1),(1,2),(2,2),(1,3);
+select * from t6 where exists (select * from t7 where uq = clinic_uq);
 
 # not unique fields
 -- error 1052
@@ -80,62 +80,62 @@ SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
 SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
 SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
 
-drop table if exists inscrit;
+drop table if exists t8;
 
-CREATE TABLE `inscrit` (
+CREATE TABLE `t8` (
   `pseudo` varchar(35) character set latin1 NOT NULL default '',
   `email` varchar(60) character set latin1 NOT NULL default '',
   PRIMARY KEY  (`pseudo`),
   UNIQUE KEY `email` (`email`)
 ) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
 
-INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
-INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
-INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
-EXPLAIN SELECT pseudo,(SELECT email FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce')) FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
+INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
+INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
+INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
+EXPLAIN SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 -- error 1239
-SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo,email FROM
-inscrit WHERE pseudo='joce');
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
+t8 WHERE pseudo='joce');
 -- error 1239
-SELECT pseudo FROM inscrit WHERE pseudo=(SELECT * FROM inscrit WHERE
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT * FROM t8 WHERE
 pseudo='joce');
-SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 -- error 1240
-SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
+SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo LIKE '%joce%');
 
-drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 
-drop table if exists searchconthardwarefr3;
-CREATE TABLE `searchconthardwarefr3` (
+#searchconthardwarefr3
+CREATE TABLE `t1` (
   `topic` mediumint(8) unsigned NOT NULL default '0',
   `date` date NOT NULL default '0000-00-00',
   `pseudo` varchar(35) character set latin1 NOT NULL default '',
   PRIMARY KEY  (`pseudo`,`date`,`topic`),
   KEY `topic` (`topic`)
 ) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
-INSERT INTO searchconthardwarefr3 (topic,date,pseudo) VALUES
+INSERT INTO t1 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
-EXPLAIN SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
-EXPLAIN SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
-SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
-SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
-SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
+EXPLAIN SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
+EXPLAIN SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
+SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
+SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
+SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
 -- error 1240
-SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
-EXPLAIN SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1);
-drop table searchconthardwarefr3;
+SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
+EXPLAIN SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
+drop table t1;
 
-drop table if exists forumconthardwarefr7, searchconthardwarefr7;
-CREATE TABLE `forumconthardwarefr7` (
+#forumconthardwarefr7 searchconthardwarefr7
+CREATE TABLE `t1` (
   `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
   `maxnumrep` int(10) unsigned NOT NULL default '0',
   PRIMARY KEY  (`numeropost`),
   UNIQUE KEY `maxnumrep` (`maxnumrep`)
 ) TYPE=MyISAM ROW_FORMAT=FIXED;
 
-INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
+INSERT INTO t1 (numeropost,maxnumrep) VALUES (40143,1),(43506,2);
 
-CREATE TABLE `searchconthardwarefr7` (
+CREATE TABLE `t2` (
       `mot` varchar(30) NOT NULL default '',
       `topic` mediumint(8) unsigned NOT NULL default '0',
       `date` date NOT NULL default '0000-00-00',
@@ -143,37 +143,38 @@ CREATE TABLE `searchconthardwarefr7` (
        PRIMARY KEY  (`mot`,`pseudo`,`date`,`topic`)
     ) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
 
-INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
-select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
-SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
+INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
+select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
+SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
-SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
-drop table forumconthardwarefr7, searchconthardwarefr7;
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1);
+drop table t1, t2;
 
-drop table if exists forumconthardwarefr7;
-CREATE TABLE `forumconthardwarefr7` (
+#forumconthardwarefr7
+drop table if exists t1;
+CREATE TABLE `t1` (
   `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
   `maxnumrep` int(10) unsigned NOT NULL default '0',
   PRIMARY KEY  (`numeropost`),
   UNIQUE KEY `maxnumrep` (`maxnumrep`)
 ) TYPE=MyISAM ROW_FORMAT=FIXED;
 
-INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
 -- error 1240
-select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 -- error 1240
-select numeropost as a FROM forumconthardwarefr7 ORDER BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
-drop table if exists forumconthardwarefr7;
+select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
+drop table t1;
 
-drop table if exists iftest;
-CREATE TABLE iftest (field char(1) NOT NULL DEFAULT 'b');
-INSERT INTO iftest VALUES ();
+#iftest
+CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
+INSERT INTO t1 VALUES ();
 -- error 1240
-SELECT field FROM iftest WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
-drop table iftest;
+SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+drop table t1;
 
-drop table if exists threadhardwarefr7;
-CREATE TABLE `threadhardwarefr7` (
+# threadhardwarefr7
+CREATE TABLE `t1` (
   `numeropost` mediumint(8) unsigned NOT NULL default '0',
   `numreponse` int(10) unsigned NOT NULL auto_increment,
   `pseudo` varchar(35) NOT NULL default '',
@@ -182,13 +183,13 @@ CREATE TABLE `threadhardwarefr7` (
   KEY `pseudo` (`pseudo`,`numeropost`)
 ) TYPE=MyISAM;
 -- error 1245
-SELECT (SELECT numeropost FROM threadhardwarefr7 HAVING numreponse=a),numreponse FROM (SELECT * FROM threadhardwarefr7) as a;
+SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
 -- error 1054
-SELECT numreponse, (SELECT numeropost FROM threadhardwarefr7 HAVING numreponse=a) FROM (SELECT * FROM threadhardwarefr7) as a;
-SELECT numreponse, (SELECT numeropost FROM threadhardwarefr7 HAVING numreponse=1) FROM (SELECT * FROM threadhardwarefr7) as a;
-INSERT INTO threadhardwarefr7 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
+SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
+SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
+INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
 -- error 1240
-EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM threadhardwarefr7 WHERE numeropost='1');
-EXPLAIN SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1';
-EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1');
-drop table if exists threadhardwarefrtest7;
+EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
+EXPLAIN SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
+EXPLAIN SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
+drop table t1;
