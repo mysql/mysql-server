@@ -229,7 +229,11 @@ SHOW_COMP_OPTION have_openssl=SHOW_OPTION_YES;
 #else
 SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_BROKEN_REALPATH
+SHOW_COMP_OPTION have_symlink=SHOW_OPTION_NO;
+#else
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
+#endif
 #ifdef HAVE_QUERY_CACHE
 SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_YES;
 #else

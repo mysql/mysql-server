@@ -91,5 +91,5 @@ CREATE TABLE `t1` (
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 
 REPAIR TABLE t1;
+CHECK TABLE t1;
 drop table t1;
-
