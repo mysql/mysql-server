@@ -215,31 +215,32 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   if (res == 0)				/* Connected quickly! */
     return(0);
 
-  /* Otherwise, our connection is "in progress."  We can use
-   * the select() call to wait up to a specified period of time
-   * for the connection to suceed.  If select() returns 0
-   * (after waiting howevermany seconds), our socket never became
-   * writable (host is probably unreachable.)  Otherwise, if
-   * select() returns 1, then one of two conditions exist:
-   *
-   * 1. An error occured.  We use getsockopt() to check for this.
-   * 2. The connection was set up sucessfully: getsockopt() will
-   * return 0 as an error.
-   *
-   * Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
-   * who posted this method of timing out a connect() in
-   * comp.unix.programmer on August 15th, 1997.
-   */
+  /*
+    Otherwise, our connection is "in progress."  We can use
+    the select() call to wait up to a specified period of time
+    for the connection to succeed.  If select() returns 0
+    (after waiting howevermany seconds), our socket never became
+    writable (host is probably unreachable.)  Otherwise, if
+    select() returns 1, then one of two conditions exist:
+
+    1. An error occured.  We use getsockopt() to check for this.
+    2. The connection was set up sucessfully: getsockopt() will
+    return 0 as an error.
+
+    Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
+    who posted this method of timing out a connect() in
+    comp.unix.programmer on August 15th, 1997.
+  */
 
   FD_ZERO(&sfds);
   FD_SET(s, &sfds);
   /*
-   * select could be interrupted by a signal, and if it is,
-   * the timeout should be adjusted and the select restarted
-   * to work around OSes that don't restart select and
-   * implementations of select that don't adjust tv upon
-   * failure to reflect the time remaining
-   */
+    select could be interrupted by a signal, and if it is,
+    the timeout should be adjusted and the select restarted
+    to work around OSes that don't restart select and
+    implementations of select that don't adjust tv upon
+    failure to reflect the time remaining
+  */
   start_time = time(NULL);
   for (;;)
   {
@@ -258,10 +259,11 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
       return 1;
   }
 
-  /* select() returned something more interesting than zero, let's
-   * see if we have any errors.  If the next two statements pass,
-   * we've got an open socket!
-   */
+  /*
+    select() returned something more interesting than zero, let's
+    see if we have any errors.  If the next two statements pass,
+    we've got an open socket!
+  */
 
   s_err=0;
   if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
@@ -275,6 +277,7 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   return(0);					/* It's all good! */
 #endif
 }
+
 
 /*
   Create a named pipe connection
@@ -348,15 +351,17 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 }
 #endif
 
+
 /*
   Create new shared memory connection, return handler of connection
 
   SYNOPSIS
     create_shared_memory()
-    mysql  Pointer of mysql structure
-    net    Pointer of net structure
-    connect_timeout Timeout of connection
+    mysql		Pointer of mysql structure
+    net			Pointer of net structure
+    connect_timeout	Timeout of connection
 */
+
 #ifdef HAVE_SMEM
 HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 {
@@ -401,58 +406,60 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((event_connect_request = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if (!(event_connect_request= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR;
     goto err;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if ((event_connect_answer = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  if (!(event_connect_answer= OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR;
     goto err;
   }
   strmov(suffix_pos, "CONNECT_DATA");
-  if ((handle_connect_file_map = OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)) == NULL)
+  if (!(handle_connect_file_map= OpenFileMapping(FILE_MAP_WRITE,FALSE,tmp)))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR;
     goto err;
   }
-  if ((handle_connect_map = MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,sizeof(DWORD))) == NULL)
+  if (!(handle_connect_map= MapViewOfFile(handle_connect_file_map,
+					  FILE_MAP_WRITE,0,0,sizeof(DWORD))))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_MAP_ERROR;
     goto err;
   }
-/*
- Send to server request of connection
-*/
+  /*
+    Send to server request of connection
+  */
   if (!SetEvent(event_connect_request))
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_SET_ERROR;
     goto err;
   }
-/*
-  Wait of answer from server
-*/
-  if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) != WAIT_OBJECT_0)
+  /*
+    Wait of answer from server
+  */
+  if (WaitForSingleObject(event_connect_answer,connect_timeout*1000) !=
+      WAIT_OBJECT_0)
   {
     error_allow = CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR;
     goto err;
   }
-/*
-  Get number of connection
-*/
+  /*
+    Get number of connection
+  */
   connect_number = uint4korr(handle_connect_map);/*WAX2*/
-  p = int2str(connect_number, connect_number_char, 10);
+  p= int2str(connect_number, connect_number_char, 10);
 
-/*
-  The name of event and file-mapping events create agree next rule:
+  /*
+    The name of event and file-mapping events create agree next rule:
     shared_memory_base_name+unique_part+number_of_connection
-  Where:
-    shared_memory_base_name is uniquel value for each server
-    unique_part is uniquel value for each object (events and file-mapping)
-    number_of_connection is number of connection between server and client
-*/
+    Where:
+      shared_memory_base_name is uniquel value for each server
+      unique_part is uniquel value for each object (events and file-mapping)
+      number_of_connection is number of connection between server and client
+  */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
 		       "_",NullS);
   strmov(suffix_pos, "DATA");
@@ -495,33 +502,46 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
-/*
-  Set event that server should send data
-*/
+  /*
+    Set event that server should send data
+  */
   SetEvent(event_server_read);
 
 err2:
   if (error_allow == 0)
   {
-    net->vio = vio_new_win32shared_memory(net,handle_file_map,handle_map,event_server_wrote,
-                                          event_server_read,event_client_wrote,event_client_read);
+    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+					 event_server_wrote,
+                                         event_server_read,event_client_wrote,
+					 event_client_read);
   }
   else
   {
     error_code = GetLastError();
-    if (event_server_read) CloseHandle(event_server_read);
-    if (event_server_wrote) CloseHandle(event_server_wrote);
-    if (event_client_read) CloseHandle(event_client_read);
-    if (event_client_wrote) CloseHandle(event_client_wrote);
-    if (handle_map) UnmapViewOfFile(handle_map);
-    if (handle_file_map) CloseHandle(handle_file_map);
+    if (event_server_read)
+      CloseHandle(event_server_read);
+    if (event_server_wrote)
+      CloseHandle(event_server_wrote);
+    if (event_client_read)
+      CloseHandle(event_client_read);
+    if (event_client_wrote)
+      CloseHandle(event_client_wrote);
+    if (handle_map)
+      UnmapViewOfFile(handle_map);
+    if (handle_file_map)
+      CloseHandle(handle_file_map);
   }
 err:
-  if (error_allow) error_code = GetLastError();
-  if (event_connect_request) CloseHandle(event_connect_request);
-  if (event_connect_answer) CloseHandle(event_connect_answer);
-  if (handle_connect_map) UnmapViewOfFile(handle_connect_map);
-  if (handle_connect_file_map) CloseHandle(handle_connect_file_map);
+  if (error_allow)
+    error_code = GetLastError();
+  if (event_connect_request)
+    CloseHandle(event_connect_request);
+  if (event_connect_answer)
+    CloseHandle(event_connect_answer);
+  if (handle_connect_map)
+    UnmapViewOfFile(handle_connect_map);
+  if (handle_connect_file_map)
+    CloseHandle(handle_connect_file_map);
   if (error_allow)
   {
     net->last_errno=error_allow;
@@ -532,11 +552,12 @@ err:
     return(INVALID_HANDLE_VALUE);
   }
   return(handle_map);
-};
+}
 #endif
 
+
 /*****************************************************************************
-  read a packet from server. Give error message if socket was down
+  Read a packet from server. Give error message if socket was down
   or packet is an error message
 *****************************************************************************/
 
@@ -1796,10 +1817,11 @@ void STDCALL mysql_once_init(void)
 #endif
 }
 
-/**************************************************************************
+
+/*
   Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
   NB! Errors are not reported until you do mysql_real_connect.
-**************************************************************************/
+*/
 
 #define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
 
@@ -1822,10 +1844,10 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 }
 
 
-/**************************************************************************
+/*
   Free strings in the SSL structure and clear 'use_ssl' flag.
   NB! Errors are not reported until you do mysql_real_connect.
-**************************************************************************/
+*/
 
 #ifdef HAVE_OPENSSL
 static void
@@ -1846,6 +1868,75 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->connector_fd = 0;
 }
 #endif /* HAVE_OPENSSL */
+
+
+/*
+  Handle password authentication
+*/
+
+static my_bool mysql_autenticate(MYSQL *mysql, const char *passwd)
+{
+  ulong pkt_length;
+  NET *net= &mysql->net;
+  char buff[SCRAMBLE41_LENGTH];
+  char password_hash[SCRAMBLE41_LENGTH]; /* Used for storage of stage1 hash */
+
+  /* We shall only query server if it expect us to do so */
+  if ((pkt_length=net_safe_read(mysql)) == packet_error)
+    goto error;
+
+  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      This should always happen with new server unless empty password
+      OK/Error packets have zero as the first char
+    */
+    if (pkt_length == 24 && net->read_pos[0])
+    {
+      /* Old passwords will have '*' at the first byte of hash */
+      if (net->read_pos[0] != '*')
+      {
+        /* Build full password hash as it is required to decode scramble */
+        password_hash_stage1(buff, passwd);
+        /* Store copy as we'll need it later */
+        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
+        /* Finally hash complete password using hash we got from server */
+        password_hash_stage2(password_hash,(const char*) net->read_pos);
+        /* Decypt and store scramble 4 = hash for stage2 */
+        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
+        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
+        /* Encode scramble with password. Recycle buffer */
+        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
+      }
+      else
+      {
+	/* Create password to decode scramble */
+	create_key_from_old_password(passwd,password_hash);
+	/* Decypt and store scramble 4 = hash for stage2 */
+	password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
+		       password_hash, SCRAMBLE41_LENGTH);
+	mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
+	/* Finally scramble decoded scramble with password */
+	scramble(buff, mysql->scramble_buff, passwd,0);
+      }
+      /* Write second package of authentication */
+      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
+      {
+        net->last_errno= CR_SERVER_LOST;
+        strmov(net->last_error,ER(net->last_errno));
+        goto error;
+      }
+      /* Read what server thinks about out new auth message report */
+      if (net_safe_read(mysql) == packet_error)
+	goto error;
+    }
+  }
+  return 0;
+
+error:
+  return 1;
+}
 
 /**************************************************************************
   Connect to sql server
@@ -1884,7 +1975,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
-  char          password_hash[SCRAMBLE41_LENGTH]; /* tmp storage stage1 hash */
   my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
@@ -1930,7 +2020,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     passwd=mysql->options.password;
 #ifndef DONT_USE_MYSQL_PWD
     if (!passwd)
-      passwd=getenv("MYSQL_PWD");  /* get it from environment (haneke) */
+      passwd=getenv("MYSQL_PWD");		/* get it from environment */
 #endif
   }
   if (!db || !db[0])
@@ -1940,30 +2030,29 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!unix_socket)
     unix_socket=mysql->options.unix_socket;
 
-  mysql->reconnect=1;			/* Reconnect as default */
+  mysql->reconnect=1;				/* Reconnect as default */
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
 
   /*
-  ** Grab a socket and connect it to the server
+    Grab a socket and connect it to the server
   */
 #if defined(HAVE_SMEM)
-  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)&&
+  if ((!mysql->options.protocol ||
+       mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
 	INVALID_HANDLE_VALUE)
     {
       DBUG_PRINT("error",
-        ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
-          host ? host : "<null>",
-          unix_socket ? unix_socket : "<null>",
-          (int) mysql->options.shared_memory_base_name,
-          (int) have_tcpip));
-	  if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
-	    goto error;
-/*
-Try also with PIPE or TCP/IP
-*/
+		 ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
+		  host ? host : "<null>",
+		  unix_socket ? unix_socket : "<null>",
+		  (int) mysql->options.shared_memory_base_name,
+		  (int) have_tcpip));
+      if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
+	goto error;
+      /* Try also with PIPE or TCP/IP */
     }
     else
     {
@@ -1974,70 +2063,76 @@ Try also with PIPE or TCP/IP
       host_info=(char*) ER(CR_SHARED_MEMORY_CONNECTION);
     }
   } else
-#endif //HAVE_SMEM
+#endif /* HAVE_SMEM */
 #if defined(HAVE_SYS_UN_H)
-  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_SOCKET)&&
-     (!host || !strcmp(host,LOCAL_HOST)) && (unix_socket || mysql_unix_port))
-  {
-    host=LOCAL_HOST;
-    if (!unix_socket)
-      unix_socket=mysql_unix_port;
-    host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
-    DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
-    if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
+    if ((!mysql->options.protocol ||
+	 mysql->options.protocol == MYSQL_PROTOCOL_SOCKET)&&
+	(!host || !strcmp(host,LOCAL_HOST)) &&
+	(unix_socket || mysql_unix_port))
     {
-      net->last_errno=CR_SOCKET_CREATE_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),socket_errno);
-      goto error;
-    }
-    net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
-    bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
-    UNIXaddr.sun_family = AF_UNIX;
-    strmov(UNIXaddr.sun_path, unix_socket);
-    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
-		   mysql->options.connect_timeout))
-    {
-      DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
-      net->last_errno=CR_CONNECTION_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
-      goto error;
+      host=LOCAL_HOST;
+      if (!unix_socket)
+	unix_socket=mysql_unix_port;
+      host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
+      DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
+      if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
+      {
+	net->last_errno=CR_SOCKET_CREATE_ERROR;
+	sprintf(net->last_error,ER(net->last_errno),socket_errno);
+	goto error;
+      }
+      net->vio = vio_new(sock, VIO_TYPE_SOCKET, TRUE);
+      bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
+      UNIXaddr.sun_family = AF_UNIX;
+      strmov(UNIXaddr.sun_path, unix_socket);
+      if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+		     mysql->options.connect_timeout))
+      {
+	DBUG_PRINT("error",("Got error %d on connect to local server",
+			    socket_errno));
+	net->last_errno=CR_CONNECTION_ERROR;
+	sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
+	goto error;
+      }
+      else
+	mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
     }
     else
-      mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
-  }
-  else
 #elif defined(__WIN__)
-  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_PIPE)&&
-      ((unix_socket || !host && is_NT() ||
-	host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||!have_tcpip))&&(!net->vio))
-  {
-    sock=0;
-    if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
-		   (char**) &host, (char**) &unix_socket)) ==
-                    INVALID_HANDLE_VALUE)
     {
-      DBUG_PRINT("error",
-                ("host: '%s'  socket: '%s'  have_tcpip: %d",
-                host ? host : "<null>",
-                unix_socket ? unix_socket : "<null>",
-                (int) have_tcpip));
-      if (mysql->options.protocol == MYSQL_PROTOCOL_PIPE ||
-          (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
-          (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
-            goto error;
-	    /*
-            Try also with TCP/IP
-            */
+      if ((!mysql->options.protocol ||
+	   mysql->options.protocol == MYSQL_PROTOCOL_PIPE)&&
+	  ((unix_socket || !host && is_NT() ||
+	    host && !strcmp(host,LOCAL_HOST_NAMEDPIPE) ||! have_tcpip))&&
+	  (!net->vio))
+      {
+	sock=0;
+	if ((hPipe=create_named_pipe(net, mysql->options.connect_timeout,
+				     (char**) &host, (char**) &unix_socket)) ==
+	    INVALID_HANDLE_VALUE)
+	{
+	  DBUG_PRINT("error",
+		     ("host: '%s'  socket: '%s'  have_tcpip: %d",
+		      host ? host : "<null>",
+		      unix_socket ? unix_socket : "<null>",
+		      (int) have_tcpip));
+	  if (mysql->options.protocol == MYSQL_PROTOCOL_PIPE ||
+	      (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
+	      (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
+	    goto error;
+	  /* Try also with TCP/IP */
+	}
+	else
+	{
+	  net->vio=vio_new_win32pipe(hPipe);
+	  sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
+		  unix_socket);
+	}
+      }
     }
-    else
-    {
-      net->vio=vio_new_win32pipe(hPipe);
-      sprintf(host_info=buff, ER(CR_NAMEDPIPE_CONNECTION), host,
-        unix_socket);
-    }
-  }
 #endif
-  if ((!mysql->options.protocol || mysql->options.protocol == MYSQL_PROTOCOL_TCP)&&(!net->vio))
+  if ((!mysql->options.protocol ||
+       mysql->options.protocol == MYSQL_PROTOCOL_TCP)&&(!net->vio))
   {
     unix_socket=0;				/* This is not used */
     if (!port)
@@ -2058,7 +2153,7 @@ Try also with PIPE or TCP/IP
     sock_addr.sin_family = AF_INET;
 
     /*
-    ** The server name may be a host name or IP address
+      The server name may be a host name or IP address
     */
 
     if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
@@ -2084,22 +2179,22 @@ Try also with PIPE or TCP/IP
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		 mysql->options.connect_timeout))
+		   mysql->options.connect_timeout))
     {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
+      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
+			  host));
       net->last_errno= CR_CONN_HOST_ERROR;
       sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
       goto error;
     }
   }
-  else
-    if (!net->vio)
-    {
-      DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));
-      net->last_errno= CR_CONN_UNKNOW_PROTOCOL;
-      sprintf(net->last_error ,ER(CR_CONN_UNKNOW_PROTOCOL));
-      goto error;
-    };
+  else if (!net->vio)
+  {
+    DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));
+    net->last_errno= CR_CONN_UNKNOW_PROTOCOL;
+    sprintf(net->last_error ,ER(CR_CONN_UNKNOW_PROTOCOL));
+    goto error;
+  }
 
   if (!net->vio || my_net_init(net, net->vio))
   {
@@ -2167,7 +2262,6 @@ Try also with PIPE or TCP/IP
     if (!(mysql->charset =
 	  get_charset((uint8) mysql->server_language, MYF(0))))
       mysql->charset = default_charset_info; /* shouldn't be fatal */
-
   }
   else
     mysql->charset=default_charset_info;
@@ -2232,7 +2326,7 @@ Try also with PIPE or TCP/IP
     client_flag|=CLIENT_CONNECT_WITH_DB;
   /* Remove options that server doesn't support */
   client_flag= ((client_flag &
-		~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)) |
+		 ~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)) |
 		(client_flag & mysql->server_capabilities));
 
 #ifndef HAVE_COMPRESS
@@ -2308,7 +2402,7 @@ Try also with PIPE or TCP/IP
   /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
-   */
+  */
   if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
   {
     if (passwd[0])
@@ -2319,17 +2413,17 @@ Try also with PIPE or TCP/IP
       end+=SCRAMBLE_LENGTH;
       *end=0;
     }
-    else  /* For empty password*/
+    else				/* For empty password*/
     {
       end=strend(end)+1;
-      *end=0; /* Store zero length scramble */
+      *end=0;				/* Store zero length scramble */
     }
   }
   else
   {
     /*
-     Real scramble is only sent to old servers. This can be blocked 
-     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+      Real scramble is only sent to old servers. This can be blocked 
+      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
     */
     end=scramble(strend(end)+1, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
@@ -2349,58 +2443,8 @@ Try also with PIPE or TCP/IP
     goto error;
   }
 
-  /* We shall only query sever if it expect us to do so */
-
-  if ( (pkt_length=net_safe_read(mysql)) == packet_error)
+  if (mysql_autenticate(mysql, passwd))
     goto error;
-
-  if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /* This should always happen with new server unless empty password */
-    if (pkt_length==24 && net->read_pos[0]) 
-    /* OK/Error packets have zero as the first char */
-    {
-      /* Old passwords will have '*' at the first byte of hash */
-      if (net->read_pos[0] != '*')
-      {
-        /* Build full password hash as it is required to decode scramble */
-        password_hash_stage1(buff, passwd);
-        /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
-        /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,(const char*) net->read_pos);
-        /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-        /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
-      }
-      else
-      {
-       /* Create password to decode scramble */
-       create_key_from_old_password(passwd,password_hash);
-       /* Decypt and store scramble 4 = hash for stage2 */
-       password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		      password_hash, SCRAMBLE41_LENGTH);
-       mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-       /* Finally scramble decoded scramble with password */
-       scramble(buff, mysql->scramble_buff, passwd,0);
-      }
-      /* Write second package of authentication */
-      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
-      {
-        net->last_errno= CR_SERVER_LOST;
-        strmov(net->last_error,ER(net->last_errno));
-        goto error;
-      }
-      /* Read What server thinks about out new auth message report */
-      if (net_safe_read(mysql) == packet_error)
-          goto error;
-    }
-  }
-
-    /* End of authentication part of handshake */
 
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
@@ -2521,10 +2565,6 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
-  ulong		pkt_length;
-  char          password_hash[SCRAMBLE41_LENGTH]; /* Used for tmp storage of stage1 hash */
-  NET		*net= &mysql->net;
-
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -2553,83 +2593,36 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
       *end=0; /* Store zero length scramble */
   }
   else
+  {
    /*
-    Real scramble is only sent to old servers. This can be blocked 
-    by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
+     Real scramble is only sent to old servers. This can be blocked 
+     by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
    */
     end=scramble(end, mysql->scramble_buff, passwd,
                  (my_bool) (mysql->protocol_version == 9));
-
+  }
   /* Add database if needed */
   end=strmov(end+1,db ? db : "");
 
   /* Write authentication package */
-
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  /* We shall only query sever if it expect us to do so */
-  if ( (pkt_length=net_safe_read(mysql)) == packet_error)
+  if (mysql_autenticate(mysql, passwd))
     goto error;
 
-  if  (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /* This should always happen with new server unless empty password */
-    if (pkt_length==24 && net->read_pos[0])
-    /* Err/OK messages has first character=0 */
-    {
-      /* Old passwords will have zero at the first byte of hash */
-      if (net->read_pos[0] != '*')
-      {
-        /* Build full password hash as it is required to decode scramble */
-        password_hash_stage1(buff, passwd);
-        /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
-        /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash, (const char*) net->read_pos);
-        /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((const char*) net->read_pos+4, mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-        /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
-      }
-      else
-      {
-        /* Create password to decode scramble */
-        create_key_from_old_password(passwd,password_hash);
-        /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-        /* Finally scramble decoded scramble with password */
-        scramble(buff, mysql->scramble_buff, passwd,
-                  (my_bool) (mysql->protocol_version == 9));
-      }
-      /* Write second package of authentication */
-      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
-      {
-        net->last_errno= CR_SERVER_LOST;
-        strmov(net->last_error,ER(net->last_errno));
-        goto error;
-      }
-      /* Read What server thinks about out new auth message report */
-      if (net_safe_read(mysql) == packet_error)
-          goto error;
-    }
-  }
-
+  /* Free old connect information */
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->db,MYF(MY_ALLOW_ZERO_PTR));
 
+  /* alloc new connect information */
   mysql->user=  my_strdup(user,MYF(MY_WME));
   mysql->passwd=my_strdup(passwd,MYF(MY_WME));
   mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   DBUG_RETURN(0);
 
-  error:
+error:
   DBUG_RETURN(1);
-
 }
 
 
@@ -5102,6 +5095,7 @@ static void fetch_result_datetime(MYSQL_BIND *param, uchar **row)
   *row+= read_binary_datetime(tm, row);
 }
 
+
 static void fetch_result_str(MYSQL_BIND *param, uchar **row)
 {
   ulong length= net_field_length(row);
@@ -5110,7 +5104,7 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   /* Add an end null if there is room in the buffer */
   if (copy_length != param->buffer_length)
     *(param->buffer+copy_length)= '\0';
-  *param->length= length; // return total length
+  *param->length= length;			/* return total length */
   *row+= length;
 }
 

@@ -130,6 +130,10 @@ select d from t1 having d like "%HELLO%";
 d
 HELLO
 HELLO MY
+select d from t1 having d like "%HE%LLO%";
+d
+HELLO
+HELLO MY
 select t from t1 order by t;
 t
 NULL

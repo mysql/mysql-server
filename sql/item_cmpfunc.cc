@@ -1129,10 +1129,15 @@ void in_string::set(uint pos,Item *item)
   String *res=item->val_str(str);
   if (res && res != str)
     *str= *res;
-  // BAR TODO: I'm not sure this is absolutely correct
   if (!str->charset())
-      str->set_charset(default_charset_info);
+  {
+    CHARSET_INFO *cs;
+    if (!(cs= item->charset()))
+      cs= default_charset_info;		// Should never happen for STR items
+    str->set_charset(cs);
+  }
 }
+
 
 byte *in_string::get_value(Item *item)
 {
@@ -1692,6 +1697,7 @@ longlong Item_func_isnull::val_int()
   return args[0]->is_null() ? 1: 0;
 }
 
+
 longlong Item_func_isnotnull::val_int()
 {
   return args[0]->is_null() ? 0 : 1;
@@ -1713,9 +1719,6 @@ longlong Item_func_like::val_int()
     return 0;
   }
   null_value=0;
-  if ((res->charset()->state & MY_CS_BINSORT) ||
-      (res2->charset()->state & MY_CS_BINSORT))
-    set_charset(&my_charset_bin);
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(charset(),
@@ -1748,10 +1751,19 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     return 1;
 
   /*
-    TODO--we could do it for non-const, but we'd have to
-    recompute the tables for each row--probably not worth it.
+    Comparision is by default done according to character set of LIKE
   */
-  if (args[1]->const_item() && !(specialflag & SPECIAL_NO_NEW_FUNC))
+  if (binary_cmp)
+    set_charset(&my_charset_bin);
+  else
+    set_charset(args[1]->charset());
+
+  /*
+    We could also do boyer-more for non-const items, but as we would have to
+    recompute the tables for each row it's not worth it.
+  */
+  if (args[1]->const_item() && !use_strnxfrm(charset()) &&
+      !(specialflag & SPECIAL_NO_NEW_FUNC))
   {
     String* res2 = args[1]->val_str(&tmp_value2);
     if (!res2)
