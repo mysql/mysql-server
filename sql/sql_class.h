@@ -788,6 +788,12 @@ public:
   bool       slow_command;
 
   /*
+    Used in prepared statement to prevent using table/field cache in
+    Item_idend, bacuse it can point on removed table.
+  */
+  bool	     no_table_fix_fields_cache;
+
+  /*
     If we do a purge of binary logs, log index info of the threads
     that are currently reading it needs to be adjusted. To do that
     each thread that is using LOG_INFO needs to adjust the pointer to it
@@ -1044,13 +1050,15 @@ public:
 
 class select_insert :public select_result {
  public:
+  TABLE_LIST *table_list;
   TABLE *table;
   List<Item> *fields;
   ulonglong last_insert_id;
   COPY_INFO info;
 
-  select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
-    :table(table_par),fields(fields_par), last_insert_id(0)
+  select_insert(TABLE *table_par, List<Item> *fields_par,
+		enum_duplicates duplic)
+    :table(table_par), fields(fields_par), last_insert_id(0)
   {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;

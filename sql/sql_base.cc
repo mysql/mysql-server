@@ -1884,7 +1884,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   char name_buff[NAME_LEN+1];
 
 
-  if (item->cached_table)
+  if (!thd->no_table_fix_fields_cache && item->cached_table)
   {
     /*
       This shortcut is used by prepared statements. We assuming that 
@@ -1895,8 +1895,9 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       field makes some prepared query ambiguous and so erronous, but we 
       accept this trade off.
     */
-    found= find_field_in_table(thd,tables->table,name,length,
-                               test(tables->table->grant.want_privilege),
+    found= find_field_in_table(thd, item->cached_table->table, name, length,
+                               test(item->cached_table->
+				    table->grant.want_privilege),
                                1, &(item->cached_field_index));
 
     if (found)
@@ -2381,6 +2382,8 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
   table_map not_null_tables= 0;
+  Statement *stmt= thd->current_statement, backup;
+
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
   
@@ -2394,18 +2397,21 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     not_null_tables= (*conds)->not_null_tables();
   }
 
+
   /* Check if we are using outer joins */
   for (TABLE_LIST *table=tables ; table ; table=table->next)
   {
     if (table->on_expr)
     {
+      if (stmt)
+	thd->set_n_backup_item_arena(stmt, &backup);
       /* Make a join an a expression */
       thd->where="on clause";
       
       if (!table->on_expr->fixed &&
 	  table->on_expr->fix_fields(thd, tables, &table->on_expr) ||
 	  table->on_expr->check_cols(1))
-	DBUG_RETURN(1);
+	goto err;
       thd->lex->current_select->cond_count++;
 
       /*
@@ -2418,18 +2424,22 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
       {
 	table->outer_join= 0;
 	if (!(*conds= and_conds(thd, *conds, table->on_expr, tables)))
-	  DBUG_RETURN(1);
+	  goto err;
 	table->on_expr=0;
       }
+      if (stmt)
+	thd->restore_backup_item_arena(stmt, &backup);
     }
     if (table->natural_join)
     {
+      if (stmt)
+	thd->set_n_backup_item_arena(stmt, &backup);
       /* Make a join of all fields with have the same name */
       TABLE *t1= table->table;
       TABLE *t2= table->natural_join->table;
       Item_cond_and *cond_and= new Item_cond_and();
       if (!cond_and)				// If not out of memory
-	DBUG_RETURN(1);
+	goto err;
       cond_and->top_level_item();
 
       Field **t1_field, *t2_field;
@@ -2445,7 +2455,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           Item_func_eq *tmp=new Item_func_eq(new Item_field(*t1_field),
                                              new Item_field(t2_field));
           if (!tmp)
-            DBUG_RETURN(1);
+            goto err;
           /* Mark field used for table cache */
           (*t1_field)->query_id= t2_field->query_id= thd->query_id;
           cond_and->list.push_back(tmp);
@@ -2460,18 +2470,36 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	if (!(*conds= and_conds(thd, *conds, cond_and, tables)) ||
 	    (*conds && !(*conds)->fixed &&
 	     (*conds)->fix_fields(thd, tables, conds)))
-	  DBUG_RETURN(1);
+	  goto err;
       }
       else
       {
 	table->on_expr= and_conds(thd, table->on_expr, cond_and, tables);
 	if (table->on_expr && !table->on_expr->fixed &&
 	    table->on_expr->fix_fields(thd, tables, &table->on_expr))
-	  DBUG_RETURN(1);
+	  goto err;
       }
+      if (stmt)
+	thd->restore_backup_item_arena(stmt, &backup);
     }
   }
+
+  if (stmt)
+  {
+    /*
+      We are in prepared statement preparation code => we should store
+      WHERE clause changing for next executions.
+
+      We do this ON -> WHERE transformation only once per PS statement.
+    */
+    thd->lex->current_select->where= *conds;
+  }
   DBUG_RETURN(test(thd->net.report_error));
+
+err:
+  if (stmt)
+      thd->restore_backup_item_arena(stmt, &backup);
+  DBUG_RETURN(1);
 }
 
 
