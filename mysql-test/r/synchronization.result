@@ -1,0 +1,23 @@
+CREATE TABLE t1 (a int);
+ CREATE TABLE t2 LIKE t1;
+ALTER TABLE t1 add key(a);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
+CREATE TABLE t1 (a int);
+ CREATE TABLE t2 LIKE t1;
+CREATE TABLE t2 (b int);
+let's take a look at result of create .. like : 
+-----------
+ERROR HY000: Can't create/write to file './test/t2.frm' (Errcode: 17)
+-----------
+
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `b` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
